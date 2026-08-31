@@ -26,16 +26,16 @@
 
 | Service | Usage dans le projet | Où l'obtenir | Clé / identifiant requis |
 |---|---|---|---|
-| **Domaine** `qoe.fi` | Identité + DNS de tout le stack | Registrar actuel (Hetzner) / **Netcup** (transfert DNS décidé) | Zone DNS + NS + compte |
+| **Domaine** `qoe.fi` | Identité + DNS de tout le stack | **Zone DNS chez Hetzner** (NS `*.ns.hetzner.*`, export du 31/08/2026) | Zone DNS + NS + compte |
 | **Supabase self-hosted** | DB + Auth + Storage + Realtime | Le stack Supabase dans `/var/www/supabase` | voir §Auth |
 | **Google OAuth** | Connexion sociale (seul provider activé dans `supabase/config.toml`) | console.cloud.google.com | `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` / `_SECRET` |
-| **SMTP (GoTrue)** | Emails d'auth : confirmation, reset, magic link, invite | **self-hosté** (Postfix/OpenDKIM sur le VPS) | host, port, user, pass, from |
-| **Mailer sécurité** | Emails **transactionnels de sécurité** (alerte login, mdp, archive RGPD) | **self-hosté** — le code pointe Resend, **à migrer en SMTP** (§4) | `SMTP_*` + `EMAIL_FROM` |
-| **Newsletter créateurs** | Envoi de masse aux abonnés | **self-hosté** — adaptateur `EmailProvider` à écrire dans le worker (§4) | `EMAIL_PROVIDER` + `SMTP_*` |
+| **SMTP (GoTrue)** | Emails d'auth : confirmation, reset, magic link, invite | **self-hosté** — Stalwart sur le VPS (§4) | host, port, user, pass, from |
+| **Mailer sécurité** | Emails **transactionnels de sécurité** (alerte login, mdp, archive RGPD) | **self-hosté** — ✅ migré en SMTP, switch `EMAIL_PROVIDER` (§4) | `SMTP_*` + `EMAIL_FROM` |
+| **Newsletter créateurs** | Envoi de masse aux abonnés | **self-hosté** — ✅ adaptateur `EmailProvider` SMTP écrit dans le worker (§4) | `EMAIL_PROVIDER` + `SMTP_*` |
 | **Jina / Embedding** | Recherche sémantique + recommandations (inférence **locale**) | Téléchargé au bootstrap | **aucune clé** — juste le modèle `jina-embeddings-v3-Q8_0.gguf` (≈600 Mo) + `EMBEDDING_URL` |
 | **OpenAI** | IA (résumés, image analysis, Supabase Studio AI) | platform.openai.com | `OPENAI_API_KEY` |
 | **Anthropic** | IA (rédaction) | console.anthropic.com | `ANTHROPIC_API_KEY` |
-| **Umami** | Analytics self-hosté | Créé dans le stack | user admin + password + `UMAMI_HASH_SALT` + `NEXT_PUBLIC_UMAMI_WEBSITE_ID` |
+| **Umami** | Analytics self-hosté | Créé dans le stack | admin (1er compte) + **clé d'API** → `UMAMI_API_KEY` + `NEXT_PUBLIC_UMAMI_WEBSITE_ID` |
 | **Meilisearch** | Full-text search (interne) | Générable | `MEILI_MASTER_KEY` |
 | **Stripe** | Paiements créateurs | dashboard.stripe.com | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` — ⚠️ **pas encore en place** : tout est à créer le jour où on l'active (voir §8) |
 | **VPS / hébergeur** | Tout le stack | Netcup (Debian 13, 4 cœurs / 8 Go) | accès root, IP, PTR/reverse DNS |
@@ -46,21 +46,38 @@
 
 ---
 
-## 2️⃣ 🌍 Domaine & DNS
+## 2️⃣ 🌍 Domaine & DNS — état actuel (zone exportée le 31/08/2026)
 
-> ✅ **État : le DNS pointe déjà vers le nouveau VPS** (Netcup). La zone est recréée chez
-> Netcup, les NS sont pointés, les records A/wildcard mènent à l'IP du VPS. Il reste à
-> vérifier la propagation (et le TTL à 300 s) avant la bascule TLS.
+> ✅ La zone est hébergée chez **Hetzner** (NS `hydrogen/oxygen/helium.ns.hetzner.*`) et
+> pointe déjà vers le VPS `159.195.110.239`. Recopie fidèle de ce qui est en place :
 
-| Action | Détail |
+```
+;; $ORIGIN qoe.fi — TTL 3600
+@       IN A     159.195.110.239        ; racine
+*       IN A     159.195.110.239        ; wildcard (tenants, api, studio…)
+*.admin IN A     159.195.110.239        ; base.admin.qoe.fi, etc.
+docs    IN A     72.60.93.27            ; site docs — autre serveur, ne pas toucher
+mail    IN A     159.195.110.239        ; mail.qoe.fi → le VPS (Stalwart)
+mail    IN AAAA  2a0a:4cc0:60:dd5:286d:20ff:fe2e:db86
+@       IN MX 10 mail.qoe.fi.           ; ✅ déjà sur le VPS
+@       IN TXT  "v=spf1 mx a:mail.qoe.fi ~all"   ; ✅ couvre l'IP du VPS
+_dmarc  IN TXT  "v=DMARC1; p=quarantine; rua=mailto:admin@qoe.fi"   ; ✅
+@       IN TXT  "google-site-verification=5G2LP8qdCURCY_GzijCkVe7CaXxsEDGr73pl_II-0fM"
+```
+
+| Statut | Action |
 |---|---|
-| Vérifier la propagation | `dig +short A qoe.fi` depuis plusieurs points (`dig @8.8.8.8`) |
-| Records **A** (TTL 300 s) | `qoe.fi`, `www`, `hi`, `api`, `studio`, `admin`, `umami`, `auth`, `cdn`, `base.admin`, `*` (wildcard → tenants) → IP du VPS |
-| MX / SPF / TXT mail | **ne pas toucher** (mail chez Hostinger) |
-| Google site verification TXT | `5G2LP8qdCURCY_GzijCkVe7CaXxsEDGr73pl_II-0fM` |
+| ✅ | **MX** → `mail.qoe.fi` (le VPS) : prêt pour Stalwart (envoi **et** réception) |
+| ✅ | **SPF** `v=spf1 mx a:mail.qoe.fi ~all` : couvre l'IP du VPS — rien à fusionner (le SPF réel ne mentionne **pas** Hostinger) |
+| ✅ | **DMARC** `p=quarantine` déjà posé |
+| ⏳ | **DKIM** : TXT `default._domainkey.qoe.fi` (`v=DKIM1; k=rsa; p=…`) → à publier **dès que Stalwart aura généré les clés** — tu me le dis et on le met |
+| ⏳ | **PTR / reverse DNS** de `159.195.110.239` → `mail.qoe.fi` : à demander au **provider qui détient l'IP** (Netcup d'après nos notes) |
+| ⏳ | **Port 25** (sortant pour l'envoi, entrant pour la réception) : à ouvrir chez Netcup — en attendant, switch Hostinger/Resend (§4.4) |
+| ℹ️ | Propagation : `dig +short A qoe.fi` depuis plusieurs points ; TTL 3600 → 300 avant la bascule si besoin |
 
-**PTR / reverse DNS** + ping SPF : à faire chez Netcup **après** le déploiement (réputation
-mail), sinon les emails partent en spam.
+> ⚠️ **Corrections vs versions précédentes** : la zone est chez **Hetzner** (pas Netcup), le
+> MX pointe **déjà** vers le VPS (pas Hostinger), et le SPF réel n'inclut pas Hostinger.
+> Les §1 et §11 sont alignés ci-dessous.
 
 ---
 
@@ -148,36 +165,38 @@ Le backend écoute `POST /v1/webhooks/supabase` — configurer dans le stack Sup
 | **Transactionnels sécurité** (alerte login, mdp modifié, archive RGPD) | `@qoe/auth/mailer` | SMTP (ou HTTP) — le code pointe actuellement Resend |
 | **Newsletters créateurs** | worker asynq Go | un adaptateur `EmailProvider` à écrire (contrat `docs/notification-delivery.md`) |
 
-### Quelle solution self-hostée choisir ?
+### Quelle solution self-hostée choisir ? — ✅ **Stalwart Mail Server** (choisi)
 
-**Recommandation : un relais SMTP Postfix léger + OpenDKIM** sur le VPS (ou Maddy si tu
-veux un binaire unique). C'est le plus adapté pour ce projet :
+**Décision actée : Stalwart Mail Server** (binaire unique Rust, édition Community). C'est
+le haut du panier du mail self-hosté moderne : SMTP sortant **et** entrant, IMAP/JMAP,
+**DKIM natif** (génération des clés + signature), vérification SPF/DMARC + politique,
+quarantaine, UI d'admin web (`:8080`), ~50-100 Mo de RAM, un seul service à déployer.
+Il remplace à la fois Postfix, OpenDKIM **et** Maddy.
 
-- **Postfix + OpenDKIM** — ~40 Mo de RAM, config en 30 min (relais sortant + DKIM/SPF/DMARC),
-  parfait pour du transactionnel. Tous les émetteurs (GoTrue, mailer, worker) s'y connectent
-  en SMTP standard. ✅ **recommandé ici**
-- **Maddy** (single binary) — alternative moderne, plus simple à déployer, gère DKIM + SPF
-  nativement. Bon second choix. ✅
-- **Mailcow / Postal** — boîtes aux lettres + UI web + gestion des bounces… beaucoup plus
-  lourd (MySQL/RabbitMQ/plusieurs containers) : **surdimensionné** tant qu'on ne fait que de
-  l'envoi sortant.
+- **Branchement** : tous nos émetteurs (GoTrue, mailer TS, worker Go) s'y connectent en SMTP
+  standard — `127.0.0.1:25` **sans auth** (relais local de confiance) ou `:587` avec un
+  compte dédié (`relay@qoe.fi`). Nos clients SMTP (Go + TS) gèrent déjà 25/587/465.
+- **Jour J** : installer Stalwart, créer le compte relay, générer les **clés DKIM** dans
+  l'UI → on publie ensuite le TXT `default._domainkey.qoe.fi` (§2). En bonus, `admin@qoe.fi`
+  reçoit les rua DMARC + les bounces sur le même serveur (IMAP).
+- **⚠️ Point de vigilance** : le **port 25** (sortant pour envoyer, entrant pour recevoir)
+  doit être ouvert chez Netcup. Tant que ce n'est pas fait → switch Hostinger/Resend (§4.4).
 
 **Le vrai enjeu d'un mail self-hosté, c'est la réputation** : il faut impérativement
-- **PTR / reverse DNS** chez Netcup (valeur = `mail.qoe.fi` ou le hostname du VPS),
-- un enregistrement **SPF** qui inclut l'IP du VPS (attention : le SPF actuel mentionne
-  `_spf.mail.hostinger.com` — il faudra **fusionner** les deux),
-- **DKIM** (OpenDKIM signe `qoe.fi`),
-- **DMARC** (`v=DMARC1; p=quarantine; rua=…`),
-- un **hostname A** propre (`mail.qoe.fi`) et l'envoyer à la place de l'IP si possible,
+- **PTR / reverse DNS** de `159.195.110.239` → `mail.qoe.fi` (à demander au provider de l'IP),
+- **SPF** — ✅ déjà OK dans la zone réelle (`mx a:mail.qoe.fi` couvre le VPS) ; ajouter
+  l'include du provider seulement si on bascule un jour l'envoi sur Hostinger/Resend,
+- **DKIM** — clés générées par Stalwart, TXT à publier ensuite,
+- **DMARC** — ✅ déjà posé (`p=quarantine`),
 - un volume d'envoi raisonnable (newsletter aux créateurs = volume faible au début : OK).
 
 ### Branchement par canal
 
 | Canal | Où configurer |
 |---|---|
-| **GoTrue** | `.env` du stack Supabase : `SMTP_HOST=127.0.0.1` (ou `mail` du réseau Docker), `SMTP_PORT=587`, `SMTP_USER`/`SMTP_PASS`, `SMTP_ADMIN_EMAIL`… |
-| **mailer sécurité** | `@qoe/auth/mailer.ts` — **à modifier** : passer de l'API Resend à un SMTP (nodemailer ou fetch brut) piloté par `SMTP_*` ; `EMAIL_FROM` inchangé |
-| **Newsletter/notifs** | écrire l'adaptateur `EmailProvider` (SMTP) dans le worker Go, l'enregistrer sous `EMAIL_PROVIDER=smtp` ; variables `NOTIFICATION_DELIVERY_ENABLED`/`EMAIL_PROVIDER` prévues |
+| **GoTrue** | `.env` du stack Supabase : `SMTP_HOST=127.0.0.1` (ou `mail` du réseau Docker), `SMTP_PORT=25` (ou `587` + compte relay), `SMTP_USER`/`SMTP_PASS` (vide si relais local), `SMTP_ADMIN_EMAIL`… |
+| **mailer sécurité** | ✅ **migré** : `@qoe/auth/mailer.ts` lit `EMAIL_PROVIDER` → `smtp` (client minimal sans dépendance, testé) ou `resend` ; `SMTP_*` + `EMAIL_FROM` |
+| **Newsletter/notifs** | ✅ **adaptateur écrit** : `EmailProvider` SMTP dans le worker Go + drain de la boîte d'envoi (`NOTIFICATION_DELIVERY_ENABLED=true`, testé) |
 
 ### 🎛️ Choix du fournisseur — switch local / Hostinger / Resend
 
@@ -187,7 +206,7 @@ veux un binaire unique). C'est le plus adapté pour ce projet :
 
 | `EMAIL_PROVIDER` | Variables requises | Cas d'usage |
 |---|---|---|
-| `smtp` (défaut si `SMTP_HOST`) | `SMTP_HOST`, `SMTP_PORT` (587/465/25), `SMTP_USER`, `SMTP_PASS`, `SMTP_SECURE` (`true` pour 465), `EMAIL_FROM` | **Postfix local** sur le VPS (dès que Netcup a ouvert le port 25) ; **Hostinger** (`smtp.hostinger.com:587`) ; SendGrid… |
+| `smtp` (défaut si `SMTP_HOST`) | `SMTP_HOST`, `SMTP_PORT` (587/465/25), `SMTP_USER`, `SMTP_PASS`, `SMTP_SECURE` (`true` pour 465), `EMAIL_FROM` | **Stalwart local** (`127.0.0.1:25` sans auth, ou `:587` + compte relay) dès que Netcup ouvre le port 25 ; **Hostinger** (`smtp.hostinger.com:587`) ; SendGrid… |
 | `resend` (défaut si `RESEND_API_KEY`) | `RESEND_API_KEY`, `EMAIL_FROM` | **En attendant le port 25 ouvert** chez Netcup, ou pour un volume cloud |
 | *(vide)* | aucune | dev → email simulé dans les logs |
 
@@ -197,13 +216,12 @@ veux un binaire unique). C'est le plus adapté pour ce projet :
 - **Cohérence** : le worker Go et le mailer TS lisent les mêmes `EMAIL_PROVIDER`/`SMTP_*` —
   un seul fichier `.env.docker` à maintenir.
 
-> ⚠️ **Amorçage** : le fanout de newsletter (worker Go) crée les `Subscriber` + tâches asynq,
-> mais l'**expéditeur email n'est pas encore branché** au code Go — c'est l'adaptateur à
-> écrire. Ne pas promettre une newsletter qui ne part pas.
+> ✅ **Amorçage** : le fanout de newsletter crée les `Subscriber` + tâches asynq, et le worker
+> draine maintenant la boîte d'envoi (adaptateur SMTP/Resend implémenté + testé). À activer
+> en prod via `NOTIFICATION_DELIVERY_ENABLED=true`.
 >
-> **Avant la bascule** : tester l'envoi depuis le VPS (`echo test | sendmail toto@…`),
-> vérifier DKIM (`opendkim-testmsg`) et que le mail n'atterrit pas en spam (test mailbox
-> Gmail/Proton).
+> **Avant la bascule** : tester l'envoi depuis le VPS, vérifier la signature **DKIM** de
+> Stalwart et que le mail n'atterrit pas en spam (test mailbox Gmail/Proton).
 
 ---
 
@@ -258,6 +276,16 @@ veux un binaire unique). C'est le plus adapté pour ce projet :
 5. Ne laisser dans `.env.docker` que `UMAMI_API_URL` + `UMAMI_API_KEY` + les deux
    `NEXT_PUBLIC_UMAMI_*` (optionnel : conserver `UMAMI_USERNAME`/`PASSWORD` en secours).
 
+> ✅ **En prod de test (staging), ça marchera** : les stats lecteurs (lecture maison,
+> `ReadingSession`) ne dépendent pas d'Umami, et les stats Umami (visiteurs, référents,
+> appareils, récurrents, heatmap) **dégradent proprement en données vides** si le container
+> est down — pas de crash. Les créateurs voient leurs analytics dès que les variables
+> ci-dessus pointent vers le container Umami (le worker crée un website Umami par publication
+> automatiquement — rien à faire côté créateur). Deux précautions : **pinner la version de
+> l'image Umami** (les requêtes SQL dépendent de `session.distinct_id` de la version) et
+> utiliser un **website Umami dédié au staging** (`NEXT_PUBLIC_UMAMI_WEBSITE_ID` ≠ prod) pour
+> ne pas mélanger les stats de test avec celles de prod.
+
 ---
 
 ## 7️⃣ 🔍 Meilisearch (✅ local)
@@ -300,7 +328,7 @@ veux un binaire unique). C'est le plus adapté pour ce projet :
 ```bash
 # À faire UNE fois, à conserver dans ton vault (1Password/Pass) :
 openssl rand -base64 32   # JWT_SECRET / SECRET_KEY_BASE / QOE_INTERNAL_SECRET / SSO_JWT_SECRET
-openssl rand -base64 24   # MEILI_MASTER_KEY / UMAMI_HASH_SALT
+openssl rand -base64 24   # MEILI_MASTER_KEY / UMAMI_HASH_SALT (container Umami seul)
 openssl rand -hex 8       # REALTIME_DB_ENC_KEY → doit faire EXACTEMENT 16 chars
 # Mots de passe : POSTGRES_PASSWORD (postgres), UMAMI_PASSWORD, admin
 ```
@@ -316,10 +344,10 @@ Variables racine `.env.docker` (rappel, cf. DEPLOYMENT.md) :
 ## 1️⃣1️⃣ ✅ Checklist de GO (à cocher avant la bascule DNS)
 
 **Comptes / clés**
-- [ ] Quartz : domaine qoe.fi transféré chez Netcup, records A/MX/SPF/Vérif-Google en place
+- [ ] Quartz : zone DNS chez Hetzner OK (A/wildcard/MX/SPF/DMARC/Vérif-Google en place) — restent PTR + TXT DKIM
 - [ ] Google Cloud Console : consent screen **Production** + callback `https://auth.qoe.fi/auth/v1/callback` — puis activation **via l'admin** (toggle `AUTH_METHODS`) uniquement quand Google sera opérationnel
 - [ ] **Stripe : rien à faire pour l'instant** (pas encore en place — voir §8)
-- [ ] **Email self-hosté** : Postfix/OpenDKIM installé + PTR/reverse DNS + SPF fusionné + DKIM/DMARC + test d'envoi réel (voir §4)
+- [ ] **Email self-hosté** : **Stalwart** installé + compte relay + PTR/reverse DNS + TXT DKIM publié (après génération des clés) + test d'envoi réel (voir §4)
 - [ ] OpenAI / Anthropic : clés live prêtes
 - [ ] Modèle Jina `.gguf` présent (ou téléchargement prévu par le bootstrap)
 
@@ -335,7 +363,7 @@ Variables racine `.env.docker` (rappel, cf. DEPLOYMENT.md) :
 - [ ] `ALTER EXTENSION vector SET SCHEMA public;` puis migrate (leçon n°4)
 - [ ] Baseline `goose_db_version` si base déjà migrée par Prisma (leçon n°4bis)
 - [ ] Umami : admin créé, **clé d'API** générée (→ `UMAMI_API_KEY`), website créé → `NEXT_PUBLIC_UMAMI_WEBSITE_ID`, `UMAMI_API_URL` + script URL posés (voir §6)
-- [ ] Certs Let's Encrypt : nominatifs (HTTP-01) + wildcard `*.qoe.fi` (DNS-01 Netcup) + `base.admin.qoe.fi` (dédié, Basic Auth + Tailscale)
+- [ ] Certs Let's Encrypt : nominatifs (HTTP-01) + wildcard `*.qoe.fi` (DNS-01 **Hetzner**) + `base.admin.qoe.fi` (dédié, Basic Auth + Tailscale)
 - [ ] Seed + `embed-all` lancés, comptages vérifiés (500 users / 200 articles / 700 pensées / 500 auth.users)
 - [ ] PTR / reverse DNS + SPF (réputation mail)
 
