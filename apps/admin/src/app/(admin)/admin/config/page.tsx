@@ -4,6 +4,7 @@ import {
   deleteSystemConfigAction,
   updateReservedIdentifiersAction,
 } from '@/lib/admin-aux-actions';
+import { AuthMethodsToggles } from './components/AuthMethodsToggles';
 
 export default async function AdminConfig() {
   // Include the platform defaults in the editor so the admin can see and
@@ -112,6 +113,9 @@ export default async function AdminConfig() {
         <h1 className="text-3xl font-semibold tracking-tight text-foreground">Config</h1>
         <p className="text-muted-foreground mt-2 text-sm">System & Feature Flags</p>
       </div>
+
+      {/* Méthodes de connexion — toggles dédiés (Google en test, etc.) */}
+      <AuthMethodsToggles initialValue={configs.find((c) => c.key === 'AUTH_METHODS')?.value} />
 
       {/* Add new Config Minimal Form */}
       <div className="mb-12">

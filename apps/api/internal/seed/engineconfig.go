@@ -97,6 +97,12 @@ func DefaultEngineConfigs() []ConfigDefault {
 		{"feed.exploration_min_signals", "10", "Signaux (likes + lectures) pour passer d'un profil froid à mature."},
 		{"feed.exploration_min_quality", "0.8", "Qualité minimale (taux de complétion) des articles injectés en exploration."},
 
+		// ── Méthodes de connexion (toggle admin, JSON) ───────────────────────
+		// Pilote l'affichage du formulaire de login : boutons OAuth (Google /
+		// Apple), connexion email + mot de passe et lien magique. Le code retombe
+		// sur « tout activé » si la clé est absente ou invalide.
+		{"AUTH_METHODS", `{"google":false,"apple":false,"password":true,"magicLink":true}`, "Méthodes de connexion autorisées (JSON {google, apple, password, magicLink}) — pilote le formulaire de login."},
+
 		// ── OAuth (quotas et durées de vie, secondes) ────────────────────────
 		{"OAUTH_MAX_CLIENTS_PER_USER", "3", "Nombre maximal d'applications OAuth par compte."},
 		{"OAUTH_MAX_REDIRECT_URIS", "10", "Nombre maximal d'URI de redirection par application."},
