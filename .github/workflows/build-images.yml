@@ -65,13 +65,16 @@ jobs:
             target: migrate
           # api & worker partagent le MÊME image (apps/api/Dockerfile build
           # qoe-server + qoe-worker + qoe-migrate en une passe) : deux tags.
+          # ⚠️ GitHub Actions résout `dockerfile` RELATIF AU WORKSPACE (pas au
+          # contexte comme compose) : ./apps/api/Dockerfile, sinon buildkit part
+          # avec le Dockerfile racine et casse sur les chemins du repo.
           - service: api
             context: ./apps/api
-            dockerfile: Dockerfile
+            dockerfile: ./apps/api/Dockerfile
             target: ''
           - service: worker
             context: ./apps/api
-            dockerfile: Dockerfile
+            dockerfile: ./apps/api/Dockerfile
             target: ''
 
     steps:
