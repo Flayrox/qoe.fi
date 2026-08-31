@@ -4,7 +4,20 @@ import { useEffect, useState } from 'react';
 import { Download, ExternalLink, ShieldAlert, Trash2 } from 'lucide-react';
 import { toast } from '@qoe/ui/toast';
 import { URLS } from '@qoe/config';
-import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import {
+  changeAccountSecurityEmailAction,
+  changeAccountSecurityPasswordAction,
+  enrollAccountSecurityMfaAction,
+  exportAccountSecurityDataAction,
+  getAccountSecurityConsentAction,
+  getAccountSecurityIdentityAction,
+  getAccountSecurityMfaAction,
+  getAccountSecuritySessionsAction,
+  requestAccountSecurityDeletionAction,
+  revokeAllAccountSessionsAction,
+  revokeOtherAccountSessionsAction,
+  updateAccountConsentAction,
+} from '../actions';
 
 export interface AccountSecurityProfile {
   email: string;
@@ -33,18 +46,16 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
   });
 
   useEffect(() => {
-    goFetch<AccountSecurityProfile>('/v1/me/identity')
-      .then(setIdentity)
+    getAccountSecurityIdentityAction()
+      .then((result) => setIdentity((current) => ({ ...current, email: result.email })))
       .catch(() => undefined);
-    goFetch<Record<string, unknown>>('/v1/me/mfa')
+    getAccountSecurityMfaAction()
       .then(setMfaFactors)
       .catch(() => undefined);
-    goFetch<{ sessions: Array<{ id: string; clientId: string; current: boolean }> }>(
-      '/v1/me/sessions'
-    )
+    getAccountSecuritySessionsAction()
       .then((r) => setSessions(r.sessions))
       .catch(() => undefined);
-    goFetch<typeof consent>('/v1/settings/consent')
+    getAccountSecurityConsentAction()
       .then(setConsent)
       .catch(() => undefined);
   }, []);
@@ -52,10 +63,7 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
   async function enrollMfa() {
     setMfaBusy(true);
     try {
-      const result = await goFetch<Record<string, unknown>>('/v1/me/mfa/totp/enroll', {
-        method: 'POST',
-        body: {},
-      });
+      const result = await enrollAccountSecurityMfaAction();
       setMfaFactors(result);
       toast.success('Scannez le QR code avec votre application d’authentification.');
     } catch (error) {
@@ -68,7 +76,7 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
   async function exportData() {
     setBusy(true);
     try {
-      const data = await goFetch<Record<string, unknown>>('/v1/me/data-export');
+      const data = await exportAccountSecurityDataAction();
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement('a');
@@ -88,7 +96,7 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
     if (deletionConfirmation !== 'DELETE') return;
     setBusy(true);
     try {
-      await goFetch('/v1/me/account-deletion-request', { method: 'POST' });
+      await requestAccountSecurityDeletionAction();
       toast.success('Demande de suppression enregistrée.');
       setDeletionConfirmation('');
     } catch {
@@ -158,10 +166,7 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
             onClick={async () => {
               setBusy(true);
               try {
-                await goFetch('/v1/me/email-change', {
-                  method: 'POST',
-                  body: { newEmail, currentPassword },
-                });
+                await changeAccountSecurityEmailAction(newEmail, currentPassword);
                 toast.success('Un email de vérification a été envoyé.');
                 setNewEmail('');
               } catch (e) {
@@ -186,10 +191,7 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
             onClick={async () => {
               setBusy(true);
               try {
-                await goFetch('/v1/me/password-change', {
-                  method: 'POST',
-                  body: { newPassword, currentPassword },
-                });
+                await changeAccountSecurityPasswordAction(newPassword, currentPassword);
                 toast.success('Mot de passe modifié.');
                 setNewPassword('');
                 setCurrentPassword('');
@@ -216,7 +218,7 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
             onClick={async () => {
               setMfaBusy(true);
               try {
-                await goFetch('/v1/me/sessions/revoke-others', { method: 'POST', body: {} });
+                await revokeOtherAccountSessionsAction();
                 setSessions(sessions.filter((s) => s.current));
                 toast.success('Les autres sessions ont été révoquées.');
               } catch (error) {
@@ -234,7 +236,7 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
             onClick={async () => {
               setMfaBusy(true);
               try {
-                await goFetch('/v1/me/sessions/revoke-all', { method: 'POST', body: {} });
+                await revokeAllAccountSessionsAction();
                 setSessions([]);
                 toast.success('Toutes les sessions OAuth ont été révoquées.');
               } catch (error) {
@@ -273,7 +275,7 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
         <button
           onClick={async () => {
             try {
-              await goFetch('/v1/settings/consent', { method: 'PATCH', body: consent });
+              await updateAccountConsentAction(consent);
               toast.success('Préférences de consentement enregistrées.');
             } catch {
               toast.error('Impossible d’enregistrer le consentement.');

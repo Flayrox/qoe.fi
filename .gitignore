@@ -143,7 +143,6 @@ apps/api/internal/seed/assets/avatars/
 # outil d'évaluation de la fausse db (recsys-eval)
 apps/api/cmd/recsys-eval/
 apps/api/recsys-eval
-apps/api/internal/seed/personas.go
 
 # Sauvegardes de la fausse DB (dumps pg_dump, souvent volumineux)
 backups/top-db-*.sql.gz

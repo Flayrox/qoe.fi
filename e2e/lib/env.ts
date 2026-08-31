@@ -85,10 +85,13 @@ export const SUPABASE_ANON_KEY = resolve(
   )
 );
 
+/** Clé service-role Supabase, uniquement utilisée par les fixtures E2E locales/CI. */
+export const SUPABASE_SERVICE_ROLE_KEY = resolve('SUPABASE_SERVICE_ROLE_KEY');
+
 /**
  * 🍞 Crée une session GoTrue RÉELLE (signup ou sign-in) contre Supabase
- * local. Indispensable pour les pages qui valident la session côté serveur
- * (getUser) — un JWT minté ne suffit pas pour elles.
+ * local. Si la confirmation email est active, la fixture confirme le compte
+ * via l'Admin API avant de rejouer le password grant.
  */
 export async function createRealSession(
   email: string,
@@ -105,29 +108,50 @@ export async function createRealSession(
     headers,
     body: JSON.stringify({ email, password }),
   });
-  if (!res.ok) {
+  let body = (await res.json().catch(() => ({}))) as {
+    access_token?: string;
+    refresh_token?: string;
+    user?: { id?: string };
+    id?: string;
+  };
+
+  // Un signup peut créer le user sans session quand la confirmation email est requise.
+  let gotrueUserId = body.user?.id ?? body.id ?? '';
+  if (!body.access_token && gotrueUserId && SUPABASE_SERVICE_ROLE_KEY) {
+    const confirm = await fetch(`${SUPABASE_URL}/auth/v1/admin/users/${gotrueUserId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_SERVICE_ROLE_KEY,
+        Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+      },
+      body: JSON.stringify({ email_confirm: true }),
+    });
+    if (!confirm.ok) {
+      throw new Error(`GoTrue confirmation ${confirm.status}: ${await confirm.text()}`);
+    }
+    res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ email, password }),
+    });
+    body = (await res.json().catch(() => ({}))) as typeof body;
+  } else if (!res.ok) {
     // Compte déjà existant → connexion par mot de passe.
     res = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
       method: 'POST',
       headers,
       body: JSON.stringify({ email, password }),
     });
+    body = (await res.json().catch(() => ({}))) as typeof body;
   }
-  if (!res.ok) {
-    throw new Error(`GoTrue ${res.status}: ${await res.text()}`);
+
+  if (!res.ok || !body.access_token || !body.refresh_token) {
+    throw new Error(`GoTrue ${res.status}: ${JSON.stringify(body)}`);
   }
-  const body = (await res.json()) as {
-    access_token?: string;
-    refresh_token?: string;
-    user?: { id?: string };
-    id?: string;
-  };
-  if (!body.access_token || !body.refresh_token) {
-    throw new Error('Session GoTrue incomplète (email confirmation requise ?)');
-  }
-  // L'UUID GoTrue est LA clé d'identité : les lignes DB doivent utiliser
-  // CET id (pas un id choisi arbitrairement).
-  const gotrueUserId = body.user?.id ?? body.id ?? '';
+
+  // L'UUID GoTrue est LA clé d'identité : les lignes DB doivent utiliser CET id.
+  gotrueUserId = body.user?.id ?? body.id ?? gotrueUserId;
   if (!gotrueUserId) {
     throw new Error('id utilisateur GoTrue absent de la réponse');
   }
