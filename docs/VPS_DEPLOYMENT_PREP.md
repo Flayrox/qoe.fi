@@ -344,10 +344,10 @@ Variables racine `.env.docker` (rappel, cf. DEPLOYMENT.md) :
 ## 1️⃣1️⃣ ✅ Checklist de GO (à cocher avant la bascule DNS)
 
 **Comptes / clés**
-- [ ] Quartz : zone DNS chez Hetzner OK (A/wildcard/MX/SPF/DMARC/Vérif-Google en place) — restent PTR + TXT DKIM
+- [x] Quartz : zone DNS chez Hetzner OK — A/wildcard/MX/SPF/DMARC/Vérif-Google en place, **PTR ✓ + TXT DKIM (ed25519 + RSA) ✓ publiés** (vérifié `dig` le 2026-08-31)
 - [ ] Google Cloud Console : consent screen **Production** + callback `https://auth.qoe.fi/auth/v1/callback` — puis activation **via l'admin** (toggle `AUTH_METHODS`) uniquement quand Google sera opérationnel
 - [ ] **Stripe : rien à faire pour l'instant** (pas encore en place — voir §8)
-- [ ] **Email self-hosté** : **Stalwart** installé + compte relay + PTR/reverse DNS + TXT DKIM publié (après génération des clés) + test d'envoi réel (voir §4)
+- [x] **Email self-hosté** : **Stalwart** installé + compte relay + PTR ✓ + TXT DKIM publiés ✓ + **test d'envoi réel : 10/10 chez mail-tester (2026-08-31)** — SPF/DKIM/DMARC = PASS (voir §4)
 - [ ] OpenAI / Anthropic : clés live prêtes
 - [ ] Modèle Jina `.gguf` présent (ou téléchargement prévu par le bootstrap)
 
@@ -365,7 +365,7 @@ Variables racine `.env.docker` (rappel, cf. DEPLOYMENT.md) :
 - [ ] Umami : admin créé, **clé d'API** générée (→ `UMAMI_API_KEY`), website créé → `NEXT_PUBLIC_UMAMI_WEBSITE_ID`, `UMAMI_API_URL` + script URL posés (voir §6)
 - [ ] Certs Let's Encrypt : nominatifs (HTTP-01) + wildcard `*.qoe.fi` (DNS-01 **Hetzner**) + `base.admin.qoe.fi` (dédié, Basic Auth + Tailscale)
 - [ ] Seed + `embed-all` lancés, comptages vérifiés (500 users / 200 articles / 700 pensées / 500 auth.users)
-- [ ] PTR / reverse DNS + SPF (réputation mail)
+- [x] PTR / reverse DNS + SPF (réputation mail) — `159.195.110.239` → `mail.qoe.fi` ✓ (vérifié `dig -x`)
 
 **Vérifs de fin** — cf. `docs/DEPLOYMENT.md` §Vérifications de bout en bout
 - [ ] `/health`, `/home`, `hi`, `umami`, `auth/v1/health` répondent
@@ -382,3 +382,119 @@ Variables racine `.env.docker` (rappel, cf. DEPLOYMENT.md) :
 - [`docs/notification-delivery.md`](./notification-delivery.md) — contrat EmailProvider / notifications
 - [`docs/STUDIO_DEVELOPER_SECURITY.md`](./STUDIO_DEVELOPER_SECURITY.md) — sécurité studio
 - [`docs/openapi/app-api.yaml`](./openapi/app-api.yaml) — endpoints webhooks Stripe/Supabase
+---
+
+## 1️⃣3️⃣ 🚀 RETOUR D'EXPÉRIENCE — PREMIER DÉPLOIEMENT (2026-08-31)
+
+### Carte des ports (prod — volontairement non standards)
+
+| Service | Port hôte | Pourquoi ce port |
+|---|---|---|
+| Caddy (web/TLS) | 80 / 443 | OBLIGATOIRES (web public, HTTP-01/ALPN) |
+| Kong (API Supabase) | **18000** / **18443** | libère 8000/8443 pour d'autres projets |
+| Pooler (Postgres poolé) | **15432** / **16543** | libère 5432/6543 (le port 5432 est LE plus conflictuel) |
+| Stalwart admin UI | **28080** | libère 8080 |
+| Stalwart mail | 25 / 465 / 587 / 993 / 995 / 4190 | OBLIGATOIRES (MX, submission, IMAP/POP3/Sieve standards) |
+| Les apps qoe (core/studio/admin/api…) | aucun | réseau Docker interne uniquement, tout passe par Caddy |
+
+⚠️ **Piège POSTGRES_PORT** : dans `supabase/docker/.env`, `POSTGRES_PORT` est le port **interne** du Postgres
+(`PGPORT`, utilisé par TOUS les services Supabase). Ne le changez pas pour "déplacer" le port exposé :
+modifiez plutôt `POOLER_PORT_HOST` (mappage hôte du pooler). En interne, supabase-db reste sur 5432
+et les apps qoe pointent `supabase-db:5432`.
+
+### DNS — état vérifié le 2026-08-31 (zone Hetzner)
+
+1. ✅ **`admin IN A 159.195.110.239`** — publié (la wildcard `*.admin` ne couvre pas `admin.qoe.fi` lui-même,
+   d'où le record dédié).
+2. ✅ **DKIM TXT** (générés par Stalwart, les deux publiés) :
+   ```
+   v1-ed25519-20260831._domainkey.qoe.fi. IN TXT "v=DKIM1; k=ed25519; h=sha256; p=OQFISSHTUori5sA6LBGcrJvyJVe2GxyKHI9hsvCPbAg="
+   v1-rsa-20260831._domainkey.qoe.fi. IN TXT ("v=DKIM1; k=rsa; h=sha256; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA1Jgc5Gkce4+OA++UbKMMjTF6QnC93M22xmZrh+hNI7to3yCyfctKn5mGjxF/PiY3FgJdEuo9aVOFZR5iNP1lkEQ7y+L4qER3NX6SGV4OPFdkKOa8x2Jjqo5SWr8AqnYTshYfMyO7Odn/1c+gbSkDVmjolcstE645ot3FfDEi43okgFR/QeVH5yQ" "QmUmfbSIvvFYImdRiMIzFr77SiQntWZgzSoGZAiZAMyGdlTrV8xAqyd7Tf3WxYZjh7+fFzc2qEzO7EsxbCTIlkY+s6vwNsaJT1gYyfFjUFCzJeI3g3ItqBR4mMhXtpev69t1mxpLw8OlHoHjHg9ycmSlaLGSlGwIDAQAB")
+   ```
+   Les enregistrements TLSA/DANE de Stalwart **restent en attente** : sans DNSSEC, ils sont inopérants → §14 (backlog).
+3. ✅ **PTR / reverse DNS** `159.195.110.239` → `mail.qoe.fi` — actif (vérifié `dig -x`).
+4. ✅ **Résultat test d'envoi réel** (mail-tester, 31/08) : **10/10** — SPF `Pass` (helo=mail.qoe.fi,
+   client-ip=159.195.110.239), DKIM `pass` ×2 (RSA-2048 + ed25519), DMARC `pass` (p=quarantine).
+   Seul minus : `SPF_HELO_NONE` (pas de SPF sur `mail.qoe.fi`) → +0.001, voir §14.
+5. ⏳ **Cert wildcard `*.qoe.fi`** pour les blogs tenants : Caddy ne peut PAS l'obtenir (wildcard = DNS-01 obligatoire,
+   DNS chez Hetzner non configuré comme provider Caddy). Solutions : certbot avec plugin `certbot-dns-hetzner`
+   + token API Hetzner → `/etc/letsencrypt/live/qoe.fi-wildcard/` + `import` dans le bloc `*.qoe.fi` du Caddyfile.
+   Sans ça : `jean.qoe.fi` (tenants) n'a pas de cert HTTPS. ➕ **Bonus de ce chantier** : la migration DNS-01
+   remplace aussi l'authenticator `standalone` du cert nominatif (conflit actuel avec Caddy au renewal) →
+   renouvellement auto fiabilisé d'un coup, sans coupure (décision 2026-08-31, cf. §14).
+
+### Emails — ce qui a été mis en place (Stalwart)
+
+- **Stalwart 0.16.20** installé (systemd, RocksDB dans `/var/lib/stalwart`), admin UI sur **28080**.
+- **Cert TLS réel** : celui de Let's Encrypt (`/etc/letsencrypt/live/qoe.fi/`) copié dans
+  `/etc/stalwart/certs/` (chown **stalwart:stalwart** — le process tourne sous l'utilisateur `stalwart`,
+  un key 600 root rend le cert injoignable !), ajouté comme objet `Certificate` (id `jcoduzpaaaqa`),
+  `defaultCertificateId` pointé dessus, `useTls: true` sur le listener `submission587` → **STARTTLS**.
+  Vérifié le 31/08 : le cert servi sur 465 == celui du disque (LE, `CN=qoe.fi`, val. 21/08 → 19/11/2026).
+- ✅ **`mail.qoe.fi` ajouté au cert LE** (réémission `--expand` le 2026-08-31 — SAN : qoe.fi, www, api, auth, admin,
+  cdn, hi, **mail**, studio, umami ; valable jusqu'au **2026-11-29**, clé ECDSA). Vérifié en externe : chaîne LE +
+  hostname OK sur **465/993/995**. Caddy (container) a été arrêté ~30 s le temps du challenge (authenticator standalone).
+- 🛠️ **Méthode de mise à jour du cert Stalwart (PIÈGE — vécu le 31/08)** : le cert servi par Stalwart est stocké dans
+  l'objet `Certificate` en base (RocksDB) : `certificate` = PEM **embarqué** (`{"@type":"Text","value":...}`),
+  mais `privateKey` = **référence fichier** (`{"@type":"File","filePath":"/etc/stalwart/certs/qoe.fi.key"}`).
+  Copier les fichiers ne suffit PAS (certbot émis, Stalwart servait encore l'ancien cert). Procédure :
+  1. Copier les nouveaux PEM dans `/etc/stalwart/certs/` (chown **stalwart:stalwart**, 644/600) ;
+  2. `POST /jmap` avec `"using":["urn:ietf:params:jmap:core","urn:stalwart:jmap"]` et
+     `["x:Certificate/set",{"accountId":"b","update":{"jcoduzpaaaqa":{"certificate":{"@type":"Text","value":"<nouveau fullchain>"}}}},"c0"]`
+     (auth Basic `admin:<pw>` extrait de `STALWART_RECOVERY_ADMIN`) ;
+  3. `systemctl restart stalwart`.
+- ⚠️ **Renouvellement auto à fiabiliser** : la conf `qoe.fi-0001.conf` est en `authenticator = standalone` alors que
+  Caddy occupe 80/443 → le timer certbot **échouera** au prochain renouvellement (échéance 2026-11-29). Correctifs :
+  hook systemd stop/start Caddy autour de `certbot renew`, ou (recommandé) basculer en **DNS-01 Hetzner** — chantier
+  commun avec le wildcard `*.qoe.fi` (voir §14).
+- **Compte relay** `relay@qoe.fi` + alias `noreply@qoe.fi` (l'expéditeur doit être un alias du compte AUTH).
+- **GoTrue** : `SMTP_HOST=qoe.fi` (PAS l'IP — le cert doit matcher le hostname !), port 587, user/pass relay.
+  Go refuse l'AUTH PLAIN sur une connexion non chiffrée ("unencrypted connection") → STARTTLS obligatoire.
+- **Worker Go + mailer TS** : `EMAIL_PROVIDER=smtp`, `SMTP_HOST=host.docker.internal` (depuis un container,
+   PAS 127.0.0.1 qui est le container lui-même), `SMTP_PORT=587`, user/pass relay,
+   `NOTIFICATION_DELIVERY_ENABLED=true`.
+- ⚠️ Le **port 25 sortant** de Netcup s'est avéré **ouvert** → envoi direct vers Gmail OK (testé).
+  Si un fournisseur le bloque, basculer `EMAIL_PROVIDER=resend` ou `smtp` → `smtp.hostinger.com:587`.
+
+### CLI Stalwart — pièges rencontrés
+
+- Le CLI (v1.0.12) vs serveur (0.16.20) : le `create`/`apply` CLI **aplatit les objets imbriqués**
+  (ex. `certificate: {"@type":"Text","value":...}`) → il faut passer par **JMAP direct** pour créer un cert :
+  `POST /jmap` avec `"using":["urn:ietf:params:jmap:core","urn:stalwart:jmap"]`,
+  `["x:Certificate/set", {"accountId":"b", "create": {...}}]`. Les `update` simples (bind, useTls) marchent
+  avec `stalwart-cli update` (`--field "bind={\"[::]:28080\":true}"`).
+- Le mot de passe admin réel est `STALWART_ADMIN_FULL_PW` (16 car.) ; `STALWART_ADMIN_PW` (24 car.)
+  est le **recovery** admin (stoké dans `/etc/stalwart/stalwart.env`).
+- URL CLI après changement de port : `--url http://127.0.0.1:28080`.
+
+### Umami v3 (3.3.1) — différences vs la doc
+
+- **Les API keys ont été supprimées** en v3 → `UMAMI_API_KEY` inutilisé (self-hosted). Auth = login
+  username/password (`UMAMI_USERNAME`/`UMAMI_PASSWORD`) — le client Go se logue, token caché 4h.
+- **`UMAMI_API_URL` doit être défini** en prod (`https://umami.qoe.fi/api`) — sinon défaut = cloud Umami !
+- **`UMAMI_DATABASE_URL`** requis pour récurrents/heatmap (lecture DB `umami-db:5432`).
+- L'admin bootstrap = `admin`/`umami` (le container n'accepte pas de vars d'admin) → changer le mot de passe
+  via le **SQL direct** (bcrypt, table `user`) pour matcher `UMAMI_PASSWORD` de `.env.docker`.
+- Provisioning auto : worker crée un website par publication (`publication Ephe → website db1246c6…` ✅).
+
+---
+
+## 1️⃣4️⃣ 🗂️ Backlog — tâches différées
+
+- [ ] **DNS : migrer la zone `qoe.fi` vers un provider gérant DNSSEC** (Hetzner Console DNS ne le supporte pas —
+  vérifié 2026-08-31, seuls les records DS entrants sont possibles). **Sans zone signée, les enregistrements
+  TLSA/DANE sont inopérants** (Gmail applique DANE en dur depuis 2023, mais DANE exige DNSSEC pour faire confiance
+  au TLSA). Quand la migration sera faite :
+  1. Publier le TLSA de Stalwart pour le port 25 :
+     `_25._tcp.mail.qoe.fi. IN TLSA 3 1 1 64dccc0207215369aed8aaf048ad9851df989c63a04794479e1db9a3bf3745df`
+     (hash du SPKI du cert LE **actuel** — il change au prochain renouvellement → prévoir `certbot --reuse-key`
+     AVANT de publier, sinon mettre à jour le TLSA à chaque renouvellement).
+  2. Retester la délivrabilité (mail-tester + vrai Gmail) après publication.
+- [x] **Cert : `mail.qoe.fi` aux SAN** — fait le 2026-08-31 (`--expand`, valable jusqu'au 2026-11-29) — cf. §13
+  « Emails » pour la procédure de mise à jour Stalwart (JMAP, le PEM est en base).
+- [ ] **Renouvellement LE fiable** : **absorbé par le chantier wildcard `*.qoe.fi` (§13 point 5)** — la bascule en
+  **DNS-01 Hetzner** (certbot-dns-hetzner + token API) y réglera d'un coup le conflit standalone/Caddy sur 80/443,
+  **sans coupure de service**. Décision validée le 2026-08-31 : pas de hook stop/start Caddy. Échéance à tenir :
+  **2026-11-29** (expiration du cert courant).
+- [ ] **SPF sur le host HELO `mail.qoe.fi`** : publier `v=spf1 a -all` (couvre A + AAAA du VPS) pour lever
+  le point `SPF_HELO_NONE` de mail-tester (mineur : +0.001, le score reste 10/10 sans).
