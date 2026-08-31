@@ -624,6 +624,7 @@ CREATE TABLE "UserSettings" (
     "allowMentions" BOOLEAN NOT NULL DEFAULT true,
     "allowCollaborationInvites" BOOLEAN NOT NULL DEFAULT true,
     "showSensitiveContent" BOOLEAN NOT NULL DEFAULT true,
+    "likeVisibility" TEXT NOT NULL DEFAULT 'PUBLIC',
     "autoplayMedia" BOOLEAN NOT NULL DEFAULT true,
     "reduceMotion" BOOLEAN NOT NULL DEFAULT false,
     "highContrast" BOOLEAN NOT NULL DEFAULT false,
@@ -632,7 +633,8 @@ CREATE TABLE "UserSettings" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "UserSettings_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "UserSettings_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "UserSettings_likeVisibility_check" CHECK ("likeVisibility" IN ('PUBLIC', 'PRIVATE'))
 );
 
 -- CreateTable

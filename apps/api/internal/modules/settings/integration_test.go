@@ -421,8 +421,8 @@ func TestUserPreferences(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetUserSettings: %v", err)
 	}
-	if s.ProfileVisibility != "PUBLIC" || s.FontScale != 100 || s.DefaultFeed != "FOLLOWING" {
-		t.Fatalf("defaults = %s/%d/%s", s.ProfileVisibility, s.FontScale, s.DefaultFeed)
+	if s.ProfileVisibility != "PUBLIC" || s.FontScale != 100 || s.DefaultFeed != "FOLLOWING" || s.LikeVisibility != "PUBLIC" {
+		t.Fatalf("defaults = %s/%d/%s/%s", s.ProfileVisibility, s.FontScale, s.DefaultFeed, s.LikeVisibility)
 	}
 	if !s.AllowMentions || !s.AutoplayMedia || !s.ShowSensitiveContent {
 		t.Fatalf("defaults bools = %+v", s)
@@ -434,11 +434,12 @@ func TestUserPreferences(t *testing.T) {
 		"fontScale":         125,
 		"defaultFeed":       "DISCOVER",
 		"reduceMotion":      true,
+		"likeVisibility":    "PRIVATE",
 	})
 	if err != nil {
 		t.Fatalf("UpdateUserSettings: %v", err)
 	}
-	if upd.ProfileVisibility != "FOLLOWERS" || upd.FontScale != 125 || upd.DefaultFeed != "DISCOVER" || !upd.ReduceMotion {
+	if upd.ProfileVisibility != "FOLLOWERS" || upd.FontScale != 125 || upd.DefaultFeed != "DISCOVER" || !upd.ReduceMotion || upd.LikeVisibility != "PRIVATE" {
 		t.Fatalf("patch non appliqué: %+v", upd)
 	}
 	// Les autres valeurs restent par défaut.
@@ -452,6 +453,9 @@ func TestUserPreferences(t *testing.T) {
 	}
 	if _, err := svc.UpdateUserSettings(ctx, fx.ViewerID, map[string]any{"profileVisibility": "BOGUS"}); err == nil {
 		t.Fatalf("profileVisibility bogus accepté")
+	}
+	if _, err := svc.UpdateUserSettings(ctx, fx.ViewerID, map[string]any{"likeVisibility": "HIDDEN"}); err == nil {
+		t.Fatalf("likeVisibility HIDDEN accepté")
 	}
 	after, _ := svc.GetUserSettings(ctx, fx.ViewerID)
 	if after.FontScale != 125 || after.ProfileVisibility != "FOLLOWERS" {

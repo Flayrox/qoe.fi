@@ -678,6 +678,7 @@ type UserSettings struct {
 	AllowMentions             bool   `json:"allowMentions"`
 	AllowCollaborationInvites bool   `json:"allowCollaborationInvites"`
 	ShowSensitiveContent      bool   `json:"showSensitiveContent"`
+	LikeVisibility            string `json:"likeVisibility"`
 	AutoplayMedia             bool   `json:"autoplayMedia"`
 	ReduceMotion              bool   `json:"reduceMotion"`
 	HighContrast              bool   `json:"highContrast"`
@@ -697,8 +698,8 @@ func scanUserSettings(row pgx.Row) (UserSettings, error) {
 	var s UserSettings
 	var createdAt, updatedAt pgtype.Timestamp
 	err := row.Scan(&s.ID, &s.UserID, &s.ProfileVisibility, &s.AllowMentions,
-		&s.AllowCollaborationInvites, &s.ShowSensitiveContent, &s.AutoplayMedia,
-		&s.ReduceMotion, &s.HighContrast, &s.FontScale, &s.DefaultFeed,
+		&s.AllowCollaborationInvites, &s.ShowSensitiveContent, &s.LikeVisibility,
+		&s.AutoplayMedia, &s.ReduceMotion, &s.HighContrast, &s.FontScale, &s.DefaultFeed,
 		&createdAt, &updatedAt)
 	if err != nil {
 		return s, err
@@ -713,7 +714,7 @@ func scanUserSettings(row pgx.Row) (UserSettings, error) {
 func (s *Service) GetUserSettings(ctx context.Context, userID string) (UserSettings, error) {
 	row := s.pool.QueryRow(ctx, `
 		SELECT id, "userId", "profileVisibility", "allowMentions", "allowCollaborationInvites",
-		       "showSensitiveContent", "autoplayMedia", "reduceMotion", "highContrast",
+		       "showSensitiveContent", "likeVisibility", "autoplayMedia", "reduceMotion", "highContrast",
 		       "fontScale", "defaultFeed", "createdAt", "updatedAt"
 		FROM "UserSettings" WHERE "userId" = $1`, toUUID(userID))
 	settings, err := scanUserSettings(row)
@@ -725,7 +726,8 @@ func (s *Service) GetUserSettings(ctx context.Context, userID string) (UserSetti
 	}
 	if _, err := s.pool.Exec(ctx, `
 		INSERT INTO "UserSettings" (id, "userId", "createdAt", "updatedAt")
-		VALUES (gen_random_uuid()::text, $1, now(), now())`, toUUID(userID)); err != nil {
+		VALUES (gen_random_uuid()::text, $1, now(), now())
+		ON CONFLICT ("userId") DO NOTHING`, toUUID(userID)); err != nil {
 		return UserSettings{}, err
 	}
 	return s.GetUserSettings(ctx, userID)
@@ -743,9 +745,13 @@ func (s *Service) UpdateUserSettings(ctx context.Context, userID string, patch m
 		"allowMentions":             func(v any) bool { _, ok := v.(bool); return ok },
 		"allowCollaborationInvites": func(v any) bool { _, ok := v.(bool); return ok },
 		"showSensitiveContent":      func(v any) bool { _, ok := v.(bool); return ok },
-		"autoplayMedia":             func(v any) bool { _, ok := v.(bool); return ok },
-		"reduceMotion":              func(v any) bool { _, ok := v.(bool); return ok },
-		"highContrast":              func(v any) bool { _, ok := v.(bool); return ok },
+		"likeVisibility": func(v any) bool {
+			str, ok := v.(string)
+			return ok && (str == "PUBLIC" || str == "PRIVATE")
+		},
+		"autoplayMedia": func(v any) bool { _, ok := v.(bool); return ok },
+		"reduceMotion":  func(v any) bool { _, ok := v.(bool); return ok },
+		"highContrast":  func(v any) bool { _, ok := v.(bool); return ok },
 		"fontScale": func(v any) bool {
 			var n float64
 			switch t := v.(type) {
@@ -768,8 +774,13 @@ func (s *Service) UpdateUserSettings(ctx context.Context, userID string, patch m
 		},
 	}
 	cols := []string{"profileVisibility", "allowMentions", "allowCollaborationInvites",
-		"showSensitiveContent", "autoplayMedia", "reduceMotion", "highContrast",
+		"showSensitiveContent", "likeVisibility", "autoplayMedia", "reduceMotion", "highContrast",
 		"fontScale", "defaultFeed"}
+	for key := range patch {
+		if _, ok := allowed[key]; !ok {
+			return UserSettings{}, fmt.Errorf("clé de réglage inconnue: %s", key)
+		}
+	}
 	set := make([]string, 0, len(cols))
 	args := make([]any, 0, len(cols)+1)
 	for _, c := range cols {
@@ -788,8 +799,11 @@ func (s *Service) UpdateUserSettings(ctx context.Context, userID string, patch m
 	if len(set) == 0 {
 		return s.GetUserSettings(ctx, userID)
 	}
-	// Ligne par défaut si absente (upsert).
-	_, _ = s.GetUserSettings(ctx, userID)
+	// Initialise la ligne de façon idempotente avant le patch. Une erreur ici
+	// doit être propagée : sinon le patch pourrait répondre succès sans être persisté.
+	if _, err := s.GetUserSettings(ctx, userID); err != nil {
+		return UserSettings{}, err
+	}
 	query := `UPDATE "UserSettings" SET ` + strings.Join(set, ", ") + `, "updatedAt" = now() WHERE "userId" = $` + fmt.Sprint(len(args))
 	if _, err := s.pool.Exec(ctx, query, args...); err != nil {
 		return UserSettings{}, err

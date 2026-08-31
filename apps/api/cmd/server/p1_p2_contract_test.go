@@ -44,7 +44,7 @@ func TestP1AuthenticatedReaderContracts(t *testing.T) {
 	}
 
 	w, body = doReq(t, r, http.MethodPatch, "/v1/settings/preferences", token, map[string]any{
-		"emailNotifications": false,
+		"likeVisibility": "PRIVATE",
 	})
 	if w.Code != http.StatusOK || body == nil {
 		t.Fatalf("PATCH /v1/settings/preferences = %d, body=%s", w.Code, w.Body.String())

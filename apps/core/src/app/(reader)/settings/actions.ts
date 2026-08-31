@@ -13,6 +13,7 @@ interface UserSettingsDTO {
   allowMentions: boolean;
   allowCollaborationInvites: boolean;
   showSensitiveContent: boolean;
+  likeVisibility: 'PUBLIC' | 'PRIVATE';
   autoplayMedia: boolean;
   reduceMotion: boolean;
   highContrast: boolean;
@@ -97,6 +98,7 @@ export type AccountSettingsPatch = Partial<{
   allowMentions: boolean;
   allowCollaborationInvites: boolean;
   showSensitiveContent: boolean;
+  likeVisibility: 'PUBLIC' | 'PRIVATE';
   autoplayMedia: boolean;
   reduceMotion: boolean;
   highContrast: boolean;
@@ -114,7 +116,43 @@ export async function updateAccountSettingsAction(input: AccountSettingsPatch) {
   return { success: true, settings };
 }
 
-// Mots masqués : POST est une bascule idempotente (ajout OU retrait).
+// Contrôles sociaux persistés : listes et bascules déléguées à l'API Go.
+export async function getBlockedUsersAction() {
+  return goFetch<{
+    users: Array<{
+      id: string;
+      username: string | null;
+      name: string | null;
+      logoUrl: string | null;
+    }>;
+  }>('/v1/me/blocked-users');
+}
+
+export async function getMutedUsersAction() {
+  return goFetch<{
+    users: Array<{
+      id: string;
+      username: string | null;
+      name: string | null;
+      logoUrl: string | null;
+    }>;
+  }>('/v1/me/muted-users');
+}
+
+export async function toggleBlockedUserAction(id: string) {
+  return goFetch<{ blocked: boolean }>(`/v1/me/blocked-users/${encodeURIComponent(id)}/toggle`, {
+    method: 'POST',
+    body: {},
+  });
+}
+
+export async function toggleMutedUserAction(id: string) {
+  return goFetch<{ muted: boolean }>(`/v1/me/muted-users/${encodeURIComponent(id)}/toggle`, {
+    method: 'POST',
+    body: {},
+  });
+}
+
 export async function toggleMutedWordAction(word: string) {
   const res = await goFetch<{ muted: boolean; word: string }>('/v1/me/muted-words', {
     method: 'POST',

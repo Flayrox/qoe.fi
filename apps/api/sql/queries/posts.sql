@@ -161,7 +161,9 @@ SELECT u.id::text     AS user_id,
        l."createdAt"  AS liked_at
 FROM "Like" l
 JOIN "User" u ON u.id = l."userId"
+LEFT JOIN "UserSettings" privacy ON privacy."userId" = l."userId"
 WHERE l."postId" = $1
+  AND COALESCE(privacy."likeVisibility", 'PUBLIC') = 'PUBLIC'
 ORDER BY l."createdAt" DESC
 LIMIT $2 OFFSET $3;
 
