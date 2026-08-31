@@ -186,7 +186,7 @@ func seedWorldUsers(ctx context.Context, pool *pgxpool.Pool, cast []worldCharact
 	avatars := loadAvatarCatalog()
 	for i, ch := range cast {
 		role := ch.role
-		avatar := avatars.pick(ch.gender, ch.theme)
+		avatar := avatars.pick(ch.gender, ch.theme, ch.name)
 		if _, err := pool.Exec(ctx, `
 			INSERT INTO "User" (id, email, username, name, role, "isCertified", "hasCompletedOnboarding", gender, "ageRange", "logoUrl", "createdAt", "updatedAt")
 			VALUES ($1,$2,$3,$4,$5,$6, true, $7, $8, $9, now() - interval '120 days', now())
