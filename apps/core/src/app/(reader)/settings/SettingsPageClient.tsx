@@ -34,6 +34,10 @@ import {
   requestAccountDeletionAction,
   toggleMutedWordAction,
   updateAccountSettingsAction,
+  getBlockedUsersAction,
+  getMutedUsersAction,
+  toggleBlockedUserAction,
+  toggleMutedUserAction,
   type AccountSettingsPatch,
 } from './actions';
 
@@ -92,12 +96,26 @@ export default function AccountSettingsPage({
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    if (activeSection !== 'privacy') return;
+    Promise.all([getBlockedUsersAction(), getMutedUsersAction()])
+      .then(([blocked, muted]) => setSocialUsers({ blocked: blocked.users, muted: muted.users }))
+      .catch((error) => {
+        showMessage(
+          error instanceof Error ? error.message : t`Impossible de charger vos contrôles sociaux.`
+        );
+      });
+  }, [activeSection]);
 
   const [deletionConfirmation, setDeletionConfirmation] = useState('');
 
   // Mots masqués (section Confidentialité).
   const [mutedWords, setMutedWords] = useState<string[]>(() => initialData?.mutedWords ?? []);
   const [mutedInput, setMutedInput] = useState('');
+  const [socialUsers, setSocialUsers] = useState<{
+    blocked: Array<{ id: string; username: string | null; name: string | null }>;
+    muted: Array<{ id: string; username: string | null; name: string | null }>;
+  }>({ blocked: [], muted: [] });
 
   // Sécurité / mot de passe.
   const [pw, setPw] = useState({ current: '', next: '', confirm: '' });
@@ -438,6 +456,101 @@ export default function AccountSettingsPage({
               checked={settings.showSensitiveContent}
               onChange={(value) => patchSettings({ showSensitiveContent: value })}
             />
+            <SelectRow
+              label={t`Visibilité de mes likes`}
+              description={t`Choisissez si votre identité apparaît dans les listes de personnes ayant aimé une pensée.`}
+              value={settings.likeVisibility}
+              options={[
+                ['PUBLIC', t`Publique`],
+                ['PRIVATE', t`Privée`],
+              ]}
+              onChange={(value) =>
+                patchSettings({ likeVisibility: value as AccountSettingsPatch['likeVisibility'] })
+              }
+            />
+
+            <div className="rounded-xl border border-border/60 p-4">
+              <h3 className="text-sm font-semibold">{t`Contrôles sociaux`}</h3>
+              <p className="mt-1 text-xs text-muted-foreground">{t`Gérez les personnes dont le contenu ou les interactions doivent être limités.`}</p>
+              <div className="mt-3 space-y-2">
+                {[
+                  ['blocked', t`Utilisateurs bloqués`],
+                  ['muted', t`Utilisateurs masqués`],
+                ].map(([kind, label]) => (
+                  <div
+                    key={kind}
+                    className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2 text-sm"
+                  >
+                    <span>{label}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {socialUsers[kind as 'blocked' | 'muted'].length}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {socialUsers.blocked.map((user) => (
+                  <button
+                    key={`b-${user.id}`}
+                    type="button"
+                    disabled={isPending}
+                    onClick={() =>
+                      startTransition(async () => {
+                        try {
+                          const result = await toggleBlockedUserAction(user.id);
+                          if (!result.blocked) {
+                            setSocialUsers((s) => ({
+                              ...s,
+                              blocked: s.blocked.filter((u) => u.id !== user.id),
+                            }));
+                          }
+                          showMessage(t`Utilisateur débloqué.`);
+                        } catch (error) {
+                          showMessage(
+                            error instanceof Error
+                              ? error.message
+                              : t`Impossible de modifier le blocage.`
+                          );
+                        }
+                      })
+                    }
+                    className="rounded-full border border-destructive/30 px-3 py-1.5 text-xs text-destructive"
+                  >
+                    {user.name || user.username || user.id} ×
+                  </button>
+                ))}
+                {socialUsers.muted.map((user) => (
+                  <button
+                    key={`m-${user.id}`}
+                    type="button"
+                    disabled={isPending}
+                    onClick={() =>
+                      startTransition(async () => {
+                        try {
+                          const result = await toggleMutedUserAction(user.id);
+                          if (!result.muted) {
+                            setSocialUsers((s) => ({
+                              ...s,
+                              muted: s.muted.filter((u) => u.id !== user.id),
+                            }));
+                          }
+                          showMessage(t`Utilisateur masqué retiré.`);
+                        } catch (error) {
+                          showMessage(
+                            error instanceof Error
+                              ? error.message
+                              : t`Impossible de modifier le masquage.`
+                          );
+                        }
+                      })
+                    }
+                    className="rounded-full border border-border px-3 py-1.5 text-xs"
+                  >
+                    {user.name || user.username || user.id} ×
+                  </button>
+                ))}
+              </div>
+            </div>
 
             <div className="rounded-xl border border-border/60 p-4">
               <div className="flex items-start gap-3">

@@ -353,6 +353,51 @@ func TestLikes_Paginated(t *testing.T) {
 	}
 }
 
+func TestLikes_PrivateVisibility_HidesActorButPreservesCount(t *testing.T) {
+	fx := seedPosts(t)
+	svc := newTestService()
+	ctx := context.Background()
+
+	// Bob rend ses likes privés puis like la pensée d'Alice. Alice like
+	// également la pensée : le compteur reste à 2, mais Bob ne doit jamais
+	// apparaître dans la liste publique des likers.
+	if _, err := poolTest.Exec(ctx, `
+		INSERT INTO "UserSettings" (id, "userId", "likeVisibility", "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1, 'PRIVATE', now(), now())`, fx.ViewerID); err != nil {
+		t.Fatalf("privacy like: %v", err)
+	}
+	if _, err := svc.ToggleLike(ctx, fx.PostID, fx.ViewerID); err != nil {
+		t.Fatalf("like privé: %v", err)
+	}
+	if _, err := svc.ToggleLike(ctx, fx.PostID, fx.AuthorID); err != nil {
+		t.Fatalf("like public: %v", err)
+	}
+
+	page, err := svc.Likes(ctx, fx.PostID, 10, 0)
+	if err != nil {
+		t.Fatalf("Likes: %v", err)
+	}
+	if len(page.Items) != 1 || page.Items[0].ID != fx.AuthorID {
+		t.Fatalf("likers publics = %+v, attendu uniquement Alice", page.Items)
+	}
+	for _, actor := range page.Items {
+		if actor.ID == fx.ViewerID {
+			t.Fatal("le lik­er privé est exposé dans la liste publique")
+		}
+	}
+
+	var likes, likeCount int
+	if err := poolTest.QueryRow(ctx, `SELECT COUNT(*) FROM "Like" WHERE "postId" = $1`, fx.PostID).Scan(&likes); err != nil {
+		t.Fatalf("likes rows: %v", err)
+	}
+	if err := poolTest.QueryRow(ctx, `SELECT "likeCount" FROM "Post" WHERE id = $1`, fx.PostID).Scan(&likeCount); err != nil {
+		t.Fatalf("likeCount: %v", err)
+	}
+	if likes != 2 || likeCount != 2 {
+		t.Fatalf("compteur = rows:%d denormalized:%d, attendu 2/2", likes, likeCount)
+	}
+}
+
 func TestReposts_Paginated(t *testing.T) {
 	fx := seedPosts(t)
 	svc := newTestService()

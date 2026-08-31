@@ -1130,6 +1130,7 @@ type UserSetting struct {
 	AllowMentions             bool             `json:"allowMentions"`
 	AllowCollaborationInvites bool             `json:"allowCollaborationInvites"`
 	ShowSensitiveContent      bool             `json:"showSensitiveContent"`
+	LikeVisibility            string           `json:"likeVisibility"`
 	AutoplayMedia             bool             `json:"autoplayMedia"`
 	ReduceMotion              bool             `json:"reduceMotion"`
 	HighContrast              bool             `json:"highContrast"`

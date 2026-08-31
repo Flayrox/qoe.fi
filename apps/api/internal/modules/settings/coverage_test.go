@@ -28,7 +28,7 @@ func TestHandlers_ZeroCoverage_Routes(t *testing.T) {
 
 	// PATCH /v1/settings/preferences
 	if w, _ := doJSON(t, r, http.MethodPatch, "/v1/settings/preferences", tok,
-		map[string]any{"notifications": map[string]any{"articlePublished": false}},
+		map[string]any{"likeVisibility": "PRIVATE"},
 	); w.Code != http.StatusOK {
 		t.Fatalf("preferences PATCH → %d (%s), attendu 200", w.Code, w.Body.String())
 	}

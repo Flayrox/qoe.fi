@@ -45,6 +45,10 @@ func (h *Handler) Register(r chi.Router) {
 	r.Get("/v1/me/publication", h.myPublication)
 	r.Get("/v1/me/muted-words", h.listMutedWords)
 	r.Post("/v1/me/muted-words", h.toggleMuteWord)
+	r.Get("/v1/me/blocked-users", h.blockedUsers)
+	r.Get("/v1/me/muted-users", h.mutedUsers)
+	r.Post("/v1/me/blocked-users/{id}/toggle", h.toggleBlockedUser)
+	r.Post("/v1/me/muted-users/{id}/toggle", h.toggleMutedUser)
 	r.Post("/v1/me/wallet/unlock", h.walletUnlock)
 	r.Post("/v1/me/sync", h.syncUser)
 }
