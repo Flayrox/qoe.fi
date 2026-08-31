@@ -172,36 +172,70 @@ function buildEmailTemplate(
 }
 
 /**
- * Universal email dispatcher (Resend API or Dev Logger)
+ * Universal email dispatcher — SMTP self-hosté, Resend API ou Dev Logger.
+ *
+ * Choix du fournisseur (EMAIL_PROVIDER explicite prioritaire) :
+ *   - "smtp"   → relais SMTP (Postfix local, Hostinger…) via SMTP_HOST/PORT/USER/PASS
+ *   - "resend" → API Resend (RESEND_API_KEY)
+ *   - non défini → RESEND_API_KEY si présente, sinon SMTP_HOST si présent,
+ *     sinon log simulé (dev).
  */
 export async function sendTransactionalEmail(data: { to: string; subject: string; html: string }) {
-  const apiKey = process.env.RESEND_API_KEY;
+  const provider = (process.env.EMAIL_PROVIDER || '').toLowerCase();
+  const from = process.env.EMAIL_FROM || 'qoe.fi Security <security@qoe.fi>';
 
-  if (apiKey) {
+  const useResend =
+    provider === 'resend' || (!provider && !!process.env.RESEND_API_KEY && !process.env.SMTP_HOST);
+  const useSMTP =
+    provider === 'smtp' || (!provider && !!process.env.SMTP_HOST && !process.env.RESEND_API_KEY);
+
+  // ── Resend (API HTTP)
+  if (useResend) {
     try {
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          from: process.env.EMAIL_FROM || 'qoe.fi Security <security@qoe.fi>',
-          to: [data.to],
-          subject: data.subject,
-          html: data.html,
-        }),
+        body: JSON.stringify({ from, to: [data.to], subject: data.subject, html: data.html }),
       });
 
       if (res.ok) {
         console.log(`[MAILER] Email successfully sent to ${data.to} via Resend API`);
         return { success: true };
-      } else {
-        const errJson = await res.json();
-        console.error(`[MAILER ERROR] Resend API error:`, errJson);
       }
+      const errJson = await res.json();
+      console.error(`[MAILER ERROR] Resend API error:`, errJson);
+      return { success: false, error: `Resend ${res.status}` };
     } catch (err) {
       console.error(`[MAILER ERROR] Failed to send email via Resend API:`, err);
+      return { success: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+
+  // ── SMTP self-hosté (Postfix, Hostinger, SendGrid…)
+  if (useSMTP) {
+    try {
+      const { sendEmailViaSMTP } = await import('./smtp');
+      await sendEmailViaSMTP(
+        {
+          host: process.env.SMTP_HOST as string,
+          port: parseInt(process.env.SMTP_PORT || '587', 10),
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+          secure: process.env.SMTP_SECURE === 'true' || process.env.SMTP_SECURE === '1',
+          from,
+        },
+        { to: data.to, subject: data.subject, html: data.html }
+      );
+      console.log(
+        `[MAILER] Email successfully sent to ${data.to} via SMTP (${process.env.SMTP_HOST})`
+      );
+      return { success: true };
+    } catch (err) {
+      console.error(`[MAILER ERROR] SMTP send failed:`, err);
+      return { success: false, error: err instanceof Error ? err.message : String(err) };
     }
   }
 
