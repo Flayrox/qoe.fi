@@ -33,20 +33,26 @@ Caddy (updates.qoe.fi, cert on_demand)
    ▼
 service docker `updates` (node:22-alpine, zéro dépendance)
    ▼
-bind mount ./data/updates  (hôte VPS)
-   └─ updates/<runtimeVersion>/<horodatage>/
+bind mount ./data/updates  (hôte VPS, monté sur /app/updates)
+   └─ <runtimeVersion>/<horodatage>/
         ├─ metadata.json        ← `expo export` (dist/metadata.json)
         ├─ _expo/…  assets/…    ← bundle + assets exportés
         ├─ expoConfig.json      ← config Expo publique (extra.expoClient)
         └─ rollback             ← fichier vide = directive rollBackToEmbedded
 ```
 
+> ⚠️ Le serveur attend `<runtimeVersion>/<horodatage>` À LA RACINE du volume
+> (`UPDATES_ROOT`). Ne PAS créer de sous-dossier `updates/` intermédiaire
+> (les manifests répondraient 404).
+
 - **Client** : `expo-updates` (~57.0.19) installé dans `apps/mobile`, config
   dans `app.json` (`updates.url`, `runtimeVersion`, `checkAutomatically`).
   En **debug**, expo-updates est désactivé (Metro sert le JS) : l'OTA ne
   s'observe qu'en build **release**.
 - **Serveur** : `docker/updates/server.js` (Node pur, aucun npm install au
-  build) — endpoints `GET /api/manifest`, `GET /api/assets`, `GET /healthz`.
+  build) — endpoints `GET /api/manifest` (ou `GET /` en présence des
+  en-têtes Expo : le client iOS joint l'URL de base `updates.url` sans
+  suffixe), `GET /api/assets`, `GET /healthz`.
   Implémentation minimaliste du serveur de référence Expo
   (`expo/custom-expo-updates-server`), **durcie** (pas de traversal :
   les assets hors de l'update courant → 403).

@@ -187,6 +187,36 @@ test('healthz', async (t) => {
   assert.deepEqual(JSON.parse(await res.text()), { ok: true, service: 'qoe-updates' });
 });
 
+test('le client iOS joint l’URL de base — GET / avec en-têtes Expo sert le manifest', async (t) => {
+  const root = await fsp.mkdtemp(path.join(os.tmpdir(), 'qoe-upd-'));
+  await fixtureTree(root);
+  const base = await startServer(t, { root });
+
+  // Sans en-têtes Expo, / reste le healthz (navigation navigateur).
+  const plain = await fetch(`${base}/`);
+  assert.equal(plain.status, 200);
+  assert.deepEqual(JSON.parse(await plain.text()), { ok: true, service: 'qoe-updates' });
+
+  // Avec les en-têtes du client expo-updates (exactement ce que l'app iOS
+  // envoie sur updates.url — cf. E2E simulateur 2026-09-02), / sert le
+  // manifest multipart.
+  const manifest = await fetch(`${base}/`, {
+    headers: {
+      'expo-platform': 'ios',
+      'expo-runtime-version': '1.0.0',
+      'expo-protocol-version': '1',
+      'expo-current-update-id': '00000000-0000-0000-0000-000000000000',
+      'expo-embedded-update-id': '00000000-0000-0000-0000-000000000000',
+    },
+  });
+  assert.equal(manifest.status, 200);
+  assert.match(manifest.headers.get('content-type'), /^multipart\/mixed; boundary=/);
+  const body = await manifest.text();
+  const parts = parseMultipart(body, manifest.headers.get('content-type'));
+  assert.equal(partName(parts[0]), 'manifest');
+  assert.equal(JSON.parse(parts[0].content).runtimeVersion, '1.0.0');
+});
+
 test('manifest protocol v0 — multipart/mixed avec manifest + extensions', async (t) => {
   const root = await fsp.mkdtemp(path.join(os.tmpdir(), 'qoe-upd-'));
   await fixtureTree(root);
