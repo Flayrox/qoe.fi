@@ -9,6 +9,7 @@
 
 import { router } from 'expo-router';
 
+import { UpdateCheckRow } from '@/features/updates/updates-controls';
 import {
   SettingsLinkRow,
   SettingsScreenShell,
@@ -83,6 +84,10 @@ export default function SettingsRoute() {
           description={t('settings.data_desc', 'Export, suppression du compte')}
           onPress={() => router.push('/settings/data')}
         />
+      </SettingsSection>
+
+      <SettingsSection title={t('settings.about', 'À propos')}>
+        <UpdateCheckRow />
       </SettingsSection>
     </SettingsScreenShell>
   );

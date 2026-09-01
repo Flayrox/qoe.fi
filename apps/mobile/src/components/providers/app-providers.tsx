@@ -6,6 +6,7 @@ import { Platform } from 'react-native';
 
 import { LanguagePreferenceProvider } from '@/context/language-provider';
 import { AuthProvider } from '@/features/auth/auth-provider';
+import { UpdateBackgroundCheck } from '@/features/updates/updates-controls';
 import { initI18n } from '@/lib/i18n';
 import { queryClient } from '@/lib/query-client';
 
@@ -21,7 +22,12 @@ export function AppProviders({ children }: PropsWithChildren) {
     <I18nProvider i18n={i18n}>
       <LanguagePreferenceProvider>
         <QueryClientProvider client={queryClient}>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            {children}
+            {/* Vérification/application des updates OTA en arrière-plan
+                (release uniquement — no-op en debug/Expo Go). */}
+            <UpdateBackgroundCheck />
+          </AuthProvider>
           {/* @tanstack/react-query-devtools rend du DOM (web uniquement) —
               sur natif, utiliser le menu dev d'Expo Go (cmd+d). */}
           {Platform.OS === 'web' && __DEV__ ? <ReactQueryDevtools initialIsOpen={false} /> : null}
