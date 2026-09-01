@@ -582,4 +582,19 @@ avec `author` dénormalisé. **Body POST** : `{"content": "…"}`.
 
 Le masquage modérateur est distinct du soft-delete auteur (`deletedAt`) : colonnes `isHiddenByModerator`/`hiddenByModeratorAt` sur `Post` et `Article`, résolution (`resolvedById`, `resolvedAt`, `resolutionNote`, `actionTaken`) + index unique partiel anti-spam sur `ModerationReport` (migration `00008_moderation_queue.sql`).
 
+## 10. Newsletters créateurs — sept. 2026
+
+| Méthode | Route | Auth | Description |
+|---|---|---|---|
+| `GET` | `/v1/newsletters?publicationId=` | protégée (créateur) | Liste des issues (DESC) — `{items: [Issue]}` ; `publicationId` résolu via `User.publicationId` si absent |
+| `POST` | `/v1/newsletters` | protégée (créateur) | Crée un brouillon `{publicationId, subject, previewText, html}` → statut `DRAFT` |
+| `PATCH` | `/v1/newsletters/{id}` | protégée (créateur) | Met à jour un brouillon (DRAFT uniquement, sinon 400) |
+| `DELETE` | `/v1/newsletters/{id}` | protégée (créateur) | Supprime un brouillon (DRAFT uniquement) |
+| `POST` | `/v1/newsletters/{id}/send` | protégée (créateur) | `DRAFT → SENDING` + enqueue asynq `newsletter.send` (worker distribue aux abonnés actifs `receiveArticles=true` via l'EmailProvider, puis `SENT`/`FAILED` avec compteurs) |
+| `GET` | `/v1/newsletters/unsubscribe?publicationId=&email=` | **publique** (sans auth) | Désabonnement one-click (RFC 8058) : passe `receiveArticles=false` pour l'abonné |
+
+**Issue (shape)** : `{id, publicationId, subject, previewText|null, html, status: DRAFT\|SENDING\|SENT\|FAILED, totalRecipients, sentCount, failedCount, createdAt, updatedAt, sentAt|null}`.
+
+Le contenu HTML du créateur est enveloppé dans un gabarit qoe.fi (preheader + lien de désabonnement) ; chaque livraison est tracée dans `NewsletterDelivery` (migration `00009_newsletters.sql`).
+
 > Ces gaps sont autant de tickets concrets pour le sprint mobile.
