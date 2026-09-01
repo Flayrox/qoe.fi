@@ -9,6 +9,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
+import { useReduceMotion } from '@/hooks/use-user-settings';
+
 import { AdaptiveGlassView } from './AdaptiveGlassView';
 
 export interface LiquidElasticButtonProps {
@@ -45,6 +47,7 @@ export function LiquidElasticButton({
 }: LiquidElasticButtonProps) {
   const scheme = useColorScheme();
   const isDark = scheme === 'dark' || Appearance.getColorScheme() === 'dark';
+  const reduceMotion = useReduceMotion();
 
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -63,7 +66,9 @@ export function LiquidElasticButton({
     .minDistance(0)
     .onBegin(() => {
       isPressed.value = true;
-      scale.value = withSpring(1.06, { damping: 22, stiffness: 240, mass: 0.5 });
+      scale.value = reduceMotion
+        ? 1.06
+        : withSpring(1.06, { damping: 22, stiffness: 240, mass: 0.5 });
       runOnJS(triggerLightHaptic)();
     })
     .onUpdate((e) => {
@@ -73,17 +78,17 @@ export function LiquidElasticButton({
       const dx = e.translationX * rubberBand * 0.65;
       const dy = e.translationY * rubberBand * 0.65;
 
-      translateX.value = withSpring(dx, SPRING_DRAG);
-      translateY.value = withSpring(dy, SPRING_DRAG);
+      translateX.value = reduceMotion ? dx : withSpring(dx, SPRING_DRAG);
+      translateY.value = reduceMotion ? dy : withSpring(dy, SPRING_DRAG);
     })
     .onFinalize((e) => {
       isPressed.value = false;
       const dist = Math.sqrt(e.translationX * e.translationX + e.translationY * e.translationY);
 
-      // Rebond spring d'origine
-      translateX.value = withSpring(0, SPRING_SNAP);
-      translateY.value = withSpring(0, SPRING_SNAP);
-      scale.value = withSpring(1.0, SPRING_SNAP);
+      // Rebond spring d'origine (instantané si animations réduites)
+      translateX.value = reduceMotion ? 0 : withSpring(0, SPRING_SNAP);
+      translateY.value = reduceMotion ? 0 : withSpring(0, SPRING_SNAP);
+      scale.value = reduceMotion ? 1.0 : withSpring(1.0, SPRING_SNAP);
 
       // Si tap ou relâchement dans la zone d'action
       if (dist < 38 && onPress) {

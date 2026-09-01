@@ -24,6 +24,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { useTheme } from '@/hooks/use-theme';
+import { useReduceMotion } from '@/hooks/use-user-settings';
 
 function Block({
   width,
@@ -39,9 +40,11 @@ function Block({
   style?: StyleProp<ViewStyle>;
 }) {
   const theme = useTheme();
+  const reduceMotion = useReduceMotion();
   const pulse = useSharedValue(1);
 
   useEffect(() => {
+    if (reduceMotion) return;
     pulse.value = withRepeat(
       withTiming(0.45, {
         duration: 850,
@@ -50,7 +53,7 @@ function Block({
       -1,
       true
     );
-  }, [pulse]);
+  }, [pulse, reduceMotion]);
 
   const animatedPulseStyle = useAnimatedStyle(() => {
     return {
