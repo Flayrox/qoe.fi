@@ -18,6 +18,16 @@ type adminQuerier interface {
 	UpdateAdminUserModeration(ctx context.Context, arg db.UpdateAdminUserModerationParams) (db.UpdateAdminUserModerationRow, error)
 	UpdatePublicationCertified(ctx context.Context, arg db.UpdatePublicationCertifiedParams) (db.UpdatePublicationCertifiedRow, error)
 	ClearArticleEditorPicks(ctx context.Context) error
+	CountModerationReportsByStatus(ctx context.Context) ([]db.CountModerationReportsByStatusRow, error)
+	GetArticleAuthor(ctx context.Context, id string) (string, error)
+	GetModerationReport(ctx context.Context, id string) (db.ModerationReport, error)
+	GetPostAuthor(ctx context.Context, id string) (string, error)
+	HideArticleByModerator(ctx context.Context, id string) error
+	HidePostByModerator(ctx context.Context, id string) error
+	ListModerationReportsWithCount(ctx context.Context, arg db.ListModerationReportsWithCountParams) ([]db.ListModerationReportsWithCountRow, error)
+	UnhideArticleByModerator(ctx context.Context, id string) error
+	UnhidePostByModerator(ctx context.Context, id string) error
+	UpdateModerationReportResolution(ctx context.Context, arg db.UpdateModerationReportResolutionParams) (db.UpdateModerationReportResolutionRow, error)
 	CountAllNotificationDeliveries(ctx context.Context) (int64, error)
 	CountNotificationDeliveriesByStatus(ctx context.Context) ([]db.CountNotificationDeliveriesByStatusRow, error)
 	DeletePromo(ctx context.Context, id string) error

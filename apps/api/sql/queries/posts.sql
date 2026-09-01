@@ -31,7 +31,8 @@ SELECT p.id,
 FROM "Post" p
 JOIN "User" u ON u.id = p."authorId"
 WHERE p.id = $1
-  AND p."deletedAt" IS NULL;
+  AND p."deletedAt" IS NULL
+  AND p."isHiddenByModerator" = false;
 
 -- name: GetCanonicalThoughtID :one
 SELECT COALESCE("repostId", id)::text AS id
@@ -49,6 +50,7 @@ FROM "Post"
 WHERE "authorId" = $1
   AND "isDraft" = true
   AND "deletedAt" IS NULL
+  AND "isHiddenByModerator" = false
 ORDER BY "updatedAt" DESC
 LIMIT $2;
 

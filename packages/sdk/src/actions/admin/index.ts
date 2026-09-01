@@ -126,6 +126,20 @@ export const updateOAuthClientStatusAction = safeAction<
   return { success: true };
 });
 
+/** 🛡️ Clôt un signalement (dismiss/resolve) et applique une action de modération. */
+export const resolveModerationReportAction = safeAction<
+  { reportId: string; action: string; note?: string },
+  { success: boolean }
+>(async ({ reportId, action, note }) => {
+  // Le backend Go vérifie le rôle superadmin (403 sinon).
+  await goFetch(`/v1/admin/reports/${encodeURIComponent(reportId)}`, {
+    method: 'PATCH',
+    body: { action, note: note ?? '' },
+  });
+  revalidatePath('/admin/reports');
+  return { success: true };
+});
+
 export const updateCreatorApiAccessAction = safeAction<
   { userId: string; status: 'approved' | 'rejected' | 'revoked' | 'none' },
   { success: boolean }

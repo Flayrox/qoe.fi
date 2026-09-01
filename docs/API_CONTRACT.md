@@ -572,4 +572,14 @@ avec `author` dénormalisé. **Body POST** : `{"content": "…"}`.
 | 9 | ~~menu mute/block/report~~ | ~~stubs « bientôt disponible »~~ **✅ CORRIGÉ (août 2026)** : `POST /v1/users/{id}/mute|block` + `POST /v1/reports` (tables `MutedUser`/`BlockedUser`/`ModerationReport`), branchés dans `post-menu.tsx` | — |
 | 10 | ~~pas d'onglets followers/following~~ | **✅ CORRIGÉ (août 2026)** : `GET /v1/users/{username}/followers|following` + onglets dans le profil mobile (`user/[username]/follow`) et web (`FollowList` + tabs) | — |
 
+## 9. File de modération (signalements exploitables) — sept. 2026
+
+| Méthode | Route | Description |
+|---|---|---|
+| `POST` | `/v1/reports` | Crée un signalement `{targetId, targetType: thought\|article\|user, reason, details?}` — **idempotent** : un même reporter ne peut signaler qu'une fois une cible tant que le signalement est `pending` |
+| `GET` | `/v1/admin/reports?status=pending&limit=50&offset=0` | File de modération (superadmin) : signalement + reporter + aperçu de la cible + **sévérité** (`targetCount` = nb de signalements sur la même cible) ; renvoie `{items, pending}` |
+| `PATCH` | `/v1/admin/reports/{id}` | Clôture + action : `{action: dismiss\|resolve\|hide_post\|hide_article\|unhide_post\|unhide_article\|suspend_author, note?}` — les contenus masqués (`isHiddenByModerator`) sont filtrés des flux ; tout est réversible |
+
+Le masquage modérateur est distinct du soft-delete auteur (`deletedAt`) : colonnes `isHiddenByModerator`/`hiddenByModeratorAt` sur `Post` et `Article`, résolution (`resolvedById`, `resolvedAt`, `resolutionNote`, `actionTaken`) + index unique partiel anti-spam sur `ModerationReport` (migration `00008_moderation_queue.sql`).
+
 > Ces gaps sont autant de tickets concrets pour le sprint mobile.

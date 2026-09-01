@@ -702,15 +702,28 @@ func (s *Service) ToggleMute(ctx context.Context, targetID, userID string) (bool
 }
 
 // Report crée un signalement de modération (ModerationReport).
+// Idempotent : un même reporter ne peut signaler qu'une fois une cible tant
+// que son signalement est pending (index unique partiel en base + garde ici).
 func (s *Service) Report(ctx context.Context, userID, targetID, targetType, reason, details string) error {
 	if targetID == "" || targetType == "" || reason == "" {
 		return errors.New("targetId, targetType et reason requis")
+	}
+	count, err := s.q.CountPendingReportsByReporter(ctx, db.CountPendingReportsByReporterParams{
+		ReporterId: toUUID(userID),
+		TargetId:   targetID,
+		TargetType: targetType,
+	})
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil // déjà signalé par ce reporter — ne pas spammer la file
 	}
 	detailsVal := pgtype.Text{}
 	if details != "" {
 		detailsVal = pgtype.Text{String: details, Valid: true}
 	}
-	_, err := s.q.CreateModerationReport(ctx, db.CreateModerationReportParams{
+	_, err = s.q.CreateModerationReport(ctx, db.CreateModerationReportParams{
 		ReporterId: toUUID(userID),
 		TargetId:   targetID,
 		TargetType: targetType,

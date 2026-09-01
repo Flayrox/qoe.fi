@@ -35,11 +35,13 @@ type Querier interface {
 	CountHighlightUpvotes(ctx context.Context, highlightid string) (int32, error)
 	CountMediaInvites(ctx context.Context, mediaid string) (int32, error)
 	CountMediaMembers(ctx context.Context, mediaid string) (int32, error)
+	CountModerationReportsByStatus(ctx context.Context) ([]CountModerationReportsByStatusRow, error)
 	// ── Notifications & livraisons ───────────────────────────────────────────────
 	CountNotificationDeliveriesByStatus(ctx context.Context) ([]CountNotificationDeliveriesByStatusRow, error)
 	CountOAuthClientsByOwner(ctx context.Context, owneruserid string) (int64, error)
 	CountOptionVotes(ctx context.Context, optionid string) (int32, error)
 	CountOptionVotesByIDs(ctx context.Context, dollar_1 []string) ([]CountOptionVotesByIDsRow, error)
+	CountPendingReportsByReporter(ctx context.Context, arg CountPendingReportsByReporterParams) (int64, error)
 	CountPollVotes(ctx context.Context, pollid string) (int32, error)
 	CountPollVotesByIDs(ctx context.Context, dollar_1 []string) ([]CountPollVotesByIDsRow, error)
 	CountPollVotesByPollID(ctx context.Context, pollid string) (int32, error)
@@ -120,6 +122,7 @@ type Querier interface {
 	GetAdminUserRole(ctx context.Context, id string) (string, error)
 	// API Créateur (migration depuis Hono apps/api) : clés API, catégories, users, follows, bookmarks.
 	GetApiKeyByHash(ctx context.Context, keyhash string) (GetApiKeyByHashRow, error)
+	GetArticleAuthor(ctx context.Context, id string) (string, error)
 	GetArticleByID(ctx context.Context, id string) (GetArticleByIDRow, error)
 	GetArticleBySlug(ctx context.Context, arg GetArticleBySlugParams) (GetArticleBySlugRow, error)
 	// Lecture publique par slug SEUL (premier article publié) — parité avec
@@ -173,6 +176,7 @@ type Querier interface {
 	GetMediaOwnerForCredit(ctx context.Context, publicationid string) (GetMediaOwnerForCreditRow, error)
 	GetMediaRoleForUser(ctx context.Context, arg GetMediaRoleForUserParams) (string, error)
 	GetMediaWithPublication(ctx context.Context, id string) (GetMediaWithPublicationRow, error)
+	GetModerationReport(ctx context.Context, id string) (ModerationReport, error)
 	GetNotificationPreferences(ctx context.Context, userid pgtype.UUID) (GetNotificationPreferencesRow, error)
 	// Centre de notifications : liste groupée, non-lus, lecture, préférences.
 	GetNotifications(ctx context.Context, arg GetNotificationsParams) ([]GetNotificationsRow, error)
@@ -258,7 +262,9 @@ type Querier interface {
 	GroupUsersByCountry(ctx context.Context, dollar_1 []pgtype.UUID) ([]GroupUsersByCountryRow, error)
 	GroupUsersByGender(ctx context.Context, dollar_1 []pgtype.UUID) ([]GroupUsersByGenderRow, error)
 	GroupUsersByLanguage(ctx context.Context, dollar_1 []pgtype.UUID) ([]GroupUsersByLanguageRow, error)
+	HideArticleByModerator(ctx context.Context, id string) error
 	HidePostByAuthor(ctx context.Context, arg HidePostByAuthorParams) (bool, error)
+	HidePostByModerator(ctx context.Context, id string) error
 	IncrementLikeCount(ctx context.Context, id string) error
 	IncrementReplyCount(ctx context.Context, id string) error
 	IncrementRepostCount(ctx context.Context, id string) error
@@ -335,6 +341,10 @@ type Querier interface {
 	ListLikesForPost(ctx context.Context, arg ListLikesForPostParams) ([]ListLikesForPostRow, error)
 	ListMediaInvites(ctx context.Context, mediaid string) ([]ListMediaInvitesRow, error)
 	ListMediaMembers(ctx context.Context, mediaid string) ([]ListMediaMembersRow, error)
+	// =====================================================================
+	// 🛡️ File de modération (ModerationReport) — surface superadmin.
+	// =====================================================================
+	ListModerationReportsWithCount(ctx context.Context, arg ListModerationReportsWithCountParams) ([]ListModerationReportsWithCountRow, error)
 	// Tous les surlignages d'un lecteur (bibliothèque), avec l'article associé.
 	ListMyHighlights(ctx context.Context, arg ListMyHighlightsParams) ([]ListMyHighlightsRow, error)
 	ListNavigationForPublication(ctx context.Context, publicationid string) ([]ListNavigationForPublicationRow, error)
@@ -388,6 +398,8 @@ type Querier interface {
 	// séparément dans le service (les CTE PostgreSQL sont matérialisés, un
 	// COUNT dans le même statement ne verrait pas l'insertion).
 	ToggleHighlightUpvote(ctx context.Context, arg ToggleHighlightUpvoteParams) (int32, error)
+	UnhideArticleByModerator(ctx context.Context, id string) error
+	UnhidePostByModerator(ctx context.Context, id string) error
 	UnpinPost(ctx context.Context, arg UnpinPostParams) (bool, error)
 	UpdateAdminOAuthClientStatus(ctx context.Context, arg UpdateAdminOAuthClientStatusParams) (UpdateAdminOAuthClientStatusRow, error)
 	UpdateAdminUserApiAccess(ctx context.Context, arg UpdateAdminUserApiAccessParams) (UpdateAdminUserApiAccessRow, error)
@@ -402,6 +414,7 @@ type Querier interface {
 	UpdateMediaInviteStatus(ctx context.Context, arg UpdateMediaInviteStatusParams) error
 	UpdateMediaMemberPermissions(ctx context.Context, arg UpdateMediaMemberPermissionsParams) error
 	UpdateMediaMemberRole(ctx context.Context, arg UpdateMediaMemberRoleParams) error
+	UpdateModerationReportResolution(ctx context.Context, arg UpdateModerationReportResolutionParams) (UpdateModerationReportResolutionRow, error)
 	UpdateOAuthClientSecret(ctx context.Context, arg UpdateOAuthClientSecretParams) error
 	UpdateOAuthClientStatus(ctx context.Context, arg UpdateOAuthClientStatusParams) error
 	UpdateOAuthTokenLastUsed(ctx context.Context, id string) error

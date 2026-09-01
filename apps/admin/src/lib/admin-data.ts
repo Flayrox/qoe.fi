@@ -183,6 +183,33 @@ export async function getApiApplicants(): Promise<AdminApiApplicant[]> {
   return goFetch<AdminApiApplicant[]>('/v1/admin/api-applicants');
 }
 
+export interface ModerationReportItem {
+  id: string;
+  targetId: string;
+  targetType: string;
+  reason: string;
+  details: string | null;
+  status: string;
+  actionTaken: string;
+  createdAt: string;
+  targetPreview: string | null;
+  targetCount: number;
+  reporter: {
+    id: string;
+    name: string | null;
+    username: string | null;
+    logoUrl: string | null;
+  };
+}
+
+/** 🛡️ File de modération : signalements (pending en premier) + badge pending. */
+export async function getAdminReports(
+  status?: string
+): Promise<{ items: ModerationReportItem[]; pending: number }> {
+  const qs = status && status !== 'all' ? `?status=${encodeURIComponent(status)}` : '';
+  return goFetch<{ items: ModerationReportItem[]; pending: number }>(`/v1/admin/reports${qs}`);
+}
+
 /** 📬 Livraisons de notifications (compteurs + 50 dernières). */
 export async function getAdminDeliveries(): Promise<{
   counts: Record<string, number>;

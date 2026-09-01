@@ -43,6 +43,7 @@ WHERE p."authorId" = ANY($2::uuid[])
   AND u."isSuspended" = false
   AND p."isDraft" = false
   AND p."deletedAt" IS NULL
+  AND p."isHiddenByModerator" = false
   AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
   AND p.visibility IN ('public', 'followers')
 ORDER BY p."createdAt" DESC, p.id DESC
@@ -161,6 +162,7 @@ WHERE p."authorId" = $2::uuid
   AND u."isSuspended" = false
   AND p."isDraft" = false
   AND p."deletedAt" IS NULL
+  AND p."isHiddenByModerator" = false
   AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
   AND p.visibility = 'public'
 ORDER BY p."createdAt" DESC, p.id DESC
@@ -276,6 +278,7 @@ LEFT JOIN "Like" l ON l."postId" = p.id AND l."userId" = $1
 LEFT JOIN "Post" r ON r."repostId" = p.id AND r."authorId" = $1 AND r."deletedAt" IS NULL AND (r.content = '' OR r.content = ' ')
 WHERE p."isDraft" = false
   AND p."deletedAt" IS NULL
+  AND p."isHiddenByModerator" = false
   AND p.visibility = 'public'
   AND p."createdAt" >= now() - interval '7 days'
   AND u."isShadowbanned" = false
@@ -555,6 +558,7 @@ LEFT JOIN "Like" l ON l."postId" = p.id AND l."userId" = $1
 LEFT JOIN "Post" r ON r."repostId" = p.id AND r."authorId" = $1 AND r."deletedAt" IS NULL AND (r.content = '' OR r.content = ' ')
 WHERE p.id = ANY($2::text[])
   AND p."deletedAt" IS NULL
+  AND p."isHiddenByModerator" = false
 `
 
 type GetPostsByIDsParams struct {
@@ -644,6 +648,7 @@ SELECT id,
 FROM "Post"
 WHERE "parentId" = $1
   AND "deletedAt" IS NULL
+  AND "isHiddenByModerator" = false
   AND "isDraft" = false
 ORDER BY "createdAt" ASC
 LIMIT $2 OFFSET $3
@@ -704,6 +709,7 @@ SELECT id
 FROM "Post"
 WHERE "parentId" = $1
   AND "deletedAt" IS NULL
+  AND "isHiddenByModerator" = false
   AND "isDraft" = false
 ORDER BY "createdAt" ASC
 `

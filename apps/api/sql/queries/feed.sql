@@ -37,6 +37,7 @@ WHERE p."authorId" = ANY(@author_ids::uuid[])
   AND u."isSuspended" = false
   AND p."isDraft" = false
   AND p."deletedAt" IS NULL
+  AND p."isHiddenByModerator" = false
   AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
   AND p.visibility IN ('public', 'followers')
 ORDER BY p."createdAt" DESC, p.id DESC
@@ -71,6 +72,7 @@ LEFT JOIN "Like" l ON l."postId" = p.id AND l."userId" = @viewer_id
 LEFT JOIN "Post" r ON r."repostId" = p.id AND r."authorId" = @viewer_id AND r."deletedAt" IS NULL AND (r.content = '' OR r.content = ' ')
 WHERE p."isDraft" = false
   AND p."deletedAt" IS NULL
+  AND p."isHiddenByModerator" = false
   AND p.visibility = 'public'
   AND p."createdAt" >= now() - interval '7 days'
   AND u."isShadowbanned" = false
@@ -120,6 +122,7 @@ SELECT id,
 FROM "Post"
 WHERE "parentId" = $1
   AND "deletedAt" IS NULL
+  AND "isHiddenByModerator" = false
   AND "isDraft" = false
 ORDER BY "createdAt" ASC
 LIMIT $2 OFFSET $3;
@@ -156,6 +159,7 @@ WHERE p."authorId" = @author_id::uuid
   AND u."isSuspended" = false
   AND p."isDraft" = false
   AND p."deletedAt" IS NULL
+  AND p."isHiddenByModerator" = false
   AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
   AND p.visibility = 'public'
 ORDER BY p."createdAt" DESC, p.id DESC
@@ -189,13 +193,15 @@ JOIN "User" u ON u.id = p."authorId"
 LEFT JOIN "Like" l ON l."postId" = p.id AND l."userId" = @viewer_id
 LEFT JOIN "Post" r ON r."repostId" = p.id AND r."authorId" = @viewer_id AND r."deletedAt" IS NULL AND (r.content = '' OR r.content = ' ')
 WHERE p.id = ANY(@ids::text[])
-  AND p."deletedAt" IS NULL;
+  AND p."deletedAt" IS NULL
+  AND p."isHiddenByModerator" = false;
 
 -- name: GetReplyIDsForThought :many
 SELECT id
 FROM "Post"
 WHERE "parentId" = $1
   AND "deletedAt" IS NULL
+  AND "isHiddenByModerator" = false
   AND "isDraft" = false
 ORDER BY "createdAt" ASC;
 
