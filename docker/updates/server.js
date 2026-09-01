@@ -31,7 +31,6 @@ const crypto = require('crypto');
 const fs = require('fs');
 const fsp = require('fs/promises');
 const path = require('path');
-
 const PORT = Number(process.env.PORT || 3000);
 const UPDATES_ROOT = process.env.UPDATES_ROOT || '/app/updates';
 // URL publique par laquelle l'app joint ce serveur (assets + manifest).
@@ -39,6 +38,11 @@ const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || `http://localhost:${PORT
   /\/$/,
   ''
 );
+// Clé privée RSA de code signing (optionnelle). Quand elle est montée,
+// les manifests sont signés (RSA-SHA256) et le client vérifie la signature
+// contre le certificat embarqué (updates.codeSigningCertificate).
+const PRIVATE_KEY_PATH = process.env.PRIVATE_KEY_PATH || '';
+const CODE_SIGNING_KEY_ID = process.env.CODE_SIGNING_KEY_ID || 'main';
 
 // ── Mime types des assets exportés par expo (extensions communes) ──────
 const MIME_BY_EXT = {
@@ -89,6 +93,16 @@ class HttpError extends Error {
     super(message);
     this.status = status;
   }
+}
+
+/** Signature RSA-SHA256 d'une chaîne + sérialisation du header expo-signature. */
+function signManifest(payload) {
+  const sign = crypto.createSign('RSA-SHA256');
+  sign.update(payload, 'utf8');
+  sign.end();
+  const sig = sign.sign(fs.readFileSync(PRIVATE_KEY_PATH), 'base64');
+  // Format « Structured Headers » dictionary : sig="<b64>", keyid="main".
+  return `sig="${sig}", keyid="${CODE_SIGNING_KEY_ID}"`;
 }
 
 /** Dernier répertoire d'update (tri numérique décroissant des horodatages). */
@@ -233,8 +247,12 @@ async function handleManifest(req, res, url) {
   const runtimeVersion =
     req.headers['expo-runtime-version'] || url.searchParams.get('runtime-version');
 
-  if (req.headers['expo-expect-signature']) {
-    throw new HttpError(400, 'Code signing requested but not configured on this server.');
+  const expectSignature = req.headers['expo-expect-signature'];
+  if (expectSignature && !PRIVATE_KEY_PATH) {
+    throw new HttpError(
+      400,
+      'Code signing requested but no private key configured on this server.'
+    );
   }
   if (platform !== 'ios' && platform !== 'android') {
     throw new HttpError(400, 'Unsupported platform. Expected ios or android.');
@@ -298,11 +316,15 @@ async function handleManifest(req, res, url) {
     assetRequestHeaders[asset.key] = {};
   }
 
+  const manifestString = JSON.stringify(manifest);
+  const signature = expectSignature ? signManifest(manifestString) : null;
+
   multipartResponse(res, protocolVersion, [
     {
       name: 'manifest',
       contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify(manifest),
+      body: manifestString,
+      extraHeaders: signature ? `expo-signature: ${signature}\r\n` : '',
     },
     {
       name: 'extensions',
@@ -353,6 +375,21 @@ async function handleAssets(req, res, url) {
     'cache-control': 'public, max-age=31536000, immutable',
   });
   res.end(content);
+}
+
+// Échec rapide si la clé de signature est configurée mais illisible : mieux
+// vaut refuser de démarrer que de servir des manifests non signés.
+if (PRIVATE_KEY_PATH) {
+  try {
+    const st = fs.statSync(PRIVATE_KEY_PATH);
+    if (!st.isFile()) throw new Error('not a regular file');
+    fs.readFileSync(PRIVATE_KEY_PATH);
+  } catch {
+    console.error(
+      `[qoe-updates] PRIVATE_KEY_PATH configurée mais illisible: ${PRIVATE_KEY_PATH} — montez la clé privée de code signing (docker-compose: UPDATES_SIGNING_KEY).`
+    );
+    process.exit(1);
+  }
 }
 
 const server = http.createServer((req, res) => {

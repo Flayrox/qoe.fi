@@ -483,9 +483,17 @@ services:
     environment:
       # URL publique par laquelle l'app joint ce serveur (URLs des assets).
       PUBLIC_BASE_URL: ${UPDATES_PUBLIC_BASE_URL:-https://updates.qoe.fi}
+      # Code signing RSA-SHA256 des manifests (cf. docs/OTA_UPDATES.md §6).
+      PRIVATE_KEY_PATH: ${UPDATES_SIGNING_KEY_PATH:-/app/signing-key.pem}
+      CODE_SIGNING_KEY_ID: ${UPDATES_CODE_SIGNING_KEY_ID:-main}
 
     volumes:
       - ${UPDATES_DATA_DIR:-./data/updates}:/app/updates
+      # 🔑 Clé privée de code signing (jamais commitée) — générée par
+      # `expo-updates codesigning:generate` (apps/mobile/keys), déployée
+      # par scripts/deploy-prod.sh ou scp manuel. Absente → le container
+      # refuse de démarrer (échec rapide explicite).
+      - ${UPDATES_SIGNING_KEY:-./data/updates-signing-key.pem}:/app/signing-key.pem:ro
 
     networks:
       - qoefi-public
