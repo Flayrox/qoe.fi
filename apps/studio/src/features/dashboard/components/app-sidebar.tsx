@@ -15,6 +15,7 @@ interface MeResponse {
     username: string | null;
     name: string | null;
     logoUrl: string | null;
+    publicationLogoUrl: string | null;
   };
 }
 interface WorkspacesResponse {
@@ -55,6 +56,7 @@ export async function AppSidebar() {
     name: string | null;
     username: string | null;
     logoUrl: string | null;
+    publicationLogoUrl: string | null;
   } | null = null;
   let unreadCount = 0;
   let mediaBrandName: string | null = null;
@@ -71,6 +73,7 @@ export async function AppSidebar() {
       name: me.data.name,
       username: me.data.username,
       logoUrl: me.data.logoUrl,
+      publicationLogoUrl: me.data.publicationLogoUrl,
     };
     unreadCount = unread.count ?? 0;
     if (activeMediaId) {
@@ -91,8 +94,13 @@ export async function AppSidebar() {
     (authUser?.user_metadata?.name as string | undefined) ||
     'Creator';
   const userFallback = userName.slice(0, 2).toUpperCase();
+  // Avatar du compte : logo personnel, sinon logo de la publication
+  // personnelle (convention PERSONAL), sinon avatar Supabase.
   const userAvatar =
-    dbUser?.logoUrl || (authUser?.user_metadata?.avatar_url as string | undefined) || null;
+    dbUser?.logoUrl ||
+    dbUser?.publicationLogoUrl ||
+    (authUser?.user_metadata?.avatar_url as string | undefined) ||
+    null;
 
   // 🔕 Pas de badge tant qu'on est sur la page notifications (header posé par middleware.ts)
   let isOnNotificationsPage = false;
