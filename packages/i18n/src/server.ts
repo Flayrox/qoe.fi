@@ -28,6 +28,14 @@ const catalogs: Record<string, Record<string, string>> = {
 // la clé SystemConfig "TRANSLATIONS_OVERRIDE" y est renvoyée telle quelle.
 export const getCachedOverrides = unstable_cache(
   async () => {
+    // Pendant `next build` (prerender), l'API Go n'est pas joignable depuis le
+    // contexte de build Docker (QOE_API_URL pointe vers le service `api` qui
+    // n'existe pas à ce moment) : on skip le fetch — les overrides se
+    // chargent normalement au runtime. Évite le bruit ENOTFOUND qui faisait
+    // échouer les gates naïves du script de déploiement.
+    if (process.env.NEXT_PHASE === 'phase-production-build') {
+      return {};
+    }
     try {
       const apiUrl = process.env.QOE_API_URL;
       if (!apiUrl) {

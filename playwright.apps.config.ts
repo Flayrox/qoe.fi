@@ -11,9 +11,12 @@ import { defineConfig, devices } from '@playwright/test';
 
 const GO_API_PORT = Number(process.env.PLAYWRIGHT_GO_API_PORT) || 8090;
 const GO_API_URL = `http://localhost:${GO_API_PORT}`;
-const TENANTS_URL = process.env.PLAYWRIGHT_TENANTS_URL ?? 'http://localhost:3001';
-const STUDIO_URL = process.env.PLAYWRIGHT_STUDIO_URL ?? 'http://localhost:3020';
-const ADMIN_URL = process.env.PLAYWRIGHT_ADMIN_URL ?? 'http://localhost:3030';
+// Les apps hardcodent leurs ports dev (next dev -p 15403/15404/15405 — le
+// flag CLI prime sur la variable PORT) : Playwright doit attendre CES ports,
+// pas des ports libres arbitraires.
+const TENANTS_URL = process.env.PLAYWRIGHT_TENANTS_URL ?? 'http://localhost:15403';
+const STUDIO_URL = process.env.PLAYWRIGHT_STUDIO_URL ?? 'http://localhost:15404';
+const ADMIN_URL = process.env.PLAYWRIGHT_ADMIN_URL ?? 'http://localhost:15405';
 
 // DSN sans paramètres réservés à Prisma (?schema=public).
 const goDatabaseUrl = (process.env.API_DATABASE_URL ?? process.env.DATABASE_URL ?? '').split(
@@ -59,24 +62,24 @@ export default defineConfig({
       // Health-check TCP : la racine de tenants est publique mais les routes
       // de studio/admin redirigent (auth) — le port suffit à attendre le boot.
       command: 'pnpm --filter @qoe/tenants dev',
-      port: 3001,
+      port: 15403,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
-      env: { ...appEnv, PORT: '3001', HOSTNAME: '127.0.0.1' },
+      env: { ...appEnv, HOSTNAME: '127.0.0.1' },
     },
     {
       command: 'pnpm --filter @qoe/studio dev',
-      port: 3020,
+      port: 15404,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
-      env: { ...appEnv, PORT: '3020', HOSTNAME: '127.0.0.1' },
+      env: { ...appEnv, HOSTNAME: '127.0.0.1' },
     },
     {
       command: 'pnpm --filter @qoe/admin dev',
-      port: 3030,
+      port: 15405,
       reuseExistingServer: !process.env.CI,
       timeout: 120_000,
-      env: { ...appEnv, PORT: '3030', HOSTNAME: '127.0.0.1' },
+      env: { ...appEnv, HOSTNAME: '127.0.0.1' },
     },
   ],
   projects: [
