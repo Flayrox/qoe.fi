@@ -1,5 +1,17 @@
 # 📦 Mises à jour OTA (expo-updates) — auto-hébergées
 
+> ## 🚨 AVANT UN BUILD RELEASE MOBILE (rappel 01/09)
+>
+> `apps/mobile/app.json` contient actuellement des valeurs de **DEV** :
+> - `updates.url: "http://localhost:3999"` (au lieu de `https://updates.qoe.fi`)
+> - `NSAppTransportSecurity.NSAllowsArbitraryLoads: true` (ATS désactivé)
+>
+> **Tant que c'est en place, NE PAS lancer `eas build --profile production`** :
+> l'app release chercherait ses updates OTA sur `localhost:3999` (cassé en prod)
+> et ATS serait désactivé (régression sécurité). **Reverter ces deux valeurs**
+> (URL → `https://updates.qoe.fi`, supprimer le bloc `NSAppTransportSecurity`)
+> avant tout build de soumission.
+
 Livrer le **JS** de l'app mobile **sans passer par l'App Store / Play Store**,
 via un serveur d'updates maison implémentant le **protocole Expo Updates**.
 
