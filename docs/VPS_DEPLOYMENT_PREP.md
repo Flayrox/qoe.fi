@@ -549,7 +549,16 @@ et les apps qoe pointent `supabase-db:5432`.
   ⚠️ Piège corrigé le 01/09 : Caddy + hook Stalwart lisaient `live/qoe.fi` (cert hérité de la migration du
   21/08) alors que certbot renouvelle `live/qoe.fi-0001` → le chemin `-0001` est désormais utilisé partout
   (Caddyfile `qoe_cert` + hook Stalwart). L'option (a) **DNS-01 Hetzner** (un seul PEM pour Caddy + Stalwart
-  + mail) reste le chantier propre quand on voudra, mais **n'est plus urgente**.
+  + mail) reste le chantier propre quand on voudra, mais **n'est plus urgente** (voir l'item DNS-01 ci-dessous).
+- [ ] **DNS-01 Hetzner — pour mémoire (PAS urgent)** : le challenge **DNS-01** de Let's Encrypt prouve la
+  propriété du domaine via un record **TXT** (`_acme-challenge.qoe.fi`) posé dans le DNS public — contrairement
+  à HTTP-01 / TLS-ALPN-01 (LE vient se connecter chez toi), **aucun port n'a besoin d'être libre** et ça
+  permet les certs **wildcard** (`*.qoe.fi`). Brancher certbot sur l'API Hetzner = token API (console Hetzner)
+  + plugin `certbot-dns-hetzner` ; certbot pose/retire le TXT automatiquement à chaque renouvellement.
+  Intérêt chez nous : un seul PEM pour Caddy + Stalwart + mail, sans le ballet port 80/pre-hook. **Pas urgent**
+  (la chaîne standalone + pre-hook marche, dry-run validé 01/09). ⚠️ **Deviendra caduc si on bouge le DNS
+  chez Bunny** (plugin certbot/Caddy Bunny DNS à la place). Devient **obligatoire** seulement si on veut
+  masquer les `*.admin.qoe.fi` du DNS public (NXDOMAIN) — LE ne pourrait alors plus valider par connexion.
 - [ ] **CDN/Stockage images → Bunny.net** (objectif : décharger le VPS + livraison edge mondiale) :
   - Aujourd'hui : `cdn.qoe.fi` → `supabase-kong` (`/storage/v1/object/public`) — storage auto-hébergé sur le
     VPS (bande passante + disque locaux, pas de cache edge).
@@ -570,6 +579,16 @@ et les apps qoe pointent `supabase-db:5432`.
     (redis, meili, umami-db, caddy_data), `data/updates` (OTA).
   - ⚠️ La passphrase restic + clé de chiffrement doivent vivre dans le vault (1Password), PAS seulement sur
     le VPS.
+- [ ] **DNS `qoe.fi` → Bunny DNS ?** (à décider, PAS urgent) : Bunny DNS est **gratuit** (≤ 500 domaines,
+  requêtes illimitées), **anycast**, avec **API** et **DNSSEC supporté** — le DNSSEC débloquerait l'item
+  TLSA/DANE du mail (bloqué chez Hetzner Console DNS qui ne signe pas). Un seul fournisseur pour DNS + CDN
+  + storage. ⚠️ Garder les pieds sur terre : (1) les records A/MX continueront de pointer vers l'IP du VPS
+  → **l'IP reste publique de toute façon** (le SMTP 25/465/587/993/995 doit être joignable directement ;
+  aucun CDN devant le mail) ; (2) l'anti-DDoS Bunny ne couvre que le **trafic HTTP qui passe par son edge**
+  (images, éventuellement une pull zone devant les frontends) — pas le mail, pas les connexions directes.
+  Bénéfices réels : DNSSEC/DANE + gratuit + consolidation. Si bougé : ré-export de la zone (A/CNAME/MX/TXT/
+  wildcards), bascule NS chez le registrar, surveiller la propagation. **Indépendant** du chantier CDN images
+  (Bunny Storage se fait sans bouger le DNS).
 - [ ] **SPF sur le host HELO `mail.qoe.fi`** : publier `v=spf1 a -all` (couvre A + AAAA du VPS) pour lever
   le point `SPF_HELO_NONE` de mail-tester (mineur : +0.001, le score reste 10/10 sans).
 
