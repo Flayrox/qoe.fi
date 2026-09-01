@@ -186,4 +186,45 @@ describe('LoginFormBento — signup one-click', () => {
     );
     stop.mockRestore();
   });
+
+  it("9. masque le lien « S'inscrire » quand ALLOW_NEW_REGISTRATIONS=false", async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ALLOW_NEW_REGISTRATIONS: 'false',
+        AUTH_METHODS: JSON.stringify({
+          google: false,
+          apple: false,
+          password: true,
+          magicLink: true,
+        }),
+      }),
+    } as unknown as Response);
+    const { queryByText } = render(<LoginFormBento />);
+
+    await waitFor(() => {
+      expect(queryByText("Pas encore de compte ? S'inscrire")).toBeNull();
+    });
+  });
+
+  it('10. replie un signup déjà ouvert vers la connexion quand les inscriptions ferment', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ALLOW_NEW_REGISTRATIONS: 'false',
+        AUTH_METHODS: JSON.stringify({
+          google: false,
+          apple: false,
+          password: true,
+          magicLink: true,
+        }),
+      }),
+    } as unknown as Response);
+    const { queryByText } = render(<LoginFormBento initialMode="signup" />);
+
+    // Le signup est d'abord rendu, puis replié une fois la config chargée.
+    await waitFor(() => {
+      expect(queryByText('Créer un compte')).toBeNull();
+    });
+  });
 });

@@ -502,6 +502,10 @@ func (h *Handler) syncUser(w http.ResponseWriter, r *http.Request) {
 	claims := middleware.Claims(r.Context())
 	created, needsOnboarding, err := h.svc.SyncUserFromAuth(r.Context(), userID, claims)
 	if err != nil {
+		if errors.Is(err, ErrRegistrationsClosed) {
+			response.Forbidden(w, err.Error())
+			return
+		}
 		log.Printf("[users] syncUser error (user=%s): %v", userID, err)
 		response.Internal(w)
 		return
