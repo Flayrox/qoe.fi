@@ -532,6 +532,10 @@ et les apps qoe pointent `supabase-db:5432`.
 
 ## 1️⃣4️⃣ 🗂️ Backlog — tâches différées
 
+> 📄 **Chantiers détaillés (bunny.net CDN/storage, DNS Hetzner vs Bunny, plan de test du
+> renouvellement LE) → [`docs/ROADMAP_INFRA.md`](./ROADMAP_INFRA.md)** — audit du code, comparatifs
+> et checklists de bascule prêts à l'emploi.
+
 - [ ] **DNS : migrer la zone `qoe.fi` vers un provider gérant DNSSEC** (Hetzner Console DNS ne le supporte pas —
   vérifié 2026-08-31, seuls les records DS entrants sont possibles). **Sans zone signée, les enregistrements
   TLSA/DANE sont inopérants** (Gmail applique DANE en dur depuis 2023, mais DANE exige DNSSEC pour faire confiance
