@@ -9,12 +9,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "icon": "./assets/expo.icon",
-      "bundleIdentifier": "com.anonymous.qoe-mobile",
-      "infoPlist": {
-        "NSAppTransportSecurity": {
-          "NSAllowsArbitraryLoads": true
-        }
-      }
+      "bundleIdentifier": "com.anonymous.qoe-mobile"
     },
     "android": {
       "adaptiveIcon": {
@@ -45,7 +40,7 @@
       "expo-updates"
     ],
     "updates": {
-      "url": "http://localhost:3999",
+      "url": "https://updates.qoe.fi",
       "enabled": true,
       "fallbackToCacheTimeout": 0,
       "checkAutomatically": "ON_LOAD",
