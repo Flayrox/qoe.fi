@@ -23,7 +23,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
-import { Toast } from '@/components/ui/toast';
 import { Avatar } from '@/components/thought/avatar';
 import { ThoughtFeedSlice } from '@/components/thought/thought-feed-slice';
 import { ProfileMenuButton } from '@/features/profile/profile-menu';
@@ -268,11 +267,7 @@ export function ProfileScreen({
                 <View style={styles.actionWrap}>
                   {isOwn ? (
                     <Pressable
-                      onPress={() => {
-                        Toast.show(
-                          t('profile.edit_coming_soon', 'Édition du profil bientôt disponible')
-                        );
-                      }}
+                      onPress={() => router.push('/settings/edit-profile')}
                       style={({ pressed }) => [
                         styles.editProfileButton,
                         {

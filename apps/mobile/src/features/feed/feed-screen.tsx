@@ -5,7 +5,7 @@ import {
   type FeedSlice,
   FeedArticle,
 } from '@qoe/sdk/mobile';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { FlashList, type FlashListProps, type FlashListRef } from '@shopify/flash-list';
 import Animated from 'react-native-reanimated';
 import { router, useNavigation } from 'expo-router';
@@ -42,6 +42,27 @@ export function FeedScreen() {
   const [tab, setTab] = useState<FeedTab>('for_you');
   const { scrollY, isScrollingDown, onScrollHandler } = useScrollCoordination();
   const listRef = useRef<FlashListRef<FeedRow>>(null);
+
+  // Onglet initial selon la préférence serveur « Feed par défaut »
+  // (settings → Apparence ; FOLLOWING = Suivi, sinon Pour vous).
+  const { data: userSettings } = useQuery({
+    queryKey: ['settings', 'user-settings'],
+    queryFn: async () => {
+      const res = await apiClient.getUserSettings();
+      if (!res.ok) return null;
+      return res.data;
+    },
+    staleTime: 60_000,
+  });
+
+  const appliedDefaultFeed = useRef(false);
+  useEffect(() => {
+    if (appliedDefaultFeed.current) return;
+    if (userSettings?.defaultFeed === 'FOLLOWING') {
+      appliedDefaultFeed.current = true;
+      setTab('following');
+    }
+  }, [userSettings]);
 
   // Adapte le client universel au contrat du hook, selon l'onglet :
   const fetcher: FeedFetcherFn<FeedSlice> = useCallback(

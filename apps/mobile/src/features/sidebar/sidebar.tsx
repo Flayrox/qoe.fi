@@ -181,7 +181,7 @@ export function Sidebar() {
       icon: { ios: 'gearshape', android: 'settings', web: 'settings' },
       onPress: () => {
         closeDrawer();
-        Toast.show(t('sidebar.settings_coming_soon', 'Paramètres bientôt disponibles'), 'info');
+        router.push('/settings');
       },
     },
     {
