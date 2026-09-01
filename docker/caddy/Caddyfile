@@ -65,7 +65,11 @@
 }
 
 (qoe_cert) {
-    tls /etc/letsencrypt/live/qoe.fi/fullchain.pem /etc/letsencrypt/live/qoe.fi/privkey.pem
+    # ⚠️ Chemin -0001 OBLIGATOIRE : certbot a créé live/qoe.fi-0001 (collision
+    # avec le live/qoe.fi hérité de la migration du 21/08) et c'est le -0001
+    # qu'il RENOUVELLE (conf renewal/qoe.fi-0001.conf). Sans ce chemin, Caddy
+    # servirait un cert expiré le 19/11 (diagnostiqué 01/09).
+    tls /etc/letsencrypt/live/qoe.fi-0001/fullchain.pem /etc/letsencrypt/live/qoe.fi-0001/privkey.pem
 }
 
 (lassez_cert) {
@@ -466,10 +470,8 @@ studio.admin.qoe.fi {
     }
 }
 
-# Ancien nom de Supabase Studio — connexion fermée (remplacé par studio.admin.qoe.fi)
-base.admin.qoe.fi {
-    abort
-}
+# (Supprimé le 01/09 : base.admin.qoe.fi n'a plus de bloc — plus de cert émis
+#  pour cet ancien nom de Supabase Studio, remplacé par studio.admin.qoe.fi.)
 
 # Dashboard Umami (analytics) — tailnet-only
 umami.admin.qoe.fi {
