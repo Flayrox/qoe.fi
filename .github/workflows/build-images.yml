@@ -91,6 +91,11 @@ jobs:
             context: ./apps/api
             dockerfile: ./apps/api/Dockerfile
             target: ''
+          # Serveur d'updates OTA expo-updates (Node pur, zéro dépendance).
+          - service: updates
+            context: ./docker/updates
+            dockerfile: ./docker/updates/Dockerfile
+            target: ''
 
     steps:
       - name: Checkout
