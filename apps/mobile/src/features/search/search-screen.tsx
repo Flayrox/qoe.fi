@@ -193,7 +193,7 @@ export function SearchScreen() {
           <View style={styles.center}>
             <EmptyState
               icon={{ ios: 'magnifyingglass', android: 'search', web: 'search' }}
-              message={t('search.no_results', 'Aucun résultat pour « %{query} »', {
+              message={t('search.no_results', 'Aucun résultat pour « {query} »', {
                 query: debounced,
               })}
             />
