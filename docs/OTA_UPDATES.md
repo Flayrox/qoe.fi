@@ -38,7 +38,7 @@ bind mount ./data/updates  (hôte VPS)
   Implémentation minimaliste du serveur de référence Expo
   (`expo/custom-expo-updates-server`), **durcie** (pas de traversal :
   les assets hors de l'update courant → 403).
-- **Réseau** : `updates.qoe.fi` → Caddy (bloc dédié, *avant* le wildcard
+- **Réseau** : `updates.qoe.fi` → Caddy (bloc dédié, _avant_ le wildcard
   `*.qoe.fi`) → service `updates` (réseau `qoefi-public`).
 
 ## 2. Publish un update
@@ -115,9 +115,32 @@ le certificat embarqué avant d'appliquer un update (anti-tampering ISP/CDN).
 - **Déploiement de la clé** : `scripts/deploy-prod.sh` pousse
   `apps/mobile/keys/private-key.pem` → `data/updates-signing-key.pem` du
   VPS à chaque déploiement (warning si absente localement).
-- ⚠️ **Rotation** : un build natif embarque UN certificat — changer de clé
-  impose un nouveau build + bump de `runtimeVersion`. Sauvegardez
-  `apps/mobile/keys/` (KMS/coffre) : sans la clé privée, plus de signature.
+- ⚠️ **Rotation** : notre procédure est automatisée —
+
+  ```bash
+  bash scripts/rotate-code-signing-key.sh
+  ```
+
+  1. Le script **sauvegarde** l'ancienne paire dans `apps/mobile/keys/backup-<ts>/`
+     (⚠️ à copier dans un coffre/KMS — la clé privée est gitignorée et
+     n'existe que sur le poste de dev + le VPS), génère une nouvelle paire
+     (10 ans, CN « Qoe »), **bump le `runtimeVersion`** (patch : `1.0.0 → 1.0.1`)
+     et resynchronise les projets natifs (nouveau certificat embarqué).
+  2. **Commit** : `apps/mobile/certs/certificate.pem` (public, committé) +
+     `apps/mobile/app.json` (nouveau runtimeVersion).
+  3. **Build + soumission store** de la nouvelle version native (seuls les
+     nouveaux binaires connaissent le nouveau certificat).
+  4. **Déploiement** : `bash scripts/deploy-prod.sh` (scp de la nouvelle clé
+     privée → `data/updates-signing-key.pem` du VPS).
+  5. **Publish** des updates suivants (`bash scripts/publish-update.sh`) —
+     ils portent le nouveau runtimeVersion.
+
+  Un client ancien qui reçoit un update signé avec la nouvelle clé échoue à
+  la vérification et **reste sur son bundle embarqué** (pas de crash) ; c'est
+  pour ça que le runtimeVersion doit être bumpé : il ignore l'update avant
+  même de le télécharger. Ne supprimez le backup qu'une fois tous les
+  clients migrés. Sauvegardez `apps/mobile/keys/` (KMS/coffre) : sans la
+  clé privée, plus de signature possible.
 
 ## 6bis. Limites connues
 
@@ -141,7 +164,7 @@ Le service `updates` est intégré au déploiement standard :
    `bash scripts/deploy-prod.sh --publish-update` — exporte le bundle,
    rsync vers `data/updates` du VPS et vérifie le manifest HTTPS.
    (ou manuellement : `UPDATES_TARGET=root@vps:/var/www/qoe.fi/data/updates
-   ./scripts/publish-update.sh`)
+./scripts/publish-update.sh`)
 5. **Valider** :
    ```bash
    curl -H "expo-platform: ios" -H "expo-runtime-version: 1.0.0" \

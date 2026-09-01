@@ -19,6 +19,7 @@ import { AnalyticsScript } from '@qoe/analytics/client';
 import { cn } from '@qoe/utils';
 import { DevtoolsPanel, ThemeProvider, ThemeSeedScript, GlobalAuthModalProvider } from '@qoe/ui';
 import { QueryProvider } from '@/components/providers/QueryProvider';
+import { ReadingPreferencesProvider } from '@/components/providers/ReadingPreferencesProvider';
 import { createClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import {
@@ -74,6 +75,7 @@ export default async function RootLayout({
         fontScale: number;
         reduceMotion: boolean;
         highContrast: boolean;
+        autoplayMedia: boolean;
       }>('/v1/settings/preferences').catch(() => null)
     : null;
   const flagsPayload = await getGrowthBookPayload().catch(() => ({}));
@@ -118,15 +120,17 @@ export default async function RootLayout({
           <GrowthBookProvider payload={flagsPayload}>
             <I18nClientProvider language={locale} staticData={staticData}>
               <QueryProvider>
-                <GlobalAuthModalProvider isAuthenticated={!!currentUser}>
-                  <TooltipProvider>
-                    {children}
-                    <Toaster />
-                    {process.env.NODE_ENV === 'development' && (
-                      <DevtoolsPanel actions={devtoolsActions} />
-                    )}
-                  </TooltipProvider>
-                </GlobalAuthModalProvider>
+                <ReadingPreferencesProvider initial={accountSettings}>
+                  <GlobalAuthModalProvider isAuthenticated={!!currentUser}>
+                    <TooltipProvider>
+                      {children}
+                      <Toaster />
+                      {process.env.NODE_ENV === 'development' && (
+                        <DevtoolsPanel actions={devtoolsActions} />
+                      )}
+                    </TooltipProvider>
+                  </GlobalAuthModalProvider>
+                </ReadingPreferencesProvider>
               </QueryProvider>
             </I18nClientProvider>
           </GrowthBookProvider>

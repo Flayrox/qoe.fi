@@ -418,5 +418,6 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`[qoe-updates] listening on :${PORT} (root: ${UPDATES_ROOT})`);
+  const boundPort = server.address() && server.address().port;
+  console.log(`[qoe-updates] listening on :${boundPort ?? PORT} (root: ${UPDATES_ROOT})`);
 });

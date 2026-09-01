@@ -25,6 +25,10 @@ import {
   Plus,
 } from 'lucide-react';
 import { NotificationSettingsForm } from '@/components/notifications/NotificationSettingsForm';
+import {
+  useReadingPreferences,
+  type ReadingPreferences,
+} from '@/components/providers/ReadingPreferencesProvider';
 import SecuritySettings from './SecuritySettings';
 import {
   cancelAccountDeletionAction,
@@ -121,6 +125,8 @@ export default function AccountSettingsPage({
   const [pw, setPw] = useState({ current: '', next: '', confirm: '' });
   const [pwMessage, setPwMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
+  const { update: updateReadingPreferences } = useReadingPreferences();
+
   const showMessage = (value: string) => {
     setMessage(value);
     window.setTimeout(() => setMessage(null), 3500);
@@ -132,6 +138,15 @@ export default function AccountSettingsPage({
       try {
         const result = await updateAccountSettingsAction(patch);
         setData((current) => (current ? { ...current, settings: result.settings } : current));
+        // Application INSTANTANÉE des préférences de lecture (parité mobile) :
+        // les attributs data-* / font-size suivent sans attendre un rechargement.
+        const readingPatch: Partial<ReadingPreferences> = {};
+        if (typeof patch.reduceMotion === 'boolean') readingPatch.reduceMotion = patch.reduceMotion;
+        if (typeof patch.highContrast === 'boolean') readingPatch.highContrast = patch.highContrast;
+        if (typeof patch.autoplayMedia === 'boolean')
+          readingPatch.autoplayMedia = patch.autoplayMedia;
+        if (typeof patch.fontScale === 'number') readingPatch.fontScale = patch.fontScale;
+        if (Object.keys(readingPatch).length > 0) updateReadingPreferences(readingPatch);
         showMessage(t`Réglage enregistré.`);
       } catch (error) {
         showMessage(
