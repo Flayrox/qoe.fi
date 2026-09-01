@@ -21,6 +21,21 @@ name: Build & Push Images
 on:
   push:
     branches: [main]
+    # Ne rebuild que quand le code runtime change. Un commit e2e/docs/scripts-
+    # only ne doit pas déclencher 8 builds de 10 min : les images `latest`
+    # restent sur le dernier commit runtime (deploy-prod.sh pull `latest`).
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'Dockerfile*'
+      - '.dockerignore'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
+      - 'turbo.json'
+      - 'tsconfig.base.json'
+      - 'vitest.coverage.config.ts'
+      - '.github/workflows/build-images.yml'
   workflow_dispatch:
 
 permissions:
