@@ -7,8 +7,10 @@
 // =====================================================================
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Image } from 'expo-image';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { SvgXml } from 'react-native-svg';
 
 import { ThemedText } from '@/components/themed-text';
 import { Toast } from '@/components/ui/toast';
@@ -27,6 +29,66 @@ import { apiClient } from '@/lib/api';
 import { t } from '@/lib/i18n';
 import { playHaptic } from '@/lib/haptics';
 import { supabase } from '@/lib/supabase';
+
+/**
+ * Extrait le XML SVG d'un data-uri GoTrue (`data:image/svg+xml;base64,…` ou
+ * `data:image/svg+xml,<svg…>` URL-encodé). Retourne null si inutilisable.
+ */
+function svgFromDataUri(uri: string): string | null {
+  try {
+    const trimmed = uri.trim();
+    const base64Match = /^data:image\/svg\+xml;base64,(.*)$/is.exec(trimmed);
+    if (base64Match) {
+      return atob(base64Match[1]);
+    }
+    const rawMatch = /^data:image\/svg\+xml(?:;[^,]*)?,(.*)$/is.exec(trimmed);
+    if (rawMatch) {
+      try {
+        return decodeURIComponent(rawMatch[1]);
+      } catch {
+        return rawMatch[1];
+      }
+    }
+  } catch {
+    // décodage échoué → fallback secret
+  }
+  return null;
+}
+
+/** Rendu du QR TOTP fourni par GoTrue (SVG data-uri, PNG, ou secret seul). */
+function QrCodeView({ qr }: { qr: string }) {
+  const theme = useTheme();
+
+  if (qr.startsWith('data:image/svg')) {
+    const xml = svgFromDataUri(qr);
+    if (xml) {
+      // Fond blanc : indispensable pour la lisibilité du QR en thème sombre.
+      return (
+        <View style={[styles.qrBox, { backgroundColor: '#ffffff' }]}>
+          <SvgXml xml={xml} width={208} height={208} />
+        </View>
+      );
+    }
+  }
+
+  if (qr.startsWith('data:image/png')) {
+    return (
+      <View style={[styles.qrBox, { backgroundColor: '#ffffff' }]}>
+        <Image source={{ uri: qr }} style={styles.qrImage} contentFit="contain" />
+      </View>
+    );
+  }
+
+  // QR indisponible → on conserve le secret (saisie manuelle dans l'app TOTP).
+  return (
+    <ThemedText type="small" style={[styles.fallbackQr, { color: theme.textSecondary }]}>
+      {t(
+        'settings.mfa_native_hint',
+        'QR code non affichable sur mobile : utilisez le secret ci-dessous.'
+      )}
+    </ThemedText>
+  );
+}
 
 interface Factor {
   id: string;
@@ -236,19 +298,8 @@ export default function SecuritySettingsRoute() {
                     'Scannez ce QR code avec votre application d’authentification.'
                   )}
                 </ThemedText>
-                {/* Le QR est un SVG data-uri : rendu web uniquement; natif → secret affiché.
-                    Sur natif, l'utilisateur saisit le secret dans son app TOTP. */}
-                {enrollment.qr.startsWith('data:image/svg') ? (
-                  <ThemedText
-                    type="small"
-                    style={[styles.fallbackQr, { color: theme.textSecondary }]}
-                  >
-                    {t(
-                      'settings.mfa_native_hint',
-                      'QR code non affichable sur mobile : utilisez le secret ci-dessous.'
-                    )}
-                  </ThemedText>
-                ) : null}
+                {/* QR TOTP (SVG fourni par GoTrue) : rendu natif via react-native-svg. */}
+                <QrCodeView qr={enrollment.qr} />
                 <View
                   style={[
                     styles.secretBox,
@@ -436,6 +487,16 @@ const styles = StyleSheet.create({
   enrollWrap: {
     padding: Spacing.three,
     gap: Spacing.three,
+  },
+  qrBox: {
+    alignSelf: 'center',
+    padding: Spacing.three,
+    borderRadius: 16,
+    backgroundColor: '#ffffff',
+  },
+  qrImage: {
+    width: 208,
+    height: 208,
   },
   fallbackQr: {
     lineHeight: 17,
