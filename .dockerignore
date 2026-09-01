@@ -50,6 +50,14 @@ README.md
 *.md
 docs/
 
+# 🧪 E2E / scripts / CI — jamais nécessaires au runtime ou au build image.
+# Les exclure évite d'invalider le cache du layer COPY pour un commit
+# e2e/docs-only (couplé au filtre paths de build-images.yml).
+e2e/
+scripts/
+.github/
+docker/
+
 # 🎨 Assets de design (référencés ailleurs ou non utilisés au runtime)
 DesignTemplates/
 plans/
