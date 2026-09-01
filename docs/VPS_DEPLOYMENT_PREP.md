@@ -456,6 +456,25 @@ et les apps qoe pointent `supabase-db:5432`.
 - ⚠️ Le **port 25 sortant** de Netcup s'est avéré **ouvert** → envoi direct vers Gmail OK (testé).
   Si un fournisseur le bloque, basculer `EMAIL_PROVIDER=resend` ou `smtp` → `smtp.hostinger.com:587`.
 
+#### 🎨 Templates email GoTrue — versionnés dans le repo (`docker/gotrue-templates/`)
+
+- Depuis **GoTrue v2.164+**, le mécanisme est **par fichier/URL** : `GOTRUE_MAILER_TEMPLATES_MAGIC_LINK`,
+  `..._CONFIRMATION`, `..._RECOVERY`, `..._EMAIL_CHANGE`, `..._REAUTHENTICATION` (le chemin de *dossier*
+  `GOTRUE_MAILER_TEMPLATES_PATH` est obsolète). Les **sujets** sont dans les `GOTRUE_MAILER_SUBJECTS_*`.
+- Les templates vivent dans **un service nginx `templates`** du réseau docker Supabase (méthode officielle du
+  stack moderne : **URL** `http://templates/magic_link.html`, pas de volume fichier — le fetch URL est la seule
+  voie fiable en v2.189, le path fichier est ignoré). Déployé une fois, à recréer si le stack est recréé :
+  `docker compose -f docker-compose.templates.yml up -d` (fichier présent dans `/var/www/supabase/docker`).
+- ⚠️ **Limite GoTrue (source v2.189, `mailmeclient`) : `mail.SetBody("text/html", body)`** → un seul corps
+  HTML, **pas de partie texte** (pénalité `MIME_HTML_ONLY` mail-tester, mineure). Les `.txt` du repo servent
+  de référence, ils ne sont pas envoyés.
+- 🌐 **Langue** : les templates GoTrue sont **globaux par instance** (pas de choix par utilisateur) — le repo
+  fournit une base **FR** (langue de l'app). Pour des emails transactionnels par langue utilisateur, il faudrait
+  les envoyer via notre propre mailer (le worker) au lieu de GoTrue — c'est le design retenu pour les
+  **newsletters** (template du créateur, langue de l'abonné gérée par l'app).
+- Si un template est modifié dans le repo → `scp -r docker/gotrue-templates/ root@VPS:/var/www/supabase/docker/gotrue-templates/`
+  puis `docker compose -f docker-compose.templates.yml up -d --force-recreate templates`.
+
 ### CLI Stalwart — pièges rencontrés
 
 - Le CLI (v1.0.12) vs serveur (0.16.20) : le `create`/`apply` CLI **aplatit les objets imbriqués**
