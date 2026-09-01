@@ -26,6 +26,8 @@ import {
   Bell,
   Building2,
   Webhook,
+  Compass,
+  CircleUserRound,
 } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 
@@ -50,6 +52,8 @@ const iconRegistry: Record<
   Bell,
   Search,
   Webhook,
+  Compass,
+  CircleUserRound,
 };
 
 /* ─────────────────────────────────────────────
