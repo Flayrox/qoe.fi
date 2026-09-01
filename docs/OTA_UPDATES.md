@@ -100,24 +100,55 @@ UPDATES_ROOT=/tmp/updates UPDATES_PUBLIC_BASE_URL=http://localhost:3000 \
 > L'API Updates (`checkForUpdateAsync`/`reloadAsync`) n'est disponible qu'en
 > build release ; Expo Go et les dev builds l'ignorent (simulation EAS seule).
 
-## 6. Sécurité & limites connues
+## 6. Sécurité — code signing (actif)
 
-- **Pas de code signing** pour l'instant : le serveur refuse explicitement
-  `expo-expect-signature` (400) — il ne servira jamais un manifest non
-  signé à un client qui l'exigerait. Ajout possible plus tard
-  (`expo/code-signing-certificates` + `updates.codeSigningCertificate`).
+Les manifests sont **signés RSA-SHA256** : l'app vérifie la signature contre
+le certificat embarqué avant d'appliquer un update (anti-tampering ISP/CDN).
+
+- **Clés** : générées par `npx expo-updates codesigning:generate` (10 ans,
+  CN « Qoe ») → `apps/mobile/keys/` (**gitignoré**, jamais commité) +
+  `apps/mobile/certs/certificate.pem` (**commité** : embarqué dans les
+  builds via `updates.codeSigningCertificate` + `codeSigningMetadata`
+  `{keyid: "main", alg: "rsa-v1_5-sha256"}` dans app.json).
+- **Serveur** : signe à la volée quand le client envoie `expo-expect-signature`
+  (clé montée via `UPDATES_SIGNING_KEY`, refuse de démarrer sans elle).
+- **Déploiement de la clé** : `scripts/deploy-prod.sh` pousse
+  `apps/mobile/keys/private-key.pem` → `data/updates-signing-key.pem` du
+  VPS à chaque déploiement (warning si absente localement).
+- ⚠️ **Rotation** : un build natif embarque UN certificat — changer de clé
+  impose un nouveau build + bump de `runtimeVersion`. Sauvegardez
+  `apps/mobile/keys/` (KMS/coffre) : sans la clé privée, plus de signature.
+
+## 6bis. Limites connues
+
 - **Pas de canaux** (channels EAS) ni de rollout progressif : le serveur
   sert le dernier horodatage à tous. Un futur « channel » = un sous-dossier
   par canal dans le runtimeVersion.
 - Serveur **stateless** : pas de base de données — l'historique des updates
   est l'arborescence du volume. Pensez à sauvegarder `data/updates/`.
 
-## 7. Mise en place restante (infra)
+## 7. Mise en place (infra + déploiement)
 
-1. DNS : créer le record `updates.qoe.fi` → IP du VPS.
-2. Déployer : `docker compose up -d updates` (le service est dans
-   docker-compose.yml, l'image buildée localement ou poussée sur GHCR
-   `ghcr.io/flayrox/qoefi-updates:latest`).
-3. Premier publish : `UPDATES_TARGET=… ./scripts/publish-update.sh`.
-4. Valider : `curl -H "expo-platform: ios" -H "expo-runtime-version: 1.0.0" \
-   https://updates.qoe.fi/api/manifest` doit renvoyer un multipart/mixed.
+Le service `updates` est intégré au déploiement standard :
+
+1. **DNS** (une seule fois) : créer le record `updates.qoe.fi` → IP du VPS.
+2. **Image GHCR** : buildée par la CI (`.github/workflows/build-images.yml`,
+   matrice `updates` → `ghcr.io/flayrox/qoefi-updates:latest`), pullée par
+   `scripts/deploy-prod.sh` comme les autres services.
+3. **Déploiement** : `bash scripts/deploy-prod.sh` démarre le service
+   (`ALL_SERVICES` inclut `updates` + smoke test `updates.qoe.fi/healthz`).
+4. **Premier publish OTA** :
+   `bash scripts/deploy-prod.sh --publish-update` — exporte le bundle,
+   rsync vers `data/updates` du VPS et vérifie le manifest HTTPS.
+   (ou manuellement : `UPDATES_TARGET=root@vps:/var/www/qoe.fi/data/updates
+   ./scripts/publish-update.sh`)
+5. **Valider** :
+   ```bash
+   curl -H "expo-platform: ios" -H "expo-runtime-version: 1.0.0" \
+     https://updates.qoe.fi/api/manifest   # → multipart/mixed
+   curl https://updates.qoe.fi/healthz     # → {"ok":true,…}
+   ```
+
+> La clé privée de code signing (si activée, §6) est montée dans le
+> container via `UPDATES_SIGNING_KEY` (voir docker-compose.yml) — jamais
+> committée.

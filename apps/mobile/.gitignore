@@ -29,6 +29,10 @@ yarn-error.*
 # macOS
 .DS_Store
 *.pem
+# 🔑 EXCEPTION : le certificat PUBLIC de code signing des updates OTA est
+# commité (embarqué dans les builds). Seule la clé privée (keys/) est
+# ignorée via le .gitignore racine.
+!certs/certificate.pem
 
 # local env files
 .env*.local

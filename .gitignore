@@ -148,6 +148,10 @@ apps/api/recsys-eval
 data/updates/
 apps/mobile/.expo-updates/
 
+# 🔑 Clé privée de code signing des updates expo-updates (la clé publique
+# certs/certificate.pem, elle, est commitée : embarquée dans les builds).
+apps/mobile/keys/
+
 # Sauvegardes de la fausse DB (dumps pg_dump, souvent volumineux)
 backups/top-db-*.sql.gz
 backups/umami-*.sql.gz
