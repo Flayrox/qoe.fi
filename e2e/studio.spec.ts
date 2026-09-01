@@ -1,5 +1,5 @@
 // =====================================================================
-// 🎨 E2E — Studio créateur (apps/studio, port 3020)
+// 🎨 E2E — Studio créateur (apps/studio, port 15404)
 // =====================================================================
 // Deux niveaux :
 //   1. AUTH GATE (CI-safe, sans session) : toute route (creator) redirige
@@ -14,7 +14,7 @@ import { test, expect } from '@playwright/test';
 import { TestDb } from './lib/db';
 import { COOKIE_NAME, DATABASE_URL, JWT_SECRET, mintJwt } from './lib/env';
 
-const STUDIO = process.env.PLAYWRIGHT_STUDIO_URL ?? 'http://localhost:3020';
+const STUDIO = process.env.PLAYWRIGHT_STUDIO_URL ?? 'http://localhost:15404';
 const RUN_FULL_STACK = process.env.RUN_FULL_STACK === '1';
 // User.id est UUID (schéma goose) : UUID déterministe = JWT sub valide.
 const CREATOR_ID = '00000000-0000-4000-8000-000000000001';
