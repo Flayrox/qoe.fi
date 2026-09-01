@@ -11,7 +11,7 @@ function ok(body: unknown) {
   return { ok: true, status: 200, statusText: 'OK', json: async () => body };
 }
 
-describe('QoeApiClient — contrat d’URL des 41 méthodes', () => {
+describe('QoeApiClient — contrat d’URL des méthodes', () => {
   let client: QoeApiClient;
 
   beforeEach(() => {
@@ -123,5 +123,54 @@ describe('QoeApiClient — contrat d’URL des 41 méthodes', () => {
       '/v1/highlights/h1/comments',
       'POST'
     );
+  });
+
+  it('réglages : profil, préférences, contrôles sociaux, export & sécurité', async () => {
+    await expectCall(() => client.getMe(), '/v1/me');
+    await expectCall(() => client.updateMyProfile({ name: 'X' }), '/v1/me/profile', 'PATCH');
+    await expectCall(
+      () => client.updatePublicationProfile('pub1', { heroText: 'bio' }),
+      '/v1/settings/profile',
+      'PATCH'
+    );
+    await expectCall(() => client.getUserSettings(), '/v1/settings/preferences');
+    await expectCall(
+      () => client.updateUserSettings({ fontScale: 100 }),
+      '/v1/settings/preferences',
+      'PATCH'
+    );
+    await expectCall(() => client.getNotificationPreferences(), '/v1/notifications/preferences');
+    await expectCall(
+      () => client.updateNotificationPreferences({ emailLikes: false }),
+      '/v1/notifications/preferences',
+      'PATCH'
+    );
+    await expectCall(() => client.getMutedWords(), '/v1/me/muted-words');
+    await expectCall(() => client.toggleMutedWord('spoiler'), '/v1/me/muted-words', 'POST');
+    await expectCall(() => client.getBlockedUsers(), '/v1/me/blocked-users');
+    await expectCall(
+      () => client.toggleBlockedUser('u1'),
+      '/v1/me/blocked-users/u1/toggle',
+      'POST'
+    );
+    await expectCall(() => client.getMutedUsers(), '/v1/me/muted-users');
+    await expectCall(() => client.toggleMutedUser('u1'), '/v1/me/muted-users/u1/toggle', 'POST');
+    await expectCall(() => client.getDeletionRequest(), '/v1/me/account-deletion-request');
+    await expectCall(
+      () => client.requestAccountDeletion(),
+      '/v1/me/account-deletion-request',
+      'POST'
+    );
+    await expectCall(
+      () => client.cancelAccountDeletion(),
+      '/v1/me/account-deletion-request',
+      'DELETE'
+    );
+    await expectCall(() => client.exportAccountData(), '/v1/me/data-export');
+    await expectCall(() => client.changePassword('old', 'new'), '/v1/me/password-change', 'POST');
+    await expectCall(() => client.getSessions(), '/v1/me/sessions');
+    await expectCall(() => client.revokeSession('s1'), '/v1/me/sessions/s1', 'DELETE');
+    await expectCall(() => client.revokeOtherSessions(), '/v1/me/sessions/revoke-others', 'POST');
+    await expectCall(() => client.revokeAllSessions(), '/v1/me/sessions/revoke-all', 'POST');
   });
 });

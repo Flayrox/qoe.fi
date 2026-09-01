@@ -10,9 +10,11 @@
 
 import type {
   AnnotationComment,
+  AccountSessionData,
   ArticleData,
   ArticleFeedResult,
   BookmarkItem,
+  DeletionRequestData,
   EngagementPage,
   FeedPoll,
   FeedResult,
@@ -20,12 +22,20 @@ import type {
   Highlight,
   MyHighlight,
   MyProfileData,
+  MyProfileUpdateInput,
+  NotificationPreferenceFlags,
+  NotificationPrefsPatch,
   NotificationResult,
   PublicProfileData,
+  PublicationProfileUpdateInput,
   QuotesPage,
+  ReaderProfileData,
   SimilarArticlesResult,
+  SocialControlUser,
   Thought,
   ThreadData,
+  UserSettingsData,
+  UserSettingsPatch,
 } from './types';
 
 export interface QoeApiClientConfig {
@@ -437,6 +447,176 @@ export class QoeApiClient {
   public async syncUser() {
     return this.request<{ created: boolean; needsOnboarding: boolean }>('/v1/me/sync', {
       method: 'POST',
+    });
+  }
+
+  // ─── Réglages : profil lecteur, préférences, sécurité ───────────────
+
+  /**
+   * GET /v1/me — profil lecteur complet (réglages). ⚠️ Distinct de
+   * `/v1/users/me` (MyProfileData) : celui-ci porte email, role,
+   * pronouns, onboardingText, compteurs bibliothèque.
+   */
+  public async getMe() {
+    return this.request<ReaderProfileData>('/v1/me');
+  }
+
+  /**
+   * PATCH /v1/me/profile — met à jour le profil lecteur (name, username,
+   * onboardingText [localisation], logoUrl [avatar], pronouns).
+   * ⚠️ Le Go applique `username = ""` → inchangé : envoyer undefined
+   *    pour ne pas toucher un champ.
+   */
+  public async updateMyProfile(input: MyProfileUpdateInput) {
+    return this.request<ReaderProfileData>('/v1/me/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    });
+  }
+
+  /**
+   * PATCH /v1/settings/profile — met à jour le profil de la publication
+   * personnelle (heroText [bio], headerImageUrl [bannière], name…).
+   * `publicationId` requis (GET /v1/users/me → profile.publicationId).
+   */
+  public async updatePublicationProfile(
+    publicationId: string,
+    input: PublicationProfileUpdateInput
+  ) {
+    return this.request<Record<string, unknown>>('/v1/settings/profile', {
+      method: 'PATCH',
+      body: JSON.stringify({ publicationId, ...input }),
+    });
+  }
+
+  /** GET /v1/settings/preferences — préférences lecteur (crée les défauts). */
+  public async getUserSettings() {
+    return this.request<UserSettingsData>('/v1/settings/preferences');
+  }
+
+  /** PATCH /v1/settings/preferences — merge partiel validé par le Go. */
+  public async updateUserSettings(patch: UserSettingsPatch) {
+    return this.request<UserSettingsData>('/v1/settings/preferences', {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+  }
+
+  /** GET /v1/notifications/preferences — toggles email/push. */
+  public async getNotificationPreferences() {
+    return this.request<{ preferences: NotificationPreferenceFlags }>(
+      '/v1/notifications/preferences'
+    );
+  }
+
+  /** PATCH /v1/notifications/preferences — merge partiel (clés booléennes). */
+  public async updateNotificationPreferences(patch: NotificationPrefsPatch) {
+    return this.request<{ preferences: NotificationPreferenceFlags }>(
+      '/v1/notifications/preferences',
+      { method: 'PATCH', body: JSON.stringify(patch) }
+    );
+  }
+
+  /** GET /v1/me/muted-words — mots masqués du fil. */
+  public async getMutedWords() {
+    return this.request<{ words: string[] }>('/v1/me/muted-words');
+  }
+
+  /** POST /v1/me/muted-words — bascule un mot masqué. Body : { word }. */
+  public async toggleMutedWord(word: string) {
+    return this.request<{ muted: boolean; word: string }>('/v1/me/muted-words', {
+      method: 'POST',
+      body: JSON.stringify({ word }),
+    });
+  }
+
+  /** GET /v1/me/blocked-users — utilisateurs bloqués. */
+  public async getBlockedUsers() {
+    return this.request<{ users: SocialControlUser[] }>('/v1/me/blocked-users');
+  }
+
+  /** GET /v1/me/muted-users — utilisateurs masqués. */
+  public async getMutedUsers() {
+    return this.request<{ users: SocialControlUser[] }>('/v1/me/muted-users');
+  }
+
+  /** POST /v1/me/blocked-users/{id}/toggle — bloque/débloque. */
+  public async toggleBlockedUser(userId: string) {
+    return this.request<{ blocked: boolean }>(
+      `/v1/me/blocked-users/${encodeURIComponent(userId)}/toggle`,
+      { method: 'POST', body: '{}' }
+    );
+  }
+
+  /** POST /v1/me/muted-users/{id}/toggle — masque/démasque. */
+  public async toggleMutedUser(userId: string) {
+    return this.request<{ muted: boolean }>(
+      `/v1/me/muted-users/${encodeURIComponent(userId)}/toggle`,
+      { method: 'POST', body: '{}' }
+    );
+  }
+
+  /** GET /v1/me/account-deletion-request — dernière demande (nil si aucune). */
+  public async getDeletionRequest() {
+    return this.request<DeletionRequestData | null>('/v1/me/account-deletion-request');
+  }
+
+  /** POST /v1/me/account-deletion-request — demande de suppression (idempotent). */
+  public async requestAccountDeletion() {
+    return this.request<DeletionRequestData>('/v1/me/account-deletion-request', {
+      method: 'POST',
+      body: '{}',
+    });
+  }
+
+  /** DELETE /v1/me/account-deletion-request — annule les demandes PENDING. */
+  public async cancelAccountDeletion() {
+    return this.request<{ success: boolean }>('/v1/me/account-deletion-request', {
+      method: 'DELETE',
+    });
+  }
+
+  /** GET /v1/me/data-export — export GDPR complet (JSON brut). */
+  public async exportAccountData() {
+    return this.request<Record<string, unknown>>('/v1/me/data-export');
+  }
+
+  /**
+   * POST /v1/me/password-change — change le mot de passe (réauthentification
+   * par mot de passe courant requise ; 12-128 caractères).
+   */
+  public async changePassword(currentPassword: string, newPassword: string) {
+    return this.request<{ success: boolean }>('/v1/me/password-change', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+  }
+
+  /** GET /v1/me/sessions — sessions OAuth actives. */
+  public async getSessions() {
+    return this.request<{ sessions: AccountSessionData[] }>('/v1/me/sessions');
+  }
+
+  /** DELETE /v1/me/sessions/{id} — révoque une session. */
+  public async revokeSession(sessionId: string) {
+    return this.request<{ success: boolean }>(`/v1/me/sessions/${encodeURIComponent(sessionId)}`, {
+      method: 'DELETE',
+    });
+  }
+
+  /** POST /v1/me/sessions/revoke-others — déconnecte les autres sessions. */
+  public async revokeOtherSessions() {
+    return this.request<{ success: boolean }>('/v1/me/sessions/revoke-others', {
+      method: 'POST',
+      body: '{}',
+    });
+  }
+
+  /** POST /v1/me/sessions/revoke-all — déconnecte toutes les sessions sauf la courante. */
+  public async revokeAllSessions() {
+    return this.request<{ success: boolean }>('/v1/me/sessions/revoke-all', {
+      method: 'POST',
+      body: '{}',
     });
   }
 
