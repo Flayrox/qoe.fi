@@ -109,7 +109,13 @@ studio.qoe.fi {
         X-Content-Type-Options "nosniff"
     }
 
-    reverse_proxy studio:3000 {
+    # ⚠️ PIÈGE RÉSEAU (vécu 01/09) : `studio` est un nom DNS AMBIGU sur
+    # qoefi-public — supabase-studio porte AUSSI l'alias `studio` (ajouté
+    # pour base.admin.qoe.fi). reverse_proxy studio:3000 tombait au hasard
+    # sur le dashboard Supabase → redirections /project/default + 404 par
+    # intermittence sur studio.qoe.fi. On utilise le nom de container UNIQUE
+    # qoefi-studio (le nom de service compose `studio` reste le même).
+    reverse_proxy qoefi-studio:3000 {
         transport http {
             dial_timeout 30s
         }
