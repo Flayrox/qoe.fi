@@ -14,7 +14,10 @@
 //   updates/<runtimeVersion>/<horodatage>/rollback   ← fichier vide = rollback
 //
 // Endpoints :
-//   GET /api/manifest          → multipart/mixed (manifest ou directive)
+//   GET / (avec en-têtes Expo) ou GET /api/manifest → multipart/mixed
+//       (manifest ou directive). Le client iOS joint l'URL de base
+//       (updates.url) SANS suffixe : le serveur accepte donc les deux
+//       chemins ; sans en-têtes Expo sur /, c'est le healthz.
 //   GET /api/assets?asset=…    → un asset du bundle (path ABSOLU du container)
 //   GET /healthz               → santé (utilisé par docker healthcheck)
 //
@@ -395,9 +398,20 @@ if (PRIVATE_KEY_PATH) {
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, PUBLIC_BASE_URL);
   const route = url.pathname;
+  console.log(
+    `[qoe-updates] ${req.method} ${req.url} platform=${req.headers['expo-platform'] || '-'} rv=${req.headers['expo-runtime-version'] || '-'} proto=${req.headers['expo-protocol-version'] || '-'} expectSig=${req.headers['expo-expect-signature'] ? 'yes' : 'NO'} current=${req.headers['expo-current-update-id'] || '-'} embedded=${req.headers['expo-embedded-update-id'] || '-'}`
+  );
   (async () => {
     try {
-      if (req.method === 'GET' && route === '/api/manifest') {
+      const isManifestRoute =
+        route === '/api/manifest' ||
+        // Le client iOS joint l'URL de base (updates.url) sans suffixe : on
+        // sert le manifest sur / dès qu'il y a des en-têtes Expo Updates.
+        (route === '/' &&
+          (req.headers['expo-platform'] ||
+            req.headers['expo-runtime-version'] ||
+            req.headers['expo-protocol-version']));
+      if (req.method === 'GET' && isManifestRoute) {
         await handleManifest(req, res, url);
       } else if (req.method === 'GET' && route === '/api/assets') {
         await handleAssets(req, res, url);

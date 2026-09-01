@@ -5,12 +5,14 @@
 # Exporte le bundle JS de l'app mobile (ios + android) et le pousse dans
 # l'arborescence attendue par le serveur docker/updates :
 #
-#   updates/<runtimeVersion>/<horodatage>/
+#   data/updates/<runtimeVersion>/<horodatage>/
 #     metadata.json   ← dist/metadata.json de `expo export`
 #     _expo/… assets/…
 #     expoConfig.json ← config Expo publique (extra.expoClient)
 #
-# Cible par défaut : ./data/updates (bind mount du service `updates`).
+# Cible par défaut : ./data/updates (bind mount du service `updates`, monté
+# sur /app/updates — le serveur attend <runtimeVersion>/<horodatage> À LA
+# RACINE du volume, PAS sous un sous-dossier updates/).
 # Pour pousser vers le VPS :
 #   UPDATES_TARGET=root@vps:/var/www/qoe/data/updates ./scripts/publish-update.sh
 #
@@ -24,7 +26,7 @@ cd "$(dirname "$0")/../apps/mobile"
 
 RUNTIME_VERSION=$(node -p "require('./app.json').expo.runtimeVersion")
 TIMESTAMP=$(date +%Y%m%d%H%M%S)
-DEST_DIR="updates/$RUNTIME_VERSION/$TIMESTAMP"
+DEST_DIR="$RUNTIME_VERSION/$TIMESTAMP"
 OUT=".expo-updates/dist"
 STAGING=".expo-updates/staging"
 
@@ -48,7 +50,7 @@ fi
 mkdir -p "$UPDATES_TARGET"
 
 echo "→ rsync vers $UPDATES_TARGET"
-rsync -a --delete-excluded "$STAGING/updates/" "$UPDATES_TARGET/updates/"
+rsync -a "$STAGING/" "$UPDATES_TARGET/"
 
 echo
 echo "✅ Update publié : $DEST_DIR"
