@@ -13,6 +13,7 @@
 import { test, expect } from '@playwright/test';
 import { TestDb } from './lib/db';
 import { COOKIE_NAME, DATABASE_URL, JWT_SECRET, mintJwt } from './lib/env';
+import { expectRedirect } from './lib/redirect';
 
 const STUDIO = process.env.PLAYWRIGHT_STUDIO_URL ?? 'http://localhost:15404';
 const RUN_FULL_STACK = process.env.RUN_FULL_STACK === '1';
@@ -23,14 +24,11 @@ test.describe('Studio créateur', () => {
   test('le périmètre créateur est verrouillé : toute route redirige vers /login', async ({
     request,
   }) => {
-    // Warm-up : force la compilation dev des routes avant les assertions.
     for (const path of ['/', '/articles', '/media', '/settings']) {
-      await request.get(`${STUDIO}${path}`).catch(() => {});
-    }
-    for (const path of ['/', '/articles', '/media', '/settings']) {
+      const status = await expectRedirect(request, `${STUDIO}${path}`);
+      expect(status, `${path} doit rediriger`).toBeGreaterThanOrEqual(300);
+      expect(status, `${path} doit rediriger (307)`).toBeLessThan(400);
       const res = await request.get(`${STUDIO}${path}`, { maxRedirects: 0 });
-      expect(res.status(), `${path} doit rediriger`).toBeGreaterThanOrEqual(300);
-      expect(res.status(), `${path} doit rediriger (307)`).toBeLessThan(400);
       const location = res.headers()['location'] ?? '';
       expect(location, `Location de ${path} = ${location}`).toContain('/login');
     }
