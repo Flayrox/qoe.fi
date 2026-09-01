@@ -30,7 +30,21 @@ export async function middleware(request: NextRequest) {
   // 2. Protection de l'espace admin avec résolution universelle getMonorepoUrl
   if (!user) {
     const loginBase = `${getMonorepoUrl('feed', host)}/login`;
-    const currentTarget = request.nextUrl.href;
+    // ⚠️ PIÈGE PROXY (vécu 01/09) : `request.nextUrl.href` est reconstruit
+    // par Next avec l'adresse de bind du container (0.0.0.0:3000) derrière
+    // Caddy — le ?redirect= partait sur https://0.0.0.0:3000. On construit
+    // l'URL de retour depuis les headers propagés par le proxy
+    // (x-forwarded-host sinon host) + x-forwarded-proto, avec repli sur
+    // l'URL canonique de l'admin si tout est une adresse interne.
+    const proto =
+      request.headers.get('x-forwarded-proto') ||
+      (process.env.NODE_ENV === 'production' ? 'https' : 'http');
+    const rawHost = request.headers.get('x-forwarded-host') || request.headers.get('host') || '';
+    const isBindAddress = /^(0\.0\.0\.0|127\.0\.0\.1|\[?::1\]?|localhost)(:\d+)?$/i.test(rawHost);
+    const safeHost = isBindAddress ? '' : rawHost;
+    const currentTarget = safeHost
+      ? `${proto}://${safeHost}${request.nextUrl.pathname}${request.nextUrl.search}`
+      : `${getMonorepoUrl('admin')}${request.nextUrl.pathname}${request.nextUrl.search}`;
     const redirectTarget = `${loginBase}?redirect=${encodeURIComponent(currentTarget)}`;
     return NextResponse.redirect(new URL(redirectTarget));
   }
