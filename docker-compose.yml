@@ -353,6 +353,12 @@ services:
 
     expose:
       - '3000'
+    # Accès direct tailnet (fallback SANS split DNS, comme umami :3001) :
+    # http://100.117.195.127:3002 — l'accès normal passe par Caddy
+    # (admin.qoe.fi tailnet-only, voir Caddyfile). IP 100.64/10 non routable
+    # publiquement → joignable uniquement depuis le tailnet.
+    ports:
+      - '100.117.195.127:3002:3000'
 
     env_file:
       - .env.docker

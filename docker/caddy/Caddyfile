@@ -18,7 +18,7 @@
 #   api.qoe.fi            → api        (backend Go)
 #   updates.qoe.fi        → updates    (OTA expo-updates : manifest + assets)
 #   studio.qoe.fi         → studio     (dashboard créateur)
-#   admin.qoe.fi          → admin      (admin plateforme)
+#   admin.qoe.fi          → admin      (admin plateforme — TAILNET-ONLY 01/09)
 #   *.qoe.fi (wildcard)   → tenants    (blogs créateurs)
 #   auth.qoe.fi / cdn.qoe.fi → supabase-kong
 #   umami.qoe.fi          → umami (TRACKING public uniquement : /script.js
@@ -29,8 +29,13 @@
 #   studio.admin.qoe.fi   → supabase-studio (dashboard Supabase)
 #   umami.admin.qoe.fi    → umami (dashboard analytics)
 #   mail.admin.qoe.fi     → stalwart (UI admin mail, host:28080)
+#   admin.qoe.fi          → admin (admin plateforme, TAILNET-ONLY 01/09)
 #   → Certificats HTTP-01 auto par Caddy ; accès restreint aux IP du
-#     tailnet (matcher remote_ip) — le public reçoit un 404.
+#     tailnet (matcher remote_ip) — hors tailnet, connexion FERMÉE (abort) :
+#     plus de 404 « Not found » qui révèle l'existence des services. Le DNS
+#     public de *.admin.qoe.fi reste sur l'IP du VPS (nécessaire à l'émission/
+#     renouvellement des certs) ; l'accès passe par le tailnet via dnsmasq
+#     (split DNS Tailscale).
 #
 # 📖 TLS des tenants (*.qoe.fi) : cert à la demande (on_demand, HTTP-01)
 #    par sous-domaine — un cert statique qoe.fi ne matche pas les
@@ -69,6 +74,14 @@
 
 (api_lassez_cert) {
     tls /etc/letsencrypt/live/api.lassez.fr/fullchain.pem /etc/letsencrypt/live/api.lassez.fr/privkey.pem
+}
+
+# 🛡️ Matcher « tailnet » : IP du tailnet Tailscale (CGNAT 100.64/10 + ULA
+#    IPv6). Utilisé par tous les blocs tailnet-only (admin.qoe.fi,
+#    *.admin.qoe.fi). ⚠️ Doit être défini AVANT les blocs qui l'importent
+#    (pas de forward reference dans le Caddyfile).
+(tailnet_guard) {
+    @tailnet remote_ip 100.64.0.0/10 fd7a:115c:a1e0::/48
 }
 
 # ─────────────────────────────────────────────────────────────────────
@@ -144,10 +157,21 @@ studio.qoe.fi {
 }
 
 # ─────────────────────────────────────────────────────────────────────
-# 🔴 ADMIN PLATEFORME : admin.qoe.fi
+# 🔴 ADMIN PLATEFORME : admin.qoe.fi — TAILNET-ONLY (depuis 01/09)
 # ─────────────────────────────────────────────────────────────────────
+# L'admin plateforme n'est PLUS accessible publiquement. Accès :
+#   - depuis un appareil du tailnet : https://admin.qoe.fi résolu par le DNS
+#     privé dnsmasq → 100.117.195.127 (split DNS Tailscale, cf.
+#     scripts/install-tailnet-dns.sh) → DNAT PREROUTING → Caddy (IP source
+#     tailnet préservée) → matcher @tailnet → reverse_proxy qoefi-admin.
+#     Le nom de domaine reste admin.qoe.fi (aucune URL interne à casser).
+#   - depuis Internet : connexion FERMÉE (abort) — plus de 404 « Not found »
+#     révélateur.
+# ⚠️ Fallback SANS split DNS : http://100.117.195.127:3002 (port publié
+#    tailnet-only, voir docker-compose.yml).
 admin.qoe.fi {
     import qoe_cert
+    import tailnet_guard
     encode zstd gzip
 
     header {
@@ -157,10 +181,16 @@ admin.qoe.fi {
         X-XSS-Protection "1; mode=block"
     }
 
-    reverse_proxy admin:3000 {
-        transport http {
-            dial_timeout 30s
+    handle @tailnet {
+        reverse_proxy qoefi-admin:3000 {
+            transport http {
+                dial_timeout 30s
+            }
         }
+    }
+    handle {
+        # Hors tailnet : on FERME la connexion (plus de 404 révélateur).
+        abort
     }
 
     log {
@@ -313,9 +343,10 @@ updates.qoe.fi {
 #    C'est intentionnel : si un sous-domaine n'a pas de route spécifique,
 #    il est traité comme un tenant (géré par l'app tenants).
 #    ⚠️ Les *.admin.qoe.fi (3 niveaux) ne sont PAS couverts par *.qoe.fi :
-#    blocs dédiés tailnet-only (studio/umami/mail.admin.qoe.fi) ; les
-#    autres (pooler, kong) restent joignables en direct sur l'IP tailnet
-#    (100.117.195.127:<port>) via le DNS coredns + le firewall iptables.
+#    blocs dédiés tailnet-only (studio/umami/mail.admin.qoe.fi) + admin.qoe.fi
+#    (admin plateforme, tailnet-only depuis le 01/09) ; les autres (pooler,
+#    kong) restent joignables en direct sur l'IP tailnet
+#    (100.117.195.127:<port>) via le DNS dnsmasq + le firewall iptables.
 #
 # 2. TLS des tenants = certs on_demand (HTTP-01) par sous-domaine, émis
 #    par Caddy au premier hit et renewés automatiquement. Alternative
@@ -404,14 +435,13 @@ cdn.qoe.fi {
 #    (records A → 100.117.195.127) : seul un appareil du tailnet peut
 #    router vers cette IP. Le matcher remote_ip ci-dessous est une 2e
 #    barrière (le trafic public arrivant par l'IP publique avec un Host
-#    spoofé reçoit un 404). Caddy est bindé sur l'IP publique ET l'IP
-#    tailnet (docker-compose.yml) ; le 443 du tailnet appartient à Caddy
-#    (tailscale serve retiré le 2026-09-01).
+#    spoofé reçoit une connexion fermée). Caddy est bindé sur l'IP
+#    publique ET l'IP tailnet (docker-compose.yml) ; le 443 du tailnet
+#    appartient à Caddy (tailscale serve retiré le 2026-09-01).
 # ⚠️ Les challenges ACME HTTP-01 sont répondues par Caddy AVANT les
 #    matchers de route → les certs se renouvellent même derrière le filtre.
-(tailnet_guard) {
-    @tailnet remote_ip 100.64.0.0/10 fd7a:115c:a1e0::/48
-}
+# (Le snippet (tailnet_guard) est défini en haut de fichier, près des
+# autres snippets — requis par admin.qoe.fi qui le précède.)
 
 # Supabase Studio (base de données) — tailnet-only
 studio.admin.qoe.fi {
@@ -426,7 +456,8 @@ studio.admin.qoe.fi {
         }
     }
     handle {
-        respond "Not found" 404
+        # Hors tailnet : connexion FERMÉE (plus de 404 « Not found » révélateur).
+        abort
     }
 
     log {
@@ -435,9 +466,9 @@ studio.admin.qoe.fi {
     }
 }
 
-# Ancien nom de Supabase Studio — stub 404 (remplacé par studio.admin.qoe.fi)
+# Ancien nom de Supabase Studio — connexion fermée (remplacé par studio.admin.qoe.fi)
 base.admin.qoe.fi {
-    respond "Not found" 404
+    abort
 }
 
 # Dashboard Umami (analytics) — tailnet-only
@@ -454,7 +485,8 @@ umami.admin.qoe.fi {
         }
     }
     handle {
-        respond "Not found" 404
+        # Hors tailnet : connexion FERMÉE (plus de 404 « Not found » révélateur).
+        abort
     }
 
     log {
@@ -478,7 +510,8 @@ mail.admin.qoe.fi {
         }
     }
     handle {
-        respond "Not found" 404
+        # Hors tailnet : connexion FERMÉE (plus de 404 « Not found » révélateur).
+        abort
     }
 
     log {

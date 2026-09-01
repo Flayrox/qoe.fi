@@ -30,7 +30,7 @@
 | 12 | **Mots de passe utilisateurs QOE** | DB Supabase `auth.users` | `encrypted_password` | `docker exec supabase-db psql -U postgres -c "SELECT left(encrypted_password,7) FROM auth.users;"` | **Hashé bcrypt** (`$2a$10$`) — irrécupérable |
 | 13 | ~~Caddy Basic Auth `qoe-admin`~~ | ~~Caddyfile~~ | — | — | ~~Hashé bcrypt~~ **supprimé le 01/09** (remplacé par Tailscale) |
 | 14 | **Certs Let's Encrypt** (qoe.fi + SAN) | `/etc/letsencrypt/live/qoe.fi/` | fullchain/privkey | `ls /etc/letsencrypt/live/qoe.fi/` | PEM — **renouvellement automatisé** (timer certbot + hooks Caddy/Stalwart, dry-run OK 01/09) |
-| 15 | **Tailscale** (tailnet `tail28842e.ts.net`) | VPS = nœud `studio` (100.117.195.127) ; dashboards admin → `studio/umami/mail.admin.qoe.fi` (Caddy + dnsmasq, §16 prep) | compte `belaidpourlescoursmerci@` | `tailscale status` | Identité device ; **clé d'auth révoquée le 01/09** (plus nécessaire après le join) |
+| 15 | **Tailscale** (tailnet `tail28842e.ts.net`) | VPS = nœud `studio` (100.117.195.127) ; dashboards admin → `admin.qoe.fi` + `studio/umami/mail.admin.qoe.fi` (Caddy + dnsmasq, §16 prep) ; fallbacks `http://100.117.195.127:3000/3001/3002/28080` | compte `belaidpourlescoursmerci@` | `tailscale status` | Identité device ; **clé d'auth révoquée le 01/09** (plus nécessaire après le join) |
 | 16 | **OpenAI / Anthropic** | `.env.docker` | `OPENAI_API_KEY`, `ANTHROPIC_API_KEY` | `grep ^OPENAI_API_KEY …` | **Vides pour l'instant** (pas branchés) |
 | 17 | **GHCR GitHub App** | — | token d'installation 1 h | `bash scripts/ghcr-login.sh` | Minté à chaque deploy (voir §15 du prep) |
 
@@ -60,9 +60,11 @@
   (pas de hash — c'est l'auth du dashboard studio).
 - **Stalwart recovery admin** → `STALWART_RECOVERY_ADMIN` dans `/etc/stalwart/stalwart.env`
   (format `admin:<mot-de-passe>`, sert aussi d'auth Basic pour l'admin UI et les appels JMAP).
-- **Accès Supabase Studio via Tailscale** → `https://studio.admin.qoe.fi` (résolu via le
-  split DNS Tailscale → nameserver `100.117.195.127`, domaine `admin.qoe.fi` — action owner
-  requise dans la console Tailscale). Fallback : `http://100.117.195.127:3000`.
+- **Accès dashboards via Tailscale** → `https://admin.qoe.fi` (admin plateforme) et
+  `https://studio/umami/mail.admin.qoe.fi` (résolus via le split DNS Tailscale →
+  nameserver `100.117.195.127`, domaine `admin.qoe.fi` — action owner requise dans la
+  console Tailscale). Fallbacks sans split DNS : `http://100.117.195.127:3000`
+  (supabase), `:3001` (umami), `:3002` (admin), `:28080` (stalwart).
 
 ---
 
@@ -70,7 +72,7 @@
 
 - [x] **Clé d'auth Tailscale révoquée** le 01/09 (elle avait circulé en clair) — le nœud reste dans le tailnet.
 - [ ] **Ajouter le nameserver Tailscale** (Console → DNS → Nameservers) : `100.117.195.127`
-      restreint au domaine `admin.qoe.fi` — requis pour `studio/umami/mail.admin.qoe.fi`.
+      restreint au domaine `admin.qoe.fi` — requis pour `admin.qoe.fi` + `studio/umami/mail.admin.qoe.fi`.
 - [ ] **Rotation** : `POSTGRES_PASSWORD`, `JWT_SECRET`, `MEILI_MASTER_KEY`, `QOE_INTERNAL_SECRET`,
       `SMTP_PASS` relay, `DASHBOARD_PASSWORD`, `UMAMI_PASSWORD` — dans un vault (1Password/Pass) ;
       les `.env` ne sont PAS un vault.

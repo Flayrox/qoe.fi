@@ -388,7 +388,7 @@ Variables racine `.env.docker` (rappel, cf. DEPLOYMENT.md) :
 - [ ] Baseline `goose_db_version` si base déjà migrée par Prisma (leçon n°4bis)
 - [ ] Umami : admin créé, **clé d'API** générée (→ `UMAMI_API_KEY`), website créé → `NEXT_PUBLIC_UMAMI_WEBSITE_ID`, `UMAMI_API_URL` + script URL posés (voir §6)
 - [x] Certs Let's Encrypt : nominatifs (HTTP-01) OK + tenants `*.qoe.fi` **on-demand TLS** (fait le 01/09, §13 point 5)
-- [x] **Dashboards admin tailnet-only** : studio/umami/mail.admin.qoe.fi via Caddy (IP tailnet) + DNS dnsmasq + firewall (§16, 01/09)
+- [x] **Dashboards admin tailnet-only** : admin.qoe.fi + studio/umami/mail.admin.qoe.fi via Caddy (IP tailnet, abort hors tailnet) + DNS dnsmasq + firewall (§16, 01/09)
 - [x] **Inventaire des accès** : `docs/CREDENTIALS.md` + `bash scripts/print-credentials.sh` (ou `deploy-prod.sh --credentials`)
 - [ ] Seed + `embed-all` lancés, comptages vérifiés (500 users / 200 articles / 700 pensées / 500 auth.users)
 - [x] PTR / reverse DNS + SPF (réputation mail) — `159.195.110.239` → `mail.qoe.fi` ✓ (vérifié `dig -x`)
@@ -653,28 +653,34 @@ containers non listés ne sont pas recréés.)
 - **V1 (matin 01/09)** : Tailscale Serve → `https://studio.tail28842e.ts.net`.
 - **V2 (soir 01/09)** : Serve retiré — **Caddy écoute aussi sur l'IP tailnet**
   (`100.117.195.127:80/443`, compose) et sert les dashboards avec des noms propres :
+  - `admin.qoe.fi` → **admin plateforme** (Next.js admin) — tailnet-only depuis le 01/09
   - `studio.admin.qoe.fi` → supabase-studio (dashboard Supabase)
   - `umami.admin.qoe.fi` → umami (dashboard analytics)
   - `mail.admin.qoe.fi` → UI admin Stalwart (host:28080)
   Certs Let's Encrypt **HTTP-01/ALPN-01 auto** par Caddy (émis au reload, renouvelés
-  auto) ; matcher `remote_ip 100.64/10` → tout autre client reçoit un 404.
+  auto) ; matcher `remote_ip 100.64/10` → tout autre client reçoit une **connexion
+  fermée** (`abort` — plus de 404 « Not found » qui révèle l'existence du service ;
+  le port 80 renvoie un 308 → https, donc masqué aussi).
 - **DNS privé (dnsmasq)** : service systemd sur le host, écoute UNIQUEMENT sur
-  `100.117.195.127:53` → `*.admin.qoe.fi` (et l'apex) répond `100.117.195.127`.
+  `100.117.195.127:53` → `*.admin.qoe.fi` (et l'apex `admin.qoe.fi`) répond
+  `100.117.195.127`.
   ⚠️ **Action owner (30 s)** : Console Tailscale → DNS → Nameservers → ajouter
   `100.117.195.127` restreint au domaine **`admin.qoe.fi`** (split DNS). Sans ça
-  les appareils résolvent via le DNS public → IP publique → 404.
+  les appareils résolvent via le DNS public → IP publique → connexion fermée.
 - **Firewall** : `scripts/tailnet-firewall.sh` (systemd `qoe-tailnet-firewall`) :
   INPUT Stalwart 28080/4190 (tailnet + docker + loopback, sinon DROP), DOCKER-USER
   Kong 18000/18443 + Pooler 15432/16543 (tailnet only), et **DNAT PREROUTING**
   `100.117.195.127:80/443` → conteneur Caddy (docker-proxy réécrirait l'IP source
   en 172.x → le matcher `remote_ip` ne verrait jamais les 100.x). ⚠️ À rejouer si
   `qoefi-caddy` est recréé — `deploy-prod.sh` le relance après chaque `up -d`.
-- **Vérifié depuis l'extérieur (01/09)** : les 3 dashboards → **404**, ports
+- **Vérifié depuis l'extérieur (01/09)** : les 4 dashboards (admin.qoe.fi + les 3
+  *.admin.qoe.fi) → **connexion fermée** (plus de 404 « Not found » révélateur), ports
   admin (28080, 4190, 18000/18443, 15432/16543) → **fermés**. `umami.qoe.fi` ne
   sert plus que `/script.js` + `/api/send` (tracking public) — l'API Go passe par
   `http://umami:3000/api` (docker interne, `UMAMI_API_URL` dans `.env.docker`).
-- `supabase-studio` publié sur `127.0.0.1:3000` + `100.117.195.127:3000` (accès
-  direct WireGuard) — jamais sur une IP publique.
+- **Fallbacks sans split DNS (accès direct WireGuard, IP 100.64/10 non routable
+  publiquement)** : `http://100.117.195.127:3000` (supabase-studio), `:3001` (umami),
+  `:3002` (admin plateforme), `:28080` (UI Stalwart). Jamais sur une IP publique.
 - **Basic Auth supprimé** : l'identité Tailscale EST l'authentification (tailnet privé).
 - ⚠️ **Pourquoi pas coredns** : coredns 1.11/1.12 (port-map OU host-net) renvoie
   sur ce host des réponses DNS avec **ANCOUNT=0** (records présents mais compteur
