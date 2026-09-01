@@ -81,13 +81,33 @@ export async function requireUser(): Promise<DbUser> {
 
     try {
       const headersList = await headers();
-      const host = headersList.get('host') || '';
+      const proto =
+        headersList.get('x-forwarded-proto') ||
+        (process.env.NODE_ENV === 'production' ? 'https' : 'http');
+      // Derrière le reverse-proxy, `host` peut être l'adresse de bind du
+      // container (0.0.0.0:3000 — prouvé en prod sur les redirects de login).
+      // On préfère x-forwarded-host (propagé par Caddy), sinon host, et on
+      // neutralise les adresses internes. Même piège que les callbacks auth.
+      const rawHost = headersList.get('x-forwarded-host') || headersList.get('host') || '';
+      const isBindAddress = /^(0\.0\.0\.0|127\.0\.0\.1|\[?::1\]?|localhost)(:\d+)?$/i.test(rawHost);
+      const host = isBindAddress ? '' : rawHost;
+
       // Construire l'URL de la page courante via referer ou x-invoke-path
       const referer = headersList.get('referer');
       const invokedPath = headersList.get('x-invoke-path');
-      const proto = process.env.NODE_ENV === 'production' ? 'https' : 'http';
-      const currentUrl =
-        referer || (invokedPath ? `${proto}://${host}${invokedPath}` : `${proto}://${host}/`);
+      let currentUrl: string;
+      if (referer && /^https?:\/\//.test(referer)) {
+        currentUrl = referer;
+      } else {
+        // Sans hôte fiable (accès direct au container), on retombe sur une
+        // URL canonique plutôt qu'une adresse de bind inatteignable.
+        const base = host
+          ? `${proto}://${host}`
+          : process.env.NODE_ENV === 'production'
+            ? getMonorepoUrl('feed')
+            : 'http://localhost:3000';
+        currentUrl = invokedPath ? `${base}${invokedPath}` : `${base}/`;
+      }
 
       const feedBase = getMonorepoUrl('feed', host);
       loginUrl = `${feedBase}/login?redirect=${encodeURIComponent(currentUrl)}`;
