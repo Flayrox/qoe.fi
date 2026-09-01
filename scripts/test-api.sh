@@ -21,11 +21,39 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 export TEST_DATABASE_URL="${TEST_DATABASE_URL:-postgresql://qoe:qoe@127.0.0.1:55432/qoe_test?sslmode=disable}"
 
-# Démarre la base de test si elle n'est pas déjà up.
-if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^qoefi-test-db$'; then
-  echo "→ Démarrage de la base de test (docker-compose.test.yml)…"
-  docker compose -f "$ROOT/docker-compose.test.yml" up -d --wait --wait-timeout 120
-fi
+# Port de la base de test (miroir du docker-compose.test.yml).
+TEST_DB_PORT="${TEST_DB_PORT:-55432}"
+
+# probe_db: true si le port répond (base déjà up, ou container résiduel d'un
+# run précédent qui tient encore le port — on ne tente pas de recreer).
+probe_db() {
+  (exec 3<>/dev/tcp/127.0.0.1/"$TEST_DB_PORT") 2>/dev/null && { exec 3>&- 3<&- || true; return 0; } || return 1
+}
+
+# ensure_test_db: démarre la base de test (docker-compose.test.yml) avec
+# retries. Les runners CI peuvent laisser un container à moitié créé tenant
+# le port (échec « address already in use ») : on fait un `down` (le volume
+# est conservé, les migrations goose sont rejouées par testutil.Pool) puis
+# un nouvel essai.
+ensure_test_db() {
+  if probe_db; then
+    echo "→ Base de test déjà joignable sur 127.0.0.1:$TEST_DB_PORT."
+    return 0
+  fi
+  for attempt in 1 2 3; do
+    echo "→ Démarrage de la base de test (tentative $attempt/3)…"
+    if docker compose -f "$ROOT/docker-compose.test.yml" up -d --wait --wait-timeout 120; then
+      return 0
+    fi
+    echo "→ Tentative $attempt échouée : cleanup du container et nouvel essai…"
+    docker compose -f "$ROOT/docker-compose.test.yml" down 2>/dev/null || true
+    sleep 8
+  done
+  echo "✗ Base de test injoignable sur 127.0.0.1:$TEST_DB_PORT" >&2
+  return 1
+}
+
+ensure_test_db
 
 cd "$ROOT/apps/api"
 
