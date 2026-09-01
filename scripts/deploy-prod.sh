@@ -5,6 +5,12 @@
 # 📖 Usage :
 #     bash scripts/deploy-prod.sh                 # déploiement complet
 #     bash scripts/deploy-prod.sh --skip-pull     # saute le pull (images déjà à jour)
+#     bash scripts/deploy-prod.sh core studio     # DÉPLOIEMENT CIBLÉ : ne pull+redémarre
+#                                                  # que les services listés (le code est
+#                                                  # toujours synchronisé ; backup + migrations
+#                                                  # restent actifs). Ex. : un fix front-only
+#                                                  # sur core/studio passe en < 1 min sans
+#                                                  # toucher aux autres containers.
 #
 # 🎯 Ce script encapsule le déploiement validé le 2026-09-01 (CI + GHCR) :
 #    1. Transfert du code (tar|ssh, exclut node_modules/.git/artefacts/AppleDouble)
@@ -38,14 +44,23 @@ warn() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 error() { echo -e "${RED}❌ $1${NC}"; exit 1; }
 
 SKIP_PULL=0
+SERVICES=()
 for arg in "$@"; do
   case "$arg" in
     --skip-pull) SKIP_PULL=1 ;;
     --skip-build) SKIP_PULL=1 ;;
     --build-only | --legacy-build)
       error "Le build sur le VPS n'est plus supporté : les images sont buildées en CI (ghcr.io/flayrox, workflow build-images.yml)." ;;
+    -*)
+      error "Option inconnue : $arg" ;;
+    *)
+      SERVICES+=("$arg") ;;
   esac
 done
+ALL_SERVICES=(tenants hi core studio admin api worker migrate)
+if [ "${#SERVICES[@]}" -gt 0 ]; then
+  log "🎯 Déploiement CIBLÉ : ${SERVICES[*]} (les autres containers ne sont pas touchés)"
+fi
 
 ssh_vps() { ssh -o ConnectTimeout=15 "$VPS_HOST" "$@"; }
 
@@ -89,7 +104,8 @@ if [ "$SKIP_PULL" = "1" ]; then
 else
   log "4/6 Login GHCR (GitHub App) + pull des images buildées en CI…"
   ssh_vps "cd $VPS_DIR && if [ -f scripts/ghcr-login.sh ]; then bash scripts/ghcr-login.sh; else echo '⚠️  scripts/ghcr-login.sh absent — login GHCR préexistant requis'; fi"
-  if ! ssh_vps "cd $VPS_DIR && docker compose pull tenants hi core studio admin api worker migrate"; then
+  PULL_TARGETS=("${SERVICES[@]:-${ALL_SERVICES[@]}}")
+  if ! ssh_vps "cd $VPS_DIR && docker compose pull ${PULL_TARGETS[*]}"; then
     error "Pull GHCR impossible — setup GitHub App : voir docs/VPS_DEPLOYMENT_PREP.md §15 (ou docker login manuel)"
   fi
   success "Images à jour"
@@ -106,9 +122,14 @@ log "   Migrations goose…"
 ssh_vps "cd $VPS_DIR && docker compose up -d migrate"
 ssh_vps "cd $VPS_DIR && docker logs qoefi-migrate 2>&1 | tail -2 | grep -qE 'OK|no migrations' || error 'migrate KO' ; exit 0" || error "Migrations goose en échec"
 log "   Démarrage de la stack…"
-ssh_vps "cd $VPS_DIR && docker compose up -d"
+if [ "${#SERVICES[@]}" -gt 0 ]; then
+  ssh_vps "cd $VPS_DIR && docker compose up -d ${SERVICES[*]}"
+  success "Services ciblés démarrés : ${SERVICES[*]}"
+else
+  ssh_vps "cd $VPS_DIR && docker compose up -d"
+  success "Stack démarrée"
+fi
 sleep 20
-success "Stack démarrée"
 
 # ─── Étape 6 : Smoke tests ────────────────────────────────
 log "6/6 Smoke tests…"

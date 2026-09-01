@@ -74,6 +74,7 @@ _dmarc  IN TXT  "v=DMARC1; p=quarantine; rua=mailto:admin@qoe.fi"   ; ✅
 | ⏳ | **PTR / reverse DNS** de `159.195.110.239` → `mail.qoe.fi` : à demander au **provider qui détient l'IP** (Netcup d'après nos notes) |
 | ⏳ | **Port 25** (sortant pour l'envoi, entrant pour la réception) : à ouvrir chez Netcup — en attendant, switch Hostinger/Resend (§4.4) |
 | ℹ️ | Propagation : `dig +short A qoe.fi` depuis plusieurs points ; TTL 3600 → 300 avant la bascule si besoin |
+| ⚠️ | **Ancien VPS `178.104.197.3`** : son vieux Caddy sert encore `*.qoe.fi` (dashboard Supabase : icône Supabase + redirection `/project/default`, 404 sur les routes du studio créateur). Après la bascule DNS, un **cache DNS périmé** (navigateur/OS/routeur) peut retomber dessus → « 404 partout » / icône Supabase / `/project/default` par intermittence. Correctif : vider le cache DNS (ou attendre ≤ TTL 3600), et **retirer/commenter les blocs `qoe.*` de l'ancien Caddy** (vérifié 2026-09-01 : zéro 404 servi par le nouveau VPS, tout venait de l'ancien) |
 
 > ⚠️ **Corrections vs versions précédentes** : la zone est chez **Hetzner** (pas Netcup), le
 > MX pointe **déjà** vers le VPS (pas Hostinger), et le SPF réel n'inclut pas Hostinger.
@@ -593,3 +594,21 @@ d'installation TTL 1 h** et fait `docker login`.
 
 **À tester au premier déploiement CI** : `bash scripts/deploy-prod.sh` (le pull exige que le
 workflow ait poussé au moins une fois les images sur GHCR).
+
+### 🎯 Déploiement CIBLÉ (01/09) — ne redéployer que ce qui a changé
+
+Le script accepte désormais une **liste de services** : seule leur image est pullée et
+leur container redémarré (le code est toujours synchronisé, backup + migrations + smoke
+tests restent actifs, les autres containers ne bougent pas) :
+
+```bash
+bash scripts/deploy-prod.sh core studio     # fix front-only → < 1 min
+bash scripts/deploy-prod.sh api worker      # backend only
+bash scripts/deploy-prod.sh                 # tout (défaut)
+```
+
+Services valides : `tenants hi core studio admin api worker migrate`. Le pull/`up -d`
+ciblé ne touche **que** les containers listés — pratique pour un hotfix `core` sans
+redémarrer le reste de la stack. (Le build CI reste global : les 8 images passent quand
+même, mais `latest` ne change que pour les services dont le code a changé, donc les
+containers non listés ne sont pas recréés.)
