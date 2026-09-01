@@ -189,6 +189,8 @@ check "updates /healthz"      "curl -sf -o /dev/null https://updates.qoe.fi/heal
 check "qoe.fi (core)"        "curl -sf -o /dev/null https://qoe.fi/home"
 check "hi.qoe.fi"            "curl -sf -o /dev/null https://hi.qoe.fi"
 check "umami tracker public" "curl -sf -o /dev/null https://umami.qoe.fi/script.js"  # dashboard = tailnet-only (umami.admin.qoe.fi)
+check "admin.qoe.fi masqué"  "! curl -s --max-time 8 -o /dev/null https://admin.qoe.fi/"  # tailnet-only : hors tailnet → connexion fermée (abort)
+check "admin tailnet :3002"  "curl -sf -o /dev/null --max-time 8 http://100.117.195.127:3002/"  # fallback direct (Caddy : admin.qoe.fi tailnet-only)
 check "auth (kong)"          "SR=\$(grep '^SERVICE_ROLE_KEY=' $SUPABASE_DIR/.env | cut -d= -f2-); curl -sk -o /dev/null -w '%{http_code}' https://auth.qoe.fi/auth/v1/health -H \"apikey: \$SR\" | grep -q 200"
 check "config /v1/home/config" "curl -sf https://api.qoe.fi/v1/home/config | grep -q AUTH_METHODS"
 check "worker email loop"    "docker logs qoefi-worker 2>&1 | grep -q 'email-delivery'"

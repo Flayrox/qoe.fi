@@ -78,8 +78,19 @@ for _ in $(seq 1 20); do   # attend qoefi-caddy au boot (recreate = nouvelle IP)
 done
 if [ -n "$CADDY_IP" ]; then
     for p in 80 443; do
-        iptables -t nat -C PREROUTING -d 100.117.195.127 -p tcp --dport "$p" -j DNAT --to-destination "$CADDY_IP:$p" 2>/dev/null \
-            || iptables -t nat -I PREROUTING 1 -d 100.117.195.127 -p tcp --dport "$p" -j DNAT --to-destination "$CADDY_IP:$p"
+        # Purge TOUTES les règles DNAT vers l'IP tailnet sur ce port (les
+        # nôtres périmées — IP docker de caddy change au fil des recreates —
+        # et les doublons docker) puis repose la règle courante en tête
+        # (source préservée → matcher @tailnet de Caddy). iptables -D ne
+        # matche pas une cible partielle : purge par numéro de ligne.
+        while :; do
+            num=$(iptables -t nat -L PREROUTING -n --line-numbers 2>/dev/null \
+                | awk -v ip="100.117.195.127" -v port="tcp dpt:$p" \
+                  '$2 == "DNAT" && index($0, ip) && index($0, port) {print $1; exit}')
+            [ -n "$num" ] || break
+            iptables -t nat -D PREROUTING "$num" 2>/dev/null || break
+        done
+        iptables -t nat -I PREROUTING 1 -d 100.117.195.127 -p tcp --dport "$p" -j DNAT --to-destination "$CADDY_IP:$p"
     done
 else
     echo "⚠️  qoefi-caddy introuvable — DNAT tailnet non posé (relancer après up -d caddy)"
