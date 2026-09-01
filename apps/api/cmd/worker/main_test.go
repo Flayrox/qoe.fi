@@ -53,6 +53,7 @@ func TestBuildHandlers(t *testing.T) {
 		queue.TaskArticleEmbedding,
 		queue.TaskUserEmbedding,
 		queue.TaskPostEmbedding,
+		queue.TaskNewsletterSend,
 	}
 	if len(handlers) != len(expected) {
 		t.Fatalf("handlers = %d, attendu %d", len(handlers), len(expected))

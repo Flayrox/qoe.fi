@@ -1,5 +1,5 @@
 // =====================================================================
-// 🛡️ E2E — Console admin (apps/admin, port 3030)
+// 🛡️ E2E — Console admin (apps/admin, port 15405)
 // =====================================================================
 // Deux niveaux :
 //   1. AUTH GATE (CI-safe, sans session) : /admin redirige vers /login
@@ -14,7 +14,7 @@ import { test, expect } from '@playwright/test';
 import { TestDb } from './lib/db';
 import { COOKIE_NAME, DATABASE_URL, JWT_SECRET, mintJwt } from './lib/env';
 
-const ADMIN = process.env.PLAYWRIGHT_ADMIN_URL ?? 'http://localhost:3030';
+const ADMIN = process.env.PLAYWRIGHT_ADMIN_URL ?? 'http://localhost:15405';
 const RUN_FULL_STACK = process.env.RUN_FULL_STACK === '1';
 // User.id est UUID (schéma goose) : UUID déterministe = JWT sub valide.
 const ADMIN_ID = '00000000-0000-4000-8000-000000000002';
