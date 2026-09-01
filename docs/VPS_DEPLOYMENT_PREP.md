@@ -147,7 +147,15 @@ et **retirer** les URLs HTTP locales de la allow-list. Cookie partagé sur **`.q
 >    `Host`. Les routes `/auth/callback` (core + tenants) doivent construire leur base de
 >    redirection depuis `x-forwarded-host`/`host` (+ `x-forwarded-proto`) — corrigé dans
 >    le code (`getPublicBase`). Sans ça, l'échec du callback redirige vers
->    `https://0.0.0.0:3000/login?error=auth-code-error`.
+>    `https://0.0.0.0:3000/login?error=auth-code-error`. Même piège dans les **middlewares
+>    studio/admin** (`request.nextUrl.href` → `?redirect=0.0.0.0:3000`) et dans
+>    `requireUser` (`headers().get('host')` → adresse de bind) : tous corrigés le 01/09
+>    (headers proxy + repli `getMonorepoUrl`).
+> 1bis. **`studio` est un nom DNS AMBIGU sur le réseau qoefi-public** : `supabase-studio`
+>    porte aussi l'alias `studio` (ajouté pour `base.admin.qoe.fi`) → le
+>    `reverse_proxy studio:3000` de Caddy tombait AU HASARD sur le dashboard Supabase
+>    (redirections `/project/default` + 404 intermittentes). Corrigé : `reverse_proxy
+>    qoefi-studio:3000` (nom de container unique) dans `docker/caddy/Caddyfile`.
 > 2. **Les magic links sont à usage unique et remplacés à chaque nouvelle demande**
 >    (`one_time_tokens` a une contrainte `UNIQUE(user_id, token_type)` + delete avant
 >    insert). Recliquer « Recevoir un lien magique » (ou double-cliquer) **invalide le lien
