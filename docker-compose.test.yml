@@ -6,7 +6,9 @@ services:
     container_name: qoefi-test-db
     restart: unless-stopped
     ports:
-      - '55432:5432'
+      # Loopback uniquement : la base de test ne doit jamais être exposée sur
+      # 0.0.0.0 (et évite les conflits de bind docker-proxy en CI).
+      - '127.0.0.1:55432:5432'
     environment:
       POSTGRES_USER: ${TEST_POSTGRES_USER:-qoe}
       POSTGRES_PASSWORD: ${TEST_POSTGRES_PASSWORD:-qoe}
