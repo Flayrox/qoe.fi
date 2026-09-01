@@ -543,14 +543,33 @@ et les apps qoe pointent `supabase-db:5432`.
   2. Retester la délivrabilité (mail-tester + vrai Gmail) après publication.
 - [x] **Cert : `mail.qoe.fi` aux SAN** — fait le 2026-08-31 (`--expand`, valable jusqu'au 2026-11-29) — cf. §13
   « Emails » pour la procédure de mise à jour Stalwart (JMAP, le PEM est en base).
-- [ ] **Renouvellement LE fiable** : les tenants passent par l'**on-demand TLS** (§13 point 5, fait le 01/09),
-  mais le **cert nominatif `qoe.fi`** (SAN qoe.fi/www/api/auth/admin/cdn/hi/mail/studio/umami) reste en
-  `authenticator = standalone` alors que Caddy occupe 80/443 → le timer certbot **échouera** à l'échéance
-  **2026-11-29**. Deux chantiers possibles : (a) **DNS-01 Hetzner** (certbot-dns-hetzner + token API —
-  décision validée 2026-08-31, sans coupure), ou (b) laisser Caddy auto-gérer aussi ces hosts (retirer les
-  `import qoe_cert` → HTTP-01 auto) **mais alors il faut continuer de renouveler le cert certbot pour Stalwart**
-  (sa copie RocksDB sert sur 25/465/587/993/995) — donc (a) reste le plus propre : un seul certificat,
-  Caddy + Stalwart + mail sur le même PEM.
+- [x] **Renouvellement LE fiable** : ✅ **résolu le 01/09** — pre-hook `stop-caddy.sh` (arrête Caddy pendant
+  le challenge → libère le port 80 pour l'authenticator standalone) + deploy hooks `restart-caddy.sh` (Caddy)
+  et `10-stalwart-cert.sh` (copie → `/etc/stalwart/certs/`) — **dry-run validé le 01/09** (2 certs renew OK).
+  ⚠️ Piège corrigé le 01/09 : Caddy + hook Stalwart lisaient `live/qoe.fi` (cert hérité de la migration du
+  21/08) alors que certbot renouvelle `live/qoe.fi-0001` → le chemin `-0001` est désormais utilisé partout
+  (Caddyfile `qoe_cert` + hook Stalwart). L'option (a) **DNS-01 Hetzner** (un seul PEM pour Caddy + Stalwart
+  + mail) reste le chantier propre quand on voudra, mais **n'est plus urgente**.
+- [ ] **CDN/Stockage images → Bunny.net** (objectif : décharger le VPS + livraison edge mondiale) :
+  - Aujourd'hui : `cdn.qoe.fi` → `supabase-kong` (`/storage/v1/object/public`) — storage auto-hébergé sur le
+    VPS (bande passante + disque locaux, pas de cache edge).
+  - Cible : **Bunny Storage Zone** (origin) + **Pull Zone** (CDN) ; `cdn.qoe.fi` → CNAME vers la pull zone.
+  - Au moment de s'y mettre : créer le compte Bunny + Storage/Pull Zones, migrer les objets (sync depuis le
+    bucket Supabase), basculer l'URL de base du storage côté code (repérer où les URLs de médias sont
+    construites), CNAME DNS, purge + smoke tests. Garder Supabase Storage en write-path pendant la transition.
+  - ⚠️ Les URLs de médias sont probablement stockées telles quelles en base → prévoir des **URLs stables**
+    (le CNAME `cdn.qoe.fi` doit rester inchangé) ; renommer le bucket/zone avant, pas après.
+  - Coût : pay-as-you-go (€/GB stockage + €/GB bande passante — grille à vérifier au moment venu).
+- [ ] **Backups offsite → serveur Hetzner** (objectif : survivre à un sinistre du VPS) :
+  - Aujourd'hui : `deploy-prod.sh` dump Postgres + `.env.docker` → `/root/migration/pre-<ts>/` **sur le VPS
+    lui-même** → disque mort ou serveur compromis = backups perdus avec les données.
+  - Cible : destination distante Hetzner — **Storage Box** (S3-compatible ; recommandé : géré, pas d'OS à
+    maintenir) ou petit VPS CX (rsync/restic). Mécanique prévue : **restic** (chiffré + dédup) via timer
+    systemd, rétention 7 daily / 4 weekly / 6 monthly, **test de restauration périodique**.
+  - Contenu : dump Postgres, `.env`/`.env.docker`, `/etc/letsencrypt/`, `/etc/stalwart/`, volumes docker
+    (redis, meili, umami-db, caddy_data), `data/updates` (OTA).
+  - ⚠️ La passphrase restic + clé de chiffrement doivent vivre dans le vault (1Password), PAS seulement sur
+    le VPS.
 - [ ] **SPF sur le host HELO `mail.qoe.fi`** : publier `v=spf1 a -all` (couvre A + AAAA du VPS) pour lever
   le point `SPF_HELO_NONE` de mail-tester (mineur : +0.001, le score reste 10/10 sans).
 
