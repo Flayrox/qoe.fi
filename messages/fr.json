@@ -9,7 +9,8 @@
     "continue": "Continuer",
     "back": "Retour",
     "add": "Ajouter",
-    "verify": "Vérifier"
+    "verify": "Vérifier",
+    "retry": "Réessayer"
   },
   "login": {
     "title_login": "Connexion",
@@ -47,7 +48,8 @@
     "manifesto_readers_target": "Lecteurs",
     "manifesto_readers_title": "Retrouvez le goût \ndu temps long.",
     "manifesto_readers_desc": "Un sanctuaire dédié à la lecture profonde. Fuyez le bruit constant, cultivez le silence et choisissez qui vous influence.",
-    "manifesto_label": "Pour les {target}"
+    "manifesto_label": "Pour les {target}",
+    "confirm_email": "Un email de confirmation vous a été envoyé. Vérifiez votre boîte mail."
   },
   "navbar": {
     "search": "Rechercher",
@@ -78,7 +80,15 @@
     "nav_settings": "Paramètres",
     "user_profile": "Profil",
     "user_billing": "Facturation",
-    "user_logout": "Se déconnecter"
+    "user_logout": "Se déconnecter",
+    "profile": "Profil",
+    "creator_dashboard": "Studio Créateur",
+    "creator_dashboard_ready": "Ouverture du Studio Créateur...",
+    "notifications": "Notifications",
+    "library": "Bibliothèque",
+    "wallet": "Portefeuille",
+    "settings": "Paramètres et confidentialité",
+    "support": "Centre d’aide & Support"
   },
   "dashboard": {
     "welcome_home": "Accueil Studio",
@@ -182,7 +192,13 @@
     "empty_desc": "Surlignez des passages dans les articles que vous lisez pour les retrouver ici.",
     "your_note": "Votre Note",
     "highlighted_in": "Surligné dans :",
-    "consult": "Consulter"
+    "consult": "Consulter",
+    "retry": "Réessayer le chargement des surlignages",
+    "add": "Surligner un passage",
+    "empty": "Aucun surlignage pour le moment",
+    "text_placeholder": "Le passage à surligner…",
+    "note_placeholder": "Note (optionnel)…",
+    "save": "Sauvegarder"
   },
   "library": {
     "title": "Le Sanctuaire",
@@ -190,7 +206,12 @@
     "empty_title": "Votre sanctuaire est vide",
     "empty_desc": "Explorez qoe.fi et sauvegardez les articles qui méritent d'être lus à tête reposée.",
     "discover_articles": "Découvrir des articles",
-    "read": "Lire"
+    "read": "Lire",
+    "bookmarks": "Sauvegardés",
+    "highlights": "Surlignages",
+    "error": "Impossible de charger la bibliothèque",
+    "no_bookmarks": "Aucun article sauvegardé",
+    "no_highlights": "Aucun surlignage pour le moment"
   },
   "settings_reader": {
     "title": "Votre Profil Lecteur",
@@ -356,7 +377,35 @@
     "loading_article": "Chargement de l'écrit...",
     "article_not_found": "L'article demandé est introuvable ou a été dépublié.",
     "reading_time": "{count} min de lecture",
-    "read_tab_title": "Lecture de l'écrit"
+    "read_tab_title": "Lecture de l'écrit",
+    "error": "Impossible de charger le feed",
+    "new_thoughts": "Nouvelles pensées",
+    "new_thought": "nouvelle pensée",
+    "empty": "Votre fil est vide ! Suivez des publications pour voir leurs pensées.",
+    "find": "Trouver des comptes",
+    "end_long": "Vous avez tout vu ! Suivez plus de comptes pour enrichir votre fil.",
+    "replied_blocked": "En réponse à une pensée masquée",
+    "replied_unknown": "En réponse à une pensée",
+    "replied_to_you": "En réponse à votre pensée",
+    "in_reply_to": "En réponse à",
+    "show_thread": "Afficher la suite du fil",
+    "messages": "messages",
+    "message": "message",
+    "more": "de plus",
+    "reposted": "a repartagé",
+    "show_less": "Voir moins",
+    "show_more": "Voir plus",
+    "remove_repost": "Retirer le repost",
+    "repost": "Repartager",
+    "quote_post": "Citer la pensée",
+    "reply": "Répondre",
+    "repost_menu": "Repartager ou citer",
+    "like": "J’aime",
+    "pinned": "Épinglé",
+    "tabs": {
+      "for_you": "Pour vous",
+      "following": "Suivis"
+    }
   },
   "profile": {
     "joined_at": "A rejoint en {date}",
@@ -376,7 +425,25 @@
     "edit_bio_placeholder": "Décrivez-vous en quelques mots…",
     "edit_location": "Localisation / Ville",
     "edit_location_placeholder": "Paris, France",
-    "edit_pronouns": "Pronoms"
+    "edit_pronouns": "Pronoms",
+    "following_tab": "Abonnements",
+    "followers": "Abonnés",
+    "following_label": "Abonnements",
+    "followers_label": "Abonnés",
+    "link_copied": "Lien du profil copié",
+    "copy_link": "Copier le lien",
+    "open": "Ouvrir le profil",
+    "mute": "Masquer ce compte",
+    "block": "Bloquer ce compte",
+    "report": "Signaler ce compte",
+    "more": "Plus d’options",
+    "not_found": "Profil introuvable",
+    "edit_profile": "Modifier le profil",
+    "following": "Suivi",
+    "follow": "Suivre",
+    "articles": "articles",
+    "posts_error": "Impossible de charger les pensées",
+    "no_posts": "Aucune pensée publiée pour le moment"
   },
   "moderation": {
     "title": "Signaler un contenu",
@@ -574,15 +641,157 @@
     "sessions_revoke_others": "Déconnecter les autres appareils",
     "sessions_native": "Sessions natives Supabase",
     "sign_out_all_devices": "Déconnecter tous les appareils",
-    "sign_out_all_devices_desc": "Déconnecte tous les appareils gérés par Supabase Auth."
+    "sign_out_all_devices_desc": "Déconnecte tous les appareils gérés par Supabase Auth.",
+    "about": "À propos",
+    "update_check": "Vérifier les mises à jour",
+    "update_checking": "Vérification…",
+    "update_downloading": "Téléchargement…",
+    "update_up_to_date": "Application à jour.",
+    "update_dev_only": "Indisponible en développement (build release requis) ou erreur réseau.",
+    "update_web_only": "Les mises à jour OTA ne s'appliquent pas sur le web.",
+    "version": "Version {version}",
+    "update_runtime": "Runtime {version}",
+    "update_embedded": "bundle embarqué",
+    "update_remote": "update OTA"
   },
   "auth": {
     "sign_out": "Se déconnecter",
-    "sign_out_all": "Se déconnecter de tous les comptes"
+    "sign_out_all": "Se déconnecter de tous les comptes",
+    "sign_out_user": "Se déconnecter de @%{handle}"
   },
   "account": {
     "switch_error": "Impossible de basculer sur ce compte",
     "add_existing_btn": "Ajouter un compte existant",
-    "create_new_btn": "Créer un nouveau compte"
+    "create_new_btn": "Créer un nouveau compte",
+    "accounts_title": "Comptes",
+    "create_new": "Créer un nouveau compte",
+    "add_existing": "Ajouter un compte existant"
+  },
+  "article": {
+    "missing_pub": "Article indisponible",
+    "title": "Article",
+    "error": "Impossible de charger l’article",
+    "bookmark": "Sauvegarder",
+    "by": "Par",
+    "min_read": "min de lecture",
+    "premium": "Premium",
+    "paywall_title": "Contenu réservé aux abonnés",
+    "paywall_body": "Abonnez-vous pour lire la suite de cet article et soutenir l’auteur.",
+    "subscribe": "S’abonner",
+    "similar": "À lire aussi",
+    "similar_ai": "recommandé par IA",
+    "read": "Lire"
+  },
+  "wallet": {
+    "title": "Portefeuille Qoe",
+    "current_balance": "Solde disponible",
+    "earnings_history": "Historique & Rémunération créateur"
+  },
+  "messages": {
+    "title": "Messages",
+    "welcome_title": "Discutez en direct sur Qoe",
+    "welcome_desc": "Échangez en privé avec vos auteurs favoris, créateurs et membres de votre communauté. La messagerie chiffrée arrive très bientôt !",
+    "in_progress_badge": "Fonctionnalité en cours de déploiement"
+  },
+  "engagement": {
+    "error": "Impossible de charger cette liste"
+  },
+  "compose": {
+    "title": "Nouvelle pensée",
+    "post": "Publier",
+    "replying_to": "En réponse à",
+    "placeholder": "Exprimez votre pensée…",
+    "error": "Une erreur est survenue"
+  },
+  "explore": {
+    "title": "Explorer",
+    "placeholder": "Rechercher des articles…",
+    "hint": "Recherchez des articles publiés sur Qoe.",
+    "error": "Recherche indisponible",
+    "no_results": "Aucun article trouvé pour cette recherche."
+  },
+  "search": {
+    "filter_all": "Tout",
+    "filter_articles": "Articles",
+    "filter_creators": "Créateurs",
+    "filter_thoughts": "Pensées",
+    "placeholder": "Rechercher sur Qoe…",
+    "trending_topics": "Tendances et thèmes populaires",
+    "error": "Une erreur est survenue lors de la recherche.",
+    "no_results": "Aucun résultat pour « %{query} »"
+  },
+  "follow": {
+    "error": "Impossible de charger cette liste",
+    "no_followers": "Aucun abonné pour le moment.",
+    "no_following": "Ne suit personne pour le moment."
+  },
+  "thread": {
+    "reply_to_user": "Répondre à @{user}…",
+    "write_reply": "Écrire votre réponse…",
+    "error": "Impossible de charger la pensée",
+    "title": "Pensée",
+    "show_more_parents": "Afficher les pensées précédentes",
+    "no_replies": "Aucune réponse pour le moment. Soyez le premier !",
+    "show_more_replies": "Afficher",
+    "other_replies": "autres réponses"
+  },
+  "post": {
+    "more": "Plus d’options",
+    "show_translation": "Traduire la pensée",
+    "hidden_reason": "Contenu masqué par l’auteur",
+    "reveal": "Afficher",
+    "copied_text": "Texte copié",
+    "copied_link": "Lien copié",
+    "deleted": "Pensée supprimée",
+    "pinned": "Épinglé au profil",
+    "unpinned": "Désépinglé",
+    "show_more_done": "Tu verras plus de contenu comme ça.",
+    "show_less_done": "Tu verras moins de contenu comme ça.",
+    "reported": "Signalement envoyé. Merci !",
+    "unpin": "Désépingler du profil",
+    "pin": "Épingler au profil",
+    "delete": "Supprimer la pensée",
+    "translate": "Traduire",
+    "copy_text": "Copier le texte de la pensée",
+    "copy_link": "Copier le lien vers la pensée",
+    "hide": "Masquer cette pensée pour moi",
+    "mute_thread": "Mettre le fil en sourdine",
+    "report": "Signaler la pensée",
+    "show_more": "Voir plus de contenu comme ça",
+    "show_less": "Voir moins de contenu comme ça",
+    "bookmarked": "Ajouté à vos signets",
+    "unbookmarked": "Retiré de vos signets",
+    "bookmark": "Enregistrer"
+  },
+  "notif": {
+    "title": "Notifications",
+    "mark_all": "Tout marquer lu",
+    "error": "Impossible de charger les notifications",
+    "empty": "Aucune notification pour le moment."
+  },
+  "error": {
+    "title": "Oups !",
+    "generic": "Une erreur inattendue est survenue.",
+    "retry": "Réessayer"
+  },
+  "share": {
+    "copied": "Lien copié",
+    "share": "Partager",
+    "copy_link": "Copier le lien",
+    "open": "Ouvrir dans le navigateur"
+  },
+  "reply": {
+    "everyone": "Tout le monde peut répondre",
+    "followed": "Les comptes que je suis peuvent répondre",
+    "mentioned": "Seuls les comptes mentionnés peuvent répondre",
+    "nobody": "Personne ne peut répondre",
+    "who": "Qui peut répondre ?"
+  },
+  "poll": {
+    "ended": "Sondage terminé",
+    "votes": "votes"
+  },
+  "nav": {
+    "messages": "Messages"
   }
 }

@@ -9,7 +9,8 @@
     "continue": "Continue",
     "back": "Back",
     "add": "Add",
-    "verify": "Verify"
+    "verify": "Verify",
+    "retry": "Retry"
   },
   "login": {
     "title_login": "Log in",
@@ -47,7 +48,8 @@
     "manifesto_readers_target": "Readers",
     "manifesto_readers_title": "Rediscover the joy \nof deep reading.",
     "manifesto_readers_desc": "A sanctuary dedicated to deep reading. Escape the constant noise, cultivate silence, and choose who influences you.",
-    "manifesto_label": "For {target}"
+    "manifesto_label": "For {target}",
+    "confirm_email": "A confirmation email has been sent to you. Check your inbox."
   },
   "navbar": {
     "search": "Search",
@@ -78,7 +80,15 @@
     "nav_settings": "Settings",
     "user_profile": "Profile",
     "user_billing": "Billing",
-    "user_logout": "Log out"
+    "user_logout": "Log out",
+    "creator_dashboard": "Creator Studio",
+    "creator_dashboard_ready": "Opening Creator Studio...",
+    "library": "Library",
+    "notifications": "Notifications",
+    "profile": "Profile",
+    "settings": "Settings & privacy",
+    "support": "Help center & Support",
+    "wallet": "Wallet"
   },
   "dashboard": {
     "welcome_home": "Studio Home",
@@ -182,7 +192,13 @@
     "empty_desc": "Highlight passages in the articles you read to find them here.",
     "your_note": "Your Note",
     "highlighted_in": "Highlighted in:",
-    "consult": "View source"
+    "consult": "View source",
+    "add": "Highlight a passage",
+    "empty": "No highlights yet",
+    "note_placeholder": "Note (optional)…",
+    "retry": "Retry loading highlights",
+    "save": "Save",
+    "text_placeholder": "The passage to highlight…"
   },
   "library": {
     "title": "The Sanctuary",
@@ -190,7 +206,12 @@
     "empty_title": "Your sanctuary is empty",
     "empty_desc": "Explore qoe.fi and save articles that deserve to be read at your own pace.",
     "discover_articles": "Discover articles",
-    "read": "Read"
+    "read": "Read",
+    "bookmarks": "Saved",
+    "error": "Couldn’t load the library",
+    "highlights": "Highlights",
+    "no_bookmarks": "No saved articles",
+    "no_highlights": "No highlights yet"
   },
   "settings_reader": {
     "title": "Your Reader Profile",
@@ -356,7 +377,35 @@
     "loading_article": "Loading article...",
     "article_not_found": "The requested article cannot be found or is unpublished.",
     "reading_time": "{count} min read",
-    "read_tab_title": "Reading article"
+    "read_tab_title": "Reading article",
+    "empty": "Your feed is empty! Follow publications to see their thoughts.",
+    "end_long": "You’ve seen it all! Follow more accounts to enrich your feed.",
+    "error": "Couldn’t load the feed",
+    "find": "Find accounts",
+    "in_reply_to": "In reply to",
+    "like": "Like",
+    "message": "message",
+    "messages": "messages",
+    "more": "more",
+    "new_thought": "new thought",
+    "new_thoughts": "New thoughts",
+    "pinned": "Pinned",
+    "quote_post": "Quote post",
+    "remove_repost": "Remove repost",
+    "replied_blocked": "In reply to a hidden thought",
+    "replied_to_you": "In reply to your thought",
+    "replied_unknown": "In reply to a thought",
+    "reply": "Reply",
+    "repost": "Repost",
+    "repost_menu": "Repost or quote",
+    "reposted": "reposted",
+    "show_less": "Show less",
+    "show_more": "Show more",
+    "show_thread": "Show the rest of the thread",
+    "tabs": {
+      "following": "Following",
+      "for_you": "For you"
+    }
   },
   "profile": {
     "joined_at": "Joined {date}",
@@ -376,7 +425,25 @@
     "edit_name_required": "Name is required",
     "edit_pronouns": "Pronouns",
     "edit_saved": "Profile updated",
-    "edit_username_hint": "3 to 24 characters: lowercase letters, numbers, _ or ."
+    "edit_username_hint": "3 to 24 characters: lowercase letters, numbers, _ or .",
+    "articles": "articles",
+    "block": "Block this account",
+    "copy_link": "Copy link",
+    "edit_profile": "Edit profile",
+    "follow": "Follow",
+    "followers": "Followers",
+    "followers_label": "Followers",
+    "following": "Following",
+    "following_label": "Following",
+    "following_tab": "Following",
+    "link_copied": "Profile link copied",
+    "more": "More options",
+    "mute": "Mute this account",
+    "no_posts": "No thoughts published yet",
+    "not_found": "Profile not found",
+    "open": "Open profile",
+    "posts_error": "Couldn’t load thoughts",
+    "report": "Report this account"
   },
   "moderation": {
     "title": "Report Content",
@@ -407,11 +474,15 @@
   "account": {
     "add_existing_btn": "Add an existing account",
     "create_new_btn": "Create a new account",
-    "switch_error": "Couldn’t switch to this account"
+    "switch_error": "Couldn’t switch to this account",
+    "accounts_title": "Accounts",
+    "add_existing": "Add an existing account",
+    "create_new": "Create a new account"
   },
   "auth": {
     "sign_out": "Sign out",
-    "sign_out_all": "Sign out of all accounts"
+    "sign_out_all": "Sign out of all accounts",
+    "sign_out_user": "Sign out of @{handle}"
   },
   "settings": {
     "account": "Account",
@@ -583,6 +654,144 @@
     "title": "Settings",
     "visibility_followers": "Followers only",
     "visibility_private": "Private",
-    "visibility_public": "Public"
+    "visibility_public": "Public",
+    "about": "About",
+    "update_check": "Check for updates",
+    "update_checking": "Checking…",
+    "update_downloading": "Downloading…",
+    "update_up_to_date": "App is up to date.",
+    "update_dev_only": "Unavailable in development (release build required) or network error.",
+    "update_web_only": "OTA updates don't apply on the web.",
+    "version": "Version {version}",
+    "update_runtime": "Runtime {version}",
+    "update_embedded": "embedded bundle",
+    "update_remote": "OTA update"
+  },
+  "article": {
+    "bookmark": "Bookmark",
+    "by": "By",
+    "error": "Couldn’t load this article",
+    "min_read": "min read",
+    "missing_pub": "Article unavailable",
+    "paywall_body": "Subscribe to keep reading this article and support the author.",
+    "paywall_title": "Content reserved for subscribers",
+    "premium": "Premium",
+    "read": "Read",
+    "similar": "You might also like",
+    "similar_ai": "AI-recommended",
+    "subscribe": "Subscribe",
+    "title": "Article"
+  },
+  "compose": {
+    "error": "An error occurred",
+    "placeholder": "Share your thoughts…",
+    "post": "Publish",
+    "replying_to": "Replying to",
+    "title": "New thought"
+  },
+  "engagement": {
+    "error": "Couldn’t load this list"
+  },
+  "error": {
+    "generic": "An unexpected error occurred.",
+    "retry": "Retry",
+    "title": "Oops!"
+  },
+  "explore": {
+    "error": "Search unavailable",
+    "hint": "Search for articles published on Qoe.",
+    "no_results": "No articles found for this search.",
+    "placeholder": "Search articles…",
+    "title": "Explore"
+  },
+  "follow": {
+    "error": "Couldn’t load this list",
+    "no_followers": "No followers yet.",
+    "no_following": "Not following anyone yet."
+  },
+  "messages": {
+    "in_progress_badge": "Feature rolling out",
+    "title": "Messages",
+    "welcome_desc": "Chat privately with your favorite authors, creators and community members. Encrypted messaging is coming very soon!",
+    "welcome_title": "Chat live on Qoe"
+  },
+  "nav": {
+    "messages": "Messages"
+  },
+  "notif": {
+    "empty": "No notifications yet.",
+    "error": "Couldn’t load notifications",
+    "mark_all": "Mark all as read",
+    "title": "Notifications"
+  },
+  "poll": {
+    "ended": "Poll ended",
+    "votes": "votes"
+  },
+  "post": {
+    "bookmark": "Save",
+    "bookmarked": "Added to your bookmarks",
+    "copied_link": "Link copied",
+    "copied_text": "Text copied",
+    "copy_link": "Copy link to post",
+    "copy_text": "Copy post text",
+    "delete": "Delete post",
+    "deleted": "Post deleted",
+    "hidden_reason": "Content hidden by the author",
+    "hide": "Hide this post for me",
+    "more": "More options",
+    "mute_thread": "Mute this thread",
+    "pin": "Pin to profile",
+    "pinned": "Pinned to profile",
+    "report": "Report post",
+    "reported": "Report sent. Thanks!",
+    "reveal": "Show",
+    "show_less": "See less of this content",
+    "show_less_done": "You’ll see less of this content.",
+    "show_more": "See more of this content",
+    "show_more_done": "You’ll see more of this content.",
+    "show_translation": "Translate post",
+    "translate": "Translate",
+    "unbookmarked": "Removed from your bookmarks",
+    "unpin": "Unpin from profile",
+    "unpinned": "Unpinned"
+  },
+  "reply": {
+    "everyone": "Everyone can reply",
+    "followed": "Accounts I follow can reply",
+    "mentioned": "Only mentioned accounts can reply",
+    "nobody": "No one can reply",
+    "who": "Who can reply?"
+  },
+  "search": {
+    "error": "An error occurred during the search.",
+    "filter_all": "All",
+    "filter_articles": "Articles",
+    "filter_creators": "Creators",
+    "filter_thoughts": "Thoughts",
+    "no_results": "No results for « {query} »",
+    "placeholder": "Search Qoe…",
+    "trending_topics": "Trending topics and popular themes"
+  },
+  "share": {
+    "copied": "Link copied",
+    "copy_link": "Copy link",
+    "open": "Open in browser",
+    "share": "Share"
+  },
+  "thread": {
+    "error": "Couldn’t load the thought",
+    "no_replies": "No replies yet. Be the first!",
+    "other_replies": "other replies",
+    "reply_to_user": "Reply to @{user}…",
+    "show_more_parents": "Show previous thoughts",
+    "show_more_replies": "Show",
+    "title": "Thought",
+    "write_reply": "Write your reply…"
+  },
+  "wallet": {
+    "current_balance": "Available balance",
+    "earnings_history": "History & Creator earnings",
+    "title": "Qoe Wallet"
   }
 }

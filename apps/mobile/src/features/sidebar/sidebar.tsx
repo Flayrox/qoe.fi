@@ -250,7 +250,7 @@ export function Sidebar() {
       items: [
         {
           key: 'sign_out_current',
-          label: t('auth.sign_out_user', 'Se déconnecter de @%{handle}', {
+          label: t('auth.sign_out_user', 'Se déconnecter de @{handle}', {
             handle: displayHandle,
           }),
           destructive: true,
