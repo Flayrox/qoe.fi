@@ -54,6 +54,28 @@ func NewSubscriberCreatedTask(p SubscriberCreatedPayload) (*asynq.Task, error) {
 	return asynq.NewTask(TaskSubscriberCreated, payload, asynq.MaxRetry(3), asynq.Timeout(30*time.Second)), nil
 }
 
+// NewNewsletterSendTask construit la tâche asynq newsletter.send.
+func NewNewsletterSendTask(p NewsletterSendPayload) (*asynq.Task, error) {
+	payload, err := json.Marshal(p)
+	if err != nil {
+		return nil, err
+	}
+	return asynq.NewTask(TaskNewsletterSend, payload, asynq.MaxRetry(2), asynq.Timeout(10*time.Minute)), nil
+}
+
+// PublishNewsletterSend enqueue l'envoi d'une newsletter (fire-and-forget).
+func PublishNewsletterSend(c *asynq.Client, p NewsletterSendPayload) error {
+	if c == nil {
+		return nil
+	}
+	task, err := NewNewsletterSendTask(p)
+	if err != nil {
+		return err
+	}
+	_, err = c.Enqueue(task, asynq.Queue("default"))
+	return err
+}
+
 // PublishArticlePublished enqueue l'événement article.published.
 func PublishArticlePublished(c *asynq.Client, p ArticlePublishedPayload) error {
 	if c == nil {

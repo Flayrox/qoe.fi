@@ -80,26 +80,26 @@ func main() {
 	// voit ses stats dans le studio sans aucun lien manuel. Toutes les 5 min.
 	go workers.RunUmamiProvisioner(ctx, pool, umami.NewClient(cfg.UmamiAPIURL, cfg.UmamiAPIKey, cfg.UmamiUser, cfg.UmamiPass), 5*time.Minute)
 
-	// Boîte d'envoi email : drain des livraisons (channel EMAIL) via le
-	// fournisseur choisi par EMAIL_PROVIDER (smtp self-hosté / Hostinger / …,
-	// ou resend). Actif uniquement si NOTIFICATION_DELIVERY_ENABLED=true ET
-	// qu'un fournisseur est effectivement configuré.
-	if cfg.NotificationDeliveryEnabled {
-		emailProvider := workers.NewEmailProvider(workers.EmailProviderConfig{
-			Provider: cfg.EmailProvider,
-			SMTP: workers.SMTPConfig{
-				Host:   cfg.SMTPHost,
-				Port:   cfg.SMTPPort,
-				User:   cfg.SMTPUser,
-				Pass:   cfg.SMTPPass,
-				From:   cfg.EmailFrom,
-				Secure: cfg.SMTPSecure,
-			},
-			ResendAPIKey: cfg.ResendAPIKey,
-		})
+	// Fournisseur email partagé (SMTP self-hosté / Resend) : utilisé par le
+	// drain NotificationDelivery ET les newsletters créateurs. Inactif si aucun
+	// fournisseur n'est configuré (EMAIL_PROVIDER absent).
+	emailProvider := workers.NewEmailProvider(workers.EmailProviderConfig{
+		Provider: cfg.EmailProvider,
+		SMTP: workers.SMTPConfig{
+			Host:   cfg.SMTPHost,
+			Port:   cfg.SMTPPort,
+			User:   cfg.SMTPUser,
+			Pass:   cfg.SMTPPass,
+			From:   cfg.EmailFrom,
+			Secure: cfg.SMTPSecure,
+		},
+		ResendAPIKey: cfg.ResendAPIKey,
+	})
+	newsletterWorker.SetEmailProvider(emailProvider, cfg.EmailFrom)
+	if emailProvider != nil {
 		go workers.RunEmailDeliveryLoop(ctx, pool, emailProvider, cfg.EmailFrom, 30*time.Second, 50)
 	} else {
-		log.Println("[email-delivery] désactivé (NOTIFICATION_DELIVERY_ENABLED absent)")
+		log.Println("[email-delivery] désactivé (EMAIL_PROVIDER non configuré)")
 	}
 
 	<-ctx.Done()
@@ -138,6 +138,7 @@ func buildHandlers(d workerDeps) map[string]asynq.HandlerFunc {
 			return d.webhook.HandleProcesses(ctx, t, queue.TaskSubscriberCreated)
 		},
 		queue.TaskPostLiked:        d.newsletter.HandlePostLiked,
+		queue.TaskNewsletterSend:   d.newsletter.HandleNewsletterSend,
 		queue.TaskStripeEvent:      d.stripe.HandleStripeEvent,
 		queue.TaskSearchSync:       d.search.HandleSearchSync,
 		queue.TaskArticleEmbedding: d.embedding.HandleArticleEmbedding,

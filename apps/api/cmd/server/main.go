@@ -36,6 +36,7 @@ import (
 	"github.com/qoefi/api/internal/modules/imports"
 	"github.com/qoefi/api/internal/modules/media"
 	"github.com/qoefi/api/internal/modules/mediaassets"
+	"github.com/qoefi/api/internal/modules/newsletters"
 	"github.com/qoefi/api/internal/modules/notifications"
 	"github.com/qoefi/api/internal/modules/oauth"
 	"github.com/qoefi/api/internal/modules/posts"
@@ -203,6 +204,11 @@ func newRouter(d RouterDeps) *chi.Mux {
 		articlesHandler.RegisterPublic(pub)
 	})
 
+	// Newsletters : désabonnement one-click public (lien présent dans chaque
+	// email — sans auth, RFC 8058). Les routes créateur sont dans le groupe protégé.
+	newslettersHandler := newsletters.NewHandler(newsletters.NewService(db.New(pool), asynqClient))
+	newslettersHandler.RegisterPublic(r)
+
 	// Feed & Posts : lecture publique (auth optionnelle : threads, trending, posts, profil, engagement).
 	feedHandler := feed.NewHandler(feed.NewService(pool, rc))
 	postsHandler := posts.NewHandler(posts.NewService(pool, rc, asynqClient))
@@ -315,6 +321,8 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 		adminHandler := admin.NewHandler(admin.NewService(pool))
 		adminHandler.Register(protected)
+
+		newslettersHandler.Register(protected)
 
 		// Routes reader (/v1/me*, feed protégé, lecture) : auto-réparation
 		// centralisée de la ligne User absente (login de démo / reseed /
