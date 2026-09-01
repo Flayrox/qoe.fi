@@ -36,8 +36,16 @@
         }
       ],
       "expo-localization",
-      "expo-sharing"
+      "expo-sharing",
+      "expo-updates"
     ],
+    "updates": {
+      "url": "https://updates.qoe.fi",
+      "enabled": true,
+      "fallbackToCacheTimeout": 0,
+      "checkAutomatically": "ON_LOAD"
+    },
+    "runtimeVersion": "1.0.0",
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true

@@ -144,6 +144,10 @@ apps/api/internal/seed/assets/avatars/
 apps/api/cmd/recsys-eval/
 apps/api/recsys-eval
 
+# Bundles OTA expo-updates (bind mount du service docker `updates`)
+data/updates/
+apps/mobile/.expo-updates/
+
 # Sauvegardes de la fausse DB (dumps pg_dump, souvent volumineux)
 backups/top-db-*.sql.gz
 backups/umami-*.sql.gz
