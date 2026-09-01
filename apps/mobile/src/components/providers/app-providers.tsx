@@ -4,6 +4,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { useMemo, type PropsWithChildren } from 'react';
 import { Platform } from 'react-native';
 
+import { LanguagePreferenceProvider } from '@/context/language-provider';
 import { AuthProvider } from '@/features/auth/auth-provider';
 import { initI18n } from '@/lib/i18n';
 import { queryClient } from '@/lib/query-client';
@@ -18,12 +19,14 @@ export function AppProviders({ children }: PropsWithChildren) {
 
   return (
     <I18nProvider i18n={i18n}>
-      <QueryClientProvider client={queryClient}>
-        <AuthProvider>{children}</AuthProvider>
-        {/* @tanstack/react-query-devtools rend du DOM (web uniquement) —
-            sur natif, utiliser le menu dev d'Expo Go (cmd+d). */}
-        {Platform.OS === 'web' && __DEV__ ? <ReactQueryDevtools initialIsOpen={false} /> : null}
-      </QueryClientProvider>
+      <LanguagePreferenceProvider>
+        <QueryClientProvider client={queryClient}>
+          <AuthProvider>{children}</AuthProvider>
+          {/* @tanstack/react-query-devtools rend du DOM (web uniquement) —
+              sur natif, utiliser le menu dev d'Expo Go (cmd+d). */}
+          {Platform.OS === 'web' && __DEV__ ? <ReactQueryDevtools initialIsOpen={false} /> : null}
+        </QueryClientProvider>
+      </LanguagePreferenceProvider>
     </I18nProvider>
   );
 }
