@@ -10,6 +10,7 @@ import Animated, {
 
 import { Sidebar } from '@/features/sidebar/sidebar';
 import { useTheme } from '@/hooks/use-theme';
+import { useReduceMotion } from '@/hooks/use-user-settings';
 
 import { DrawerContext, drawerController } from './drawer-context';
 
@@ -19,6 +20,7 @@ import { DrawerContext, drawerController } from './drawer-context';
 // (façon iPhone) et le mouvement se termine sans rebond (withTiming).
 // Au repos, la sidebar est à peine transparente / à peine « reculée » et
 // fait un mini-pop doux à l'ouverture — pas agressif du tout.
+// « Réduire les animations » → glissement instantané (duration 0).
 const TIMING_CONFIG = { duration: 250 } as const;
 const EDGE_SWIPE_WIDTH = 40;
 const DECK_RADIUS = 60; // arrondi iPhone, un poil plus marqué
@@ -38,22 +40,28 @@ function clamp(value: number, min: number, max: number) {
 
 export function AppDrawer({ children }: PropsWithChildren) {
   const theme = useTheme();
+  const reduceMotion = useReduceMotion();
   const { width } = useWindowDimensions();
   const progress = useSharedValue(0);
   const startProgress = useSharedValue(0);
 
   const drawerOffset = width * 0.72;
 
+  const timingConfig = useMemo(
+    () => (reduceMotion ? ({ duration: 0 } as const) : TIMING_CONFIG),
+    [reduceMotion]
+  );
+
   // Note : la règle react-hooks/immutability ne connaît pas les shared
   // values de reanimated — les mutations de `.value` ci-dessous sont
   // légitimes (worklets), d'où les désactivations ciblées.
   const openDrawer = useCallback(() => {
-    progress.value = withTiming(1, TIMING_CONFIG);
-  }, [progress]);
+    progress.value = withTiming(1, timingConfig);
+  }, [progress, timingConfig]);
 
   const closeDrawer = useCallback(() => {
-    progress.value = withTiming(0, TIMING_CONFIG);
-  }, [progress]);
+    progress.value = withTiming(0, timingConfig);
+  }, [progress, timingConfig]);
 
   useEffect(() => {
     drawerController.openDrawer = openDrawer;
@@ -108,7 +116,7 @@ export function AppDrawer({ children }: PropsWithChildren) {
       'worklet';
       const shouldOpen = event.velocityX > 500 || progress.value > 0.4;
 
-      progress.value = withTiming(shouldOpen ? 1 : 0, TIMING_CONFIG);
+      progress.value = withTiming(shouldOpen ? 1 : 0, timingConfig);
     });
 
   return (

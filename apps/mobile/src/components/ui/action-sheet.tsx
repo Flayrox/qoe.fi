@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
+import { useReduceMotion } from '@/hooks/use-user-settings';
 import { playHaptic } from '@/lib/haptics';
 
 export interface ActionSheetItem {
@@ -41,12 +42,15 @@ export function ActionSheet({
   showCancel?: boolean;
 }) {
   const theme = useTheme();
+  const reduceMotion = useReduceMotion();
   const insets = useSafeAreaInsets();
   const [mounted, setMounted] = useState(visible);
 
   // Animation values : backdrop opacity (0 -> 1) et sheet translateY (300 -> 0)
+  // Durées nulles quand « Réduire les animations » est actif.
   const backdropAnim = useRef(new Animated.Value(0)).current;
   const sheetAnim = useRef(new Animated.Value(400)).current;
+  const duration = reduceMotion ? 0 : 220;
 
   useEffect(() => {
     if (visible) {
@@ -54,13 +58,13 @@ export function ActionSheet({
       Animated.parallel([
         Animated.timing(backdropAnim, {
           toValue: 1,
-          duration: 220,
+          duration,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(sheetAnim, {
           toValue: 0,
-          duration: 280,
+          duration,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
@@ -69,13 +73,13 @@ export function ActionSheet({
       Animated.parallel([
         Animated.timing(backdropAnim, {
           toValue: 0,
-          duration: 180,
+          duration,
           easing: Easing.in(Easing.cubic),
           useNativeDriver: true,
         }),
         Animated.timing(sheetAnim, {
           toValue: 400,
-          duration: 220,
+          duration,
           easing: Easing.in(Easing.cubic),
           useNativeDriver: true,
         }),
@@ -85,7 +89,7 @@ export function ActionSheet({
         }
       });
     }
-  }, [visible, backdropAnim, sheetAnim]);
+  }, [visible, backdropAnim, sheetAnim, duration]);
 
   if (!mounted) return null;
 

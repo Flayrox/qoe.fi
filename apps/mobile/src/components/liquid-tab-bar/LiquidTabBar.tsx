@@ -29,6 +29,7 @@ import { DrawerContext } from '@/components/drawer/drawer-context';
 import { Avatar } from '@/components/thought/avatar';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useMe } from '@/hooks/use-me';
+import { useReduceMotion } from '@/hooks/use-user-settings';
 import { AdaptiveGlassView } from './AdaptiveGlassView';
 import { LiquidTabBarProps, NavigationRoute, TabIconConfig } from './LiquidTabBar.types';
 import { useScrollCoordination } from '@/components/scroll/scroll-context';
@@ -213,6 +214,7 @@ export function LiquidTabBar({
 }: LiquidTabBarProps) {
   const scheme = useColorScheme();
   const isDark = scheme === 'dark' || Appearance.getColorScheme() === 'dark';
+  const reduceMotion = useReduceMotion();
 
   const bottomOffset =
     customBottomOffset ??
@@ -347,6 +349,11 @@ export function LiquidTabBar({
   useAnimatedReaction(
     () => drawerProgress?.value ?? 0,
     (currentProgress, previousProgress) => {
+      // Aura décorative désactivée quand « Réduire les animations » est actif.
+      if (reduceMotion) {
+        auraWaveProgress.value = 0;
+        return;
+      }
       if (currentProgress >= 0.98) {
         if (!previousProgress || previousProgress < 0.98) {
           auraWaveProgress.value = withDelay(
@@ -398,8 +405,12 @@ export function LiquidTabBar({
     if (!isInteracting.value && state) {
       const targetOffset = tabMetrics.offsets[currentVisibleIndex] ?? 0;
       const targetWidth = tabMetrics.widths[currentVisibleIndex] ?? 70;
-      pillTranslateX.value = withSpring(targetOffset, SPRING_SETTLE);
-      pillWidth.value = withSpring(targetWidth, SPRING_SETTLE);
+      pillTranslateX.value = reduceMotion
+        ? withTiming(targetOffset, { duration: 0 })
+        : withSpring(targetOffset, SPRING_SETTLE);
+      pillWidth.value = reduceMotion
+        ? withTiming(targetWidth, { duration: 0 })
+        : withSpring(targetWidth, SPRING_SETTLE);
     }
   }, [
     currentVisibleIndex,
@@ -408,6 +419,7 @@ export function LiquidTabBar({
     isInteracting,
     pillTranslateX,
     pillWidth,
+    reduceMotion,
     state,
   ]);
 
@@ -579,18 +591,30 @@ export function LiquidTabBar({
       if (targetRoute?.name === 'profile') {
         const curOffset = tabMetrics.offsets[currentVisibleIndex] ?? 0;
         const curWidth = tabMetrics.widths[currentVisibleIndex] ?? 70;
-        pillTranslateX.value = withSpring(curOffset, SPRING_SETTLE);
-        pillWidth.value = withSpring(curWidth, SPRING_SETTLE);
+        pillTranslateX.value = reduceMotion
+          ? withTiming(curOffset, { duration: 0 })
+          : withSpring(curOffset, SPRING_SETTLE);
+        pillWidth.value = reduceMotion
+          ? withTiming(curWidth, { duration: 0 })
+          : withSpring(curWidth, SPRING_SETTLE);
       } else {
-        pillTranslateX.value = withSpring(targetOffset, SPRING_SETTLE);
-        pillWidth.value = withSpring(targetWidth, SPRING_SETTLE);
+        pillTranslateX.value = reduceMotion
+          ? withTiming(targetOffset, { duration: 0 })
+          : withSpring(targetOffset, SPRING_SETTLE);
+        pillWidth.value = reduceMotion
+          ? withTiming(targetWidth, { duration: 0 })
+          : withSpring(targetWidth, SPRING_SETTLE);
       }
 
       runOnJS(triggerNavigation)(releaseIndex);
 
-      // Extinction douce de la lueur liquide
-      glowOpacity.value = withTiming(0, { duration: 380, easing: Easing.out(Easing.quad) });
-      glowScale.value = withTiming(0.85, { duration: 380 });
+      // Extinction douce de la lueur liquide (instantanée si animations réduites)
+      glowOpacity.value = reduceMotion
+        ? withTiming(0, { duration: 0 })
+        : withTiming(0, { duration: 380, easing: Easing.out(Easing.quad) });
+      glowScale.value = reduceMotion
+        ? withTiming(0.85, { duration: 0 })
+        : withTiming(0.85, { duration: 380 });
 
       hasMoved.value = false;
     });
@@ -632,10 +656,17 @@ export function LiquidTabBar({
       const distance = Math.sqrt(e.translationX * e.translationX + e.translationY * e.translationY);
 
       activeFocus.value = 0;
-      composeTranslateX.value = withSpring(0, { damping: 20, stiffness: 260 });
-      composeTranslateY.value = withSpring(0, { damping: 20, stiffness: 260 });
-      composeScale.value = withSpring(1.0, { damping: 20, stiffness: 260 });
-      barTranslateX.value = withSpring(0, { damping: 20, stiffness: 260 });
+      if (reduceMotion) {
+        composeTranslateX.value = 0;
+        composeTranslateY.value = 0;
+        composeScale.value = 1.0;
+        barTranslateX.value = 0;
+      } else {
+        composeTranslateX.value = withSpring(0, { damping: 20, stiffness: 260 });
+        composeTranslateY.value = withSpring(0, { damping: 20, stiffness: 260 });
+        composeScale.value = withSpring(1.0, { damping: 20, stiffness: 260 });
+        barTranslateX.value = withSpring(0, { damping: 20, stiffness: 260 });
+      }
 
       // Si tap ou relâchement dans la zone, ouvrir le compose
       if (distance < 38) {
@@ -715,7 +746,11 @@ export function LiquidTabBar({
     // Si l'utilisateur est en train d'interagir directement avec la tab bar, on maintient l'échelle 1.0 normale
     if (isInteracting.value || activeFocus.value > 0) {
       return {
-        transform: [{ scale: withSpring(1.0, SPRING_SETTLE) }],
+        transform: [
+          {
+            scale: reduceMotion ? withTiming(1.0, { duration: 0 }) : withSpring(1.0, SPRING_SETTLE),
+          },
+        ],
       };
     }
 
@@ -728,11 +763,13 @@ export function LiquidTabBar({
     return {
       transform: [
         {
-          scale: withSpring(targetScale, {
-            damping: 22,
-            stiffness: 240,
-            mass: 0.4,
-          }),
+          scale: reduceMotion
+            ? withTiming(targetScale, { duration: 0 })
+            : withSpring(targetScale, {
+                damping: 22,
+                stiffness: 240,
+                mass: 0.4,
+              }),
         },
       ],
     };

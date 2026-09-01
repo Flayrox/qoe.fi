@@ -19,6 +19,7 @@ import { Animated, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
+import { useReduceMotion } from '@/hooks/use-user-settings';
 
 type ToastKind = 'success' | 'error' | 'info' | 'warning';
 
@@ -52,26 +53,34 @@ export const Toast = {
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const theme = useTheme();
+  const reduceMotion = useReduceMotion();
   const [toast, setToast] = useState<ToastState | null>(null);
   const opacity = useRef(new Animated.Value(0)).current;
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const fadeDuration = reduceMotion ? 0 : 150;
 
   const dismiss = useCallback(() => {
     if (hideTimer.current) clearTimeout(hideTimer.current);
     hideTimer.current = null;
-    Animated.timing(opacity, { toValue: 0, duration: 150, useNativeDriver: true }).start(() =>
-      setToast(null)
-    );
-  }, [opacity]);
+    Animated.timing(opacity, {
+      toValue: 0,
+      duration: fadeDuration,
+      useNativeDriver: true,
+    }).start(() => setToast(null));
+  }, [opacity, fadeDuration]);
 
   const show = useCallback(
     (content: string | ReactElement, kind: ToastKind = 'info') => {
       if (hideTimer.current) clearTimeout(hideTimer.current);
       setToast({ id: nextId++, content, kind });
-      Animated.timing(opacity, { toValue: 1, duration: 150, useNativeDriver: true }).start();
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: fadeDuration,
+        useNativeDriver: true,
+      }).start();
       hideTimer.current = setTimeout(dismiss, 4000);
     },
-    [opacity, dismiss]
+    [opacity, dismiss, fadeDuration]
   );
 
   globalShow = show;

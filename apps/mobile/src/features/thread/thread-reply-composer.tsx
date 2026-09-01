@@ -31,6 +31,7 @@ import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useMe } from '@/hooks/use-me';
 import { useTheme } from '@/hooks/use-theme';
+import { useReduceMotion } from '@/hooks/use-user-settings';
 import { apiClient } from '@/lib/api';
 import { playHaptic } from '@/lib/haptics';
 import { t } from '@/lib/i18n';
@@ -53,6 +54,7 @@ export function ThreadReplyComposer({
   const theme = useTheme();
   const scheme = useColorScheme();
   const isDark = scheme === 'dark';
+  const reduceMotion = useReduceMotion();
   const queryClient = useQueryClient();
   const inputRef = useRef<TextInput>(null);
   const { openDrawer } = useDrawer();
@@ -78,23 +80,33 @@ export function ThreadReplyComposer({
   const avatarScale = useSharedValue(1);
 
   const handleFocus = () => {
-    isExpanded.value = withTiming(1, {
-      duration: 220,
-      easing: Easing.bezier(0.16, 1, 0.3, 1),
-    });
-    boxScale.value = withSpring(1.015, SPRING_PHYSICS, () => {
-      boxScale.value = withSpring(1.0, SPRING_PHYSICS);
-    });
+    if (reduceMotion) {
+      isExpanded.value = 1;
+      boxScale.value = 1;
+    } else {
+      isExpanded.value = withTiming(1, {
+        duration: 220,
+        easing: Easing.bezier(0.16, 1, 0.3, 1),
+      });
+      boxScale.value = withSpring(1.015, SPRING_PHYSICS, () => {
+        boxScale.value = withSpring(1.0, SPRING_PHYSICS);
+      });
+    }
     playHaptic('Light');
   };
 
   const handleBlur = () => {
     if (!text.trim()) {
-      isExpanded.value = withTiming(0, {
-        duration: 200,
-        easing: Easing.bezier(0.25, 0.1, 0.25, 1.0),
-      });
-      boxScale.value = withSpring(1.0, SPRING_PHYSICS);
+      if (reduceMotion) {
+        isExpanded.value = 0;
+        boxScale.value = 1;
+      } else {
+        isExpanded.value = withTiming(0, {
+          duration: 200,
+          easing: Easing.bezier(0.25, 0.1, 0.25, 1.0),
+        });
+        boxScale.value = withSpring(1.0, SPRING_PHYSICS);
+      }
     }
   };
 
