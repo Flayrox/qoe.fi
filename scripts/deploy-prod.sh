@@ -14,6 +14,9 @@
 #                                                  # restent actifs). Ex. : un fix front-only
 #                                                  # sur core/studio passe en < 1 min sans
 #                                                  # toucher aux autres containers.
+#     bash scripts/deploy-prod.sh --publish-update # après la stack, exporte + pousse un
+#                                                  # update OTA expo-updates vers data/updates
+#                                                  # (bind mount du service `updates`).
 #
 # 🎯 Ce script encapsule le déploiement validé le 2026-09-01 (CI + GHCR) :
 #    1. Transfert du code (tar|ssh, exclut node_modules/.git/artefacts/AppleDouble)
@@ -47,11 +50,13 @@ warn() { echo -e "${YELLOW}⚠️  $1${NC}"; }
 error() { echo -e "${RED}❌ $1${NC}"; exit 1; }
 
 SKIP_PULL=0
+PUBLISH_UPDATE=0
 SERVICES=()
 for arg in "$@"; do
   case "$arg" in
     --skip-pull) SKIP_PULL=1 ;;
     --skip-build) SKIP_PULL=1 ;;
+    --publish-update) PUBLISH_UPDATE=1 ;;
     --credentials)
       # Inventaire des accès (mails, supabase, meili, umami…) — ne déploie rien.
       bash scripts/print-credentials.sh
@@ -64,7 +69,7 @@ for arg in "$@"; do
       SERVICES+=("$arg") ;;
   esac
 done
-ALL_SERVICES=(tenants hi core studio admin api worker migrate)
+ALL_SERVICES=(tenants hi core studio admin api worker updates migrate)
 if [ "${#SERVICES[@]}" -gt 0 ]; then
   log "🎯 Déploiement CIBLÉ : ${SERVICES[*]} (les autres containers ne sont pas touchés)"
 fi
@@ -90,6 +95,21 @@ ssh_vps "cd $VPS_DIR && for p in db api-client billing workers; do
   fi
 done"
 success "Arbre de packages propre"
+
+# ─── Étape 2bis : Clé de code signing des updates OTA ──────
+log "2bis/7 Clé de code signing updates OTA (si présente en local)…"
+# La clé privée (apps/mobile/keys, gitignorée) est poussée vers le bind
+# mount attendu par le service `updates` (docker-compose: UPDATES_SIGNING_KEY).
+# Absente localement → warning (le serveur refusera de démarrer si la clé
+# n'est pas déjà sur le VPS).
+LOCAL_KEY="apps/mobile/keys/private-key.pem"
+if [ -f "$LOCAL_KEY" ]; then
+  scp -o ConnectTimeout=15 "$LOCAL_KEY" "$VPS_HOST:$VPS_DIR/data/updates-signing-key.pem" \
+    && success "Clé de signature updates déployée" \
+    || warn "scp de la clé de signature échoué — vérifier data/updates-signing-key.pem sur le VPS"
+else
+  warn "Clé privée absente localement ($LOCAL_KEY) — non poussée (serveur updates refusera de démarrer sans elle)"
+fi
 
 # ─── Étape 3 : Fix piège ?schema=public ───────────────────
 log "3/6 Vérification de .env.docker (piège ?schema=public)…"
@@ -142,8 +162,21 @@ log "   Firewall tailnet (re-application post-up)…"
 ssh_vps "bash $VPS_DIR/scripts/tailnet-firewall.sh" || warn "tailnet-firewall.sh en échec — dashboards admin tailnet à revérifier"
 sleep 20
 
-# ─── Étape 6 : Smoke tests ────────────────────────────────
-log "6/6 Smoke tests…"
+# ─── Étape 6 : Publish OTA (optionnel) ────────────────────
+if [ "$PUBLISH_UPDATE" = "1" ]; then
+  log "6/6 Publish update OTA expo-updates (expo export + rsync)…"
+  # Exporte le bundle JS localement puis le pousse dans le bind mount
+  # data/updates du service `updates` sur le VPS (serveur docker/updates).
+  UPDATES_TARGET="$VPS_HOST:$VPS_DIR/data/updates" bash scripts/publish-update.sh
+  success "Update OTA publié — vérification du manifest HTTPS…"
+  ssh_vps "curl -sf -o /dev/null -H 'expo-platform: ios' -H 'expo-runtime-version: $(node -p "require('./apps/mobile/app.json').expo.runtimeVersion")' https://updates.qoe.fi/api/manifest" \
+    && success "   manifest HTTPS OK" || warn "   manifest HTTPS injoignable — vérifier DNS updates.qoe.fi + service updates"
+else
+  log "6/7 (publish OTA sauté — ajoutez --publish-update pour livrer le JS mobile)"
+fi
+
+# ─── Étape 7 : Smoke tests ────────────────────────────────
+log "7/7 Smoke tests…"
 sleep 10
 ok=0; fail=0
 check() { # check <nom> <commande-ssh>
@@ -152,13 +185,14 @@ check() { # check <nom> <commande-ssh>
   else warn "   $name (échec)"; fail=$((fail+1)); fi
 }
 check "api /health"          "curl -sf -o /dev/null https://api.qoe.fi/health"
+check "updates /healthz"      "curl -sf -o /dev/null https://updates.qoe.fi/healthz"
 check "qoe.fi (core)"        "curl -sf -o /dev/null https://qoe.fi/home"
 check "hi.qoe.fi"            "curl -sf -o /dev/null https://hi.qoe.fi"
 check "umami tracker public" "curl -sf -o /dev/null https://umami.qoe.fi/script.js"  # dashboard = tailnet-only (umami.admin.qoe.fi)
 check "auth (kong)"          "SR=\$(grep '^SERVICE_ROLE_KEY=' $SUPABASE_DIR/.env | cut -d= -f2-); curl -sk -o /dev/null -w '%{http_code}' https://auth.qoe.fi/auth/v1/health -H \"apikey: \$SR\" | grep -q 200"
 check "config /v1/home/config" "curl -sf https://api.qoe.fi/v1/home/config | grep -q AUTH_METHODS"
 check "worker email loop"    "docker logs qoefi-worker 2>&1 | grep -q 'email-delivery'"
-check "containers healthy"   "test \$(docker ps --format '{{.Names}}' | grep qoefi | wc -l) -ge 13"
+check "containers healthy"   "test \$(docker ps --format '{{.Names}}' | grep qoefi | wc -l) -ge 14"
 
 echo
 if [ "$fail" = "0" ]; then
