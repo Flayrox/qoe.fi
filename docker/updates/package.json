@@ -1,0 +1,13 @@
+{
+  "name": "qoe-updates-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Serveur d'updates OTA expo-updates (protocole Expo Updates) — zéro dépendance",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

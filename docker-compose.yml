@@ -80,6 +80,8 @@ services:
         condition: service_started
       hi:
         condition: service_started
+      updates:
+        condition: service_started
 
     # 🔒 Réseau PUBLIC uniquement : atteint les frontends (qoefi-public)
     #    et kong/studio (via le réseau qoefi-public partagé par l'override
@@ -454,6 +456,45 @@ services:
         limits:
           memory: 96M
           cpus: '0.5'
+
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+
+  # ───────────────────────────────────────────────────────────────────
+  # 📦 UPDATES : OTA expo-updates (protocole Expo Updates, zéro dépendance)
+  # ───────────────────────────────────────────────────────────────────
+  # Sert /api/manifest + /api/assets aux apps mobiles RELEASE. Les bundles
+  # sont publiés avec scripts/publish-update.sh → rsync dans
+  # ${UPDATES_DATA_DIR:-./data/updates} (bind mount host : pratique pour
+  # pousser les exports depuis le poste de dev).
+  updates:
+    build:
+      context: ./docker/updates
+    image: ghcr.io/flayrox/qoefi-updates:latest
+    container_name: qoefi-updates
+    restart: unless-stopped
+
+    expose:
+      - '3000'
+
+    environment:
+      # URL publique par laquelle l'app joint ce serveur (URLs des assets).
+      PUBLIC_BASE_URL: ${UPDATES_PUBLIC_BASE_URL:-https://updates.qoe.fi}
+
+    volumes:
+      - ${UPDATES_DATA_DIR:-./data/updates}:/app/updates
+
+    networks:
+      - qoefi-public
+
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.25'
 
     logging:
       driver: json-file

@@ -16,6 +16,7 @@
 #   qoe.fi / www          → core       (reader + auth)
 #   hi.qoe.fi             → hi         (marketing / exposition)
 #   api.qoe.fi            → api        (backend Go)
+#   updates.qoe.fi        → updates    (OTA expo-updates : manifest + assets)
 #   studio.qoe.fi         → studio     (dashboard créateur)
 #   admin.qoe.fi          → admin      (admin plateforme)
 #   *.qoe.fi (wildcard)   → tenants    (blogs créateurs)
@@ -211,6 +212,34 @@ api.qoe.fi {
         transport http {
             dial_timeout 60s
             response_header_timeout 60s
+        }
+    }
+
+    log {
+        output stdout
+        format console
+    }
+}
+
+# 📦 UPDATES OTA : updates.qoe.fi → serveur d'updates expo-updates
+# ─────────────────────────────────────────────────────────────────────
+# Endpoint machine (l'app mobile release appelle /api/manifest et
+# /api/assets). Cert on_demand (comme les tenants) : un cert statique
+# qoe.fi ne couvre pas les sous-domaines.
+updates.qoe.fi {
+    tls {
+        on_demand
+    }
+    encode zstd gzip
+
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+    }
+
+    reverse_proxy updates:3000 {
+        transport http {
+            dial_timeout 30s
         }
     }
 
