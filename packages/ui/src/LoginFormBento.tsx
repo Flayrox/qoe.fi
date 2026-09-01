@@ -198,7 +198,10 @@ export function LoginFormBento({
 
   const handleMagicLinkSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
+    // Anti double-envoi : chaque requête d'OTP remplace le token précédent
+    // (un lien déjà envoyé devient invalide) — on bloque les soumissions
+    // pendant le chargement pour éviter d'invalider le lien qu'on vient d'émettre.
+    if (!email || loading) return;
 
     try {
       setLoading(true);

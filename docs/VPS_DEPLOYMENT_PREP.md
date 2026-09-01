@@ -140,6 +140,21 @@ En prod le stack self-hosté doit exposer **l'URL réelle** :
 et **retirer** les URLs HTTP locales de la allow-list. Cookie partagé sur **`.qoe.fi`**
 (`Secure`, `HttpOnly`, `SameSite=Lax`).
 
+> ⚠️ **Pièges vérifiés en prod (v2.189)** :
+> 1. **`new URL(request.url).origin` n'est pas fiable derrière Caddy** : Next.js reconstruit
+>    `request.url` avec l'adresse de bind du container (`0.0.0.0:3000`) et ignore le header
+>    `Host`. Les routes `/auth/callback` (core + tenants) doivent construire leur base de
+>    redirection depuis `x-forwarded-host`/`host` (+ `x-forwarded-proto`) — corrigé dans
+>    le code (`getPublicBase`). Sans ça, l'échec du callback redirige vers
+>    `https://0.0.0.0:3000/login?error=auth-code-error`.
+> 2. **Les magic links sont à usage unique et remplacés à chaque nouvelle demande**
+>    (`one_time_tokens` a une contrainte `UNIQUE(user_id, token_type)` + delete avant
+>    insert). Recliquer « Recevoir un lien magique » (ou double-cliquer) **invalide le lien
+>    précédent** → `error_code=otp_expired`. Le formulaire bloque les soumissions pendant
+>    le chargement ; si l'utilisateur reçoit plusieurs emails, seul le dernier lien est
+>    valable. Le token vérifié est `sha224(email + otp)` préfixé `pkce_` en PKCE — pas un
+>    JWT, donc pas de lien avec `GOTRUE_JWT_SECRET`.
+
 ### MFA
 
 TOTP installé (`enroll_enabled/verify_enabled = true`). **Pas de recovery codes** (Supabase) →
