@@ -79,12 +79,22 @@ export function LoginFormBento({
     magicLink: boolean;
   } | null>(null);
 
+  // ── Inscriptions fermées (SystemConfig ALLOW_NEW_REGISTRATIONS=false) ──
+  // Le superadmin ferme la création de comptes depuis /admin/config : on
+  // masque le lien « S'inscrire » et on replie un signup déjà ouvert vers la
+  // connexion. L'API refuse de toute façon la création (403 SyncUserFromAuth).
+  const [registrationsClosed, setRegistrationsClosed] = useState(false);
+
   useEffect(() => {
     let cancelled = false;
     fetch(`${URLS.API}/v1/home/config`)
       .then((res) => (res.ok ? res.json() : null))
       .then((cfg: Record<string, string> | null) => {
-        if (cancelled || !cfg || !cfg.AUTH_METHODS) return;
+        if (cancelled || !cfg) return;
+        if (cfg.ALLOW_NEW_REGISTRATIONS === 'false') {
+          setRegistrationsClosed(true);
+        }
+        if (!cfg.AUTH_METHODS) return;
         try {
           const parsed = JSON.parse(cfg.AUTH_METHODS) as Partial<Record<string, boolean>>;
           setAuthMethods({
@@ -103,8 +113,13 @@ export function LoginFormBento({
     };
   }, []);
 
-  // Quand les méthodes chargent, on repasse sur un mode encore disponible.
+  // Quand les méthodes chargent (ou que les inscriptions ferment), on repasse
+  // sur un mode encore disponible.
   useEffect(() => {
+    if (registrationsClosed && authMode === 'signup') {
+      setAuthMode(authMethods?.magicLink ? 'magic-link' : 'password');
+      return;
+    }
     if (!authMethods) return;
     setAuthMode((current) => {
       if (current === 'signup' && !authMethods.password) {
@@ -118,7 +133,7 @@ export function LoginFormBento({
       }
       return current;
     });
-  }, [authMethods]);
+  }, [authMethods, registrationsClosed, authMode]);
 
   useEffect(() => {
     setAuthMode(initialMode === 'signup' ? 'signup' : 'magic-link');
@@ -700,8 +715,8 @@ export function LoginFormBento({
             )}
           </div>
 
-          {/* Footer Switch */}
-          {methods.password && (
+          {/* Footer Switch (masqué quand les inscriptions sont fermées) */}
+          {methods.password && !registrationsClosed && (
             <div className="w-full flex items-center justify-between pt-4 border-t border-border/40 text-xs">
               <button
                 type="button"

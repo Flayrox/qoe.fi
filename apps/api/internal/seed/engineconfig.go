@@ -97,6 +97,12 @@ func DefaultEngineConfigs() []ConfigDefault {
 		{"feed.exploration_min_signals", "10", "Signaux (likes + lectures) pour passer d'un profil froid à mature."},
 		{"feed.exploration_min_quality", "0.8", "Qualité minimale (taux de complétion) des articles injectés en exploration."},
 
+		// ── Inscriptions (toggle admin) ───────────────────────────────────────
+		// ALLOW_NEW_REGISTRATIONS=false bloque la CRÉATION de nouveaux comptes
+		// (SyncUserFromAuth renvoie 403) — les comptes existants continuent de
+		// fonctionner. Utile pour un lancement en accès privé / maintenance.
+		{"ALLOW_NEW_REGISTRATIONS", "true", "Autorise la création de nouveaux comptes (false = accès privé, les comptes existants continuent de marcher)."},
+
 		// ── Méthodes de connexion (toggle admin, JSON) ───────────────────────
 		// Pilote l'affichage du formulaire de login : boutons OAuth (Google /
 		// Apple), connexion email + mot de passe et lien magique. Le code retombe

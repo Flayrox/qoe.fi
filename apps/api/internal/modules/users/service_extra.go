@@ -14,6 +14,19 @@ import (
 	"github.com/qoefi/api/internal/slug"
 )
 
+// ErrRegistrationsClosed signale que la plateforme a fermé les inscriptions
+// (SystemConfig ALLOW_NEW_REGISTRATIONS=false) : la ligne User n'est pas créée.
+var ErrRegistrationsClosed = errors.New("les inscriptions sont temporairement fermées")
+
+// readConfig lit une valeur SystemConfig (best-effort) — miroir du helper feed.
+func (s *Service) readConfig(ctx context.Context, key string) string {
+	var v string
+	if err := s.pool.QueryRow(ctx, `SELECT value FROM "SystemConfig" WHERE key=$1`, key).Scan(&v); err != nil {
+		return ""
+	}
+	return v
+}
+
 // SyncUserFromAuth crée (ou met à jour) la ligne User depuis les claims du
 // JWT Supabase — parité syncUserFromAuth Prisma (routes /auth/callback).
 func (s *Service) SyncUserFromAuth(ctx context.Context, userID string, claims map[string]any) (created, needsOnboarding bool, err error) {
@@ -51,6 +64,12 @@ func (s *Service) SyncUserFromAuth(ctx context.Context, userID string, claims ma
 	}
 
 	if !exists {
+		// 🚪 Inscriptions fermées ? La clé SystemConfig ALLOW_NEW_REGISTRATIONS
+		// (toggle admin) bloque la création de NOUVELLES lignes User. Les
+		// comptes existants continuent de fonctionner. Défaut : ouvert.
+		if strings.EqualFold(s.readConfig(ctx, "ALLOW_NEW_REGISTRATIONS"), "false") {
+			return false, false, ErrRegistrationsClosed
+		}
 		finalUsername := safeProvisionedUsername(email, username)
 		// Unicité : suffixe aléatoire si le username est pris. La contrainte
 		// unique reste l'autorité finale en cas de course concurrente.
