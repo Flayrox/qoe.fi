@@ -18,7 +18,6 @@ import { PostContent } from '@/components/thought/post-content';
 import { ThoughtActions } from '@/components/thought/thought-actions';
 import { ThreadFollowButton } from '@/features/thread/thread-follow-button';
 import { formatPostDetailDate } from '@/lib/format';
-import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useMe } from '@/hooks/use-me';
 import { useTheme } from '@/hooks/use-theme';

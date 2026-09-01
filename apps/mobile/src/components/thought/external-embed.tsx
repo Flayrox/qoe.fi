@@ -8,15 +8,13 @@
 // =====================================================================
 
 import * as WebBrowser from 'expo-web-browser';
-import { StyleSheet, View } from 'react-native';
-import { Pressable } from 'react-native';
+import { StyleSheet, View, Pressable } from 'react-native';
 
 import { SymbolView } from 'expo-symbols';
 
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
-import { t } from '@/lib/i18n';
 
 export function extractFirstUrl(text?: string | null): string | null {
   if (!text) return null;

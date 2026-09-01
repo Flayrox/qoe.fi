@@ -1,11 +1,8 @@
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
-import { ThemedText } from '@/components/themed-text';
 import { ThoughtCard } from '@/components/thought/thought-card';
 import { ViewFullThread } from '@/components/thought/view-full-thread';
-import { Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
 import { t } from '@/lib/i18n';
 import type { FeedSlice } from '@qoe/sdk/mobile';
 
@@ -20,7 +17,6 @@ import type { FeedSlice } from '@qoe/sdk/mobile';
 // =====================================================================
 
 export function ThoughtFeedSlice({ slice }: { slice: FeedSlice }) {
-  const theme = useTheme();
   const { rootPost, parentPost, targetPost, isIncompleteThread, hiddenIntermediateCount } = slice;
 
   const openRootThread = () => {

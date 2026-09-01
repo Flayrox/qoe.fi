@@ -109,7 +109,6 @@ export function ProfileScreen({
     isFetching,
     refetch,
     isRefetching,
-    isPending: postsPending,
     isError,
   } = useInfiniteFeed<FeedSlice>({
     username: resolvedUsername,

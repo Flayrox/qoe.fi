@@ -1,12 +1,5 @@
 import React from 'react';
-import {
-  Platform,
-  StyleSheet,
-  ViewStyle,
-  StyleProp,
-  useColorScheme,
-  UIManager,
-} from 'react-native';
+import { Platform, StyleSheet, ViewStyle, StyleProp, useColorScheme } from 'react-native';
 import { BlurView } from 'expo-blur';
 import {
   LiquidGlassView as NativeLiquidGlassView,

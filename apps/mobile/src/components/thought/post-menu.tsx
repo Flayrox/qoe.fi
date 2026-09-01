@@ -12,7 +12,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 
 import { ActionSheet, type ActionSheetGroup } from '@/components/ui/action-sheet';
 import { Toast } from '@/components/ui/toast';

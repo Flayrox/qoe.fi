@@ -401,7 +401,15 @@ export function LiquidTabBar({
       pillTranslateX.value = withSpring(targetOffset, SPRING_SETTLE);
       pillWidth.value = withSpring(targetWidth, SPRING_SETTLE);
     }
-  }, [currentVisibleIndex, tabMetrics, forceExpandTabBar]);
+  }, [
+    currentVisibleIndex,
+    tabMetrics,
+    forceExpandTabBar,
+    isInteracting,
+    pillTranslateX,
+    pillWidth,
+    state,
+  ]);
 
   // Geste Pan sur la barre principale avec détection de collision sur le bouton (+)
   const panGesture = Gesture.Pan()

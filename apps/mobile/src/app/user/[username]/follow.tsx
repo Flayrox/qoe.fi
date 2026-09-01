@@ -4,8 +4,7 @@
 // ProfileFollowers / ProfileFollowing).
 // =====================================================================
 
-import { useLocalSearchParams } from 'expo-router';
-import { Stack } from 'expo-router';
+import { useLocalSearchParams, Stack } from 'expo-router';
 
 import { FollowListScreen, type FollowTab } from '@/features/profile/follow-list-screen';
 import { t } from '@/lib/i18n';

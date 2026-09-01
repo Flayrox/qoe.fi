@@ -155,7 +155,6 @@ export function ArticleHighlights({ articleId }: { articleId: string }) {
 }
 
 function SectionHeader() {
-  const theme = useTheme();
   return (
     <ThemedText style={styles.sectionTitle}>{t('highlights.title', 'Surlignages')}</ThemedText>
   );

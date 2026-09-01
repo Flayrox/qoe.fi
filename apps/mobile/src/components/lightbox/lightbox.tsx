@@ -8,7 +8,7 @@
 
 import { Image } from 'expo-image';
 import { Modal, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 
 import { SymbolView } from 'expo-symbols';
 

@@ -5,7 +5,6 @@
 // Icône (ou placeholder) + message + bouton d'action optionnel.
 // =====================================================================
 
-import type { ReactElement } from 'react';
 import { StyleSheet, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';

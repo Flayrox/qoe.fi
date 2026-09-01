@@ -1,5 +1,6 @@
-import { View } from 'react-native';
+import { ProfileScreen } from '@/features/profile/profile-screen';
 
-export default function ProfilePlaceholderScreen() {
-  return <View style={{ flex: 1 }} />;
+export default function ProfileTab() {
+  // « me » → résolu vers le compte connecté dans ProfileScreen
+  return <ProfileScreen username="me" />;
 }

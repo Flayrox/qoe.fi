@@ -1,12 +1,5 @@
 import { useCallback, useEffect, useMemo, type PropsWithChildren } from 'react';
-import {
-  Appearance,
-  Pressable,
-  StyleSheet,
-  useColorScheme,
-  View,
-  useWindowDimensions,
-} from 'react-native';
+import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   interpolate,
@@ -45,8 +38,6 @@ function clamp(value: number, min: number, max: number) {
 
 export function AppDrawer({ children }: PropsWithChildren) {
   const theme = useTheme();
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark' || Appearance.getColorScheme() === 'dark';
   const { width } = useWindowDimensions();
   const progress = useSharedValue(0);
   const startProgress = useSharedValue(0);
@@ -57,12 +48,10 @@ export function AppDrawer({ children }: PropsWithChildren) {
   // values de reanimated — les mutations de `.value` ci-dessous sont
   // légitimes (worklets), d'où les désactivations ciblées.
   const openDrawer = useCallback(() => {
-    // eslint-disable-next-line react-hooks/immutability -- mutation de shared value reanimated
     progress.value = withTiming(1, TIMING_CONFIG);
   }, [progress]);
 
   const closeDrawer = useCallback(() => {
-    // eslint-disable-next-line react-hooks/immutability -- mutation de shared value reanimated
     progress.value = withTiming(0, TIMING_CONFIG);
   }, [progress]);
 
@@ -112,13 +101,13 @@ export function AppDrawer({ children }: PropsWithChildren) {
     })
     .onUpdate((event) => {
       'worklet';
-      // eslint-disable-next-line react-hooks/immutability -- mutation de shared value reanimated
+
       progress.value = clamp(startProgress.value + event.translationX / drawerOffset, 0, 1);
     })
     .onEnd((event) => {
       'worklet';
       const shouldOpen = event.velocityX > 500 || progress.value > 0.4;
-      // eslint-disable-next-line react-hooks/immutability -- mutation de shared value reanimated
+
       progress.value = withTiming(shouldOpen ? 1 : 0, TIMING_CONFIG);
     });
 

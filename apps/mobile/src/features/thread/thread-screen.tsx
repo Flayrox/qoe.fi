@@ -286,34 +286,6 @@ export function ThreadScreen({ postId }: { postId: string }) {
   );
 }
 
-/** Lien « Afficher les N pensées précédentes » (port ThreadItemReadMore). */
-function ReadMoreRow({
-  count,
-  label,
-  onPress,
-}: {
-  count: number;
-  label: string;
-  onPress: () => void;
-}) {
-  const theme = useTheme();
-  return (
-    <Pressable onPress={onPress} style={styles.readMore} hitSlop={6}>
-      <View style={[styles.readMoreGlyph, { borderColor: theme.textSecondary }]}>
-        <ThemedText type="small" style={{ color: theme.textSecondary, lineHeight: 14 }}>
-          +
-        </ThemedText>
-      </View>
-      <ThemedText
-        type="small"
-        style={{ color: theme.textSecondary, textDecorationLine: 'underline' }}
-      >
-        {count} {label}
-      </ThemedText>
-    </Pressable>
-  );
-}
-
 /** Rend récursivement une branche de réponses (parité arbre Bluesky). */
 function ReplyTree({
   parentId,

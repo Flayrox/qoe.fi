@@ -3,7 +3,6 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
-import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useTheme } from '@/hooks/use-theme';
 import { t } from '@/lib/i18n';
