@@ -1,0 +1,12 @@
+Réinitialisez votre mot de passe
+
+Bonjour,
+
+Cliquez sur ce lien pour choisir un nouveau mot de passe :
+{{ .ConfirmationURL }}
+
+Ce lien est valable quelques minutes et ne peut être utilisé qu'une seule fois.
+Si vous n'avez pas demandé cette réinitialisation, ignorez cet email.
+
+L'équipe Qoe
+https://qoe.fi

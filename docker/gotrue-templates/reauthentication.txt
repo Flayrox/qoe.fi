@@ -1,0 +1,11 @@
+Confirmez votre identité
+
+Bonjour,
+
+Une action sensible a besoin de votre confirmation. Cliquez sur ce lien pour continuer :
+{{ .ConfirmationURL }}
+
+Ce lien est valable quelques minutes et ne peut être utilisé qu'une seule fois.
+
+L'équipe Qoe
+https://qoe.fi
