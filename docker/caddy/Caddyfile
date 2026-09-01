@@ -12,7 +12,7 @@
 #   web      console      api     web (sub)  web (custom)
 #  :3000      :3000       :3001     :3000      :3000
 #
-# 📖 Sous-domaines (v4 — nom de service = sous-domaine) :
+# 📖 Sous-domaines (v5 — nom de service = sous-domaine) :
 #   qoe.fi / www          → core       (reader + auth)
 #   hi.qoe.fi             → hi         (marketing / exposition)
 #   api.qoe.fi            → api        (backend Go)
@@ -20,13 +20,20 @@
 #   admin.qoe.fi          → admin      (admin plateforme)
 #   *.qoe.fi (wildcard)   → tenants    (blogs créateurs)
 #   auth.qoe.fi / cdn.qoe.fi → supabase-kong
-#   base.admin.qoe.fi     → supabase-studio (⚠️ cert DÉDIÉ, le wildcard
-#                            *.qoe.fi ne couvre pas les sous-domaines 3 niveaux)
-#   umami.qoe.fi          → umami
+#   umami.qoe.fi          → umami (TRACKING public uniquement : /script.js
+#                           + /api/send — le dashboard est tailnet-only)
 #
-# 📖 Wildcard *.qoe.fi nécessite un cert wildcard
-#    (DNS-01 challenge). Let's Encrypt le fait gratuitement.
-#    ⚠️ Si tu utilises Cloudflare, active le proxy (le cert est auto).
+# 📖 Sous-domaines ADMIN (tailnet-only, DNS *.admin.qoe.fi → 100.117.195.127
+#    via dnsmasq sur l'IP tailnet + split DNS Tailscale) :
+#   studio.admin.qoe.fi   → supabase-studio (dashboard Supabase)
+#   umami.admin.qoe.fi    → umami (dashboard analytics)
+#   mail.admin.qoe.fi     → stalwart (UI admin mail, host:28080)
+#   → Certificats HTTP-01 auto par Caddy ; accès restreint aux IP du
+#     tailnet (matcher remote_ip) — le public reçoit un 404.
+#
+# 📖 TLS des tenants (*.qoe.fi) : cert à la demande (on_demand, HTTP-01)
+#    par sous-domaine — un cert statique qoe.fi ne matche pas les
+#    sous-domaines (⚠️ « connexion non sécurisée » sur ephe.qoe.fi vécu 01/09).
 # =====================================================================
 
 # ─────────────────────────────────────────────────────────────────────
@@ -34,17 +41,25 @@
 # ─────────────────────────────────────────────────────────────────────
 {
     admin off
+
+    # TLS à la demande pour les tenants (*.qoe.fi) : un cert Let's Encrypt
+    # HTTP-01 par sous-domaine (ephe.qoe.fi, …), émis au 1er hit puis
+    # conservé/renewé par Caddy. Limite LE : 50 certs/semaine → OK pour
+    # un petit nombre de tenants. Pas besoin du cert wildcard DNS-01.
+    # (Seuls les hosts couverts par un bloc de site déclenchent l'émission —
+    # un domaine tiers pointé vers le VPS n'obtient rien.)
+    # ⚠️ Caddy ≥ 2.9 : `interval` ET `burst` ont été SUPPRIMÉS (vécu 01/09 :
+    # crash-loop au reload). Il ne reste que `ask` (obligatoire) → endpoint
+    # interne :8080 (bloc dédié en bas de fichier, port NON publié). Caddy
+    # répond 200 pour tout : seuls les hosts couverts par un bloc de site
+    # (tous des *.qoe.fi) déclenchent de toute façon l'émission.
+    on_demand_tls {
+        ask http://localhost:8080/check
+    }
 }
 
 (qoe_cert) {
     tls /etc/letsencrypt/live/qoe.fi/fullchain.pem /etc/letsencrypt/live/qoe.fi/privkey.pem
-}
-
-# Cert DÉDIÉ pour base.admin.qoe.fi (3 niveaux — non couvert par *.qoe.fi).
-# À générer AVANT la migration (certbot -d base.admin.qoe.fi, challenge DNS)
-# pour qu'il soit inclus dans la sauvegarde letsencrypt/ (voir docs/MIGRATION.md).
-(base_admin_cert) {
-    tls /etc/letsencrypt/live/base.admin.qoe.fi/fullchain.pem /etc/letsencrypt/live/base.admin.qoe.fi/privkey.pem
 }
 
 (lassez_cert) {
@@ -210,10 +225,15 @@ api.qoe.fi {
 # ─────────────────────────────────────────────────────────────────────
 # Tous les sous-domaines créateurs (ex: jean.qoe.fi) vont vers tenants.
 # ⚠️ Cette règle wildcard doit impérativement être après les routes spécifiques
-#    (studio.qoe.fi, admin.qoe.fi, start.qoe.fi, api.qoe.fi, base.admin.qoe.fi) pour
-#    que Caddy aiguille correctement vers les conteneurs spécifiques en priorité.
+#    (studio.qoe.fi, admin.qoe.fi, start.qoe.fi, api.qoe.fi) pour que Caddy
+#    aiguille correctement vers les conteneurs spécifiques en priorité.
 *.qoe.fi {
-    import qoe_cert
+    # Cert à la demande (HTTP-01) PAR sous-domaine. Avant : le cert statique
+    # qoe.fi était servi pour TOUS les tenants → mismatch de nom → erreur
+    # « connexion non sécurisée » au navigateur (vécu sur ephe.qoe.fi).
+    tls {
+        on_demand
+    }
     encode zstd gzip
 
     header {
@@ -248,7 +268,7 @@ api.qoe.fi {
 #    ⚠️ Nécessite que le DNS pointe vers le VPS.
 :80 {
     # Catch-all pour custom domains (tout ce qui n'est pas qoe.fi)
-    @custom not host qoe.fi www.qoe.fi hi.qoe.fi api.qoe.fi umami.qoe.fi base.admin.qoe.fi studio.qoe.fi admin.qoe.fi
+    @custom not host qoe.fi www.qoe.fi hi.qoe.fi api.qoe.fi umami.qoe.fi studio.qoe.fi admin.qoe.fi *.admin.qoe.fi
     handle @custom {
         reverse_proxy tenants:3000 {
             header_up Host {host}
@@ -263,13 +283,14 @@ api.qoe.fi {
 # 1. Le wildcard *.qoe.fi inclut studio, admin, hi, api ET les tenants.
 #    C'est intentionnel : si un sous-domaine n'a pas de route spécifique,
 #    il est traité comme un tenant (géré par l'app tenants).
-#    ⚠️ base.admin.qoe.fi (3 niveaux) n'est PAS couvert par *.qoe.fi —
-#    il a son bloc dédié + son cert dédié (base_admin_cert).
+#    ⚠️ Les *.admin.qoe.fi (3 niveaux) ne sont PAS couverts par *.qoe.fi :
+#    blocs dédiés tailnet-only (studio/umami/mail.admin.qoe.fi) ; les
+#    autres (pooler, kong) restent joignables en direct sur l'IP tailnet
+#    (100.117.195.127:<port>) via le DNS coredns + le firewall iptables.
 #
-# 2. Let's Encrypt + wildcard nécessite un challenge DNS-01.
-#    Caddy le fait automatiquement si tu utilises un provider DNS supporté
-#    (Cloudflare, DigitalOcean, AWS Route53, etc.).
-#    Voir : https://caddyserver.com/docs/automatic-https#dns-challenge
+# 2. TLS des tenants = certs on_demand (HTTP-01) par sous-domaine, émis
+#    par Caddy au premier hit et renewés automatiquement. Alternative
+#    « classique » : cert wildcard DNS-01 (provider DNS requis, ex. Hetzner).
 #
 # 3. Pour le dev local, utilise plutôt :
 #    start.localhost, api.localhost, dashboard.localhost, admin.localhost
@@ -347,32 +368,117 @@ cdn.qoe.fi {
 }
 
 # ───────────────────────────────────────────────────────────────────
-# 💻 SUPABASE STUDIO (Base de données) via Tailscale + Basic Auth
+# 🖥️ DASHBOARDS ADMIN — TAILNET-ONLY (DNS *.admin.qoe.fi → 100.117.195.127)
 # ───────────────────────────────────────────────────────────────────
-# ⚠️ Sous-domaine 3 niveaux → cert DÉDIÉ requis (le wildcard *.qoe.fi
-#    ne couvre pas base.admin.qoe.fi). Voir (base_admin_cert) en haut
-#    et la section Certs de docs/MIGRATION.md.
-base.admin.qoe.fi {
-    import base_admin_cert
+# 📖 Depuis le 2026-09-01 : les dashboards d'admin ne sont PLUS exposés
+#    publiquement. Le DNS public de *.admin.qoe.fi pointe vers le tailnet
+#    (records A → 100.117.195.127) : seul un appareil du tailnet peut
+#    router vers cette IP. Le matcher remote_ip ci-dessous est une 2e
+#    barrière (le trafic public arrivant par l'IP publique avec un Host
+#    spoofé reçoit un 404). Caddy est bindé sur l'IP publique ET l'IP
+#    tailnet (docker-compose.yml) ; le 443 du tailnet appartient à Caddy
+#    (tailscale serve retiré le 2026-09-01).
+# ⚠️ Les challenges ACME HTTP-01 sont répondues par Caddy AVANT les
+#    matchers de route → les certs se renouvellent même derrière le filtre.
+(tailnet_guard) {
+    @tailnet remote_ip 100.64.0.0/10 fd7a:115c:a1e0::/48
+}
+
+# Supabase Studio (base de données) — tailnet-only
+studio.admin.qoe.fi {
+    import tailnet_guard
     encode zstd gzip
-    
-    @tailscale remote_ip 100.64.0.0/10 127.0.0.0/8 172.16.0.0/12
-    handle @tailscale {
-        basicauth / {
-            qoe-admin JDJhJDE0JFB3WHFQVkdhTWRhTnBUZnVESE5reE9jSzEzWHBFYnRDeG93NTcwY29RdklNLkNqNlJ1dnF1
+
+    handle @tailnet {
+        reverse_proxy supabase-studio:3000 {
+            transport http {
+                dial_timeout 30s
+            }
         }
-        reverse_proxy supabase-studio:3000
     }
-    respond "Access Denied - Private Network Only" 403
-    
+    handle {
+        respond "Not found" 404
+    }
+
     log {
         output stdout
         format console
     }
 }
 
-# 📊 UMAMI ANALYTICS (self-hosted) : script tracker public + dashboard admin
+# Ancien nom de Supabase Studio — stub 404 (remplacé par studio.admin.qoe.fi)
+base.admin.qoe.fi {
+    respond "Not found" 404
+}
+
+# Dashboard Umami (analytics) — tailnet-only
+umami.admin.qoe.fi {
+    import tailnet_guard
+    encode zstd gzip
+
+    handle @tailnet {
+        reverse_proxy umami:3000 {
+            transport http {
+                dial_timeout 60s
+                response_header_timeout 60s
+            }
+        }
+    }
+    handle {
+        respond "Not found" 404
+    }
+
+    log {
+        output stdout
+        format console
+    }
+}
+
+# UI admin Stalwart (mail) — tailnet-only, service host sur 127.0.0.1:28080
+# (firewall iptables : seul le tailnet + docker y accèdent, voir
+# scripts/tailnet-firewall.sh).
+mail.admin.qoe.fi {
+    import tailnet_guard
+    encode zstd gzip
+
+    handle @tailnet {
+        reverse_proxy host.docker.internal:28080 {
+            transport http {
+                dial_timeout 10s
+            }
+        }
+    }
+    handle {
+        respond "Not found" 404
+    }
+
+    log {
+        output stdout
+        format console
+    }
+}
+
+# ───────────────────────────────────────────────────────────────────
+# ✅ ENDPOINT INTERNE « ask » pour l'On-Demand TLS (tenants *.qoe.fi)
+# ───────────────────────────────────────────────────────────────────
+# Caddy interroge http://localhost:8080/check?domain=<host> AVANT d'émettre
+# un cert on-demand. On répond 200 systématiquement : de toute façon, seuls
+# les hosts couverts par un bloc de site (tous des *.qoe.fi) déclenchent
+# l'émission. Port 8080 NON publié → joignable uniquement depuis le conteneur
+# (aucune exposition réseau).
+:8080 {
+    respond "OK" 200
+}
+
+# 📊 UMAMI ANALYTICS (self-hosted) : TRACKING public uniquement
 # ─────────────────────────────────────────────────────────────────────
+# Depuis le 2026-09-01 : le dashboard est tailnet-only (umami.admin.qoe.fi).
+# Ce bloc public ne sert QUE ce dont les visiteurs ont besoin :
+#   /script.js  → le tracker (chargé par le navigateur)
+#   /api/send   → l'endpoint de collecte appelé par le tracker
+# Tout le reste (dashboard, /api/*) → 404 en public.
+# ⚠️ L'API Go utilise UMAMI_API_URL=http://umami:3000/api (docker interne,
+#    plus jamais le chemin public /api).
 umami.qoe.fi {
     import qoe_cert
     encode zstd gzip
@@ -382,13 +488,17 @@ umami.qoe.fi {
         X-Content-Type-Options "nosniff"
     }
 
-    # /script.js est le tracker servi au navigateur (sans auth).
-    # Le reste (dashboard + API) est protégé par le login Umami.
-    reverse_proxy umami:3000 {
-        transport http {
-            dial_timeout 60s
-            response_header_timeout 60s
+    @tracking path /script.js /api/send
+    handle @tracking {
+        reverse_proxy umami:3000 {
+            transport http {
+                dial_timeout 60s
+                response_header_timeout 60s
+            }
         }
+    }
+    handle {
+        respond "Not found" 404
     }
 
     log {

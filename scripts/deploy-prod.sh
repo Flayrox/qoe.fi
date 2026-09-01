@@ -5,6 +5,9 @@
 # 📖 Usage :
 #     bash scripts/deploy-prod.sh                 # déploiement complet
 #     bash scripts/deploy-prod.sh --skip-pull     # saute le pull (images déjà à jour)
+#     bash scripts/deploy-prod.sh --credentials   # affiche l'inventaire des accès
+#                                                  # (mails, supabase, meili, umami…) — ne
+#                                                  # déploie rien. Référentiel : docs/CREDENTIALS.md
 #     bash scripts/deploy-prod.sh core studio     # DÉPLOIEMENT CIBLÉ : ne pull+redémarre
 #                                                  # que les services listés (le code est
 #                                                  # toujours synchronisé ; backup + migrations
@@ -49,6 +52,10 @@ for arg in "$@"; do
   case "$arg" in
     --skip-pull) SKIP_PULL=1 ;;
     --skip-build) SKIP_PULL=1 ;;
+    --credentials)
+      # Inventaire des accès (mails, supabase, meili, umami…) — ne déploie rien.
+      bash scripts/print-credentials.sh
+      exit 0 ;;
     --build-only | --legacy-build)
       error "Le build sur le VPS n'est plus supporté : les images sont buildées en CI (ghcr.io/flayrox, workflow build-images.yml)." ;;
     -*)
@@ -129,6 +136,10 @@ else
   ssh_vps "cd $VPS_DIR && docker compose up -d"
   success "Stack démarrée"
 fi
+# Re-applique le firewall tailnet (une recreate de qoefi-caddy change son IP
+# docker → le DNAT PREROUTING pointerait vers une IP périmée sinon).
+log "   Firewall tailnet (re-application post-up)…"
+ssh_vps "bash $VPS_DIR/scripts/tailnet-firewall.sh" || warn "tailnet-firewall.sh en échec — dashboards admin tailnet à revérifier"
 sleep 20
 
 # ─── Étape 6 : Smoke tests ────────────────────────────────
@@ -143,7 +154,7 @@ check() { # check <nom> <commande-ssh>
 check "api /health"          "curl -sf -o /dev/null https://api.qoe.fi/health"
 check "qoe.fi (core)"        "curl -sf -o /dev/null https://qoe.fi/home"
 check "hi.qoe.fi"            "curl -sf -o /dev/null https://hi.qoe.fi"
-check "umami.qoe.fi"         "curl -sf -o /dev/null https://umami.qoe.fi"
+check "umami tracker public" "curl -sf -o /dev/null https://umami.qoe.fi/script.js"  # dashboard = tailnet-only (umami.admin.qoe.fi)
 check "auth (kong)"          "SR=\$(grep '^SERVICE_ROLE_KEY=' $SUPABASE_DIR/.env | cut -d= -f2-); curl -sk -o /dev/null -w '%{http_code}' https://auth.qoe.fi/auth/v1/health -H \"apikey: \$SR\" | grep -q 200"
 check "config /v1/home/config" "curl -sf https://api.qoe.fi/v1/home/config | grep -q AUTH_METHODS"
 check "worker email loop"    "docker logs qoefi-worker 2>&1 | grep -q 'email-delivery'"

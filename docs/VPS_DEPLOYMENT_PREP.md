@@ -387,7 +387,9 @@ Variables racine `.env.docker` (rappel, cf. DEPLOYMENT.md) :
 - [ ] `ALTER EXTENSION vector SET SCHEMA public;` puis migrate (leçon n°4)
 - [ ] Baseline `goose_db_version` si base déjà migrée par Prisma (leçon n°4bis)
 - [ ] Umami : admin créé, **clé d'API** générée (→ `UMAMI_API_KEY`), website créé → `NEXT_PUBLIC_UMAMI_WEBSITE_ID`, `UMAMI_API_URL` + script URL posés (voir §6)
-- [ ] Certs Let's Encrypt : nominatifs (HTTP-01) + wildcard `*.qoe.fi` (DNS-01 **Hetzner**) + `base.admin.qoe.fi` (dédié, Basic Auth + Tailscale)
+- [x] Certs Let's Encrypt : nominatifs (HTTP-01) OK + tenants `*.qoe.fi` **on-demand TLS** (fait le 01/09, §13 point 5)
+- [x] **Dashboards admin tailnet-only** : studio/umami/mail.admin.qoe.fi via Caddy (IP tailnet) + DNS dnsmasq + firewall (§16, 01/09)
+- [x] **Inventaire des accès** : `docs/CREDENTIALS.md` + `bash scripts/print-credentials.sh` (ou `deploy-prod.sh --credentials`)
 - [ ] Seed + `embed-all` lancés, comptages vérifiés (500 users / 200 articles / 700 pensées / 500 auth.users)
 - [x] PTR / reverse DNS + SPF (réputation mail) — `159.195.110.239` → `mail.qoe.fi` ✓ (vérifié `dig -x`)
 
@@ -406,6 +408,8 @@ Variables racine `.env.docker` (rappel, cf. DEPLOYMENT.md) :
 - [`docs/notification-delivery.md`](./notification-delivery.md) — contrat EmailProvider / notifications
 - [`docs/STUDIO_DEVELOPER_SECURITY.md`](./STUDIO_DEVELOPER_SECURITY.md) — sécurité studio
 - [`docs/openapi/app-api.yaml`](./openapi/app-api.yaml) — endpoints webhooks Stripe/Supabase
+- [`docs/CREDENTIALS.md`](./CREDENTIALS.md) — inventaire des accès & secrets (hashé/clair, où ça vit, rotation)
+- [`scripts/print-credentials.sh`](../scripts/print-credentials.sh) — dump des valeurs réelles (`deploy-prod.sh --credentials`)
 ---
 
 ## 1️⃣3️⃣ 🚀 RETOUR D'EXPÉRIENCE — PREMIER DÉPLOIEMENT (2026-08-31)
@@ -440,12 +444,16 @@ et les apps qoe pointent `supabase-db:5432`.
 4. ✅ **Résultat test d'envoi réel** (mail-tester, 31/08) : **10/10** — SPF `Pass` (helo=mail.qoe.fi,
    client-ip=159.195.110.239), DKIM `pass` ×2 (RSA-2048 + ed25519), DMARC `pass` (p=quarantine).
    Seul minus : `SPF_HELO_NONE` (pas de SPF sur `mail.qoe.fi`) → +0.001, voir §14.
-5. ⏳ **Cert wildcard `*.qoe.fi`** pour les blogs tenants : Caddy ne peut PAS l'obtenir (wildcard = DNS-01 obligatoire,
-   DNS chez Hetzner non configuré comme provider Caddy). Solutions : certbot avec plugin `certbot-dns-hetzner`
-   + token API Hetzner → `/etc/letsencrypt/live/qoe.fi-wildcard/` + `import` dans le bloc `*.qoe.fi` du Caddyfile.
-   Sans ça : `jean.qoe.fi` (tenants) n'a pas de cert HTTPS. ➕ **Bonus de ce chantier** : la migration DNS-01
-   remplace aussi l'authenticator `standalone` du cert nominatif (conflit actuel avec Caddy au renewal) →
-   renouvellement auto fiabilisé d'un coup, sans coupure (décision 2026-08-31, cf. §14).
+5. ✅ **TLS des tenants `*.qoe.fi` — RÉSOLU le 01/09 via On-Demand TLS** (plus besoin du wildcard DNS-01) :
+   le bloc `*.qoe.fi` du Caddyfile passe en `tls { on_demand }` + global `on_demand_tls { ask http://localhost:8080/check }`
+   (endpoint interne :8080 non publié qui répond 200 — seul `ask` existe en Caddy ≥ 2.9, `interval`/`burst` supprimés,
+   vécu en crash-loop le 01/09 !). Caddy émet un cert Let's Encrypt **HTTP-01 par sous-domaine** au 1er hit
+   (ephe.qoe.fi : émis en ~6 s le 01/09, SAN `DNS:ephe.qoe.fi` ✅, renewé auto). Limite LE 50 certs/semaine = OK
+   pour un petit volume de tenants. Seuls les hosts couverts par un bloc de site déclenchent l'émission.
+   ➕ **Renouvellement du cert nominatif qoe.fi** (échéance 2026-11-29, partagé avec Stalwart) :
+   **automatisé le 01/09** — pre-hook certbot `stop-caddy.sh` (libère le port 80 pour l'authenticator
+   standalone) + deploy hooks `restart-caddy.sh` (redémarre Caddy) et `10-stalwart-cert.sh` (copie le
+   nouveau cert vers `/etc/stalwart/certs/` + restart Stalwart). Chaîne validée par `certbot renew --dry-run`.
 
 ### Emails — ce qui a été mis en place (Stalwart)
 
@@ -535,10 +543,14 @@ et les apps qoe pointent `supabase-db:5432`.
   2. Retester la délivrabilité (mail-tester + vrai Gmail) après publication.
 - [x] **Cert : `mail.qoe.fi` aux SAN** — fait le 2026-08-31 (`--expand`, valable jusqu'au 2026-11-29) — cf. §13
   « Emails » pour la procédure de mise à jour Stalwart (JMAP, le PEM est en base).
-- [ ] **Renouvellement LE fiable** : **absorbé par le chantier wildcard `*.qoe.fi` (§13 point 5)** — la bascule en
-  **DNS-01 Hetzner** (certbot-dns-hetzner + token API) y réglera d'un coup le conflit standalone/Caddy sur 80/443,
-  **sans coupure de service**. Décision validée le 2026-08-31 : pas de hook stop/start Caddy. Échéance à tenir :
-  **2026-11-29** (expiration du cert courant).
+- [ ] **Renouvellement LE fiable** : les tenants passent par l'**on-demand TLS** (§13 point 5, fait le 01/09),
+  mais le **cert nominatif `qoe.fi`** (SAN qoe.fi/www/api/auth/admin/cdn/hi/mail/studio/umami) reste en
+  `authenticator = standalone` alors que Caddy occupe 80/443 → le timer certbot **échouera** à l'échéance
+  **2026-11-29**. Deux chantiers possibles : (a) **DNS-01 Hetzner** (certbot-dns-hetzner + token API —
+  décision validée 2026-08-31, sans coupure), ou (b) laisser Caddy auto-gérer aussi ces hosts (retirer les
+  `import qoe_cert` → HTTP-01 auto) **mais alors il faut continuer de renouveler le cert certbot pour Stalwart**
+  (sa copie RocksDB sert sur 25/465/587/993/995) — donc (a) reste le plus propre : un seul certificat,
+  Caddy + Stalwart + mail sur le même PEM.
 - [ ] **SPF sur le host HELO `mail.qoe.fi`** : publier `v=spf1 a -all` (couvre A + AAAA du VPS) pour lever
   le point `SPF_HELO_NONE` de mail-tester (mineur : +0.001, le score reste 10/10 sans).
 
@@ -620,3 +632,78 @@ ciblé ne touche **que** les containers listés — pratique pour un hotfix `cor
 redémarrer le reste de la stack. (Le build CI reste global : les 8 images passent quand
 même, mais `latest` ne change que pour les services dont le code a changé, donc les
 containers non listés ne sont pas recréés.)
+
+---
+
+## 1️⃣6️⃣ 🔐 Infra 01/09 — On-Demand TLS (tenants) + Supabase Studio sur Tailscale
+
+### 🌐 TLS des tenants — « connexion non sécurisée » corrigée (Safari OK)
+
+- **Cause** : le bloc `*.qoe.fi` servait le **cert statique `qoe.fi`** sur TOUS les
+  sous-domaines → mismatch de nom → erreur navigateur sur `ephe.qoe.fi`.
+- **Fix** : on-demand TLS par sous-domaine (§13 point 5) — `ephe.qoe.fi` a son propre
+  cert LE (SAN `DNS:ephe.qoe.fi`, val. 01/09 → 30/11, renouvelé auto par Caddy).
+- ⚠️ **Piège Caddy v2.11 vécu le 01/09** : les options globales `on_demand_tls`
+  `interval` ET `burst` ont été **supprimées** → crash-loop au reload. Seule la forme
+  `on_demand_tls { ask <url> }` est valide (endpoint `:8080` local non publié, cf.
+  Caddyfile). Toujours `caddy validate` dans un conteneur jetable avant de recréer.
+
+### 💻 Dashboards admin (studio / umami / mail) — TAILNET-ONLY (v2, soirée 01/09)
+
+- **V1 (matin 01/09)** : Tailscale Serve → `https://studio.tail28842e.ts.net`.
+- **V2 (soir 01/09)** : Serve retiré — **Caddy écoute aussi sur l'IP tailnet**
+  (`100.117.195.127:80/443`, compose) et sert les dashboards avec des noms propres :
+  - `studio.admin.qoe.fi` → supabase-studio (dashboard Supabase)
+  - `umami.admin.qoe.fi` → umami (dashboard analytics)
+  - `mail.admin.qoe.fi` → UI admin Stalwart (host:28080)
+  Certs Let's Encrypt **HTTP-01/ALPN-01 auto** par Caddy (émis au reload, renouvelés
+  auto) ; matcher `remote_ip 100.64/10` → tout autre client reçoit un 404.
+- **DNS privé (dnsmasq)** : service systemd sur le host, écoute UNIQUEMENT sur
+  `100.117.195.127:53` → `*.admin.qoe.fi` (et l'apex) répond `100.117.195.127`.
+  ⚠️ **Action owner (30 s)** : Console Tailscale → DNS → Nameservers → ajouter
+  `100.117.195.127` restreint au domaine **`admin.qoe.fi`** (split DNS). Sans ça
+  les appareils résolvent via le DNS public → IP publique → 404.
+- **Firewall** : `scripts/tailnet-firewall.sh` (systemd `qoe-tailnet-firewall`) :
+  INPUT Stalwart 28080/4190 (tailnet + docker + loopback, sinon DROP), DOCKER-USER
+  Kong 18000/18443 + Pooler 15432/16543 (tailnet only), et **DNAT PREROUTING**
+  `100.117.195.127:80/443` → conteneur Caddy (docker-proxy réécrirait l'IP source
+  en 172.x → le matcher `remote_ip` ne verrait jamais les 100.x). ⚠️ À rejouer si
+  `qoefi-caddy` est recréé — `deploy-prod.sh` le relance après chaque `up -d`.
+- **Vérifié depuis l'extérieur (01/09)** : les 3 dashboards → **404**, ports
+  admin (28080, 4190, 18000/18443, 15432/16543) → **fermés**. `umami.qoe.fi` ne
+  sert plus que `/script.js` + `/api/send` (tracking public) — l'API Go passe par
+  `http://umami:3000/api` (docker interne, `UMAMI_API_URL` dans `.env.docker`).
+- `supabase-studio` publié sur `127.0.0.1:3000` + `100.117.195.127:3000` (accès
+  direct WireGuard) — jamais sur une IP publique.
+- **Basic Auth supprimé** : l'identité Tailscale EST l'authentification (tailnet privé).
+- ⚠️ **Pourquoi pas coredns** : coredns 1.11/1.12 (port-map OU host-net) renvoie
+  sur ce host des réponses DNS avec **ANCOUNT=0** (records présents mais compteur
+  vide) → inutilisable. dnsmasq (`address=/admin.qoe.fi/<IP tailnet>`) = fiable.
+  (Vécu le 01/09 ; `scripts/install-tailnet-dns.sh` régénère la config.)
+
+### 🔑 Accès & secrets
+
+- **Inventaire complet** : [`docs/CREDENTIALS.md`](./CREDENTIALS.md) — où vit chaque
+  secret, hashé/clair, récupération, rotation.
+- **Dump en 30 s** : `bash scripts/print-credentials.sh` (ou `deploy-prod.sh --credentials`).
+- Résumé hashé/clair (vérifié 01/09) : mots de passe users = **bcrypt** (GoTrue `$2a$10$`,
+  Umami `$2b$10$`, Stalwart hashé en RocksDB) ; `.env` = **en clair** par nature
+  (perms `600` root, `.env.docker` re-chowné root le 01/09 — piège uid 501 du tar macOS).
+- ✅ **Clé d'auth Tailscale révoquée** le 01/09 (elle avait circulé en clair dans le
+  chat) — plus nécessaire : le nœud reste dans le tailnet indéfiniment.
+
+### 📧 État des mails (vérifié le 01/09)
+
+- **Stalwart** (systemd, host) : 25/465/587/993/995/4190 publics, banner
+  `220 mail.qoe.fi Stalwart ESMTP` ✅, DKIM 10/10 (mail-tester 31/08).
+- **Apps** : `EMAIL_PROVIDER=smtp`, `SMTP_HOST=host.docker.internal:587`, compte
+  `relay@qoe.fi` — worker (newsletters/notifs) et mailer TS **envoient réellement**
+  (`NOTIFICATION_DELIVERY_ENABLED=true`).
+- **GoTrue** : `GOTRUE_SMTP_*` câblé sur le même relay, **mais**
+  `ENABLE_EMAIL_AUTOCONFIRM=true` → les mails de confirmation/reset ne partent pas
+  encore (comptes auto-confirmés). À basculer quand on veut de vraies confirmations.
+- **Reste à faire** : SPF sur le host HELO (`SPF_HELO_NONE`, mineur), DANE/TLSA
+  (bloqué par DNSSEC, §14). Le **renouvellement cert LE est automatisé** : timer
+  certbot 2×/jour + pre-hook `stop-caddy.sh` (libère le port 80) + deploy hooks
+  `restart-caddy.sh` (Caddy) et `10-stalwart-cert.sh` (copie vers `/etc/stalwart/certs/`
+  + restart) — dry-run validé le 01/09.
