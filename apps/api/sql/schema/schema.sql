@@ -297,6 +297,8 @@ CREATE TABLE "Article" (
     "tierId" TEXT,
     "seoTitle" TEXT,
     "seoDescription" TEXT,
+    "isHiddenByModerator" BOOLEAN NOT NULL DEFAULT false,
+    "hiddenByModeratorAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "embedding" vector(512),
@@ -481,6 +483,8 @@ CREATE TABLE "Post" (
     "tierId" TEXT,
     "replyRestriction" TEXT NOT NULL DEFAULT 'everyone',
     "isHiddenByAuthor" BOOLEAN NOT NULL DEFAULT false,
+    "isHiddenByModerator" BOOLEAN NOT NULL DEFAULT false,
+    "hiddenByModeratorAt" TIMESTAMP(3),
     "likeCount" INTEGER NOT NULL DEFAULT 0,
     "repostCount" INTEGER NOT NULL DEFAULT 0,
     "replyCount" INTEGER NOT NULL DEFAULT 0,
@@ -773,6 +777,10 @@ CREATE TABLE "ModerationReport" (
     "reason" TEXT NOT NULL,
     "details" TEXT,
     "status" TEXT NOT NULL DEFAULT 'pending',
+    "actionTaken" TEXT NOT NULL DEFAULT 'none',
+    "resolvedById" UUID,
+    "resolvedAt" TIMESTAMP(3),
+    "resolutionNote" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -1209,6 +1217,9 @@ CREATE INDEX "ModerationReport_reporterId_idx" ON "ModerationReport"("reporterId
 
 -- CreateIndex
 CREATE INDEX "ModerationReport_status_idx" ON "ModerationReport"("status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ModerationReport_reporter_target_pending_key" ON "ModerationReport"("reporterId", "targetId", "targetType") WHERE status = 'pending';
 
 -- CreateIndex
 CREATE INDEX "MediaAsset_sha256_idx" ON "MediaAsset"("sha256");

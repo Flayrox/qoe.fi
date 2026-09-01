@@ -526,6 +526,8 @@ type Article struct {
 	TierId                 pgtype.Text       `json:"tierId"`
 	SeoTitle               pgtype.Text       `json:"seoTitle"`
 	SeoDescription         pgtype.Text       `json:"seoDescription"`
+	IsHiddenByModerator    bool              `json:"isHiddenByModerator"`
+	HiddenByModeratorAt    pgtype.Timestamp  `json:"hiddenByModeratorAt"`
 	CreatedAt              pgtype.Timestamp  `json:"createdAt"`
 	UpdatedAt              pgtype.Timestamp  `json:"updatedAt"`
 	Embedding              pgvector.Vector   `json:"embedding"`
@@ -753,15 +755,19 @@ type Medium struct {
 }
 
 type ModerationReport struct {
-	ID         string           `json:"id"`
-	ReporterId pgtype.UUID      `json:"reporterId"`
-	TargetId   string           `json:"targetId"`
-	TargetType string           `json:"targetType"`
-	Reason     string           `json:"reason"`
-	Details    pgtype.Text      `json:"details"`
-	Status     string           `json:"status"`
-	CreatedAt  pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt  pgtype.Timestamp `json:"updatedAt"`
+	ID             string           `json:"id"`
+	ReporterId     pgtype.UUID      `json:"reporterId"`
+	TargetId       string           `json:"targetId"`
+	TargetType     string           `json:"targetType"`
+	Reason         string           `json:"reason"`
+	Details        pgtype.Text      `json:"details"`
+	Status         string           `json:"status"`
+	ActionTaken    string           `json:"actionTaken"`
+	ResolvedById   pgtype.UUID      `json:"resolvedById"`
+	ResolvedAt     pgtype.Timestamp `json:"resolvedAt"`
+	ResolutionNote pgtype.Text      `json:"resolutionNote"`
+	CreatedAt      pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt      pgtype.Timestamp `json:"updatedAt"`
 }
 
 type MutedUser struct {
@@ -932,32 +938,34 @@ type PollVote struct {
 }
 
 type Post struct {
-	ID                string            `json:"id"`
-	Content           string            `json:"content"`
-	AuthorId          string            `json:"authorId"`
-	CreatedAt         pgtype.Timestamp  `json:"createdAt"`
-	UpdatedAt         pgtype.Timestamp  `json:"updatedAt"`
-	Tags              []string          `json:"tags"`
-	ImageUrl          pgtype.Text       `json:"imageUrl"`
-	Visibility        string            `json:"visibility"`
-	ContentVisibility ContentVisibility `json:"contentVisibility"`
-	IsDraft           bool              `json:"isDraft"`
-	ScheduledAt       pgtype.Timestamp  `json:"scheduledAt"`
-	TriggerWarning    pgtype.Text       `json:"triggerWarning"`
-	IsPinned          bool              `json:"isPinned"`
-	DeletedAt         pgtype.Timestamp  `json:"deletedAt"`
-	TierId            pgtype.Text       `json:"tierId"`
-	ReplyRestriction  string            `json:"replyRestriction"`
-	IsHiddenByAuthor  bool              `json:"isHiddenByAuthor"`
-	LikeCount         int32             `json:"likeCount"`
-	RepostCount       int32             `json:"repostCount"`
-	ReplyCount        int32             `json:"replyCount"`
-	ParentId          pgtype.Text       `json:"parentId"`
-	RootId            pgtype.Text       `json:"rootId"`
-	RepostId          pgtype.Text       `json:"repostId"`
-	QuotedArticleId   pgtype.Text       `json:"quotedArticleId"`
-	QuotedExcerpt     pgtype.Text       `json:"quotedExcerpt"`
-	Embedding         pgvector.Vector   `json:"embedding"`
+	ID                  string            `json:"id"`
+	Content             string            `json:"content"`
+	AuthorId            string            `json:"authorId"`
+	CreatedAt           pgtype.Timestamp  `json:"createdAt"`
+	UpdatedAt           pgtype.Timestamp  `json:"updatedAt"`
+	Tags                []string          `json:"tags"`
+	ImageUrl            pgtype.Text       `json:"imageUrl"`
+	Visibility          string            `json:"visibility"`
+	ContentVisibility   ContentVisibility `json:"contentVisibility"`
+	IsDraft             bool              `json:"isDraft"`
+	ScheduledAt         pgtype.Timestamp  `json:"scheduledAt"`
+	TriggerWarning      pgtype.Text       `json:"triggerWarning"`
+	IsPinned            bool              `json:"isPinned"`
+	DeletedAt           pgtype.Timestamp  `json:"deletedAt"`
+	TierId              pgtype.Text       `json:"tierId"`
+	ReplyRestriction    string            `json:"replyRestriction"`
+	IsHiddenByAuthor    bool              `json:"isHiddenByAuthor"`
+	IsHiddenByModerator bool              `json:"isHiddenByModerator"`
+	HiddenByModeratorAt pgtype.Timestamp  `json:"hiddenByModeratorAt"`
+	LikeCount           int32             `json:"likeCount"`
+	RepostCount         int32             `json:"repostCount"`
+	ReplyCount          int32             `json:"replyCount"`
+	ParentId            pgtype.Text       `json:"parentId"`
+	RootId              pgtype.Text       `json:"rootId"`
+	RepostId            pgtype.Text       `json:"repostId"`
+	QuotedArticleId     pgtype.Text       `json:"quotedArticleId"`
+	QuotedExcerpt       pgtype.Text       `json:"quotedExcerpt"`
+	Embedding           pgvector.Vector   `json:"embedding"`
 }
 
 type Publication struct {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/go-chi/chi/v5"
@@ -28,6 +29,10 @@ func (h *Handler) Register(r chi.Router) {
 	r.Get("/v1/admin/users", h.users)
 	r.Get("/v1/admin/users/{userID}", h.userDetail)
 	r.Patch("/v1/admin/users/{userID}", h.updateModeration)
+
+	// File de modération (signalements)
+	r.Get("/v1/admin/reports", h.reports)
+	r.Patch("/v1/admin/reports/{id}", h.resolveReport)
 
 	// Widgets & tendances
 	r.Get("/v1/admin/widgets", h.widgets)
@@ -73,6 +78,8 @@ func (h *Handler) handleErr(w http.ResponseWriter, err error) {
 		response.Forbidden(w, "Accès réservé au superadmin.")
 	case errors.Is(err, pgx.ErrNoRows):
 		response.NotFound(w, "Utilisateur introuvable.")
+	case errors.Is(err, errInvalidAction):
+		response.BadRequest(w, err.Error())
 	default:
 		log.Printf("[admin] %v", err)
 		response.Internal(w)
@@ -114,6 +121,51 @@ func (h *Handler) userDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data, err := h.svc.GetUser(r.Context(), userID, chi.URLParam(r, "userID"))
+	if err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, data)
+}
+
+// GET /v1/admin/reports — file de modération (pending en premier).
+// Query : ?status=pending|resolved|dismissed&limit=50&offset=0
+func (h *Handler) reports(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	items, err := h.svc.ListReports(r.Context(), userID, r.URL.Query().Get("status"), limit, offset)
+	if err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	pending, err := h.svc.CountPendingReports(r.Context(), userID)
+	if err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, map[string]any{"items": items, "pending": pending})
+}
+
+// PATCH /v1/admin/reports/{id} — clôture + action de modération.
+// Body : { "action": "dismiss|resolve|hide_post|hide_article|unhide_post|unhide_article|suspend_author", "note": "..." }
+func (h *Handler) resolveReport(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	var in struct {
+		Action string `json:"action"`
+		Note   string `json:"note"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.Action == "" {
+		response.BadRequest(w, "JSON invalide (action requise)")
+		return
+	}
+	data, err := h.svc.ResolveReport(r.Context(), userID, chi.URLParam(r, "id"), in.Action, in.Note)
 	if err != nil {
 		h.handleErr(w, err)
 		return

@@ -337,6 +337,7 @@ FROM "Post" p
 JOIN "User" u ON u.id = p."authorId"
 WHERE p.id = $1
   AND p."deletedAt" IS NULL
+  AND p."isHiddenByModerator" = false
 `
 
 type GetThoughtByIDRow struct {
@@ -713,6 +714,7 @@ FROM "Post"
 WHERE "authorId" = $1
   AND "isDraft" = true
   AND "deletedAt" IS NULL
+  AND "isHiddenByModerator" = false
 ORDER BY "updatedAt" DESC
 LIMIT $2
 `
