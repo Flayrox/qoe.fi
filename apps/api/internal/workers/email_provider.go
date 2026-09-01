@@ -12,8 +12,10 @@ package workers
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"crypto/tls"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -150,11 +152,19 @@ func smtpAddr(cfg SMTPConfig) string {
 	return net.JoinHostPort(cfg.Host, fmt.Sprintf("%d", port))
 }
 
-// buildSMTPHeaders compose les en-têtes RFC 5322 (sujet encodé RFC 2047).
+// buildSMTPHeaders compose les en-têtes RFC 5322 (sujet encodé RFC 2047 +
+// Message-ID unique — absent côté GoTrue, pénalisé par Gmail/mail-tester).
 func buildSMTPHeaders(from string, msg EmailMessage) string {
-	return fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\nDate: %s\r\nX-Mailer: qoe-worker",
+	return fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMessage-ID: <%s@qoe.fi>\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\nDate: %s\r\nX-Mailer: qoe-worker",
 		encodeAddressHeader(from), encodeAddressHeader(msg.To), encodeRFC2047(msg.Subject),
-		time.Now().UTC().Format(time.RFC1123Z))
+		messageID(), time.Now().UTC().Format(time.RFC1123Z))
+}
+
+// messageID génère un identifiant unique pour l'en-tête Message-ID.
+func messageID() string {
+	b := make([]byte, 12)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
 }
 
 // encodeAddressHeader encode un « Display Name <addr> » si le nom contient

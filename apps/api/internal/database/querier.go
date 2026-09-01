@@ -36,6 +36,7 @@ type Querier interface {
 	CountMediaInvites(ctx context.Context, mediaid string) (int32, error)
 	CountMediaMembers(ctx context.Context, mediaid string) (int32, error)
 	CountModerationReportsByStatus(ctx context.Context) ([]CountModerationReportsByStatusRow, error)
+	CountNewsletterDeliveriesByIssue(ctx context.Context, issueid string) (CountNewsletterDeliveriesByIssueRow, error)
 	// ── Notifications & livraisons ───────────────────────────────────────────────
 	CountNotificationDeliveriesByStatus(ctx context.Context) ([]CountNotificationDeliveriesByStatusRow, error)
 	CountOAuthClientsByOwner(ctx context.Context, owneruserid string) (int64, error)
@@ -61,6 +62,10 @@ type Querier interface {
 	CreateMediaMember(ctx context.Context, arg CreateMediaMemberParams) error
 	CreateMediaPublication(ctx context.Context, arg CreateMediaPublicationParams) (string, error)
 	CreateModerationReport(ctx context.Context, arg CreateModerationReportParams) (string, error)
+	// =====================================================================
+	// 📬 Newsletters créateurs (NewsletterIssue / NewsletterDelivery).
+	// =====================================================================
+	CreateNewsletterIssue(ctx context.Context, arg CreateNewsletterIssueParams) (NewsletterIssue, error)
 	CreatePersonalPublication(ctx context.Context, arg CreatePersonalPublicationParams) (string, error)
 	CreatePoll(ctx context.Context, arg CreatePollParams) (CreatePollRow, error)
 	CreatePollOption(ctx context.Context, arg CreatePollOptionParams) (string, error)
@@ -89,6 +94,7 @@ type Querier interface {
 	DeleteMediaMember(ctx context.Context, arg DeleteMediaMemberParams) error
 	DeleteMute(ctx context.Context, arg DeleteMuteParams) error
 	DeleteNavigationItems(ctx context.Context, publicationid string) error
+	DeleteNewsletterIssueDraft(ctx context.Context, id string) error
 	DeleteOAuthClient(ctx context.Context, arg DeleteOAuthClientParams) error
 	DeletePollVote(ctx context.Context, arg DeletePollVoteParams) error
 	DeletePromo(ctx context.Context, id string) error
@@ -111,6 +117,7 @@ type Querier interface {
 	// en excluant l'article source. Requête ANN via l'index HNSW.
 	FindSimilarArticles(ctx context.Context, arg FindSimilarArticlesParams) ([]FindSimilarArticlesRow, error)
 	FindTrending(ctx context.Context, arg FindTrendingParams) ([]FindTrendingRow, error)
+	FinishNewsletterIssue(ctx context.Context, arg FinishNewsletterIssueParams) (string, error)
 	FollowPublications(ctx context.Context, arg FollowPublicationsParams) (int32, error)
 	GetActiveSubscribersByPublication(ctx context.Context, arg GetActiveSubscribersByPublicationParams) ([]GetActiveSubscribersByPublicationRow, error)
 	GetActiveSubscriptionForReply(ctx context.Context, arg GetActiveSubscriptionForReplyParams) (int32, error)
@@ -177,6 +184,7 @@ type Querier interface {
 	GetMediaRoleForUser(ctx context.Context, arg GetMediaRoleForUserParams) (string, error)
 	GetMediaWithPublication(ctx context.Context, id string) (GetMediaWithPublicationRow, error)
 	GetModerationReport(ctx context.Context, id string) (ModerationReport, error)
+	GetNewsletterIssue(ctx context.Context, id string) (NewsletterIssue, error)
 	GetNotificationPreferences(ctx context.Context, userid pgtype.UUID) (GetNotificationPreferencesRow, error)
 	// Centre de notifications : liste groupée, non-lus, lecture, préférences.
 	GetNotifications(ctx context.Context, arg GetNotificationsParams) ([]GetNotificationsRow, error)
@@ -237,6 +245,7 @@ type Querier interface {
 	GetUserPersonalPublication(ctx context.Context, id string) (pgtype.Text, error)
 	GetUserPollVote(ctx context.Context, arg GetUserPollVoteParams) (string, error)
 	GetUserPronouns(ctx context.Context, id string) (pgtype.Text, error)
+	GetUserPublicationID(ctx context.Context, id string) (string, error)
 	// DevTools — inspecteur de données (panneau dev-only des apps).
 	// Rôle : lecture seule, réservé au superadmin (vérifié côté handler).
 	GetUserRole(ctx context.Context, id string) (string, error)
@@ -290,6 +299,7 @@ type Querier interface {
 	InsertMentionNotification(ctx context.Context, arg InsertMentionNotificationParams) error
 	InsertMute(ctx context.Context, arg InsertMuteParams) error
 	InsertNavigationItem(ctx context.Context, arg InsertNavigationItemParams) error
+	InsertNewsletterDeliveries(ctx context.Context, arg InsertNewsletterDeliveriesParams) error
 	InsertOAuthAuthorizationCode(ctx context.Context, arg InsertOAuthAuthorizationCodeParams) error
 	InsertOAuthClient(ctx context.Context, arg InsertOAuthClientParams) error
 	InsertOAuthToken(ctx context.Context, arg InsertOAuthTokenParams) error
@@ -348,6 +358,8 @@ type Querier interface {
 	// Tous les surlignages d'un lecteur (bibliothèque), avec l'article associé.
 	ListMyHighlights(ctx context.Context, arg ListMyHighlightsParams) ([]ListMyHighlightsRow, error)
 	ListNavigationForPublication(ctx context.Context, publicationid string) ([]ListNavigationForPublicationRow, error)
+	ListNewsletterDeliveriesByIssue(ctx context.Context, issueid string) ([]ListNewsletterDeliveriesByIssueRow, error)
+	ListNewsletterIssuesByPublication(ctx context.Context, publicationid string) ([]NewsletterIssue, error)
 	ListNotificationDeliveries(ctx context.Context) ([]ListNotificationDeliveriesRow, error)
 	ListOAuthClientsByOwner(ctx context.Context, owneruserid string) ([]ListOAuthClientsByOwnerRow, error)
 	ListOAuthConfig(ctx context.Context) ([]ListOAuthConfigRow, error)
@@ -376,6 +388,7 @@ type Querier interface {
 	ListUserDrafts(ctx context.Context, arg ListUserDraftsParams) ([]ListUserDraftsRow, error)
 	ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeliveriesParams) ([]ListWebhookDeliveriesRow, error)
 	ListWebhooksByPublication(ctx context.Context, publicationid string) ([]ListWebhooksByPublicationRow, error)
+	MarkNewsletterDelivery(ctx context.Context, arg MarkNewsletterDeliveryParams) error
 	MarkNotificationsRead(ctx context.Context, arg MarkNotificationsReadParams) error
 	PinPost(ctx context.Context, arg PinPostParams) (bool, error)
 	// Réactive un asset purgé/supprimé (nouvelle fenêtre de 3 jours).
@@ -391,6 +404,7 @@ type Querier interface {
 	SetApiApplication(ctx context.Context, arg SetApiApplicationParams) error
 	SetArticleEditorPick(ctx context.Context, arg SetArticleEditorPickParams) (SetArticleEditorPickRow, error)
 	SetArticleStatus(ctx context.Context, arg SetArticleStatusParams) (string, error)
+	SetNewsletterIssueSending(ctx context.Context, id string) (string, error)
 	SetPublicationUmamiWebsite(ctx context.Context, arg SetPublicationUmamiWebsiteParams) error
 	SetSubscriberPremiumStatus(ctx context.Context, arg SetSubscriberPremiumStatusParams) error
 	SoftDeletePost(ctx context.Context, arg SoftDeletePostParams) (string, error)
@@ -401,6 +415,7 @@ type Querier interface {
 	UnhideArticleByModerator(ctx context.Context, id string) error
 	UnhidePostByModerator(ctx context.Context, id string) error
 	UnpinPost(ctx context.Context, arg UnpinPostParams) (bool, error)
+	UnsubscribeNewsletterSubscriber(ctx context.Context, arg UnsubscribeNewsletterSubscriberParams) error
 	UpdateAdminOAuthClientStatus(ctx context.Context, arg UpdateAdminOAuthClientStatusParams) (UpdateAdminOAuthClientStatusRow, error)
 	UpdateAdminUserApiAccess(ctx context.Context, arg UpdateAdminUserApiAccessParams) (UpdateAdminUserApiAccessRow, error)
 	UpdateAdminUserModeration(ctx context.Context, arg UpdateAdminUserModerationParams) (UpdateAdminUserModerationRow, error)
@@ -415,6 +430,7 @@ type Querier interface {
 	UpdateMediaMemberPermissions(ctx context.Context, arg UpdateMediaMemberPermissionsParams) error
 	UpdateMediaMemberRole(ctx context.Context, arg UpdateMediaMemberRoleParams) error
 	UpdateModerationReportResolution(ctx context.Context, arg UpdateModerationReportResolutionParams) (UpdateModerationReportResolutionRow, error)
+	UpdateNewsletterIssueDraft(ctx context.Context, arg UpdateNewsletterIssueDraftParams) (NewsletterIssue, error)
 	UpdateOAuthClientSecret(ctx context.Context, arg UpdateOAuthClientSecretParams) error
 	UpdateOAuthClientStatus(ctx context.Context, arg UpdateOAuthClientStatusParams) error
 	UpdateOAuthTokenLastUsed(ctx context.Context, id string) error
@@ -441,6 +457,7 @@ type Querier interface {
 	UpsertTrend(ctx context.Context, arg UpsertTrendParams) (UpsertTrendRow, error)
 	// Écrit le vecteur d'un utilisateur/publication (profil).
 	UpsertUserEmbedding(ctx context.Context, arg UpsertUserEmbeddingParams) error
+	UserOwnsPublication(ctx context.Context, arg UserOwnsPublicationParams) (bool, error)
 }
 
 var _ Querier = (*Queries)(nil)

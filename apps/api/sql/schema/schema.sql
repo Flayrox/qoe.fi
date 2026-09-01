@@ -788,6 +788,40 @@ CREATE TABLE "ModerationReport" (
 );
 
 -- CreateTable
+CREATE TABLE "NewsletterIssue" (
+    "id" TEXT NOT NULL,
+    "publicationId" TEXT NOT NULL,
+    "subject" TEXT NOT NULL,
+    "previewText" TEXT,
+    "html" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'DRAFT',
+    "totalRecipients" INTEGER NOT NULL DEFAULT 0,
+    "sentCount" INTEGER NOT NULL DEFAULT 0,
+    "failedCount" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "sentAt" TIMESTAMP(3),
+
+    CONSTRAINT "NewsletterIssue_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "NewsletterDelivery" (
+    "id" TEXT NOT NULL,
+    "issueId" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "subscriberId" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'QUEUED',
+    "error" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "sentAt" TIMESTAMP(3),
+
+    CONSTRAINT "NewsletterDelivery_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "NewsletterDelivery_issueId_fkey" FOREIGN KEY ("issueId") REFERENCES "NewsletterIssue"("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
 CREATE TABLE "MediaAsset" (
     "id" TEXT NOT NULL,
     "sha256" TEXT NOT NULL,
@@ -1220,6 +1254,15 @@ CREATE INDEX "ModerationReport_status_idx" ON "ModerationReport"("status");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "ModerationReport_reporter_target_pending_key" ON "ModerationReport"("reporterId", "targetId", "targetType") WHERE status = 'pending';
+
+-- CreateIndex
+CREATE INDEX "NewsletterIssue_publicationId_idx" ON "NewsletterIssue"("publicationId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "NewsletterDelivery_issueId_email_key" ON "NewsletterDelivery"("issueId", "email");
+
+-- CreateIndex
+CREATE INDEX "NewsletterDelivery_issueId_status_idx" ON "NewsletterDelivery"("issueId", "status");
 
 -- CreateIndex
 CREATE INDEX "MediaAsset_sha256_idx" ON "MediaAsset"("sha256");

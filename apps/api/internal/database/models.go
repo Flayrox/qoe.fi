@@ -794,6 +794,33 @@ type NavigationItem struct {
 	ParentId      pgtype.Text `json:"parentId"`
 }
 
+type NewsletterDelivery struct {
+	ID           string           `json:"id"`
+	IssueId      string           `json:"issueId"`
+	Email        string           `json:"email"`
+	SubscriberId pgtype.Text      `json:"subscriberId"`
+	Status       string           `json:"status"`
+	Error        pgtype.Text      `json:"error"`
+	CreatedAt    pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt    pgtype.Timestamp `json:"updatedAt"`
+	SentAt       pgtype.Timestamp `json:"sentAt"`
+}
+
+type NewsletterIssue struct {
+	ID              string           `json:"id"`
+	PublicationId   string           `json:"publicationId"`
+	Subject         string           `json:"subject"`
+	PreviewText     pgtype.Text      `json:"previewText"`
+	Html            string           `json:"html"`
+	Status          string           `json:"status"`
+	TotalRecipients int32            `json:"totalRecipients"`
+	SentCount       int32            `json:"sentCount"`
+	FailedCount     int32            `json:"failedCount"`
+	CreatedAt       pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt       pgtype.Timestamp `json:"updatedAt"`
+	SentAt          pgtype.Timestamp `json:"sentAt"`
+}
+
 type Notification struct {
 	ID            string           `json:"id"`
 	RecipientId   pgtype.UUID      `json:"recipientId"`
