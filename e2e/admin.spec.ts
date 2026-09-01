@@ -13,6 +13,7 @@
 import { test, expect } from '@playwright/test';
 import { TestDb } from './lib/db';
 import { COOKIE_NAME, DATABASE_URL, JWT_SECRET, mintJwt } from './lib/env';
+import { expectRedirect } from './lib/redirect';
 
 const ADMIN = process.env.PLAYWRIGHT_ADMIN_URL ?? 'http://localhost:15405';
 const RUN_FULL_STACK = process.env.RUN_FULL_STACK === '1';
@@ -23,10 +24,9 @@ test.describe('Console admin', () => {
   test('le périmètre superadmin est verrouillé : /admin redirige vers /login', async ({
     request,
   }) => {
-    // Warm-up : force la compilation dev avant l'assertion.
-    await request.get(`${ADMIN}/admin`).catch(() => {});
+    const status = await expectRedirect(request, `${ADMIN}/admin`);
+    expect(status, 'doit rediriger (307)').toBe(307);
     const res = await request.get(`${ADMIN}/admin`, { maxRedirects: 0 });
-    expect(res.status(), 'doit rediriger (307)').toBe(307);
     const location = res.headers()['location'] ?? '';
     expect(location, `Location = ${location}`).toContain('/login');
   });
