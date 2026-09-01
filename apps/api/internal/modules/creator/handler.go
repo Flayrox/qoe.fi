@@ -416,6 +416,16 @@ func (h *Handler) userMe(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Avatar du compte : logo personnel (User.logoUrl), sinon logo de la
+	// publication personnelle (convention PERSONAL : avatar auteur ?? logo pub).
+	var publicationLogoUrl *string
+	if row.PublicationId.Valid && row.PublicationId.String != "" {
+		var logo pgtype.Text
+		if err := h.pool.QueryRow(r.Context(), `SELECT "logoUrl" FROM "Publication" WHERE id = $1`, row.PublicationId.String).Scan(&logo); err == nil && logo.Valid {
+			publicationLogoUrl = &logo.String
+		}
+	}
+
 	response.OK(w, map[string]any{"data": map[string]any{
 		"id":                     row.UserID,
 		"email":                  row.Email,
@@ -429,6 +439,7 @@ func (h *Handler) userMe(w http.ResponseWriter, r *http.Request) {
 		"forceStandardTheme":     row.ForceStandardTheme,
 		"onboardingText":         textPtr(row.OnboardingText),
 		"logoUrl":                textPtr(row.LogoUrl),
+		"publicationLogoUrl":     publicationLogoUrl,
 		"publicationId":          textPtr(row.PublicationId),
 		"advancedSettingsMode":   row.AdvancedSettingsMode,
 		"hasCompletedOnboarding": row.HasCompletedOnboarding,

@@ -270,6 +270,22 @@ export function SidebarFooter({
 }
 
 /* ─────────────────────────────────────────────
+   Avatar avec repli sur les initiales si l'image est cassée
+   ───────────────────────────────────────────── */
+function AvatarImage({ src, alt, fallback }: { src: string; alt: string; fallback: string }) {
+  const [failed, setFailed] = React.useState(false);
+  if (failed) return <>{fallback}</>;
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="w-full h-full object-cover"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
+/* ─────────────────────────────────────────────
    Main <Sidebar /> Component
    ───────────────────────────────────────────── */
 export function Sidebar({
@@ -489,10 +505,10 @@ export function Sidebar({
                   >
                     <span className="w-7 h-7 rounded-full bg-sidebar-primary/10 text-sidebar-primary font-bold text-xs flex items-center justify-center shrink-0 border border-sidebar-primary/20 overflow-hidden">
                       {userAvatar ? (
-                        <img
+                        <AvatarImage
                           src={userAvatar}
                           alt={userName || t`Utilisateur`}
-                          className="w-full h-full object-cover"
+                          fallback={userFallback}
                         />
                       ) : (
                         userFallback
