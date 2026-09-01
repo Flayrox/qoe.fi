@@ -537,6 +537,16 @@ contre ~15 min de build sur le VPS avant).
   workflow — à garder synchronisées avec le `.env.docker` du VPS (source de vérité runtime).
 - **🛡️ Effet de bord positif** : les builds viennent de GitHub (pas de fichiers `._*` macOS) →
   plus de risque goose/`._00001_init.sql` (le `_._*` exclus du tar + purge manuelle du 01/09).
+- **⚡ Rebuild sélectif (01/09)** : `build-images.yml` ne se déclenche que si le code runtime
+  change (`paths:` apps/packages/Dockerfile/lockfiles/turbo) — un commit e2e/docs/scripts-only
+  ne déclenche plus 8 builds de ~10 min, et `.dockerignore` exclut `e2e/`, `scripts/`, `docs/`,
+  `.github/`, `docker/` du contexte (le layer `COPY . .` n'est plus invalidé par un changement
+  de doc). Le CI (`ci.yml`) continue de tourner sur CHAQUE push : seules les images sont
+  économisées. `latest` reste sur le dernier commit runtime → `deploy-prod.sh` pull toujours
+  des images cohérentes.
+- **🔁 E2E Apps résilient** : les auth-gate specs (studio/admin) warm-up + retentent jusqu'à
+  obtenir un 3xx stable (`e2e/lib/redirect.ts`) — Next dev peut répondre 5xx transitoire à la
+  première requête (compilation), ce qui rendait le job flaky.
 
 **Setup UNE FOIS — auth GHCR par GitHub App (PAS de PAT long-lived)** :
 Le VPS ne détient aucune session permanente : `scripts/ghcr-login.sh` (appelé à chaque
