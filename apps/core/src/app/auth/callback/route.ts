@@ -16,10 +16,26 @@ function sanitizeNextPath(target: string | null): string {
   return '/home';
 }
 
+// Derrière le reverse-proxy (Caddy), `new URL(request.url).origin` est
+// reconstruit avec l'adresse de bind du container (0.0.0.0:3000) et ne vaut
+// PAS l'hôte public (prouvé en prod : les redirects d'erreur partaient sur
+// https://0.0.0.0:3000/login). On préfère les headers propagés par Caddy
+// (x-forwarded-host, sinon host) + le schéma x-forwarded-proto.
+function getPublicBase(request: Request, fallback: string): string {
+  const proto =
+    request.headers.get('x-forwarded-proto') ??
+    (process.env.NODE_ENV === 'development' ? 'http' : 'https');
+  const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host');
+  return host ? `${proto}://${host}` : fallback;
+}
+
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
   let next = sanitizeNextPath(searchParams.get('next'));
+
+  const isLocalEnv = process.env.NODE_ENV === 'development';
+  const base = isLocalEnv ? origin : getPublicBase(request, origin);
 
   if (code) {
     const supabase = await createClient();
@@ -48,17 +64,9 @@ export async function GET(request: Request) {
         }
       }
 
-      const forwardedHost = request.headers.get('x-forwarded-host');
-      const isLocalEnv = process.env.NODE_ENV === 'development';
-      if (isLocalEnv) {
-        return NextResponse.redirect(`${origin}${next}`);
-      } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${next}`);
-      } else {
-        return NextResponse.redirect(`${origin}${next}`);
-      }
+      return NextResponse.redirect(`${base}${next}`);
     }
   }
 
-  return NextResponse.redirect(`${origin}/login?error=auth-code-error`);
+  return NextResponse.redirect(`${base}/login?error=auth-code-error`);
 }

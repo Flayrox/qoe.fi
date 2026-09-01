@@ -15,10 +15,23 @@ function sanitizeNextPath(target: string | null): string {
   return '/';
 }
 
+// Idem apps/core : derrière Caddy, `new URL(request.url).origin` vaut
+// l'adresse de bind du container (0.0.0.0:3000), pas l'hôte public.
+function getPublicBase(request: Request, fallback: string): string {
+  const proto =
+    request.headers.get('x-forwarded-proto') ??
+    (process.env.NODE_ENV === 'development' ? 'http' : 'https');
+  const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host');
+  return host ? `${proto}://${host}` : fallback;
+}
+
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get('code');
   const next = sanitizeNextPath(searchParams.get('next'));
+
+  const isLocalEnv = process.env.NODE_ENV === 'development';
+  const base = isLocalEnv ? origin : getPublicBase(request, origin);
 
   if (code) {
     const supabase = await createClient();
@@ -42,12 +55,9 @@ export async function GET(request: Request) {
       }
 
       // Retour sur l'article (ou l'accueil) du tenant d'origine.
-      const forwardedHost = request.headers.get('x-forwarded-host');
-      const isLocalEnv = process.env.NODE_ENV === 'development';
-      const base = isLocalEnv ? origin : forwardedHost ? `https://${forwardedHost}` : origin;
       return NextResponse.redirect(`${base}${next}`);
     }
   }
 
-  return NextResponse.redirect(`${origin}/?error=auth-code-error`);
+  return NextResponse.redirect(`${base}/?error=auth-code-error`);
 }
