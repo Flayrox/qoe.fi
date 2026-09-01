@@ -45,11 +45,19 @@ services:
     container_name: qoefi-caddy
     restart: unless-stopped
 
-    # Écoute publique
+    # Écoute sur l'IP PUBLIQUE + l'IP TAILNET (100.117.195.127) :
+    # - publique : le site public (les *.admin.qoe.fi y répondent 404 hors tailnet)
+    # - tailnet : les dashboards admin (studio/umami/mail.admin.qoe.fi) — le
+    #   443 du tailnet appartient à Caddy depuis le 2026-09-01 (tailscale
+    #   serve retiré, cf. Caddyfile). Les challenges ACME HTTP-01 passent par
+    #   l'IP publique (le DNS public de *.admin.qoe.fi pointe sur l'IP du VPS
+    #   pour l'émission, et sur l'IP tailnet pour l'accès — voir coredns).
     ports:
-      - '80:80'
-      - '443:443'
-      - '443:443/udp'
+      - '159.195.110.239:80:80'
+      - '159.195.110.239:443:443'
+      - '159.195.110.239:443:443/udp'
+      - '100.117.195.127:80:80'
+      - '100.117.195.127:443:443'
 
     extra_hosts:
       - 'host.docker.internal:host-gateway'
@@ -635,6 +643,11 @@ services:
     image: ghcr.io/umami-software/umami:postgresql-latest
     container_name: qoefi-umami
     restart: unless-stopped
+    # Publication tailnet-only (fallback/accès direct) : le dashboard passe
+    # normalement par Caddy (umami.admin.qoe.fi). L'IP tailnet est joignable
+    # uniquement depuis le tailnet (100.64/10 non routable publiquement).
+    ports:
+      - '100.117.195.127:3001:3000'
     expose:
       - '3000'
     environment:
