@@ -3,6 +3,7 @@ import {
   type ApiResponse,
   type FeedFetcherFn,
   type FeedSlice,
+  FeedArticle,
 } from '@qoe/sdk/mobile';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { FlashList, type FlashListProps, type FlashListRef } from '@shopify/flash-list';
@@ -10,14 +11,7 @@ import Animated from 'react-native-reanimated';
 import { router, useNavigation } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Appearance,
-  Pressable,
-  StyleSheet,
-  useColorScheme,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { EdgeFadeView } from 'react-native-edge-fade';
@@ -34,7 +28,6 @@ import { useRealtimeFeedPill } from '@/hooks/use-realtime-feed-pill';
 import { useTheme } from '@/hooks/use-theme';
 import { apiClient } from '@/lib/api';
 import { t } from '@/lib/i18n';
-import type { FeedArticle } from '@qoe/sdk/mobile';
 
 type FeedRow = { kind: 'thought'; slice: FeedSlice } | { kind: 'article'; article: FeedArticle };
 
@@ -44,16 +37,11 @@ const AnimatedFlashList = Animated.createAnimatedComponent(
 
 type FeedTab = 'for_you' | 'following';
 
-const HEADER_HEIGHT = 48;
-
 export function FeedScreen() {
   const theme = useTheme();
-  const scheme = useColorScheme();
-  const isDark = scheme === 'dark' || Appearance.getColorScheme() === 'dark';
   const [tab, setTab] = useState<FeedTab>('for_you');
   const { scrollY, isScrollingDown, onScrollHandler } = useScrollCoordination();
   const listRef = useRef<FlashListRef<FeedRow>>(null);
-  const hasInitialScrolled = useRef(false);
 
   // Adapte le client universel au contrat du hook, selon l'onglet :
   const fetcher: FeedFetcherFn<FeedSlice> = useCallback(
@@ -143,11 +131,11 @@ export function FeedScreen() {
 
   // ── Intercalage pensées + articles par date (comme le web) ──
   const rows = useMemo<FeedRow[]>(() => {
-    const thoughtRows: Array<{ ts: number; row: FeedRow }> = thoughts.map((slice) => ({
+    const thoughtRows: { ts: number; row: FeedRow }[] = thoughts.map((slice) => ({
       ts: new Date(slice.targetPost?.createdAt || 0).getTime(),
       row: { kind: 'thought', slice },
     }));
-    const articleRows: Array<{ ts: number; row: FeedRow }> = articleItems.map((article) => ({
+    const articleRows: { ts: number; row: FeedRow }[] = articleItems.map((article) => ({
       ts: new Date(article.createdAt).getTime(),
       row: { kind: 'article', article },
     }));
@@ -225,7 +213,7 @@ export function FeedScreen() {
         scrollY={scrollY}
         isScrollingDown={isScrollingDown}
         onPressNotifications={() => router.push('/(tabs)/notifications')}
-        onPressMessages={() => router.push('/(tabs)/notifications')}
+        onPressMessages={() => router.push('/(tabs)/messages')}
       />
 
       {/* 

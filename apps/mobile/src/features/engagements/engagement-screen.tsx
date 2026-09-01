@@ -28,6 +28,8 @@ import { apiClient } from '@/lib/api';
 import { t } from '@/lib/i18n';
 import { feedKeys, type EngagementUser } from '@qoe/sdk/mobile';
 
+import { CustomSubHeader } from '@/components/header/CustomSubHeader';
+
 export type EngagementKind = 'likes' | 'reposts' | 'quotes';
 
 const TITLES: Record<EngagementKind, { title: string; empty: string }> = {
@@ -35,8 +37,6 @@ const TITLES: Record<EngagementKind, { title: string; empty: string }> = {
   reposts: { title: 'Reposts', empty: 'Personne n’a reposté cette pensée pour l’instant.' },
   quotes: { title: 'Citations', empty: 'Aucune citation de cette pensée pour l’instant.' },
 };
-
-import { CustomSubHeader } from '@/components/header/CustomSubHeader';
 
 export function EngagementScreen({ postId, kind }: { postId: string; kind: EngagementKind }) {
   const theme = useTheme();
@@ -77,10 +77,10 @@ export function EngagementScreen({ postId, kind }: { postId: string; kind: Engag
   // Les pages sont soit EngagementPage soit QuotesPage selon le kind — on les
   // traite via un cast (le rendu distingue les deux formes par `isQuotes`).
   const items = useMemo(
-    () => data?.pages.flatMap((p) => (p as { items: Array<{ id: string }> }).items) ?? [],
+    () => data?.pages.flatMap((p) => (p as { items: { id: string }[] }).items) ?? [],
     [data]
   );
-  const listData = items as unknown as Array<{ id: string }>;
+  const listData = items as unknown as { id: string }[];
 
   const onEndReached = useCallback(() => {
     if (hasNextPage && !isFetching) void fetchNextPage();

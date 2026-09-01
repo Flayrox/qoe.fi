@@ -1,5 +1,5 @@
 import React from 'react';
-import { Appearance, StyleProp, StyleSheet, useColorScheme, View, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import Animated, {
   Easing,
   interpolate,
@@ -56,8 +56,6 @@ export function CustomSubHeader({
   style,
 }: CustomSubHeaderProps) {
   const theme = useTheme();
-  const scheme = useColorScheme();
-  const isDark = scheme === 'dark' || Appearance.getColorScheme() === 'dark';
 
   // Animation conditionnelle au scroll
   const containerAnimatedStyle = useAnimatedStyle(() => {

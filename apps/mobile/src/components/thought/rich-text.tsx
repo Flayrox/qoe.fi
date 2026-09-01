@@ -9,7 +9,7 @@
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, type StyleProp, type TextStyle } from 'react-native';
+import { StyleSheet, Text, type StyleProp, type TextStyle } from 'react-native';
 
 import { useTheme } from '@/hooks/use-theme';
 
@@ -25,7 +25,7 @@ type Segment =
 
 /** Détecte URL + mentions + hashtags dans un texte (facets simplifiées). */
 export function segmentText(text: string): Segment[] {
-  const matches: Array<{ start: number; end: number; seg: Segment }> = [];
+  const matches: { start: number; end: number; seg: Segment }[] = [];
 
   const urlRegex = /(https?:\/\/[^\s]+)/gi;
   let m: RegExpExecArray | null;

@@ -1,13 +1,5 @@
 import React from 'react';
-import {
-  Appearance,
-  Platform,
-  StyleProp,
-  StyleSheet,
-  useColorScheme,
-  View,
-  ViewStyle,
-} from 'react-native';
+import { Appearance, StyleProp, StyleSheet, useColorScheme, View, ViewStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,

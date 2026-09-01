@@ -11,7 +11,7 @@ export function useColorScheme() {
     // Deliberate hydration gate for static web rendering: flipping this flag
     // after mount makes the client re-render with the real color scheme,
     // avoiding a hydration mismatch with the server-rendered HTML.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+
     setHasHydrated(true);
   }, []);
 

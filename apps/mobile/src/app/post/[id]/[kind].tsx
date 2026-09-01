@@ -2,8 +2,7 @@
 // 📄 post/[id]/[kind] — Engagement d'un post (likes | reposts | quotes)
 // =====================================================================
 
-import { useLocalSearchParams } from 'expo-router';
-import { Stack } from 'expo-router';
+import { useLocalSearchParams, Stack } from 'expo-router';
 
 import { EngagementScreen, type EngagementKind } from '@/features/engagements/engagement-screen';
 import { t } from '@/lib/i18n';

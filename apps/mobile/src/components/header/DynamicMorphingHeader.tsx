@@ -1,13 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import {
-  Appearance,
-  Modal,
-  Platform,
-  Pressable,
-  StyleSheet,
-  useColorScheme,
-  View,
-} from 'react-native';
+import { Appearance, Modal, Pressable, StyleSheet, useColorScheme, View } from 'react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -15,7 +7,6 @@ import Animated, {
   interpolate,
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
   withTiming,
   type SharedValue,
 } from 'react-native-reanimated';

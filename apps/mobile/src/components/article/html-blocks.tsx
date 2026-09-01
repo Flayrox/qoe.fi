@@ -79,7 +79,7 @@ export function htmlToBlocks(html: string): Block[] {
   // Extraction des <img> d'abord (avec leur alt).
   const imgRegex = /<img[^>]*src=["']([^"']+)["'][^>]*>/gi;
   let match: RegExpExecArray | null;
-  const images: Array<{ src: string; alt?: string }> = [];
+  const images: { src: string; alt?: string }[] = [];
   while ((match = imgRegex.exec(html)) !== null) {
     const altMatch = /alt=["']([^"']*)["']/i.exec(match[0]);
     images.push({ src: match[1], alt: altMatch?.[1] });

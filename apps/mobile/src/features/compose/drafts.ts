@@ -19,7 +19,6 @@ const drafts = new Map<string, Draft>();
 
 export function saveDraft(draft: Omit<Draft, 'id' | 'updatedAt'>): Draft {
   const id = draft.parentId ?? draft.repostId ?? 'new';
-  const existing = drafts.get(id);
   const record: Draft = { ...draft, id, updatedAt: Date.now() };
   drafts.set(id, record);
   return record;
