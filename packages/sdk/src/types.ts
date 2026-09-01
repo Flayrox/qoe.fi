@@ -384,6 +384,129 @@ export interface ArticleFeedResult {
   hasMore: boolean;
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// Réglages (settings lecteur — GET/PATCH /v1/me/profile,
+// /v1/settings/preferences, /v1/notifications/preferences)
+// ─────────────────────────────────────────────────────────────────────
+
+/** Profil lecteur (GET /v1/me — shape Go `ReaderProfile`). */
+export interface ReaderProfileData {
+  id: string;
+  email: string;
+  name: string | null;
+  username: string | null;
+  logoUrl: string | null;
+  onboardingText: string | null;
+  pronouns: string | null;
+  role: string;
+  walletBalanceCents: number;
+  hasCompletedOnboarding: boolean;
+  isCertified: boolean;
+  advancedSettingsMode: boolean;
+  createdAt: string;
+  followsCount: number;
+  mutedWordsCount: number;
+  isMediaMember: boolean;
+}
+
+/** Corps de PATCH /v1/me/profile (tous champs optionnels). */
+export interface MyProfileUpdateInput {
+  name?: string;
+  username?: string;
+  onboardingText?: string;
+  logoUrl?: string;
+  pronouns?: string;
+}
+
+/** Corps de PATCH /v1/settings/profile (champs créateur, sans publicationId). */
+export interface PublicationProfileUpdateInput {
+  name?: string | null;
+  heroText?: string | null;
+  headerImageUrl?: string | null;
+  logoUrl?: string | null;
+}
+
+/** Préférences lecteur (shape Go `UserSettings` — GET/PATCH /v1/settings/preferences). */
+export interface UserSettingsData {
+  id: string;
+  userId: string;
+  profileVisibility: 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE';
+  allowMentions: boolean;
+  allowCollaborationInvites: boolean;
+  showSensitiveContent: boolean;
+  likeVisibility: 'PUBLIC' | 'PRIVATE';
+  autoplayMedia: boolean;
+  reduceMotion: boolean;
+  highContrast: boolean;
+  fontScale: number;
+  defaultFeed: 'FOLLOWING' | 'DISCOVER';
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Patch partiel validé par le Go (seules ces clés sont acceptées). */
+export type UserSettingsPatch = Partial<
+  Pick<
+    UserSettingsData,
+    | 'profileVisibility'
+    | 'allowMentions'
+    | 'allowCollaborationInvites'
+    | 'showSensitiveContent'
+    | 'likeVisibility'
+    | 'autoplayMedia'
+    | 'reduceMotion'
+    | 'highContrast'
+    | 'fontScale'
+    | 'defaultFeed'
+  >
+>;
+
+/** Préférences de notifications — les 14 clés persistées par le Go `Preferences`. */
+export interface NotificationPreferenceFlags {
+  emailLikes: boolean;
+  pushLikes: boolean;
+  emailReplies: boolean;
+  pushReplies: boolean;
+  emailComments: boolean;
+  pushComments: boolean;
+  emailMentions: boolean;
+  pushMentions: boolean;
+  emailFollows: boolean;
+  pushFollows: boolean;
+  emailReposts: boolean;
+  pushReposts: boolean;
+  emailMedia: boolean;
+  pushMedia: boolean;
+}
+
+export type NotificationPrefsPatch = Partial<NotificationPreferenceFlags>;
+
+/** Utilisateur listé dans les contrôles sociaux (bloqués / masqués). */
+export interface SocialControlUser {
+  id: string;
+  username: string | null;
+  name: string | null;
+  logoUrl: string | null;
+}
+
+/** Demande de suppression de compte (GET/POST/DELETE /v1/me/account-deletion-request). */
+export interface DeletionRequestData {
+  id: string;
+  status: string;
+  requestedAt: string;
+}
+
+/** Session OAuth active (GET /v1/me/sessions). */
+export interface AccountSessionData {
+  id: string;
+  clientId: string;
+  scopes: string[];
+  createdAt: string;
+  expiresAt: string;
+  lastUsedAt?: string;
+  current: boolean;
+}
+
 /** Article sauvegardé (bibliothèque, shape Go `BookmarkItem`). */
 export interface BookmarkItem {
   bookmarkId: string;
