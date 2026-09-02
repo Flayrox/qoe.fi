@@ -42,9 +42,6 @@ COPY . .
 # Installe toutes les dépendances en utilisant le cache de montage BuildKit (y compris devDependencies pour le build)
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile --prod=false
 
-# Génère le client Prisma (pour le runtime)
-RUN pnpm --filter @qoe/db run prisma:generate
-
 # Assure que les variables d'environnement de build Next.js (comme les URL Supabase) sont disponibles pour la compilation dans chaque application du monorepo
 RUN if [ -f .env.docker ]; then \
       cp .env.docker .env && \
