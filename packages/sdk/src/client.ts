@@ -206,6 +206,8 @@ export class QoeApiClient {
       repostId?: string;
       tags?: string[];
       replyRestriction?: string;
+      quotedArticleId?: string;
+      quotedExcerpt?: string;
     }
   ) {
     return this.request<Thought>('/v1/posts', {
@@ -217,6 +219,8 @@ export class QoeApiClient {
         ...(options?.tags ? { tags: options.tags } : {}),
         ...(options?.imageUrl ? { imageUrl: options.imageUrl } : {}),
         ...(options?.replyRestriction ? { replyRestriction: options.replyRestriction } : {}),
+        ...(options?.quotedArticleId ? { quotedArticleId: options.quotedArticleId } : {}),
+        ...(options?.quotedExcerpt ? { quotedExcerpt: options.quotedExcerpt } : {}),
       }),
     });
   }
@@ -774,7 +778,12 @@ export class QoeApiClient {
    */
   public async createHighlight(
     articleId: string,
-    data: { text: string; note?: string | null; isPublic?: boolean }
+    data: {
+      text: string;
+      note?: string | null;
+      isPublic?: boolean;
+      quoteOrdinal?: number;
+    }
   ) {
     return this.request<Highlight>(`/v1/articles/${encodeURIComponent(articleId)}/highlights`, {
       method: 'POST',
@@ -782,6 +791,7 @@ export class QoeApiClient {
         text: data.text,
         note: data.note ?? null,
         isPublic: data.isPublic ?? false,
+        ...(data.quoteOrdinal !== undefined ? { quoteOrdinal: data.quoteOrdinal } : {}),
       }),
     });
   }

@@ -297,6 +297,12 @@ export interface Highlight {
   reader: HighlightAuthor;
   viewerUpvoted: boolean;
   commentsCount: number;
+  /**
+   * Occurrence (0-based) du passage cité dans l'article (ancrage inline).
+   * Dédoublonnage quand le même texte apparaît plusieurs fois
+   * (modules/creator/api_highlights.go).
+   */
+  quoteOrdinal: number;
 }
 
 /** Commentaire d'annotation attaché à un surlignage. */
