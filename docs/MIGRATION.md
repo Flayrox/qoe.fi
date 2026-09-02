@@ -203,10 +203,14 @@ cat /tmp/auth_dump.sql    | docker exec -i supabase-db psql -U postgres -d postg
 cat /tmp/storage_dump.sql | docker exec -i supabase-db psql -U postgres -d postgres
 
 # ── 3c. Post-restore ──
-# Grants postgres/anon/authenticated/service_role sur les tables public
-# Réappliquer les policies RLS :
-cat scripts/rls-interactions.sql | docker exec -i supabase-db psql -U postgres -d postgres
+# Sécurité BDD (dans l'ordre — scripts idempotents, schéma storage non touché) :
+cat scripts/rls-interactions.sql | docker exec -i supabase-db psql -U postgres -d postgres  # RLS + policies
+cat scripts/rls-grants.sql        | docker exec -i supabase-db psql -U postgres -d postgres  # REVOKE massifs → SELECT ciblés
+cat scripts/rls-storage.sql       | docker exec -i supabase-db psql -U postgres -d postgres  # buckets + policies storage (upload mobile)
+# ⚠️ Sans rls-grants.sql : anon/authenticated retrouvent des grants complets sur public
+#    (l'initdb Supabase les pose à la volée) → toujours exécuter les DEUX.
 # Vérifier les comptages : articles, users, posts, storage
+# Vérif rapide RLS : relrowsecurity=t sur Post/Like/… + anon KO sur User (401 via REST)
 
 # ── 3d. Projet annexe : lassez/radar (sa propre DB Supabase cloud) ──
 tar xzf /root/migration/lassez-docker.tar.gz -C /var/www/
