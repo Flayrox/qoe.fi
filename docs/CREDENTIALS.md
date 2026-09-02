@@ -71,8 +71,8 @@
 ## 🔁 Rotation & hygiène (recommandations)
 
 - [x] **Clé d'auth Tailscale révoquée** le 01/09 (elle avait circulé en clair) — le nœud reste dans le tailnet.
-- [ ] **Ajouter le nameserver Tailscale** (Console → DNS → Nameservers) : `100.117.195.127`
-      restreint au domaine `admin.qoe.fi` — requis pour `admin.qoe.fi` + `studio/umami/mail.admin.qoe.fi`.
+- [x] **Ajouter le nameserver Tailscale** (Console → DNS → Nameservers) : `100.117.195.127`
+      restreint au domaine `admin.qoe.fi` — requis pour `admin.qoe.fi` + `studio/umami/mail.admin.qoe.fi`. ✅ déjà en place (vérifié 02/09 : nslookup → 100.117.195.127 + dig @100.117.195.127 OK).
 - [ ] **Rotation** : `POSTGRES_PASSWORD`, `JWT_SECRET`, `MEILI_MASTER_KEY`, `QOE_INTERNAL_SECRET`,
       `SMTP_PASS` relay, `DASHBOARD_PASSWORD`, `UMAMI_PASSWORD` — dans un vault (1Password/Pass) ;
       les `.env` ne sont PAS un vault.
