@@ -724,6 +724,26 @@ containers non listés ne sont pas recréés.)
   publiquement)** : `http://100.117.195.127:3000` (supabase-studio), `:3001` (umami),
   `:3002` (admin plateforme), `:28080` (UI Stalwart). Jamais sur une IP publique.
 - **Basic Auth supprimé** : l'identité Tailscale EST l'authentification (tailnet privé).
+- 🐛 **Piège SNAT Tailscale (identifié 02/09)** : tailscaled SNAT tout le trafic qui
+  entre par `tailscale0` (chaîne nat `ts-postrouting`, via le mark 0x40000 posé en
+  `ts-forward`) AVEC L'IP DE SORTIE → depuis un appareil du tailnet, Caddy voyait
+  `172.18.0.1` (IP du pont docker) au lieu des 100.x → matcher `@tailnet` KO →
+  `abort` → `ERR_HTTP2_PROTOCOL_ERROR` / `INTERNAL_ERROR` (curl) / timeouts
+  intermittents sur admin.qoe.fi et les *.admin.qoe.fi. ⚠️ Le test « depuis
+  l'extérieur : connexion fermée » (fait le 01/09) ne prouve RIEN pour le sens
+  tailnet : il fallait tester DEPUIS un appareil du tailnet (leçon notée).
+  **Fix appliqué (02/09)** : matcher `@tailnet` élargi à `172.16.0.0/12` (les plages
+  privées ne sont pas routables publiquement → injoignables depuis Internet ; le
+  reste du monde reçoit toujours l'abort).
+  **Fix propre (backlog)** : `tailscale set --snat-subnet-routes=false` → source
+  100.x préservée → matcher strict rétabli ; prévoir l'ACCEPT des retours
+  docker→tailnet en tête de `ts-forward` (avant le DROP `-o tailscale0
+  -d 100.64/10`) et la persistance dans `tailnet-firewall.sh` (service
+  `After=tailscaled`).
+  ⚠️ Reload Caddy : `docker exec qoefi-caddy caddy reload --config` (admin API)
+  ou `docker restart qoefi-caddy` (le restart CONSERVE l'IP docker → DNAT valide,
+  pas besoin de rejouer tailnet-firewall.sh) ; `docker kill -s HUP` est IGNORÉ par
+  Caddy v2 (pas de reload).
 - ⚠️ **Pourquoi pas coredns** : coredns 1.11/1.12 (port-map OU host-net) renvoie
   sur ce host des réponses DNS avec **ANCOUNT=0** (records présents mais compteur
   vide) → inutilisable. dnsmasq (`address=/admin.qoe.fi/<IP tailnet>`) = fiable.

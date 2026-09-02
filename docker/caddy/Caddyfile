@@ -81,11 +81,19 @@
 }
 
 # 🛡️ Matcher « tailnet » : IP du tailnet Tailscale (CGNAT 100.64/10 + ULA
-#    IPv6). Utilisé par tous les blocs tailnet-only (admin.qoe.fi,
-#    *.admin.qoe.fi). ⚠️ Doit être défini AVANT les blocs qui l'importent
-#    (pas de forward reference dans le Caddyfile).
+#    IPv6) + plage 172.16/12 (ponts docker). Utilisé par tous les blocs
+#    tailnet-only (admin.qoe.fi, *.admin.qoe.fi).
+#    ⚠️ 172.16/12 : depuis 02/09, tailscaled SNAT tout le trafic entré par
+#    tailscale0 avec l'IP de sortie (= pont docker 172.18.0.1, chaîne
+#    ts-postrouting) → Caddy ne verrait JAMAIS les 100.x du tailnet.
+#    Ces plages ne sont pas routables publiquement → injoignables depuis
+#    Internet ; le reste du monde reçoit toujours l'abort. (Fix propre
+#    possible : tailscale set --snat-subnet-routes=false + ACCEPT retour
+#    dans ts-forward, cf. docs/VPS_DEPLOYMENT_PREP.md §16.)
+#    ⚠️ Doit être défini AVANT les blocs qui l'importent (pas de forward
+#    reference dans le Caddyfile).
 (tailnet_guard) {
-    @tailnet remote_ip 100.64.0.0/10 fd7a:115c:a1e0::/48
+    @tailnet remote_ip 100.64.0.0/10 fd7a:115c:a1e0::/48 172.16.0.0/12
 }
 
 # ─────────────────────────────────────────────────────────────────────
