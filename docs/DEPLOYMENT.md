@@ -135,7 +135,13 @@ généré : clés Supabase fraîches, seed complet, modèle téléchargé.
 ### Étape 4 — Migration des données (si ancien VPS)
 
 - Restore `public_dump.sql`, purge auth/storage, restore `auth_dump.sql` + `storage_dump.sql`
-- Grants (`anon`, `authenticated`, `service_role`) + policies RLS
+- Sécurité BDD (scripts idempotents, dans l'ordre ; le schéma storage n'est pas touché) :
+  1. `docker exec -i supabase-db psql -U postgres -d postgres < scripts/rls-interactions.sql`
+     (active RLS + policies sur les tables d'interaction — idempotent depuis 02/09)
+  2. `docker exec -i supabase-db psql -U postgres -d postgres < scripts/rls-grants.sql`
+     (REVOKE des grants massifs anon/authenticated → SELECT ciblés + réplication realtime)
+  3. `docker exec -i supabase-db psql -U postgres -d postgres < scripts/rls-storage.sql`
+     (buckets publics + policies storage : lecture publique, upload par owner — requis upload mobile)
 - Vérification des comptages
 
 ### Étape 5 — Build des images
