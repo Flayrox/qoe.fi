@@ -57,11 +57,6 @@ RUN \
 # pour monter le dossier courant dans /app. Ainsi, tes modifs sont
 # visibles en temps réel dans le container, pas besoin de rebuild.
 
-# Génère le client Prisma (nécessaire au runtime, pas au build)
-# On le fait quand même ici pour éviter de le refaire à chaque démarrage
-# Mais la commande est idempotente, pas de souci.
-RUN npx prisma generate || true
-
 # Expose le port 3000
 EXPOSE 3000
 
