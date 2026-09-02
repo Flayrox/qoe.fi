@@ -44,6 +44,11 @@ describe('QoeApiClient — contrat d’URL des méthodes', () => {
     await expectCall(() => client.getThread('t1'), '/v1/posts/t1/thread');
     await expectCall(() => client.getThought('t1'), '/v1/posts/t1');
     await expectCall(() => client.createThought('coucou', { tags: ['x'] }), '/v1/posts', 'POST');
+    await expectCall(
+      () => client.createThought('citation', { quotedArticleId: 'a1', quotedExcerpt: 'extrait' }),
+      '/v1/posts',
+      'POST'
+    );
     await expectCall(() => client.replyToThought('t1', 'réponse'), '/v1/posts/t1/reply', 'POST');
     await expectCall(() => client.getPostLikes('t1'), '/v1/posts/t1/likes');
     await expectCall(() => client.getPostReposts('t1'), '/v1/posts/t1/reposts');
@@ -117,6 +122,11 @@ describe('QoeApiClient — contrat d’URL des méthodes', () => {
     await expectCall(() => client.getArticleHighlights('a1'), '/v1/articles/a1/highlights');
     await expectCall(
       () => client.createHighlight('a1', { text: 'extrait' }),
+      '/v1/articles/a1/highlights',
+      'POST'
+    );
+    await expectCall(
+      () => client.createHighlight('a1', { text: 'extrait', quoteOrdinal: 3 }),
       '/v1/articles/a1/highlights',
       'POST'
     );
