@@ -691,7 +691,19 @@
     "subscribe": "S’abonner",
     "similar": "À lire aussi",
     "similar_ai": "recommandé par IA",
-    "read": "Lire"
+    "read": "Lire",
+    "selection_title": "Actions sur le passage",
+    "selection_highlight": "Surligner",
+    "selection_quote": "Citer",
+    "selection_note": "Annoter",
+    "selection_copy": "Copier",
+    "selection_copied": "Extrait copié dans le presse-papiers",
+    "selection_highlight_done": "Passage surligné",
+    "selection_note_done": "Annotation ajoutée",
+    "selection_quote_done": "Extrait cité dans une pensée",
+    "selection_quote_placeholder": "Commentez l'extrait…",
+    "selection_note_placeholder": "Votre annotation…",
+    "selection_error": "Impossible d'envoyer"
   },
   "wallet": {
     "title": "Portefeuille Qoe",

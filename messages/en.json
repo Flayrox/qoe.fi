@@ -691,7 +691,19 @@
     "similar": "You might also like",
     "similar_ai": "AI-recommended",
     "subscribe": "Subscribe",
-    "title": "Article"
+    "title": "Article",
+    "selection_title": "Actions on this passage",
+    "selection_highlight": "Highlight",
+    "selection_quote": "Quote",
+    "selection_note": "Annotate",
+    "selection_copy": "Copy",
+    "selection_copied": "Excerpt copied to clipboard",
+    "selection_highlight_done": "Passage highlighted",
+    "selection_note_done": "Annotation added",
+    "selection_quote_done": "Excerpt quoted in a thought",
+    "selection_quote_placeholder": "Comment on the excerpt…",
+    "selection_note_placeholder": "Your annotation…",
+    "selection_error": "Could not send"
   },
   "compose": {
     "error": "An error occurred",

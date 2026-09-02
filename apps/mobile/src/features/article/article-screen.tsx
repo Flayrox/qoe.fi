@@ -7,7 +7,8 @@ import { Ionicons } from '@expo/vector-icons';
 import Animated, { useSharedValue } from 'react-native-reanimated';
 
 import { ArticleHighlights } from '@/components/article/article-highlights';
-import { ArticleHtml } from '@/components/article/html-blocks';
+import { ArticleHtml, type SelectionInfo } from '@/components/article/html-blocks';
+import { SelectionPopover } from '@/components/article/selection-popover';
 import { SimilarArticles } from '@/components/article/similar-articles';
 import { CustomSubHeader } from '@/components/header/CustomSubHeader';
 import { LiquidElasticButton } from '@/components/liquid-tab-bar/LiquidElasticButton';
@@ -44,6 +45,26 @@ export function ArticleScreen({ slug, publicationId }: { slug: string; publicati
       if (!res.ok) throw new Error(res.error);
       return res.data;
     },
+  });
+
+  // Passage sélectionné par appui long (popover Surligner/Citer/Annoter/Copier).
+  const [selection, setSelection] = useState<SelectionInfo | null>(null);
+
+  // Pendant le geste de sélection, on verrouille le scroll de la ScrollView
+  // (sinon elle vole le drag après l'appui long).
+  const [scrollLock, setScrollLock] = useState(false);
+
+  // Surlignages inline (publics + les miens) — MÊME cache que la section
+  // ArticleHighlights ci-dessous : un seul fetch, deux consommateurs.
+  const { data: highlights } = useQuery({
+    queryKey: ['highlights', data?.id ?? ''],
+    queryFn: async () => {
+      if (!data?.id) return [];
+      const res = await apiClient.getArticleHighlights(data.id);
+      if (!res.ok) return [];
+      return res.data;
+    },
+    enabled: Boolean(data?.id),
   });
 
   // État bookmark (optimiste local). Le Go ne renvoie pas l'état initial —
@@ -146,6 +167,7 @@ export function ArticleScreen({ slug, publicationId }: { slug: string; publicati
         contentContainerStyle={[styles.content, { paddingTop: 105 }]}
         onScroll={onScrollHandler}
         scrollEventThrottle={16}
+        scrollEnabled={!scrollLock}
       >
         {/* Meta (même hiérarchie que l'écran principal web) */}
         <View style={styles.byline}>
@@ -200,7 +222,22 @@ export function ArticleScreen({ slug, publicationId }: { slug: string; publicati
         {/* Contenu (tronqué côté serveur si paywall). */}
         {data.content ? (
           <View style={styles.body}>
-            <ArticleHtml html={data.content} />
+            <View style={styles.articleWrap}>
+              <ArticleHtml
+                html={data.content}
+                highlights={highlights ?? []}
+                selection={selection}
+                onSelect={setSelection}
+                onScrollLock={setScrollLock}
+              />
+              {selection && data.id ? (
+                <SelectionPopover
+                  selection={selection}
+                  articleId={data.id}
+                  onClose={() => setSelection(null)}
+                />
+              ) : null}
+            </View>
           </View>
         ) : null}
 
@@ -299,6 +336,9 @@ const styles = StyleSheet.create({
   },
   body: {
     marginTop: Spacing.two,
+  },
+  articleWrap: {
+    position: 'relative',
   },
   paywall: {
     marginTop: Spacing.four,
