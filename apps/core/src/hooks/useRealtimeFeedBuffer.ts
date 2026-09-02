@@ -11,7 +11,7 @@ export interface UseRealtimeFeedBufferOptions {
   type?: 'for-you' | 'following' | 'highlights';
 }
 
-interface RealtimeThoughtRecord {
+interface RealtimePostRecord {
   id?: string;
   content?: string | null;
   authorId?: string;
@@ -59,78 +59,70 @@ export function useRealtimeFeedBuffer({
 
     const channel = supabase
       .channel(`realtime-feed:${type}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'Thought' },
-        (payload) => {
-          const newThought = payload.new as RealtimeThoughtRecord;
-          if (!newThought || newThought.isDraft || newThought.deletedAt) return;
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'Post' }, (payload) => {
+        const newThought = payload.new as RealtimePostRecord;
+        if (!newThought || newThought.isDraft || newThought.deletedAt) return;
 
-          const formattedThought: ThoughtData = {
-            id: newThought.id || '',
-            content: newThought.content || '',
-            authorId: newThought.authorId || '',
-            author: newThought.author
-              ? {
-                  id: newThought.author.id || newThought.authorId || '',
-                  username: newThought.author.username || null,
-                  name: newThought.author.name || null,
-                  subdomain: newThought.author.subdomain || null,
-                }
-              : {
-                  id: newThought.authorId || '',
-                  username: 'author',
-                  name: 'Creator',
-                  subdomain: 'creator',
-                },
-            createdAt: newThought.createdAt || new Date().toISOString(),
-            likeCount: newThought.likeCount || 0,
-            repostCount: newThought.repostCount || 0,
-            replyCount: newThought.replyCount || 0,
-            imageUrl: newThought.imageUrl || null,
-          };
+        const formattedThought: ThoughtData = {
+          id: newThought.id || '',
+          content: newThought.content || '',
+          authorId: newThought.authorId || '',
+          author: newThought.author
+            ? {
+                id: newThought.author.id || newThought.authorId || '',
+                username: newThought.author.username || null,
+                name: newThought.author.name || null,
+                subdomain: newThought.author.subdomain || null,
+              }
+            : {
+                id: newThought.authorId || '',
+                username: 'author',
+                name: 'Creator',
+                subdomain: 'creator',
+              },
+          createdAt: newThought.createdAt || new Date().toISOString(),
+          likeCount: newThought.likeCount || 0,
+          repostCount: newThought.repostCount || 0,
+          replyCount: newThought.replyCount || 0,
+          imageUrl: newThought.imageUrl || null,
+        };
 
-          // Append to unreadPostsBuffer — NEVER mutate visible array directly
-          setUnreadPostsBuffer((prev) => [formattedThought, ...prev]);
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'Thought' },
-        (payload) => {
-          const updated = payload.new as RealtimeThoughtRecord;
-          if (!updated?.id) return;
+        // Append to unreadPostsBuffer — NEVER mutate visible array directly
+        setUnreadPostsBuffer((prev) => [formattedThought, ...prev]);
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'Post' }, (payload) => {
+        const updated = payload.new as RealtimePostRecord;
+        if (!updated?.id) return;
 
-          // Update cached counts in TanStack Query
-          queryClient.setQueriesData({ queryKey: feedKeys.all }, (oldData: unknown) => {
-            if (!oldData || typeof oldData !== 'object') return oldData;
+        // Update cached counts in TanStack Query
+        queryClient.setQueriesData({ queryKey: feedKeys.all }, (oldData: unknown) => {
+          if (!oldData || typeof oldData !== 'object') return oldData;
 
-            const data = oldData as FeedQueryData;
+          const data = oldData as FeedQueryData;
 
-            if (Array.isArray(data.pages)) {
-              return {
-                ...data,
-                pages: data.pages.map((page) => ({
-                  ...page,
-                  data: Array.isArray(page.data)
-                    ? page.data.map((post) =>
-                        post.id === updated.id
-                          ? {
-                              ...post,
-                              likeCount: updated.likeCount ?? post.likeCount,
-                              replyCount: updated.replyCount ?? post.replyCount,
-                              repostCount: updated.repostCount ?? post.repostCount,
-                            }
-                          : post
-                      )
-                    : page.data,
-                })),
-              };
-            }
-            return oldData;
-          });
-        }
-      )
+          if (Array.isArray(data.pages)) {
+            return {
+              ...data,
+              pages: data.pages.map((page) => ({
+                ...page,
+                data: Array.isArray(page.data)
+                  ? page.data.map((post) =>
+                      post.id === updated.id
+                        ? {
+                            ...post,
+                            likeCount: updated.likeCount ?? post.likeCount,
+                            replyCount: updated.replyCount ?? post.replyCount,
+                            repostCount: updated.repostCount ?? post.repostCount,
+                          }
+                        : post
+                    )
+                  : page.data,
+              })),
+            };
+          }
+          return oldData;
+        });
+      })
       .subscribe();
 
     return () => {
