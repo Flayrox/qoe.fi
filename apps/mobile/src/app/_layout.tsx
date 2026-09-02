@@ -44,6 +44,7 @@ function RootNavigator() {
       <Stack.Screen name="user/[username]/follow" />
       <Stack.Screen name="article/[slug]" />
       <Stack.Screen name="library" />
+      <Stack.Screen name="history" />
       <Stack.Screen name="notifications" />
       <Stack.Screen name="compose" options={{ presentation: 'modal' }} />
       <Stack.Screen name="settings/index" />

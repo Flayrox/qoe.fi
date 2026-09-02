@@ -326,6 +326,43 @@ export interface MyHighlight {
   publicationSlug: string;
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// Historique de lecture (shape Go /v1/me/reading-history)
+// ─────────────────────────────────────────────────────────────────────
+
+export interface ReadingHistoryPublication {
+  id: string;
+  name: string;
+  slug: string;
+  subdomain: string | null;
+}
+
+export interface ReadingHistoryArticle {
+  id: string;
+  title: string;
+  slug: string;
+  imageUrl: string | null;
+  readingTime: number;
+  createdAt: string;
+  publication: ReadingHistoryPublication | null;
+}
+
+/** Session de lecture dédupliquée par article (la plus récente), avec son article. */
+export interface ReadingHistoryItem {
+  id: string;
+  source: string;
+  status: string;
+  scrollDepth: number;
+  dwellSeconds: number;
+  createdAt: string;
+  article: ReadingHistoryArticle;
+}
+
+export interface ReadingHistoryResult {
+  sessions: ReadingHistoryItem[];
+  count: number;
+}
+
 /** Article recommandé sémantiquement (shape Go `/v1/articles/{id}/similar`). */
 export interface SimilarArticle {
   id: string;

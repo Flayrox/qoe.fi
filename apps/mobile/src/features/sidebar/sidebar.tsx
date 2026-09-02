@@ -164,6 +164,15 @@ export function Sidebar() {
       },
     },
     {
+      key: '/history',
+      label: t('sidebar.history', 'Historique'),
+      icon: { ios: 'clock', android: 'history', web: 'history' },
+      onPress: () => {
+        closeDrawer();
+        router.push('/history');
+      },
+    },
+    {
       key: 'wallet',
       label: t('sidebar.wallet', 'Portefeuille'),
       icon: { ios: 'creditcard', android: 'credit_card', web: 'credit_card' },

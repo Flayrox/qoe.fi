@@ -326,6 +326,7 @@ type ReadingHistoryArticle struct {
 }
 
 type ReadingHistoryPublication struct {
+	ID        string      `json:"id"`
 	Name      string      `json:"name"`
 	Slug      string      `json:"slug"`
 	Subdomain pgtype.Text `json:"subdomain"`
@@ -344,7 +345,7 @@ func (s *Service) ReadingHistory(ctx context.Context, userID string, days int) (
 	rows, err := s.pool.Query(ctx, `
 		SELECT t.id, t.source, t.status, t."scrollDepth", t."dwellSeconds", t."createdAt",
 		       a.id, a.title, a.slug, a."imageUrl", a."readingTime", a."createdAt",
-		       p.name, p.slug, p.subdomain
+		       p.id, p.name, p.slug, p.subdomain
 		FROM (
 			SELECT DISTINCT ON (rs."articleId") rs.id, rs.source, rs.status, rs."scrollDepth", rs."dwellSeconds", rs."createdAt", rs."articleId"
 			FROM "ReadingSession" rs
@@ -364,17 +365,17 @@ func (s *Service) ReadingHistory(ctx context.Context, userID string, days int) (
 	items := []ReadingHistoryItem{}
 	for rows.Next() {
 		var it ReadingHistoryItem
-		var pubName, pubSlug pgtype.Text
+		var pubID, pubName, pubSlug pgtype.Text
 		var pubSubdomain pgtype.Text
 		if err := rows.Scan(
 			&it.ID, &it.Source, &it.Status, &it.ScrollDepth, &it.DwellSeconds, &it.CreatedAt,
 			&it.Article.ID, &it.Article.Title, &it.Article.Slug, &it.Article.ImageURL, &it.Article.ReadingTime, &it.Article.CreatedAt,
-			&pubName, &pubSlug, &pubSubdomain,
+			&pubID, &pubName, &pubSlug, &pubSubdomain,
 		); err != nil {
 			return nil, err
 		}
 		if pubName.Valid {
-			it.Article.Publication = &ReadingHistoryPublication{Name: pubName.String, Slug: pubSlug.String, Subdomain: pubSubdomain}
+			it.Article.Publication = &ReadingHistoryPublication{ID: pubID.String, Name: pubName.String, Slug: pubSlug.String, Subdomain: pubSubdomain}
 		}
 		items = append(items, it)
 	}
