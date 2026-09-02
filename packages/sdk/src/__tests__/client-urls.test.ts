@@ -109,6 +109,11 @@ describe('QoeApiClient — contrat d’URL des méthodes', () => {
     await expectCall(() => client.getSimilarArticles('a1'), '/v1/articles/a1/similar?limit=6');
     await expectCall(() => client.getBookmarks(), '/v1/bookmarks');
     await expectCall(() => client.getMyHighlights(), '/v1/me/highlights');
+    await expectCall(() => client.getMyReadingHistory(), '/v1/me/reading-history');
+    await expectCall(
+      () => client.getMyReadingHistory({ days: 7 }),
+      '/v1/me/reading-history?days=7'
+    );
     await expectCall(() => client.getArticleHighlights('a1'), '/v1/articles/a1/highlights');
     await expectCall(
       () => client.createHighlight('a1', { text: 'extrait' }),

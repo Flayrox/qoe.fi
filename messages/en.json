@@ -88,7 +88,8 @@
     "profile": "Profile",
     "settings": "Settings & privacy",
     "support": "Help center & Support",
-    "wallet": "Wallet"
+    "wallet": "Wallet",
+    "history": "History"
   },
   "dashboard": {
     "welcome_home": "Studio Home",
@@ -199,6 +200,16 @@
     "retry": "Retry loading highlights",
     "save": "Save",
     "text_placeholder": "The passage to highlight…"
+  },
+  "history": {
+    "title": "History",
+    "period": "Last 14 days",
+    "articles_count": "{count} articles",
+    "empty": "No reading in the last 14 days.",
+    "empty_hint": "Read an article and it will show up here.",
+    "minutes": "{minutes} min",
+    "engagement": "{depth}% • {seconds}s",
+    "error": "Could not load reading history"
   },
   "library": {
     "title": "The Sanctuary",

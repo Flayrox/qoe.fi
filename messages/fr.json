@@ -88,7 +88,8 @@
     "library": "Bibliothèque",
     "wallet": "Portefeuille",
     "settings": "Paramètres et confidentialité",
-    "support": "Centre d’aide & Support"
+    "support": "Centre d’aide & Support",
+    "history": "Historique"
   },
   "dashboard": {
     "welcome_home": "Accueil Studio",
@@ -199,6 +200,16 @@
     "text_placeholder": "Le passage à surligner…",
     "note_placeholder": "Note (optionnel)…",
     "save": "Sauvegarder"
+  },
+  "history": {
+    "title": "Historique",
+    "period": "14 derniers jours",
+    "articles_count": "{count} articles",
+    "empty": "Aucune lecture ces 14 derniers jours.",
+    "empty_hint": "Lisez un article pour qu'il apparaisse ici.",
+    "minutes": "{minutes} min",
+    "engagement": "{depth}% • {seconds}s",
+    "error": "Impossible de charger l'historique"
   },
   "library": {
     "title": "Le Sanctuaire",

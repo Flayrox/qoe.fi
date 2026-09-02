@@ -30,6 +30,7 @@ import type {
   PublicationProfileUpdateInput,
   QuotesPage,
   ReaderProfileData,
+  ReadingHistoryResult,
   SimilarArticlesResult,
   SocialControlUser,
   Thought,
@@ -744,6 +745,18 @@ export class QoeApiClient {
     if (params?.limit) query.set('limit', params.limit.toString());
     const queryString = query.toString() ? `?${query.toString()}` : '';
     return this.request<MyHighlight[]>(`/v1/me/highlights${queryString}`);
+  }
+
+  /**
+   * GET /v1/me/reading-history — sessions de lecture des N derniers jours
+   * (dédupliquées par article côté Go, les plus récentes d'abord, max 100).
+   * `days` défaut : 14 côté Go (max 30). Réponse : `{ sessions, count }`.
+   */
+  public async getMyReadingHistory(params?: { days?: number }) {
+    const query = new URLSearchParams();
+    if (params?.days) query.set('days', params.days.toString());
+    const queryString = query.toString() ? `?${query.toString()}` : '';
+    return this.request<ReadingHistoryResult>(`/v1/me/reading-history${queryString}`);
   }
 
   // ─── Highlights (surlignage d'article) ──────────────────────
