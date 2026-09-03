@@ -133,6 +133,7 @@ aujourd'hui, mais **le même défaut d'ancre par re-recherche de texte** :
 | 4 | **Studio créateur — annotations officielles** (`apps/studio/src/features/editor/extensions/AnnotationMark.ts`, TipTap) | Le créateur écrit `<mark data-annotation-note data-is-official>` **dans le HTML source** au moment de l'édition — positionnel à l'édition, mais la ligne DB reste `text + quoteOrdinal` → **deux sources de vérité** qui divergent dès qu'on reformate | Le studio **produit** le doc canonique (tranche 5) : l'annotation officielle devient une entité ancrée (`id` + offsets), une seule source de vérité ; les `<mark>` hérités sont canonicalisés comme le reste du HTML |
 | 5 | **Citations / pensées (feed web + mobile)** | `createThought(quotedArticleId, quotedExcerpt)` — **ni ordinal ni offsets** ; l'affichage (`packages/ui/src/social/QuotedArticleCard.tsx`) re-cherche l'extrait par `indexOf` dans le contenu vidé de ses balises par regex (`replace(/<[^>]*>/g…)`) → échec silencieux dès que les blancs/entités diffèrent, repli sur un chip sans contexte | La citation stocke l'**ancre canonique** du passage (offsets + version de doc, ou `id` de passage) ; la carte du feed demande **au serveur** le contexte avant/après stable (fini le strip HTML côté client) et le deep-link ouvre l'article **sur le passage exact** |
 | 6 | **Drawer / fils (upvotes, commentaires) + filtres `all`/`official`/`none`** | Consomment les mêmes marques re-scanées | Consomment les mêmes entités ancrées — les commentaires/upvotes s'attachent à l'`id` du passage, pas à une position retrouvée |
+| 7 | **API créateur (export externe)** (`apps/api/internal/modules/creator/api_highlights.go`, clé API, scope READ) | Expose les surlignages **publics** (lecteurs + officiels) aux sites/médias tiers : payload `{text, note, isPublic, isOfficial, quoteOrdinal, upvotesCount, commentsCount, reader, article}` — **sans offsets** | Le consommateur est **externe** : il ne peut pas re-scanner avec notre moteur → le payload gagne l'**ancre canonique** (offsets + version de doc, contexte avant/après) et l'endpoint du document canonique ; `text + quoteOrdinal` reste servi (déprécié) le temps de la migration, **champs additifs, jamais cassants** |
 
 **Conséquence d'architecture** : un seul schéma de stockage sert l'auteur (studio),
 le lecteur et le social (citation) — offsets canoniques + texte cité + contexte
@@ -208,6 +209,7 @@ Web : la même séquence avec la sélection navigateur native + Framer Motion.
 | 4 | **Android natif** | Module `TextView`/`Spannable` maison, mêmes contrats TS | 1–1,5 sem |
 | 5 | **(Option) Édition studio** | L'éditeur TipTap produit le doc canonique (remplace le HTML à la source) ; annotations officielles = entités ancrées, plus de `<mark>` ambigus dans le HTML | à chiffrer |
 | 6 | **(Option) Citations** | `createThought` accepte l'ancre canonique ; `QuotedArticleCard` résout via le serveur ; deep-link au passage exact | 3–5 j |
+| 7 | **(Option) Exposition API créateur** | Payload surlignages enrichi de l'ancre canonique (+ contexte) ; endpoint public du document canonique ; versioning additif documenté pour les tiers | 3–5 j |
 
 Total : ~4–5 semaines pour 0→4. L'ordre est volontaire : **la canonicalisation
 d'abord** (elle supprime les divergences web/mobile et débloque proprement le
@@ -239,6 +241,10 @@ natif), le natif ensuite.
 - **Compatibilité API** : l'endpoint highlights continue de servir `text +
   quoteOrdinal` pendant la migration ; les nouveaux champs offsets sont ajoutés,
   jamais substitués brutalement.
+- **API créateur = contrat externe** : les tiers ne peuvent pas re-scanner avec
+  notre moteur ; l'ancre canonique dans le payload est le seul moyen de leur
+  garantir un rendu exact. Versioning strict (champs additifs, docs de
+  migration), car on ne corrige pas un tiers à chaud.
 
 ---
 
@@ -255,6 +261,7 @@ natif), le natif ensuite.
 | Studio : annotations officielles (marks dans le HTML source) | `apps/studio/src/features/editor/extensions/AnnotationMark.ts` |
 | Feed : carte de citation (re-cherche par `indexOf` → à remplacer) | `packages/ui/src/social/QuotedArticleCard.tsx`, `ThoughtCard.tsx` |
 | Feed : composer de pensée citant un article | `apps/core/src/app/(reader)/home/components/ThoughtComposer.tsx`, `packages/sdk/src/client.ts` (createThought) |
+| API créateur : export des surlignages publics aux tiers (sans offsets) | `apps/api/internal/modules/creator/api_highlights.go` |
 | Serveur : stockage des surlignages (`text + quoteOrdinal`, sans offsets) | `apps/api/sql/schema/schema.sql`, `apps/api/internal/modules/highlights/` |
 | Morph de référence web (layoutId + spring) | `packages/ui/src/annotations/TextHighlighter.tsx` (l. ~566–582, 693+) |
 | Haptics mobile (Light/Heavy branchés) | `apps/mobile/src/lib/haptics.ts` |
