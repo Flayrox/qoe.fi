@@ -10,6 +10,21 @@
 
 ---
 
+## 🌍 Environnements (⚠️ à préciser)
+
+| Environnement | Où | Statut |
+|---|---|---|
+| **Dev local** | Mac (OrbStack) : app DB `127.0.0.1:15409`, Supabase local `:54321`, Metro `:8082` | Actif — stack de travail quotidien |
+| **VPS Netcup** (Debian 13) | Instance **déjà déployée** (stack complet `bootstrap.sh`, voir ci-dessous) | **⚠️ C'est l'environnement qui deviendra la PRODUCTION** — à préciser : IP/domaine définitifs, secrets prod (`.env.docker` réel), version du stack verrouillée, procédure de bascule `dev → prod` (sauvegarde DB, DNS cutover, rollback) |
+
+> ⚠️ **À préciser avant bascule** : IP publique du VPS, domaine(s) définitif(s) (zone
+> DNS Hetzner), secrets de prod réellement installés, fréquence de backup, et le
+> plan de retour arrière. Tant que cette ligne n'est pas renseignée, considère
+> l'instance Netcup comme un **pré-prod** — ne jamais y faire de manip destructive
+> sans backup vérifié.
+
+---
+
 ## 📑 Table des matières
 
 1. [Architecture actuelle](#-architecture-actuelle)
