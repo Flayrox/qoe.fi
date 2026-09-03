@@ -11,7 +11,8 @@
 
 import { useQueryClient } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
-import { useState } from 'react';
+import { Copy, Highlighter, MessageSquare, Quote } from 'lucide-react-native';
+import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 
 import { GlassComposer } from '@/components/composer/glass-composer';
@@ -123,12 +124,12 @@ export function SelectionPopover({
               <>
                 <ToolChip
                   label={t('article.selection_highlight', 'Surligner')}
-                  icon="✍️"
+                  icon={<Highlighter size={14} color={theme.text} />}
                   onPress={() => void handleHighlight()}
                 />
                 <ToolChip
                   label={t('article.selection_quote', 'Citer')}
-                  icon="❝"
+                  icon={<Quote size={14} color={theme.text} />}
                   onPress={() => {
                     setMode('quote');
                     expand();
@@ -136,7 +137,7 @@ export function SelectionPopover({
                 />
                 <ToolChip
                   label={t('article.selection_note', 'Annoter')}
-                  icon="💬"
+                  icon={<MessageSquare size={14} color={theme.text} />}
                   onPress={() => {
                     setMode('note');
                     expand();
@@ -144,7 +145,7 @@ export function SelectionPopover({
                 />
                 <ToolChip
                   label={t('article.selection_copy', 'Copier')}
-                  icon="⧉"
+                  icon={<Copy size={14} color={theme.text} />}
                   onPress={() => void handleCopy()}
                 />
               </>
@@ -157,7 +158,15 @@ export function SelectionPopover({
   );
 }
 
-function ToolChip({ label, icon, onPress }: { label: string; icon: string; onPress: () => void }) {
+function ToolChip({
+  label,
+  icon,
+  onPress,
+}: {
+  label: string;
+  icon: ReactNode;
+  onPress: () => void;
+}) {
   const theme = useTheme();
   return (
     <Pressable
@@ -170,9 +179,12 @@ function ToolChip({ label, icon, onPress }: { label: string; icon: string; onPre
         },
       ]}
     >
-      <ThemedText type="small" style={styles.chipText}>
-        {icon} {label}
-      </ThemedText>
+      <View style={styles.chipRow}>
+        {icon}
+        <ThemedText type="small" style={styles.chipText}>
+          {label}
+        </ThemedText>
+      </View>
     </Pressable>
   );
 }
@@ -212,6 +224,11 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 999,
     borderWidth: StyleSheet.hairlineWidth,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   chipText: {
     fontWeight: '600',

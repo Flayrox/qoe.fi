@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
+import { Sparkles, Timer } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -36,12 +37,15 @@ export function SimilarArticles({ articleId }: { articleId: string }) {
 
   return (
     <ThemedView style={styles.wrap}>
-      <ThemedText style={styles.title}>
-        ✨ {t('article.similar', 'À lire aussi')}{' '}
-        <ThemedText type="small" style={styles.subtitle}>
-          {t('article.similar_ai', 'recommandé par IA')}
+      <View style={styles.titleRow}>
+        <Sparkles size={15} color={theme.primary} />
+        <ThemedText style={styles.title}>
+          {t('article.similar', 'À lire aussi')}{' '}
+          <ThemedText type="small" style={styles.subtitle}>
+            {t('article.similar_ai', 'recommandé par IA')}
+          </ThemedText>
         </ThemedText>
-      </ThemedText>
+      </View>
 
       {items.map((item) => {
         const publication = item.publicationName || item.authorName || 'qoe.fi';
@@ -67,9 +71,12 @@ export function SimilarArticles({ articleId }: { articleId: string }) {
               <ThemedText type="small" numberOfLines={1} style={styles.cardSource}>
                 {publication}
               </ThemedText>
-              <ThemedText type="small" style={{ color: theme.textSecondary }}>
-                ⏱ {item.readingTime} {t('article.min_read', 'min')}
-              </ThemedText>
+              <View style={styles.metaItem}>
+                <Timer size={12} color={theme.textSecondary} />
+                <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                  {item.readingTime} {t('article.min_read', 'min')}
+                </ThemedText>
+              </View>
             </View>
           </Pressable>
         );
@@ -83,10 +90,20 @@ const styles = StyleSheet.create({
     marginTop: Spacing.four,
     gap: Spacing.two,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   title: {
     fontSize: 16,
     fontWeight: '700',
     marginBottom: Spacing.one,
+  },
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   subtitle: {
     color: 'rgba(0,0,0,0.45)',
