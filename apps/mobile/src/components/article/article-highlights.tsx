@@ -1,10 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ChevronUp, Globe, Lock, MessageSquare } from 'lucide-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
+import { HighlightRowActions } from '@/components/article/highlight-row-actions';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { useAuth } from '@/features/auth/auth-provider';
 import { useTheme } from '@/hooks/use-theme';
 import { apiClient } from '@/lib/api';
 import { t } from '@/lib/i18n';
@@ -21,6 +24,8 @@ import type { Highlight } from '@qoe/sdk/mobile';
 export function ArticleHighlights({ articleId }: { articleId: string }) {
   const theme = useTheme();
   const queryClient = useQueryClient();
+  const { session } = useAuth();
+  const myId = session?.user?.id;
   const [creating, setCreating] = useState(false);
 
   const queryKey = ['highlights', articleId];
@@ -118,37 +123,51 @@ export function ArticleHighlights({ articleId }: { articleId: string }) {
           {t('highlights.empty', 'Aucun surlignage pour le moment')}
         </ThemedText>
       ) : (
-        items.map((h) => (
-          <ThemedView key={h.id} type="card" style={styles.highlightCard}>
-            <ThemedText style={styles.highlightText}>« {h.text} »</ThemedText>
-            {h.note ? (
-              <ThemedText type="small" style={{ color: theme.primary }}>
-                💬 {h.note}
-              </ThemedText>
-            ) : null}
-            <View style={styles.metaRow}>
-              <ThemedText type="small" style={{ color: theme.textSecondary }}>
-                @{h.reader.username || h.reader.name || '…'}
-                {h.isOfficial ? ' · ✓' : ''}
-              </ThemedText>
-              <Pressable
-                onPress={() => upvote.mutate(h.id)}
-                hitSlop={8}
-                style={({ pressed }) => [styles.upvote, pressed && styles.pressed]}
-              >
-                <ThemedText
-                  type="small"
-                  style={{
-                    color: h.viewerUpvoted ? theme.primary : theme.textSecondary,
-                    fontWeight: h.viewerUpvoted ? '700' : '400',
-                  }}
-                >
-                  ▲ {h.upvotesCount}
+        items.map((h) => {
+          const mine = myId != null && h.readerId === myId;
+          return (
+            <ThemedView key={h.id} type="card" style={styles.highlightCard}>
+              <ThemedText style={styles.highlightText}>« {h.text} »</ThemedText>
+              {h.note ? (
+                <View style={styles.noteRow}>
+                  <MessageSquare size={14} color={theme.primary} />
+                  <ThemedText type="small" style={{ color: theme.primary }}>
+                    {h.note}
+                  </ThemedText>
+                </View>
+              ) : null}
+              <View style={styles.metaRow}>
+                <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                  @{h.reader.username || h.reader.name || '…'}
+                  {h.isOfficial ? ' · ✓' : ''}
                 </ThemedText>
-              </Pressable>
-            </View>
-          </ThemedView>
-        ))
+                <Pressable
+                  onPress={() => upvote.mutate(h.id)}
+                  hitSlop={8}
+                  style={({ pressed }) => [styles.upvote, pressed && styles.pressed]}
+                >
+                  <View style={styles.upvoteRow}>
+                    <ChevronUp
+                      size={14}
+                      color={h.viewerUpvoted ? theme.primary : theme.textSecondary}
+                      strokeWidth={h.viewerUpvoted ? 3 : 2}
+                    />
+                    <ThemedText
+                      type="small"
+                      style={{
+                        color: h.viewerUpvoted ? theme.primary : theme.textSecondary,
+                        fontWeight: h.viewerUpvoted ? '700' : '400',
+                      }}
+                    >
+                      {h.upvotesCount}
+                    </ThemedText>
+                  </View>
+                </Pressable>
+              </View>
+              {mine ? <HighlightRowActions highlightId={h.id} isPublic={h.isPublic} /> : null}
+            </ThemedView>
+          );
+        })
       )}
     </View>
   );
@@ -226,13 +245,19 @@ function HighlightForm({
           onPress={() => setIsPublic((v) => !v)}
           style={({ pressed }) => [styles.toggle, pressed && styles.pressed]}
         >
-          <ThemedText
-            type="small"
-            style={{ color: isPublic ? theme.primary : theme.textSecondary, fontWeight: '600' }}
-          >
-            {isPublic ? '🌍 ' : '🔒 '}
-            {t('highlights.visibility', isPublic ? 'Public' : 'Privé')}
-          </ThemedText>
+          <View style={styles.toggleRow}>
+            {isPublic ? (
+              <Globe size={14} color={theme.primary} />
+            ) : (
+              <Lock size={14} color={theme.textSecondary} />
+            )}
+            <ThemedText
+              type="small"
+              style={{ color: isPublic ? theme.primary : theme.textSecondary, fontWeight: '600' }}
+            >
+              {t('highlights.visibility', isPublic ? 'Public' : 'Privé')}
+            </ThemedText>
+          </View>
         </Pressable>
         <Pressable
           onPress={() => void submit()}
@@ -300,6 +325,21 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 21,
     fontStyle: 'italic',
+  },
+  noteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  upvoteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   metaRow: {
     flexDirection: 'row',
