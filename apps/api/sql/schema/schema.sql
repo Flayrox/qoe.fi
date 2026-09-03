@@ -1694,3 +1694,60 @@ ALTER TABLE "ContentFeedback" ADD CONSTRAINT "ContentFeedback_articleId_fkey" FO
 -- AddForeignKey
 ALTER TABLE "ContentFeedback" ADD CONSTRAINT "ContentFeedback_thoughtId_fkey" FOREIGN KEY ("thoughtId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+
+-- =====================================================================
+-- 💬 Messagerie directe (DMs) — miroir de 00011_direct_messages.sql
+-- =====================================================================
+-- CreateTable
+CREATE TABLE "Conversation" (
+    "id" TEXT NOT NULL,
+    "type" TEXT NOT NULL DEFAULT 'direct',
+    "directKey" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Conversation_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "Conversation_directKey_key" UNIQUE ("directKey")
+);
+
+-- CreateTable
+CREATE TABLE "ConversationMember" (
+    "conversationId" TEXT NOT NULL,
+    "userId" UUID NOT NULL,
+    "lastReadAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ConversationMember_pkey" PRIMARY KEY ("conversationId", "userId")
+);
+
+-- CreateTable
+CREATE TABLE "Message" (
+    "id" TEXT NOT NULL,
+    "conversationId" TEXT NOT NULL,
+    "senderId" UUID NOT NULL,
+    "content" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Message_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE INDEX "Message_conversationId_createdAt_idx" ON "Message" ("conversationId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "ConversationMember_userId_idx" ON "ConversationMember" ("userId");
+
+-- CreateIndex
+CREATE INDEX "ConversationMember_conversationId_userId_idx" ON "ConversationMember" ("conversationId", "userId");
+
+-- AddForeignKey
+ALTER TABLE "ConversationMember" ADD CONSTRAINT "ConversationMember_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "Conversation" ("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ConversationMember" ADD CONSTRAINT "ConversationMember_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Message" ADD CONSTRAINT "Message_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "Conversation" ("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Message" ADD CONSTRAINT "Message_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE;

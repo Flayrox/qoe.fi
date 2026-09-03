@@ -12,6 +12,8 @@ import (
 
 type Querier interface {
 	AdminDashboardCounts(ctx context.Context) (AdminDashboardCountsRow, error)
+	// Vrai si l'un des deux a bloqué l'autre (les deux sens).
+	AreUsersBlocked(ctx context.Context, arg AreUsersBlockedParams) (bool, error)
 	CheckArticleSlugExists(ctx context.Context, arg CheckArticleSlugExistsParams) (bool, error)
 	CheckCategorySlugExists(ctx context.Context, arg CheckCategorySlugExistsParams) (bool, error)
 	CheckMediaSlugExists(ctx context.Context, slug string) (bool, error)
@@ -50,6 +52,10 @@ type Querier interface {
 	CountReadingSessionsByArticleId(ctx context.Context, arg CountReadingSessionsByArticleIdParams) (int32, error)
 	// Variante batch pour provenance globale (tous les articleIds du créateur).
 	CountReadingSessionsByArticleIds(ctx context.Context, arg CountReadingSessionsByArticleIdsParams) ([]int32, error)
+	// Nombre de conversations avec au moins un message non lu (badge tab).
+	// Les messages que l'on a SOI-MÊME envoyés ne comptent jamais comme non-lus ;
+	// COUNT(DISTINCT conversation) : plusieurs messages ≠ plusieurs badges.
+	CountUnreadConversations(ctx context.Context, userid pgtype.UUID) (int32, error)
 	CreateAnnotationComment(ctx context.Context, arg CreateAnnotationCommentParams) (string, error)
 	CreateArticle(ctx context.Context, arg CreateArticleParams) (string, error)
 	CreateAttachment(ctx context.Context, arg CreateAttachmentParams) (string, error)
@@ -158,6 +164,9 @@ type Querier interface {
 	GetCommentParentAuthor(ctx context.Context, id string) (string, error)
 	GetCommentPrefs(ctx context.Context, userid pgtype.UUID) (GetCommentPrefsRow, error)
 	GetCommentWithAuthor(ctx context.Context, id string) (GetCommentWithAuthorRow, error)
+	GetConversationByDirectKey(ctx context.Context, directkey pgtype.Text) (string, error)
+	// Détail d'une conversation (vérifie l'appartenance + résout l'autre participant).
+	GetConversationForUser(ctx context.Context, arg GetConversationForUserParams) (GetConversationForUserRow, error)
 	// Lecture d'un article PUBLIÉ d'une publication au format contrat créateurs
 	// (clé API → publication du créateur), catégorie embarquée.
 	GetCreatorArticleBySlug(ctx context.Context, arg GetCreatorArticleBySlugParams) (GetCreatorArticleBySlugRow, error)
@@ -293,6 +302,13 @@ type Querier interface {
 	InsertBlock(ctx context.Context, arg InsertBlockParams) error
 	InsertBookmark(ctx context.Context, arg InsertBookmarkParams) error
 	InsertCommentNotification(ctx context.Context, arg InsertCommentNotificationParams) error
+	// Messagerie directe : conversations (tranche 1 — direct à 2 participants).
+	// Tables : Conversation, ConversationMember.
+	// La paire (conversationId, userId) est la clé de ConversationMember : chaque
+	// membre a son lastReadAt. directKey = « minId:maxId » triés (une seule
+	// conversation par paire, création atomique via ON CONFLICT).
+	// Crée la conversation directe si elle n'existe pas (idempotent).
+	InsertDirectConversation(ctx context.Context, directkey pgtype.Text) (string, error)
 	InsertFollow(ctx context.Context, arg InsertFollowParams) error
 	InsertFollowNotification(ctx context.Context, arg InsertFollowNotificationParams) error
 	InsertLike(ctx context.Context, arg InsertLikeParams) (string, error)
@@ -303,6 +319,10 @@ type Querier interface {
 	InsertMediaInviteNotification(ctx context.Context, arg InsertMediaInviteNotificationParams) error
 	InsertMediaMemberJoinedNotification(ctx context.Context, arg InsertMediaMemberJoinedNotificationParams) error
 	InsertMentionNotification(ctx context.Context, arg InsertMentionNotificationParams) error
+	// Messagerie directe : messages (tranche 1).
+	// Table : Message. Pagination arrière par curseur createdAt (exclusif),
+	// plus récupération incrémentale des nouveaux messages pour le polling.
+	InsertMessage(ctx context.Context, arg InsertMessageParams) (InsertMessageRow, error)
 	InsertMute(ctx context.Context, arg InsertMuteParams) error
 	InsertNavigationItem(ctx context.Context, arg InsertNavigationItemParams) error
 	InsertNewsletterDeliveries(ctx context.Context, arg InsertNewsletterDeliveriesParams) error
@@ -343,6 +363,9 @@ type Querier interface {
 	ListBookmarksByReader(ctx context.Context, arg ListBookmarksByReaderParams) ([]ListBookmarksByReaderRow, error)
 	ListCategoriesByPublication(ctx context.Context, publicationid string) ([]ListCategoriesByPublicationRow, error)
 	ListCategoriesForPublication(ctx context.Context, publicationid string) ([]ListCategoriesForPublicationRow, error)
+	// Conversations de l'utilisateur (directes : un seul autre participant),
+	// avec le dernier message et le nombre de non-lus, triées par activité.
+	ListConversationsForUser(ctx context.Context, arg ListConversationsForUserParams) ([]ListConversationsForUserRow, error)
 	// Liste des articles d'une publication au format contrat créateurs (Hono) :
 	// filtres `published` (défaut true) et `category` (slug), catégorie embarquée.
 	ListCreatorArticles(ctx context.Context, arg ListCreatorArticlesParams) ([]ListCreatorArticlesRow, error)
@@ -357,6 +380,12 @@ type Querier interface {
 	ListLikesForPost(ctx context.Context, arg ListLikesForPostParams) ([]ListLikesForPostRow, error)
 	ListMediaInvites(ctx context.Context, mediaid string) ([]ListMediaInvitesRow, error)
 	ListMediaMembers(ctx context.Context, mediaid string) ([]ListMediaMembersRow, error)
+	// Nouveaux messages STRICTEMENT postérieurs à `after` (polling), ordre
+	// ascendant prêt à être ajouté en fin de liste.
+	ListMessagesAfter(ctx context.Context, arg ListMessagesAfterParams) ([]ListMessagesAfterRow, error)
+	// Messages STRICTEMENT antérieurs à `before` (curseur exclusif, NULL = depuis
+	// le début), les plus récents d'abord (le service inverse pour l'affichage).
+	ListMessagesBefore(ctx context.Context, arg ListMessagesBeforeParams) ([]ListMessagesBeforeRow, error)
 	// =====================================================================
 	// 🛡️ File de modération (ModerationReport) — surface superadmin.
 	// =====================================================================
@@ -394,6 +423,8 @@ type Querier interface {
 	ListUserDrafts(ctx context.Context, arg ListUserDraftsParams) ([]ListUserDraftsRow, error)
 	ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeliveriesParams) ([]ListWebhookDeliveriesRow, error)
 	ListWebhooksByPublication(ctx context.Context, publicationid string) ([]ListWebhooksByPublicationRow, error)
+	// Marque TOUS les messages comme lus (upsert du lastReadAt à maintenant).
+	MarkConversationRead(ctx context.Context, arg MarkConversationReadParams) error
 	MarkNewsletterDelivery(ctx context.Context, arg MarkNewsletterDeliveryParams) error
 	MarkNotificationsRead(ctx context.Context, arg MarkNotificationsReadParams) error
 	PinPost(ctx context.Context, arg PinPostParams) (bool, error)
@@ -452,6 +483,8 @@ type Querier interface {
 	// Écrit le vecteur d'un article (généré par le worker jina-embeddings-v3).
 	UpsertArticleEmbedding(ctx context.Context, arg UpsertArticleEmbeddingParams) error
 	UpsertCollaborationRequest(ctx context.Context, arg UpsertCollaborationRequestParams) (UpsertCollaborationRequestRow, error)
+	// Ajoute un membre s'il manque (conversation existante re-ouverte).
+	UpsertConversationMember(ctx context.Context, arg UpsertConversationMemberParams) error
 	UpsertMediaMember(ctx context.Context, arg UpsertMediaMemberParams) error
 	UpsertNotificationPreferences(ctx context.Context, arg UpsertNotificationPreferencesParams) error
 	UpsertOAuthConsent(ctx context.Context, arg UpsertOAuthConsentParams) error
@@ -463,6 +496,7 @@ type Querier interface {
 	UpsertTrend(ctx context.Context, arg UpsertTrendParams) (UpsertTrendRow, error)
 	// Écrit le vecteur d'un utilisateur/publication (profil).
 	UpsertUserEmbedding(ctx context.Context, arg UpsertUserEmbeddingParams) error
+	UserExists(ctx context.Context, id string) (bool, error)
 	UserOwnsPublication(ctx context.Context, arg UserOwnsPublicationParams) (bool, error)
 }
 
