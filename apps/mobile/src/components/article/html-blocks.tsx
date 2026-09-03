@@ -8,6 +8,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 
 import { ThemedText, type ThemedTextProps } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
@@ -18,8 +19,8 @@ import {
   absoluteTokenRect,
   buildBlockIndex,
   computeHighlightTokenSets,
-  hitTestToken,
   htmlToBlocks,
+  mergeRectsToBands,
   selectionToInfo,
   type Block,
   type Rect,
@@ -52,6 +53,7 @@ export type { SelectionInfo };
 
 const HIGHLIGHT_ALPHA = '33'; // surlignages persistés (inline <mark>)
 const SELECTION_ALPHA = '5C'; // sélection live / popover ouvert
+const HIT_SLOP = 40 * 40; // repli « token le plus proche » (rayon 40 px)
 
 interface KindStyles {
   wrap?: ViewStyle;
@@ -94,8 +96,9 @@ export interface ArticleHtmlProps {
   highlights?: ({ text?: string | null; quoteOrdinal?: number } | null | undefined)[];
   /** Sélection en cours (popover ouvert) — maintient le surlignage live. */
   selection?: SelectionInfo | null;
-  /** Relâchement d'une sélection → le passage choisi (texte brut + ordinal). */
-  onSelect?: (info: SelectionInfo) => void;
+  /** Relâchement d'une sélection → le passage choisi (texte brut + ordinal).
+   *  `null` = tap en dehors de la sélection → fermer le popover. */
+  onSelect?: (info: SelectionInfo | null) => void;
   /** Verrouille le scroll de la ScrollView pendant le geste de sélection. */
   onScrollLock?: (locked: boolean) => void;
 }
@@ -120,13 +123,13 @@ export function ArticleHtml({
   const flowRects = useRef(new Map<string, Rect>());
   const tokenRects = useRef(new Map<string, Rect>());
 
+  const hcColor = theme.primary + HIGHLIGHT_ALPHA;
+  const selColor = theme.primary + SELECTION_ALPHA;
+
   // Sélection live pendant le geste (peinture overlay, aucun re-render des tokens).
   const [liveSel, setLiveSel] = useState<{ a: string; b: string } | null>(null);
   const activeRef = useRef(false);
   const liveRef = useRef<{ a: string; b: string } | null>(null);
-
-  const hcColor = theme.primary + HIGHLIGHT_ALPHA;
-  const selColor = theme.primary + SELECTION_ALPHA;
 
   const setBlock = (b: number) => (e: LayoutChangeEvent) => {
     blockRects.current.set(b, e.nativeEvent.layout);
@@ -148,17 +151,53 @@ export function ArticleHtml({
     tokenRects: tokenRects.current,
   });
 
-  // Geste : appui long (~340 ms) → sélection du mot sous le doigt, puis
-  // glissement → extension. Scroll de la ScrollView verrouillé pendant.
+  // Rects ABSOLUS (conteneur d'article) des tokens, recalculés une fois par
+  // geste. ⚠️ Les rects mesurés par onLayout sont RELATIFS à leur flux — les
+  // comparer directement aux coordonnées du doigt ne marche que sur le tout
+  // premier paragraphe (d'où une sélection « qui ne marche pas » partout
+  // ailleurs). On projette donc chaque token en coordonnées du conteneur.
+  const absRects = useRef<{ id: string; r: Rect }[] | null>(null);
+  const ensureAbsRects = (): { id: string; r: Rect }[] => {
+    if (!absRects.current) {
+      const out: { id: string; r: Rect }[] = [];
+      for (const id of tokenRects.current.keys()) {
+        const r = absoluteTokenRect(bundles(), id);
+        if (r) out.push({ id, r });
+      }
+      absRects.current = out;
+    }
+    return absRects.current;
+  };
+
+  /**
+   * Token sous le doigt, en coordonnées du conteneur. Repli : le token le
+   * plus proche à ≤ 40 px (sélection tolérante dans les inter-paragraphes,
+   * les marges et entre les lignes).
+   */
+  const hitTest = (x: number, y: number): string | null => {
+    let best: { id: string; d: number } | null = null;
+    for (const { id, r } of ensureAbsRects()) {
+      if (x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.height) {
+        return id;
+      }
+      const dx = x < r.x ? r.x - x : x > r.x + r.width ? x - (r.x + r.width) : 0;
+      const dy = y < r.y ? r.y - y : y > r.y + r.height ? y - (r.y + r.height) : 0;
+      const d = dx * dx + dy * dy;
+      if (d <= HIT_SLOP && (!best || d < best.d)) best = { id, d };
+    }
+    return best ? best.id : null;
+  };
+
   // Les handlers vivent dans une ref (réassignée à chaque render) : ils
   // ferment sur l'index/layout COURANTS sans recréer la gesture.
   const handlers = useRef({
     begin(_x: number, _y: number) {},
     extend(_x: number, _y: number) {},
     finish() {},
+    dismiss() {},
   });
   handlers.current.begin = (x, y) => {
-    const id = hitTestToken(tokenRects.current, x, y);
+    const id = hitTest(x, y);
     if (!id) return;
     activeRef.current = true;
     liveRef.current = { a: id, b: id };
@@ -168,7 +207,7 @@ export function ArticleHtml({
   };
   handlers.current.extend = (x, y) => {
     if (!activeRef.current) return;
-    const id = hitTestToken(tokenRects.current, x, y);
+    const id = hitTest(x, y);
     if (!id) return;
     liveRef.current = { a: liveRef.current!.a, b: id };
     setLiveSel({ a: liveRef.current!.a, b: id });
@@ -179,23 +218,49 @@ export function ArticleHtml({
     onScrollLock?.(false);
     const sel = liveRef.current;
     liveRef.current = null;
+    absRects.current = null; // prochain geste : re-mesure fraîche
     setLiveSel(null);
     if (!sel) return;
     const info = selectionToInfo(index, sel.a, sel.b, bundles());
     if (info) onSelect?.(info);
   };
 
-  const gesture = useMemo(
-    () =>
-      Gesture.Pan()
-        .activateAfterLongPress(340)
-        .shouldCancelWhenOutside(false)
-        .onStart((e) => handlers.current.begin(e.x, e.y))
-        .onUpdate((e) => handlers.current.extend(e.x, e.y))
-        .onEnd(() => handlers.current.finish())
-        .onFinalize(() => handlers.current.finish()),
-    []
-  );
+  // Tap en dehors de la sélection → ferme le popover (onSelect(null)).
+  // Uniquement actif quand une sélection est affichée ; l'appui long qui
+  // lance une nouvelle sélection n'est jamais intercepté (maxDuration court).
+  handlers.current.dismiss = () => {
+    if (selection && !activeRef.current) onSelect?.(null);
+  };
+
+  // ⚠️ Les callbacks de Gesture.Pan tournent sur le runtime UI (worklets
+  // RNGH + Reanimated) : on ne peut PAS y appeler des fonctions JS du
+  // thread React directement — « Tried to synchronously call a Remote
+  // Function ». Chaque entrée rebondit via runOnJS vers un wrapper qui lit
+  // `handlers.current` AU MOMENT de l'appel (jamais de closure périmée).
+  const gesture = useMemo(() => {
+    const beginJS = (x: number, y: number) => handlers.current.begin(x, y);
+    const extendJS = (x: number, y: number) => handlers.current.extend(x, y);
+    const finishJS = () => handlers.current.finish();
+    const dismissJS = () => handlers.current.dismiss();
+    const pan = Gesture.Pan()
+      .activateAfterLongPress(340)
+      .shouldCancelWhenOutside(false)
+      .onStart((e) => runOnJS(beginJS)(e.x, e.y))
+      .onUpdate((e) => runOnJS(extendJS)(e.x, e.y))
+      .onEnd(() => runOnJS(finishJS)())
+      .onFinalize(() => runOnJS(finishJS)());
+    if (!selection) return pan;
+    // Race : le tap court (≤ 250 ms) gagne → on ferme le popover ; l'appui
+    // long (> 250 ms) fait échouer le tap → la sélection peut recommencer.
+    const tap = Gesture.Tap()
+      .maxDuration(250)
+      .maxDistance(20)
+      .onEnd((_e, success) => {
+        'worklet';
+        if (success) runOnJS(dismissJS)();
+      });
+    return Gesture.Race(pan, tap);
+  }, [selection]);
 
   // Rendu des blocs — mémoïsé : la peinture live ne re-rend que l'overlay.
   const blocksUi = useMemo(() => {
@@ -260,8 +325,10 @@ export function ArticleHtml({
     });
   }, [blocks, index, highlightedTokens, hcColor, theme]);
 
-  // Overlay de sélection live (sur les tokens, pointerEvents none).
-  const overlayChips = useMemo(() => {
+  // Overlay de sélection — BANDES CONTINUES par ligne (comme la sélection
+  // native : un seul bloc entre les deux bornes, pas des « pastilles » mot
+  // par mot). pointerEvents none : ne bloque ni le scroll ni les gestes.
+  const overlayBands = useMemo(() => {
     const paintRange = liveSel ?? (selection ? { a: selection.from, b: selection.to } : null);
     if (!paintRange) return [];
     const rects = bundles();
@@ -273,16 +340,16 @@ export function ArticleHtml({
         if (r) chips.push(r);
       }
     }
-    return chips;
+    return mergeRectsToBands(chips);
   }, [liveSel, selection, index]);
 
   return (
     <GestureDetector gesture={gesture}>
       <View style={styles.container}>
         {blocksUi}
-        {overlayChips.length > 0 ? (
+        {overlayBands.length > 0 ? (
           <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-            {overlayChips.map((r, i) => (
+            {overlayBands.map((r, i) => (
               <View
                 key={i}
                 style={[

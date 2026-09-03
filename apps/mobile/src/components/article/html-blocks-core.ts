@@ -445,6 +445,27 @@ export interface RectsBundle {
   tokenRects: Map<string, Rect>;
 }
 
+/**
+ * Fusionne des rects de tokens en BANDES CONTINUES par ligne : tous les
+ * tokens d'une même ligne (même y/hauteur à 2 px près) deviennent un seul
+ * rectangle qui couvre l'espace entre le premier et le dernier mot — rendu
+ * « sélection native » (point A → point B), au lieu de pastilles disjointes.
+ */
+export function mergeRectsToBands(rects: Rect[]): Rect[] {
+  const bands: Rect[] = [];
+  for (const r of rects) {
+    const line = bands.find((b) => Math.abs(b.y - r.y) < 2 && Math.abs(b.height - r.height) < 2);
+    if (line) {
+      const right = Math.max(line.x + line.width, r.x + r.width);
+      line.x = Math.min(line.x, r.x);
+      line.width = right - line.x;
+    } else {
+      bands.push({ ...r });
+    }
+  }
+  return bands.sort((a, b) => a.y - b.y || a.x - b.x);
+}
+
 /** Réctangle absolu (conteneur d'article) d'un token, si mesuré. */
 export function absoluteTokenRect(rects: RectsBundle, id: string): Rect | null {
   const parts = id.split(':').map(Number);
