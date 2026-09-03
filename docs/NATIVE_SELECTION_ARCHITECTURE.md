@@ -1,172 +1,215 @@
-# Sélection native + morphing surface (mobile) — Note d'architecture
+# Sélection native + ancrage unifié (web, mobile, iOS, Android) — Architecture cible
 
-> Décision du 2026-09-03. Objectif : **sélection de texte au niveau natif sur iOS
-> ET Android, sans sacrifier le morphing surface « pill → formulaire »** qui est la
-> signature visuelle du produit (équivalent mobile du `layoutId="rauno-morphing-surface"`
-> du web, spring `stiffness: 500, damping: 32`).
+> Décision du 2026-09-03 (rév. 2 — **version définitive, sans rustine**).
+> Objectif : sélection de texte **au niveau natif** sur iOS ET Android, une
+> **expérience et un moteur convergents avec le web**, et un modèle de données
+> qui restera sain quand le contenu sera édité, quand l'édition arrivera, et quand
+> de nouveaux clients (API publiques, embeds) consommeront les articles.
+>
+> Principe directeur du produit : le **morphing surface « pill → formulaire »**
+> (équivalent mobile du `layoutId="rauno-morphing-surface"` du web,
+> spring `stiffness: 500, damping: 32`) est la signature visuelle — il n'est
+> **jamais** sacrifié à la « nativerie » système.
 
 ---
 
-## 1. Le principe directeur : trois couches, deux technologies
+## 1. Les trois couches, deux technologies, un seul contrat
 
-Le menu système natif est le **seul endroit qu'on ne peut ni animer ni styler**
-(pas de morph, pas d'icônes couleur, ordre dépendant du constructeur sur Android).
-Y injecter nos actions tuerait la signature morph du produit. On ne le fait donc
-**jamais**.
-
-À la place, on coupe le problème en trois couches indépendantes :
+Le menu système natif est le seul endroit qu'on ne peut ni animer ni styler.
+On n'y injecte **jamais** nos actions. Le natif sert le geste ; notre surface
+sert l'action ; le serveur sert le document.
 
 | Couche | Technologie | Fournit |
 |---|---|---|
-| **1. Texte + geste** | Native (`UITextView` iOS / `TextView` Android) | Loupe (iOS), poignées, double-tap, layout des glyphes au pixel, `onSelectionChange` (offsets) |
-| **2. Action + morph** | Notre surface Reanimated, **au-dessus** du texte natif | Pill compacte → formulaire, ancrée sur la géométrie de sélection, identique aux deux plateformes |
-| **3. Données** | Modèle de blocs typés (JSON) | Un seul contrat consommé par les deux renderers natifs + le web |
+| **1. Texte + geste** | Native : `UITextView` (iOS) / `TextView`+`Spannable` (Android) | Loupe (iOS), poignées, double-tap, layout des glyphes au pixel, événements de sélection (offsets) |
+| **2. Action + morph** | Surface Reanimated au-dessus du texte natif (web : Framer Motion) | Pill compacte → formulaire, ancrée sur la géométrie de sélection, identique partout |
+| **3. Données** | **Document canonique serveur** (blocs typés + texte canonique + ancres à offsets) | Un seul contrat consommé par web, mobile, iOS, Android — plus aucun client ne « cherche » du texte |
 
-Le natif ne remplace que la couche 1. Nos vues RN/Reanimated vivent au-dessus du
-texte natif sans le toucher : animations, morph, toasts, composer restent 100 %
-sous notre contrôle.
-
-**Conséquence** : l'option « actions dans le menu système » (native pure) est
-écartée par choix de produit, pas par faisabilité.
+Le morph (couche 2) ne dépend pas du natif : Reanimated 4.5.1 fait les shared
+transitions (équivalent mobile du `layoutId` Framer Motion). Il peut être
+prototypé sur le moteur actuel dès maintenant, puis le natif (couche 1) se glisse
+dessous sans y toucher.
 
 ---
 
-## 2. Le format : sortir du HTML comme contrat de rendu
+## 2. Le vrai problème : l'ancre par recherche de texte — et sa disparition
 
-**Constat** : aujourd'hui le pipeline est `API Go → HTML (data.content) →
-htmlToBlocks() en JS sur l'appareil → tokens `<Text>` mesurés par onLayout → gestes`.
+### 2.1 Constat (vérifié dans le code, pas théorique)
 
-Le HTML n'est pas un problème en soi (il reste la **source** : le serveur et le
-`TextHighlighter` web — TreeWalker DOM — en dépendent). Ce qui bride, c'est un
-**moteur de rendu JS** qui re-parse du HTML à chaque écran et ne peut pas offrir
-loupe/poignées natives.
+Aujourd'hui, un surlignage est stocké **sans offset** : `text + quoteOrdinal`
+(`apps/api/sql/schema/schema.sql`, colonnes `"quoteOrdinal"`), et **chaque client
+relocalise le passage en re-scannant** :
 
-**Décision** : séparer *transport* (HTML, inchangé) de *rendu* (document structuré).
-Le modèle existe déjà et est unit-testé dans
-`apps/mobile/src/components/article/html-blocks-core.ts` :
+- **Web** (`packages/ui/src/annotations/quote-anchor.ts`) : `TreeWalker` sur les
+  nœuds texte, `indexOf` par nœud, comptage d'occurrences, puis mutation du DOM
+  en `<mark>`.
+- **Mobile** (`html-blocks-core.ts`) : re-scan du texte normalisé dans l'index de
+  tokens, avec le mapping display→raw.
 
-```ts
-type Block =
-  | { type: 'p' | 'h1' | 'h2' | 'h3' | 'h4'; text: string }
-  | { type: 'ul' | 'ol'; items: string[] }
-  | { type: 'blockquote'; text: string }
-  | { type: 'img'; src: string; alt?: string }
-  | { type: 'hr' }
-  | { type: 'code'; text: string };
+Cette ancre par recherche est la source réelle des fragilités — **sur toutes les
+plateformes** :
+
+1. **Divergence de blancs** : le web matche après `normalize()` + `trim()`, le
+   mobile après réduction des blancs ; ils s'accordent la plupart du temps, mais
+   toute divergence tue silencieusement une marque ou déplace un ordinal.
+2. **Coupure inline = échec silencieux sur le web** : `indexOf` opère nœud par
+   nœud ; une citation qui traverse `<em>`, `<a>`, `<strong>` n'apparaît jamais de
+   façon contiguë dans un nœud → le surlignage est enregistré mais **ne se peint
+   pas sur le web**, alors que le mobile (index plat, balises strippées) le peint.
+3. **Ordinal dépendant de l'ordre** : toute édition du corps d'article renumérote
+   les occurrences ; le repli « première occurrence » pointe alors en silence au
+   mauvais endroit.
+4. **Re-scan + mutation DOM à chaque rendu** (web) : changement de filtre
+   (`all`/`official`/`none`) ou ajout/suppression → re-parcours complet + réécriture
+   de `<mark>` dans le DOM vivant (nœuds texte découpés, conflit avec React,
+   sélection utilisateur détruite).
+
+### 2.2 La cible : le serveur possède le document canonique
+
+**Décision (rév. 2)** : le HTML n'est qu'un **format d'import** (ce que fournissent
+les éditeurs/scrapers) et un format de lecture **hérité**. L'artefact de référence
+est un **document canonique normalisé, produit une seule fois par le serveur** :
+
+```
+HTML entrant ──canonicalisation──▶ Document canonique
+                                   ├─ blocs typés  (p, h1–h4, ul/ol, blockquote,
+                                   │                code, img, hr — même modèle
+                                   │                que html-blocks-core.ts)
+                                   ├─ texte canonique (blancs réduits à un espace,
+                                   │                défini une fois pour toutes —
+                                   │                la forme sur laquelle web et
+                                   │                mobile s'accordent DÉJÀ)
+                                   └─ index : offset canonique → bloc/segment
 ```
 
-À terme, ce document de blocs (avec les marques `{start, end, couleur}` en offsets
-par segment) devient le **contrat versionné** consommé par :
-- le renderer natif iOS (→ `NSAttributedString`),
-- le renderer natif Android (→ `Spannable`),
-- le web (optionnel, pour remplacer le TreeWalker DOM).
+- **Création d'un surlignage** : le client envoie le passage + son contexte de
+  sélection ; le serveur résout **immédiatement** en offsets canoniques
+  (`start`, `end` — et si besoin `blockId`), qu'il stocke **avec** le texte cité.
+- **Lecture** : chaque client reçoit le document + les surlignages à offsets et
+  **peint des plages** — plus personne ne cherche, plus d'ordinal, plus de
+  dépendance aux blancs du HTML.
+- **Contenu édité après coup** : le serveur exécute **une** passe de ré-ancrage
+  (texte + préfixe/suffixe de contexte, repli progressif — l'approche éprouvée de
+  Hypothesis) au lieu de laisser trois clients bricoler chacun.
+- **Compatibilité** : les surlignages hérités `text + quoteOrdinal` restent
+  servis et migrés par le serveur (une passe en écriture), avec repli documenté.
 
-Gains : offsets de sélection stables (sûrs multi-octets), plus de re-parse, rendu
-natif direct, base prête pour l'édition future.
+**Conséquences** :
+- Le mobile **abandonne** le re-parse HTML et le re-scan (il consomme le document).
+- iOS/Android natifs consomment le même document (→ `NSAttributedString` /
+  `Spannable`), offsets stables et sûrs multi-octets.
+- Le web **abandonne** le TreeWalker de mutation DOM (voir §2.3).
+- Le terrain est prêt pour l'édition future : un éditeur produit déjà ce format.
 
-> **Non-goal immédiat** : changer le contrat API Go. On peut commencer par
-> exporter les blocs depuis le client (déjà calculés) ; l'endpoint serveur qui
-> renvoie le document normalisé viendra quand le web en aura besoin aussi.
+### 2.3 Côté web : pas de rustine, on converge
+
+Sur le web, le DOM est la couche native (sélection navigateur réelle) — on n'y
+touche pas. Mais l'implémentation actuelle (TreeWalker + `<mark>` mutés dans
+`packages/ui/src/annotations/TextHighlighter.tsx`, consommé par
+`apps/tenants/.../TenantArticleHighlighter.tsx`) est **la** source des bugs de la
+classe 2.1. La cible :
+
+1. Le lecteur tenant rend l'article **depuis le document canonique** (blocs) —
+   même modèle que le mobile — avec les marques peintes **par offsets** ;
+2. `quote-anchor.ts` / la mutation DOM en `<mark>` sont **décommissionnés**
+   (les marques deviennent des éléments React par plage, ou, en transition
+   interne seulement, le CSS Custom Highlight API — **jamais** comme destination,
+   uniquement comme pont le temps de la migration) ;
+3. Le morphing surface web reste Framer Motion au-dessus — inchangé.
 
 ---
 
-## 3. Les options évaluées et leurs verdicts
+## 3. Les options de rendu évaluées et leurs verdicts
 
 ### ❌ `react-native-enriched-html` (Software Mansion) — disqualifié
 
-Vérifié dans la doc API (référence `EnrichedText`, page « Supported tags », « Known
-limitations ») :
-- Le composant **lecture seule** n'expose **ni `onChangeSelection`, ni
-  `contextMenuItems`** (ceux-ci n'existent que sur `EnrichedTextInput`, l'éditeur).
-- Ensemble de tags **fixe et fermé** (b, i, u, s, code, a, mention, img, h1–h6,
-  ul/ol, blockquote, codeblock, p, br) : **pas de `<mark>`**, tags hors-ensemble
-  **strippés** (nos images/citations d'article web).
-- Impossible de brancher Surligner/Citer/Annoter sur le menu natif du lecteur.
+Vérifié dans la doc API : le composant **lecture seule** (`EnrichedText`)
+n'expose **ni `onChangeSelection`, ni `contextMenuItems`** (réservés à l'éditeur
+`EnrichedTextInput`), l'ensemble de tags est **fixe et fermé** (**pas de
+`<mark>`**, tags hors-ensemble strippés). Impossible d'y brancher nos actions ou
+nos marques. C'est un couple éditeur/lecteur de son propre HTML, pas un lecteur
+généraliste.
 
 ### ✅ iOS — `@bsky.app/react-native-uitextview` (la lib de Bluesky, en production)
 
 - Remplaçant direct de `<Text>` : `selectable + uiTextView` → vrai `UITextView`
-  (loupe, poignées, double-tap, glisser). Retombe sur `<Text>` RN hors iOS.
-- **`onSelectionChange(start, end)`** : offsets caractères sûrs multi-octets,
-  événements continus pendant le drag, **et événement de désélection au tap
-  dehors** (`start === end`) → fermeture de la surface gratuite.
-- v2.4.0 testée contre **RN 0.86.2** (notre version exacte, Expo 57, New
-  Architecture ✓ — vérifié dans `apps/mobile/app.json`).
-- Text imbriqué + vues inline supportés → nos segments par bloc s'y mappent.
-- **Points à valider en spike** :
-  1. `backgroundColor` sur spans imbriqués (rendu des marques continues) — non
-     documenté ; sinon petit fork Swift (~30 lignes, attribut `.backgroundColor`).
-  2. Le menu système Copy apparaît (non configurable par la lib) → coexister avec
-     notre surface, ou masquer via fork (`UIMenuController`).
+  (loupe, poignées, double-tap, glisser) ; retombe sur `<Text>` RN hors iOS.
+- `onSelectionChange(start, end)` : offsets caractères sûrs multi-octets, en
+  continu pendant le drag, **et événement de désélection au tap dehors**
+  (`start === end`) → fermeture de la surface gratuite.
+- v2.4.0 testée contre **RN 0.86.2** (notre version, Expo 57, New Arch ✓).
+- **Points à valider en spike** : (1) `backgroundColor` des marques sur spans
+  imbriqués (sinon petit fork Swift, ~30 lignes) ; (2) coexistence avec le menu
+  système Copy (garder ou masquer via fork).
 
 ### ✅ Android — module natif maison (`TextView` + `Spannable`)
 
-- `isTextSelectable` → poignées, double-tap, long-press natifs.
-- `customSelectionActionModeCallback` → nos actions dans la barre système **si on
-  le veut** (⚠️ choix produit ci-dessus : plutôt notre surface, la barre système
-  étant neutralisée).
-- Marques = `BackgroundColorSpan` (continues, sans l'effet « pills »).
-- Pas de loupe sur Android (n'existe pas) → le gain natif = poignées + layout
-  parfait + zéro mesure JS.
-- Vrai travail natif : composant Fabric + codegen + pont (~1–1,5 semaine).
+- `isTextSelectable` → poignées, double-tap natifs ; `BackgroundColorSpan` pour
+  des marques **continues** (fini l'effet « pills ») ; pas de loupe sur Android
+  (n'existe pas) → le gain = poignées + layout au pixel + zéro mesure JS.
+- La barre système d'ActionMode est neutralisée (choix produit §1) ; nos actions
+  vivent dans la surface morphée.
 
-### 🅿️ Statu quo amélioré (roue de secours)
+### 🅿️ Statu quo amélioré — rejeté comme destination (utile seulement en cours de route)
 
-Le moteur actuel (bandes continues, tap-pour-fermer, haptics distincts, hit-test
-absolu) + double-tap mot, poignées dessinées en JS, auto-scroll en bord d'écran.
-~2–3 jours, cohérent sur les deux plateformes, **mais jamais de loupe**.
+Double-tap, poignées dessinées, auto-scroll sur le moteur JS actuel : utile pour
+valider le morph (tranche 2) mais **jamais de loupe ni de layout natif** → pas le
+« top du top ».
 
 ---
 
 ## 4. Séquence d'interaction cible (le morph avec le texte)
 
-1. **Appui long** → le premier mot se sélectionne (texte natif, haptic Light).
-2. **Drag** → la sélection s'étend nativement ; bande peinte native (iOS) / nos
-   bandes continues (Android). La sélection s'ajuste par glyphe, pas par mot.
-3. **Relâchement** → haptic Heavy. La bande du passage sélectionné **se rétracte
-   et se transforme** (spring, stiffness ~500) en **pill compacte** ancrée au bord
-   de la sélection : ✍️ Surligner · ❝ Citer · 💬 Annoter · ⧉ Copier (état actuel).
-4. **« Annoter » / « Citer »** → la pill **morph en formulaire** (shared
-   transition Reanimated — équivalent mobile du `layoutId` Framer Motion du web) :
-   extrait cité en chip, zone de texte, contrôle privé/public.
-5. **Poignée draguée pendant qu'une sélection est affichée** → `onSelectionChange`
-   en continu → la bande et la pill se repositionnent en live.
-6. **Tap dehors** → la native désélectionne (`start === end`) → sortie animée de
-   la surface (fondu + glissé, déjà en place dans `selection-popover.tsx`).
+1. **Appui long** → premier mot sélectionné (natif), haptic Light.
+2. **Drag** → extension par glyphe (natif), bande continue.
+3. **Relâchement** → haptic Heavy ; la bande **se rétracte et se transforme**
+   (spring ~500) en **pill compacte** ancrée au bord de la sélection :
+   ✍️ Surligner · ❝ Citer · 💬 Annoter · ⧉ Copier.
+4. **Annoter / Citer** → la pill **morph en formulaire** (shared transition) :
+   extrait en chip, zone de texte, contrôle privé/public.
+5. **Poignée draguée** pendant l'affichage → `onSelectionChange` en continu →
+   bande + pill repositionnées en live.
+6. **Tap dehors** → désélection native → sortie animée (fondu + glissé).
 
-Reanimated **4.5.1** (vérifié dans `apps/mobile/package.json`) : ses shared
-transitions reproduisent le morphing `layoutId` du web sur mobile, natif ou non —
-**le morph ne dépend donc pas de la couche native** et peut être prototypé dès
-maintenant sur le moteur actuel.
+Web : la même séquence avec la sélection navigateur native + Framer Motion.
 
 ---
 
-## 5. Déroulement recommandé (tranches)
+## 5. Déroulement recommandé (tranches — livrable et testable après chacune)
 
 | # | Tranche | Contenu | Durée |
 |---|---|---|---|
-| 0 | **Spike iOS** (branche) | 1 paragraphe en `UITextView` via la lib Bluesky : valider marques `backgroundColor` continues, mappage offsets → ancres, coexistence menu système/surface | 1–2 j |
-| 1 | **Morph mobile** (moteur actuel) | Pill → formulaire en shared transition, ancrage sur la bande, fidèle au web ; **indépendant du natif** | 3–4 j |
-| 2 | **iOS natif** | Brancher la couche UITextView sur les blocs (si spike OK) ; garder surface + morph tels quels | ~1 sem |
-| 3 | **Android natif** | Module `TextView`/`Spannable` maison, mêmes contrats TS | 1–1,5 sem |
-| 4 | **(Option) Contrat serveur** | Endpoint renvoyant le document de blocs normalisé (quand le web en voudra) | 2–3 j |
+| 0 | **Canonicalisation serveur** (fondation — rien d'autre ne dépend d'elle) | Parser Go HTML→document canonique (référence croisée avec `html-blocks-core.ts`, tests de parité) ; texte canonique ; création de surlignage résolue en offsets ; colonnes offsets + migration/back-compat `quoteOrdinal` ; passe de ré-ancrage post-édition | 1–1,5 sem |
+| 1 | **Web : consommer le document** | Lecteur tenant rendu depuis les blocs, marques par offsets ; décommission de `quote-anchor.ts` + mutation DOM `<mark>` (pont CSS Custom Highlight le temps de la migration seulement) | ~1 sem |
+| 2 | **Morph mobile** (moteur actuel) | Pill → formulaire en shared transition Reanimated, ancrée sur la bande ; indépendant du natif — peut démarrer en parallèle de 0/1 | 3–4 j |
+| 3 | **iOS natif** | Couche `UITextView` (lib Bluesky ou fork) branchée sur le document canonique ; surface + morph inchangés | ~1 sem |
+| 4 | **Android natif** | Module `TextView`/`Spannable` maison, mêmes contrats TS | 1–1,5 sem |
+| 5 | **(Option) Édition** | Un éditeur qui produit le document canonique (remplace le HTML à la source) | à chiffrer |
 
-Total : ~3 semaines en tranches, livrable et testable après chacune.
+Total : ~4–5 semaines pour 0→4. L'ordre est volontaire : **la canonicalisation
+d'abord** (elle supprime les divergences web/mobile et débloque proprement le
+natif), le natif ensuite.
 
 ---
 
 ## 6. Risques
 
-- **Parité de rendu** entre iOS (attribué natif) et Android (Spannable) : mitigé
-  par un modèle de blocs simple et partagé (p/h/ul/quote/code/img), style envoyé
-  depuis TS (une seule source).
-- **Fork de la lib Bluesky** si le `backgroundColor` des marques manque : petit
-  mais à maintenir ; alternative = peindre nos marques en overlay au-dessus du
-  texte natif (on connaît la géométrie via les offsets + mesures natives).
+- **Ré-ancrage après édition du contenu** : des offsets bruts deviennent invalides
+  si l'article est ré-édité → la stratégie « texte cité + contexte préfixe/suffixe »
+  (type Hypothesis) est conservée comme filet dans la passe serveur ; jamais de
+  résolution best-effort côté client.
+- **Migration web du lecteur tenant** : le HTML hérité peut contenir du markup
+  arbitraire → la canonicalisation doit couvrir (ou dégrader proprement) figures,
+  captions, embeds ; tests de parité de rendu avant bascule.
+- **Parité de rendu natif** (attribué iOS vs Spannable Android) : mitigée par le
+  modèle de blocs simple et partagé + style envoyé depuis TS (une seule source).
+- **Fork éventuel de la lib Bluesky** (marques `backgroundColor`) : petit mais à
+  maintenir ; alternative = marques en overlay au-dessus du texte natif.
 - **Rebuilds natifs** à chaque itération (dev build `expo run:*`), JDK 17 requis
-  côté Gradle (voir historique — le JBR d'Android Studio fait échouer CMake).
-- **Menu système iOS** : choix à trancher au spike (garder Copy natif + notre
-  surface, ou le masquer).
+  côté Gradle (le JBR d'Android Studio fait échouer CMake — voir historique).
+- **Compatibilité API** : l'endpoint highlights continue de servir `text +
+  quoteOrdinal` pendant la migration ; les nouveaux champs offsets sont ajoutés,
+  jamais substitués brutalement.
 
 ---
 
@@ -174,9 +217,11 @@ Total : ~3 semaines en tranches, livrable et testable après chacune.
 
 | Élément | Chemin |
 |---|---|
-| Modèle de blocs + moteur pur (tests) | `apps/mobile/src/components/article/html-blocks-core.ts` |
-| Rendu tokens + gestes + bandes | `apps/mobile/src/components/article/html-blocks.tsx` |
-| Surface d'actions (pill actuelle) | `apps/mobile/src/components/article/selection-popover.tsx` |
-| Écran article (HTML entrant) | `apps/mobile/src/features/article/article-screen.tsx` |
-| Référence web du morph (layoutId + spring) | `packages/ui/src/annotations/TextHighlighter.tsx` (l. ~566–582, 693+) |
-| Haptics (Light/Heavy déjà branchés) | `apps/mobile/src/lib/haptics.ts` |
+| Modèle de blocs + moteur pur mobile (référence de canonicalisation) | `apps/mobile/src/components/article/html-blocks-core.ts` |
+| Rendu tokens + gestes + bandes (mobile actuel) | `apps/mobile/src/components/article/html-blocks.tsx` |
+| Surface d'actions mobile (pill actuelle) | `apps/mobile/src/components/article/selection-popover.tsx` |
+| Web : moteur d'annotations (TreeWalker → à décommissionner) | `packages/ui/src/annotations/TextHighlighter.tsx`, `quote-anchor.ts` |
+| Web : page article tenant (consommateur) | `apps/tenants/src/app/tenant/[domain]/article/[slug]/` (+ `TenantArticleHighlighter.tsx`) |
+| Serveur : stockage des surlignages (`text + quoteOrdinal`, sans offsets) | `apps/api/sql/schema/schema.sql`, `apps/api/internal/modules/highlights/` |
+| Morph de référence web (layoutId + spring) | `packages/ui/src/annotations/TextHighlighter.tsx` (l. ~566–582, 693+) |
+| Haptics mobile (Light/Heavy branchés) | `apps/mobile/src/lib/haptics.ts` |
