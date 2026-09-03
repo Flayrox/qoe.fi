@@ -736,7 +736,18 @@
     "in_progress_badge": "Feature rolling out",
     "title": "Messages",
     "welcome_desc": "Chat privately with your favorite authors, creators and community members. Encrypted messaging is coming very soon!",
-    "welcome_title": "Chat live on Qoe"
+    "welcome_title": "Chat live on Qoe",
+    "user": "User",
+    "yesterday": "yesterday",
+    "you_prefix": "You:",
+    "empty_thread": "New conversation",
+    "empty": "No conversations yet. Send a message from a profile.",
+    "load_error": "Couldn't load conversations",
+    "conversation_error": "Conversation not found",
+    "thread_empty": "No messages yet. Say hello!",
+    "composer": "Write a message…",
+    "send": "Send",
+    "privacy_note": "Private messages between you and the other person."
   },
   "nav": {
     "messages": "Messages"
