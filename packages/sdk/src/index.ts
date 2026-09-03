@@ -15,6 +15,8 @@ export * from './hooks/useAutoSaveArticle';
 export * from './hooks/useSubscriptionCheckout';
 export * from './hooks/useNotifications';
 export * from './actions/notifications';
+export * from './hooks/useConversations';
+export * from './actions/messages';
 export { unfurlUrlAction } from './actions/feed';
 export * from './hooks/useSearch';
 export * from './actions/search';
