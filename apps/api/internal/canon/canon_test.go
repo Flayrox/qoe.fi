@@ -1,6 +1,9 @@
 package canon
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestParseParagraphsEntitiesAndInline(t *testing.T) {
 	doc := Parse(`<p>Salut <b>le monde</b> !</p><p>Ça va ? &eacute;t&eacute;</p>`)
@@ -187,6 +190,58 @@ func TestFindTolerantWordPrefix(t *testing.T) {
 	start, end, ok := doc.Find(sentence+" et plus encore", 0)
 	if !ok || start != 0 || end != RuneLen(sentence) {
 		t.Fatalf("Find préfixe = %d,%d,%v (want 0,%d,true)", start, end, ok, RuneLen(sentence))
+	}
+}
+
+func TestSkipNonRenderedContent(t *testing.T) {
+	doc := Parse(`<script>var secret = "fuite";</script><style>.x{}</style>` +
+		`<p>Texte <noscript>fallback non rendu</noscript>visible</p>` +
+		`<template><p>template ignoré</p></template>`)
+	if doc.Text != "Texte visible" {
+		t.Fatalf("texte canonique = %q (script/style/noscript/template ne doivent JAMAIS fuiter)", doc.Text)
+	}
+	if len(doc.Blocks) != 1 || doc.Blocks[0].Text != "Texte visible" {
+		t.Fatalf("blocs = %+v", doc.Blocks)
+	}
+}
+
+func TestMarkWithoutNoteIgnored(t *testing.T) {
+	doc := Parse(`<p>Avant <mark>simple mark</mark> après</p>`)
+	if len(doc.Blocks) != 1 || len(doc.Blocks[0].Spans) != 0 {
+		t.Fatalf("mark sans note ne doit pas produire de span : %+v", doc.Blocks)
+	}
+	if doc.Text != "Avant simple mark après" {
+		t.Fatalf("texte = %q", doc.Text)
+	}
+}
+
+func TestFindNegativeOrdinal(t *testing.T) {
+	doc := Parse(`<p>Répète ceci</p><p>Répète ceci</p>`)
+	start, end, ok := doc.Find("Répète ceci", -7)
+	if !ok || start != 0 || end != 11 {
+		t.Fatalf("ordinal négatif = %d,%d,%v (want 0,11,true)", start, end, ok)
+	}
+}
+
+func TestEmptyAndWhitespaceArticle(t *testing.T) {
+	for _, html := range []string{"", "   \n\t  ", "<script>x</script>", "<hr><img src=\"x\">"} {
+		doc := Parse(html)
+		if doc.Text != "" {
+			t.Fatalf("html %q → texte %q, want vide", html, doc.Text)
+		}
+		if len(doc.Sha) != 64 {
+			t.Fatalf("sha attendu 64 hex, got %q", doc.Sha)
+		}
+	}
+}
+
+func TestNestedListFlatTextPreserved(t *testing.T) {
+	// Les listes imbriquées (studio/TipTap) ne sont pas encore modélisées en
+	// blocs imbriqués — mais le TEXTE canonique plat doit tout préserver
+	// (c'est lui qui porte les ancres).
+	doc := Parse(`<ul><li>Racine <ul><li>Enfant</li></ul> fin</li></ul>`)
+	if !strings.Contains(doc.Text, "Racine") || !strings.Contains(doc.Text, "Enfant") || !strings.Contains(doc.Text, "fin") {
+		t.Fatalf("texte canonique = %q — les mots des listes imbriquées doivent survivre", doc.Text)
 	}
 }
 
