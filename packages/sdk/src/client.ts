@@ -10,6 +10,9 @@
 
 import type {
   AnnotationComment,
+  Conversation,
+  DirectMessage,
+  MessagePage,
   AccountSessionData,
   ArticleData,
   ArticleFeedResult,
@@ -860,6 +863,70 @@ export class QoeApiClient {
     return this.request<AnnotationComment>(
       `/v1/highlights/${encodeURIComponent(highlightId)}/comments`,
       { method: 'POST', body: JSON.stringify({ content }) }
+    );
+  }
+
+  // ─── Messagerie directe (DMs) ───────────────────────────────────
+  /**
+   * POST /v1/conversations — crée (ou récupère) la conversation directe
+   * avec un participant. Déterministe : une seule conversation par paire.
+   */
+  public async createConversation(participantId: string) {
+    return this.request<Conversation>('/v1/conversations', {
+      method: 'POST',
+      body: JSON.stringify({ participantId }),
+    });
+  }
+
+  /** GET /v1/conversations — conversations de l'utilisateur (tri activité). */
+  public async getConversations(params?: { limit?: number }) {
+    const query = new URLSearchParams();
+    if (params?.limit) query.set('limit', params.limit.toString());
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return this.request<{ conversations: Conversation[] }>(`/v1/conversations${qs}`);
+  }
+
+  /** GET /v1/conversations/unread-count — badge non-lus du tab Messages. */
+  public async getUnreadConversationCount() {
+    return this.request<{ count: number }>('/v1/conversations/unread-count');
+  }
+
+  /** GET /v1/conversations/{id} — détail d'une conversation. */
+  public async getConversation(conversationId: string) {
+    return this.request<Conversation>(`/v1/conversations/${encodeURIComponent(conversationId)}`);
+  }
+
+  /**
+   * GET /v1/conversations/{id}/messages — messages ascendants, pagination
+   * arrière : `before` = createdAt du message le plus ancien de la page
+   * courante (RFC3339, exclusif) ; omettre pour la page la plus récente.
+   */
+  public async getConversationMessages(
+    conversationId: string,
+    params?: { before?: string; limit?: number }
+  ) {
+    const query = new URLSearchParams();
+    if (params?.before) query.set('before', params.before);
+    if (params?.limit) query.set('limit', params.limit.toString());
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    return this.request<MessagePage>(
+      `/v1/conversations/${encodeURIComponent(conversationId)}/messages${qs}`
+    );
+  }
+
+  /** POST /v1/conversations/{id}/messages — envoie un message. */
+  public async sendMessage(conversationId: string, content: string) {
+    return this.request<DirectMessage>(
+      `/v1/conversations/${encodeURIComponent(conversationId)}/messages`,
+      { method: 'POST', body: JSON.stringify({ content }) }
+    );
+  }
+
+  /** POST /v1/conversations/{id}/read — marque tous les messages comme lus. */
+  public async markConversationRead(conversationId: string) {
+    return this.request<{ success: boolean }>(
+      `/v1/conversations/${encodeURIComponent(conversationId)}/read`,
+      { method: 'POST' }
     );
   }
 }

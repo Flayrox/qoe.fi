@@ -92,3 +92,12 @@ export const threadgateKeys = {
   all: ['threadgates'] as const,
   canReply: (thoughtId: string) => [...threadgateKeys.all, 'canReply', thoughtId] as const,
 };
+
+export const conversationKeys = {
+  all: ['conversations'] as const,
+  list: () => [...conversationKeys.all, 'list'] as const,
+  detail: (conversationId: string) => [...conversationKeys.all, 'detail', conversationId] as const,
+  messages: (conversationId: string) =>
+    [...conversationKeys.all, 'messages', conversationId] as const,
+  unreadCount: () => [...conversationKeys.all, 'unreadCount'] as const,
+};

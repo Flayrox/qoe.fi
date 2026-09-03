@@ -687,8 +687,50 @@ export interface NotificationResult {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// DTOs canoniques web — hérités des pages lecteur/tenant
+// Messagerie directe (shape Go /v1/conversations — tranche 1)
 // ─────────────────────────────────────────────────────────────────────
+
+/** Autre participant d'une conversation directe. */
+export interface ConversationParticipant {
+  id: string;
+  name: string | null;
+  username: string | null;
+  logoUrl: string | null;
+  isCertified: boolean;
+}
+
+/** Dernier message d'une conversation (aperçu liste). */
+export interface ConversationLastMessage {
+  id: string;
+  content: string;
+  senderId: string;
+  createdAt: string;
+}
+
+/** Conversation directe (shape Go `Conversation`). */
+export interface Conversation {
+  id: string;
+  participant: ConversationParticipant;
+  /** Messages non lus reçus (les siens ne comptent jamais). */
+  unreadCount: number;
+  lastReadAt: string | null;
+  lastMessage: ConversationLastMessage | null;
+  createdAt: string;
+}
+
+/** Message direct (shape Go `Message`). */
+export interface DirectMessage {
+  id: string;
+  senderId: string;
+  content: string;
+  createdAt: string;
+}
+
+/** Page de messages ascendants (pagination arrière par curseur `before`). */
+export interface MessagePage {
+  messages: DirectMessage[];
+  hasMore: boolean;
+}
 
 /** 📰 DTO Publication (identité brand polymorphe : personnel OU média). */
 export interface PublicationDTO {
