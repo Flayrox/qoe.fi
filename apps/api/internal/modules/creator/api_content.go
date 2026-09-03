@@ -742,8 +742,10 @@ func (h *Handler) apiArticleUpdate(w http.ResponseWriter, r *http.Request) {
 				response.Internal(w)
 				return
 			}
-			// Publication → dernière passe de ré-ancrage avant exposition.
+			// Publication → dernière passe de ré-ancrage avant exposition + les
+			// annotations officielles du studio deviennent des entités ancrées.
 			anchors.ReanchorArticle(r.Context(), h.pool, id)
+			anchors.SyncOfficialMarks(r.Context(), h.pool, id, userID)
 		} else if _, err := h.pool.Exec(r.Context(),
 			`UPDATE "Article" SET published = false, status = 'DRAFT', "updatedAt" = now() WHERE id = $1`,
 			id); err != nil {
