@@ -52,9 +52,16 @@ ORDER BY h."createdAt" DESC
 LIMIT $2 OFFSET $3;
 
 -- name: CreateHighlight :one
-INSERT INTO "Highlight" (id, text, note, "isPublic", "isOfficial", "quoteOrdinal", "readerId", "articleId")
-VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7)
-RETURNING id;-- name: DeleteHighlight :execrows
+-- Les colonnes canoniques (offsets en code points dans le document canonique
+-- de l'article + empreinte du contenu) sont ADDITIVES : NULL tant qu'une
+-- ancre n'a pas pu être résolue (données héritées ou contenu changé).
+INSERT INTO "Highlight" (id, text, note, "isPublic", "isOfficial", "quoteOrdinal",
+                         "readerId", "articleId",
+                         "canonicalStart", "canonicalEnd", "contentSha")
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+RETURNING id;
+
+-- name: DeleteHighlight :execrows
 DELETE FROM "Highlight" WHERE id = $1 AND "readerId" = $2;
 
 -- name: UpdateHighlight :one

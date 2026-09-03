@@ -44,21 +44,29 @@ func (q *Queries) CreateAnnotationComment(ctx context.Context, arg CreateAnnotat
 }
 
 const createHighlight = `-- name: CreateHighlight :one
-INSERT INTO "Highlight" (id, text, note, "isPublic", "isOfficial", "quoteOrdinal", "readerId", "articleId")
-VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7)
+INSERT INTO "Highlight" (id, text, note, "isPublic", "isOfficial", "quoteOrdinal",
+                         "readerId", "articleId",
+                         "canonicalStart", "canonicalEnd", "contentSha")
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 RETURNING id
 `
 
 type CreateHighlightParams struct {
-	Text         string      `json:"text"`
-	Note         pgtype.Text `json:"note"`
-	IsPublic     bool        `json:"isPublic"`
-	IsOfficial   bool        `json:"isOfficial"`
-	QuoteOrdinal int32       `json:"quoteOrdinal"`
-	ReaderId     pgtype.UUID `json:"readerId"`
-	ArticleId    string      `json:"articleId"`
+	Text           string      `json:"text"`
+	Note           pgtype.Text `json:"note"`
+	IsPublic       bool        `json:"isPublic"`
+	IsOfficial     bool        `json:"isOfficial"`
+	QuoteOrdinal   int32       `json:"quoteOrdinal"`
+	ReaderId       pgtype.UUID `json:"readerId"`
+	ArticleId      string      `json:"articleId"`
+	CanonicalStart pgtype.Int4 `json:"canonicalStart"`
+	CanonicalEnd   pgtype.Int4 `json:"canonicalEnd"`
+	ContentSha     pgtype.Text `json:"contentSha"`
 }
 
+// Les colonnes canoniques (offsets en code points dans le document canonique
+// de l'article + empreinte du contenu) sont ADDITIVES : NULL tant qu'une
+// ancre n'a pas pu être résolue (données héritées ou contenu changé).
 func (q *Queries) CreateHighlight(ctx context.Context, arg CreateHighlightParams) (string, error) {
 	row := q.db.QueryRow(ctx, createHighlight,
 		arg.Text,
@@ -68,6 +76,9 @@ func (q *Queries) CreateHighlight(ctx context.Context, arg CreateHighlightParams
 		arg.QuoteOrdinal,
 		arg.ReaderId,
 		arg.ArticleId,
+		arg.CanonicalStart,
+		arg.CanonicalEnd,
+		arg.ContentSha,
 	)
 	var id string
 	err := row.Scan(&id)
