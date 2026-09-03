@@ -49,6 +49,12 @@ export interface AnnotationItem {
   text: string;
   /** Occurrence du passage cité (0-based) quand le texte se répète. */
   quoteOrdinal?: number;
+  /** Ancres canoniques : offsets (code points) dans le document canonique
+   *  de l'article (GET /v1/articles/{id}/document). Additifs — absents pour
+   *  les données héritées non résolues. */
+  canonicalStart?: number;
+  canonicalEnd?: number;
+  contentSha?: string;
   note?: string | null;
   isPublic: boolean;
   isOfficial: boolean;
@@ -66,6 +72,10 @@ export interface HighlightItem {
   text: string;
   /** Occurrence du passage cité (0-based) quand le texte se répète. */
   quoteOrdinal?: number;
+  /** Ancres canoniques (voir AnnotationItem). */
+  canonicalStart?: number;
+  canonicalEnd?: number;
+  contentSha?: string;
   note: string | null;
   isPublic?: boolean;
   isOfficial?: boolean;
@@ -193,6 +203,11 @@ export interface TextHighlighterProps {
   articleAuthorId?: string | null;
   mainAppUrl: string;
   containerId?: string;
+  /** Document canonique de l'article : rendu par blocs + marques par
+   *  offsets (tranche 1-b). Absent → moteur hérité (recherche de texte). */
+  canonicalDocument?: import('./canonical-document').CanonicalDocument;
+  /** Classes du conteneur du corps d'article (mode document uniquement). */
+  contentClassName?: string;
   callbacks?: AnnotationActionCallbacks;
   onRequireAuth?: () => void;
 }
