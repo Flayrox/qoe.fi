@@ -714,7 +714,18 @@
     "title": "Messages",
     "welcome_title": "Discutez en direct sur Qoe",
     "welcome_desc": "Échangez en privé avec vos auteurs favoris, créateurs et membres de votre communauté. La messagerie chiffrée arrive très bientôt !",
-    "in_progress_badge": "Fonctionnalité en cours de déploiement"
+    "in_progress_badge": "Fonctionnalité en cours de déploiement",
+    "user": "Utilisateur",
+    "yesterday": "hier",
+    "you_prefix": "Vous :",
+    "empty_thread": "Nouvelle conversation",
+    "empty": "Aucune conversation. Envoyez un message depuis un profil.",
+    "load_error": "Impossible de charger les conversations",
+    "conversation_error": "Conversation introuvable",
+    "thread_empty": "Aucun message. Dites bonjour !",
+    "composer": "Écrire un message…",
+    "send": "Envoyer",
+    "privacy_note": "Messages privés entre vous et l’autre personne."
   },
   "engagement": {
     "error": "Impossible de charger cette liste"
