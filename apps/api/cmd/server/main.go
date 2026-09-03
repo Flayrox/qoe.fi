@@ -27,6 +27,7 @@ import (
 	"github.com/qoefi/api/internal/modules/articles"
 	"github.com/qoefi/api/internal/modules/billing"
 	"github.com/qoefi/api/internal/modules/collaborations"
+	"github.com/qoefi/api/internal/modules/conversations"
 	"github.com/qoefi/api/internal/modules/creator"
 	"github.com/qoefi/api/internal/modules/devtools"
 	"github.com/qoefi/api/internal/modules/events"
@@ -336,6 +337,10 @@ func newRouter(d RouterDeps) *chi.Mux {
 			feedHandler.RegisterProtected(reader)
 			usersHandler.Register(reader)
 			trackingHandler.RegisterReader(reader)
+
+			// Messagerie directe : conversations + messages (reader).
+			conversationsHandler := conversations.NewHandler(conversations.NewService(pool))
+			conversationsHandler.Register(reader)
 		})
 
 		oauthHandler.RegisterProtected(protected)
