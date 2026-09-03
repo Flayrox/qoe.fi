@@ -57,8 +57,13 @@ func TestParseOrderedList(t *testing.T) {
 	if b.Kind != KindList || !b.Ordered {
 		t.Fatalf("liste ordonnée attendue, got %+v", b)
 	}
-	if len(b.Items) != 2 || b.Items[0] != "Premier" || b.Items[1] != "Second point" {
+	if len(b.Items) != 2 || b.Items[0].Text != "Premier" || b.Items[1].Text != "Second point" {
 		t.Fatalf("items = %v", b.Items)
+	}
+	// Le <strong> du second item est capturé en span inline.
+	if len(b.Items[1].Inline) != 1 || b.Items[1].Inline[0].Style != "bold" ||
+		b.Items[1].Inline[0].Start != 0 || b.Items[1].Inline[0].End != 6 {
+		t.Fatalf("inline item = %+v", b.Items[1].Inline)
 	}
 	if len(doc.Segments) != 2 {
 		t.Fatalf("2 segments attendus, got %d", len(doc.Segments))
@@ -272,5 +277,65 @@ func TestFindUnicode(t *testing.T) {
 	}
 	if RuneLen(doc.Text) != 16 {
 		t.Fatalf("RuneLen texte = %d", RuneLen(doc.Text))
+	}
+}
+
+func TestInlineSpans(t *testing.T) {
+	doc := Parse(`<p>Début <strong>gras</strong> et <em>italique</em>, <a href="https://qoe.fi">lien</a>.</p>`)
+	if len(doc.Blocks) != 1 {
+		t.Fatalf("1 bloc attendu, got %+v", doc.Blocks)
+	}
+	b := doc.Blocks[0]
+	if b.Text != "Début gras et italique, lien." {
+		t.Fatalf("texte = %q", b.Text)
+	}
+	want := []InlineSpan{
+		{Start: 6, End: 10, Style: "bold"},
+		{Start: 14, End: 22, Style: "italic"},
+		{Start: 24, End: 28, Style: "link", Href: "https://qoe.fi"},
+	}
+	if len(b.Inline) != len(want) {
+		t.Fatalf("spans = %+v, want %+v", b.Inline, want)
+	}
+	for i, w := range want {
+		if b.Inline[i] != w {
+			t.Fatalf("span[%d] = %+v, want %+v", i, b.Inline[i], w)
+		}
+	}
+}
+
+func TestInlineSpansNestedAndEdges(t *testing.T) {
+	// Imbrication bold+italic → deux spans chevauchants ; style ouvert sur un
+	// blanc collapsé → le span démarre au 1er caractère réel ; <a> sans href →
+	// aucune sortie ; espaces internes préservés dans le span.
+	doc := Parse(`<p>Bonjour <strong>le <em>monde</em> entier</strong> ! <a>sans lien</a></p>`)
+	b := doc.Blocks[0]
+	if b.Text != "Bonjour le monde entier ! sans lien" {
+		t.Fatalf("texte = %q", b.Text)
+	}
+	// Émission LIFO par ordre de fermeture : l'italique (imbriqué) sort d'abord.
+	want := []InlineSpan{
+		{Start: 11, End: 16, Style: "italic"},
+		{Start: 8, End: 23, Style: "bold"},
+	}
+	if len(b.Inline) != len(want) {
+		t.Fatalf("spans = %+v, want %+v", b.Inline, want)
+	}
+	for i, w := range want {
+		if b.Inline[i] != w {
+			t.Fatalf("span[%d] = %+v, want %+v", i, b.Inline[i], w)
+		}
+	}
+	// Imbrication décalée : l'ordre d'émission suit la fermeture (LIFO).
+	doc2 := Parse(`<p>a<em>b<strong>c</strong>d</em>e</p>`)
+	b2 := doc2.Blocks[0]
+	if b2.Text != "abcde" || len(b2.Inline) != 2 {
+		t.Fatalf("imbriqué = %+v (%q)", b2.Inline, b2.Text)
+	}
+	if b2.Inline[0] != (InlineSpan{Start: 2, End: 3, Style: "bold"}) {
+		t.Fatalf("bold imbriqué = %+v", b2.Inline[0])
+	}
+	if b2.Inline[1] != (InlineSpan{Start: 1, End: 4, Style: "italic"}) {
+		t.Fatalf("italic englobant = %+v", b2.Inline[1])
 	}
 }
