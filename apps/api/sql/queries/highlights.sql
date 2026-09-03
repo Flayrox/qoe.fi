@@ -5,6 +5,7 @@
 -- name: GetHighlightByID :one
 SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."quoteOrdinal", h."upvotesCount",
        h."readerId", h."articleId", h."createdAt",
+       h."canonicalStart", h."canonicalEnd", h."contentSha",
        u.id::text AS reader_id,
        u.name     AS reader_name,
        u.username AS reader_username,
@@ -17,6 +18,7 @@ WHERE h.id = $1;
 -- Surlignages d'un article : publics + les siens (privés) + état upvote du viewer.
 SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."quoteOrdinal", h."upvotesCount",
        h."readerId", h."articleId", h."createdAt",
+       h."canonicalStart", h."canonicalEnd", h."contentSha",
        u.id::text AS reader_id,
        u.name     AS reader_name,
        u.username AS reader_username,

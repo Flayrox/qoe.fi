@@ -16,16 +16,16 @@ func contains(s, sub string) bool {
 
 func TestParseLimitOffset(t *testing.T) {
 	cases := []struct {
-		query        string
-		wantLimit    int
-		wantOffset   int
+		query      string
+		wantLimit  int
+		wantOffset int
 	}{
 		{"", 20, 0},
 		{"?limit=5&offset=10", 5, 10},
-		{"?limit=200", 20, 0},   // borne haute clampée
-		{"?limit=0", 20, 0},     // invalide → défaut
-		{"?limit=abc", 20, 0},   // invalide → défaut
-		{"?offset=-3", 20, 0},   // négatif → 0
+		{"?limit=200", 20, 0}, // borne haute clampée
+		{"?limit=0", 20, 0},   // invalide → défaut
+		{"?limit=abc", 20, 0}, // invalide → défaut
+		{"?offset=-3", 20, 0}, // négatif → 0
 	}
 	for _, c := range cases {
 		req := httptest.NewRequest(http.MethodGet, "/v1/bookmarks"+c.query, nil)

@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pgvector/pgvector-go"
+	"github.com/qoefi/api/internal/canon"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/permissions"
 	"github.com/qoefi/api/internal/queue"
@@ -77,11 +78,11 @@ type CategoryInfo struct {
 
 // AuthorInfo est l'auteur dénormalisé.
 type AuthorInfo struct {
-	ID         string  `json:"id"`
-	Name       *string `json:"name"`
-	Username   *string `json:"username"`
-	LogoURL    *string `json:"logoUrl"`
-	IsCertified bool   `json:"isCertified"`
+	ID          string  `json:"id"`
+	Name        *string `json:"name"`
+	Username    *string `json:"username"`
+	LogoURL     *string `json:"logoUrl"`
+	IsCertified bool    `json:"isCertified"`
 }
 
 // PublicationInfo est la publication dénormalisée.
@@ -132,6 +133,18 @@ type Service struct {
 	q    *db.Queries
 	rc   *redis.Client
 	ac   *asynq.Client
+}
+
+// CanonicalDocument canonicalise le contenu d'un article (document canonique
+// public : blocs + texte plat + offsets). Introuvable → (nil, ErrNotFound).
+func (s *Service) CanonicalDocument(ctx context.Context, articleID string) (*canon.Document, error) {
+	var content string
+	err := s.pool.QueryRow(ctx,
+		`SELECT COALESCE("content",'') FROM "Article" WHERE id = $1`, articleID).Scan(&content)
+	if err != nil {
+		return nil, err
+	}
+	return canon.Parse(content), nil
 }
 
 func NewService(pool *pgxpool.Pool, rc *redis.Client, ac *asynq.Client) *Service {
@@ -204,11 +217,11 @@ func (s *Service) GetBySlugAny(ctx context.Context, slug string) (ArticleRespons
 		ReadingTime: int(row.ReadingTime), Status: row.Status, PublicationID: row.PublicationId,
 		AuthorID: row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
 		SeoTitle: textPtr(row.SeoTitle), SeoDescription: textPtr(row.SeoDescription),
-		CreatedAt: row.CreatedAt.Time.Format(time.RFC3339),
-		UpdatedAt: row.UpdatedAt.Time.Format(time.RFC3339),
+		CreatedAt:     row.CreatedAt.Time.Format(time.RFC3339),
+		UpdatedAt:     row.UpdatedAt.Time.Format(time.RFC3339),
 		AccessGranted: true,
-		Author:      AuthorInfo{ID: row.AuthorID, Name: textPtr(row.AuthorName), Username: textPtr(row.AuthorUsername), LogoURL: textPtr(row.AuthorLogo)},
-		Publication: &PublicationInfo{ID: row.PublicationId, Name: row.PublicationName, Slug: row.PublicationSlug, Subdomain: textPtr(row.PublicationSubdomain), CustomDomain: textPtr(row.PublicationCustomDomain)},
+		Author:        AuthorInfo{ID: row.AuthorID, Name: textPtr(row.AuthorName), Username: textPtr(row.AuthorUsername), LogoURL: textPtr(row.AuthorLogo)},
+		Publication:   &PublicationInfo{ID: row.PublicationId, Name: row.PublicationName, Slug: row.PublicationSlug, Subdomain: textPtr(row.PublicationSubdomain), CustomDomain: textPtr(row.PublicationCustomDomain)},
 	}, nil
 }
 
@@ -847,19 +860,19 @@ func (s *Service) SimilarArticles(ctx context.Context, articleID string, limit i
 	out := make([]SimilarArticle, 0, len(rows))
 	for _, r := range rows {
 		out = append(out, SimilarArticle{
-			ID:            r.ID,
-			Title:         r.Title,
-			Slug:          r.Slug,
-			IsPremium:     r.IsPremium,
-			ReadingTime:   int(r.ReadingTime),
-			CreatedAt:     r.CreatedAt.Time.Format(time.RFC3339),
-			PublicationID: r.PublicationId,
-			AuthorID:      uuidString(r.AuthorId),
-			AuthorName:    textPtr(r.AuthorName),
+			ID:             r.ID,
+			Title:          r.Title,
+			Slug:           r.Slug,
+			IsPremium:      r.IsPremium,
+			ReadingTime:    int(r.ReadingTime),
+			CreatedAt:      r.CreatedAt.Time.Format(time.RFC3339),
+			PublicationID:  r.PublicationId,
+			AuthorID:       uuidString(r.AuthorId),
+			AuthorName:     textPtr(r.AuthorName),
 			AuthorUsername: textPtr(r.AuthorUsername),
-			AuthorLogo:    textPtr(r.AuthorLogo),
-			Publication:   &r.PublicationName,
-			Score:         r.Score,
+			AuthorLogo:     textPtr(r.AuthorLogo),
+			Publication:    &r.PublicationName,
+			Score:          r.Score,
 		})
 	}
 	return out, nil

@@ -34,14 +34,20 @@ type Highlight struct {
 	IsOfficial bool    `json:"isOfficial"`
 	// QuoteOrdinal = quelle occurrence du passage citer (0-based) quand
 	// le même texte apparaît plusieurs fois dans l'article.
-	QuoteOrdinal  int    `json:"quoteOrdinal"`
-	UpvotesCount  int    `json:"upvotesCount"`
-	ReaderID      string `json:"readerId"`
-	ArticleID     string `json:"articleId"`
-	CreatedAt     string `json:"createdAt"`
-	Reader        Author `json:"reader"`
-	ViewerUpvoted bool   `json:"viewerUpvoted"`
-	CommentsCount int    `json:"commentsCount"`
+	QuoteOrdinal int `json:"quoteOrdinal"`
+	// Ancres canoniques (additives) : offsets en code points dans le document
+	// canonique de l'article + empreinte du contenu. NULL pour les données
+	// héritées non résolues — les clients retombent alors sur text+quoteOrdinal.
+	CanonicalStart *int    `json:"canonicalStart,omitempty"`
+	CanonicalEnd   *int    `json:"canonicalEnd,omitempty"`
+	ContentSha     *string `json:"contentSha,omitempty"`
+	UpvotesCount   int     `json:"upvotesCount"`
+	ReaderID       string  `json:"readerId"`
+	ArticleID      string  `json:"articleId"`
+	CreatedAt      string  `json:"createdAt"`
+	Reader         Author  `json:"reader"`
+	ViewerUpvoted  bool    `json:"viewerUpvoted"`
+	CommentsCount  int     `json:"commentsCount"`
 }
 
 // AnnotationComment est un commentaire attaché à un surlignage.
@@ -122,6 +128,22 @@ func tsString(t pgtype.Timestamp) string {
 	return t.Time.Format(time.RFC3339)
 }
 
+func intPtr(v pgtype.Int4) *int {
+	if !v.Valid {
+		return nil
+	}
+	n := int(v.Int32)
+	return &n
+}
+
+func shaPtr(v pgtype.Text) *string {
+	if !v.Valid {
+		return nil
+	}
+	s := v.String
+	return &s
+}
+
 // ListByArticle retourne les surlignages d'un article : publics + les siens,
 // avec l'état upvote du viewer. Auth optionnelle (viewerID peut être "").
 func (s *Service) ListByArticle(ctx context.Context, articleID, viewerID string) ([]Highlight, error) {
@@ -135,16 +157,19 @@ func (s *Service) ListByArticle(ctx context.Context, articleID, viewerID string)
 	out := make([]Highlight, 0, len(rows))
 	for _, r := range rows {
 		out = append(out, Highlight{
-			ID:           r.ID,
-			Text:         r.Text,
-			Note:         textPtr(r.Note),
-			IsPublic:     r.IsPublic,
-			IsOfficial:   r.IsOfficial,
-			QuoteOrdinal: int(r.QuoteOrdinal),
-			UpvotesCount: int(r.UpvotesCount),
-			ReaderID:     r.ReaderID,
-			ArticleID:    r.ArticleId,
-			CreatedAt:    tsString(r.CreatedAt),
+			ID:             r.ID,
+			Text:           r.Text,
+			Note:           textPtr(r.Note),
+			IsPublic:       r.IsPublic,
+			IsOfficial:     r.IsOfficial,
+			QuoteOrdinal:   int(r.QuoteOrdinal),
+			CanonicalStart: intPtr(r.CanonicalStart),
+			CanonicalEnd:   intPtr(r.CanonicalEnd),
+			ContentSha:     shaPtr(r.ContentSha),
+			UpvotesCount:   int(r.UpvotesCount),
+			ReaderID:       r.ReaderID,
+			ArticleID:      r.ArticleId,
+			CreatedAt:      tsString(r.CreatedAt),
 			Reader: Author{
 				ID:       r.ReaderID,
 				Name:     textPtr(r.ReaderName),
@@ -212,15 +237,19 @@ func (s *Service) Create(ctx context.Context, articleID, readerID, text string, 
 		return Highlight{}, err
 	}
 	return Highlight{
-		ID:           row.ID,
-		Text:         row.Text,
-		Note:         textPtr(row.Note),
-		IsPublic:     row.IsPublic,
-		IsOfficial:   row.IsOfficial,
-		UpvotesCount: int(row.UpvotesCount),
-		ReaderID:     row.ReaderID,
-		ArticleID:    row.ArticleId,
-		CreatedAt:    tsString(row.CreatedAt),
+		ID:             row.ID,
+		Text:           row.Text,
+		Note:           textPtr(row.Note),
+		IsPublic:       row.IsPublic,
+		IsOfficial:     row.IsOfficial,
+		QuoteOrdinal:   int(row.QuoteOrdinal),
+		CanonicalStart: intPtr(row.CanonicalStart),
+		CanonicalEnd:   intPtr(row.CanonicalEnd),
+		ContentSha:     shaPtr(row.ContentSha),
+		UpvotesCount:   int(row.UpvotesCount),
+		ReaderID:       row.ReaderID,
+		ArticleID:      row.ArticleId,
+		CreatedAt:      tsString(row.CreatedAt),
 		Reader: Author{
 			ID:       row.ReaderID,
 			Name:     textPtr(row.ReaderName),
