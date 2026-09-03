@@ -139,6 +139,7 @@ const getHighlightByID = `-- name: GetHighlightByID :one
 
 SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."quoteOrdinal", h."upvotesCount",
        h."readerId", h."articleId", h."createdAt",
+       h."canonicalStart", h."canonicalEnd", h."contentSha",
        u.id::text AS reader_id,
        u.name     AS reader_name,
        u.username AS reader_username,
@@ -159,6 +160,9 @@ type GetHighlightByIDRow struct {
 	ReaderId       pgtype.UUID      `json:"readerId"`
 	ArticleId      string           `json:"articleId"`
 	CreatedAt      pgtype.Timestamp `json:"createdAt"`
+	CanonicalStart pgtype.Int4      `json:"canonicalStart"`
+	CanonicalEnd   pgtype.Int4      `json:"canonicalEnd"`
+	ContentSha     pgtype.Text      `json:"contentSha"`
 	ReaderID       string           `json:"reader_id"`
 	ReaderName     pgtype.Text      `json:"reader_name"`
 	ReaderUsername pgtype.Text      `json:"reader_username"`
@@ -182,6 +186,9 @@ func (q *Queries) GetHighlightByID(ctx context.Context, id string) (GetHighlight
 		&i.ReaderId,
 		&i.ArticleId,
 		&i.CreatedAt,
+		&i.CanonicalStart,
+		&i.CanonicalEnd,
+		&i.ContentSha,
 		&i.ReaderID,
 		&i.ReaderName,
 		&i.ReaderUsername,
@@ -246,6 +253,7 @@ func (q *Queries) ListAnnotationComments(ctx context.Context, highlightid string
 const listHighlightsByArticle = `-- name: ListHighlightsByArticle :many
 SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."quoteOrdinal", h."upvotesCount",
        h."readerId", h."articleId", h."createdAt",
+       h."canonicalStart", h."canonicalEnd", h."contentSha",
        u.id::text AS reader_id,
        u.name     AS reader_name,
        u.username AS reader_username,
@@ -279,6 +287,9 @@ type ListHighlightsByArticleRow struct {
 	ReaderId       pgtype.UUID      `json:"readerId"`
 	ArticleId      string           `json:"articleId"`
 	CreatedAt      pgtype.Timestamp `json:"createdAt"`
+	CanonicalStart pgtype.Int4      `json:"canonicalStart"`
+	CanonicalEnd   pgtype.Int4      `json:"canonicalEnd"`
+	ContentSha     pgtype.Text      `json:"contentSha"`
 	ReaderID       string           `json:"reader_id"`
 	ReaderName     pgtype.Text      `json:"reader_name"`
 	ReaderUsername pgtype.Text      `json:"reader_username"`
@@ -308,6 +319,9 @@ func (q *Queries) ListHighlightsByArticle(ctx context.Context, arg ListHighlight
 			&i.ReaderId,
 			&i.ArticleId,
 			&i.CreatedAt,
+			&i.CanonicalStart,
+			&i.CanonicalEnd,
+			&i.ContentSha,
 			&i.ReaderID,
 			&i.ReaderName,
 			&i.ReaderUsername,

@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
 )
@@ -25,6 +26,26 @@ func (h *Handler) RegisterPublic(r chi.Router) {
 	r.Get("/v1/articles/{slug}", h.getBySlug)
 	r.Get("/v1/articles/{id}/comments", h.listComments)
 	r.Get("/v1/articles/{id}/similar", h.similar)
+	// Document canonique (blocs + texte plat + offsets) — base des ancres.
+	r.Get("/v1/articles/{id}/document", h.document)
+}
+
+// GET /v1/articles/{id}/document — document canonique public de l'article.
+// Les surlignages (GET /v1/articles/{id}/highlights) portent des offsets
+// (canonicalStart/canonicalEnd) dans le texte canonique servi ici.
+func (h *Handler) document(w http.ResponseWriter, r *http.Request) {
+	articleID := chi.URLParam(r, "id")
+	doc, err := h.svc.CanonicalDocument(r.Context(), articleID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			response.NotFound(w, "Article introuvable")
+			return
+		}
+		log.Printf("[articles] document: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, doc)
 }
 
 // RegisterProtected enregistre les routes créateur (auth requise + scopes clé API).
