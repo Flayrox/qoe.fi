@@ -9,9 +9,16 @@
 //
 // Le composant (html-blocks.tsx) mesure les tokens via onLayout et
 // consomme ce module pour le reste.
+//
+// Tranche 1-d : quand le DOCUMENT CANONIQUE (GET /v1/articles/{id}/document)
+// est fourni, les blocs viennent du serveur (canonicalDocumentToBlocks) et
+// les surlignages sont peints PAR OFFSETS (canonicalStart/canonicalEnd dans
+// document.text, fenêtres par segment) — plus aucune recherche de texte.
 // =====================================================================
 
-/** Bloc typographique (sortie du mini-parseur HTML). */
+import type { CanonicalDocument } from '@qoe/sdk/mobile';
+
+/** Bloc typographique (sortie du mini-parseur HTML ou du doc canonique). */
 export type Block =
   | { type: 'p'; text: string }
   | { type: 'h1' | 'h2' | 'h3' | 'h4'; text: string }
@@ -32,6 +39,13 @@ export interface SelectionInfo {
   /** Bornes token de la sélection (peinture inline pendant le popover). */
   from: string;
   to: string;
+  /**
+   * Ancre canonique du passage (tranche 1-d) : offsets [start,end) en code
+   * points dans document.text — seulement quand le document canonique est
+   * chargé. Base des deep-links au passage exact (tranche 6).
+   */
+  canonicalStart?: number;
+  canonicalEnd?: number;
 }
 
 // Décodage des entités HTML courantes.
@@ -81,6 +95,40 @@ function stripTags(html: string): string {
  * Approche pragmatique : on découpe par balises de bloc connues, puis on
  * traite les listes et le contenu restant ligne par ligne.
  */
+
+/**
+ * Tranche 1-d — blocs depuis le DOCUMENT CANONIQUE serveur : le rendu ne
+ * re-parse plus le HTML côté client. Les textes sont déjà normalisés
+ * (blancs réduits, entités décodées) → `normalizeDisplay` devient l'identité
+ * et les offsets canoniques des segments tombent sur les tokens.
+ */
+export function canonicalDocumentToBlocks(doc: CanonicalDocument): Block[] {
+  return doc.blocks.map((b) => {
+    switch (b.kind) {
+      case 'p':
+      case 'h1':
+      case 'h2':
+      case 'h3':
+      case 'h4':
+        return { type: b.kind, text: b.text ?? '' };
+      case 'blockquote':
+        return { type: 'blockquote', text: b.text ?? '' };
+      case 'code':
+        return { type: 'code', text: b.text ?? '' };
+      case 'list':
+        return {
+          type: b.ordered ? 'ol' : 'ul',
+          items: (b.items ?? []).map((i) => i.text),
+        };
+      case 'img':
+        return { type: 'img', src: b.src ?? '', alt: b.alt };
+      case 'hr':
+        return { type: 'hr' };
+      default:
+        return { type: 'p', text: b.text ?? '' };
+    }
+  });
+}
 export function htmlToBlocks(html: string): Block[] {
   const blocks: Block[] = [];
 
@@ -484,12 +532,19 @@ export function absoluteTokenRect(rects: RectsBundle, id: string): Rect | null {
   };
 }
 
-/** Construit le SelectionInfo complet d'une sélection exprimée en tokens. */
+/**
+ * Construit le SelectionInfo complet d'une sélection exprimée en tokens.
+ * Avec le document canonique (`document`), l'ordinal est calculé sur le
+ * texte canonique du SERVEUR (même sémantique que `CountBefore` Go — la
+ * création est alors ancrée exactement) et l'ancre canonique du passage
+ * est jointe au résultat (deep-link futur).
+ */
 export function selectionToInfo(
   index: SegmentInfo[],
   fromId: string,
   toId: string,
-  rects: RectsBundle
+  rects: RectsBundle,
+  document?: CanonicalDocument | null
 ): SelectionInfo | null {
   const findToken = (id: string): Token | null => {
     for (const segment of index) {
@@ -507,7 +562,9 @@ export function selectionToInfo(
   const text = rangeToRawText(index, lo, hi);
   if (!text) return null;
 
-  const ordinal = ordinalAt(basisRaw(index), text, rawStartOffset(index, lo));
+  const ordinal = document
+    ? canonicalOrdinal(document, text, lo)
+    : ordinalAt(basisRaw(index), text, rawStartOffset(index, lo));
 
   const ra = absoluteTokenRect(rects, lo.id);
   const rb = absoluteTokenRect(rects, hi.id);
@@ -515,7 +572,42 @@ export function selectionToInfo(
   const yCenter =
     Math.min(ra.y, rb ? rb.y : ra.y) + Math.min(ra.height, rb ? rb.height : ra.height) / 2;
 
-  return { index: ordinal, text, y: yCenter, from: lo.id, to: hi.id };
+  const info: SelectionInfo = { index: ordinal, text, y: yCenter, from: lo.id, to: hi.id };
+  if (document) {
+    const cs = canonicalTokenOffset(document, lo);
+    const ce = canonicalTokenOffset(document, hi, true);
+    if (cs !== null && ce !== null && ce > cs) {
+      info.canonicalStart = cs;
+      info.canonicalEnd = ce;
+    }
+  }
+  return info;
+}
+
+/**
+ * Ordinal canonique du passage débutant au token `lo` : nombre
+ * d'occurrences du texte (normalisé) entièrement avant l'offset canonique
+ * du token dans document.text — même sémantique que `CountBefore` Go.
+ */
+function canonicalOrdinal(doc: CanonicalDocument, text: string, lo: Token): number {
+  const start = canonicalTokenOffset(doc, lo);
+  if (start === null) return 0;
+  const needle = text.replace(/\s+/g, ' ').trim();
+  if (!needle) return 0;
+  return ordinalAt(doc.text, needle, start);
+}
+
+/**
+ * Offset canonique (code points dans document.text) d'un token. Les
+ * offsets d'affichage des tokens sont UTF-16 ; l'ancre canonique compte
+ * les CODE POINTS (sémantique Go RuneLen) — reconversion via le préfixe
+ * (sûr pour emoji/surrogates).
+ */
+function canonicalTokenOffset(doc: CanonicalDocument, t: Token, atEnd = false): number | null {
+  const seg = doc.segments.find((s) => s.blockIdx === t.blockIdx && s.itemIdx === t.itemIdx);
+  if (!seg) return null;
+  const local = atEnd ? t.end : t.start;
+  return seg.start + [...seg.text.slice(0, local)].length;
 }
 
 /** Offset brut (dans basisRaw) du début du token `a`. */
@@ -538,14 +630,75 @@ function occurrenceTokenIds(occurrence: Occurrence, inSet: Set<string>): void {
   }
 }
 
-/** Ensemble des tokens à surligner (rendu inline des highlights). */
+/**
+ * Tranche 1-d — tokens couverts par une plage d'offsets CANONIQUES
+ * [gs,ge) (code points dans document.text), via les fenêtres par segment
+ * du serveur. Aucune recherche de texte : la fenêtre [start,end) de chaque
+ * segment intersecte la plage → offsets locaux → tokens (les offsets
+ * d'affichage == offsets canoniques, texte déjà normalisé).
+ */
+
+/** Index UTF-16 du caractère n° `cp` (code points) dans `text`. */
+function utf16IndexAt(text: string, cp: number): number {
+  let count = 0;
+  for (let i = 0; i < text.length;) {
+    if (count === cp) return i;
+    count++;
+    i += text.codePointAt(i)! > 0xffff ? 2 : 1;
+  }
+  return text.length;
+}
+function occurrenceTokenIdsByOffsets(
+  index: SegmentInfo[],
+  doc: CanonicalDocument,
+  gs: number,
+  ge: number,
+  inSet: Set<string>
+): void {
+  for (const seg of doc.segments) {
+    const start = Math.max(gs, seg.start);
+    const end = Math.min(ge, seg.end);
+    if (end <= start) continue;
+    const target = index.find((s) => s.blockIdx === seg.blockIdx && s.itemIdx === seg.itemIdx);
+    if (!target) continue;
+    // Les bornes canoniques locales sont en code points ; les tokens sont
+    // en UTF-16 (émoticônes) — conversion avant comparaison.
+    const ls = utf16IndexAt(seg.text, start - seg.start);
+    const le = utf16IndexAt(seg.text, end - seg.start);
+    for (const t of target.tokens) {
+      if (t.start < le && t.end > ls) inSet.add(t.id);
+    }
+  }
+}
+
+/**
+ * Ensemble des tokens à surligner (rendu inline des highlights).
+ * Avec le document canonique : peinture PAR OFFSETS (canonicalStart/End)
+ * quand les ancres existent — sinon repli sur la recherche de texte
+ * (surlignages hérités sans ancres, ou moteur HTML non canonique).
+ */
 export function computeHighlightTokenSets(
   index: SegmentInfo[],
-  highlights: ({ text?: string | null; quoteOrdinal?: number } | null | undefined)[]
+  highlights: (
+    | {
+        text?: string | null;
+        quoteOrdinal?: number;
+        canonicalStart?: number;
+        canonicalEnd?: number;
+      }
+    | null
+    | undefined
+  )[],
+  document?: CanonicalDocument | null
 ): Set<string> {
   const out = new Set<string>();
   for (const h of highlights ?? []) {
-    if (!h?.text) continue;
+    if (!h) continue;
+    if (document && typeof h.canonicalStart === 'number' && typeof h.canonicalEnd === 'number') {
+      occurrenceTokenIdsByOffsets(index, document, h.canonicalStart, h.canonicalEnd, out);
+      continue;
+    }
+    if (!h.text) continue;
     const occ = findOccurrence(index, h.text, h.quoteOrdinal ?? 0);
     if (occ) occurrenceTokenIds(occ, out);
   }

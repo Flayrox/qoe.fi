@@ -68,6 +68,20 @@ export function ArticleScreen({ slug, publicationId }: { slug: string; publicati
     enabled: Boolean(data?.id),
   });
 
+  // Tranche 1-d — document canonique (blocs serveur + marques par offsets).
+  // Jamais pour un article verrouillé : le document complet n'est pas
+  // téléchargé si le contenu a été tronqué (zéro-fuite du paywall).
+  const { data: canonicalDocument } = useQuery({
+    queryKey: ['article-document', data?.id ?? ''],
+    queryFn: async () => {
+      if (!data?.id) return null;
+      const res = await apiClient.getArticleDocument(data.id);
+      if (!res.ok) return null;
+      return res.data;
+    },
+    enabled: Boolean(data?.id) && !data?.isTruncated && data?.accessGranted !== false,
+  });
+
   // État bookmark (optimiste local). Le Go ne renvoie pas l'état initial —
   // on le déduit de la bibliothèque au chargement.
   const [bookmarked, setBookmarked] = useState(false);
@@ -228,6 +242,7 @@ export function ArticleScreen({ slug, publicationId }: { slug: string; publicati
               <ArticleHtml
                 html={data.content}
                 highlights={highlights ?? []}
+                document={canonicalDocument ?? undefined}
                 selection={selection}
                 onSelect={setSelection}
                 onScrollLock={setScrollLock}

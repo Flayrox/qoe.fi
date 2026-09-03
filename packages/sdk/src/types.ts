@@ -303,6 +303,73 @@ export interface Highlight {
    * (modules/creator/api_highlights.go).
    */
   quoteOrdinal: number;
+  /**
+   * Ancre canonique (tranche 0/1) : offsets [start,end) en code points dans
+   * `document.text` du document canonique, `contentSha` = version du doc.
+   * Additifs — absents sur les surlignages créés avant la migration.
+   */
+  canonicalStart?: number;
+  canonicalEnd?: number;
+  contentSha?: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Document canonique (contrat GET /v1/articles/{id}/document)
+// ─────────────────────────────────────────────────────────────────────
+// Source unique de vérité du contrat (web + mobile) : les blocs
+// typographiques + le texte canonique plat + les fenêtres par segment
+// (offsets en code points). Ré-exporté par
+// `packages/ui/src/annotations/canonical-document.ts`.
+
+/** Type de bloc typographique du document canonique. */
+export type CanonicalBlockKind =
+  'p' | 'h1' | 'h2' | 'h3' | 'h4' | 'blockquote' | 'code' | 'list' | 'img' | 'hr';
+
+/** Style inline sur [start,end) du texte normalisé d'un bloc/item. */
+export interface CanonicalInlineSpan {
+  start: number;
+  end: number;
+  style: 'bold' | 'italic' | 'underline' | 'code' | 'link' | string;
+  href?: string;
+}
+
+/** Marque officielle du créateur (mark data-annotation-note) sur [start,end). */
+export interface CanonicalSpan {
+  start: number;
+  end: number;
+  note?: string;
+}
+
+export interface CanonicalListItem {
+  text: string;
+  inline?: CanonicalInlineSpan[];
+}
+
+export interface CanonicalBlock {
+  kind: CanonicalBlockKind;
+  text?: string;
+  items?: CanonicalListItem[];
+  ordered?: boolean;
+  src?: string;
+  alt?: string;
+  spans?: CanonicalSpan[];
+  inline?: CanonicalInlineSpan[];
+}
+
+/** Segment mesurable : un bloc texte ou un item de liste. */
+export interface CanonicalSegment {
+  blockIdx: number;
+  itemIdx: number;
+  text: string;
+  start: number;
+  end: number;
+}
+
+export interface CanonicalDocument {
+  blocks: CanonicalBlock[];
+  segments: CanonicalSegment[];
+  text: string;
+  sha: string;
 }
 
 /** Commentaire d'annotation attaché à un surlignage. */

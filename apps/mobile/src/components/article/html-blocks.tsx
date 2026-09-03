@@ -14,10 +14,12 @@ import { ThemedText, type ThemedTextProps } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { playHaptic } from '@/lib/haptics';
+import type { CanonicalDocument } from '@qoe/sdk/mobile';
 
 import {
   absoluteTokenRect,
   buildBlockIndex,
+  canonicalDocumentToBlocks,
   computeHighlightTokenSets,
   htmlToBlocks,
   mergeRectsToBands,
@@ -93,7 +95,22 @@ export interface ArticleHtmlProps {
    * Surlignages (publics + les miens) à rendre inline dans le texte —
    * mêmes entrées que GET /v1/articles/{id}/highlights.
    */
-  highlights?: ({ text?: string | null; quoteOrdinal?: number } | null | undefined)[];
+  highlights?: (
+    | {
+        text?: string | null;
+        quoteOrdinal?: number;
+        canonicalStart?: number;
+        canonicalEnd?: number;
+      }
+    | null
+    | undefined
+  )[];
+  /**
+   * Document canonique (tranche 1-d) : les blocs viennent du serveur (fini
+   * le re-parse HTML) et les marques sont peintes PAR OFFSETS. Absent →
+   * moteur hérité (htmlToBlocks + recherche de texte).
+   */
+  document?: CanonicalDocument | null;
   /** Sélection en cours (popover ouvert) — maintient le surlignage live. */
   selection?: SelectionInfo | null;
   /** Relâchement d'une sélection → le passage choisi (texte brut + ordinal).
@@ -106,16 +123,20 @@ export interface ArticleHtmlProps {
 export function ArticleHtml({
   html,
   highlights = [],
+  document,
   selection = null,
   onSelect,
   onScrollLock,
 }: ArticleHtmlProps) {
   const theme = useTheme();
-  const blocks = useMemo(() => htmlToBlocks(html), [html]);
+  const blocks = useMemo(
+    () => (document ? canonicalDocumentToBlocks(document) : htmlToBlocks(html)),
+    [document, html]
+  );
   const index = useMemo(() => buildBlockIndex(blocks), [blocks]);
   const highlightedTokens = useMemo(
-    () => computeHighlightTokenSets(index, highlights),
-    [index, highlights]
+    () => computeHighlightTokenSets(index, highlights, document),
+    [index, highlights, document]
   );
 
   const blockRects = useRef(new Map<number, Rect>());
@@ -222,7 +243,7 @@ export function ArticleHtml({
     absRects.current = null; // prochain geste : re-mesure fraîche
     setLiveSel(null);
     if (!sel) return;
-    const info = selectionToInfo(index, sel.a, sel.b, bundles());
+    const info = selectionToInfo(index, sel.a, sel.b, bundles(), document);
     if (info) onSelect?.(info);
   };
 
