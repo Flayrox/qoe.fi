@@ -5,9 +5,10 @@
 // tout (ré-embedding complet) ; `-meili` ne upsert que les documents manquants.
 //
 // Usage :
-//   cd apps/api && go run ./cmd/backfill            # articles sans vecteur
-//   cd apps/api && go run ./cmd/backfill -force     # tout ré-enqueuer
-//   cd apps/api && go run ./cmd/backfill -meili     # reindex Meilisearch
+//
+//	cd apps/api && go run ./cmd/backfill            # articles sans vecteur
+//	cd apps/api && go run ./cmd/backfill -force     # tout ré-enqueuer
+//	cd apps/api && go run ./cmd/backfill -meili     # reindex Meilisearch
 package main
 
 import (
@@ -18,6 +19,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/joho/godotenv"
 
+	"github.com/qoefi/api/internal/anchors"
 	"github.com/qoefi/api/internal/config"
 	"github.com/qoefi/api/internal/dbpool"
 	"github.com/qoefi/api/internal/queue"
@@ -29,6 +31,7 @@ func main() {
 	meili := flag.Bool("meili", false, "re-synchroniser l'index Meilisearch (upsert idempotent des documents manquants)")
 	users := flag.Bool("users", false, "enqueuer les embeddings users manquants (WHERE embedding IS NULL)")
 	posts := flag.Bool("posts", false, "enqueuer les embeddings de pensées manquants (WHERE embedding IS NULL)")
+	anchor := flag.Bool("anchors", false, "re-synchroniser les ancres canoniques de tous les articles publiés (offsets + contentSha + marks officiels studio)")
 	flag.Parse()
 
 	_ = godotenv.Load("../../../.env")
@@ -42,6 +45,13 @@ func main() {
 		log.Fatalf("connexion base de données: %v", err)
 	}
 	defer pool.Close()
+
+	// Ancres canoniques (one-shot de migration, indépendant de Redis).
+	if *anchor {
+		anchors.BackfillAll(ctx, pool)
+		log.Println("[backfill] ancres canoniques synchronisées")
+		return
+	}
 
 	ac := queue.NewClient(cfg.RedisURL)
 	if ac == nil {

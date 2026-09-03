@@ -118,8 +118,13 @@ func RuneLen(s string) int { return utf8.RuneCountInString(s) }
 
 // Find localise l'occurrence n° ordinal (0-based) de target dans le texte
 // canonique. Retourne (start, end) en code points ; ok=false si introuvable.
-// Repli sur la première occurrence si l'ordinal dépasse le nombre trouvé
-// (contenu édité entre-temps) — même sémantique que le repli historique.
+// Repli sur la première occurrence si l'ordinal dépasse le nombre trouvé.
+//
+// Repli tolérant (type Hypothesis) quand la correspondance exacte échoue :
+//  1. ellipses de bord retirées (« … », « ... ») — citations tronquées ;
+//  2. préfixes de mots de plus en plus courts — contenu remanié.
+//
+// Les offsets retournés sont ceux de la variante effectivement trouvée.
 func (d *Document) Find(target string, ordinal int) (start, end int, ok bool) {
 	needle := Normalize(target)
 	if needle == "" {
@@ -130,10 +135,22 @@ func (d *Document) Find(target string, ordinal int) (start, end int, ok bool) {
 		wanted = 0
 	}
 	textR := []rune(d.Text)
-	needleR := []rune(needle)
-	if len(needleR) == 0 || len(textR) < len(needleR) {
-		return 0, 0, false
+	for _, cand := range findCandidates(needle) {
+		needleR := []rune(cand)
+		if len(needleR) == 0 || len(textR) < len(needleR) {
+			continue
+		}
+		if s, e, found := searchOrdinal(textR, needleR, wanted); found {
+			return s, e, true
+		}
 	}
+	return 0, 0, false
+}
+
+// searchOrdinal retourne l'occurrence n° wanted (0-based) de needleR dans
+// textR, ou la première si wanted dépasse le nombre trouvé. Pas de
+// chevauchement entre occurrences (comme indexOf).
+func searchOrdinal(textR, needleR []rune, wanted int) (int, int, bool) {
 	first := -1
 	seen := 0
 	for i := 0; i+len(needleR) <= len(textR); i++ {
@@ -154,12 +171,39 @@ func (d *Document) Find(target string, ordinal int) (start, end int, ok bool) {
 			return i, i + len(needleR), true
 		}
 		seen++
-		i += len(needleR) - 1 // pas de chevauchement (comme indexOf)
+		i += len(needleR) - 1
 	}
 	if first >= 0 {
 		return first, first + len(needleR), true
 	}
 	return 0, 0, false
+}
+
+// findCandidates construit les variantes tolérantes d'une citation, de la
+// plus exacte à la plus courte :
+//  1. le texte normalisé tel quel ;
+//  2. sans les ellipses de bord (« … », « ... ») ;
+//  3. préfixes de mots de plus en plus courts (repli « contenu remanié »).
+func findCandidates(needle string) []string {
+	out := []string{needle}
+	// Seules les ellipses de bord sont retirées (« … » et « ... ») — JAMAIS
+	// la ponctuation finale de phrase (« . » reste une ponctuation légitime).
+	trimmed := strings.Trim(needle, "…")
+	if strings.HasPrefix(trimmed, "...") {
+		trimmed = strings.TrimPrefix(trimmed, "...")
+	}
+	if strings.HasSuffix(trimmed, "...") {
+		trimmed = strings.TrimSuffix(trimmed, "...")
+	}
+	trimmed = strings.TrimSpace(trimmed)
+	if trimmed != needle && trimmed != "" {
+		out = append(out, trimmed)
+	}
+	words := strings.Fields(trimmed)
+	for k := len(words) - 1; k >= 1; k-- {
+		out = append(out, strings.Join(words[:k], " "))
+	}
+	return out
 }
 
 // CountBefore compte les occurrences de target (normalisée) dans le texte

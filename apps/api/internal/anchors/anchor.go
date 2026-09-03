@@ -145,6 +145,35 @@ func SyncOfficialMarks(ctx context.Context, pool Pool, articleID, authorID strin
 	}
 }
 
+// BackfillAll re-synchronise les ancres de TOUS les articles publiés
+// (one-shot d'exploitation : migration des données héritées). Idempotent :
+// ReanchorArticle ne re-résout que les lignes sans ancre ou au sha périmé,
+// SyncOfficialMarks n'insère que les marks officiels absents.
+func BackfillAll(ctx context.Context, pool Pool) {
+	rows, err := pool.Query(ctx, `
+		SELECT id::text, "authorId"::text
+		FROM "Article"
+		WHERE published = true
+		ORDER BY id`)
+	if err != nil {
+		log.Printf("[anchors] backfill select: %v", err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, authorID string
+		if err := rows.Scan(&id, &authorID); err != nil {
+			log.Printf("[anchors] backfill scan: %v", err)
+			return
+		}
+		ReanchorArticle(ctx, pool, id)
+		SyncOfficialMarks(ctx, pool, id, authorID)
+	}
+	if err := rows.Err(); err != nil {
+		log.Printf("[anchors] backfill rows: %v", err)
+	}
+}
+
 // ReanchorArticle re-synchronise les ancres de tous les surlignages d'un
 // article après une édition : met à jour Article.contentSha puis re-résout
 // les surlignages dont l'empreinte ne correspond plus (ou jamais résolus).

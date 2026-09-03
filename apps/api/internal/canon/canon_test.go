@@ -165,6 +165,31 @@ func TestFindOrdinalAndFallback(t *testing.T) {
 	}
 }
 
+func TestFindTolerantEllipsis(t *testing.T) {
+	sentence := "Les amphithéâtres se vident, les plateformes se remplissent."
+	doc := Parse("<p>" + sentence + "</p>")
+	// Citation héritée tronquée par une ellipse finale.
+	start, end, ok := doc.Find(sentence+"…", 0)
+	if !ok || start != 0 || end != RuneLen(sentence) {
+		t.Fatalf("Find ellipse = %d,%d,%v (want 0,%d,true)", start, end, ok, RuneLen(sentence))
+	}
+	// Ellipse initiale aussi (extrait « …continué »).
+	start, end, ok = doc.Find("…"+sentence, 0)
+	if !ok || start != 0 || end != RuneLen(sentence) {
+		t.Fatalf("Find ellipse init = %d,%d,%v", start, end, ok)
+	}
+}
+
+func TestFindTolerantWordPrefix(t *testing.T) {
+	sentence := "Un très long titre de démonstration complet"
+	doc := Parse("<p>" + sentence + "</p>")
+	// Citation dont la fin a été retirée lors d'un remaniement.
+	start, end, ok := doc.Find(sentence+" et plus encore", 0)
+	if !ok || start != 0 || end != RuneLen(sentence) {
+		t.Fatalf("Find préfixe = %d,%d,%v (want 0,%d,true)", start, end, ok, RuneLen(sentence))
+	}
+}
+
 func TestCountBefore(t *testing.T) {
 	doc := Parse(`<p>Répète ceci</p><p>Répète ceci</p>`)
 	// Seconde occurrence : début canonique 12 → 1 occurrence complète avant.
