@@ -74,6 +74,7 @@ export function ProfileScreen({
   const { data: me } = useMe();
   const [following, setFollowing] = useState<boolean | null>(null);
   const [followBusy, setFollowBusy] = useState(false);
+  const [msgBusy, setMsgBusy] = useState(false);
   const scrollY = useSharedValue(0);
 
   const onScrollHandler = (event: any) => {
@@ -137,6 +138,22 @@ export function ProfileScreen({
       }
     } finally {
       setFollowBusy(false);
+    }
+  };
+
+  const startConversation = async () => {
+    if (!profile?.ownerUserId || msgBusy) return;
+    setMsgBusy(true);
+    try {
+      const res = await apiClient.createConversation(profile.ownerUserId);
+      if (res.ok) {
+        router.push({
+          pathname: '/conversation/[id]',
+          params: { id: res.data.id },
+        });
+      }
+    } finally {
+      setMsgBusy(false);
     }
   };
 
@@ -265,6 +282,26 @@ export function ProfileScreen({
                   showCertified={profile.isCertified}
                 />
                 <View style={styles.actionWrap}>
+                  {!isOwn && profile.type === 'PERSONAL' && profile.ownerUserId ? (
+                    <Pressable
+                      onPress={() => void startConversation()}
+                      disabled={msgBusy}
+                      accessibilityLabel={t('profile.message', 'Message')}
+                      style={({ pressed }) => [
+                        styles.messageButton,
+                        {
+                          backgroundColor: pressed ? theme.backgroundSelected : 'transparent',
+                          borderColor: theme.border,
+                        },
+                      ]}
+                    >
+                      {msgBusy ? (
+                        <ActivityIndicator size="small" color={theme.primary} />
+                      ) : (
+                        <Ionicons name="chatbubble-outline" size={17} color={theme.primary} />
+                      )}
+                    </Pressable>
+                  ) : null}
                   {isOwn ? (
                     <Pressable
                       onPress={() => router.push('/settings/edit-profile')}
@@ -472,6 +509,15 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.one,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: Spacing.two,
+  },
+  messageButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 999,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   editProfileButton: {
     borderRadius: 999,
