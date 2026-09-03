@@ -630,6 +630,21 @@ type ContentFeedback struct {
 	CreatedAt pgtype.Timestamp `json:"createdAt"`
 }
 
+type Conversation struct {
+	ID        string           `json:"id"`
+	Type      string           `json:"type"`
+	DirectKey pgtype.Text      `json:"directKey"`
+	CreatedAt pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt pgtype.Timestamp `json:"updatedAt"`
+}
+
+type ConversationMember struct {
+	ConversationId string           `json:"conversationId"`
+	UserId         pgtype.UUID      `json:"userId"`
+	LastReadAt     pgtype.Timestamp `json:"lastReadAt"`
+	CreatedAt      pgtype.Timestamp `json:"createdAt"`
+}
+
 type FeedImpression struct {
 	ID          string           `json:"id"`
 	UserId      pgtype.UUID      `json:"userId"`
@@ -756,6 +771,14 @@ type Medium struct {
 	PublicationId string           `json:"publicationId"`
 	CreatedAt     pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt     pgtype.Timestamp `json:"updatedAt"`
+}
+
+type Message struct {
+	ID             string           `json:"id"`
+	ConversationId string           `json:"conversationId"`
+	SenderId       pgtype.UUID      `json:"senderId"`
+	Content        string           `json:"content"`
+	CreatedAt      pgtype.Timestamp `json:"createdAt"`
 }
 
 type ModerationReport struct {
