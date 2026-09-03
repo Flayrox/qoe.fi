@@ -620,43 +620,77 @@ func seedWorldPollsAndTrends(ctx context.Context, pool *pgxpool.Pool, cast []wor
 // ---------------------------------------------------------------------------
 
 func seedWorldReadingsAndNotifs(ctx context.Context, pool *pgxpool.Pool, cast []worldCharacter) error {
-	// Lectures par les lecteurs sur les articles du monde.
-	artIDs := []string{topID("wart", 1), topID("wart", 2)}
-	rows, err := pool.Query(ctx, `SELECT id FROM "Article" ORDER BY "createdAt" DESC LIMIT 4`)
+	// Lectures par les lecteurs sur les articles du monde (créés il y a 5
+	// jours) + quelques articles déjà anciens. Jamais d'articles fraîchement
+	// publiés : les sessions sont datées d'il y a 4 jours, une lecture ne peut
+	// pas précéder la publication de son support.
+	type artPick struct {
+		id          string
+		readingTime int
+	}
+	rows, err := pool.Query(ctx, `SELECT id, "readingTime" FROM "Article"
+		WHERE ("createdAt" <= now() - interval '4 days')
+		ORDER BY "createdAt" DESC
+		LIMIT 6`)
 	if err != nil {
 		return fmt.Errorf("world readings: %w", err)
 	}
 	defer rows.Close()
+	var arts []artPick
 	for rows.Next() {
-		var id string
-		if err := rows.Scan(&id); err != nil {
+		var a artPick
+		if err := rows.Scan(&a.id, &a.readingTime); err != nil {
 			return err
 		}
-		artIDs = append(artIDs, id)
+		arts = append(arts, a)
 	}
 	if err := rows.Err(); err != nil {
 		return err
 	}
 
+	// Sur un petit seed sans articles assez anciens, les articles du monde
+	// (wart, créés il y a 5 jours) servent de filet de sécurité.
+	if len(arts) == 0 {
+		arts = append(arts,
+			artPick{id: topID("wart", 1), readingTime: 6},
+			artPick{id: topID("wart", 2), readingTime: 6},
+		)
+	}
+
+	// Statut et durée cohérents : READ_COMPLETE demande d'avoir passé au
+	// moins le temps de lecture annoncé, SKIM/READ_PARTIAL en dessous.
 	statuses := []string{"BOUNCE", "SKIM", "READ_PARTIAL", "READ_COMPLETE"}
 	readers := castRoleIdx(cast, "user")
-	for i, art := range artIDs {
+	for i, art := range arts {
+		full := art.readingTime * 60 // durée totale en secondes
 		for ri := range readers {
 			if (i*7+ri)%5 == 0 {
 				continue
 			}
 			st := statuses[(i+ri)%len(statuses)]
 			scroll := 15 + (i*ri)%86
-			if st == "READ_COMPLETE" {
+			dwell := 20 + (i+ri)*37
+			switch st {
+			case "READ_COMPLETE":
 				scroll = 92
-			} else if st == "SKIM" {
+				dwell = full + 10 + (i*ri)%60
+			case "SKIM":
 				scroll = 30 + (i*ri)%40
+				dwell = 20 + (i*ri)%(full*3/10+1)
+			case "READ_PARTIAL":
+				dwell = full*4/10 + (i*ri)%(full*3/10+1)
+			default: // BOUNCE : très court
+				scroll = 5 + (i*ri)%12
+				dwell = 8 + (i*ri)%30
+			}
+			if dwell < 1 {
+				dwell = 1
 			}
 			if _, err := pool.Exec(ctx, `
 				INSERT INTO "ReadingSession" (id, "articleId", "userId", source, status, "scrollDepth", "dwellSeconds", "readingTimeMinutes", hostname, "createdAt")
-				VALUES ($1,$2,$3,$4,$5,$6,$7,6,'qoe.test', now() - interval '4 days')
+				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'qoe.test', now() - interval '4 days')
 				ON CONFLICT (id) DO NOTHING`,
-				topID("wrs", int(i*100+ri)), art, cast[readers[ri]].id, "feed", st, scroll, 20+(i+ri)*37); err != nil {
+				topID("wrs", int(i*100+ri)), art.id, cast[readers[ri]].id, "feed", st, scroll, dwell, art.readingTime); err != nil {
 				return fmt.Errorf("world reading: %w", err)
 			}
 		}

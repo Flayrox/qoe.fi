@@ -236,6 +236,9 @@ type Querier interface {
 	GetThoughtByID(ctx context.Context, id string) (GetThoughtByIDRow, error)
 	// Threadgates & réponses
 	GetThoughtReplyGate(ctx context.Context, id string) (GetThoughtReplyGateRow, error)
+	// Racine du fil d'une pensée : la pensée de base à laquelle une réponse
+	// doit être rattachée (rootId de la chaîne, sinon son id canonique).
+	GetThreadRootID(ctx context.Context, id string) (string, error)
 	GetUnreadCount(ctx context.Context, recipientid pgtype.UUID) (int32, error)
 	GetUserApiAccessStatus(ctx context.Context, id string) (string, error)
 	GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error)

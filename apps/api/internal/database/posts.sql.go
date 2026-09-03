@@ -399,6 +399,21 @@ func (q *Queries) GetThoughtByID(ctx context.Context, id string) (GetThoughtByID
 	return i, err
 }
 
+const getThreadRootID = `-- name: GetThreadRootID :one
+SELECT COALESCE("rootId", COALESCE("repostId", id))::text AS id
+FROM "Post"
+WHERE id = $1
+`
+
+// Racine du fil d'une pensée : la pensée de base à laquelle une réponse
+// doit être rattachée (rootId de la chaîne, sinon son id canonique).
+func (q *Queries) GetThreadRootID(ctx context.Context, id string) (string, error) {
+	row := q.db.QueryRow(ctx, getThreadRootID, id)
+	var id_2 string
+	err := row.Scan(&id_2)
+	return id_2, err
+}
+
 const getUserByID = `-- name: GetUserByID :one
 SELECT id, username, name, "logoUrl", "isCertified", "isShadowbanned", "isSuspended", role
 FROM "User"
