@@ -24,6 +24,10 @@ export interface HighlightDTO {
   readerId: string;
   articleId: string;
   createdAt: string;
+  /** Ancres canoniques (offsets code points dans le document de l'article). */
+  canonicalStart?: number;
+  canonicalEnd?: number;
+  contentSha?: string;
   reader: { id: string; name: string | null; username: string | null; logoUrl: string | null };
   viewerUpvoted: boolean;
   commentsCount: number;

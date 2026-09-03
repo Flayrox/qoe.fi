@@ -19,6 +19,8 @@ import { cn } from '@qoe/utils';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { TextSelectionPopover } from './TextSelectionPopover';
 import { AnnotationSideDrawer } from './AnnotationSideDrawer';
+import { CanonicalArticleBody } from './CanonicalArticleBody';
+import type { CanonicalDocument } from './canonical-document';
 import { findQuoteOccurrence } from './quote-anchor';
 import { toast } from '@qoe/ui/toast';
 import {
@@ -45,9 +47,15 @@ export function TextHighlighter({
   articleAuthorId,
   mainAppUrl,
   containerId = 'article-content',
+  canonicalDocument,
+  contentClassName,
   callbacks,
   onRequireAuth,
 }: TextHighlighterProps) {
+  // Mode document canonique : le corps est rendu par CanonicalArticleBody
+  // (marques par offsets) ; le moteur impératif hérité ne s'exécute plus.
+  const documentMode = !!canonicalDocument;
+  const documentRef = canonicalDocument as CanonicalDocument | undefined;
   const defaultReader = {
     id: currentUserId || 'anon',
     name: currentUserProfile?.name || currentUserProfile?.username || 'Lecteur',
@@ -153,12 +161,13 @@ export function TextHighlighter({
 
   // Re-apply DOM highlights whenever highlights list, public list, or filterMode changes
   useEffect(() => {
+    if (documentMode) return; // rendu déclaratif par CanonicalArticleBody
     removeAllMarksFromDOM();
     setupHtmlMarksInDOM();
     if (filterMode !== 'none') {
       highlightExisting();
     }
-  }, [highlights, allPublic, filterMode, containerId]);
+  }, [highlights, allPublic, filterMode, containerId, documentMode]);
 
   const changeFilterMode = (mode: AnnotationFilterMode) => {
     setFilterMode(mode);
@@ -353,70 +362,7 @@ export function TextHighlighter({
             createdAt: new Date(),
             reader: defaultReader,
           };
-
-          // Gather all annotations in the article
-          const rawList: AnnotationItem[] = [];
-          const allMarks = document.querySelectorAll(`#${containerId} mark[data-highlight-id]`);
-          allMarks.forEach((m) => {
-            const hId = m.getAttribute('data-highlight-id');
-            if (!hId) return;
-
-            const pubMatch = allPublic.find((p) => p.id === hId);
-            if (pubMatch && !rawList.some((a) => a.id === pubMatch.id)) {
-              rawList.push(pubMatch);
-              return;
-            }
-
-            const prvMatch = highlights.find((h) => h.id === hId);
-            if (prvMatch && !rawList.some((a) => a.id === prvMatch.id)) {
-              rawList.push({
-                id: prvMatch.id,
-                text: prvMatch.text,
-                note: prvMatch.note,
-                isPublic: false,
-                isOfficial: false,
-                upvotesCount: 0,
-                createdAt: prvMatch.createdAt || new Date(),
-                reader: defaultReader,
-              });
-            }
-          });
-
-          if (!rawList.some((a) => a.id === targetAnnot.id)) {
-            rawList.push(targetAnnot);
-          }
-
-          const articleElText = document.getElementById(containerId)?.textContent || '';
-
-          // 🎯 LOGIQUE DE TRI DÉTERMINISTE :
-          // 1. Commence le plus tôt (DOM offset)
-          // 2. Finit le plus tôt
-          // 3. La plus courte
-          // 4. La plus ancienne puis la plus récente (createdAt ascendant)
-          const sortedList = rawList.sort((a, b) => {
-            const cleanA = a.text.trim();
-            const cleanB = b.text.trim();
-
-            const startA = articleElText.indexOf(cleanA);
-            const startB = articleElText.indexOf(cleanB);
-            const validStartA = startA !== -1 ? startA : 999999;
-            const validStartB = startB !== -1 ? startB : 999999;
-
-            if (validStartA !== validStartB) return validStartA - validStartB;
-
-            const endA = validStartA + cleanA.length;
-            const endB = validStartB + cleanB.length;
-            if (endA !== endB) return endA - endB;
-
-            if (cleanA.length !== cleanB.length) return cleanA.length - cleanB.length;
-
-            const dateA = new Date(a.createdAt).getTime();
-            const dateB = new Date(b.createdAt).getTime();
-            return dateA - dateB;
-          });
-
-          setArticleAnnotations(sortedList);
-          setSelectedAnnotationForDrawer(targetAnnot);
+          openDrawerForAnnotation(targetAnnot);
         };
 
         if (note) {
@@ -433,6 +379,78 @@ export function TextHighlighter({
 
       parent.replaceChild(fragment, textNode);
     });
+  };
+
+  /**
+   * Ouvre le drawer sur une annotation : rassemble toutes les marques du
+   * conteneur (impératives OU React), tri déterministe, puis sélection.
+   * Partagé entre le moteur hérité (onclick impératif) et le mode document
+   * canonique (onMarkClick de CanonicalArticleBody).
+   */
+  const openDrawerForAnnotation = (targetAnnot: AnnotationItem) => {
+    // Gather all annotations in the article
+    const rawList: AnnotationItem[] = [];
+    const allMarks = document.querySelectorAll(`#${containerId} mark[data-highlight-id]`);
+    allMarks.forEach((m) => {
+      const hId = m.getAttribute('data-highlight-id');
+      if (!hId) return;
+
+      const pubMatch = allPublic.find((p) => p.id === hId);
+      if (pubMatch && !rawList.some((a) => a.id === pubMatch.id)) {
+        rawList.push(pubMatch);
+        return;
+      }
+
+      const prvMatch = highlights.find((h) => h.id === hId);
+      if (prvMatch && !rawList.some((a) => a.id === prvMatch.id)) {
+        rawList.push({
+          id: prvMatch.id,
+          text: prvMatch.text,
+          note: prvMatch.note,
+          isPublic: false,
+          isOfficial: false,
+          upvotesCount: 0,
+          createdAt: prvMatch.createdAt || new Date(),
+          reader: defaultReader,
+        });
+      }
+    });
+
+    if (!rawList.some((a) => a.id === targetAnnot.id)) {
+      rawList.push(targetAnnot);
+    }
+
+    const articleElText = document.getElementById(containerId)?.textContent || '';
+
+    // 🎯 LOGIQUE DE TRI DÉTERMINISTE :
+    // 1. Commence le plus tôt (DOM offset)
+    // 2. Finit le plus tôt
+    // 3. La plus courte
+    // 4. La plus ancienne puis la plus récente (createdAt ascendant)
+    const sortedList = rawList.sort((a, b) => {
+      const cleanA = a.text.trim();
+      const cleanB = b.text.trim();
+
+      const startA = articleElText.indexOf(cleanA);
+      const startB = articleElText.indexOf(cleanB);
+      const validStartA = startA !== -1 ? startA : 999999;
+      const validStartB = startB !== -1 ? startB : 999999;
+
+      if (validStartA !== validStartB) return validStartA - validStartB;
+
+      const endA = validStartA + cleanA.length;
+      const endB = validStartB + cleanB.length;
+      if (endA !== endB) return endA - endB;
+
+      if (cleanA.length !== cleanB.length) return cleanA.length - cleanB.length;
+
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return dateA - dateB;
+    });
+
+    setArticleAnnotations(sortedList);
+    setSelectedAnnotationForDrawer(targetAnnot);
   };
 
   const handleLoginRedirect = () => {
@@ -497,18 +515,22 @@ export function TextHighlighter({
       if (res?.ok && res.data) {
         const createdData = res.data as { id: string };
         setHighlights((prev) => [...prev, { ...(res.data as HighlightItem), quoteOrdinal }]);
-        const articleEl = document.getElementById(containerId);
-        if (articleEl) {
-          applyHighlightToDOM(
-            articleEl,
-            selectedText,
-            undefined,
-            false,
-            false,
-            createdData.id,
-            undefined,
-            quoteOrdinal
-          );
+        // Mode document : le corps React se repeint via les ancres renvoyées
+        // par le serveur (canonicalStart/End) — pas de mutation DOM.
+        if (!documentMode) {
+          const articleEl = document.getElementById(containerId);
+          if (articleEl) {
+            applyHighlightToDOM(
+              articleEl,
+              selectedText,
+              undefined,
+              false,
+              false,
+              createdData.id,
+              undefined,
+              quoteOrdinal
+            );
+          }
         }
         setSavedSuccess(true);
         setTimeout(() => {
@@ -680,6 +702,22 @@ export function TextHighlighter({
           </button>
         </div>
       </div>
+
+      {/* 📄 Mode document canonique : corps rendu par blocs, marques par
+          offsets (CanonicalArticleBody) — remplace le HTML brut + mutation
+          DOM du moteur hérité. */}
+      {documentMode && documentRef && (
+        <CanonicalArticleBody
+          document={documentRef}
+          highlights={highlights}
+          allPublic={allPublic}
+          filterMode={filterMode}
+          containerId={containerId}
+          className={contentClassName}
+          creatorName={creatorName}
+          onMarkClick={openDrawerForAnnotation}
+        />
+      )}
 
       <TextSelectionPopover
         containerId={containerId}
