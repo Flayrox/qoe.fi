@@ -14,6 +14,7 @@ import * as Clipboard from 'expo-clipboard';
 import { Copy, Highlighter, MessageSquare, Quote } from 'lucide-react-native';
 import { useState, type ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
+import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 
 import { GlassComposer } from '@/components/composer/glass-composer';
 import { ThemedText } from '@/components/themed-text';
@@ -104,7 +105,15 @@ export function SelectionPopover({
   };
 
   return (
-    <View style={[styles.wrap, { top }]} pointerEvents="box-none">
+    // Entrée/sortie animées : apparition en fondu+glissé, et au tap en
+    // dehors (onSelect(null)) la barre s'éteint en douceur au lieu de
+    // disparaître d'un coup (exiting joué par Reanimated au démontage).
+    <Animated.View
+      entering={FadeInDown.duration(180)}
+      exiting={FadeOutDown.duration(140)}
+      style={[styles.wrap, { top }]}
+      pointerEvents="box-none"
+    >
       <GlassComposer
         position="floating"
         floatingTop={0}
@@ -154,7 +163,7 @@ export function SelectionPopover({
         )}
         onSubmit={mode === 'quote' ? handleSubmitQuote : handleSubmitNote}
       />
-    </View>
+    </Animated.View>
   );
 }
 
