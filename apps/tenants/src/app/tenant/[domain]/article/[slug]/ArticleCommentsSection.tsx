@@ -167,7 +167,7 @@ export function ArticleCommentsSection({
     }
   };
 
-  const totalCount = comments.reduce((acc, c) => acc + 1 + c.replies.length, 0);
+  const totalCount = comments.reduce((acc, c) => acc + 1 + (c.replies?.length ?? 0), 0);
 
   return (
     <section id="comments" className="mt-16 pt-12 border-t border-border/40 space-y-8 select-text">
@@ -362,7 +362,7 @@ export function ArticleCommentsSection({
               )}
 
               {/* Nested Replies List */}
-              {comment.replies.length > 0 && (
+              {(comment.replies?.length ?? 0) > 0 && (
                 <div className="pl-8 pt-3 space-y-3 border-l-2 border-border/30 ml-4">
                   {comment.replies.map((reply) => (
                     <div
