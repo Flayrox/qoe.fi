@@ -1,7 +1,12 @@
 'use client';
 
 import React from 'react';
-import { TextHighlighter, type AnnotationItem, type HighlightItem } from '@qoe/ui/annotations';
+import {
+  TextHighlighter,
+  type AnnotationItem,
+  type HighlightItem,
+  type CanonicalDocument,
+} from '@qoe/ui/annotations';
 import {
   createHighlightAction,
   upvoteHighlightAction,
@@ -28,6 +33,10 @@ export interface TenantArticleHighlighterProps {
   } | null;
   articleAuthorId: string;
   mainAppUrl: string;
+  /** Document canonique : le corps est rendu par blocs (marques par offsets). */
+  canonicalDocument?: CanonicalDocument | null;
+  /** Classes du conteneur du corps d'article (mode document uniquement). */
+  contentClassName?: string;
 }
 
 export function TenantArticleHighlighter({
@@ -41,6 +50,8 @@ export function TenantArticleHighlighter({
   currentUserProfile,
   articleAuthorId,
   mainAppUrl,
+  canonicalDocument,
+  contentClassName,
 }: TenantArticleHighlighterProps) {
   return (
     <TextHighlighter
@@ -54,6 +65,8 @@ export function TenantArticleHighlighter({
       currentUserProfile={currentUserProfile}
       articleAuthorId={articleAuthorId}
       mainAppUrl={mainAppUrl}
+      canonicalDocument={canonicalDocument ?? undefined}
+      contentClassName={contentClassName}
       callbacks={{
         onHighlightCreate: async (params) =>
           createHighlightAction({
