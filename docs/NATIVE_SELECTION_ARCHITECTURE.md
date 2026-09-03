@@ -119,7 +119,29 @@ classe 2.1. La cible :
 
 ---
 
-## 3. Les options de rendu évaluées et leurs verdicts
+## 3. Inventaire complet : toutes les surfaces qui touchent un passage
+
+L'ancre canonique ne sert pas qu'au lecteur. **Toute** surface qui crée, stocke
+ou affiche un passage d'article est concernée — avec des mécanismes différents
+aujourd'hui, mais **le même défaut d'ancre par re-recherche de texte** :
+
+| # | Surface | Aujourd'hui (vérifié) | Cible canonique |
+|---|---|---|---|
+| 1 | **Lecteur web tenant** (`apps/tenants/.../TenantArticleHighlighter` → `TextHighlighter`) | Re-scan TreeWalker + mutation DOM en `<mark>` | Rend le doc canonique, peint par offsets ; `quote-anchor.ts` décommissionné |
+| 2 | **Lecteur du feed** (`apps/core/src/components/social/ArticleAnnotatorView.tsx`) | **Même** `TextHighlighter` partagé (`@qoe/ui/annotations`) → hérite de tous les bugs | Aucun correctif séparé : un seul moteur corrigé, les deux lecteurs suivent |
+| 3 | **Lecteur mobile** (`html-blocks-core.ts`) | Re-parse HTML + re-scan de tokens | Consomme le doc canonique (rendu natif iOS/Android, §4) |
+| 4 | **Studio créateur — annotations officielles** (`apps/studio/src/features/editor/extensions/AnnotationMark.ts`, TipTap) | Le créateur écrit `<mark data-annotation-note data-is-official>` **dans le HTML source** au moment de l'édition — positionnel à l'édition, mais la ligne DB reste `text + quoteOrdinal` → **deux sources de vérité** qui divergent dès qu'on reformate | Le studio **produit** le doc canonique (tranche 5) : l'annotation officielle devient une entité ancrée (`id` + offsets), une seule source de vérité ; les `<mark>` hérités sont canonicalisés comme le reste du HTML |
+| 5 | **Citations / pensées (feed web + mobile)** | `createThought(quotedArticleId, quotedExcerpt)` — **ni ordinal ni offsets** ; l'affichage (`packages/ui/src/social/QuotedArticleCard.tsx`) re-cherche l'extrait par `indexOf` dans le contenu vidé de ses balises par regex (`replace(/<[^>]*>/g…)`) → échec silencieux dès que les blancs/entités diffèrent, repli sur un chip sans contexte | La citation stocke l'**ancre canonique** du passage (offsets + version de doc, ou `id` de passage) ; la carte du feed demande **au serveur** le contexte avant/après stable (fini le strip HTML côté client) et le deep-link ouvre l'article **sur le passage exact** |
+| 6 | **Drawer / fils (upvotes, commentaires) + filtres `all`/`official`/`none`** | Consomment les mêmes marques re-scanées | Consomment les mêmes entités ancrées — les commentaires/upvotes s'attachent à l'`id` du passage, pas à une position retrouvée |
+
+**Conséquence d'architecture** : un seul schéma de stockage sert l'auteur (studio),
+le lecteur et le social (citation) — offsets canoniques + texte cité + contexte
+préfixe/suffixe conservé comme filet de ré-ancrage. Une seule passe de
+ré-ancrage serveur, quel que soit le client qui a créé le passage.
+
+---
+
+## 4. Les options de rendu évaluées et leurs verdicts
 
 ### ❌ `react-native-enriched-html` (Software Mansion) — disqualifié
 
@@ -158,7 +180,7 @@ valider le morph (tranche 2) mais **jamais de loupe ni de layout natif** → pas
 
 ---
 
-## 4. Séquence d'interaction cible (le morph avec le texte)
+## 5. Séquence d'interaction cible (le morph avec le texte)
 
 1. **Appui long** → premier mot sélectionné (natif), haptic Light.
 2. **Drag** → extension par glyphe (natif), bande continue.
@@ -175,16 +197,17 @@ Web : la même séquence avec la sélection navigateur native + Framer Motion.
 
 ---
 
-## 5. Déroulement recommandé (tranches — livrable et testable après chacune)
+## 6. Déroulement recommandé (tranches — livrable et testable après chacune)
 
 | # | Tranche | Contenu | Durée |
 |---|---|---|---|
-| 0 | **Canonicalisation serveur** (fondation — rien d'autre ne dépend d'elle) | Parser Go HTML→document canonique (référence croisée avec `html-blocks-core.ts`, tests de parité) ; texte canonique ; création de surlignage résolue en offsets ; colonnes offsets + migration/back-compat `quoteOrdinal` ; passe de ré-ancrage post-édition | 1–1,5 sem |
+| 0 | **Canonicalisation serveur** (fondation — rien d'autre ne dépend d'elle) | Parser Go HTML→document canonique (référence croisée avec `html-blocks-core.ts`, tests de parité) ; texte canonique ; création de surlignage résolue en offsets ; colonnes offsets + migration/back-compat `quoteOrdinal` ; passe de ré-ancrage post-édition ; **canonicalise aussi les `<mark data-annotation-note>` officiels du studio** | 1–1,5 sem |
 | 1 | **Web : consommer le document** | Lecteur tenant rendu depuis les blocs, marques par offsets ; décommission de `quote-anchor.ts` + mutation DOM `<mark>` (pont CSS Custom Highlight le temps de la migration seulement) | ~1 sem |
 | 2 | **Morph mobile** (moteur actuel) | Pill → formulaire en shared transition Reanimated, ancrée sur la bande ; indépendant du natif — peut démarrer en parallèle de 0/1 | 3–4 j |
 | 3 | **iOS natif** | Couche `UITextView` (lib Bluesky ou fork) branchée sur le document canonique ; surface + morph inchangés | ~1 sem |
 | 4 | **Android natif** | Module `TextView`/`Spannable` maison, mêmes contrats TS | 1–1,5 sem |
-| 5 | **(Option) Édition** | Un éditeur qui produit le document canonique (remplace le HTML à la source) | à chiffrer |
+| 5 | **(Option) Édition studio** | L'éditeur TipTap produit le doc canonique (remplace le HTML à la source) ; annotations officielles = entités ancrées, plus de `<mark>` ambigus dans le HTML | à chiffrer |
+| 6 | **(Option) Citations** | `createThought` accepte l'ancre canonique ; `QuotedArticleCard` résout via le serveur ; deep-link au passage exact | 3–5 j |
 
 Total : ~4–5 semaines pour 0→4. L'ordre est volontaire : **la canonicalisation
 d'abord** (elle supprime les divergences web/mobile et débloque proprement le
@@ -192,7 +215,7 @@ natif), le natif ensuite.
 
 ---
 
-## 6. Risques
+## 7. Risques
 
 - **Ré-ancrage après édition du contenu** : des offsets bruts deviennent invalides
   si l'article est ré-édité → la stratégie « texte cité + contexte préfixe/suffixe »
@@ -201,6 +224,12 @@ natif), le natif ensuite.
 - **Migration web du lecteur tenant** : le HTML hérité peut contenir du markup
   arbitraire → la canonicalisation doit couvrir (ou dégrader proprement) figures,
   captions, embeds ; tests de parité de rendu avant bascule.
+- **Studio : deux sources de vérité** (marks `<mark>` dans le HTML ET lignes DB) :
+  la migration doit associer chaque mark hérité à sa ligne officielle avant que
+  l'éditeur ne produise le doc canonique.
+- **Citations héritées sans ancre** : pas d'offsets ni d'ordinal stockés → la passe
+  de ré-ancrage serveur (texte exact + contexte) est le seul chemin ; les cartes
+  dont l'extrait n'est plus retrouvé doivent se dégrader proprement (chip seul).
 - **Parité de rendu natif** (attribué iOS vs Spannable Android) : mitigée par le
   modèle de blocs simple et partagé + style envoyé depuis TS (une seule source).
 - **Fork éventuel de la lib Bluesky** (marques `backgroundColor`) : petit mais à
@@ -213,7 +242,7 @@ natif), le natif ensuite.
 
 ---
 
-## 7. Références code actuelles
+## 8. Références code actuelles
 
 | Élément | Chemin |
 |---|---|
@@ -222,6 +251,10 @@ natif), le natif ensuite.
 | Surface d'actions mobile (pill actuelle) | `apps/mobile/src/components/article/selection-popover.tsx` |
 | Web : moteur d'annotations (TreeWalker → à décommissionner) | `packages/ui/src/annotations/TextHighlighter.tsx`, `quote-anchor.ts` |
 | Web : page article tenant (consommateur) | `apps/tenants/src/app/tenant/[domain]/article/[slug]/` (+ `TenantArticleHighlighter.tsx`) |
+| Web : lecteur du feed (même moteur partagé) | `apps/core/src/components/social/ArticleAnnotatorView.tsx` |
+| Studio : annotations officielles (marks dans le HTML source) | `apps/studio/src/features/editor/extensions/AnnotationMark.ts` |
+| Feed : carte de citation (re-cherche par `indexOf` → à remplacer) | `packages/ui/src/social/QuotedArticleCard.tsx`, `ThoughtCard.tsx` |
+| Feed : composer de pensée citant un article | `apps/core/src/app/(reader)/home/components/ThoughtComposer.tsx`, `packages/sdk/src/client.ts` (createThought) |
 | Serveur : stockage des surlignages (`text + quoteOrdinal`, sans offsets) | `apps/api/sql/schema/schema.sql`, `apps/api/internal/modules/highlights/` |
 | Morph de référence web (layoutId + spring) | `packages/ui/src/annotations/TextHighlighter.tsx` (l. ~566–582, 693+) |
 | Haptics mobile (Light/Heavy branchés) | `apps/mobile/src/lib/haptics.ts` |
