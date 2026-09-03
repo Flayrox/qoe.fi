@@ -508,6 +508,7 @@ type Article struct {
 	Title                  string            `json:"title"`
 	Slug                   string            `json:"slug"`
 	Content                string            `json:"content"`
+	ContentSha             pgtype.Text       `json:"contentSha"`
 	ImageUrl               pgtype.Text       `json:"imageUrl"`
 	Published              bool              `json:"published"`
 	IsPremium              bool              `json:"isPremium"`
@@ -647,16 +648,19 @@ type Follow struct {
 }
 
 type Highlight struct {
-	ID           string           `json:"id"`
-	Text         string           `json:"text"`
-	Note         pgtype.Text      `json:"note"`
-	IsPublic     bool             `json:"isPublic"`
-	IsOfficial   bool             `json:"isOfficial"`
-	QuoteOrdinal int32            `json:"quoteOrdinal"`
-	UpvotesCount int32            `json:"upvotesCount"`
-	ReaderId     pgtype.UUID      `json:"readerId"`
-	ArticleId    string           `json:"articleId"`
-	CreatedAt    pgtype.Timestamp `json:"createdAt"`
+	ID             string           `json:"id"`
+	Text           string           `json:"text"`
+	Note           pgtype.Text      `json:"note"`
+	IsPublic       bool             `json:"isPublic"`
+	IsOfficial     bool             `json:"isOfficial"`
+	QuoteOrdinal   int32            `json:"quoteOrdinal"`
+	CanonicalStart pgtype.Int4      `json:"canonicalStart"`
+	CanonicalEnd   pgtype.Int4      `json:"canonicalEnd"`
+	ContentSha     pgtype.Text      `json:"contentSha"`
+	UpvotesCount   int32            `json:"upvotesCount"`
+	ReaderId       pgtype.UUID      `json:"readerId"`
+	ArticleId      string           `json:"articleId"`
+	CreatedAt      pgtype.Timestamp `json:"createdAt"`
 }
 
 type Letter struct {
