@@ -13,6 +13,7 @@ import type {
   AccountSessionData,
   ArticleData,
   ArticleFeedResult,
+  CanonicalDocument,
   BookmarkItem,
   DeletionRequestData,
   EngagementPage,
@@ -770,6 +771,17 @@ export class QoeApiClient {
    */
   public async getArticleHighlights(articleId: string) {
     return this.request<Highlight[]>(`/v1/articles/${encodeURIComponent(articleId)}/highlights`);
+  }
+
+  /**
+   * GET /v1/articles/{id}/document — document canonique (blocs + texte
+   * plat + fenêtres par segment). Base des ancres des surlignages.
+   * Tranche 1-d : le mobile rend depuis les blocs, peint par offsets.
+   */
+  public async getArticleDocument(articleId: string) {
+    return this.request<CanonicalDocument>(
+      `/v1/articles/${encodeURIComponent(articleId)}/document`
+    );
   }
 
   /**

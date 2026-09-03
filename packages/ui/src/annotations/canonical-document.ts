@@ -6,59 +6,31 @@
 // surlignages portent canonicalStart/canonicalEnd (code points dans
 // document.text) — plus aucune recherche de texte côté client.
 // Les helpers ci-dessous sont PURS (aucun DOM) : testables unitairement.
+//
+// ⚠️ Les TYPES du contrat vivent dans `@qoe/sdk` (source unique, partagée
+// avec le mobile) — ré-exportés ici pour les consommateurs web existants.
 // =====================================================================
 
+import type {
+  CanonicalBlock,
+  CanonicalBlockKind,
+  CanonicalDocument,
+  CanonicalInlineSpan,
+  CanonicalListItem,
+  CanonicalSegment,
+  CanonicalSpan,
+} from '@qoe/sdk';
 import type { AnnotationItem } from './types';
 
-export type CanonicalBlockKind =
-  'p' | 'h1' | 'h2' | 'h3' | 'h4' | 'blockquote' | 'code' | 'list' | 'img' | 'hr';
-
-/** Style inline sur [start,end) du texte normalisé d'un bloc/item. */
-export interface CanonicalInlineSpan {
-  start: number;
-  end: number;
-  style: 'bold' | 'italic' | 'underline' | 'code' | 'link' | string;
-  href?: string;
-}
-
-/** Marque officielle du créateur (mark data-annotation-note) sur [start,end). */
-export interface CanonicalSpan {
-  start: number;
-  end: number;
-  note?: string;
-}
-
-export interface CanonicalListItem {
-  text: string;
-  inline?: CanonicalInlineSpan[];
-}
-
-export interface CanonicalBlock {
-  kind: CanonicalBlockKind;
-  text?: string;
-  items?: CanonicalListItem[];
-  ordered?: boolean;
-  src?: string;
-  alt?: string;
-  spans?: CanonicalSpan[];
-  inline?: CanonicalInlineSpan[];
-}
-
-/** Segment mesurable : un bloc texte ou un item de liste. */
-export interface CanonicalSegment {
-  blockIdx: number;
-  itemIdx: number;
-  text: string;
-  start: number;
-  end: number;
-}
-
-export interface CanonicalDocument {
-  blocks: CanonicalBlock[];
-  segments: CanonicalSegment[];
-  text: string;
-  sha: string;
-}
+export type {
+  CanonicalBlock,
+  CanonicalBlockKind,
+  CanonicalDocument,
+  CanonicalInlineSpan,
+  CanonicalListItem,
+  CanonicalSegment,
+  CanonicalSpan,
+};
 
 // ---------------------------------------------------------------------
 // Marques par offsets (à peindre sur un bloc/item)

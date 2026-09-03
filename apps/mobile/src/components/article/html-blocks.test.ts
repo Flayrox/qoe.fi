@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildBlockIndex,
+  canonicalDocumentToBlocks,
   computeHighlightTokenSets,
   findOccurrence,
   hitTestToken,
@@ -14,6 +15,7 @@ import {
   tokenizeDisplay,
   type RectsBundle,
 } from './html-blocks-core';
+import type { CanonicalDocument } from '@qoe/sdk/mobile';
 
 describe('normalizeDisplay — blancs affichés en espace simple, projection raw exacte', () => {
   it('réduit les runs de blancs (espaces, tabs, sauts de ligne)', () => {
@@ -256,6 +258,195 @@ describe('selectionToInfo — popover prêt à l’emploi (texte + quoteOrdinal)
   it('y = début du passage (le plus haut des deux bornes)', () => {
     const info = selectionToInfo(index, '1:0:0', '1:0:2', rects);
     expect(info?.y).toBe(40 + 12); // centre du 2e paragraphe
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────
+// Tranche 1-d — document canonique (blocs serveur + marques par offsets)
+// ─────────────────────────────────────────────────────────────────────
+
+/** Doc canonique de « <p>Le chat mange la souris.</p><p>Le chat dort.</p> »
+ * (segments séparés par UN espace ; offsets en code points). */
+const doc: CanonicalDocument = {
+  sha: 'abc123',
+  text: 'Le chat mange la souris. Le chat dort.',
+  blocks: [
+    { kind: 'p', text: 'Le chat mange la souris.' },
+    { kind: 'p', text: 'Le chat dort.' },
+  ],
+  segments: [
+    { blockIdx: 0, itemIdx: 0, text: 'Le chat mange la souris.', start: 0, end: 24 },
+    { blockIdx: 1, itemIdx: 0, text: 'Le chat dort.', start: 25, end: 38 },
+  ],
+};
+
+describe('canonicalDocumentToBlocks — blocs serveur → blocs du moteur', () => {
+  it('mappe tous les kinds (p, titres, listes ordonnées/puces, img, hr, citation)', () => {
+    const blocks = canonicalDocumentToBlocks({
+      sha: 'x',
+      text: '',
+      blocks: [
+        { kind: 'p', text: 'Intro' },
+        { kind: 'h2', text: 'Titre' },
+        { kind: 'list', ordered: true, items: [{ text: 'Un' }, { text: 'Deux' }] },
+        { kind: 'list', items: [{ text: 'A' }] },
+        { kind: 'img', src: 'https://x/y.jpg', alt: 'alt' },
+        { kind: 'hr' },
+        { kind: 'blockquote', text: 'Citation' },
+        { kind: 'code', text: 'fn()' },
+      ],
+      segments: [],
+    });
+    expect(blocks).toEqual([
+      { type: 'p', text: 'Intro' },
+      { type: 'h2', text: 'Titre' },
+      { type: 'ol', items: ['Un', 'Deux'] },
+      { type: 'ul', items: ['A'] },
+      { type: 'img', src: 'https://x/y.jpg', alt: 'alt' },
+      { type: 'hr' },
+      { type: 'blockquote', text: 'Citation' },
+      { type: 'code', text: 'fn()' },
+    ]);
+  });
+
+  it('construit un index identique à l’équivalent HTML (textes normalisés)', () => {
+    const index = buildBlockIndex(canonicalDocumentToBlocks(doc));
+    expect(index.map((s) => s.flowId)).toEqual(['0:0', '1:0']);
+    expect(index[0].display).toBe('Le chat mange la souris.');
+    expect(index[1].display).toBe('Le chat dort.');
+  });
+});
+
+describe('computeHighlightTokenSets — peinture PAR OFFSETS (document canonique)', () => {
+  const index = buildBlockIndex(canonicalDocumentToBlocks(doc));
+
+  it('ancres > ordinal : [25,32) = « Le chat » du 2e paragraphe, même avec ordinal 0', () => {
+    const set = computeHighlightTokenSets(
+      index,
+      [{ text: 'Le chat', quoteOrdinal: 0, canonicalStart: 25, canonicalEnd: 32 }],
+      doc
+    );
+    expect([...set].sort()).toEqual(['1:0:0', '1:0:1']);
+  });
+
+  it('coupe exactement sur les bornes du segment (plage à cheval sur 2 blocs)', () => {
+    // [20, 30) : « ouris. » fin du bloc 0 + « Le c » du bloc 1.
+    const set = computeHighlightTokenSets(
+      index,
+      [{ text: 'x', quoteOrdinal: 0, canonicalStart: 20, canonicalEnd: 30 }],
+      doc
+    );
+    expect([...set].sort()).toEqual(['0:0:4', '1:0:0', '1:0:1']);
+  });
+
+  it('plage vide (hors document) → aucun token', () => {
+    const set = computeHighlightTokenSets(
+      index,
+      [{ text: 'x', quoteOrdinal: 0, canonicalStart: 500, canonicalEnd: 510 }],
+      doc
+    );
+    expect(set.size).toBe(0);
+  });
+
+  it('sans ancres → repli recherche de texte (surlignages hérités)', () => {
+    const set = computeHighlightTokenSets(index, [{ text: 'chat', quoteOrdinal: 1 }], doc);
+    expect([...set].sort()).toEqual(['1:0:1']);
+  });
+
+  it('sans document → moteur hérité inchangé', () => {
+    const set = computeHighlightTokenSets(index, [{ text: 'chat', quoteOrdinal: 1 }]);
+    expect([...set].sort()).toEqual(['1:0:1']);
+  });
+
+  it('offsets CODE POINTS sûrs avec émoticône (sans conversion, 👋 peindrait à tort)', () => {
+    const emojiDoc: CanonicalDocument = {
+      sha: 'e',
+      text: '👋 salut tout le monde',
+      blocks: [{ kind: 'p', text: '👋 salut tout le monde' }],
+      segments: [{ blockIdx: 0, itemIdx: 0, text: '👋 salut tout le monde', start: 0, end: 21 }],
+    };
+    const emojiIndex = buildBlockIndex(canonicalDocumentToBlocks(emojiDoc));
+    // [1, 3) = « s » + espace… en code points : ne couvre PAS l'émoticône.
+    const set = computeHighlightTokenSets(
+      emojiIndex,
+      [{ text: 'sa', quoteOrdinal: 0, canonicalStart: 1, canonicalEnd: 3 }],
+      emojiDoc
+    );
+    expect([...set]).toEqual(['0:0:1']);
+  });
+});
+
+describe('selectionToInfo — ordinal canonique + ancre (document fourni)', () => {
+  const index = buildBlockIndex(canonicalDocumentToBlocks(doc));
+  const seg0 = index.find((s) => s.flowId === '0:0')!;
+  const seg1 = index.find((s) => s.flowId === '1:0')!;
+
+  const rects: RectsBundle = {
+    blockRects: new Map([
+      [0, { x: 0, y: 0, width: 300, height: 24 }],
+      [1, { x: 0, y: 40, width: 300, height: 24 }],
+    ]),
+    rowRects: new Map(),
+    flowRects: new Map([
+      ['0:0', { x: 0, y: 0, width: 300, height: 24 }],
+      ['1:0', { x: 0, y: 0, width: 300, height: 24 }],
+    ]),
+    tokenRects: new Map(
+      [...seg0.tokens, ...seg1.tokens].map((t, i) => [
+        t.id,
+        { x: (i % 4) * 70, y: 0, width: 60, height: 24 },
+      ])
+    ),
+  };
+
+  it('joint l’ancre canonique du passage (code points dans document.text)', () => {
+    // « chat dort. » : début canonique = 25 (seg1) + 3 (« Le ») = 28 ; fin = 38.
+    const info = selectionToInfo(index, '1:0:1', '1:0:2', rects, doc);
+    expect(info?.text).toBe('chat dort.');
+    expect(info?.canonicalStart).toBe(28);
+    expect(info?.canonicalEnd).toBe(38);
+  });
+
+  it('calcule l’ordinal sur le texte canonique serveur (dupliqué → 1)', () => {
+    const info = selectionToInfo(index, '1:0:1', '1:0:1', rects, doc);
+    expect(info?.text).toBe('chat');
+    expect(info?.index).toBe(1);
+  });
+
+  it('sélection multi-paragraphes → ordinal 0 + ancre couvrant les 2 blocs', () => {
+    const info = selectionToInfo(index, '0:0:4', '1:0:2', rects, doc);
+    expect(info?.text).toBe('souris.\n\nLe chat dort.');
+    expect(info?.index).toBe(0);
+    expect(info?.canonicalStart).toBe(17); // « souris. » commence à 17
+    expect(info?.canonicalEnd).toBe(38);
+  });
+
+  it('sans document → comportement hérité (pas d’ancre)', () => {
+    const info = selectionToInfo(index, '0:0:1', '0:0:1', rects);
+    expect(info?.text).toBe('chat');
+    expect(info?.canonicalStart).toBeUndefined();
+  });
+
+  it('ancre en CODE POINTS avec émoticône (👋 = 1, pas 2)', () => {
+    const emojiDoc: CanonicalDocument = {
+      sha: 'e',
+      text: '👋 salut',
+      blocks: [{ kind: 'p', text: '👋 salut' }],
+      segments: [{ blockIdx: 0, itemIdx: 0, text: '👋 salut', start: 0, end: 7 }],
+    };
+    const emojiIndex = buildBlockIndex(canonicalDocumentToBlocks(emojiDoc));
+    const emojiRects: RectsBundle = {
+      blockRects: new Map([[0, { x: 0, y: 0, width: 300, height: 24 }]]),
+      rowRects: new Map(),
+      flowRects: new Map([['0:0', { x: 0, y: 0, width: 300, height: 24 }]]),
+      tokenRects: new Map(
+        emojiIndex[0].tokens.map((t, i) => [t.id, { x: i * 70, y: 0, width: 60, height: 24 }])
+      ),
+    };
+    const info = selectionToInfo(emojiIndex, '0:0:0', '0:0:0', emojiRects, emojiDoc);
+    expect(info?.text).toBe('👋');
+    expect(info?.canonicalStart).toBe(0);
+    expect(info?.canonicalEnd).toBe(1); // 1 code point, pas 2 unités UTF-16
   });
 });
 
