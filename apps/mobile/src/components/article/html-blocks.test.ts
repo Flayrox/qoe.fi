@@ -6,6 +6,7 @@ import {
   findOccurrence,
   hitTestToken,
   htmlToBlocks,
+  mergeRectsToBands,
   normalizeDisplay,
   ordinalAt,
   rangeToRawText,
@@ -25,6 +26,52 @@ describe('normalizeDisplay — blancs affichés en espace simple, projection raw
   it('trim les blancs de tête et de queue', () => {
     const { text } = normalizeDisplay('  bonjour  ');
     expect(text).toBe('bonjour');
+  });
+
+  it('fusionne les tokens d’une même ligne en une bande continue', () => {
+    const bands = mergeRectsToBands([
+      { x: 0, y: 0, width: 40, height: 24 },
+      { x: 44, y: 0, width: 55, height: 24 },
+      { x: 103, y: 0, width: 30, height: 24 },
+      { x: 0, y: 28, width: 90, height: 24 },
+      { x: 94, y: 28, width: 20, height: 24 },
+    ]);
+    expect(bands).toHaveLength(2);
+    // Ligne 1 : de x=0 à x=133 (les 3 mots, espaces couverts).
+    expect(bands[0]).toEqual({ x: 0, y: 0, width: 133, height: 24 });
+    // Ligne 2 : de x=0 à x=114.
+    expect(bands[1]).toEqual({ x: 0, y: 28, width: 114, height: 24 });
+  });
+
+  it('ne fusionne pas deux lignes différentes', () => {
+    const bands = mergeRectsToBands([
+      { x: 0, y: 0, width: 40, height: 24 },
+      { x: 10, y: 30, width: 40, height: 24 },
+    ]);
+    expect(bands).toHaveLength(2);
+  });
+
+  it('fusionne les tokens d’une même ligne en une bande continue', () => {
+    const bands = mergeRectsToBands([
+      { x: 0, y: 0, width: 40, height: 24 },
+      { x: 44, y: 0, width: 55, height: 24 },
+      { x: 103, y: 0, width: 30, height: 24 },
+      { x: 0, y: 28, width: 90, height: 24 },
+      { x: 94, y: 28, width: 20, height: 24 },
+    ]);
+    expect(bands).toHaveLength(2);
+    // Ligne 1 : de x=0 à x=133 (les 3 mots, espaces couverts).
+    expect(bands[0]).toEqual({ x: 0, y: 0, width: 133, height: 24 });
+    // Ligne 2 : de x=0 à x=114.
+    expect(bands[1]).toEqual({ x: 0, y: 28, width: 114, height: 24 });
+  });
+
+  it('ne fusionne pas deux lignes différentes', () => {
+    const bands = mergeRectsToBands([
+      { x: 0, y: 0, width: 40, height: 24 },
+      { x: 10, y: 30, width: 40, height: 24 },
+    ]);
+    expect(bands).toHaveLength(2);
   });
 
   it('projette un slice affiché vers le texte brut d’origine', () => {
