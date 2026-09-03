@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/canon"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/vectorfeed"
 )
@@ -157,19 +158,41 @@ func (s *Service) ListByArticle(ctx context.Context, articleID, viewerID string)
 	return out, nil
 }
 
+// resolveAnchor canonicalise le contenu de l'article et résout le passage en
+// offsets (code points) + empreinte. En cas d'échec, retourne des ancres NULL
+// (le surlignage reste lisible via text + quoteOrdinal — modèle hérité).
+func (s *Service) resolveAnchor(ctx context.Context, articleID, text string, quoteOrdinal int) (pgtype.Int4, pgtype.Int4, pgtype.Text) {
+	var html string
+	if err := s.pool.QueryRow(ctx, `SELECT "content" FROM "Article" WHERE id=$1`, articleID).Scan(&html); err != nil {
+		return pgtype.Int4{}, pgtype.Int4{}, pgtype.Text{}
+	}
+	doc := canon.Parse(html)
+	start, end, ok := doc.Find(text, quoteOrdinal)
+	if !ok {
+		return pgtype.Int4{}, pgtype.Int4{}, pgtype.Text{}
+	}
+	return pgtype.Int4{Int32: int32(start), Valid: true},
+		pgtype.Int4{Int32: int32(end), Valid: true},
+		pgtype.Text{String: doc.Sha, Valid: true}
+}
+
 // Create crée un surlignage pour un lecteur sur un article.
 func (s *Service) Create(ctx context.Context, articleID, readerID, text string, note *string, isPublic bool, quoteOrdinal int) (Highlight, error) {
 	if quoteOrdinal < 0 {
 		quoteOrdinal = 0
 	}
+	start, end, sha := s.resolveAnchor(ctx, articleID, text, quoteOrdinal)
 	id, err := s.q.CreateHighlight(ctx, db.CreateHighlightParams{
-		Text:         text,
-		Note:         pgtype.Text{String: deref(note), Valid: note != nil},
-		IsPublic:     isPublic,
-		IsOfficial:   false,
-		QuoteOrdinal: int32(quoteOrdinal),
-		ReaderId:     toUUID(readerID),
-		ArticleId:    articleID,
+		Text:           text,
+		Note:           pgtype.Text{String: deref(note), Valid: note != nil},
+		IsPublic:       isPublic,
+		IsOfficial:     false,
+		QuoteOrdinal:   int32(quoteOrdinal),
+		ReaderId:       toUUID(readerID),
+		ArticleId:      articleID,
+		CanonicalStart: start,
+		CanonicalEnd:   end,
+		ContentSha:     sha,
 	})
 	if err != nil {
 		return Highlight{}, err
