@@ -1,6 +1,6 @@
 # Sélection native + ancrage unifié (web, mobile, iOS, Android) — Architecture cible
 
-> Décision du 2026-09-03 (rév. 2 — **version définitive, sans rustine**).
+> Décision du 2026-09-03 (rév. 6 — version définitive, sans rustine).
 > Objectif : sélection de texte **au niveau natif** sur iOS ET Android, une
 > **expérience et un moteur convergents avec le web**, et un modèle de données
 > qui restera sain quand le contenu sera édité, quand l'édition arrivera, et quand
@@ -102,7 +102,6 @@ HTML entrant ──canonicalisation──▶ Document canonique
 - Le terrain est prêt pour l'édition future : un éditeur produit déjà ce format.
 
 ### 2.3 Côté web : pas de rustine, on converge
-
 Sur le web, le DOM est la couche native (sélection navigateur réelle) — on n'y
 touche pas. Mais l'implémentation actuelle (TreeWalker + `<mark>` mutés dans
 `packages/ui/src/annotations/TextHighlighter.tsx`, consommé par
@@ -116,6 +115,38 @@ classe 2.1. La cible :
    interne seulement, le CSS Custom Highlight API — **jamais** comme destination,
    uniquement comme pont le temps de la migration) ;
 3. Le morphing surface web reste Framer Motion au-dessus — inchangé.
+
+### 2.4 Réglages technologiques de la passe finale (rév. 6)
+
+Revue « dernières technologies » avant lancement — cinq précisions qui évitent
+les pièges classiques :
+
+1. **Unité d'offset unique, définie une fois** : les offsets canoniques sont des
+   **code points (scalaires Unicode)**. Go manipule des octets, JS/Swift/Kotlin des
+   unités UTF-16 → conversion **aux frontières seulement** (NSRange/UITextView,
+   index JS), jamais dans le stockage. Un passage contenant emojis/accents ne doit
+   jamais dépendre de l'unité de la plateforme qui l'a créé.
+2. **Ré-ancrage par diff (Myers), pas seulement par re-recherche** : quand le
+   contenu d'un article est ré-édité, on diff l'ancien texte canonique vs le
+   nouveau (algorithme type git) et on re-mappe **tous** les offsets d'un coup ;
+   la recherche « texte + préfixe/suffixe » (type Hypothesis) ne sert que de repli
+   quand le diff échoue (lourd remaniement).
+3. **Empreinte de contenu** : colonne `contentSha` (hash du texte canonique) sur
+   l'article. Chaque ancre porte le `contentSha` du moment de sa création ; à la
+   lecture, sha différent → passe de ré-ancrage déclenchée une seule fois. Pas de
+   scan de toutes les ancres à chaque rendu.
+4. **IDs de blocs stables** : le document canonique donne un `id` stable à chaque
+   bloc (dérivé du contenu), pour ancrer par `blockId + offset` quand c'est utile
+   et pour que les exportés (studio, API) référencent des blocs stables, pas des
+   positions muettes.
+5. **Deep-link aux passages** : web = **Text Fragments API** (`#:~:text=…`,
+   gratuit et natif) en complément des ancres ; mobile = deep link `qoe://` avec
+   paramètre de passage, scroll + surlignage à l'ouverture (tranche 6).
+
+Vérification faite (revue 2025-2026) : aucune lib native récente ne change le
+choix des couches (Bluesky `UITextView` iOS / module maison Android / surface
+Reanimated) ; `react-native-enriched-html` reste disqualifié (pas d'événements
+ni de `contextMenuItems` sur son composant lecture seule).
 
 ---
 
