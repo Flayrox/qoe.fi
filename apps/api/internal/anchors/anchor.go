@@ -52,10 +52,14 @@ func Resolve(articleHTML, text string, ordinal int) (start, end int32, sha strin
 // offsets, sha). Les lignes officielles existantes SANS mark correspondant
 // (ex. seed) sont laissées intactes ; leur ré-ancrage est géré par
 // ReanchorArticle. Jamais bloquant : échec → log.
-func SyncOfficialMarks(ctx context.Context, pool Pool, articleID, authorID string) {
-	var html string
+//
+// L'auteur (readerId des entités) est TOUJOURS l'auteur de l'article lu en
+// base — jamais le userID de la requête (correct même en co-écriture).
+func SyncOfficialMarks(ctx context.Context, pool Pool, articleID string) {
+	var html, authorID string
 	err := pool.QueryRow(ctx,
-		`SELECT COALESCE("content",'') FROM "Article" WHERE id = $1`, articleID).Scan(&html)
+		`SELECT COALESCE("content",''), "authorId"::text FROM "Article" WHERE id = $1`,
+		articleID).Scan(&html, &authorID)
 	if err != nil || strings.TrimSpace(html) == "" {
 		return
 	}
@@ -151,7 +155,7 @@ func SyncOfficialMarks(ctx context.Context, pool Pool, articleID, authorID strin
 // SyncOfficialMarks n'insère que les marks officiels absents.
 func BackfillAll(ctx context.Context, pool Pool) {
 	rows, err := pool.Query(ctx, `
-		SELECT id::text, "authorId"::text
+		SELECT id::text
 		FROM "Article"
 		WHERE published = true
 		ORDER BY id`)
@@ -161,13 +165,13 @@ func BackfillAll(ctx context.Context, pool Pool) {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var id, authorID string
-		if err := rows.Scan(&id, &authorID); err != nil {
+		var id string
+		if err := rows.Scan(&id); err != nil {
 			log.Printf("[anchors] backfill scan: %v", err)
 			return
 		}
 		ReanchorArticle(ctx, pool, id)
-		SyncOfficialMarks(ctx, pool, id, authorID)
+		SyncOfficialMarks(ctx, pool, id)
 	}
 	if err := rows.Err(); err != nil {
 		log.Printf("[anchors] backfill rows: %v", err)
@@ -179,19 +183,24 @@ func BackfillAll(ctx context.Context, pool Pool) {
 // les surlignages dont l'empreinte ne correspond plus (ou jamais résolus).
 // Jamais bloquant pour le flux appelant : échec → log, pas d'erreur.
 func ReanchorArticle(ctx context.Context, pool Pool, articleID string) {
-	var html string
+	var html, curSha string
 	err := pool.QueryRow(ctx,
-		`SELECT COALESCE("content",'') FROM "Article" WHERE id = $1`, articleID).Scan(&html)
+		`SELECT COALESCE("content",''), COALESCE("contentSha",'') FROM "Article" WHERE id = $1`,
+		articleID).Scan(&html, &curSha)
 	if err != nil || strings.TrimSpace(html) == "" {
 		return // article inexistant ou vide : rien à ré-ancrer
 	}
 
 	doc := canon.Parse(html)
-	if _, err := pool.Exec(ctx,
-		`UPDATE "Article" SET "contentSha" = $2, "updatedAt" = now() WHERE id = $1`,
-		articleID, doc.Sha); err != nil {
-		log.Printf("[anchors] contentSha: %v", err)
-		return
+	// L'empreinte n'a pas changé → aucun churn d'écriture (updatedAt intact) ;
+	// la re-résolution ci-dessous reste utile pour les ancres jamais résolues.
+	if curSha != doc.Sha {
+		if _, err := pool.Exec(ctx,
+			`UPDATE "Article" SET "contentSha" = $2, "updatedAt" = now() WHERE id = $1`,
+			articleID, doc.Sha); err != nil {
+			log.Printf("[anchors] contentSha: %v", err)
+			return
+		}
 	}
 
 	rows, err := pool.Query(ctx, `

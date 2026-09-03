@@ -99,9 +99,10 @@ func runScheduledPublisherOnce(ctx context.Context, pool *pgxpool.Pool, ac *asyn
 	// lisent l'article déjà PUBLISHED en base.
 	for _, a := range due {
 		// Ré-ancrage des surlignages sur le contenu final avant exposition +
-		// annotations officielles du studio → entités ancrées.
+		// annotations officielles du studio → entités ancrées (auteur lu en
+		// base par SyncOfficialMarks).
 		anchors.ReanchorArticle(ctx, pool, a.ID)
-		anchors.SyncOfficialMarks(ctx, pool, a.ID, a.AuthorID)
+		anchors.SyncOfficialMarks(ctx, pool, a.ID)
 		_ = queue.PublishArticlePublished(ac, PublishScheduledArticlePayload(a))
 		_ = queue.PublishArticleEmbedding(ac, queue.EmbeddingPayload{ArticleID: a.ID})
 		_ = queue.PublishSearchSync(ac, queue.SearchSyncPayload{ArticleID: a.ID, Action: "upsert"})

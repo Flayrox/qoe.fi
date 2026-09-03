@@ -200,7 +200,9 @@ func findCandidates(needle string) []string {
 		out = append(out, trimmed)
 	}
 	words := strings.Fields(trimmed)
-	for k := len(words) - 1; k >= 1; k-- {
+	// Minimum 2 mots pour le repli préfixe : un mot unique isolé risquerait de
+	// se ré-ancrer n'importe où (faux positif) sur un contenu remanié.
+	for k := len(words) - 1; k >= 2; k-- {
 		out = append(out, strings.Join(words[:k], " "))
 	}
 	return out
@@ -258,6 +260,7 @@ type parser struct {
 	items   []itemTmp
 	blocks  []Block
 	segs    []Segment
+	skip    int // profondeur des tags sans contenu texte (script, style, …)
 }
 
 func (p *parser) parse(src string) {
@@ -268,9 +271,23 @@ func (p *parser) parse(src string) {
 		case html.ErrorToken:
 			return
 		case html.TextToken:
+			if p.skip > 0 {
+				continue
+			}
 			p.writeText(string(z.Text()))
 		case html.StartTagToken:
 			name, attrs := readTag(z)
+			// Les conteneurs « sans contenu texte » (script, style, noscript,
+			// template) sont ignorés : leur contenu ne doit JAMAIS polluer le
+			// texte canonique (ni fuiter dans les ancres).
+			switch name {
+			case "script", "style", "noscript", "template":
+				p.skip++
+				continue
+			}
+			if p.skip > 0 {
+				continue
+			}
 			switch name {
 			case "p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "pre":
 				p.startTextKind(blockKind(name))
@@ -293,6 +310,16 @@ func (p *parser) parse(src string) {
 			// on ne rend jamais de HTML brut.
 		case html.EndTagToken:
 			name, _ := readTag(z)
+			switch name {
+			case "script", "style", "noscript", "template":
+				if p.skip > 0 {
+					p.skip--
+				}
+				continue
+			}
+			if p.skip > 0 {
+				continue
+			}
 			switch name {
 			case "p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "pre":
 				p.endTextKind(blockKind(name))

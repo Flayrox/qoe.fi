@@ -743,9 +743,10 @@ func (h *Handler) apiArticleUpdate(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			// Publication → dernière passe de ré-ancrage avant exposition + les
-			// annotations officielles du studio deviennent des entités ancrées.
+			// annotations officielles du studio deviennent des entités ancrées
+			// (l'auteur est lu en base — correct en co-écriture).
 			anchors.ReanchorArticle(r.Context(), h.pool, id)
-			anchors.SyncOfficialMarks(r.Context(), h.pool, id, userID)
+			anchors.SyncOfficialMarks(r.Context(), h.pool, id)
 		} else if _, err := h.pool.Exec(r.Context(),
 			`UPDATE "Article" SET published = false, status = 'DRAFT', "updatedAt" = now() WHERE id = $1`,
 			id); err != nil {
