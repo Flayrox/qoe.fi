@@ -98,8 +98,10 @@ func runScheduledPublisherOnce(ctx context.Context, pool *pgxpool.Pool, ac *asyn
 	// Fanout asynq APRÈS le commit : les handlers (webhooks, newsletter)
 	// lisent l'article déjà PUBLISHED en base.
 	for _, a := range due {
-		// Ré-ancrage des surlignages sur le contenu final avant exposition.
+		// Ré-ancrage des surlignages sur le contenu final avant exposition +
+		// annotations officielles du studio → entités ancrées.
 		anchors.ReanchorArticle(ctx, pool, a.ID)
+		anchors.SyncOfficialMarks(ctx, pool, a.ID, a.AuthorID)
 		_ = queue.PublishArticlePublished(ac, PublishScheduledArticlePayload(a))
 		_ = queue.PublishArticleEmbedding(ac, queue.EmbeddingPayload{ArticleID: a.ID})
 		_ = queue.PublishSearchSync(ac, queue.SearchSyncPayload{ArticleID: a.ID, Action: "upsert"})

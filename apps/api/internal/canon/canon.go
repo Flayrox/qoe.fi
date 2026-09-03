@@ -162,6 +162,40 @@ func (d *Document) Find(target string, ordinal int) (start, end int, ok bool) {
 	return 0, 0, false
 }
 
+// CountBefore compte les occurrences de target (normalisée) dans le texte
+// canonique dont la FIN précède strictement l'offset canonique `before` (en
+// code points). Sert à calculer l'ordinal d'un passage repéré par une marque
+// (ex. mark officiel du studio) : combien de fois ce passage apparaît AVANT.
+func (d *Document) CountBefore(target string, before int) int {
+	needle := Normalize(target)
+	if needle == "" || before <= 0 {
+		return 0
+	}
+	textR := []rune(d.Text)
+	needleR := []rune(needle)
+	if len(needleR) == 0 || len(textR) < len(needleR) {
+		return 0
+	}
+	count := 0
+	for i := 0; i+len(needleR) <= len(textR); i++ {
+		match := true
+		for j := range needleR {
+			if textR[i+j] != needleR[j] {
+				match = false
+				break
+			}
+		}
+		if !match {
+			continue
+		}
+		if i+len(needleR) <= before {
+			count++
+		}
+		i += len(needleR) - 1
+	}
+	return count
+}
+
 // ---------------------------------------------------------------------
 // Parser — modèle séquentiel (le HTML d'article est une suite de blocs).
 // ---------------------------------------------------------------------

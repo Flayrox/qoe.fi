@@ -165,6 +165,25 @@ func TestFindOrdinalAndFallback(t *testing.T) {
 	}
 }
 
+func TestCountBefore(t *testing.T) {
+	doc := Parse(`<p>Répète ceci</p><p>Répète ceci</p>`)
+	// Seconde occurrence : début canonique 12 → 1 occurrence complète avant.
+	if got := doc.CountBefore("Répète ceci", 12); got != 1 {
+		t.Fatalf("CountBefore(…, 12) = %d, want 1", got)
+	}
+	// Avant la première occurrence → 0.
+	if got := doc.CountBefore("Répète ceci", 1); got != 0 {
+		t.Fatalf("CountBefore(…, 1) = %d, want 0", got)
+	}
+	// L'occurrence qui COMMENCE avant mais finit après la borne ne compte pas.
+	if got := doc.CountBefore("Répète ceci", 5); got != 0 {
+		t.Fatalf("CountBefore(…, 5) = %d, want 0", got)
+	}
+	if got := doc.CountBefore("absent", 12); got != 0 {
+		t.Fatalf("CountBefore absent = %d, want 0", got)
+	}
+}
+
 func TestFindUnicode(t *testing.T) {
 	doc := Parse(`<p>Salut 👋 le monde</p>`)
 	start, end, ok := doc.Find("👋 le monde", 0)
