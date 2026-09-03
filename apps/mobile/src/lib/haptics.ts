@@ -1,21 +1,38 @@
 // =====================================================================
 // 📳 haptics.ts — Retour haptique cross-platform (port de #/lib/haptics)
 // =====================================================================
-// Bluesky joue des haptics « Light » sur chaque action de post (like,
-// repost…) et « Heavy » sur les longs press. Ici, en l'absence
-// d'expo-haptics, on s'appuie sur `Vibration` de React Native (Android)
-// et on no-op sur iOS (pas d'API vibrate fine sans lib native).
+// expo-haptics (déjà une dépendance du projet) sur iOS : impacts légers /
+// moyens / forts + notification de succès. Android : `Vibration` de RN
+// (pas d'API fine sans lib native). No-op silencieux si indisponible.
 // =====================================================================
 
+import * as Haptics from 'expo-haptics';
 import { Platform, Vibration } from 'react-native';
 
-export type HapticKind = 'Light' | 'Heavy' | 'Success';
+export type HapticKind = 'Light' | 'Medium' | 'Heavy' | 'Success';
 
 /** Joue un haptic si disponible. No-op silencieux sinon. */
 export function playHaptic(kind: HapticKind = 'Light'): void {
-  if (Platform.OS === 'android') {
-    Vibration.vibrate(kind === 'Light' ? 12 : 30);
+  if (Platform.OS === 'ios') {
+    switch (kind) {
+      case 'Light':
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        break;
+      case 'Medium':
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        break;
+      case 'Heavy':
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        break;
+      case 'Success':
+        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        break;
+    }
+    return;
   }
-  // iOS : nécessite expo-haptics/UIImpactFeedbackGenerator — laissé volontairement
-  // en no-op pour ne pas casser la build. Ajouter expo-haptics pour l'activer.
+  if (Platform.OS === 'android') {
+    const ms = kind === 'Light' ? 12 : kind === 'Medium' ? 20 : 30;
+    Vibration.vibrate(ms);
+  }
+  // Web : rien (pas d'API vibrate fiable hors natif).
 }

@@ -203,7 +203,7 @@ export function ArticleHtml({
     liveRef.current = { a: id, b: id };
     setLiveSel({ a: id, b: id });
     onScrollLock?.(true);
-    playHaptic('Light');
+    playHaptic('Light'); // départ de sélection : petit tick
   };
   handlers.current.extend = (x, y) => {
     if (!activeRef.current) return;
@@ -216,6 +216,7 @@ export function ArticleHtml({
     if (!activeRef.current) return;
     activeRef.current = false;
     onScrollLock?.(false);
+    playHaptic('Heavy'); // relâchement : impact plus marqué
     const sel = liveRef.current;
     liveRef.current = null;
     absRects.current = null; // prochain geste : re-mesure fraîche
@@ -426,7 +427,18 @@ function TokenFlow({
             {t.text}
           </ThemedText>
           {i < segment.tokens.length - 1 ? (
-            <ThemedText type={type} style={kind.tokenExtra} accessible={false}>
+            // L'espace entre deux mots surlignés porte AUSSI la couleur du
+            // <mark> — sinon le surlignage ressemble à des pastilles
+            // séparées (« pills ») au lieu d'une bande continue.
+            <ThemedText
+              type={type}
+              style={[
+                kind.tokenExtra,
+                highlighted.has(t.id) &&
+                  highlighted.has(segment.tokens[i + 1].id) && { backgroundColor: hcColor },
+              ]}
+              accessible={false}
+            >
               {' '}
             </ThemedText>
           ) : null}
