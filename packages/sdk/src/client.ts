@@ -806,6 +806,23 @@ export class QoeApiClient {
   }
 
   /**
+   * PATCH /v1/highlights/{id} — met à jour la note et/ou la visibilité d'un
+   * de ses surlignages (champs optionnels : seuls ceux fournis sont modifiés).
+   */
+  public async updateHighlight(
+    highlightId: string,
+    data: { note?: string | null; isPublic?: boolean }
+  ) {
+    return this.request<Highlight>(`/v1/highlights/${encodeURIComponent(highlightId)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        ...(data.note !== undefined ? { note: data.note } : {}),
+        ...(data.isPublic !== undefined ? { isPublic: data.isPublic } : {}),
+      }),
+    });
+  }
+
+  /**
    * POST /v1/highlights/{id}/upvote — toggle upvote d'un surlignage.
    */
   public async toggleHighlightUpvote(highlightId: string) {

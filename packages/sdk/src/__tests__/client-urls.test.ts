@@ -131,6 +131,16 @@ describe('QoeApiClient — contrat d’URL des méthodes', () => {
       'POST'
     );
     await expectCall(() => client.deleteHighlight('h1'), '/v1/highlights/h1', 'DELETE');
+    await expectCall(
+      () => client.updateHighlight('h1', { isPublic: true }),
+      '/v1/highlights/h1',
+      'PATCH'
+    );
+    await expectCall(
+      () => client.updateHighlight('h1', { note: 'note mise à jour', isPublic: false }),
+      '/v1/highlights/h1',
+      'PATCH'
+    );
     await expectCall(() => client.toggleHighlightUpvote('h1'), '/v1/highlights/h1/upvote', 'POST');
     await expectCall(() => client.getHighlightComments('h1'), '/v1/highlights/h1/comments');
     await expectCall(
