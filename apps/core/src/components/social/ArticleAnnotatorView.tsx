@@ -7,7 +7,9 @@ import {
   TextHighlighter,
   type AnnotationItem,
   type AnnotationActionCallbacks,
+  type CanonicalDocument,
 } from '@qoe/ui/annotations';
+import { getCanonicalDocumentAction } from '@/lib/canonical-document';
 import {
   getArticleHighlightsAction,
   createHighlightAction,
@@ -45,6 +47,11 @@ export interface ArticleAnnotatorViewProps {
   };
   onClose?: () => void;
   initialSource?: 'feed' | 'subdomain' | 'public_profile' | 'direct';
+  /**
+   * Document canonique (tranche 1-c) : le corps est rendu par blocs, marques
+   * par offsets. Non fourni → fetch client (drawer) ; null → moteur hérité.
+   */
+  canonicalDocument?: CanonicalDocument | null;
 }
 
 interface AuthUser {
@@ -57,9 +64,37 @@ interface AuthUser {
   };
 }
 
-export function ArticleAnnotatorView({ article, initialSource }: ArticleAnnotatorViewProps) {
+export function ArticleAnnotatorView({
+  article,
+  initialSource,
+  canonicalDocument: canonicalDocumentProp,
+}: ArticleAnnotatorViewProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [highlightsList, setHighlightsList] = useState<AnnotationItem[]>([]);
+  const [clientDocument, setClientDocument] = useState<CanonicalDocument | null | undefined>(
+    undefined
+  );
+
+  // Document canonique : la prop serveur prime (SSR peint les marques). Sans
+  // prop (drawer du feed), fetch client — jamais pour un article premium
+  // dont l'accès complet n'est pas confirmé (fuite du contenu payant).
+  const canonicalDocument =
+    canonicalDocumentProp !== undefined ? canonicalDocumentProp : clientDocument;
+  const documentMode = !!canonicalDocument;
+
+  useEffect(() => {
+    if (canonicalDocumentProp !== undefined) return;
+    const canFetchDocument = !article.isPremium || article.accessGranted === true;
+    if (!canFetchDocument || !article.id) return;
+    let cancelled = false;
+    (async () => {
+      const doc = await getCanonicalDocumentAction(article.id);
+      if (!cancelled) setClientDocument(doc);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [article.id, article.isPremium, article.accessGranted, canonicalDocumentProp]);
 
   // 📊 High-precision reading tracker (Dwell time actif + Scroll depth + Détection Survol)
   useArticleReadingTracker({
@@ -240,15 +275,20 @@ export function ArticleAnnotatorView({ article, initialSource }: ArticleAnnotato
         articleAuthorId={article.author?.id || ''}
         mainAppUrl=""
         containerId="article-content"
+        canonicalDocument={canonicalDocument ?? undefined}
+        contentClassName="prose prose-sm sm:prose-base dark:prose-invert max-w-none leading-relaxed text-foreground/90 selection:bg-highlight/30 cursor-text space-y-4 pt-2"
         callbacks={callbacks}
       />
 
-      {/* Article Body HTML */}
-      <div
-        id="article-content"
-        className="prose prose-sm sm:prose-base dark:prose-invert max-w-none leading-relaxed text-foreground/90 selection:bg-highlight/30 cursor-text space-y-4 pt-2"
-        dangerouslySetInnerHTML={{ __html: article.content }}
-      />
+      {/* Article Body HTML — moteur hérité (TreeWalker), masqué en mode
+          document canonique (le corps est rendu par CanonicalArticleBody). */}
+      {!documentMode && (
+        <div
+          id="article-content"
+          className="prose prose-sm sm:prose-base dark:prose-invert max-w-none leading-relaxed text-foreground/90 selection:bg-highlight/30 cursor-text space-y-4 pt-2"
+          dangerouslySetInnerHTML={{ __html: article.content }}
+        />
+      )}
 
       {/* 🧠 À lire aussi — recommandations sémantiques (pgvector) */}
       <SimilarArticlesSection articleId={article.id} />
