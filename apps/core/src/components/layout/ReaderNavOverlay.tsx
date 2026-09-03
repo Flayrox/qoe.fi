@@ -12,12 +12,14 @@ import {
   LogOut,
   LayoutDashboard,
   Bell,
+  Mail,
   Settings,
   UserRound,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { Logo, ThemeToggle, SafeAvatar } from '@qoe/ui';
 import { useUnreadNotificationCount } from '@qoe/ui/notifications';
+import { useUnreadConversationCountQuery } from '@qoe/sdk';
 import { routes } from '@qoe/config/routes';
 import { URLS } from '@qoe/config';
 import { t } from '@lingui/core/macro';
@@ -43,8 +45,10 @@ export function ReaderNavOverlay({
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const unreadCount = useUnreadNotificationCount();
+  const { data: unreadMessages = 0 } = useUnreadConversationCountQuery();
   // 🔕 Pas de badge tant qu'on est sur la page notifications
   const showNotificationBadge = !pathname.startsWith('/notifications') && unreadCount > 0;
+  const showMessagesBadge = !pathname.startsWith('/messages') && unreadMessages > 0;
 
   useEffect(() => {
     setIsMounted(true);
@@ -61,6 +65,12 @@ export function ReaderNavOverlay({
       href: '/notifications',
       icon: Bell,
       badge: showNotificationBadge ? unreadCount : 0,
+    },
+    {
+      label: t`Messages`,
+      href: '/messages',
+      icon: Mail,
+      badge: showMessagesBadge ? unreadMessages : 0,
     },
     { label: t`Signets`, href: routes.feed.library(), icon: Bookmark },
     {
