@@ -14,6 +14,7 @@ import { ThemedView } from '@/components/themed-view';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ErrorMessage } from '@/components/ui/error-message';
 import { NotificationItem } from '@/features/notifications/notification-item';
+import { ConversationList } from '@/features/messages/conversation-list';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { apiClient } from '@/lib/api';
@@ -136,42 +137,7 @@ export function NotificationsScreen() {
           <View style={styles.header}>
             <ThemedText style={styles.title}>{t('messages.title', 'Messages')}</ThemedText>
           </View>
-
-          <View style={styles.messagesContent}>
-            <View style={[styles.messageIconCircle, { backgroundColor: theme.backgroundElement }]}>
-              <SymbolView
-                name={{
-                  ios: 'bubble.left.and.bubble.right.fill',
-                  android: 'chat',
-                  web: 'chat',
-                }}
-                size={34}
-                tintColor={theme.primary}
-              />
-            </View>
-
-            <ThemedText style={styles.messagesHeading}>
-              {t('messages.welcome_title', 'Discutez en direct sur Qoe')}
-            </ThemedText>
-
-            <ThemedText style={[styles.messagesDescription, { color: theme.textSecondary }]}>
-              {t(
-                'messages.welcome_desc',
-                'Échangez en privé avec vos auteurs et communautés. La messagerie chiffrée arrive très bientôt !'
-              )}
-            </ThemedText>
-
-            <View
-              style={[
-                styles.badge,
-                { backgroundColor: theme.backgroundElement, borderColor: theme.border },
-              ]}
-            >
-              <ThemedText style={[styles.badgeText, { color: theme.textSecondary }]}>
-                🚀 {t('messages.in_progress_badge', 'Fonctionnalité en cours de déploiement')}
-              </ThemedText>
-            </View>
-          </View>
+          <ConversationList />
         </View>
       </SafeAreaView>
     </ThemedView>
