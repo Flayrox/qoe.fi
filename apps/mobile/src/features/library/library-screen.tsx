@@ -1,10 +1,12 @@
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { FlashList } from '@shopify/flash-list';
 import { router } from 'expo-router';
+import { Lock, MessageSquare } from 'lucide-react-native';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { HighlightRowActions } from '@/components/article/highlight-row-actions';
 import { CustomSubHeader } from '@/components/header/CustomSubHeader';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -173,9 +175,12 @@ function BookmarkRow({ item }: { item: BookmarkItem }) {
         <ThemedText numberOfLines={2} style={styles.rowTitle}>
           {item.articleTitle}
         </ThemedText>
-        <ThemedText type="small" style={{ color: theme.textSecondary }}>
-          {item.readingTime} min{item.isPremium ? ' · 🔒' : ''}
-        </ThemedText>
+        <View style={styles.metaRow}>
+          <ThemedText type="small" style={{ color: theme.textSecondary }}>
+            {item.readingTime} min
+          </ThemedText>
+          {item.isPremium ? <Lock size={12} color={theme.textSecondary} /> : null}
+        </View>
       </ThemedView>
     </Pressable>
   );
@@ -189,8 +194,8 @@ function HighlightRow({ item }: { item: MyHighlight }) {
       params: { slug: item.articleSlug, publicationId: item.publicationId },
     });
   return (
-    <Pressable onPress={open} style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}>
-      <ThemedView type="card" style={styles.rowCard}>
+    <ThemedView type="card" style={styles.rowCard}>
+      <Pressable onPress={open} style={({ pressed }) => pressed && styles.rowPressed}>
         <ThemedText type="small" style={{ color: theme.textSecondary }}>
           {item.publicationName} · {item.articleTitle}
         </ThemedText>
@@ -198,12 +203,18 @@ function HighlightRow({ item }: { item: MyHighlight }) {
           « {item.text} »
         </ThemedText>
         {item.note ? (
-          <ThemedText type="small" numberOfLines={2} style={{ color: theme.primary }}>
-            💬 {item.note}
-          </ThemedText>
+          <View style={styles.noteRow}>
+            <MessageSquare size={14} color={theme.primary} />
+            <ThemedText type="small" numberOfLines={2} style={{ color: theme.primary }}>
+              {item.note}
+            </ThemedText>
+          </View>
         ) : null}
-      </ThemedView>
-    </Pressable>
+      </Pressable>
+      <View style={styles.rowActions}>
+        <HighlightRowActions highlightId={item.id} isPublic={item.isPublic} />
+      </View>
+    </ThemedView>
   );
 }
 
@@ -241,6 +252,19 @@ const styles = StyleSheet.create({
     padding: Spacing.three,
     borderRadius: Spacing.three,
     gap: Spacing.one,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  noteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  rowActions: {
+    marginTop: Spacing.one,
   },
   rowTitle: {
     fontSize: 16,
