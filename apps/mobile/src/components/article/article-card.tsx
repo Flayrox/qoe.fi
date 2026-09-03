@@ -1,5 +1,6 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import { Crown, Timer } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -81,11 +82,7 @@ export function ArticleCard({ article }: { article: FeedArticle }) {
               · {date}
             </ThemedText>
           </Pressable>
-          {article.isPremium ? (
-            <ThemedText type="small" style={styles.crown}>
-              👑
-            </ThemedText>
-          ) : null}
+          {article.isPremium ? <Crown size={15} color="#ffffff" fill="#ffffff" /> : null}
         </View>
       </View>
 
@@ -110,9 +107,12 @@ export function ArticleCard({ article }: { article: FeedArticle }) {
             </ThemedText>
           ) : null}
           {article.readingTime > 0 ? (
-            <ThemedText type="small" numberOfLines={1} style={{ color: theme.textSecondary }}>
-              ⏱ {article.readingTime} {t('article.min_read', 'min')}
-            </ThemedText>
+            <View style={styles.footerMeta}>
+              <Timer size={12} color={theme.textSecondary} />
+              <ThemedText type="small" numberOfLines={1} style={{ color: theme.textSecondary }}>
+                {article.readingTime} {t('article.min_read', 'min')}
+              </ThemedText>
+            </View>
           ) : null}
         </View>
         <Pressable onPress={openArticle} hitSlop={8}>
@@ -171,8 +171,10 @@ const styles = StyleSheet.create({
   coverHandle: {
     color: 'rgba(255,255,255,0.8)',
   },
-  crown: {
-    fontSize: 14,
+  footerMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   body: {
     paddingHorizontal: Spacing.three,

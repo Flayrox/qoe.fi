@@ -9,6 +9,7 @@
 
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import { Pin } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
@@ -86,9 +87,12 @@ export function ThoughtCard({
               />
             ) : null}
             {post.isPinned ? (
-              <ThemedText type="small" style={{ color: theme.primary }}>
-                📌 {t('feed.pinned', 'Épinglé')}
-              </ThemedText>
+              <View style={styles.pinRow}>
+                <Pin size={13} color={theme.primary} />
+                <ThemedText type="small" style={{ color: theme.primary }}>
+                  {t('feed.pinned', 'Épinglé')}
+                </ThemedText>
+              </View>
             ) : null}
             {post.parent && !isPureRepost && post.parent.author ? (
               <RepliedTo
@@ -207,6 +211,11 @@ const styles = StyleSheet.create({
   },
   topBannerContent: {
     flex: 1,
+  },
+  pinRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   layout: {
     flexDirection: 'row',

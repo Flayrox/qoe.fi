@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Ionicons } from '@expo/vector-icons';
+import { Bookmark, Crown } from 'lucide-react-native';
 import Animated, { useSharedValue } from 'react-native-reanimated';
 
 import { ArticleHighlights } from '@/components/article/article-highlights';
@@ -195,8 +196,9 @@ export function ArticleScreen({ slug, publicationId }: { slug: string; publicati
           ) : null}
           {data.isPremium ? (
             <View style={[styles.premiumBadge, { backgroundColor: theme.backgroundSelected }]}>
+              <Crown size={13} color={theme.textSecondary} />
               <ThemedText type="small" style={[styles.premiumText, { color: theme.textSecondary }]}>
-                👑 {t('article.premium', 'Premium')}
+                {t('article.premium', 'Premium')}
               </ThemedText>
             </View>
           ) : null}
@@ -208,11 +210,11 @@ export function ArticleScreen({ slug, publicationId }: { slug: string; publicati
             style={({ pressed }) => [styles.bookmarkButton, pressed && styles.pressed]}
             accessibilityLabel={t('article.bookmark', 'Sauvegarder')}
           >
-            <ThemedText
-              style={{ fontSize: 18, color: bookmarked ? theme.primary : theme.textSecondary }}
-            >
-              {bookmarked ? '🔖' : '🔖'}
-            </ThemedText>
+            <Bookmark
+              size={18}
+              color={bookmarked ? theme.primary : theme.textSecondary}
+              fill={bookmarked ? theme.primary : 'transparent'}
+            />
           </Pressable>
         </View>
 
@@ -319,6 +321,9 @@ const styles = StyleSheet.create({
     marginTop: Spacing.three,
   },
   premiumBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
     paddingHorizontal: Spacing.two,
     paddingVertical: Spacing.half,
     borderRadius: 999,
