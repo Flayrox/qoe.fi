@@ -16,7 +16,11 @@ import { getArticleCommentsAction } from '../../article/[slug]/actions';
 import { sliceContentAtPaywall } from '@qoe/utils';
 import { ContentVisibility } from '@qoe/config';
 import { t } from '@lingui/core/macro';
-import { fetchTenantArticle, fetchArticleHighlights } from '@/lib/tenant-data';
+import {
+  fetchTenantArticle,
+  fetchArticleHighlights,
+  fetchCanonicalDocument,
+} from '@/lib/tenant-data';
 
 interface TenantCategoryArticlePageProps {
   params: Promise<{
@@ -198,6 +202,13 @@ export default async function TenantCategoryArticlePage({
     visibility
   );
 
+  // Tranche 1-b : document canonique (rendu par blocs + marques par offsets).
+  // Uniquement quand l'accès complet est acquis — ne JAMAIS télécharger le
+  // document complet d'un article verrouillé (fuite du contenu payant).
+  const canonicalDocument = !paywallCutResult.isTruncated
+    ? await fetchCanonicalDocument(article.id)
+    : null;
+
   return (
     <div
       className={`min-h-screen ${themeMode === 'dark' ? 'dark bg-foreground text-background' : 'bg-background text-foreground'} selection:bg-[var(--tenant-accent)] selection:text-white transition-colors duration-300 relative`}
@@ -265,20 +276,22 @@ export default async function TenantCategoryArticlePage({
             </div>
           </div>
         </header>
-        <div
-          id="article-content"
-          className="prose prose-zinc dark:prose-invert max-w-none text-base md:text-lg leading-relaxed space-y-6"
-        >
-          <PaywallCut
-            contentHtml={paywallCutResult.content}
-            isPremium={article.isPremium && !paywallCutResult.accessGranted}
-            name={authorName}
-            isBrutalist={isBrutalist}
-            accentColor={accentColor}
-            mainAppUrl={mainAppUrl}
-            creatorId={article.authorId}
-          />
-        </div>
+        {!canonicalDocument && (
+          <div
+            id="article-content"
+            className="prose prose-zinc dark:prose-invert max-w-none text-base md:text-lg leading-relaxed space-y-6"
+          >
+            <PaywallCut
+              contentHtml={paywallCutResult.content}
+              isPremium={article.isPremium && !paywallCutResult.accessGranted}
+              name={authorName}
+              isBrutalist={isBrutalist}
+              accentColor={accentColor}
+              mainAppUrl={mainAppUrl}
+              creatorId={article.authorId}
+            />
+          </div>
+        )}
         <TenantArticleHighlighter
           articleId={article.id}
           creatorName={authorName || t`L'Auteur`}
@@ -290,6 +303,8 @@ export default async function TenantCategoryArticlePage({
           currentUserProfile={currentUserProfile}
           articleAuthorId={article.authorId}
           mainAppUrl={mainAppUrl}
+          canonicalDocument={canonicalDocument}
+          contentClassName="prose prose-zinc dark:prose-invert max-w-none text-base md:text-lg leading-relaxed space-y-6"
         />
         <ArticleCommentsSection
           articleId={article.id}

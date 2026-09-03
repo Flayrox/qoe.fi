@@ -13,6 +13,7 @@
 
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import type { AnnotationItem, HighlightItem } from '@qoe/ui/annotations';
+import type { CanonicalDocument } from '@qoe/ui/annotations/canonical-document';
 
 export interface TenantNavItem {
   id: string;
@@ -129,6 +130,10 @@ interface GoHighlight {
   viewerUpvoted: boolean;
   commentsCount: number;
   createdAt: string;
+  /** Ancres canoniques (offsets code points dans le document de l'article). */
+  canonicalStart?: number;
+  canonicalEnd?: number;
+  contentSha?: string;
   reader: {
     id: string;
     name: string | null;
@@ -178,6 +183,25 @@ export async function fetchTenantArticle(
 }
 
 /**
+ * Document canonique d'un article (blocs + texte plat + offsets).
+ * GET /v1/articles/{id}/document — base des ancres des surlignages.
+ * null si indisponible (contenu vide, erreur) → repli sur le moteur hérité.
+ */
+export async function fetchCanonicalDocument(articleId: string): Promise<CanonicalDocument | null> {
+  try {
+    const doc = await goFetch<CanonicalDocument>(
+      `/v1/articles/${encodeURIComponent(articleId)}/document`
+    );
+    if (!doc || !Array.isArray(doc.blocks) || !doc.text) return null;
+    return doc;
+  } catch (err) {
+    if ((err as { status?: number })?.status === 404) return null;
+    console.error('[tenant-data] fetchCanonicalDocument:', err);
+    return null;
+  }
+}
+
+/**
  * Surlignages d'un article : publics + les siens (privés) + commentaires.
  * GET /v1/articles/{id}/highlights puis GET /v1/highlights/{id}/comments.
  */
@@ -210,6 +234,9 @@ export async function fetchArticleHighlights(articleId: string): Promise<{
           upvotesCount: h.upvotesCount,
           hasUpvoted: h.viewerUpvoted,
           createdAt: h.createdAt,
+          canonicalStart: h.canonicalStart,
+          canonicalEnd: h.canonicalEnd,
+          contentSha: h.contentSha,
           reader: {
             id: h.reader.id,
             name: h.reader.name,
@@ -234,6 +261,9 @@ export async function fetchArticleHighlights(articleId: string): Promise<{
         isOfficial: false,
         upvotesCount: h.upvotesCount,
         createdAt: h.createdAt,
+        canonicalStart: h.canonicalStart,
+        canonicalEnd: h.canonicalEnd,
+        contentSha: h.contentSha,
       }));
     return { publicHighlights, myPrivateHighlights };
   } catch (err) {
