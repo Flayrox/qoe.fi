@@ -171,3 +171,6 @@ apps/api/internal/seed/assets/covers/
 .continue/
 .zcode/
 skills-lock.json
+
+# Artifacts de preview locale (screenshots emulator)
+.preview/
