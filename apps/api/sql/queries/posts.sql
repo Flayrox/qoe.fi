@@ -39,6 +39,13 @@ SELECT COALESCE("repostId", id)::text AS id
 FROM "Post"
 WHERE id = $1;
 
+-- name: GetThreadRootID :one
+-- Racine du fil d'une pensée : la pensée de base à laquelle une réponse
+-- doit être rattachée (rootId de la chaîne, sinon son id canonique).
+SELECT COALESCE("rootId", COALESCE("repostId", id))::text AS id
+FROM "Post"
+WHERE id = $1;
+
 -- name: CreateThought :one
 INSERT INTO "Post" (id, "content", "authorId", "updatedAt", tags, "imageUrl", visibility, "contentVisibility", "isDraft", "scheduledAt", "triggerWarning", "parentId", "rootId", "repostId", "quotedArticleId", "quotedExcerpt", "replyRestriction", "isPinned", "likeCount", "repostCount", "replyCount")
 VALUES (gen_random_uuid()::text, sqlc.arg('content'), sqlc.arg('authorId'), now(), sqlc.arg('tags'), sqlc.arg('imageUrl'), sqlc.arg('visibility'), sqlc.arg('contentVisibility'), sqlc.arg('isDraft'), sqlc.arg('scheduledAt'), sqlc.arg('triggerWarning'), NULLIF(sqlc.arg('parentId'), ''), NULLIF(sqlc.arg('rootId'), ''), NULLIF(sqlc.arg('repostId'), ''), NULLIF(sqlc.arg('quotedArticleId'), ''), NULLIF(sqlc.arg('quotedExcerpt'), ''), sqlc.arg('replyRestriction'), false, 0, 0, 0)

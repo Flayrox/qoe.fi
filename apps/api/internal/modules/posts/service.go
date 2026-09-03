@@ -63,7 +63,8 @@ func (s *Service) Create(ctx context.Context, authorID, content string, tags []s
 	var parentText, rootText, repostText pgtype.Text
 	if parentID != nil {
 		parentText = pgtype.Text{String: *parentID, Valid: true}
-		root, _ := s.q.GetCanonicalThoughtID(ctx, *parentID)
+		// rootId = pensée de base du fil (racine de la chaîne parent).
+		root, _ := s.q.GetThreadRootID(ctx, *parentID)
 		if root != "" {
 			rootText = pgtype.Text{String: root, Valid: true}
 		}
@@ -112,7 +113,9 @@ func (s *Service) Reply(ctx context.Context, parentID, userID, content string) (
 		return FeedPost{}, errors.New(gate.Reason)
 	}
 
-	rootID, _ := s.q.GetCanonicalThoughtID(ctx, parentID)
+	// rootId = pensée de base du fil, pas le parent direct : une réponse à une
+	// réponse reste rattachée à la pensée racine.
+	rootID, _ := s.q.GetThreadRootID(ctx, parentID)
 	created, err := s.q.CreateThought(ctx, db.CreateThoughtParams{
 		Content:           content,
 		AuthorId:          userID,

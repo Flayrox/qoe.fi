@@ -48,6 +48,36 @@ docker exec -i "$DB_CONTAINER" \
   < "$MAIN_BACKUP"
 echo "✅ Base applicative restaurée"
 
+# 🔗 Répare les liens de réponses des anciens dumps : rootId des réponses
+#    imbriquées doit pointer la pensée de base du fil, et replyCount doit
+#    refléter les réponses réelles (idempotent sur les dumps déjà corrects).
+echo "🔗 Réparation des liens pensée ↔ réponses..."
+docker exec "$DB_CONTAINER" psql -U postgres -d postgres -q <<'SQL'
+WITH RECURSIVE chain AS (
+  SELECT r.id, r."parentId" AS pid, 1 AS depth,
+         COALESCE(p."rootId", COALESCE(p."repostId", p.id)) AS root
+  FROM "Post" r JOIN "Post" p ON p.id = r."parentId"
+  WHERE r."parentId" IS NOT NULL
+  UNION ALL
+  SELECT c.id, p."parentId", c.depth + 1,
+         COALESCE(p."rootId", COALESCE(p."repostId", p.id))
+  FROM chain c JOIN "Post" p ON p.id = c.pid
+  WHERE c.pid IS NOT NULL AND c.depth < 100
+)
+UPDATE "Post" r SET "rootId" = f.root
+FROM (SELECT DISTINCT ON (id) id, root FROM chain WHERE pid IS NULL ORDER BY id) f
+WHERE r.id = f.id AND r."rootId" IS DISTINCT FROM f.root;
+
+UPDATE "Post" p
+SET "replyCount" = sub.n
+FROM (SELECT r."parentId" AS id, count(*) AS n
+      FROM "Post" r
+      WHERE r."parentId" IS NOT NULL AND r."deletedAt" IS NULL AND r."isDraft" = false
+      GROUP BY 1) sub
+WHERE p.id = sub.id AND p."replyCount" <> sub.n;
+SQL
+echo "✅ Liens pensée ↔ réponses vérifiés"
+
 if [ -f "$UMAMI_BACKUP" ]; then
   echo "📊 Restauration umami..."
   docker exec -i "$DB_CONTAINER" \

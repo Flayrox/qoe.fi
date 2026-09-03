@@ -257,6 +257,59 @@ func TestRunTopPersonas(t *testing.T) {
 	if alignedReplies*100 < totalReplies*60 {
 		t.Fatalf("réponses alignées sur le parent = %d/%d, attendu >= 60%%", alignedReplies, totalReplies)
 	}
+
+	// Chaque réponse est connectée à sa pensée de base : rootId = racine du
+	// fil (racine de la chaîne parent), jamais le parent direct si celui-ci
+	// est lui-même une réponse.
+	var wrongRoot int
+	if err := poolTest.QueryRow(ctx, `SELECT COUNT(*) FROM "Post" r
+		JOIN "Post" p ON p.id = r."parentId"
+		WHERE r.id LIKE 'post_%' AND r."parentId" IS NOT NULL
+		  AND r."rootId" <> COALESCE(p."rootId", p.id)`).Scan(&wrongRoot); err != nil {
+		t.Fatalf("count rootId incohérents: %v", err)
+	}
+	if wrongRoot != 0 {
+		t.Fatalf("réponses au mauvais rootId = %d, attendu 0 (rootId doit pointer la pensée de base)", wrongRoot)
+	}
+
+	// replyCount aligné sur les réponses réelles (directes, non draft).
+	var wrongCounts int
+	if err := poolTest.QueryRow(ctx, `SELECT COUNT(*) FROM "Post" p
+		WHERE p."replyCount" <> (
+			SELECT count(*) FROM "Post" r
+			WHERE r."parentId" = p.id
+			  AND r."deletedAt" IS NULL
+			  AND r."isDraft" = false
+		)`).Scan(&wrongCounts); err != nil {
+		t.Fatalf("count replyCount incohérents: %v", err)
+	}
+	if wrongCounts != 0 {
+		t.Fatalf("posts au replyCount erroné = %d, attendu 0", wrongCounts)
+	}
+
+	// likeCount/repostCount alignés sur les lignes réelles (likes, reposts
+	// purs) : l'UI affiche ces compteurs à côté des listes qu'ils décrivent.
+	var badEngagement int
+	if err := poolTest.QueryRow(ctx, `SELECT COUNT(*) FROM "Post" p
+		WHERE p."likeCount" <> (SELECT count(*) FROM "Like" l WHERE l."postId" = p.id)
+		   OR p."repostCount" <> (SELECT count(*) FROM "Post" r
+		      WHERE r."repostId" = p.id AND r."deletedAt" IS NULL
+		        AND (r.content = '' OR r.content = ' '))`).Scan(&badEngagement); err != nil {
+		t.Fatalf("count compteurs d'engagement: %v", err)
+	}
+	if badEngagement != 0 {
+		t.Fatalf("posts aux compteurs like/repost erronés = %d, attendu 0", badEngagement)
+	}
+
+	// upvotesCount aligné sur les upvotes réels.
+	var badUpvotes int
+	if err := poolTest.QueryRow(ctx, `SELECT COUNT(*) FROM "Highlight" h
+		WHERE h."upvotesCount" <> (SELECT count(*) FROM "AnnotationUpvote" u WHERE u."highlightId" = h.id)`).Scan(&badUpvotes); err != nil {
+		t.Fatalf("count upvotesCount: %v", err)
+	}
+	if badUpvotes != 0 {
+		t.Fatalf("highlights au upvotesCount erroné = %d, attendu 0", badUpvotes)
+	}
 }
 
 func TestSeedRun(t *testing.T) {

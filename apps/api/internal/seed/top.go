@@ -1179,6 +1179,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	allPostIDs := make([]string, 0, opts.Posts)
 	postTags := map[string][]string{}       // tags par post (pour aligner les réponses)
 	postCreatedAt := map[string]time.Time{} // date par post (pour répondre APRÈS son parent)
+	postRoot := map[string]string{}         // pensée de base du fil de chaque post (rootId)
 	for i := 0; i < opts.Posts; i++ {
 		author := res.Users[rng.weightedIndex(userWeights)]
 		created := now.AddDate(0, 0, -rng.intn(40)).Add(-time.Duration(rng.intn(24)) * time.Hour).Add(-time.Duration(rng.intn(60)) * time.Minute)
@@ -1205,6 +1206,7 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 			}
 			postTags[postID] = tags
 			postCreatedAt[postID] = created
+			postRoot[postID] = postID
 		} else {
 			parent := allPostIDs[rng.intn(len(allPostIDs))]
 			// Réponse alignée sur le milieu du post parent (tags hérités).
@@ -1217,14 +1219,22 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 			// quelques heures) : des fils de discussion cohérents au lieu de
 			// réponses qui datent d'avant le post auquel elles répondent.
 			created = postCreatedAt[parent].Add(time.Duration(5+rng.intn(240)) * time.Minute)
+			// rootId = pensée de base du fil : le parent est toujours créé avant,
+			// on hérite de SA racine pour que les réponses (même imbriquées)
+			// restent connectées à la pensée d'origine.
+			root := postRoot[parent]
+			if root == "" {
+				root = parent
+			}
 			if _, err := pool.Exec(ctx, `
 				INSERT INTO "Post" (id, content, "authorId", tags, visibility, "isDraft", "likeCount", "repostCount", "replyCount", "parentId", "rootId", "createdAt", "updatedAt")
-				VALUES ($1, $2, $3, $4, 'public', false, $5, 0, 0, $6, $6, $7, $7)`,
-				postID, content, author.ID, tags, rng.intn(10), parent, created); err != nil {
+				VALUES ($1, $2, $3, $4, 'public', false, $5, 0, 0, $6, $7, $8, $8)`,
+				postID, content, author.ID, tags, rng.intn(10), parent, root, created); err != nil {
 				return nil, fmt.Errorf("post reply: %w", err)
 			}
 			postTags[postID] = tags
 			postCreatedAt[postID] = created
+			postRoot[postID] = root
 		}
 		res.Posts = append(res.Posts, TopPost{ID: postID, Content: content, Tags: tags})
 		allPostIDs = append(allPostIDs, postID)
@@ -1495,18 +1505,19 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 		id          string
 		tags        []string
 		readingTime int
+		createdAt   time.Time
 	}
 	var artIndex []artInfo
 	artByID := map[string]artInfo{}
 	artByTag := map[string][]string{}
 	{
-		artRows, err := pool.Query(ctx, `SELECT id, COALESCE("semanticTags", '{}'), "readingTime" FROM "Article" WHERE published = true ORDER BY id`)
+		artRows, err := pool.Query(ctx, `SELECT id, COALESCE("semanticTags", '{}'), "readingTime", "createdAt" FROM "Article" WHERE published = true ORDER BY id`)
 		if err != nil {
 			return nil, fmt.Errorf("articles pour sessions: %w", err)
 		}
 		for artRows.Next() {
 			var a artInfo
-			if err := artRows.Scan(&a.id, &a.tags, &a.readingTime); err != nil {
+			if err := artRows.Scan(&a.id, &a.tags, &a.readingTime, &a.createdAt); err != nil {
 				artRows.Close()
 				return nil, err
 			}
@@ -1551,6 +1562,15 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 			status = "READ_PARTIAL"
 		}
 		created := now.AddDate(0, 0, -rng.intn(14)).Add(-time.Duration(rng.intn(86400)) * time.Second)
+		// Une lecture n'existe qu'après la publication de l'article : jamais de
+		// session datée avant la création de son support. Le plafond utilise
+		// l'heure courante (articles insérés quelques secondes après le départ).
+		if created.Before(art.createdAt) {
+			created = art.createdAt.Add(time.Minute)
+			if created.After(time.Now().UTC()) {
+				created = time.Now().UTC()
+			}
+		}
 		if _, err := pool.Exec(ctx, `
 			INSERT INTO "ReadingSession" (id, "articleId", "userId", source, status, "scrollDepth", "dwellSeconds", "readingTimeMinutes", hostname, "createdAt")
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
@@ -1572,6 +1592,14 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 		for j := 0; j < burst; j++ {
 			user := res.Users[rng.intn(len(res.Users))]
 			created := now.Add(-time.Duration(rng.intn(48)) * time.Hour)
+			// Même garde-fou que les sessions régulières : pas de lecture avant
+			// la publication (l'article peut être très récent).
+			if created.Before(art.createdAt) {
+				created = art.createdAt.Add(2 * time.Minute)
+				if created.After(time.Now().UTC()) {
+					created = time.Now().UTC()
+				}
+			}
 			if _, err := pool.Exec(ctx, `
 				INSERT INTO "ReadingSession" (id, "articleId", "userId", source, status, "scrollDepth", "dwellSeconds", "readingTimeMinutes", hostname, "createdAt")
 				VALUES ($1, $2, $3, 'feed', 'READ_COMPLETE', 95, $4, $5, 'qoe.test', $6)`,
@@ -1594,8 +1622,43 @@ func RunTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	}
 	log.Printf("[seed-top] ✔ monde vivant (cast + discussions + articles + polls)")
 
+	// Cohérence finale des compteurs d'engagement : likeCount/repostCount/
+	// replyCount/upvotesCount réalignés sur les lignes réelles (likes, reposts
+	// purs, réponses, upvotes). L'UI affiche ces compteurs à côté des listes
+	// qu'ils décrivent — l'état final du seed ne doit jamais mentir.
+	if err := reconcileEngagementCounters(ctx, pool); err != nil {
+		return nil, fmt.Errorf("reconcile counters: %w", err)
+	}
+
 	log.Printf("[seed-top] ✅ génération terminée en %s", time.Since(start).Round(time.Millisecond))
 	return res, nil
+}
+
+// reconcileEngagementCounters réaligne les compteurs d'engagement affichés
+// (likeCount, repostCount, replyCount, upvotesCount) sur les lignes réelles
+// insérées par le seed. Le seed pose des valeurs provisoires à l'insertion
+// (popularité de démo), mais l'état final doit refléter la vérité.
+func reconcileEngagementCounters(ctx context.Context, pool *pgxpool.Pool) error {
+	queries := []string{
+		`UPDATE "Post" p
+		 SET "likeCount" = (SELECT count(*) FROM "Like" l WHERE l."postId" = p.id)`,
+		`UPDATE "Post" p
+		 SET "repostCount" = (SELECT count(*) FROM "Post" r
+		   WHERE r."repostId" = p.id AND r."deletedAt" IS NULL
+		     AND (r.content = '' OR r.content = ' '))`,
+		`UPDATE "Post" p
+		 SET "replyCount" = (SELECT count(*) FROM "Post" r
+		   WHERE r."parentId" = p.id AND r."deletedAt" IS NULL
+		     AND r."isDraft" = false)`,
+		`UPDATE "Highlight" h
+		 SET "upvotesCount" = (SELECT count(*) FROM "AnnotationUpvote" u WHERE u."highlightId" = h.id)`,
+	}
+	for _, q := range queries {
+		if _, err := pool.Exec(ctx, q); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // AddTop ajoute un lot de contenu riche sans supprimer les données déjà
@@ -1729,6 +1792,10 @@ func AddTop(ctx context.Context, pool *pgxpool.Pool, opts TopOptions) (*TopResul
 	// Fils de commentaires sur les articles additifs aussi.
 	if err := seedArticleDiscussion(ctx, pool, res, rng); err != nil {
 		return nil, err
+	}
+	// Même règle que RunTop : compteurs réalignés sur les vraies lignes.
+	if err := reconcileEngagementCounters(ctx, pool); err != nil {
+		return nil, fmt.Errorf("reconcile counters: %w", err)
 	}
 	return res, nil
 }
@@ -2001,11 +2068,18 @@ func EmbedTop(ctx context.Context, pool *pgxpool.Pool, res *TopResult, embedding
 		log.Println("[seed-top] EMBEDDING_URL non défini — embeddings skip")
 		return 0, 0, nil
 	}
-	type embedClient struct{ url string }
 	client := &http.Client{Timeout: 90 * time.Second}
 
-	embed := func(text string) ([]float64, error) {
-		payload, _ := json.Marshal(map[string]any{"model": "jina-embeddings-v3", "input": text})
+	// L'inférence locale (llama.cpp) traite un LOT de textes quasi au coût d'un
+	// texte seul (32 textes ≈ 1,2 s contre 0,6 s/texte). On regroupe donc les
+	// requêtes par paquets : l'ancien mode 1 requête/texte (~17 min sur la base
+	// entière) tombe à ~2-3 min.
+	const batchSize = 16
+
+	// embedBatch envoie plusieurs textes en une seule requête HTTP ; les
+	// vecteurs renvoyés sont alignés sur l'ordre d'entrée.
+	embedBatch := func(texts []string) ([][]float64, error) {
+		payload, _ := json.Marshal(map[string]any{"model": "jina-embeddings-v3", "input": texts})
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, embeddingURL, strings.NewReader(string(payload)))
 		if err != nil {
 			return nil, err
@@ -2027,10 +2101,69 @@ func EmbedTop(ctx context.Context, pool *pgxpool.Pool, res *TopResult, embedding
 		if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 			return nil, err
 		}
-		if len(out.Data) == 0 || len(out.Data[0].Embedding) == 0 {
-			return nil, fmt.Errorf("embedding vide")
+		if len(out.Data) != len(texts) {
+			return nil, fmt.Errorf("embedding: %d vecteurs reçus pour %d textes", len(out.Data), len(texts))
 		}
-		return out.Data[0].Embedding, nil
+		vecs := make([][]float64, len(texts))
+		for i := range texts {
+			if len(out.Data[i].Embedding) == 0 {
+				return nil, fmt.Errorf("embedding vide (entrée %d)", i)
+			}
+			vecs[i] = out.Data[i].Embedding
+		}
+		return vecs, nil
+	}
+
+	type embedRow struct {
+		id   string
+		text string
+	}
+
+	// embedRows embedde des textes par lots puis applique l'écriture de chaque
+	// vecteur. Si un lot entier est refusé (typiquement une entrée trop longue
+	// pour le contexte local), repli texte par texte pour ne perdre que le
+	// coupable — même couverture que l'ancien mode unitaire.
+	embedRows := func(rows []embedRow, update func(id string, vec []float64) error, logLabel string) (int, error) {
+		done := 0
+		for start := 0; start < len(rows); start += batchSize {
+			end := start + batchSize
+			if end > len(rows) {
+				end = len(rows)
+			}
+			chunk := rows[start:end]
+			texts := make([]string, len(chunk))
+			for i, r := range chunk {
+				texts[i] = r.text
+			}
+			vecs, err := embedBatch(texts)
+			if err != nil {
+				log.Printf("[seed-top] lot %d-%d refusé (%v) — repli texte par texte", start+1, end, err)
+				vecs = make([][]float64, len(chunk))
+				for i, r := range chunk {
+					v, e := embedBatch([]string{r.text})
+					if e != nil {
+						log.Printf("[seed-top] embed %s: %v", r.id, e)
+						continue
+					}
+					vecs[i] = v[0]
+				}
+			}
+			for i, r := range chunk {
+				vec := vecs[i]
+				if vec == nil {
+					continue
+				}
+				if len(vec) > 512 {
+					vec = vec[:512]
+				}
+				if err := update(r.id, vec); err != nil {
+					return done, err
+				}
+				done++
+			}
+		}
+		log.Printf("[seed-top] ✔ %s embeddés", logLabel)
+		return done, nil
 	}
 
 	// Les requêtes sont « base-wide » (embedding IS NULL) et non limitées à
@@ -2039,7 +2172,7 @@ func EmbedTop(ctx context.Context, pool *pgxpool.Pool, res *TopResult, embedding
 	// dans res.Users/res.Posts ; sans cette couverture, ils resteraient sans
 	// vecteur et leurs contenus ne remonteraient jamais par similarité.
 
-	articles := 0
+	articleRows := []embedRow(nil)
 	rows, err := pool.Query(ctx, `SELECT id, title, content FROM "Article"
 		WHERE "embedding" IS NULL AND published = true`)
 	if err != nil {
@@ -2049,7 +2182,7 @@ func EmbedTop(ctx context.Context, pool *pgxpool.Pool, res *TopResult, embedding
 		var id, title, content string
 		if err := rows.Scan(&id, &title, &content); err != nil {
 			rows.Close()
-			return articles, 0, err
+			return 0, 0, err
 		}
 		text := title + "\n\n" + stripHTML(content)
 		// Le service d'inférence local (llama.cpp) rejette les entrées trop
@@ -2061,29 +2194,22 @@ func EmbedTop(ctx context.Context, pool *pgxpool.Pool, res *TopResult, embedding
 		if strings.TrimSpace(text) == "" {
 			continue
 		}
-		vec, err := embed(text)
-		if err != nil {
-			log.Printf("[seed-top] embed article %s: %v", id, err)
-			continue
-		}
-		if len(vec) > 512 {
-			vec = vec[:512]
-		}
-		if _, err := pool.Exec(ctx, `UPDATE "Article" SET embedding = $2 WHERE id = $1`,
-			id, vectorLiteral(vec)); err != nil {
-			rows.Close()
-			return articles, 0, err
-		}
-		articles++
-	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return articles, 0, err
+		articleRows = append(articleRows, embedRow{id: id, text: text})
 	}
 	rows.Close()
-	log.Printf("[seed-top] ✔ %d articles embeddés", articles)
+	if err := rows.Err(); err != nil {
+		return 0, 0, err
+	}
+	articles, err := embedRows(articleRows, func(id string, vec []float64) error {
+		_, err := pool.Exec(ctx, `UPDATE "Article" SET embedding = $2 WHERE id = $1`,
+			id, vectorLiteral(vec))
+		return err
+	}, "articles")
+	if err != nil {
+		return articles, 0, err
+	}
 
-	posts := 0
+	postRows := []embedRow(nil)
 	rows, err = pool.Query(ctx, `SELECT id, content, tags FROM "Post"
 		WHERE "embedding" IS NULL AND "deletedAt" IS NULL AND "isDraft" = false`)
 	if err != nil {
@@ -2103,27 +2229,19 @@ func EmbedTop(ctx context.Context, pool *pgxpool.Pool, res *TopResult, embedding
 		if len(tags) > 0 {
 			text = text + "\n\nTags : " + strings.Join(tags, ", ")
 		}
-		vec, err := embed(text)
-		if err != nil {
-			log.Printf("[seed-top] embed post %s: %v", id, err)
-			continue
-		}
-		if len(vec) > 512 {
-			vec = vec[:512]
-		}
-		if _, err := pool.Exec(ctx, `UPDATE "Post" SET embedding = $2, "updatedAt" = now() WHERE id = $1`,
-			id, vectorLiteral(vec)); err != nil {
-			rows.Close()
-			return articles, 0, err
-		}
-		posts++
-	}
-	if err := rows.Err(); err != nil {
-		rows.Close()
-		return articles, 0, err
+		postRows = append(postRows, embedRow{id: id, text: text})
 	}
 	rows.Close()
-	log.Printf("[seed-top] ✔ %d pensées embeddées", posts)
+	if err := rows.Err(); err != nil {
+		return articles, 0, err
+	}
+	if _, err := embedRows(postRows, func(id string, vec []float64) error {
+		_, err := pool.Exec(ctx, `UPDATE "Post" SET embedding = $2, "updatedAt" = now() WHERE id = $1`,
+			id, vectorLiteral(vec))
+		return err
+	}, "pensées"); err != nil {
+		return articles, 0, err
+	}
 
 	// Users — contenu d'abord : le profil d'un user = la moyenne des
 	// embeddings de SES pensées (jamais sa bio, cohérent avec le worker de

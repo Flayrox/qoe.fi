@@ -79,7 +79,9 @@ func (s *Service) CreateFull(ctx context.Context, authorID string, in CreateFull
 	var parentText, rootText, repostText pgtype.Text
 	if in.ParentID != nil {
 		parentText = pgtype.Text{String: *in.ParentID, Valid: true}
-		if root, err := s.q.GetCanonicalThoughtID(ctx, *in.ParentID); err == nil && root != "" {
+		// rootId = pensée de base du fil (racine de la chaîne parent), pas le
+		// parent direct : les réponses restent rattachées au fil d'origine.
+		if root, err := s.q.GetThreadRootID(ctx, *in.ParentID); err == nil && root != "" {
 			rootText = pgtype.Text{String: root, Valid: true}
 		}
 	}
