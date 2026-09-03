@@ -1190,6 +1190,7 @@ Bootstrap + contenu prêt à consommer pour un front tiers :
 | `GET /v1/creator/articles/{slug}`                       | Article complet : `contentHtml` **ET** `contentMarkdown` (conversion auto), tags, auteurs (principal + co-auteurs `_CoAuthors`)                                                                                                   |
 | `GET /v1/creator/highlights?article=slug&official=true` | Surlignages publics, filtrables par article et annotations éditoriales (`isOfficial`)                                                                                                                                             |
 | `GET /v1/creator/highlights/{id}/comments`              | Discussion d'un surlignage, `isAuthor` marque les réponses de l'auteur de l'article                                                                                                                                               |
+| `GET /v1/creator/articles/{slug}/annotations`           | **Export groupé** : article (HTML+MD) + document canonique + annotations **ancrées** (offsets, contexte avant/après) dans le même payload — zéro re-scan côté front                                                                 |
 
 Toutes ces routes exigent le scope `READ` et sont montées uniquement derrière `APIKeyAuth`.
 
@@ -1204,14 +1205,46 @@ curl -H "Authorization: Bearer qoe_live_XXX" "http://localhost:8080/v1/creator/h
 > liste des derniers articles + page article (HTML ou Markdown), clé API
 > côté serveur uniquement.
 
-#### Ancrage des annotations sur un front personnalisé
+#### Export groupé ancré : `GET /v1/creator/articles/{slug}/annotations` (`modules/creator/api_annotations.go`)
 
-Les surlignages n'ont **pas d'offsets stockés** : l'ancre est le `text`
-cité, retrouvé verbatim dans le contenu (`contentHtml` ou
-`contentMarkdown`, espaces normalisées). C'est la technique du moteur
-d'annotations de qoe.fi (`indexOf` sur le textContent). Un front tiers
-reproduit donc : chercher `text` → envelopper d'un `<mark>` → les
-annotations de l'auteur portent `isOfficial: true`.
+Le payload embarque **l'article, le document canonique et ses annotations
+ancrées** — le front du créateur peint les marques avec son propre code,
+zéro re-fetch, zéro recherche de texte :
+
+```bash
+curl -H "Authorization: Bearer qoe_live_XXX" \
+ "http://localhost:8080/v1/creator/articles/mon-article/annotations"
+# -> 200 {
+#   "article": { "id":"art1", "title":"…", "contentHtml":"…", "contentMarkdown":"…", … },
+#   "document": { "blocks":[…], "segments":[…], "text":"… texte canonique …", "sha":"…" },
+#   "annotations": [{
+#     "id":"hl1", "text":"Passage souligné", "note":null, "isPublic":true, "isOfficial":false,
+#     "quoteOrdinal":0, "createdAt":"2026-08-24T21:00:00Z",
+#     "upvotesCount":3, "commentsCount":1,
+#     "reader":{"id":"…","username":"lea","name":"Léa","logoUrl":null},
+#     "canonicalStart":120, "canonicalEnd":135, "contentSha":"…",
+#     "anchorStatus":"exact", "contextBefore":"… ", "contextAfter":" …"
+#   }]}
+```
+
+- **Document** : le contenu canonicalisé (mêmes `blocks`/`segments`/`text`/
+  `sha` que `GET /v1/articles/{id}/document`) — **c'est la base des offsets**
+  (`canonicalStart`/`canonicalEnd`, en code points, dans `document.text`).
+- **Annotations** : surlignages **publics** des lecteurs + annotations
+  **éditoriales** de l'auteur (`isOfficial`). Les surlignages **privés** des
+  lecteurs ne sortent jamais.
+- **`anchorStatus`** : `exact` (offsets stockés, empreinte conforme) ·
+  `recomputed` (offsets re-résolus à la lecture contre le document inclus) ·
+  `missing` (passage absent du contenu actuel → repli sur `text` +
+  `quoteOrdinal`, rendu en chip seul).
+- **`contextBefore`/`contextAfter`** : fenêtre du texte canonique autour du
+  passage — filet de ré-ancrage stable (type Hypothesis) pour un tiers.
+- L'article reste servi en `contentHtml` **ET** `contentMarkdown` ;
+  `text + quoteOrdinal` restent présents (dépréciés, jamais cassants).
+
+Le front peint donc : découper le texte canonique par offsets → envelopper
+chaque plage dans un `<mark>` → associer note/lecteur/auteurs. Plus aucun
+`indexOf` côté client.
 
 **Slugs multi-auteurs** : un article co-signé garde un seul ID mais chaque
 auteur peut avoir SON slug (table `ArticleSlug`, unique `slug` global + unique `articleId+ownerUserId`). La résolution publique
@@ -1221,10 +1254,9 @@ dans un nouvel onglet. Filtre technique = `id` UUID (`?category=cat_news`), huma
 
 **Passages répétés** : chaque surlignage porte `quoteOrdinal` (0-based) —
 quelle occurrence du passage surligner quand le même texte apparaît
-plusieurs fois. Le moteur de rendu (`findQuoteOccurrence`, exporté par
-`@qoe/ui/annotations`) vise cette occurrence avec repli gracieux sur la
-première si le contenu a été édité. À la création, le client envoie
-`quoteOrdinal` dans le POST ; absent → 0.
+plusieurs fois. À la création, le client envoie `quoteOrdinal` dans le POST ;
+absent → 0. `quoteOrdinal` reste stocké et servi (déprécié) : l'export
+re-résout par `ordinal` quand l'empreinte du document a changé.
 
 #### Créateur stats (clé API `ANALYTICS`, `modules/creator/handler.go`)
 

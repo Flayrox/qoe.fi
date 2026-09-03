@@ -355,18 +355,20 @@ func (h *Handler) apiArticles(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, payload)
 }
 
-// GET /v1/creator/articles/{slug} — article complet (contenu HTML).
-func (h *Handler) apiArticleBySlug(w http.ResponseWriter, r *http.Request) {
-	slug := chi.URLParam(r, "slug")
-	publicationID, _ := middleware.PublicationID(r.Context())
-	userID, _ := middleware.UserID(r.Context())
-
+// loadCreatorArticleFull charge l'article complet (shape détail, contenu HTML
+// + markdown) lié au créateur : publication de la clé, signature ou
+// co-écriture. Slug principal ou variante personnelle accepté.
+// pgx.ErrNoRows si l'article n'est pas lié au créateur.
+func (h *Handler) loadCreatorArticleFull(
+	ctx context.Context,
+	publicationID, userID, slug string,
+) (*apiArticleFull, error) {
 	var full apiArticleFull
 	full.Authors = []apiAuthor{}
 	var publishedAt time.Time
 	var tags []string
 	var catID, catSlug, catName sql.NullString
-	err := h.pool.QueryRow(r.Context(), `
+	err := h.pool.QueryRow(ctx, `
 		SELECT a.id::text, a.slug, a.title, a.content, a."imageUrl",
 		       a."readingTime", a."isPremium", a."createdAt",
 		       a."semanticTags", cat.id::text, cat.slug, cat.name
@@ -379,13 +381,7 @@ func (h *Handler) apiArticleBySlug(w http.ResponseWriter, r *http.Request) {
 		&full.ReadingTime, &full.IsPremium, &publishedAt, &tags,
 		&catID, &catSlug, &catName)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			response.NotFound(w, "Article introuvable")
-			return
-		}
-		log.Printf("[creator] api article by slug: %v", err)
-		response.Internal(w)
-		return
+		return nil, err
 	}
 	full.PublishedAt = publishedAt.Format("2006-01-02T15:04:05Z07:00")
 	if catID.Valid {
@@ -402,13 +398,31 @@ func (h *Handler) apiArticleBySlug(w http.ResponseWriter, r *http.Request) {
 	full.Excerpt = stripHTMLTags(full.ContentHTML, 180)
 
 	// Le slug affiché = celui de l'appelant (variant personnel si défini).
-	callerID, _ := middleware.UserID(r.Context())
 	baseSlug := full.Slug
-	full.Slug = h.effectiveSlug(r.Context(), full.ID, callerID, baseSlug)
+	full.Slug = h.effectiveSlug(ctx, full.ID, userID, baseSlug)
 
 	ids := map[string]int{full.ID: 0}
-	h.resolveAuthors(r.Context(), ids, &full)
-	full.Authors = h.withEffectiveSlugs(r.Context(), full.ID, full.Authors, baseSlug)
+	h.resolveAuthors(ctx, ids, &full)
+	full.Authors = h.withEffectiveSlugs(ctx, full.ID, full.Authors, baseSlug)
+	return &full, nil
+}
+
+// GET /v1/creator/articles/{slug} — article complet (contenu HTML).
+func (h *Handler) apiArticleBySlug(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "slug")
+	publicationID, _ := middleware.PublicationID(r.Context())
+	userID, _ := middleware.UserID(r.Context())
+
+	full, err := h.loadCreatorArticleFull(r.Context(), publicationID, userID, slug)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			response.NotFound(w, "Article introuvable")
+			return
+		}
+		log.Printf("[creator] api article by slug: %v", err)
+		response.Internal(w)
+		return
+	}
 	response.OK(w, full)
 }
 
