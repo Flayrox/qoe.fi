@@ -58,6 +58,10 @@ func (h *Handler) RegisterAPIKey(r chi.Router) {
 	r.With(middleware.RequireAPIScope(middleware.ScopeWrite)).Delete("/v1/creator/articles/{id}", h.apiArticleDelete)
 	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/highlights", h.apiHighlights)
 	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/highlights/{id}/comments", h.apiHighlightComments)
+	// Export groupé : l'article ET ses annotations ancrées dans le document
+	// canonique inclus (même payload) — le front du créateur peint les marques
+	// avec son propre code, zéro re-fetch, zéro recherche.
+	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/articles/{slug}/annotations", h.apiArticleAnnotations)
 }
 
 // apiHighlights — GET /v1/creator/highlights : surlignages publics des
