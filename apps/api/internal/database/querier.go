@@ -54,6 +54,9 @@ type Querier interface {
 	CreateArticle(ctx context.Context, arg CreateArticleParams) (string, error)
 	CreateAttachment(ctx context.Context, arg CreateAttachmentParams) (string, error)
 	CreateCategory(ctx context.Context, arg CreateCategoryParams) (Category, error)
+	// Les colonnes canoniques (offsets en code points dans le document canonique
+	// de l'article + empreinte du contenu) sont ADDITIVES : NULL tant qu'une
+	// ancre n'a pas pu être résolue (données héritées ou contenu changé).
 	CreateHighlight(ctx context.Context, arg CreateHighlightParams) (string, error)
 	CreateMedia(ctx context.Context, publicationid string) (string, error)
 	// Nouvel asset orphelin (DRAFT_ORPHAN, purgé dans 3 jours si non attaché).
