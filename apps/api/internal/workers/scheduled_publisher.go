@@ -10,6 +10,7 @@ import (
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/qoefi/api/internal/anchors"
 	"github.com/qoefi/api/internal/queue"
 )
 
@@ -97,6 +98,8 @@ func runScheduledPublisherOnce(ctx context.Context, pool *pgxpool.Pool, ac *asyn
 	// Fanout asynq APRÈS le commit : les handlers (webhooks, newsletter)
 	// lisent l'article déjà PUBLISHED en base.
 	for _, a := range due {
+		// Ré-ancrage des surlignages sur le contenu final avant exposition.
+		anchors.ReanchorArticle(ctx, pool, a.ID)
 		_ = queue.PublishArticlePublished(ac, PublishScheduledArticlePayload(a))
 		_ = queue.PublishArticleEmbedding(ac, queue.EmbeddingPayload{ArticleID: a.ID})
 		_ = queue.PublishSearchSync(ac, queue.SearchSyncPayload{ArticleID: a.ID, Action: "upsert"})

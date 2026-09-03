@@ -14,6 +14,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
+	"github.com/qoefi/api/internal/anchors"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
 )
@@ -680,6 +681,9 @@ func (h *Handler) apiArticleUpdate(w http.ResponseWriter, r *http.Request) {
 			response.Internal(w)
 			return
 		}
+		// Le contenu a changé → les offsets canoniques des surlignages peuvent
+		// être périmés : passe de ré-ancrage (jamais bloquante).
+		anchors.ReanchorArticle(r.Context(), h.pool, id)
 	}
 	// Catégorie (id ou slug ; vide = retirer).
 	if in.CategoryID != nil {
@@ -738,6 +742,8 @@ func (h *Handler) apiArticleUpdate(w http.ResponseWriter, r *http.Request) {
 				response.Internal(w)
 				return
 			}
+			// Publication → dernière passe de ré-ancrage avant exposition.
+			anchors.ReanchorArticle(r.Context(), h.pool, id)
 		} else if _, err := h.pool.Exec(r.Context(),
 			`UPDATE "Article" SET published = false, status = 'DRAFT', "updatedAt" = now() WHERE id = $1`,
 			id); err != nil {
