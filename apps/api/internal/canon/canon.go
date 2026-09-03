@@ -52,15 +52,33 @@ type Span struct {
 	Note  string `json:"note,omitempty"`
 }
 
+// InlineSpan décrit un style inline (bold/italic/underline/code/lien) sur
+// [Start,End) (code points du texte normalisé du bloc). Les styles imbriqués
+// produisent des spans disjoints empilables (ex. bold+italic = deux spans
+// chevauchants) — le client les applique par priorité de style.
+type InlineSpan struct {
+	Start int    `json:"start"`
+	End   int    `json:"end"`
+	Style string `json:"style"`          // bold | italic | underline | code | link
+	Href  string `json:"href,omitempty"` // Style == "link"
+}
+
+// ListItem est un élément de liste avec son style inline éventuel.
+type ListItem struct {
+	Text   string       `json:"text"`
+	Inline []InlineSpan `json:"inline,omitempty"`
+}
+
 // Block est un bloc typographique du document canonique.
 type Block struct {
-	Kind    Kind     `json:"kind"`
-	Text    string   `json:"text,omitempty"`  // blocs texte
-	Items   []string `json:"items,omitempty"` // KindList : contenu des <li>
-	Ordered bool     `json:"ordered,omitempty"`
-	Src     string   `json:"src,omitempty"` // KindImage
-	Alt     string   `json:"alt,omitempty"` // KindImage
-	Spans   []Span   `json:"spans,omitempty"`
+	Kind    Kind         `json:"kind"`
+	Text    string       `json:"text,omitempty"`  // blocs texte
+	Items   []ListItem   `json:"items,omitempty"` // KindList : contenu des <li>
+	Ordered bool         `json:"ordered,omitempty"`
+	Src     string       `json:"src,omitempty"` // KindImage
+	Alt     string       `json:"alt,omitempty"` // KindImage
+	Spans   []Span       `json:"spans,omitempty"`
+	Inline  []InlineSpan `json:"inline,omitempty"`
 }
 
 // Segment est un flux de texte mesurable : un bloc texte (p/h/quote/code) ou
@@ -247,8 +265,16 @@ func (d *Document) CountBefore(target string, before int) int {
 // ---------------------------------------------------------------------
 
 type itemTmp struct {
-	text  string
-	spans []Span
+	text   string
+	spans  []Span
+	inline []InlineSpan
+}
+
+// inlState est une entrée de la pile de styles inline ouverts.
+type inlState struct {
+	style string
+	href  string
+	at    int // offset du 1er caractère (-1 = pas encore de contenu)
 }
 
 type parser struct {
@@ -261,6 +287,7 @@ type parser struct {
 	blocks  []Block
 	segs    []Segment
 	skip    int // profondeur des tags sans contenu texte (script, style, …)
+	istack  []inlState
 }
 
 func (p *parser) parse(src string) {
@@ -305,6 +332,16 @@ func (p *parser) parse(src string) {
 				if p.cur != nil && attrs["data-annotation-note"] != "" {
 					p.cur.openMark(attrs["data-annotation-note"])
 				}
+			case "b", "strong":
+				p.pushInline("bold", "")
+			case "i", "em":
+				p.pushInline("italic", "")
+			case "u":
+				p.pushInline("underline", "")
+			case "code":
+				p.pushInline("code", "")
+			case "a":
+				p.pushInline("link", attrs["href"])
 			}
 			// inline (b, i, a, …) ou inconnue : le texte continue de couler ;
 			// on ne rend jamais de HTML brut.
@@ -331,6 +368,8 @@ func (p *parser) parse(src string) {
 				if p.cur != nil {
 					p.cur.closeMark()
 				}
+			case "b", "strong", "i", "em", "u", "code", "a":
+				p.popInline()
 			}
 		}
 	}
@@ -380,6 +419,26 @@ func blockKind(name string) Kind {
 
 // writeText écrit dans le segment courant ; crée un paragraphe implicite si
 // aucun segment n'est ouvert.
+// pushInline ouvre un style inline sur le writer courant ; hors bloc, une
+// entrée neutre est empilée côté parser pour garder l'équilibre des fermetures.
+func (p *parser) pushInline(style, href string) {
+	if p.cur != nil {
+		p.cur.pushInline(style, href)
+		return
+	}
+	p.istack = append(p.istack, inlState{style: style, href: href, at: -1})
+}
+
+func (p *parser) popInline() {
+	if p.cur != nil && len(p.cur.inlstack) > 0 {
+		p.cur.popInline()
+		return
+	}
+	if len(p.istack) > 0 {
+		p.istack = p.istack[:len(p.istack)-1]
+	}
+}
+
 func (p *parser) writeText(s string) {
 	if p.cur == nil {
 		if p.inList {
@@ -446,7 +505,7 @@ func (p *parser) endItem() {
 	if p.cur == nil || !p.isItem {
 		return
 	}
-	p.items = append(p.items, itemTmp{text: p.cur.text(), spans: p.cur.spans()})
+	p.items = append(p.items, itemTmp{text: p.cur.text(), spans: p.cur.spans(), inline: p.cur.inlineSpans()})
 	p.cur = nil
 	p.isItem = false
 }
@@ -464,17 +523,20 @@ func (p *parser) closeList() {
 		p.inList = false
 		return
 	}
-	blk := Block{Kind: KindList, Ordered: p.ordered, Items: make([]string, 0, len(p.items))}
-	allSpans := make([][]Span, len(p.items))
-	for i, it := range p.items {
-		blk.Items = append(blk.Items, it.text)
-		allSpans[i] = it.spans
+	blk := Block{Kind: KindList, Ordered: p.ordered, Items: make([]ListItem, 0, len(p.items))}
+	for _, it := range p.items {
+		li := ListItem{Text: it.text}
+		if len(it.inline) > 0 {
+			li.Inline = it.inline
+		}
+		blk.Items = append(blk.Items, li)
+		// it.spans : spans officiels dans les listes — rare, non rattachés
+		// (même comportement qu'avant : conservés, ignorés ici).
 	}
 	idx := len(p.blocks)
 	p.blocks = append(p.blocks, blk)
 	for i, it := range p.items {
 		p.segs = append(p.segs, Segment{BlockIdx: idx, ItemIdx: i, Text: it.text})
-		_ = allSpans[i] // spans officiels dans les listes : rare, à rattacher plus tard
 	}
 	p.items = nil
 	p.inList = false
@@ -503,6 +565,7 @@ func (p *parser) flushCur() {
 	}
 	text := p.cur.text()
 	spans := p.cur.spans()
+	inl := p.cur.inlineSpans()
 	p.cur = nil
 	p.isItem = false
 	if text == "" {
@@ -515,6 +578,9 @@ func (p *parser) flushCur() {
 	blk := Block{Kind: kind, Text: text}
 	if len(spans) > 0 {
 		blk.Spans = spans
+	}
+	if len(inl) > 0 {
+		blk.Inline = inl
 	}
 	idx := len(p.blocks)
 	p.blocks = append(p.blocks, blk)
@@ -564,6 +630,8 @@ type writer struct {
 	markNote string
 	markAt   int // offset d'ouverture du mark (-1 = pas encore de contenu)
 	mspans   []Span
+	inlstack []inlState
+	inl      []InlineSpan
 }
 
 func newWriter() *writer { return &writer{markAt: -1} }
@@ -584,10 +652,41 @@ func (w *writer) write(s string) {
 		if w.markOpen && w.markAt < 0 {
 			w.markAt = w.n
 		}
+		for i := range w.inlstack {
+			if w.inlstack[i].at < 0 {
+				w.inlstack[i].at = w.n
+			}
+		}
 		w.b.WriteRune(r)
 		w.n++
 	}
 }
+
+func (w *writer) pushInline(style, href string) {
+	if style == "link" && href == "" {
+		// lien sans href : entrée neutre (équilibre de pile, aucun span émis).
+		w.inlstack = append(w.inlstack, inlState{style: style, at: -1})
+		return
+	}
+	w.inlstack = append(w.inlstack, inlState{style: style, href: href, at: -1})
+}
+
+func (w *writer) popInline() {
+	if len(w.inlstack) == 0 {
+		return
+	}
+	e := w.inlstack[len(w.inlstack)-1]
+	w.inlstack = w.inlstack[:len(w.inlstack)-1]
+	if e.at < 0 || e.at >= w.n {
+		return // vide (ouverture sans contenu) : rien à émettre
+	}
+	if e.style == "link" && e.href == "" {
+		return
+	}
+	w.inl = append(w.inl, InlineSpan{Start: e.at, End: w.n, Style: e.style, Href: e.href})
+}
+
+func (w *writer) inlineSpans() []InlineSpan { return w.inl }
 
 func (w *writer) openMark(note string) {
 	if note == "" {
