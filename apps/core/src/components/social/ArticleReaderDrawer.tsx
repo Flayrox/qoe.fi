@@ -11,6 +11,8 @@ export interface ArticleReaderDrawerProps {
   article: ArticleAnnotatorViewProps['article'] | null;
   onClose: () => void;
   initialSource?: 'feed' | 'subdomain' | 'public_profile' | 'direct';
+  /** Passage à mettre en avant (deep-link citation → article). */
+  spotlight?: ArticleAnnotatorViewProps['spotlight'];
 }
 
 export function ArticleReaderDrawer({
@@ -18,6 +20,7 @@ export function ArticleReaderDrawer({
   article,
   onClose,
   initialSource,
+  spotlight,
 }: ArticleReaderDrawerProps) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const [scrollProgress, setScrollProgress] = React.useState(0);
@@ -139,6 +142,7 @@ export function ArticleReaderDrawer({
                   article={article}
                   onClose={onClose}
                   initialSource={initialSource}
+                  spotlight={spotlight}
                 />
               </div>
             </div>

@@ -48,6 +48,7 @@ export function TextHighlighter({
   mainAppUrl,
   containerId = 'article-content',
   canonicalDocument,
+  spotlight,
   contentClassName,
   callbacks,
   onRequireAuth,
@@ -716,6 +717,7 @@ export function TextHighlighter({
           className={contentClassName}
           creatorName={creatorName}
           onMarkClick={openDrawerForAnnotation}
+          spotlight={spotlight}
         />
       )}
 

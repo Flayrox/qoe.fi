@@ -84,15 +84,24 @@ export function QuotedArticleCard({
     }
   }
 
+  // 🔦 Deep-link (tranche 6-b) : le passage cité est transmis par query
+  // params (hlStart/hlEnd/hlSha) — l'article s'ouvre sur le passage exact.
+  const quoteParams = serverContext
+    ? `?hlStart=${serverContext.start}&hlEnd=${serverContext.end}&hlSha=${encodeURIComponent(
+        serverContext.sha
+      )}`
+    : '';
+
   const handleClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (onOpenArticle) {
+      // Le drawer extrait le quoteContext de l'article pour le spotlight.
       onOpenArticle(article);
     } else {
       const url = articleDomain
-        ? `https://${articleDomain}/article/${article.slug}`
-        : `/article/${article.slug}`;
+        ? `https://${articleDomain}/article/${article.slug}${quoteParams}`
+        : `/article/${article.slug}${quoteParams}`;
       window.open(url, '_blank');
     }
   };

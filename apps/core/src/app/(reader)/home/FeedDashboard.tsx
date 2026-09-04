@@ -124,6 +124,16 @@ interface Article {
   author: Author;
   category: { name: string } | null;
   tags?: string[];
+  /** Passage cité résolu par le serveur (tranche 6-a) — sert de spotlight
+   *  quand la carte de citation ouvre l'article dans le drawer (6-b). */
+  quoteContext?: {
+    before: string;
+    highlight: string;
+    after: string;
+    start: number;
+    end: number;
+    sha: string;
+  } | null;
 }
 
 interface FeedPost {
@@ -216,6 +226,12 @@ export function FeedDashboard({
   const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(needsOnboarding);
   const [activePostId, setActivePostId] = useState<string | null>(null);
   const [activeArticle, setActiveArticle] = useState<Article | null>(null);
+  // 🔦 Passage cité à mettre en avant dans le drawer (deep-link 6-b).
+  const [activeArticleSpotlight, setActiveArticleSpotlight] = useState<{
+    start: number;
+    end: number;
+    sha: string;
+  } | null>(null);
   const [activeArticleSource, setActiveArticleSource] = useState<
     'feed' | 'subdomain' | 'public_profile' | 'direct' | undefined
   >(undefined);
@@ -517,6 +533,18 @@ export function FeedDashboard({
     const slug = articleInput?.slug || articleInput?.id;
     if (!slug) return;
 
+    // Deep-link citation → article : le passage cité (résolu par le serveur)
+    // est mis en avant dès que le document canonique est rendu dans le drawer.
+    setActiveArticleSpotlight(
+      articleInput.quoteContext
+        ? {
+            start: articleInput.quoteContext.start,
+            end: articleInput.quoteContext.end,
+            sha: articleInput.quoteContext.sha,
+          }
+        : null
+    );
+
     setActiveArticleSource('feed');
     window.history.pushState({ articleSlug: slug, scroll }, '', routes.feed.article(slug));
 
@@ -566,6 +594,7 @@ export function FeedDashboard({
 
   const handleCloseArticle = () => {
     setActiveArticle(null);
+    setActiveArticleSpotlight(null);
     setActiveArticleSource(undefined);
     if (window.location.pathname.includes('/article/')) {
       window.history.pushState(null, '', routes.feed.home());
@@ -960,6 +989,7 @@ export function FeedDashboard({
         article={activeArticle}
         onClose={handleCloseArticle}
         initialSource={activeArticleSource}
+        spotlight={activeArticleSpotlight}
       />
 
       <ComposerModal
