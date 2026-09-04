@@ -545,6 +545,8 @@ SELECT p.id,
        p."replyRestriction",
        p."isPinned",
        p."isHiddenByAuthor",
+       p."quotedArticleId",
+       p."quotedExcerpt",
        u.id::text      AS author_id,
        u.name          AS author_name,
        u.username      AS author_username,
@@ -582,6 +584,8 @@ type GetPostsByIDsRow struct {
 	ReplyRestriction string           `json:"replyRestriction"`
 	IsPinned         bool             `json:"isPinned"`
 	IsHiddenByAuthor bool             `json:"isHiddenByAuthor"`
+	QuotedArticleId  pgtype.Text      `json:"quotedArticleId"`
+	QuotedExcerpt    pgtype.Text      `json:"quotedExcerpt"`
 	AuthorID         string           `json:"author_id"`
 	AuthorName       pgtype.Text      `json:"author_name"`
 	AuthorUsername   pgtype.Text      `json:"author_username"`
@@ -616,6 +620,8 @@ func (q *Queries) GetPostsByIDs(ctx context.Context, arg GetPostsByIDsParams) ([
 			&i.ReplyRestriction,
 			&i.IsPinned,
 			&i.IsHiddenByAuthor,
+			&i.QuotedArticleId,
+			&i.QuotedExcerpt,
 			&i.AuthorID,
 			&i.AuthorName,
 			&i.AuthorUsername,
@@ -623,6 +629,91 @@ func (q *Queries) GetPostsByIDs(ctx context.Context, arg GetPostsByIDsParams) ([
 			&i.AuthorCertified,
 			&i.ViewerLiked,
 			&i.ViewerReposted,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const getQuotedArticlesByIDs = `-- name: GetQuotedArticlesByIDs :many
+SELECT a.id,
+       a.title,
+       a.slug,
+       a.content,
+       a."isPremium",
+       p.id   AS pub_id,
+       p.type,
+       p.name,
+       p.slug AS pub_slug,
+       p.subdomain,
+       p."customDomain",
+       p."logoUrl"       AS pub_logo,
+       p."isCertified"   AS pub_certified,
+       u.id::text AS author_id,
+       u.name         AS author_name,
+       u.username     AS author_username,
+       u."logoUrl"    AS author_logo,
+       u."isCertified" AS author_certified
+FROM "Article" a
+JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "User" u ON u.id = a."authorId"
+WHERE a.id = ANY($1::text[])
+`
+
+type GetQuotedArticlesByIDsRow struct {
+	ID              string          `json:"id"`
+	Title           string          `json:"title"`
+	Slug            string          `json:"slug"`
+	Content         string          `json:"content"`
+	IsPremium       bool            `json:"isPremium"`
+	PubID           string          `json:"pub_id"`
+	Type            PublicationType `json:"type"`
+	Name            string          `json:"name"`
+	PubSlug         string          `json:"pub_slug"`
+	Subdomain       pgtype.Text     `json:"subdomain"`
+	CustomDomain    pgtype.Text     `json:"customDomain"`
+	PubLogo         pgtype.Text     `json:"pub_logo"`
+	PubCertified    bool            `json:"pub_certified"`
+	AuthorID        string          `json:"author_id"`
+	AuthorName      pgtype.Text     `json:"author_name"`
+	AuthorUsername  pgtype.Text     `json:"author_username"`
+	AuthorLogo      pgtype.Text     `json:"author_logo"`
+	AuthorCertified bool            `json:"author_certified"`
+}
+
+func (q *Queries) GetQuotedArticlesByIDs(ctx context.Context, ids []string) ([]GetQuotedArticlesByIDsRow, error) {
+	rows, err := q.db.Query(ctx, getQuotedArticlesByIDs, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetQuotedArticlesByIDsRow{}
+	for rows.Next() {
+		var i GetQuotedArticlesByIDsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.Slug,
+			&i.Content,
+			&i.IsPremium,
+			&i.PubID,
+			&i.Type,
+			&i.Name,
+			&i.PubSlug,
+			&i.Subdomain,
+			&i.CustomDomain,
+			&i.PubLogo,
+			&i.PubCertified,
+			&i.AuthorID,
+			&i.AuthorName,
+			&i.AuthorUsername,
+			&i.AuthorLogo,
+			&i.AuthorCertified,
 		); err != nil {
 			return nil, err
 		}

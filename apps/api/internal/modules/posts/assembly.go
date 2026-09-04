@@ -55,8 +55,9 @@ func AuthorOf(r *db.GetPostsByIDsRow, following map[string]bool) Author {
 }
 
 // BuildFeedPost construit le DTO complet d'une pensée (miroir Prisma), avec
-// l'état du viewer (liked/reposted) et l'état follow de l'auteur.
-func BuildFeedPost(r *db.GetPostsByIDsRow, all map[string]*db.GetPostsByIDsRow, attachments map[string][]Attachment, polls map[string]*Poll, following map[string]bool) FeedPost {
+// l'état du viewer (liked/reposted), l'état follow de l'auteur et l'article
+// cité résolu par le serveur (quoted, clé = postID — voir QuotedArticlesFor).
+func BuildFeedPost(r *db.GetPostsByIDsRow, all map[string]*db.GetPostsByIDsRow, attachments map[string][]Attachment, polls map[string]*Poll, following map[string]bool, quoted map[string]*QuotedArticle) FeedPost {
 	fp := FeedPost{
 		ID:               r.ID,
 		Content:          r.Content,
@@ -86,24 +87,30 @@ func BuildFeedPost(r *db.GetPostsByIDsRow, all map[string]*db.GetPostsByIDsRow, 
 	}
 	if rid := RepostIDOf(r); rid != nil {
 		if rp, ok := all[*rid]; ok {
-			rr := BuildFeedPost(rp, all, attachments, polls, following)
+			rr := BuildFeedPost(rp, all, attachments, polls, following, quoted)
 			fp.Repost = &rr
 		}
+	}
+	if qa, ok := quoted[r.ID]; ok {
+		fp.QuotedArticle = qa
+	}
+	if r.QuotedExcerpt.Valid && r.QuotedExcerpt.String != "" {
+		fp.QuotedExcerpt = textPtr(r.QuotedExcerpt)
 	}
 	return fp
 }
 
 // BuildFeedPostWithAncestors construit le FeedPost d'une pensée ET chaîne
 // récursivement ses ancêtres dans `Parent` (root → … → parent direct).
-func BuildFeedPostWithAncestors(r *db.GetPostsByIDsRow, all map[string]*db.GetPostsByIDsRow, attachments map[string][]Attachment, polls map[string]*Poll, following map[string]bool, seen map[string]bool) FeedPost {
-	fp := BuildFeedPost(r, all, attachments, polls, following)
+func BuildFeedPostWithAncestors(r *db.GetPostsByIDsRow, all map[string]*db.GetPostsByIDsRow, attachments map[string][]Attachment, polls map[string]*Poll, following map[string]bool, seen map[string]bool, quoted map[string]*QuotedArticle) FeedPost {
+	fp := BuildFeedPost(r, all, attachments, polls, following, quoted)
 	pid := ParentIDOf(r)
 	if pid == nil || seen[r.ID] {
 		return fp
 	}
 	if parentRow, ok := all[*pid]; ok {
 		seen[r.ID] = true
-		pp := BuildFeedPostWithAncestors(parentRow, all, attachments, polls, following, seen)
+		pp := BuildFeedPostWithAncestors(parentRow, all, attachments, polls, following, seen, quoted)
 		fp.Parent = &pp
 	}
 	return fp

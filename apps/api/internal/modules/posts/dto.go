@@ -64,6 +64,50 @@ type Poll struct {
 	Options           []PollOption `json:"options"`
 }
 
+// QuotedAuthor est l'auteur de l'article cité (parité FeedPostRecord TS).
+type QuotedAuthor struct {
+	ID          string  `json:"id"`
+	Name        *string `json:"name"`
+	Username    *string `json:"username"`
+	LogoURL     *string `json:"logoUrl"`
+	IsCertified bool    `json:"isCertified"`
+}
+
+// QuotedPublication est la publication de l'article cité (parité TS).
+type QuotedPublication struct {
+	Name         string  `json:"name"`
+	Slug         string  `json:"slug"`
+	Subdomain    *string `json:"subdomain"`
+	CustomDomain *string `json:"customDomain"`
+	Type         string  `json:"type"`
+	LogoURL      *string `json:"logoUrl"`
+	IsCertified  bool    `json:"isCertified"`
+}
+
+// QuoteContext est le contexte du passage cité, résolu côté serveur contre le
+// texte canonique de l'article — la carte du feed n'a plus à stripper le HTML
+// ni à faire d'indexOf. Start/End (code points) + Sha préparent les
+// deep-links sur le passage exact.
+type QuoteContext struct {
+	Before    string `json:"before"`
+	Highlight string `json:"highlight"`
+	After     string `json:"after"`
+	Start     int    `json:"start"`
+	End       int    `json:"end"`
+	Sha       string `json:"sha"`
+}
+
+// QuotedArticle est l'article cité par une pensée.
+type QuotedArticle struct {
+	ID           string            `json:"id"`
+	Title        string            `json:"title"`
+	Slug         string            `json:"slug"`
+	IsPremium    bool              `json:"isPremium"`
+	QuoteContext *QuoteContext     `json:"quoteContext,omitempty"`
+	Publication  QuotedPublication `json:"publication"`
+	Author       QuotedAuthor      `json:"author"`
+}
+
 // PostCounts est le `_count` de Prisma.
 type PostCounts struct {
 	Likes   int `json:"likes"`
@@ -73,31 +117,33 @@ type PostCounts struct {
 
 // FeedPost est la sérialisation complète d'une pensée dans le feed (miroir Prisma).
 type FeedPost struct {
-	ID               string       `json:"id"`
-	Content          string       `json:"content"`
-	AuthorID         string       `json:"authorId"`
-	CreatedAt        string       `json:"createdAt"`
-	Tags             []string     `json:"tags"`
-	ImageURL         *string      `json:"imageUrl"`
-	LikeCount        int          `json:"likeCount"`
-	RepostCount      int          `json:"repostCount"`
-	ReplyCount       int          `json:"replyCount"`
-	ParentID         *string      `json:"parentId"`
-	RootID           *string      `json:"rootId"`
-	RepostID         *string      `json:"repostId"`
-	ReplyRestriction string       `json:"replyRestriction"`
-	IsPinned         bool         `json:"isPinned"`
-	IsHiddenByAuthor bool         `json:"isHiddenByAuthor"`
-	Author           Author       `json:"author"`
-	Parent           *FeedPost    `json:"parent"`
-	Repost           *FeedPost    `json:"repost"`
-	Attachments      []Attachment `json:"attachments"`
-	Poll             *Poll        `json:"poll"`
-	Likes            []PostActor  `json:"likes"`
-	Reposts          []PostActor  `json:"reposts"`
-	Counts           PostCounts   `json:"_count"`
-	Liked            bool         `json:"liked"`
-	Reposted         bool         `json:"reposted"`
+	ID               string         `json:"id"`
+	Content          string         `json:"content"`
+	AuthorID         string         `json:"authorId"`
+	CreatedAt        string         `json:"createdAt"`
+	Tags             []string       `json:"tags"`
+	ImageURL         *string        `json:"imageUrl"`
+	LikeCount        int            `json:"likeCount"`
+	RepostCount      int            `json:"repostCount"`
+	ReplyCount       int            `json:"replyCount"`
+	ParentID         *string        `json:"parentId"`
+	RootID           *string        `json:"rootId"`
+	RepostID         *string        `json:"repostId"`
+	ReplyRestriction string         `json:"replyRestriction"`
+	IsPinned         bool           `json:"isPinned"`
+	IsHiddenByAuthor bool           `json:"isHiddenByAuthor"`
+	QuotedExcerpt    *string        `json:"quotedExcerpt,omitempty"`
+	QuotedArticle    *QuotedArticle `json:"quotedArticle,omitempty"`
+	Author           Author         `json:"author"`
+	Parent           *FeedPost      `json:"parent"`
+	Repost           *FeedPost      `json:"repost"`
+	Attachments      []Attachment   `json:"attachments"`
+	Poll             *Poll          `json:"poll"`
+	Likes            []PostActor    `json:"likes"`
+	Reposts          []PostActor    `json:"reposts"`
+	Counts           PostCounts     `json:"_count"`
+	Liked            bool           `json:"liked"`
+	Reposted         bool           `json:"reposted"`
 }
 
 // PostActor est l'état viewer pour likes/reposts.

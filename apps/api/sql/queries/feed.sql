@@ -181,6 +181,8 @@ SELECT p.id,
        p."replyRestriction",
        p."isPinned",
        p."isHiddenByAuthor",
+       p."quotedArticleId",
+       p."quotedExcerpt",
        u.id::text      AS author_id,
        u.name          AS author_name,
        u.username      AS author_username,
@@ -195,6 +197,30 @@ LEFT JOIN "Post" r ON r."repostId" = p.id AND r."authorId" = @viewer_id AND r."d
 WHERE p.id = ANY(@ids::text[])
   AND p."deletedAt" IS NULL
   AND p."isHiddenByModerator" = false;
+
+-- name: GetQuotedArticlesByIDs :many
+SELECT a.id,
+       a.title,
+       a.slug,
+       a.content,
+       a."isPremium",
+       p.id   AS pub_id,
+       p.type,
+       p.name,
+       p.slug AS pub_slug,
+       p.subdomain,
+       p."customDomain",
+       p."logoUrl"       AS pub_logo,
+       p."isCertified"   AS pub_certified,
+       u.id::text AS author_id,
+       u.name         AS author_name,
+       u.username     AS author_username,
+       u."logoUrl"    AS author_logo,
+       u."isCertified" AS author_certified
+FROM "Article" a
+JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "User" u ON u.id = a."authorId"
+WHERE a.id = ANY(@ids::text[]);
 
 -- name: GetReplyIDsForThought :many
 SELECT id

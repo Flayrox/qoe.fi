@@ -360,14 +360,18 @@ func (s *Service) Thread(ctx context.Context, postID, viewerID string) (*ThreadP
 	if err != nil {
 		return nil, err
 	}
+	quoted, err := posts.QuotedArticlesFor(ctx, s.q, posts.QuoteRefsFrom(all))
+	if err != nil {
+		return nil, err
+	}
 
-	target := posts.BuildFeedPostWithAncestors(all[postID], all, attachments, polls, following, map[string]bool{})
+	target := posts.BuildFeedPostWithAncestors(all[postID], all, attachments, polls, following, map[string]bool{}, quoted)
 	thread := &ThreadPost{FeedPost: target}
 
 	// Réponses triées par date croissante.
 	for _, id := range replyIDs {
 		if r, ok := all[id]; ok {
-			thread.Replies = append(thread.Replies, posts.BuildFeedPost(r, all, attachments, polls, following))
+			thread.Replies = append(thread.Replies, posts.BuildFeedPost(r, all, attachments, polls, following, quoted))
 		}
 	}
 	return thread, nil

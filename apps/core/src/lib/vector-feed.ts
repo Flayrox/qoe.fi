@@ -67,8 +67,16 @@ export interface FeedPostRecord {
     id: string;
     title: string;
     slug: string;
-    content: string;
+    content?: string | null;
     isPremium: boolean;
+    quoteContext?: {
+      before: string;
+      highlight: string;
+      after: string;
+      start: number;
+      end: number;
+      sha: string;
+    } | null;
     publication: {
       name: string;
       slug: string;
@@ -127,6 +135,7 @@ export const mapQuotedArticle = (article: FeedPostRecord['quotedArticle']) =>
         slug: article.slug,
         content: article.content,
         isPremium: article.isPremium,
+        quoteContext: article.quoteContext ?? null,
         author: {
           id: article.author.id,
           name: article.author.name,
