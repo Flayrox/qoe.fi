@@ -43,6 +43,16 @@ export type ArticleTextViewContentHeight = {
   height: number;
 };
 
+/** 🔦 Spotlight (4-d) : le début du passage (offset UTF-16 du texte
+ *  affiché, `start`) a été mesuré nativement — `y` = sa position WINDOW
+ *  en dp (haut de la 1re ligne), même contrat que le moteur legacy
+ *  (html-blocks signale le windowY de son 1er token). Émis UNE fois par
+ *  passage tant que la prop `spotlightStart` ne repasse pas à -1. */
+export type ArticleTextViewSpotlightMeasured = {
+  start: number;
+  y: number;
+};
+
 export type ArticleTextViewProps = ViewProps & {
   /** Texte plat continu (sortie du modèle C1). */
   text: string;
@@ -64,6 +74,12 @@ export type ArticleTextViewProps = ViewProps & {
   onSelectionChange?: (event: { nativeEvent: ArticleTextViewSelection }) => void;
   /** Hauteur de contenu mesurée par le natif (dp) — alimente le style. */
   onContentHeight?: (event: { nativeEvent: ArticleTextViewContentHeight }) => void;
+  /** 🔦 Début du passage spotlight en offsets UTF-16 du texte affiché
+   *  (-1 = inactif). La peinture vient des runs (marque spotlight) ;
+   *  cette prop ne déclenche que la MESURE → onSpotlightMeasured. */
+  spotlightStart?: number;
+  /** Le début du passage spotlight a été mesuré (position window, dp). */
+  onSpotlightMeasured?: (event: { nativeEvent: ArticleTextViewSpotlightMeasured }) => void;
 };
 
 export const ArticleTextView = requireNativeViewManager<ArticleTextViewProps>(

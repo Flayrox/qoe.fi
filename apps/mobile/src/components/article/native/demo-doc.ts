@@ -166,3 +166,13 @@ export const DEMO_PRIVATE_HIGHLIGHT = {
   isPrivate: true,
   contentSha: DEMO_DOC.sha,
 };
+
+/** Passage « deep-link » (spotlight, 4-d) : tout le 5e paragraphe — un
+ *  passage du MILIEU du témoin, sans marque existante (bande émeraude
+ *  propre), assez bas pour qu'un scroll réel soit nécessaire. */
+export const DEMO_SPOTLIGHT = {
+  text: P5,
+  canonicalStart: text.indexOf(P5),
+  canonicalEnd: text.indexOf(P5) + cpLen(P5),
+  sha: DEMO_DOC.sha,
+};

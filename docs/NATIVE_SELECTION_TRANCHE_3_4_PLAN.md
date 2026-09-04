@@ -371,9 +371,46 @@ Ces fonctions sont **pures** → écrites et testées immédiatement, sans devic
 >    article réel — le contrat API de `SelectionPopover` est déjà validé par
 >    le moteur legacy).
 
-### 4-d · Deep-link spotlight (0,5 j) — idem 3-e.
+### 4-d · Deep-link spotlight (0,5 j) — ✅ LIVRÉ (rapport ci-dessous)
 
-### 4-d · Deep-link spotlight (0,5 j) — idem 3-e.
+> **Rapport de la tranche 4-d (C11)** — module Android + spike, validé sur
+> émulateur Pixel 9 (Android 15).
+>
+> **Briques livrées** :
+>
+> 1. **Fixture `DEMO_SPOTLIGHT`** dans `demo-doc.ts` : passage canonique du
+>    témoin (extrait exporté pour réutilisation — même pattern que les
+>    highlights officiels/public/private).
+>
+> 2. **Module Android — mesure native du passage.** La prop `spotlightStart`
+>    (offset UTF-16) déclenche une MESURE et un seul : `onSpotlightMeasured`
+>    remonte la position **window** de la 1re ligne du passage (`y`, dp) —
+>    même contrat que `html-blocks` (windowY du 1er token) → l'écran
+>    convertit en scroll. Réarmé automatiquement quand `start` change ou
+>    redevient -1.
+>
+> 3. **Spike 4-d** : bouton HUD « ⚡ spotlight » → marque émeraude poussée
+>    par `buildNativeMarks` (prioritaire) + scroll au passage avec la MÊME
+>    formule que `article-screen` (position window → contenu scrollable →
+>    `scrollTo`, marge 120 dp).
+>
+> **ABUS/piège identifié en route** : au moment du changement de prop, le
+> layout interne du TextView est `null` (créé à la passe de layout suivante
+> — qui n'arrive PAS si la hauteur ne change pas). La position window via
+> `this.layout` est donc indisponible juste après `setText`. Correction
+> robuste : construire notre PROPRE `StaticLayout` (celui de la hauteur) et
+> calculer `y = windowTop(vue) + lineTop(ligne) + lineSpacingExtra × ligne`
+> — mathématiquement identique au rendu réel (même Paint, même largeur,
+> contenu aligné en haut). Documenté pour ne pas retomber dans le piège.
+>
+> **Validé de bout en bout** : bouton → prop 422 (UTF-16) → mesure native
+> `y=641.9 dp` → scroll ✓ → capture : le passage spotlight (paragraphe code)
+> est peint EN ÉMERAUDE `#10b981 @ 40 %` (`0x6610b981`) et revient en
+> évidence sous le HUD. Peinture + scroll profondeur = parfaits.
+>
+> **Point ouvert** : au niveau de l'écran réel, `scrollY` de la ScrollView en
+> continu → `spotlightStart` debounce pour éviter une re-mesure intempestive
+> si le passage ré-apparaît (déjà géré : 1 émission par valeur de start).
 
 ---
 
@@ -419,7 +456,7 @@ Ces fonctions sont **pures** → écrites et testées immédiatement, sans devic
 | C8 | Spike 4-a | ✅ livré — module Expo `ArticleTextView` (TextView+Spannable) sur émulateur : rendu multi-paragraphe + marques, jumeau de mesure (hauteur exacte), sélection native (poignées), `onSelectionChange` UTF-16 → C1 validé live ([3,7) puis [8,24)) | C1 |
 | C9 | Tranche 4-b | ✅ livré — pures partagées `attributed.ts` (runs homogènes + layout paragraphe), fixture témoin `demo-doc.ts`, module Android `spans`/`paragraphs` (h2/blockquote/code/listes), hauteur native `onContentHeight`, ActionMode neutralisé (menu vidé — `false` à la création dé-sélectionne sur API 35) | C8 |
 | C10 | Tranche 4-c | ✅ livré — géométrie native (y = centre 1re ligne) + `linkColor` thème, adapter `nativeSelectionToPopoverInfo` (3 tests), spike : VRAIE `SelectionPopover` montée sur la sélection native et ancrée (top = max(8, y−58)) ; **fix Android/Fabric** : pill invisible quand le wrap absolu de la popover n'a pas de hauteur (`height: 50` sur le wrap + `minHeight` floating) | C9 |
-| C11 | Tranche 4-d | Deep-link spotlight Android | C10 |
+| C11 | Tranche 4-d | ✅ livré — prop `spotlightStart` + event `onSpotlightMeasured` (mesure native via StaticLayout — pas de dépendance à `this.layout`, null à la passe de prop), fixture `DEMO_SPOTLIGHT` (`DEMO_SPOTLIGHT`), spike : marque émeraude (prioritaire) + scroll au passage (formule legacy), 1 émission/start | C10 |
 
 Chaque commit garde la suite verte + la checklist device du gate.
 

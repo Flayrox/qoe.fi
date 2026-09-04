@@ -5,4 +5,5 @@ export type {
   ArticleTextViewProps,
   ArticleTextViewSelection,
   ArticleTextViewSpan,
+  ArticleTextViewSpotlightMeasured,
 } from './ArticleTextView';

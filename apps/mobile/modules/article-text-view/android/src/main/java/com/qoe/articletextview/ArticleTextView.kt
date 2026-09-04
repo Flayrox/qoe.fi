@@ -54,6 +54,7 @@ class ArticleTextView(context: Context) : TextView(context) {
 
   internal val onSelectionChange: ViewEventCallback<Map<String, Any>> by EventDispatcher()
   internal val onContentHeight: ViewEventCallback<Map<String, Any>> by EventDispatcher()
+  internal val onSpotlightMeasured: ViewEventCallback<Map<String, Any>> by EventDispatcher()
 
   private var updatingText = false
   private var pendingText: String? = null
@@ -67,6 +68,15 @@ class ArticleTextView(context: Context) : TextView(context) {
    *  Yoga (RN), on ne peut pas s'auto-dimensionner côté natif. */
   private var pendingMeasureWidthDp: Float = 0f
   private var lastReportedHeightDp: Int = -1
+  /** 🔦 Spotlight (4-d) : offset UTF-16 (texte affiché) du début du passage
+   *  à mettre en avant — -1 = inactif. La PEINTURE est déjà dans les runs
+   *  (buildNativeMarks pousse la marque spotlight) ; ici on ne fait que
+   *  MESURER la position du passage pour que l'écran scrolle dessus. */
+  private var pendingSpotlightStart: Int = -1
+  /** Dernier passage signalé (une seule émission par valeur — jamais de
+   *  re-scroll si l'utilisateur lit ensuite, même sémantique que le moteur
+   *  tokens legacy). Réarmé quand le spotlight repasse à -1. */
+  private var lastReportedSpotlightStart: Int = -1
 
   init {
     // Sélection native sur un TextView non éditable.
@@ -120,6 +130,10 @@ class ArticleTextView(context: Context) : TextView(context) {
       setText(sb)
 
       maybeReportContentHeight(sb)
+      // 🔦 Spotlight : tentative immédiate (vue déjà attachée quand la prop
+      // arrive après le montage). Au montage initial, la vue n'est pas
+      // encore attachée → onLayout la déclenchera une fois attachée.
+      maybeReportSpotlight(sb)
     } finally {
       updatingText = false
     }
@@ -206,25 +220,35 @@ class ArticleTextView(context: Context) : TextView(context) {
     }
   }
 
-  /** Mesure la hauteur du contenu spané et la remonte en dp (si changée). */
-  private fun maybeReportContentHeight(sb: SpannableStringBuilder) {
+  /** Construit le StaticLayout du contenu spané — avec la largeur de mesure
+   *  fournie par le JS. Retourne null si non mesurable. L'extra de
+   *  lineHeight (sp) est appliqué PAR LIGNE comme le fait TextView
+   *  (lineSpacingExtra) : la hauteur ET la position des lignes réelles en
+   *  dépendent — on le réplique à l'identique ici. */
+  private fun contentLayout(sb: CharSequence): StaticLayout? {
     val widthDp = pendingMeasureWidthDp
-    if (widthDp <= 0f) return
+    if (widthDp <= 0f || sb.length == 0) return null
     val widthPx = (widthDp * density).toInt()
-    if (widthPx <= 0) return
-
-    if (sb.length == 0) return
-    // Forme 5-arg : ALIGN_NORMAL, spacing 1/0, includePad=true (défauts
-    // TextView) — l'extra de ligne est ajouté manuellement ci-dessous.
+    if (widthPx <= 0) return null
     val layout = StaticLayout.Builder
       .obtain(sb, 0, sb.length, paint, widthPx)
       .build()
+    return layout
+  }
 
+  /** Retourne l'extra de ligne (px) appliqué par TextView, ou 0. */
+  private fun lineSpacingExtraPx(): Float {
+    if (pendingLineHeightSp <= 0f) return 0f
+    val extra = spToPx(pendingLineHeightSp) - paint.textSize
+    return if (extra > 0f) extra else 0f
+  }
+
+  /** Mesure la hauteur du contenu spané et la remonte en dp (si changée). */
+  private fun maybeReportContentHeight(sb: SpannableStringBuilder) {
+    val layout = contentLayout(sb) ?: return
     var heightPx = layout.height.toFloat()
-    if (pendingLineHeightSp > 0f) {
-      val extra = spToPx(pendingLineHeightSp) - paint.textSize
-      if (extra > 0f) heightPx += extra * layout.lineCount
-    }
+    val extra = lineSpacingExtraPx()
+    if (extra > 0f) heightPx += extra * layout.lineCount
     val heightDp = ceil(heightPx / density).toInt()
     if (heightDp != lastReportedHeightDp) {
       lastReportedHeightDp = heightDp
@@ -263,6 +287,56 @@ class ArticleTextView(context: Context) : TextView(context) {
 
   fun setMeasureWidthDp(width: Float) {
     pendingMeasureWidthDp = width
+  }
+
+  fun setSpotlightStart(start: Int) {
+    pendingSpotlightStart = start
+    if (start < 0) lastReportedSpotlightStart = -1 // réarme pour un prochain passage
+  }
+
+  // ── Spotlight (4-d) ──────────────────────────────────────────────────
+  /**
+   * Mesure la position WINDOW (dp) de la 1re ligne du passage spotlight et
+   * l'émet via [onSpotlightMeasured] — même contrat que le moteur legacy
+   * (html-blocks : windowY du 1er token) → l'écran convertit en scroll.
+   * Une seule émission par valeur de start (re-scroll jamais automatique).
+   */
+  /**
+   * Mesure la position WINDOW (dp) de la 1re ligne du passage spotlight et
+   * l'émet via [onSpotlightMeasured] — même contrat que le moteur legacy
+   * (html-blocks : windowY du 1er token) → l'écran convertit en scroll.
+   * Une seule émission par valeur de start (re-scroll jamais automatique).
+   *
+   * On ne dépend pas de `this.layout` (null juste après setText — la passe
+   * de layout Android n'est pas garantie de se refaire quand la hauteur ne
+   * change pas) : on construit notre propre StaticLayout, mathématiquement
+   * identique au rendu (même Paint, même largeur, contenu aligné en haut),
+   * et on ajoute la position WINDOW de la vue.
+   */
+  private fun maybeReportSpotlight(sb: CharSequence) {
+    val start = pendingSpotlightStart
+    if (start < 0 || start == lastReportedSpotlightStart) return
+    if (!isAttachedToWindow) return
+    val l = contentLayout(sb) ?: return
+    val len = sb.length
+    if (start >= len) return
+    val line = l.getLineForOffset(start)
+    if (line < 0 || line >= l.lineCount) return
+    val loc = IntArray(2)
+    getLocationInWindow(loc)
+    // Top de ligne dans le rendu réel = lineTop(StaticLayout) + extra
+    // appliqué par TextView à chaque ligne (lineSpacingExtra).
+    val yWindowDp = (loc[1] + l.getLineTop(line) + lineSpacingExtraPx() * line) / density
+    lastReportedSpotlightStart = start
+    onSpotlightMeasured.invoke(mapOf("start" to start, "y" to yWindowDp))
+  }
+
+  /** La vue n'est attachée/layoutée qu'ici au premier rendu — si un
+   *  spotlight attend, on le mesure dès qu'on est attaché (la passe de
+   *  layout Android garantit que la position window est juste). */
+  override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+    super.onLayout(changed, left, top, right, bottom)
+    text?.let { maybeReportSpotlight(it) }
   }
 
   // ── Sélection ─────────────────────────────────────────────────────────
