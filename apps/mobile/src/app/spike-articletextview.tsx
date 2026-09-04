@@ -1,77 +1,48 @@
 // =====================================================================
-// 🧪 spike-articletextview.tsx — Spike 4-a (tranche 4) : preuve Android
+// 🧪 spike-articletextview.tsx — Spike 4-b (tranche 4) : rendu de bloc
 // =====================================================================
-// Écran DEV TEMPORAIRE (à supprimer après le spike) : rend le même document
-// canonique de démo que le spike iOS (C2) à travers le modèle C1, mais dans
-// le module natif maison `ArticleTextView` (TextView + Spannable, sélection
-// native Android).
-// La hauteur du texte est mesurée par un <Text> RN « jumeau » invisible
-// (même typo/largeur) : RN mesure le texte nativement, on donne le résultat
-// à la vue native — ainsi le contenu n'est ni tronqué ni scrollable en
-// interne. Ligne d'état en bas : location/length UTF-16 + passage canonique
-// résolu par nativeSelectionToInfo.
+// Écran DEV TEMPORAIRE (à supprimer après la tranche) : rend l'« article
+// témoin » partagé (demo-doc.ts) à travers le modèle C1 puis les helpers
+// de peinture partagés (attributed.ts) dans le module natif maison
+// `ArticleTextView` :
+//   - spans : runs homogènes (gras/italique/souligné/mono/lien + fond des
+//     marques) — LES MÊMES que le rendu iOS (parité par construction) ;
+//   - paragraphs : layout de bloc (h2, blockquote, code, listes) — titres
+//     agrandis, filet de citation, fond monospace, retrait suspendu.
+// La barre ActionMode système est NEUTRALISÉE côté natif (nos actions
+// vivront dans la surface morphée en 4-c) — les poignées restent natives.
+// La hauteur du contenu est mesurée côté natif (StaticLayout sur le texte
+// spané — les titres agrandis comptent) et remontée par onContentHeight :
+// plus de « jumeau » RN.
 // =====================================================================
 
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
   ArticleTextView,
-  type ArticleTextViewRun,
+  type ArticleTextViewParagraph,
   type ArticleTextViewSelection,
 } from '../../modules/article-text-view/src';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
-import type { CanonicalDocument } from '@qoe/sdk/mobile';
 
-import { buildArticleText, cpToUtf16 } from '@/components/article/native/article-text';
-import { buildNativeMarks, type NativeMark } from '@/components/article/native/marks';
+import { buildArticleText } from '@/components/article/native/article-text';
+import {
+  buildPaintSpans,
+  buildParagraphLayouts,
+  MARK_ARGB,
+} from '@/components/article/native/attributed';
+import { buildNativeMarks } from '@/components/article/native/marks';
+import {
+  DEMO_DOC,
+  DEMO_PRIVATE_HIGHLIGHT,
+  DEMO_PUBLIC_HIGHLIGHT,
+} from '@/components/article/native/demo-doc';
 import { nativeSelectionToInfo } from '@/components/article/native/selection';
 
-// ── Mêmes fixtures que le spike iOS C2 (parité de démo) ─────────────────
-const demoDoc: CanonicalDocument = {
-  sha: 'demo-1',
-  text: 'Le chat mange la souris. Le chat dort.',
-  blocks: [
-    {
-      kind: 'p',
-      text: 'Le chat mange la souris.',
-      inline: [
-        { start: 3, end: 7, style: 'bold' },
-        { start: 8, end: 13, style: 'italic' },
-        { start: 14, end: 23, style: 'underline' },
-      ],
-      spans: [{ start: 0, end: 2, note: 'Note officielle' }],
-    },
-    { kind: 'p', text: 'Le chat dort.' },
-  ],
-  segments: [
-    { blockIdx: 0, itemIdx: 0, text: 'Le chat mange la souris.', start: 0, end: 24 },
-    { blockIdx: 1, itemIdx: 0, text: 'Le chat dort.', start: 25, end: 38 },
-  ],
-};
-
-// ── Couleurs des marques — mêmes sémantiques que le spike iOS ───────────
-const MARK_COLORS: Record<NativeMark['kind'], string> = {
-  official: 'rgba(250, 204, 21, 0.45)',
-  public: 'rgba(59, 130, 246, 0.30)',
-  private: 'rgba(245, 158, 11, 0.25)',
-  spotlight: 'rgba(16, 185, 129, 0.40)',
-};
-
 /** rgba("r, g, b, a") → ARGB int. */
-function rgbaToArgb(rgba: string): number {
-  const m = rgba.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)$/);
-  if (!m) return 0xff000000;
-  const r = Number(m[1]);
-  const g = Number(m[2]);
-  const b = Number(m[3]);
-  const a = Math.round((m[4] === undefined ? 1 : Number(m[4])) * 255);
-  return ((a & 0xff) << 24) | ((r & 0xff) << 16) | ((g & 0xff) << 8) | (b & 0xff);
-}
-
-/** "#rrggbb" → ARGB int (alpha plein). */
 function hexToArgb(hex: string): number {
   const v = parseInt(hex.replace('#', ''), 16);
   return 0xff000000 | (Number.isNaN(v) ? 0x111111 : v);
@@ -85,62 +56,55 @@ function ArticleSpike() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]} edges={['top']}>
       <View style={styles.header}>
-        <ThemedText type="subtitle">Spike ArticleTextView (4-a)</ThemedText>
+        <ThemedText type="subtitle">Spike ArticleTextView (4-b)</ThemedText>
         <ThemedText type="small" style={{ color: theme.textSecondary }}>
-          Appui long puis glissez pour sélectionner — poignées natives Android.
+          Article témoin : titres, citations, listes, code — barre système neutralisée.
         </ThemedText>
       </View>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.body}>
-        <ThemedText type="small" style={{ color: theme.text, fontWeight: '700' }}>
-          A — 2 blocs (\\n dans le texte plat) :
-        </ThemedText>
-        <DocView doc={demoDoc} label="A" />
-        <View style={[styles.statusCard, { backgroundColor: theme.backgroundSelected }]}>
-          <ThemedText type="small" style={{ color: theme.text, fontFamily: 'monospace' }}>
-            Texte plat A (JSON) :{'\n'}
-            {JSON.stringify(buildArticleText(demoDoc).text)}
-          </ThemedText>
-        </View>
+        <DocView />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-/** Rendu d'un document canonique dans l'ArticleTextView natif. */
-function DocView({ doc, label }: { doc: CanonicalDocument; label: string }) {
+/** Rendu du témoin partagé dans l'ArticleTextView natif. */
+function DocView() {
   const theme = useTheme();
   const { width: screenWidth } = useWindowDimensions();
   const [sel, setSel] = useState<string>('—');
-  const [measuredH, setMeasuredH] = useState<number | null>(null);
-  const [viewSize, setViewSize] = useState<string>('?');
+  const [heightDp, setHeightDp] = useState<number | null>(null);
 
-  const model = buildArticleText(doc);
+  const model = buildArticleText(DEMO_DOC);
   const text = model.text;
 
-  // Runs + marques en offsets UTF-16 (unités Java du Spannable).
-  const runs = model.runs
-    .filter((r) => r.style !== 'link' && r.style !== 'bullet' && r.style !== 'number')
-    .map((r) => ({
-      start: cpToUtf16(text, r.startCp),
-      end: cpToUtf16(text, r.endCp),
-      style: r.style as ArticleTextViewRun['style'],
-    }));
-  const marks = buildNativeMarks(model, {
-    highlights: [
-      { text: 'Le chat', canonicalStart: 3, canonicalEnd: 7, isPublic: true, contentSha: 'demo-1' },
-      {
-        text: 'Le chat',
-        canonicalStart: 25,
-        canonicalEnd: 32,
-        isOfficial: true,
-        contentSha: 'demo-1',
-      },
-    ],
-  }).map((m) => ({
-    start: cpToUtf16(text, m.startCp),
-    end: cpToUtf16(text, m.endCp),
-    color: rgbaToArgb(MARK_COLORS[m.kind]),
+  // Marques du témoin (officielles du doc + public + private) → ARGB.
+  const coloredMarks = buildNativeMarks(model, {
+    highlights: [DEMO_PUBLIC_HIGHLIGHT, DEMO_PRIVATE_HIGHLIGHT],
+  }).map((m) => ({ startCp: m.startCp, endCp: m.endCp, color: MARK_ARGB[m.kind] ?? 0 }));
+
+  // Runs homogènes (attributs + fond) + layout de bloc, en UTF-16.
+  // Le bridge natif n'accepte pas null dans les maps : fond absent = -1,
+  // clés facultatives omises quand inutiles.
+  const spans = buildPaintSpans(model, coloredMarks).map((s) => ({
+    start: s.start,
+    end: s.end,
+    bold: s.bold,
+    italic: s.italic,
+    underline: s.underline,
+    mono: s.mono,
+    link: s.link,
+    bg: s.bg ?? -1,
   }));
+  const paragraphs: ArticleTextViewParagraph[] = buildParagraphLayouts(model).map((p) => {
+    const o: ArticleTextViewParagraph = { start: p.start, end: p.end, kind: p.kind };
+    if (p.listItem) {
+      o.listItem = true;
+      if (p.orderedIndex !== undefined) o.orderedIndex = p.orderedIndex;
+      if (p.markerText) o.markerText = p.markerText;
+    }
+    return o;
+  });
 
   const onSelectionChange = (e: { nativeEvent: ArticleTextViewSelection }) => {
     const { location, length } = e.nativeEvent;
@@ -159,39 +123,30 @@ function DocView({ doc, label }: { doc: CanonicalDocument; label: string }) {
   const width = screenWidth - 32;
   return (
     <>
-      {/* Jumeau invisible : RN mesure le texte (même typo/largeur) → hauteur native. */}
-      <Text
-        style={{
-          position: 'absolute',
-          left: -9999,
-          top: 0,
-          width,
-          fontSize: FONT_SIZE,
-          lineHeight: LINE_HEIGHT,
-          color: 'transparent',
-        }}
-        onLayout={(e) => setMeasuredH(Math.ceil(e.nativeEvent.layout.height))}
-      >
-        {text}
-      </Text>
       <ArticleTextView
         text={text}
-        runs={runs}
-        marks={marks}
+        spans={spans}
+        paragraphs={paragraphs}
         textColor={hexToArgb(theme.text)}
         fontSize={FONT_SIZE}
         lineHeight={LINE_HEIGHT}
+        measureWidth={width}
         onSelectionChange={onSelectionChange}
-        onLayout={(e) =>
-          setViewSize(
-            `${Math.round(e.nativeEvent.layout.width)}×${Math.round(e.nativeEvent.layout.height)}`
-          )
-        }
-        style={{ width, height: measuredH ?? 0 }}
+        onContentHeight={(e) => setHeightDp(e.nativeEvent.height)}
+        style={{ width, height: heightDp ?? 0 }}
       />
       <View style={[styles.statusCard, { backgroundColor: theme.backgroundSelected }]}>
         <ThemedText type="small" style={{ color: theme.text, fontFamily: 'monospace' }}>
-          {label} — Vue {viewSize} (mesuré : {measuredH ?? '…'}) · Sélection : {sel}
+          Témoin — {text.length} chars · hauteur native : {heightDp ?? '…'} dp
+        </ThemedText>
+        <ThemedText type="small" style={{ color: theme.text, fontFamily: 'monospace' }}>
+          Paragraphes :{' '}
+          {paragraphs
+            .map((p) => p.kind + (p.listItem ? `[${p.markerText?.trim()}]` : ''))
+            .join(' ')}
+        </ThemedText>
+        <ThemedText type="small" style={{ color: theme.text, fontFamily: 'monospace' }}>
+          Sélection : {sel}
         </ThemedText>
       </View>
     </>
@@ -207,5 +162,5 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 16, paddingTop: 12, gap: 4 },
   scroll: { flex: 1 },
   body: { padding: 16, gap: 12 },
-  statusCard: { borderRadius: 10, padding: 12 },
+  statusCard: { borderRadius: 10, padding: 12, gap: 4 },
 });

@@ -273,7 +273,48 @@ Ces fonctions sont **pures** → écrites et testées immédiatement, sans devic
     Android) → **confirmé** (poignées + ActionMode présents, pas de loupe).
 - **Gate** : spike validé sur émulateur → on continue.
 
-### 4-b · Spannable + marques (1–2 j)
+### 4-b · Spannable + marques (1–2 j) — ✅ LIVRÉ (rapport ci-dessous)
+
+> **Rapport de la tranche 4-b (C9)** — module `ArticleTextView` + pures
+> partagées, validé sur émulateur Pixel 9 (Android 15) :
+>
+> 1. **Pures partagées** (`native/attributed.ts`, 9 tests ; suite native 31
+>    verte) : `buildPaintSpans` découpe le texte plat en **runs homogènes**
+>    (gras/italique/souligné/mono/lien + fond ARGB unique par caractère —
+>    marques fondues dans le run, aucune double-peinture ni « trou ») et
+>    `buildParagraphLayouts` décrit chaque paragraphe (kind, étendu à
+>    travers le `\n` synthétique, marqueur exact des listes). Mêmes runs sur
+>    iOS et Android → **parité par construction**, plus de découpage ad-hoc
+>    dupliqué dans le spike iOS.
+> 2. **Fixture « article témoin » partagée** (`native/demo-doc.ts`) : h2,
+>    paragraphes (gras/italique/lien/code inline + spans officiels),
+>    blockquote, ul, ol, bloc code — offsets canoniques CALCULÉS à
+>    l'assemblage (zéro désynchronisation doc.text/blocks/segments).
+> 3. **Module Android** : props `spans`/`paragraphs` ; spans de bloc =
+>    `RelativeSizeSpan` (h1 1.5 / h2 1.28 / h3 1.14 / h4 1.05 + gras h1–h2),
+>    `QuoteSpan` (filet + marge, API ≥ 28), bloc code mono + fond,
+>    `LeadingMarginSpan` de retrait suspendu **mesuré sur le marqueur**
+>    (`•  ` / `1. ` …), lien `URLSpan` (couleur = défaut système, à brancher
+>    sur le thème en 4-c) ; marques toujours en `BackgroundColorSpan`
+>    continus.
+> 4. **Hauteur native mesurée** : `StaticLayout` sur le texte spané (les
+>    titres agrandis comptent) → événement `onContentHeight` (500 dp sur le
+>    témoin) — le « jumeau » RN de mesure du spike 4-a est supprimé.
+> 5. **ActionMode neutralisé — découverte empirique API 35** : renvoyer
+>    `false` à `onCreateActionMode` fait **dé-sélectionner** le framework
+>    (sélection effacée ~600 ms après, vérifié en log). La technique
+>    retenue : ActionMode ACTIF mais menu vidé à la création ET à chaque
+>    `onPrepareActionMode` (`menu.clear()` + retour `true`) → sélection et
+>    poignées conservées, **aucune barre système affichée** (ni Copier ni
+>    Select all — capture).
+> 6. **Validation device** (captures) : rendu du témoin = blockquote à
+>    filet, listes puces/chiffres, bloc code, marques continues ; sélection
+>    d'un mot → `onSelectionChanged` `[40,50)` → mapping live
+>    « grouillait » (ordinal 0, ancre 40..50) avec poignées natives et sans
+>    barre. Parité visuelle avec le spike iOS (mêmes runs partagés).
+> 7. **Restes ouverts** : rendu des `img`/`hr` (attachment → `ImageSpan`
+>    réseau) et styles de bloc iOS à trancher avec la tranche 3-b (vrai
+>    corps d'article) ; couleur des liens = thème en 4-c.
 
 - Rendu attribué : `SpannableStringBuilder` depuis `documentToStyleRuns` —
   `StyleSpan` (bold/italic), `UnderlineSpan`, `URLSpan` (liens), fond
@@ -334,8 +375,8 @@ Ces fonctions sont **pures** → écrites et testées immédiatement, sans devic
 | C6 | Tranche 3-e | Deep-link spotlight iOS | C5 |
 | C7 | (Option) 3-f | Sélection continue multi-blocs si décidée | C6 |
 | C8 | Spike 4-a | ✅ livré — module Expo `ArticleTextView` (TextView+Spannable) sur émulateur : rendu multi-paragraphe + marques, jumeau de mesure (hauteur exacte), sélection native (poignées), `onSelectionChange` UTF-16 → C1 validé live ([3,7) puis [8,24)) | C1 |
-| C9 | Tranche 4-b | Spannable + marques, parité iOS | C8 |
-| C10 | Tranche 4-c | Sélection → surface, ActionMode neutralisé | C9 |
+| C9 | Tranche 4-b | ✅ livré — pures partagées `attributed.ts` (runs homogènes + layout paragraphe), fixture témoin `demo-doc.ts`, module Android `spans`/`paragraphs` (h2/blockquote/code/listes), hauteur native `onContentHeight`, ActionMode neutralisé (menu vidé — `false` à la création dé-sélectionne sur API 35) | C8 |
+| C10 | Tranche 4-c | Sélection → `SelectionInfo` → surface morphée (les pures C1/4-b suffisent ; ActionMode déjà neutralisé en 4-b) | C9 |
 | C11 | Tranche 4-d | Deep-link spotlight Android | C10 |
 
 Chaque commit garde la suite verte + la checklist device du gate.

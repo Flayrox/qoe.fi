@@ -1,7 +1,8 @@
 export { ArticleTextView } from './ArticleTextView';
 export type {
-  ArticleTextViewMark,
+  ArticleTextViewContentHeight,
+  ArticleTextViewParagraph,
   ArticleTextViewProps,
-  ArticleTextViewRun,
   ArticleTextViewSelection,
+  ArticleTextViewSpan,
 } from './ArticleTextView';
