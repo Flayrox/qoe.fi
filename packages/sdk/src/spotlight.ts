@@ -1,10 +1,12 @@
 // =====================================================================
-// 🔦 Deep-link citation → article (tranche 6-b)
+// 🔦 Deep-link citation → article (tranche 6-b) — SOURCE UNIQUE web + mobile
 // =====================================================================
 // La carte de citation ouvre l'article sur le passage cité via les query
 // params hlStart / hlEnd / hlSha (offsets en code points dans le texte
 // canonique + empreinte du contenu). Ce parseur est PUR (testable sans
-// navigateur) : toute entrée invalide → null, jamais de crash.
+// navigateur) : toute entrée invalide → null, jamais de crash. Partagé
+// par le web (page /article/[slug]) et le mobile (route /article/[slug]).
+// Déplacé depuis apps/core/src/lib/spotlight.ts en tranche 6-d.
 
 export interface SpotlightRange {
   start: number;
@@ -34,7 +36,7 @@ export function parseSpotlightParams(
     return null;
   }
   if (!/^[0-9]+$/.test(startRaw) || !/^[0-9]+$/.test(endRaw)) return null;
-  if (!/^[0-9a-fA-F]{8,128}$/.test(shaRaw)) return null;
+  if (!new RegExp(`^[0-9a-fA-F]{8,${MAX_SHA_LENGTH}}$`).test(shaRaw)) return null;
 
   const start = Number(startRaw);
   const end = Number(endRaw);

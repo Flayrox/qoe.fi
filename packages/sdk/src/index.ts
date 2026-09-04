@@ -24,6 +24,7 @@ export * from './actions/starterPacks';
 export * from './actions/polls';
 export * from './actions/threadgates';
 export * from './actions/highlights';
+export * from './spotlight';
 export * from './utils/authError';
 
 export * from './shadow';

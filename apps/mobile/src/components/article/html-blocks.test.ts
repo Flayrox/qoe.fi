@@ -4,6 +4,7 @@ import {
   buildBlockIndex,
   canonicalDocumentToBlocks,
   computeHighlightTokenSets,
+  computeSpotlightTokenSet,
   findOccurrence,
   hitTestToken,
   htmlToBlocks,
@@ -372,7 +373,56 @@ describe('computeHighlightTokenSets — peinture PAR OFFSETS (document canonique
       [{ text: 'sa', quoteOrdinal: 0, canonicalStart: 1, canonicalEnd: 3 }],
       emojiDoc
     );
+
     expect([...set]).toEqual(['0:0:1']);
+  });
+});
+
+describe('computeSpotlightTokenSet — 🔦 deep-link citation → article (6-d)', () => {
+  const index = buildBlockIndex(canonicalDocumentToBlocks(doc));
+
+  it('peint par offsets quand le sha du document correspond', () => {
+    // [25,32) = « Le chat » du 2e paragraphe.
+    const set = computeSpotlightTokenSet(index, doc, {
+      start: 25,
+      end: 32,
+      sha: 'abc123',
+    });
+    expect([...set].sort()).toEqual(['1:0:0', '1:0:1']);
+  });
+
+  it('ne peint RIEN quand le sha est périmé (contenu ré-édité)', () => {
+    const set = computeSpotlightTokenSet(index, doc, {
+      start: 25,
+      end: 32,
+      sha: 'sha-ancien',
+    });
+    expect(set.size).toBe(0);
+  });
+
+  it('ne peint RIEN sans document ou sans spotlight', () => {
+    expect(computeSpotlightTokenSet(index, null, { start: 0, end: 5, sha: 'abc123' }).size).toBe(0);
+    expect(computeSpotlightTokenSet(index, doc, null).size).toBe(0);
+    expect(computeSpotlightTokenSet(index, doc, undefined).size).toBe(0);
+  });
+
+  it('plage à cheval sur deux paragraphes → tokens des deux blocs', () => {
+    // [17, 30) : « souris. » + « Le c ».
+    const set = computeSpotlightTokenSet(index, doc, {
+      start: 17,
+      end: 30,
+      sha: 'abc123',
+    });
+    expect([...set].sort()).toEqual(['0:0:4', '1:0:0', '1:0:1']);
+  });
+
+  it('plage hors document → aucun token', () => {
+    const set = computeSpotlightTokenSet(index, doc, {
+      start: 500,
+      end: 510,
+      sha: 'abc123',
+    });
+    expect(set.size).toBe(0);
   });
 });
 

@@ -9,6 +9,7 @@
     ".": "./src/index.ts",
     "./mobile": "./src/mobile.ts",
     "./query-keys": "./src/query-keys.ts",
+    "./spotlight": "./src/spotlight.ts",
     "./types": "./src/types.ts",
     "./hooks/*": "./src/hooks/*.ts",
     "./actions/auth": "./src/actions/auth/index.ts",

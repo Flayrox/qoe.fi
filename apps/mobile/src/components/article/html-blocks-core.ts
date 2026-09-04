@@ -704,3 +704,21 @@ export function computeHighlightTokenSets(
   }
   return out;
 }
+
+/**
+ * Tranche 6-d — tokens du passage à mettre en avant (deep-link citation →
+ * article). Peinture PAR OFFSETS, uniquement si l'empreinte du document
+ * chargé correspond au passage demandé (un contenu ré-édité ne produit
+ * jamais de faux surlignage). Set vide sinon.
+ */
+export function computeSpotlightTokenSet(
+  index: SegmentInfo[],
+  document: CanonicalDocument | null | undefined,
+  spotlight: { start: number; end: number; sha: string } | null | undefined
+): Set<string> {
+  const out = new Set<string>();
+  if (!document || !spotlight) return out;
+  if (spotlight.sha !== document.sha) return out;
+  occurrenceTokenIdsByOffsets(index, document, spotlight.start, spotlight.end, out);
+  return out;
+}

@@ -7,13 +7,22 @@ import { Spacing } from '@/constants/theme';
 import { ArticleScreen } from '@/features/article/article-screen';
 import { useTheme } from '@/hooks/use-theme';
 import { t } from '@/lib/i18n';
+import { parseSpotlightParams } from '@qoe/sdk/spotlight';
 
 // =====================================================================
 // 📖 Route /article/[slug] — Lecture d'un article.
-// Paramètres : `slug` (route) + `publicationId` (query, requis par le Go).
+// Paramètres : `slug` (route) + `publicationId` (query, requis par le Go),
+// et le deep-link citation → article (6-b/6-d) : hlStart/hlEnd/hlSha — le
+// passage cité est peint et le lecteur scrolle dessus.
 // =====================================================================
 export default function ArticleRoute() {
-  const params = useLocalSearchParams<{ slug: string; publicationId?: string }>();
+  const params = useLocalSearchParams<{
+    slug: string;
+    publicationId?: string;
+    hlStart?: string;
+    hlEnd?: string;
+    hlSha?: string;
+  }>();
   const slug = params.slug;
   const publicationId = params.publicationId;
 
@@ -22,7 +31,9 @@ export default function ArticleRoute() {
   if (!publicationId) {
     return <ArticleMissingPublication onBack={() => router.back()} />;
   }
-  return <ArticleScreen slug={slug} publicationId={publicationId} />;
+  // 🔦 Strictement validé — toute entrée invalide → null (lecture normale).
+  const spotlight = parseSpotlightParams(params);
+  return <ArticleScreen slug={slug} publicationId={publicationId} spotlight={spotlight} />;
 }
 
 function ArticleMissingPublication({ onBack }: { onBack: () => void }) {

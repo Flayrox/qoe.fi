@@ -1,5 +1,5 @@
 import { Image } from 'expo-image';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -21,6 +21,7 @@ import {
   buildBlockIndex,
   canonicalDocumentToBlocks,
   computeHighlightTokenSets,
+  computeSpotlightTokenSet,
   htmlToBlocks,
   mergeRectsToBands,
   selectionToInfo,
@@ -55,6 +56,7 @@ export type { SelectionInfo };
 
 const HIGHLIGHT_ALPHA = '33'; // surlignages persistés (inline <mark>)
 const SELECTION_ALPHA = '5C'; // sélection live / popover ouvert
+const SPOTLIGHT_ALPHA = '59'; // 🔦 passage deep-link (6-d) : plus soutenu
 const HIT_SLOP = 40 * 40; // repli « token le plus proche » (rayon 40 px)
 
 interface KindStyles {
@@ -118,6 +120,13 @@ export interface ArticleHtmlProps {
   onSelect?: (info: SelectionInfo | null) => void;
   /** Verrouille le scroll de la ScrollView pendant le geste de sélection. */
   onScrollLock?: (locked: boolean) => void;
+  /** 🔦 Passage à mettre en avant (deep-link citation → article, 6-d) :
+   *  offsets en code points dans le texte canonique + empreinte. Peint une
+   *  fois si le sha correspond, puis signale sa position window à l'écran
+   *  (qui scrolle dessus). */
+  spotlight?: { start: number; end: number; sha: string } | null;
+  /** Position window (Y) du passage peint — l'écran scrolle au passage. */
+  onSpotlightMeasured?: (windowY: number) => void;
 }
 
 export function ArticleHtml({
@@ -127,6 +136,8 @@ export function ArticleHtml({
   selection = null,
   onSelect,
   onScrollLock,
+  spotlight = null,
+  onSpotlightMeasured,
 }: ArticleHtmlProps) {
   const theme = useTheme();
   const blocks = useMemo(
@@ -138,6 +149,12 @@ export function ArticleHtml({
     () => computeHighlightTokenSets(index, highlights, document),
     [index, highlights, document]
   );
+  // 🔦 Passage deep-link (6-d) : tokens peints par offsets, uniquement si
+  // l'empreinte du document chargé correspond (jamais de faux surlignage).
+  const spotlightTokens = useMemo(
+    () => computeSpotlightTokenSet(index, document, spotlight),
+    [index, document, spotlight]
+  );
 
   const blockRects = useRef(new Map<number, Rect>());
   const rowRects = useRef(new Map<string, Rect>());
@@ -146,11 +163,14 @@ export function ArticleHtml({
 
   const hcColor = theme.primary + HIGHLIGHT_ALPHA;
   const selColor = theme.primary + SELECTION_ALPHA;
+  const scColor = theme.primary + SPOTLIGHT_ALPHA;
 
   // Sélection live pendant le geste (peinture overlay, aucun re-render des tokens).
   const [liveSel, setLiveSel] = useState<{ a: string; b: string } | null>(null);
   const activeRef = useRef(false);
   const liveRef = useRef<{ a: string; b: string } | null>(null);
+
+  const containerRef = useRef<View>(null);
 
   const setBlock = (b: number) => (e: LayoutChangeEvent) => {
     blockRects.current.set(b, e.nativeEvent.layout);
@@ -164,6 +184,43 @@ export function ArticleHtml({
   const setToken = (id: string) => (e: LayoutChangeEvent) => {
     tokenRects.current.set(id, e.nativeEvent.layout);
   };
+
+  // 🔦 Deep-link (6-d) : une fois le passage peint et mesuré, on signale sa
+  // position WINDOW à l'écran (qui calcule le scroll). Un seul essai par
+  // passage — jamais de re-scroll si l'utilisateur lit ensuite.
+  const spotlightScrolledRef = useRef(false);
+  const spotlightKey =
+    spotlight && spotlightTokens.size > 0
+      ? `${spotlight.start}:${spotlight.end}:${spotlight.sha}`
+      : null;
+
+  useEffect(() => {
+    if (!spotlightKey || spotlightScrolledRef.current) return;
+    spotlightScrolledRef.current = true;
+    // Premier token du passage dans l'ordre du document.
+    let firstId: string | null = null;
+    for (const segment of index) {
+      for (const t of segment.tokens) {
+        if (spotlightTokens.has(t.id)) {
+          firstId = t.id;
+          break;
+        }
+      }
+      if (firstId) break;
+    }
+    if (!firstId) return;
+    // Le layout des tokens (onLayout) arrive après le premier rendu — on
+    // laisse une frame de respiration avant de mesurer.
+    const timer = setTimeout(() => {
+      const rect = absoluteTokenRect(bundles(), firstId!);
+      if (!rect || !containerRef.current) return;
+      containerRef.current.measureInWindow((_x, y) => {
+        onSpotlightMeasured?.(y + rect.y);
+      });
+    }, 350);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- mesuré une seule fois par passage
+  }, [spotlightKey]);
 
   const bundles = (): RectsBundle => ({
     blockRects: blockRects.current,
@@ -326,6 +383,8 @@ export function ArticleHtml({
                     listItem
                     highlighted={highlightedTokens}
                     hcColor={hcColor}
+                    spotlightTokens={spotlightTokens}
+                    scColor={scColor}
                     onLayoutFlow={setFlow(segment.flowId)}
                     onLayoutToken={setToken}
                   />
@@ -338,6 +397,8 @@ export function ArticleHtml({
                   kind={kind}
                   highlighted={highlightedTokens}
                   hcColor={hcColor}
+                  spotlightTokens={spotlightTokens}
+                  scColor={scColor}
                   onLayoutFlow={setFlow(segment.flowId)}
                   onLayoutToken={setToken}
                 />
@@ -345,7 +406,7 @@ export function ArticleHtml({
         </View>
       );
     });
-  }, [blocks, index, highlightedTokens, hcColor, theme]);
+  }, [blocks, index, highlightedTokens, hcColor, spotlightTokens, scColor, theme]);
 
   // Overlay de sélection — BANDES CONTINUES par ligne (comme la sélection
   // native : un seul bloc entre les deux bornes, pas des « pastilles » mot
@@ -367,7 +428,7 @@ export function ArticleHtml({
 
   return (
     <GestureDetector gesture={gesture}>
-      <View style={styles.container}>
+      <View ref={containerRef} style={styles.container}>
         {blocksUi}
         {overlayBands.length > 0 ? (
           <View pointerEvents="none" style={StyleSheet.absoluteFill}>
@@ -422,6 +483,8 @@ function TokenFlow({
   listItem,
   highlighted,
   hcColor,
+  spotlightTokens,
+  scColor,
   onLayoutFlow,
   onLayoutToken,
 }: {
@@ -430,10 +493,27 @@ function TokenFlow({
   listItem?: boolean;
   highlighted: Set<string>;
   hcColor: string;
+  spotlightTokens?: Set<string>;
+  scColor?: string;
   onLayoutFlow: (e: LayoutChangeEvent) => void;
   onLayoutToken: (id: string) => (e: LayoutChangeEvent) => void;
 }) {
   const type = kind.textType ?? 'default';
+  // Couleur de fond d'un mot : le passage deep-link (6-d) prime sur le
+  // surlignage persistant ; ni l'un ni l'autre → transparent.
+  const bgFor = (id: string): string | undefined => {
+    if (spotlightTokens?.has(id) && scColor) return scColor;
+    if (highlighted.has(id)) return hcColor;
+    return undefined;
+  };
+  // L'espace inter-mot porte la couleur quand SES DEUX voisins la portent
+  // (bande continue, pas de « pastilles » séparées).
+  const spaceBg = (aId: string, bId: string): string | undefined => {
+    const bothSpot = spotlightTokens?.has(aId) && spotlightTokens?.has(bId) && scColor;
+    if (bothSpot) return scColor;
+    if (highlighted.has(aId) && highlighted.has(bId)) return hcColor;
+    return undefined;
+  };
   return (
     <View style={[styles.tokenFlow, listItem && styles.tokenFlowItem]} onLayout={onLayoutFlow}>
       {segment.tokens.map((t, i) => (
@@ -441,10 +521,7 @@ function TokenFlow({
         // (une coupure de ligne emporte le mot avec son espace, comme le
         // texte natif consomme l'espace en fin de ligne).
         <View key={t.id} style={styles.tokenCluster} onLayout={onLayoutToken(t.id)}>
-          <ThemedText
-            type={type}
-            style={[kind.tokenExtra, highlighted.has(t.id) && { backgroundColor: hcColor }]}
-          >
+          <ThemedText type={type} style={[kind.tokenExtra, { backgroundColor: bgFor(t.id) }]}>
             {t.text}
           </ThemedText>
           {i < segment.tokens.length - 1 ? (
@@ -455,8 +532,7 @@ function TokenFlow({
               type={type}
               style={[
                 kind.tokenExtra,
-                highlighted.has(t.id) &&
-                  highlighted.has(segment.tokens[i + 1].id) && { backgroundColor: hcColor },
+                { backgroundColor: spaceBg(t.id, segment.tokens[i + 1].id) },
               ]}
               accessible={false}
             >

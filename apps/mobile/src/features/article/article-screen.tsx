@@ -1,11 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Ionicons } from '@expo/vector-icons';
 import { Bookmark, Crown } from 'lucide-react-native';
-import Animated, { useSharedValue } from 'react-native-reanimated';
+import Animated, {
+  runOnUI,
+  scrollTo,
+  useAnimatedRef,
+  useSharedValue,
+} from 'react-native-reanimated';
 
 import { ArticleHighlights } from '@/components/article/article-highlights';
 import { ArticleHtml, type SelectionInfo } from '@/components/article/html-blocks';
@@ -31,9 +36,48 @@ import { feedKeys } from '@qoe/sdk/mobile';
 // côté client (zéro-fuite, troncature serveur).
 // =====================================================================
 
-export function ArticleScreen({ slug, publicationId }: { slug: string; publicationId: string }) {
+// Header flottant (padding haut du contenu) — sert aussi au calcul du
+// scroll deep-link (6-d) : le passage doit apparaître SOUS le header.
+const CONTENT_TOP_PADDING = 105;
+
+export function ArticleScreen({
+  slug,
+  publicationId,
+  spotlight = null,
+}: {
+  slug: string;
+  publicationId: string;
+  /** 🔦 Passage à mettre en avant (deep-link citation → article, 6-d). */
+  spotlight?: { start: number; end: number; sha: string } | null;
+}) {
   const theme = useTheme();
   const scrollY = useSharedValue(0);
+  const scrollRef = useAnimatedRef<Animated.ScrollView>();
+  // Ref sur le wrapper du contenu (mesure WINDOW pour le scroll deep-link).
+  const contentNodeRef = useRef<View | null>(null);
+  const contentRef = useCallback((node: View | null) => {
+    contentNodeRef.current = node;
+  }, []);
+
+  // 🔦 Deep-link (6-d) : ArticleHtml signale la position window du passage
+  // peint → on la convertit en position dans le contenu scrollable et on
+  // scrolle dessus (sous le header flottant).
+  const onSpotlightMeasured = useCallback(
+    (tokenWindowY: number) => {
+      const contentNode = contentNodeRef.current;
+      if (!contentNode) return;
+      contentNode.measureInWindow((_x, contentWindowY) => {
+        const yInContent = CONTENT_TOP_PADDING + (tokenWindowY - contentWindowY) + scrollY.value;
+        // scrollTo est un worklet (reanimated) — appel via runOnUI, jamais
+        // de synchronisation UI↔JS (piège « Remote Function » déjà croisé).
+        runOnUI(() => {
+          'worklet';
+          scrollTo(scrollRef, 0, Math.max(0, yInContent - 150), true);
+        })();
+      });
+    },
+    [scrollY, scrollRef]
+  );
 
   const onScrollHandler = (event: any) => {
     scrollY.value = event.nativeEvent.contentOffset.y;
@@ -179,117 +223,127 @@ export function ArticleScreen({ slug, publicationId }: { slug: string; publicati
       />
 
       <Animated.ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: 105 }]}
+        ref={scrollRef}
+        contentContainerStyle={[styles.content, { paddingTop: CONTENT_TOP_PADDING }]}
         onScroll={onScrollHandler}
         scrollEventThrottle={16}
         scrollEnabled={!scrollLock}
       >
-        {/* Meta (même hiérarchie que l'écran principal web) */}
-        <View style={styles.byline}>
-          <ThemedText type="small" style={{ color: theme.textSecondary }}>
-            {t('article.by', 'Par')}{' '}
-            <ThemedText type="smallBold" style={{ color: theme.text }}>
-              {authorName}
+        {/* Wrapper de contenu (ref pour la mesure window du deep-link 6-d) :
+            le gap inter-enfants vit ici (un seul enfant dans la ScrollView). */}
+        <View ref={contentRef} style={styles.contentInner} collapsable={false}>
+          {/* Meta (même hiérarchie que l'écran principal web) */}
+          <View style={styles.byline}>
+            <ThemedText type="small" style={{ color: theme.textSecondary }}>
+              {t('article.by', 'Par')}{' '}
+              <ThemedText type="smallBold" style={{ color: theme.text }}>
+                {authorName}
+              </ThemedText>
+              {'  '}•{'  '}
+              {data.readingTime} {t('article.min_read', 'min de lecture')}
+              {'  '}•{'  '}
+              {dateLabel}
             </ThemedText>
-            {'  '}•{'  '}
-            {data.readingTime} {t('article.min_read', 'min de lecture')}
-            {'  '}•{'  '}
-            {dateLabel}
-          </ThemedText>
-        </View>
-
-        <ThemedText style={styles.title}>{data.title}</ThemedText>
-
-        <View style={styles.metaRow}>
-          {data.category ? (
-            <View style={[styles.categoryBadge, { backgroundColor: theme.backgroundSelected }]}>
-              <ThemedText type="small" style={{ color: theme.primary }}>
-                {data.category.name}
-              </ThemedText>
-            </View>
-          ) : null}
-          {data.isPremium ? (
-            <View style={[styles.premiumBadge, { backgroundColor: theme.backgroundSelected }]}>
-              <Crown size={13} color={theme.textSecondary} />
-              <ThemedText type="small" style={[styles.premiumText, { color: theme.textSecondary }]}>
-                {t('article.premium', 'Premium')}
-              </ThemedText>
-            </View>
-          ) : null}
-
-          {/* Bookmark (sauvegarder l'article) */}
-          <Pressable
-            onPress={() => bookmark.mutate(data.id)}
-            hitSlop={8}
-            style={({ pressed }) => [styles.bookmarkButton, pressed && styles.pressed]}
-            accessibilityLabel={t('article.bookmark', 'Sauvegarder')}
-          >
-            <Bookmark
-              size={18}
-              color={bookmarked ? theme.primary : theme.textSecondary}
-              fill={bookmarked ? theme.primary : 'transparent'}
-            />
-          </Pressable>
-        </View>
-
-        {/* Séparateur sous l'en-tête (comme le web) */}
-        <View style={[styles.headerDivider, { backgroundColor: theme.border }]} />
-
-        {/* Contenu (tronqué côté serveur si paywall). */}
-        {data.content ? (
-          <View style={styles.body}>
-            <View style={styles.articleWrap}>
-              <ArticleHtml
-                html={data.content}
-                highlights={highlights ?? []}
-                document={canonicalDocument ?? undefined}
-                selection={selection}
-                onSelect={setSelection}
-                onScrollLock={setScrollLock}
-              />
-              {selection && data.id ? (
-                <SelectionPopover
-                  selection={selection}
-                  articleId={data.id}
-                  onClose={() => setSelection(null)}
-                />
-              ) : null}
-            </View>
           </View>
-        ) : null}
 
-        {/* Surlignages (publics + les miens) */}
-        {data.id ? <ArticleHighlights articleId={data.id} /> : null}
+          <ThemedText style={styles.title}>{data.title}</ThemedText>
 
-        {/* 🧠 À lire aussi — recommandations sémantiques (pgvector) */}
-        {data.id ? <SimilarArticles articleId={data.id} /> : null}
-
-        {/* Panneau paywall */}
-        {isLocked ? (
-          <ThemedView type="card" style={styles.paywall}>
-            <ThemedText style={styles.paywallTitle}>
-              {t('article.paywall_title', 'Contenu réservé aux abonnés')}
-            </ThemedText>
-            <ThemedText type="small" style={styles.paywallBody}>
-              {t(
-                'article.paywall_body',
-                'Abonnez-vous pour lire la suite de cet article et soutenir l’auteur.'
-              )}
-            </ThemedText>
-            <Pressable
-              style={({ pressed }) => [
-                styles.subscribeButton,
-                { backgroundColor: pressed ? theme.backgroundSelected : theme.primary },
-              ]}
-            >
-              {({ pressed }) => (
-                <ThemedText type="smallBold" style={{ color: pressed ? theme.text : '#ffffff' }}>
-                  {t('article.subscribe', 'S’abonner')}
+          <View style={styles.metaRow}>
+            {data.category ? (
+              <View style={[styles.categoryBadge, { backgroundColor: theme.backgroundSelected }]}>
+                <ThemedText type="small" style={{ color: theme.primary }}>
+                  {data.category.name}
                 </ThemedText>
-              )}
+              </View>
+            ) : null}
+            {data.isPremium ? (
+              <View style={[styles.premiumBadge, { backgroundColor: theme.backgroundSelected }]}>
+                <Crown size={13} color={theme.textSecondary} />
+                <ThemedText
+                  type="small"
+                  style={[styles.premiumText, { color: theme.textSecondary }]}
+                >
+                  {t('article.premium', 'Premium')}
+                </ThemedText>
+              </View>
+            ) : null}
+
+            {/* Bookmark (sauvegarder l'article) */}
+            <Pressable
+              onPress={() => bookmark.mutate(data.id)}
+              hitSlop={8}
+              style={({ pressed }) => [styles.bookmarkButton, pressed && styles.pressed]}
+              accessibilityLabel={t('article.bookmark', 'Sauvegarder')}
+            >
+              <Bookmark
+                size={18}
+                color={bookmarked ? theme.primary : theme.textSecondary}
+                fill={bookmarked ? theme.primary : 'transparent'}
+              />
             </Pressable>
-          </ThemedView>
-        ) : null}
+          </View>
+
+          {/* Séparateur sous l'en-tête (comme le web) */}
+          <View style={[styles.headerDivider, { backgroundColor: theme.border }]} />
+
+          {/* Contenu (tronqué côté serveur si paywall). */}
+          {data.content ? (
+            <View style={styles.body}>
+              <View style={styles.articleWrap}>
+                <ArticleHtml
+                  html={data.content}
+                  highlights={highlights ?? []}
+                  document={canonicalDocument ?? undefined}
+                  selection={selection}
+                  onSelect={setSelection}
+                  onScrollLock={setScrollLock}
+                  spotlight={spotlight}
+                  onSpotlightMeasured={onSpotlightMeasured}
+                />
+                {selection && data.id ? (
+                  <SelectionPopover
+                    selection={selection}
+                    articleId={data.id}
+                    onClose={() => setSelection(null)}
+                  />
+                ) : null}
+              </View>
+            </View>
+          ) : null}
+
+          {/* Surlignages (publics + les miens) */}
+          {data.id ? <ArticleHighlights articleId={data.id} /> : null}
+
+          {/* 🧠 À lire aussi — recommandations sémantiques (pgvector) */}
+          {data.id ? <SimilarArticles articleId={data.id} /> : null}
+
+          {/* Panneau paywall */}
+          {isLocked ? (
+            <ThemedView type="card" style={styles.paywall}>
+              <ThemedText style={styles.paywallTitle}>
+                {t('article.paywall_title', 'Contenu réservé aux abonnés')}
+              </ThemedText>
+              <ThemedText type="small" style={styles.paywallBody}>
+                {t(
+                  'article.paywall_body',
+                  'Abonnez-vous pour lire la suite de cet article et soutenir l’auteur.'
+                )}
+              </ThemedText>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.subscribeButton,
+                  { backgroundColor: pressed ? theme.backgroundSelected : theme.primary },
+                ]}
+              >
+                {({ pressed }) => (
+                  <ThemedText type="smallBold" style={{ color: pressed ? theme.text : '#ffffff' }}>
+                    {t('article.subscribe', 'S’abonner')}
+                  </ThemedText>
+                )}
+              </Pressable>
+            </ThemedView>
+          ) : null}
+        </View>
       </Animated.ScrollView>
     </ThemedView>
   );
@@ -309,6 +363,9 @@ const styles = StyleSheet.create({
   content: {
     padding: Spacing.three,
     paddingBottom: Spacing.six,
+  },
+  /** Wrapper du contenu : le gap inter-éléments (ex-contentContainer). */
+  contentInner: {
     gap: Spacing.two,
   },
   byline: {

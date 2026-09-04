@@ -1,7 +1,7 @@
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import { parseSpotlightParams } from '@qoe/sdk/spotlight';
 import { type CanonicalDocument } from '@qoe/ui/annotations';
 import { ArticleAnnotatorView } from '@/components/social/ArticleAnnotatorView';
-import { parseSpotlightParams } from '@/lib/spotlight';
 import { notFound } from 'next/navigation';
 
 // Contrat de l'endpoint Go GET /v1/articles/{slug} (mode slug seul : premier
