@@ -106,23 +106,22 @@ Ces fonctions sont **pures** → écrites et testées immédiatement, sans devic
 - **Gate** : 3-a validé sur simulateur → on continue. Sinon → retour au plan
   (overlay de sélection natif impossible → statu quo amélioré, à re-décider).
 
-### 3-b · Rendu attribué par blocs (1–2 j)
+### 3-b · Rendu attribué continu (1–2 j)
 
-- `IOSNativeArticleBody` rend chaque bloc du document :
-  - Blocs texte (p, h1–h4, blockquote, code, li) → **un `UITextView`
-    lecture seule par bloc**, `attributedText` construit depuis
-    `documentToStyleRuns` (§1.1.2) — même typographie (font scaling, poids,
-    interligne) que les styles `kindStylesFor` actuels.
-  - Blocs non-texte (img, hr) → les composants RN actuels (`BlockView`),
-    inchangés, entre les UITextView.
-  - Listes : le marqueur (puce/chiffre) peut être un run dédié dans le même
-    UITextView (parité visuelle avec le moteur actuel).
-- **Sélection multi-paragraphes** : chaque UITextView sélectionne
-  indépendamment. La plage peut enjamber 2 blocs via les offsets canoniques
-  (le serveur l'accepte déjà) — la surface affiche une sélection « double
-  plage » si besoin (à trancher en 3-f selon le ressenti).
+- `IOSNativeArticleBody` rend **tout le corps dans un seul `UITextView`
+  lecture seule** : `attributedText` construit depuis le modèle continu de
+  C1 (`article-text.ts` : texte plat + runs + mapping), avec les styles de
+  paragraphe par bloc (h1–h4, blockquote, code, listes via styles de
+  paragraphe + puces numériques synthétiques hors mapping) — même
+  typographie (font scaling, poids, interligne) que `kindStylesFor` actuel.
+- `img`/`hr` → **attachments inline** (lib v2.6.0 « inline views ») aux
+  positions marquées par le modèle ; aucun composant RN intercalé.
+- **Sélection continue** : un seul geste traverse tous les paragraphes
+  (loupe + poignées natives continues). La conversion native ↔ canonique
+  passe par la table du modèle (C1) — les synthetiques (puce, retour
+  paragraphe, attachement) sont exclus du texte cité.
 - **Gate** : parité visuelle par bloc (captures côte à côte vs moteur tokens)
-  sur l'article témoin.
+  sur l'article témoin, puis sélection longue de 2 paragraphes validée.
 
 ### 3-c · Marques par plages (1 j)
 
@@ -154,17 +153,24 @@ Ces fonctions sont **pures** → écrites et testées immédiatement, sans devic
   passage (réutiliser le mécanisme `onSpotlightMeasured` de 6-d, la mesure
   venant du range natif).
 
-### 3-f · Décision produit — sélection continue (si exigée)
+### 3-f · Décision produit — sélection continue (ACTÉE : option B)
 
-- Option A (v1 par défaut) : sélection bornée au bloc — le plus rapide, la
-  grande majorité des passages cités/surlignés tient dans un bloc.
-- Option B : un **seul** UITextView par « run continu » (séquence de blocs
-  texte sans img/hr intercalé) — la sélection traverse les paragraphes d'une
-  même séquence ; les images cassent la continuité (rare). À évaluer si le
-  ressenti A n'est pas acceptable. La lib supporte les inline views (v2.6.0)
-  → l'option B est faisable sans fork massif.
-- **Recommandation** : livrer A d'abord (valeur immédiate), évaluer B en
-  phase 2 selon le test device.
+> Décision du 2026-09-04 (« toujours le plus premium ») : **la sélection doit
+> traverser les paragraphes de tout l'article**, comme le web. Pas de v1 par
+> bloc : on vise d'emblée le modèle continu.
+
+- **Cible** : un **seul** conteneur texte natif par article (`UITextView` iOS /
+  `TextView` Android), texte plat construit par `article-text.ts` (C1) ;
+  les `img`/`hr` deviennent des **attachments inline** dans le flux texte
+  (la lib iOS le supporte depuis v2.6.0 « inline views » ; Android :
+  `ImageSpan`/replacement span). La sélection native traverse ainsi tout le
+  corps d'un seul geste (loupe + poignées continues, comme sur le web).
+- **C1 est conçu pour ce modèle** : `article-text.ts` produit un texte plat
+  continu + une table de mapping (char canonique ↔ position d'affichage),
+  pas des fragments par bloc. Les blocs non-texte sont des marqueurs
+  d'attachement dans le même texte.
+- Le découpage par bloc ne sert que de **repli** si le rendu inline des
+  attachments s'avère instable sur une plateforme (rare) — jamais la cible.
 
 ---
 
@@ -260,20 +266,21 @@ Chaque commit garde la suite verte + la checklist device du gate.
 
 ## 6. Décisions produit à trancher
 
-### 6.1 Menu système (iOS) — recommandations
+### 6.1 Menu système (iOS) — décision actée
 
-- **Recommandation** : garder le menu Copy système tel quel ; nos actions
-  vivent exclusivement dans la surface morphée (rév. 6 : on n'injecte jamais
-  d'action dans le menu système). La désélection native au tap dehors ferme
-  la surface.
-- Fork Swift uniquement si le produit exige de masquer Copy (petit, ~30
-  lignes, à maintenir).
+- **Copier système conservé** (acté 2026-09-04) : le menu natif Copy reste
+  disponible — c'est le geste système attendu ; nos actions vivent dans la
+  surface morphée (rév. 6 : on n'injecte jamais d'action dans le menu
+  système). Aucun fork Swift pour masquer Copy.
+- La surface morphée s'affiche en plus, ancrée sur la géométrie de sélection
+  (elle ne remplace pas le menu Copy, elle le complète).
 
-### 6.2 Sélection continue multi-paragraphes (3-f)
+### 6.2 Sélection continue multi-paragraphes (3-f) — décision actée
 
-- **Recommandation** : v1 = sélection par bloc (option A) ; l'option B
-  (un UITextView par run continu, inline views pour img/hr) n'est engagée que
-  si le test device la juge indispensable.
+- **Option B actée** (2026-09-04, « toujours le plus premium ») : un seul
+  conteneur texte natif par article, sélection continue sur tout le corps,
+  `img`/`hr` en attachments inline. C1 (le modèle partagé) est construit
+  pour ce rendu.
 
 ### 6.3 Périmètre de la passe native
 
