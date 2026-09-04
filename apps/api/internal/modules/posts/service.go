@@ -234,8 +234,12 @@ func (s *Service) Get(ctx context.Context, id, viewerID string) (FeedPost, error
 	if err != nil {
 		return FeedPost{}, err
 	}
+	quoted, err := QuotedArticlesFor(ctx, s.q, QuoteRefsFrom(all))
+	if err != nil {
+		return FeedPost{}, err
+	}
 
-	return BuildFeedPostWithAncestors(all[id], all, attachments, polls, following, map[string]bool{}), nil
+	return BuildFeedPostWithAncestors(all[id], all, attachments, polls, following, map[string]bool{}, quoted), nil
 }
 
 // ToggleLike ajoute ou retire un like, avec mise à jour atomique du compteur.
@@ -502,12 +506,12 @@ func (s *Service) formatPoll(ctx context.Context, pollID, thoughtID, userID stri
 
 // Actor est un utilisateur (liker / reposteur) listé sur un post.
 type Actor struct {
-	ID          string `json:"id"`
+	ID          string  `json:"id"`
 	Name        *string `json:"name"`
 	Username    *string `json:"username"`
 	LogoURL     *string `json:"logoUrl"`
-	IsCertified bool   `json:"isCertified"`
-	FollowedAt  string `json:"followedAt"`
+	IsCertified bool    `json:"isCertified"`
+	FollowedAt  string  `json:"followedAt"`
 }
 
 // ActorPage est une page d'acteurs (likes / reposts) paginée.
@@ -625,9 +629,13 @@ func (s *Service) Quotes(ctx context.Context, postID, viewerID string, limit, of
 		if err != nil {
 			return FeedResultPage{}, err
 		}
+		quoted, err := QuotedArticlesFor(ctx, s.q, QuoteRefsFrom(all))
+		if err != nil {
+			return FeedResultPage{}, err
+		}
 		for _, id := range ids {
 			if r, ok := all[id]; ok {
-				postsList = append(postsList, BuildFeedPost(r, all, attachments, polls, following))
+				postsList = append(postsList, BuildFeedPost(r, all, attachments, polls, following, quoted))
 			}
 		}
 	}

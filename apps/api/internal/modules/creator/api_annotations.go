@@ -192,55 +192,7 @@ func buildExportAnnotation(doc *canon.Document, row annotationRow) apiExportAnno
 	it.CanonicalStart = &cs
 	it.CanonicalEnd = &ce
 
-	it.ContextBefore = exportContext(doc.Text, start, -1)
-	it.ContextAfter = exportContext(doc.Text, end, +1)
+	it.ContextBefore = canon.ContextWindow(doc.Text, start, -1)
+	it.ContextAfter = canon.ContextWindow(doc.Text, end, +1)
 	return it
-}
-
-// exportContext extrait une fenêtre du texte canonique autour d'un offset
-// (code points) : direction -1 = avant, +1 = après. Fenêtre de 40 scalaires
-// au plus, tronquée au mot entier, avec « … » si coupée.
-func exportContext(text string, at, direction int) string {
-	runes := []rune(text)
-	if at < 0 || at > len(runes) {
-		return ""
-	}
-	const n = 40
-	if direction < 0 {
-		from := at - n
-		if from < 0 {
-			from = 0
-		}
-		win := runes[from:at]
-		// On commence sur un mot entier : on avance jusqu'au 1er espace.
-		for i := 0; i < len(win); i++ {
-			if win[i] == ' ' {
-				win = win[i+1:]
-				break
-			}
-		}
-		out := string(win)
-		if from > 0 {
-			return "… " + out
-		}
-		return out
-	}
-	to := at + n
-	if to > len(runes) {
-		to = len(runes)
-	}
-	win := runes[at:to]
-	cut := to < len(runes)
-	// On s'arrête à un mot entier : on recule jusqu'au dernier espace.
-	for i := len(win) - 1; i >= 0; i-- {
-		if win[i] == ' ' {
-			win = win[:i]
-			break
-		}
-	}
-	out := string(win)
-	if cut {
-		return out + " …"
-	}
-	return out
 }

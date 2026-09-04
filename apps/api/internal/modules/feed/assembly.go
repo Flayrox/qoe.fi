@@ -75,24 +75,28 @@ func (s *Service) buildSlices(ctx context.Context, targetIDs []string, viewerID 
 	if err != nil {
 		return nil, err
 	}
+	quoted, err := posts.QuotedArticlesFor(ctx, s.q, posts.QuoteRefsFrom(all))
+	if err != nil {
+		return nil, err
+	}
 
 	seenRoot := map[string]bool{}
 	var slices []posts.FeedSlice
 
 	for i := range baseRows {
 		r := &baseRows[i]
-		target := posts.BuildFeedPost(r, all, attachments, polls, following)
+		target := posts.BuildFeedPost(r, all, attachments, polls, following, quoted)
 
 		var parent, root *posts.FeedPost
 		if pid := posts.ParentIDOf(r); pid != nil {
 			if p, ok := all[*pid]; ok {
-				pp := posts.BuildFeedPost(p, all, attachments, polls, following)
+				pp := posts.BuildFeedPost(p, all, attachments, polls, following, quoted)
 				parent = &pp
 			}
 		}
 		if rid := posts.RootIDOf(r); rid != nil && (parent == nil || *rid != *posts.ParentIDOf(r)) {
 			if rp, ok := all[*rid]; ok {
-				rr := posts.BuildFeedPost(rp, all, attachments, polls, following)
+				rr := posts.BuildFeedPost(rp, all, attachments, polls, following, quoted)
 				root = &rr
 			}
 		}

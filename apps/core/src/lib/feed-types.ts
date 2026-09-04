@@ -113,8 +113,18 @@ export interface FeedPost {
     id: string;
     title: string;
     slug: string;
-    content: string;
+    content?: string | null;
     isPremium: boolean;
+    // Contexte du passage résolu par le serveur (texte canonique) — fini le
+    // strip HTML + indexOf côté client.
+    quoteContext?: {
+      before: string;
+      highlight: string;
+      after: string;
+      start: number;
+      end: number;
+      sha: string;
+    } | null;
     publication: FeedPublication;
     author: FeedAuthor;
   } | null;

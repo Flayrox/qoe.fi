@@ -4,12 +4,24 @@ import React from 'react';
 import { cn } from '@qoe/utils';
 import { ArrowUpRight } from 'lucide-react';
 
+export interface QuoteContextData {
+  before: string;
+  highlight: string;
+  after: string;
+  start: number;
+  end: number;
+  sha: string;
+}
+
 export interface QuotedArticleData {
   id: string;
   title: string;
   slug: string;
   isPremium?: boolean;
   content?: string | null;
+  // Contexte du passage résolu côté serveur (texte canonique de l'article) :
+  // la carte n'a plus à stripper le HTML ni à re-chercher l'extrait.
+  quoteContext?: QuoteContextData | null;
   author?: {
     name?: string | null;
     username?: string | null;
@@ -42,44 +54,34 @@ export function QuotedArticleCard({
     article.publication?.customDomain;
   const subdomain = articleDomain ? articleDomain.replace(/^https?:\/\//, '') : 'qoe.fi';
 
-  const rawText = article.content
-    ? article.content
-        .replace(/<[^>]*>/gm, ' ')
-        .replace(/&nbsp;/gi, ' ')
-        .replace(/&amp;/gi, '&')
-        .replace(/\s+/g, ' ')
-        .trim()
-    : '';
-  const highlightTarget = quotedExcerpt?.replace(/\s+/g, ' ').trim() || '';
+  // 1) Contexte serveur (texte canonique, passages résolus par le backend) —
+  //    chemin privilégié : zéro strip HTML, zéro indexOf.
+  const serverContext = article.quoteContext;
+  const beforeContext = serverContext?.before ?? '';
+  let highlightedText = serverContext?.highlight ?? '';
+  let afterContext = serverContext?.after ?? '';
 
-  let beforeContext = '';
-  let highlightedText = '';
-  let afterContext = '';
+  // 2) Repli : aucun contexte serveur mais un extrait — chip sans contexte.
+  if (!serverContext && quotedExcerpt) {
+    highlightedText = quotedExcerpt.replace(/\s+/g, ' ').trim();
+    afterContext = '';
+  }
 
-  const highlightIndex = highlightTarget ? rawText.indexOf(highlightTarget) : -1;
-  if (highlightIndex >= 0) {
-    const contextLength = 90;
-    const startCandidate = Math.max(0, highlightIndex - contextLength);
-    const startIdx = startCandidate === 0 ? 0 : rawText.indexOf(' ', startCandidate) + 1;
-    const endCandidate = Math.min(
-      rawText.length,
-      highlightIndex + highlightTarget.length + contextLength
-    );
-    const nextSpace = rawText.indexOf(' ', endCandidate);
-    const endIdx = nextSpace === -1 ? rawText.length : nextSpace;
-
-    beforeContext = rawText.substring(startIdx, highlightIndex).trim();
-    if (startIdx > 0) beforeContext = `... ${beforeContext}`;
-
-    highlightedText = rawText.substring(highlightIndex, highlightIndex + highlightTarget.length);
-    afterContext = rawText.substring(highlightIndex + highlightTarget.length, endIdx).trim();
-    if (endIdx < rawText.length) afterContext = `${afterContext}...`;
-  } else if (highlightTarget) {
-    highlightedText = quotedExcerpt?.trim() || highlightTarget;
-    afterContext = rawText ? ` ... ${rawText.substring(0, 100)}...` : '';
-  } else if (rawText) {
-    highlightedText = rawText.substring(0, 130);
-    afterContext = rawText.length > 130 ? '...' : '';
+  // 3) Dernier filet (composeur, preview client) : le HTML brut est encore
+  //    disponible et l'extrait absent — on affiche le début du texte.
+  if (!serverContext && !quotedExcerpt) {
+    const rawText = article.content
+      ? article.content
+          .replace(/<[^>]*>/gm, ' ')
+          .replace(/&nbsp;/gi, ' ')
+          .replace(/&amp;/gi, '&')
+          .replace(/\s+/g, ' ')
+          .trim()
+      : '';
+    if (rawText) {
+      highlightedText = rawText.substring(0, 130);
+      afterContext = rawText.length > 130 ? '...' : '';
+    }
   }
 
   const handleClick = (e: React.MouseEvent) => {
