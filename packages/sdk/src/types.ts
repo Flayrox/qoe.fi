@@ -86,6 +86,54 @@ export interface FeedCounts {
   reposts: number;
 }
 
+/** Auteur de l'article cité (miroir Go `QuotedAuthor`). */
+export interface QuotedAuthor {
+  id: string;
+  name: string | null;
+  username: string | null;
+  logoUrl: string | null;
+  isCertified: boolean;
+}
+
+/** Publication de l'article cité (miroir Go `QuotedPublication`). */
+export interface QuotedPublication {
+  id: string;
+  name: string;
+  slug: string;
+  subdomain: string | null;
+  customDomain: string | null;
+  type: string;
+  logoUrl: string | null;
+  isCertified: boolean;
+}
+
+/**
+ * Contexte du passage cité, résolu côté serveur contre le texte canonique
+ * de l'article (miroir Go `QuoteContext`) — la carte n'a plus à stripper
+ * le HTML ni à re-chercher l'extrait. `start`/`end` sont des offsets en
+ * code points dans le texte canonique + `sha` (empreinte) : prêts pour les
+ * deep-links (tranche 6-b).
+ */
+export interface QuoteContext {
+  before: string;
+  highlight: string;
+  after: string;
+  start: number;
+  end: number;
+  sha: string;
+}
+
+/** Article cité par une pensée (miroir Go `QuotedArticle`). */
+export interface QuotedArticle {
+  id: string;
+  title: string;
+  slug: string;
+  isPremium: boolean;
+  quoteContext: QuoteContext | null;
+  publication: QuotedPublication;
+  author: QuotedAuthor;
+}
+
 /**
  * Pensée complète telle que servie dans le feed (shape Go `FeedPost`).
  * ⚠️ `liked`/`reposted` = état du viewer ; `author` n'a PAS de subdomain.
@@ -106,6 +154,9 @@ export interface FeedPost {
   replyRestriction: string;
   isPinned: boolean;
   isHiddenByAuthor: boolean;
+  // `omitempty` côté Go → absents quand null, d'où l'optionnalité.
+  quotedExcerpt?: string | null;
+  quotedArticle?: QuotedArticle | null;
   author: FeedAuthor;
   parent: FeedPost | null;
   repost: FeedPost | null;

@@ -74,7 +74,9 @@ type QuotedAuthor struct {
 }
 
 // QuotedPublication est la publication de l'article cité (parité TS).
+// PublicationID est requis par le lecteur mobile (/article/{slug}).
 type QuotedPublication struct {
+	ID           string  `json:"id"`
 	Name         string  `json:"name"`
 	Slug         string  `json:"slug"`
 	Subdomain    *string `json:"subdomain"`

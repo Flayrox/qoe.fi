@@ -19,6 +19,7 @@ import { Lightbox } from '@/components/lightbox/lightbox';
 import { ThemedText } from '@/components/themed-text';
 import { ContentHider } from '@/components/thought/content-hider';
 import { ExternalEmbedFromText } from '@/components/thought/external-embed';
+import { QuotedArticleCard } from '@/components/thought/quoted-article-card';
 import { QuotedThoughtCard } from '@/components/thought/quoted-thought-card';
 import { RichText } from '@/components/thought/rich-text';
 import { ShowMoreTextButton } from '@/components/thought/show-more-text-button';
@@ -200,6 +201,8 @@ export function PostContent({
       ) : null}
 
       {post.poll ? <PollDisplay thoughtId={post.id} poll={post.poll} /> : null}
+
+      {post.quotedArticle ? <QuotedArticleCard article={post.quotedArticle} /> : null}
 
       {quoted ? <QuotedThoughtCard post={quoted} /> : null}
 

@@ -7,7 +7,14 @@
 //    le chemin `viewerLiked`/`viewerReposted` a disparu.
 // =====================================================================
 
-import type { FeedAttachment, FeedAuthor, FeedPoll, FeedPost, ThoughtData } from '@qoe/sdk/mobile';
+import type {
+  FeedAttachment,
+  FeedAuthor,
+  FeedPoll,
+  FeedPost,
+  QuotedArticle as SdkQuotedArticle,
+  ThoughtData,
+} from '@qoe/sdk/mobile';
 
 export interface NormalizedAuthor {
   id: string;
@@ -16,6 +23,19 @@ export interface NormalizedAuthor {
   logoUrl: string | null;
   isCertified: boolean;
   isFollowing: boolean;
+}
+
+export interface NormalizedQuotedArticle {
+  id: string;
+  title: string;
+  slug: string;
+  isPremium: boolean;
+  /** Contexte du passage résolu par le serveur (tranche 6-a) — la carte
+   *  mobile n'a plus à stripper le HTML ni à re-chercher l'extrait.
+   *  Optionnel : absent quand le serveur n'a pas résolu de passage. */
+  quoteContext?: SdkQuotedArticle['quoteContext'] | null;
+  publication: SdkQuotedArticle['publication'];
+  author: SdkQuotedArticle['author'];
 }
 
 export interface NormalizedThought {
@@ -40,6 +60,8 @@ export interface NormalizedThought {
   poll: FeedPoll | null;
   attachments: FeedAttachment[];
   tags: string[];
+  quotedExcerpt?: string | null;
+  quotedArticle?: NormalizedQuotedArticle | null;
 }
 
 function normAuthor(a?: FeedAuthor | ThoughtData['author'] | null): NormalizedAuthor {
@@ -76,6 +98,8 @@ function normPost(p: FeedPost): NormalizedThought {
     poll: p.poll ?? null,
     attachments: p.attachments ?? [],
     tags: p.tags ?? [],
+    quotedExcerpt: p.quotedExcerpt ?? null,
+    quotedArticle: p.quotedArticle ?? null,
   };
 }
 
@@ -102,6 +126,8 @@ function normLegacy(t: ThoughtData): NormalizedThought {
     poll: null,
     attachments: [],
     tags: [],
+    quotedExcerpt: null,
+    quotedArticle: null,
   };
 }
 

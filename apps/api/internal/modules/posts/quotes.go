@@ -78,6 +78,7 @@ func QuotedArticlesFor(ctx context.Context, q db.Querier, refs []QuoteRef) (map[
 			Slug:      row.Slug,
 			IsPremium: row.IsPremium,
 			Publication: QuotedPublication{
+				ID:           row.PubID,
 				Name:         row.Name,
 				Slug:         row.PubSlug,
 				Subdomain:    textPtr(row.Subdomain),
