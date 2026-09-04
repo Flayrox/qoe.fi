@@ -5,6 +5,7 @@
   "private": true,
   "description": "Mobile app (React Native + Expo + Expo UI) for qoe.fi",
   "dependencies": {
+    "@bsky.app/react-native-uitextview": "^2.7.1",
     "@expo/ui": "~57.0.11",
     "@expo/vector-icons": "^15.1.1",
     "@lingui/core": "6.6.0",
