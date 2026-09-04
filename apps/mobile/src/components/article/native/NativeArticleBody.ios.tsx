@@ -10,8 +10,14 @@
 // =====================================================================
 
 import { UITextView, type SelectionChangeEvent } from '@bsky.app/react-native-uitextview';
-import { useCallback, useMemo } from 'react';
-import { StyleSheet, View, useWindowDimensions } from 'react-native';
+import { useCallback, useMemo, useRef } from 'react';
+import {
+  StyleSheet,
+  View,
+  useWindowDimensions,
+  type NativeSyntheticEvent,
+  type TextLayoutEventData,
+} from 'react-native';
 
 import { useTheme } from '@/hooks/use-theme';
 import { buildArticleText } from './article-text';
@@ -52,6 +58,7 @@ export function NativeArticleBodyIOS({
 }: NativeArticleBodyProps) {
   const theme = useTheme();
   const { width: screenWidth } = useWindowDimensions();
+  const linesRef = useRef<{ y: number; height: number; start: number; end: number }[]>([]);
 
   // 1. Modèle continu depuis le document canonique
   const model = useMemo(() => buildArticleText(document), [document]);
@@ -73,6 +80,23 @@ export function NativeArticleBodyIOS({
   // 3. Runs homogènes prêts pour UITextView
   const spans = useMemo(() => buildPaintSpans(model, coloredMarks), [model, coloredMarks]);
 
+  const handleTextLayout = useCallback((e: NativeSyntheticEvent<TextLayoutEventData>) => {
+    let offset = 0;
+    linesRef.current = (e.nativeEvent.lines ?? []).map((l: any) => {
+      const lineText = typeof l === 'string' ? l : (l?.text ?? '');
+      const len = lineText.length;
+      const start = offset;
+      const end = offset + len;
+      offset = end;
+      return {
+        y: typeof l === 'object' && l ? (l.y ?? 0) : 0,
+        height: typeof l === 'object' && l ? (l.height ?? LINE_HEIGHT) : LINE_HEIGHT,
+        start,
+        end,
+      };
+    });
+  }, []);
+
   // 4. Gestion de la sélection native iOS
   const handleSelectionChange = useCallback(
     (e: SelectionChangeEvent) => {
@@ -86,11 +110,27 @@ export function NativeArticleBodyIOS({
         onSelect(null);
         return;
       }
-      // Sur iOS (3-b), SelectionInfo complet
+
+      // Ancrage géométrique de la popover au-dessus de la ligne sélectionnée
+      let yCenter = 0;
+      const lines = linesRef.current;
+      for (const line of lines) {
+        if (start >= line.start && start <= line.end) {
+          yCenter = line.y + line.height / 2;
+          break;
+        }
+      }
+      if (yCenter === 0 && lines.length > 0) {
+        const totalChars = lines[lines.length - 1]?.end || 1;
+        const totalHeight =
+          (lines[lines.length - 1]?.y ?? 0) + (lines[lines.length - 1]?.height ?? LINE_HEIGHT);
+        yCenter = (start / totalChars) * totalHeight;
+      }
+
       onSelect({
         index: info.index,
         text: info.text,
-        y: 0,
+        y: yCenter,
         from: '',
         to: '',
         canonicalStart: info.canonicalStart,
@@ -109,6 +149,7 @@ export function NativeArticleBodyIOS({
         uiTextView
         selectable
         onSelectionChange={handleSelectionChange}
+        onTextLayout={handleTextLayout}
         style={[
           styles.article,
           {
