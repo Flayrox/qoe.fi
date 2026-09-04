@@ -78,8 +78,8 @@ export function ArticleBody(props: ArticleBodyProps) {
     />
   );
 
-  // Pour Android, si le document canonique est disponible, on privilégie le moteur natif
-  if (Platform.OS === 'android' && document) {
+  // Si le document canonique est disponible sur iOS ou Android, on privilégie le moteur natif
+  if ((Platform.OS === 'android' || Platform.OS === 'ios') && document) {
     return (
       <NativeArticleErrorBoundary fallback={fallback}>
         <NativeArticleBody
