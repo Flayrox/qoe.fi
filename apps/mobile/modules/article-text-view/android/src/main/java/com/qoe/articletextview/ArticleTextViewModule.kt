@@ -8,18 +8,20 @@ class ArticleTextViewModule : Module() {
     Name("ArticleTextView")
 
     View(ArticleTextView::class) {
-      Events("onSelectionChange")
+      Events("onSelectionChange", "onContentHeight")
 
       Prop("text") { view: ArticleTextView, text: String ->
         view.setContent(text)
       }
 
-      Prop("runs") { view: ArticleTextView, runs: List<Map<String, Any>> ->
-        view.setRuns(runs)
+      // Runs homogènes de peinture (buildPaintSpans — partagés iOS/Android).
+      Prop("spans") { view: ArticleTextView, spans: List<Map<String, Any>> ->
+        view.setSpans(spans)
       }
 
-      Prop("marks") { view: ArticleTextView, marks: List<Map<String, Any>> ->
-        view.setMarks(marks)
+      // Layout de bloc par paragraphe (buildParagraphLayouts).
+      Prop("paragraphs") { view: ArticleTextView, paragraphs: List<Map<String, Any>> ->
+        view.setParagraphs(paragraphs)
       }
 
       Prop("textColor") { view: ArticleTextView, color: Int ->
@@ -32,6 +34,12 @@ class ArticleTextViewModule : Module() {
 
       Prop("lineHeight") { view: ArticleTextView, lineHeight: Float ->
         view.setLineHeightSp(lineHeight)
+      }
+
+      // Largeur de mesure (dp) — la hauteur du contenu est mesurée côté
+      // natif (StaticLayout) puis remontée par l'événement onContentHeight.
+      Prop("measureWidth") { view: ArticleTextView, width: Float ->
+        view.setMeasureWidthDp(width)
       }
 
       OnViewDidUpdateProps { view: ArticleTextView ->
