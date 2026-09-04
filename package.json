@@ -11,6 +11,7 @@
     "build": "pnpm intl:compile && turbo run build",
     "dev": "node scripts/copy-env.js && pnpm intl:compile && turbo run dev --parallel",
     "dev:up": "./scripts/dev-up.sh",
+    "dev:light": "./scripts/dev-light.sh",
     "dev:down": "./scripts/dev-down.sh",
     "dev:clean": "bash scripts/dev-clean.sh",
     "kill:dev": "lsof -tiTCP:15401 -sTCP:LISTEN -tiTCP:15402 -sTCP:LISTEN -tiTCP:15403 -sTCP:LISTEN -tiTCP:15404 -sTCP:LISTEN -tiTCP:15405 -sTCP:LISTEN -tiTCP:15406 -sTCP:LISTEN -tiTCP:15407 -sTCP:LISTEN 2>/dev/null | xargs kill 2>/dev/null || true",

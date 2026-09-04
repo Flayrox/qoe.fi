@@ -60,11 +60,36 @@ export function NativeArticleBodyAndroid({
     }));
   }, [model, highlights, spotlight]);
 
-  // 3. Spans de styles inline et fond des marques
-  const spans = useMemo(() => buildPaintSpans(model, coloredMarks), [model, coloredMarks]);
+  // 3. Spans de styles inline et fond des marques (bg absent = -1 car Kotlin n'accepte pas null dans Map)
+  const spans = useMemo(
+    () =>
+      buildPaintSpans(model, coloredMarks).map((s) => ({
+        start: s.start,
+        end: s.end,
+        bold: s.bold,
+        italic: s.italic,
+        underline: s.underline,
+        mono: s.mono,
+        link: s.link,
+        bg: s.bg ?? -1,
+      })),
+    [model, coloredMarks]
+  );
 
-  // 4. Paragraphes structurés (titres, citations, listes, code)
-  const paragraphs = useMemo(() => buildParagraphLayouts(model), [model]);
+  // 4. Paragraphes structurés (titres, citations, listes, code) sans valeurs null/undefined
+  const paragraphs = useMemo(
+    () =>
+      buildParagraphLayouts(model).map((p) => {
+        const o: any = { start: p.start, end: p.end, kind: p.kind };
+        if (p.listItem) {
+          o.listItem = true;
+          if (p.orderedIndex !== undefined) o.orderedIndex = p.orderedIndex;
+          if (p.markerText) o.markerText = p.markerText;
+        }
+        return o;
+      }),
+    [model]
+  );
 
   // 5. Offset UTF-16 du spotlight pour la mesure native
   const spotlightUtf16Start = useMemo(() => {

@@ -24,8 +24,8 @@ export function LoginScreen() {
 
   const [mode, setMode] = useState<Mode>('signin');
   const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState(__DEV__ ? 'dev@qoe.fi' : '');
+  const [password, setPassword] = useState(__DEV__ ? 'password123' : '');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
