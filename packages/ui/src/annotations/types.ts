@@ -174,6 +174,22 @@ export const SPOTLIGHT_PULSE_CLASSES =
   'ring-2 ring-primary/80 bg-highlight/40 shadow-lg shadow-highlight/30 transition-all duration-500';
 
 // ---------------------------------------------------------------------
+// 🔦 Spotlight — passage mis en avant (deep-link citation → article)
+// ---------------------------------------------------------------------
+
+/**
+ * Passage d'un article à mettre en avant à l'ouverture (tranche 6-b) :
+ * offsets en code points dans le texte canonique + empreinte du contenu.
+ * Le rendu ne peint la marque que si `sha` correspond au document chargé
+ * (le passage a été ré-édité → pas de faux surlignage).
+ */
+export interface SpotlightRange {
+  start: number;
+  end: number;
+  sha: string;
+}
+
+// ---------------------------------------------------------------------
 // 🧩 Component Props Interfaces
 // ---------------------------------------------------------------------
 
@@ -206,6 +222,9 @@ export interface TextHighlighterProps {
   /** Document canonique de l'article : rendu par blocs + marques par
    *  offsets (tranche 1-b). Absent → moteur hérité (recherche de texte). */
   canonicalDocument?: import('./canonical-document').CanonicalDocument;
+  /** Passage à mettre en avant à l'ouverture (deep-link citation → article,
+   *  tranche 6-b) : marque spotlight + scroll + pulse, si sha conforme. */
+  spotlight?: SpotlightRange | null;
   /** Classes du conteneur du corps d'article (mode document uniquement). */
   contentClassName?: string;
   callbacks?: AnnotationActionCallbacks;

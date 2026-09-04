@@ -8,6 +8,7 @@ import {
   type AnnotationItem,
   type AnnotationActionCallbacks,
   type CanonicalDocument,
+  type SpotlightRange,
 } from '@qoe/ui/annotations';
 import { getCanonicalDocumentAction } from '@/lib/canonical-document';
 import {
@@ -52,6 +53,12 @@ export interface ArticleAnnotatorViewProps {
    * par offsets. Non fourni → fetch client (drawer) ; null → moteur hérité.
    */
   canonicalDocument?: CanonicalDocument | null;
+  /**
+   * Passage à mettre en avant à l'ouverture (deep-link citation → article,
+   * tranche 6-b). Appliqué quand le document canonique est rendu, si
+   * l'empreinte correspond.
+   */
+  spotlight?: SpotlightRange | null;
 }
 
 interface AuthUser {
@@ -68,6 +75,7 @@ export function ArticleAnnotatorView({
   article,
   initialSource,
   canonicalDocument: canonicalDocumentProp,
+  spotlight,
 }: ArticleAnnotatorViewProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [highlightsList, setHighlightsList] = useState<AnnotationItem[]>([]);
@@ -276,6 +284,7 @@ export function ArticleAnnotatorView({
         mainAppUrl=""
         containerId="article-content"
         canonicalDocument={canonicalDocument ?? undefined}
+        spotlight={spotlight}
         contentClassName="prose prose-sm sm:prose-base dark:prose-invert max-w-none leading-relaxed text-foreground/90 selection:bg-highlight/30 cursor-text space-y-4 pt-2"
         callbacks={callbacks}
       />

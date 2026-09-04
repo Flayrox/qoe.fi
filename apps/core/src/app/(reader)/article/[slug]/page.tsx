@@ -1,6 +1,7 @@
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { type CanonicalDocument } from '@qoe/ui/annotations';
 import { ArticleAnnotatorView } from '@/components/social/ArticleAnnotatorView';
+import { parseSpotlightParams } from '@/lib/spotlight';
 import { notFound } from 'next/navigation';
 
 // Contrat de l'endpoint Go GET /v1/articles/{slug} (mode slug seul : premier
@@ -74,13 +75,23 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
-export default async function ArticlePage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function ArticlePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ hlStart?: string; hlEnd?: string; hlSha?: string }>;
+}) {
   const resolvedParams = await params;
   const article = await fetchArticleBySlug(resolvedParams.slug);
 
   if (!article) {
     notFound();
   }
+
+  // 🔦 Deep-link citation → article (tranche 6-b) : passage cité à mettre en
+  // avant. Strictement validé — toute entrée invalide → null (lecture normale).
+  const spotlight = parseSpotlightParams(await searchParams);
 
   // Tranche 1-c : document canonique (rendu par blocs + marques par offsets).
   // Uniquement quand l'accès complet est acquis — ne jamais télécharger le
@@ -90,7 +101,11 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
 
   return (
     <main className="w-full min-h-screen bg-background">
-      <ArticleAnnotatorView article={article} canonicalDocument={canonicalDocument} />
+      <ArticleAnnotatorView
+        article={article}
+        canonicalDocument={canonicalDocument}
+        spotlight={spotlight}
+      />
     </main>
   );
 }

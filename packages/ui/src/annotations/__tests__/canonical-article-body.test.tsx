@@ -248,3 +248,85 @@ describe('buildSegmentMarks — unité pure', () => {
     expect(pub.end).toBe(16);
   });
 });
+
+describe('CanonicalArticleBody — spotlight deep-link (tranche 6-b)', () => {
+  it('peint la marque spotlight quand le sha du document correspond', () => {
+    const html = renderToStaticMarkup(
+      <CanonicalArticleBody
+        document={doc}
+        highlights={[]}
+        allPublic={[]}
+        filterMode="all"
+        creatorName="Créatrice"
+        onMarkClick={() => {}}
+        spotlight={{ start: 19, end: 27, sha: 'sha-1' }}
+      />
+    );
+    expect(html).toContain('data-highlight-id="spotlight-passage"');
+    expect(html).toContain('data-spotlight="true"');
+    expect(html).toContain('data-highlight-text="Deuxième"');
+  });
+
+  it('ne peint rien quand le sha est périmé (contenu ré-édité)', () => {
+    const html = renderToStaticMarkup(
+      <CanonicalArticleBody
+        document={doc}
+        highlights={[]}
+        allPublic={[]}
+        filterMode="all"
+        creatorName="Créatrice"
+        onMarkClick={() => {}}
+        spotlight={{ start: 19, end: 27, sha: 'sha-ancien' }}
+      />
+    );
+    expect(html).not.toContain('spotlight-passage');
+  });
+
+  it('reste visible même en filterMode=none (le passage demandé prime)', () => {
+    const html = renderToStaticMarkup(
+      <CanonicalArticleBody
+        document={doc}
+        highlights={[]}
+        allPublic={[]}
+        filterMode="none"
+        creatorName="Créatrice"
+        onMarkClick={() => {}}
+        spotlight={{ start: 0, end: 7, sha: 'sha-1' }}
+      />
+    );
+    expect(html).toContain('data-spotlight="true"');
+    expect(html).toContain('data-highlight-text="Bonjour"');
+  });
+
+  it('marque multi-segment (paragraphe + liste) résolue par buildSegmentMarks', () => {
+    const docMulti: CanonicalDocument = {
+      blocks: [
+        { kind: 'p', text: 'Intro' },
+        { kind: 'list', ordered: false, items: [{ text: 'Point A' }, { text: 'Point B' }] },
+      ],
+      segments: [
+        { blockIdx: 0, itemIdx: 0, text: 'Intro', start: 0, end: 5 },
+        { blockIdx: 1, itemIdx: 0, text: 'Point A', start: 6, end: 13 },
+        { blockIdx: 1, itemIdx: 1, text: 'Point B', start: 14, end: 21 },
+      ],
+      text: 'Intro Point A Point B',
+      sha: 'sha-m',
+    };
+    // Spotlight sur « Point B » : ne doit apparaître que sur le 2e item.
+    const marks: PaintMark[] = buildSegmentMarks(docMulti, 1, 1, [], [], 'all', 'Créatrice', {
+      start: 14,
+      end: 21,
+      sha: 'sha-m',
+    });
+    expect(marks).toHaveLength(1);
+    expect(marks[0].id).toBe('spotlight-passage');
+    expect(marks[0].start).toBe(0);
+    expect(marks[0].end).toBe(7);
+    const empty = buildSegmentMarks(docMulti, 1, 0, [], [], 'all', 'Créatrice', {
+      start: 14,
+      end: 21,
+      sha: 'sha-m',
+    });
+    expect(empty).toHaveLength(0);
+  });
+});

@@ -6,8 +6,15 @@
 // plus aucune mutation DOM) — tranche 1-b.
 // =====================================================================
 
-import React, { Fragment, ReactNode } from 'react';
-import { AnnotationFilterMode, AnnotationItem, HighlightItem, MARK_STYLE_CLASSES } from './types';
+import React, { Fragment, ReactNode, useEffect, useRef } from 'react';
+import {
+  AnnotationFilterMode,
+  AnnotationItem,
+  HighlightItem,
+  MARK_STYLE_CLASSES,
+  SPOTLIGHT_PULSE_CLASSES,
+  SpotlightRange,
+} from './types';
 import {
   CanonicalDocument,
   CanonicalInlineSpan,
@@ -30,6 +37,9 @@ export interface CanonicalArticleBodyProps {
   className?: string;
   creatorName: string;
   onMarkClick: (annotation: AnnotationItem) => void;
+  /** Passage à mettre en avant (deep-link citation → article) : marque
+   *  spotlight + scroll + pulse au montage, si sha conforme. */
+  spotlight?: SpotlightRange | null;
 }
 
 const TAG_BY_KIND: Record<string, 'p' | 'h1' | 'h2' | 'h3' | 'h4' | 'blockquote' | 'pre'> = {
@@ -73,7 +83,8 @@ export function buildSegmentMarks(
   highlights: HighlightItem[],
   allPublic: AnnotationItem[],
   filterMode: AnnotationFilterMode,
-  creatorName: string
+  creatorName: string,
+  spotlight?: SpotlightRange | null
 ): PaintMark[] {
   const win = segmentWindow(doc, blockIdx, itemIdx);
   if (!win) return [];
@@ -164,6 +175,31 @@ export function buildSegmentMarks(
       );
     }
   }
+
+  // 🔦 Spotlight (deep-link citation → article) : peint dans tous les modes
+  // de filtre (le passage demandé doit toujours être visible), uniquement si
+  // l'empreinte du document chargé correspond — un contenu ré-édité ne
+  // produit jamais de faux surlignage.
+  if (spotlight && spotlight.sha === doc.sha) {
+    push(
+      spotlight.start,
+      spotlight.end,
+      'spotlight-passage',
+      `${SPOTLIGHT_PULSE_CLASSES} cursor-default`,
+      undefined,
+      // Annotation synthétique non cliquable : aucun drawer à ouvrir.
+      {
+        id: 'spotlight-passage',
+        text: '',
+        note: null,
+        isPublic: false,
+        isOfficial: false,
+        upvotesCount: 0,
+        createdAt: new Date().toISOString(),
+        reader: { id: 'spotlight', name: '', username: '', logoUrl: null },
+      }
+    );
+  }
   return marks;
 }
 
@@ -177,6 +213,8 @@ interface RichProps {
   inline?: CanonicalInlineSpan[];
   onMarkClick: (annotation: AnnotationItem) => void;
 }
+
+const SPOTLIGHT_MARK_ID = 'spotlight-passage';
 
 /** Texte d'un run découpé en styles inline puis enveloppé des marques. */
 function RenderRich({ text, marks, inline, onMarkClick }: RichProps) {
@@ -217,17 +255,23 @@ function RenderRich({ text, marks, inline, onMarkClick }: RichProps) {
 
     let node: ReactNode = <>{styled}</>;
     for (const m of covering) {
+      const isSpotlight = m.id === SPOTLIGHT_MARK_ID;
       node = (
         <mark
           key={m.id}
           className={m.className}
           data-highlight-id={m.id}
+          data-spotlight={isSpotlight ? 'true' : undefined}
           data-highlight-text={segText}
           title={m.title}
-          onClick={(e) => {
-            e.stopPropagation();
-            onMarkClick(m.annotation);
-          }}
+          onClick={
+            isSpotlight
+              ? undefined
+              : (e) => {
+                  e.stopPropagation();
+                  onMarkClick(m.annotation);
+                }
+          }
         >
           {node}
         </mark>
@@ -246,6 +290,7 @@ interface BlockViewProps {
   filterMode: AnnotationFilterMode;
   creatorName: string;
   onMarkClick: (annotation: AnnotationItem) => void;
+  spotlight?: SpotlightRange | null;
 }
 
 function BlockView({
@@ -256,6 +301,7 @@ function BlockView({
   filterMode,
   creatorName,
   onMarkClick,
+  spotlight,
 }: BlockViewProps) {
   const block = doc.blocks[blockIdx];
   if (!block) return null;
@@ -280,7 +326,8 @@ function BlockView({
                   highlights,
                   allPublic,
                   filterMode,
-                  creatorName
+                  creatorName,
+                  spotlight
                 )}
                 inline={item.inline}
                 onMarkClick={onMarkClick}
@@ -303,7 +350,8 @@ function BlockView({
               highlights,
               allPublic,
               filterMode,
-              creatorName
+              creatorName,
+              spotlight
             )}
             inline={block.inline}
             onMarkClick={onMarkClick}
@@ -323,7 +371,38 @@ export function CanonicalArticleBody({
   className,
   creatorName,
   onMarkClick,
+  spotlight,
 }: CanonicalArticleBodyProps) {
+  // 🔦 Spotlight : scroll + pulse une seule fois par passage demandé, après
+  // le montage (le document est déjà rendu à ce stade).
+  const spotlightKey =
+    spotlight && spotlight.sha === document.sha
+      ? `${spotlight.start}:${spotlight.end}:${spotlight.sha}`
+      : null;
+  const appliedRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!spotlightKey || appliedRef.current === spotlightKey) return;
+    appliedRef.current = spotlightKey;
+    // NB : le prop `document` (canonique) masque le global — on passe par
+    // globalThis pour interroger le DOM réel.
+    const mark = globalThis.document.querySelector<HTMLElement>('[data-spotlight="true"]');
+    if (!mark) return;
+    mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const timer = setTimeout(() => {
+      mark.classList.remove(
+        'ring-2',
+        'ring-primary/80',
+        'bg-highlight/40',
+        'shadow-lg',
+        'shadow-highlight/30',
+        'transition-all',
+        'duration-500'
+      );
+    }, 1600);
+    return () => clearTimeout(timer);
+  }, [spotlightKey]);
+
   return (
     <div id={containerId} className={className}>
       {document.blocks.map((_, i) => (
@@ -336,6 +415,7 @@ export function CanonicalArticleBody({
           filterMode={filterMode}
           creatorName={creatorName}
           onMarkClick={onMarkClick}
+          spotlight={spotlight}
         />
       ))}
     </div>
