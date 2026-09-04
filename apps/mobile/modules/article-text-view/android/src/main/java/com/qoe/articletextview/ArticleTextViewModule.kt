@@ -8,7 +8,7 @@ class ArticleTextViewModule : Module() {
     Name("ArticleTextView")
 
     View(ArticleTextView::class) {
-      Events("onSelectionChange", "onContentHeight")
+      Events("onSelectionChange", "onContentHeight", "onSpotlightMeasured")
 
       Prop("text") { view: ArticleTextView, text: String ->
         view.setContent(text)
@@ -45,6 +45,13 @@ class ArticleTextViewModule : Module() {
       // natif (StaticLayout) puis remontée par l'événement onContentHeight.
       Prop("measureWidth") { view: ArticleTextView, width: Float ->
         view.setMeasureWidthDp(width)
+      }
+
+      // 🔦 Spotlight (4-d) : offset UTF-16 du début du passage à mettre en
+      // avant (-1 = inactif). Le natif mesure la position window de la 1re
+      // ligne et l'émet via onSpotlightMeasured (une fois par passage).
+      Prop("spotlightStart") { view: ArticleTextView, start: Int ->
+        view.setSpotlightStart(start)
       }
 
       OnViewDidUpdateProps { view: ArticleTextView ->
