@@ -1,0 +1,9 @@
+{
+  "name": "@qoe/article-text-view",
+  "version": "0.1.0",
+  "description": "Vue texte native Android (TextView + Spannable, sélection native) pour le lecteur Qoe — tranche 4.",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "private": true,
+  "license": "UNLICENSED"
+}

@@ -207,23 +207,70 @@ Ces fonctions sont **pures** → écrites et testées immédiatement, sans devic
 
 ## 3. Tranche 4 — Android natif (`TextView` + `Spannable`)
 
-### 4-a · Spike module natif minimal (1 j)
+### 4-a · Spike module natif minimal (1 j) — ✅ VALIDÉ (rapport ci-dessous)
+
+> **Rapport du spike 4-a** (émulateur Pixel 9, Android 15, RN 0.86.2 / Expo
+> 57, JDK 17 Homebrew — le JBR d'Android Studio fait échouer le CMake de
+> `react-native-worklets`, voir historique) :
+>
+> 1. **Voie technique retenue : module Expo local** (`apps/mobile/modules/
+>    article-text-view`, autolinké par `expo-modules-core`) plutôt qu'un
+>    composant Fabric codegen maison — même résultat (vraie `TextView`
+>    native, New Architecture), beaucoup moins de plomberie, et le dossier
+>    généré `android/` étant gitignoré, c'est la seule forme qui survit à
+>    `expo prebuild`. Vue = sous-classe directe de `android.widget.TextView`
+>    (le DSL `View(...)` d'expo-modules accepte n'importe quelle vue avec un
+>    ctor `(Context)`, cf. `LinearGradientView`).
+> 2. **Rendu validé sur émulateur** : 2 paragraphes (`\n` dans le texte
+>    plat) rendus dans une seule `TextView`, gras/italique/souligné par
+>    `StyleSpan`/`UnderlineSpan`, marques **continues** par
+>    `BackgroundColorSpan` aux bonnes plages (captures : bandes jaune
+>    officiel + bleu public sur les 2 lignes). Aucun effet « pills ».
+> 3. **Hauteur intrinsèque (le point dur Android)** : un `TextView` dans une
+>    ScrollView RN ne peut pas s'auto-mesurer (Yoga donne une taille au
+>    style, pas au contenu — ni `ExpoView` ni le DSL n'exposent de measure
+>    Yoga). Solution validée dans le spike : un **`<Text>` RN jumeau
+>    invisible** (même texte/typo/largeur) mesure la hauteur → on la passe à
+>    la vue native (`onLayout` → `height`). Résultat mesuré exact : vue
+>    379×53, aucun scroll interne, aucune troncature. Le jumeau et la vue
+>    native partagent le même moteur de layout Android (`StaticLayout`), la
+>    parité de cassure de ligne est donc structurelle.
+> 4. **Sélection native confirmée sur émulateur** : appui long (injecté via
+>    `adb input swipe x y x y 900`) → mot sélectionné avec **poignées
+>    natives** (capture : poignées teal aux deux bouts), drag d'une poignée →
+>    extension multi-mots (sélection passée de `[3,7)` à `[8,24)`). Le menu
+>    **ActionMode système** s'affiche (Translate/Copy/Share/Select all) — à
+>    neutraliser en 4-b (décision produit). Pas de loupe Android (normal).
+> 5. **`onSelectionChange`** : hook framework `onSelectionChanged(int,int)`
+>    surchargé dans la vue → événement Expo en UTF-16 `location`/`length`,
+>    continu pendant le drag, désélection `location=-1`. Mappage C1 validé en
+>    live sur les captures : `[3,7)` → « chat », puis `[8,24)` →
+>    « mange la souris. » (texte canonique exact, ordinal, ancre).
+> 6. **Contraintes d'environnement notées** : build JDK 17 requis (CMake) ;
+>    émulateur headless `-no-window` + `adb reverse tcp:8081` → Metro ;
+>    screencap via `adb shell screencap` puis `pull` (le pipe `exec-out`
+>    tronque le PNG). Pour la validation sans session, un bypass DEV
+>    temporaire des routes `/spike*` dans `_layout.tsx` a été utilisé puis
+>    **reverté** — l'écran spike reste accessible une fois connecté (deep
+>    link `qoe://spike-articletextview`).
 
 - RN core `<Text selectable>` Android **n'expose pas** `onSelectionChange`
   (issue #23147, ouverte depuis 2019 — vérifié) → module natif requis.
-- Construire un **composant natif Fabric** minimal `ArticleTextView`
-  (Kotlin) : un `TextView` avec `isTextSelectable = true`, recevant du JS :
-  texte + runs de styles + marques ; exposant `onSelectionChange(start, end)`
-  (offsets char UTF-16) en continu + désélection au tap dehors.
+- Construire un **module Expo local** `ArticleTextView` (Kotlin) : un
+  `TextView` avec `isTextSelectable = true`, recevant du JS : texte + runs de
+  styles + marques ; exposant `onSelectionChange(location, length)` (offsets
+  char UTF-16) en continu + désélection (location = −1) au tap dehors.
 - Dev build : `expo run:android` (Expo Go ne charge pas de module natif
   custom) — le process de build local est déjà en place (dossier `android/`).
 - **Sorties du spike** :
   - Codegen Fabric OK avec Expo 57 / RN 0.86.2 (CLI `create-react-native-library`
-    ou template module maison) ?
+    ou template module maison) ? → **résolu** : module Expo local (autolinké),
+    vue `TextView` directe, aucun codegen manuel.
   - Le `TextView` multi-lignes dans une ScrollView RN garde sa hauteur
-    intrinsèque (wrap) sans scroll interne ?
+    intrinsèque (wrap) sans scroll interne ? → **résolu** : jumeau `<Text>`
+    RN pour la mesure (voir rapport) — mécanisme à industrialiser en 4-b.
   - Poignées Android, double-tap, magnifying absent (normal, pas de loupe
-    Android) — attendu.
+    Android) → **confirmé** (poignées + ActionMode présents, pas de loupe).
 - **Gate** : spike validé sur émulateur → on continue.
 
 ### 4-b · Spannable + marques (1–2 j)
@@ -286,7 +333,7 @@ Ces fonctions sont **pures** → écrites et testées immédiatement, sans devic
 | C5 | Tranche 3-d | Sélection → `SelectionInfo` → surface morphée, haptics | C4 |
 | C6 | Tranche 3-e | Deep-link spotlight iOS | C5 |
 | C7 | (Option) 3-f | Sélection continue multi-blocs si décidée | C6 |
-| C8 | Spike 4-a | Module Fabric `ArticleTextView` Android minimal, preuve émulateur | C1 |
+| C8 | Spike 4-a | ✅ livré — module Expo `ArticleTextView` (TextView+Spannable) sur émulateur : rendu multi-paragraphe + marques, jumeau de mesure (hauteur exacte), sélection native (poignées), `onSelectionChange` UTF-16 → C1 validé live ([3,7) puis [8,24)) | C1 |
 | C9 | Tranche 4-b | Spannable + marques, parité iOS | C8 |
 | C10 | Tranche 4-c | Sélection → surface, ActionMode neutralisé | C9 |
 | C11 | Tranche 4-d | Deep-link spotlight Android | C10 |
