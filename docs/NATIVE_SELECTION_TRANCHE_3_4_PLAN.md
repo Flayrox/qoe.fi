@@ -81,7 +81,38 @@ Ces fonctions sont **pures** → écrites et testées immédiatement, sans devic
 
 ## 2. Tranche 3 — iOS natif (`UITextView`)
 
-### 3-a · Spike d'éligibilité (½–1 j) — À VALIDER AVANT D'ENGAGER LE RESTE
+### 3-a · Spike d'éligibilité (½–1 j) — ✅ VALIDÉ (rapport ci-dessous)
+
+> **Rapport du spike C2** (binaire de dev construit + écran spike sur
+> simulateur iPhone 17 Pro, iOS 26) :
+>
+> 1. **Rendu** : un seul `UITextView` couvrant tout le corps rend **2
+>    paragraphes** (`\n` dans les fragments) + gras/italique/souligné + marques
+>    `backgroundColor` par plages — propre, `onTextLayout` natif rapporte les
+>    vraies lignes (`"Le chat mange la souris.\n"` | `"Le chat dort."`).
+>    → **aucun fork nécessaire pour les marques** (décision §6.1 : marques en
+>    `backgroundColor` de spans, pas de calque).
+> 2. **Piège d'usage découvert** : ne jamais imbriquer le `<Text>` de
+>    react-native dans `<UITextView>` — ces enfants deviennent des
+>    *attachments* (sous-vues) et tout fragment contenant `\n` est mal placé
+>    (glyphes déplacés, retour à la ligne perdu). Les spans imbriqués doivent
+>    être le **composant de la lib** (même import `UITextView`, sans
+>    `selectable`/`uiTextView` sur les enfants). Les `<View>` inline de la lib
+>    restent le mécanisme prévu pour `img`/`hr` (v2.6).
+> 3. **Sélection native confirmée par l'utilisateur** : appui long → loupe,
+>    drag → poignées visibles (capture : poignées aux deux bouts), drag d'une
+>    poignée pour étendre, menu système Copier / Rechercher etc. affiché.
+> 4. **`onSelectionChange`** : UTF-16 `start`/`end`, en continu ; désélection
+>    `start === end`. Mappage C1 validé en live : sélection réelle `[3,19)` →
+>    « chat mange la so » (texte canonique exact, ordinal, ancre).
+> 5. **Largeur** : la vue a besoin d'une largeur explicite (`width`/`maxWidth`
+>    du conteneur) pour ne pas se contenter de sa largeur intrinsèque.
+> 6. **Géométrie de sélection : NON exposée par la lib** → conditionne 3-d :
+>    pour ancrer la pill au-dessus du texte natif, il faut soit un **petit
+>    fork** (la lib calcule déjà les rects de plages glyphes pour son
+>    highlight press — `enumerateEnclosingRectsForGlyphRange` — exposé en
+>    événement `onSelectionChange` + frames), soit ancrer sur les caret rects
+>    des bords de la sélection mesurés côté JS. Trancher en 3-d.
 
 - Installer `@bsky.app/react-native-uitextview` (~2.7.x) ; `pod install` ;
   dev build `expo run:ios`.
@@ -249,7 +280,7 @@ Ces fonctions sont **pures** → écrites et testées immédiatement, sans devic
 | # | Commit | Contenu | Dépend de |
 |---|---|---|---|
 | C1 | Pures partagées (sans device) | `documentToStyleRuns`, `marksToRuns`, conversion offsets + tests (parité, emojis) | — |
-| C2 | Spike 3-a | lib iOS installée, preuve sur simulateur (rapport spike dans le commit) | C1 |
+| C2 | Spike 3-a | ✅ livré — lib iOS + écran spike, rendu multi-paragraphe validé, sélection native (loupe/poignées/menu) confirmée, mappage offsets validé live | C1 |
 | C3 | Tranche 3-b | `NativeArticleBody.ios.tsx` : rendu attribué par blocs, `ArticleBody` choisit le moteur | C2 |
 | C4 | Tranche 3-c | Marques peintes par plages (privé/public/officiel/spotlight) | C3 |
 | C5 | Tranche 3-d | Sélection → `SelectionInfo` → surface morphée, haptics | C4 |

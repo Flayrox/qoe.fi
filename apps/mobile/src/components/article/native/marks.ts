@@ -92,3 +92,5 @@ export function buildDisplayRanges(
 ): DisplayMarkRange[] {
   return buildNativeMarks(model, input).map((m) => markToDisplayRange(model, m));
 }
+
+export type { NativeMark };
