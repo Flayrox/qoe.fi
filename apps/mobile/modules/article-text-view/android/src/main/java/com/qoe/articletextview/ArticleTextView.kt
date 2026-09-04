@@ -60,6 +60,7 @@ class ArticleTextView(context: Context) : TextView(context) {
   private var pendingSpans: List<Map<String, Any>>? = null
   private var pendingParagraphs: List<Map<String, Any>>? = null
   private var pendingTextColor: Int = 0xFF111111.toInt()
+  private var pendingLinkColor: Int = 0xFF0B6BCB.toInt()
   private var pendingFontSizeSp: Float = 17f
   private var pendingLineHeightSp: Float = 0f
   /** Largeur (dp) de mesure fournie par le JS — la vue est mesurée par
@@ -106,6 +107,7 @@ class ArticleTextView(context: Context) : TextView(context) {
     updatingText = true
     try {
       setTextColor(pendingTextColor)
+      setLinkTextColor(pendingLinkColor)
       setTextSize(TypedValue.COMPLEX_UNIT_SP, pendingFontSizeSp)
       val textSizePx = paint.textSize
       val extraPx =
@@ -247,6 +249,10 @@ class ArticleTextView(context: Context) : TextView(context) {
     pendingTextColor = color
   }
 
+  fun setLinkColorValue(color: Int) {
+    pendingLinkColor = color
+  }
+
   fun setFontSizeSp(size: Float) {
     pendingFontSizeSp = size
   }
@@ -268,7 +274,26 @@ class ArticleTextView(context: Context) : TextView(context) {
     super.onSelectionChanged(selStart, selEnd)
     if (updatingText) return
     if (hasSelection()) {
-      onSelectionChange.invoke(mapOf("location" to selStart, "length" to (selEnd - selStart)))
+      val lo = minOf(selStart, selEnd)
+      val hi = maxOf(selStart, selEnd)
+      val payload = mutableMapOf<String, Any>("location" to lo, "length" to (hi - lo))
+      // Géométrie (4-c) : centre vertical de la 1re ligne sélectionnée, en
+      // dp relatif au haut de la vue — même sémantique que yCenter du
+      // moteur tokens → la pill de la surface morphée s'ancre au même
+      // endroit que sur le moteur hérité.
+      val l = layout
+      if (l != null && hi > lo) {
+        val line = l.getLineForOffset(lo)
+        val topPx = l.getLineTop(line).toFloat()
+        val bottomPx = l.getLineBottom(line).toFloat()
+        val yDp = (topPx + bottomPx) / 2f / density
+        val lineHeightDp = (bottomPx - topPx) / density
+        val xDp = l.getPrimaryHorizontal(lo) / density
+        payload["y"] = yDp
+        payload["lineHeight"] = lineHeightDp
+        payload["x"] = xDp
+      }
+      onSelectionChange.invoke(payload)
     } else {
       onSelectionChange.invoke(mapOf("location" to -1, "length" to 0))
     }

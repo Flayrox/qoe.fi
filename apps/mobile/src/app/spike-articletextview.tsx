@@ -1,5 +1,5 @@
 // =====================================================================
-// 🧪 spike-articletextview.tsx — Spike 4-b (tranche 4) : rendu de bloc
+// 🧪 spike-articletextview.tsx — Spike 4-c (tranche 4) : rendu + surface
 // =====================================================================
 // Écran DEV TEMPORAIRE (à supprimer après la tranche) : rend l'« article
 // témoin » partagé (demo-doc.ts) à travers le modèle C1 puis les helpers
@@ -7,13 +7,14 @@
 // `ArticleTextView` :
 //   - spans : runs homogènes (gras/italique/souligné/mono/lien + fond des
 //     marques) — LES MÊMES que le rendu iOS (parité par construction) ;
-//   - paragraphs : layout de bloc (h2, blockquote, code, listes) — titres
-//     agrandis, filet de citation, fond monospace, retrait suspendu.
-// La barre ActionMode système est NEUTRALISÉE côté natif (nos actions
-// vivront dans la surface morphée en 4-c) — les poignées restent natives.
-// La hauteur du contenu est mesurée côté natif (StaticLayout sur le texte
-// spané — les titres agrandis comptent) et remontée par onContentHeight :
-// plus de « jumeau » RN.
+//   - paragraphs : layout de bloc (h2, blockquote, code, listes) ;
+//   - géométrie native : onSelectionChange transporte le centre de la 1re
+//     ligne sélectionnée (y, dp) → l'adapter C1 produit le MÊME
+//     `SelectionInfo` que le moteur tokens → la **vraie SelectionPopover**
+//     (surface morphée, inchangée) s'ancre au bon endroit et ses actions
+//     (Surligner/Citer/Annoter/Copier) vivent telles quelles.
+// La barre ActionMode système est NEUTRALISÉE (menu vidé — les poignées
+// restent natives) ; liens peints avec la couleur du thème (4-c).
 // =====================================================================
 
 import { useState } from 'react';
@@ -40,7 +41,12 @@ import {
   DEMO_PRIVATE_HIGHLIGHT,
   DEMO_PUBLIC_HIGHLIGHT,
 } from '@/components/article/native/demo-doc';
-import { nativeSelectionToInfo } from '@/components/article/native/selection';
+import {
+  nativeSelectionToInfo,
+  nativeSelectionToPopoverInfo,
+} from '@/components/article/native/selection';
+import { SelectionPopover } from '@/components/article/selection-popover';
+import type { SelectionInfo } from '@/components/article/html-blocks';
 
 /** rgba("r, g, b, a") → ARGB int. */
 function hexToArgb(hex: string): number {
@@ -56,9 +62,9 @@ function ArticleSpike() {
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: theme.background }]} edges={['top']}>
       <View style={styles.header}>
-        <ThemedText type="subtitle">Spike ArticleTextView (4-b)</ThemedText>
+        <ThemedText type="subtitle">Spike ArticleTextView (4-c)</ThemedText>
         <ThemedText type="small" style={{ color: theme.textSecondary }}>
-          Article témoin : titres, citations, listes, code — barre système neutralisée.
+          Article témoin — sélection native → surface morphée ancrée (pill + actions).
         </ThemedText>
       </View>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.body}>
@@ -73,6 +79,7 @@ function DocView() {
   const theme = useTheme();
   const { width: screenWidth } = useWindowDimensions();
   const [sel, setSel] = useState<string>('—');
+  const [selInfo, setSelInfo] = useState<SelectionInfo | null>(null);
   const [heightDp, setHeightDp] = useState<number | null>(null);
 
   const model = buildArticleText(DEMO_DOC);
@@ -106,35 +113,62 @@ function DocView() {
     return o;
   });
 
+  /** Sélection native → SelectionInfo (adapter C1) → vraie pill morphée.
+   *  y vient du natif (centre de la 1re ligne) : même ancrage que le
+   *  moteur tokens. location=-1 (désélection) → pill sortie animée. */
   const onSelectionChange = (e: { nativeEvent: ArticleTextViewSelection }) => {
-    const { location, length } = e.nativeEvent;
+    const { location, length, y } = e.nativeEvent;
     if (location < 0) {
       setSel('désélection');
+      setSelInfo(null);
       return;
     }
     const info = nativeSelectionToInfo(model, location, location + length);
     setSel(
       info
-        ? `[${location},${location + length}) → « ${info.text} » (ordinal ${info.index}, ancre ${info.canonicalStart}..${info.canonicalEnd})`
+        ? `[${location},${location + length}) → « ${info.text} » (ordinal ${info.index}, ancre ${info.canonicalStart}..${info.canonicalEnd}, y ${y?.toFixed(1) ?? '?'} dp)`
         : `[${location},${location + length}) → synthétique`
     );
+    setSelInfo(nativeSelectionToPopoverInfo(model, location, location + length, y ?? 0));
   };
 
   const width = screenWidth - 32;
   return (
     <>
-      <ArticleTextView
-        text={text}
-        spans={spans}
-        paragraphs={paragraphs}
-        textColor={hexToArgb(theme.text)}
-        fontSize={FONT_SIZE}
-        lineHeight={LINE_HEIGHT}
-        measureWidth={width}
-        onSelectionChange={onSelectionChange}
-        onContentHeight={(e) => setHeightDp(e.nativeEvent.height)}
-        style={{ width, height: heightDp ?? 0 }}
-      />
+      {/* HUD compact (haut, jamais masqué) — état live pour les captures. */}
+      <View style={[styles.hud, { backgroundColor: theme.backgroundElement }]}>
+        <ThemedText type="small" style={{ color: theme.text, fontFamily: 'monospace' }}>
+          {sel}
+        </ThemedText>
+        <ThemedText type="small" style={{ color: theme.text, fontFamily: 'monospace' }}>
+          Popover : {selInfo ? `ACTIVE « ${selInfo.text} » y=${selInfo.y.toFixed(1)}` : 'fermé (—)'}
+        </ThemedText>
+      </View>
+      {/* Wrapper relatif : la pill est ancrée en `top` par la géométrie
+          native (y = centre de la 1re ligne, dp, relatif à la vue texte).
+          Un tap sur le texte désélectionne (natif) → pill sortie animée. */}
+      <View style={styles.textWrap}>
+        <ArticleTextView
+          text={text}
+          spans={spans}
+          paragraphs={paragraphs}
+          textColor={hexToArgb(theme.text)}
+          linkColor={hexToArgb(theme.link)}
+          fontSize={FONT_SIZE}
+          lineHeight={LINE_HEIGHT}
+          measureWidth={width}
+          onSelectionChange={onSelectionChange}
+          onContentHeight={(e) => setHeightDp(e.nativeEvent.height)}
+          style={{ width, height: heightDp ?? 0 }}
+        />
+        {selInfo ? (
+          <SelectionPopover
+            selection={selInfo}
+            articleId="demo-4c"
+            onClose={() => setSelInfo(null)}
+          />
+        ) : null}
+      </View>
       <View style={[styles.statusCard, { backgroundColor: theme.backgroundSelected }]}>
         <ThemedText type="small" style={{ color: theme.text, fontFamily: 'monospace' }}>
           Témoin — {text.length} chars · hauteur native : {heightDp ?? '…'} dp
@@ -147,6 +181,9 @@ function DocView() {
         </ThemedText>
         <ThemedText type="small" style={{ color: theme.text, fontFamily: 'monospace' }}>
           Sélection : {sel}
+        </ThemedText>
+        <ThemedText type="small" style={{ color: theme.text, fontFamily: 'monospace' }}>
+          Popover : {selInfo ? `« ${selInfo.text} » (y ${selInfo.y.toFixed(1)})` : '—'}
         </ThemedText>
       </View>
     </>
@@ -162,5 +199,7 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 16, paddingTop: 12, gap: 4 },
   scroll: { flex: 1 },
   body: { padding: 16, gap: 12 },
+  hud: { borderRadius: 8, padding: 8, gap: 2 },
+  textWrap: { position: 'relative', width: '100%' },
   statusCard: { borderRadius: 10, padding: 12, gap: 4 },
 });

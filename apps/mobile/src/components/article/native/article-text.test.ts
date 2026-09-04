@@ -11,7 +11,7 @@ import {
   utf16ToCp,
 } from './article-text';
 import { buildNativeMarks, buildDisplayRanges } from './marks';
-import { nativeSelectionToInfo } from './selection';
+import { nativeSelectionToInfo, nativeSelectionToPopoverInfo } from './selection';
 
 // ─────────────────────────────────────────────────────────────────────
 // Fixtures (miroir du corpus Go : segments séparés par UN espace,
@@ -232,6 +232,34 @@ describe('nativeSelectionToInfo — contrat SelectionInfo (popover/API)', () => 
   it('désélection (start === end) → null', () => {
     const m = buildArticleText(twoParasDoc);
     expect(nativeSelectionToInfo(m, 5, 5)).toBeNull();
+  });
+});
+
+describe('nativeSelectionToPopoverInfo — adapter surface morphée (4-c)', () => {
+  it('produit le même SelectionInfo que selectionToInfo (from/to vides en natif)', () => {
+    const m = buildArticleText(twoParasDoc);
+    const info = nativeSelectionToPopoverInfo(m, 25, 32, 123.5)!;
+    expect(info).toEqual({
+      index: 1,
+      text: 'Le chat',
+      y: 123.5, // géométrie native (centre de la 1re ligne, dp)
+      from: '',
+      to: '',
+      canonicalStart: 25,
+      canonicalEnd: 32,
+    });
+  });
+
+  it('passe la géométrie native (y) telle quelle — ancrage de la pill', () => {
+    const m = buildArticleText(twoParasDoc);
+    const info = nativeSelectionToPopoverInfo(m, 3, 7, 42)!;
+    expect(info!.y).toBe(42);
+    expect(info!.text).toBe('chat');
+  });
+
+  it('désélection / sélection synthétique → null (pas de pill)', () => {
+    const m = buildArticleText(twoParasDoc);
+    expect(nativeSelectionToPopoverInfo(m, 5, 5, 0)).toBeNull();
   });
 });
 

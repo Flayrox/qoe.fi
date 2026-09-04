@@ -26,10 +26,16 @@ export type ArticleTextViewParagraph = {
   markerText?: string;
 };
 
-/** Payload natif de onSelectionChange (UTF-16). location=-1 ⇒ désélection. */
+/** Payload natif de onSelectionChange (UTF-16). location=-1 ⇒ désélection.
+ *  Quand une sélection existe, `y`/`lineHeight`/`x` (dp, relatifs au haut de
+ *  la vue) décrivent la 1re ligne sélectionnée — `y` = son centre vertical,
+ *  même sémantique que `yCenter` du moteur tokens → ancrage de la pill. */
 export type ArticleTextViewSelection = {
   location: number;
   length: number;
+  x?: number;
+  y?: number;
+  lineHeight?: number;
 };
 
 /** Hauteur de contenu mesurée nativement (dp). */
@@ -46,6 +52,8 @@ export type ArticleTextViewProps = ViewProps & {
   paragraphs: ArticleTextViewParagraph[];
   /** Couleur du texte (ARGB). */
   textColor?: number;
+  /** Couleur des liens (ARGB, thème) — URLSpan peint avec cette couleur. */
+  linkColor?: number;
   /** Taille de police en sp. */
   fontSize?: number;
   /** Hauteur de ligne en sp (0 = défaut système). */

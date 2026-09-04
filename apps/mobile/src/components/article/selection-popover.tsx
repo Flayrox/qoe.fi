@@ -219,6 +219,13 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
+    // Hauteur repliée du composer : sur Android (Fabric), un conteneur
+    // absolu SANS hauteur dont le seul enfant est lui-même absolu (le
+    // GlassComposer floating) n'est pas mesuré → la pill ne se rend pas.
+    // minHeight:50 sur le composer ne suffit pas : c'est le conteneur qui
+    // doit porter la hauteur. Une fois dépliée (Citer/Annoter), la boîte
+    // grandit sous ce top (débordement visible — aucun parent ne clippe).
+    height: 50,
     zIndex: 95,
   },
   toolbarRow: {

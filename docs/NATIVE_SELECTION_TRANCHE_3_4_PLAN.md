@@ -324,12 +324,54 @@ Ces fonctions sont **pures** → écrites et testées immédiatement, sans devic
   vivent dans la surface morphée (décision rév. 6, non négociable).
 - **Gate** : parité visuelle iOS ↔ Android sur l'article témoin.
 
-### 4-c · Sélection → `SelectionInfo` → surface (1 j)
+### 4-c · Sélection → `SelectionInfo` → surface (1 j) — ✅ LIVRÉ (rapport ci-dessous)
 
-- Même contrat que 3-d : conversion UTF-16 → offsets canoniques →
-  `SelectionInfo` → `SelectionPopover` inchangé. Géométrie de sélection pour
-  ancrer la pill (sortie du spike 4-a : layout du range via
-  `Layout.getSelectionPath` ou mesure des bounds).
+> **Rapport de la tranche 4-c (C10)** — module + spike Android, validé sur
+> émulateur Pixel 9 (Android 15) :
+>
+> 1. **Géométrie native dans l'événement** : `onSelectionChange` transporte
+>    désormais `y` (centre vertical de la 1re ligne sélectionnée, dp,
+>    relatif à la vue texte — même sémantique que `yCenter` du moteur
+>    tokens), `lineHeight` et `x`. Deux mots d'une même ligne → même `y`
+>    (vérifié live : « déjà » et « grouillait », même ligne → 52.2 dp).
+> 2. **Couleur des liens = thème** (fin de l'item ouvert de 4-b) : prop
+>    `linkColor` (ARGB) appliquée aux `URLSpan` via `setLinkTextColor` —
+>    même token que le spike iOS (parité).
+> 3. **Adapter pur `nativeSelectionToPopoverInfo`** (selection.ts, 3 tests) :
+>    produit le `SelectionInfo` EXACT de la surface morphée
+>    (`{index, text, y, from, to, canonicalStart, canonicalEnd}` —
+>    `from`/`to` vides : en natif, la sélection est peinte par le système),
+>    consommé par `SelectionPopover` sans modification du contrat.
+> 4. **Spike 4-c** : la VRAIE `SelectionPopover` (morph pill → formulaire) est
+>    montée sur la sélection native, ancrée par `y` (même calcul que le
+>    moteur tokens : `top = max(8, y − 58)`). HUD live (texte/ordinal/ancre/y
+>    + état popover) pour les captures.
+> 5. **DÉCOUVERTE Android/New Arch (bug pré-existant de la pill) :** sur
+>    Android Fabric, `GlassComposer` en mode `floating` ne rend RIEN quand
+>    son conteneur absolu (le wrap de `SelectionPopover`, qui n'a pas de
+>    hauteur — seul son `top` le positionne) est de hauteur 0 et n'a que des
+>    enfants absolus : le sous-arbre n'est jamais mesuré (vérifié par
+>    diag en escalier : bande de contrôle et contenu simple rendus, GC
+>    floating invisible, GC bottom rendu ; wrap avec `height:70` → rendu
+>    immédiat). Fix : `height: 50` (hauteur repliée du composer) sur
+>    `styles.wrap` de selection-popover — le morph déborde sous le top, aucun
+>    parent ne clippe — + `minHeight: 50` défensif sur `floatingContainer`
+>    de GlassComposer. Effet probable : la pill du moteur legacy ne s'est
+>    jamais affichée sur Android (le fix profite aux deux moteurs).
+> 6. **Validation device** (captures + dumps uiautomator) : appui long →
+>    sélection mot → pill VISIBLE avec ses 4 chips (Surligner/Citer/Annoter/
+>    Copier) ancrée au bon endroit (« quand », y 139.0 dp → pill à
+>    `y−58` : bounds 772–825 px), action **Copier** → fermeture animée de la
+>    pill ; désélection au tap sur le texte → `location=-1` → pill sortie.
+> 7. **Restes ouverts** : la désélection au tap EN DEHORS du TextView
+>    (Android garde la sélection — à traiter à l'intégration réelle, même
+>    geste global que prévu côté iOS) ; presse-papiers non vérifiable ici
+>    (pas de `cmd clipboard` sur cet émulateur) ; actions API (Surligner /
+>    Citer / Annoter) non testées de bout en bout (spike sans session ni
+>    article réel — le contrat API de `SelectionPopover` est déjà validé par
+>    le moteur legacy).
+
+### 4-d · Deep-link spotlight (0,5 j) — idem 3-e.
 
 ### 4-d · Deep-link spotlight (0,5 j) — idem 3-e.
 
@@ -376,7 +418,7 @@ Ces fonctions sont **pures** → écrites et testées immédiatement, sans devic
 | C7 | (Option) 3-f | Sélection continue multi-blocs si décidée | C6 |
 | C8 | Spike 4-a | ✅ livré — module Expo `ArticleTextView` (TextView+Spannable) sur émulateur : rendu multi-paragraphe + marques, jumeau de mesure (hauteur exacte), sélection native (poignées), `onSelectionChange` UTF-16 → C1 validé live ([3,7) puis [8,24)) | C1 |
 | C9 | Tranche 4-b | ✅ livré — pures partagées `attributed.ts` (runs homogènes + layout paragraphe), fixture témoin `demo-doc.ts`, module Android `spans`/`paragraphs` (h2/blockquote/code/listes), hauteur native `onContentHeight`, ActionMode neutralisé (menu vidé — `false` à la création dé-sélectionne sur API 35) | C8 |
-| C10 | Tranche 4-c | Sélection → `SelectionInfo` → surface morphée (les pures C1/4-b suffisent ; ActionMode déjà neutralisé en 4-b) | C9 |
+| C10 | Tranche 4-c | ✅ livré — géométrie native (y = centre 1re ligne) + `linkColor` thème, adapter `nativeSelectionToPopoverInfo` (3 tests), spike : VRAIE `SelectionPopover` montée sur la sélection native et ancrée (top = max(8, y−58)) ; **fix Android/Fabric** : pill invisible quand le wrap absolu de la popover n'a pas de hauteur (`height: 50` sur le wrap + `minHeight` floating) | C9 |
 | C11 | Tranche 4-d | Deep-link spotlight Android | C10 |
 
 Chaque commit garde la suite verte + la checklist device du gate.
