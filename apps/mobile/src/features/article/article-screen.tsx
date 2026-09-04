@@ -13,7 +13,8 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { ArticleHighlights } from '@/components/article/article-highlights';
-import { ArticleHtml, type SelectionInfo } from '@/components/article/html-blocks';
+import { ArticleBody } from '@/components/article/ArticleBody';
+import type { SelectionInfo } from '@/components/article/html-blocks';
 import { SelectionPopover } from '@/components/article/selection-popover';
 import { SimilarArticles } from '@/components/article/similar-articles';
 import { CustomSubHeader } from '@/components/header/CustomSubHeader';
@@ -290,7 +291,7 @@ export function ArticleScreen({
           {data.content ? (
             <View style={styles.body}>
               <View style={styles.articleWrap}>
-                <ArticleHtml
+                <ArticleBody
                   html={data.content}
                   highlights={highlights ?? []}
                   document={canonicalDocument ?? undefined}
