@@ -543,6 +543,12 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: Spacing.three,
     right: Spacing.three,
+    // Le conteneur floating ne doit JAMAIS s'effondrer à 0 : sur Android
+    // (Fabric), un conteneur absolu sans hauteur (le wrap de
+    // SelectionPopover n'en a pas — c'est son top qui le positionne) dont
+    // le seul enfant est lui-même absolu n'est pas mesuré → la pill ne se
+    // rend pas. minHeight force la mesure (hauteur repliée du composer).
+    minHeight: 50,
     backgroundColor: 'transparent',
     zIndex: 99,
   },

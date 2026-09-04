@@ -13,6 +13,7 @@
 // sont exclus du texte cité.
 // =====================================================================
 
+import type { SelectionInfo } from '../html-blocks-core';
 import { canonicalSlice, displayRangeToCanonical, type ArticleTextModel } from './article-text';
 
 export interface NativeSelectionInfo {
@@ -61,5 +62,35 @@ export function nativeSelectionToInfo(
     index: ordinalBefore(model.doc.text, text, range.start),
     canonicalStart: range.start,
     canonicalEnd: range.end,
+  };
+}
+
+/**
+ * Adapter vers le contrat EXACT de la surface morphée : le même
+ * `SelectionInfo` que `selectionToInfo` (html-blocks) produit pour le
+ * moteur tokens — `SelectionPopover` le consomme SANS modification.
+ *
+ * `y` est la géométrie NATIVE de la sélection (ordonnée du centre de la
+ * 1re ligne sélectionnée, dp, relative au haut de la vue texte) — même
+ * sémantique que `yCenter` du moteur tokens. `from`/`to` (ids de tokens)
+ * ne servent qu'à la peinture inline du mode hérité : en mode natif la
+ * sélection est peinte par le système → chaînes vides.
+ */
+export function nativeSelectionToPopoverInfo(
+  model: ArticleTextModel,
+  a: number,
+  b: number,
+  y: number
+): SelectionInfo | null {
+  const info = nativeSelectionToInfo(model, a, b);
+  if (!info) return null;
+  return {
+    index: info.index,
+    text: info.text,
+    y,
+    from: '',
+    to: '',
+    canonicalStart: info.canonicalStart,
+    canonicalEnd: info.canonicalEnd,
   };
 }

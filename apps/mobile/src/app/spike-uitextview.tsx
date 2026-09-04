@@ -58,20 +58,23 @@ function NativeArticleSpike() {
 }
 
 /** Style d'un run pour les Text imbriqués de la lib. */
-function spanStyle(s: {
-  bold: boolean;
-  italic: boolean;
-  underline: boolean;
-  mono: boolean;
-  link: boolean;
-  bg: number | null;
-}): object {
+function spanStyle(
+  s: {
+    bold: boolean;
+    italic: boolean;
+    underline: boolean;
+    mono: boolean;
+    link: boolean;
+    bg: number | null;
+  },
+  linkColor: string
+): object {
   return [
     styles.run,
     s.bold && styles.bold,
     s.italic && styles.italic,
     s.underline && styles.underline,
-    s.link && styles.link,
+    s.link && { textDecorationLine: 'underline', color: linkColor },
     s.mono && styles.mono,
     s.bg != null ? { backgroundColor: argbToRgba(s.bg) } : null,
   ];
@@ -126,7 +129,7 @@ function DocView() {
         ]}
       >
         {spans.map((s, i) => (
-          <UITextView key={i} style={spanStyle(s)}>
+          <UITextView key={i} style={spanStyle(s, theme.link)}>
             {text.slice(s.start, s.end)}
           </UITextView>
         ))}
@@ -159,7 +162,6 @@ const styles = StyleSheet.create({
   bold: { fontWeight: '700' },
   italic: { fontStyle: 'italic' },
   underline: { textDecorationLine: 'underline' },
-  link: { textDecorationLine: 'underline', color: '#3B82F6' },
   mono: { fontFamily: 'Menlo' },
   statusCard: { borderRadius: 10, padding: 12, gap: 4 },
 });

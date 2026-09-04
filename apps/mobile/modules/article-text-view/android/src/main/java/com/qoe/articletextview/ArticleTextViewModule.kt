@@ -28,6 +28,11 @@ class ArticleTextViewModule : Module() {
         view.setTextColorValue(color)
       }
 
+      // Couleur des liens (thème) — URLSpan est peint avec cette couleur.
+      Prop("linkColor") { view: ArticleTextView, color: Int ->
+        view.setLinkColorValue(color)
+      }
+
       Prop("fontSize") { view: ArticleTextView, size: Float ->
         view.setFontSizeSp(size)
       }
