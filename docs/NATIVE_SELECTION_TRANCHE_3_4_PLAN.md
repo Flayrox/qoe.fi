@@ -448,9 +448,9 @@ Ces fonctions sont **pures** → écrites et testées immédiatement, sans devic
 |---|---|---|---|
 | C1 | Pures partagées (sans device) | `documentToStyleRuns`, `marksToRuns`, conversion offsets + tests (parité, emojis) | — |
 | C2 | Spike 3-a | ✅ livré — lib iOS + écran spike, rendu multi-paragraphe validé, sélection native (loupe/poignées/menu) confirmée, mappage offsets validé live | C1 |
-| C3 | Tranche 3-b | `NativeArticleBody.ios.tsx` : rendu attribué par blocs, `ArticleBody` choisit le moteur | C2 |
-| C4 | Tranche 3-c | Marques peintes par plages (privé/public/officiel/spotlight) | C3 |
-| C5 | Tranche 3-d | Sélection → `SelectionInfo` → surface morphée, haptics | C4 |
+| C3 | Tranche 3-b | ✅ livré — `NativeArticleBody.ios.tsx` : rendu attribué continu dans UITextView natif, parité typographique, runs partagés avec Android | C2 |
+| C4 | Tranche 3-c | ✅ livré — marques peintes par plages (privé/public/officiel/spotlight) avec fond ARGB unifié dans les runs | C3 |
+| C5 | Tranche 3-d | ✅ livré — sélection native iOS connectée à SelectionInfo et intégration unifiée dans ArticleBody (avec repli ErrorBoundary) | C4 |
 | C6 | Tranche 3-e | Deep-link spotlight iOS | C5 |
 | C7 | (Option) 3-f | Sélection continue multi-blocs si décidée | C6 |
 | C8 | Spike 4-a | ✅ livré — module Expo `ArticleTextView` (TextView+Spannable) sur émulateur : rendu multi-paragraphe + marques, jumeau de mesure (hauteur exacte), sélection native (poignées), `onSelectionChange` UTF-16 → C1 validé live ([3,7) puis [8,24)) | C1 |
