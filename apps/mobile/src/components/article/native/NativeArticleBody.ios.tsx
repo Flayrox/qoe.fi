@@ -53,12 +53,16 @@ function spanStyle(s: PaintSpan, linkColor: string): object {
 export function NativeArticleBodyIOS({
   document,
   highlights = [],
+  selection,
   onSelect,
   spotlight,
 }: NativeArticleBodyProps) {
   const theme = useTheme();
   const { width: screenWidth } = useWindowDimensions();
-  const linesRef = useRef<{ y: number; height: number; start: number; end: number }[]>([]);
+  const contentWidth = Math.max(0, screenWidth - 32);
+  const linesRef = useRef<
+    { x: number; y: number; width: number; height: number; start: number; end: number }[]
+  >([]);
 
   // 1. Modèle continu depuis le document canonique
   const model = useMemo(() => buildArticleText(document), [document]);
@@ -80,74 +84,95 @@ export function NativeArticleBodyIOS({
   // 3. Runs homogènes prêts pour UITextView
   const spans = useMemo(() => buildPaintSpans(model, coloredMarks), [model, coloredMarks]);
 
-  const handleTextLayout = useCallback((e: NativeSyntheticEvent<TextLayoutEventData>) => {
-    let offset = 0;
-    linesRef.current = (e.nativeEvent.lines ?? []).map((l: any) => {
-      const lineText = typeof l === 'string' ? l : (l?.text ?? '');
-      const len = lineText.length;
-      const start = offset;
-      const end = offset + len;
-      offset = end;
-      return {
-        y: typeof l === 'object' && l ? (l.y ?? 0) : 0,
-        height: typeof l === 'object' && l ? (l.height ?? LINE_HEIGHT) : LINE_HEIGHT,
-        start,
-        end,
-      };
-    });
-  }, []);
+  const handleTextLayout = useCallback(
+    (e: NativeSyntheticEvent<TextLayoutEventData>) => {
+      let offset = 0;
+      linesRef.current = (e.nativeEvent.lines ?? []).map((l: any, idx: number) => {
+        const lineText = typeof l === 'string' ? l : (l?.text ?? '');
+        const len = lineText.length;
+        const start = offset;
+        const end = offset + len;
+        offset = end;
+        return {
+          x: typeof l === 'object' && l && typeof l.x === 'number' ? l.x : 0,
+          width: typeof l === 'object' && l && typeof l.width === 'number' ? l.width : contentWidth,
+          y: typeof l === 'object' && l && typeof l.y === 'number' ? l.y : idx * LINE_HEIGHT,
+          height:
+            typeof l === 'object' && l && typeof l.height === 'number' ? l.height : LINE_HEIGHT,
+          start,
+          end,
+        };
+      });
+    },
+    [contentWidth]
+  );
 
   // 4. Gestion de la sélection native iOS
   const handleSelectionChange = useCallback(
     (e: SelectionChangeEvent) => {
       const { start, end } = e.nativeEvent;
       if (start === end || start < 0 || end <= start) {
-        onSelect(null);
+        if (!selection) {
+          onSelect(null);
+        }
         return;
       }
       const info = nativeSelectionToInfo(model, start, end);
       if (!info) {
-        onSelect(null);
+        if (!selection) {
+          onSelect(null);
+        }
         return;
       }
 
-      // Ancrage géométrique de la popover au-dessus de la ligne sélectionnée
+      // Ancrage géométrique de la popover au niveau de la 1re ligne sélectionnée
       let yCenter = 0;
+      let xCenter = contentWidth / 2;
       const lines = linesRef.current;
       for (const line of lines) {
         if (start >= line.start && start <= line.end) {
           yCenter = line.y + line.height / 2;
+          const lineLen = Math.max(1, line.end - line.start);
+          const selStartInLine = Math.max(0, start - line.start);
+          const selEndInLine = Math.min(lineLen, end - line.start);
+          const midRatio = (selStartInLine + selEndInLine) / (2 * lineLen);
+          xCenter = line.x + midRatio * line.width;
           break;
         }
       }
-      if (yCenter === 0 && lines.length > 0) {
-        const totalChars = lines[lines.length - 1]?.end || 1;
-        const totalHeight =
-          (lines[lines.length - 1]?.y ?? 0) + (lines[lines.length - 1]?.height ?? LINE_HEIGHT);
-        yCenter = (start / totalChars) * totalHeight;
+      if (yCenter === 0) {
+        if (lines.length > 0) {
+          const totalChars = lines[lines.length - 1]?.end || 1;
+          const totalHeight = lines.length * LINE_HEIGHT;
+          yCenter = Math.min((start / totalChars) * totalHeight, totalHeight - LINE_HEIGHT / 2);
+        } else {
+          // Estimation de secours avant onTextLayout : ~45 caractères par ligne
+          const approxCharsPerLine = Math.max(20, Math.floor(contentWidth / 9));
+          const approxLine = Math.floor(start / approxCharsPerLine);
+          yCenter = approxLine * LINE_HEIGHT + LINE_HEIGHT / 2;
+        }
       }
 
       onSelect({
         index: info.index,
         text: info.text,
         y: yCenter,
+        x: xCenter,
         from: '',
         to: '',
         canonicalStart: info.canonicalStart,
         canonicalEnd: info.canonicalEnd,
       });
     },
-    [model, onSelect]
+    [contentWidth, model, onSelect, selection]
   );
-
-  // Largeur utile calée sur le conteneur standard (padding horizontal 16 + 16 = 32)
-  const contentWidth = Math.max(0, screenWidth - 32);
 
   return (
     <View style={styles.container}>
       <UITextView
         uiTextView
         selectable
+        selectionColor={theme.primary}
         onSelectionChange={handleSelectionChange}
         onTextLayout={handleTextLayout}
         style={[

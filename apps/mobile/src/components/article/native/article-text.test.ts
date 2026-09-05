@@ -257,6 +257,14 @@ describe('nativeSelectionToPopoverInfo — adapter surface morphée (4-c)', () =
     expect(info!.text).toBe('chat');
   });
 
+  it('passe la géométrie horizontale (x) pour l alignement du caret', () => {
+    const m = buildArticleText(twoParasDoc);
+    const info = nativeSelectionToPopoverInfo(m, 3, 7, 42, 185.5)!;
+    expect(info!.y).toBe(42);
+    expect(info!.x).toBe(185.5);
+    expect(info!.text).toBe('chat');
+  });
+
   it('désélection / sélection synthétique → null (pas de pill)', () => {
     const m = buildArticleText(twoParasDoc);
     expect(nativeSelectionToPopoverInfo(m, 5, 5, 0)).toBeNull();
