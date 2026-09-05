@@ -1,5 +1,5 @@
 diff --git a/ios/RNUITextView.mm b/ios/RNUITextView.mm
-index 7dabee7a6713aa56d19b6cde4357e748a2ec2b64..01f56f325cad985298fdaa517dbddab44d95efbc 100644
+index 7dabee7a6713aa56d19b6cde4357e748a2ec2b64..4bc4861afe400cdd724654ad186c1714c7689759 100644
 --- a/ios/RNUITextView.mm
 +++ b/ios/RNUITextView.mm
 @@ -107,6 +107,18 @@ - (BOOL)canBePreventedByGestureRecognizer:(UIGestureRecognizer *)preventingGestu
@@ -33,7 +33,23 @@ index 7dabee7a6713aa56d19b6cde4357e748a2ec2b64..01f56f325cad985298fdaa517dbddab4
      }
      _textView.scrollEnabled = false;
      _textView.editable = false;
-@@ -835,6 +847,13 @@ - (void)textViewDidChangeSelection:(UITextView *)textView
+@@ -371,12 +383,9 @@ - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecogni
+ - (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch
+ {
+   if (gestureRecognizer == _outsideTapRecognizer) {
+-    UIWindow *window = touch.window;
+-    if (!window) {
+-      return NO;
+-    }
+-    UIView *hitView = [window hitTest:[touch locationInView:nil] withEvent:nil];
+-    return ![hitView isDescendantOfView:self];
++    // Neutralise la détection intrusive d'outside-tap au profit du cycle
++    // de vie géré par React Native et UIKit.
++    return NO;
+   }
+   if (gestureRecognizer == _pressGestureRecognizer) {
+     const auto location = [touch locationInView:_textView];
+@@ -835,6 +844,13 @@ - (void)textViewDidChangeSelection:(UITextView *)textView
      });
  }
  

@@ -10,7 +10,7 @@ overrides:
   babel-plugin-macros: 3.1.0
 
 patchedDependencies:
-  '@bsky.app/react-native-uitextview': a5d34c9a784695b39a4f3f409c63fc4a7b9763514c29e570d98ef97f6d481b41
+  '@bsky.app/react-native-uitextview': c9abd82e338073c05739bac0ba604240c60cdcef5dadd3550b357db0c7044805
 
 importers:
 
@@ -403,7 +403,7 @@ importers:
     dependencies:
       '@bsky.app/react-native-uitextview':
         specifier: ^2.7.1
-        version: 2.7.1(patch_hash=a5d34c9a784695b39a4f3f409c63fc4a7b9763514c29e570d98ef97f6d481b41)(react-native@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)
+        version: 2.7.1(patch_hash=c9abd82e338073c05739bac0ba604240c60cdcef5dadd3550b357db0c7044805)(react-native@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)
       '@expo/ui':
         specifier: ~57.0.11
         version: 57.0.11(@babel/core@7.29.7(supports-color@8.1.1))(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(expo@57.0.14)(react-dom@19.2.3(react@19.2.3))(react-native-worklets@0.10.1(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(react-native@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)(supports-color@8.1.1))(react-native@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)
@@ -9152,7 +9152,7 @@ snapshots:
     dependencies:
       css-tree: 3.2.1
 
-  '@bsky.app/react-native-uitextview@2.7.1(patch_hash=a5d34c9a784695b39a4f3f409c63fc4a7b9763514c29e570d98ef97f6d481b41)(react-native@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)':
+  '@bsky.app/react-native-uitextview@2.7.1(patch_hash=c9abd82e338073c05739bac0ba604240c60cdcef5dadd3550b357db0c7044805)(react-native@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)':
     dependencies:
       react: 19.2.3
       react-native: 0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1)
