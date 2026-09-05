@@ -61,3 +61,6 @@ overrides:
   react: 19.2.3
   react-dom: 19.2.3
   babel-plugin-macros: 3.1.0
+
+patchedDependencies:
+  '@bsky.app/react-native-uitextview': patches/@bsky.app__react-native-uitextview.patch

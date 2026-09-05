@@ -1,0 +1,49 @@
+diff --git a/ios/RNUITextView.mm b/ios/RNUITextView.mm
+index 7dabee7a6713aa56d19b6cde4357e748a2ec2b64..01f56f325cad985298fdaa517dbddab44d95efbc 100644
+--- a/ios/RNUITextView.mm
++++ b/ios/RNUITextView.mm
+@@ -107,6 +107,18 @@ - (BOOL)canBePreventedByGestureRecognizer:(UIGestureRecognizer *)preventingGestu
+ 
+ @end
+ 
++@interface RNCustomUITextView : UITextView
++@end
++
++@implementation RNCustomUITextView
++- (BOOL)canPerformAction:(SEL)action withSender:(id)sender
++{
++  // Neutralise les actions système du popover (copier, coller, définir...)
++  // au profit du SelectionPopover personnalisé de l'application.
++  return NO;
++}
++@end
++
+ @interface RNUITextView () <RCTRNUITextViewViewProtocol, UIGestureRecognizerDelegate, UITextViewDelegate>
+ 
+ @end
+@@ -159,9 +171,9 @@ - (instancetype)initWithFrame:(CGRect)frame
+       // This component relies on NSLayoutManager for measurement, hit-testing,
+       // and press-highlight geometry. Opt into TextKit 1 up front instead of
+       // making UITextView create TextKit 2 and fall back on first access.
+-      _textView = [UITextView textViewUsingTextLayoutManager:NO];
++      _textView = [RNCustomUITextView textViewUsingTextLayoutManager:NO];
+     } else {
+-      _textView = [[UITextView alloc] init];
++      _textView = [[RNCustomUITextView alloc] init];
+     }
+     _textView.scrollEnabled = false;
+     _textView.editable = false;
+@@ -835,6 +847,13 @@ - (void)textViewDidChangeSelection:(UITextView *)textView
+     });
+ }
+ 
++- (nullable UIMenu *)textView:(UITextView *)textView editMenuForTextInRange:(NSRange)range suggestedActions:(NSArray<UIMenuElement *> *)suggestedActions API_AVAILABLE(ios(16.0))
++{
++  // Neutralise le popover d'action système iOS (Copier, Définir, Partager...)
++  // afin de laisser place exclusivement au SelectionPopover personnalisé de l'application.
++  return nil;
++}
++
+ Class<RCTComponentViewProtocol> RNUITextViewCls(void)
+ {
+   return RNUITextView.class;
