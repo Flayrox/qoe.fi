@@ -302,14 +302,11 @@ export function ArticleScreen({
                   onSpotlightMeasured={onSpotlightMeasured}
                 />
                 {selection && data.id ? (
-                  <>
-                    <Pressable style={StyleSheet.absoluteFill} onPress={() => setSelection(null)} />
-                    <SelectionPopover
-                      selection={selection}
-                      articleId={data.id}
-                      onClose={() => setSelection(null)}
-                    />
-                  </>
+                  <SelectionPopover
+                    selection={selection}
+                    articleId={data.id}
+                    onClose={() => setSelection(null)}
+                  />
                 ) : null}
               </View>
             </View>

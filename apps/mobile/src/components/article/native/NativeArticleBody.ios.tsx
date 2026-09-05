@@ -112,16 +112,12 @@ export function NativeArticleBodyIOS({
     (e: SelectionChangeEvent) => {
       const { start, end } = e.nativeEvent;
       if (start === end || start < 0 || end <= start) {
-        if (!selection) {
-          onSelect(null);
-        }
+        onSelect(null);
         return;
       }
       const info = nativeSelectionToInfo(model, start, end);
       if (!info) {
-        if (!selection) {
-          onSelect(null);
-        }
+        onSelect(null);
         return;
       }
 
