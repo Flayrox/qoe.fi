@@ -11,7 +11,7 @@
 // spring, verre adaptatif, haptiques, respect de reduceMotion.
 // =====================================================================
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -74,6 +74,8 @@ export interface GlassComposerProps {
    */
   slotExpandable?: boolean;
   position?: 'bottom' | 'floating';
+  /** Démarre immédiatement développé (utile quand ouvert depuis un bouton dédié comme Citer/Annoter). */
+  initialExpanded?: boolean;
   /** Top en pixels du mode floating (au-dessus de la sélection). */
   floatingTop?: number;
   /** Hauteur développée (défaut 120 — prévoir plus si quotedChip). */
@@ -90,6 +92,7 @@ export function GlassComposer({
   collapsedSlot,
   slotExpandable = true,
   position = 'bottom',
+  initialExpanded = false,
   floatingTop = 0,
   expandedHeight = 120,
 }: GlassComposerProps) {
@@ -107,9 +110,17 @@ export function GlassComposer({
 
   // Suivi du clavier (mode bottom uniquement — le floating reste en place).
   const keyboard = useAnimatedKeyboard({ isStatusBarTranslucentAndroid: true });
-  const isExpanded = useSharedValue(0);
+  const isExpanded = useSharedValue(initialExpanded ? 1 : 0);
   const boxScale = useSharedValue(1);
   const avatarScale = useSharedValue(1);
+
+  useEffect(() => {
+    if (initialExpanded) {
+      requestAnimationFrame(() => {
+        inputRef.current?.focus();
+      });
+    }
+  }, [initialExpanded]);
 
   const collapse = () => {
     if (reduceMotion) {
