@@ -232,6 +232,7 @@ type Querier interface {
 	GetPublicationOwner(ctx context.Context, id string) (string, error)
 	GetPublicationTypeByID(ctx context.Context, id string) (GetPublicationTypeByIDRow, error)
 	GetPublicationUmamiWebsiteId(ctx context.Context, id string) (pgtype.Text, error)
+	GetQuotedArticlesByIDs(ctx context.Context, ids []string) ([]GetQuotedArticlesByIDsRow, error)
 	GetReadingSessionDailySeries(ctx context.Context, arg GetReadingSessionDailySeriesParams) ([]GetReadingSessionDailySeriesRow, error)
 	GetRecentArticlesForAnalytics(ctx context.Context, arg GetRecentArticlesForAnalyticsParams) ([]GetRecentArticlesForAnalyticsRow, error)
 	GetRecentThoughtsForAnalytics(ctx context.Context, arg GetRecentThoughtsForAnalyticsParams) ([]GetRecentThoughtsForAnalyticsRow, error)
