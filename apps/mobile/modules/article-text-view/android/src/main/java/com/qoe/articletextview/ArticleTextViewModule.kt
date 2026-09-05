@@ -33,6 +33,11 @@ class ArticleTextViewModule : Module() {
         view.setLinkColorValue(color)
       }
 
+      // Couleur de sélection et des poignées (thème).
+      Prop("selectionColor") { view: ArticleTextView, color: Int ->
+        view.setSelectionColorValue(color)
+      }
+
       Prop("fontSize") { view: ArticleTextView, size: Float ->
         view.setFontSizeSp(size)
       }

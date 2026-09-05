@@ -36,6 +36,8 @@ export interface SelectionInfo {
   text: string;
   /** Position Y du début du passage (relative au conteneur d'article). */
   y: number;
+  /** Position X (horizontale) du centre du passage pour aligner la flèche (caret). */
+  x?: number;
   /** Bornes token de la sélection (peinture inline pendant le popover). */
   from: string;
   to: string;

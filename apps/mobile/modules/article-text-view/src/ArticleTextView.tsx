@@ -70,6 +70,8 @@ export type ArticleTextViewProps = ViewProps & {
   lineHeight?: number;
   /** Largeur (dp) utilisée par la mesure native de la hauteur du contenu. */
   measureWidth?: number;
+  /** Couleur de sélection et des poignées (ARGB, thème). */
+  selectionColor?: number;
   /** Changement de sélection native (offsets UTF-16 du texte affiché). */
   onSelectionChange?: (event: { nativeEvent: ArticleTextViewSelection }) => void;
   /** Hauteur de contenu mesurée par le natif (dp) — alimente le style. */

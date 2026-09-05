@@ -80,7 +80,8 @@ export function nativeSelectionToPopoverInfo(
   model: ArticleTextModel,
   a: number,
   b: number,
-  y: number
+  y: number,
+  x?: number
 ): SelectionInfo | null {
   const info = nativeSelectionToInfo(model, a, b);
   if (!info) return null;
@@ -88,6 +89,7 @@ export function nativeSelectionToPopoverInfo(
     index: info.index,
     text: info.text,
     y,
+    ...(x !== undefined ? { x } : {}),
     from: '',
     to: '',
     canonicalStart: info.canonicalStart,

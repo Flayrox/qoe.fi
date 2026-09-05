@@ -1,6 +1,8 @@
 package com.qoe.articletextview
 
 import android.content.Context
+import android.graphics.BlendMode
+import android.graphics.BlendModeColorFilter
 import android.graphics.Typeface
 import android.os.Build
 import android.text.Spannable
@@ -62,6 +64,7 @@ class ArticleTextView(context: Context) : TextView(context) {
   private var pendingParagraphs: List<Map<String, Any>>? = null
   private var pendingTextColor: Int = 0xFF111111.toInt()
   private var pendingLinkColor: Int = 0xFF0B6BCB.toInt()
+  private var pendingSelectionColor: Int? = null
   private var pendingFontSizeSp: Float = 17f
   private var pendingLineHeightSp: Float = 0f
   /** Largeur (dp) de mesure fournie par le JS — la vue est mesurée par
@@ -118,6 +121,7 @@ class ArticleTextView(context: Context) : TextView(context) {
     try {
       setTextColor(pendingTextColor)
       setLinkTextColor(pendingLinkColor)
+      pendingSelectionColor?.let { applySelectionColors(it) }
       setTextSize(TypedValue.COMPLEX_UNIT_SP, pendingFontSizeSp)
       val textSizePx = paint.textSize
       val extraPx =
@@ -277,6 +281,40 @@ class ArticleTextView(context: Context) : TextView(context) {
     pendingLinkColor = color
   }
 
+  fun setSelectionColorValue(color: Int) {
+    pendingSelectionColor = color
+    applySelectionColors(color)
+  }
+
+  private fun applySelectionColors(color: Int) {
+    // 1. Fond de texte surligné (~33% d'opacité, ex: 0x55E86034)
+    val highlightAlpha = 0x55
+    val highlight = (color and 0x00FFFFFF) or (highlightAlpha shl 24)
+    highlightColor = highlight
+
+    // 2. Poignées de sélection Android (droplets natives) en couleur pleine
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+      try {
+        val solidColor = (color and 0x00FFFFFF) or (0xFF shl 24)
+        val filter = BlendModeColorFilter(solidColor, BlendMode.SRC_IN)
+        textSelectHandle?.mutate()?.let {
+          it.colorFilter = filter
+          setTextSelectHandle(it)
+        }
+        textSelectHandleLeft?.mutate()?.let {
+          it.colorFilter = filter
+          setTextSelectHandleLeft(it)
+        }
+        textSelectHandleRight?.mutate()?.let {
+          it.colorFilter = filter
+          setTextSelectHandleRight(it)
+        }
+      } catch (_: Throwable) {
+        // Sécurité si drawables système non modifiables
+      }
+    }
+  }
+
   fun setFontSizeSp(size: Float) {
     pendingFontSizeSp = size
   }
@@ -348,10 +386,11 @@ class ArticleTextView(context: Context) : TextView(context) {
     super.onSelectionChanged(selStart, selEnd)
     if (updatingText) return
     if (hasSelection()) {
+      pendingSelectionColor?.let { applySelectionColors(it) }
       val lo = minOf(selStart, selEnd)
       val hi = maxOf(selStart, selEnd)
       val payload = mutableMapOf<String, Any>("location" to lo, "length" to (hi - lo))
-      // Géométrie (4-c) : centre vertical de la 1re ligne sélectionnée, en
+      // Géométrie (4-c) : centre vertical et horizontal de la 1re ligne sélectionnée, en
       // dp relatif au haut de la vue — même sémantique que yCenter du
       // moteur tokens → la pill de la surface morphée s'ancre au même
       // endroit que sur le moteur hérité.
@@ -362,7 +401,10 @@ class ArticleTextView(context: Context) : TextView(context) {
         val bottomPx = l.getLineBottom(line).toFloat()
         val yDp = (topPx + bottomPx) / 2f / density
         val lineHeightDp = (bottomPx - topPx) / density
-        val xDp = l.getPrimaryHorizontal(lo) / density
+        val lineEndOffset = minOf(hi, l.getLineEnd(line))
+        val startX = l.getPrimaryHorizontal(lo)
+        val endX = l.getPrimaryHorizontal(lineEndOffset)
+        val xDp = ((startX + endX) / 2f) / density
         payload["y"] = yDp
         payload["lineHeight"] = lineHeightDp
         payload["x"] = xDp

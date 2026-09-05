@@ -36,6 +36,7 @@ const LINE_HEIGHT = 26;
 export function NativeArticleBodyAndroid({
   document,
   highlights = [],
+  selection,
   onSelect,
   spotlight,
   onSpotlightMeasured,
@@ -102,19 +103,24 @@ export function NativeArticleBodyAndroid({
   // 6. Couleurs du thème converties en ARGB pour Android
   const textColor = useMemo(() => hexToArgb(theme.text), [theme.text]);
   const linkColor = useMemo(() => hexToArgb(theme.primary), [theme.primary]);
+  const selectionColor = useMemo(() => hexToArgb(theme.primary), [theme.primary]);
 
   // 7. Handlers natifs
   const handleSelectionChange = useCallback(
     (e: { nativeEvent: ArticleTextViewSelection }) => {
-      const { location, length, y } = e.nativeEvent;
+      const { location, length, y, x } = e.nativeEvent;
       if (location < 0 || length <= 0) {
-        onSelect(null);
+        // Ne pas écraser une sélection déjà active (ex: focus déplacé vers le composer,
+        // tap sur un bouton de la popover). La popover se ferme via son backdrop ou onClose.
+        if (!selection) {
+          onSelect(null);
+        }
         return;
       }
-      const info = nativeSelectionToPopoverInfo(model, location, location + length, y ?? 0);
+      const info = nativeSelectionToPopoverInfo(model, location, location + length, y ?? 0, x);
       onSelect(info);
     },
-    [model, onSelect]
+    [model, onSelect, selection]
   );
 
   const handleContentHeight = useCallback((e: { nativeEvent: ArticleTextViewContentHeight }) => {
@@ -145,6 +151,7 @@ export function NativeArticleBodyAndroid({
         paragraphs={paragraphs}
         textColor={textColor}
         linkColor={linkColor}
+        selectionColor={selectionColor}
         fontSize={FONT_SIZE}
         lineHeight={LINE_HEIGHT}
         measureWidth={measureWidth}
