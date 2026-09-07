@@ -61,17 +61,23 @@ function RootNavigator() {
   );
 }
 
-export default function RootLayout() {
+function RootWithTheme() {
   const colorScheme = useColorScheme();
+  return (
+    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <AppProviders>
+        <AnimatedSplashOverlay />
+        <RootNavigator />
+      </AppProviders>
+    </ThemeProvider>
+  );
+}
+
+export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemePreferenceProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <AppProviders>
-            <AnimatedSplashOverlay />
-            <RootNavigator />
-          </AppProviders>
-        </ThemeProvider>
+        <RootWithTheme />
       </ThemePreferenceProvider>
     </GestureHandlerRootView>
   );

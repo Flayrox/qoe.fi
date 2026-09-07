@@ -1,5 +1,5 @@
 import React from 'react';
-import { Appearance, StyleProp, StyleSheet, useColorScheme, View, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
@@ -9,6 +9,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useReduceMotion } from '@/hooks/use-user-settings';
 
 import { AdaptiveGlassView } from './AdaptiveGlassView';
@@ -46,7 +47,7 @@ export function LiquidElasticButton({
   style,
 }: LiquidElasticButtonProps) {
   const scheme = useColorScheme();
-  const isDark = scheme === 'dark' || Appearance.getColorScheme() === 'dark';
+  const isDark = scheme === 'dark';
   const reduceMotion = useReduceMotion();
 
   const translateX = useSharedValue(0);

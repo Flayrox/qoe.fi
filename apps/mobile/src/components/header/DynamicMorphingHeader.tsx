@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Appearance, Modal, Pressable, StyleSheet, useColorScheme, View } from 'react-native';
+import { Modal, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -18,6 +18,7 @@ import { QoeLogo } from '@/components/header/QoeLogo';
 import { LiquidElasticButton } from '@/components/liquid-tab-bar/LiquidElasticButton';
 import { AdaptiveGlassView } from '@/components/liquid-tab-bar/AdaptiveGlassView';
 import { Spacing } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 import { t } from '@/lib/i18n';
 
@@ -42,7 +43,7 @@ export function DynamicMorphingHeader({
 }: DynamicMorphingHeaderProps) {
   const theme = useTheme();
   const scheme = useColorScheme();
-  const isDark = scheme === 'dark' || Appearance.getColorScheme() === 'dark';
+  const isDark = scheme === 'dark';
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 

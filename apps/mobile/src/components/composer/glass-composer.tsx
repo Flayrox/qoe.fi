@@ -21,9 +21,9 @@ import {
   StyleSheet,
   TextInput,
   TouchableOpacity,
-  useColorScheme,
   View,
 } from 'react-native';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import Animated, {
   Easing,
   Extrapolation,
