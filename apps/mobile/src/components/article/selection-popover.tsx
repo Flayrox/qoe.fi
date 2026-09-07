@@ -16,19 +16,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
 import { X } from 'lucide-react-native';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  View,
-  useColorScheme,
-  useWindowDimensions,
-} from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 
 import { GlassComposer } from '@/components/composer/glass-composer';
 import { ThemedText } from '@/components/themed-text';
 import { Toast } from '@/components/ui/toast';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 import { apiClient } from '@/lib/api';
 import { playHaptic } from '@/lib/haptics';
@@ -225,12 +219,15 @@ function AppleCalloutMenu({
   const isDark = scheme === 'dark';
   const [pillWidth, setPillWidth] = useState(290);
 
-  // Signature Apple : capsule sombre avec typographie blanche et contraste maximal
-  const bg = isDark ? '#2C2C30' : '#1C1C1E';
-  const border = isDark ? 'rgba(255, 255, 255, 0.22)' : 'rgba(255, 255, 255, 0.16)';
-  const textColor = '#FFFFFF';
-  const separatorColor = 'rgba(255, 255, 255, 0.20)';
-  const pressedBg = 'rgba(255, 255, 255, 0.18)';
+  // Signature Apple Callout : s'adapte avec précision au thème clair / sombre
+  // Mode clair : capsule blanche Apple Callout, texte noir SF Pro, caret blanc
+  // Mode sombre : capsule noire dépolie #1C1C1E, texte blanc SF Pro, caret sombre
+  const bg = isDark ? '#1C1C1E' : '#FFFFFF';
+  const border = isDark ? 'rgba(255, 255, 255, 0.18)' : 'rgba(0, 0, 0, 0.12)';
+  const textColor = isDark ? '#FFFFFF' : '#000000';
+  const separatorColor = isDark ? 'rgba(255, 255, 255, 0.18)' : 'rgba(0, 0, 0, 0.10)';
+  const pressedBg = isDark ? 'rgba(255, 255, 255, 0.18)' : 'rgba(0, 0, 0, 0.07)';
+  const shadowOpacity = isDark ? 0.32 : 0.14;
 
   // Positionnement dynamique style Apple :
   // 1. La capsule se centre autour du passage sélectionné (targetX) et est
@@ -267,7 +264,14 @@ function AppleCalloutMenu({
         />
       )}
       <View
-        style={[styles.applePill, { backgroundColor: bg, borderColor: border }]}
+        style={[
+          styles.applePill,
+          {
+            backgroundColor: bg,
+            borderColor: border,
+            shadowOpacity,
+          },
+        ]}
         collapsable={false}
         onStartShouldSetResponder={() => true}
         onLayout={(e) => {
