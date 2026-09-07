@@ -1,13 +1,6 @@
 import React, { useContext, useEffect, useMemo } from 'react';
-import {
-  Appearance,
-  Image,
-  Platform,
-  StyleSheet,
-  useColorScheme,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { Image, Platform, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { Ionicons, Feather } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import * as Haptics from 'expo-haptics';
@@ -213,7 +206,7 @@ export function LiquidTabBar({
   onProfilePress,
 }: LiquidTabBarProps) {
   const scheme = useColorScheme();
-  const isDark = scheme === 'dark' || Appearance.getColorScheme() === 'dark';
+  const isDark = scheme === 'dark';
   const reduceMotion = useReduceMotion();
 
   const bottomOffset =

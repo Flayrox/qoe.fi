@@ -37,6 +37,18 @@ function systemScheme(): 'light' | 'dark' {
   return Appearance.getColorScheme() === 'dark' ? 'dark' : 'light';
 }
 
+function syncNativeAppearance(pref: ThemePreference) {
+  try {
+    if (pref === 'light' || pref === 'dark') {
+      Appearance.setColorScheme(pref);
+    } else {
+      Appearance.setColorScheme('unspecified');
+    }
+  } catch {
+    // Sécurité si non supporté sur certains runtimes
+  }
+}
+
 export function ThemePreferenceProvider({ children }: PropsWithChildren) {
   // Pendant le chargement, on suit le système (évite un flash de thème).
   const [preference, setPreferenceState] = useState<ThemePreference>('system');
@@ -49,6 +61,7 @@ export function ThemePreferenceProvider({ children }: PropsWithChildren) {
         if (!active) return;
         if (raw === 'light' || raw === 'dark' || raw === 'system') {
           setPreferenceState(raw);
+          syncNativeAppearance(raw);
         }
       })
       .catch(() => {
@@ -78,6 +91,7 @@ export function ThemePreferenceProvider({ children }: PropsWithChildren) {
 
   const setPreference = useCallback((next: ThemePreference) => {
     setPreferenceState(next);
+    syncNativeAppearance(next);
     AsyncStorage.setItem(STORAGE_KEY, next).catch(() => {
       // persistance en échec → le choix reste valide pour la session
     });

@@ -1,7 +1,9 @@
 import React from 'react';
-import { Appearance, StyleSheet, useColorScheme, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+
+import { useColorScheme } from '@/hooks/use-color-scheme';
 
 interface ProgressiveTopVignetteProps {
   height?: number;
@@ -15,7 +17,7 @@ interface ProgressiveTopVignetteProps {
  */
 export function ProgressiveBlurVignette({ height = 100 }: ProgressiveTopVignetteProps) {
   const scheme = useColorScheme();
-  const isDark = scheme === 'dark' || Appearance.getColorScheme() === 'dark';
+  const isDark = scheme === 'dark';
 
   const blurTint = isDark ? 'systemUltraThinMaterialDark' : 'systemUltraThinMaterialLight';
 

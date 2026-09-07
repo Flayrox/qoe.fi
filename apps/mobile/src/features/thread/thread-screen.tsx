@@ -8,7 +8,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
-import { Appearance, Platform, Pressable, StyleSheet, useColorScheme, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import Animated, {
   interpolate,
   useAnimatedScrollHandler,
@@ -32,6 +32,7 @@ import { ThreadAnchorCard } from '@/features/thread/thread-anchor-card';
 import { ThreadPost, OUTER_SPACE } from '@/features/thread/thread-post';
 import { ThreadReplyComposer } from '@/features/thread/thread-reply-composer';
 import { Spacing } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 import { apiClient } from '@/lib/api';
 import { t } from '@/lib/i18n';
@@ -45,7 +46,7 @@ const MAX_VISIBLE_REPLIES = 3;
 export function ThreadScreen({ postId }: { postId: string }) {
   const theme = useTheme();
   const scheme = useColorScheme();
-  const isDark = scheme === 'dark' || Appearance.getColorScheme() === 'dark';
+  const isDark = scheme === 'dark';
   const scrollY = useSharedValue(0);
 
   const onScrollHandler = useAnimatedScrollHandler({
