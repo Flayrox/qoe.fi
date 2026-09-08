@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useEffect } from 'react';
-import { useVirtualizer } from '@tanstack/react-virtual';
+import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import { ThoughtCardSkeleton } from '../social/ThoughtCardSkeleton';
 
 export interface VirtualizedFeedListProps<T> {
@@ -26,33 +26,38 @@ export function VirtualizedFeedList<T>({
   keyExtractor,
 }: VirtualizedFeedListProps<T>) {
   const parentRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
-  // The document owns scrolling so the sheet and its feed move as one surface.
-  // Keeping this wrapper non-scrollable also prevents a second wheel target.
+  // Le document gère le scroll global
   const totalCount = items.length + (hasNextPage ? 1 : 0);
 
-  const rowVirtualizer = useVirtualizer({
+  const rowVirtualizer = useWindowVirtualizer({
     count: totalCount,
-    getScrollElement: () => parentRef.current,
     estimateSize: () => estimateSize,
     overscan,
+    scrollMargin: parentRef.current?.offsetTop ?? 0,
   });
 
   const virtualItems = rowVirtualizer.getVirtualItems();
-  const lastVirtualIndex = virtualItems[virtualItems.length - 1]?.index ?? -1;
 
-  // Trigger fetchNextPage when scrolling near the last item
+  // Déclenchement de fetchNextPage UNIQUEMENT quand l'utilisateur approche du bas
   useEffect(() => {
-    if (lastVirtualIndex < 0) return;
-    if (
-      lastVirtualIndex >= items.length - 1 &&
-      hasNextPage &&
-      !isFetchingNextPage &&
-      fetchNextPage
-    ) {
-      fetchNextPage();
-    }
-  }, [lastVirtualIndex, items.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
+    if (!hasNextPage || isFetchingNextPage || !fetchNextPage) return;
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          fetchNextPage();
+        }
+      },
+      { rootMargin: '400px' }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   return (
     <div ref={parentRef} className="w-full space-y-4 pr-1">
@@ -78,7 +83,7 @@ export function VirtualizedFeedList<T>({
               ref={rowVirtualizer.measureElement}
               className="absolute top-0 left-0 w-full pb-4"
               style={{
-                transform: `translateY(${virtualRow.start}px)`,
+                transform: `translateY(${virtualRow.start - (rowVirtualizer.options.scrollMargin ?? 0)}px)`,
               }}
             >
               {isLoaderRow ? <ThoughtCardSkeleton /> : renderItem(item, virtualRow.index)}
@@ -86,6 +91,8 @@ export function VirtualizedFeedList<T>({
           );
         })}
       </div>
+      {/* Sentinelle en bas de liste pour déclencher le chargement uniquement au scroll réel */}
+      {hasNextPage && <div ref={sentinelRef} className="h-8 w-full" />}
     </div>
   );
 }

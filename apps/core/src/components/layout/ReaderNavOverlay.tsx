@@ -59,32 +59,36 @@ export function ReaderNavOverlay({
     : '/settings';
 
   const navItems = [
-    { label: t`Accueil`, href: routes.feed.home(), icon: Home },
+    { id: 'home', label: t`Accueil`, href: routes.feed.home(), icon: Home },
     {
+      id: 'notifications',
       label: t`Notifications`,
       href: '/notifications',
       icon: Bell,
       badge: showNotificationBadge ? unreadCount : 0,
     },
     {
+      id: 'messages',
       label: t`Messages`,
       href: '/messages',
       icon: Mail,
       badge: showMessagesBadge ? unreadMessages : 0,
     },
-    { label: t`Signets`, href: routes.feed.library(), icon: Bookmark },
+    { id: 'library', label: t`Signets`, href: routes.feed.library(), icon: Bookmark },
     {
+      id: 'highlights',
       label: t`Surlignages`,
       href: routes.feed.highlights(),
       icon: Highlighter,
     },
     {
+      id: 'billing',
       label: t`Portefeuille`,
       href: routes.feed.billing(),
       icon: Wallet,
     },
-    { label: t`Mon profil`, href: profileHref, icon: UserRound },
-    { label: t`Réglages`, href: '/settings', icon: Settings },
+    { id: 'profile', label: t`Mon profil`, href: profileHref, icon: UserRound },
+    { id: 'settings', label: t`Réglages`, href: '/settings', icon: Settings },
   ];
 
   const isItemActive = (href: string) => {
@@ -132,7 +136,7 @@ export function ReaderNavOverlay({
 
             return (
               <Link
-                key={item.href}
+                key={item.id}
                 href={item.href}
                 className={cn(
                   'relative flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors outline-none',
