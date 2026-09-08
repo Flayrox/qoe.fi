@@ -270,11 +270,28 @@ export function ProfileScreen({
 
               {/* Avatar chevauchant la bannière & Bouton d'action */}
               <View style={styles.avatarRow}>
-                <Avatar
-                  user={{ name: profile.name, username: handle, logoUrl: profile.logoUrl }}
-                  size="lg"
-                  showCertified={profile.isCertified}
-                />
+                <View
+                  style={[
+                    styles.profileAvatarContainer,
+                    {
+                      borderColor: theme.background,
+                      borderRadius: profile.type === 'MEDIA' ? 22 : 9999,
+                    },
+                  ]}
+                >
+                  <Avatar
+                    user={{
+                      name: profile.name,
+                      username: handle,
+                      logoUrl: profile.logoUrl,
+                      type: profile.type,
+                    }}
+                    sizeNumber={78}
+                    shape={profile.type === 'MEDIA' ? 'squircle' : 'circle'}
+                    type={profile.type}
+                    showCertified={profile.isCertified}
+                  />
+                </View>
                 <View style={styles.actionWrap}>
                   {!isOwn && profile.type === 'PERSONAL' && profile.ownerUserId ? (
                     <Pressable
@@ -498,6 +515,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     marginTop: -38, // fait chevaucher harmonieusement l'avatar sur la bannière
     zIndex: 2,
+  },
+  profileAvatarContainer: {
+    borderWidth: 3,
+    overflow: 'hidden',
   },
   actionWrap: {
     marginBottom: Spacing.one,

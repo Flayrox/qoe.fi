@@ -12,6 +12,8 @@ export interface PreviewableUserAvatarProps extends UserAvatarProps {
 export function PreviewableUserAvatar({
   user,
   size = 'md',
+  shape,
+  type,
   className,
   showBadge = false,
   onOpenProfile,
@@ -25,6 +27,8 @@ export function PreviewableUserAvatar({
       <UserAvatar
         user={user}
         size={size}
+        shape={shape}
+        type={type}
         className={className}
         showBadge={showBadge}
         onClick={onClick}
@@ -34,7 +38,14 @@ export function PreviewableUserAvatar({
 
   return (
     <ProfileHoverCard user={user} username={username} onOpenProfile={onOpenProfile}>
-      <UserAvatar user={user} size={size} className={className} showBadge={showBadge} />
+      <UserAvatar
+        user={user}
+        size={size}
+        shape={shape}
+        type={type}
+        className={className}
+        showBadge={showBadge}
+      />
     </ProfileHoverCard>
   );
 }
