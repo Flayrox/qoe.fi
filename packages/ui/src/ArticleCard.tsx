@@ -42,7 +42,9 @@ function ProfileMark({ author, size = 40 }: { author: FeedArticleDTO['author']; 
       name={author.name}
       username={author.username}
       size={size}
-      className={cn(isMedia ? 'rounded-[12px]' : 'rounded-full', 'border border-border/60')}
+      type={author.type}
+      shape={isMedia ? 'squircle' : 'circle'}
+      className="border border-border/60"
     />
   );
 }

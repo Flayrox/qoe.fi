@@ -234,25 +234,23 @@ export function ProfileView({
           <div className="px-5 sm:px-6 pb-6 relative">
             {/* Avatar & Action Button Row */}
             <div className="flex items-end justify-between -mt-12 sm:-mt-16 mb-4">
-              <div className="ring-4 ring-card rounded-2xl overflow-hidden bg-card">
-                {user.type === 'MEDIA' ? (
-                  <div className="w-24 h-24 sm:w-28 sm:h-28 relative bg-muted">
-                    {user.logoUrl ? (
-                      <Image
-                        src={user.logoUrl}
-                        alt={user.name || ''}
-                        fill
-                        className="object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-brand/10 flex items-center justify-center font-black text-2xl text-brand">
-                        {user.name?.substring(0, 2) || 'NA'}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <AuthorAvatar user={user} size="2xl" showBadge={false} />
+              <div
+                className={cn(
+                  'ring-4 ring-card overflow-hidden bg-card shrink-0 select-none shadow-md',
+                  user.type === 'MEDIA' ? 'rounded-2xl' : 'rounded-full'
                 )}
+              >
+                <AuthorAvatar
+                  user={{
+                    ...user,
+                    type: user.type,
+                  }}
+                  size="2xl"
+                  type={user.type}
+                  shape={user.type === 'MEDIA' ? 'squircle' : 'circle'}
+                  showBadge={false}
+                  disableHoverCard
+                />
               </div>
 
               {isOwnProfile ? (

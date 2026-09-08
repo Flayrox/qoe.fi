@@ -12,3 +12,4 @@ export { ThemeProvider, THEME_COOKIE, readThemeCookie, writeThemeCookie } from '
 export { ThemeSeedScript } from './seed-script';
 export { ThemeStyle, buildCreatorVars } from './ThemeStyle';
 export { token, tokens } from './tokens';
+export * from './avatar-themes';

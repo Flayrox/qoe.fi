@@ -15,8 +15,11 @@ export interface UserAvatarProps {
     subdomain?: string | null;
     logoUrl?: string | null;
     isCertified?: boolean;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
   } | null;
   size?: AvatarSize;
+  shape?: 'circle' | 'squircle';
+  type?: 'PERSONAL' | 'MEDIA' | string | null;
   className?: string;
   showBadge?: boolean;
   onClick?: (e: React.MouseEvent) => void;
@@ -43,6 +46,8 @@ const badgePixels: Record<AvatarSize, number> = {
 export function UserAvatar({
   user,
   size = 'md',
+  shape,
+  type,
   className,
   showBadge = false,
   onClick,
@@ -52,6 +57,7 @@ export function UserAvatar({
   const isCertified = user?.isCertified || false;
   const pixelSize = sizePixels[size] || 40;
   const badgeSize = badgePixels[size] || 14;
+  const resolvedType = type || user?.type;
 
   return (
     <div
@@ -67,6 +73,8 @@ export function UserAvatar({
         name={name}
         username={user?.username}
         size={pixelSize}
+        shape={shape}
+        type={resolvedType}
         className="transition-transform duration-200 group-hover/avatar:scale-[1.02] border border-border/40"
       />
 

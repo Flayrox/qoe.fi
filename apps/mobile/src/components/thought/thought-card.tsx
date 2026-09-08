@@ -21,6 +21,7 @@ import { RepliedTo } from '@/components/thought/replied-to';
 import { RepostBanner } from '@/components/thought/repost-banner';
 import { ThoughtActions } from '@/components/thought/thought-actions';
 import { ThoughtHeader } from '@/components/thought/thought-header';
+import { Avatar } from '@/components/thought/avatar';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 import { t } from '@/lib/i18n';
@@ -124,27 +125,11 @@ export function ThoughtCard({
           ) : null}
 
           <Pressable onPress={() => openProfile(display.author.username || display.author.id)}>
-            <View style={styles.avatarWrap}>
-              {display.author.logoUrl ? (
-                <Image
-                  source={{ uri: display.author.logoUrl }}
-                  style={styles.avatar}
-                  contentFit="cover"
-                  transition={150}
-                />
-              ) : (
-                <ThemedView
-                  type="backgroundSelected"
-                  style={[styles.avatar, styles.avatarFallback]}
-                >
-                  <ThemedText style={styles.avatarInitial}>
-                    {(display.author.name || display.author.username || '?')
-                      .charAt(0)
-                      .toUpperCase()}
-                  </ThemedText>
-                </ThemedView>
-              )}
-            </View>
+            <Avatar
+              user={display.author}
+              sizeNumber={42}
+              showCertified={display.author.isCertified}
+            />
           </Pressable>
 
           {/* Connecteur descendant vers le post enfant */}
