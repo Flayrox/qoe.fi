@@ -1,5 +1,7 @@
 import { DarkTheme, DefaultTheme, ThemeProvider, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { useEffect } from 'react';
+import { AppState } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
@@ -8,6 +10,7 @@ import { ThemePreferenceProvider } from '@/context/theme-provider';
 import { useAuth } from '@/features/auth/auth-provider';
 import { LoginScreen } from '@/features/auth/login-screen';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { flushPendingHighlights, loadPendingHighlights } from '@/lib/highlight-queue';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -20,6 +23,18 @@ SplashScreen.preventAutoHideAsync();
 // ─────────────────────────────────────────────────────────────────────
 function RootNavigator() {
   const { session, isLoading } = useAuth();
+
+  // 📥 Synchro de la file de surlignages LOCAUX : au démarrage (session
+  // prête) et à chaque retour au premier plan — rattrapage hors-ligne.
+  // Non bloquant, single-flight (voir lib/highlight-queue).
+  useEffect(() => {
+    if (isLoading || !session) return;
+    void loadPendingHighlights().then(() => flushPendingHighlights());
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void flushPendingHighlights();
+    });
+    return () => sub.remove();
+  }, [isLoading, session]);
 
   // Pendant le chargement de la session, on laisse le splash couvrir l'écran.
   if (isLoading) {

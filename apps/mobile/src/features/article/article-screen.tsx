@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -22,8 +22,11 @@ import { LiquidElasticButton } from '@/components/liquid-tab-bar/LiquidElasticBu
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
+import { useAuth } from '@/features/auth/auth-provider';
 import { useTheme } from '@/hooks/use-theme';
 import { apiClient } from '@/lib/api';
+import { flushPendingHighlights, usePendingHighlightCreates } from '@/lib/highlight-queue';
+import { toLocalHighlight } from '@/lib/highlight-queue-core';
 import { t } from '@/lib/i18n';
 import { feedKeys } from '@qoe/sdk/mobile';
 
@@ -52,6 +55,8 @@ export function ArticleScreen({
   spotlight?: { start: number; end: number; sha: string } | null;
 }) {
   const theme = useTheme();
+  const { session } = useAuth();
+  const myId = session?.user?.id;
   const scrollY = useSharedValue(0);
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
   // Ref sur le wrapper du contenu (mesure WINDOW pour le scroll deep-link).
@@ -113,6 +118,10 @@ export function ArticleScreen({
     enabled: Boolean(data?.id),
   });
 
+  // 🖍️ Surlignages en attente de synchro (enregistrés EN LOCAL à la volée,
+  // sans attendre le réseau — voir lib/highlight-queue).
+  const pendingCreates = usePendingHighlightCreates(data?.id ?? '');
+
   // Tranche 1-d — document canonique (blocs serveur + marques par offsets).
   // Jamais pour un article verrouillé : le document complet n'est pas
   // téléchargé si le contenu a été tronqué (zéro-fuite du paywall).
@@ -126,6 +135,22 @@ export function ArticleScreen({
     },
     enabled: Boolean(data?.id) && !data?.isTruncated && data?.accessGranted !== false,
   });
+
+  // Fusion optimiste : surlignages serveur + créations locales en attente.
+  // Le <mark> apparaît INSTANTANÉMENT à l'écran (ancres canoniques calculées
+  // localement pour le rendu natif, repli text+quoteOrdinal sinon), puis la
+  // file les synchronise en arrière-plan (l'optimiste est remplacé par la
+  // version serveur dans le cache sans flicker).
+  const mergedHighlights = useMemo(() => {
+    const locals = pendingCreates.map((p) => toLocalHighlight(p, myId, canonicalDocument ?? null));
+    return [...locals, ...(highlights ?? [])];
+  }, [pendingCreates, highlights, myId, canonicalDocument]);
+
+  // À l'ouverture d'un article, on tente une synchro de la file (rattrapage
+  // après une session hors-ligne). Non bloquant.
+  useEffect(() => {
+    void flushPendingHighlights();
+  }, [data?.id]);
 
   // État bookmark (optimiste local). Le Go ne renvoie pas l'état initial —
   // on le déduit de la bibliothèque au chargement.
@@ -293,7 +318,7 @@ export function ArticleScreen({
               <View style={styles.articleWrap}>
                 <ArticleBody
                   html={data.content}
-                  highlights={highlights ?? []}
+                  highlights={mergedHighlights}
                   document={canonicalDocument ?? undefined}
                   selection={selection}
                   onSelect={setSelection}
@@ -313,7 +338,9 @@ export function ArticleScreen({
           ) : null}
 
           {/* Surlignages (publics + les miens) */}
-          {data.id ? <ArticleHighlights articleId={data.id} /> : null}
+          {data.id ? (
+            <ArticleHighlights articleId={data.id} pendingCreates={pendingCreates} />
+          ) : null}
 
           {/* 🧠 À lire aussi — recommandations sémantiques (pgvector) */}
           {data.id ? <SimilarArticles articleId={data.id} /> : null}
