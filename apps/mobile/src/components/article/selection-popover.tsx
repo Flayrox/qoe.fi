@@ -16,7 +16,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import * as Clipboard from 'expo-clipboard';
 import { X } from 'lucide-react-native';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeInDown, FadeOutDown } from 'react-native-reanimated';
 
 import { GlassComposer } from '@/components/composer/glass-composer';
@@ -26,6 +26,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useTheme } from '@/hooks/use-theme';
 import { apiClient } from '@/lib/api';
 import { playHaptic } from '@/lib/haptics';
+import { enqueueHighlightCreate, flushPendingHighlights } from '@/lib/highlight-queue';
 import { t } from '@/lib/i18n';
 import { feedKeys } from '@qoe/sdk/mobile';
 import type { SelectionInfo } from '@/components/article/html-blocks';
@@ -45,12 +46,10 @@ export function SelectionPopover({
   articleId: string;
   onClose: () => void;
 }) {
-  const theme = useTheme();
   const queryClient = useQueryClient();
   const { width: windowWidth } = useWindowDimensions();
   const [containerWidth, setContainerWidth] = useState(() => Math.max(0, windowWidth - 32));
   const [mode, setMode] = useState<PopoverMode>('toolbar');
-  const [busy, setBusy] = useState(false);
 
   // Flip intelligent style Apple : si le texte sélectionné est tout en haut
   // (ligne 0, < 40px), on place le menu en-dessous de la ligne avec pointe vers
@@ -73,22 +72,21 @@ export function SelectionPopover({
     void queryClient.invalidateQueries({ queryKey: feedKeys.all });
   };
 
+  /** Surligner : INSTANTANÉ — enregistrement local + synchro différée. */
   const handleHighlight = async () => {
-    if (busy) return;
-    setBusy(true);
     try {
-      const res = await apiClient.createHighlight(articleId, {
+      await enqueueHighlightCreate({
+        articleId,
         text: selection.text,
         quoteOrdinal: selection.index,
         isPublic: false,
       });
-      if (!res.ok) throw new Error(res.error);
-      invalidate();
+      // Synchro en arrière-plan (file d'attente) — jamais bloquant.
+      void flushPendingHighlights();
       Toast.show(t('article.selection_highlight_done', 'Passage surligné'), 'success');
       onClose();
     } catch {
       Toast.show(t('article.selection_error', "Impossible d'envoyer"), 'error');
-      setBusy(false);
     }
   };
 
@@ -102,18 +100,22 @@ export function SelectionPopover({
     onClose();
   };
 
-  /** Annoter : crée un surlignage avec la note saisie. */
+  /** Annoter : surlignage avec note — INSTANTANÉ (local + synchro différée). */
   const handleSubmitNote = async (note: string) => {
-    const res = await apiClient.createHighlight(articleId, {
-      text: selection.text,
-      note: note.trim(),
-      quoteOrdinal: selection.index,
-      isPublic: false,
-    });
-    if (!res.ok) throw new Error(res.error);
-    invalidate();
-    Toast.show(t('article.selection_note_done', 'Annotation ajoutée'), 'success');
-    onClose();
+    try {
+      await enqueueHighlightCreate({
+        articleId,
+        text: selection.text,
+        note: note.trim(),
+        quoteOrdinal: selection.index,
+        isPublic: false,
+      });
+      void flushPendingHighlights();
+      Toast.show(t('article.selection_note_done', 'Annotation ajoutée'), 'success');
+      onClose();
+    } catch {
+      Toast.show(t('article.selection_error', "Impossible d'envoyer"), 'error');
+    }
   };
 
   /** Citer : crée une pensée citant l'article + l'extrait (contrat web). */
@@ -146,7 +148,6 @@ export function SelectionPopover({
           isAbove={isAbove}
           targetX={selection.x}
           containerWidth={containerWidth}
-          busy={busy}
           onHighlight={() => void handleHighlight()}
           onQuote={() => {
             playHaptic('Light');
@@ -198,7 +199,6 @@ interface AppleCalloutMenuProps {
   isAbove: boolean;
   targetX?: number;
   containerWidth: number;
-  busy: boolean;
   onHighlight: () => void;
   onQuote: () => void;
   onAnnotate: () => void;
@@ -209,7 +209,6 @@ function AppleCalloutMenu({
   isAbove,
   targetX,
   containerWidth,
-  busy,
   onHighlight,
   onQuote,
   onAnnotate,
@@ -281,39 +280,35 @@ function AppleCalloutMenu({
           }
         }}
       >
-        {busy ? (
-          <ActivityIndicator color={textColor} size="small" style={styles.busySpinner} />
-        ) : (
-          <>
-            <AppleMenuItem
-              label={t('article.selection_highlight', 'Surligner')}
-              onPress={onHighlight}
-              textColor={textColor}
-              pressedBg={pressedBg}
-            />
-            <View style={[styles.appleSeparator, { backgroundColor: separatorColor }]} />
-            <AppleMenuItem
-              label={t('article.selection_quote', 'Citer')}
-              onPress={onQuote}
-              textColor={textColor}
-              pressedBg={pressedBg}
-            />
-            <View style={[styles.appleSeparator, { backgroundColor: separatorColor }]} />
-            <AppleMenuItem
-              label={t('article.selection_note', 'Annoter')}
-              onPress={onAnnotate}
-              textColor={textColor}
-              pressedBg={pressedBg}
-            />
-            <View style={[styles.appleSeparator, { backgroundColor: separatorColor }]} />
-            <AppleMenuItem
-              label={t('article.selection_copy', 'Copier')}
-              onPress={onCopy}
-              textColor={textColor}
-              pressedBg={pressedBg}
-            />
-          </>
-        )}
+        <>
+          <AppleMenuItem
+            label={t('article.selection_highlight', 'Surligner')}
+            onPress={onHighlight}
+            textColor={textColor}
+            pressedBg={pressedBg}
+          />
+          <View style={[styles.appleSeparator, { backgroundColor: separatorColor }]} />
+          <AppleMenuItem
+            label={t('article.selection_quote', 'Citer')}
+            onPress={onQuote}
+            textColor={textColor}
+            pressedBg={pressedBg}
+          />
+          <View style={[styles.appleSeparator, { backgroundColor: separatorColor }]} />
+          <AppleMenuItem
+            label={t('article.selection_note', 'Annoter')}
+            onPress={onAnnotate}
+            textColor={textColor}
+            pressedBg={pressedBg}
+          />
+          <View style={[styles.appleSeparator, { backgroundColor: separatorColor }]} />
+          <AppleMenuItem
+            label={t('article.selection_copy', 'Copier')}
+            onPress={onCopy}
+            textColor={textColor}
+            pressedBg={pressedBg}
+          />
+        </>
       </View>
       {isAbove && (
         <View
@@ -452,9 +447,6 @@ const styles = StyleSheet.create({
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
     marginBottom: -StyleSheet.hairlineWidth,
-  },
-  busySpinner: {
-    paddingHorizontal: 24,
   },
   quoteChip: {
     borderRadius: 10,

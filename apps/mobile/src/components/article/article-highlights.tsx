@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ChevronUp, Globe, Lock, MessageSquare } from 'lucide-react-native';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
 import { HighlightRowActions } from '@/components/article/highlight-row-actions';
@@ -10,6 +10,8 @@ import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/features/auth/auth-provider';
 import { useTheme } from '@/hooks/use-theme';
 import { apiClient } from '@/lib/api';
+import { enqueueHighlightCreate, flushPendingHighlights } from '@/lib/highlight-queue';
+import { toLocalHighlight, type PendingHighlightCreate } from '@/lib/highlight-queue-core';
 import { t } from '@/lib/i18n';
 import type { Highlight } from '@qoe/sdk/mobile';
 
@@ -21,7 +23,14 @@ import type { Highlight } from '@qoe/sdk/mobile';
 // créer un surlignage (texte du passage + note optionnelle + public/privé).
 // =====================================================================
 
-export function ArticleHighlights({ articleId }: { articleId: string }) {
+export function ArticleHighlights({
+  articleId,
+  pendingCreates = [],
+}: {
+  articleId: string;
+  /** Créations locales en attente de synchro (rendu optimiste). */
+  pendingCreates?: PendingHighlightCreate[];
+}) {
   const theme = useTheme();
   const queryClient = useQueryClient();
   const { session } = useAuth();
@@ -66,6 +75,13 @@ export function ArticleHighlights({ articleId }: { articleId: string }) {
     },
   });
 
+  // Fusion optimiste : surlignages serveur + créations locales en attente
+  // (celles-ci portent `pending: true` → badge + pas d'actions serveur).
+  const items = useMemo(() => {
+    const locals = pendingCreates.map((p) => toLocalHighlight(p, myId, null));
+    return [...locals, ...(data ?? [])];
+  }, [pendingCreates, data, myId]);
+
   if (isPending) {
     return (
       <View style={styles.section}>
@@ -88,8 +104,6 @@ export function ArticleHighlights({ articleId }: { articleId: string }) {
     );
   }
 
-  const items = data ?? [];
-
   return (
     <View style={styles.section}>
       <SectionHeader />
@@ -109,13 +123,7 @@ export function ArticleHighlights({ articleId }: { articleId: string }) {
       </Pressable>
 
       {/* Formulaire inline */}
-      {creating ? (
-        <HighlightForm
-          articleId={articleId}
-          queryKey={queryKey}
-          onDone={() => setCreating(false)}
-        />
-      ) : null}
+      {creating ? <HighlightForm articleId={articleId} onDone={() => setCreating(false)} /> : null}
 
       {/* Liste */}
       {items.length === 0 ? (
@@ -125,6 +133,7 @@ export function ArticleHighlights({ articleId }: { articleId: string }) {
       ) : (
         items.map((h) => {
           const mine = myId != null && h.readerId === myId;
+          const isPending = (h as { pending?: boolean }).pending === true;
           return (
             <ThemedView key={h.id} type="card" style={styles.highlightCard}>
               <ThemedText style={styles.highlightText}>« {h.text} »</ThemedText>
@@ -141,30 +150,39 @@ export function ArticleHighlights({ articleId }: { articleId: string }) {
                   @{h.reader.username || h.reader.name || '…'}
                   {h.isOfficial ? ' · ✓' : ''}
                 </ThemedText>
-                <Pressable
-                  onPress={() => upvote.mutate(h.id)}
-                  hitSlop={8}
-                  style={({ pressed }) => [styles.upvote, pressed && styles.pressed]}
-                >
-                  <View style={styles.upvoteRow}>
-                    <ChevronUp
-                      size={14}
-                      color={h.viewerUpvoted ? theme.primary : theme.textSecondary}
-                      strokeWidth={h.viewerUpvoted ? 3 : 2}
-                    />
-                    <ThemedText
-                      type="small"
-                      style={{
-                        color: h.viewerUpvoted ? theme.primary : theme.textSecondary,
-                        fontWeight: h.viewerUpvoted ? '700' : '400',
-                      }}
-                    >
-                      {h.upvotesCount}
-                    </ThemedText>
-                  </View>
-                </Pressable>
+                {!isPending ? (
+                  <Pressable
+                    onPress={() => upvote.mutate(h.id)}
+                    hitSlop={8}
+                    style={({ pressed }) => [styles.upvote, pressed && styles.pressed]}
+                  >
+                    <View style={styles.upvoteRow}>
+                      <ChevronUp
+                        size={14}
+                        color={h.viewerUpvoted ? theme.primary : theme.textSecondary}
+                        strokeWidth={h.viewerUpvoted ? 3 : 2}
+                      />
+                      <ThemedText
+                        type="small"
+                        style={{
+                          color: h.viewerUpvoted ? theme.primary : theme.textSecondary,
+                          fontWeight: h.viewerUpvoted ? '700' : '400',
+                        }}
+                      >
+                        {h.upvotesCount}
+                      </ThemedText>
+                    </View>
+                  </Pressable>
+                ) : null}
               </View>
-              {mine ? <HighlightRowActions highlightId={h.id} isPublic={h.isPublic} /> : null}
+              {mine && isPending ? (
+                <ThemedText type="small" style={{ color: theme.textSecondary }}>
+                  {t('highlights.pending', '⏳ En attente de synchro')}
+                </ThemedText>
+              ) : null}
+              {mine && !isPending ? (
+                <HighlightRowActions highlightId={h.id} isPublic={h.isPublic} />
+              ) : null}
             </ThemedView>
           );
         })
@@ -179,43 +197,36 @@ function SectionHeader() {
   );
 }
 
-function HighlightForm({
-  articleId,
-  queryKey,
-  onDone,
-}: {
-  articleId: string;
-  queryKey: string[];
-  onDone: () => void;
-}) {
+function HighlightForm({ articleId, onDone }: { articleId: string; onDone: () => void }) {
   const theme = useTheme();
-  const queryClient = useQueryClient();
   const [text, setText] = useState('');
   const [note, setNote] = useState('');
   const [isPublic, setIsPublic] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /** Enregistrement INSTANTANÉ en local + synchro différée (file). */
   const submit = async () => {
     const trimmed = text.trim();
     if (!trimmed || saving) return;
     setSaving(true);
     setError(null);
     try {
-      const res = await apiClient.createHighlight(articleId, {
+      await enqueueHighlightCreate({
+        articleId,
         text: trimmed,
         note: note.trim() || null,
         isPublic,
+        quoteOrdinal: 0,
       });
-      if (!res.ok) {
-        setError(res.error);
-        return;
-      }
+      // Synchro en arrière-plan — jamais bloquant.
+      void flushPendingHighlights();
       setText('');
       setNote('');
       setIsPublic(false);
-      await queryClient.invalidateQueries({ queryKey });
       onDone();
+    } catch {
+      setError(t('highlights.error', 'Impossible de mettre à jour'));
     } finally {
       setSaving(false);
     }
