@@ -15,7 +15,7 @@ export { CertifiedBadge, type CertifiedBadgeProps } from './ui/CertifiedBadge';
 export { SocialIcon } from './SocialIcon';
 export { TenantHeader } from './TenantHeader';
 export { SubscribeForm } from './SubscribeForm';
-export { Logo } from './Logo';
+export { Logo, LogoSymbol, LogoWordmark } from './Logo';
 export { DevtoolsPanel } from './devtools/DevtoolsPanel';
 export { ThemeProvider, ThemeSeedScript } from './theme-provider';
 export { BentoPlateau, BentoItem } from './ui/BentoPlateau';

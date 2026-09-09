@@ -27,6 +27,7 @@
   "dependencies": {
     "@qoe/sdk": "workspace:*",
     "@floating-ui/react": "^0.27.20",
+    "@qoe/brand": "workspace:*",
     "@qoe/config": "workspace:*",
     "@qoe/supabase": "workspace:*",
     "@qoe/theme": "workspace:*",
