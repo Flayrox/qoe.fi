@@ -10,12 +10,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/qoefi/api/internal/apiaccess"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/flags"
 )
 
 // ── Widgets & Tendances ──────────────────────────────────────────────────────
@@ -259,6 +261,14 @@ func (s *Service) UpsertSystemConfigs(ctx context.Context, userID string, items 
 		}); err != nil {
 			return err
 		}
+		// Bascule du contrôle d'accès global (coupure API / endpoints désactivés) :
+		// tracée au journal d'audit — qui, quand, quoi.
+		switch item.Key {
+		case "API_ACCESS_DISABLED", "API_DISABLED_ENDPOINTS":
+			s.logAudit(ctx, userID, "access.control.config", "platform", "", map[string]any{
+				"key": item.Key, "value": item.Value,
+			})
+		}
 	}
 	return nil
 }
@@ -383,6 +393,72 @@ func (s *Service) ListApiApplicants(ctx context.Context, userID string) ([]Admin
 	return out, nil
 }
 
+// logAudit écrit une entrée du journal d'audit superadmin (best-effort, jamais
+// bloquant) quand le flag admin-audit-log est actif. Actions sensibles :
+// changements de permissions API, bascules du contrôle d'accès, modération.
+func (s *Service) logAudit(ctx context.Context, actorID, action, targetType, targetID string, metadata any) {
+	if s.flags == nil || !s.flags.IsOn(ctx, flags.AdminAuditLog) {
+		return
+	}
+	var actorUUID pgtype.UUID
+	if err := actorUUID.Scan(actorID); err != nil {
+		return
+	}
+	raw, err := json.Marshal(metadata)
+	if err != nil {
+		return
+	}
+	if err := s.q.InsertAdminAuditLog(ctx, db.InsertAdminAuditLogParams{
+		ActorId: actorUUID, Action: action, TargetType: targetType,
+		TargetId: optText(&targetID), Column5: string(raw),
+	}); err != nil {
+		log.Printf("[admin-audit] %s: %v", action, err)
+	}
+}
+
+// ── Journal d'audit superadmin ───────────────────────────────────────────────
+
+type AdminAuditEntry struct {
+	ID         string          `json:"id"`
+	ActorID    string          `json:"actorId"`
+	ActorName  *string         `json:"actorName"`
+	ActorEmail string          `json:"actorEmail"`
+	Action     string          `json:"action"`
+	TargetType string          `json:"targetType"`
+	TargetID   *string         `json:"targetId"`
+	Metadata   json.RawMessage `json:"metadata"`
+	CreatedAt  string          `json:"createdAt"`
+}
+
+// ListAuditLogs retourne les N dernières entrées du journal (superadmin).
+func (s *Service) ListAuditLogs(ctx context.Context, userID string, limit int32) ([]AdminAuditEntry, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return nil, err
+	}
+	if limit <= 0 || limit > 200 {
+		limit = 50
+	}
+	rows, err := s.q.ListAdminAuditLogs(ctx, limit)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]AdminAuditEntry, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, AdminAuditEntry{
+			ID:         r.ID,
+			ActorID:    r.ActorId.String(),
+			ActorName:  textPtr(r.ActorName),
+			ActorEmail: r.ActorEmail,
+			Action:     r.Action,
+			TargetType: r.TargetType,
+			TargetID:   textPtr(r.TargetId),
+			Metadata:   r.Metadata,
+			CreatedAt:  r.CreatedAt.Time.Format(time.RFC3339),
+		})
+	}
+	return out, nil
+}
+
 // UpdateApiAccessStatus approuve / rejette / révoque une demande d'accès API.
 // L'approbation est modulable : l'admin choisit les permissions accordées
 // (grants). Grants vides à l'approbation → tous les modules actifs de la
@@ -414,10 +490,15 @@ func (s *Service) UpdateApiAccessStatus(ctx context.Context, userID, targetID, s
 		// jamais NULL — la colonne est NOT NULL DEFAULT '{}').
 		grants = []string{}
 	}
-	_, err := s.q.UpdateAdminUserApiAccess(ctx, db.UpdateAdminUserApiAccessParams{
+	if _, err := s.q.UpdateAdminUserApiAccess(ctx, db.UpdateAdminUserApiAccessParams{
 		ID: targetID, ApiAccessStatus: status, ApiGrants: grants,
+	}); err != nil {
+		return err
+	}
+	s.logAudit(ctx, userID, "api.access.status", "user", targetID, map[string]any{
+		"status": status, "grants": grants,
 	})
-	return err
+	return nil
 }
 
 // UpdateApiGrants ajuste les permissions d'un créateur sans toucher au statut
@@ -435,9 +516,16 @@ func (s *Service) UpdateApiGrants(ctx context.Context, userID, targetID string, 
 			return fmt.Errorf("le module %s est désactivé à l'échelle de la plateforme", g)
 		}
 	}
-	return s.q.SetUserApiGrants(ctx, db.SetUserApiGrantsParams{
-		ID: targetID, ApiGrants: apiaccess.NormalizeGrants(grants),
+	grants = apiaccess.NormalizeGrants(grants)
+	if err := s.q.SetUserApiGrants(ctx, db.SetUserApiGrantsParams{
+		ID: targetID, ApiGrants: grants,
+	}); err != nil {
+		return err
+	}
+	s.logAudit(ctx, userID, "api.access.grants", "user", targetID, map[string]any{
+		"grants": grants,
 	})
+	return nil
 }
 
 // AdminApiModule est un module du registre avec son état plateforme.
@@ -482,7 +570,13 @@ func (s *Service) UpdateApiAccessModules(ctx context.Context, userID string, ena
 		Value:       string(raw),
 		Description: pgtype.Text{String: "Modules d'accès API accordables par les admins (JSON array).", Valid: true},
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	s.logAudit(ctx, userID, "api.access.modules", "platform", "", map[string]any{
+		"enabled": enabled,
+	})
+	return nil
 }
 
 // ── Notifications & livraisons ───────────────────────────────────────────────

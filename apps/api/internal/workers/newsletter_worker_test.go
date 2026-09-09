@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/hibiken/asynq"
+	"github.com/qoefi/api/internal/flags"
 	"github.com/qoefi/api/internal/queue"
 )
 
@@ -111,6 +112,77 @@ func TestNewsletterSend_Fanout(t *testing.T) {
 	}
 	if n != 1 {
 		t.Fatalf("deliveries = %d, attendu 1 (opt-out exclu)", n)
+	}
+}
+
+// TestNewsletterSend_KillSwitch — le flag workers-newsletter-dispatch (console
+// admin / feature_flags) coupe l'envoi : aucune livraison matérialisée, aucun
+// email, l'issue reste SENDING pour repartir à la réactivation.
+func TestNewsletterSend_KillSwitch(t *testing.T) {
+	ctx := context.Background()
+	for _, table := range []string{`"NewsletterDelivery"`, `"NewsletterIssue"`, `"Subscriber"`, `"Publication"`} {
+		if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE `+table+` CASCADE`); err != nil {
+			t.Fatalf("truncate %s: %v", table, err)
+		}
+	}
+	if _, err := poolTest.Exec(ctx, `DELETE FROM feature_flags WHERE key = 'workers-newsletter-dispatch'`); err != nil {
+		t.Fatalf("clear flag: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Publication" (id, name, slug, "updatedAt") VALUES ('pub_nl_kill', 'Kill Pub', 'kill-pub', now())`); err != nil {
+		t.Fatalf("publication: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Subscriber" (id, email, "updatedAt", "publicationId")
+		 VALUES ('sub_nl_k1', 'kill@test.dev', now(), 'pub_nl_kill')`); err != nil {
+		t.Fatalf("subscriber: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "NewsletterIssue" (id, "publicationId", subject, html, status, "updatedAt")
+		 VALUES ('issue_nl_k1', 'pub_nl_kill', 'Kill', '<p>x</p>', 'SENDING', now())`); err != nil {
+		t.Fatalf("issue: %v", err)
+	}
+	// Flag OFF dans la table partagée (comme le ferait la console admin).
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO feature_flags (key, is_enabled, description, target_roles)
+		 VALUES ('workers-newsletter-dispatch', false, 'test', '{all}')
+		 ON CONFLICT (key) DO UPDATE SET is_enabled = EXCLUDED.is_enabled`); err != nil {
+		t.Fatalf("set flag off: %v", err)
+	}
+
+	w := NewNewsletterWorker(poolTest)
+	w.SetFlags(flags.NewService(poolTest))
+	fake := &fakeProvider{}
+	w.SetEmailProvider(fake, "noreply@qoe.fi")
+
+	task, err := queue.NewNewsletterSendTask(queue.NewsletterSendPayload{IssueID: "issue_nl_k1"})
+	if err != nil {
+		t.Fatalf("task: %v", err)
+	}
+	if err := w.HandleNewsletterSend(ctx, task); err != nil {
+		t.Fatalf("HandleNewsletterSend (kill switch): %v", err)
+	}
+
+	if len(fake.sent) != 0 {
+		t.Fatalf("kill switch a envoyé %d emails, attendu 0", len(fake.sent))
+	}
+	var n int
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COUNT(*) FROM "NewsletterDelivery" WHERE "issueId" = 'issue_nl_k1'`,
+	).Scan(&n); err != nil {
+		t.Fatalf("count deliveries: %v", err)
+	}
+	if n != 0 {
+		t.Fatalf("kill switch a matérialisé %d livraisons, attendu 0", n)
+	}
+	var status string
+	if err := poolTest.QueryRow(ctx,
+		`SELECT status FROM "NewsletterIssue" WHERE id = 'issue_nl_k1'`,
+	).Scan(&status); err != nil {
+		t.Fatalf("issue state: %v", err)
+	}
+	if status != "SENDING" {
+		t.Fatalf("issue = %s, attendu SENDING (envoi coupé, pas de fausse clôture)", status)
 	}
 }
 

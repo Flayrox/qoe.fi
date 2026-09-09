@@ -477,6 +477,16 @@ type AccountDeletionRequest struct {
 	ProcessedAt pgtype.Timestamp `json:"processedAt"`
 }
 
+type AdminAuditLog struct {
+	ID         string           `json:"id"`
+	ActorId    pgtype.UUID      `json:"actorId"`
+	Action     string           `json:"action"`
+	TargetType string           `json:"targetType"`
+	TargetId   pgtype.Text      `json:"targetId"`
+	Metadata   []byte           `json:"metadata"`
+	CreatedAt  pgtype.Timestamp `json:"createdAt"`
+}
+
 type AnnotationComment struct {
 	ID          string           `json:"id"`
 	Content     string           `json:"content"`

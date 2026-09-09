@@ -149,6 +149,22 @@ RETURNING id, "apiAccessStatus", "apiGrants";
 -- name: SetUserApiGrants :exec
 UPDATE "User" SET "apiGrants" = $2, "updatedAt" = now() WHERE id = $1;
 
+-- ── Journal d'audit superadmin ──────────────────────────────────────────────
+
+-- name: InsertAdminAuditLog :exec
+-- metadata est passé en texte puis casté en jsonb : le pool API force
+-- QueryExecModeExec (PgBouncer), où pgx encoderait []byte en bytea → 22P02.
+INSERT INTO "AdminAuditLog" (id, "actorId", action, "targetType", "targetId", metadata)
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5::text::jsonb);
+
+-- name: ListAdminAuditLogs :many
+SELECT l.id, l."actorId", l.action, l."targetType", l."targetId", l.metadata, l."createdAt",
+       u.name AS actor_name, u.email AS actor_email
+FROM "AdminAuditLog" l
+JOIN "User" u ON u.id = l."actorId"
+ORDER BY l."createdAt" DESC
+LIMIT $1;
+
 -- ── Notifications & livraisons ───────────────────────────────────────────────
 
 -- name: CountNotificationDeliveriesByStatus :many

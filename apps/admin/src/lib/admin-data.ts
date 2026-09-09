@@ -236,6 +236,24 @@ export async function getAdminDeliveries(): Promise<{
   );
 }
 
+export interface AdminAuditEntry {
+  id: string;
+  actorId: string;
+  actorName: string | null;
+  actorEmail: string;
+  action: string;
+  targetType: string;
+  targetId: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+/** 🛡️ Journal d'audit superadmin (qui, quand, quoi — flag admin-audit-log). */
+export async function getAdminAuditLog(limit = 100): Promise<AdminAuditEntry[]> {
+  const data = await goFetch<{ items: AdminAuditEntry[] }>(`/v1/admin/audit-log?limit=${limit}`);
+  return data.items;
+}
+
 export interface FeatureFlagItem {
   key: string;
   is_enabled: boolean;

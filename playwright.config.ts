@@ -99,10 +99,11 @@ export default defineConfig({
       testMatch: /core-journeys\.spec\.ts/,
     },
     {
-      // Campagne de sécurité au niveau HTTP (API Go + apps web).
+      // Campagne de sécurité au niveau HTTP (API Go + apps web) + contrôle
+      // d'accès global (kill switch API / endpoints désactivés).
       name: 'security',
       use: { ...devices['Desktop Chrome'] },
-      testMatch: /security\.spec\.ts/,
+      testMatch: /(security|api-access-control)\.spec\.ts/,
     },
     {
       // Vraie page de consentement OAuth (apps/core) : rendu + autorisation

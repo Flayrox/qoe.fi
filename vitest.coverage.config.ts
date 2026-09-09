@@ -31,6 +31,7 @@ export default defineConfig({
       'packages/auth/src/**/*.test.{ts,tsx}',
       'packages/utils/src/**/*.test.{ts,tsx}',
       'packages/flags/src/**/*.test.{ts,tsx}',
+      'packages/moderation/src/**/*.test.{ts,tsx}',
       'apps/core/src/**/*.test.{ts,tsx}',
       'apps/mobile/src/**/*.test.{ts,tsx}',
     ],
@@ -40,7 +41,7 @@ export default defineConfig({
       reporter: ['text', 'html', 'lcov'],
       reportsDirectory: 'coverage/ts',
       include: [
-        'packages/{sdk,auth,utils,flags}/src/**/*.ts',
+        'packages/{sdk,auth,utils,flags,moderation}/src/**/*.ts',
         'apps/core/src/**/*.ts',
         'apps/mobile/src/**/*.ts',
       ],
@@ -53,6 +54,8 @@ export default defineConfig({
         'packages/auth/**': { lines: 15, statements: 14 },
         'packages/utils/**': { lines: 44, statements: 41 },
         'packages/flags/**': { lines: 65, statements: 65 },
+        // Package sécurité (@qoe/moderation) : lancé à 80% dès son intégration.
+        'packages/moderation/**': { lines: 80, statements: 80 },
         // Logic pure des apps front (core) et mobile — gate mesuré séparément
         // car les .ts UI/route/edge sont du glom persistant (pas de test unitaire
         // rentable). Seuils au départ bas (2026-08), objectif 80% sur ce périmètre.

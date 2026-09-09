@@ -299,6 +299,10 @@ type Querier interface {
 	IncrementReplyCount(ctx context.Context, id string) error
 	IncrementRepostCount(ctx context.Context, id string) error
 	IncrementWalletBalance(ctx context.Context, arg IncrementWalletBalanceParams) error
+	// ── Journal d'audit superadmin ──────────────────────────────────────────────
+	// metadata est passé en texte puis casté en jsonb : le pool API force
+	// QueryExecModeExec (PgBouncer), où pgx encoderait []byte en bytea → 22P02.
+	InsertAdminAuditLog(ctx context.Context, arg InsertAdminAuditLogParams) error
 	InsertApiKey(ctx context.Context, arg InsertApiKeyParams) error
 	InsertArticleComment(ctx context.Context, arg InsertArticleCommentParams) (InsertArticleCommentRow, error)
 	// Notification in-app (jamais perdue) : dédup par (recipient, sender, type,
@@ -351,6 +355,7 @@ type Querier interface {
 	ListAdminApiApplicants(ctx context.Context) ([]ListAdminApiApplicantsRow, error)
 	// ── Widgets & Tendances ──────────────────────────────────────────────────────
 	ListAdminArticles(ctx context.Context) ([]ListAdminArticlesRow, error)
+	ListAdminAuditLogs(ctx context.Context, limit int32) ([]ListAdminAuditLogsRow, error)
 	// ── OAuth ────────────────────────────────────────────────────────────────────
 	ListAdminOAuthClients(ctx context.Context) ([]ListAdminOAuthClientsRow, error)
 	ListAdminPromos(ctx context.Context) ([]PartnerPromo, error)

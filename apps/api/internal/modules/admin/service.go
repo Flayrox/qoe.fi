@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/flags"
 )
 
 var errForbidden = errors.New("réservé au superadmin")
@@ -19,67 +20,76 @@ var errForbidden = errors.New("réservé au superadmin")
 type Service struct {
 	pool *pgxpool.Pool
 	q    adminQuerier
+
+	// flags lit la table feature_flags partagée : le flag admin-audit-log
+	// active/désactive le journal d'audit sans redéploiement.
+	flags *flags.Service
 }
 
 func NewService(pool *pgxpool.Pool) *Service {
 	return &Service{pool: pool, q: db.New(pool)}
 }
 
+// SetFlags branche le service feature flags (gating du journal d'audit).
+func (s *Service) SetFlags(f *flags.Service) {
+	s.flags = f
+}
+
 // DashboardCounts sont les compteurs de la page d'accueil admin (parité
 // prisma.user.count / prisma.article.count / prisma.subscriber.count).
 type DashboardCounts struct {
-	Users             int64 `json:"users"`
-	Creators          int64 `json:"creators"`
-	Articles          int64 `json:"articles"`
+	Users              int64 `json:"users"`
+	Creators           int64 `json:"creators"`
+	Articles           int64 `json:"articles"`
 	PremiumSubscribers int64 `json:"premiumSubscribers"`
 }
 
 // AdminUser est un utilisateur listé dans la table de modération
 // (parité AdminUser TS — pages users + data-table).
 type AdminUser struct {
-	ID             string    `json:"id"`
-	Name           *string   `json:"name"`
-	Email          string    `json:"email"`
-	Username       *string   `json:"username"`
-	Role           string    `json:"role"`
-	IsCertified    bool      `json:"isCertified"`
-	IsShadowbanned bool      `json:"isShadowbanned"`
-	IsSuspended    bool      `json:"isSuspended"`
-	SuspendReason  *string   `json:"suspendReason"`
-	Subdomain      *string   `json:"subdomain"`
-	CreatedAt      string    `json:"createdAt"`
-	UpdatedAt      string    `json:"updatedAt"`
+	ID             string  `json:"id"`
+	Name           *string `json:"name"`
+	Email          string  `json:"email"`
+	Username       *string `json:"username"`
+	Role           string  `json:"role"`
+	IsCertified    bool    `json:"isCertified"`
+	IsShadowbanned bool    `json:"isShadowbanned"`
+	IsSuspended    bool    `json:"isSuspended"`
+	SuspendReason  *string `json:"suspendReason"`
+	Subdomain      *string `json:"subdomain"`
+	CreatedAt      string  `json:"createdAt"`
+	UpdatedAt      string  `json:"updatedAt"`
 }
 
 // AdminUserDetail est la vue détaillée d'un utilisateur (page users/[id]).
 type AdminUserDetail struct {
-	ID                    string  `json:"id"`
-	Name                  *string `json:"name"`
-	Email                 string  `json:"email"`
-	Username              *string `json:"username"`
-	Role                  string  `json:"role"`
-	IsCertified           bool    `json:"isCertified"`
-	IsShadowbanned        bool    `json:"isShadowbanned"`
-	IsSuspended           bool    `json:"isSuspended"`
-	SuspendReason         *string `json:"suspendReason"`
-	LogoURL               *string `json:"logoUrl"`
-	PublicationID         *string `json:"publicationId"`
-	Subdomain             *string `json:"subdomain"`
-	PublicationName       *string `json:"publicationName"`
-	ArticlesCount         int64   `json:"articlesCount"`
-	SubscribersCount      int64   `json:"subscribersCount"`
-	WalletTransactions    int64   `json:"walletTransactions"`
-	RevenueCents          int64   `json:"revenueCents"`
-	CreatedAt             string  `json:"createdAt"`
+	ID                 string  `json:"id"`
+	Name               *string `json:"name"`
+	Email              string  `json:"email"`
+	Username           *string `json:"username"`
+	Role               string  `json:"role"`
+	IsCertified        bool    `json:"isCertified"`
+	IsShadowbanned     bool    `json:"isShadowbanned"`
+	IsSuspended        bool    `json:"isSuspended"`
+	SuspendReason      *string `json:"suspendReason"`
+	LogoURL            *string `json:"logoUrl"`
+	PublicationID      *string `json:"publicationId"`
+	Subdomain          *string `json:"subdomain"`
+	PublicationName    *string `json:"publicationName"`
+	ArticlesCount      int64   `json:"articlesCount"`
+	SubscribersCount   int64   `json:"subscribersCount"`
+	WalletTransactions int64   `json:"walletTransactions"`
+	RevenueCents       int64   `json:"revenueCents"`
+	CreatedAt          string  `json:"createdAt"`
 }
 
 // ModerationInput porte les mises à jour de modération d'un utilisateur.
 type ModerationInput struct {
-	IsCertified    *bool   `json:"isCertified"`
-	IsShadowbanned *bool   `json:"isShadowbanned"`
-	IsSuspended    *bool   `json:"isSuspended"`
-	SuspendReason  *string `json:"suspendReason"`
-	PublicationCertified *bool `json:"publicationCertified"`
+	IsCertified          *bool   `json:"isCertified"`
+	IsShadowbanned       *bool   `json:"isShadowbanned"`
+	IsSuspended          *bool   `json:"isSuspended"`
+	SuspendReason        *string `json:"suspendReason"`
+	PublicationCertified *bool   `json:"publicationCertified"`
 }
 
 func (s *Service) checkSuperadmin(ctx context.Context, userID string) error {
@@ -241,6 +251,11 @@ func (s *Service) UpdateModeration(ctx context.Context, userID, targetID string,
 			return nil, err
 		}
 	}
+
+	s.logAudit(ctx, userID, "moderation.update", "user", targetID, map[string]any{
+		"isCertified": isCertified, "isShadowbanned": isShadowbanned,
+		"isSuspended": isSuspended, "suspendReason": suspendReason.String,
+	})
 
 	return &AdminUser{
 		ID:             res.ID,

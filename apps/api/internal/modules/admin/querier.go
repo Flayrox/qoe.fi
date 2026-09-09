@@ -34,7 +34,9 @@ type adminQuerier interface {
 	DeleteSystemConfig(ctx context.Context, key string) error
 	DeleteTrend(ctx context.Context, id string) error
 	GetSystemConfigsByKeys(ctx context.Context, dollar_1 []string) ([]db.SystemConfig, error)
+	InsertAdminAuditLog(ctx context.Context, arg db.InsertAdminAuditLogParams) error
 	ListAdminApiApplicants(ctx context.Context) ([]db.ListAdminApiApplicantsRow, error)
+	ListAdminAuditLogs(ctx context.Context, limit int32) ([]db.ListAdminAuditLogsRow, error)
 	ListAdminArticles(ctx context.Context) ([]db.ListAdminArticlesRow, error)
 	ListAdminOAuthClients(ctx context.Context) ([]db.ListAdminOAuthClientsRow, error)
 	ListAdminPromos(ctx context.Context) ([]db.PartnerPromo, error)
