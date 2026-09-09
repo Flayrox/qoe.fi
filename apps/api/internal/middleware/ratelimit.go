@@ -60,6 +60,47 @@ func RateLimit(name string, rc *redis.Client, window time.Duration, max int, sco
 	}
 }
 
+// RateLimitAPIKey limite à `max` requêtes par `window` PAR CLÉ API
+// (qoe_live_…), en plus du limiteur global par IP. Les requêtes non
+// authentifiées par clé (JWT, anonymes) passent sans compter ici : elles
+// restent couvertes par le limiteur global/protégé. À placer APRÈS
+// APIKeyAuth / CombinedAuth pour que l'id de clé soit dans le contexte.
+func RateLimitAPIKey(name string, rc *redis.Client, window time.Duration, max int) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if rc == nil {
+				next.ServeHTTP(w, r)
+				return
+			}
+			keyID, ok := APIKeyID(r.Context())
+			if !ok || keyID == "" {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			bucket := time.Now().Unix() / int64(window.Seconds())
+			redisKey := fmt.Sprintf("rl:%s:key:%s:%d", name, keyID, bucket)
+			ctx := context.Background()
+
+			count, err := rc.Incr(ctx, redisKey).Result()
+			if err == nil {
+				if count == 1 {
+					_ = rc.Expire(ctx, redisKey, window).Err()
+				}
+				if count > int64(max) {
+					w.Header().Set("Content-Type", "application/json")
+					w.Header().Set("Retry-After", strconv.Itoa(int(window.Seconds())))
+					w.WriteHeader(http.StatusTooManyRequests)
+					_, _ = w.Write([]byte(`{"error":"Trop de requêtes. Réessayez dans un instant."}`))
+					return
+				}
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 // clientIP extrait l'IP réelle. Le middleware doit être placé derrière un
 // proxy de confiance qui réécrit ces headers (ou utiliser chi.RealIP).
 func clientIP(r *http.Request) string {
