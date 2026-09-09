@@ -235,7 +235,18 @@ export function FeedDashboard({
   const [lightboxImages] = useState<{ url: string; alt?: string | null }[]>([]);
   const [lightboxIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
-  const slidingSheetOffset = 256;
+  const slidingSheetOffset = 275;
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  // Scroll listener to smoothly expand the feed sheet to full window borders
+  React.useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 40);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Global Hotkeys Listener
   React.useEffect(() => {
@@ -755,30 +766,39 @@ export function FeedDashboard({
         }}
         transition={{ type: 'spring', stiffness: 350, damping: 32 }}
         className={cn(
-          'w-full max-w-2xl mx-auto bg-card/95 backdrop-blur-2xl text-card-foreground border-x border-border/40 shadow-2xl relative z-10 transition-colors',
-          activePostId || activeArticle ? 'rounded-none border-t-0' : 'rounded-t-2xl border-t'
+          'w-full bg-card/95 backdrop-blur-2xl text-card-foreground shadow-2xl relative z-10 transition-all duration-300 ease-out',
+          isScrolled || activePostId || activeArticle
+            ? 'max-w-full mx-0 rounded-none border-t-0 border-x-0'
+            : 'max-w-2xl mx-auto rounded-t-2xl border-t border-x border-border/40'
         )}
       >
         {/* Opaque Sticky Header of the Sheet (No Background Bleed-Through) */}
-        <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-md border-b border-border/40 rounded-t-2xl px-4 sm:px-6 py-3">
-          <FeedTabsHeader
-            activeFeed={activeFeed}
-            onTabChange={(id) => {
-              if (activeFeed === id) {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              } else {
-                setActiveFeed(id);
-                setSelectedTag(null);
-                setActivePostId(null);
-                setActiveArticle(null);
-                trackEvent('feed_tab_changed', { tab: id });
-              }
-            }}
-          />
+        <div
+          className={cn(
+            'sticky top-0 z-20 bg-card/95 backdrop-blur-md border-b border-border/40 px-4 sm:px-6 py-3 transition-all duration-300',
+            isScrolled || activePostId || activeArticle ? 'rounded-none' : 'rounded-t-2xl'
+          )}
+        >
+          <div className="max-w-2xl mx-auto flex items-center justify-between">
+            <FeedTabsHeader
+              activeFeed={activeFeed}
+              onTabChange={(id) => {
+                if (activeFeed === id) {
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                } else {
+                  setActiveFeed(id);
+                  setSelectedTag(null);
+                  setActivePostId(null);
+                  setActiveArticle(null);
+                  trackEvent('feed_tab_changed', { tab: id });
+                }
+              }}
+            />
+          </div>
         </div>
 
         {/* Main Feed Container */}
-        <div className="px-4 sm:px-6 py-6 space-y-6 min-w-0">
+        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 space-y-6 min-w-0">
           <AnimatePresence mode="popLayout">
             {activePostId ? (
               <motion.div

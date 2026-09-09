@@ -26,10 +26,7 @@ export function ReaderPageLayout({
   return (
     <div className="relative min-h-screen bg-background text-foreground selection:bg-primary/10 selection:text-primary">
       {/* ── BACKGROUND FIXED HEADER REGION ── */}
-      <div className="fixed top-0 left-0 md:left-[256px] right-0 z-0 h-[280px] sm:h-[320px] pointer-events-none flex flex-col justify-start">
-        {/* Ambient Top Glow Layer */}
-        <div className="absolute inset-0 bg-gradient-to-b from-card/80 via-background/40 to-transparent pointer-events-none" />
-
+      <div className="fixed top-0 left-0 md:left-[256px] right-0 z-0 pointer-events-none flex flex-col justify-start">
         {/* Static Background "Lire" giant title & manifesto header */}
         <AnimatePresence>
           {!hideHeader && (
@@ -38,18 +35,18 @@ export function ReaderPageLayout({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.25 }}
-              className="max-w-2xl mx-auto px-4 sm:px-6 w-full space-y-3 pt-12 sm:pt-14 select-none"
+              className="max-w-2xl mx-auto px-4 sm:px-6 w-full space-y-3 pt-14 sm:pt-16 select-none"
             >
               {giantTitle && (
                 <div className="flex items-center gap-2">
-                  <span className="font-sans text-5xl sm:text-6xl font-extrabold text-primary tracking-tighter">
+                  <span className="font-sans text-6xl sm:text-7xl font-black text-primary tracking-tighter">
                     {giantTitle}
                     <span className="text-foreground">{giantTitleSuffix}</span>
                   </span>
                 </div>
               )}
 
-              <p className="text-sm sm:text-base text-muted-foreground font-normal leading-relaxed max-w-xl">
+              <p className="text-sm sm:text-base text-foreground/80 font-medium leading-relaxed max-w-xl">
                 Plateforme de lecture, d&apos;écriture et d&apos;échanges créateurs. Le flux
                 glissant ci-dessous réunit articles longs et micro-posts en une expérience unifiée.
               </p>
