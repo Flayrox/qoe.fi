@@ -21,6 +21,7 @@
     "@qoe/config": "workspace:*",
     "@qoe/flags": "workspace:*",
     "@qoe/i18n": "workspace:*",
+    "@qoe/moderation": "workspace:*",
     "@qoe/observability": "workspace:^",
     "@qoe/supabase": "workspace:*",
     "@qoe/theme": "workspace:*",
