@@ -7,7 +7,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Home,
   Bookmark,
-  Highlighter,
   Wallet,
   LogOut,
   LayoutDashboard,
@@ -74,13 +73,7 @@ export function ReaderNavOverlay({
       icon: Mail,
       badge: showMessagesBadge ? unreadMessages : 0,
     },
-    { id: 'library', label: t`Signets`, href: routes.feed.library(), icon: Bookmark },
-    {
-      id: 'highlights',
-      label: t`Surlignages`,
-      href: routes.feed.highlights(),
-      icon: Highlighter,
-    },
+    { id: 'library', label: t`Bibliothèque`, href: routes.feed.library(), icon: Bookmark },
     {
       id: 'billing',
       label: t`Portefeuille`,

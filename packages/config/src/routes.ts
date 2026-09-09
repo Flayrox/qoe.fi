@@ -20,8 +20,9 @@ export const routes = {
       return query ? `/login?${query}` : '/login';
     },
     register: () => '/register',
-    library: () => '/library',
-    highlights: () => '/highlights',
+    library: (tab?: 'bookmarks' | 'highlights' | 'annotations') =>
+      tab ? `/library?tab=${tab}` : '/library',
+    highlights: () => '/library?tab=highlights',
     billing: () => '/billing',
     settings: () => '/settings',
     onboarding: () => '/onboarding',

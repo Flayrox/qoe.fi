@@ -68,14 +68,9 @@ export function AppSidebar({
       iconName: 'Compass',
     },
     {
-      title: t`Signets`,
+      title: t`Bibliothèque`,
       url: routes.feed.library(),
       iconName: 'Bookmark',
-    },
-    {
-      title: t`Surlignages`,
-      url: routes.feed.highlights(),
-      iconName: 'Highlighter',
     },
     {
       title: t`Portefeuille`,
