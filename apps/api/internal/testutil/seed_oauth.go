@@ -27,9 +27,10 @@ func SeedOAuth(ctx context.Context, pool *pgxpool.Pool) (*OAuthFixtures, error) 
 	const ownerID = "00000000-0000-0000-0000-000000000030"
 	const viewerID = "00000000-0000-0000-0000-000000000031"
 	if _, err := pool.Exec(ctx,
-		`INSERT INTO "User" (id, email, username, name, role, "apiAccessStatus", "createdAt", "updatedAt")
-		 VALUES ($1, 'oauth.owner@test.dev', 'oauthowner', 'OAuth Owner', 'creator', 'approved', now(), now()),
-		        ($2, 'oauth.viewer@test.dev', 'oauthviewer', 'OAuth Viewer', 'user', 'none', now(), now())`,
+		`INSERT INTO "User" (id, email, username, name, role, "apiAccessStatus", "apiGrants", "createdAt", "updatedAt")
+		 VALUES ($1, 'oauth.owner@test.dev', 'oauthowner', 'OAuth Owner', 'creator', 'approved',
+		         ARRAY['api:read','api:write','api:analytics','webhooks','oauth'], now(), now()),
+		        ($2, 'oauth.viewer@test.dev', 'oauthviewer', 'OAuth Viewer', 'user', 'none', '{}', now(), now())`,
 		ownerID, viewerID,
 	); err != nil {
 		return nil, fmt.Errorf("users: %w", err)

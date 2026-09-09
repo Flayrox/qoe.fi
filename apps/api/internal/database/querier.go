@@ -255,6 +255,7 @@ type Querier interface {
 	GetThreadRootID(ctx context.Context, id string) (string, error)
 	GetUnreadCount(ctx context.Context, recipientid pgtype.UUID) (int32, error)
 	GetUserApiAccessStatus(ctx context.Context, id string) (string, error)
+	GetUserApiGrants(ctx context.Context, id string) ([]string, error)
 	GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error)
 	GetUserByID(ctx context.Context, id string) (GetUserByIDRow, error)
 	GetUserByIDFull(ctx context.Context, id string) (GetUserByIDFullRow, error)
@@ -453,6 +454,7 @@ type Querier interface {
 	SetNewsletterIssueSending(ctx context.Context, id string) (string, error)
 	SetPublicationUmamiWebsite(ctx context.Context, arg SetPublicationUmamiWebsiteParams) error
 	SetSubscriberPremiumStatus(ctx context.Context, arg SetSubscriberPremiumStatusParams) error
+	SetUserApiGrants(ctx context.Context, arg SetUserApiGrantsParams) error
 	SoftDeletePost(ctx context.Context, arg SoftDeletePostParams) (string, error)
 	// Ajoute un upvote (idempotent). ⚠️ Le retrait et le comptage sont gérés
 	// séparément dans le service (les CTE PostgreSQL sont matérialisés, un

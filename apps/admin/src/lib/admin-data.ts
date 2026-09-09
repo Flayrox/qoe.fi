@@ -141,9 +141,18 @@ export interface AdminApiApplicant {
   email: string;
   subdomain: string | null;
   apiAccessStatus: string;
+  apiGrants: string[];
   apiApplicationReason: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface AdminApiModule {
+  key: string;
+  label: string;
+  description: string;
+  category: string;
+  enabled: boolean;
 }
 
 export interface AdminDelivery {
@@ -182,6 +191,11 @@ export async function getOAuthClients(): Promise<AdminOAuthClient[]> {
 /** 🛠️ Demandes d'accès API. */
 export async function getApiApplicants(): Promise<AdminApiApplicant[]> {
   return goFetch<AdminApiApplicant[]>('/v1/admin/api-applicants');
+}
+
+/** 🧩 Registre des permissions d'accès API modulables (API entrante / sortante / OAuth). */
+export async function getApiAccessModules(): Promise<AdminApiModule[]> {
+  return goFetch<AdminApiModule[]>('/v1/admin/api-access/modules');
 }
 
 export interface ModerationReportItem {

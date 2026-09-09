@@ -190,7 +190,7 @@ func TestApiKeyRotation(t *testing.T) {
 	// Un autre utilisateur (approuvé API, pour franchir le check d'accès) ne
 	// peut pas rotater une clé qui ne lui appartient pas → 404 (isolation).
 	if _, err := poolTest.Exec(ctx,
-		`UPDATE "User" SET "apiAccessStatus" = 'approved' WHERE id = $1`, fx.ViewerID); err != nil {
+		`UPDATE "User" SET "apiAccessStatus" = 'approved', "apiGrants" = ARRAY['api:read','api:write','api:analytics','webhooks','oauth'] WHERE id = $1`, fx.ViewerID); err != nil {
 		t.Fatalf("approve viewer: %v", err)
 	}
 	w = doKeys(r, http.MethodPost, "/v1/settings/api-keys/"+keyID+"/rotate", fx.ViewerID, "")

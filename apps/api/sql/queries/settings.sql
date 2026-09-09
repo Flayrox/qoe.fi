@@ -53,6 +53,9 @@ WHERE id = $1;
 -- name: GetUserApiAccessStatus :one
 SELECT "apiAccessStatus" FROM "User" WHERE id = $1;
 
+-- name: GetUserApiGrants :one
+SELECT "apiGrants" FROM "User" WHERE id = $1;
+
 -- name: InsertApiKey :exec
 INSERT INTO "ApiKey" (id, name, "keyPrefix", "keyHash", scopes, "userId")
 VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5);

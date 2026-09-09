@@ -47,8 +47,9 @@ func SeedWebhooks(ctx context.Context, pool *pgxpool.Pool) (*WebhookFixtures, er
 	// le service resolveRole : GetUserPersonalPublication).
 	const ownerID = "00000000-0000-0000-0000-000000000010"
 	if err := pool.QueryRow(ctx,
-		`INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt")
-		 VALUES ($1, 'owner@test.dev', 'owner', 'Owner', 'creator', $2, now(), now())
+		`INSERT INTO "User" (id, email, username, name, role, "publicationId", "apiGrants", "createdAt", "updatedAt")
+		 VALUES ($1, 'owner@test.dev', 'owner', 'Owner', 'creator', $2,
+		         ARRAY['api:read','api:write','api:analytics','webhooks','oauth'], now(), now())
 		 RETURNING id`,
 		ownerID, fx.PublicationID,
 	).Scan(&fx.OwnerID); err != nil {
@@ -63,8 +64,9 @@ func SeedWebhooks(ctx context.Context, pool *pgxpool.Pool) (*WebhookFixtures, er
 		{viewerID, "viewer@test.dev", "viewer"},
 	} {
 		if _, err := pool.Exec(ctx,
-			`INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt")
-			 VALUES ($1, $2, $3, $3, 'user', now(), now())`,
+			`INSERT INTO "User" (id, email, username, name, role, "apiGrants", "createdAt", "updatedAt")
+			 VALUES ($1, $2, $3, $3, 'user',
+			         ARRAY['api:read','api:write','api:analytics','webhooks','oauth'], now(), now())`,
 			u.id, u.email, u.username,
 		); err != nil {
 			return nil, fmt.Errorf("user %s: %w", u.username, err)

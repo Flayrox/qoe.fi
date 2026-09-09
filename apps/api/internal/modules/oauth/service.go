@@ -30,6 +30,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/apiaccess"
 	db "github.com/qoefi/api/internal/database"
 )
 
@@ -321,6 +322,18 @@ func (s *Service) CreateClientRequest(ctx context.Context, userID string, in Cre
 	}
 	if status != "approved" {
 		return nil, oauthError("forbidden", "Votre demande d'accès API doit être approuvée avant de créer une application OAuth.", 403)
+	}
+	// 1bis) La permission OAuth est modulable : l'admin doit l'avoir accordée
+	// (User.apiGrants) et le module doit être actif sur la plateforme.
+	grants, err := s.q.GetUserApiGrants(ctx, userID)
+	if err != nil {
+		return nil, oauthError("forbidden", "Utilisateur introuvable", 403)
+	}
+	if !apiaccess.HasGrant(grants, apiaccess.ModuleOAuth) {
+		return nil, oauthError("forbidden", "La permission OAuth ne vous a pas été accordée. Contactez un administrateur.", 403)
+	}
+	if !apiaccess.IsEnabled(ctx, s.pool, apiaccess.ModuleOAuth) {
+		return nil, oauthError("forbidden", "Les applications OAuth sont temporairement désactivées sur la plateforme.", 403)
 	}
 
 	name := strings.TrimSpace(in.Name)

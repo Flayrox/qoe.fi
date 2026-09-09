@@ -186,6 +186,17 @@ func (q *Queries) GetUserApiAccessStatus(ctx context.Context, id string) (string
 	return apiAccessStatus, err
 }
 
+const getUserApiGrants = `-- name: GetUserApiGrants :one
+SELECT "apiGrants" FROM "User" WHERE id = $1
+`
+
+func (q *Queries) GetUserApiGrants(ctx context.Context, id string) ([]string, error) {
+	row := q.db.QueryRow(ctx, getUserApiGrants, id)
+	var apiGrants []string
+	err := row.Scan(&apiGrants)
+	return apiGrants, err
+}
+
 const getUserForSettings = `-- name: GetUserForSettings :one
 
 SELECT u.id::text         AS id,

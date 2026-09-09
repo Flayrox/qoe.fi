@@ -91,6 +91,10 @@ Deux modes (les tests d'intégration ont besoin de Postgres + pgvector) :
 | GET | `/v1/analytics/top-content?publicationId=&limit=` | contenus récents (articles + pensées) |
 | POST | `/v1/webhooks/stripe` | webhook Stripe (vérif signature HMAC + enqueue asynq) |
 | POST | `/v1/webhooks/supabase` | stub Supabase |
+| GET | `/v1/admin/api-applicants` | demandes d'accès API (superadmin) |
+| PATCH | `/v1/admin/api-applicants/{userID}` | approuver/rejeter/révoquer + permissions accordées (grants) |
+| PATCH | `/v1/admin/api-applicants/{userID}/grants` | ajuster les permissions sans changer le statut |
+| GET/PATCH | `/v1/admin/api-access/modules` | registre des permissions modulables (API entrante/sortante/OAuth) |
 
 ## Statut
 - [x] Fondations (config, pool, auth, middleware, réponse)

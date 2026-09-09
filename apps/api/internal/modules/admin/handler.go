@@ -54,9 +54,12 @@ func (h *Handler) Register(r chi.Router) {
 	r.Get("/v1/admin/oauth/clients", h.oauthClients)
 	r.Patch("/v1/admin/oauth/clients/{id}", h.updateOAuthStatus)
 
-	// Demandes d'accès API
+	// Demandes d'accès API (permissions modulables)
 	r.Get("/v1/admin/api-applicants", h.apiApplicants)
 	r.Patch("/v1/admin/api-applicants/{userID}", h.updateApiAccess)
+	r.Patch("/v1/admin/api-applicants/{userID}/grants", h.updateApiGrants)
+	r.Get("/v1/admin/api-access/modules", h.apiAccessModules)
+	r.Patch("/v1/admin/api-access/modules", h.updateApiAccessModules)
 
 	// Notifications & livraisons
 	r.Get("/v1/admin/deliveries", h.deliveries)
@@ -475,14 +478,16 @@ func (h *Handler) apiApplicants(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, data)
 }
 
-// PATCH /v1/admin/api-applicants/{userID} — approuve / rejette / révoque.
+// PATCH /v1/admin/api-applicants/{userID} — approuve / rejette / révoque,
+// avec les permissions (grants) choisies par l'admin à l'approbation.
 func (h *Handler) updateApiAccess(w http.ResponseWriter, r *http.Request) {
 	userID, ok := h.requireSuperadmin(w, r)
 	if !ok {
 		return
 	}
 	var in struct {
-		Status string `json:"status"`
+		Status string   `json:"status"`
+		Grants []string `json:"grants"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		response.BadRequest(w, "JSON invalide")
@@ -494,7 +499,63 @@ func (h *Handler) updateApiAccess(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "Statut invalide")
 		return
 	}
-	if err := h.svc.UpdateApiAccessStatus(r.Context(), userID, chi.URLParam(r, "userID"), in.Status); err != nil {
+	if err := h.svc.UpdateApiAccessStatus(r.Context(), userID, chi.URLParam(r, "userID"), in.Status, in.Grants); err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, map[string]bool{"success": true})
+}
+
+// PATCH /v1/admin/api-applicants/{userID}/grants — ajuste les permissions d'un
+// créateur sans changer son statut (l'admin se réserve le droit).
+func (h *Handler) updateApiGrants(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	var in struct {
+		Grants []string `json:"grants"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	if err := h.svc.UpdateApiGrants(r.Context(), userID, chi.URLParam(r, "userID"), in.Grants); err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, map[string]bool{"success": true})
+}
+
+// GET /v1/admin/api-access/modules — registre des permissions modulables.
+func (h *Handler) apiAccessModules(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	modules, err := h.svc.GetApiAccessModules(r.Context(), userID)
+	if err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, modules)
+}
+
+// PATCH /v1/admin/api-access/modules — active / désactive les modules
+// accordables à l'échelle de la plateforme.
+func (h *Handler) updateApiAccessModules(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	var in struct {
+		Enabled []string `json:"enabled"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	if err := h.svc.UpdateApiAccessModules(r.Context(), userID, in.Enabled); err != nil {
 		h.handleErr(w, err)
 		return
 	}

@@ -233,7 +233,7 @@ func (q *Queries) GetSystemConfigsByKeys(ctx context.Context, dollar_1 []string)
 
 const listAdminApiApplicants = `-- name: ListAdminApiApplicants :many
 
-SELECT u.id, u.name, u.email, u."apiAccessStatus", u."apiApplicationReason", u."createdAt", u."updatedAt",
+SELECT u.id, u.name, u.email, u."apiAccessStatus", u."apiGrants", u."apiApplicationReason", u."createdAt", u."updatedAt",
        p."subdomain" AS publication_subdomain
 FROM "User" u
 LEFT JOIN "Publication" p ON p.id = u."publicationId"
@@ -246,6 +246,7 @@ type ListAdminApiApplicantsRow struct {
 	Name                 pgtype.Text      `json:"name"`
 	Email                string           `json:"email"`
 	ApiAccessStatus      string           `json:"apiAccessStatus"`
+	ApiGrants            []string         `json:"apiGrants"`
 	ApiApplicationReason pgtype.Text      `json:"apiApplicationReason"`
 	CreatedAt            pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt            pgtype.Timestamp `json:"updatedAt"`
@@ -267,6 +268,7 @@ func (q *Queries) ListAdminApiApplicants(ctx context.Context) ([]ListAdminApiApp
 			&i.Name,
 			&i.Email,
 			&i.ApiAccessStatus,
+			&i.ApiGrants,
 			&i.ApiApplicationReason,
 			&i.CreatedAt,
 			&i.UpdatedAt,
@@ -637,6 +639,20 @@ func (q *Queries) SetArticleEditorPick(ctx context.Context, arg SetArticleEditor
 	return i, err
 }
 
+const setUserApiGrants = `-- name: SetUserApiGrants :exec
+UPDATE "User" SET "apiGrants" = $2, "updatedAt" = now() WHERE id = $1
+`
+
+type SetUserApiGrantsParams struct {
+	ID        string   `json:"id"`
+	ApiGrants []string `json:"apiGrants"`
+}
+
+func (q *Queries) SetUserApiGrants(ctx context.Context, arg SetUserApiGrantsParams) error {
+	_, err := q.db.Exec(ctx, setUserApiGrants, arg.ID, arg.ApiGrants)
+	return err
+}
+
 const updateAdminOAuthClientStatus = `-- name: UpdateAdminOAuthClientStatus :one
 UPDATE "OAuthClient" SET status = $2, "updatedAt" = now() WHERE id = $1
 RETURNING id, status
@@ -660,24 +676,26 @@ func (q *Queries) UpdateAdminOAuthClientStatus(ctx context.Context, arg UpdateAd
 }
 
 const updateAdminUserApiAccess = `-- name: UpdateAdminUserApiAccess :one
-UPDATE "User" SET "apiAccessStatus" = $2, "updatedAt" = now() WHERE id = $1
-RETURNING id, "apiAccessStatus"
+UPDATE "User" SET "apiAccessStatus" = $2, "apiGrants" = $3, "updatedAt" = now() WHERE id = $1
+RETURNING id, "apiAccessStatus", "apiGrants"
 `
 
 type UpdateAdminUserApiAccessParams struct {
-	ID              string `json:"id"`
-	ApiAccessStatus string `json:"apiAccessStatus"`
+	ID              string   `json:"id"`
+	ApiAccessStatus string   `json:"apiAccessStatus"`
+	ApiGrants       []string `json:"apiGrants"`
 }
 
 type UpdateAdminUserApiAccessRow struct {
-	ID              string `json:"id"`
-	ApiAccessStatus string `json:"apiAccessStatus"`
+	ID              string   `json:"id"`
+	ApiAccessStatus string   `json:"apiAccessStatus"`
+	ApiGrants       []string `json:"apiGrants"`
 }
 
 func (q *Queries) UpdateAdminUserApiAccess(ctx context.Context, arg UpdateAdminUserApiAccessParams) (UpdateAdminUserApiAccessRow, error) {
-	row := q.db.QueryRow(ctx, updateAdminUserApiAccess, arg.ID, arg.ApiAccessStatus)
+	row := q.db.QueryRow(ctx, updateAdminUserApiAccess, arg.ID, arg.ApiAccessStatus, arg.ApiGrants)
 	var i UpdateAdminUserApiAccessRow
-	err := row.Scan(&i.ID, &i.ApiAccessStatus)
+	err := row.Scan(&i.ID, &i.ApiAccessStatus, &i.ApiGrants)
 	return i, err
 }
 

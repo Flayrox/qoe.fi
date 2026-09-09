@@ -13,6 +13,7 @@ import {
   XCircle,
   Clock,
   Copy,
+  Lock,
   Webhook as WebhookIcon,
   Send,
 } from 'lucide-react';
@@ -54,10 +55,12 @@ export function WebhooksClient({
   initialWebhooks,
   events,
   workspaceName,
+  hasWebhookGrant = true,
 }: {
   initialWebhooks: WebhookWithDeliveries[];
   events: readonly string[];
   workspaceName: string;
+  hasWebhookGrant?: boolean;
 }) {
   const router = useRouter();
   const [webhooks, setWebhooks] = useState<WebhookWithDeliveries[]>(initialWebhooks);
@@ -294,8 +297,20 @@ export function WebhooksClient({
         </div>
       )}
 
-      {/* List */}
-      {webhooks.length === 0 && !showCreate ? (
+      {/* Gate : permission « API sortante — webhooks » non accordée par l'admin */}
+      {!hasWebhookGrant ? (
+        <div className="py-16 text-center bg-card border border-border/80 rounded-2xl p-8 shadow-xs">
+          <div className="w-14 h-14 rounded-2xl bg-muted/40 text-muted-foreground flex items-center justify-center mx-auto mb-4 border border-border/60">
+            <Lock className="w-6 h-6" />
+          </div>
+          <h3 className="text-lg font-bold text-foreground">API sortante non accordée</h3>
+          <p className="text-xs text-muted-foreground mt-1 mb-4 max-w-sm mx-auto leading-relaxed">
+            La permission « webhooks » ne vous a pas été accordée par un administrateur.
+            Contactez-le pour activer l'API sortante — vos autres accès API restent inchangés.
+          </p>
+        </div>
+      ) : // List
+      webhooks.length === 0 && !showCreate ? (
         <div className="py-20 text-center bg-card border border-border/80 rounded-2xl p-8 shadow-xs">
           <div className="w-14 h-14 rounded-2xl bg-muted/40 text-primary flex items-center justify-center mx-auto mb-4 border border-border/60">
             <Globe className="w-6 h-6" strokeWidth={1.5} />

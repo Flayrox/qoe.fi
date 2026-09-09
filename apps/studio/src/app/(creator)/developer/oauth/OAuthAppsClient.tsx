@@ -56,11 +56,17 @@ const STATUS_META: Record<OAuthClientDTO['status'], { label: () => string; class
 
 interface OAuthAppsClientProps {
   status: string;
+  hasOAuthGrant?: boolean;
   clients: OAuthClientDTO[];
   error?: string;
 }
 
-export function OAuthAppsClient({ status, clients: initialClients, error }: OAuthAppsClientProps) {
+export function OAuthAppsClient({
+  status,
+  hasOAuthGrant = true,
+  clients: initialClients,
+  error,
+}: OAuthAppsClientProps) {
   const router = useRouter();
   const [clients, setClients] = useState<OAuthClientDTO[]>(initialClients);
 
@@ -179,7 +185,7 @@ export function OAuthAppsClient({ status, clients: initialClients, error }: OAut
     }
   };
 
-  const gated = status !== 'approved';
+  const gated = status !== 'approved' || !hasOAuthGrant;
 
   return (
     <div className="w-full space-y-8 font-sans pb-16 text-foreground">
@@ -229,8 +235,9 @@ export function OAuthAppsClient({ status, clients: initialClients, error }: OAut
           </div>
           <h2 className="text-lg font-bold text-foreground">Accès développeur requis</h2>
           <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-            Les applications OAuth permettent à des tiers de se connecter avec votre identité
-            qoe.fi. Pour en créer, votre demande d'accès API doit d'abord être approuvée.
+            {hasOAuthGrant
+              ? "Les applications OAuth permettent à des tiers de se connecter avec votre identité qoe.fi. Pour en créer, votre demande d'accès API doit d'abord être approuvée."
+              : "Votre compte est approuvé, mais la permission OAuth ne vous a pas été accordée par un administrateur. Contactez-le pour l'activer — vos autres accès API restent inchangés."}
           </p>
           <Link
             href="/developer"
