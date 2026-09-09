@@ -28,6 +28,7 @@ import {
   Webhook,
   Compass,
   CircleUserRound,
+  X,
 } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 
@@ -377,11 +378,9 @@ export function Sidebar({
 
       <aside
         className={cn(
-          'font-sans select-none w-[250px]',
-          'fixed top-[6px] left-[6px] bottom-[6px] z-40 transition-transform duration-200 ease-in-out',
-          isMobileOpen
-            ? 'flex flex-col translate-x-0'
-            : 'hidden md:flex flex-col -translate-x-full md:translate-x-0',
+          'font-sans select-none w-[250px] flex flex-col',
+          'fixed top-[6px] left-[6px] bottom-[6px] z-50 transition-transform duration-300 ease-out',
+          isMobileOpen ? 'translate-x-0' : '-translate-x-[calc(100%+16px)] md:translate-x-0',
           className
         )}
       >
@@ -406,8 +405,19 @@ export function Sidebar({
                     </span>
                   )}
                 </Link>
-                {/* Bascule clair/sombre toujours visible (Soleil/Lune) */}
-                <ThemeToggle />
+                <div className="flex items-center gap-1.5">
+                  {/* Bascule clair/sombre toujours visible (Soleil/Lune) */}
+                  <ThemeToggle />
+                  {/* Bouton de fermeture tactile sur mobile */}
+                  <button
+                    type="button"
+                    onClick={() => setIsMobileOpen(false)}
+                    className="md:hidden p-1.5 rounded-lg text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent/50 transition-colors"
+                    aria-label={t`Fermer le menu`}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </SidebarHeader>
 
               {/* ── OPTIONAL SEARCH BAR ── */}

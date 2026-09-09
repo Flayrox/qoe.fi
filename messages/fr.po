@@ -1684,6 +1684,9 @@ msgstr "Fermer"
 msgid "Fermer (Échap)"
 msgstr "Fermer (Échap)"
 
+msgid "Fermer le menu"
+msgstr "Fermer le menu"
+
 msgid "Fermer les modales et réinitialiser la sélection"
 msgstr "Fermer les modales et réinitialiser la sélection"
 
@@ -2285,8 +2288,8 @@ msgstr "Menu compte"
 msgid "Menu de navigation principal"
 msgstr "Menu de navigation principal"
 
-msgid "Menu profil"
-msgstr "Menu profil"
+#~ msgid "Menu profil"
+#~ msgstr "Menu profil"
 
 msgid "Merci ! Vérifiez votre boîte mail pour confirmer votre abonnement."
 msgstr "Merci ! Vérifiez votre boîte mail pour confirmer votre abonnement."
@@ -2507,6 +2510,9 @@ msgstr "Ouvrir l'article source"
 
 msgid "Ouvrir la page publique ou la prévisualisation de l'écrit"
 msgstr "Ouvrir la page publique ou la prévisualisation de l'écrit"
+
+msgid "Ouvrir le menu"
+msgstr "Ouvrir le menu"
 
 msgid "Ouvrir le thread complet de la pensée"
 msgstr "Ouvrir le thread complet de la pensée"
@@ -3399,8 +3405,8 @@ msgstr "Structure de la timeline de lecture"
 msgid "Studio"
 msgstr "Studio"
 
-msgid "Studio Créateur"
-msgstr "Studio Créateur"
+#~ msgid "Studio Créateur"
+#~ msgstr "Studio Créateur"
 
 msgid "Substack"
 msgstr "Substack"
