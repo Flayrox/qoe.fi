@@ -3,8 +3,20 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '@qoe/ui/toast';
-import { Loader2, ExternalLink, Search, Shield } from 'lucide-react';
-import { updateCreatorApiAccessAction } from '@qoe/sdk/actions/admin';
+import {
+  Loader2,
+  ExternalLink,
+  Search,
+  Shield,
+  Settings2,
+  X,
+  Check,
+  ArrowUpRight,
+  ArrowDownLeft,
+  KeyRound,
+  Globe,
+} from 'lucide-react';
+import { updateCreatorApiAccessAction, updateCreatorApiGrantsAction } from '@qoe/sdk/actions/admin';
 
 export interface ApiApplicant {
   id: string;
@@ -12,36 +24,81 @@ export interface ApiApplicant {
   email: string;
   subdomain: string | null;
   apiAccessStatus: string;
+  apiGrants: string[];
   apiApplicationReason: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
-interface ApiRequestsClientProps {
-  initialApplicants: ApiApplicant[];
+export interface ApiModule {
+  key: string;
+  label: string;
+  description: string;
+  category: string;
+  enabled: boolean;
 }
 
-export function ApiRequestsClient({ initialApplicants }: ApiRequestsClientProps) {
+interface ApiRequestsClientProps {
+  initialApplicants: ApiApplicant[];
+  modules: ApiModule[];
+}
+
+// Icône par catégorie (API entrante / sortante / OAuth).
+const CATEGORY_META: Record<string, { label: string; icon: React.ReactNode }> = {
+  api: { label: 'API entrante', icon: <ArrowDownLeft className="w-3.5 h-3.5" /> },
+  webhooks: { label: 'API sortante', icon: <ArrowUpRight className="w-3.5 h-3.5" /> },
+  oauth: { label: 'OAuth / OIDC', icon: <KeyRound className="w-3.5 h-3.5" /> },
+};
+
+function moduleLabel(key: string, modules: ApiModule[]): string {
+  return modules.find((m) => m.key === key)?.label ?? key;
+}
+
+export function ApiRequestsClient({ initialApplicants, modules }: ApiRequestsClientProps) {
   const [applicants, setApplicants] = useState<ApiApplicant[]>(initialApplicants);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [expandedReasonId, setExpandedReasonId] = useState<string | null>(null);
 
-  const handleUpdateStatus = async (
-    userId: string,
-    newStatus: 'approved' | 'rejected' | 'revoked' | 'none'
-  ) => {
+  // Modal d'attribution des permissions (approbation ou ajustement).
+  const [picker, setPicker] = useState<{ userId: string; status: string; grants: string[] } | null>(
+    null
+  );
+
+  const grantableModules = modules.filter((m) => m.enabled);
+
+  const applyStatus = (userId: string, patch: Partial<ApiApplicant>) => {
+    setApplicants((prev) => prev.map((app) => (app.id === userId ? { ...app, ...patch } : app)));
+  };
+
+  // Approbation / activation avec le choix des permissions par l'admin.
+  const handleApprove = async (userId: string, grants: string[]) => {
+    setLoadingId(userId);
+    try {
+      const res = await updateCreatorApiAccessAction({ userId, status: 'approved', grants });
+      if (res.ok) {
+        applyStatus(userId, { apiAccessStatus: 'approved', apiGrants: grants });
+        toast.success('Accès API accordé avec les permissions sélectionnées.');
+      }
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Impossible d’accorder l’accès API.');
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
+  const handleUpdateStatus = async (userId: string, newStatus: 'rejected' | 'revoked' | 'none') => {
     setLoadingId(userId);
     try {
       const res = await updateCreatorApiAccessAction({ userId, status: newStatus });
       if (res.ok) {
-        setApplicants(
-          applicants.map((app) =>
-            app.id === userId ? { ...app, apiAccessStatus: newStatus } : app
-          )
+        applyStatus(userId, { apiAccessStatus: newStatus, apiGrants: [] });
+        toast.success(
+          newStatus === 'revoked'
+            ? 'Accès révoqué : toutes les permissions ont été retirées.'
+            : 'Statut mis à jour.'
         );
-        toast.success(`Statut mis à jour avec succès : ${newStatus}`);
       }
     } catch (error: unknown) {
       toast.error(
@@ -52,7 +109,35 @@ export function ApiRequestsClient({ initialApplicants }: ApiRequestsClientProps)
     }
   };
 
-  // Filter and search logic
+  // Ajustement des permissions d'un créateur déjà approuvé (sans toucher au statut).
+  const handleUpdateGrants = async (userId: string, grants: string[]) => {
+    setLoadingId(userId);
+    try {
+      const res = await updateCreatorApiGrantsAction({ userId, grants });
+      if (res.ok) {
+        applyStatus(userId, { apiGrants: grants });
+        toast.success('Permissions mises à jour.');
+      }
+    } catch (error: unknown) {
+      toast.error(
+        error instanceof Error ? error.message : 'Impossible de mettre à jour les permissions.'
+      );
+    } finally {
+      setLoadingId(null);
+    }
+  };
+
+  const openPicker = (app: ApiApplicant, status: string) => {
+    // Au moment d'accorder l'accès : présélection de tous les modules actifs.
+    const grants =
+      status === 'approved'
+        ? grantableModules.map((m) => m.key)
+        : app.apiGrants.length > 0
+          ? app.apiGrants
+          : grantableModules.map((m) => m.key);
+    setPicker({ userId: app.id, status, grants });
+  };
+
   const filteredApplicants = applicants.filter((app) => {
     const matchesStatus = filterStatus === 'all' || app.apiAccessStatus === filterStatus;
     const matchesSearch =
@@ -120,6 +205,7 @@ export function ApiRequestsClient({ initialApplicants }: ApiRequestsClientProps)
                   <th className="px-6 py-4">Créateur</th>
                   <th className="px-6 py-4">Espace (Subdomain)</th>
                   <th className="px-6 py-4">Cas d'usage</th>
+                  <th className="px-6 py-4">Permissions accordées</th>
                   <th className="px-6 py-4">Statut</th>
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
@@ -191,6 +277,41 @@ export function ApiRequestsClient({ initialApplicants }: ApiRequestsClientProps)
                         )}
                       </td>
 
+                      {/* Granted permissions (modular) */}
+                      <td className="px-6 py-5">
+                        <div className="flex flex-wrap gap-1.5 max-w-[220px]">
+                          {app.apiGrants.length === 0 ? (
+                            <span className="text-muted-foreground italic text-[11px]">
+                              Aucune permission
+                            </span>
+                          ) : (
+                            app.apiGrants.map((g) => {
+                              const meta =
+                                CATEGORY_META[modules.find((m) => m.key === g)?.category ?? ''];
+                              return (
+                                <span
+                                  key={g}
+                                  title={moduleLabel(g, modules)}
+                                  className="bg-primary/5 text-primary border border-primary/20 px-2 py-0.5 rounded-full font-semibold text-[10px] inline-flex items-center gap-1"
+                                >
+                                  {meta?.icon ?? <Globe className="w-3 h-3" />}
+                                  {moduleLabel(g, modules)}
+                                </span>
+                              );
+                            })
+                          )}
+                        </div>
+                        {app.apiAccessStatus === 'approved' && (
+                          <button
+                            onClick={() => openPicker(app, 'edit')}
+                            className="mt-2 text-[10px] font-bold text-muted-foreground hover:text-[#EE4B2B] flex items-center gap-1"
+                          >
+                            <Settings2 className="w-3 h-3" />
+                            Modifier les permissions
+                          </button>
+                        )}
+                      </td>
+
                       {/* Access Status Badge */}
                       <td className="px-6 py-5">
                         <div className="pt-0.5">
@@ -236,7 +357,7 @@ export function ApiRequestsClient({ initialApplicants }: ApiRequestsClientProps)
                             {app.apiAccessStatus === 'pending' && (
                               <>
                                 <button
-                                  onClick={() => handleUpdateStatus(app.id, 'approved')}
+                                  onClick={() => openPicker(app, 'approved')}
                                   className="bg-success hover:bg-success text-white font-semibold px-3 py-1.5 rounded-xl shadow-sm transition-all"
                                 >
                                   Approuver
@@ -265,7 +386,7 @@ export function ApiRequestsClient({ initialApplicants }: ApiRequestsClientProps)
                               app.apiAccessStatus === 'revoked' ||
                               app.apiAccessStatus === 'none') && (
                               <button
-                                onClick={() => handleUpdateStatus(app.id, 'approved')}
+                                onClick={() => openPicker(app, 'approved')}
                                 className="bg-foreground hover:bg-secondary text-background font-semibold px-3 py-1.5 rounded-xl shadow-sm transition-all"
                               >
                                 Activer l'accès API
@@ -282,6 +403,162 @@ export function ApiRequestsClient({ initialApplicants }: ApiRequestsClientProps)
           </div>
         )}
       </div>
+
+      {/* Permission picker modal */}
+      <AnimatePresence>
+        {picker && (
+          <PermissionPicker
+            modules={modules}
+            initialGrants={picker.grants}
+            isApproval={picker.status === 'approved'}
+            onClose={() => setPicker(null)}
+            onConfirm={(grants) => {
+              if (picker.status === 'approved') {
+                void handleApprove(picker.userId, grants);
+              } else {
+                void handleUpdateGrants(picker.userId, grants);
+              }
+              setPicker(null);
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
+  );
+}
+
+interface PermissionPickerProps {
+  modules: ApiModule[];
+  initialGrants: string[];
+  isApproval: boolean;
+  onClose: () => void;
+  onConfirm: (grants: string[]) => void;
+}
+
+// Modale « Accorder l'accès API » : l'admin choisit, permission par permission,
+// ce qu'il accorde (API entrante lecture/écriture/analytics, API sortante
+// webhooks, OAuth) — il se réserve ainsi le droit de ne pas tout donner.
+function PermissionPicker({
+  modules,
+  initialGrants,
+  isApproval,
+  onClose,
+  onConfirm,
+}: PermissionPickerProps) {
+  const [grants, setGrants] = useState<string[]>(initialGrants);
+  const active = modules.filter((m) => m.enabled);
+
+  const toggle = (key: string) => {
+    setGrants((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
+  };
+
+  const categories = [...new Set(active.map((m) => m.category))];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.96, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.96, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-lg p-6 space-y-5"
+      >
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-bold text-foreground">
+              {isApproval ? "Accorder l'accès API" : 'Modifier les permissions'}
+            </h2>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              {isApproval
+                ? 'Sélectionnez les permissions à accorder à ce créateur. Vous pourrez les ajuster à tout moment.'
+                : "Ajustez les permissions de ce créateur sans changer son statut (l'admin se réserve le droit)."}
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-muted transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-1">
+          {categories.map((cat) => (
+            <div key={cat}>
+              <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                {CATEGORY_META[cat]?.icon}
+                {CATEGORY_META[cat]?.label ?? cat}
+              </div>
+              <div className="space-y-2">
+                {active
+                  .filter((m) => m.category === cat)
+                  .map((m) => {
+                    const checked = grants.includes(m.key);
+                    return (
+                      <button
+                        key={m.key}
+                        type="button"
+                        aria-pressed={checked}
+                        onClick={() => toggle(m.key)}
+                        className={`w-full flex items-start gap-3 rounded-xl border p-3 text-left transition-colors cursor-pointer ${
+                          checked
+                            ? 'border-[#EE4B2B]/50 bg-[#EE4B2B]/5'
+                            : 'border-border hover:bg-muted'
+                        }`}
+                      >
+                        <span
+                          className={`mt-0.5 w-4 h-4 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
+                            checked
+                              ? 'bg-[#EE4B2B] border-[#EE4B2B] text-white'
+                              : 'border-muted-foreground/40 bg-white'
+                          }`}
+                        >
+                          {checked && <Check className="w-3 h-3" />}
+                        </span>
+                        <span className="space-y-0.5">
+                          <span className="block text-xs font-bold text-foreground">{m.label}</span>
+                          <span className="block text-[11px] text-muted-foreground leading-snug">
+                            {m.description}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center justify-between gap-3 pt-2 border-t border-border">
+          <button
+            onClick={() => setGrants(active.map((m) => m.key))}
+            className="text-[11px] font-bold text-[#EE4B2B] hover:underline"
+          >
+            Tout sélectionner
+          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-colors"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={() => onConfirm(grants)}
+              disabled={grants.length === 0}
+              className="px-4 py-2 rounded-xl bg-[#EE4B2B] text-white text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {isApproval ? 'Accorder l’accès' : 'Enregistrer'}
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }

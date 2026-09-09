@@ -22,6 +22,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/apiaccess"
 	db "github.com/qoefi/api/internal/database"
 )
 
@@ -102,8 +103,29 @@ func toUUID(id string) pgtype.UUID {
 // canManage : seuls owner/editor gèrent (create/delete/toggle/test) les webhooks.
 func canManage(role string) bool { return role == "owner" || role == "editor" }
 
+// requireWebhookGrant vérifie que le créateur possède la permission « API
+// sortante — webhooks » (User.apiGrants, modulable par l'admin) et que le
+// module est actif sur la plateforme. C'est le contrôle de l'API sortante :
+// sans ce grant, aucun webhook ne peut être créé ni géré.
+func (s *Service) requireWebhookGrant(ctx context.Context, userID string) error {
+	grants, err := s.q.GetUserApiGrants(ctx, userID)
+	if err != nil {
+		return errForbidden
+	}
+	if !apiaccess.HasGrant(grants, apiaccess.ModuleWebhooks) {
+		return errForbidden
+	}
+	if !apiaccess.IsEnabled(ctx, s.pool, apiaccess.ModuleWebhooks) {
+		return errForbidden
+	}
+	return nil
+}
+
 // List renvoie les webhooks d'une publication avec leurs livraisons récentes.
 func (s *Service) List(ctx context.Context, userID, publicationID string) ([]Webhook, error) {
+	if err := s.requireWebhookGrant(ctx, userID); err != nil {
+		return nil, err
+	}
 	if _, err := s.resolveRole(ctx, userID, publicationID); err != nil {
 		return nil, err
 	}
@@ -141,6 +163,9 @@ func (s *Service) List(ctx context.Context, userID, publicationID string) ([]Web
 // Create crée un webhook (owner/editor requis) et retourne le secret
 // (affiché une seule fois, signature HMAC des livraisons).
 func (s *Service) Create(ctx context.Context, userID, publicationID, name, url string, events []string) (Webhook, string, error) {
+	if err := s.requireWebhookGrant(ctx, userID); err != nil {
+		return Webhook{}, "", err
+	}
 	role, err := s.resolveRole(ctx, userID, publicationID)
 	if err != nil {
 		return Webhook{}, "", err
@@ -172,6 +197,9 @@ func (s *Service) Create(ctx context.Context, userID, publicationID, name, url s
 
 // Delete supprime un webhook (après contrôle d'appartenance + RBAC).
 func (s *Service) Delete(ctx context.Context, userID, id, publicationID string) error {
+	if err := s.requireWebhookGrant(ctx, userID); err != nil {
+		return err
+	}
 	role, err := s.resolveRole(ctx, userID, publicationID)
 	if err != nil {
 		return err
@@ -187,6 +215,9 @@ func (s *Service) Delete(ctx context.Context, userID, id, publicationID string) 
 
 // Toggle inverse l'état actif et le retourne.
 func (s *Service) Toggle(ctx context.Context, userID, id, publicationID string) (bool, error) {
+	if err := s.requireWebhookGrant(ctx, userID); err != nil {
+		return false, err
+	}
 	role, err := s.resolveRole(ctx, userID, publicationID)
 	if err != nil {
 		return false, err
@@ -207,6 +238,9 @@ func (s *Service) Toggle(ctx context.Context, userID, id, publicationID string) 
 
 // Test envoie un ping signé HMAC au endpoint et enregistre la livraison.
 func (s *Service) Test(ctx context.Context, userID, id, publicationID string) (TestResult, error) {
+	if err := s.requireWebhookGrant(ctx, userID); err != nil {
+		return TestResult{}, err
+	}
 	role, err := s.resolveRole(ctx, userID, publicationID)
 	if err != nil {
 		return TestResult{}, err
@@ -279,6 +313,9 @@ func (s *Service) Test(ctx context.Context, userID, id, publicationID string) (T
 
 // ListDeliveries liste les logs de livraison d'un abonnement (RBAC requis).
 func (s *Service) ListDeliveries(ctx context.Context, userID, publicationID, webhookID string, limit int) ([]Delivery, error) {
+	if err := s.requireWebhookGrant(ctx, userID); err != nil {
+		return nil, err
+	}
 	if _, err := s.resolveRole(ctx, userID, publicationID); err != nil {
 		return nil, err
 	}

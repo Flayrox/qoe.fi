@@ -29,14 +29,19 @@ export default async function DeveloperPage() {
 
   // 2. Go : statut d'accès API + clés (chemin nominal).
   const [me, keysRes] = await Promise.all([
-    goFetch<{ data: { apiAccessStatus: string; apiApplicationReason: string | null } }>(
-      '/v1/users/me'
-    ),
+    goFetch<{
+      data: {
+        apiAccessStatus: string;
+        apiGrants: string[];
+        apiApplicationReason: string | null;
+      };
+    }>('/v1/users/me'),
     goFetch<{ keys: ApiKeyDTO[] }>('/v1/settings/api-keys'),
   ]);
   return (
     <DeveloperClient
       initialStatus={me.data.apiAccessStatus}
+      initialGrants={me.data.apiGrants ?? []}
       initialReason={me.data.apiApplicationReason}
       initialKeys={keysRes.keys ?? []}
     />

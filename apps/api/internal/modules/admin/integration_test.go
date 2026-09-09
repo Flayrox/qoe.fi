@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/apiaccess"
 	"github.com/qoefi/api/internal/testutil"
 )
 
@@ -441,15 +442,87 @@ func TestApiApplicants(t *testing.T) {
 		t.Fatalf("applicants = %+v", applicants)
 	}
 
-	if err := svc.UpdateApiAccessStatus(ctx, adminAdminID, adminCreator, "approved"); err != nil {
+	// Approbation modulable : l'admin choisit les permissions accordées.
+	if err := svc.UpdateApiAccessStatus(ctx, adminAdminID, adminCreator, "approved", []string{"api:read", "webhooks"}); err != nil {
 		t.Fatalf("UpdateApiAccessStatus: %v", err)
 	}
 	var status string
-	if err := poolTest.QueryRow(ctx, `SELECT "apiAccessStatus" FROM "User" WHERE id = $1`, adminCreator).Scan(&status); err != nil {
+	var grants []string
+	if err := poolTest.QueryRow(ctx, `SELECT "apiAccessStatus", "apiGrants" FROM "User" WHERE id = $1`, adminCreator).Scan(&status, &grants); err != nil {
 		t.Fatalf("read status: %v", err)
 	}
 	if status != "approved" {
 		t.Fatalf("status = %s, attendu approved", status)
+	}
+	if len(grants) != 2 || !apiaccess.HasGrant(grants, "api:read") || !apiaccess.HasGrant(grants, "webhooks") {
+		t.Fatalf("grants = %v, attendu [api:read webhooks]", grants)
+	}
+
+	// Révoquer retire toutes les permissions (l'admin se réserve le droit).
+	if err := svc.UpdateApiAccessStatus(ctx, adminAdminID, adminCreator, "revoked", nil); err != nil {
+		t.Fatalf("UpdateApiAccessStatus(revoked): %v", err)
+	}
+	if err := poolTest.QueryRow(ctx, `SELECT "apiAccessStatus", "apiGrants" FROM "User" WHERE id = $1`, adminCreator).Scan(&status, &grants); err != nil {
+		t.Fatalf("read status 2: %v", err)
+	}
+	if status != "revoked" || len(grants) != 0 {
+		t.Fatalf("après révocation: status=%s grants=%v, attendu revoked + aucune permission", status, grants)
+	}
+
+	// Ajustement des permissions sans toucher au statut (endpoint /grants).
+	if err := svc.UpdateApiAccessStatus(ctx, adminAdminID, adminCreator, "approved", []string{"api:read", "api:write", "oauth"}); err != nil {
+		t.Fatalf("UpdateApiAccessStatus(approved 2): %v", err)
+	}
+	if err := svc.UpdateApiGrants(ctx, adminAdminID, adminCreator, []string{"api:read"}); err != nil {
+		t.Fatalf("UpdateApiGrants: %v", err)
+	}
+	if err := poolTest.QueryRow(ctx, `SELECT "apiAccessStatus", "apiGrants" FROM "User" WHERE id = $1`, adminCreator).Scan(&status, &grants); err != nil {
+		t.Fatalf("read status 3: %v", err)
+	}
+	if status != "approved" || len(grants) != 1 || grants[0] != "api:read" {
+		t.Fatalf("après UpdateApiGrants: status=%s grants=%v, attendu approved + [api:read]", status, grants)
+	}
+}
+
+func TestApiAccessModules(t *testing.T) {
+	ctx := context.Background()
+	seedAdmin(t, ctx)
+	svc := newTestService()
+
+	// Registre complet par défaut (tous les modules accordables).
+	modules, err := svc.GetApiAccessModules(ctx, adminAdminID)
+	if err != nil {
+		t.Fatalf("GetApiAccessModules: %v", err)
+	}
+	if len(modules) != len(apiaccess.Registry) {
+		t.Fatalf("modules = %d, attendu %d", len(modules), len(apiaccess.Registry))
+	}
+	for _, m := range modules {
+		if !m.Enabled {
+			t.Fatalf("module %s devrait être actif par défaut", m.Key)
+		}
+	}
+
+	// Désactiver le module OAuth : plus accordable ni utilisable.
+	if err := svc.UpdateApiAccessModules(ctx, adminAdminID, []string{"api:read", "api:write", "api:analytics", "webhooks"}); err != nil {
+		t.Fatalf("UpdateApiAccessModules: %v", err)
+	}
+	if err := svc.UpdateApiAccessStatus(ctx, adminAdminID, adminCreator, "approved", []string{"oauth"}); err == nil {
+		t.Fatal("approbation avec module désactivé: attendu erreur")
+	}
+	modules, err = svc.GetApiAccessModules(ctx, adminAdminID)
+	if err != nil {
+		t.Fatalf("GetApiAccessModules 2: %v", err)
+	}
+	for _, m := range modules {
+		if m.Key == "oauth" && m.Enabled {
+			t.Fatal("module oauth devrait être désactivé")
+		}
+	}
+
+	// Réactiver tout (cleanup pour les autres tests du package).
+	if err := svc.UpdateApiAccessModules(ctx, adminAdminID, apiaccess.ModuleKeys()); err != nil {
+		t.Fatalf("UpdateApiAccessModules(restore): %v", err)
 	}
 }
 

@@ -198,6 +198,7 @@ func TestP3RBAC_NonSuperadminBlockedFromAdminAuxEndpoints(t *testing.T) {
 		{http.MethodGet, "/v1/admin/config"},
 		{http.MethodGet, "/v1/admin/oauth/clients"},
 		{http.MethodGet, "/v1/admin/api-applicants"},
+		{http.MethodGet, "/v1/admin/api-access/modules"},
 		{http.MethodGet, "/v1/admin/deliveries"},
 		{http.MethodGet, "/v1/admin/users"},
 	}

@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/apiaccess"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/permissions"
@@ -476,8 +477,27 @@ func (s *Service) SubmitApiApplication(ctx context.Context, userID, reason strin
 // scopesValides est l'allowlist des scopes de clé API (moindre privilège).
 var scopesValides = map[string]bool{"READ": true, "WRITE": true, "ANALYTICS": true}
 
+// allowedApiScopes retourne les scopes de clé API autorisés par les grants API
+// entrante de l'utilisateur, filtrés par les modules actifs sur la plateforme.
+func (s *Service) allowedApiScopes(ctx context.Context, userID string) ([]string, error) {
+	grants, err := s.q.GetUserApiGrants(ctx, userID)
+	if err != nil {
+		return nil, errNotFound
+	}
+	allowed := make([]string, 0, 3)
+	for _, sc := range apiaccess.ScopesForGrants(grants) {
+		module := apiaccess.ScopeModule(sc)
+		if module != "" && apiaccess.IsEnabled(ctx, s.pool, module) {
+			allowed = append(allowed, sc)
+		}
+	}
+	return allowed, nil
+}
+
 // GenerateApiKey crée une clé API qoe_live_ et retourne le token en clair.
-// scopes : vide = accès complet (rétro-compatibilité), sinon filtrage strict.
+// scopes : vide = accès complet sur les permissions accordées, sinon filtrage
+// strict — une clé ne peut jamais porter un scope non couvert par les grants
+// API entrante de l'utilisateur (moindre privilège, permissions modulables).
 func (s *Service) GenerateApiKey(ctx context.Context, userID, name string, scopes []string) (string, error) {
 	status, err := s.q.GetUserApiAccessStatus(ctx, userID)
 	if err != nil {
@@ -487,21 +507,29 @@ func (s *Service) GenerateApiKey(ctx context.Context, userID, name string, scope
 		return "", errors.New("Votre demande d'accès à l'API doit être approuvée par un administrateur.")
 	}
 
+	allowedScopes, err := s.allowedApiScopes(ctx, userID)
+	if err != nil {
+		return "", err
+	}
+	if len(allowedScopes) == 0 {
+		return "", errors.New("Aucune permission d'API entrante (lecture/écriture/analytics) ne vous a été accordée.")
+	}
+
 	finalScopes := make([]string, 0, len(scopes))
 	seen := map[string]bool{}
 	for _, s := range scopes {
-		if !scopesValides[s] || seen[s] {
+		if !scopesValides[s] || seen[s] || !middleware.HasScope(allowedScopes, s) {
 			continue
 		}
 		seen[s] = true
 		finalScopes = append(finalScopes, s)
 	}
 	if len(scopes) > 0 && len(finalScopes) == 0 {
-		return "", errors.New("Sélectionnez au moins un scope pour la clé API.")
+		return "", errors.New("Sélectionnez au moins un scope autorisé par vos permissions (lecture, écriture, analytics).")
 	}
-	// scopes vide = accès complet explicite (rétro-compatibilité).
+	// scopes vide = accès complet sur les permissions accordées.
 	if len(finalScopes) == 0 {
-		finalScopes = middleware.AllScopes
+		finalScopes = allowedScopes
 	}
 
 	raw := make([]byte, 16)
@@ -538,6 +566,9 @@ func (s *Service) RotateApiKey(ctx context.Context, userID, id string) (string, 
 	}
 	if status != "approved" {
 		return "", errors.New("Votre demande d'accès à l'API doit être approuvée par un administrateur.")
+	}
+	if _, err := s.allowedApiScopes(ctx, userID); err != nil {
+		return "", err
 	}
 
 	raw := make([]byte, 16)

@@ -43,6 +43,7 @@ type adminQuerier interface {
 	ListSystemConfigs(ctx context.Context) ([]db.SystemConfig, error)
 	RetryNotificationDelivery(ctx context.Context, id string) error
 	SetArticleEditorPick(ctx context.Context, arg db.SetArticleEditorPickParams) (db.SetArticleEditorPickRow, error)
+	SetUserApiGrants(ctx context.Context, arg db.SetUserApiGrantsParams) error
 	UpdateAdminOAuthClientStatus(ctx context.Context, arg db.UpdateAdminOAuthClientStatusParams) (db.UpdateAdminOAuthClientStatusRow, error)
 	UpdateAdminUserApiAccess(ctx context.Context, arg db.UpdateAdminUserApiAccessParams) (db.UpdateAdminUserApiAccessRow, error)
 	UpdatePromoActive(ctx context.Context, arg db.UpdatePromoActiveParams) (db.UpdatePromoActiveRow, error)

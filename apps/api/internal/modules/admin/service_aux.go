@@ -7,11 +7,14 @@ package admin
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/qoefi/api/internal/apiaccess"
 	db "github.com/qoefi/api/internal/database"
 )
 
@@ -346,14 +349,15 @@ func (s *Service) UpdateOAuthClientStatus(ctx context.Context, userID, clientID,
 // ── Demandes d'accès API ─────────────────────────────────────────────────────
 
 type AdminApiApplicant struct {
-	ID                   string  `json:"id"`
-	Name                 *string `json:"name"`
-	Email                string  `json:"email"`
-	Subdomain            *string `json:"subdomain"`
-	ApiAccessStatus      string  `json:"apiAccessStatus"`
-	ApiApplicationReason *string `json:"apiApplicationReason"`
-	CreatedAt            string  `json:"createdAt"`
-	UpdatedAt            string  `json:"updatedAt"`
+	ID                   string   `json:"id"`
+	Name                 *string  `json:"name"`
+	Email                string   `json:"email"`
+	Subdomain            *string  `json:"subdomain"`
+	ApiAccessStatus      string   `json:"apiAccessStatus"`
+	ApiGrants            []string `json:"apiGrants"`
+	ApiApplicationReason *string  `json:"apiApplicationReason"`
+	CreatedAt            string   `json:"createdAt"`
+	UpdatedAt            string   `json:"updatedAt"`
 }
 
 func (s *Service) ListApiApplicants(ctx context.Context, userID string) ([]AdminApiApplicant, error) {
@@ -370,6 +374,7 @@ func (s *Service) ListApiApplicants(ctx context.Context, userID string) ([]Admin
 			ID: r.ID, Name: textPtr(r.Name), Email: r.Email,
 			Subdomain:            textPtr(r.PublicationSubdomain),
 			ApiAccessStatus:      r.ApiAccessStatus,
+			ApiGrants:            r.ApiGrants,
 			ApiApplicationReason: textPtr(r.ApiApplicationReason),
 			CreatedAt:            r.CreatedAt.Time.Format(time.RFC3339),
 			UpdatedAt:            r.UpdatedAt.Time.Format(time.RFC3339),
@@ -378,12 +383,104 @@ func (s *Service) ListApiApplicants(ctx context.Context, userID string) ([]Admin
 	return out, nil
 }
 
-func (s *Service) UpdateApiAccessStatus(ctx context.Context, userID, targetID, status string) error {
+// UpdateApiAccessStatus approuve / rejette / révoque une demande d'accès API.
+// L'approbation est modulable : l'admin choisit les permissions accordées
+// (grants). Grants vides à l'approbation → tous les modules actifs de la
+// plateforme (rétro-compatibilité avec l'approbation « pleins pouvoirs »).
+// Tout statut non approuvé révoque l'ensemble des permissions.
+func (s *Service) UpdateApiAccessStatus(ctx context.Context, userID, targetID, status string, grants []string) error {
 	if err := s.checkSuperadmin(ctx, userID); err != nil {
 		return err
 	}
+	if status == "approved" {
+		if len(grants) == 0 {
+			enabled, err := apiaccess.LoadEnabled(ctx, s.pool)
+			if err != nil {
+				return err
+			}
+			grants = enabled
+		}
+		if err := apiaccess.ValidateGrants(grants); err != nil {
+			return err
+		}
+		for _, g := range grants {
+			if !apiaccess.IsEnabled(ctx, s.pool, g) {
+				return fmt.Errorf("le module %s est désactivé à l'échelle de la plateforme", g)
+			}
+		}
+		grants = apiaccess.NormalizeGrants(grants)
+	} else {
+		// Rejet / révocation / reset : plus aucune permission (slice vide,
+		// jamais NULL — la colonne est NOT NULL DEFAULT '{}').
+		grants = []string{}
+	}
 	_, err := s.q.UpdateAdminUserApiAccess(ctx, db.UpdateAdminUserApiAccessParams{
-		ID: targetID, ApiAccessStatus: status,
+		ID: targetID, ApiAccessStatus: status, ApiGrants: grants,
+	})
+	return err
+}
+
+// UpdateApiGrants ajuste les permissions d'un créateur sans toucher au statut
+// global (l'admin se réserve le droit de retirer ou ajouter une capacité à
+// tout moment — ex. couper OAuth en gardant l'API REST).
+func (s *Service) UpdateApiGrants(ctx context.Context, userID, targetID string, grants []string) error {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return err
+	}
+	if err := apiaccess.ValidateGrants(grants); err != nil {
+		return err
+	}
+	for _, g := range grants {
+		if !apiaccess.IsEnabled(ctx, s.pool, g) {
+			return fmt.Errorf("le module %s est désactivé à l'échelle de la plateforme", g)
+		}
+	}
+	return s.q.SetUserApiGrants(ctx, db.SetUserApiGrantsParams{
+		ID: targetID, ApiGrants: apiaccess.NormalizeGrants(grants),
+	})
+}
+
+// AdminApiModule est un module du registre avec son état plateforme.
+type AdminApiModule struct {
+	apiaccess.Module
+	Enabled bool `json:"enabled"`
+}
+
+// GetApiAccessModules liste le registre des permissions modulables avec leur
+// état actif/désactivé à l'échelle de la plateforme.
+func (s *Service) GetApiAccessModules(ctx context.Context, userID string) ([]AdminApiModule, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return nil, err
+	}
+	enabled, err := apiaccess.LoadEnabled(ctx, s.pool)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]AdminApiModule, 0, len(apiaccess.Registry))
+	for _, m := range apiaccess.Registry {
+		out = append(out, AdminApiModule{Module: m, Enabled: apiaccess.HasGrant(enabled, m.Key)})
+	}
+	return out, nil
+}
+
+// UpdateApiAccessModules active/désactive les modules accordables à l'échelle
+// de la plateforme (clé SystemConfig API_ACCESS_MODULES).
+func (s *Service) UpdateApiAccessModules(ctx context.Context, userID string, enabled []string) error {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return err
+	}
+	if err := apiaccess.ValidateGrants(enabled); err != nil {
+		return err
+	}
+	enabled = apiaccess.NormalizeGrants(enabled)
+	raw, err := json.Marshal(enabled)
+	if err != nil {
+		return err
+	}
+	_, err = s.q.UpsertSystemConfig(ctx, db.UpsertSystemConfigParams{
+		Key:         apiaccess.ConfigKey,
+		Value:       string(raw),
+		Description: pgtype.Text{String: "Modules d'accès API accordables par les admins (JSON array).", Valid: true},
 	})
 	return err
 }

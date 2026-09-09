@@ -241,6 +241,7 @@ SELECT u.id::text        AS user_id,
        u."advancedSettingsMode",
        u."hasCompletedOnboarding",
        u."apiAccessStatus",
+       u."apiGrants",
        u."apiApplicationReason",
        u."walletBalanceCents",
        u."createdAt",
@@ -266,6 +267,7 @@ type GetUserByIDFullRow struct {
 	AdvancedSettingsMode   bool             `json:"advancedSettingsMode"`
 	HasCompletedOnboarding bool             `json:"hasCompletedOnboarding"`
 	ApiAccessStatus        string           `json:"apiAccessStatus"`
+	ApiGrants              []string         `json:"apiGrants"`
 	ApiApplicationReason   pgtype.Text      `json:"apiApplicationReason"`
 	WalletBalanceCents     int32            `json:"walletBalanceCents"`
 	CreatedAt              pgtype.Timestamp `json:"createdAt"`
@@ -292,6 +294,7 @@ func (q *Queries) GetUserByIDFull(ctx context.Context, id string) (GetUserByIDFu
 		&i.AdvancedSettingsMode,
 		&i.HasCompletedOnboarding,
 		&i.ApiAccessStatus,
+		&i.ApiGrants,
 		&i.ApiApplicationReason,
 		&i.WalletBalanceCents,
 		&i.CreatedAt,

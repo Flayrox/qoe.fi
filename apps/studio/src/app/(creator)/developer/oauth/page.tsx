@@ -16,14 +16,17 @@ export const metadata = {
 };
 
 export default async function OAuthAppsPage() {
-  const user = await requireUser();
+  await requireUser();
 
-  // Go : statut d'accès API (chemin nominal).
-  const me = await goFetch<{ data: { apiAccessStatus: string } }>('/v1/users/me');
+  // Go : statut d'accès API + permissions accordées (chemin nominal).
+  const me = await goFetch<{
+    data: { apiAccessStatus: string; apiGrants: string[] };
+  }>('/v1/users/me');
   const status = me.data.apiAccessStatus;
+  const hasOAuthGrant = (me.data.apiGrants ?? []).includes('oauth');
 
-  if (status !== 'approved') {
-    return <OAuthAppsClient status={status} clients={[]} />;
+  if (status !== 'approved' || !hasOAuthGrant) {
+    return <OAuthAppsClient status={status} hasOAuthGrant={hasOAuthGrant} clients={[]} />;
   }
 
   const res = await listOAuthClientsAction();

@@ -455,6 +455,7 @@ func (h *Handler) userMe(w http.ResponseWriter, r *http.Request) {
 		"advancedSettingsMode":   row.AdvancedSettingsMode,
 		"hasCompletedOnboarding": row.HasCompletedOnboarding,
 		"apiAccessStatus":        row.ApiAccessStatus,
+		"apiGrants":              row.ApiGrants,
 		"apiApplicationReason":   textPtr(row.ApiApplicationReason),
 		"walletBalanceCents":     row.WalletBalanceCents,
 		"createdAt":              timestampPtr(row.CreatedAt),

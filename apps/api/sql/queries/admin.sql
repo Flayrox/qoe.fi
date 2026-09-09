@@ -135,7 +135,7 @@ RETURNING id, status;
 -- ── Demandes d'accès API ─────────────────────────────────────────────────────
 
 -- name: ListAdminApiApplicants :many
-SELECT u.id, u.name, u.email, u."apiAccessStatus", u."apiApplicationReason", u."createdAt", u."updatedAt",
+SELECT u.id, u.name, u.email, u."apiAccessStatus", u."apiGrants", u."apiApplicationReason", u."createdAt", u."updatedAt",
        p."subdomain" AS publication_subdomain
 FROM "User" u
 LEFT JOIN "Publication" p ON p.id = u."publicationId"
@@ -143,8 +143,11 @@ WHERE u.role IN ('creator', 'superadmin') AND u."apiAccessStatus" <> 'none'
 ORDER BY u."updatedAt" DESC;
 
 -- name: UpdateAdminUserApiAccess :one
-UPDATE "User" SET "apiAccessStatus" = $2, "updatedAt" = now() WHERE id = $1
-RETURNING id, "apiAccessStatus";
+UPDATE "User" SET "apiAccessStatus" = $2, "apiGrants" = $3, "updatedAt" = now() WHERE id = $1
+RETURNING id, "apiAccessStatus", "apiGrants";
+
+-- name: SetUserApiGrants :exec
+UPDATE "User" SET "apiGrants" = $2, "updatedAt" = now() WHERE id = $1;
 
 -- ── Notifications & livraisons ───────────────────────────────────────────────
 

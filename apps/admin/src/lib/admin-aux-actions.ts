@@ -221,6 +221,23 @@ export async function deleteSystemConfigAction(key: string) {
   }
 }
 
+/** 🎛️ Sauvegarde les modules d'accès API accordables (SystemConfig API_ACCESS_MODULES, JSON). */
+export async function saveApiAccessModulesAction(enabled: string[]) {
+  await verifySuperadmin();
+  try {
+    await goFetch('/v1/admin/api-access/modules', {
+      method: 'PATCH',
+      body: { enabled },
+    });
+    revalidatePath('/admin/config');
+    revalidatePath('/admin/api');
+    return { success: true };
+  } catch (error: unknown) {
+    console.error(error);
+    return { success: false, error: errorMessage(error, 'Erreur de sauvegarde') };
+  }
+}
+
 /** 🔐 Sauvegarde les méthodes de connexion (clé SystemConfig AUTH_METHODS, JSON). */
 export async function saveAuthMethodsAction(methods: {
   google: boolean;

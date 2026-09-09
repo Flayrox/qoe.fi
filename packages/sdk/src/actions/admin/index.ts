@@ -141,14 +141,47 @@ export const resolveModerationReportAction = safeAction<
 });
 
 export const updateCreatorApiAccessAction = safeAction<
-  { userId: string; status: 'approved' | 'rejected' | 'revoked' | 'none' },
+  {
+    userId: string;
+    status: 'approved' | 'rejected' | 'revoked' | 'none';
+    grants?: string[];
+  },
   { success: boolean }
->(async ({ userId, status }) => {
-  // Le backend Go vérifie le rôle superadmin (403 sinon).
+>(async ({ userId, status, grants }) => {
+  // Le backend Go vérifie le rôle superadmin (403 sinon). L'approbation est
+  // modulable : l'admin choisit les permissions accordées (grants).
   await goFetch(`/v1/admin/api-applicants/${encodeURIComponent(userId)}`, {
     method: 'PATCH',
-    body: { status },
+    body: { status, grants },
   });
   revalidatePath('/admin/api');
   return { success: true };
 });
+
+/** 🎛️ Ajuste les permissions d'un créateur sans changer son statut (l'admin se réserve le droit). */
+export const updateCreatorApiGrantsAction = safeAction<
+  { userId: string; grants: string[] },
+  { success: boolean }
+>(async ({ userId, grants }) => {
+  // Le backend Go vérifie le rôle superadmin (403 sinon).
+  await goFetch(`/v1/admin/api-applicants/${encodeURIComponent(userId)}/grants`, {
+    method: 'PATCH',
+    body: { grants },
+  });
+  revalidatePath('/admin/api');
+  return { success: true };
+});
+
+/** 🧩 Active / désactive les modules d'accès API accordables (registre modulable). */
+export const saveApiAccessModulesAction = safeAction<{ enabled: string[] }, { success: boolean }>(
+  async ({ enabled }) => {
+    // Le backend Go vérifie le rôle superadmin (403 sinon).
+    await goFetch('/v1/admin/api-access/modules', {
+      method: 'PATCH',
+      body: { enabled },
+    });
+    revalidatePath('/admin/api');
+    revalidatePath('/admin/config');
+    return { success: true };
+  }
+);

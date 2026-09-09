@@ -1,10 +1,16 @@
-import { getReservedIdentifiers, getSystemConfigs, getAdminFeatureFlags } from '@/lib/admin-data';
+import {
+  getReservedIdentifiers,
+  getSystemConfigs,
+  getAdminFeatureFlags,
+  getApiAccessModules,
+} from '@/lib/admin-data';
 import {
   setSystemConfigAction,
   deleteSystemConfigAction,
   updateReservedIdentifiersAction,
 } from '@/lib/admin-aux-actions';
 import { AuthMethodsToggles } from './components/AuthMethodsToggles';
+import { ApiAccessModulesToggles } from './components/ApiAccessModulesToggles';
 import { FeatureFlagsToggles } from './components/FeatureFlagsToggles';
 
 export default async function AdminConfig() {
@@ -53,12 +59,14 @@ export default async function AdminConfig() {
     'web',
     'www',
   ];
-  const [configs, reservedUsernames, reservedSubdomains, featureFlags] = await Promise.all([
-    getSystemConfigs(),
-    getReservedIdentifiers('username'),
-    getReservedIdentifiers('subdomain'),
-    getAdminFeatureFlags(),
-  ]);
+  const [configs, reservedUsernames, reservedSubdomains, featureFlags, apiAccessModules] =
+    await Promise.all([
+      getSystemConfigs(),
+      getReservedIdentifiers('username'),
+      getReservedIdentifiers('subdomain'),
+      getAdminFeatureFlags(),
+      getApiAccessModules(),
+    ]);
   const visibleReservedSubdomains = Array.from(
     new Set([...defaultReservedSubdomains, ...reservedSubdomains])
   );
@@ -121,6 +129,9 @@ export default async function AdminConfig() {
 
       {/* Méthodes de connexion — toggles dédiés (Google en test, etc.) */}
       <AuthMethodsToggles initialValue={configs.find((c) => c.key === 'AUTH_METHODS')?.value} />
+
+      {/* Permissions d'accès API — registre modulable (API entrante / sortante / OAuth) */}
+      <ApiAccessModulesToggles initialModules={apiAccessModules} />
 
       {/* Add new Config Minimal Form */}
       <div className="mb-12">

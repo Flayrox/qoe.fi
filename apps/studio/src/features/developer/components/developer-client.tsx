@@ -44,6 +44,29 @@ function getErrorMessage(error: unknown, fallback: string): string {
 const API_KEY_SCOPES = ['READ', 'WRITE', 'ANALYTICS'] as const;
 type ApiKeyScope = (typeof API_KEY_SCOPES)[number];
 
+// Correspondance permission (grant admin) → scope de clé API : une clé ne peut
+// jamais porter un scope non couvert par les permissions accordées par l'admin.
+const GRANT_TO_SCOPE: Record<string, ApiKeyScope> = {
+  'api:read': 'READ',
+  'api:write': 'WRITE',
+  'api:analytics': 'ANALYTICS',
+};
+
+// Métadonnées d'affichage des permissions accordées (page développeur).
+const GRANT_META: Record<string, { label: string; badgeClass: string }> = {
+  'api:read': { label: 'API lecture', badgeClass: 'bg-primary/10 border-primary/20 text-primary' },
+  'api:write': {
+    label: 'API écriture',
+    badgeClass: 'bg-primary/10 border-primary/20 text-primary',
+  },
+  'api:analytics': {
+    label: 'Analytics',
+    badgeClass: 'bg-highlight/10 border-highlight/20 text-highlight',
+  },
+  webhooks: { label: 'Webhooks', badgeClass: 'bg-highlight/10 border-highlight/20 text-highlight' },
+  oauth: { label: 'OAuth', badgeClass: 'bg-success/10 border-success/20 text-success' },
+};
+
 const SCOPE_META: Record<ApiKeyScope, { label: string; desc: () => string; badgeClass: string }> = {
   READ: {
     label: 'READ',
@@ -73,6 +96,7 @@ interface ApiKeyType {
 
 interface DeveloperClientProps {
   initialStatus: string;
+  initialGrants: string[];
   initialReason: string | null;
   initialKeys: ApiKeyType[];
 }
@@ -81,12 +105,20 @@ type CodeSnippetTab = 'curl' | 'typescript' | 'python';
 
 export function DeveloperClient({
   initialStatus,
+  initialGrants,
   initialReason,
   initialKeys,
 }: DeveloperClientProps) {
   const [status, setStatus] = useState<string>(initialStatus);
+  const [grants] = useState<string[]>(initialGrants);
   const [reason, setReason] = useState<string>(initialReason || '');
   const [keys, setKeys] = useState<ApiKeyType[]>(initialKeys);
+
+  // Scopes autorisés par les permissions accordées (moindre privilège).
+  const allowedScopes = API_KEY_SCOPES.filter((scope) =>
+    Object.values(GRANT_TO_SCOPE).includes(scope)
+  ).filter((scope) => grants.some((g) => GRANT_TO_SCOPE[g] === scope));
+  const hasApiAccess = allowedScopes.length > 0;
 
   // Forms & Loading states
   const [isSubmittingApp, setIsSubmittingApp] = useState(false);
@@ -97,7 +129,7 @@ export function DeveloperClient({
   const [keyModalMode, setKeyModalMode] = useState<'generated' | 'rotated'>('generated');
 
   const [newKeyName, setNewKeyName] = useState('');
-  const [newKeyScopes, setNewKeyScopes] = useState<ApiKeyScope[]>(() => [...API_KEY_SCOPES]);
+  const [newKeyScopes, setNewKeyScopes] = useState<ApiKeyScope[]>(() => [...allowedScopes]);
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [generatedKey, setGeneratedKey] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -201,7 +233,7 @@ export function DeveloperClient({
         setShowKeyModal(true);
 
         setNewKeyName('');
-        setNewKeyScopes([...API_KEY_SCOPES]);
+        setNewKeyScopes([...allowedScopes]);
         toast.success(t`Nouvelle clé d'API générée avec succès !`);
       }
     } catch (err: unknown) {
@@ -318,6 +350,22 @@ print(articles)`,
               <span className="font-semibold text-success flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-success" />
                 Accès Actif
+              </span>
+            )}
+            {status === 'approved' && grants.length > 0 && (
+              <span className="flex flex-wrap items-center gap-1">
+                {grants.map((g) => {
+                  const meta = GRANT_META[g];
+                  if (!meta) return null;
+                  return (
+                    <span
+                      key={g}
+                      className={`text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full border ${meta.badgeClass}`}
+                    >
+                      {meta.label}
+                    </span>
+                  );
+                })}
               </span>
             )}
             {status === 'rejected' && (
@@ -545,38 +593,49 @@ print(articles)`,
                   </button>
                 </div>
 
-                {/* Permissions de la clé */}
+                {/* Permissions de la clé (bornées par les permissions accordées) */}
                 <div className="space-y-2">
                   <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                    Permissions accordées
+                    Permissions de la clé
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    {API_KEY_SCOPES.map((scope) => {
-                      const active = newKeyScopes.includes(scope);
-                      const meta = SCOPE_META[scope];
-                      return (
-                        <button
-                          key={scope}
-                          type="button"
-                          onClick={() => toggleKeyScope(scope)}
-                          title={meta.desc()}
-                          className={cn(
-                            'text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all duration-200 cursor-pointer flex items-center gap-1.5',
-                            active
-                              ? meta.badgeClass
-                              : 'bg-muted/30 border-border text-muted-foreground hover:border-muted-foreground/40'
-                          )}
-                        >
-                          <span>{active ? '✓' : '+'}</span>
-                          <span>{scope}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    💡 Sélectionnez uniquement les permissions strictement nécessaires à votre
-                    application.
-                  </p>
+                  {hasApiAccess ? (
+                    <>
+                      <div className="flex flex-wrap gap-2">
+                        {allowedScopes.map((scope) => {
+                          const active = newKeyScopes.includes(scope);
+                          const meta = SCOPE_META[scope];
+                          return (
+                            <button
+                              key={scope}
+                              type="button"
+                              onClick={() => toggleKeyScope(scope)}
+                              title={meta.desc()}
+                              className={cn(
+                                'text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all duration-200 cursor-pointer flex items-center gap-1.5',
+                                active
+                                  ? meta.badgeClass
+                                  : 'bg-muted/30 border-border text-muted-foreground hover:border-muted-foreground/40'
+                              )}
+                            >
+                              <span>{active ? '✓' : '+'}</span>
+                              <span>{scope}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        💡 Sélectionnez uniquement les permissions strictement nécessaires — une clé
+                        ne peut pas dépasser les permissions que l'admin vous a accordées (API
+                        entrante lecture / écriture / analytics).
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-[11px] text-warning leading-relaxed">
+                      Aucune permission d'API entrante ne vous a été accordée (lecture / écriture /
+                      analytics). Contactez un administrateur pour étendre vos permissions — vos
+                      webhooks et applications OAuth restent actifs.
+                    </p>
+                  )}
                 </div>
               </form>
             </div>

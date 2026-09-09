@@ -62,6 +62,7 @@ CREATE TABLE "User" (
     "advancedSettingsMode" BOOLEAN NOT NULL DEFAULT false,
     "hasCompletedOnboarding" BOOLEAN NOT NULL DEFAULT false,
     "apiAccessStatus" TEXT NOT NULL DEFAULT 'none',
+    "apiGrants" TEXT[] NOT NULL DEFAULT '{}',
     "apiApplicationReason" TEXT,
     "walletBalanceCents" INTEGER NOT NULL DEFAULT 0,
     "gender" "Gender",

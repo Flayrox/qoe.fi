@@ -1195,6 +1195,7 @@ type User struct {
 	AdvancedSettingsMode   bool             `json:"advancedSettingsMode"`
 	HasCompletedOnboarding bool             `json:"hasCompletedOnboarding"`
 	ApiAccessStatus        string           `json:"apiAccessStatus"`
+	ApiGrants              []string         `json:"apiGrants"`
 	ApiApplicationReason   pgtype.Text      `json:"apiApplicationReason"`
 	WalletBalanceCents     int32            `json:"walletBalanceCents"`
 	Gender                 NullGender       `json:"gender"`

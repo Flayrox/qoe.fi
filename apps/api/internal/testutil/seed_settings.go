@@ -42,8 +42,9 @@ func SeedSettings(ctx context.Context, pool *pgxpool.Pool) (*SettingsFixtures, e
 
 	const ownerID = "00000000-0000-0000-0000-000000000020"
 	if err := pool.QueryRow(ctx,
-		`INSERT INTO "User" (id, email, username, name, role, "publicationId", "apiAccessStatus", "createdAt", "updatedAt")
-		 VALUES ($1, 'owner.set@test.dev', 'ownerset', 'Owner Set', 'creator', $2, 'approved', now(), now())
+		`INSERT INTO "User" (id, email, username, name, role, "publicationId", "apiAccessStatus", "apiGrants", "createdAt", "updatedAt")
+		 VALUES ($1, 'owner.set@test.dev', 'ownerset', 'Owner Set', 'creator', $2, 'approved',
+		         ARRAY['api:read','api:write','api:analytics','webhooks','oauth'], now(), now())
 		 RETURNING id`,
 		ownerID, fx.PubID,
 	).Scan(&fx.OwnerID); err != nil {

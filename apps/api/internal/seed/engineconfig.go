@@ -109,6 +109,13 @@ func DefaultEngineConfigs() []ConfigDefault {
 		// sur « tout activé » si la clé est absente ou invalide.
 		{"AUTH_METHODS", `{"google":false,"apple":false,"password":true,"magicLink":true}`, "Méthodes de connexion autorisées (JSON {google, apple, password, magicLink}) — pilote le formulaire de login."},
 
+		// ── Permissions d'accès API (toggle admin, JSON) ─────────────────────
+		// Registre des modules accordables aux créateurs (API entrante lecture /
+		// écriture / analytics, API sortante webhooks, OAuth). L'admin choisit à
+		// l'approbation lesquelles accorder ; les modules retirés ici ne peuvent
+		// plus être accordés ni utilisés (défaut = tous actifs).
+		{"API_ACCESS_MODULES", `["api:read","api:write","api:analytics","webhooks","oauth"]`, "Modules d'accès API accordables par les admins (JSON array) — API entrante (api:read / api:write / api:analytics), API sortante (webhooks), OAuth."},
+
 		// ── OAuth (quotas et durées de vie, secondes) ────────────────────────
 		{"OAUTH_MAX_CLIENTS_PER_USER", "3", "Nombre maximal d'applications OAuth par compte."},
 		{"OAUTH_MAX_REDIRECT_URIS", "10", "Nombre maximal d'URI de redirection par application."},

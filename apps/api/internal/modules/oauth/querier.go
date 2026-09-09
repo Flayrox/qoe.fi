@@ -24,6 +24,7 @@ type oauthQuerier interface {
 	GetOAuthTokenByRefreshHash(ctx context.Context, refreshtokenhash pgtype.Text) (db.GetOAuthTokenByRefreshHashRow, error)
 	GetOAuthUserClaims(ctx context.Context, id string) (db.GetOAuthUserClaimsRow, error)
 	GetUserApiAccessStatus(ctx context.Context, id string) (string, error)
+	GetUserApiGrants(ctx context.Context, id string) ([]string, error)
 	InsertOAuthAuthorizationCode(ctx context.Context, arg db.InsertOAuthAuthorizationCodeParams) error
 	InsertOAuthClient(ctx context.Context, arg db.InsertOAuthClientParams) error
 	InsertOAuthToken(ctx context.Context, arg db.InsertOAuthTokenParams) error
