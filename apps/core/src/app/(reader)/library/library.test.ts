@@ -3,6 +3,9 @@ import {
   resolveLibraryTab,
   cleanArticleExcerpt,
   filterBookmarks,
+  filterBookmarksByTime,
+  calculateTotalReadingMinutes,
+  formatQuoteForClipboard,
   filterHighlights,
   filterAnnotations,
   generateHighlightsMarkdown,
@@ -202,6 +205,90 @@ describe('Library Helpers (Bibliothèque 2026)', () => {
     it('retourne vide si le mot-clé ne correspond à aucune annotation', () => {
       const filtered = filterAnnotations(mockHighlights, 'inexistant');
       expect(filtered).toHaveLength(0);
+    });
+  });
+
+  describe('filterBookmarksByTime', () => {
+    const timeBookmarks: LibraryBookmark[] = [
+      {
+        ...mockBookmarks[0],
+        id: 'tb1',
+        article: { ...mockBookmarks[0].article, readingTime: 3 },
+      },
+      {
+        ...mockBookmarks[1],
+        id: 'tb2',
+        article: { ...mockBookmarks[1].article, readingTime: 10 },
+      },
+      {
+        ...mockBookmarks[0],
+        id: 'tb3',
+        article: { ...mockBookmarks[0].article, readingTime: 25 },
+      },
+    ];
+
+    it('retourne tous les signets quand le filtre est "all"', () => {
+      const result = filterBookmarksByTime(timeBookmarks, 'all');
+      expect(result).toHaveLength(3);
+    });
+
+    it('filtre les articles rapides (< 5 min) avec "quick"', () => {
+      const result = filterBookmarksByTime(timeBookmarks, 'quick');
+      expect(result.map((b) => b.id)).toEqual(['tb1']);
+    });
+
+    it('filtre les articles moyens (5 à 15 min) avec "medium"', () => {
+      const result = filterBookmarksByTime(timeBookmarks, 'medium');
+      expect(result.map((b) => b.id)).toEqual(['tb2']);
+    });
+
+    it('filtre les articles approfondis (> 15 min) avec "deep"', () => {
+      const result = filterBookmarksByTime(timeBookmarks, 'deep');
+      expect(result.map((b) => b.id)).toEqual(['tb3']);
+    });
+
+    it('gère les tableaux non valides', () => {
+      expect(filterBookmarksByTime(null as unknown as LibraryBookmark[], 'all')).toEqual([]);
+    });
+  });
+
+  describe('calculateTotalReadingMinutes', () => {
+    it('calcule la somme exacte des minutes de lecture', () => {
+      // mockBookmarks : b1 a 5 min, b2 a 8 min -> 13 min
+      const total = calculateTotalReadingMinutes(mockBookmarks);
+      expect(total).toBe(13);
+    });
+
+    it('retourne 0 si la liste est vide ou non définie', () => {
+      expect(calculateTotalReadingMinutes([])).toBe(0);
+      expect(calculateTotalReadingMinutes(null as unknown as LibraryBookmark[])).toBe(0);
+    });
+  });
+
+  describe('formatQuoteForClipboard', () => {
+    it('formate une citation complète avec guillemets, publication, titre et URL', () => {
+      const formatted = formatQuoteForClipboard(mockHighlights[0]);
+      expect(formatted).toContain(
+        '« Le véritable luxe moderne n’est plus la vitesse mais le discernement. »'
+      );
+      expect(formatted).toContain('Éditions Minuit');
+      expect(formatted).toContain('Éloge de la Lenteur et de l’Attention');
+      expect(formatted).toContain('https://qoe.fi/article/philosophie-du-calme');
+    });
+
+    it('utilise un nom de repli si le nom de publication est vide', () => {
+      const hWithoutPub: LibraryHighlight = {
+        ...mockHighlights[0],
+        article: {
+          ...mockHighlights[0].article,
+          publication: {
+            ...mockHighlights[0].article.publication,
+            name: '',
+          },
+        },
+      };
+      const formatted = formatQuoteForClipboard(hWithoutPub);
+      expect(formatted).toContain('Qoe.fi');
     });
   });
 
