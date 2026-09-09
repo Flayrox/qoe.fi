@@ -25,8 +25,11 @@ export function ReaderPageLayout({
 
   return (
     <div className="relative min-h-screen bg-background text-foreground selection:bg-primary/10 selection:text-primary">
-      {/* ── SEAMLESS FULL-VIEWPORT BACKGROUND CANVAS (STATIC) ── */}
-      <div className="fixed top-0 bottom-0 right-0 left-0 md:left-[256px] pointer-events-none z-0 flex flex-col justify-start overflow-hidden bg-background">
+      {/* ── BACKGROUND FIXED HEADER REGION ── */}
+      <div className="fixed top-0 left-0 md:left-[256px] right-0 z-0 h-[280px] sm:h-[320px] pointer-events-none flex flex-col justify-start">
+        {/* Ambient Top Glow Layer */}
+        <div className="absolute inset-0 bg-gradient-to-b from-card/80 via-background/40 to-transparent pointer-events-none" />
+
         {/* Static Background "Lire" giant title & manifesto header */}
         <AnimatePresence>
           {!hideHeader && (
@@ -35,7 +38,7 @@ export function ReaderPageLayout({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.25 }}
-              className="max-w-3xl mx-auto px-3 sm:px-6 w-full space-y-3 pt-12 sm:pt-14 select-none"
+              className="max-w-2xl mx-auto px-4 sm:px-6 w-full space-y-3 pt-12 sm:pt-14 select-none"
             >
               {giantTitle && (
                 <div className="flex items-center gap-2">

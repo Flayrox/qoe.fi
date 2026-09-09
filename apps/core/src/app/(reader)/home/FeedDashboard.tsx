@@ -17,7 +17,6 @@ import {
   MediaLightbox,
   HotkeyHelpModal,
   OnboardingModal,
-  WidgetErrorBoundary,
   type AuthActionContext,
   type OnboardingCategory,
   type OnboardingCreator,
@@ -34,11 +33,7 @@ import { ComposerModal } from './components/ComposerModal';
 import { FeedTabsHeader } from './components/FeedTabsHeader';
 import { ThoughtThreadView } from './components/ThoughtThreadView';
 import { ArticleReaderDrawer } from '@/components/social/ArticleReaderDrawer';
-import {
-  FeedSidebarWidgets,
-  type SemanticTrendingTopic,
-  type SuggestedCreator,
-} from './components/FeedSidebarWidgets';
+import { type SemanticTrendingTopic, type SuggestedCreator } from './components/FeedSidebarWidgets';
 import { t } from '@lingui/core/macro';
 import { trackEvent } from '@/lib/analytics';
 import { routes } from '@qoe/config/routes';
@@ -760,233 +755,220 @@ export function FeedDashboard({
         }}
         transition={{ type: 'spring', stiffness: 350, damping: 32 }}
         className={cn(
-          'bg-card/95 backdrop-blur-2xl text-card-foreground border-x border-border/40 shadow-2xl relative z-10 transition-colors',
+          'w-full max-w-2xl mx-auto bg-card/95 backdrop-blur-2xl text-card-foreground border-x border-border/40 shadow-2xl relative z-10 transition-colors',
           activePostId || activeArticle ? 'rounded-none border-t-0' : 'rounded-t-2xl border-t'
         )}
       >
         {/* Opaque Sticky Header of the Sheet (No Background Bleed-Through) */}
-        <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-md border-b border-border/40 rounded-t-2xl">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-              <div className="lg:col-span-8 flex items-center justify-between">
-                <FeedTabsHeader
-                  activeFeed={activeFeed}
-                  onTabChange={(id) => {
-                    if (activeFeed === id) {
-                      window.scrollTo({ top: 0, behavior: 'smooth' });
-                    } else {
-                      setActiveFeed(id);
-                      setSelectedTag(null);
-                      setActivePostId(null);
-                      setActiveArticle(null);
-                      trackEvent('feed_tab_changed', { tab: id });
-                    }
-                  }}
-                />
-              </div>
-            </div>
-          </div>
+        <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-md border-b border-border/40 rounded-t-2xl px-4 sm:px-6 py-3">
+          <FeedTabsHeader
+            activeFeed={activeFeed}
+            onTabChange={(id) => {
+              if (activeFeed === id) {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              } else {
+                setActiveFeed(id);
+                setSelectedTag(null);
+                setActivePostId(null);
+                setActiveArticle(null);
+                trackEvent('feed_tab_changed', { tab: id });
+              }
+            }}
+          />
         </div>
 
-        {/* Responsive Grid Container (Main Stream + Semantic Sidebar) */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Main Feed Column */}
-          <div className="lg:col-span-8 space-y-8 min-w-0">
-            <AnimatePresence mode="popLayout">
-              {activePostId ? (
-                <motion.div
-                  key="expanded-post"
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.1, ease: 'easeOut' }}
-                >
-                  <ThoughtThreadView
-                    postId={activePostId}
-                    currentUserId={dbUser?.id || null}
-                    dbUser={dbUser}
-                    onClose={handleClosePost}
-                    onOpenArticle={handleOpenArticle}
-                    onOpenProfile={(username) => {
-                      window.location.href = routes.feed.profile(username);
-                    }}
-                    onInteractionUpdate={(postId, update) => {
-                      setInteractions((prev) => ({
-                        ...prev,
-                        [postId]: {
-                          ...prev[postId],
-                          ...update,
-                        },
-                      }));
-                    }}
-                    onLoginRequired={() => openAuthModal({ mode: 'login' })}
-                  />
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="feed-list"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.1, ease: 'easeOut' }}
-                  className="space-y-6"
-                >
-                  <div className="space-y-2">
-                    <AnimatePresence mode="popLayout">
-                      {activeFeed === 'bookmarks' && currentFeedArticles.length === 0 && (
-                        <motion.div
-                          key="bookmarks-empty"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 0.1 }}
-                          className="bg-muted/40 border border-border/40 rounded-xl p-10 text-center flex flex-col items-center justify-center gap-2.5 text-muted-foreground"
-                        >
-                          <BookMarked className="w-7 h-7 text-muted-foreground/60" />
-                          <h4 className="font-semibold text-xs text-foreground">
-                            {t`Votre Sanctuaire est vide`}
-                          </h4>
-                          <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
-                            {t`Enregistrez des articles en cliquant sur l'icône de signet pour les conserver ici.`}
-                          </p>
-                        </motion.div>
-                      )}
+        {/* Main Feed Container */}
+        <div className="px-4 sm:px-6 py-6 space-y-6 min-w-0">
+          <AnimatePresence mode="popLayout">
+            {activePostId ? (
+              <motion.div
+                key="expanded-post"
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.1, ease: 'easeOut' }}
+              >
+                <ThoughtThreadView
+                  postId={activePostId}
+                  currentUserId={dbUser?.id || null}
+                  dbUser={dbUser}
+                  onClose={handleClosePost}
+                  onOpenArticle={handleOpenArticle}
+                  onOpenProfile={(username) => {
+                    window.location.href = routes.feed.profile(username);
+                  }}
+                  onInteractionUpdate={(postId, update) => {
+                    setInteractions((prev) => ({
+                      ...prev,
+                      [postId]: {
+                        ...prev[postId],
+                        ...update,
+                      },
+                    }));
+                  }}
+                  onLoginRequired={() => openAuthModal({ mode: 'login' })}
+                />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="feed-list"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.1, ease: 'easeOut' }}
+                className="space-y-6"
+              >
+                <div className="space-y-2">
+                  <AnimatePresence mode="popLayout">
+                    {activeFeed === 'bookmarks' && currentFeedArticles.length === 0 && (
+                      <motion.div
+                        key="bookmarks-empty"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.1 }}
+                        className="bg-muted/40 border border-border/40 rounded-xl p-10 text-center flex flex-col items-center justify-center gap-2.5 text-muted-foreground"
+                      >
+                        <BookMarked className="w-7 h-7 text-muted-foreground/60" />
+                        <h4 className="font-semibold text-xs text-foreground">
+                          {t`Votre Sanctuaire est vide`}
+                        </h4>
+                        <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
+                          {t`Enregistrez des articles en cliquant sur l'icône de signet pour les conserver ici.`}
+                        </p>
+                      </motion.div>
+                    )}
 
-                      {currentFeedArticles.length === 0 && activeFeed !== 'bookmarks' ? (
-                        <motion.div
-                          key="empty-state"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          className="bg-muted/40 border border-border/40 rounded-xl p-12 text-center flex flex-col items-center justify-center gap-2.5"
-                        >
-                          <AlertCircle className="w-7 h-7 text-muted-foreground/60" />
-                          <h4 className="font-semibold text-xs text-foreground">
-                            {t`Aucun article trouvé`}
-                          </h4>
-                          <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
-                            {t`Essayez d'effacer le tag filtre ou de suivre de nouveaux créateurs dans la liste Explorer.`}
-                          </p>
-                        </motion.div>
-                      ) : (
-                        <div key={`feed-${activeFeed}`} className="space-y-4">
-                          <RealtimeFeedPill unreadCount={unreadCount} onFlush={flushBuffer} />
-                          <VirtualizedFeedList
-                            items={currentFeedArticles}
-                            fetchNextPage={
-                              activeFeed === 'recommandation' ? fetchNextFeedPage : undefined
-                            }
-                            hasNextPage={activeFeed === 'recommandation' ? feedHasMoreState : false}
-                            isFetchingNextPage={isFetchingNextPage}
-                            keyExtractor={(article) => article.id}
-                            estimateSize={180}
-                            renderItem={(article, idx) => {
-                              const isBookmarked = isArticleBookmarked(article.id);
-                              const authorId =
-                                article.author?.id ||
-                                (article as FeedSliceItem).targetPost?.author?.id;
-                              const isFollowed = authorId ? isCreatorFollowed(authorId) : false;
-                              const isFollowedAuthor =
-                                'journalist' in article &&
-                                Boolean(
-                                  article.author?.journalist?.id &&
-                                  followedAuthorIds.includes(article.author.journalist.id)
-                                );
+                    {currentFeedArticles.length === 0 && activeFeed !== 'bookmarks' ? (
+                      <motion.div
+                        key="empty-state"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="bg-muted/40 border border-border/40 rounded-xl p-12 text-center flex flex-col items-center justify-center gap-2.5"
+                      >
+                        <AlertCircle className="w-7 h-7 text-muted-foreground/60" />
+                        <h4 className="font-semibold text-xs text-foreground">
+                          {t`Aucun article trouvé`}
+                        </h4>
+                        <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
+                          {t`Essayez d'effacer le tag filtre ou de suivre de nouveaux créateurs dans la liste Explorer.`}
+                        </p>
+                      </motion.div>
+                    ) : (
+                      <div key={`feed-${activeFeed}`} className="space-y-4">
+                        <RealtimeFeedPill unreadCount={unreadCount} onFlush={flushBuffer} />
+                        <VirtualizedFeedList
+                          items={currentFeedArticles}
+                          fetchNextPage={
+                            activeFeed === 'recommandation' ? fetchNextFeedPage : undefined
+                          }
+                          hasNextPage={activeFeed === 'recommandation' ? feedHasMoreState : false}
+                          isFetchingNextPage={isFetchingNextPage}
+                          keyExtractor={(article) => article.id}
+                          estimateSize={180}
+                          renderItem={(article, idx) => {
+                            const isBookmarked = isArticleBookmarked(article.id);
+                            const authorId =
+                              article.author?.id ||
+                              (article as FeedSliceItem).targetPost?.author?.id;
+                            const isFollowed = authorId ? isCreatorFollowed(authorId) : false;
+                            const isFollowedAuthor =
+                              'journalist' in article &&
+                              Boolean(
+                                article.author?.journalist?.id &&
+                                followedAuthorIds.includes(article.author.journalist.id)
+                              );
 
-                              if (!article.title) {
-                                const isSlice = 'targetPost' in article;
+                            if (!article.title) {
+                              const isSlice = 'targetPost' in article;
 
-                                const sliceData = isSlice
-                                  ? {
-                                      id: article.id,
-                                      rootPost: (article as FeedSliceItem).rootPost,
-                                      parentPost: (article as FeedSliceItem).parentPost,
-                                      targetPost: (article as FeedSliceItem).targetPost,
-                                      isIncompleteThread: (article as FeedSliceItem)
-                                        .isIncompleteThread,
-                                      hiddenIntermediateCount: (article as FeedSliceItem)
-                                        .hiddenIntermediateCount,
-                                    }
-                                  : {
-                                      id: article.id,
-                                      targetPost: article,
-                                      isIncompleteThread: false,
-                                    };
-
-                                return (
-                                  <ImpressionWrapper
-                                    key={article.id}
-                                    itemType="THOUGHT"
-                                    itemId={article.id}
-                                    position={idx}
-                                  >
-                                    <ThoughtFeedSlice
-                                      slice={sliceData as unknown as FeedSlice}
-                                      currentUserId={dbUser?.id || null}
-                                      onOpenPost={handleOpenPost}
-                                      onOpenArticle={handleOpenArticle}
-                                      onOpenProfile={(username) => {
-                                        window.location.href = routes.feed.profile(username);
-                                      }}
-                                      onDeletePost={handleDeletePost}
-                                      onHidePost={dbUser ? handleHidePost : undefined}
-                                    />
-                                  </ImpressionWrapper>
-                                );
-                              }
+                              const sliceData = isSlice
+                                ? {
+                                    id: article.id,
+                                    rootPost: (article as FeedSliceItem).rootPost,
+                                    parentPost: (article as FeedSliceItem).parentPost,
+                                    targetPost: (article as FeedSliceItem).targetPost,
+                                    isIncompleteThread: (article as FeedSliceItem)
+                                      .isIncompleteThread,
+                                    hiddenIntermediateCount: (article as FeedSliceItem)
+                                      .hiddenIntermediateCount,
+                                  }
+                                : {
+                                    id: article.id,
+                                    targetPost: article,
+                                    isIncompleteThread: false,
+                                  };
 
                               return (
                                 <ImpressionWrapper
                                   key={article.id}
-                                  itemType="ARTICLE"
+                                  itemType="THOUGHT"
                                   itemId={article.id}
                                   position={idx}
-                                  isDiscovery={
-                                    (article as { isDiscovery?: boolean }).isDiscovery === true
-                                  }
                                 >
-                                  <ArticleCard
-                                    article={
-                                      article as unknown as React.ComponentProps<
-                                        typeof ArticleCard
-                                      >['article']
-                                    }
-                                    idx={idx}
-                                    dbUser={dbUser}
-                                    isBookmarked={isBookmarked}
-                                    isFollowed={isFollowed}
-                                    isFollowedAuthor={isFollowedAuthor}
-                                    handleFollowToggle={handleFollowToggle}
-                                    handleBookmarkToggle={handleBookmarkToggle}
-                                    featured={idx === 0 && activeFeed === 'recommandation'}
-                                    discovery={
-                                      (article as { isDiscovery?: boolean }).isDiscovery === true
-                                    }
-                                    onHideArticle={
-                                      dbUser
-                                        ? (art) => handleHideArticle(art as Article)
-                                        : undefined
-                                    }
-                                    onOpenArticle={handleOpenArticle}
+                                  <ThoughtFeedSlice
+                                    slice={sliceData as unknown as FeedSlice}
+                                    currentUserId={dbUser?.id || null}
                                     onOpenPost={handleOpenPost}
+                                    onOpenArticle={handleOpenArticle}
                                     onOpenProfile={(username) => {
                                       window.location.href = routes.feed.profile(username);
                                     }}
+                                    onDeletePost={handleDeletePost}
+                                    onHidePost={dbUser ? handleHidePost : undefined}
                                   />
                                 </ImpressionWrapper>
                               );
-                            }}
-                          />
-                        </div>
-                      )}
-                    </AnimatePresence>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+                            }
 
-          {/* The sliding page is intentionally feed-only for now. Home widgets will move elsewhere. */}
+                            return (
+                              <ImpressionWrapper
+                                key={article.id}
+                                itemType="ARTICLE"
+                                itemId={article.id}
+                                position={idx}
+                                isDiscovery={
+                                  (article as { isDiscovery?: boolean }).isDiscovery === true
+                                }
+                              >
+                                <ArticleCard
+                                  article={
+                                    article as unknown as React.ComponentProps<
+                                      typeof ArticleCard
+                                    >['article']
+                                  }
+                                  idx={idx}
+                                  dbUser={dbUser}
+                                  isBookmarked={isBookmarked}
+                                  isFollowed={isFollowed}
+                                  isFollowedAuthor={isFollowedAuthor}
+                                  handleFollowToggle={handleFollowToggle}
+                                  handleBookmarkToggle={handleBookmarkToggle}
+                                  featured={idx === 0 && activeFeed === 'recommandation'}
+                                  discovery={
+                                    (article as { isDiscovery?: boolean }).isDiscovery === true
+                                  }
+                                  onHideArticle={
+                                    dbUser ? (art) => handleHideArticle(art as Article) : undefined
+                                  }
+                                  onOpenArticle={handleOpenArticle}
+                                  onOpenPost={handleOpenPost}
+                                  onOpenProfile={(username) => {
+                                    window.location.href = routes.feed.profile(username);
+                                  }}
+                                />
+                              </ImpressionWrapper>
+                            );
+                          }}
+                        />
+                      </div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </motion.section>
 
