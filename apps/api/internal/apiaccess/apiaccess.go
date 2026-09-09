@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -45,6 +46,15 @@ const (
 // ConfigKey est la clé SystemConfig listant les modules actuellement
 // accordables à l'échelle de la plateforme (JSON array de clés de module).
 const ConfigKey = "API_ACCESS_MODULES"
+
+// AccessDisabledKey est la clé SystemConfig de la coupure générale de l'API
+// ("true" = toute l'API refuse les requêtes, sauf console admin / IdP OAuth /
+// webhooks entrants infra / événements internes).
+const AccessDisabledKey = "API_ACCESS_DISABLED"
+
+// DisabledEndpointsKey est la clé SystemConfig listant les endpoints désactivés
+// (JSON array de préfixes de chemins, ex. ["/v1/articles", "/v1/webhooks"]).
+const DisabledEndpointsKey = "API_DISABLED_ENDPOINTS"
 
 // rowQuerier est la surface minimale de *pgxpool.Pool nécessaire à la lecture
 // de la config (abstraite pour rester mockable dans les services).
@@ -217,4 +227,54 @@ func IsEnabled(ctx context.Context, q rowQuerier, key string) bool {
 		return true
 	}
 	return HasGrant(enabled, key)
+}
+
+// AccessControlConfig est l'état de contrôle d'accès global de l'API.
+type AccessControlConfig struct {
+	// Disabled = coupure générale (API_ACCESS_DISABLED="true").
+	Disabled bool `json:"disabled"`
+	// DisabledEndpoints = préfixes de chemins d'endpoints désactivés.
+	DisabledEndpoints []string `json:"disabledEndpoints"`
+}
+
+// LoadAccessControl lit la config de contrôle d'accès de l'API depuis
+// SystemConfig. Clés absentes ou invalides → état par défaut (tout ouvert).
+func LoadAccessControl(ctx context.Context, q rowQuerier) (AccessControlConfig, error) {
+	cfg := AccessControlConfig{}
+
+	var raw string
+	err := q.QueryRow(ctx, `SELECT value FROM "SystemConfig" WHERE key = $1`, AccessDisabledKey).Scan(&raw)
+	if err == nil {
+		cfg.Disabled = strings.EqualFold(strings.TrimSpace(raw), "true")
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		return cfg, err
+	}
+
+	var rawEndpoints string
+	err = q.QueryRow(ctx, `SELECT value FROM "SystemConfig" WHERE key = $1`, DisabledEndpointsKey).Scan(&rawEndpoints)
+	if err == nil {
+		var eps []string
+		if jsonErr := json.Unmarshal([]byte(rawEndpoints), &eps); jsonErr == nil {
+			for _, e := range eps {
+				e = strings.TrimSpace(e)
+				if strings.HasPrefix(e, "/") && !HasGrant(cfg.DisabledEndpoints, e) {
+					cfg.DisabledEndpoints = append(cfg.DisabledEndpoints, e)
+				}
+			}
+		}
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		return cfg, err
+	}
+	return cfg, nil
+}
+
+// EndpointDisabled vérifie si un chemin de requête est couvert par un des
+// préfixes d'endpoints désactivés (égalité exacte ou sous-chemin).
+func EndpointDisabled(path string, prefixes []string) bool {
+	for _, p := range prefixes {
+		if path == p || strings.HasPrefix(path, p+"/") {
+			return true
+		}
+	}
+	return false
 }

@@ -180,6 +180,10 @@ func newRouter(d RouterDeps) *chi.Mux {
 	// Global généreux : le trafic pages (SSR + widgets) compte ici ; les
 	// routes sensibles ont leur propre limiteur namespacé en plus.
 	r.Use(authmw.RateLimit("global", rc, time.Minute, 600, false))
+	// Contrôle d'accès global de l'API (coupure générale + endpoints désactivés),
+	// piloté par les superadmins — la console admin / l'IdP OAuth / les webhooks
+	// entrants infra restent toujours joignables.
+	r.Use(authmw.AccessControl(pool))
 
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

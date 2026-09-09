@@ -115,6 +115,8 @@ func DefaultEngineConfigs() []ConfigDefault {
 		// l'approbation lesquelles accorder ; les modules retirés ici ne peuvent
 		// plus être accordés ni utilisés (défaut = tous actifs).
 		{"API_ACCESS_MODULES", `["api:read","api:write","api:analytics","webhooks","oauth"]`, "Modules d'accès API accordables par les admins (JSON array) — API entrante (api:read / api:write / api:analytics), API sortante (webhooks), OAuth."},
+		{"API_ACCESS_DISABLED", "false", "Coupure générale de l'API (true = toute l'API refuse les requêtes, sauf console admin / IdP OAuth / webhooks entrants infra / événements internes)."},
+		{"API_DISABLED_ENDPOINTS", `[]`, "Endpoints désactivés à l'échelle de la plateforme (JSON array de préfixes de chemins, ex. [\"/v1/articles\", \"/v1/webhooks\"])."},
 
 		// ── OAuth (quotas et durées de vie, secondes) ────────────────────────
 		{"OAUTH_MAX_CLIENTS_PER_USER", "3", "Nombre maximal d'applications OAuth par compte."},

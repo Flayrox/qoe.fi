@@ -11,7 +11,18 @@ import {
 } from '@/lib/admin-aux-actions';
 import { AuthMethodsToggles } from './components/AuthMethodsToggles';
 import { ApiAccessModulesToggles } from './components/ApiAccessModulesToggles';
+import { ApiAccessControlCard } from './components/ApiAccessControlCard';
 import { FeatureFlagsToggles } from './components/FeatureFlagsToggles';
+
+function parseDisabledEndpoints(raw?: string): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? parsed.filter((p) => typeof p === 'string') : [];
+  } catch {
+    return [];
+  }
+}
 
 export default async function AdminConfig() {
   // Include the platform defaults in the editor so the admin can see and
@@ -132,6 +143,14 @@ export default async function AdminConfig() {
 
       {/* Permissions d'accès API — registre modulable (API entrante / sortante / OAuth) */}
       <ApiAccessModulesToggles initialModules={apiAccessModules} />
+
+      {/* Contrôle d'accès global — coupure générale + endpoints désactivés */}
+      <ApiAccessControlCard
+        initialDisabled={configs.find((c) => c.key === 'API_ACCESS_DISABLED')?.value === 'true'}
+        initialEndpoints={parseDisabledEndpoints(
+          configs.find((c) => c.key === 'API_DISABLED_ENDPOINTS')?.value
+        )}
+      />
 
       {/* Add new Config Minimal Form */}
       <div className="mb-12">
