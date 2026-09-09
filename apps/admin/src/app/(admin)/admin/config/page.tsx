@@ -1,10 +1,11 @@
-import { getReservedIdentifiers, getSystemConfigs } from '@/lib/admin-data';
+import { getReservedIdentifiers, getSystemConfigs, getAdminFeatureFlags } from '@/lib/admin-data';
 import {
   setSystemConfigAction,
   deleteSystemConfigAction,
   updateReservedIdentifiersAction,
 } from '@/lib/admin-aux-actions';
 import { AuthMethodsToggles } from './components/AuthMethodsToggles';
+import { FeatureFlagsToggles } from './components/FeatureFlagsToggles';
 
 export default async function AdminConfig() {
   // Include the platform defaults in the editor so the admin can see and
@@ -52,10 +53,11 @@ export default async function AdminConfig() {
     'web',
     'www',
   ];
-  const [configs, reservedUsernames, reservedSubdomains] = await Promise.all([
+  const [configs, reservedUsernames, reservedSubdomains, featureFlags] = await Promise.all([
     getSystemConfigs(),
     getReservedIdentifiers('username'),
     getReservedIdentifiers('subdomain'),
+    getAdminFeatureFlags(),
   ]);
   const visibleReservedSubdomains = Array.from(
     new Set([...defaultReservedSubdomains, ...reservedSubdomains])
@@ -113,6 +115,9 @@ export default async function AdminConfig() {
         <h1 className="text-3xl font-semibold tracking-tight text-foreground">Config</h1>
         <p className="text-muted-foreground mt-2 text-sm">System & Feature Flags</p>
       </div>
+
+      {/* 🚩 Feature Flags pilotables en direct */}
+      <FeatureFlagsToggles initialFlags={featureFlags} />
 
       {/* Méthodes de connexion — toggles dédiés (Google en test, etc.) */}
       <AuthMethodsToggles initialValue={configs.find((c) => c.key === 'AUTH_METHODS')?.value} />

@@ -1751,3 +1751,15 @@ ALTER TABLE "Message" ADD CONSTRAINT "Message_conversationId_fkey" FOREIGN KEY (
 
 -- AddForeignKey
 ALTER TABLE "Message" ADD CONSTRAINT "Message_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- CreateTable
+CREATE TABLE IF NOT EXISTS "feature_flags" (
+    "key" TEXT NOT NULL,
+    "is_enabled" BOOLEAN NOT NULL DEFAULT false,
+    "description" TEXT,
+    "target_roles" TEXT[] NOT NULL DEFAULT '{all}',
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "feature_flags_pkey" PRIMARY KEY ("key")
+);
