@@ -14,6 +14,7 @@ import (
 	"github.com/qoefi/api/internal/cache"
 	"github.com/qoefi/api/internal/config"
 	"github.com/qoefi/api/internal/dbpool"
+	"github.com/qoefi/api/internal/modules/imports"
 	"github.com/qoefi/api/internal/queue"
 	"github.com/qoefi/api/internal/umami"
 	"github.com/qoefi/api/internal/workers"
@@ -40,14 +41,17 @@ func main() {
 	searchWorker := workers.NewSearchWorker(pool)
 	searchWorker.Setup(ctx)
 	embeddingWorker := workers.NewEmbeddingWorker(pool)
+	asynqClient := queue.NewClient(cfg.RedisURL)
+	bulkImportWorker := workers.NewBulkImportWorker(imports.NewService(pool, asynqClient))
 
 	mux := asynq.NewServeMux()
 	handlers := buildHandlers(workerDeps{
-		webhook:   webhookWorker,
+		webhook:    webhookWorker,
 		newsletter: newsletterWorker,
-		stripe:    stripeWorker,
-		search:    searchWorker,
-		embedding: embeddingWorker,
+		stripe:     stripeWorker,
+		search:     searchWorker,
+		embedding:  embeddingWorker,
+		bulkImport: bulkImportWorker,
 	})
 	for taskType, fn := range handlers {
 		mux.HandleFunc(taskType, fn)
@@ -57,7 +61,6 @@ func main() {
 	if srv == nil {
 		log.Fatal("URL Redis invalide pour asynq")
 	}
-	asynqClient := queue.NewClient(cfg.RedisURL)
 
 	go func() {
 		log.Println("worker asynq démarré")
@@ -115,6 +118,7 @@ type workerDeps struct {
 	stripe     *workers.StripeWorker
 	search     *workers.SearchWorker
 	embedding  *workers.EmbeddingWorker
+	bulkImport *workers.BulkImportWorker
 }
 
 // buildHandlers exprime le mapping tâche asynq → handler worker sous forme de
@@ -144,5 +148,6 @@ func buildHandlers(d workerDeps) map[string]asynq.HandlerFunc {
 		queue.TaskArticleEmbedding: d.embedding.HandleArticleEmbedding,
 		queue.TaskUserEmbedding:    d.embedding.HandleUserEmbedding,
 		queue.TaskPostEmbedding:    d.embedding.HandlePostEmbedding,
+		queue.TaskBulkImport:       d.bulkImport.HandleBulkImport,
 	}
 }

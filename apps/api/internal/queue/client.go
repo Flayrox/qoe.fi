@@ -182,6 +182,30 @@ func PublishPostEmbedding(c *asynq.Client, p EmbeddingPayload) error {
 	return err
 }
 
+// NewBulkImportTask construit la tâche asynq article.bulk_import. Timeout
+// généreux : un lot peut contenir des milliers d'articles.
+func NewBulkImportTask(p BulkImportPayload) (*asynq.Task, error) {
+	payload, err := json.Marshal(p)
+	if err != nil {
+		return nil, err
+	}
+	return asynq.NewTask(TaskBulkImport, payload, asynq.MaxRetry(3), asynq.Timeout(30*time.Minute)), nil
+}
+
+// PublishBulkImport enqueue un job d'import bulk d'articles (queue low :
+// gros lots, priorité moindre que les événements temps réel).
+func PublishBulkImport(c *asynq.Client, p BulkImportPayload) error {
+	if c == nil {
+		return nil
+	}
+	task, err := NewBulkImportTask(p)
+	if err != nil {
+		return err
+	}
+	_, err = c.Enqueue(task, asynq.Queue("low"))
+	return err
+}
+
 // PublishSubscriberCreated enqueue l'événement subscriber.created.
 func PublishSubscriberCreated(c *asynq.Client, p SubscriberCreatedPayload) error {
 	if c == nil {

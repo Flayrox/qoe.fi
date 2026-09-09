@@ -32,7 +32,7 @@ func doImport(t *testing.T, svc *Service, userID string, body any) *httptest.Res
 }
 
 func TestImportArticlesUnauthorized(t *testing.T) {
-	w := doImport(t, NewService(poolTest), "", map[string]any{})
+	w := doImport(t, NewService(poolTest, nil), "", map[string]any{})
 	if w.Code != http.StatusUnauthorized {
 		t.Fatalf("code = %d, attendu 401", w.Code)
 	}
@@ -41,7 +41,7 @@ func TestImportArticlesUnauthorized(t *testing.T) {
 func TestImportArticlesBadJSON(t *testing.T) {
 	ctx := context.Background()
 	seedImport(t, ctx)
-	h := NewHandler(NewService(poolTest))
+	h := NewHandler(NewService(poolTest, nil))
 	r := chi.NewRouter()
 	h.Register(r)
 	req := httptest.NewRequest(http.MethodPost, "/v1/import/articles", bytes.NewBufferString("{pas du json"))
@@ -56,11 +56,11 @@ func TestImportArticlesBadJSON(t *testing.T) {
 func TestImportArticlesMissingFields(t *testing.T) {
 	ctx := context.Background()
 	seedImport(t, ctx)
-	w := doImport(t, NewService(poolTest), importOwnerID, map[string]any{"publicationId": ""})
+	w := doImport(t, NewService(poolTest, nil), importOwnerID, map[string]any{"publicationId": ""})
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("code = %d, attendu 400 (champs requis)", w.Code)
 	}
-	w2 := doImport(t, NewService(poolTest), importOwnerID, map[string]any{
+	w2 := doImport(t, NewService(poolTest, nil), importOwnerID, map[string]any{
 		"publicationId": importPubPerso, "articles": []any{},
 	})
 	if w2.Code != http.StatusBadRequest {
@@ -72,7 +72,7 @@ func TestImportArticlesForbidden(t *testing.T) {
 	ctx := context.Background()
 	seedImport(t, ctx)
 	// L'étranger n'a aucun accès à la publication personnelle du owner.
-	w := doImport(t, NewService(poolTest), importStranger, map[string]any{
+	w := doImport(t, NewService(poolTest, nil), importStranger, map[string]any{
 		"publicationId": importPubPerso,
 		"articles": []any{map[string]any{
 			"title": "Titre", "slug": "titre", "content": "<p>x</p>", "readingTime": 2,
@@ -87,7 +87,7 @@ func TestImportArticlesSuccess(t *testing.T) {
 	ctx := context.Background()
 	seedImport(t, ctx)
 	// Le owner importe dans sa publication personnelle.
-	w := doImport(t, NewService(poolTest), importOwnerID, map[string]any{
+	w := doImport(t, NewService(poolTest, nil), importOwnerID, map[string]any{
 		"publicationId": importPubPerso,
 		"articles": []any{
 			map[string]any{"title": "A", "slug": "article-a", "content": "<p>A</p>", "readingTime": 2},
@@ -108,7 +108,7 @@ func TestImportArticlesSuccess(t *testing.T) {
 	}
 
 	// Re-import → dédup, 0 créé.
-	w2 := doImport(t, NewService(poolTest), importOwnerID, map[string]any{
+	w2 := doImport(t, NewService(poolTest, nil), importOwnerID, map[string]any{
 		"publicationId": importPubPerso,
 		"articles":      []any{map[string]any{"title": "A", "slug": "article-a", "content": "<p>A</p>", "readingTime": 2}},
 	})
@@ -120,11 +120,115 @@ func TestImportArticlesSuccess(t *testing.T) {
 	}
 
 	// Le owner importe aussi dans le média (rôle owner membre).
-	w3 := doImport(t, NewService(poolTest), importOwnerID, map[string]any{
+	w3 := doImport(t, NewService(poolTest, nil), importOwnerID, map[string]any{
 		"publicationId": importPubMedia,
 		"articles":      []any{map[string]any{"title": "M", "slug": "article-m", "content": "<p>M</p>", "readingTime": 1}},
 	})
 	if w3.Code != http.StatusCreated {
 		t.Fatalf("code média = %d, attendu 201", w3.Code)
+	}
+}
+
+// ── Routes asynchrones /v1/import/jobs ─────────────────────────────────
+
+func doJob(t *testing.T, svc *Service, method, path, userID string, body any) *httptest.ResponseRecorder {
+	t.Helper()
+	h := NewHandler(svc)
+	r := chi.NewRouter()
+	h.Register(r)
+	var buf bytes.Buffer
+	if body != nil {
+		_ = json.NewEncoder(&buf).Encode(body)
+	}
+	req := httptest.NewRequest(method, path, &buf)
+	req.Header.Set("Content-Type", "application/json")
+	if userID != "" {
+		req = req.WithContext(context.WithValue(req.Context(), middleware.UserIDKey, userID))
+	}
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	return w
+}
+
+func TestImportJobRoutes(t *testing.T) {
+	ctx := context.Background()
+	seedImport(t, ctx)
+	svc := NewService(poolTest, nil)
+
+	// POST /v1/import/jobs → 202 {jobId}.
+	w := doJob(t, svc, http.MethodPost, "/v1/import/jobs", importOwnerID, map[string]any{
+		"publicationId": importPubPerso,
+		"articles":      []any{map[string]any{"title": "Job A", "slug": "job-a", "content": "<p>A</p>", "readingTime": 2}},
+	})
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("create job = %d %s, attendu 202", w.Code, w.Body.String())
+	}
+	var created struct {
+		JobID string `json:"jobId"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &created); err != nil || created.JobID == "" {
+		t.Fatalf("jobId absent : %s (%v)", w.Body.String(), err)
+	}
+
+	// GET /v1/import/jobs/{id} → 200 statut.
+	w = doJob(t, svc, http.MethodGet, "/v1/import/jobs/"+created.JobID, importOwnerID, nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("get job = %d %s, attendu 200", w.Code, w.Body.String())
+	}
+	var job struct {
+		Status string `json:"status"`
+		Total  int    `json:"total"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &job); err != nil || job.Status != "PENDING" || job.Total != 1 {
+		t.Fatalf("job = %+v (%v)", job, err)
+	}
+
+	// GET job d'un autre utilisateur → 404.
+	w = doJob(t, svc, http.MethodGet, "/v1/import/jobs/"+created.JobID, importStranger, nil)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("get job étranger = %d, attendu 404", w.Code)
+	}
+
+	// GET /v1/import/jobs → liste.
+	w = doJob(t, svc, http.MethodGet, "/v1/import/jobs", importOwnerID, nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("list jobs = %d, attendu 200", w.Code)
+	}
+	var list struct {
+		Jobs []struct {
+			ID string `json:"id"`
+		} `json:"jobs"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &list); err != nil || len(list.Jobs) != 1 {
+		t.Fatalf("list = %+v (%v), attendu 1 job", list, err)
+	}
+
+	// Anonyme → 401.
+	w = doJob(t, svc, http.MethodPost, "/v1/import/jobs", "", map[string]any{
+		"publicationId": importPubPerso,
+		"articles":      []any{map[string]any{"title": "X", "slug": "x", "content": "<p>x</p>", "readingTime": 1}},
+	})
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("anonyme = %d, attendu 401", w.Code)
+	}
+
+	// Lot vide → 400.
+	w = doJob(t, svc, http.MethodPost, "/v1/import/jobs", importOwnerID, map[string]any{
+		"publicationId": importPubPerso, "articles": []any{},
+	})
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("lot vide = %d, attendu 400", w.Code)
+	}
+}
+
+func TestImportJobRoutes_Forbidden(t *testing.T) {
+	ctx := context.Background()
+	seedImport(t, ctx)
+	w := doJob(t, NewService(poolTest, nil), http.MethodPost, "/v1/import/jobs", importStranger, map[string]any{
+		"publicationId": importPubPerso,
+		"articles":      []any{map[string]any{"title": "X", "slug": "x", "content": "<p>x</p>", "readingTime": 1}},
+	})
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("code = %d, attendu 403", w.Code)
 	}
 }

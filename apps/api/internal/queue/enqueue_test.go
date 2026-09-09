@@ -51,6 +51,21 @@ func TestPublish_SearchEnqueue(t *testing.T) {
 	checkEnqueued(t, c, PublishSearchSync(c, SearchSyncPayload{ArticleID: "a3", Action: "upsert"}))
 }
 
+func TestPublish_BulkImportEnqueue(t *testing.T) {
+	c := newTestClient(t)
+	// Client nil → no-op (jamais d'erreur en production si Redis absent).
+	checkEnqueued(t, c, PublishBulkImport(nil, BulkImportPayload{JobID: "job_1"}))
+	checkEnqueued(t, c, PublishBulkImport(c, BulkImportPayload{JobID: "job_1"}))
+
+	task, err := NewBulkImportTask(BulkImportPayload{JobID: "job_2"})
+	if err != nil {
+		t.Fatalf("NewBulkImportTask: %v", err)
+	}
+	if task.Type() != TaskBulkImport {
+		t.Fatalf("type = %q, attendu %q", task.Type(), TaskBulkImport)
+	}
+}
+
 func TestPublish_StripeEnqueue(t *testing.T) {
 	c := newTestClient(t)
 	checkEnqueued(t, c, PublishStripeEvent(c, StripeEventPayload{EventType: "invoice.paid"}))
