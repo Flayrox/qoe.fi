@@ -127,6 +127,48 @@ func TestRateLimit_ByUserPrecedence(t *testing.T) {
 	}
 }
 
+func TestRateLimitAPIKey_ByKey(t *testing.T) {
+	s := miniredis.RunT(t)
+	rc := redis.NewClient(&redis.Options{Addr: s.Addr()})
+	defer rc.Close()
+
+	inner := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	h := RateLimitAPIKey("test", rc, time.Minute, 2)(inner)
+
+	do := func(keyID string) int {
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		if keyID != "" {
+			req = req.WithContext(context.WithValue(req.Context(), APIKeyIDKey, keyID))
+		}
+		rr := httptest.NewRecorder()
+		h.ServeHTTP(rr, req)
+		return rr.Code
+	}
+
+	// Sans clé API (JWT, anonyme) → le limiteur ne compte pas (pass).
+	if code := do(""); code != http.StatusOK {
+		t.Fatalf("sans clé = %d, attendu 200", code)
+	}
+	// Clé A : 2 autorisées, 3e → 429.
+	if do("key-a") != http.StatusOK || do("key-a") != http.StatusOK || do("key-a") != http.StatusTooManyRequests {
+		t.Fatal("clé A doit être bloquée à la 3e requête")
+	}
+	// Clé B : compteur indépendant (une clé ne sature pas les autres).
+	if do("key-b") != http.StatusOK || do("key-b") != http.StatusOK || do("key-b") != http.StatusTooManyRequests {
+		t.Fatal("clé B doit avoir son propre compteur")
+	}
+	// Redis nil → pass.
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req = req.WithContext(context.WithValue(req.Context(), APIKeyIDKey, "k"))
+	RateLimitAPIKey("t", nil, time.Minute, 1)(inner).ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("Redis nil = %d, attendu 200", rr.Code)
+	}
+}
+
 func TestContextHelpers(t *testing.T) {
 	base := context.Background()
 	// PublicationID / UmamiWebsiteID.

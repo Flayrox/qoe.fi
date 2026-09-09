@@ -17,6 +17,8 @@ const (
 	UmamiWebsiteIDKey ctxKey = "umamiWebsiteId"
 	// ScopesKey porte les scopes d'une clé API (moindre privilège).
 	ScopesKey ctxKey = "scopes"
+	// APIKeyIDKey porte l'id interne de la clé API (rate-limit par clé, idempotence).
+	APIKeyIDKey ctxKey = "apiKeyId"
 )
 
 // Scopes des clés API (moindre privilège). Les valeurs par défaut d'une clé
@@ -81,6 +83,13 @@ func UmamiWebsiteID(ctx context.Context) (string, bool) {
 	return id, ok
 }
 
+// APIKeyID extrait l'id interne de la clé API du contexte (rate-limit par clé,
+// idempotence). false si la requête n'est pas authentifiée par clé API.
+func APIKeyID(ctx context.Context) (string, bool) {
+	id, ok := ctx.Value(APIKeyIDKey).(string)
+	return id, ok
+}
+
 // APIKeyAuth valide une clé API `qoe_live_…` (Bearer) et injecte l'UID + publication.
 func APIKeyAuth(q *db.Queries) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
@@ -109,6 +118,7 @@ func APIKeyAuth(q *db.Queries) func(http.Handler) http.Handler {
 			_ = q.UpdateApiKeyLastUsed(r.Context(), row.ApiKeyID)
 
 			ctx := context.WithValue(r.Context(), UserIDKey, row.UserID)
+			ctx = context.WithValue(ctx, APIKeyIDKey, row.ApiKeyID)
 			if len(row.Scopes) > 0 {
 				ctx = context.WithValue(ctx, ScopesKey, row.Scopes)
 			}
@@ -151,6 +161,7 @@ func apiKeyUserID(q *db.Queries, r *http.Request) (context.Context, bool) {
 	_ = q.UpdateApiKeyLastUsed(r.Context(), row.ApiKeyID)
 
 	ctx := context.WithValue(r.Context(), UserIDKey, row.UserID)
+	ctx = context.WithValue(ctx, APIKeyIDKey, row.ApiKeyID)
 	if len(row.Scopes) > 0 {
 		ctx = context.WithValue(ctx, ScopesKey, row.Scopes)
 	}
