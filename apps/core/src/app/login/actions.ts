@@ -4,6 +4,7 @@ import { createClient } from '@qoe/supabase/server';
 import { redirect } from 'next/navigation';
 import { getSafeRedirectUrl } from '@qoe/utils';
 import { getCurrentUserAction, logoutAction } from '@qoe/sdk/actions/auth';
+import { validateRegistrationEmail, validateUsername } from '@qoe/moderation';
 import { fetchMeProfile } from '@/lib/me';
 
 export async function login(formData: FormData) {
@@ -51,18 +52,33 @@ export async function signup(formData: FormData) {
     redirect('/login?error=Missing+fields');
   }
 
+  // 🛡️ Protection Trust & Safety : validation email anti-jetable et anti-multi-comptes
+  const emailValidation = validateRegistrationEmail(email);
+  if (!emailValidation.valid) {
+    redirect(`/login?error=${encodeURIComponent(emailValidation.error || 'Email non autorisé')}`);
+  }
+
+  // 🛡️ Protection Trust & Safety : validation pseudo anti-haine et anti-usurpation
+  const usernameValidation = validateUsername(username);
+  if (!usernameValidation.valid) {
+    redirect(
+      `/login?error=${encodeURIComponent(usernameValidation.error || "Nom d'utilisateur non autorisé")}`
+    );
+  }
+
   const supabase = await createClient();
 
   const {
     data: { user },
     error,
   } = await supabase.auth.signUp({
-    email,
+    email: emailValidation.normalizedEmail || email.trim(),
     password,
     options: {
       data: {
-        name,
-        username,
+        name: name.trim(),
+        username: username.trim(),
+        canonicalEmail: emailValidation.canonicalEmail,
       },
     },
   });

@@ -231,6 +231,9 @@ importers:
       '@qoe/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@qoe/moderation':
+        specifier: workspace:*
+        version: link:../../packages/moderation
       '@qoe/observability':
         specifier: workspace:^
         version: link:../../packages/observability
@@ -950,6 +953,15 @@ importers:
       next:
         specifier: 16.2.6
         version: 16.2.6(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@playwright/test@1.62.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+
+  packages/moderation:
+    devDependencies:
+      '@qoe/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
       typescript:
         specifier: ^5
         version: 5.9.3
