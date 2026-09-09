@@ -237,6 +237,7 @@ export function FeedDashboard({
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const slidingSheetOffset = 275;
   const [isFullyCovered, setIsFullyCovered] = useState(false);
+  const [stageWidth, setStageWidth] = useState<number>(1400);
 
   // Détection du scroll : s'étend uniquement quand Lire est complètement recouvert (scrollY >= slidingSheetOffset)
   React.useEffect(() => {
@@ -247,6 +248,19 @@ export function FeedDashboard({
     handleScroll();
     return () => window.removeEventListener('scroll', handleScroll);
   }, [slidingSheetOffset]);
+
+  // Mesure de la largeur de scène pour l'animation numérique fluide de maxWidth (672px -> stageWidth)
+  React.useEffect(() => {
+    const updateStageWidth = () => {
+      const clientWidth =
+        typeof document !== 'undefined' ? document.documentElement.clientWidth : window.innerWidth;
+      const isMd = window.innerWidth >= 768;
+      setStageWidth(isMd ? Math.max(clientWidth - 256, 672) : clientWidth);
+    };
+    updateStageWidth();
+    window.addEventListener('resize', updateStageWidth, { passive: true });
+    return () => window.removeEventListener('resize', updateStageWidth);
+  }, []);
 
   // Global Hotkeys Listener
   React.useEffect(() => {
@@ -760,28 +774,37 @@ export function FeedDashboard({
     <ReaderPageLayout giantTitle={t`Lire`} hideHeader={!!activePostId || !!activeArticle}>
       {/* ── SLIDING FEED SHEET ── */}
       <motion.section
-        layout
         initial={false}
         animate={{
           marginTop: activePostId || activeArticle ? 0 : slidingSheetOffset,
+          maxWidth: isFullyCovered || activePostId || activeArticle ? stageWidth : 672,
+          borderTopLeftRadius: isFullyCovered || activePostId || activeArticle ? 0 : 16,
+          borderTopRightRadius: isFullyCovered || activePostId || activeArticle ? 0 : 16,
         }}
         transition={{
           marginTop: { type: 'spring', stiffness: 350, damping: 32 },
-          layout: { duration: 0.35, ease: [0.16, 1, 0.3, 1] },
+          maxWidth: { duration: 0.4, ease: [0.16, 1, 0.3, 1] },
+          borderTopLeftRadius: { duration: 0.4, ease: [0.16, 1, 0.3, 1] },
+          borderTopRightRadius: { duration: 0.4, ease: [0.16, 1, 0.3, 1] },
         }}
         className={cn(
-          'w-full mx-auto bg-card text-card-foreground shadow-sm relative z-10',
+          'w-full mx-auto bg-card text-card-foreground shadow-sm relative z-10 border-t border-x transition-colors duration-300',
           isFullyCovered || activePostId || activeArticle
-            ? 'max-w-none rounded-none border-t-0 border-x-0'
-            : 'max-w-2xl rounded-t-2xl border-t border-x border-border/40'
+            ? 'border-transparent'
+            : 'border-border/40'
         )}
       >
         {/* 100% Solid Opaque Sticky Header of the Sheet (No Background Bleed-Through) */}
-        <div
-          className={cn(
-            'sticky top-0 z-20 bg-card border-b border-border/40 px-4 sm:px-6 py-3',
-            isFullyCovered || activePostId || activeArticle ? 'rounded-none' : 'rounded-t-2xl'
-          )}
+        <motion.div
+          animate={{
+            borderTopLeftRadius: isFullyCovered || activePostId || activeArticle ? 0 : 16,
+            borderTopRightRadius: isFullyCovered || activePostId || activeArticle ? 0 : 16,
+          }}
+          transition={{
+            borderTopLeftRadius: { duration: 0.4, ease: [0.16, 1, 0.3, 1] },
+            borderTopRightRadius: { duration: 0.4, ease: [0.16, 1, 0.3, 1] },
+          }}
+          className="sticky top-0 z-20 bg-card border-b border-border/40 px-4 sm:px-6 py-3"
         >
           <div className="max-w-2xl mx-auto flex items-center justify-between">
             <FeedTabsHeader
@@ -799,7 +822,7 @@ export function FeedDashboard({
               }}
             />
           </div>
-        </div>
+        </motion.div>
 
         {/* Main Feed Container */}
         <div className="max-w-2xl mx-auto px-4 sm:px-6 py-6 space-y-6 min-w-0">
