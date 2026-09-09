@@ -50,6 +50,7 @@ import (
 	"github.com/qoefi/api/internal/modules/webhooks"
 	"github.com/qoefi/api/internal/modules/workspaces"
 	"github.com/qoefi/api/internal/queue"
+	"github.com/qoefi/api/internal/supastorage"
 	"github.com/qoefi/api/internal/umami"
 )
 
@@ -98,6 +99,8 @@ func run(ctx context.Context) error {
 		UmamiPass:              cfg.UmamiPass,
 		DefaultUmamiSite:       cfg.DefaultUmamiWebsiteID,
 		UmamiDatabaseURL:       cfg.UmamiDatabaseURL,
+		SupabaseURL:            cfg.SupabaseURL,
+		APIKeyRateLimit:        cfg.APIKeyRateLimit,
 		OAuth:                  oauthService,
 	})
 
@@ -149,6 +152,10 @@ type RouterDeps struct {
 	UmamiDatabaseURL string
 	// OAuth est le service du fournisseur d'identité OAuth 2.1 / OIDC.
 	OAuth *oauth.Service
+	// SupabaseURL est l'origine Supabase (auth + storage REST) pour les uploads.
+	SupabaseURL string
+	// APIKeyRateLimit est le quota de requêtes par minute PAR CLÉ API créateur.
+	APIKeyRateLimit int
 }
 
 // newRouter assemble l'API complète (routes publiques + créateur + workers
@@ -157,6 +164,11 @@ func newRouter(d RouterDeps) *chi.Mux {
 	rc := d.Redis
 	asynqClient := d.Asynq
 	pool := d.Pool
+
+	// Stockage d'images (Supabase Storage) + registre de médiathèque :
+	// partagés par les handlers créateur (POST /v1/creator/media).
+	mediaStore := supastorage.New(d.SupabaseURL, d.SupabaseServiceRoleKey)
+	mediaAssetsSvc := mediaassets.NewService(pool)
 
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP)
@@ -282,10 +294,26 @@ func newRouter(d RouterDeps) *chi.Mux {
 		// 600 req/min par utilisateur (usage créateur légitime, généreux).
 		protected.Use(authmw.RateLimit("protected", rc, time.Minute, 600, true))
 		protected.Use(auth.CombinedAuth(db.New(pool)))
+		// Quota PAR CLÉ API en plus du limiteur par user/IP (après CombinedAuth :
+		// l'id de clé est dans le contexte). Les requêtes JWT ne comptent pas ici.
+		protected.Use(authmw.RateLimitAPIKey("apikey", rc, time.Minute, d.APIKeyRateLimit))
 
 		postsHandler.RegisterProtected(protected)
 
-		articlesHandler.RegisterProtected(protected, authmw.RequireAPIScope)
+		// Écritures CMS (articles, catégories créateur, webhooks) : idempotence
+		// via Idempotency-Key (réessais sûrs — pas de doublon d'article).
+		protected.Group(func(apiWrite chi.Router) {
+			apiWrite.Use(authmw.Idempotency(rc, 24*time.Hour))
+
+			articlesHandler.RegisterProtected(apiWrite, authmw.RequireAPIScope)
+
+			creatorHandler := creator.NewHandler(pool, umami.NewClient(d.UmamiAPIURL, d.UmamiAPIKey, d.UmamiUser, d.UmamiPass), d.DefaultUmamiSite)
+			creatorHandler.WithMediaUpload(mediaStore, mediaAssetsSvc)
+			creatorHandler.RegisterProtected(apiWrite, authmw.RequireAPIScope)
+
+			webhooksHandler := webhooks.NewHandler(webhooks.NewService(pool))
+			webhooksHandler.RegisterProtected(apiWrite, authmw.RequireAPIScope)
+		})
 
 		notifHandler := notifications.NewHandler(notifications.NewService(pool))
 		notifHandler.Register(protected)
@@ -295,13 +323,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 		analyticsHandler := analytics.NewHandler(analytics.NewService(pool, d.UmamiDatabaseURL))
 		analyticsHandler.Register(protected)
 
-		creatorHandler := creator.NewHandler(pool, umami.NewClient(d.UmamiAPIURL, d.UmamiAPIKey, d.UmamiUser, d.UmamiPass), d.DefaultUmamiSite)
-		creatorHandler.RegisterProtected(protected, authmw.RequireAPIScope)
-
 		settingsHandler.RegisterProtected(protected)
-
-		webhooksHandler := webhooks.NewHandler(webhooks.NewService(pool))
-		webhooksHandler.RegisterProtected(protected, authmw.RequireAPIScope)
 
 		workspacesHandler := workspaces.NewHandler(workspaces.NewService(pool))
 		workspacesHandler.Register(protected)
@@ -309,7 +331,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 		mediaHandler := media.NewHandler(media.NewService(pool))
 		mediaHandler.Register(protected)
 
-		importsHandler := imports.NewHandler(imports.NewService(pool))
+		importsHandler := imports.NewHandler(imports.NewService(pool, asynqClient))
 		importsHandler.Register(protected)
 
 		mediaAssetsHandler := mediaassets.NewHandler(mediaassets.NewService(pool))
@@ -370,7 +392,10 @@ func newRouter(d RouterDeps) *chi.Mux {
 	// + surlignages publics des articles du créateur.
 	r.Group(func(apiKey chi.Router) {
 		apiKey.Use(authmw.APIKeyAuth(db.New(pool)))
+		// Quota dédié PAR CLÉ API (le limiteur global par IP reste en plus).
+		apiKey.Use(authmw.RateLimitAPIKey("apikey", rc, time.Minute, d.APIKeyRateLimit))
 		creatorHandler := creator.NewHandler(pool, umami.NewClient(d.UmamiAPIURL, d.UmamiAPIKey, d.UmamiUser, d.UmamiPass), d.DefaultUmamiSite)
+		creatorHandler.WithMediaUpload(mediaStore, mediaAssetsSvc)
 		creatorHandler.RegisterAPIKey(apiKey)
 	})
 
