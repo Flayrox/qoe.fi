@@ -557,6 +557,20 @@ type ArticleComment struct {
 	ParentId  pgtype.Text      `json:"parentId"`
 }
 
+type ArticleImportJob struct {
+	ID            string           `json:"id"`
+	UserId        pgtype.UUID      `json:"userId"`
+	PublicationId string           `json:"publicationId"`
+	Status        string           `json:"status"`
+	Total         int32            `json:"total"`
+	Imported      int32            `json:"imported"`
+	Duplicates    int32            `json:"duplicates"`
+	Errors        []byte           `json:"errors"`
+	Articles      []byte           `json:"articles"`
+	CreatedAt     pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt     pgtype.Timestamp `json:"updatedAt"`
+}
+
 type ArticleSlug struct {
 	ID          string           `json:"id"`
 	ArticleId   string           `json:"articleId"`
@@ -643,6 +657,15 @@ type ConversationMember struct {
 	UserId         pgtype.UUID      `json:"userId"`
 	LastReadAt     pgtype.Timestamp `json:"lastReadAt"`
 	CreatedAt      pgtype.Timestamp `json:"createdAt"`
+}
+
+type FeatureFlag struct {
+	Key         string           `json:"key"`
+	IsEnabled   bool             `json:"is_enabled"`
+	Description pgtype.Text      `json:"description"`
+	TargetRoles []string         `json:"target_roles"`
+	CreatedAt   pgtype.Timestamp `json:"created_at"`
+	UpdatedAt   pgtype.Timestamp `json:"updated_at"`
 }
 
 type FeedImpression struct {

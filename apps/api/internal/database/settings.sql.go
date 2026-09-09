@@ -554,6 +554,32 @@ func (q *Queries) SetApiApplication(ctx context.Context, arg SetApiApplicationPa
 	return err
 }
 
+const updateApiKeySecret = `-- name: UpdateApiKeySecret :execrows
+UPDATE "ApiKey"
+SET "keyHash" = $2, "keyPrefix" = $3
+WHERE id = $1 AND "userId" = $4
+`
+
+type UpdateApiKeySecretParams struct {
+	ID        string      `json:"id"`
+	KeyHash   string      `json:"keyHash"`
+	KeyPrefix string      `json:"keyPrefix"`
+	UserId    pgtype.UUID `json:"userId"`
+}
+
+func (q *Queries) UpdateApiKeySecret(ctx context.Context, arg UpdateApiKeySecretParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateApiKeySecret,
+		arg.ID,
+		arg.KeyHash,
+		arg.KeyPrefix,
+		arg.UserId,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const updatePersonalPublication = `-- name: UpdatePersonalPublication :exec
 UPDATE "Publication"
 SET name = $2, "subdomain" = $3, "heroText" = $4, "layoutStyle" = $5, "updatedAt" = now()

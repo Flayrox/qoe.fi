@@ -528,6 +528,37 @@ func (s *Service) RevokeApiKey(ctx context.Context, userID, id string) error {
 	return s.q.DeleteApiKey(ctx, db.DeleteApiKeyParams{ID: id, UserId: toUUID(userID)})
 }
 
+// RotateApiKey régénère le secret d'une clé API existante : même id, nouveaux
+// keyPrefix/keyHash — les anciens tokens qoe_live_* sont immédiatement
+// invalides (auth par hash). Retourne le nouveau token en clair (affiché 1x).
+func (s *Service) RotateApiKey(ctx context.Context, userID, id string) (string, error) {
+	status, err := s.q.GetUserApiAccessStatus(ctx, userID)
+	if err != nil {
+		return "", errNotFound
+	}
+	if status != "approved" {
+		return "", errors.New("Votre demande d'accès à l'API doit être approuvée par un administrateur.")
+	}
+
+	raw := make([]byte, 16)
+	if _, err := rand.Read(raw); err != nil {
+		return "", err
+	}
+	apiKey := "qoe_live_" + hex.EncodeToString(raw)
+	sum := sha256.Sum256([]byte(apiKey))
+
+	n, err := s.q.UpdateApiKeySecret(ctx, db.UpdateApiKeySecretParams{
+		ID: id, KeyHash: hex.EncodeToString(sum[:]), KeyPrefix: "qoe_live", UserId: toUUID(userID),
+	})
+	if err != nil {
+		return "", err
+	}
+	if n == 0 {
+		return "", errNotFound
+	}
+	return apiKey, nil
+}
+
 // ApiKeyDTO est une clé API listée (le hash n'est jamais exposé).
 type ApiKeyDTO struct {
 	ID         string   `json:"id"`

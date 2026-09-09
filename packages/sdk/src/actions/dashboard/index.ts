@@ -173,6 +173,16 @@ export const revokeApiKeyAction = safeAction<string, { success: boolean }>(async
   return { success: true };
 });
 
+// Rotation de clé : même id, nouveau secret (l'ancienne clé est
+// immédiatement invalide). Le nouveau secret n'est affiché qu'une fois.
+export const rotateApiKeyAction = safeAction<string, { apiKey: string }>(async (id) => {
+  const res = await goFetch<{ apiKey: string }>(`/v1/settings/api-keys/${id}/rotate`, {
+    method: 'POST',
+  });
+  revalidatePath('/developer');
+  return res;
+});
+
 export const completeOnboardingAction = safeAction<CompleteOnboardingInput, { success: boolean }>(
   async (data) => {
     await goFetch('/v1/settings/onboarding', {

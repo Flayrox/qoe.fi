@@ -120,12 +120,14 @@ type Querier interface {
 	ExistsUnreadMentionNotification(ctx context.Context, arg ExistsUnreadMentionNotificationParams) (int32, error)
 	ExistsUnreadReplyNotification(ctx context.Context, arg ExistsUnreadReplyNotificationParams) (int32, error)
 	ExistsUnreadRepostNotification(ctx context.Context, arg ExistsUnreadRepostNotificationParams) (int32, error)
+	FailArticleImportJob(ctx context.Context, id string) error
 	FindFollowingFeed(ctx context.Context, arg FindFollowingFeedParams) ([]FindFollowingFeedRow, error)
 	FindPostsByAuthor(ctx context.Context, arg FindPostsByAuthorParams) ([]FindPostsByAuthorRow, error)
 	// Articles publiés classés par similarité cosinus avec un vecteur donné,
 	// en excluant l'article source. Requête ANN via l'index HNSW.
 	FindSimilarArticles(ctx context.Context, arg FindSimilarArticlesParams) ([]FindSimilarArticlesRow, error)
 	FindTrending(ctx context.Context, arg FindTrendingParams) ([]FindTrendingRow, error)
+	FinishArticleImportJob(ctx context.Context, arg FinishArticleImportJobParams) error
 	FinishNewsletterIssue(ctx context.Context, arg FinishNewsletterIssueParams) (string, error)
 	FollowPublications(ctx context.Context, arg FollowPublicationsParams) (int32, error)
 	GetActiveSubscribersByPublication(ctx context.Context, arg GetActiveSubscribersByPublicationParams) ([]GetActiveSubscribersByPublicationRow, error)
@@ -155,6 +157,8 @@ type Querier interface {
 	GetArticleForSearch(ctx context.Context, id string) (GetArticleForSearchRow, error)
 	// Dédoublonnage import RSS : un article existe déjà si publicationId + slug matchent.
 	GetArticleIdByPublicationAndSlug(ctx context.Context, arg GetArticleIdByPublicationAndSlugParams) (string, error)
+	GetArticleImportJob(ctx context.Context, arg GetArticleImportJobParams) (GetArticleImportJobRow, error)
+	GetArticleImportJobByID(ctx context.Context, id string) (GetArticleImportJobByIDRow, error)
 	GetAttachmentsByIDs(ctx context.Context, dollar_1 []string) ([]GetAttachmentsByIDsRow, error)
 	GetAudienceSummary(ctx context.Context, publicationid string) (GetAudienceSummaryRow, error)
 	GetCanonicalThoughtID(ctx context.Context, id string) (string, error)
@@ -300,6 +304,8 @@ type Querier interface {
 	// articleId, non-lue) + pas d'auto-notification. Casts explicites : évite
 	// l'ambiguïté uuid/text en protocole étendu (operator does not exist).
 	InsertArticleContributorNotification(ctx context.Context, arg InsertArticleContributorNotificationParams) error
+	// Import bulk d'articles — jobs asynq + rapports d'erreurs.
+	InsertArticleImportJob(ctx context.Context, arg InsertArticleImportJobParams) (string, error)
 	InsertBlock(ctx context.Context, arg InsertBlockParams) error
 	InsertBookmark(ctx context.Context, arg InsertBookmarkParams) error
 	InsertCommentNotification(ctx context.Context, arg InsertCommentNotificationParams) error
@@ -353,6 +359,7 @@ type Querier interface {
 	ListAnnotationComments(ctx context.Context, highlightid string) ([]ListAnnotationCommentsRow, error)
 	ListApiKeys(ctx context.Context, userid pgtype.UUID) ([]ListApiKeysRow, error)
 	ListArticleComments(ctx context.Context, articleid string) ([]ListArticleCommentsRow, error)
+	ListArticleImportJobs(ctx context.Context, arg ListArticleImportJobsParams) ([]ListArticleImportJobsRow, error)
 	ListArticleSlugs(ctx context.Context, articleid string) ([]string, error)
 	ListArticlesForSettings(ctx context.Context, publicationid string) ([]ListArticlesForSettingsRow, error)
 	ListArticlesWithCategory(ctx context.Context, arg ListArticlesWithCategoryParams) ([]ListArticlesWithCategoryRow, error)
@@ -424,6 +431,7 @@ type Querier interface {
 	ListUserDrafts(ctx context.Context, arg ListUserDraftsParams) ([]ListUserDraftsRow, error)
 	ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeliveriesParams) ([]ListWebhookDeliveriesRow, error)
 	ListWebhooksByPublication(ctx context.Context, publicationid string) ([]ListWebhooksByPublicationRow, error)
+	MarkArticleImportJobRunning(ctx context.Context, id string) error
 	// Marque TOUS les messages comme lus (upsert du lastReadAt à maintenant).
 	MarkConversationRead(ctx context.Context, arg MarkConversationReadParams) error
 	MarkNewsletterDelivery(ctx context.Context, arg MarkNewsletterDeliveryParams) error
@@ -458,6 +466,7 @@ type Querier interface {
 	UpdateAdminUserApiAccess(ctx context.Context, arg UpdateAdminUserApiAccessParams) (UpdateAdminUserApiAccessRow, error)
 	UpdateAdminUserModeration(ctx context.Context, arg UpdateAdminUserModerationParams) (UpdateAdminUserModerationRow, error)
 	UpdateApiKeyLastUsed(ctx context.Context, id string) error
+	UpdateApiKeySecret(ctx context.Context, arg UpdateApiKeySecretParams) (int64, error)
 	UpdateArticleAttributionConsent(ctx context.Context, arg UpdateArticleAttributionConsentParams) error
 	UpdateArticleContent(ctx context.Context, arg UpdateArticleContentParams) (string, error)
 	UpdateArticleFull(ctx context.Context, arg UpdateArticleFullParams) (string, error)

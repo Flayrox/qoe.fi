@@ -20,11 +20,13 @@ import {
   CheckCircle,
   Code2,
   Sparkles,
+  RefreshCw,
 } from 'lucide-react';
 import {
   submitApiApplicationAction,
   generateApiKeyAction,
   revokeApiKeyAction,
+  rotateApiKeyAction,
 } from '@qoe/sdk/actions/dashboard';
 import { DeveloperNav } from './developer-nav';
 import { cn } from '@qoe/utils';
@@ -90,6 +92,9 @@ export function DeveloperClient({
   const [isSubmittingApp, setIsSubmittingApp] = useState(false);
   const [isGeneratingKey, setIsGeneratingKey] = useState(false);
   const [isRevokingKeyId, setIsRevokingKeyId] = useState<string | null>(null);
+  const [isRotatingKeyId, setIsRotatingKeyId] = useState<string | null>(null);
+  // Mode d'affichage du modal « clé affichée une seule fois ».
+  const [keyModalMode, setKeyModalMode] = useState<'generated' | 'rotated'>('generated');
 
   const [newKeyName, setNewKeyName] = useState('');
   const [newKeyScopes, setNewKeyScopes] = useState<ApiKeyScope[]>(() => [...API_KEY_SCOPES]);
@@ -210,6 +215,24 @@ export function DeveloperClient({
     setNewKeyScopes((prev) =>
       prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope]
     );
+  };
+
+  // Handle key rotation (nouveau secret, l'ancien est invalidé)
+  const handleRotateKey = async (id: string) => {
+    setIsRotatingKeyId(id);
+    try {
+      const res = await rotateApiKeyAction(id);
+      if (res.ok && res.data?.apiKey) {
+        setKeyModalMode('rotated');
+        setGeneratedKey(res.data.apiKey);
+        setShowKeyModal(true);
+        toast.success(t`Clé d'API rotatée avec succès.`);
+      }
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, t`Erreur lors de la rotation de la clé.`));
+    } finally {
+      setIsRotatingKeyId(null);
+    }
   };
 
   // Handle revoking key
@@ -690,13 +713,29 @@ print(articles)`,
                                   </button>
                                 </div>
                               ) : (
-                                <button
-                                  onClick={() => setConfirmDeleteId(key.id)}
-                                  title={t`Révoquer cette clé d'API`}
-                                  className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 p-1.5 rounded-lg transition-colors inline-flex cursor-pointer"
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </button>
+                                <div className="flex items-center justify-end gap-1">
+                                  <button
+                                    onClick={() => handleRotateKey(key.id)}
+                                    disabled={
+                                      isRotatingKeyId === key.id || isRevokingKeyId === key.id
+                                    }
+                                    title={t`Rotater la clé : régénère le secret et invalide l'ancienne clé`}
+                                    className="text-muted-foreground hover:text-primary hover:bg-primary/10 p-1.5 rounded-lg transition-colors inline-flex cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    {isRotatingKeyId === key.id ? (
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                      <RefreshCw className="w-4 h-4" />
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={() => setConfirmDeleteId(key.id)}
+                                    title={t`Révoquer cette clé d'API`}
+                                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 p-1.5 rounded-lg transition-colors inline-flex cursor-pointer"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
                               )}
                             </td>
                           </tr>
@@ -808,11 +847,14 @@ print(articles)`,
                   <CheckCircle className="w-6 h-6" />
                 </div>
                 <h3 className="text-lg font-bold text-foreground">
-                  Votre clé d'API a été générée avec succès
+                  {keyModalMode === 'rotated'
+                    ? t`Votre clé d'API a été rotatée avec succès`
+                    : t`Votre clé d'API a été générée avec succès`}
                 </h3>
                 <p className="text-xs text-muted-foreground max-w-md mx-auto">
-                  Copiez cette clé secrète dès maintenant. Pour des raisons de sécurité, nous ne
-                  pourrons plus jamais vous la réafficher.
+                  {keyModalMode === 'rotated'
+                    ? t`L'ancienne clé est désormais invalide. Copiez cette nouvelle clé secrète dès maintenant : elle ne sera plus jamais réaffichée.`
+                    : t`Copiez cette clé secrète dès maintenant. Pour des raisons de sécurité, nous ne pourrons plus jamais vous la réafficher.`}
                 </p>
               </div>
 
