@@ -66,7 +66,8 @@ SELECT id, email, status, error
 FROM "NewsletterDelivery"
 WHERE "issueId" = $1
   AND status = 'QUEUED'
-ORDER BY "createdAt" ASC;
+ORDER BY "createdAt" ASC
+LIMIT $2;
 
 -- name: MarkNewsletterDelivery :exec
 UPDATE "NewsletterDelivery"
@@ -76,6 +77,56 @@ SET status     = $3,
     "updatedAt" = now()
 WHERE "issueId" = $1
   AND email = $2;
+
+-- name: InsertArticleReleaseDeliveries :exec
+INSERT INTO "ArticleReleaseDelivery" (id, "articleId", email, "subscriberId", "updatedAt")
+SELECT gen_random_uuid()::text, $1, s.email, s.id, now()
+FROM "Subscriber" s
+WHERE s."publicationId" = $2
+  AND s."isActive" = true
+  AND s."receiveArticles" = true
+ON CONFLICT ("articleId", email) DO NOTHING;
+
+-- name: ListQueuedArticleReleaseDeliveries :many
+SELECT id, email, status, error
+FROM "ArticleReleaseDelivery"
+WHERE "articleId" = $1
+  AND status = 'QUEUED'
+ORDER BY "createdAt" ASC
+LIMIT $2;
+
+-- name: MarkArticleReleaseDelivery :exec
+UPDATE "ArticleReleaseDelivery"
+SET status     = $3,
+    error      = $4,
+    "sentAt"   = CASE WHEN $3 = 'SENT' THEN now() ELSE NULL END,
+    "updatedAt" = now()
+WHERE "articleId" = $1
+  AND email = $2;
+
+-- name: ResetNewsletterIssueToDraft :exec
+UPDATE "NewsletterIssue"
+SET status     = 'DRAFT',
+    "updatedAt" = now()
+WHERE id = $1
+  AND status = 'SENDING';
+
+-- name: GetArticleReleaseInfo :one
+SELECT a.id, a.title, a.slug, a.visibility, a."isPremium", a.content,
+       a."publicationId",
+       p.name AS publication_name, p.subdomain, p."customDomain"
+FROM "Article" a
+JOIN "Publication" p ON p.id = a."publicationId"
+WHERE a.id = $1
+  AND a.published = true
+  AND a.status = 'PUBLISHED';
+
+-- name: CountArticleReleaseDeliveries :one
+SELECT COUNT(*)::bigint AS total,
+       COUNT(*) FILTER (WHERE status = 'SENT')::bigint   AS sent,
+       COUNT(*) FILTER (WHERE status = 'FAILED')::bigint AS failed
+FROM "ArticleReleaseDelivery"
+WHERE "articleId" = $1;
 
 -- name: CountNewsletterDeliveriesByIssue :one
 SELECT COUNT(*)::bigint AS total,

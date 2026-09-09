@@ -205,7 +205,7 @@ func TestService_SetStatus_PublishDraft(t *testing.T) {
 	ctx := context.Background()
 
 	// Publie le brouillon.
-	if err := svc.SetStatus(ctx, "art_test_003", fx.AuthorID, "PUBLISHED", true); err != nil {
+	if err := svc.SetStatus(ctx, "art_test_003", fx.AuthorID, "PUBLISHED", true, nil); err != nil {
 		t.Fatalf("SetStatus: %v", err)
 	}
 

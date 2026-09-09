@@ -5,20 +5,36 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
+	"github.com/redis/go-redis/v9"
 )
 
 // Handler expose les routes newsletters (créateur + désabonnement public).
 type Handler struct {
 	svc *Service
+
+	// sendLimiter (optionnel) est le limiteur Redis de l'envoi : anti-spam
+	// « brouillon/publier » — un créateur ne peut déclencher qu'un nombre
+	// limité d'envois par fenêtre (défaut si non branché : aucun).
+	rc     *redis.Client
+	window time.Duration
+	max    int
 }
 
 func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
+}
+
+// SetSendRateLimit branche le limiteur d'envoi (anti-spam brouillon/publier).
+func (h *Handler) SetSendRateLimit(rc *redis.Client, window time.Duration, max int) {
+	h.rc = rc
+	h.window = window
+	h.max = max
 }
 
 // Register monte les routes dans le groupe protégé (JWT/API key créateur).
@@ -27,6 +43,11 @@ func (h *Handler) Register(r chi.Router) {
 	r.Post("/v1/newsletters", h.create)
 	r.Patch("/v1/newsletters/{id}", h.update)
 	r.Delete("/v1/newsletters/{id}", h.delete)
+	if h.rc != nil {
+		r.With(middleware.RateLimit("newsletter-send", h.rc, h.window, h.max, true)).
+			Post("/v1/newsletters/{id}/send", h.send)
+		return
+	}
 	r.Post("/v1/newsletters/{id}/send", h.send)
 }
 

@@ -18,7 +18,9 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/qoefi/api/internal/apiaccess"
+	"github.com/qoefi/api/internal/auditlog"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/flags"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/permissions"
 	"github.com/qoefi/api/internal/shared/identifier"
@@ -34,10 +36,18 @@ var (
 type Service struct {
 	pool pooler
 	q    ServiceQuerier
+
+	// flags gate le journal d'audit superadmin (flag admin-audit-log).
+	flags *flags.Service
 }
 
 func NewService(pool *pgxpool.Pool) *Service {
 	return &Service{pool: pool, q: db.New(pool)}
+}
+
+// SetFlags branche le service feature flags (journal d'audit admin).
+func (s *Service) SetFlags(f *flags.Service) {
+	s.flags = f
 }
 
 // authorizeSettings vérifie que l'utilisateur peut administrer la publication :
@@ -548,12 +558,19 @@ func (s *Service) GenerateApiKey(ctx context.Context, userID, name string, scope
 	}); err != nil {
 		return "", err
 	}
+	auditlog.Write(ctx, s.q, s.flags, userID, "api.key.created", "user", userID,
+		map[string]any{"name": name, "scopes": finalScopes})
 	return apiKey, nil
 }
 
 // RevokeApiKey révoque une clé API de l'utilisateur.
 func (s *Service) RevokeApiKey(ctx context.Context, userID, id string) error {
-	return s.q.DeleteApiKey(ctx, db.DeleteApiKeyParams{ID: id, UserId: toUUID(userID)})
+	if err := s.q.DeleteApiKey(ctx, db.DeleteApiKeyParams{ID: id, UserId: toUUID(userID)}); err != nil {
+		return err
+	}
+	auditlog.Write(ctx, s.q, s.flags, userID, "api.key.revoked", "user", userID,
+		map[string]any{"keyId": id})
+	return nil
 }
 
 // RotateApiKey régénère le secret d'une clé API existante : même id, nouveaux
@@ -587,6 +604,8 @@ func (s *Service) RotateApiKey(ctx context.Context, userID, id string) (string, 
 	if n == 0 {
 		return "", errNotFound
 	}
+	auditlog.Write(ctx, s.q, s.flags, userID, "api.key.rotated", "user", userID,
+		map[string]any{"keyId": id})
 	return apiKey, nil
 }
 

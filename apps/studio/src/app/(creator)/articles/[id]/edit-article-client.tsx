@@ -23,6 +23,7 @@ interface ArticleData {
   slug: string;
   published: boolean;
   status?: string;
+  scheduledAt?: string | null;
   isPremium: boolean;
   categoryId: string | null;
   seoTitle: string | null;
@@ -67,6 +68,7 @@ export function EditArticleClient({ article, categories, capabilities }: EditArt
       slug: string;
       published: boolean;
       status?: string;
+      scheduledAt?: string | null;
       isPremium: boolean;
       categoryId: string | null;
       seoTitle: string | null;
@@ -101,6 +103,7 @@ export function EditArticleClient({ article, categories, capabilities }: EditArt
         initialImageUrl={article.imageUrl}
         initialPublished={article.published}
         initialStatus={article.status}
+        initialScheduledAt={article.scheduledAt ?? null}
         initialIsPremium={article.isPremium}
         initialCategoryId={article.categoryId}
         initialSeoTitle={article.seoTitle || ''}

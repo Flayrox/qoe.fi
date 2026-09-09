@@ -24,6 +24,7 @@ type Querier interface {
 	ConsumeOAuthAuthorizationCode(ctx context.Context, id string) error
 	CountActiveOAuthTokens(ctx context.Context, userid string) (int64, error)
 	CountAllNotificationDeliveries(ctx context.Context) (int64, error)
+	CountArticleReleaseDeliveries(ctx context.Context, articleid string) (CountArticleReleaseDeliveriesRow, error)
 	CountArticlesByPublication(ctx context.Context, publicationid string) (int32, error)
 	// Compte des articles d'une publication (mêmes filtres que ListCreatorArticles).
 	CountCreatorArticles(ctx context.Context, arg CountCreatorArticlesParams) (int64, error)
@@ -159,6 +160,7 @@ type Querier interface {
 	GetArticleIdByPublicationAndSlug(ctx context.Context, arg GetArticleIdByPublicationAndSlugParams) (string, error)
 	GetArticleImportJob(ctx context.Context, arg GetArticleImportJobParams) (GetArticleImportJobRow, error)
 	GetArticleImportJobByID(ctx context.Context, id string) (GetArticleImportJobByIDRow, error)
+	GetArticleReleaseInfo(ctx context.Context, id string) (GetArticleReleaseInfoRow, error)
 	GetAttachmentsByIDs(ctx context.Context, dollar_1 []string) ([]GetAttachmentsByIDsRow, error)
 	GetAudienceSummary(ctx context.Context, publicationid string) (GetAudienceSummaryRow, error)
 	GetCanonicalThoughtID(ctx context.Context, id string) (string, error)
@@ -311,6 +313,7 @@ type Querier interface {
 	InsertArticleContributorNotification(ctx context.Context, arg InsertArticleContributorNotificationParams) error
 	// Import bulk d'articles — jobs asynq + rapports d'erreurs.
 	InsertArticleImportJob(ctx context.Context, arg InsertArticleImportJobParams) (string, error)
+	InsertArticleReleaseDeliveries(ctx context.Context, arg InsertArticleReleaseDeliveriesParams) error
 	InsertBlock(ctx context.Context, arg InsertBlockParams) error
 	InsertBookmark(ctx context.Context, arg InsertBookmarkParams) error
 	InsertCommentNotification(ctx context.Context, arg InsertCommentNotificationParams) error
@@ -407,7 +410,7 @@ type Querier interface {
 	// Tous les surlignages d'un lecteur (bibliothèque), avec l'article associé.
 	ListMyHighlights(ctx context.Context, arg ListMyHighlightsParams) ([]ListMyHighlightsRow, error)
 	ListNavigationForPublication(ctx context.Context, publicationid string) ([]ListNavigationForPublicationRow, error)
-	ListNewsletterDeliveriesByIssue(ctx context.Context, issueid string) ([]ListNewsletterDeliveriesByIssueRow, error)
+	ListNewsletterDeliveriesByIssue(ctx context.Context, arg ListNewsletterDeliveriesByIssueParams) ([]ListNewsletterDeliveriesByIssueRow, error)
 	ListNewsletterIssuesByPublication(ctx context.Context, publicationid string) ([]NewsletterIssue, error)
 	ListNotificationDeliveries(ctx context.Context) ([]ListNotificationDeliveriesRow, error)
 	ListOAuthClientsByOwner(ctx context.Context, owneruserid string) ([]ListOAuthClientsByOwnerRow, error)
@@ -421,6 +424,7 @@ type Querier interface {
 	// Articles publiés d'une publication (profil), résolue par slug OU subdomain
 	// (insensible à la casse). Même shape que ListRecentPublishedArticles.
 	ListPublishedArticlesByPublication(ctx context.Context, arg ListPublishedArticlesByPublicationParams) ([]ListPublishedArticlesByPublicationRow, error)
+	ListQueuedArticleReleaseDeliveries(ctx context.Context, arg ListQueuedArticleReleaseDeliveriesParams) ([]ListQueuedArticleReleaseDeliveriesRow, error)
 	ListQuotePostIDs(ctx context.Context, arg ListQuotePostIDsParams) ([]string, error)
 	ListReceivedCollaborationRequests(ctx context.Context, inviteeid pgtype.UUID) ([]ListReceivedCollaborationRequestsRow, error)
 	// Articles publiés récents (feed mobile « écran principal »), avec auteur /
@@ -438,6 +442,7 @@ type Querier interface {
 	ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeliveriesParams) ([]ListWebhookDeliveriesRow, error)
 	ListWebhooksByPublication(ctx context.Context, publicationid string) ([]ListWebhooksByPublicationRow, error)
 	MarkArticleImportJobRunning(ctx context.Context, id string) error
+	MarkArticleReleaseDelivery(ctx context.Context, arg MarkArticleReleaseDeliveryParams) error
 	// Marque TOUS les messages comme lus (upsert du lastReadAt à maintenant).
 	MarkConversationRead(ctx context.Context, arg MarkConversationReadParams) error
 	MarkNewsletterDelivery(ctx context.Context, arg MarkNewsletterDeliveryParams) error
@@ -445,6 +450,7 @@ type Querier interface {
 	PinPost(ctx context.Context, arg PinPostParams) (bool, error)
 	// Réactive un asset purgé/supprimé (nouvelle fenêtre de 3 jours).
 	ReactivateMediaAsset(ctx context.Context, id string) (MediaAsset, error)
+	ResetNewsletterIssueToDraft(ctx context.Context, id string) error
 	RetryNotificationDelivery(ctx context.Context, id string) error
 	RevokeCollaborationRequestsForArticle(ctx context.Context, arg RevokeCollaborationRequestsForArticleParams) error
 	RevokeOAuthTokenByAccessHash(ctx context.Context, accesstokenhash string) error

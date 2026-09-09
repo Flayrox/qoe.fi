@@ -102,6 +102,12 @@ func TestNewsletterLifecycle(t *testing.T) {
 	if items[0].Status != "SENDING" {
 		t.Fatalf("status après send = %s, attendu SENDING", items[0].Status)
 	}
+
+	// Anti-spam « brouillon/publier » : un second envoi est refusé (l'issue
+	// n'est plus DRAFT) — pas de double envoi possible.
+	if err := svc.Send(ctx, ownerID, issue.ID); !errors.Is(err, errNotDraft) {
+		t.Fatalf("second send = %v, attendu errNotDraft", err)
+	}
 }
 
 func TestNewsletterOwnershipAndValidation(t *testing.T) {
@@ -158,5 +164,64 @@ func TestNewsletterUnsubscribe(t *testing.T) {
 	_ = poolTest.QueryRow(ctx, `SELECT "receiveArticles" FROM "Subscriber" WHERE id='sub_1'`).Scan(&after)
 	if after {
 		t.Fatal("sub_1 ne devrait plus recevoir les articles")
+	}
+
+	// Champs vides → erreur explicite.
+	if err := svc.Unsubscribe(ctx, "", "reader@test.dev"); err == nil {
+		t.Fatal("unsubscribe sans publicationId = nil, attendu erreur")
+	}
+	if err := svc.Unsubscribe(ctx, pubID, ""); err == nil {
+		t.Fatal("unsubscribe sans email = nil, attendu erreur")
+	}
+}
+
+// TestNewsletterDraftEdgeCases — brouillon : update/send hors DRAFT refusés,
+// update avec contenu vide refusé, issue étrangère refusée.
+func TestNewsletterDraftEdgeCases(t *testing.T) {
+	ctx := context.Background()
+	seedNewsletterEnv(t, ctx)
+	svc := newTestService()
+
+	issue, err := svc.CreateDraft(ctx, ownerID, CreateInput{
+		PublicationID: pubID, Subject: "Edge", Html: "<p>E</p>",
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	// Update avec contenu vide → erreur.
+	if _, err := svc.UpdateDraft(ctx, ownerID, issue.ID, CreateInput{
+		PublicationID: pubID, Subject: "X", Html: "",
+	}); err == nil {
+		t.Fatal("update sans html = nil, attendu erreur")
+	}
+	// Update d'une issue inexistante → errNotFound.
+	if _, err := svc.UpdateDraft(ctx, ownerID, "nope", CreateInput{
+		PublicationID: pubID, Subject: "X", Html: "<p>Y</p>",
+	}); !errors.Is(err, errNotFound) {
+		t.Fatalf("update inexistante = %v, attendu errNotFound", err)
+	}
+	// Update par l'étranger → errForbidden.
+	if _, err := svc.UpdateDraft(ctx, stranger, issue.ID, CreateInput{
+		PublicationID: pubID, Subject: "X", Html: "<p>Y</p>",
+	}); !errors.Is(err, errForbidden) {
+		t.Fatalf("update étranger = %v, attendu errForbidden", err)
+	}
+	// Delete par l'étranger → errForbidden.
+	if err := svc.DeleteDraft(ctx, stranger, issue.ID); !errors.Is(err, errForbidden) {
+		t.Fatalf("delete étranger = %v, attendu errForbidden", err)
+	}
+
+	// Envoi puis update (plus DRAFT) → errNotDraft.
+	if err := svc.Send(ctx, ownerID, issue.ID); err != nil {
+		t.Fatalf("send: %v", err)
+	}
+	if _, err := svc.UpdateDraft(ctx, ownerID, issue.ID, CreateInput{
+		PublicationID: pubID, Subject: "X", Html: "<p>Y</p>",
+	}); !errors.Is(err, errNotDraft) {
+		t.Fatalf("update après send = %v, attendu errNotDraft", err)
+	}
+	if err := svc.DeleteDraft(ctx, ownerID, issue.ID); !errors.Is(err, errNotDraft) {
+		t.Fatalf("delete après send = %v, attendu errNotDraft", err)
 	}
 }

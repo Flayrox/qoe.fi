@@ -148,6 +148,9 @@ jobs:
           # Feature flags serveur (2026-09) : registre + cache TTL + GET /v1/flags
           # — base du coupe-feu worker (workers-newsletter-dispatch).
           check "internal/flags" 80
+          # Newsletters (2026-09) : pipeline par lots rate-limité (campagnes +
+          # releases d'articles) — anti-spam et synchro release.
+          check "internal/modules/newsletters" 80
         env:
           TESTCONTAINERS_RYUK_DISABLED: 'true'
 

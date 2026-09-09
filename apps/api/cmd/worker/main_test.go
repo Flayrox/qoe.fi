@@ -56,6 +56,7 @@ func TestBuildHandlers(t *testing.T) {
 		queue.TaskUserEmbedding,
 		queue.TaskPostEmbedding,
 		queue.TaskNewsletterSend,
+		queue.TaskNewsletterArticleRel,
 		queue.TaskBulkImport,
 	}
 	if len(handlers) != len(expected) {
@@ -87,17 +88,18 @@ func TestWorkerMuxDispatch(t *testing.T) {
 	// Chaque tâche connue atteint un handler réel : payload vide → erreur
 	// métier (décodage/payload) et non « non gérée ».
 	payloads := map[string][]byte{
-		queue.TaskArticlePublished:  []byte(`{}`),
-		queue.TaskArticleUpdated:    []byte(`{}`),
-		queue.TaskArticleDeleted:    []byte(`{}`),
-		queue.TaskSubscriberCreated: []byte(`{}`),
-		queue.TaskPostLiked:         []byte(`{}`),
-		queue.TaskStripeEvent:       []byte(`{}`),
-		queue.TaskSearchSync:        []byte(`{}`),
-		queue.TaskArticleEmbedding:  []byte(`{}`),
-		queue.TaskUserEmbedding:     []byte(`{}`),
-		queue.TaskPostEmbedding:     []byte(`{}`),
-		queue.TaskBulkImport:        []byte(`{}`),
+		queue.TaskArticlePublished:     []byte(`{}`),
+		queue.TaskArticleUpdated:       []byte(`{}`),
+		queue.TaskArticleDeleted:       []byte(`{}`),
+		queue.TaskSubscriberCreated:    []byte(`{}`),
+		queue.TaskPostLiked:            []byte(`{}`),
+		queue.TaskStripeEvent:          []byte(`{}`),
+		queue.TaskSearchSync:           []byte(`{}`),
+		queue.TaskArticleEmbedding:     []byte(`{}`),
+		queue.TaskUserEmbedding:        []byte(`{}`),
+		queue.TaskPostEmbedding:        []byte(`{}`),
+		queue.TaskNewsletterArticleRel: []byte(`{}`),
+		queue.TaskBulkImport:           []byte(`{}`),
 	}
 	for typ, payload := range payloads {
 		task := asynq.NewTask(typ, payload)

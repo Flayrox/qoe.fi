@@ -76,6 +76,30 @@ func PublishNewsletterSend(c *asynq.Client, p NewsletterSendPayload) error {
 	return err
 }
 
+// NewArticleReleaseTask construit la tâche asynq newsletter.article_release
+// (batch d'envoi automatique à la publication d'un article).
+func NewArticleReleaseTask(p ArticleReleasePayload) (*asynq.Task, error) {
+	payload, err := json.Marshal(p)
+	if err != nil {
+		return nil, err
+	}
+	return asynq.NewTask(TaskNewsletterArticleRel, payload, asynq.MaxRetry(2), asynq.Timeout(10*time.Minute)), nil
+}
+
+// PublishArticleRelease enqueue un batch d'envoi de release d'article, avec
+// un délai (ProcessIn) pour espacer les lots (rate-limit côté worker).
+func PublishArticleRelease(c *asynq.Client, p ArticleReleasePayload, delay time.Duration) error {
+	if c == nil {
+		return nil
+	}
+	task, err := NewArticleReleaseTask(p)
+	if err != nil {
+		return err
+	}
+	_, err = c.Enqueue(task, asynq.Queue("default"), asynq.ProcessIn(delay))
+	return err
+}
+
 // PublishArticlePublished enqueue l'événement article.published.
 func PublishArticlePublished(c *asynq.Client, p ArticlePublishedPayload) error {
 	if c == nil {

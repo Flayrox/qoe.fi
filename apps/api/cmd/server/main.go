@@ -102,6 +102,7 @@ func run(ctx context.Context) error {
 		UmamiDatabaseURL:       cfg.UmamiDatabaseURL,
 		SupabaseURL:            cfg.SupabaseURL,
 		APIKeyRateLimit:        cfg.APIKeyRateLimit,
+		FlagsSigningKey:        cfg.FlagsSigningKey,
 		OAuth:                  oauthService,
 	})
 
@@ -157,6 +158,8 @@ type RouterDeps struct {
 	SupabaseURL string
 	// APIKeyRateLimit est le quota de requêtes par minute PAR CLÉ API créateur.
 	APIKeyRateLimit int
+	// FlagsSigningKey signe GET /v1/flags (HMAC-SHA256) pour les widgets tiers.
+	FlagsSigningKey string
 }
 
 // newRouter assemble l'API complète (routes publiques + créateur + workers
@@ -170,6 +173,10 @@ func newRouter(d RouterDeps) *chi.Mux {
 	// partagés par les handlers créateur (POST /v1/creator/media).
 	mediaStore := supastorage.New(d.SupabaseURL, d.SupabaseServiceRoleKey)
 	mediaAssetsSvc := mediaassets.NewService(pool)
+
+	// Feature flags serveur : une instance partagée (cache TTL 30 s) pour
+	// l'endpoint public, le journal d'audit admin et les gates de services.
+	flagsSvc := flags.NewService(pool)
 
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP)
@@ -197,8 +204,9 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 	// Feature flags : état serveur des flags (même table Postgres que la
 	// console admin / @qoe/flags — une seule source de vérité, cache 30 s).
-	flagsHandler := flags.NewHandler(flags.NewService(pool))
-	flagsHandler.RegisterPublic(r)
+	// Signé HMAC si FLAGS_SIGNING_KEY est configuré (widgets tiers).
+	flagsHandler := flags.NewHandler(flagsSvc)
+	flagsHandler.WithSigningKey(d.FlagsSigningKey).RegisterPublic(r)
 
 	// Recherche publique : articles (Meilisearch) + sémantique (pgvector/jina).
 	searchHandler := search.NewHandler(search.NewSemanticService(d.Pool))
@@ -230,6 +238,9 @@ func newRouter(d RouterDeps) *chi.Mux {
 	// Newsletters : désabonnement one-click public (lien présent dans chaque
 	// email — sans auth, RFC 8058). Les routes créateur sont dans le groupe protégé.
 	newslettersHandler := newsletters.NewHandler(newsletters.NewService(db.New(pool), asynqClient))
+	// Anti-spam « brouillon/publier » : 10 déclenchements d'envoi par heure max
+	// (le worker rate-limit ensuite le rythme des emails eux-mêmes).
+	newslettersHandler.SetSendRateLimit(rc, time.Hour, 10)
 	newslettersHandler.RegisterPublic(r)
 
 	// Feed & Posts : lecture publique (auth optionnelle : threads, trending, posts, profil, engagement).
@@ -262,7 +273,9 @@ func newRouter(d RouterDeps) *chi.Mux {
 	})
 
 	// Settings créateur : sous-domaine (public) + profil/onboarding/clés API (protégé).
-	settingsHandler := settings.NewHandler(settings.NewService(pool))
+	settingsSvc := settings.NewService(pool)
+	settingsSvc.SetFlags(flagsSvc)
+	settingsHandler := settings.NewHandler(settingsSvc)
 	r.With(authmw.RateLimit("tenant-check", rc, time.Minute, 30, false)).Group(func(publicSettings chi.Router) {
 		settingsHandler.RegisterPublic(publicSettings)
 	})
@@ -338,7 +351,9 @@ func newRouter(d RouterDeps) *chi.Mux {
 		workspacesHandler := workspaces.NewHandler(workspaces.NewService(pool))
 		workspacesHandler.Register(protected)
 
-		mediaHandler := media.NewHandler(media.NewService(pool))
+		mediaSvc := media.NewService(pool)
+		mediaSvc.SetFlags(flagsSvc)
+		mediaHandler := media.NewHandler(mediaSvc)
 		mediaHandler.Register(protected)
 
 		importsHandler := imports.NewHandler(imports.NewService(pool, asynqClient))
@@ -353,7 +368,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 		starterPacksHandler.RegisterProtected(protected)
 
 		adminSvc := admin.NewService(pool)
-		adminSvc.SetFlags(flags.NewService(pool))
+		adminSvc.SetFlags(flagsSvc)
 		adminHandler := admin.NewHandler(adminSvc)
 		adminHandler.Register(protected)
 

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/hibiken/asynq"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/queue"
@@ -147,7 +148,7 @@ func (s *Service) UpdateDraft(ctx context.Context, userID, issueID string, in Cr
 	if in.Subject == "" || in.Html == "" {
 		return nil, errors.New("subject et html requis")
 	}
-	if err := s.checkOwnership(ctx, userID, issueID); err != nil {
+	if _, err := s.checkOwnership(ctx, userID, issueID); err != nil {
 		return nil, err
 	}
 	preview := pgtype.Text{}
@@ -161,10 +162,12 @@ func (s *Service) UpdateDraft(ctx context.Context, userID, issueID string, in Cr
 		Html:        in.Html,
 	})
 	if err != nil {
+		// Hors DRAFT (déjà envoyée) ou issue inconnue : l'update est refusé
+		// proprement — pas de modification d'une issue en cours d'envoi.
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errNotDraft
+		}
 		return nil, err
-	}
-	if row.ID == "" {
-		return nil, errNotDraft
 	}
 	issue := fromModel(row)
 	return &issue, nil
@@ -172,16 +175,27 @@ func (s *Service) UpdateDraft(ctx context.Context, userID, issueID string, in Cr
 
 // DeleteDraft supprime un brouillon (DRAFT uniquement).
 func (s *Service) DeleteDraft(ctx context.Context, userID, issueID string) error {
-	if err := s.checkOwnership(ctx, userID, issueID); err != nil {
+	issue, err := s.checkOwnership(ctx, userID, issueID)
+	if err != nil {
 		return err
+	}
+	if issue.Status != "DRAFT" {
+		return errNotDraft
 	}
 	return s.q.DeleteNewsletterIssueDraft(ctx, issueID)
 }
 
 // Send passe un brouillon en SENDING et enqueue la tâche de distribution.
+// Anti-spam : seuls les brouillons peuvent être envoyés (une issue déjà
+// SENDING/SENT/FAILED renvoie errNotDraft) — pas de double envoi, pas de
+// re-send après clôture.
 func (s *Service) Send(ctx context.Context, userID, issueID string) error {
-	if err := s.checkOwnership(ctx, userID, issueID); err != nil {
+	issue, err := s.checkOwnership(ctx, userID, issueID)
+	if err != nil {
 		return err
+	}
+	if issue.Status != "DRAFT" {
+		return errNotDraft
 	}
 	if _, err := s.q.SetNewsletterIssueSending(ctx, issueID); err != nil {
 		return err
@@ -189,23 +203,24 @@ func (s *Service) Send(ctx context.Context, userID, issueID string) error {
 	return queue.PublishNewsletterSend(s.ac, queue.NewsletterSendPayload{IssueID: issueID})
 }
 
-// checkOwnership vérifie que l'issue appartient à une publication du créateur.
-func (s *Service) checkOwnership(ctx context.Context, userID, issueID string) error {
+// checkOwnership vérifie que l'issue appartient à une publication du créateur
+// et renvoie l'issue (le statut sert aux gardes anti-double-envoi).
+func (s *Service) checkOwnership(ctx context.Context, userID, issueID string) (db.NewsletterIssue, error) {
 	issue, err := s.q.GetNewsletterIssue(ctx, issueID)
 	if err != nil {
-		return errNotFound
+		return db.NewsletterIssue{}, errNotFound
 	}
 	owns, err := s.q.UserOwnsPublication(ctx, db.UserOwnsPublicationParams{
 		ID:            userID,
 		PublicationId: pgtype.Text{String: issue.PublicationId, Valid: true},
 	})
 	if err != nil {
-		return err
+		return db.NewsletterIssue{}, err
 	}
 	if !owns {
-		return errForbidden
+		return db.NewsletterIssue{}, errForbidden
 	}
-	return nil
+	return issue, nil
 }
 
 // Unsubscribe désactive receiveArticles pour un abonné (lien public, sans auth).

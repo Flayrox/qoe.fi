@@ -33,6 +33,7 @@ export interface Article {
   content: string;
   published: boolean;
   status: string;
+  scheduledAt?: string | null;
   isPremium: boolean;
   readingTime: number;
   categoryId: string | null;
@@ -155,6 +156,7 @@ export const saveArticleAction = safeAction<
     slug?: string;
     published?: boolean;
     status?: string;
+    scheduledAt?: string | null;
     isPremium?: boolean;
     categoryId?: string | null;
     seoTitle?: string | null;
@@ -172,6 +174,7 @@ export const saveArticleAction = safeAction<
     slug,
     published = false,
     status,
+    scheduledAt = null,
     isPremium = false,
     categoryId = null,
     seoTitle = null,
@@ -206,6 +209,7 @@ export const saveArticleAction = safeAction<
         slug: finalSlug,
         published,
         status,
+        scheduledAt,
         isPremium,
         categoryId,
         seoTitle,
@@ -227,6 +231,7 @@ export const saveArticleAction = safeAction<
       slug: finalSlug,
       published,
       status,
+      scheduledAt,
       isPremium,
       categoryId,
       seoTitle,
@@ -235,6 +240,22 @@ export const saveArticleAction = safeAction<
       attributions: normalizeArticleAttributions(attributions, user.id),
     },
   });
+});
+
+/**
+ * 📅 Programme (ou annule) la publication d'un article. Date future → statut
+ * SCHEDULED (publié automatiquement par le worker) ; null → retour au brouillon.
+ */
+export const scheduleArticleAction = safeAction<
+  { id: string; scheduledAt?: string | null },
+  { scheduled: boolean; scheduledAt: string | null }
+>(async ({ id, scheduledAt = null }) => {
+  const res = await goFetch<{ scheduled: boolean; scheduledAt: string | null }>(
+    `/v1/articles/${encodeURIComponent(id)}/schedule`,
+    { method: 'POST', body: { scheduledAt } }
+  );
+  revalidatePath('/articles');
+  return res;
 });
 
 export const searchArticleContributorsAction = safeAction<

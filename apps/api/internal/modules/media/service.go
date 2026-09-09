@@ -18,7 +18,9 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/auditlog"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/flags"
 	"github.com/qoefi/api/internal/permissions"
 )
 
@@ -31,10 +33,18 @@ var (
 type Service struct {
 	pool *pgxpool.Pool
 	q    *db.Queries
+
+	// flags gate le journal d'audit superadmin (flag admin-audit-log).
+	flags *flags.Service
 }
 
 func NewService(pool *pgxpool.Pool) *Service {
 	return &Service{pool: pool, q: db.New(pool)}
+}
+
+// SetFlags branche le service feature flags (journal d'audit admin).
+func (s *Service) SetFlags(f *flags.Service) {
+	s.flags = f
 }
 
 func toUUID(id string) pgtype.UUID {
@@ -550,6 +560,8 @@ func (s *Service) InviteMember(ctx context.Context, userID, mediaID, email, role
 				return nil, err
 			}
 			s.audit(ctx, mediaID, userID, "member.role_changed", map[string]any{"targetId": target.ID, "role": role})
+			auditlog.Write(ctx, s.q, s.flags, userID, "media.member.role_changed", "user", target.ID,
+				map[string]any{"role": role, "mediaId": mediaID})
 			return map[string]any{"success": true, "alreadyMember": true}, nil
 		}
 	}
@@ -662,6 +674,8 @@ func (s *Service) UpdateMemberRole(ctx context.Context, userID, mediaID, memberU
 		return err
 	}
 	s.audit(ctx, mediaID, userID, "member.role_changed", map[string]any{"targetId": memberUserID, "role": role})
+	auditlog.Write(ctx, s.q, s.flags, userID, "media.member.role_changed", "user", memberUserID,
+		map[string]any{"role": role, "mediaId": mediaID})
 	return nil
 }
 
@@ -676,6 +690,8 @@ func (s *Service) UpdateMemberPermissions(ctx context.Context, userID, mediaID, 
 		return err
 	}
 	s.audit(ctx, mediaID, userID, "member.permissions_changed", map[string]any{"targetId": memberUserID, "permissions": perms})
+	auditlog.Write(ctx, s.q, s.flags, userID, "media.member.permissions_changed", "user", memberUserID,
+		map[string]any{"permissions": perms, "mediaId": mediaID})
 	return nil
 }
 
@@ -700,5 +716,7 @@ func (s *Service) RemoveMember(ctx context.Context, userID, mediaID, memberUserI
 		return err
 	}
 	s.audit(ctx, mediaID, userID, "member.removed", map[string]any{"targetId": memberUserID})
+	auditlog.Write(ctx, s.q, s.flags, userID, "media.member.removed", "user", memberUserID,
+		map[string]any{"mediaId": mediaID})
 	return nil
 }

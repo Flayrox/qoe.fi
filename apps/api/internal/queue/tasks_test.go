@@ -83,6 +83,8 @@ func TestTaskTypesAreWellFormed(t *testing.T) {
 	}{
 		{TaskArticlePublished, mustTask(NewArticlePublishedTask(ArticlePublishedPayload{})), TaskArticlePublished},
 		{TaskSubscriberCreated, mustTask(NewSubscriberCreatedTask(SubscriberCreatedPayload{})), TaskSubscriberCreated},
+		{TaskNewsletterSend, mustTask(NewNewsletterSendTask(NewsletterSendPayload{})), TaskNewsletterSend},
+		{TaskNewsletterArticleRel, mustTask(NewArticleReleaseTask(ArticleReleasePayload{})), TaskNewsletterArticleRel},
 	}
 	for _, c := range tasks {
 		if c.task.Type() != c.typ {
@@ -125,6 +127,12 @@ func TestPublish_NoOpWhenNilClient(t *testing.T) {
 	}
 	if err := PublishSubscriberCreated(nil, SubscriberCreatedPayload{}); err != nil {
 		t.Errorf("PublishSubscriberCreated(nil): %v", err)
+	}
+	if err := PublishNewsletterSend(nil, NewsletterSendPayload{}); err != nil {
+		t.Errorf("PublishNewsletterSend(nil): %v", err)
+	}
+	if err := PublishArticleRelease(nil, ArticleReleasePayload{}, 0); err != nil {
+		t.Errorf("PublishArticleRelease(nil): %v", err)
 	}
 }
 
