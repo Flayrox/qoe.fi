@@ -11,8 +11,6 @@ import type { Metadata } from 'next';
 import { Inter, JetBrains_Mono, Geist } from 'next/font/google';
 import { I18nClientProvider } from '@qoe/i18n/provider';
 import { getStaticTranslations, getLanguage, initI18n } from '@qoe/i18n/server';
-import { GrowthBookProvider } from '@qoe/flags';
-import { getGrowthBookPayload } from '@qoe/flags/server';
 import { TooltipProvider } from '@qoe/ui/ui/tooltip';
 import { Toaster } from '@qoe/ui/toast';
 import { AnalyticsScript } from '@qoe/analytics/client';
@@ -57,7 +55,6 @@ export default async function RootLayout({
   const locale = await initI18n();
   const staticTranslations = await getStaticTranslations();
   const staticData = await staticTranslations.loadTranslations();
-  const flagsPayload = await getGrowthBookPayload();
 
   const devtoolsActions = {
     getDevtoolsData,
@@ -93,17 +90,15 @@ export default async function RootLayout({
             "Encountered a script tag while rendering React component". */}
         <ThemeSeedScript />
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-          <GrowthBookProvider payload={flagsPayload}>
-            <I18nClientProvider language={locale} staticData={staticData}>
-              <TooltipProvider>
-                {children}
-                <Toaster />
-                {process.env.NODE_ENV === 'development' && (
-                  <DevtoolsPanel actions={devtoolsActions} />
-                )}
-              </TooltipProvider>
-            </I18nClientProvider>
-          </GrowthBookProvider>
+          <I18nClientProvider language={locale} staticData={staticData}>
+            <TooltipProvider>
+              {children}
+              <Toaster />
+              {process.env.NODE_ENV === 'development' && (
+                <DevtoolsPanel actions={devtoolsActions} />
+              )}
+            </TooltipProvider>
+          </I18nClientProvider>
         </ThemeProvider>
 
         <AnalyticsScript />

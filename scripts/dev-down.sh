@@ -3,7 +3,7 @@
 # 🛑 dev-down.sh — Arrête le stack de dev local (inverse de dev-up.sh)
 # =============================================================================
 #   Tue les apps sur les ports de dev, stoppe Supabase local,
-#   puis l'infra Docker (db, redis, meilisearch, mongodb, growthbook, umami).
+#   puis l'infra Docker (db, redis, meilisearch, umami).
 #
 # Usage :  pnpm dev:down        (ou ./scripts/dev-down.sh)
 # =============================================================================
@@ -11,7 +11,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-INFRA_SERVICES=(db redis meilisearch mongodb growthbook umami)
+INFRA_SERVICES=(db redis meilisearch umami)
 DEV_PORTS=(15401 15402 15403 15404 15405 15406 15407)
 
 C_GREEN=$'\033[32m'; C_RESET=$'\033[0m'

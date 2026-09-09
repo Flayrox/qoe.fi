@@ -4,40 +4,26 @@
 // 📖 Consommation :
 //    import { useFlag, useFlags } from '@qoe/flags';
 //    const showRecos = useFlag('feed-recommendations');
-//    const { isOn } = useFlags();  // isOn('web-newsletter-banner')
+//    const { isOn } = useFlags();
 // =====================================================================
 
 'use client';
 
-import { useFeatureIsOn, useFeatureValue, useGrowthBook } from '@growthbook/growthbook-react';
-import { defaultFor, type FlagKey } from './flags';
+import { useFlag, useFlags } from './provider';
+import type { FlagKey } from './flags';
+
+export { useFlag, useFlags };
 
 /**
- * Retourne la valeur booléenne typée d'un flag, avec fallback = défaut du registre.
+ * Alias booléen explicite (synonyme de useFlag)
  */
-export function useFlag<K extends FlagKey>(key: K): boolean {
-  return useFeatureValue(key, defaultFor(key));
+export function useFlagIsOn(key: FlagKey): boolean {
+  return useFlag(key);
 }
 
 /**
- * Alias booléen explicite (false si éteint/indisponible).
+ * Stub de compatibilité no-op
  */
-export function useFlagIsOn<K extends FlagKey>(key: K): boolean {
-  return useFeatureIsOn(key);
-}
-
-/**
- * Instance GrowthBook typée (pour `setAttributes`, `refreshFeatures`, etc.).
- */
-export { useGrowthBook };
-
-/**
- * Accès à la volée depuis n'importe quel composant client :
- *    const { isOn } = useFlags();
- */
-export function useFlags() {
-  const gb = useGrowthBook();
-  return {
-    isOn: (key: FlagKey): boolean => gb?.getFeatureValue(key, defaultFor(key)) ?? defaultFor(key),
-  };
+export function useGrowthBook() {
+  return null;
 }

@@ -6,8 +6,6 @@ import type { Metadata } from 'next';
 import { Inter, JetBrains_Mono, Geist } from 'next/font/google';
 import { I18nClientProvider } from '@qoe/i18n/provider';
 import { getStaticTranslations, getLanguage, initI18n } from '@qoe/i18n/server';
-import { GrowthBookProvider } from '@qoe/flags';
-import { getGrowthBookPayload } from '@qoe/flags/server';
 import { cn } from '@qoe/utils';
 import { DevtoolsPanel, ThemeProvider, ThemeSeedScript, GlobalAuthModalProvider } from '@qoe/ui';
 import { getCurrentUser } from '@qoe/auth';
@@ -50,8 +48,6 @@ export default async function RootLayout({
   const locale = await initI18n();
   const staticTranslations = await getStaticTranslations();
   const currentUser = await getCurrentUser().catch(() => null);
-  // GrowthBook : payload des features pour hydrater le provider client (no-flicker)
-  const flagsPayload = await getGrowthBookPayload();
   // staticData peut être vide en dev
   let staticData: Record<string, unknown> = {};
   try {
@@ -94,16 +90,14 @@ export default async function RootLayout({
             "Encountered a script tag while rendering React component". */}
         <ThemeSeedScript />
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-          <GrowthBookProvider payload={flagsPayload}>
-            <I18nClientProvider language={locale} staticData={staticData}>
-              <GlobalAuthModalProvider isAuthenticated={!!currentUser}>
-                {children}
-                {process.env.NODE_ENV === 'development' && (
-                  <DevtoolsPanel actions={devtoolsActions} />
-                )}
-              </GlobalAuthModalProvider>
-            </I18nClientProvider>
-          </GrowthBookProvider>
+          <I18nClientProvider language={locale} staticData={staticData}>
+            <GlobalAuthModalProvider isAuthenticated={!!currentUser}>
+              {children}
+              {process.env.NODE_ENV === 'development' && (
+                <DevtoolsPanel actions={devtoolsActions} />
+              )}
+            </GlobalAuthModalProvider>
+          </I18nClientProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -3,9 +3,9 @@
 # 🚀 dev-up.sh — Démarre TOUT le stack de dev local dans le bon ordre
 # =============================================================================
 #   1. Docker/OrbStack            (si arrêté)
-#   2. Infra Docker               (db pgvector, redis, meilisearch, mongodb,
-#                                  growthbook, umami — PAS les apps Next,
-#                                  elles tournent en natif via turbo)
+#   2. Infra Docker               (db pgvector, redis, meilisearch, umami —
+#                                  PAS les apps Next, elles tournent en
+#                                  natif via turbo)
 #   3. Supabase local             (CLI, DB sur 127.0.0.1:54322)
 #   4. Jina embeddings            (launchd llama.cpp sur :8081)#    5. Apps Next.js               (copy-env + lingui + turbo dev --parallel)
 #
@@ -20,7 +20,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-INFRA_SERVICES=(db redis meilisearch mongodb growthbook umami)
+INFRA_SERVICES=(db redis meilisearch umami)
 
 C_GREEN=$'\033[32m'; C_YELLOW=$'\033[33m'; C_RED=$'\033[31m'; C_BOLD=$'\033[1m'; C_RESET=$'\033[0m'
 ok()   { echo "${C_GREEN}  ✔ $1${C_RESET}"; }
