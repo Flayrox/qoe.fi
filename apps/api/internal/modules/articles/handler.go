@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
@@ -66,6 +67,7 @@ func (h *Handler) RegisterProtected(r chi.Router, requireScope func(string) func
 	r.With(requireScope(middleware.ScopeRead)).Get("/v1/articles/capabilities", h.capabilities)
 	r.With(requireScope(middleware.ScopeWrite)).Patch("/v1/articles/{id}", h.update)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/publish", h.publish)
+	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/schedule", h.schedule)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/review", h.review)
 	r.With(requireScope(middleware.ScopeWrite)).Delete("/v1/articles/{id}", h.delete)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/comments", h.createComment)
@@ -151,6 +153,7 @@ type createInput struct {
 	ReadingTime    int     `json:"readingTime"`
 	Published      bool    `json:"published"`
 	Status         string  `json:"status"`
+	ScheduledAt    string  `json:"scheduledAt"`
 }
 
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
@@ -169,12 +172,18 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	scheduledAt, err := parseScheduledAt(in.ScheduledAt)
+	if err != nil {
+		response.BadRequest(w, err.Error())
+		return
+	}
 	id, err := h.svc.Create(r.Context(), userID, CreateArticleInput{
 		PublicationID: in.PublicationID, Title: in.Title, Slug: in.Slug, Content: in.Content,
 		ContentFormat: in.ContentFormat,
 		IsPremium:     in.IsPremium, Visibility: in.Visibility, CategoryID: in.CategoryID,
 		TierID: in.TierID, SeoTitle: in.SeoTitle, SeoDescription: in.SeoDescription,
 		ReadingTime: in.ReadingTime, Published: in.Published, Status: in.Status,
+		ScheduledAt: scheduledAt,
 	})
 	if err != nil {
 		response.Forbidden(w, err.Error())
@@ -257,6 +266,7 @@ type updateInput struct {
 	Published           bool    `json:"published"`
 	Status              string  `json:"status"`
 	ActivePublicationID string  `json:"activePublicationId"`
+	ScheduledAt         string  `json:"scheduledAt"`
 }
 
 func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
@@ -271,11 +281,16 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "contentFormat invalide (markdown|html)")
 		return
 	}
+	scheduledAt, err := parseScheduledAt(in.ScheduledAt)
+	if err != nil {
+		response.BadRequest(w, err.Error())
+		return
+	}
 	if err := h.svc.Update(r.Context(), id, userID, UpdateArticleInput{
 		Title: in.Title, Content: in.Content, ContentFormat: in.ContentFormat, Slug: in.Slug, IsPremium: in.IsPremium,
 		CategoryID: in.CategoryID, SeoTitle: in.SeoTitle, SeoDescription: in.SeoDescription,
 		ReadingTime: in.ReadingTime, Published: in.Published, Status: in.Status,
-		ActivePublicationID: in.ActivePublicationID,
+		ActivePublicationID: in.ActivePublicationID, ScheduledAt: scheduledAt,
 	}); err != nil {
 		response.BadRequest(w, err.Error())
 		return
@@ -291,11 +306,39 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) publish(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	id := chi.URLParam(r, "id")
-	if err := h.svc.SetStatus(r.Context(), id, userID, "PUBLISHED", true); err != nil {
+	if err := h.svc.SetStatus(r.Context(), id, userID, "PUBLISHED", true, nil); err != nil {
 		response.BadRequest(w, err.Error())
 		return
 	}
 	response.OK(w, map[string]bool{"published": true})
+}
+
+// POST /v1/articles/{id}/schedule — programme (date future) ou annule
+// (scheduledAt null) la publication d'un article. RBAC : peut publier.
+func (h *Handler) schedule(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	id := chi.URLParam(r, "id")
+	var in struct {
+		ScheduledAt *string `json:"scheduledAt"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	var scheduledAt *time.Time
+	if in.ScheduledAt != nil && *in.ScheduledAt != "" {
+		t, err := time.Parse(time.RFC3339, *in.ScheduledAt)
+		if err != nil {
+			response.BadRequest(w, "scheduledAt invalide (format RFC3339 attendu)")
+			return
+		}
+		scheduledAt = &t
+	}
+	if err := h.svc.Schedule(r.Context(), id, userID, scheduledAt); err != nil {
+		response.BadRequest(w, err.Error())
+		return
+	}
+	response.OK(w, map[string]any{"scheduled": scheduledAt != nil, "scheduledAt": in.ScheduledAt})
 }
 
 func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {
@@ -410,6 +453,18 @@ func (h *Handler) listComments(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, comments)
+}
+
+// parseScheduledAt convertit une date RFC3339 optionnelle (vide → nil).
+func parseScheduledAt(raw string) (*time.Time, error) {
+	if raw == "" {
+		return nil, nil
+	}
+	t, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		return nil, errors.New("scheduledAt invalide (format RFC3339 attendu)")
+	}
+	return &t, nil
 }
 
 type createCommentInput struct {

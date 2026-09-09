@@ -11,6 +11,27 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const countArticleReleaseDeliveries = `-- name: CountArticleReleaseDeliveries :one
+SELECT COUNT(*)::bigint AS total,
+       COUNT(*) FILTER (WHERE status = 'SENT')::bigint   AS sent,
+       COUNT(*) FILTER (WHERE status = 'FAILED')::bigint AS failed
+FROM "ArticleReleaseDelivery"
+WHERE "articleId" = $1
+`
+
+type CountArticleReleaseDeliveriesRow struct {
+	Total  int64 `json:"total"`
+	Sent   int64 `json:"sent"`
+	Failed int64 `json:"failed"`
+}
+
+func (q *Queries) CountArticleReleaseDeliveries(ctx context.Context, articleid string) (CountArticleReleaseDeliveriesRow, error) {
+	row := q.db.QueryRow(ctx, countArticleReleaseDeliveries, articleid)
+	var i CountArticleReleaseDeliveriesRow
+	err := row.Scan(&i.Total, &i.Sent, &i.Failed)
+	return i, err
+}
+
 const countNewsletterDeliveriesByIssue = `-- name: CountNewsletterDeliveriesByIssue :one
 SELECT COUNT(*)::bigint AS total,
        COUNT(*) FILTER (WHERE status = 'SENT')::bigint   AS sent,
@@ -118,6 +139,48 @@ func (q *Queries) FinishNewsletterIssue(ctx context.Context, arg FinishNewslette
 	return id, err
 }
 
+const getArticleReleaseInfo = `-- name: GetArticleReleaseInfo :one
+SELECT a.id, a.title, a.slug, a.visibility, a."isPremium", a.content,
+       a."publicationId",
+       p.name AS publication_name, p.subdomain, p."customDomain"
+FROM "Article" a
+JOIN "Publication" p ON p.id = a."publicationId"
+WHERE a.id = $1
+  AND a.published = true
+  AND a.status = 'PUBLISHED'
+`
+
+type GetArticleReleaseInfoRow struct {
+	ID              string            `json:"id"`
+	Title           string            `json:"title"`
+	Slug            string            `json:"slug"`
+	Visibility      ContentVisibility `json:"visibility"`
+	IsPremium       bool              `json:"isPremium"`
+	Content         string            `json:"content"`
+	PublicationId   string            `json:"publicationId"`
+	PublicationName string            `json:"publication_name"`
+	Subdomain       pgtype.Text       `json:"subdomain"`
+	CustomDomain    pgtype.Text       `json:"customDomain"`
+}
+
+func (q *Queries) GetArticleReleaseInfo(ctx context.Context, id string) (GetArticleReleaseInfoRow, error) {
+	row := q.db.QueryRow(ctx, getArticleReleaseInfo, id)
+	var i GetArticleReleaseInfoRow
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Slug,
+		&i.Visibility,
+		&i.IsPremium,
+		&i.Content,
+		&i.PublicationId,
+		&i.PublicationName,
+		&i.Subdomain,
+		&i.CustomDomain,
+	)
+	return i, err
+}
+
 const getNewsletterIssue = `-- name: GetNewsletterIssue :one
 SELECT id, "publicationId", subject, "previewText", html, status, "totalRecipients", "sentCount", "failedCount", "createdAt", "updatedAt", "sentAt"
 FROM "NewsletterIssue"
@@ -157,6 +220,26 @@ func (q *Queries) GetUserPublicationID(ctx context.Context, id string) (string, 
 	return publicationId, err
 }
 
+const insertArticleReleaseDeliveries = `-- name: InsertArticleReleaseDeliveries :exec
+INSERT INTO "ArticleReleaseDelivery" (id, "articleId", email, "subscriberId", "updatedAt")
+SELECT gen_random_uuid()::text, $1, s.email, s.id, now()
+FROM "Subscriber" s
+WHERE s."publicationId" = $2
+  AND s."isActive" = true
+  AND s."receiveArticles" = true
+ON CONFLICT ("articleId", email) DO NOTHING
+`
+
+type InsertArticleReleaseDeliveriesParams struct {
+	ArticleId     string `json:"articleId"`
+	PublicationId string `json:"publicationId"`
+}
+
+func (q *Queries) InsertArticleReleaseDeliveries(ctx context.Context, arg InsertArticleReleaseDeliveriesParams) error {
+	_, err := q.db.Exec(ctx, insertArticleReleaseDeliveries, arg.ArticleId, arg.PublicationId)
+	return err
+}
+
 const insertNewsletterDeliveries = `-- name: InsertNewsletterDeliveries :exec
 INSERT INTO "NewsletterDelivery" (id, "issueId", email, "subscriberId", "updatedAt")
 SELECT gen_random_uuid()::text, $1, s.email, s.id, now()
@@ -183,7 +266,13 @@ FROM "NewsletterDelivery"
 WHERE "issueId" = $1
   AND status = 'QUEUED'
 ORDER BY "createdAt" ASC
+LIMIT $2
 `
+
+type ListNewsletterDeliveriesByIssueParams struct {
+	IssueId string `json:"issueId"`
+	Limit   int32  `json:"limit"`
+}
 
 type ListNewsletterDeliveriesByIssueRow struct {
 	ID     string      `json:"id"`
@@ -192,8 +281,8 @@ type ListNewsletterDeliveriesByIssueRow struct {
 	Error  pgtype.Text `json:"error"`
 }
 
-func (q *Queries) ListNewsletterDeliveriesByIssue(ctx context.Context, issueid string) ([]ListNewsletterDeliveriesByIssueRow, error) {
-	rows, err := q.db.Query(ctx, listNewsletterDeliveriesByIssue, issueid)
+func (q *Queries) ListNewsletterDeliveriesByIssue(ctx context.Context, arg ListNewsletterDeliveriesByIssueParams) ([]ListNewsletterDeliveriesByIssueRow, error) {
+	rows, err := q.db.Query(ctx, listNewsletterDeliveriesByIssue, arg.IssueId, arg.Limit)
 	if err != nil {
 		return nil, err
 	}
@@ -257,6 +346,79 @@ func (q *Queries) ListNewsletterIssuesByPublication(ctx context.Context, publica
 	return items, nil
 }
 
+const listQueuedArticleReleaseDeliveries = `-- name: ListQueuedArticleReleaseDeliveries :many
+SELECT id, email, status, error
+FROM "ArticleReleaseDelivery"
+WHERE "articleId" = $1
+  AND status = 'QUEUED'
+ORDER BY "createdAt" ASC
+LIMIT $2
+`
+
+type ListQueuedArticleReleaseDeliveriesParams struct {
+	ArticleId string `json:"articleId"`
+	Limit     int32  `json:"limit"`
+}
+
+type ListQueuedArticleReleaseDeliveriesRow struct {
+	ID     string      `json:"id"`
+	Email  string      `json:"email"`
+	Status string      `json:"status"`
+	Error  pgtype.Text `json:"error"`
+}
+
+func (q *Queries) ListQueuedArticleReleaseDeliveries(ctx context.Context, arg ListQueuedArticleReleaseDeliveriesParams) ([]ListQueuedArticleReleaseDeliveriesRow, error) {
+	rows, err := q.db.Query(ctx, listQueuedArticleReleaseDeliveries, arg.ArticleId, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListQueuedArticleReleaseDeliveriesRow{}
+	for rows.Next() {
+		var i ListQueuedArticleReleaseDeliveriesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.Status,
+			&i.Error,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const markArticleReleaseDelivery = `-- name: MarkArticleReleaseDelivery :exec
+UPDATE "ArticleReleaseDelivery"
+SET status     = $3,
+    error      = $4,
+    "sentAt"   = CASE WHEN $3 = 'SENT' THEN now() ELSE NULL END,
+    "updatedAt" = now()
+WHERE "articleId" = $1
+  AND email = $2
+`
+
+type MarkArticleReleaseDeliveryParams struct {
+	ArticleId string      `json:"articleId"`
+	Email     string      `json:"email"`
+	Status    string      `json:"status"`
+	Error     pgtype.Text `json:"error"`
+}
+
+func (q *Queries) MarkArticleReleaseDelivery(ctx context.Context, arg MarkArticleReleaseDeliveryParams) error {
+	_, err := q.db.Exec(ctx, markArticleReleaseDelivery,
+		arg.ArticleId,
+		arg.Email,
+		arg.Status,
+		arg.Error,
+	)
+	return err
+}
+
 const markNewsletterDelivery = `-- name: MarkNewsletterDelivery :exec
 UPDATE "NewsletterDelivery"
 SET status     = $3,
@@ -281,6 +443,19 @@ func (q *Queries) MarkNewsletterDelivery(ctx context.Context, arg MarkNewsletter
 		arg.Status,
 		arg.Error,
 	)
+	return err
+}
+
+const resetNewsletterIssueToDraft = `-- name: ResetNewsletterIssueToDraft :exec
+UPDATE "NewsletterIssue"
+SET status     = 'DRAFT',
+    "updatedAt" = now()
+WHERE id = $1
+  AND status = 'SENDING'
+`
+
+func (q *Queries) ResetNewsletterIssueToDraft(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, resetNewsletterIssueToDraft, id)
 	return err
 }
 

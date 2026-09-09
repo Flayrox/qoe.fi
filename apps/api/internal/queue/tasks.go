@@ -3,18 +3,19 @@ package queue
 
 // Types de tâches (miroir des événements de domaine TS).
 const (
-	TaskArticlePublished  = "article.published"
-	TaskArticleUpdated    = "article.updated"
-	TaskArticleDeleted    = "article.deleted"
-	TaskSubscriberCreated = "subscriber.created"
-	TaskPostLiked         = "post.liked"
-	TaskStripeEvent       = "stripe.event"
-	TaskSearchSync        = "search.sync"
-	TaskArticleEmbedding  = "embedding.article"
-	TaskUserEmbedding     = "embedding.user"
-	TaskPostEmbedding     = "embedding.post"
-	TaskNewsletterSend    = "newsletter.send"
-	TaskBulkImport        = "article.bulk_import"
+	TaskArticlePublished     = "article.published"
+	TaskArticleUpdated       = "article.updated"
+	TaskArticleDeleted       = "article.deleted"
+	TaskSubscriberCreated    = "subscriber.created"
+	TaskPostLiked            = "post.liked"
+	TaskStripeEvent          = "stripe.event"
+	TaskSearchSync           = "search.sync"
+	TaskArticleEmbedding     = "embedding.article"
+	TaskUserEmbedding        = "embedding.user"
+	TaskPostEmbedding        = "embedding.post"
+	TaskNewsletterSend       = "newsletter.send"
+	TaskNewsletterArticleRel = "newsletter.article_release"
+	TaskBulkImport           = "article.bulk_import"
 )
 
 // BulkImportPayload est le payload de TaskBulkImport (import bulk asynchrone).
@@ -69,6 +70,12 @@ type EmbeddingPayload struct {
 // NewsletterIssue aux abonnés receiveArticles de la publication).
 type NewsletterSendPayload struct {
 	IssueID string `json:"issueId"`
+}
+
+// ArticleReleasePayload est le payload de TaskNewsletterArticleRel : envoi
+// automatique d'un email à la publication d'un article (synchro release).
+type ArticleReleasePayload struct {
+	ArticleID string `json:"articleId"`
 }
 
 // PostLikedPayload est le payload de TaskPostLiked.

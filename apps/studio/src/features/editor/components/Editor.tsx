@@ -45,6 +45,7 @@ import {
   UsersRound,
   AlertCircle,
   RotateCcw,
+  CalendarClock,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { compressImage } from '@/lib/image-compressor';
@@ -140,6 +141,7 @@ export function Editor({
   initialImageUrl = null,
   initialPublished = false,
   initialStatus = 'DRAFT',
+  initialScheduledAt = null,
   initialIsPremium = false,
   initialCategoryId = null,
   initialSeoTitle = '',
@@ -161,6 +163,11 @@ export function Editor({
   const [imageUrl, setImageUrl] = useState<string | null>(initialImageUrl);
   const [published, setPublished] = useState(initialPublished);
   const [status, setStatus] = useState<string>(initialStatus || 'DRAFT');
+  // 📅 Programmation : date RFC3339 (API) ; le champ datetime-local gère sa
+  // propre valeur brouillon pour ne pas recalculer le format à chaque rendu.
+  const [scheduledAt, setScheduledAt] = useState<string | null>(initialScheduledAt ?? null);
+  const [scheduleDraft, setScheduleDraft] = useState('');
+  const [showSchedule, setShowSchedule] = useState(false);
   const [isPremium, setIsPremium] = useState(initialIsPremium);
   const [categoryId, setCategoryId] = useState<string | null>(initialCategoryId);
   const [seoTitle, setSeoTitle] = useState(initialSeoTitle || '');
@@ -274,6 +281,8 @@ export function Editor({
     title,
     slug,
     published,
+    status,
+    scheduledAt,
     isPremium,
     categoryId,
     seoTitle,
@@ -287,6 +296,8 @@ export function Editor({
     title,
     slug,
     published,
+    status,
+    scheduledAt,
     isPremium,
     categoryId,
     seoTitle,
@@ -407,6 +418,8 @@ export function Editor({
         imageUrl: s.imageUrl,
         slug: payload.slug || s.slug,
         published: payload.published ?? s.published,
+        scheduledAt: s.scheduledAt,
+        status: s.status,
         isPremium: payload.isPremium ?? s.isPremium,
         categoryId: payload.categoryId ?? s.categoryId,
         seoTitle: payload.seoTitle ?? s.seoTitle,
@@ -438,6 +451,8 @@ export function Editor({
       content: editor.getHTML(),
       slug: s.slug,
       published: s.published,
+      scheduledAt: s.scheduledAt,
+      status: s.status,
       isPremium: s.isPremium,
       categoryId: s.categoryId,
       seoTitle: s.seoTitle,
@@ -586,6 +601,7 @@ export function Editor({
         slug: finalSlug,
         published,
         status: statusOverride ?? status,
+        scheduledAt,
         isPremium,
         categoryId,
         seoTitle: seoTitle || null,
@@ -799,8 +815,12 @@ export function Editor({
             <button
               onClick={() => {
                 setPublished(!published);
-                if (!published) setStatus('PUBLISHED');
-                else setStatus('DRAFT');
+                if (!published) {
+                  setStatus('PUBLISHED');
+                  setScheduledAt(null); // publication immédiate → plus de programmation
+                } else {
+                  setStatus('DRAFT');
+                }
                 setHasUnsavedChanges(true);
               }}
               className={cn(
@@ -818,6 +838,86 @@ export function Editor({
               <span>{published ? t`Publié` : t`Brouillon`}</span>
             </button>
           )}
+
+          {/* 📅 Programmer la publication (statut SCHEDULED — publié automatiquement) */}
+          <div className="relative">
+            {showSchedule ? (
+              <div className="absolute right-0 top-10 z-50 flex flex-col gap-2 rounded-xl border border-border bg-card p-2.5 shadow-lg">
+                <input
+                  type="datetime-local"
+                  value={scheduleDraft}
+                  onChange={(e) => setScheduleDraft(e.target.value)}
+                  className="h-8 rounded-lg border border-border/60 bg-background px-2 text-xs text-foreground"
+                  aria-label="Date et heure de programmation"
+                />
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => {
+                      if (!scheduleDraft) {
+                        setError('Choisissez une date de programmation.');
+                        return;
+                      }
+                      const dt = new Date(scheduleDraft);
+                      if (isNaN(dt.getTime()) || dt.getTime() <= Date.now()) {
+                        setError('La date de programmation doit être dans le futur.');
+                        return;
+                      }
+                      setScheduledAt(dt.toISOString());
+                      setStatus('SCHEDULED');
+                      setPublished(false);
+                      setShowSchedule(false);
+                      setHasUnsavedChanges(true);
+                    }}
+                    className="h-8 flex-1 rounded-lg bg-highlight px-2 text-xs font-semibold text-highlight-foreground hover:opacity-90"
+                  >
+                    Programmer
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowSchedule(false);
+                      setScheduleDraft('');
+                    }}
+                    className="h-8 rounded-lg border border-border/60 px-2 text-xs text-muted-foreground hover:bg-muted"
+                  >
+                    Annuler
+                  </button>
+                </div>
+                {scheduledAt && (
+                  <button
+                    onClick={() => {
+                      setScheduledAt(null);
+                      setStatus('DRAFT');
+                      setPublished(false);
+                      setShowSchedule(false);
+                      setHasUnsavedChanges(true);
+                    }}
+                    className="h-8 rounded-lg border border-destructive/30 px-2 text-xs text-destructive hover:bg-destructive/5"
+                  >
+                    Effacer la programmation
+                  </button>
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  setScheduleDraft(
+                    scheduledAt ? new Date(scheduledAt).toISOString().slice(0, 16) : ''
+                  );
+                  setShowSchedule(true);
+                }}
+                className={cn(
+                  'h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-medium transition-all cursor-pointer border border-border/40',
+                  scheduledAt
+                    ? 'bg-highlight/10 border-highlight/30 text-highlight font-semibold'
+                    : 'bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                )}
+                title={t`Programmer la publication à une date ultérieure`}
+              >
+                <CalendarClock className="h-3.5 w-3.5" />
+                <span>{scheduledAt ? 'Programmé' : 'Programmer'}</span>
+              </button>
+            )}
+          </div>
 
           {/* Public Article Page Preview Link */}
           {slug && (

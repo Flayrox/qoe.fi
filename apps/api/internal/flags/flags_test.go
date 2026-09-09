@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -137,5 +138,83 @@ func TestHandler_GetFlags(t *testing.T) {
 	}
 	if body[WorkersNewsletter] {
 		t.Fatal("workers-newsletter-dispatch = true dans la réponse, attendu false")
+	}
+}
+
+// TestHandler_GetFlags_Signed vérifie le format signé : body `{flags, ts}` +
+// header X-Flags-Signature (HMAC sur `ts + "." + body brut`), vérifiable
+// octet-pour-octet par un widget, avec rejet de toute altération/rejeu.
+func TestHandler_GetFlags_Signed(t *testing.T) {
+	ctx := context.Background()
+	resetFlagsTable(t, ctx)
+	defer resetFlagsTable(t, ctx)
+
+	setFlag(t, ctx, WorkersNewsletter, false)
+	const key = "widget-secret-test"
+
+	r := chi.NewRouter()
+	NewHandler(NewService(poolTest)).WithSigningKey(key).RegisterPublic(r)
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/flags", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET /v1/flags = %d, body=%s", w.Code, w.Body.String())
+	}
+
+	var body struct {
+		Flags map[string]bool `json:"flags"`
+		Ts    int64           `json:"ts"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("JSON invalide: %v", err)
+	}
+	sig := w.Header().Get("X-Flags-Signature")
+	if sig == "" || body.Ts == 0 {
+		t.Fatalf("réponse non signée (header sig=%q ts=%d)", sig, body.Ts)
+	}
+	if body.Flags[WorkersNewsletter] {
+		t.Fatal("workers-newsletter-dispatch = true, attendu false")
+	}
+
+	// Vérification exacte : octets bruts du body + timestamp extrait — c'est
+	// exactement ce que fait un widget avec la clé (aucune ré-sérialisation).
+	rawBody := w.Body.Bytes()
+	if !VerifyFlagsPayload(rawBody, body.Ts, sig, key, 5*time.Minute) {
+		t.Fatal("signature valide rejetée")
+	}
+	// Altération d'un octet du body → signature invalide (n'importe quel
+	// bit modifié casse le HMAC).
+	tampered := append([]byte{}, rawBody...)
+	tampered[len(tampered)-1] ^= 0x01
+	if VerifyFlagsPayload(tampered, body.Ts, sig, key, 5*time.Minute) {
+		t.Fatal("signature acceptée sur un body altéré")
+	}
+	// Mauvaise clé → rejet.
+	if VerifyFlagsPayload(rawBody, body.Ts, sig, "autre-cle", 5*time.Minute) {
+		t.Fatal("signature acceptée avec une mauvaise clé")
+	}
+	// Timestamp périmé (fraîcheur) → rejet.
+	if VerifyFlagsPayload(rawBody, body.Ts-3600, sig, key, 5*time.Minute) {
+		t.Fatal("signature acceptée avec un timestamp périmé")
+	}
+	// Timestamp futur (rejeu anticipé) → rejet.
+	if VerifyFlagsPayload(rawBody, body.Ts+3600, sig, key, 5*time.Minute) {
+		t.Fatal("signature acceptée avec un timestamp futur")
+	}
+	// Sans clé (mode passif) : pas de header de signature, body = map simple.
+	r2 := chi.NewRouter()
+	NewHandler(NewService(poolTest)).RegisterPublic(r2)
+	w2 := httptest.NewRecorder()
+	r2.ServeHTTP(w2, httptest.NewRequest(http.MethodGet, "/v1/flags", nil))
+	if w2.Header().Get("X-Flags-Signature") != "" {
+		t.Fatal("header de signature présent sans clé configurée")
+	}
+	var plain map[string]bool
+	if err := json.Unmarshal(w2.Body.Bytes(), &plain); err != nil {
+		t.Fatalf("mode passif JSON invalide: %v", err)
+	}
+	if _, ok := plain[WorkersNewsletter]; !ok {
+		t.Fatalf("mode passif sans la clé %s: %v", WorkersNewsletter, plain)
 	}
 }

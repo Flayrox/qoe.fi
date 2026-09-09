@@ -19,6 +19,8 @@ export interface AutoSavePayload {
   content: string;
   slug?: string;
   published?: boolean;
+  status?: string;
+  scheduledAt?: string | null;
   isPremium?: boolean;
   categoryId?: string | null;
   seoTitle?: string | null;

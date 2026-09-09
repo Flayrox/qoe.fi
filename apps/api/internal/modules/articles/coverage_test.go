@@ -15,6 +15,10 @@ import (
 
 // ─── Helpers purs ─────────────────────────────────────────────────────
 
+func timePtr(t time.Time) *time.Time {
+	return &t
+}
+
 func fixtureIDRow() db.GetArticleByIDRow {
 	now := time.Now()
 	return db.GetArticleByIDRow{
@@ -294,8 +298,12 @@ func TestService_Update_MediaWorkflow(t *testing.T) {
 	}
 
 	// SetStatus publish sans permission → forbidden.
-	if err := svc.SetStatus(ctx, draftID, fx.WriterID, "PUBLISHED", true); err == nil {
+	if err := svc.SetStatus(ctx, draftID, fx.WriterID, "PUBLISHED", true, nil); err == nil {
 		t.Fatal("SetStatus(writer publish) = nil, attendu errForbidden")
+	}
+	// SetStatus SCHEDULED sans permission → forbidden aussi.
+	if err := svc.SetStatus(ctx, draftID, fx.WriterID, "SCHEDULED", false, timePtr(time.Now().Add(time.Hour))); err == nil {
+		t.Fatal("SetStatus(writer scheduled) = nil, attendu errForbidden")
 	}
 }
 

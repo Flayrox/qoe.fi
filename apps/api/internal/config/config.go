@@ -47,6 +47,9 @@ type Config struct {
 	OAuthSigningKey string
 	// DevtoolsDevOnly active le panneau de dev par secret partagé (QOE_DEVTOOLS_DEV_ONLY).
 	DevtoolsDevOnly bool
+	// FlagsSigningKey signe GET /v1/flags (HMAC-SHA256) pour les widgets et
+	// intégrations tierces : ils vérifient l'authenticité sans accès Supabase.
+	FlagsSigningKey string
 
 	// ── Boîte d'envoi email (drain des notifications) ────────────────
 	// NOTIFICATION_DELIVERY_ENABLED=true + EMAIL_PROVIDER (smtp|resend).
@@ -59,6 +62,9 @@ type Config struct {
 	SMTPPass                    string
 	SMTPSecure                  bool
 	ResendAPIKey                string
+	// NewsletterRatePerMinute est le rythme d'envoi des emails newsletter /
+	// release d'articles (emails par minute, défaut 30 — SMTP self-hosté safe).
+	NewsletterRatePerMinute int
 }
 
 func Load() *Config {
@@ -90,6 +96,7 @@ func Load() *Config {
 		OAuthAuthorizeURL: envOr("OAUTH_AUTHORIZE_URL", "http://localhost:3010/oauth/authorize"),
 		OAuthSigningKey:   envOr("OAUTH_SIGNING_KEY", ""),
 		DevtoolsDevOnly:   boolEnv("QOE_DEVTOOLS_DEV_ONLY"),
+		FlagsSigningKey:   envOr("FLAGS_SIGNING_KEY", ""),
 
 		// ── Boîte d'envoi email (drain des notifications) ────────────────
 		NotificationDeliveryEnabled: boolEnv("NOTIFICATION_DELIVERY_ENABLED"),
@@ -101,6 +108,7 @@ func Load() *Config {
 		SMTPPass:                    envOr("SMTP_PASS", ""),
 		SMTPSecure:                  boolEnv("SMTP_SECURE"),
 		ResendAPIKey:                envOr("RESEND_API_KEY", ""),
+		NewsletterRatePerMinute:     envInt("NEWSLETTER_RATE_PER_MINUTE", 30),
 	}
 }
 

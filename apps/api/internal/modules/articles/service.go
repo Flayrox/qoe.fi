@@ -38,6 +38,7 @@ type ArticleResponse struct {
 	Visibility     string            `json:"visibility"`
 	ReadingTime    int               `json:"readingTime"`
 	Status         string            `json:"status"`
+	ScheduledAt    *string           `json:"scheduledAt"`
 	PublicationID  string            `json:"publicationId"`
 	AuthorID       string            `json:"authorId"`
 	CategoryID     *string           `json:"categoryId"`
@@ -110,6 +111,9 @@ type CreateArticleInput struct {
 	ReadingTime    int
 	Published      bool
 	Status         string
+	// ScheduledAt programme la publication : futur + demande de publication →
+	// statut SCHEDULED (publié automatiquement par le scheduled publisher).
+	ScheduledAt *time.Time
 }
 
 // UpdateArticleInput est l'entrée de mise à jour.
@@ -126,6 +130,8 @@ type UpdateArticleInput struct {
 	Published           bool
 	Status              string
 	ActivePublicationID string
+	// ScheduledAt programme la publication ; nil = conserver l'existant.
+	ScheduledAt *time.Time
 }
 
 type Service struct {
@@ -298,6 +304,19 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateArticleInp
 		}
 	}
 
+	// Programmation : une demande de publication avec une date future devient
+	// SCHEDULED (le worker scheduled_publisher bascule à l'échéance). Une date
+	// passée publie immédiatement. Un média doit avoir la permission de publier
+	// pour programmer (c'est une publication différée).
+	if in.ScheduledAt != nil && !in.ScheduledAt.IsZero() && in.ScheduledAt.After(time.Now()) &&
+		(published || status == "PUBLISHED") {
+		if mc.isMedia && !mc.can(permissions.PermPublishAny) {
+			return "", errors.New("Vous n'avez pas la permission de programmer une publication.")
+		}
+		status = "SCHEDULED"
+		published = false
+	}
+
 	finalSlug := s.uniqueSlug(ctx, in.PublicationID, "", in.Slug)
 
 	id, err := s.q.CreateArticle(ctx, db.CreateArticleParams{
@@ -317,6 +336,7 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateArticleInp
 		TierId:                 textVal(in.TierID),
 		SeoTitle:               textVal(in.SeoTitle),
 		SeoDescription:         textVal(in.SeoDescription),
+		ScheduledAt:            timestampPtr(in.ScheduledAt),
 	})
 	if err != nil {
 		return "", err
@@ -448,6 +468,19 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 		}
 	}
 
+	// Programmation à la mise à jour : future + publication demandée → SCHEDULED.
+	scheduledAt := row.ScheduledAt
+	if in.ScheduledAt != nil && !in.ScheduledAt.IsZero() {
+		if in.ScheduledAt.After(time.Now()) && (effectivePublished || effectiveStatus == "PUBLISHED") {
+			if mc.isMedia && !mc.can(permissions.PermPublishAny) {
+				return errors.New("Vous n'avez pas la permission de programmer une publication.")
+			}
+			effectiveStatus = "SCHEDULED"
+			effectivePublished = false
+		}
+		scheduledAt = pgtype.Timestamp{Time: *in.ScheduledAt, Valid: true}
+	}
+
 	finalSlug := s.uniqueSlug(ctx, row.PublicationId, articleID, in.Slug)
 
 	if _, err := s.q.UpdateArticleFull(ctx, db.UpdateArticleFullParams{
@@ -455,7 +488,7 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 		Published: effectivePublished, Status: effectiveStatus,
 		IsPremium: in.IsPremium, CategoryId: textVal(in.CategoryID),
 		SeoTitle: textVal(in.SeoTitle), SeoDescription: textVal(in.SeoDescription),
-		ReadingTime: int32(in.ReadingTime),
+		ReadingTime: int32(in.ReadingTime), ScheduledAt: scheduledAt,
 	}); err != nil {
 		return err
 	}
@@ -469,8 +502,9 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 	return nil
 }
 
-// SetStatus met à jour l'état (DRAFT/SUBMITTED/PUBLISHED).
-func (s *Service) SetStatus(ctx context.Context, articleID, userID, status string, published bool) error {
+// SetStatus met à jour l'état (DRAFT/SUBMITTED/PUBLISHED). scheduledAt nil =
+// conserver la date existante ; un temps non nul (futur) → statut SCHEDULED.
+func (s *Service) SetStatus(ctx context.Context, articleID, userID, status string, published bool, scheduledAt *time.Time) error {
 	row, err := s.q.GetArticleByID(ctx, articleID)
 	if err != nil {
 		return errNotFound
@@ -479,16 +513,66 @@ func (s *Service) SetStatus(ctx context.Context, articleID, userID, status strin
 	if err != nil {
 		return err
 	}
-	if published && !mc.can(permissions.PermPublishAny) {
+	if (published || status == "SCHEDULED") && !mc.can(permissions.PermPublishAny) {
 		return errForbidden
 	}
-	if _, err := s.q.SetArticleStatus(ctx, db.SetArticleStatusParams{ID: articleID, Status: status, Published: published}); err != nil {
+	if status == "SCHEDULED" && (scheduledAt == nil || !scheduledAt.After(time.Now())) {
+		return errors.New("Une programmation nécessite une date future.")
+	}
+	newScheduledAt := row.ScheduledAt
+	if scheduledAt != nil && !scheduledAt.IsZero() {
+		newScheduledAt = pgtype.Timestamp{Time: *scheduledAt, Valid: true}
+	}
+	if _, err := s.q.SetArticleStatus(ctx, db.SetArticleStatusParams{
+		ID: articleID, Status: status, Published: published, ScheduledAt: newScheduledAt,
+	}); err != nil {
 		return err
 	}
 	s.queueSearchSync(articleID, "upsert")
 	if published {
 		s.emitPublished(ctx, row)
 	}
+	return nil
+}
+
+// Schedule programme (ou annule) la publication d'un article : date future →
+// statut SCHEDULED ; nil → retour au brouillon (la programmation est levée).
+func (s *Service) Schedule(ctx context.Context, articleID, userID string, scheduledAt *time.Time) error {
+	row, err := s.q.GetArticleByID(ctx, articleID)
+	if err != nil {
+		return errNotFound
+	}
+	mc, err := s.resolveMember(ctx, userID, row.PublicationId)
+	if err != nil {
+		return err
+	}
+	if scheduledAt == nil {
+		// Annulation : retour au brouillon, plus de date.
+		status := row.Status
+		if status == "SCHEDULED" {
+			status = "DRAFT"
+		}
+		if _, err := s.q.SetArticleStatus(ctx, db.SetArticleStatusParams{
+			ID: articleID, Status: status, Published: false,
+		}); err != nil {
+			return err
+		}
+		s.queueSearchSync(articleID, "upsert")
+		return nil
+	}
+	if !scheduledAt.After(time.Now()) {
+		return errors.New("La date de programmation doit être dans le futur.")
+	}
+	if !mc.can(permissions.PermPublishAny) {
+		return errForbidden
+	}
+	if _, err := s.q.SetArticleStatus(ctx, db.SetArticleStatusParams{
+		ID: articleID, Status: "SCHEDULED", Published: false,
+		ScheduledAt: pgtype.Timestamp{Time: *scheduledAt, Valid: true},
+	}); err != nil {
+		return err
+	}
+	s.queueSearchSync(articleID, "upsert")
 	return nil
 }
 
@@ -935,7 +1019,8 @@ func (s *Service) articleResponseFromIDRow(row db.GetArticleByIDRow) ArticleResp
 	return ArticleResponse{
 		ID: row.ID, Title: row.Title, Slug: row.Slug, Content: row.Content,
 		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),
-		ReadingTime: int(row.ReadingTime), Status: row.Status, PublicationID: row.PublicationId,
+		ReadingTime: int(row.ReadingTime), Status: row.Status, ScheduledAt: tsPtr(row.ScheduledAt),
+		PublicationID: row.PublicationId,
 		AuthorID: row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
 		SeoTitle: textPtr(row.SeoTitle), SeoDescription: textPtr(row.SeoDescription),
 		CreatedAt:     row.CreatedAt.Time.Format(time.RFC3339),
@@ -952,7 +1037,8 @@ func articleFromSlugRow(row db.GetArticleBySlugRow, cut PaywallCutResult) Articl
 	return ArticleResponse{
 		ID: row.ID, Title: row.Title, Slug: row.Slug, Content: cut.Content,
 		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),
-		ReadingTime: int(row.ReadingTime), Status: row.Status, PublicationID: row.PublicationId,
+		ReadingTime: int(row.ReadingTime), Status: row.Status, ScheduledAt: tsPtr(row.ScheduledAt),
+		PublicationID: row.PublicationId,
 		AuthorID: row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
 		SeoTitle: textPtr(row.SeoTitle), SeoDescription: textPtr(row.SeoDescription),
 		CreatedAt:   row.CreatedAt.Time.Format(time.RFC3339),
@@ -967,7 +1053,8 @@ func articleFromRow(row db.GetArticleByIDRow, cut PaywallCutResult) ArticleRespo
 	return ArticleResponse{
 		ID: row.ID, Title: row.Title, Slug: row.Slug, Content: cut.Content,
 		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),
-		ReadingTime: int(row.ReadingTime), Status: row.Status, PublicationID: row.PublicationId,
+		ReadingTime: int(row.ReadingTime), Status: row.Status, ScheduledAt: tsPtr(row.ScheduledAt),
+		PublicationID: row.PublicationId,
 		AuthorID: row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
 		SeoTitle: textPtr(row.SeoTitle), SeoDescription: textPtr(row.SeoDescription),
 		CreatedAt:   row.CreatedAt.Time.Format(time.RFC3339),
@@ -1122,4 +1209,20 @@ func textVal(p *string) pgtype.Text {
 		return pgtype.Text{}
 	}
 	return pgtype.Text{String: *p, Valid: true}
+}
+
+// tsPtr convertit un timestamp SQL en string RFC3339 (nil si absent).
+func tsPtr(t pgtype.Timestamp) *string {
+	if !t.Valid {
+		return nil
+	}
+	v := t.Time.UTC().Format(time.RFC3339)
+	return &v
+}
+
+func timestampPtr(t *time.Time) pgtype.Timestamp {
+	if t == nil || t.IsZero() {
+		return pgtype.Timestamp{}
+	}
+	return pgtype.Timestamp{Time: *t, Valid: true}
 }

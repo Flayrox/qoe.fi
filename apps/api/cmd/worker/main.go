@@ -36,14 +36,17 @@ func main() {
 	}
 	defer pool.Close()
 
+	asynqClient := queue.NewClient(cfg.RedisURL)
+
 	webhookWorker := workers.NewWebhookWorker(pool)
 	newsletterWorker := workers.NewNewsletterWorker(pool)
 	newsletterWorker.SetFlags(flags.NewService(pool))
+	newsletterWorker.SetAsynqClient(asynqClient)
+	newsletterWorker.SetRatePerMinute(cfg.NewsletterRatePerMinute)
 	stripeWorker := workers.NewStripeWorker(pool, cache.Client(cfg.RedisURL))
 	searchWorker := workers.NewSearchWorker(pool)
 	searchWorker.Setup(ctx)
 	embeddingWorker := workers.NewEmbeddingWorker(pool)
-	asynqClient := queue.NewClient(cfg.RedisURL)
 	bulkImportWorker := workers.NewBulkImportWorker(imports.NewService(pool, asynqClient))
 
 	mux := asynq.NewServeMux()
@@ -143,13 +146,14 @@ func buildHandlers(d workerDeps) map[string]asynq.HandlerFunc {
 		queue.TaskSubscriberCreated: func(ctx context.Context, t *asynq.Task) error {
 			return d.webhook.HandleProcesses(ctx, t, queue.TaskSubscriberCreated)
 		},
-		queue.TaskPostLiked:        d.newsletter.HandlePostLiked,
-		queue.TaskNewsletterSend:   d.newsletter.HandleNewsletterSend,
-		queue.TaskStripeEvent:      d.stripe.HandleStripeEvent,
-		queue.TaskSearchSync:       d.search.HandleSearchSync,
-		queue.TaskArticleEmbedding: d.embedding.HandleArticleEmbedding,
-		queue.TaskUserEmbedding:    d.embedding.HandleUserEmbedding,
-		queue.TaskPostEmbedding:    d.embedding.HandlePostEmbedding,
-		queue.TaskBulkImport:       d.bulkImport.HandleBulkImport,
+		queue.TaskPostLiked:            d.newsletter.HandlePostLiked,
+		queue.TaskNewsletterSend:       d.newsletter.HandleNewsletterSend,
+		queue.TaskNewsletterArticleRel: d.newsletter.HandleArticleRelease,
+		queue.TaskStripeEvent:          d.stripe.HandleStripeEvent,
+		queue.TaskSearchSync:           d.search.HandleSearchSync,
+		queue.TaskArticleEmbedding:     d.embedding.HandleArticleEmbedding,
+		queue.TaskUserEmbedding:        d.embedding.HandleUserEmbedding,
+		queue.TaskPostEmbedding:        d.embedding.HandlePostEmbedding,
+		queue.TaskBulkImport:           d.bulkImport.HandleBulkImport,
 	}
 }

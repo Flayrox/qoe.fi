@@ -37,8 +37,8 @@ func (q *Queries) CountCreatorArticles(ctx context.Context, arg CountCreatorArti
 const createArticle = `-- name: CreateArticle :one
 INSERT INTO "Article" (id, title, slug, content, published, "isPremium", visibility,
                        "readingTime", "allowPublicAnnotations", "allowComments", status,
-                       "publicationId", "authorId", "categoryId", "tierId", "seoTitle", "seoDescription", "updatedAt")
-VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, now())
+                       "publicationId", "authorId", "categoryId", "tierId", "seoTitle", "seoDescription", "scheduledAt", "updatedAt")
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, now())
 RETURNING id
 `
 
@@ -59,6 +59,7 @@ type CreateArticleParams struct {
 	TierId                 pgtype.Text       `json:"tierId"`
 	SeoTitle               pgtype.Text       `json:"seoTitle"`
 	SeoDescription         pgtype.Text       `json:"seoDescription"`
+	ScheduledAt            pgtype.Timestamp  `json:"scheduledAt"`
 }
 
 func (q *Queries) CreateArticle(ctx context.Context, arg CreateArticleParams) (string, error) {
@@ -79,6 +80,7 @@ func (q *Queries) CreateArticle(ctx context.Context, arg CreateArticleParams) (s
 		arg.TierId,
 		arg.SeoTitle,
 		arg.SeoDescription,
+		arg.ScheduledAt,
 	)
 	var id string
 	err := row.Scan(&id)
@@ -897,19 +899,25 @@ func (q *Queries) ListRecentPublishedArticles(ctx context.Context, arg ListRecen
 
 const setArticleStatus = `-- name: SetArticleStatus :one
 UPDATE "Article"
-SET status = $2, published = $3, "updatedAt" = now()
+SET status = $2, published = $3, "scheduledAt" = $4, "updatedAt" = now()
 WHERE id = $1
 RETURNING id
 `
 
 type SetArticleStatusParams struct {
-	ID        string `json:"id"`
-	Status    string `json:"status"`
-	Published bool   `json:"published"`
+	ID          string           `json:"id"`
+	Status      string           `json:"status"`
+	Published   bool             `json:"published"`
+	ScheduledAt pgtype.Timestamp `json:"scheduledAt"`
 }
 
 func (q *Queries) SetArticleStatus(ctx context.Context, arg SetArticleStatusParams) (string, error) {
-	row := q.db.QueryRow(ctx, setArticleStatus, arg.ID, arg.Status, arg.Published)
+	row := q.db.QueryRow(ctx, setArticleStatus,
+		arg.ID,
+		arg.Status,
+		arg.Published,
+		arg.ScheduledAt,
+	)
 	var id string
 	err := row.Scan(&id)
 	return id, err
@@ -955,23 +963,25 @@ func (q *Queries) UpdateArticleContent(ctx context.Context, arg UpdateArticleCon
 const updateArticleFull = `-- name: UpdateArticleFull :one
 UPDATE "Article"
 SET title = $2, content = $3, slug = $4, published = $5, status = $6, "isPremium" = $7,
-    "categoryId" = $8, "seoTitle" = $9, "seoDescription" = $10, "readingTime" = $11, "updatedAt" = now()
+    "categoryId" = $8, "seoTitle" = $9, "seoDescription" = $10, "readingTime" = $11,
+    "scheduledAt" = $12, "updatedAt" = now()
 WHERE id = $1
 RETURNING id
 `
 
 type UpdateArticleFullParams struct {
-	ID             string      `json:"id"`
-	Title          string      `json:"title"`
-	Content        string      `json:"content"`
-	Slug           string      `json:"slug"`
-	Published      bool        `json:"published"`
-	Status         string      `json:"status"`
-	IsPremium      bool        `json:"isPremium"`
-	CategoryId     pgtype.Text `json:"categoryId"`
-	SeoTitle       pgtype.Text `json:"seoTitle"`
-	SeoDescription pgtype.Text `json:"seoDescription"`
-	ReadingTime    int32       `json:"readingTime"`
+	ID             string           `json:"id"`
+	Title          string           `json:"title"`
+	Content        string           `json:"content"`
+	Slug           string           `json:"slug"`
+	Published      bool             `json:"published"`
+	Status         string           `json:"status"`
+	IsPremium      bool             `json:"isPremium"`
+	CategoryId     pgtype.Text      `json:"categoryId"`
+	SeoTitle       pgtype.Text      `json:"seoTitle"`
+	SeoDescription pgtype.Text      `json:"seoDescription"`
+	ReadingTime    int32            `json:"readingTime"`
+	ScheduledAt    pgtype.Timestamp `json:"scheduledAt"`
 }
 
 func (q *Queries) UpdateArticleFull(ctx context.Context, arg UpdateArticleFullParams) (string, error) {
@@ -987,6 +997,7 @@ func (q *Queries) UpdateArticleFull(ctx context.Context, arg UpdateArticleFullPa
 		arg.SeoTitle,
 		arg.SeoDescription,
 		arg.ReadingTime,
+		arg.ScheduledAt,
 	)
 	var id string
 	err := row.Scan(&id)

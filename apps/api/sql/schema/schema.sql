@@ -840,6 +840,21 @@ CREATE TABLE "NewsletterDelivery" (
 );
 
 -- CreateTable
+CREATE TABLE "ArticleReleaseDelivery" (
+    "id" TEXT NOT NULL,
+    "articleId" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "subscriberId" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'QUEUED',
+    "error" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "sentAt" TIMESTAMP(3),
+
+    CONSTRAINT "ArticleReleaseDelivery_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "MediaAsset" (
     "id" TEXT NOT NULL,
     "sha256" TEXT NOT NULL,
@@ -1290,6 +1305,12 @@ CREATE UNIQUE INDEX "NewsletterDelivery_issueId_email_key" ON "NewsletterDeliver
 
 -- CreateIndex
 CREATE INDEX "NewsletterDelivery_issueId_status_idx" ON "NewsletterDelivery"("issueId", "status");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ArticleReleaseDelivery_articleId_email_key" ON "ArticleReleaseDelivery"("articleId", "email");
+
+-- CreateIndex
+CREATE INDEX "ArticleReleaseDelivery_articleId_status_idx" ON "ArticleReleaseDelivery"("articleId", "status");
 
 -- CreateIndex
 CREATE INDEX "MediaAsset_sha256_idx" ON "MediaAsset"("sha256");
