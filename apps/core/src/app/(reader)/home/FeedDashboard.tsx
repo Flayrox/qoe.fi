@@ -730,7 +730,7 @@ export function FeedDashboard({
   }, [dbUser]);
 
   const tagsList = [
-    '#souverainete',
+    '#technologie',
     '#anti-ia',
     '#attention',
     '#philosophie',

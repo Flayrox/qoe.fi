@@ -47,9 +47,8 @@ export function ReaderPageLayout({
               )}
 
               <p className="text-sm sm:text-base text-muted-foreground font-normal leading-relaxed max-w-xl">
-                Plateforme souveraine de lecture, d&apos;écriture et d&apos;échanges créateurs. Le
-                flux glissant ci-dessous réunit articles longs et micro-posts en une expérience
-                unifiée.
+                Plateforme de lecture, d&apos;écriture et d&apos;échanges créateurs. Le flux
+                glissant ci-dessous réunit articles longs et micro-posts en une expérience unifiée.
               </p>
 
               {headerWidgets && <div className="w-full pt-2">{headerWidgets}</div>}

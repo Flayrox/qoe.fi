@@ -91,7 +91,7 @@ export function FeedSidebarWidgets({
       {/* ── Widget 1 : Votre Activité ── */}
       {userStats && (
         <div className="bg-card border border-border/60 rounded-xl p-5 shadow-xs space-y-5">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+          <span className="text-xs font-semibold text-muted-foreground flex items-center gap-2">
             <TrendingUp className="w-3.5 h-3.5 text-primary" strokeWidth={2.5} />
             {t`Votre semaine`}
           </span>
@@ -109,9 +109,9 @@ export function FeedSidebarWidgets({
       {suggestedCreators.length > 0 && (
         <div className="bg-card border border-border/60 rounded-xl p-5 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+            <span className="text-xs font-semibold text-muted-foreground flex items-center gap-2">
               <Sparkles className="w-3.5 h-3.5 text-primary" strokeWidth={2.5} />
-              {t`Plumes Recommandées`}
+              {t`Plumes recommandées`}
             </span>
             <span className="text-[10px] text-muted-foreground font-medium">
               {userStats ? t`Selon vos lectures` : t`Sélections de la plateforme`}
@@ -226,9 +226,9 @@ export function FeedSidebarWidgets({
       {semanticTrends && semanticTrends.length > 0 && (
         <div className="bg-card border border-border/60 rounded-xl p-5 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+            <span className="text-xs font-semibold text-muted-foreground flex items-center gap-2">
               <Flame className="w-3.5 h-3.5 text-warning" strokeWidth={2.5} />
-              {t`Sujets Émergents`}
+              {t`Sujets émergents`}
             </span>
             <span className="text-[10px] text-muted-foreground font-medium">
               {t`Cette semaine`}
@@ -343,9 +343,7 @@ function StatCell({
       <span className="text-base font-bold text-foreground leading-none tracking-tight">
         {value}
       </span>
-      <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">
-        {label}
-      </span>
+      <span className="text-[10px] font-medium text-muted-foreground">{label}</span>
     </div>
   );
 }

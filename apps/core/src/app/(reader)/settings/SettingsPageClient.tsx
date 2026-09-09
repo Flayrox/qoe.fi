@@ -665,9 +665,7 @@ export default function AccountSettingsPage({
               onChange={(value) => patchSettings({ fontScale: Number(value) })}
             />
             <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-4">
-              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                {t`Aperçu de la lecture`}
-              </p>
+              <p className="text-xs font-medium text-muted-foreground">{t`Aperçu de la lecture`}</p>
               <article className="mt-2 space-y-2" style={{ fontSize: `${settings.fontScale}%` }}>
                 <h4 className="font-bold">{t`Le temps long de la lecture attentive.`}</h4>
                 <p className="leading-relaxed text-muted-foreground">
@@ -832,9 +830,7 @@ function SettingsPanel({
 function ReadOnlyField({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-        {label}
-      </p>
+      <p className="text-xs font-medium text-muted-foreground">{label}</p>
       <p className="mt-1 truncate text-sm font-medium">{value}</p>
     </div>
   );
