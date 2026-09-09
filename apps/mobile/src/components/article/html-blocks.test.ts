@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildBlockIndex,
   canonicalDocumentToBlocks,
+  computeHighlightTokenMap,
   computeHighlightTokenSets,
   computeSpotlightTokenSet,
   findOccurrence,
@@ -513,5 +514,46 @@ describe('hitTestToken — le mot sous le doigt', () => {
 
   it('hors de tout token → null', () => {
     expect(hitTestToken(rects, 200, 25)).toBeNull();
+  });
+});
+
+describe('computeHighlightTokenMap — token → surlignage (tap sur un <mark>)', () => {
+  const index = buildBlockIndex(
+    htmlToBlocks('<p>Le chat mange la souris.</p><p>Le chat dort.</p>')
+  );
+
+  it('mappe chaque token peint au surlignage qui l’a peint (2e occurrence)', () => {
+    const map = computeHighlightTokenMap(index, [{ id: 'h1', text: 'Le chat', quoteOrdinal: 1 }]);
+    expect([...map.keys()].sort()).toEqual(['1:0:0', '1:0:1']);
+    expect(map.get('1:0:0')).toMatchObject({ id: 'h1', text: 'Le chat' });
+    expect(map.get('1:0:1')).toMatchObject({ id: 'h1' });
+  });
+
+  it('deux surlignages distincts → deux entrées distinctes', () => {
+    const map = computeHighlightTokenMap(index, [
+      { id: 'h1', text: 'Le chat', quoteOrdinal: 0 },
+      { id: 'h2', text: 'souris.', quoteOrdinal: 0 },
+    ]);
+    expect(map.get('0:0:0')).toMatchObject({ id: 'h1' });
+    expect(map.get('0:0:1')).toMatchObject({ id: 'h1' });
+    expect(map.get('0:0:4')).toMatchObject({ id: 'h2' });
+  });
+
+  it('par offsets (document canonique) → tokens du bon surlignage', () => {
+    const docIndex = buildBlockIndex(canonicalDocumentToBlocks(doc));
+    const map = computeHighlightTokenMap(
+      docIndex,
+      [{ id: 'h3', text: 'Le chat', quoteOrdinal: 0, canonicalStart: 25, canonicalEnd: 32 }],
+      doc
+    );
+    expect([...map.keys()].sort()).toEqual(['1:0:0', '1:0:1']);
+    expect(map.get('1:0:1')).toMatchObject({ id: 'h3' });
+  });
+
+  it('surlignage en attente (pending) conservé tel quel pour les actions', () => {
+    const map = computeHighlightTokenMap(index, [
+      { id: 'local-x', pending: true, localId: 'local-x', text: 'dort.', quoteOrdinal: 0 },
+    ]);
+    expect(map.get('1:0:2')).toMatchObject({ id: 'local-x', pending: true, localId: 'local-x' });
   });
 });

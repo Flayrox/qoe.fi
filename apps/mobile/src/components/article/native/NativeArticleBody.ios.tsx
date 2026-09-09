@@ -20,10 +20,11 @@ import {
 } from 'react-native';
 
 import { useTheme } from '@/hooks/use-theme';
-import { buildArticleText } from './article-text';
+import { buildArticleText, canonicalToDisplayCpRange, cpToUtf16 } from './article-text';
 import { buildPaintSpans, MARK_ARGB, type PaintSpan } from './attributed';
 import { buildNativeMarks } from './marks';
 import { nativeSelectionToInfo } from './selection';
+import type { HighlightLike } from '../html-blocks-core';
 import type { NativeArticleBodyProps } from './NativeArticleBody.types';
 
 /** ARGB int -> "rgba(r, g, b, a)" pour les styles RN de UITextView. */
@@ -55,6 +56,7 @@ export function NativeArticleBodyIOS({
   highlights = [],
   selection,
   onSelect,
+  onHighlightPress,
   spotlight,
 }: NativeArticleBodyProps) {
   const theme = useTheme();
@@ -84,6 +86,60 @@ export function NativeArticleBodyIOS({
   // 3. Runs homogènes prêts pour UITextView
   const spans = useMemo(() => buildPaintSpans(model, coloredMarks), [model, coloredMarks]);
 
+  // 3-bis. Plages UTF-16 par surlignage (tap sur un <mark> → menu d'actions).
+  // Même résolution d'ancres que buildNativeMarks (sha conforme), mais SANS
+  // fusion : chaque surlignage garde sa propre plage pour l'identifier.
+  const highlightRanges = useMemo(() => {
+    const out: { hl: HighlightLike; start: number; end: number }[] = [];
+    for (const h of highlights ?? []) {
+      if (!h) continue;
+      if (typeof h.canonicalStart !== 'number' || typeof h.canonicalEnd !== 'number') continue;
+      if (h.contentSha && h.contentSha !== model.doc.sha) continue;
+      const r = canonicalToDisplayCpRange(model, h.canonicalStart, h.canonicalEnd);
+      if (!r) continue;
+      out.push({
+        hl: h,
+        start: cpToUtf16(model.text, r.startCp),
+        end: cpToUtf16(model.text, r.endCp),
+      });
+    }
+    return out;
+  }, [highlights, model]);
+
+  /** Tap / caret sur un surlignage → le surlignage + sa position géométrique. */
+  const hitTestHighlight = useCallback(
+    (caret: number): { hl: HighlightLike; point: { x: number; y: number } } | null => {
+      const range = highlightRanges.find((r) => caret >= r.start && caret < r.end);
+      if (!range) return null;
+      // Ancrage géométrique : ligne contenant le caret (comme la sélection).
+      let yCenter = 0;
+      let xCenter = contentWidth / 2;
+      const lines = linesRef.current;
+      for (const line of lines) {
+        if (caret >= line.start && caret <= line.end) {
+          yCenter = line.y + line.height / 2;
+          const lineLen = Math.max(1, line.end - line.start);
+          const ratio = Math.max(0, Math.min(1, (caret - line.start) / lineLen));
+          xCenter = line.x + ratio * line.width;
+          break;
+        }
+      }
+      if (yCenter === 0) {
+        if (lines.length > 0) {
+          const totalChars = lines[lines.length - 1]?.end || 1;
+          const totalHeight = lines.length * LINE_HEIGHT;
+          yCenter = Math.min((caret / totalChars) * totalHeight, totalHeight - LINE_HEIGHT / 2);
+        } else {
+          // Estimation de secours avant onTextLayout : ~45 caractères par ligne
+          const approxCharsPerLine = Math.max(20, Math.floor(contentWidth / 9));
+          yCenter = Math.floor(caret / approxCharsPerLine) * LINE_HEIGHT + LINE_HEIGHT / 2;
+        }
+      }
+      return { hl: range.hl, point: { x: xCenter, y: yCenter } };
+    },
+    [highlightRanges, contentWidth]
+  );
+
   const handleTextLayout = useCallback(
     (e: NativeSyntheticEvent<TextLayoutEventData>) => {
       let offset = 0;
@@ -112,6 +168,13 @@ export function NativeArticleBodyIOS({
     (e: SelectionChangeEvent) => {
       const { start, end } = e.nativeEvent;
       if (start === end || start < 0 || end <= start) {
+        // Tap / placement du caret : s'il tombe sur un surlignage → menu
+        // d'actions ; sinon on ferme le popover de sélection (tap-outside).
+        const hit = hitTestHighlight(start);
+        if (hit) {
+          onHighlightPress?.(hit.hl, hit.point);
+          return;
+        }
         onSelect(null);
         return;
       }
@@ -160,7 +223,7 @@ export function NativeArticleBodyIOS({
         canonicalEnd: info.canonicalEnd,
       });
     },
-    [contentWidth, model, onSelect, selection]
+    [contentWidth, model, onSelect, onHighlightPress, hitTestHighlight]
   );
 
   return (

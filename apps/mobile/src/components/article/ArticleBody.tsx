@@ -3,8 +3,8 @@ import { Platform } from 'react-native';
 import type { CanonicalDocument } from '@qoe/sdk/mobile';
 
 import { ArticleHtml, type SelectionInfo } from './html-blocks';
+import type { HighlightLike } from './html-blocks-core';
 import { NativeArticleBody } from './native';
-import type { MarkHighlightInput } from './native/marks';
 
 interface ErrorBoundaryProps {
   fallback: ReactNode;
@@ -40,9 +40,11 @@ class NativeArticleErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoun
 export interface ArticleBodyProps {
   html: string;
   document?: CanonicalDocument;
-  highlights?: (MarkHighlightInput | null | undefined)[];
+  highlights?: (HighlightLike | null | undefined)[];
   selection: SelectionInfo | null;
   onSelect: (info: SelectionInfo | null) => void;
+  /** Tap court sur un <mark> → le surlignage + sa position (menu d'actions). */
+  onHighlightPress?: (highlight: HighlightLike, point: { x: number; y: number }) => void;
   onScrollLock?: (locked: boolean) => void;
   spotlight?: { start: number; end: number; sha: string } | null;
   onSpotlightMeasured?: (tokenWindowY: number) => void;
@@ -60,6 +62,7 @@ export function ArticleBody(props: ArticleBodyProps) {
     highlights,
     selection,
     onSelect,
+    onHighlightPress,
     onScrollLock,
     spotlight,
     onSpotlightMeasured,
@@ -72,6 +75,7 @@ export function ArticleBody(props: ArticleBodyProps) {
       document={document}
       selection={selection}
       onSelect={onSelect}
+      onHighlightPress={onHighlightPress}
       onScrollLock={onScrollLock}
       spotlight={spotlight}
       onSpotlightMeasured={onSpotlightMeasured}
@@ -87,6 +91,7 @@ export function ArticleBody(props: ArticleBodyProps) {
           highlights={highlights}
           selection={selection}
           onSelect={onSelect}
+          onHighlightPress={onHighlightPress}
           onScrollLock={onScrollLock}
           spotlight={spotlight}
           onSpotlightMeasured={onSpotlightMeasured}

@@ -625,11 +625,13 @@ function rawStartOffset(index: SegmentInfo[], a: Token): number {
 }
 
 /** Tokens couverts par une occurrence (offsets AFFICHAGE — pour le <mark>). */
-function occurrenceTokenIds(occurrence: Occurrence, inSet: Set<string>): void {
+function occurrenceTokenIds(occurrence: Occurrence): string[] {
   const { segment, start, end } = occurrence;
+  const ids: string[] = [];
   for (const t of segment.tokens) {
-    if (t.start < end && t.end > start) inSet.add(t.id);
+    if (t.start < end && t.end > start) ids.push(t.id);
   }
+  return ids;
 }
 
 /**
@@ -654,9 +656,9 @@ function occurrenceTokenIdsByOffsets(
   index: SegmentInfo[],
   doc: CanonicalDocument,
   gs: number,
-  ge: number,
-  inSet: Set<string>
-): void {
+  ge: number
+): string[] {
+  const ids: string[] = [];
   for (const seg of doc.segments) {
     const start = Math.max(gs, seg.start);
     const end = Math.min(ge, seg.end);
@@ -668,43 +670,72 @@ function occurrenceTokenIdsByOffsets(
     const ls = utf16IndexAt(seg.text, start - seg.start);
     const le = utf16IndexAt(seg.text, end - seg.start);
     for (const t of target.tokens) {
-      if (t.start < le && t.end > ls) inSet.add(t.id);
+      if (t.start < le && t.end > ls) ids.push(t.id);
     }
   }
+  return ids;
 }
 
 /**
- * Ensemble des tokens à surligner (rendu inline des highlights).
- * Avec le document canonique : peinture PAR OFFSETS (canonicalStart/End)
- * quand les ancres existent — sinon repli sur la recherche de texte
- * (surlignages hérités sans ancres, ou moteur HTML non canonique).
+ * Forme minimale d'un surlignage tel que consommé par le rendu (peinture
+ * + interactions) : les champs MarkHighlightInput + ceux dont les actions
+ * ont besoin (id, note, readerId, pending/localId pour l'optimiste).
+ * Compatible avec `Highlight` (SDK) et `LocalHighlight` (file locale).
  */
-export function computeHighlightTokenSets(
+export interface HighlightLike {
+  id?: string;
+  text?: string | null;
+  quoteOrdinal?: number;
+  canonicalStart?: number;
+  canonicalEnd?: number;
+  isOfficial?: boolean;
+  isPublic?: boolean;
+  contentSha?: string;
+  note?: string | null;
+  readerId?: string;
+  pending?: boolean;
+  localId?: string;
+}
+
+/**
+ * Carte token → surlignage : pour chaque token peint, le surlignage qui
+ * l'a peint. Base du tap sur un <mark> (onHighlightPress). Avec le
+ * document canonique : peinture PAR OFFSETS (canonicalStart/End) quand
+ * les ancres existent — sinon repli sur la recherche de texte.
+ * Dernier surlignage gagnant en cas de chevauchement (peinture identique).
+ */
+export function computeHighlightTokenMap(
   index: SegmentInfo[],
-  highlights: (
-    | {
-        text?: string | null;
-        quoteOrdinal?: number;
-        canonicalStart?: number;
-        canonicalEnd?: number;
-      }
-    | null
-    | undefined
-  )[],
+  highlights: (HighlightLike | null | undefined)[],
   document?: CanonicalDocument | null
-): Set<string> {
-  const out = new Set<string>();
+): Map<string, HighlightLike> {
+  const out = new Map<string, HighlightLike>();
+  const mark = (ids: Iterable<string>, h: HighlightLike) => {
+    for (const id of ids) out.set(id, h);
+  };
   for (const h of highlights ?? []) {
     if (!h) continue;
     if (document && typeof h.canonicalStart === 'number' && typeof h.canonicalEnd === 'number') {
-      occurrenceTokenIdsByOffsets(index, document, h.canonicalStart, h.canonicalEnd, out);
+      mark(occurrenceTokenIdsByOffsets(index, document, h.canonicalStart, h.canonicalEnd), h);
       continue;
     }
     if (!h.text) continue;
     const occ = findOccurrence(index, h.text, h.quoteOrdinal ?? 0);
-    if (occ) occurrenceTokenIds(occ, out);
+    if (occ) mark(occurrenceTokenIds(occ), h);
   }
   return out;
+}
+
+/**
+ * Ensemble des tokens à surligner (rendu inline des highlights) — dérivé
+ * de la carte token → surlignage.
+ */
+export function computeHighlightTokenSets(
+  index: SegmentInfo[],
+  highlights: (HighlightLike | null | undefined)[],
+  document?: CanonicalDocument | null
+): Set<string> {
+  return new Set(computeHighlightTokenMap(index, highlights, document).keys());
 }
 
 /**
@@ -721,6 +752,8 @@ export function computeSpotlightTokenSet(
   const out = new Set<string>();
   if (!document || !spotlight) return out;
   if (spotlight.sha !== document.sha) return out;
-  occurrenceTokenIdsByOffsets(index, document, spotlight.start, spotlight.end, out);
+  for (const id of occurrenceTokenIdsByOffsets(index, document, spotlight.start, spotlight.end)) {
+    out.add(id);
+  }
   return out;
 }
