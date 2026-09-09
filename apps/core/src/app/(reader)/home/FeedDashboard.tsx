@@ -760,23 +760,26 @@ export function FeedDashboard({
     <ReaderPageLayout giantTitle={t`Lire`} hideHeader={!!activePostId || !!activeArticle}>
       {/* ── SLIDING FEED SHEET ── */}
       <motion.section
+        layout
         initial={false}
         animate={{
           marginTop: activePostId || activeArticle ? 0 : slidingSheetOffset,
         }}
-        transition={{ type: 'spring', stiffness: 350, damping: 32 }}
+        transition={{
+          marginTop: { type: 'spring', stiffness: 350, damping: 32 },
+          layout: { duration: 0.35, ease: [0.16, 1, 0.3, 1] },
+        }}
         className={cn(
-          'w-full bg-background text-foreground relative z-10',
-          'transition-[max-width,border-radius] duration-200 ease-out',
+          'w-full mx-auto bg-card text-card-foreground shadow-sm relative z-10',
           isFullyCovered || activePostId || activeArticle
-            ? 'max-w-full mx-0 rounded-none border-t-0 border-x-0'
-            : 'max-w-2xl mx-auto rounded-t-2xl border-t border-x border-border/40 shadow-sm'
+            ? 'max-w-none rounded-none border-t-0 border-x-0'
+            : 'max-w-2xl rounded-t-2xl border-t border-x border-border/40'
         )}
       >
         {/* 100% Solid Opaque Sticky Header of the Sheet (No Background Bleed-Through) */}
         <div
           className={cn(
-            'sticky top-0 z-20 bg-background border-b border-border/40 px-4 sm:px-6 py-3 transition-[border-radius] duration-200',
+            'sticky top-0 z-20 bg-card border-b border-border/40 px-4 sm:px-6 py-3',
             isFullyCovered || activePostId || activeArticle ? 'rounded-none' : 'rounded-t-2xl'
           )}
         >
