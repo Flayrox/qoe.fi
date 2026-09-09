@@ -37,9 +37,9 @@ contrat-first (§5).
 | Scheduling (`scheduledAt`, `DRAFT/SCHEDULED/PUBLISHED`)                  | ✅ schéma — API à exposer                               |
 | Paywall (`isPremium`, `visibility`, tiers)                               | ✅                                                      |
 | Catégories, analytics                                                    | ✅                                                      |
-| **Import bulk** (arriver avec des milliers d'articles)                   | ❌ à construire                                         |
-| **Upload d'images/couvertures**                                          | ⚠️ à construire (stockage Supabase ?)                   |
-| **Idempotency keys** (réessais sûrs)                                     | ❌ à construire                                         |
+| **Import bulk** (arriver avec des milliers d'articles)                   | ✅ `POST /v1/import/jobs` asynchrone (asynq, queue low) + `GET /v1/import/jobs/{id}` statut/progression + rapport d'erreurs par article (≤ 10 000/lot) |
+| **Upload d'images/couvertures**                                          | ✅ `POST /v1/creator/media` (multipart/body brut → Supabase Storage, dédup SHA-256, max 10 Mo) |
+| **Idempotency keys** (réessais sûrs)                                     | ✅ middleware Redis sur les écritures CMS (articles, catégories, webhooks) — rejeu 24 h, 5xx non cachées, 409 si en cours |
 | **Webhooks de confirmation** (le CMS sait que la publication est passée) | ❌ à construire                                         |
 
 ### Direction sortante (qoe.fi comme CMS headless)
@@ -49,7 +49,7 @@ contrat-first (§5).
 | Lecture publique par slug + `publicationId`            | ✅ Go                                                                                 |
 | Liste, catégories, analytics                           | ✅ (contrat à aligner, §4)                                                            |
 | Paywall servi avec troncature zéro-fuite               | ✅                                                                                    |     | **Webhooks sortants signés** (le site du média se met à jour tout seul) | ✅ HMAC-SHA256 + retries + logs de livraison (worker asynq) · API de gestion Go ✅ · UI dashboard ⏳ |
-| **Clés API par scope + rotation + rate-limit par clé** | ✅ scopes READ/WRITE/ANALYTICS (Go + dashboard) · ⏳ rotation · ⏳ rate-limit par clé |
+| **Clés API par scope + rotation + rate-limit par clé** | ✅ scopes READ/WRITE/ANALYTICS (Go + dashboard) · ✅ rotation `POST /v1/settings/api-keys/{id}/rotate` · ✅ rate-limit par clé (Redis, `API_KEY_RATE_LIMIT` déf 600/min) |
 | **Logs de livraison visibles dans le dashboard**       | ❌ à construire                                                                       |
 
 ### Apps tierces
@@ -145,7 +145,7 @@ Source : `apps/api/src/app.ts` (Hono, supprimé) + `apps/api/internal/modules/ar
 
 | Phase                 | Contenu                                                                                                                                             | Statut                         |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
-| **0 — Contrat-first** | Spec OpenAPI `docs/openapi/creators-api.yaml` + golden tests Go (`contract.go`/`contract_test.go`) verrouillant enveloppe, pagination et zéro-fuite | ✅ **fait**                    |     | **1 — Aligner `articles`** | Contrat complet : liste + slug (enveloppe, `page`, filtres, `contentHtml`, catégorie embarquée, clé API → publication) **et** `contentFormat` markdown/html (conversion safe côté serveur) | ✅  |     | **2 — Plateforme créateurs** | Scopes ✅ (READ/WRITE/ANALYTICS) · Webhooks sortants ✅ (API de gestion Go + worker HMAC/retries + événements published/updated/deleted). Reste : UI dashboard webhooks, rotation de clés, rate-limit par clé, idempotency, API explorer, import bulk, upload média | 🚧 scopes + webhooks backend ✅ |
+| **0 — Contrat-first** | Spec OpenAPI `docs/openapi/creators-api.yaml` + golden tests Go (`contract.go`/`contract_test.go`) verrouillant enveloppe, pagination et zéro-fuite | ✅ **fait**                    |     | **1 — Aligner `articles`** | Contrat complet : liste + slug (enveloppe, `page`, filtres, `contentHtml`, catégorie embarquée, clé API → publication) **et** `contentFormat` markdown/html (conversion safe côté serveur) | ✅  |     | **2 — Plateforme créateurs** | Scopes ✅ (READ/WRITE/ANALYTICS) · Webhooks sortants ✅ (API de gestion Go + worker HMAC/retries + événements published/updated/deleted) · Rotation de clés ✅ · Rate-limit par clé ✅ · Idempotency keys ✅ · Upload média ✅ (`/v1/creator/media`) · Import bulk ✅ (`/v1/import/jobs` asynchrone + rapport d'erreurs). Reste : UI dashboard webhooks, API explorer | 🚧 backend créateur ✅, UI ⏳ |
 | **3 — Ops**           | slog JSON, metrics/traces (Prometheus/OTel), migrations goose, Sentry                                                                               | ⏳                             |
 | **4 — Sunset Hono**   | Suppression de `apps/api` (Hono / api-legacy) — backend Go unique                                                     | ✅ terminé |
 
