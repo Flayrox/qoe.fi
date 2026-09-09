@@ -1,16 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Home, Bookmark, LogOut, LayoutDashboard, Bell, Mail, UserRound } from 'lucide-react';
-import { cn } from '@qoe/utils';
-import { Logo, ThemeToggle, SafeAvatar } from '@qoe/ui';
+import { Menu, Bell, Mail } from 'lucide-react';
+import { Logo, SafeAvatar } from '@qoe/ui';
 import { useUnreadNotificationCount } from '@qoe/ui/notifications';
 import { useUnreadConversationCountQuery } from '@qoe/sdk';
-import { routes } from '@qoe/config/routes';
-import { URLS } from '@qoe/config';
 import { t } from '@lingui/core/macro';
 
 interface ReaderNavOverlayProps {
@@ -25,224 +21,87 @@ interface ReaderNavOverlayProps {
 export function ReaderNavOverlay({
   userName = t`Lecteur`,
   userUsername = null,
-  userEmail = '',
-  userAvatar,
-  userRole,
-  onLogout,
+  userAvatar = null,
 }: ReaderNavOverlayProps) {
   const pathname = usePathname();
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
   const unreadCount = useUnreadNotificationCount();
   const { data: unreadMessages = 0 } = useUnreadConversationCountQuery();
-  // 🔕 Pas de badge tant qu'on est sur la page notifications
+
+  // 🔕 Pas de badge tant qu'on est sur la page concernée
   const showNotificationBadge = !pathname.startsWith('/notifications') && unreadCount > 0;
   const showMessagesBadge = !pathname.startsWith('/messages') && unreadMessages > 0;
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   const profileHref = userUsername?.trim()
     ? `/${userUsername.trim().replace(/^@/, '').toLowerCase()}`
     : '/settings';
 
-  const navItems = [
-    { id: 'home', label: t`Accueil`, href: routes.feed.home(), icon: Home },
-    {
-      id: 'notifications',
-      label: t`Notifications`,
-      href: '/notifications',
-      icon: Bell,
-      badge: showNotificationBadge ? unreadCount : 0,
-    },
-    {
-      id: 'messages',
-      label: t`Messages`,
-      href: '/messages',
-      icon: Mail,
-      badge: showMessagesBadge ? unreadMessages : 0,
-    },
-    { id: 'library', label: t`Bibliothèque`, href: routes.feed.library(), icon: Bookmark },
-  ];
-
-  const isItemActive = (href: string) => {
-    if (href === '/home' || href === '/') {
-      return pathname === '/home' || pathname === '/';
-    }
-    return pathname.startsWith(href);
+  const handleToggleSidebar = () => {
+    window.dispatchEvent(new CustomEvent('toggle-mobile-sidebar'));
   };
 
-  // Handle Escape key to close popover
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsProfileOpen(false);
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
-
   return (
-    <header className="fixed top-3 left-0 right-0 z-50 pointer-events-none flex justify-center px-4 md:hidden">
-      <motion.div
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-        className={cn(
-          'pointer-events-auto flex items-center justify-between gap-3 p-1.5 pl-3.5 pr-2 rounded-2xl shadow-xl',
-          'bg-card/85 backdrop-blur-2xl border border-border/60 text-foreground'
-        )}
-      >
-        {/* Brand Logo & Title */}
-        <Link href="/home" className="flex items-center gap-2 outline-none group mr-1">
+    <header className="fixed top-0 left-0 right-0 z-30 h-14 bg-background/85 backdrop-blur-xl border-b border-border/40 px-3 sm:px-4 flex items-center justify-between md:hidden select-none">
+      {/* ── GAUCHE : Bouton Hamburger & Marque ── */}
+      <div className="flex items-center gap-2.5">
+        <button
+          type="button"
+          onClick={handleToggleSidebar}
+          className="p-2 -ml-1 rounded-xl text-foreground/80 hover:text-foreground hover:bg-muted/60 active:scale-95 transition-all cursor-pointer outline-none"
+          aria-label={t`Ouvrir le menu`}
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+
+        <Link href="/home" className="flex items-center gap-2 outline-none group">
           <Logo className="h-5 w-auto" fillColor="#EE4B2B" />
           <span className="font-bold text-sm tracking-tight text-foreground group-hover:opacity-85 transition-opacity">
             qoe<span className="text-primary">.fi</span>
           </span>
         </Link>
+      </div>
 
-        <div className="h-4 w-px bg-border/60 mx-0.5" />
+      {/* ── DROITE : Raccourcis Notifications, Messages & Profil ── */}
+      <div className="flex items-center gap-1">
+        <Link
+          href="/notifications"
+          className="relative p-2 rounded-xl text-foreground/80 hover:text-foreground hover:bg-muted/60 active:scale-95 transition-all outline-none"
+          aria-label={t`Notifications`}
+        >
+          <Bell className="w-4 h-4" />
+          {showNotificationBadge && (
+            <span className="absolute top-2 right-2 flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
+            </span>
+          )}
+        </Link>
 
-        {/* Navigation Tabs with Spring Pill */}
-        <nav className="flex items-center gap-1">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const active = isItemActive(item.href);
+        <Link
+          href="/messages"
+          className="relative p-2 rounded-xl text-foreground/80 hover:text-foreground hover:bg-muted/60 active:scale-95 transition-all outline-none"
+          aria-label={t`Messages`}
+        >
+          <Mail className="w-4 h-4" />
+          {showMessagesBadge && (
+            <span className="absolute top-2 right-2 flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
+            </span>
+          )}
+        </Link>
 
-            return (
-              <Link
-                key={item.id}
-                href={item.href}
-                className={cn(
-                  'relative flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors outline-none',
-                  active
-                    ? 'text-primary-foreground font-bold'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                )}
-              >
-                {active && (
-                  <motion.span
-                    layoutId="reader-active-pill"
-                    className="absolute inset-0 bg-primary rounded-xl -z-10 shadow-xs"
-                    transition={{ type: 'spring', stiffness: 450, damping: 32 }}
-                  />
-                )}
-                <Icon
-                  className={cn(
-                    'w-3.5 h-3.5 shrink-0',
-                    active ? 'text-primary-foreground' : 'text-muted-foreground'
-                  )}
-                />
-                {item.badge ? (
-                  <span
-                    className={cn(
-                      'inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full text-[9px] font-bold tabular-nums',
-                      active
-                        ? 'bg-primary-foreground text-primary'
-                        : 'bg-primary text-primary-foreground'
-                    )}
-                  >
-                    {item.badge > 99 ? '99+' : item.badge}
-                  </span>
-                ) : null}
-                <span className="hidden sm:inline text-xs tracking-tight">{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="h-4 w-px bg-border/60 mx-0.5" />
-
-        {/* Thème clair/sombre (Soleil/Lune) — synchronisé entre sous-domaines */}
-        <ThemeToggle />
-
-        {/* User Profile / Menu Trigger */}
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setIsProfileOpen(!isProfileOpen)}
-            className="flex items-center gap-2 p-1 rounded-xl hover:bg-muted transition-colors outline-none cursor-pointer"
-            aria-label={t`Menu profil`}
-            aria-expanded={isProfileOpen}
-          >
-            <SafeAvatar
-              src={userAvatar}
-              name={userName}
-              size={28}
-              className="rounded-lg border border-primary/20"
-            />
-          </button>
-
-          {/* Contextual Popover */}
-          <AnimatePresence>
-            {isProfileOpen && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 8 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95, y: 8 }}
-                transition={{ duration: 0.15, ease: 'easeOut' }}
-                className={cn(
-                  'absolute top-10 right-0 z-50 w-56 p-2 rounded-2xl shadow-2xl origin-top-right',
-                  'bg-card/95 backdrop-blur-2xl border border-border text-foreground'
-                )}
-              >
-                <div className="px-3 py-2 mb-1 border-b border-border/60">
-                  <span className="font-bold text-xs block truncate leading-tight">{userName}</span>
-                  {userEmail && (
-                    <span className="text-[10px] text-muted-foreground block truncate mt-0.5">
-                      {userEmail}
-                    </span>
-                  )}
-                </div>
-
-                {(userRole === 'creator' || userRole === 'superadmin') && (
-                  <a
-                    href={isMounted ? URLS.DASHBOARD : '#'}
-                    className="flex items-center gap-2 px-3 py-2 text-xs font-semibold rounded-xl text-primary hover:bg-primary/10 transition-colors mb-1"
-                    onClick={() => setIsProfileOpen(false)}
-                  >
-                    <LayoutDashboard className="w-3.5 h-3.5" />
-                    <span>{t`Studio Créateur`}</span>
-                  </a>
-                )}
-
-                <Link
-                  href={profileHref}
-                  onClick={() => setIsProfileOpen(false)}
-                  className="flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                >
-                  <UserRound className="w-3.5 h-3.5" />
-                  <span>{t`Mon profil`}</span>
-                </Link>
-
-                <div className="flex items-center justify-between gap-2 px-3 py-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">{t`Thème`}</span>
-                  <ThemeToggle />
-                </div>
-
-                <div className="h-px my-1 bg-border/60" />
-
-                {onLogout && (
-                  <form
-                    action={() => {
-                      setIsProfileOpen(false);
-                      onLogout();
-                    }}
-                  >
-                    <button
-                      type="submit"
-                      className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-destructive rounded-xl hover:bg-destructive/10 transition-colors text-left cursor-pointer"
-                    >
-                      <LogOut className="w-3.5 h-3.5" />
-                      <span>{t`Se déconnecter`}</span>
-                    </button>
-                  </form>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </motion.div>
+        <Link
+          href={profileHref}
+          className="p-1 rounded-full hover:ring-2 hover:ring-primary/20 active:scale-95 transition-all outline-none ml-1"
+          aria-label={t`Mon profil`}
+        >
+          <SafeAvatar
+            src={userAvatar}
+            name={userName}
+            className="w-6 h-6 rounded-full text-[10px] font-semibold"
+          />
+        </Link>
+      </div>
     </header>
   );
 }

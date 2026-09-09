@@ -1684,6 +1684,9 @@ msgstr "Close"
 msgid "Fermer (Échap)"
 msgstr "Close (Esc)"
 
+msgid "Fermer le menu"
+msgstr "Close menu"
+
 msgid "Fermer les modales et réinitialiser la sélection"
 msgstr "Close modals and reset the selection"
 
@@ -2285,8 +2288,8 @@ msgstr "Account menu"
 msgid "Menu de navigation principal"
 msgstr "Main navigation menu"
 
-msgid "Menu profil"
-msgstr "Profile menu"
+#~ msgid "Menu profil"
+#~ msgstr "Profile menu"
 
 msgid "Merci ! Vérifiez votre boîte mail pour confirmer votre abonnement."
 msgstr "Thanks! Check your inbox to confirm your subscription."
@@ -2507,6 +2510,9 @@ msgstr "Open source article"
 
 msgid "Ouvrir la page publique ou la prévisualisation de l'écrit"
 msgstr "Open the public page or the writing preview"
+
+msgid "Ouvrir le menu"
+msgstr "Open menu"
 
 msgid "Ouvrir le thread complet de la pensée"
 msgstr "Open the full thought thread"
@@ -3399,8 +3405,8 @@ msgstr "Reading timeline structure"
 msgid "Studio"
 msgstr "Studio"
 
-msgid "Studio Créateur"
-msgstr "Creator Studio"
+#~ msgid "Studio Créateur"
+#~ msgstr "Creator Studio"
 
 msgid "Substack"
 msgstr "Substack"
