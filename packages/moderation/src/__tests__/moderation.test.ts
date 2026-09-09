@@ -143,6 +143,43 @@ describe('@qoe/moderation — Magic Bytes Image Guard', () => {
     const res = detectMagicBytes(fakeBuffer);
     expect(res.valid).toBe(false);
   });
+
+  it('identifie un vrai buffer WebP (RIFF....WEBP)', () => {
+    const webpBuffer = Buffer.from([
+      0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50,
+    ]);
+    const res = detectMagicBytes(webpBuffer);
+    expect(res).toEqual({ valid: true, mime: 'image/webp', extension: 'webp' });
+  });
+
+  it('identifie un GIF 87a et un GIF 89a', () => {
+    const gif87 = Buffer.from([
+      0x47, 0x49, 0x46, 0x38, 0x37, 0x61, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    ]);
+    expect(detectMagicBytes(gif87)).toEqual({ valid: true, mime: 'image/gif', extension: 'gif' });
+
+    const gif89 = Buffer.from([
+      0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    ]);
+    expect(detectMagicBytes(gif89)).toEqual({ valid: true, mime: 'image/gif', extension: 'gif' });
+  });
+
+  it('identifie un AVIF via le header ftypavif/ftypavis', () => {
+    const avif = Buffer.from('\x00\x00\x00\x18ftypavif\x00\x00');
+    expect(detectMagicBytes(avif)).toEqual({ valid: true, mime: 'image/avif', extension: 'avif' });
+
+    const avis = Buffer.from('\x00\x00\x00\x18ftypavis\x00\x00');
+    expect(detectMagicBytes(avis).mime).toBe('image/avif');
+  });
+
+  it('rejette un buffer trop court ou vide', () => {
+    expect(detectMagicBytes(Buffer.alloc(0))).toEqual({ valid: false, mime: '', extension: '' });
+    expect(detectMagicBytes(Buffer.from([0x89, 0x50]))).toEqual({
+      valid: false,
+      mime: '',
+      extension: '',
+    });
+  });
 });
 
 describe('@qoe/moderation — OpenAI Omni-Moderator', () => {

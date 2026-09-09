@@ -231,6 +231,34 @@ func (q *Queries) GetSystemConfigsByKeys(ctx context.Context, dollar_1 []string)
 	return items, nil
 }
 
+const insertAdminAuditLog = `-- name: InsertAdminAuditLog :exec
+
+INSERT INTO "AdminAuditLog" (id, "actorId", action, "targetType", "targetId", metadata)
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5::text::jsonb)
+`
+
+type InsertAdminAuditLogParams struct {
+	ActorId    pgtype.UUID `json:"actorId"`
+	Action     string      `json:"action"`
+	TargetType string      `json:"targetType"`
+	TargetId   pgtype.Text `json:"targetId"`
+	Column5    string      `json:"column_5"`
+}
+
+// ── Journal d'audit superadmin ──────────────────────────────────────────────
+// metadata est passé en texte puis casté en jsonb : le pool API force
+// QueryExecModeExec (PgBouncer), où pgx encoderait []byte en bytea → 22P02.
+func (q *Queries) InsertAdminAuditLog(ctx context.Context, arg InsertAdminAuditLogParams) error {
+	_, err := q.db.Exec(ctx, insertAdminAuditLog,
+		arg.ActorId,
+		arg.Action,
+		arg.TargetType,
+		arg.TargetId,
+		arg.Column5,
+	)
+	return err
+}
+
 const listAdminApiApplicants = `-- name: ListAdminApiApplicants :many
 
 SELECT u.id, u.name, u.email, u."apiAccessStatus", u."apiGrants", u."apiApplicationReason", u."createdAt", u."updatedAt",
@@ -323,6 +351,57 @@ func (q *Queries) ListAdminArticles(ctx context.Context) ([]ListAdminArticlesRow
 			&i.CreatedAt,
 			&i.AuthorName,
 			&i.AuthorEmail,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAdminAuditLogs = `-- name: ListAdminAuditLogs :many
+SELECT l.id, l."actorId", l.action, l."targetType", l."targetId", l.metadata, l."createdAt",
+       u.name AS actor_name, u.email AS actor_email
+FROM "AdminAuditLog" l
+JOIN "User" u ON u.id = l."actorId"
+ORDER BY l."createdAt" DESC
+LIMIT $1
+`
+
+type ListAdminAuditLogsRow struct {
+	ID         string           `json:"id"`
+	ActorId    pgtype.UUID      `json:"actorId"`
+	Action     string           `json:"action"`
+	TargetType string           `json:"targetType"`
+	TargetId   pgtype.Text      `json:"targetId"`
+	Metadata   []byte           `json:"metadata"`
+	CreatedAt  pgtype.Timestamp `json:"createdAt"`
+	ActorName  pgtype.Text      `json:"actor_name"`
+	ActorEmail string           `json:"actor_email"`
+}
+
+func (q *Queries) ListAdminAuditLogs(ctx context.Context, limit int32) ([]ListAdminAuditLogsRow, error) {
+	rows, err := q.db.Query(ctx, listAdminAuditLogs, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAdminAuditLogsRow{}
+	for rows.Next() {
+		var i ListAdminAuditLogsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ActorId,
+			&i.Action,
+			&i.TargetType,
+			&i.TargetId,
+			&i.Metadata,
+			&i.CreatedAt,
+			&i.ActorName,
+			&i.ActorEmail,
 		); err != nil {
 			return nil, err
 		}

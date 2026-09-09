@@ -14,6 +14,7 @@ import (
 	"github.com/qoefi/api/internal/cache"
 	"github.com/qoefi/api/internal/config"
 	"github.com/qoefi/api/internal/dbpool"
+	"github.com/qoefi/api/internal/flags"
 	"github.com/qoefi/api/internal/modules/imports"
 	"github.com/qoefi/api/internal/queue"
 	"github.com/qoefi/api/internal/umami"
@@ -37,6 +38,7 @@ func main() {
 
 	webhookWorker := workers.NewWebhookWorker(pool)
 	newsletterWorker := workers.NewNewsletterWorker(pool)
+	newsletterWorker.SetFlags(flags.NewService(pool))
 	stripeWorker := workers.NewStripeWorker(pool, cache.Client(cfg.RedisURL))
 	searchWorker := workers.NewSearchWorker(pool)
 	searchWorker.Setup(ctx)

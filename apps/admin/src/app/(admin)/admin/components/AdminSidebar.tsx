@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: '/admin/api', label: "Demandes d'API" },
   { href: '/admin/oauth', label: 'Applications OAuth' },
   { href: '/admin/config', label: 'Feature Flags' },
+  { href: '/admin/audit', label: "Journal d'audit" },
   { href: '/admin/frontend', label: 'Frontend & UI' },
   { href: '/admin/widgets', label: 'Widgets & Tendances' },
   { href: '/admin/notifications', label: 'Notifications & Emails' },

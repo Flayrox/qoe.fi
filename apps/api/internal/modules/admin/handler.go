@@ -61,6 +61,9 @@ func (h *Handler) Register(r chi.Router) {
 	r.Get("/v1/admin/api-access/modules", h.apiAccessModules)
 	r.Patch("/v1/admin/api-access/modules", h.updateApiAccessModules)
 
+	// Journal d'audit superadmin (flag admin-audit-log)
+	r.Get("/v1/admin/audit-log", h.auditLog)
+
 	// Notifications & livraisons
 	r.Get("/v1/admin/deliveries", h.deliveries)
 	r.Post("/v1/admin/deliveries/{id}/retry", h.retryDelivery)
@@ -539,6 +542,22 @@ func (h *Handler) apiAccessModules(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, modules)
+}
+
+// GET /v1/admin/audit-log — journal des actions sensibles (qui, quand, quoi).
+// Query : ?limit=50 (défaut 50, max 200).
+func (h *Handler) auditLog(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	entries, err := h.svc.ListAuditLogs(r.Context(), userID, int32(limit))
+	if err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, map[string]any{"items": entries})
 }
 
 // PATCH /v1/admin/api-access/modules — active / désactive les modules

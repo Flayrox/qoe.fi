@@ -584,6 +584,19 @@ CREATE TABLE "WebhookDelivery" (
 );
 
 -- CreateTable
+CREATE TABLE "AdminAuditLog" (
+    "id" TEXT NOT NULL,
+    "actorId" UUID NOT NULL,
+    "action" TEXT NOT NULL,
+    "targetType" TEXT NOT NULL DEFAULT 'user',
+    "targetId" TEXT,
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "AdminAuditLog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "TranslationAuditLog" (
     "id" TEXT NOT NULL,
     "key" TEXT NOT NULL,
@@ -1109,6 +1122,15 @@ CREATE INDEX "MediaInvite_token_idx" ON "MediaInvite"("token");
 
 -- CreateIndex
 CREATE INDEX "MediaAuditLog_mediaId_createdAt_idx" ON "MediaAuditLog"("mediaId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "AdminAuditLog_createdAt_idx" ON "AdminAuditLog"("createdAt" DESC);
+
+-- CreateIndex
+CREATE INDEX "AdminAuditLog_actorId_idx" ON "AdminAuditLog"("actorId");
+
+-- CreateIndex
+CREATE INDEX "AdminAuditLog_action_idx" ON "AdminAuditLog"("action");
 
 -- CreateIndex
 CREATE INDEX "CollaborationRequest_inviteeId_status_idx" ON "CollaborationRequest"("inviteeId", "status");

@@ -21,6 +21,7 @@ import (
 	"github.com/qoefi/api/internal/config"
 	"github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/dbpool"
+	"github.com/qoefi/api/internal/flags"
 	authmw "github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/modules/admin"
 	"github.com/qoefi/api/internal/modules/analytics"
@@ -194,6 +195,11 @@ func newRouter(d RouterDeps) *chi.Mux {
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
 
+	// Feature flags : état serveur des flags (même table Postgres que la
+	// console admin / @qoe/flags — une seule source de vérité, cache 30 s).
+	flagsHandler := flags.NewHandler(flags.NewService(pool))
+	flagsHandler.RegisterPublic(r)
+
 	// Recherche publique : articles (Meilisearch) + sémantique (pgvector/jina).
 	searchHandler := search.NewHandler(search.NewSemanticService(d.Pool))
 	searchHandler.RegisterPublic(r)
@@ -346,7 +352,9 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 		starterPacksHandler.RegisterProtected(protected)
 
-		adminHandler := admin.NewHandler(admin.NewService(pool))
+		adminSvc := admin.NewService(pool)
+		adminSvc.SetFlags(flags.NewService(pool))
+		adminHandler := admin.NewHandler(adminSvc)
 		adminHandler.Register(protected)
 
 		newslettersHandler.Register(protected)

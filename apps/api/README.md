@@ -95,6 +95,8 @@ Deux modes (les tests d'intégration ont besoin de Postgres + pgvector) :
 | PATCH | `/v1/admin/api-applicants/{userID}` | approuver/rejeter/révoquer + permissions accordées (grants) |
 | PATCH | `/v1/admin/api-applicants/{userID}/grants` | ajuster les permissions sans changer le statut |
 | GET/PATCH | `/v1/admin/api-access/modules` | registre des permissions modulables (API entrante/sortante/OAuth) |
+| GET | `/v1/admin/audit-log` | journal d'audit superadmin (qui, quand, quoi — flag `admin-audit-log`) |
+| GET | `/v1/flags` | état serveur des feature flags (table `feature_flags` partagée, cache 30 s) |
 
 ## Statut
 - [x] Fondations (config, pool, auth, middleware, réponse)

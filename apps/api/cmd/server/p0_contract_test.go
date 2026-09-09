@@ -44,6 +44,7 @@ func TestP0ProtectedRoutesRequireAuthentication(t *testing.T) {
 		{"devtools data", http.MethodGet, "/v1/devtools/data"},
 		{"admin dashboard", http.MethodGet, "/v1/admin/dashboard"},
 		{"admin api access modules", http.MethodGet, "/v1/admin/api-access/modules"},
+		{"admin audit log", http.MethodGet, "/v1/admin/audit-log"},
 		{"reader profile", http.MethodGet, "/v1/me"},
 		{"reader billing", http.MethodGet, "/v1/me/billing"},
 		{"reader history", http.MethodGet, "/v1/me/reading-history"},

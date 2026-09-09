@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/flags"
 	"github.com/qoefi/api/internal/queue"
 )
 
@@ -28,6 +29,10 @@ type NewsletterWorker struct {
 	// quand un fournisseur email est configuré (EMAIL_PROVIDER).
 	provider EmailProvider
 	from     string
+
+	// flags lit la table feature_flags partagée (cache TTL) : le flag
+	// workers-newsletter-dispatch est le coupe-feu d'envoi automatique.
+	flags *flags.Service
 }
 
 func NewNewsletterWorker(pool *pgxpool.Pool) *NewsletterWorker {
@@ -39,6 +44,11 @@ func NewNewsletterWorker(pool *pgxpool.Pool) *NewsletterWorker {
 func (n *NewsletterWorker) SetEmailProvider(p EmailProvider, from string) {
 	n.provider = p
 	n.from = from
+}
+
+// SetFlags branche le service feature flags (coupe-feu newsletter).
+func (n *NewsletterWorker) SetFlags(f *flags.Service) {
+	n.flags = f
 }
 
 // HandleArticlePublished traite TaskArticlePublished : webhooks (délégué)
@@ -99,6 +109,14 @@ func (n *NewsletterWorker) HandleNewsletterSend(ctx context.Context, t *asynq.Ta
 	}
 	if issue.Status != "SENDING" {
 		return nil // déjà traité (retry) ou non déclenché
+	}
+
+	// Coupe-feu serveur : le flag workers-newsletter-dispatch (console admin /
+	// feature_flags) coupe l'envoi sans redéploiement. L'issue reste en SENDING
+	// pour que l'envoi reparte à la réactivation (ou via un nouvel envoi).
+	if n.flags != nil && !n.flags.IsOn(ctx, flags.WorkersNewsletter) {
+		log.Printf("[newsletter] issue %s : envoi coupé (flag workers-newsletter-dispatch OFF)", issue.ID)
+		return nil
 	}
 
 	if n.provider == nil {

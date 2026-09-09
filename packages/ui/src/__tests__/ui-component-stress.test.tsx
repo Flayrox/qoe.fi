@@ -27,28 +27,32 @@ import type { FeedArticleDTO } from '@qoe/sdk/types';
 
 describe('🛡️ UI Zero-Crash Resilience Test Suite', () => {
   describe('SafeAvatar', () => {
-    it('génère un monogramme déterministe propre quand src est null ou vide', () => {
+    it('rend un fallback vectoriel (silhouette Discord-style) quand src est null ou vide', () => {
       const { container } = render(
         <SafeAvatar src={null} name="Camille Desmoulins" username="cdes" size={40} />
       );
 
-      const monogram = container.querySelector('span');
-      expect(monogram).toBeTruthy();
-      expect(monogram?.textContent).toBe('CD');
+      // Depuis le redesign avatars (5480ca4f), le fallback est un pictogramme
+      // SVG déterministe (plus un monogramme texte) : le label d'accessibilité
+      // porte l'identité, le svg le visuel.
+      const fallback = container.querySelector('span');
+      expect(fallback).toBeTruthy();
+      expect(fallback?.getAttribute('aria-label')).toBe('Camille Desmoulins');
+      expect(fallback?.querySelector('svg')).toBeTruthy();
     });
 
-    it('génère des initiales à partir du nom ou du pseudonyme avec fallback sécurisé', () => {
+    it('résout le label d’accessibilité depuis le nom ou le pseudonyme avec fallback sécurisé', () => {
       const { rerender, container } = render(<SafeAvatar name="Voltaire" />);
-      expect(container.textContent).toBe('VO');
+      expect(container.querySelector('span')?.getAttribute('aria-label')).toBe('Voltaire');
 
       rerender(<SafeAvatar username="rousseau" />);
-      expect(container.textContent).toBe('RO');
+      expect(container.querySelector('span')?.getAttribute('aria-label')).toBe('rousseau');
 
       rerender(<SafeAvatar name="" username="" />);
-      expect(container.textContent).toBe('Q');
+      expect(container.querySelector('span')?.getAttribute('aria-label')).toBe('Utilisateur');
     });
 
-    it('bascule sur le monogramme sans lever d’erreur lors d’un crash réseau d’image (onError)', () => {
+    it('bascule sur le fallback vectoriel sans lever d’erreur lors d’un crash réseau d’image (onError)', () => {
       const { container } = render(
         <SafeAvatar src="/avatars/inexistant-crash-test.svg" name="Céleste Roche" size={32} />
       );
@@ -61,10 +65,11 @@ describe('🛡️ UI Zero-Crash Resilience Test Suite', () => {
         fireEvent.error(img);
       }
 
-      // Doit avoir basculé sur le monogramme
+      // Doit avoir basculé sur le fallback vectoriel (pas de crash)
       const fallback = container.querySelector('span');
       expect(fallback).toBeTruthy();
-      expect(fallback?.textContent).toBe('CR');
+      expect(fallback?.getAttribute('aria-label')).toBe('Céleste Roche');
+      expect(fallback?.querySelector('svg')).toBeTruthy();
     });
 
     it('résiste aux noms avec caractères spéciaux, accents et emojis', () => {
