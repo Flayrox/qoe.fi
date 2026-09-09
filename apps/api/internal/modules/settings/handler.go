@@ -40,6 +40,7 @@ func (h *Handler) RegisterProtected(r chi.Router) {
 		r.Post("/api-application", h.submitApiApplication)
 		r.Get("/api-keys", h.listApiKeys)
 		r.Post("/api-keys", h.generateApiKey)
+		r.Post("/api-keys/{id}/rotate", h.rotateApiKey)
 		r.Delete("/api-keys/{id}", h.revokeApiKey)
 		r.Post("/onboarding", h.completeOnboarding)
 	})
@@ -369,6 +370,25 @@ func (h *Handler) listApiKeys(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, map[string]any{"keys": keys})
+}
+
+// POST /v1/settings/api-keys/{id}/rotate — régénère le secret d'une clé API.
+func (h *Handler) rotateApiKey(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	apiKey, err := h.svc.RotateApiKey(r.Context(), userID, chi.URLParam(r, "id"))
+	if err != nil {
+		if errors.Is(err, errNotFound) {
+			response.NotFound(w, "Clé API introuvable")
+			return
+		}
+		response.Forbidden(w, err.Error())
+		return
+	}
+	response.OK(w, map[string]string{"apiKey": apiKey})
 }
 
 // DELETE /v1/settings/api-keys/{id} — révoque une clé API.

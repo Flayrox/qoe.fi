@@ -2,6 +2,8 @@ package settings
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/testutil"
 )
@@ -114,4 +117,97 @@ func TestApiKeyLifecycle(t *testing.T) {
 	if strings.Contains(w.Body.String(), "Intégration") {
 		t.Fatal("clé révoquée toujours listée")
 	}
+}
+
+// Rotation : même id, nouveau secret ; l'ancienne clé est immédiatement
+// invalide (auth par hash), les autres utilisateurs ne peuvent pas rotater.
+func TestApiKeyRotation(t *testing.T) {
+	ctx := context.Background()
+	fx, err := testutil.SeedOAuth(ctx, poolTest)
+	if err != nil {
+		t.Fatalf("seed oauth: %v", err)
+	}
+	r := newKeysRouter()
+
+	// Génération nominale.
+	w := doKeys(r, http.MethodPost, "/v1/settings/api-keys", fx.OwnerID,
+		`{"name":"À rotater"}`)
+	if w.Code != http.StatusOK {
+		t.Fatalf("create = %d %s", w.Code, w.Body.String())
+	}
+	var gen struct {
+		APIKey string `json:"apiKey"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &gen); err != nil || !strings.HasPrefix(gen.APIKey, "qoe_live_") {
+		t.Fatalf("clé absente : %s (%v)", w.Body.String(), err)
+	}
+
+	// Id de la clé en base.
+	var keyID string
+	if err := poolTest.QueryRow(ctx,
+		`SELECT id FROM "ApiKey" WHERE "userId" = $1 ORDER BY "createdAt" DESC LIMIT 1`,
+		fx.OwnerID).Scan(&keyID); err != nil {
+		t.Fatalf("select key id: %v", err)
+	}
+
+	// La clé fraîche authentifie (APIKeyContext OK).
+	if _, ok := middleware.APIKeyContext(db.New(poolTest), bearer(gen.APIKey)); !ok {
+		t.Fatal("clé fraîche doit authentifier")
+	}
+
+	// Rotation : nouvelle clé en clair, différente de l'ancienne.
+	w = doKeys(r, http.MethodPost, "/v1/settings/api-keys/"+keyID+"/rotate", fx.OwnerID, "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("rotate = %d %s", w.Code, w.Body.String())
+	}
+	var rot struct {
+		APIKey string `json:"apiKey"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &rot); err != nil || !strings.HasPrefix(rot.APIKey, "qoe_live_") {
+		t.Fatalf("nouvelle clé absente : %s (%v)", w.Body.String(), err)
+	}
+	if rot.APIKey == gen.APIKey {
+		t.Fatal("la rotation doit produire un secret différent")
+	}
+
+	// Le hash en base correspond à la NOUVELLE clé (l'ancienne ne passe plus).
+	var storedHash string
+	if err := poolTest.QueryRow(ctx,
+		`SELECT "keyHash" FROM "ApiKey" WHERE id = $1`, keyID).Scan(&storedHash); err != nil {
+		t.Fatalf("select hash: %v", err)
+	}
+	sum := sha256.Sum256([]byte(rot.APIKey))
+	if storedHash != hex.EncodeToString(sum[:]) {
+		t.Fatal("le hash en base ne correspond pas à la nouvelle clé")
+	}
+	if _, ok := middleware.APIKeyContext(db.New(poolTest), bearer(gen.APIKey)); ok {
+		t.Fatal("l'ancienne clé doit être invalide après rotation")
+	}
+	if _, ok := middleware.APIKeyContext(db.New(poolTest), bearer(rot.APIKey)); !ok {
+		t.Fatal("la nouvelle clé doit authentifier")
+	}
+
+	// Un autre utilisateur (approuvé API, pour franchir le check d'accès) ne
+	// peut pas rotater une clé qui ne lui appartient pas → 404 (isolation).
+	if _, err := poolTest.Exec(ctx,
+		`UPDATE "User" SET "apiAccessStatus" = 'approved' WHERE id = $1`, fx.ViewerID); err != nil {
+		t.Fatalf("approve viewer: %v", err)
+	}
+	w = doKeys(r, http.MethodPost, "/v1/settings/api-keys/"+keyID+"/rotate", fx.ViewerID, "")
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("rotate par un tiers = %d, attendu 404", w.Code)
+	}
+
+	// Rotation d'une clé inexistante → 404.
+	w = doKeys(r, http.MethodPost, "/v1/settings/api-keys/inexistante/rotate", fx.OwnerID, "")
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("rotate inconnue = %d, attendu 404", w.Code)
+	}
+}
+
+// bearer construit une requête GET avec l'en-tête Authorization Bearer.
+func bearer(token string) *http.Request {
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	return req
 }

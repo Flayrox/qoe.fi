@@ -66,6 +66,11 @@ ORDER BY "createdAt" DESC;
 -- name: DeleteApiKey :exec
 DELETE FROM "ApiKey" WHERE id = $1 AND "userId" = $2;
 
+-- name: UpdateApiKeySecret :execrows
+UPDATE "ApiKey"
+SET "keyHash" = $2, "keyPrefix" = $3
+WHERE id = $1 AND "userId" = $4;
+
 -- name: CompleteOnboardingUser :exec
 UPDATE "User"
 SET role = $2, "hasCompletedOnboarding" = true, name = $3, "updatedAt" = now()
