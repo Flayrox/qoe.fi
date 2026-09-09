@@ -11,7 +11,7 @@
     outline-color: color-mix(in oklch, var(--ring) 50%, transparent);
   }
   body {
-    background: var(--surface-1);
+    background: var(--background);
     color: var(--foreground);
     font-feature-settings:
       'rlig' 1,
