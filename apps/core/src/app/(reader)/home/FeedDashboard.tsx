@@ -765,21 +765,27 @@ export function FeedDashboard({
         )}
       >
         {/* Opaque Sticky Header of the Sheet (No Background Bleed-Through) */}
-        <div className="sticky top-0 z-20 flex items-center justify-between px-4 sm:px-6 py-3 bg-card border-b border-border/40 rounded-t-2xl">
-          <FeedTabsHeader
-            activeFeed={activeFeed}
-            onTabChange={(id) => {
-              if (activeFeed === id) {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              } else {
-                setActiveFeed(id);
-                setSelectedTag(null);
-                setActivePostId(null);
-                setActiveArticle(null);
-                trackEvent('feed_tab_changed', { tab: id });
-              }
-            }}
-          />
+        <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-md border-b border-border/40 rounded-t-2xl">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+              <div className="lg:col-span-8 flex items-center justify-between">
+                <FeedTabsHeader
+                  activeFeed={activeFeed}
+                  onTabChange={(id) => {
+                    if (activeFeed === id) {
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    } else {
+                      setActiveFeed(id);
+                      setSelectedTag(null);
+                      setActivePostId(null);
+                      setActiveArticle(null);
+                      trackEvent('feed_tab_changed', { tab: id });
+                    }
+                  }}
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Responsive Grid Container (Main Stream + Semantic Sidebar) */}

@@ -278,8 +278,8 @@ export function LibraryClient({
 
   return (
     <ReaderPageLayout giantTitle={t`Bibliothèque`}>
-      <div className="bg-card text-card-foreground shadow-xl border-t border-x border-border/40 rounded-t-3xl min-h-screen mt-20 relative z-20">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 pt-6 pb-16 space-y-6">
+      <div className="bg-card text-card-foreground shadow-xl border-t border-x border-border/40 rounded-t-2xl min-h-screen mt-20 relative z-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-6 pb-16 space-y-6">
           {/* Header épuré */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/40 pb-5">
             <div>
