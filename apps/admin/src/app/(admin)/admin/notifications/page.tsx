@@ -1,10 +1,15 @@
 import { Activity, AlertTriangle, CheckCircle2, Clock3, Mail } from 'lucide-react';
 import { getAdminDeliveries } from '@/lib/admin-data';
+import { getGlobalAnnouncementAction } from '@/lib/admin-aux-actions';
 import { DeliveryTable, type DeliveryRow } from './DeliveryTable';
+import { BroadcastAnnouncementConsole } from './BroadcastAnnouncementConsole';
 
 export default async function AdminNotificationsPage() {
-  // Compteurs + 50 dernières livraisons (Go en primaire, fallback Prisma dev).
-  const { counts, total: totalCount, deliveries } = await getAdminDeliveries();
+  const [deliveriesData, announcement] = await Promise.all([
+    getAdminDeliveries(),
+    getGlobalAnnouncementAction(),
+  ]);
+  const { counts, total: totalCount, deliveries } = deliveriesData;
 
   const rows: DeliveryRow[] = deliveries.map((delivery) => ({
     id: delivery.id,
@@ -62,6 +67,10 @@ export default async function AdminNotificationsPage() {
           in-app restent indépendants des livraisons externes.
         </p>
       </div>
+
+      {/* 📣 Console de diffusion d'annonces avec courbure inversée */}
+      <BroadcastAnnouncementConsole initialAnnouncement={announcement} />
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((card) => {
           const Icon = card.icon;
