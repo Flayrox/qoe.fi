@@ -19,9 +19,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/middleware"
+	"github.com/qoefi/api/internal/modules/mediaassets"
 	"github.com/qoefi/api/internal/permissions"
 	"github.com/qoefi/api/internal/response"
 	"github.com/qoefi/api/internal/slug"
+	"github.com/qoefi/api/internal/supastorage"
 	"github.com/qoefi/api/internal/umami"
 )
 
@@ -30,6 +32,9 @@ type Handler struct {
 	q          ServiceQuerier
 	umami      *umami.Client
 	defaultWeb string
+	// Upload d'images (injecté via WithMediaUpload) — nil = 503 explicite.
+	mediaStorage *supastorage.Client
+	mediaAssets  *mediaassets.Service
 }
 
 func NewHandler(pool *pgxpool.Pool, umamiCli *umami.Client, defaultWebsiteID string) *Handler {
@@ -62,6 +67,8 @@ func (h *Handler) RegisterAPIKey(r chi.Router) {
 	// canonique inclus (même payload) — le front du créateur peint les marques
 	// avec son propre code, zéro re-fetch, zéro recherche.
 	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/articles/{slug}/annotations", h.apiArticleAnnotations)
+	// Upload d'images (couvertures, corps) — scope WRITE.
+	r.With(middleware.RequireAPIScope(middleware.ScopeWrite)).Post("/v1/creator/media", h.apiMediaUpload)
 }
 
 // apiHighlights — GET /v1/creator/highlights : surlignages publics des

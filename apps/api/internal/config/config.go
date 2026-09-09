@@ -12,6 +12,10 @@ type Config struct {
 	DatabaseURL string
 	// SupabaseAuthURL est l'URL d'auth (pour la résolution JWKS RS256).
 	SupabaseAuthURL string
+	// SupabaseURL est l'origine Supabase (auth + storage REST) pour les uploads.
+	SupabaseURL string
+	// APIKeyRateLimit est le quota de requêtes par minute PAR CLÉ API créateur.
+	APIKeyRateLimit int
 	// SupabaseServiceRoleKey est utilisé uniquement côté serveur pour l'Admin API GoTrue.
 	SupabaseServiceRoleKey string
 	// JWTSecret est la clé HMAC de fallback (GoTrue legacy `sb_secret_…`).
@@ -66,7 +70,9 @@ func Load() *Config {
 		// que pgx enverrait comme startup parameters (refusés par Postgres).
 		DatabaseURL:            envOr("API_DATABASE_URL", envOr("DATABASE_URL", "")),
 		SupabaseAuthURL:        envOr("SUPABASE_AUTH_URL", envOr("NEXT_PUBLIC_SUPABASE_URL", "")),
+		SupabaseURL:            envOr("SUPABASE_URL", envOr("NEXT_PUBLIC_SUPABASE_URL", "")),
 		SupabaseServiceRoleKey: envOr("SUPABASE_SERVICE_ROLE_KEY", ""),
+		APIKeyRateLimit:        envInt("API_KEY_RATE_LIMIT", 600),
 		JWTSecret:              envOr("SUPABASE_JWT_SECRET", envOr("SUPABASE_SECRET_KEY", "")),
 		RedisURL:               envOr("REDIS_URL", "redis://localhost:6379"),
 		InternalSecret:         envOr("QOE_INTERNAL_SECRET", ""),
