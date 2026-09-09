@@ -20,12 +20,13 @@ import {
   absoluteTokenRect,
   buildBlockIndex,
   canonicalDocumentToBlocks,
-  computeHighlightTokenSets,
+  computeHighlightTokenMap,
   computeSpotlightTokenSet,
   htmlToBlocks,
   mergeRectsToBands,
   selectionToInfo,
   type Block,
+  type HighlightLike,
   type Rect,
   type RectsBundle,
   type SegmentInfo,
@@ -97,16 +98,7 @@ export interface ArticleHtmlProps {
    * Surlignages (publics + les miens) à rendre inline dans le texte —
    * mêmes entrées que GET /v1/articles/{id}/highlights.
    */
-  highlights?: (
-    | {
-        text?: string | null;
-        quoteOrdinal?: number;
-        canonicalStart?: number;
-        canonicalEnd?: number;
-      }
-    | null
-    | undefined
-  )[];
+  highlights?: (HighlightLike | null | undefined)[];
   /**
    * Document canonique (tranche 1-d) : les blocs viennent du serveur (fini
    * le re-parse HTML) et les marques sont peintes PAR OFFSETS. Absent →
@@ -118,6 +110,9 @@ export interface ArticleHtmlProps {
   /** Relâchement d'une sélection → le passage choisi (texte brut + ordinal).
    *  `null` = tap en dehors de la sélection → fermer le popover. */
   onSelect?: (info: SelectionInfo | null) => void;
+  /** Tap court sur un <mark> → le surlignage touché + sa position (menu
+   *  d'actions : annoter / citer / supprimer). */
+  onHighlightPress?: (highlight: HighlightLike, point: { x: number; y: number }) => void;
   /** Verrouille le scroll de la ScrollView pendant le geste de sélection. */
   onScrollLock?: (locked: boolean) => void;
   /** 🔦 Passage à mettre en avant (deep-link citation → article, 6-d) :
@@ -135,6 +130,7 @@ export function ArticleHtml({
   document,
   selection = null,
   onSelect,
+  onHighlightPress,
   onScrollLock,
   spotlight = null,
   onSpotlightMeasured,
@@ -145,10 +141,12 @@ export function ArticleHtml({
     [document, html]
   );
   const index = useMemo(() => buildBlockIndex(blocks), [blocks]);
-  const highlightedTokens = useMemo(
-    () => computeHighlightTokenSets(index, highlights, document),
+  // Carte token → surlignage : peinture inline + tap sur un <mark>.
+  const highlightTokenMap = useMemo(
+    () => computeHighlightTokenMap(index, highlights, document),
     [index, highlights, document]
   );
+  const highlightedTokens = useMemo(() => new Set(highlightTokenMap.keys()), [highlightTokenMap]);
   // 🔦 Passage deep-link (6-d) : tokens peints par offsets, uniquement si
   // l'empreinte du document chargé correspond (jamais de faux surlignage).
   const spotlightTokens = useMemo(
@@ -273,6 +271,7 @@ export function ArticleHtml({
     extend(_x: number, _y: number) {},
     finish() {},
     dismiss() {},
+    tap(_x: number, _y: number) {},
   });
   handlers.current.begin = (x, y) => {
     const id = hitTest(x, y);
@@ -311,6 +310,23 @@ export function ArticleHtml({
     if (selection && !activeRef.current) onSelect?.(null);
   };
 
+  // Tap court : si une sélection est ouverte → on la ferme ; sinon, si le
+  // doigt tombe sur un token surligné → menu d'actions du surlignage.
+  handlers.current.tap = (x, y) => {
+    if (selection && !activeRef.current) {
+      onSelect?.(null);
+      return;
+    }
+    if (activeRef.current) return;
+    const id = hitTest(x, y);
+    if (!id) return;
+    const hl = highlightTokenMap.get(id);
+    if (!hl) return;
+    const rect = absoluteTokenRect(bundles(), id);
+    if (!rect) return;
+    onHighlightPress?.(hl, { x: rect.x + rect.width / 2, y: rect.y });
+  };
+
   // ⚠️ Les callbacks de Gesture.Pan tournent sur le runtime UI (worklets
   // RNGH + Reanimated) : on ne peut PAS y appeler des fonctions JS du
   // thread React directement — « Tried to synchronously call a Remote
@@ -320,7 +336,7 @@ export function ArticleHtml({
     const beginJS = (x: number, y: number) => handlers.current.begin(x, y);
     const extendJS = (x: number, y: number) => handlers.current.extend(x, y);
     const finishJS = () => handlers.current.finish();
-    const dismissJS = () => handlers.current.dismiss();
+    const tapJS = (x: number, y: number) => handlers.current.tap(x, y);
     const pan = Gesture.Pan()
       .activateAfterLongPress(340)
       .shouldCancelWhenOutside(false)
@@ -328,18 +344,21 @@ export function ArticleHtml({
       .onUpdate((e) => runOnJS(extendJS)(e.x, e.y))
       .onEnd(() => runOnJS(finishJS)())
       .onFinalize(() => runOnJS(finishJS)());
-    if (!selection) return pan;
-    // Race : le tap court (≤ 250 ms) gagne → on ferme le popover ; l'appui
-    // long (> 250 ms) fait échouer le tap → la sélection peut recommencer.
+    // Race : le tap court (≤ 250 ms) gagne → fermer le popover ou ouvrir le
+    // menu d'un surlignage ; l'appui long (> 250 ms) fait échouer le tap →
+    // la sélection peut recommencer. Toujours actif (pas de sélection
+    // requise pour taper sur un <mark>).
     const tap = Gesture.Tap()
       .maxDuration(250)
       .maxDistance(20)
-      .onEnd((_e, success) => {
+      .onEnd((e, success) => {
         'worklet';
-        if (success) runOnJS(dismissJS)();
+        if (success) runOnJS(tapJS)(e.x, e.y);
       });
     return Gesture.Race(pan, tap);
-  }, [selection]);
+    // Tout passe par handlers.current (ref réassignée à chaque render) :
+    // aucune dépendance nécessaire dans ce useMemo.
+  }, []);
 
   // Rendu des blocs — mémoïsé : la peinture live ne re-rend que l'overlay.
   const blocksUi = useMemo(() => {

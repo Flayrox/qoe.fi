@@ -103,6 +103,24 @@ export async function removePendingHighlight(localId: string): Promise<void> {
   persist(next);
 }
 
+/** Met à jour la note d'une création en attente (annotation optimiste). */
+export async function updatePendingHighlightNote(
+  localId: string,
+  note: string | null
+): Promise<void> {
+  const list = await ensureLoaded();
+  let changed = false;
+  const next = list.map((p) => {
+    if (p.localId !== localId) return p;
+    changed = true;
+    return { ...p, note };
+  });
+  if (!changed) return;
+  cache = next;
+  notify();
+  persist(next);
+}
+
 /** Liste (synchrone) des créations en attente — pour les composants. */
 export function getPendingHighlights(): PendingHighlightCreate[] {
   return cache ?? [];

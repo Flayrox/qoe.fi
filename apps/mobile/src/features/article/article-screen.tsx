@@ -12,9 +12,9 @@ import Animated, {
   useSharedValue,
 } from 'react-native-reanimated';
 
-import { ArticleHighlights } from '@/components/article/article-highlights';
 import { ArticleBody } from '@/components/article/ArticleBody';
-import type { SelectionInfo } from '@/components/article/html-blocks';
+import { HighlightActionsPopover } from '@/components/article/highlight-actions-popover';
+import type { HighlightLike, SelectionInfo } from '@/components/article/html-blocks-core';
 import { SelectionPopover } from '@/components/article/selection-popover';
 import { SimilarArticles } from '@/components/article/similar-articles';
 import { CustomSubHeader } from '@/components/header/CustomSubHeader';
@@ -101,12 +101,32 @@ export function ArticleScreen({
   // Passage sélectionné par appui long (popover Surligner/Citer/Annoter/Copier).
   const [selection, setSelection] = useState<SelectionInfo | null>(null);
 
+  // 🖍️ Surlignage touché (tap sur un <mark>) → menu d'actions (sans carnet).
+  const [highlightTap, setHighlightTap] = useState<{
+    highlight: HighlightLike;
+    point: { x: number; y: number };
+  } | null>(null);
+
+  // La sélection et le tap sur surlignage s'excluent mutuellement : ouvrir
+  // l'un ferme l'autre (un tap hors sélection → onSelect(null) ferme les deux).
+  const handleSelect = useCallback((info: SelectionInfo | null) => {
+    setSelection(info);
+    setHighlightTap(null);
+  }, []);
+  const handleHighlightPress = useCallback(
+    (highlight: HighlightLike, point: { x: number; y: number }) => {
+      setSelection(null);
+      setHighlightTap({ highlight, point });
+    },
+    []
+  );
+
   // Pendant le geste de sélection, on verrouille le scroll de la ScrollView
   // (sinon elle vole le drag après l'appui long).
   const [scrollLock, setScrollLock] = useState(false);
 
-  // Surlignages inline (publics + les miens) — MÊME cache que la section
-  // ArticleHighlights ci-dessous : un seul fetch, deux consommateurs.
+  // Surlignages inline (publics + les miens) — même cache que le menu
+  // d'actions d'un surlignage : un seul fetch, plusieurs consommateurs.
   const { data: highlights } = useQuery({
     queryKey: ['highlights', data?.id ?? ''],
     queryFn: async () => {
@@ -321,7 +341,8 @@ export function ArticleScreen({
                   highlights={mergedHighlights}
                   document={canonicalDocument ?? undefined}
                   selection={selection}
-                  onSelect={setSelection}
+                  onSelect={handleSelect}
+                  onHighlightPress={handleHighlightPress}
                   onScrollLock={setScrollLock}
                   spotlight={spotlight}
                   onSpotlightMeasured={onSpotlightMeasured}
@@ -333,13 +354,16 @@ export function ArticleScreen({
                     onClose={() => setSelection(null)}
                   />
                 ) : null}
+                {highlightTap && data.id ? (
+                  <HighlightActionsPopover
+                    highlight={highlightTap.highlight}
+                    articleId={data.id}
+                    point={highlightTap.point}
+                    onClose={() => setHighlightTap(null)}
+                  />
+                ) : null}
               </View>
             </View>
-          ) : null}
-
-          {/* Surlignages (publics + les miens) */}
-          {data.id ? (
-            <ArticleHighlights articleId={data.id} pendingCreates={pendingCreates} />
           ) : null}
 
           {/* 🧠 À lire aussi — recommandations sémantiques (pgvector) */}
