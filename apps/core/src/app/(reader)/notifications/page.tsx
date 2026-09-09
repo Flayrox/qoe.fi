@@ -7,11 +7,24 @@ export const metadata = {
 
 export default function NotificationsPage() {
   return (
-    <main className="w-full min-h-screen border-r border-border bg-background">
-      <div className="p-4 border-b border-border flex items-center justify-between">
-        <h1 className="text-xl font-bold text-foreground">Notifications</h1>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <div className="lg:col-span-8 space-y-4">
+          <div className="flex items-center justify-between pb-4 border-b border-border/40">
+            <div>
+              <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
+                Notifications
+              </h1>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Toutes vos interactions, mentions et alertes en temps réel.
+              </p>
+            </div>
+          </div>
+          <div className="bg-card rounded-2xl border border-border/50 overflow-hidden shadow-xs">
+            <NotificationList />
+          </div>
+        </div>
       </div>
-      <NotificationList />
-    </main>
+    </div>
   );
 }

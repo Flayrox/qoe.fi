@@ -4,17 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Home,
-  Bookmark,
-  Wallet,
-  LogOut,
-  LayoutDashboard,
-  Bell,
-  Mail,
-  Settings,
-  UserRound,
-} from 'lucide-react';
+import { Home, Bookmark, LogOut, LayoutDashboard, Bell, Mail, UserRound } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { Logo, ThemeToggle, SafeAvatar } from '@qoe/ui';
 import { useUnreadNotificationCount } from '@qoe/ui/notifications';

@@ -57,7 +57,7 @@ export function StarterPacksGallery() {
   };
 
   return (
-    <div className="p-4 space-y-6 max-w-2xl mx-auto">
+    <div className="space-y-6 w-full">
       {/* Creation Toggle / Banner */}
       <div className="flex items-center justify-between bg-card/60 border border-border/60 backdrop-blur-md p-4 rounded-2xl shadow-xs">
         <div className="flex items-center gap-3">
@@ -147,7 +147,7 @@ export function StarterPacksGallery() {
 
       {/* Starter Packs Grid */}
       {!isLoading && starterPacks.length > 0 && (
-        <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {starterPacks.map((pack) => (
             <StarterPackCard key={pack.id} pack={pack} />
           ))}

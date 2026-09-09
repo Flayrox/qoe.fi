@@ -16,12 +16,19 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const initialQuery = resolvedParams?.q || '';
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         {/* Colonne Principale (Search Feed) */}
         <div className="lg:col-span-8 space-y-4">
-          <div className="pb-2 border-b border-border/40 flex items-center justify-between">
-            <h1 className="text-xl font-bold text-foreground tracking-tight">Recherche</h1>
+          <div className="flex items-center justify-between pb-4 border-b border-border/40">
+            <div>
+              <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
+                Recherche
+              </h1>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Explorez les pensées, les auteurs certifiés et les tendances.
+              </p>
+            </div>
           </div>
           <SearchFeed initialQuery={initialQuery} />
         </div>

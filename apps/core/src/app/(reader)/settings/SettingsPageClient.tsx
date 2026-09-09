@@ -272,9 +272,9 @@ export default function AccountSettingsPage({
     new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl gap-8 px-4 py-8 pb-32 md:px-8">
+    <main className="mx-auto flex w-full max-w-7xl gap-8 px-4 py-6 pb-32 sm:px-6">
       <aside className="hidden w-56 shrink-0 md:block">
-        <div className="sticky top-8 space-y-5">
+        <div className="sticky top-6 space-y-5">
           <div>
             <Link
               href="/home"
@@ -282,8 +282,8 @@ export default function AccountSettingsPage({
             >
               ← {t`Retour au feed`}
             </Link>
-            <h1 className="mt-5 text-2xl font-bold tracking-tight">{t`Réglages`}</h1>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            <h1 className="mt-4 text-lg sm:text-xl font-bold tracking-tight text-foreground">{t`Réglages`}</h1>
+            <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
               {t`Votre compte, votre espace, vos règles.`}
             </p>
           </div>
@@ -311,12 +311,12 @@ export default function AccountSettingsPage({
       </aside>
 
       <div className="min-w-0 flex-1">
-        <div className="mb-6 flex items-start justify-between gap-4 border-b border-border pb-5 md:hidden">
+        <div className="mb-6 flex items-start justify-between gap-4 border-b border-border/40 pb-4 md:hidden">
           <div>
-            <Link href="/home" className="text-xs text-muted-foreground">
+            <Link href="/home" className="text-xs text-muted-foreground hover:text-foreground">
               ← {t`Retour au feed`}
             </Link>
-            <h1 className="mt-3 text-2xl font-bold">{t`Réglages`}</h1>
+            <h1 className="mt-2 text-lg sm:text-xl font-bold tracking-tight text-foreground">{t`Réglages`}</h1>
           </div>
           <select
             value={activeSection}
