@@ -822,14 +822,22 @@ export const updateProfileAction = safeAction<
       },
     }),
     (async () => {
-      if (input.heroText === undefined && input.headerImageUrl === undefined) {
+      if (
+        input.heroText === undefined &&
+        input.headerImageUrl === undefined &&
+        input.logoUrl === undefined &&
+        input.name === undefined
+      ) {
         return null;
       }
       const publicationId = await getActivePublicationId();
+      if (!publicationId) return null;
       return goFetch<Record<string, unknown>>('/v1/settings/profile', {
         method: 'PATCH',
         body: {
           publicationId,
+          name: input.name ?? undefined,
+          logoUrl: input.logoUrl ?? undefined,
           heroText: input.heroText ?? undefined,
           headerImageUrl: input.headerImageUrl ?? undefined,
         },
@@ -1196,7 +1204,25 @@ export const resolveProfileAction = safeAction<string, ProfileResolvePayload>(
       pronouns: profile.pronouns ?? null,
       isCertified: profile.isCertified,
       createdAt: profile.createdAt,
-      posts: postsRes.items.map(mapProfileSlice),
+      posts: postsRes.items.map(mapProfileSlice).map((p) => {
+        const isProfileAuthor =
+          p.author.id === profile.id ||
+          p.author.id === profile.ownerUserId ||
+          (!!profile.slug && p.author.username === profile.slug) ||
+          (!!profile.subdomain && p.author.username === profile.subdomain);
+        if (isProfileAuthor && profile.logoUrl) {
+          return {
+            ...p,
+            author: {
+              ...p.author,
+              logoUrl: profile.logoUrl,
+              name: profile.name ?? p.author.name,
+              username: profile.slug ?? p.author.username,
+            },
+          };
+        }
+        return p;
+      }),
       articles: articlesRes.items.map(mapProfileArticle),
       _count: {
         followers: profile._count?.followers ?? 0,

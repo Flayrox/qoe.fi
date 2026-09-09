@@ -187,16 +187,48 @@ export function ProfileView({
     return true;
   };
 
+  const profileHandle = user.username || user.subdomain || 'user';
+
+  // 🛡️ Unification de l'avatar et de l'auteur des pensées avec l'identité du profil
+  const enrichedPosts = React.useMemo(() => {
+    return (user.posts || []).map((p) => {
+      const isOwner =
+        p.author.id === user.id ||
+        p.author.id === user.ownerUserId ||
+        (!!user.username && p.author.username === user.username) ||
+        (!!user.subdomain && p.author.username === user.subdomain);
+      if (isOwner && user.logoUrl && p.author.logoUrl !== user.logoUrl) {
+        return {
+          ...p,
+          author: {
+            ...p.author,
+            logoUrl: user.logoUrl,
+            name: user.name ?? p.author.name,
+            username: user.username ?? p.author.username,
+          },
+        };
+      }
+      return p;
+    });
+  }, [
+    user.posts,
+    user.id,
+    user.ownerUserId,
+    user.username,
+    user.subdomain,
+    user.logoUrl,
+    user.name,
+  ]);
+
   // Filter content for tabs
-  const rootThoughts = user.posts?.filter((p) => !p.parentId) || [];
-  const replyThoughts = user.posts?.filter((p) => !!p.parentId) || [];
+  const rootThoughts = enrichedPosts.filter((p) => !p.parentId);
+  const replyThoughts = enrichedPosts.filter((p) => !!p.parentId);
   const articlesList = user.articles || [];
-  const repostsList = user.posts?.filter((p) => !!p.repostId && !!p.repost) || [];
-  const mediaThoughts = user.posts?.filter((p) => !!p.imageUrl) || [];
+  const repostsList = enrichedPosts.filter((p) => !!p.repostId && !!p.repost);
+  const mediaThoughts = enrichedPosts.filter((p) => !!p.imageUrl);
   const pinnedThoughts = rootThoughts.filter((p) => p.isPinned);
   const regularThoughts = rootThoughts.filter((p) => !p.isPinned);
   const siteUrl = user.customDomain || (user.subdomain ? `${user.subdomain}.qoe.fi` : null);
-  const profileHandle = user.username || user.subdomain || 'user';
 
   const formattedJoinedDate = new Date(user.createdAt).toLocaleDateString('fr-FR', {
     month: 'long',
