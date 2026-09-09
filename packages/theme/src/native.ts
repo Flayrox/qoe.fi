@@ -42,7 +42,7 @@ export const nativeTokens = {
     },
 
     // ── Layer 2 — Sémantiques résolues (tokens.css, thème light)
-    background: '#f5f5f7',
+    background: '#ffffff',
     foreground: '#09090b',
     card: '#ffffff',
     cardForeground: '#09090b',
