@@ -24,7 +24,7 @@ export function ReaderPageLayout({
   const isTimeline = pathname.endsWith('/home') || pathname.endsWith('/home/');
 
   return (
-    <div className="relative min-h-screen bg-card text-foreground selection:bg-primary/10 selection:text-primary">
+    <div className="relative min-h-screen bg-background text-foreground selection:bg-primary/10 selection:text-primary">
       {/* ── BACKGROUND FIXED HEADER REGION ── */}
       <div className="fixed top-0 left-0 md:left-[256px] right-0 z-0 pointer-events-none flex flex-col justify-start">
         {/* Static Background "Lire" giant title & manifesto header */}

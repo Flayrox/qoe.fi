@@ -766,7 +766,7 @@ export function FeedDashboard({
         }}
         transition={{ type: 'spring', stiffness: 350, damping: 32 }}
         className={cn(
-          'w-full bg-card text-card-foreground relative z-10',
+          'w-full bg-background text-foreground relative z-10',
           'transition-[max-width,border-radius] duration-200 ease-out',
           isFullyCovered || activePostId || activeArticle
             ? 'max-w-full mx-0 rounded-none border-t-0 border-x-0'
@@ -776,7 +776,7 @@ export function FeedDashboard({
         {/* 100% Solid Opaque Sticky Header of the Sheet (No Background Bleed-Through) */}
         <div
           className={cn(
-            'sticky top-0 z-20 bg-card border-b border-border/40 px-4 sm:px-6 py-3 transition-[border-radius] duration-200',
+            'sticky top-0 z-20 bg-background border-b border-border/40 px-4 sm:px-6 py-3 transition-[border-radius] duration-200',
             isFullyCovered || activePostId || activeArticle ? 'rounded-none' : 'rounded-t-2xl'
           )}
         >

@@ -60,8 +60,8 @@
    LAYER 2 — Sémantiques (thème light neutre par défaut)
    ───────────────────────────────────────────── */
 :root {
-  /* Surfaces & texte (Fond blanc pur) */
-  --background: var(--zinc-0);
+  /* Surfaces & texte (Fond gris doux Apple #f5f5f7) */
+  --background: #f5f5f7;
   --foreground: var(--zinc-950);
 
   --card: var(--zinc-0);
@@ -127,7 +127,7 @@
 
   /* Surface System — Layered Paper */
   --surface-0: var(--zinc-0);
-  --surface-1: var(--zinc-0);
+  --surface-1: var(--background);
   --surface-2: var(--zinc-100);
   --surface-3: var(--zinc-200);
 

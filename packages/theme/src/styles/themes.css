@@ -59,7 +59,7 @@
 
   /* Surface & text overrides (Layer 2 v2) */
   --surface-0: #0a0a0c;
-  --surface-1: #121215;
+  --surface-1: var(--background);
   --surface-2: #1c1c20;
   --surface-3: #27272a;
 
