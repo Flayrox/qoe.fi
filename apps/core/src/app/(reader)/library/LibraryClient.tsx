@@ -336,7 +336,7 @@ export function LibraryClient({
         {/* KPI 1 : Lectures sauvegardées */}
         <div className="bg-card rounded-xl p-4 border border-border/50 shadow-2xs flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+            <span className="text-xs font-medium text-muted-foreground block">
               {t`Articles sauvegardés`}
             </span>
             <div className="flex items-baseline gap-2 mt-1">
@@ -356,7 +356,7 @@ export function LibraryClient({
         {/* KPI 2 : Surlignages */}
         <div className="bg-card rounded-xl p-4 border border-border/50 shadow-2xs flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
+            <span className="text-xs font-medium text-muted-foreground block">
               {t`Passages surlignés`}
             </span>
             <div className="flex items-baseline gap-2 mt-1">
@@ -376,8 +376,8 @@ export function LibraryClient({
         {/* KPI 3 : Annotations */}
         <div className="bg-card rounded-xl p-4 border border-border/50 shadow-2xs flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
-              {t`Réflexions & Notes`}
+            <span className="text-xs font-medium text-muted-foreground block">
+              {t`Réflexions & notes`}
             </span>
             <div className="flex items-baseline gap-2 mt-1">
               <span className="text-xl font-bold tracking-tight text-foreground">
@@ -665,7 +665,7 @@ export function LibraryClient({
                       <div className="flex items-center justify-between pt-2 border-t border-border/40 text-xs">
                         <div className="flex items-center gap-2">
                           {b.article.category && (
-                            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md border border-border/40">
+                            <span className="text-[11px] font-medium text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md border border-border/40">
                               {b.article.category.name}
                             </span>
                           )}
@@ -738,7 +738,7 @@ export function LibraryClient({
                             {b.article.category && (
                               <>
                                 <span>•</span>
-                                <span className="text-[10px] uppercase font-semibold text-muted-foreground/80">
+                                <span className="text-[11px] font-medium text-muted-foreground/80">
                                   {b.article.category.name}
                                 </span>
                               </>
@@ -870,7 +870,7 @@ export function LibraryClient({
                             <div className="flex items-start gap-2 min-w-0">
                               <PenLine className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
                               <div className="space-y-0.5">
-                                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                <span className="text-xs font-medium text-muted-foreground">
                                   {t`Votre annotation`}
                                 </span>
                                 <p className="text-xs text-foreground/90 leading-relaxed whitespace-pre-wrap">

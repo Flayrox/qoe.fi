@@ -449,7 +449,7 @@ export function ProfileView({
                   {/* Pensées épinglées en tête (parité Bluesky) */}
                   {pinnedThoughts.map((post) => (
                     <div key={post.id} className="relative">
-                      <div className="flex items-center gap-1.5 px-1 pt-2 pb-0.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                      <div className="flex items-center gap-1.5 px-1 pt-2 pb-0.5 text-xs font-medium text-muted-foreground">
                         <Pin className="w-3 h-3" />
                         <span>Épinglé</span>
                       </div>

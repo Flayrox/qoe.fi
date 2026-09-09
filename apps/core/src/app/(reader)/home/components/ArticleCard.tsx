@@ -308,7 +308,7 @@ export function ArticleCard({
           <div className="flex min-w-0 items-center gap-2.5">
             {discovery && (
               <span
-                className="flex shrink-0 items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-primary"
+                className="flex shrink-0 items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-medium text-primary"
                 title={t`Sélection hors de ta bulle, choisie pour élargir tes horizons`}
               >
                 ✦ {t`Découverte`}

@@ -65,11 +65,11 @@ export function BillingClient({ billing, userEmail, userName }: BillingClientPro
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
-              Portefeuille & Abonnements
+              Portefeuille & abonnements
             </h1>
             <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-success/10 text-success border border-success/20">
               <span className="w-1.5 h-1.5 rounded-full bg-success" />
-              Souverain
+              Actif
             </span>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -91,7 +91,7 @@ export function BillingClient({ billing, userEmail, userName }: BillingClientPro
 
       {/* ─── Fintech Hero Bento Grid ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Carte Virtuelle Qoe Sovereign (Col 7) */}
+        {/* Carte Virtuelle Qoe Pay (Col 7) */}
         <div className="lg:col-span-7 relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-card via-card/90 to-primary/5 p-6 shadow-md flex flex-col justify-between min-h-[220px]">
           {/* Lueur d'arrière-plan subtile */}
           <div className="absolute -right-16 -top-16 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none" />
@@ -99,15 +99,13 @@ export function BillingClient({ billing, userEmail, userName }: BillingClientPro
           {/* Rangée supérieure de la carte */}
           <div className="flex items-start justify-between relative z-10">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center text-primary font-bold text-xs tracking-wider">
+              <div className="w-8 h-8 rounded-lg bg-primary/15 flex items-center justify-center text-primary font-bold text-xs">
                 Q
               </div>
               <div>
-                <span className="text-xs font-bold tracking-wider uppercase text-foreground block">
-                  Qoe Sovereign
-                </span>
+                <span className="text-xs font-bold text-foreground block">Qoe Pay</span>
                 <span className="text-[10px] text-muted-foreground font-medium block">
-                  Compte Lecteur
+                  Compte lecteur
                 </span>
               </div>
             </div>
@@ -122,7 +120,7 @@ export function BillingClient({ billing, userEmail, userName }: BillingClientPro
 
           {/* Solde central & Titulaire */}
           <div className="my-6 relative z-10">
-            <span className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground block">
+            <span className="text-xs font-medium text-muted-foreground block">
               Solde disponible
             </span>
             <div className="flex items-baseline gap-2 mt-1">
@@ -136,11 +134,9 @@ export function BillingClient({ billing, userEmail, userName }: BillingClientPro
           {/* Rangée inférieure : Titulaire & badge */}
           <div className="flex items-center justify-between pt-4 border-t border-border/40 relative z-10 text-xs">
             <div className="min-w-0">
-              <span className="text-[10px] text-muted-foreground uppercase tracking-wider block font-semibold">
-                Titulaire
-              </span>
+              <span className="text-[10px] text-muted-foreground block font-medium">Titulaire</span>
               <span className="font-semibold text-foreground truncate block">
-                {userName || userEmail || 'Lecteur souverain'}
+                {userName || userEmail || 'Lecteur'}
               </span>
             </div>
             <span className="text-[10px] font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-md border border-primary/20">
@@ -154,7 +150,7 @@ export function BillingClient({ billing, userEmail, userName }: BillingClientPro
           {/* KPI 1 : Abonnements */}
           <div className="bg-card rounded-2xl p-5 border border-border/50 shadow-2xs flex flex-col justify-between">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+              <span className="text-xs font-semibold text-muted-foreground">
                 Abonnements actifs
               </span>
               <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
@@ -176,9 +172,7 @@ export function BillingClient({ billing, userEmail, userName }: BillingClientPro
           {/* KPI 2 : Activité */}
           <div className="bg-card rounded-2xl p-5 border border-border/50 shadow-2xs flex flex-col justify-between">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                Transactions
-              </span>
+              <span className="text-xs font-semibold text-muted-foreground">Transactions</span>
               <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
                 <TrendingUp className="w-3.5 h-3.5" />
               </div>
@@ -200,8 +194,8 @@ export function BillingClient({ billing, userEmail, userName }: BillingClientPro
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <CreditCard className="w-4 h-4 text-primary" />
-            <h2 className="text-sm font-bold tracking-tight text-foreground uppercase">
-              Abonnements Premium
+            <h2 className="text-sm font-bold tracking-tight text-foreground">
+              Abonnements premium
             </h2>
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
               {billing.subscriptions.length}
@@ -286,8 +280,8 @@ export function BillingClient({ billing, userEmail, userName }: BillingClientPro
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Receipt className="w-4 h-4 text-primary" />
-            <h2 className="text-sm font-bold tracking-tight text-foreground uppercase">
-              Historique des Transactions
+            <h2 className="text-sm font-bold tracking-tight text-foreground">
+              Historique des transactions
             </h2>
           </div>
 

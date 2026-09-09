@@ -100,7 +100,7 @@ export function ArticleRow({
               {article.title}
             </h3>
             {article.isPremium && (
-              <span className="px-1.5 py-0.5 rounded-xs bg-highlight/10 border border-highlight/20 text-highlight text-[9px] font-bold uppercase tracking-wider shrink-0">
+              <span className="px-1.5 py-0.5 rounded-xs bg-highlight/10 border border-highlight/20 text-highlight text-[10px] font-medium shrink-0">
                 Premium
               </span>
             )}
