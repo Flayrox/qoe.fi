@@ -18,23 +18,18 @@ import { toast } from '@qoe/ui/toast';
 import { routes } from '@qoe/config/routes';
 import { cn } from '@qoe/utils';
 
-export interface BillingTransaction {
-  id: string;
-  type: string;
-  amountCents: number;
-  createdAt: string;
-}
+import {
+  type BillingTransaction,
+  type BillingSubscription,
+  type BillingData,
+  type BillingTransactionFilter,
+  formatTransactionAmount,
+  filterBillingTransactions,
+  calculateBillingKPIs,
+  formatTransactionDate,
+} from './billing-helpers';
 
-export interface BillingSubscription {
-  id: string;
-  publication: { name: string | null; logoUrl: string | null; slug: string } | null;
-}
-
-export interface BillingData {
-  walletBalanceCents: number;
-  walletTransactions: BillingTransaction[];
-  subscriptions: BillingSubscription[];
-}
+export type { BillingTransaction, BillingSubscription, BillingData };
 
 interface BillingClientProps {
   billing: BillingData;
@@ -43,18 +38,15 @@ interface BillingClientProps {
 }
 
 export function BillingClient({ billing, userEmail, userName }: BillingClientProps) {
-  const [filter, setFilter] = useState<'all' | 'credits' | 'debits'>('all');
+  const [filter, setFilter] = useState<BillingTransactionFilter>('all');
 
-  const balance = ((billing.walletBalanceCents || 0) / 100).toFixed(2);
-  const totalTransactions = billing.walletTransactions.length;
-  const creditsCount = billing.walletTransactions.filter((t) => t.amountCents > 0).length;
-  const debitsCount = billing.walletTransactions.filter((t) => t.amountCents <= 0).length;
+  const kpis = calculateBillingKPIs(billing);
+  const balance = kpis.balanceEuros;
+  const totalTransactions = kpis.totalTransactions;
+  const creditsCount = kpis.creditsCount;
+  const debitsCount = kpis.debitsCount;
 
-  const filteredTransactions = billing.walletTransactions.filter((t) => {
-    if (filter === 'credits') return t.amountCents > 0;
-    if (filter === 'debits') return t.amountCents <= 0;
-    return true;
-  });
+  const filteredTransactions = filterBillingTransactions(billing.walletTransactions, filter);
 
   const handleTopUp = () => {
     toast.info(
@@ -347,8 +339,10 @@ export function BillingClient({ billing, userEmail, userName }: BillingClientPro
         ) : (
           <div className="bg-card rounded-2xl border border-border/50 overflow-hidden shadow-2xs divide-y divide-border/40">
             {filteredTransactions.map((tx) => {
-              const isCredit = tx.amountCents > 0;
-              const formattedAmount = `${isCredit ? '+' : ''}${(tx.amountCents / 100).toFixed(2)} €`;
+              const { formatted: formattedAmount, isCredit } = formatTransactionAmount(
+                tx.amountCents
+              );
+              const formattedDate = formatTransactionDate(tx.createdAt);
 
               return (
                 <div
@@ -375,13 +369,7 @@ export function BillingClient({ billing, userEmail, userName }: BillingClientPro
                         {tx.type || (isCredit ? 'Rechargement' : 'Paiement')}
                       </span>
                       <span className="text-[11px] text-muted-foreground font-medium">
-                        {new Date(tx.createdAt).toLocaleDateString('fr-FR', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
+                        {formattedDate}
                       </span>
                     </div>
                   </div>

@@ -1,6 +1,7 @@
 import type { LibraryBookmark, LibraryHighlight } from './LibraryClient';
 
 export type LibraryTab = 'bookmarks' | 'highlights' | 'annotations';
+export type ReadingTimeFilter = 'all' | 'quick' | 'medium' | 'deep';
 
 /**
  * Résout l'onglet actif à partir des query params d'URL (?tab=...).
@@ -40,6 +41,44 @@ export function filterBookmarks(bookmarks: LibraryBookmark[], query: string): Li
 }
 
 /**
+ * Filtre les signets selon la durée estimée de lecture (< 5 min, 5-15 min, > 15 min).
+ */
+export function filterBookmarksByTime(
+  bookmarks: LibraryBookmark[],
+  filter: ReadingTimeFilter
+): LibraryBookmark[] {
+  if (!Array.isArray(bookmarks)) return [];
+  if (filter === 'quick') {
+    return bookmarks.filter((b) => (b.article.readingTime || 0) < 5);
+  }
+  if (filter === 'medium') {
+    return bookmarks.filter(
+      (b) => (b.article.readingTime || 0) >= 5 && (b.article.readingTime || 0) <= 15
+    );
+  }
+  if (filter === 'deep') {
+    return bookmarks.filter((b) => (b.article.readingTime || 0) > 15);
+  }
+  return bookmarks;
+}
+
+/**
+ * Calcule le cumul des minutes de lecture pour une liste d'articles sauvegardés.
+ */
+export function calculateTotalReadingMinutes(bookmarks: LibraryBookmark[]): number {
+  if (!Array.isArray(bookmarks)) return 0;
+  return bookmarks.reduce((acc, b) => acc + (b.article.readingTime || 0), 0);
+}
+
+/**
+ * Formate une citation pour le presse-papier avec les métadonnées de source.
+ */
+export function formatQuoteForClipboard(h: LibraryHighlight): string {
+  const pubName = h.article.publication.name || 'Qoe.fi';
+  return `« ${h.text} »\n— ${pubName}, dans "${h.article.title}"\nhttps://qoe.fi/article/${h.article.slug}`;
+}
+
+/**
  * Filtre les surlignages en temps réel selon une requête de recherche.
  */
 export function filterHighlights(
@@ -75,7 +114,7 @@ export function generateHighlightsMarkdown(
   highlights: LibraryHighlight[],
   exportDate: Date = new Date()
 ): string {
-  if (highlights.length === 0) return '';
+  if (!Array.isArray(highlights) || highlights.length === 0) return '';
 
   const dateStr = exportDate.toLocaleDateString('fr-FR', {
     day: 'numeric',

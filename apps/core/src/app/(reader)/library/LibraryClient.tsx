@@ -32,10 +32,14 @@ import { cn } from '@qoe/utils';
 import {
   cleanArticleExcerpt,
   filterBookmarks,
+  filterBookmarksByTime,
+  calculateTotalReadingMinutes,
+  formatQuoteForClipboard,
   filterHighlights,
   filterAnnotations,
   generateHighlightsMarkdown,
   type LibraryTab,
+  type ReadingTimeFilter,
 } from './library-helpers';
 
 export interface LibraryBookmarkArticle {
@@ -103,7 +107,7 @@ export function LibraryClient({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [editingHighlightId, setEditingHighlightId] = useState<string | null>(null);
   const [noteInput, setNoteInput] = useState('');
-  const [timeFilter, setTimeFilter] = useState<'all' | 'quick' | 'medium' | 'deep'>('all');
+  const [timeFilter, setTimeFilter] = useState<ReadingTimeFilter>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   // État local optimiste pour les suppressions / mises à jour instantanées
@@ -126,22 +130,13 @@ export function LibraryClient({
 
   // ── Métriques rapides de lecture ─────────────────────────────────
   const totalReadingMinutes = useMemo(() => {
-    return bookmarks.reduce((acc, b) => acc + (b.article.readingTime || 0), 0);
+    return calculateTotalReadingMinutes(bookmarks);
   }, [bookmarks]);
 
   // ── Filtrage temps réel ──────────────────────────────────────────
   const filteredBookmarks = useMemo(() => {
-    let list = filterBookmarks(bookmarks, searchQuery);
-    if (timeFilter === 'quick') {
-      list = list.filter((b) => (b.article.readingTime || 0) < 5);
-    } else if (timeFilter === 'medium') {
-      list = list.filter(
-        (b) => (b.article.readingTime || 0) >= 5 && (b.article.readingTime || 0) <= 15
-      );
-    } else if (timeFilter === 'deep') {
-      list = list.filter((b) => (b.article.readingTime || 0) > 15);
-    }
-    return list;
+    const list = filterBookmarks(bookmarks, searchQuery);
+    return filterBookmarksByTime(list, timeFilter);
   }, [bookmarks, searchQuery, timeFilter]);
 
   const filteredHighlights = useMemo(
@@ -185,7 +180,7 @@ export function LibraryClient({
 
   // ── Actions Surlignages ──────────────────────────────────────────
   const handleCopyHighlight = async (h: LibraryHighlight) => {
-    const formatted = `« ${h.text} »\n— ${h.article.publication.name}, dans "${h.article.title}"\nhttps://qoe.fi/article/${h.article.slug}`;
+    const formatted = formatQuoteForClipboard(h);
     try {
       await navigator.clipboard.writeText(formatted);
       setCopiedId(h.id);
