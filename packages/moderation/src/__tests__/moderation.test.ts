@@ -9,6 +9,7 @@ import {
   fastPathScan,
   chunkText,
   detectMagicBytes,
+  OpenAiModerator,
 } from '../index';
 
 describe('@qoe/moderation — Email Guard', () => {
@@ -141,5 +142,79 @@ describe('@qoe/moderation — Magic Bytes Image Guard', () => {
     const fakeBuffer = Buffer.from('ceci est un faux fichier binaire image');
     const res = detectMagicBytes(fakeBuffer);
     expect(res.valid).toBe(false);
+  });
+});
+
+describe('@qoe/moderation — OpenAI Omni-Moderator', () => {
+  it('retourne un résultat sain en dev sans clé API', async () => {
+    const moderator = new OpenAiModerator({ apiKey: 'sk-mock' });
+    const result = await moderator.moderate({ text: 'Texte anodin' });
+    expect(result.safe).toBe(true);
+    expect(result.flagged).toBe(false);
+    expect(result.flags.isCsam).toBe(false);
+  });
+
+  it('détecte et traite les violations CSAM et haine depuis la réponse API', async () => {
+    const originalFetch = globalThis.fetch;
+    try {
+      globalThis.fetch = async () =>
+        ({
+          ok: true,
+          json: async () => ({
+            results: [
+              {
+                flagged: true,
+                categories: {
+                  'sexual/minors': true,
+                  hate: true,
+                  violence: false,
+                },
+                category_scores: {
+                  'sexual/minors': 0.99,
+                  hate: 0.85,
+                },
+              },
+            ],
+          }),
+        }) as unknown as Response;
+
+      const moderator = new OpenAiModerator({ apiKey: 'sk-real-test-key-123' });
+      const result = await moderator.moderate({ text: 'Violation grave' });
+      expect(result.safe).toBe(false);
+      expect(result.flagged).toBe(true);
+      expect(result.flags.isCsam).toBe(true);
+      expect(result.flags.isHate).toBe(true);
+      expect(result.flaggedCategories).toContain('sexual/minors');
+      expect(result.flaggedCategories).toContain('hate');
+      expect(result.reason).toContain('sexual/minors');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it('gère les contenus conformes sans faux positifs', async () => {
+    const originalFetch = globalThis.fetch;
+    try {
+      globalThis.fetch = async () =>
+        ({
+          ok: true,
+          json: async () => ({
+            results: [
+              {
+                flagged: false,
+                categories: {},
+                category_scores: {},
+              },
+            ],
+          }),
+        }) as unknown as Response;
+
+      const moderator = new OpenAiModerator({ apiKey: 'sk-real-test-key-123' });
+      const result = await moderator.moderate({ text: 'Article de qualité' });
+      expect(result.safe).toBe(true);
+      expect(result.flagged).toBe(false);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });
