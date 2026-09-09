@@ -9,6 +9,7 @@ import { useDrawer } from '@/components/drawer/drawer-context';
 import { ThemedText } from '@/components/themed-text';
 import { Avatar } from '@/components/thought/avatar';
 import { ActionSheet, type ActionSheetGroup } from '@/components/ui/action-sheet';
+import { CertifiedBadge } from '@/components/ui/badge';
 import { Toast } from '@/components/ui/toast';
 import { Spacing } from '@/constants/theme';
 import { AddAccountModal } from '@/features/auth/add-account-modal';
@@ -368,9 +369,7 @@ export function Sidebar() {
             {displayName}
           </ThemedText>
           {me?.isCertified ? (
-            <View style={styles.certifiedBadgeInline}>
-              <ThemedText style={styles.certifiedTextInline}>✓</ThemedText>
-            </View>
+            <CertifiedBadge size={15} style={styles.certifiedBadgeInline} />
           ) : null}
         </View>
         <ThemedText style={[styles.handle, { color: theme.textSecondary }]} numberOfLines={1}>
@@ -571,18 +570,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
   certifiedBadgeInline: {
-    width: 15,
-    height: 15,
-    borderRadius: 7.5,
-    backgroundColor: '#ee4b2b',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  certifiedTextInline: {
-    color: '#ffffff',
-    fontSize: 9,
-    fontWeight: '800',
-    lineHeight: 11,
+    marginLeft: 2,
   },
   handle: {
     fontSize: 14,

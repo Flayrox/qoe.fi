@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Image from 'next/image';
 import { cn } from '@qoe/utils';
 import { getAvatarTheme } from '@qoe/theme';
+import { UserSilhouette, MediaEmblem } from '@qoe/brand';
 
 export type AvatarShape = 'circle' | 'squircle';
 export type AvatarAccountType = 'PERSONAL' | 'MEDIA';
@@ -19,58 +20,6 @@ export interface SafeAvatarProps {
   className?: string;
   fallbackClass?: string;
   unoptimized?: boolean;
-}
-
-/**
- * 🧑 Pictogramme moderne et minimaliste de silhouette humaine (style Twitter / Discord 2026).
- */
-function UserSilhouetteSvg({ size }: { size: number }) {
-  const iconSize = Math.max(12, Math.round(size * 0.52));
-  return (
-    <svg
-      width={iconSize}
-      height={iconSize}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      xmlns="http://www.w3.org/2000/svg"
-      className="shrink-0 transition-transform duration-200"
-      aria-hidden="true"
-    >
-      {/* Tête */}
-      <circle cx="12" cy="7.5" r="4.25" />
-      {/* Buste / Épaules */}
-      <path d="M4.5 20.25c0-4.142 3.358-7.5 7.5-7.5s7.5 3.358 7.5 7.5a.75.75 0 0 1-.75.75H5.25a.75.75 0 0 1-.75-.75z" />
-    </svg>
-  );
-}
-
-/**
- * 📰 Emblème éditorial moderne pour les médias, revues et publications.
- */
-function MediaEmblemSvg({ size }: { size: number }) {
-  const iconSize = Math.max(12, Math.round(size * 0.5));
-  return (
-    <svg
-      width={iconSize}
-      height={iconSize}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      xmlns="http://www.w3.org/2000/svg"
-      className="shrink-0 transition-transform duration-200"
-      aria-hidden="true"
-    >
-      {/* Structure de presse / revue */}
-      <path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1-2.5-2.5z" />
-      <path d="M6 6h10" />
-      <path d="M6 10h10" />
-      <path d="M6 14h6" />
-      <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-    </svg>
-  );
 }
 
 /**
@@ -143,7 +92,11 @@ export function SafeAvatar({
         aria-label={displayName}
         title={displayName}
       >
-        {isMedia ? <MediaEmblemSvg size={size} /> : <UserSilhouetteSvg size={size} />}
+        {isMedia ? (
+          <MediaEmblem size={Math.round(size * 0.5)} />
+        ) : (
+          <UserSilhouette size={Math.round(size * 0.52)} />
+        )}
       </span>
     );
   }

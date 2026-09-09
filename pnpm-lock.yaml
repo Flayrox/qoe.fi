@@ -419,6 +419,9 @@ importers:
       '@lingui/react':
         specifier: 6.6.0
         version: 6.6.0(@babel/core@7.29.7(supports-color@8.1.1))(@babel/types@7.29.8)(babel-plugin-macros@3.1.0)(react@19.2.3)
+      '@qoe/brand':
+        specifier: workspace:*
+        version: link:../../packages/brand
       '@qoe/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
@@ -866,6 +869,34 @@ importers:
         specifier: ^5
         version: 5.9.3
 
+  packages/brand:
+    dependencies:
+      react:
+        specifier: 19.2.3
+        version: 19.2.3
+      react-dom:
+        specifier: 19.2.3
+        version: 19.2.3(react@19.2.3)
+      react-native:
+        specifier: '*'
+        version: 0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1)
+      react-native-svg:
+        specifier: '*'
+        version: 15.15.4(react-native@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(@react-native/metro-config@0.86.2(@babel/core@7.29.7(supports-color@8.1.1))(supports-color@8.1.1))(@types/react@19.2.18)(react@19.2.3)(supports-color@8.1.1))(react@19.2.3)
+    devDependencies:
+      '@qoe/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@types/react':
+        specifier: ^19
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19
+        version: 19.2.4(@types/react@19.2.18)
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+
   packages/config:
     dependencies:
       zod:
@@ -1082,6 +1113,9 @@ importers:
       '@floating-ui/react':
         specifier: ^0.27.20
         version: 0.27.20(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      '@qoe/brand':
+        specifier: workspace:*
+        version: link:../brand
       '@qoe/config':
         specifier: workspace:*
         version: link:../config

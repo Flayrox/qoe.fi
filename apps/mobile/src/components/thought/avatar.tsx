@@ -5,6 +5,7 @@ import { getAvatarTheme } from '@qoe/theme';
 
 import { ThemedText } from '@/components/themed-text';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { CertifiedBadge } from '@/components/ui/badge';
 
 // =====================================================================
 // 👤 Avatar — Image de profil ou avatar vectoriel déterministe (Discord style 2026).
@@ -75,9 +76,7 @@ export function Avatar({
           transition={150}
         />
         {showCertified && user?.name ? (
-          <View style={styles.certifiedBadge}>
-            <ThemedText style={styles.certifiedText}>✓</ThemedText>
-          </View>
+          <CertifiedBadge size={14} style={styles.certifiedBadge} />
         ) : null}
       </View>
     );
@@ -106,9 +105,7 @@ export function Avatar({
       </View>
 
       {showCertified && user?.name ? (
-        <View style={styles.certifiedBadge}>
-          <ThemedText style={styles.certifiedText}>✓</ThemedText>
-        </View>
+        <CertifiedBadge size={14} style={styles.certifiedBadge} />
       ) : null}
     </View>
   );
@@ -124,19 +121,5 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: -1,
     right: -1,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#ee4b2b',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1.5,
-    borderColor: '#ffffff',
-  },
-  certifiedText: {
-    color: '#ffffff',
-    fontWeight: '700',
-    fontSize: 8,
-    lineHeight: 10,
   },
 });

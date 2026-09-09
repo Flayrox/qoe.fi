@@ -10,6 +10,7 @@
     "@expo/vector-icons": "^15.1.1",
     "@lingui/core": "6.6.0",
     "@lingui/react": "6.6.0",
+    "@qoe/brand": "workspace:*",
     "@qoe/i18n": "workspace:*",
     "@qoe/sdk": "workspace:*",
     "@qoe/theme": "workspace:*",

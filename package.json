@@ -40,6 +40,8 @@
     "dev:win": "powershell -ExecutionPolicy Bypass -File scripts/dev-windows.ps1",
     "start": "turbo run start",
     "lint": "turbo run lint",
+    "brand:audit": "node scripts/audit-brand-assets.mjs",
+    "brand:sync": "node scripts/sync-brand-assets.mjs",
     "typecheck": "turbo run typecheck",
     "guard:seed-script": "bash scripts/guard-seed-script.sh",
     "format": "prettier --write .",
