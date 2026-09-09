@@ -10,6 +10,7 @@ import (
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/qoefi/api/internal/cache"
+	"github.com/qoefi/api/internal/modules/imports"
 	"github.com/qoefi/api/internal/queue"
 	"github.com/qoefi/api/internal/testutil"
 	"github.com/qoefi/api/internal/workers"
@@ -35,6 +36,7 @@ func testDeps() workerDeps {
 		stripe:     workers.NewStripeWorker(poolTest, cache.Client("redis://127.0.0.1:1")),
 		search:     workers.NewSearchWorker(poolTest),
 		embedding:  workers.NewEmbeddingWorker(poolTest),
+		bulkImport: workers.NewBulkImportWorker(imports.NewService(poolTest, nil)),
 	}
 }
 
@@ -54,6 +56,7 @@ func TestBuildHandlers(t *testing.T) {
 		queue.TaskUserEmbedding,
 		queue.TaskPostEmbedding,
 		queue.TaskNewsletterSend,
+		queue.TaskBulkImport,
 	}
 	if len(handlers) != len(expected) {
 		t.Fatalf("handlers = %d, attendu %d", len(handlers), len(expected))
@@ -84,16 +87,17 @@ func TestWorkerMuxDispatch(t *testing.T) {
 	// Chaque tâche connue atteint un handler réel : payload vide → erreur
 	// métier (décodage/payload) et non « non gérée ».
 	payloads := map[string][]byte{
-		queue.TaskArticlePublished:   []byte(`{}`),
-		queue.TaskArticleUpdated:     []byte(`{}`),
-		queue.TaskArticleDeleted:     []byte(`{}`),
-		queue.TaskSubscriberCreated:  []byte(`{}`),
-		queue.TaskPostLiked:          []byte(`{}`),
-		queue.TaskStripeEvent:        []byte(`{}`),
-		queue.TaskSearchSync:         []byte(`{}`),
-		queue.TaskArticleEmbedding:   []byte(`{}`),
-		queue.TaskUserEmbedding:      []byte(`{}`),
-		queue.TaskPostEmbedding:      []byte(`{}`),
+		queue.TaskArticlePublished:  []byte(`{}`),
+		queue.TaskArticleUpdated:    []byte(`{}`),
+		queue.TaskArticleDeleted:    []byte(`{}`),
+		queue.TaskSubscriberCreated: []byte(`{}`),
+		queue.TaskPostLiked:         []byte(`{}`),
+		queue.TaskStripeEvent:       []byte(`{}`),
+		queue.TaskSearchSync:        []byte(`{}`),
+		queue.TaskArticleEmbedding:  []byte(`{}`),
+		queue.TaskUserEmbedding:     []byte(`{}`),
+		queue.TaskPostEmbedding:     []byte(`{}`),
+		queue.TaskBulkImport:        []byte(`{}`),
 	}
 	for typ, payload := range payloads {
 		task := asynq.NewTask(typ, payload)

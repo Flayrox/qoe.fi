@@ -70,7 +70,7 @@ func seedImport(t *testing.T, ctx context.Context) {
 }
 
 func newTestService() *Service {
-	return NewService(poolTest)
+	return NewService(poolTest, nil)
 }
 
 func TestImportArticles(t *testing.T) {
@@ -135,5 +135,111 @@ func TestImportArticles(t *testing.T) {
 		Articles:      []ImportArticle{{Title: "X", Slug: "x", Content: "<p>X</p>", ReadingTime: 1}},
 	}); err != errForbidden {
 		t.Fatalf("import étranger = %v, attendu errForbidden", err)
+	}
+}
+
+// ── Import bulk asynchrone : job + worker + rapport d'erreurs ──────────
+
+func TestImportJobLifecycle(t *testing.T) {
+	ctx := context.Background()
+	seedImport(t, ctx)
+	// asynq nil → CreateImportJob ne bloque pas (le job reste PENDING).
+	svc := NewService(poolTest, nil)
+
+	// Pré-importe « article-un » pour que le job le trouve en doublon
+	// (chaque test re-truncate la base, rien ne survit d'un test à l'autre).
+	if _, err := svc.ImportArticles(ctx, importOwnerID, ImportArticlesRequest{
+		PublicationID: importPubPerso,
+		Articles:      []ImportArticle{{Title: "Article un", Slug: "article-un", Content: "<p>Un</p>", ReadingTime: 2}},
+	}); err != nil {
+		t.Fatalf("pré-import doublon: %v", err)
+	}
+
+	// 1. Création d'un job : 3 articles dont un doublon (article-un) et un
+	// invalide (slug vide).
+	jobID, err := svc.CreateImportJob(ctx, importOwnerID, ImportArticlesRequest{
+		PublicationID: importPubPerso,
+		Articles: []ImportArticle{
+			{Title: "Bulk un", Slug: "bulk-un", Content: "<p>U</p>", ReadingTime: 2},
+			{Title: "Article un", Slug: "article-un", Content: "<p>Un</p>", ReadingTime: 2}, // doublon
+			{Title: "", Slug: "", Content: "", ReadingTime: 0},                              // invalide
+		},
+	})
+	if err != nil {
+		t.Fatalf("CreateImportJob: %v", err)
+	}
+	if jobID == "" {
+		t.Fatal("jobID vide")
+	}
+
+	// 2. Statut initial PENDING + total.
+	job, err := svc.GetImportJob(ctx, importOwnerID, jobID)
+	if err != nil {
+		t.Fatalf("GetImportJob: %v", err)
+	}
+	if job.Status != "PENDING" || job.Total != 3 {
+		t.Fatalf("statut initial = %s total=%d, attendu PENDING/3", job.Status, job.Total)
+	}
+
+	// 3. Un étranger ne voit pas le job.
+	if _, err := svc.GetImportJob(ctx, importStranger, jobID); err != errNotFound {
+		t.Fatalf("GetImportJob(étranger) = %v, attendu errNotFound", err)
+	}
+
+	// 4. Traitement (worker) : 1 importé, 1 doublon, 1 erreur rapportée.
+	if err := svc.ProcessImportJob(ctx, jobID); err != nil {
+		t.Fatalf("ProcessImportJob: %v", err)
+	}
+	job, err = svc.GetImportJob(ctx, importOwnerID, jobID)
+	if err != nil {
+		t.Fatalf("GetImportJob (fini): %v", err)
+	}
+	if job.Status != "DONE" {
+		t.Fatalf("status = %s, attendu DONE", job.Status)
+	}
+	if job.Imported != 1 {
+		t.Fatalf("imported = %d, attendu 1", job.Imported)
+	}
+	if job.Duplicates != 1 {
+		t.Fatalf("duplicates = %d, attendu 1", job.Duplicates)
+	}
+	if len(job.Errors) != 1 || job.Errors[0].Reason == "" {
+		t.Fatalf("rapport d'erreurs = %+v, attendu 1 entrée avec raison", job.Errors)
+	}
+
+	// 5. Re-traitement idempotent : bulk-un devient doublon, l'invalide reste
+	// en erreur → 0 importé, 2 doublons.
+	if err := svc.ProcessImportJob(ctx, jobID); err != nil {
+		t.Fatalf("ProcessImportJob (re): %v", err)
+	}
+	job, _ = svc.GetImportJob(ctx, importOwnerID, jobID)
+	if job.Imported != 0 || job.Duplicates != 2 || len(job.Errors) != 1 {
+		t.Fatalf("re-traitement : imported=%d dup=%d errs=%d, attendu 0/2/1", job.Imported, job.Duplicates, len(job.Errors))
+	}
+
+	// 6. Liste des jobs récents.
+	jobs, err := svc.ListImportJobs(ctx, importOwnerID)
+	if err != nil {
+		t.Fatalf("ListImportJobs: %v", err)
+	}
+	if len(jobs) != 1 || jobs[0].ID != jobID {
+		t.Fatalf("jobs = %+v, attendu 1 (le job créé)", jobs)
+	}
+
+	// 7. Job inexistant → no-op pour le worker, 404 pour l'API.
+	if err := svc.ProcessImportJob(ctx, "job-inexistant"); err != nil {
+		t.Fatalf("ProcessImportJob(job absent) = %v, attendu nil (no-op)", err)
+	}
+}
+
+func TestCreateImportJob_Forbidden(t *testing.T) {
+	ctx := context.Background()
+	seedImport(t, ctx)
+	svc := NewService(poolTest, nil)
+	if _, err := svc.CreateImportJob(ctx, importStranger, ImportArticlesRequest{
+		PublicationID: importPubPerso,
+		Articles:      []ImportArticle{{Title: "X", Slug: "x", Content: "<p>X</p>", ReadingTime: 1}},
+	}); err != errForbidden {
+		t.Fatalf("CreateImportJob(étranger) = %v, attendu errForbidden", err)
 	}
 }

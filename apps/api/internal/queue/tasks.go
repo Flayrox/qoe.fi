@@ -14,7 +14,13 @@ const (
 	TaskUserEmbedding     = "embedding.user"
 	TaskPostEmbedding     = "embedding.post"
 	TaskNewsletterSend    = "newsletter.send"
+	TaskBulkImport        = "article.bulk_import"
 )
+
+// BulkImportPayload est le payload de TaskBulkImport (import bulk asynchrone).
+type BulkImportPayload struct {
+	JobID string `json:"jobId"`
+}
 
 // SearchSyncPayload est un job de sync Meilisearch (upsert/delete).
 type SearchSyncPayload struct {
