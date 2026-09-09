@@ -7,7 +7,8 @@
 // =====================================================================
 
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
-
+import { createClient } from '@qoe/supabase/server';
+import { FLAGS } from '@qoe/flags';
 export interface AdminDashboardCounts {
   users: number;
   creators: number;
@@ -219,4 +220,37 @@ export async function getAdminDeliveries(): Promise<{
   return goFetch<{ counts: Record<string, number>; total: number; deliveries: AdminDelivery[] }>(
     '/v1/admin/deliveries'
   );
+}
+
+export interface FeatureFlagItem {
+  key: string;
+  is_enabled: boolean;
+  description: string | null;
+  target_roles: string[];
+  updated_at?: string;
+}
+
+/** 🚩 Feature flags : liste complète depuis Supabase (avec fallback registre). */
+export async function getAdminFeatureFlags(): Promise<FeatureFlagItem[]> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('feature_flags')
+      .select('key, is_enabled, description, target_roles, updated_at')
+      .order('key', { ascending: true });
+
+    if (!error && data && data.length > 0) {
+      return data as FeatureFlagItem[];
+    }
+  } catch {
+    // Dégradation gracieuse
+  }
+
+  // Fallback sur les flags déclarés
+  return Object.entries(FLAGS).map(([key, is_enabled]) => ({
+    key,
+    is_enabled,
+    description: null,
+    target_roles: ['all'],
+  }));
 }

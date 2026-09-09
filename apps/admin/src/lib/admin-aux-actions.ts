@@ -10,6 +10,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import { createClient } from '@qoe/supabase/server';
 
 async function verifySuperadmin() {
   // Go vérifie le rôle superadmin sur chaque route admin (403 sinon).
@@ -291,5 +292,30 @@ export async function retryNotificationDeliveryAction(deliveryId: string) {
   } catch (error: unknown) {
     console.error(error);
     return { success: false, error: errorMessage(error, 'Relance impossible.') };
+  }
+}
+
+// ── Feature Flags ────────────────────────────────────────────────────────────
+
+export async function toggleFeatureFlagAction(key: string, isEnabled: boolean) {
+  await verifySuperadmin();
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.from('feature_flags').upsert(
+      {
+        key,
+        is_enabled: isEnabled,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'key' }
+    );
+
+    if (error) throw error;
+    revalidatePath('/admin/config');
+    revalidatePath('/', 'layout');
+    return { success: true };
+  } catch (error: unknown) {
+    console.error('toggleFeatureFlagAction error:', error);
+    return { success: false, error: errorMessage(error, 'Impossible de modifier le flag.') };
   }
 }
