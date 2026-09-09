@@ -15,8 +15,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@growthbook/growthbook": "1.7.0",
-    "@growthbook/growthbook-react": "1.7.0"
+    "@qoe/supabase": "workspace:*"
   },
   "peerDependencies": {
     "react": "^19.0.0"

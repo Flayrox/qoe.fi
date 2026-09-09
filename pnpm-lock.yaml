@@ -909,12 +909,9 @@ importers:
 
   packages/flags:
     dependencies:
-      '@growthbook/growthbook':
-        specifier: 1.7.0
-        version: 1.7.0
-      '@growthbook/growthbook-react':
-        specifier: 1.7.0
-        version: 1.7.0(react@19.2.3)
+      '@qoe/supabase':
+        specifier: workspace:*
+        version: link:../supabase
       react:
         specifier: 19.2.3
         version: 19.2.3
@@ -2243,16 +2240,6 @@ packages:
 
   '@floating-ui/utils@0.2.12':
     resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
-
-  '@growthbook/growthbook-react@1.7.0':
-    resolution: {integrity: sha512-7TU0Yjmkl2Me8LKpG5cjqIsLSK+sz9T/1vocJAm49KsBeTvse6QwR9544KB9sU7eJF9qYVGr4GekW/r9bqmaWg==}
-    engines: {node: '>=10'}
-    peerDependencies:
-      react: 19.2.3
-
-  '@growthbook/growthbook@1.7.0':
-    resolution: {integrity: sha512-Vmad3fWRh1XaFH4q+AS62ofX6Q3IxSTD7sBGuhEHCaad8VyZerxrVdojucjzlnJDUocfrnZFUSpEkR6R/wCV+A==}
-    engines: {node: '>=10'}
 
   '@hocuspocus/common@2.15.3':
     resolution: {integrity: sha512-Rzh1HF0a2o/tf90A3w2XNdXd9Ym3aQzMDfD3lAUONCX9B9QOdqdyiORrj6M25QEaJrEIbXFy8LtAFcL0wRdWzA==}
@@ -5190,10 +5177,6 @@ packages:
 
   dom-accessibility-api@0.6.3:
     resolution: {integrity: sha512-7ZgogeTnjuHbo+ct10G9Ffp0mif17idi0IyWNVA/wcwcm7NPOD/WEHVP3n7n3MhXqxoIYm8d6MuZohYWIZ4T3w==}
-
-  dom-mutator@0.6.0:
-    resolution: {integrity: sha512-iCt9o0aYfXMUkz/43ZOAUFQYotjGB+GNbYJiJdz4TgXkyToXbbRy5S6FbTp72lRBtfpUMwEc1KmpFEU4CZeoNg==}
-    engines: {node: '>=10'}
 
   dom-serializer@2.0.0:
     resolution: {integrity: sha512-wIkAryiqt/nV5EQKqQpo3SToSOV9J0DnbJqwK7Wv/Trc92zIAYZ4FlMu+JPFW1DfGFt81ZTCGgDEabffXeLyJg==}
@@ -9853,15 +9836,6 @@ snapshots:
 
   '@floating-ui/utils@0.2.12': {}
 
-  '@growthbook/growthbook-react@1.7.0(react@19.2.3)':
-    dependencies:
-      '@growthbook/growthbook': 1.7.0
-      react: 19.2.3
-
-  '@growthbook/growthbook@1.7.0':
-    dependencies:
-      dom-mutator: 0.6.0
-
   '@hocuspocus/common@2.15.3':
     dependencies:
       lib0: 0.2.117
@@ -12785,8 +12759,6 @@ snapshots:
   dom-accessibility-api@0.5.16: {}
 
   dom-accessibility-api@0.6.3: {}
-
-  dom-mutator@0.6.0: {}
 
   dom-serializer@2.0.0:
     dependencies:

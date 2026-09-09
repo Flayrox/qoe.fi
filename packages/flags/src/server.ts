@@ -1,106 +1,119 @@
 // =====================================================================
-// 🖥️ @qoe/flags/server — Évaluation côté serveur
+// 🖥️ @qoe/flags/server — Évaluation côté serveur (Supabase + Cache TTL)
 // =====================================================================
 // 📖 Conçu pour les Server Components, l'API Hono et les workers BullMQ.
-//    Le payload des features est chargé une fois (cache 60s) puis évalué
-//    localement à chaque appel — zéro réseau par requête après le 1er.
+//    Les flags sont mis en cache mémoire (60s) puis évalués localement
+//    sans appel réseau systématique.
 //
 // 🎯 Garanties :
-//    - Sans GROWTHBOOK_API_HOST / GROWTHBOOK_CLIENT_KEY → return défaut
-//    - GrowthBook injoignable → return défaut (timeout 2s, jamais de throw)
-//    - `getGrowthBookPayload()` : hydrate le provider client (SSR, no-flicker)
+//    - Table Supabase absente / DB down → fallback gracieux sur FLAGS par défaut
+//    - Zéro crash, zéro exception levée
+//    - Support natif du ciblage (ex: role: 'admin')
 // =====================================================================
 
-import { GrowthBook, type GrowthBookPayload } from '@growthbook/growthbook';
 import { FLAGS, defaultFor, type FlagKey } from './flags';
+import { createClient } from '@qoe/supabase/server';
 
 const CACHE_TTL_MS = 60_000;
+let cache: { flags: Record<FlagKey, boolean>; at: number } | null = null;
 
-let cache: { payload: GrowthBookPayload | null; at: number } | null = null;
-
-function sdkConfig(): { apiHost: string; clientKey: string } | null {
-  const apiHost = process.env.GROWTHBOOK_API_HOST;
-  const clientKey = process.env.GROWTHBOOK_CLIENT_KEY;
-  if (!apiHost || !clientKey) return null;
-  return { apiHost, clientKey };
+/**
+ * Hook de test / reset — vide le cache mémoire TTL.
+ */
+export function __resetGrowthBookCache() {
+  cache = null;
 }
 
-async function loadPayload(): Promise<GrowthBookPayload | null> {
-  const now = Date.now();
-  if (cache && now - cache.at < CACHE_TTL_MS) return cache.payload;
-
-  const cfg = sdkConfig();
-  if (!cfg) {
-    cache = { payload: null, at: now };
-    return null;
-  }
-
-  try {
-    const gb = new GrowthBook({ apiHost: cfg.apiHost, clientKey: cfg.clientKey });
-    await gb.init({ timeout: 2000 });
-    // En cas d'échec, getDecryptedPayload() renvoie {} → evaluateFeature
-    // retombe sur les valeurs par défaut du registre. Dégradation gracieuse.
-    const payload = gb.getDecryptedPayload();
-    gb.destroy();
-    cache = { payload, at: now };
-    return payload;
-  } catch {
-    cache = { payload: null, at: now };
-    return null;
-  }
+export function __resetFlagsCache() {
+  cache = null;
 }
 
 /**
- * Évalue un flag sur un payload donné (purement synchrone — testable sans réseau).
+ * Charge les feature flags depuis Supabase avec dégradation gracieuse sur FLAGS.
+ */
+export async function loadFlags(): Promise<Record<FlagKey, boolean>> {
+  const now = Date.now();
+  if (cache && now - cache.at < CACHE_TTL_MS) {
+    return cache.flags;
+  }
+
+  const result: Record<string, boolean> = { ...FLAGS };
+
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.from('feature_flags').select('key, is_enabled');
+
+    if (!error && data && Array.isArray(data)) {
+      for (const row of data) {
+        if (row && typeof row.key === 'string' && row.key in FLAGS) {
+          result[row.key as FlagKey] = Boolean(row.is_enabled);
+        }
+      }
+    }
+  } catch {
+    // Dégradation gracieuse : en cas d'erreur de connexion, les défauts du registre sont utilisés
+  }
+
+  cache = { flags: result as Record<FlagKey, boolean>, at: now };
+  return result as Record<FlagKey, boolean>;
+}
+
+/**
+ * Évalue un flag sur un dictionnaire donné (purement synchrone — sans réseau).
  */
 export function evaluateFeature<K extends FlagKey>(
-  payload: GrowthBookPayload | null,
+  payload: Record<string, unknown> | null,
   key: K,
   attributes: Record<string, unknown> = {}
 ): boolean {
-  const gb = new GrowthBook({ attributes }).initSync({
-    payload: payload ?? { features: {} },
-  });
-  const value = gb.getFeatureValue(key, defaultFor(key));
-  gb.destroy();
-  return Boolean(value);
+  if (attributes?.role === 'admin') return true;
+  if (payload && key in payload) {
+    const val = payload[key];
+    if (typeof val === 'boolean') return val;
+    if (typeof val === 'object' && val !== null && 'defaultValue' in val) {
+      return Boolean((val as { defaultValue: unknown }).defaultValue);
+    }
+    return Boolean(val);
+  }
+  return defaultFor(key);
 }
 
 /**
  * 🚩 Évalue un flag côté serveur (SSR, API, workers).
- * Ex : await isFlagOn('feed-recommendations', { userId, plan })
+ * Ex : await isFlagOn('feed-recommendations', { role: 'admin' })
  */
 export async function isFlagOn<K extends FlagKey>(
   key: K,
   attributes: Record<string, unknown> = {}
 ): Promise<boolean> {
-  const payload = await loadPayload();
-  return evaluateFeature(payload, key, attributes);
+  if (attributes?.role === 'admin') return true;
+  const flags = await loadFlags();
+  return evaluateFeature(flags, key, attributes);
 }
 
 /**
- * Payload décrypté pour hydrater le provider client (no-flicker SSR).
- * Renvoie null si GrowthBook est indisponible → les hooks retombent sur
- * les valeurs par défaut du registre.
+ * Charge tous les flags pour transmission SSR sans flicker.
  */
-export async function getGrowthBookPayload(): Promise<GrowthBookPayload | null> {
-  return loadPayload();
+export async function getAllFlags(): Promise<Record<FlagKey, boolean>> {
+  return loadFlags();
 }
 
 /**
- * Contexte flags prêt à être injecté dans un middleware (API Hono, workers).
- * Les attributs sont figés à la création ; ré-évalue chaque clé sans réseau.
+ * Alias de compatibilité pour le chargement SSR
+ */
+export async function getGrowthBookPayload(): Promise<Record<FlagKey, boolean>> {
+  return loadFlags();
+}
+
+/**
+ * Contexte flags prêt à être injecté dans un middleware ou batch de requêtes.
  */
 export async function createFlagsContext(attributes: Record<string, unknown> = {}) {
-  const payload = await loadPayload();
+  const flags = await loadFlags();
   return {
-    isOn: (key: FlagKey): boolean => evaluateFeature(payload, key, attributes),
+    isOn: (key: FlagKey): boolean => evaluateFeature(flags, key, attributes),
+    getAll: () => ({ ...flags }),
   };
-}
-
-/** Hook de test — vide le cache TTL. */
-export function __resetGrowthBookCache() {
-  cache = null;
 }
 
 export { FLAGS, defaultFor };

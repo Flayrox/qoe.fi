@@ -3,14 +3,14 @@
 // =====================================================================
 // 📖 Vérifie :
 //    - le registre (valeurs par défaut)
-//    - l'évaluation synchrone sur payload (sans réseau)
-//    - la dégradation gracieuse sans config / si GrowthBook est down
+//    - l'évaluation synchrone (sur payload ou defaults)
+//    - le ciblage par rôle (admin)
+//    - la dégradation gracieuse si Supabase est indisponible
 // =====================================================================
 
 import { describe, expect, it, afterEach, vi } from 'vitest';
-import { setPolyfills } from '@growthbook/growthbook';
 import { FLAGS, defaultFor, type FlagKey } from '../flags';
-import { evaluateFeature, isFlagOn, __resetGrowthBookCache } from '../server';
+import { evaluateFeature, isFlagOn, __resetFlagsCache, createFlagsContext } from '../server';
 
 const ALL_KEYS = Object.keys(FLAGS) as FlagKey[];
 
@@ -27,18 +27,17 @@ describe('registre des flags', () => {
 });
 
 describe('evaluateFeature (synchrone, sans réseau)', () => {
-  const payload = {
-    features: {
-      'feed-recommendations': { defaultValue: true },
-    },
+  const payload: Record<string, boolean> = {
+    'feed-recommendations': true,
+    'landing-pricing-section': true,
   };
 
   it('utilise la valeur du payload quand présente', () => {
-    expect(evaluateFeature(payload as never, 'feed-recommendations')).toBe(true);
+    expect(evaluateFeature(payload, 'landing-pricing-section')).toBe(true);
   });
 
   it('retombe sur le défaut du registre quand le flag est absent', () => {
-    expect(evaluateFeature(payload as never, 'web-newsletter-banner')).toBe(
+    expect(evaluateFeature(payload, 'web-newsletter-banner')).toBe(
       defaultFor('web-newsletter-banner')
     );
   });
@@ -47,58 +46,35 @@ describe('evaluateFeature (synchrone, sans réseau)', () => {
     expect(evaluateFeature(null, 'feed-recommendations')).toBe(defaultFor('feed-recommendations'));
   });
 
-  it('prend en compte les attributs pour le ciblage', () => {
-    const targeted = {
-      features: {
-        'feed-recommendations': {
-          defaultValue: false,
-          rules: [{ condition: { id: 'u_42' }, force: true }],
-        },
-      },
-    };
-    expect(evaluateFeature(targeted as never, 'feed-recommendations', { id: 'u_42' })).toBe(true);
-    expect(evaluateFeature(targeted as never, 'feed-recommendations', { id: 'u_99' })).toBe(false);
+  it('active toujours le flag pour un admin', () => {
+    expect(evaluateFeature(null, 'landing-pricing-section', { role: 'admin' })).toBe(true);
   });
 });
 
 describe('isFlagOn (dégradation gracieuse)', () => {
-  const OLD_ENV = { ...process.env };
-
   afterEach(() => {
-    process.env = { ...OLD_ENV };
-    __resetGrowthBookCache();
+    __resetFlagsCache();
     vi.restoreAllMocks();
   });
 
-  it('retourne le défaut sans config GrowthBook', async () => {
-    delete process.env.GROWTHBOOK_API_HOST;
-    delete process.env.GROWTHBOOK_CLIENT_KEY;
+  it('retourne le défaut sans Supabase configuré', async () => {
     expect(await isFlagOn('feed-recommendations')).toBe(defaultFor('feed-recommendations'));
   });
 
-  it('retourne le défaut si GrowthBook est down (fetch échoue)', async () => {
-    process.env.GROWTHBOOK_API_HOST = 'http://localhost:3200';
-    process.env.GROWTHBOOK_CLIENT_KEY = 'sdk-test';
-    setPolyfills({
-      fetch: vi.fn().mockRejectedValue(new Error('ECONNREFUSED')) as unknown as typeof fetch,
-    });
-    expect(await isFlagOn('feed-recommendations')).toBe(defaultFor('feed-recommendations'));
+  it('active pour admin même sans configuration', async () => {
+    expect(await isFlagOn('landing-pricing-section', { role: 'admin' })).toBe(true);
+  });
+});
+
+describe('createFlagsContext', () => {
+  afterEach(() => {
+    __resetFlagsCache();
   });
 
-  it("charge et évalue le payload depuis l'API GrowthBook", async () => {
-    process.env.GROWTHBOOK_API_HOST = 'http://localhost:3200';
-    process.env.GROWTHBOOK_CLIENT_KEY = 'sdk-test';
-    setPolyfills({
-      fetch: (() =>
-        Promise.resolve({
-          ok: true,
-          status: 200,
-          headers: { get: () => 'application/json' },
-          json: async () => ({
-            features: { 'feed-recommendations': { defaultValue: true } },
-          }),
-        })) as unknown as typeof fetch,
-    });
-    expect(await isFlagOn('feed-recommendations')).toBe(true);
+  it('crée un contexte avec isOn et getAll', async () => {
+    const ctx = await createFlagsContext();
+    expect(typeof ctx.isOn).toBe('function');
+    expect(ctx.isOn('feed-recommendations')).toBe(defaultFor('feed-recommendations'));
+    expect(ctx.getAll()).toBeDefined();
   });
 });

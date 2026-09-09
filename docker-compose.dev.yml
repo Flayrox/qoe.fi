@@ -22,9 +22,6 @@
 #    PostgreSQL                : localhost:15409 (via pgAdmin/DBeaver)
 #    Redis                     : localhost:15410
 #    Umami                     : http://localhost:15411
-#    GrowthBook (flags UI)     : http://localhost:15412
-#    GrowthBook (SDK/API)      : http://localhost:15413
-#    MongoDB                   : localhost:15414
 # =====================================================================
 
 # Indique que ce fichier étend docker-compose.yml
@@ -98,63 +95,6 @@ services:
       timeout: 3s
       retries: 3
 
-  # ───────────────────────────────────────────────────────────────────
-  # 🍃 MONGODB (dev) — stockage du dashboard GrowthBook
-  # ───────────────────────────────────────────────────────────────────
-  mongodb:
-    image: mongo:7
-    container_name: qoefi-dev-mongodb
-    restart: unless-stopped
-
-    ports:
-      - '15414:27017' # isolé — était 27018
-
-    volumes:
-      - mongodb_dev_data:/data/db
-
-    healthcheck:
-      test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.runCommand("ping").ok']
-      interval: 5s
-      timeout: 3s
-      retries: 5
-
-  # ───────────────────────────────────────────────────────────────────
-  # 🚩 GROWTHBOOK : dashboard de feature flags (self-hosté)
-  # ───────────────────────────────────────────────────────────────────
-  # 📖 UI : http://localhost:3100  (crée ton compte admin au 1er run,
-  #    puis Settings → SDK Connections pour générer la clé `sdk-...`)
-  #    API SDK : http://localhost:3200 (ce que consomment @qoe/flags)
-  # ───────────────────────────────────────────────────────────────────
-  growthbook:
-    image: growthbook/growthbook:latest
-    container_name: qoefi-dev-growthbook
-    restart: unless-stopped
-
-    ports:
-      - '15412:3000' # UI dashboard — isolé (était 3100)
-      - '15413:3100' # API (endpoint SDK) — isolé (était 3200)
-
-    environment:
-      MONGODB_URI: mongodb://mongodb:27017/growthbook
-      REDIS_URI: redis://redis:6379
-      APP_ORIGIN: http://localhost:15412
-      API_HOST: http://localhost:15413
-      NODE_ENV: production
-      JWT_SECRET: ${GROWTHBOOK_JWT_SECRET:-qoe_growthbook_dev_jwt_secret_change_me}
-      ENCRYPTION_KEY: ${GROWTHBOOK_ENCRYPTION_KEY:-qoe_growthbook_dev_encryption_key_change_me}
-      DISABLE_TELEMETRY: 'true'
-      EMAIL_ENABLED: 'false'
-      # Origines autorisées pour le SDK navigateur (streaming SSE)
-      CORS_ALLOWED_ORIGINS: 'http://localhost:15401,http://localhost:15402,http://localhost:15403,http://localhost:15404,http://localhost:15405'
-
-    volumes:
-      - growthbook_uploads:/usr/local/src/app/packages/back-end/uploads
-
-    depends_on:
-      mongodb:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
 
   # ───────────────────────────────────────────────────────────────────
   # 🔄 MIGRATE (dev, one-shot — goose)
@@ -451,7 +391,3 @@ volumes:
     name: qoefi-dev-postgres-data
   meilisearch_data:
     name: qoefi-dev-meilisearch-data
-  mongodb_dev_data:
-    name: qoefi-dev-mongodb-data
-  growthbook_uploads:
-    name: qoefi-dev-growthbook-uploads

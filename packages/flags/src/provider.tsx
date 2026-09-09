@@ -1,38 +1,49 @@
 // =====================================================================
-// 🔌 provider.tsx — Provider client GrowthBook (hydration SSR no-flicker)
+// 🔌 provider.tsx — Provider client léger de Feature Flags
 // =====================================================================
-// 📖 Le layout (Server Component) charge le payload via
-//    `getGrowthBookPayload()` et le passe ici. Le client s'initialise
-//    SYNCHRONIQUEMENT avec ce payload → pas de requête réseau, pas de
-//    flicker, et les flags sont déjà évalués au premier rendu.
-//    Sans payload (GrowthBook down) → tous les flags retombent sur leurs
-//    valeurs par défaut du registre.
+// 📖 Zéro SDK externe, zéro dépendance, 100% synchrone et sans flicker.
+//    Si aucun provider n'est présent ou si les flags sont indéfinis,
+//    useFlag() retombe immédiatement sur la valeur par défaut du registre.
 // =====================================================================
 
 'use client';
 
-import { useMemo, type ReactNode } from 'react';
-import {
-  GrowthBook,
-  GrowthBookProvider as GrowthBookSDKProvider,
-  type GrowthBookPayload,
-} from '@growthbook/growthbook-react';
+import React, { createContext, useContext, useMemo, type ReactNode } from 'react';
+import { FLAGS, defaultFor, type FlagKey } from './flags';
 
-export function GrowthBookProvider({
-  payload,
+const FlagsContext = createContext<Record<string, boolean>>(FLAGS);
+
+export function FlagsProvider({
+  flags,
   children,
 }: {
-  payload: GrowthBookPayload | null;
+  flags?: Partial<Record<FlagKey, boolean>> | null;
   children: ReactNode;
 }) {
-  const growthbook = useMemo(() => {
-    const gb = new GrowthBook({
-      apiHost: process.env.NEXT_PUBLIC_GROWTHBOOK_API_HOST,
-      clientKey: process.env.NEXT_PUBLIC_GROWTHBOOK_CLIENT_KEY,
-      enableDevMode: process.env.NODE_ENV !== 'production',
-    });
-    return gb.initSync({ payload: payload ?? { features: {} } });
-  }, [payload]);
+  const merged = useMemo(() => {
+    return { ...FLAGS, ...flags };
+  }, [flags]);
 
-  return <GrowthBookSDKProvider growthbook={growthbook}>{children}</GrowthBookSDKProvider>;
+  return <FlagsContext.Provider value={merged}>{children}</FlagsContext.Provider>;
+}
+
+/**
+ * Alias de compatibilité pour faciliter la transition
+ */
+export const GrowthBookProvider = FlagsProvider;
+
+/**
+ * Hook client pour lire l'état d'un flag (100% synchrone, 0ms, 0 appel réseau)
+ */
+export function useFlag(key: FlagKey): boolean {
+  const context = useContext(FlagsContext);
+  return context[key] ?? defaultFor(key);
+}
+
+/**
+ * Hook client pour lire l'état de tous les flags
+ */
+export function useFlags(): Record<FlagKey, boolean> {
+  const context = useContext(FlagsContext);
+  return context as Record<FlagKey, boolean>;
 }
