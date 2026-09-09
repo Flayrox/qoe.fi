@@ -1,6 +1,6 @@
 import { createClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
-import { BookOpen, Clock, TrendingUp } from 'lucide-react';
+import { BookOpen, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { routes } from '@qoe/config/routes';
 
@@ -49,11 +49,19 @@ export default async function ReadingHistoryPage() {
   });
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
-      <div className="flex items-center gap-3">
-        <Clock className="w-6 h-6 text-primary" />
-        <h1 className="text-2xl font-bold">Historique — 14 derniers jours</h1>
-        <span className="ml-auto text-sm text-muted-foreground">{unique.length} articles</span>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <div className="flex items-center justify-between pb-4 border-b border-border/40">
+        <div>
+          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
+            Historique de lecture
+          </h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Vos articles consultés au cours des 14 derniers jours.
+          </p>
+        </div>
+        <span className="text-xs font-semibold text-muted-foreground">
+          {unique.length} articles
+        </span>
       </div>
 
       {unique.length === 0 ? (
@@ -63,7 +71,7 @@ export default async function ReadingHistoryPage() {
           <p className="text-sm">Lisez un article pour qu’il apparaisse ici.</p>
         </div>
       ) : (
-        <div className="grid gap-3">
+        <div className="grid gap-3 max-w-3xl">
           {unique.map((s) => (
             <Link
               key={s.id}

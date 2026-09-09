@@ -254,15 +254,19 @@ export function MessagesApp() {
     Boolean(selected) && typeof window !== 'undefined' && window.innerWidth < 768;
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-6">
-      <div className="flex items-center gap-3 mb-4">
-        <MessageCircle className="w-6 h-6 text-primary" />
-        <h1 className="text-2xl font-bold">Messages</h1>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+      <div className="flex items-center justify-between pb-4 mb-6 border-b border-border/40">
+        <div>
+          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">Messages</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Vos conversations privées et échanges directs.
+          </p>
+        </div>
         <button
           onClick={() => setComposing((v) => !v)}
-          className="ml-auto inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:bg-primary/10 rounded-full px-3 py-1.5 transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/15 rounded-xl px-3.5 py-2 transition-colors cursor-pointer"
         >
-          <PenLine className="w-4 h-4" />
+          <PenLine className="w-3.5 h-3.5" />
           Nouveau message
         </button>
       </div>

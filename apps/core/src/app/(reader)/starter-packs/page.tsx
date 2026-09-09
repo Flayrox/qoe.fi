@@ -7,11 +7,18 @@ export const metadata = {
 
 export default function StarterPacksPage() {
   return (
-    <main className="w-full min-h-screen border-r border-border bg-background">
-      <div className="p-4 border-b border-border flex items-center justify-between sticky top-0 bg-background/80 backdrop-blur-md z-10">
-        <h1 className="text-xl font-bold text-foreground">Starter Packs</h1>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+      <div className="flex items-center justify-between pb-4 mb-6 border-b border-border/40">
+        <div>
+          <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
+            Starter Packs
+          </h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Découvrez et abonnez-vous à des sélections d'auteurs thématiques en un clic.
+          </p>
+        </div>
       </div>
       <StarterPacksGallery />
-    </main>
+    </div>
   );
 }
