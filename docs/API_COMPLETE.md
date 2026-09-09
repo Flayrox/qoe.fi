@@ -55,12 +55,13 @@ json.data !== undefined ? json.data : json   // packages/sdk/src/client.ts:102
 
 ### 0.5 Rate limiting (`apps/api/internal/middleware/ratelimit.go`)
 
-| Scope                 | Fenêtre                       | Clé Redis           | Réponse |
-| --------------------- | ----------------------------- | ------------------- | ------- |
-| Global public         | 120 req/min / IP              | `rl:{ip}:{bucket}`  | `429`   |
-| Protégé               | 600 req/min / user (sinon IP) | `rl:{uid}:{bucket}` | `429`   |
-| Token OAuth           | 30 req/min / IP               | `rl:{ip}:{bucket}`  | `429`   |
-| _Bypass si Redis nil_ | —                             | —                   | pass    |
+| Scope                 | Fenêtre                       | Clé Redis                     | Réponse |
+| --------------------- | ----------------------------- | ----------------------------- | ------- |
+| Global public         | 120 req/min / IP              | `rl:{ip}:{bucket}`            | `429`   |
+| Protégé               | 600 req/min / user (sinon IP) | `rl:{uid}:{bucket}`           | `429`   |
+| Clé API créateur      | `API_KEY_RATE_LIMIT` déf 600 / min / CLÉ (`qoe_live_…`) | `rl:apikey:key:{id}:{bucket}` | `429`   |
+| Token OAuth           | 30 req/min / IP               | `rl:{ip}:{bucket}`            | `429`   |
+| _Bypass si Redis nil_ | —                             | —                             | pass    |
 
 ### 0.6 CORS
 
@@ -948,6 +949,7 @@ await fetch('http://localhost:8080/search/semantic?q=IA&limit=5').then((r) => r.
 | PUT     | `/v1/settings/social`                     | `CombinedAuth`                                           | `{"publicationId":"…","links":[{"platform":"twitter","url":"https://…"}]}`                                                                                                                                 | `200 {"success":true}`                       |
 | POST    | `/v1/settings/api-application`            | `CombinedAuth`                                           | `{"reason":"≥10 chars"}`                                                                                                                                                                                   | `200 {"success":true}`                       |
 | POST    | `/v1/settings/api-keys`                   | `CombinedAuth` (`apiAccessStatus==approved` sinon `403`) | `{"name"?:string,"scopes"?:["READ","WRITE","ANALYTICS"]}` vide -> `AllScopes`                                                                                                                              | `200 {"apiKey":"qoe_live_…"}` **affiché 1x** |
+| POST    | `/v1/settings/api-keys/{id}/rotate`       | `CombinedAuth` (propriétaire uniquement, sinon `404`)    | —                                                                                                                                                                                                          | `200 {"apiKey":"qoe_live_…"}` **affiché 1x** — l'ancienne clé est immédiatement invalide (nouveau hash) |
 | DELETE  | `/v1/settings/api-keys/{id}`              | `CombinedAuth`                                           | —                                                                                                                                                                                                          | `200 {"success":true}`                       |
 | POST    | `/v1/settings/onboarding`                 | `CombinedAuth`                                           | `{"name","heroText","subdomain","layoutStyle"}` -> crée/link publication perso slugifié                                                                                                                    | `200 {"success":true}`                       |
 
@@ -965,6 +967,10 @@ curl -X POST -H "Authorization: Bearer $JWT" -H "Content-Type: application/json"
 # -> {"apiKey":"qoe_live_abc123..."}  # Copie immédiate, hashé en base
 
 curl -X DELETE -H "Authorization: Bearer $JWT" http://localhost:8080/v1/settings/api-keys/KEY_ID
+
+# Rotation : régénère le secret (même id, ancienne clé invalidée)
+curl -X POST -H "Authorization: Bearer $JWT" http://localhost:8080/v1/settings/api-keys/KEY_ID/rotate
+# -> {"apiKey":"qoe_live_new…"}  # Copie immédiate, ancienne clé inutilisable
 ```
 
 ---
@@ -1330,6 +1336,88 @@ export async function POST(req: Request) {
 }
 # Python
 # hmac.new(bytes.fromhex(secret), raw_body, hashlib.sha256).hexdigest()
+```
+
+---
+
+### 2.5 Upload d'images — `POST /v1/creator/media` (`modules/creator/api_media.go` + `internal/supastorage`)
+
+**Auth** : `APIKeyAuth` + scope `WRITE`. Envoie une image (multipart champ `file`, ou body brut), l'upload vers **Supabase Storage** (bucket `articles-media`) et l'enregistre dans la médiathèque (dédoublonnage SHA-256). Types acceptés : `jpeg | png | gif | webp | avif`, max **10 Mo**.
+
+**Réponse** `201` :
+
+```json
+{
+  "id": "…",
+  "url": "https://xxxx.supabase.co/storage/v1/object/public/articles-media/creator/USER_ID/…",
+  "sha256": "hex64",
+  "storagePath": "creator/USER_ID/…",
+  "mimeType": "image/png",
+  "sizeBytes": 1234,
+  "targetType": "ARTICLE_COVER"
+}
+```
+
+- Chemin serveur (jamais client) : `creator/{userID}/{timestamp}-{hash12}.{ext}`.
+- Erreurs : `400` type/taille invalide, `502` échec storage, `503` stockage non configuré (`SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` absents).
+
+```bash
+# Multipart
+curl -X POST -H "Authorization: Bearer qoe_live_XXX" \
+ -F "file=@cover.png;type=image/png" \
+ http://localhost:8080/v1/creator/media
+
+# Body brut
+curl -X POST -H "Authorization: Bearer qoe_live_XXX" -H "Content-Type: image/jpeg" \
+ --data-binary @photo.jpg http://localhost:8080/v1/creator/media
+```
+
+---
+
+### 2.6 Idempotence & quotas par clé
+
+**Idempotence** (`internal/middleware/idempotency.go`) — sur toutes les écritures CMS (articles, catégories, webhooks) :
+
+- Envoyer l'en-tête `Idempotency-Key: <uuid>` sur `POST/PATCH/DELETE`.
+- Le premier appel exécute et met en cache la réponse (24 h) ; un rejeu avec la **même clé** (même acteur + route) renvoie la réponse mémorisée **sans ré-exécuter** → un réessai réseau ne duplique jamais un article.
+- Réponses `5xx` **non** mises en cache (réessai possible) ; verrou anti-double-envoi : une requête identique déjà en cours → `409`.
+
+```bash
+curl -X POST -H "Authorization: Bearer qoe_live_XXX" -H "Idempotency-Key: 9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d" \
+ -H "Content-Type: application/json" \
+ -d '{"publicationId":"PUB_ID","title":"Hello","content":"# x","contentFormat":"markdown"}' \
+ http://localhost:8080/v1/articles
+```
+
+**Quotas par clé** — en plus du limiteur global par IP, chaque clé `qoe_live_*` a son propre compteur `API_KEY_RATE_LIMIT` (défaut **600 req/min**, env `API_KEY_RATE_LIMIT`). Une clé saturée → `429` sans affecter les autres créateurs.
+
+---
+
+### 2.7 Import bulk d'articles (asynchrone) (`modules/imports` + `workers/bulk_import.go`)
+
+Arriver avec **des milliers d'articles** : `POST /v1/import/jobs` enregistre un job (statut `PENDING`), l'enqueue asynq (`article.bulk_import`, queue `low`, timeout 30 min) et répond `202 {jobId}`. Le worker met à jour la progression ; l'API expose le statut et le **rapport d'erreurs par article**.
+
+| Méthode | Route                    | Auth          | Body / Query                                        | Réponse                                                                                                      |
+| ------- | ------------------------ | ------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| POST    | `/v1/import/jobs`        | `CombinedAuth` | `{publicationId, articles:[{title,slug,content,readingTime}]}` (≤ 10 000 articles) | `202 {"jobId":"…"}`                                                                                       |
+| GET     | `/v1/import/jobs/{id}`   | propriétaire  | —                                                   | `200 ImportJobDTO {id,publicationId,status,total,imported,duplicates,errors:[{slug,title,reason}],createdAt,updatedAt}` |
+| GET     | `/v1/import/jobs`        | propriétaire  | —                                                   | `200 {"jobs":[ImportJobDTO…]}` (20 récents)                                                                  |
+| POST    | `/v1/import/articles`    | `CombinedAuth` | idem (mode synchrone historique)                    | `201 {"importedCount":int}`                                                                                 |
+
+- **Dédup** par `publicationId + slug` : les doublons sont comptés (`duplicates`), jamais recréés. Un article invalide ou en échec DB n'interrompt pas le lot (best-effort) et est **rapporté** dans `errors` (raison par article, borné à 500 entrées).
+- **RBAC** : propriétaire de la publication personnelle OU `owner`/`editor` d'un média (sinon `403`).
+- Rejeu asynq idempotent : un job déjà traité re-déduplique tout (0 importé) ; un job supprimé est un no-op.
+
+```bash
+# Soumettre un lot (réponse immédiate 202, traitement en arrière-plan)
+curl -X POST -H "Authorization: Bearer qoe_live_XXX" -H "Content-Type: application/json" \
+ -d '{"publicationId":"PUB_ID","articles":[{"title":"Un","slug":"un","content":"# Un","readingTime":2}]}' \
+ http://localhost:8080/v1/import/jobs
+# -> {"jobId":"…"}   (statut PENDING)
+
+# Suivre la progression + le rapport d'erreurs
+curl -H "Authorization: Bearer qoe_live_XXX" http://localhost:8080/v1/import/jobs/JOB_ID
+# -> {"id":"…","status":"DONE","total":1000,"imported":997,"duplicates":2,"errors":[{"slug":"x","title":"X","reason":"Création de l'article échouée"}],…}
 ```
 
 ---
