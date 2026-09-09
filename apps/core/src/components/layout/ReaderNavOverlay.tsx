@@ -74,14 +74,6 @@ export function ReaderNavOverlay({
       badge: showMessagesBadge ? unreadMessages : 0,
     },
     { id: 'library', label: t`Bibliothèque`, href: routes.feed.library(), icon: Bookmark },
-    {
-      id: 'billing',
-      label: t`Portefeuille`,
-      href: routes.feed.billing(),
-      icon: Wallet,
-    },
-    { id: 'profile', label: t`Mon profil`, href: profileHref, icon: UserRound },
-    { id: 'settings', label: t`Réglages`, href: '/settings', icon: Settings },
   ];
 
   const isItemActive = (href: string) => {
