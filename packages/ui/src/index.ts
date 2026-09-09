@@ -85,3 +85,8 @@ export {
   type MediaLightboxProps,
   type MediaLightboxImage,
 } from './social/MediaLightbox';
+export {
+  InvertedCurveBanner,
+  type InvertedCurveBannerProps,
+  type AnnouncementType,
+} from './notifications/InvertedCurveBanner';

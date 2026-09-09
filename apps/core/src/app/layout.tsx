@@ -15,7 +15,13 @@ import { TooltipProvider } from '@qoe/ui/ui/tooltip';
 import { Toaster } from '@qoe/ui/toast';
 import { AnalyticsScript } from '@qoe/analytics/client';
 import { cn } from '@qoe/utils';
-import { DevtoolsPanel, ThemeProvider, ThemeSeedScript, GlobalAuthModalProvider } from '@qoe/ui';
+import {
+  DevtoolsPanel,
+  ThemeProvider,
+  ThemeSeedScript,
+  GlobalAuthModalProvider,
+  InvertedCurveBanner,
+} from '@qoe/ui';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { ReadingPreferencesProvider } from '@/components/providers/ReadingPreferencesProvider';
 import { createClient } from '@qoe/supabase/server';
@@ -77,6 +83,31 @@ export default async function RootLayout({
       }>('/v1/settings/preferences').catch(() => null)
     : null;
 
+  // 📣 Annonce globale diffusée depuis l'admin (courbure inversée)
+  let globalAnnouncement: {
+    id: string;
+    message: string;
+    type?: 'promo' | 'info' | 'warning' | 'critical';
+    linkUrl?: string;
+    linkText?: string;
+  } | null = null;
+  try {
+    const { data: configRow } = await supabase
+      .from('SystemConfig')
+      .select('value')
+      .eq('key', 'GLOBAL_ANNOUNCEMENT')
+      .maybeSingle();
+
+    if (configRow?.value) {
+      const parsed = JSON.parse(configRow.value);
+      if (parsed?.active && parsed?.message) {
+        globalAnnouncement = parsed;
+      }
+    }
+  } catch {
+    // Fail-safe gracieux
+  }
+
   const devtoolsActions = {
     getDevtoolsData,
     embeddingDiagnosticAction: getEmbeddingDiagnosticAction,
@@ -119,6 +150,15 @@ export default async function RootLayout({
               <ReadingPreferencesProvider initial={accountSettings}>
                 <GlobalAuthModalProvider isAuthenticated={!!currentUser}>
                   <TooltipProvider>
+                    {globalAnnouncement && (
+                      <InvertedCurveBanner
+                        id={globalAnnouncement.id}
+                        message={globalAnnouncement.message}
+                        type={globalAnnouncement.type}
+                        linkUrl={globalAnnouncement.linkUrl}
+                        linkText={globalAnnouncement.linkText}
+                      />
+                    )}
                     {children}
                     <Toaster />
                     {process.env.NODE_ENV === 'development' && (

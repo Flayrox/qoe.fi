@@ -238,6 +238,52 @@ export async function saveApiAccessModulesAction(enabled: string[]) {
   }
 }
 
+/** 🛑 Coupure générale de l'API (SystemConfig API_ACCESS_DISABLED). */
+export async function setApiAccessDisabledAction(disabled: boolean) {
+  await verifySuperadmin();
+  try {
+    await goFetch('/v1/admin/config', {
+      method: 'PUT',
+      body: {
+        key: 'API_ACCESS_DISABLED',
+        value: String(disabled),
+        description:
+          "Coupure générale de l'API (true = toute l'API refuse les requêtes, sauf console admin / IdP OAuth / webhooks entrants infra / événements internes)",
+      },
+    });
+    revalidatePath('/admin/config');
+    return { success: true };
+  } catch (error: unknown) {
+    console.error(error);
+    return { success: false, error: errorMessage(error, 'Erreur de sauvegarde') };
+  }
+}
+
+/** 🚧 Endpoints désactivés à l'échelle de la plateforme (SystemConfig API_DISABLED_ENDPOINTS, JSON). */
+export async function saveApiDisabledEndpointsAction(patterns: string[]) {
+  await verifySuperadmin();
+  try {
+    const clean = patterns
+      .map((p) => p.trim())
+      .filter((p) => p.startsWith('/'))
+      .filter((p, i, arr) => arr.indexOf(p) === i);
+    await goFetch('/v1/admin/config', {
+      method: 'PUT',
+      body: {
+        key: 'API_DISABLED_ENDPOINTS',
+        value: JSON.stringify(clean),
+        description:
+          'Endpoints désactivés à l’échelle de la plateforme (JSON array de préfixes de chemins)',
+      },
+    });
+    revalidatePath('/admin/config');
+    return { success: true, patterns: clean };
+  } catch (error: unknown) {
+    console.error(error);
+    return { success: false, error: errorMessage(error, 'Erreur de sauvegarde') };
+  }
+}
+
 /** 🔐 Sauvegarde les méthodes de connexion (clé SystemConfig AUTH_METHODS, JSON). */
 export async function saveAuthMethodsAction(methods: {
   google: boolean;
@@ -334,5 +380,64 @@ export async function toggleFeatureFlagAction(key: string, isEnabled: boolean) {
   } catch (error: unknown) {
     console.error('toggleFeatureFlagAction error:', error);
     return { success: false, error: errorMessage(error, 'Impossible de modifier le flag.') };
+  }
+}
+
+// ── Global Announcement (Bandeau à courbure inversée) ────────────────────────
+
+export interface GlobalAnnouncementPayload {
+  id: string;
+  active: boolean;
+  message: string;
+  type: 'promo' | 'info' | 'warning' | 'critical';
+  linkUrl?: string;
+  linkText?: string;
+  updatedAt?: string;
+}
+
+export async function getGlobalAnnouncementAction(): Promise<GlobalAnnouncementPayload | null> {
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('SystemConfig')
+      .select('value')
+      .eq('key', 'GLOBAL_ANNOUNCEMENT')
+      .maybeSingle();
+
+    if (error || !data?.value) return null;
+    return JSON.parse(data.value) as GlobalAnnouncementPayload;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveGlobalAnnouncementAction(
+  announcement: Omit<GlobalAnnouncementPayload, 'updatedAt'>
+) {
+  await verifySuperadmin();
+  try {
+    const supabase = await createClient();
+    const payload: GlobalAnnouncementPayload = {
+      ...announcement,
+      updatedAt: new Date().toISOString(),
+    };
+
+    const { error } = await supabase.from('SystemConfig').upsert(
+      {
+        key: 'GLOBAL_ANNOUNCEMENT',
+        value: JSON.stringify(payload),
+        description: 'Bannière de notification globale diffusée en haut décran',
+        updatedAt: new Date().toISOString(),
+      },
+      { onConflict: 'key' }
+    );
+
+    if (error) throw error;
+    revalidatePath('/admin/notifications');
+    revalidatePath('/', 'layout');
+    return { success: true, announcement: payload };
+  } catch (error: unknown) {
+    console.error('saveGlobalAnnouncementAction error:', error);
+    return { success: false, error: errorMessage(error, 'Sauvegarde de l annonce impossible.') };
   }
 }
