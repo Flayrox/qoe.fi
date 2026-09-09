@@ -236,17 +236,17 @@ export function FeedDashboard({
   const [lightboxIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const slidingSheetOffset = 275;
-  const [isScrolled, setIsScrolled] = useState(false);
+  const [isFullyCovered, setIsFullyCovered] = useState(false);
 
-  // Scroll listener to smoothly expand the feed sheet to full window borders
+  // Détection du scroll : s'étend uniquement quand Lire est complètement recouvert (scrollY >= slidingSheetOffset)
   React.useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 40);
+      setIsFullyCovered(window.scrollY >= slidingSheetOffset);
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     handleScroll();
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [slidingSheetOffset]);
 
   // Global Hotkeys Listener
   React.useEffect(() => {
@@ -766,17 +766,18 @@ export function FeedDashboard({
         }}
         transition={{ type: 'spring', stiffness: 350, damping: 32 }}
         className={cn(
-          'w-full bg-card/95 backdrop-blur-2xl text-card-foreground shadow-2xl relative z-10 transition-all duration-300 ease-out',
-          isScrolled || activePostId || activeArticle
+          'w-full bg-card text-card-foreground relative z-10',
+          'transition-[max-width,border-radius] duration-200 ease-out',
+          isFullyCovered || activePostId || activeArticle
             ? 'max-w-full mx-0 rounded-none border-t-0 border-x-0'
-            : 'max-w-2xl mx-auto rounded-t-2xl border-t border-x border-border/40'
+            : 'max-w-2xl mx-auto rounded-t-2xl border-t border-x border-border/40 shadow-sm'
         )}
       >
-        {/* Opaque Sticky Header of the Sheet (No Background Bleed-Through) */}
+        {/* 100% Solid Opaque Sticky Header of the Sheet (No Background Bleed-Through) */}
         <div
           className={cn(
-            'sticky top-0 z-20 bg-card/95 backdrop-blur-md border-b border-border/40 px-4 sm:px-6 py-3 transition-all duration-300',
-            isScrolled || activePostId || activeArticle ? 'rounded-none' : 'rounded-t-2xl'
+            'sticky top-0 z-20 bg-card border-b border-border/40 px-4 sm:px-6 py-3 transition-[border-radius] duration-200',
+            isFullyCovered || activePostId || activeArticle ? 'rounded-none' : 'rounded-t-2xl'
           )}
         >
           <div className="max-w-2xl mx-auto flex items-center justify-between">
