@@ -39,15 +39,17 @@ WHERE "recipientId" = $1
 -- name: GetNotificationPreferences :one
 SELECT "emailLikes", "pushLikes", "emailReplies", "pushReplies", "emailComments", "pushComments",
        "emailMentions", "pushMentions", "emailFollows", "pushFollows",
-       "emailReposts", "pushReposts", "emailMedia", "pushMedia"
+       "emailReposts", "pushReposts", "emailMedia", "pushMedia",
+       "emailCollaborations", "pushCollaborations"
 FROM "NotificationPreference"
 WHERE "userId" = $1;
 
 -- name: UpsertNotificationPreferences :exec
 INSERT INTO "NotificationPreference" ("id", "userId", "emailLikes", "pushLikes", "emailReplies", "pushReplies",
        "emailComments", "pushComments", "emailMentions", "pushMentions", "emailFollows", "pushFollows",
-       "emailReposts", "pushReposts", "emailMedia", "pushMedia", "updatedAt")
-VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, now())
+       "emailReposts", "pushReposts", "emailMedia", "pushMedia",
+       "emailCollaborations", "pushCollaborations", "updatedAt")
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, now())
 ON CONFLICT ("userId") DO UPDATE SET
   "emailLikes" = EXCLUDED."emailLikes", "pushLikes" = EXCLUDED."pushLikes",
   "emailReplies" = EXCLUDED."emailReplies", "pushReplies" = EXCLUDED."pushReplies",
@@ -56,4 +58,5 @@ ON CONFLICT ("userId") DO UPDATE SET
   "emailFollows" = EXCLUDED."emailFollows", "pushFollows" = EXCLUDED."pushFollows",
   "emailReposts" = EXCLUDED."emailReposts", "pushReposts" = EXCLUDED."pushReposts",
   "emailMedia" = EXCLUDED."emailMedia", "pushMedia" = EXCLUDED."pushMedia",
+  "emailCollaborations" = EXCLUDED."emailCollaborations", "pushCollaborations" = EXCLUDED."pushCollaborations",
   "updatedAt" = now();

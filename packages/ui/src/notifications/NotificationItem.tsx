@@ -74,44 +74,74 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
     case 'LIKE':
       Icon = Heart;
       iconColorClass = 'text-destructive bg-destructive/10';
-      actionText = t`a aimé votre pensée`;
+      actionText = article
+        ? otherSendersCount > 0
+          ? t`ont aimé votre article`
+          : t`a aimé votre article`
+        : otherSendersCount > 0
+          ? t`ont aimé votre pensée`
+          : t`a aimé votre pensée`;
       break;
     case 'REPOST':
       Icon = Repeat;
       iconColorClass = 'text-success bg-success/10';
-      actionText = t`a repartagé votre pensée`;
+      actionText = article
+        ? otherSendersCount > 0
+          ? t`ont repartagé votre article`
+          : t`a repartagé votre article`
+        : otherSendersCount > 0
+          ? t`ont repartagé votre pensée`
+          : t`a repartagé votre pensée`;
       break;
     case 'REPLY':
       Icon = MessageCircle;
       iconColorClass = 'text-primary bg-primary/10';
-      actionText = t`a répondu à votre pensée`;
+      actionText =
+        otherSendersCount > 0 ? t`ont répondu à votre pensée` : t`a répondu à votre pensée`;
       break;
     case 'COMMENT':
       Icon = MessageCircle;
       iconColorClass = 'text-primary bg-primary/10';
-      actionText = article ? t`a commenté votre article` : t`a commenté votre écrit`;
+      actionText = article
+        ? otherSendersCount > 0
+          ? t`ont commenté votre article`
+          : t`a commenté votre article`
+        : otherSendersCount > 0
+          ? t`ont commenté votre écrit`
+          : t`a commenté votre écrit`;
       break;
     case 'MENTION':
       Icon = AtSign;
       iconColorClass = 'text-highlight bg-highlight/10';
-      actionText = t`vous a mentionné`;
+      actionText = otherSendersCount > 0 ? t`vous ont mentionné` : t`vous a mentionné`;
       break;
     case 'FOLLOW':
       Icon = UserPlus;
       iconColorClass = 'text-primary bg-primary/10';
-      actionText = t`s'est abonné à votre profil`;
+      actionText =
+        otherSendersCount > 0 ? t`se sont abonnés à votre profil` : t`s'est abonné à votre profil`;
       break;
     case 'MEDIA_INVITE':
       Icon = UserPlus;
       iconColorClass = 'text-highlight bg-highlight/10';
       actionText = notification.publication?.name
-        ? t`vous a invité à rejoindre le Média`
-        : t`vous a invité à rejoindre un Média`;
+        ? otherSendersCount > 0
+          ? t`vous ont invité à rejoindre le Média`
+          : t`vous a invité à rejoindre le Média`
+        : otherSendersCount > 0
+          ? t`vous ont invité à rejoindre un Média`
+          : t`vous a invité à rejoindre un Média`;
       break;
     case 'MEDIA_MEMBER_JOINED':
       Icon = UserPlus;
       iconColorClass = 'text-success bg-success/10';
-      actionText = notification.publication?.name ? t`a rejoint le Média` : t`a rejoint un Média`;
+      actionText = notification.publication?.name
+        ? otherSendersCount > 0
+          ? t`ont rejoint le Média`
+          : t`a rejoint le Média`
+        : otherSendersCount > 0
+          ? t`ont rejoint un Média`
+          : t`a rejoint un Média`;
       break;
     case 'MEDIA_ARTICLE_PUBLISHED':
       Icon = Newspaper;
@@ -135,17 +165,26 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
     case 'ARTICLE_CONTRIBUTOR_ACCEPTED':
       Icon = UsersRound;
       iconColorClass = 'text-success bg-success/10';
-      actionText = t`a accepté votre invitation de contribution`;
+      actionText =
+        otherSendersCount > 0
+          ? t`ont accepté votre invitation de contribution`
+          : t`a accepté votre invitation de contribution`;
       break;
     case 'ARTICLE_CONTRIBUTOR_DECLINED':
       Icon = UsersRound;
       iconColorClass = 'text-destructive bg-destructive/10';
-      actionText = t`a refusé votre invitation de contribution`;
+      actionText =
+        otherSendersCount > 0
+          ? t`ont refusé votre invitation de contribution`
+          : t`a refusé votre invitation de contribution`;
       break;
     case 'ARTICLE_CONTRIBUTOR_REMOVED':
       Icon = UsersRound;
       iconColorClass = 'text-muted-foreground bg-muted';
-      actionText = t`a retiré votre attribution de cet article`;
+      actionText =
+        otherSendersCount > 0
+          ? t`ont retiré votre attribution de cet article`
+          : t`a retiré votre attribution de cet article`;
       break;
   }
 

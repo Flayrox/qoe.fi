@@ -96,6 +96,9 @@ func TestListGroupsSameTargetWithin48h(t *testing.T) {
 		t.Fatalf("groupe PostID = total=%d senders=%d ; attendu 2/2",
 			grouped.TotalCount, len(grouped.Senders))
 	}
+	if len(grouped.NotificationIDs) != 2 {
+		t.Fatalf("groupe PostID NotificationIDs = %d ; attendu 2", len(grouped.NotificationIDs))
+	}
 	if grouped.IsRead {
 		t.Fatal("groupe avec une non-lue marqué lu")
 	}
@@ -106,6 +109,9 @@ func TestListGroupsSameTargetWithin48h(t *testing.T) {
 	}
 	if !single.IsRead || single.TotalCount != 1 {
 		t.Fatalf("groupe Post2ID = isRead=%v total=%d ; attendu lu/1", single.IsRead, single.TotalCount)
+	}
+	if len(single.NotificationIDs) != 1 {
+		t.Fatalf("groupe Post2ID NotificationIDs = %d ; attendu 1", len(single.NotificationIDs))
 	}
 }
 
@@ -137,6 +143,16 @@ func TestListTypeFilters(t *testing.T) {
 	}
 	if len(res.Notifications) != 2 {
 		t.Fatalf("replies = %d groupes, attendu 2 (REPLY + COMMENT)", len(res.Notifications))
+	}
+
+	// collaborations → ARTICLE_CONTRIBUTOR_* et MEDIA_*
+	insertNotification(t, fx.AuthorID, fx.ViewerID, "ARTICLE_CONTRIBUTOR_INVITED", "", false)
+	res, err = svc.List(context.Background(), fx.AuthorID, "collaborations", 30, 0)
+	if err != nil {
+		t.Fatalf("List collaborations: %v", err)
+	}
+	if len(res.Notifications) != 1 || res.Notifications[0].Type != "ARTICLE_CONTRIBUTOR_INVITED" {
+		t.Fatalf("collaborations = %d items, attendu 1 ARTICLE_CONTRIBUTOR_INVITED", len(res.Notifications))
 	}
 
 	// Filtre inconnu → tout.
@@ -247,19 +263,19 @@ func TestPreferencesDefaultsThenPartialUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetPreferences: %v", err)
 	}
-	if !prefs.EmailLikes || !prefs.PushMedia || !prefs.EmailFollows {
+	if !prefs.EmailLikes || !prefs.PushMedia || !prefs.EmailFollows || !prefs.EmailCollaborations || !prefs.PushCollaborations {
 		t.Fatalf("défauts incorrects : %+v", prefs)
 	}
 
-	// Merge partiel : seul pushLikes change, le reste est préservé.
-	updated, err := svc.UpdatePreferences(ctx, fx.AuthorID, map[string]bool{"pushLikes": false})
+	// Merge partiel : pushLikes et emailCollaborations changent, le reste est préservé.
+	updated, err := svc.UpdatePreferences(ctx, fx.AuthorID, map[string]bool{"pushLikes": false, "emailCollaborations": false})
 	if err != nil {
 		t.Fatalf("UpdatePreferences: %v", err)
 	}
-	if updated.PushLikes {
-		t.Fatal("pushLikes devrait être false")
+	if updated.PushLikes || updated.EmailCollaborations {
+		t.Fatal("pushLikes et emailCollaborations devraient être false")
 	}
-	if !updated.EmailLikes || !updated.PushMedia {
+	if !updated.EmailLikes || !updated.PushMedia || !updated.PushCollaborations {
 		t.Fatalf("merge partiel a écrasé les autres champs : %+v", updated)
 	}
 
@@ -268,8 +284,8 @@ func TestPreferencesDefaultsThenPartialUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reload: %v", err)
 	}
-	if reloaded.PushLikes {
-		t.Fatal("pushLikes=false non persisté")
+	if reloaded.PushLikes || reloaded.EmailCollaborations {
+		t.Fatal("pushLikes=false et emailCollaborations=false non persisté")
 	}
 }
 
