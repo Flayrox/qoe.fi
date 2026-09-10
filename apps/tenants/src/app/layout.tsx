@@ -34,11 +34,19 @@ const inter = Inter({ variable: '--font-body', subsets: ['latin'] });
 const displayFont = Geist({ variable: '--font-classical', subsets: ['latin'] });
 const jetbrainsMono = JetBrains_Mono({ variable: '--font-mono', subsets: ['latin'] });
 
-export const metadata: Metadata = {
-  title: 'qoe.fi — Your Digital Sanctuary in Europe',
-  description:
-    'A sophisticated platform for modern creators. Retain your revenue, automate compliance, and grow your audience within a secure, GDPR-first ecosystem.',
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const lang = await getLanguage();
+  const isFr = lang === 'fr';
+
+  return {
+    title: isFr
+      ? 'qoe.fi — Publications et blogs indépendants'
+      : 'qoe.fi — Independent Publications & Blogs',
+    description: isFr
+      ? 'Découvrez les publications, articles et réflexions de créateurs indépendants propulsés par qoe.fi.'
+      : 'Discover publications, articles, and insights from independent creators powered by qoe.fi.',
+  };
+}
 
 export default async function RootLayout({
   children,

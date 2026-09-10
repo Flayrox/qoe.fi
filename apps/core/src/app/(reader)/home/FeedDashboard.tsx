@@ -878,7 +878,7 @@ export function FeedDashboard({
                       >
                         <BookMarked className="w-7 h-7 text-muted-foreground/60" />
                         <h4 className="font-semibold text-xs text-foreground">
-                          {t`Votre Sanctuaire est vide`}
+                          {t`Votre bibliothèque est vide`}
                         </h4>
                         <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
                           {t`Enregistrez des articles en cliquant sur l'icône de signet pour les conserver ici.`}

@@ -23,6 +23,7 @@ import {
 } from '@/lib/tenant-data';
 import type { Metadata } from 'next';
 import { JsonLd, buildArticleSchema } from '@qoe/ui';
+import { getLanguage } from '@qoe/i18n/server';
 
 interface TenantArticlePageProps {
   params: Promise<{
@@ -32,6 +33,9 @@ interface TenantArticlePageProps {
 }
 
 export async function generateMetadata({ params }: TenantArticlePageProps): Promise<Metadata> {
+  const lang = await getLanguage();
+  const isFr = lang === 'fr';
+
   const { domain, slug } = await params;
   const decodedDomain = decodeURIComponent(domain).toLowerCase();
   const decodedSlug = decodeURIComponent(slug);
@@ -41,16 +45,23 @@ export async function generateMetadata({ params }: TenantArticlePageProps): Prom
 
   const { publication, article } = bundle;
   const title = `${article.title} | ${publication.name || decodedDomain}`;
+  const defaultDesc = isFr
+    ? `Lisez ${article.title} sur ${publication.name || decodedDomain}.`
+    : `Read ${article.title} on ${publication.name || decodedDomain}.`;
+
   const description = article.content
     ? article.content
         .replace(/<[^>]*>?/gm, '')
         .trim()
         .slice(0, 160)
-    : `Lisez ${article.title} sur ${publication.name || decodedDomain}.`;
+    : defaultDesc;
 
   const canonicalUrl = `https://${decodedDomain}/article/${encodeURIComponent(article.slug)}`;
   const authorName =
-    article.author?.name || article.author?.username || publication.name || 'Auteur';
+    article.author?.name ||
+    article.author?.username ||
+    publication.name ||
+    (isFr ? 'Auteur' : 'Author');
   const coverImage = publication.headerImageUrl || article.author?.logoUrl || undefined;
 
   return {
@@ -65,6 +76,7 @@ export async function generateMetadata({ params }: TenantArticlePageProps): Prom
     },
     openGraph: {
       type: 'article',
+      locale: isFr ? 'fr_FR' : 'en_US',
       title: article.title,
       description,
       url: canonicalUrl,
