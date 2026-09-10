@@ -330,6 +330,8 @@ type Querier interface {
 	InsertLikeNotification(ctx context.Context, arg InsertLikeNotificationParams) error
 	InsertMediaArticlePublishedFanout(ctx context.Context, arg InsertMediaArticlePublishedFanoutParams) error
 	InsertMediaArticleSubmittedFanout(ctx context.Context, arg InsertMediaArticleSubmittedFanoutParams) error
+	// metadata est passé en texte puis casté en jsonb : le pool API force
+	// QueryExecModeExec (PgBouncer), où pgx encoderait []byte en bytea → 22P02.
 	InsertMediaAuditLog(ctx context.Context, arg InsertMediaAuditLogParams) error
 	InsertMediaInviteNotification(ctx context.Context, arg InsertMediaInviteNotificationParams) error
 	InsertMediaMemberJoinedNotification(ctx context.Context, arg InsertMediaMemberJoinedNotificationParams) error

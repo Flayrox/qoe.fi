@@ -455,16 +455,18 @@ func (q *Queries) GetUserMediaMemberships(ctx context.Context, userid pgtype.UUI
 
 const insertMediaAuditLog = `-- name: InsertMediaAuditLog :exec
 INSERT INTO "MediaAuditLog" (id, "mediaId", "actorId", action, metadata)
-VALUES (gen_random_uuid()::text, $1, $2, $3, $4)
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4::text::jsonb)
 `
 
 type InsertMediaAuditLogParams struct {
 	MediaId  string      `json:"mediaId"`
 	ActorId  pgtype.UUID `json:"actorId"`
 	Action   string      `json:"action"`
-	Metadata []byte      `json:"metadata"`
+	Metadata string      `json:"metadata"`
 }
 
+// metadata est passé en texte puis casté en jsonb : le pool API force
+// QueryExecModeExec (PgBouncer), où pgx encoderait []byte en bytea → 22P02.
 func (q *Queries) InsertMediaAuditLog(ctx context.Context, arg InsertMediaAuditLogParams) error {
 	_, err := q.db.Exec(ctx, insertMediaAuditLog,
 		arg.MediaId,
