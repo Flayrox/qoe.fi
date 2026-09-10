@@ -15,6 +15,8 @@ const RESERVED_USERNAMES = new Set([
   'manifest.json',
 ]);
 
+import { JsonLd, buildPersonSchema } from '@qoe/ui';
+
 export async function generateMetadata({ params }: { params: Promise<{ username: string }> }) {
   const resolvedParams = await params;
   const rawUsername = decodeURIComponent(resolvedParams.username).replace(/^@/, '');
@@ -32,13 +34,28 @@ export async function generateMetadata({ params }: { params: Promise<{ username:
       profileRaw && typeof profileRaw === 'object' && 'data' in profileRaw && profileRaw.data
         ? profileRaw.data
         : (profileRaw as PublicProfileData);
+
+    const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://qoe.fi').replace(/\/$/, '');
+    const canonicalUrl = `${appUrl}/${encodeURIComponent(profile.slug || rawUsername)}`;
+
     return {
       title: `${profile.name || `@${profile.slug}`} (@${profile.slug}) — qoe.fi`,
       description: profile.heroText || `Profil créateur de ${profile.name} sur qoe.fi.`,
+      alternates: {
+        canonical: canonicalUrl,
+      },
       openGraph: {
+        type: 'profile',
         title: `${profile.name || `@${profile.slug}`} sur qoe.fi`,
         description: profile.heroText || `Suivez ${profile.name} sur qoe.fi.`,
+        url: canonicalUrl,
         images: profile.logoUrl ? [{ url: profile.logoUrl }] : [],
+      },
+      twitter: {
+        card: 'summary',
+        title: `${profile.name || `@${profile.slug}`} sur qoe.fi`,
+        description: profile.heroText || `Suivez ${profile.name} sur qoe.fi.`,
+        images: profile.logoUrl ? [profile.logoUrl] : [],
       },
     };
   } catch {
@@ -71,14 +88,26 @@ export default async function UserProfilePage({
   const { profileUser, isFollowing, publicationId } = resolved.data;
   const isOwnProfile = !!currentUser && currentUser.id === profileUser.ownerUserId;
 
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://qoe.fi').replace(/\/$/, '');
+  const jsonLdData = buildPersonSchema({
+    name: profileUser.name,
+    username: profileUser.username,
+    bio: profileUser.heroText,
+    logoUrl: profileUser.logoUrl,
+    baseUrl: appUrl,
+  });
+
   return (
-    <ProfileView
-      profileUser={profileUser}
-      currentUserId={currentUser?.id || null}
-      isOwnProfile={isOwnProfile}
-      initialIsFollowing={isFollowing}
-      initialTab="thoughts"
-      initialPublicationId={publicationId}
-    />
+    <>
+      <JsonLd data={jsonLdData} />
+      <ProfileView
+        profileUser={profileUser}
+        currentUserId={currentUser?.id || null}
+        isOwnProfile={isOwnProfile}
+        initialIsFollowing={isFollowing}
+        initialTab="thoughts"
+        initialPublicationId={publicationId}
+      />
+    </>
   );
 }

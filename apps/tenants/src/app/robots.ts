@@ -6,9 +6,14 @@
 // =====================================================================
 
 import type { MetadataRoute } from 'next';
-import { URLS } from '@qoe/config';
+import { headers } from 'next/headers';
 
-export default function robots(): MetadataRoute.Robots {
+export default async function robots(): Promise<MetadataRoute.Robots> {
+  const headersList = await headers();
+  const host = headersList.get('x-forwarded-host') || headersList.get('host') || 'qoe.fi';
+  const proto = headersList.get('x-forwarded-proto') || 'https';
+  const baseUrl = `${proto}://${host}`;
+
   return {
     rules: [
       {
@@ -17,6 +22,6 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ['/api/', '/admin/'],
       },
     ],
-    sitemap: `${URLS.LANDING}/sitemap.xml`,
+    sitemap: `${baseUrl}/sitemap.xml`,
   };
 }

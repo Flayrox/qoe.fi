@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Metadata } from 'next';
-import { SocialIcon, TenantHeader, SubscribeForm } from '@qoe/ui';
+import { SocialIcon, TenantHeader, SubscribeForm, JsonLd, buildWebSiteSchema } from '@qoe/ui';
 import { t } from '@lingui/core/macro';
 import { fetchTenantPublication } from '@/lib/tenant-data';
 
@@ -19,21 +19,35 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   if (!publication) return {};
 
+  const title = publication.seoTitle || `${publication.name} | ${decodedDomain}`;
+  const description =
+    publication.seoDescription ||
+    publication.heroText ||
+    `Explore the thoughts and articles of ${publication.name}.`;
+  const canonicalUrl = `https://${decodedDomain}`;
+
   return {
-    title: publication.seoTitle || `${publication.name} | ${decodedDomain}`,
-    description:
-      publication.seoDescription ||
-      publication.heroText ||
-      `Explore the thoughts and articles of ${publication.name}.`,
+    title,
+    description,
     robots: {
       index: publication.allowIndexing,
       follow: publication.allowIndexing,
     },
+    alternates: {
+      canonical: canonicalUrl,
+    },
     icons: publication.logoUrl ? { icon: publication.logoUrl } : undefined,
     openGraph: {
       title: publication.seoTitle || publication.name || decodedDomain,
-      description: publication.seoDescription || publication.heroText || '',
+      description,
+      url: canonicalUrl,
       images: publication.headerImageUrl ? [{ url: publication.headerImageUrl }] : [],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: publication.seoTitle || publication.name || decodedDomain,
+      description,
+      images: publication.headerImageUrl ? [publication.headerImageUrl] : [],
     },
   };
 }
@@ -76,11 +90,18 @@ export default async function TenantHomepage({ params }: PageProps) {
   const isMagazine = layoutStyle === 'magazine';
   const isBrutalist = layoutStyle === 'brutalist';
 
+  const jsonLdData = buildWebSiteSchema({
+    name: name || decodedDomain,
+    url: `https://${decodedDomain}`,
+    description: heroText || undefined,
+  });
+
   return (
     <div
       className={`min-h-screen ${themeMode === 'dark' ? 'dark bg-foreground text-background' : 'bg-background text-foreground'} selection:bg-[var(--tenant-accent)] selection:text-white transition-colors duration-300`}
       style={customStyle}
     >
+      <JsonLd data={jsonLdData} />
       <TenantHeader
         name={name}
         domain={decodedDomain}

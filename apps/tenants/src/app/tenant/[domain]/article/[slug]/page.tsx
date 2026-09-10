@@ -21,11 +21,64 @@ import {
   fetchArticleHighlights,
   fetchCanonicalDocument,
 } from '@/lib/tenant-data';
+import type { Metadata } from 'next';
+import { JsonLd, buildArticleSchema } from '@qoe/ui';
+
 interface TenantArticlePageProps {
   params: Promise<{
     domain: string;
     slug: string;
   }>;
+}
+
+export async function generateMetadata({ params }: TenantArticlePageProps): Promise<Metadata> {
+  const { domain, slug } = await params;
+  const decodedDomain = decodeURIComponent(domain).toLowerCase();
+  const decodedSlug = decodeURIComponent(slug);
+
+  const bundle = await fetchTenantArticle(decodedDomain, decodedSlug);
+  if (!bundle) return {};
+
+  const { publication, article } = bundle;
+  const title = `${article.title} | ${publication.name || decodedDomain}`;
+  const description = article.content
+    ? article.content
+        .replace(/<[^>]*>?/gm, '')
+        .trim()
+        .slice(0, 160)
+    : `Lisez ${article.title} sur ${publication.name || decodedDomain}.`;
+
+  const canonicalUrl = `https://${decodedDomain}/article/${encodeURIComponent(article.slug)}`;
+  const authorName =
+    article.author?.name || article.author?.username || publication.name || 'Auteur';
+  const coverImage = publication.headerImageUrl || article.author?.logoUrl || undefined;
+
+  return {
+    title,
+    description,
+    robots: {
+      index: publication.allowIndexing !== false,
+      follow: publication.allowIndexing !== false,
+    },
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    openGraph: {
+      type: 'article',
+      title: article.title,
+      description,
+      url: canonicalUrl,
+      publishedTime: article.createdAt,
+      authors: [authorName],
+      images: coverImage ? [{ url: coverImage }] : [],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: article.title,
+      description,
+      images: coverImage ? [coverImage] : [],
+    },
+  };
 }
 
 export default async function TenantArticlePage({ params }: TenantArticlePageProps) {
@@ -197,11 +250,29 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
     ? await fetchCanonicalDocument(article.id)
     : null;
 
+  const jsonLdData = buildArticleSchema({
+    title: article.title,
+    description: article.content
+      ? article.content
+          .replace(/<[^>]*>?/gm, '')
+          .trim()
+          .slice(0, 200)
+      : undefined,
+    slug: article.slug,
+    createdAt: article.createdAt,
+    authorName,
+    authorUsername: article.author?.username,
+    authorLogo: article.author?.logoUrl,
+    coverImage: publication.headerImageUrl || article.author?.logoUrl,
+    baseUrl: `https://${decodedDomain}`,
+  });
+
   return (
     <div
       className={`min-h-screen ${themeMode === 'dark' ? 'dark bg-foreground text-background' : 'bg-background text-foreground'} selection:bg-[var(--tenant-accent)] selection:text-white transition-colors duration-300 relative`}
       style={customStyle}
     >
+      <JsonLd data={jsonLdData} />
       {/* Header */}
       <TenantHeader
         name={name}
