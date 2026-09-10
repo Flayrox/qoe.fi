@@ -114,6 +114,10 @@ export async function generateMetadata(): Promise<Metadata> {
     verification: {
       google: '5G2LP8qdCURCY_GzijCkVe7CaXxsEDGr73pl_II-0fM',
     },
+    icons: {
+      icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+      apple: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+    },
   };
 }
 

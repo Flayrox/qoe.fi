@@ -40,10 +40,6 @@ msgstr "“Forgetting is a form of freedom.”"
 msgid "« Une mémoire sans oubli est une prison. »"
 msgstr "“A memory without forgetting is a prison.”"
 
-#. placeholder {0}: bio.length
-#~ msgid "{0} / 1000 caractères"
-#~ msgstr "{0} / 1000 characters"
-
 #. placeholder {0}: creator.subscribers
 msgid "{0} abonnés"
 msgstr "{0} subscribers"
@@ -57,17 +53,9 @@ msgstr "{0} actions"
 msgid "{0} articles"
 msgstr "{0} articles"
 
-#. placeholder {0}: data[hoveredIndex]
-#~ msgid "{0} écrits"
-#~ msgstr "{0} posts"
-
 #. placeholder {0}: latestPublishedArticle.readingTime || 1
 msgid "{0} min"
 msgstr "{0} min"
-
-#. placeholder {0}: article.readingTime
-#~ msgid "{0} min de lecture"
-#~ msgstr "{0} min read"
 
 #. placeholder {0}: typedBody.split(' ').filter(Boolean).length.toString()
 msgid "{0} mots"
@@ -106,9 +94,6 @@ msgstr "{readingTimeMinutes} min read"
 msgid "@marcdutronc"
 msgstr "@marcdutronc"
 
-#~ msgid "••••••••"
-#~ msgstr "••••••••"
-
 #. placeholder {0}: new Date().getFullYear()
 #. placeholder {1}: name ?? ''
 msgid "© {0} {1}. Propulsé par qoe.fi"
@@ -121,17 +106,8 @@ msgstr "© {0} QOE.FI. Crafted for the curious minds in the European creator eco
 msgid "© 2024 QOE.FI. Crafted for the curious minds in the European creator economy."
 msgstr "© 2024 QOE.FI. Crafted for the curious minds in the European creator economy."
 
-#~ msgid "↑↓ Naviguer"
-#~ msgstr "↑↓ Navigate"
-
-#~ msgid "+ Ajouter"
-#~ msgstr "+ Add"
-
 msgid "⌘K"
 msgstr "⌘K"
-
-#~ msgid "⏎ Valider"
-#~ msgstr "⏎ Confirm"
 
 msgid "● En direct"
 msgstr "● Live"
@@ -196,6 +172,9 @@ msgstr "Last 7 days"
 msgid "a accepté votre invitation de contribution"
 msgstr "accepted your contribution invitation"
 
+msgid "a aimé votre article"
+msgstr "liked your article"
+
 msgid "a aimé votre pensée"
 msgstr "liked your thought"
 
@@ -205,14 +184,8 @@ msgstr "commented on your article"
 msgid "a commenté votre écrit"
 msgstr "commented on your writing"
 
-#~ msgid "À Découvrir"
-#~ msgstr "To Discover"
-
 msgid "à l'instant"
 msgstr "just now"
-
-#~ msgid "À la une"
-#~ msgstr "Featured"
 
 #. placeholder {0}: notification.article?.title ?? t`un nouvel article`
 msgid "a publié « {0} » dans le Média"
@@ -232,6 +205,9 @@ msgstr "joined the Média"
 
 msgid "a rejoint un Média"
 msgstr "joined a Média"
+
+msgid "a repartagé votre article"
+msgstr "reposted your article"
 
 msgid "a repartagé votre pensée"
 msgstr "reposted your thought"
@@ -296,9 +272,6 @@ msgstr "Access my Sanctuary"
 msgid "Accédez à l'intégralité de notre infrastructure via une API REST sémantique. Construisez votre front, votre app mobile, votre propre CMS. Nos données, votre interface."
 msgstr "Access our entire infrastructure through a semantic REST API. Build your frontend, your mobile app, your own CMS. Our data, your interface."
 
-#~ msgid "Accédez à votre espace"
-#~ msgstr "Access your space"
-
 msgid "Accédez à votre espace souverain"
 msgstr "Access your sovereign space"
 
@@ -310,9 +283,6 @@ msgstr "Access to reading metrics and completion time"
 
 msgid "Accès illimité aux articles payants"
 msgstr "Unlimited access to paid articles"
-
-#~ msgid "Accès Souverain"
-#~ msgstr "Sovereign Access"
 
 msgid "Accessibilité"
 msgstr "Accessibility"
@@ -392,9 +362,6 @@ msgstr "Like"
 msgid "Ajouter"
 msgstr "Add"
 
-#~ msgid "Ajouter aux signets"
-#~ msgstr "Add to bookmarks"
-
 msgid "Ajouter le thème"
 msgstr "Add the topic"
 
@@ -436,6 +403,9 @@ msgstr "Add your personal notes and thoughts to your quotes to find them here."
 
 msgid "Ajuste la taille de lecture dans l’application."
 msgstr "Adjusts the reading size across the app."
+
+msgid "Alertes Email"
+msgstr "Email Alerts"
 
 msgid "Alertes lorsqu'un lecteur commente l'un de vos écrits publiés."
 msgstr "Alerts when a reader comments on one of your published writings."
@@ -533,9 +503,6 @@ msgstr "Appearance & reading"
 msgid "Appel à l'action (CTA)"
 msgstr "Call to action (CTA)"
 
-#~ msgid "Apple"
-#~ msgstr "Apple"
-
 msgid "Application créée !"
 msgstr "Application created!"
 
@@ -608,14 +575,8 @@ msgstr "No published posts"
 msgid "Aucun élément de lecture configuré."
 msgstr "No reading content configured."
 
-#~ msgid "Aucun mot exclu pour le moment."
-#~ msgstr "No muted words yet."
-
 msgid "Aucun mot masqué pour le moment."
 msgstr "No muted words yet."
-
-#~ msgid "Aucun passage surligné"
-#~ msgstr "No highlighted passage"
 
 msgid "Aucun résultat trouvé."
 msgstr "No results found."
@@ -646,9 +607,6 @@ msgstr "No annotations written"
 
 msgid "Aucune annotation trouvée"
 msgstr "No annotations found"
-
-#~ msgid "Aucune bannière"
-#~ msgstr "No banner"
 
 msgid "Aucune citation ne contient « {searchQuery} »."
 msgstr "No quotes contain \"{searchQuery}\"."
@@ -710,17 +668,11 @@ msgstr "META tags (Title & Description)"
 msgid "Bannière"
 msgstr "Banner"
 
-#~ msgid "Bannière (URL Image)"
-#~ msgstr "Banner (Image URL)"
-
 msgid "Bannière & Global"
 msgstr "Banner & Global"
 
 msgid "Bannissez les distractions. Lisez avec calme, concentration et profondeur."
 msgstr "Banish distractions. Read with calm, focus, and depth."
-
-#~ msgid "Bannissez les mots ou sujets qui polluent votre réflexion."
-#~ msgstr "Ban words or topics that pollute your thinking."
 
 msgid "Bibliothèque"
 msgstr "Library"
@@ -792,9 +744,6 @@ msgstr "C"
 msgid "Calendrier des écrits"
 msgstr "Posts calendar"
 
-#~ msgid "Carnet de Surlignages"
-#~ msgstr "Highlights Notebook"
-
 msgid "Catégories"
 msgstr "Categories"
 
@@ -803,9 +752,6 @@ msgstr "this reader"
 
 msgid "Ce mois"
 msgstr "This month"
-
-#~ msgid "Ce que les autres membres peuvent voir sur votre identité qoe.fi."
-#~ msgstr "What other members can see about your qoe.fi identity."
 
 msgid "Ce que nous choisissons d'héberger dit ce que nous choisissons de défendre."
 msgstr "What we choose to host says what we choose to defend."
@@ -852,6 +798,9 @@ msgstr "Every publication you follow directly supports its creator in a privacy-
 msgid "Chargement de vos notifications..."
 msgstr "Loading your notifications..."
 
+msgid "Chargement de vos préférences..."
+msgstr "Loading your preferences..."
+
 msgid "Chargement de vos réglages…"
 msgstr "Loading your settings…"
 
@@ -878,9 +827,6 @@ msgstr "Choose the interface shade (light or dark)."
 
 msgid "Choisissez si votre identité apparaît dans les listes de personnes ayant aimé une pensée."
 msgstr "Choose whether your identity appears in the list of people who liked a thought."
-
-#~ msgid "Choisissez vos alliés."
-#~ msgstr "Choose your allies."
 
 msgid "Choisissez vos univers de prédilection"
 msgstr "Choose your preferred topics"
@@ -920,6 +866,9 @@ msgstr "API key copied to clipboard!"
 
 msgid "Clé d'API révoquée avec succès."
 msgstr "API key revoked successfully."
+
+msgid "Clé d'API rotatée avec succès."
+msgstr "API key rotated successfully."
 
 msgid "Cliquez × pour découvrir les publications"
 msgstr "Click × to discover publications"
@@ -996,9 +945,6 @@ msgstr "Log in to leave a comment..."
 msgid "Connexion"
 msgstr "Log in"
 
-#~ msgid "Consulter"
-#~ msgstr "View source"
-
 msgid "Consulter les statistiques"
 msgstr "View statistics"
 
@@ -1063,6 +1009,9 @@ msgstr "Copy TOTP secret"
 msgid "Copier le texte"
 msgstr "Copy text"
 
+msgid "Copiez cette clé secrète dès maintenant. Pour des raisons de sécurité, nous ne pourrons plus jamais vous la réafficher."
+msgstr "Copy this secret key right now. For security reasons, we will never be able to show it to you again."
+
 msgid "Couleur d'accentuation & Logos"
 msgstr "Accent color & Logos"
 
@@ -1083,9 +1032,6 @@ msgstr "Creating..."
 
 msgid "Creator"
 msgstr "Creator"
-
-#~ msgid "Créer / Importer un Média"
-#~ msgstr "Create / Import a Media"
 
 msgid "Créer le Profil Média & Espace de Travail"
 msgstr "Create the Media Profile & Workspace"
@@ -1158,12 +1104,6 @@ msgstr "Discover articles"
 
 msgid "Décrivez la ligne éditoriale du média..."
 msgstr "Describe the media's editorial line..."
-
-#~ msgid "Décrivez vos sujets d'intérêt et votre vision pour personnaliser les suggestions de publications et les recommandations de créateurs."
-#~ msgstr "Describe your topics of interest and your vision to personalize publication suggestions and creator recommendations."
-
-#~ msgid "Décrivez vos sujets favoris pour calibrer vos recommandations par IA."
-#~ msgstr "Describe your favorite topics to calibrate your AI recommendations."
 
 msgid "Décrivez votre quête de lecture et découvrez des créateurs recommandés pour vous."
 msgstr "Describe your reading quest and discover recommended creators for you."
@@ -1252,9 +1192,6 @@ msgstr "Misinformation or misleading content"
 
 msgid "DÉSINTOXICATION NUMÉRIQUE"
 msgstr "DIGITAL DETOX"
-
-#~ msgid "Détaillez vos lectures idéales."
-#~ msgstr "Detail your ideal readings."
 
 msgid "Détails complémentaires (optionnel)..."
 msgstr "Additional details (optional)..."
@@ -1349,9 +1286,6 @@ msgstr "Private Post • Draft in progress"
 msgid "Écrits"
 msgstr "Posts"
 
-#~ msgid "Écrits certifiés"
-#~ msgstr "Certified posts"
-
 msgid "Écrits programmés & Brouillons"
 msgstr "Scheduled posts & Drafts"
 
@@ -1436,14 +1370,8 @@ msgstr "Save to sanctuary"
 msgid "Enregistrer la section"
 msgstr "Save section"
 
-#~ msgid "Enregistrer le profil"
-#~ msgstr "Save profile"
-
 msgid "Enregistrés"
 msgstr "Saved"
-
-#~ msgid "Enregistrez cet article dans votre sanctuaire de lecture"
-#~ msgstr "Save this article in your reading sanctuary"
 
 msgid "Enregistrez cet écrit dans votre sanctuaire de lecture"
 msgstr "Save this writing to your reading sanctuary"
@@ -1453,9 +1381,6 @@ msgstr "Save articles by clicking the bookmark icon to keep them here."
 
 msgid "Enregistrez des articles en cours de lecture pour les retrouver ici."
 msgstr "Save articles while reading to find them here."
-
-#~ msgid "Entrer dans le sanctuaire"
-#~ msgstr "Enter the Sanctuary"
 
 msgid "Envoi lancé — les abonnés recevront l'email sous quelques minutes."
 msgstr "Sending started — subscribers will receive the email in a few minutes."
@@ -1529,6 +1454,9 @@ msgstr "Error fetching drafts."
 msgid "Erreur lors de la révocation de la clé."
 msgstr "Error revoking the key."
 
+msgid "Erreur lors de la rotation de la clé."
+msgstr "Error rotating the key."
+
 msgid "Erreur lors de la sauvegarde de ta préférence."
 msgstr "Error saving your preference."
 
@@ -1575,14 +1503,8 @@ msgstr "and {otherSendersCount} other{0}"
 msgid "et débloquez l'accès intégral à tous les écrits et archives exclusives."
 msgstr "and unlock full access to all posts and exclusive archives."
 
-#~ msgid "Étape"
-#~ msgstr "Step"
-
 msgid "Étape {step}/4"
 msgstr "Step {step}/4"
-
-#~ msgid "Ex: Buzz, Polémique..."
-#~ msgstr "E.g. Buzz, Controversy..."
 
 msgid "ex: iel, il/lui, elle, they/them"
 msgstr "e.g. they/them, he/him, she/her"
@@ -1620,18 +1542,11 @@ msgstr "Briefly explain the issue..."
 msgid "Explorer"
 msgstr "Discover"
 
-#. placeholder {0}: creator.name || (creator.username ?? '')
-#~ msgid "Explorer le blog de {0}"
-#~ msgstr "Explore the blog of {0}"
-
 msgid "Explorer le blog de {displayName}"
 msgstr "Explore the blog of {displayName}"
 
 msgid "Explorer les publications"
 msgstr "Explore publications"
-
-#~ msgid "Explorez qoe.fi et sauvegardez les articles qui méritent d'être lus à tête reposée."
-#~ msgstr "Explore qoe.fi and save articles that deserve to be read at your own pace."
 
 msgid "Export impossible."
 msgstr "Export failed."
@@ -1663,17 +1578,11 @@ msgstr "Code snippet copied!"
 msgid "Facteur supprimé."
 msgstr "Factor deleted."
 
-#~ msgid "Facturation"
-#~ msgstr "Billing"
-
 msgid "Fausse information / Désinformation"
 msgstr "False information / Misinformation"
 
 msgid "Feed par défaut"
 msgstr "Default feed"
-
-#~ msgid "Feed personnalisé selon tes abonnements"
-#~ msgstr "Personalized feed based on your subscriptions"
 
 msgid "Femme"
 msgstr "Female"
@@ -1695,9 +1604,6 @@ msgstr "Thread published!"
 
 msgid "Fil de discussion restauré avec succès !"
 msgstr "Thread restored successfully!"
-
-#~ msgid "FILTRAGE SOUVERAIN AU NIVEAU DE L'ÉLECTRON"
-#~ msgstr "SOVEREIGN FILTERING AT THE ELECTRON LEVEL"
 
 msgid "Filtrer les notes..."
 msgstr "Filter notes..."
@@ -1737,9 +1643,6 @@ msgstr "Manage people whose content or interactions should be restricted."
 
 msgid "Glisser ou cliquer pour ajouter"
 msgstr "Drag or click to add"
-
-#~ msgid "Google"
-#~ msgstr "Google"
 
 msgid "GoTrue ne fournit pas encore de codes de récupération. Ajoutez un second facteur TOTP sur un autre appareil comme solution de secours."
 msgstr "GoTrue does not yet provide recovery codes. Add a second TOTP factor on another device as a backup."
@@ -1851,9 +1754,6 @@ msgstr "Import (Substack)"
 msgid "Importation des articles & publications"
 msgstr "Import articles & publications"
 
-#~ msgid "Importer Abonnés (CSV)"
-#~ msgstr "Import Subscribers (CSV)"
-
 msgid "Impossible d’annuler la demande."
 msgstr "Unable to cancel the request."
 
@@ -1883,9 +1783,6 @@ msgstr "Unable to start verification."
 
 msgid "Impossible de gérer ce mot masqué."
 msgstr "Unable to manage this muted word."
-
-#~ msgid "Impossible de mettre à jour le profil."
-#~ msgstr "Could not update the profile."
 
 msgid "Impossible de modifier le blocage."
 msgstr "Unable to modify block."
@@ -1965,9 +1862,6 @@ msgstr "Likes"
 msgid "J'aime & Réactions"
 msgstr "Likes & Reactions"
 
-#~ msgid "J'aime lire des articles sur l'émancipation économique, la sociologie..."
-#~ msgstr "I like reading articles about economic emancipation, sociology..."
-
 msgid "Journalisme de terrain"
 msgstr "Field journalism"
 
@@ -1979,6 +1873,9 @@ msgstr "Journalists, essayists, collectives"
 
 msgid "Julien Roche · Technologie · 5 min"
 msgstr "Julien Roche · Technology · 5 min"
+
+msgid "L'ancienne clé est désormais invalide. Copiez cette nouvelle clé secrète dès maintenant : elle ne sera plus jamais réaffichée."
+msgstr "The previous key is now invalid. Copy this new secret key right now: it will never be displayed again."
 
 msgid "L'architecture du silence"
 msgstr "The architecture of silence"
@@ -2050,12 +1947,6 @@ msgstr "Auto-plays videos and animated content."
 msgid "Langue d'édition :"
 msgstr "Editing language:"
 
-#~ msgid "Le Bouclier de l'Attention"
-#~ msgstr "The Shield of Attention"
-
-#~ msgid "Le bruit informationnel est le premier obstacle au temps long. En filtrant les concepts toxiques, vous reprenez le contrôle absolu de votre fil de lecture."
-#~ msgstr "Information noise is the first obstacle to long-form thinking. By filtering toxic concepts, you regain absolute control of your reading feed."
-
 msgid "Le Cloud Act américain permet aux autorités des États-Unis d'accéder aux données hébergées par des entreprises américaines, où qu'elles soient dans le monde."
 msgstr "The American Cloud Act allows US authorities to access data hosted by American companies, wherever they are in the world."
 
@@ -2085,12 +1976,6 @@ msgstr "The link you followed is incorrect or the post was removed by "
 
 msgid "Le numérique militant"
 msgstr "Activist digital culture"
-
-#~ msgid "Le Réseau"
-#~ msgstr "The Network"
-
-#~ msgid "Le Sanctuaire"
-#~ msgstr "The Sanctuary"
 
 msgid "Le silence comme infrastructure"
 msgstr "Silence as infrastructure"
@@ -2230,12 +2115,6 @@ msgstr "When other members like your thoughts, reply to you or subscribe, alerts
 msgid "Lu par 14,000 abonnés"
 msgstr "Read by 14,000 subscribers"
 
-#~ msgid "Lus"
-#~ msgstr "Read"
-
-#~ msgid "Manifeste"
-#~ msgstr "Manifesto"
-
 msgid "Marc Dutronc"
 msgstr "Marc Dutronc"
 
@@ -2288,9 +2167,6 @@ msgstr "Account menu"
 msgid "Menu de navigation principal"
 msgstr "Main navigation menu"
 
-#~ msgid "Menu profil"
-#~ msgstr "Profile menu"
-
 msgid "Merci ! Vérifiez votre boîte mail pour confirmer votre abonnement."
 msgstr "Thanks! Check your inbox to confirm your subscription."
 
@@ -2323,9 +2199,6 @@ msgstr "Off-Piste Mode"
 
 msgid "Mode Lecture Intégrale"
 msgstr "Full Reading Mode"
-
-#~ msgid "MODÈLE D'ABONNEMENT COMPATIBLE RGPD"
-#~ msgstr "GDPR-COMPLIANT SUBSCRIPTION MODEL"
 
 msgid "Modifications annulées."
 msgstr "Changes cancelled."
@@ -2420,17 +2293,11 @@ msgstr "Newsletter via Brevo (French API)"
 msgid "Newsletters"
 msgstr "Newsletters"
 
-#~ msgid "Nom affiché"
-#~ msgstr "Display name"
-
 msgid "Nom complet"
 msgstr "Full name"
 
 msgid "Nom d'utilisateur"
 msgstr "Username"
-
-#~ msgid "Nom d’utilisateur"
-#~ msgstr "Username"
 
 msgid "Nom de l'onglet"
 msgstr "Tab name"
@@ -2440,9 +2307,6 @@ msgstr "Key name (e.g. Blog Vercel Prod, Mobile App...)"
 
 msgid "Nom de la publication"
 msgstr "Publication name"
-
-#~ msgid "nom_utilisateur"
-#~ msgstr "username"
 
 msgid "Nom, pseudo et photo de profil"
 msgstr "Name, username and profile picture"
@@ -2459,11 +2323,17 @@ msgstr "Private note"
 msgid "Notifications"
 msgstr "Notifications"
 
+msgid "Notifications App / Push"
+msgstr "App / Push Notifications"
+
 msgid "Notre équipe de modération va analyser cet élément dans les plus brefs délais."
 msgstr "Our moderation team will review this item as soon as possible."
 
 msgid "Nous archivons tout. Chaque photo, chaque message, chaque note vocale. Mais archiver n'est pas se souvenir."
 msgstr "We archive everything. Every photo, every message, every voice note. But archiving is not remembering."
+
+msgid "Nous soutenir"
+msgstr "Support us"
 
 msgid "Nouveau brouillon"
 msgstr "New draft"
@@ -2491,6 +2361,42 @@ msgstr "Official"
 
 msgid "Onboarding (Centres d'intérêt)"
 msgstr "Onboarding (Interests)"
+
+msgid "ont accepté votre invitation de contribution"
+msgstr "accepted your contribution invitation"
+
+msgid "ont aimé votre article"
+msgstr "liked your article"
+
+msgid "ont aimé votre pensée"
+msgstr "liked your thought"
+
+msgid "ont commenté votre article"
+msgstr "commented on your article"
+
+msgid "ont commenté votre écrit"
+msgstr "commented on your writing"
+
+msgid "ont refusé votre invitation de contribution"
+msgstr "declined your contribution invitation"
+
+msgid "ont rejoint le Média"
+msgstr "joined the Média"
+
+msgid "ont rejoint un Média"
+msgstr "joined a Média"
+
+msgid "ont repartagé votre article"
+msgstr "reposted your article"
+
+msgid "ont repartagé votre pensée"
+msgstr "reposted your thought"
+
+msgid "ont répondu à votre pensée"
+msgstr "replied to your thought"
+
+msgid "ont retiré votre attribution de cet article"
+msgstr "removed your attribution from this article"
 
 msgid "Options"
 msgstr "Options"
@@ -2559,9 +2465,6 @@ msgstr "Partially captive (subscriber relationship owned by Substack)"
 
 msgid "Pas de code. Pas de serveur. Pas de comptable. Vous avez une voix — nous vous donnons l'infrastructure. Sous-domaine personnalisé, SSL automatique, éditeur riche, newsletter intégrée, paiement direct."
 msgstr "No code. No server. No accountant. You have a voice — we give you the infrastructure. Custom subdomain, automatic SSL, rich editor, integrated newsletter, direct payment."
-
-#~ msgid "Pas de compte ? S'inscrire"
-#~ msgstr "No account? Sign up"
 
 msgid "Pas de publicités. Pas d'algorithmes opaques. Juste vous et vos lecteurs, sur une infrastructure souveraine."
 msgstr "No ads. No opaque algorithms. Just you and your readers, on a sovereign infrastructure."
@@ -2674,23 +2577,14 @@ msgstr "Philosophy"
 msgid "Photo de profil"
 msgstr "Profile picture"
 
-#~ msgid "Photo de profil (URL Image)"
-#~ msgstr "Profile picture (Image URL)"
-
 msgid "Pied de page (Footer)"
 msgstr "Footer"
-
-#~ msgid "Plateforme"
-#~ msgstr "Platform"
 
 msgid "Plein écran"
 msgstr "Fullscreen"
 
 msgid "Plumes recommandées"
 msgstr "Recommended writers"
-
-#~ msgid "Plumes Recommandées"
-#~ msgstr "Recommended Plumes"
 
 msgid "Plus d'options"
 msgstr "More options"
@@ -2715,10 +2609,6 @@ msgstr "For those who seek depth"
 
 msgid "Pour les"
 msgstr "For"
-
-#. placeholder {0}: manifestoMessages[manifestoIdx].target
-#~ msgid "Pour les {0}"
-#~ msgstr "For the {0}"
 
 msgid "pour recevoir les prochains écrits directement dans votre boîte mail."
 msgstr "to receive future posts directly in your inbox."
@@ -2765,14 +2655,8 @@ msgstr "Preparing the thread publication..."
 msgid "Près de 0% (Soutien direct via Wallet, frais de réseau uniquement)"
 msgstr "Close to 0% (Direct support via Wallet, network fees only)"
 
-#~ msgid "Présentation"
-#~ msgstr "About"
-
 msgid "Préservez votre attention (Filtre Zen)"
 msgstr "Protect your attention (Zen Filter)"
-
-#~ msgid "Préservez votre attention."
-#~ msgstr "Protect your attention."
 
 msgid "Prêt à publier ?"
 msgstr "Ready to publish?"
@@ -2786,17 +2670,8 @@ msgstr "Private"
 msgid "Privée"
 msgstr "Private"
 
-#~ msgid "Profil"
-#~ msgstr "Profile"
-
-#~ msgid "Profil & Alignement Thématique"
-#~ msgstr "Profile & Thematic Alignment"
-
 msgid "Profil mis à jour avec succès !"
 msgstr "Profile updated successfully!"
-
-#~ msgid "Profil mis à jour."
-#~ msgstr "Profile updated."
 
 msgid "Profil public"
 msgstr "Public profile"
@@ -2804,11 +2679,11 @@ msgstr "Public profile"
 msgid "Programmée"
 msgstr "Scheduled"
 
+msgid "Programmer la publication à une date ultérieure"
+msgstr "Schedule publication for a later date"
+
 msgid "Programmer une publication"
 msgstr "Schedule a publication"
-
-#~ msgid "Pronoms"
-#~ msgstr "Pronouns"
 
 msgid "Propriétaire"
 msgstr "Owner"
@@ -2846,14 +2721,8 @@ msgstr "Publish your first article to track its performance in real time here."
 msgid "Publique"
 msgstr "Public"
 
-#~ msgid "QOE.FI — ALIGNEMENT THÉMATIQUE SUR MESURE"
-#~ msgstr "QOE.FI — CUSTOM THEMATIC ALIGNMENT"
-
 msgid "qoe.fi — Lecture"
 msgstr "qoe.fi — Reading"
-
-#~ msgid "QOE.FI — ZÉRO ATTENTION COMMERCIALE"
-#~ msgstr "QOE.FI — ZERO COMMERCIAL ATTENTION"
 
 msgid "qoe.fi (Souverain)"
 msgstr "qoe.fi (Sovereign)"
@@ -2873,17 +2742,11 @@ msgstr "TOTP QR code"
 msgid "Qu'est-ce qui vous décrit le mieux ?"
 msgstr "What describes you best?"
 
-#~ msgid "Qu'est-ce qui vous élève ?"
-#~ msgstr "What elevates you?"
-
 msgid "Que recherchez-vous ?"
 msgstr "What are you looking for?"
 
 msgid "Quelle est votre pensée du jour ?"
 msgstr "What is your thought of the day?"
-
-#~ msgid "Quelques mots sur vous…"
-#~ msgstr "A few words about you…"
 
 msgid "Quels types d'analyses recherchez-vous ?"
 msgstr "What kind of analysis are you looking for?"
@@ -2902,9 +2765,6 @@ msgstr "Keyboard Shortcuts"
 
 msgid "Raccourcis de la console"
 msgstr "Console shortcuts"
-
-#~ msgid "Rapidité d'intégration"
-#~ msgstr "Integration speed"
 
 msgid "Réactions Lecteurs"
 msgstr "Reader Reactions"
@@ -2987,9 +2847,6 @@ msgstr "Settings"
 msgid "Réglages de la console"
 msgstr "Console settings"
 
-#~ msgid "Réglages du compte"
-#~ msgstr "Account settings"
-
 msgid "Réglages du Média enregistrés !"
 msgstr "Média settings saved!"
 
@@ -3016,9 +2873,6 @@ msgstr "Join the discussion"
 
 msgid "Rejoignez le cercle restreint"
 msgstr "Join the inner circle"
-
-#~ msgid "Rejoignez le réseau souverain"
-#~ msgstr "Join the sovereign network"
 
 msgid "Rejoignez le réseau souverain — un seul formulaire, quelques secondes"
 msgstr "Join the sovereign network — one form, a few seconds"
@@ -3122,18 +2976,11 @@ msgstr "Remove from bookmarks"
 msgid "Retirer du Média"
 msgstr "Remove from Média"
 
-#~ msgid "Retirer le signet"
-#~ msgstr "Remove bookmark"
-
 msgid "Retour"
 msgstr "Back"
 
 msgid "Retour au feed"
 msgstr "Back to the feed"
-
-#. placeholder {0}: creator.name || (creator.username ?? '')
-#~ msgid "Retourner au blog de {0}"
-#~ msgstr "Return to the blog of {0}"
 
 msgid "Retourner au blog de {displayName}"
 msgstr "Back to the blog of {displayName}"
@@ -3160,6 +3007,9 @@ msgstr "Collective review dedicated to the issues of the digital transition..."
 
 msgid "Rôle mis à jour."
 msgstr "Role updated."
+
+msgid "Rotater la clé : régénère le secret et invalide l'ancienne clé"
+msgstr "Rotate key: regenerates the secret and invalidates the previous key"
 
 msgid "Rotation"
 msgstr "Rotation"
@@ -3233,6 +3083,9 @@ msgstr "Cultivate yourself, for free"
 msgid "Se déconnecter"
 msgstr "Log out"
 
+msgid "se sont abonnés à votre profil"
+msgstr "subscribed to your profile"
+
 msgid "Secret copié."
 msgstr "Secret copied."
 
@@ -3245,23 +3098,14 @@ msgstr "Settings sections"
 msgid "Sécurité"
 msgstr "Security"
 
-#~ msgid "Sécurité et sessions"
-#~ msgstr "Security and sessions"
-
 msgid "Sélection hors de ta bulle, choisie pour élargir tes horizons"
 msgstr "A selection outside your bubble, chosen to broaden your horizons"
 
 msgid "Sélectionnez au moins 2 univers pour débuter."
 msgstr "Select at least 2 universes to get started."
 
-#~ msgid "Sélectionnez au moins 3 centres d'intérêt pour calibrer votre sanctuaire."
-#~ msgstr "Select at least 3 interests to calibrate your sanctuary."
-
 msgid "Sélectionnez d'abord un passage de texte à annoter."
 msgstr "First select a passage of text to annotate."
-
-#~ msgid "Sélectionnez les matières et idées qui éveillent votre réflexion. Pas d'algorithmes publicitaires ou compulsifs, juste les thématiques que vous décidez d'explorer."
-#~ msgstr "Select the subjects and ideas that spark your thinking. No advertising or compulsive algorithms, just the topics you decide to explore."
 
 msgid "Sélections de la plateforme"
 msgstr "Platform selections"
@@ -3363,17 +3207,8 @@ msgstr "qoe.fi subdomain"
 msgid "Soutenez l'indépendance de "
 msgstr "Support the independence of "
 
-#~ msgid "Soutiens directement les créateurs"
-#~ msgstr "Support creators directly"
-
-#~ msgid "Souveraineté"
-#~ msgstr "Sovereignty"
-
 msgid "Souveraineté des données"
 msgstr "Data sovereignty"
-
-#~ msgid "Souveraineté des Médias"
-#~ msgstr "Media Sovereignty"
 
 msgid "Souveraineté ou Intermédiation ?"
 msgstr "Sovereignty or Intermediation?"
@@ -3405,9 +3240,6 @@ msgstr "Reading timeline structure"
 msgid "Studio"
 msgstr "Studio"
 
-#~ msgid "Studio Créateur"
-#~ msgstr "Creator Studio"
-
 msgid "Substack"
 msgstr "Substack"
 
@@ -3428,12 +3260,6 @@ msgstr "Exploration topics"
 
 msgid "Sujets émergents"
 msgstr "Emerging topics"
-
-#~ msgid "Sujets Émergents"
-#~ msgstr "Emerging Topics"
-
-#~ msgid "Sujets pointus débloqués"
-#~ msgstr "Specialized topics unlocked"
 
 msgid "Super administrateur"
 msgstr "Super administrator"
@@ -3462,20 +3288,11 @@ msgstr "Delete account"
 msgid "Supprimer mon compte"
 msgstr "Delete my account"
 
-#~ msgid "Sur qoe.fi, les auteurs écrivent en toute indépendance, sans dépendre de régies publicitaires capitalistes ou d'intermédiaires. Suivez-les pour enrichir votre univers."
-#~ msgstr "On qoe.fi, authors write in full independence, without relying on capitalist ad networks or intermediaries. Follow them to enrich your world."
-
 msgid "Surlignage supprimé"
 msgstr "Highlight deleted"
 
 msgid "Surlignages"
 msgstr "Highlights"
-
-#~ msgid "Surligné dans :"
-#~ msgstr "Highlighted in:"
-
-#~ msgid "Surlignez des passages dans les articles que vous lisez pour les retrouver ici."
-#~ msgstr "Highlight passages in the articles you read to find them here."
 
 msgid "Surlignez des passages stimulants lors de la lecture d'articles."
 msgstr "Highlight inspiring passages while reading articles."
@@ -3626,6 +3443,9 @@ msgstr "Absolute reading comfort."
 msgid "Un email de confirmation peut vous être demandé selon la configuration de la plateforme."
 msgstr "An email confirmation may be requested depending on the platform configuration."
 
+msgid "Un espace dédié aux écrits de fond, aux analyses indépendantes et au partage d'idées."
+msgstr "A space dedicated to in-depth writings, independent analyses, and sharing ideas."
+
 msgid "un nouvel article"
 msgstr "a new article"
 
@@ -3634,9 +3454,6 @@ msgstr "An integrated virtual wallet allowing you to support your favorite autho
 
 msgid "Un sanctuaire dédié à la lecture profonde. Fuyez le bruit constant, cultivez le silence et choisissez qui vous influence."
 msgstr "A sanctuary dedicated to deep reading. Escape the constant noise, cultivate silence, and choose who influences you."
-
-msgid "Un sanctuaire dédié aux idées profondes, histoires choisies et à la pensée libre."
-msgstr "A premium sanctuary for profound insights, carefully curated stories, and independent thought."
 
 msgid "Un utilisateur"
 msgstr "A user"
@@ -3682,9 +3499,6 @@ msgstr "Uploading..."
 
 msgid "URL (ex: /login, https://...)"
 msgstr "URL (e.g. /login, https://...)"
-
-#~ msgid "URL de la photo de profil"
-#~ msgstr "Profile picture URL"
 
 msgid "Utilisateur"
 msgstr "User"
@@ -3743,23 +3557,14 @@ msgstr "Please provide your name and username."
 msgid "Veuillez saisir une adresse e-mail valide."
 msgstr "Please enter a valid email address."
 
-#~ msgid "Veuillez sélectionner au moins 3 centres d'intérêt."
-#~ msgstr "Please select at least 3 interests."
-
 msgid "Visibilité de mes likes"
 msgstr "Visibility of my likes"
 
 msgid "Visibilité du profil"
 msgstr "Profile visibility"
 
-#~ msgid "Voici quelques créateurs certifiés qui correspondent à vos affinités."
-#~ msgstr "Here are some certified creators that match your affinities."
-
 msgid "Voir & laisser un commentaire"
 msgstr "View & leave a comment"
-
-#~ msgid "Voir +"
-#~ msgstr "See more"
 
 msgid "Voir le profil"
 msgstr "View profile"
@@ -3779,12 +3584,6 @@ msgstr "See less content like this?"
 msgid "Voir tout"
 msgstr "See all"
 
-#~ msgid "Vos citations et réflexions extraites de vos lectures."
-#~ msgstr "Your citations and thoughts extracted from your readings."
-
-#~ msgid "Vos lectures sauvegardées et articles favoris."
-#~ msgstr "Your saved readings and favorite articles."
-
 msgid "Vos lectures sauvegardées, citations et réflexions personnelles."
 msgstr "Your saved reads, quotes, and personal thoughts."
 
@@ -3799,6 +3598,15 @@ msgstr "Your email address"
 
 msgid "Votre annotation"
 msgstr "Your annotation"
+
+msgid "Votre bibliothèque est vide"
+msgstr "Your library is empty"
+
+msgid "Votre clé d'API a été générée avec succès"
+msgstr "Your API key was generated successfully"
+
+msgid "Votre clé d'API a été rotatée avec succès"
+msgstr "Your API key was rotated successfully"
 
 msgid "Votre CMS. Votre audience. Votre ligne."
 msgstr "Your CMS. Your audience. Your line."
@@ -3824,9 +3632,6 @@ msgstr "Your password must contain at least 8 characters."
 msgid "Votre nom"
 msgstr "Your name"
 
-#~ msgid "Votre Note"
-#~ msgstr "Your Note"
-
 msgid "Votre profil (optionnel)"
 msgstr "Your profile (optional)"
 
@@ -3839,15 +3644,6 @@ msgstr "Your publication \"{0}\" is live. Consider sharing it on your networks."
 
 msgid "Votre réflexion, synthèse ou mémo sur ce passage..."
 msgstr "Your thoughts, summary, or note on this passage..."
-
-#~ msgid "Votre Sanctuaire commence ici."
-#~ msgstr "Your Sanctuary starts here."
-
-#~ msgid "Votre sanctuaire est vide"
-#~ msgstr "Your sanctuary is empty"
-
-msgid "Votre Sanctuaire est vide"
-msgstr "Your Sanctuary is empty"
 
 msgid "Votre sélection calibre l'embedding sémantique de votre sanctuaire sans publicité ni profilage commercial."
 msgstr "Your selection calibrates the semantic embedding of your sanctuary without ads or commercial profiling."
@@ -3880,9 +3676,6 @@ msgstr "mentioned you"
 msgid "Vous comptez actuellement {0} abonnés inscrits. Proposez du contenu exclusif pour augmenter vos abonnements payants."
 msgstr "You currently have {0} subscribed followers. Offer exclusive content to grow your paid subscriptions."
 
-#~ msgid "Vous comptez actuellement {subscribersCount} abonnés inscrits. Proposez du contenu exclusif pour augmenter vos abonnements payants."
-#~ msgstr "You currently have {subscribersCount} registered subscribers. Offer exclusive content to increase your paid subscriptions."
-
 msgid "Vous êtes sur la liste !"
 msgstr "You're on the list!"
 
@@ -3892,6 +3685,15 @@ msgstr "invites you to appear as a contributor to this article"
 msgid "Vous n'avez pas encore d'article publié. Rédigez votre premier contenu pour attirer vos premiers lecteurs."
 msgstr "You don't have a published article yet. Write your first content to attract your first readers."
 
+msgid "vous ont invité à rejoindre le Média"
+msgstr "invited you to join the Média"
+
+msgid "vous ont invité à rejoindre un Média"
+msgstr "invited you to join a Média"
+
+msgid "vous ont mentionné"
+msgstr "mentioned you"
+
 msgid "Vous pouvez ajouter jusqu'à 4 images maximum par post."
 msgstr "You can add up to 4 images per post."
 
@@ -3900,9 +3702,6 @@ msgstr "You are now following this creator."
 
 msgid "vous@exemple.com"
 msgstr "you@example.com"
-
-#~ msgid "Vue d'ensemble"
-#~ msgstr "Overview"
 
 msgid "Vue en grille bento"
 msgstr "Bento grid view"

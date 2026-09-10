@@ -93,3 +93,6 @@ export {
 
 // 🌐 SEO Sémantique & JSON-LD (Schema.org)
 export * from './seo/JsonLd';
+
+// 🧭 Page 404 Immersive & Interactive
+export { NotFoundView } from './NotFoundView';

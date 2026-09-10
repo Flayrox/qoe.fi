@@ -45,6 +45,10 @@ export async function generateMetadata(): Promise<Metadata> {
     description: isFr
       ? 'Découvrez les publications, articles et réflexions de créateurs indépendants propulsés par qoe.fi.'
       : 'Discover publications, articles, and insights from independent creators powered by qoe.fi.',
+    icons: {
+      icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+      apple: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+    },
   };
 }
 
