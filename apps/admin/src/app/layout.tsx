@@ -10,7 +10,7 @@
 import type { Metadata } from 'next';
 import { Inter, JetBrains_Mono, Geist } from 'next/font/google';
 import { I18nClientProvider } from '@qoe/i18n/provider';
-import { getStaticTranslations, getLanguage, initI18n } from '@qoe/i18n/server';
+import { getStaticTranslations, initI18n } from '@qoe/i18n/server';
 import { TooltipProvider } from '@qoe/ui/ui/tooltip';
 import { Toaster } from '@qoe/ui/toast';
 import { AnalyticsScript } from '@qoe/analytics/client';
@@ -48,6 +48,10 @@ export const metadata: Metadata = {
     index: false,
     follow: false,
     nocache: true,
+  },
+  icons: {
+    icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
+    apple: [{ url: '/icon.svg', type: 'image/svg+xml' }],
   },
 };
 
