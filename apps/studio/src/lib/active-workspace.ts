@@ -25,7 +25,7 @@ export interface ActiveWorkspace {
 
 const WORKSPACE_COOKIE = 'qoe_active_workspace';
 
-function parseCookie(raw: string | undefined): { type?: string; id?: string } | null {
+export function parseCookie(raw: string | undefined | null): { type?: string; id?: string } | null {
   if (!raw) return null;
   try {
     const parsed = JSON.parse(decodeURIComponent(raw)) as { type?: string; id?: string };
