@@ -228,6 +228,9 @@ importers:
       '@qoe/flags':
         specifier: workspace:*
         version: link:../../packages/flags
+      '@qoe/formatters':
+        specifier: workspace:*
+        version: link:../../packages/formatters
       '@qoe/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
@@ -240,6 +243,9 @@ importers:
       '@qoe/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
+      '@qoe/social':
+        specifier: workspace:*
+        version: link:../../packages/social
       '@qoe/supabase':
         specifier: workspace:*
         version: link:../../packages/supabase
@@ -422,12 +428,18 @@ importers:
       '@qoe/brand':
         specifier: workspace:*
         version: link:../../packages/brand
+      '@qoe/formatters':
+        specifier: workspace:*
+        version: link:../../packages/formatters
       '@qoe/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
       '@qoe/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
+      '@qoe/social':
+        specifier: workspace:*
+        version: link:../../packages/social
       '@qoe/theme':
         specifier: workspace:*
         version: link:../../packages/theme

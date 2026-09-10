@@ -55,42 +55,9 @@ export interface FormattedPoll {
   }>;
 }
 
-export function formatPollData(
-  rawPoll: FeedPoll | null | undefined,
-  currentUserId?: string | null
-): FormattedPoll | null {
-  if (!rawPoll) return null;
-  const totalVotes = rawPoll.options
-    ? rawPoll.options.reduce((acc: number, opt) => acc + (opt._count?.votes || 0), 0)
-    : 0;
-  const isExpired = new Date() > new Date(rawPoll.expiresAt);
-  const userVote =
-    currentUserId && Array.isArray(rawPoll.votes)
-      ? rawPoll.votes.find((v) => v.userId === currentUserId)
-      : null;
+import { formatPollData } from '@qoe/social';
 
-  const options = (rawPoll.options || []).map((opt) => {
-    const voteCount = opt._count?.votes ?? 0;
-    const percentage = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0;
-    return {
-      id: opt.id,
-      text: opt.text,
-      order: opt.order,
-      voteCount,
-      percentage,
-    };
-  });
-
-  return {
-    id: rawPoll.id,
-    thoughtId: rawPoll.thoughtId,
-    expiresAt: rawPoll.expiresAt,
-    isExpired,
-    totalVotes,
-    userVotedOptionId: userVote ? userVote.optionId : null,
-    options,
-  };
-}
+export { formatPollData };
 
 // FeedPost est une pensée du fil (poll déjà formaté). Les dates arrivent en
 // string RFC3339 depuis le JSON Go (ou en Date côté Prisma fallback).
