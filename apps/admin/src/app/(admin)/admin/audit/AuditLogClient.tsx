@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { RefreshCw, ShieldAlert, ShieldCheck, SlidersHorizontal, UserCog } from 'lucide-react';
-import { getAdminAuditLog, type AdminAuditEntry } from '@/lib/admin-data';
+import type { AdminAuditEntry } from '@/lib/admin-data';
 
 // Libellés humains des actions tracées.
 const actionMeta: Record<string, { label: string; icon: typeof ShieldCheck }> = {
@@ -36,9 +36,8 @@ export function AuditLogClient({ initialEntries }: { initialEntries: AdminAuditE
 
   const refresh = () => {
     setError(null);
-    startTransition(async () => {
+    startTransition(() => {
       try {
-        await getAdminAuditLog(100);
         router.refresh();
       } catch (refreshError) {
         setError(refreshError instanceof Error ? refreshError.message : 'Rechargement impossible.');
