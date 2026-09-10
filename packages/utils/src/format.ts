@@ -2,6 +2,8 @@
 // 📅 format — Helpers de formatage (dates, nombres, monnaie)
 // =====================================================================
 
+import { formatCurrency as formatCurrencyBase } from '@qoe/formatters';
+
 /**
  * 💰 Formate un montant en centimes → "12,50 €" (FR) ou "$12.50" (EN).
  */
@@ -10,10 +12,7 @@ export function formatCurrency(
   currency: string = 'EUR',
   locale: string = 'fr-FR'
 ): string {
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency,
-  }).format(cents / 100);
+  return formatCurrencyBase(cents / 100, { currency, locale });
 }
 
 /**

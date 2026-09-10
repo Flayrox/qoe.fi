@@ -4,6 +4,7 @@
   "private": true,
   "description": "qoe.fi monorepo — Turborepo + pnpm + Next.js (tenants, core, hi, studio, admin) + Go (api, worker asynq)",
   "scripts": {
+    "verify": "turbo run lint typecheck test",
     "test": "turbo run test",
     "test:api": "bash scripts/test-api.sh",
     "test:coverage": "vitest run --config vitest.coverage.config.ts",

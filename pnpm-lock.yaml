@@ -428,12 +428,18 @@ importers:
       '@qoe/brand':
         specifier: workspace:*
         version: link:../../packages/brand
+      '@qoe/content':
+        specifier: workspace:*
+        version: link:../../packages/content
       '@qoe/formatters':
         specifier: workspace:*
         version: link:../../packages/formatters
       '@qoe/i18n':
         specifier: workspace:*
         version: link:../../packages/i18n
+      '@qoe/schemas':
+        specifier: workspace:*
+        version: link:../../packages/schemas
       '@qoe/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
@@ -911,6 +917,9 @@ importers:
 
   packages/config:
     dependencies:
+      '@qoe/schemas':
+        specifier: workspace:*
+        version: link:../schemas
       zod:
         specifier: ^3.23.8
         version: 3.25.76
@@ -1038,6 +1047,19 @@ importers:
       ioredis:
         specifier: ^5.4.1
         version: 5.11.1(supports-color@8.1.1)
+    devDependencies:
+      '@qoe/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+
+  packages/schemas:
+    dependencies:
+      zod:
+        specifier: ^3.23.8
+        version: 3.25.76
     devDependencies:
       '@qoe/tsconfig':
         specifier: workspace:*
@@ -1222,6 +1244,12 @@ importers:
       '@qoe/config':
         specifier: workspace:*
         version: link:../config
+      '@qoe/formatters':
+        specifier: workspace:*
+        version: link:../formatters
+      '@qoe/schemas':
+        specifier: workspace:*
+        version: link:../schemas
       clsx:
         specifier: ^2.1.1
         version: 2.1.1

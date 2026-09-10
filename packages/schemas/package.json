@@ -1,5 +1,5 @@
 {
-  "name": "@qoe/config",
+  "name": "@qoe/schemas",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -7,19 +7,19 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./env": "./src/env.ts",
-    "./constants": "./src/constants.ts",
-    "./features": "./src/features.ts",
-    "./routes": "./src/routes.ts",
-    "./schemas": "./src/schemas.ts",
-    "./tenant": "./src/tenant.ts"
+    "./common": "./src/common.ts",
+    "./thought": "./src/thought.ts",
+    "./profile": "./src/profile.ts",
+    "./moderation": "./src/moderation.ts",
+    "./article": "./src/article.ts"
   },
   "scripts": {
     "lint": "eslint .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@qoe/schemas": "workspace:*",
     "zod": "^3.23.8"
   },
   "devDependencies": {
