@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { parseCookie } from '@/lib/active-workspace';
 
 describe('workspace cookie parser', () => {
