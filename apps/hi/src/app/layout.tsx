@@ -36,45 +36,63 @@ const jetbrainsMono = JetBrains_Mono({ variable: '--font-mono', subsets: ['latin
 
 const landingUrl = (process.env.NEXT_PUBLIC_LANDING_URL || 'https://hi.qoe.fi').replace(/\/$/, '');
 
-export const metadata: Metadata = {
-  metadataBase: new URL(landingUrl),
-  title: {
-    default: 'qoe.fi — The Independent European Creator Platform',
-    template: '%s | qoe.fi',
-  },
-  description:
-    'A sophisticated platform for modern creators. Retain your revenue, automate compliance, and grow your audience within a secure, GDPR-first ecosystem.',
-  applicationName: 'qoe.fi',
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
+export async function generateMetadata(): Promise<Metadata> {
+  const lang = await getLanguage();
+  const isFr = lang === 'fr';
+
+  const title = isFr
+    ? 'qoe.fi — L’infrastructure pour les créateurs et médias indépendants'
+    : 'qoe.fi — The Independent Creator & Media Platform';
+
+  const description = isFr
+    ? 'Lancez votre publication, monétisez sans intermédiaire et développez votre lectorat sur une infrastructure européenne ouverte.'
+    : 'Launch your publication, monetize directly, and grow your audience on open, Europe-hosted infrastructure.';
+
+  return {
+    metadataBase: new URL(landingUrl),
+    title: {
+      default: title,
+      template: '%s | qoe.fi',
+    },
+    description,
+    applicationName: 'qoe.fi',
+    alternates: {
+      canonical: landingUrl,
+      languages: {
+        'fr-FR': `${landingUrl}?lang=fr`,
+        'en-US': `${landingUrl}?lang=en`,
+        'x-default': landingUrl,
+      },
+    },
+    robots: {
       index: true,
       follow: true,
-      'max-video-preview': -1,
-      'max-image-preview': 'large',
-      'max-snippet': -1,
+      googleBot: {
+        index: true,
+        follow: true,
+        'max-video-preview': -1,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+      },
     },
-  },
-  openGraph: {
-    type: 'website',
-    locale: 'fr_FR',
-    alternateLocale: ['en_US'],
-    url: landingUrl,
-    siteName: 'qoe.fi',
-    title: 'qoe.fi — The Independent European Creator Platform',
-    description:
-      'A sophisticated platform for modern creators. Retain your revenue, automate compliance, and grow your audience within a secure, GDPR-first ecosystem.',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    site: '@qoefi',
-    creator: '@qoefi',
-    title: 'qoe.fi — The Independent European Creator Platform',
-    description:
-      'A sophisticated platform for modern creators. Retain your revenue, automate compliance, and grow your audience within a secure, GDPR-first ecosystem.',
-  },
-};
+    openGraph: {
+      type: 'website',
+      locale: isFr ? 'fr_FR' : 'en_US',
+      alternateLocale: isFr ? ['en_US'] : ['fr_FR'],
+      url: landingUrl,
+      siteName: 'qoe.fi',
+      title,
+      description,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      site: '@qoefi',
+      creator: '@qoefi',
+      title,
+      description,
+    },
+  };
+}
 
 export default async function RootLayout({
   children,

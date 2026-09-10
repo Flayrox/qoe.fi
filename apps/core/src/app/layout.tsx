@@ -10,7 +10,7 @@
 import type { Metadata } from 'next';
 import { Inter, JetBrains_Mono, Geist } from 'next/font/google';
 import { I18nClientProvider } from '@qoe/i18n/provider';
-import { getStaticTranslations, initI18n } from '@qoe/i18n/server';
+import { getStaticTranslations, getLanguage, initI18n } from '@qoe/i18n/server';
 import { TooltipProvider } from '@qoe/ui/ui/tooltip';
 import { Toaster } from '@qoe/ui/toast';
 import { AnalyticsScript } from '@qoe/analytics/client';
@@ -53,51 +53,69 @@ const jetbrainsMono = JetBrains_Mono({ variable: '--font-mono', subsets: ['latin
 
 const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://qoe.fi').replace(/\/$/, '');
 
-export const metadata: Metadata = {
-  metadataBase: new URL(appUrl),
-  title: {
-    default: 'qoe.fi — Your Digital Sanctuary in Europe',
-    template: '%s | qoe.fi',
-  },
-  description:
-    'A sophisticated platform for modern creators. Retain your revenue, automate compliance, and grow your audience within a secure, GDPR-first ecosystem.',
-  applicationName: 'qoe.fi',
-  authors: [{ name: 'qoe.fi', url: 'https://qoe.fi' }],
-  creator: 'qoe.fi',
-  publisher: 'qoe.fi',
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
+export async function generateMetadata(): Promise<Metadata> {
+  const lang = await getLanguage();
+  const isFr = lang === 'fr';
+
+  const title = isFr
+    ? 'qoe.fi — Plateforme de publication & réseau de créateurs'
+    : 'qoe.fi — Independent Publishing & Reader Network';
+
+  const description = isFr
+    ? 'Plateforme européenne pour créateurs, médias et lecteurs indépendants. Écrits de fond, pensées, newsletters et abonnements directs.'
+    : 'European platform for independent writers, media publications, and readers. In-depth articles, thoughts, newsletters, and direct subscriptions.';
+
+  return {
+    metadataBase: new URL(appUrl),
+    title: {
+      default: title,
+      template: '%s | qoe.fi',
+    },
+    description,
+    applicationName: 'qoe.fi',
+    authors: [{ name: 'qoe.fi', url: 'https://qoe.fi' }],
+    creator: 'qoe.fi',
+    publisher: 'qoe.fi',
+    alternates: {
+      canonical: appUrl,
+      languages: {
+        'fr-FR': `${appUrl}?lang=fr`,
+        'en-US': `${appUrl}?lang=en`,
+        'x-default': appUrl,
+      },
+    },
+    robots: {
       index: true,
       follow: true,
-      'max-video-preview': -1,
-      'max-image-preview': 'large',
-      'max-snippet': -1,
+      googleBot: {
+        index: true,
+        follow: true,
+        'max-video-preview': -1,
+        'max-image-preview': 'large',
+        'max-snippet': -1,
+      },
     },
-  },
-  openGraph: {
-    type: 'website',
-    locale: 'fr_FR',
-    alternateLocale: ['en_US'],
-    url: appUrl,
-    siteName: 'qoe.fi',
-    title: 'qoe.fi — Your Digital Sanctuary in Europe',
-    description:
-      'A sophisticated platform for modern creators. Retain your revenue, automate compliance, and grow your audience within a secure, GDPR-first ecosystem.',
-  },
-  twitter: {
-    card: 'summary_large_image',
-    site: '@qoefi',
-    creator: '@qoefi',
-    title: 'qoe.fi — Your Digital Sanctuary in Europe',
-    description:
-      'A sophisticated platform for modern creators. Retain your revenue, automate compliance, and grow your audience within a secure, GDPR-first ecosystem.',
-  },
-  verification: {
-    google: '5G2LP8qdCURCY_GzijCkVe7CaXxsEDGr73pl_II-0fM',
-  },
-};
+    openGraph: {
+      type: 'website',
+      locale: isFr ? 'fr_FR' : 'en_US',
+      alternateLocale: isFr ? ['en_US'] : ['fr_FR'],
+      url: appUrl,
+      siteName: 'qoe.fi',
+      title,
+      description,
+    },
+    twitter: {
+      card: 'summary_large_image',
+      site: '@qoefi',
+      creator: '@qoefi',
+      title,
+      description,
+    },
+    verification: {
+      google: '5G2LP8qdCURCY_GzijCkVe7CaXxsEDGr73pl_II-0fM',
+    },
+  };
+}
 
 export default async function RootLayout({
   children,

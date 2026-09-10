@@ -59,18 +59,22 @@ async function fetchCanonicalDocument(articleId: string): Promise<CanonicalDocum
 
 import type { Metadata } from 'next';
 import { JsonLd, buildArticleSchema } from '@qoe/ui';
+import { getLanguage } from '@qoe/i18n/server';
 
 export async function generateMetadata({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
+  const lang = await getLanguage();
+  const isFr = lang === 'fr';
+
   const resolvedParams = await params;
   const article = await fetchArticleBySlug(resolvedParams.slug);
 
   if (!article) {
     return {
-      title: 'Article introuvable | qoe.fi',
+      title: isFr ? 'Article introuvable | qoe.fi' : 'Article not found | qoe.fi',
     };
   }
 
@@ -84,7 +88,8 @@ export async function generateMetadata({
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://qoe.fi').replace(/\/$/, '');
   const canonicalUrl = `${appUrl}/article/${encodeURIComponent(article.slug)}`;
   const authorName =
-    article.author?.name || (article.author?.username ? `@${article.author.username}` : 'Auteur');
+    article.author?.name ||
+    (article.author?.username ? `@${article.author.username}` : isFr ? 'Auteur' : 'Author');
 
   return {
     title: `${article.title} | qoe.fi`,
@@ -94,6 +99,7 @@ export async function generateMetadata({
     },
     openGraph: {
       type: 'article',
+      locale: isFr ? 'fr_FR' : 'en_US',
       title: article.title,
       description: cleanDescription,
       url: canonicalUrl,

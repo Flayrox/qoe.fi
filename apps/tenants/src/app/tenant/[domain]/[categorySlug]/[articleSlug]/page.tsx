@@ -4,7 +4,9 @@ import { createClient } from '@qoe/supabase/server';
 import { getMainAppUrl } from '@qoe/config';
 import Link from 'next/link';
 import Image from 'next/image';
-import { TenantHeader, SubscribeForm } from '@qoe/ui';
+import { TenantHeader, SubscribeForm, JsonLd, buildArticleSchema } from '@qoe/ui';
+import type { Metadata } from 'next';
+import { getLanguage } from '@qoe/i18n/server';
 import { type AnnotationItem, type HighlightItem } from '@qoe/ui/annotations';
 import { TenantArticleHighlighter } from '../../article/[slug]/TenantArticleHighlighter';
 import { TenantArticleReadingTracker } from '../../article/[slug]/TenantArticleReadingTracker';
@@ -28,6 +30,70 @@ interface TenantCategoryArticlePageProps {
     categorySlug: string;
     articleSlug: string;
   }>;
+}
+
+export async function generateMetadata({
+  params,
+}: TenantCategoryArticlePageProps): Promise<Metadata> {
+  const lang = await getLanguage();
+  const isFr = lang === 'fr';
+
+  const { domain, categorySlug, articleSlug } = await params;
+  const decodedDomain = decodeURIComponent(domain).toLowerCase();
+  const decodedCategorySlug = decodeURIComponent(categorySlug).toLowerCase();
+  const decodedArticleSlug = decodeURIComponent(articleSlug);
+
+  const bundle = await fetchTenantArticle(decodedDomain, decodedArticleSlug);
+  if (!bundle) return {};
+
+  const { publication, article } = bundle;
+  const title = `${article.title} | ${publication.name || decodedDomain}`;
+  const defaultDesc = isFr
+    ? `Lisez ${article.title} sur ${publication.name || decodedDomain}.`
+    : `Read ${article.title} on ${publication.name || decodedDomain}.`;
+
+  const description = article.content
+    ? article.content
+        .replace(/<[^>]*>?/gm, '')
+        .trim()
+        .slice(0, 160)
+    : defaultDesc;
+
+  const canonicalUrl = `https://${decodedDomain}/${encodeURIComponent(decodedCategorySlug)}/${encodeURIComponent(article.slug)}`;
+  const authorName =
+    article.author?.name ||
+    article.author?.username ||
+    publication.name ||
+    (isFr ? 'Auteur' : 'Author');
+  const coverImage = publication.headerImageUrl || article.author?.logoUrl || undefined;
+
+  return {
+    title,
+    description,
+    robots: {
+      index: publication.allowIndexing !== false,
+      follow: publication.allowIndexing !== false,
+    },
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    openGraph: {
+      type: 'article',
+      locale: isFr ? 'fr_FR' : 'en_US',
+      title: article.title,
+      description,
+      url: canonicalUrl,
+      publishedTime: article.createdAt,
+      authors: [authorName],
+      images: coverImage ? [{ url: coverImage }] : [],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: article.title,
+      description,
+      images: coverImage ? [coverImage] : [],
+    },
+  };
 }
 
 export default async function TenantCategoryArticlePage({
@@ -208,12 +274,29 @@ export default async function TenantCategoryArticlePage({
   const canonicalDocument = !paywallCutResult.isTruncated
     ? await fetchCanonicalDocument(article.id)
     : null;
+  const jsonLdData = buildArticleSchema({
+    title: article.title,
+    description: article.content
+      ? article.content
+          .replace(/<[^>]*>?/gm, '')
+          .trim()
+          .slice(0, 200)
+      : undefined,
+    slug: article.slug,
+    createdAt: article.createdAt,
+    authorName: article.author?.name || article.author?.username || displayName,
+    authorUsername: article.author?.username,
+    authorLogo: article.author?.logoUrl,
+    coverImage: publication.headerImageUrl || article.author?.logoUrl,
+    baseUrl: `https://${decodedDomain}`,
+  });
 
   return (
     <div
       className={`min-h-screen ${themeMode === 'dark' ? 'dark bg-foreground text-background' : 'bg-background text-foreground'} selection:bg-[var(--tenant-accent)] selection:text-white transition-colors duration-300 relative`}
       style={customStyle}
     >
+      <JsonLd data={jsonLdData} />
       <TenantHeader
         name={name}
         domain={decodedDomain}

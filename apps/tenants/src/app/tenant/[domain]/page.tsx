@@ -5,12 +5,16 @@ import { Metadata } from 'next';
 import { SocialIcon, TenantHeader, SubscribeForm, JsonLd, buildWebSiteSchema } from '@qoe/ui';
 import { t } from '@lingui/core/macro';
 import { fetchTenantPublication } from '@/lib/tenant-data';
+import { getLanguage } from '@qoe/i18n/server';
 
 interface PageProps {
   params: Promise<{ domain: string }>;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const lang = await getLanguage();
+  const isFr = lang === 'fr';
+
   const { domain } = await params;
   const decodedDomain = decodeURIComponent(domain);
 
@@ -19,11 +23,12 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   if (!publication) return {};
 
+  const defaultDesc = isFr
+    ? `Découvrez les écrits et analyses de ${publication.name || decodedDomain}.`
+    : `Explore the articles and insights of ${publication.name || decodedDomain}.`;
+
   const title = publication.seoTitle || `${publication.name} | ${decodedDomain}`;
-  const description =
-    publication.seoDescription ||
-    publication.heroText ||
-    `Explore the thoughts and articles of ${publication.name}.`;
+  const description = publication.seoDescription || publication.heroText || defaultDesc;
   const canonicalUrl = `https://${decodedDomain}`;
 
   return {
@@ -38,6 +43,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     },
     icons: publication.logoUrl ? { icon: publication.logoUrl } : undefined,
     openGraph: {
+      locale: isFr ? 'fr_FR' : 'en_US',
       title: publication.seoTitle || publication.name || decodedDomain,
       description,
       url: canonicalUrl,
@@ -138,7 +144,7 @@ export default async function TenantHomepage({ params }: PageProps) {
           <p
             className={`text-xl md:text-2xl max-w-2xl mx-auto leading-relaxed mb-10 ${headerImageUrl ? 'text-background/80' : 'text-muted-foreground'}`}
           >
-            {t`Un sanctuaire dédié aux idées profondes, histoires choisies et à la pensée libre.`}
+            {t`Un espace dédié aux écrits de fond, aux analyses indépendantes et au partage d'idées.`}
           </p>
 
           {socialLinks.length > 0 && (

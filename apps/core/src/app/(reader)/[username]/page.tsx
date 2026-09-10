@@ -16,17 +16,21 @@ const RESERVED_USERNAMES = new Set([
 ]);
 
 import { JsonLd, buildPersonSchema } from '@qoe/ui';
+import { getLanguage } from '@qoe/i18n/server';
 
 export async function generateMetadata({ params }: { params: Promise<{ username: string }> }) {
+  const lang = await getLanguage();
+  const isFr = lang === 'fr';
+
   const resolvedParams = await params;
   const rawUsername = decodeURIComponent(resolvedParams.username).replace(/^@/, '');
 
   if (STATIC_ASSET_REGEX.test(rawUsername) || RESERVED_USERNAMES.has(rawUsername)) {
-    return { title: 'Profil introuvable — qoe.fi' };
+    return { title: isFr ? 'Profil introuvable — qoe.fi' : 'Profile not found — qoe.fi' };
   }
 
   try {
-    // Lecture du profil via l'API Go (source de vérité unique).
+    // Go-first : GET /v1/users/{username}.
     const profileRaw = await goFetch<{ data: PublicProfileData } | PublicProfileData>(
       `/v1/users/${encodeURIComponent(rawUsername)}`
     );
@@ -37,29 +41,37 @@ export async function generateMetadata({ params }: { params: Promise<{ username:
 
     const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://qoe.fi').replace(/\/$/, '');
     const canonicalUrl = `${appUrl}/${encodeURIComponent(profile.slug || rawUsername)}`;
+    const defaultDesc = isFr
+      ? `Profil créateur de ${profile.name || `@${profile.slug}`} sur qoe.fi.`
+      : `Creator profile of ${profile.name || `@${profile.slug}`} on qoe.fi.`;
 
     return {
       title: `${profile.name || `@${profile.slug}`} (@${profile.slug}) — qoe.fi`,
-      description: profile.heroText || `Profil créateur de ${profile.name} sur qoe.fi.`,
+      description: profile.heroText || defaultDesc,
       alternates: {
         canonical: canonicalUrl,
       },
       openGraph: {
         type: 'profile',
-        title: `${profile.name || `@${profile.slug}`} sur qoe.fi`,
-        description: profile.heroText || `Suivez ${profile.name} sur qoe.fi.`,
+        locale: isFr ? 'fr_FR' : 'en_US',
+        title: isFr
+          ? `${profile.name || `@${profile.slug}`} sur qoe.fi`
+          : `${profile.name || `@${profile.slug}`} on qoe.fi`,
+        description: profile.heroText || defaultDesc,
         url: canonicalUrl,
         images: profile.logoUrl ? [{ url: profile.logoUrl }] : [],
       },
       twitter: {
         card: 'summary',
-        title: `${profile.name || `@${profile.slug}`} sur qoe.fi`,
-        description: profile.heroText || `Suivez ${profile.name} sur qoe.fi.`,
+        title: isFr
+          ? `${profile.name || `@${profile.slug}`} sur qoe.fi`
+          : `${profile.name || `@${profile.slug}`} on qoe.fi`,
+        description: profile.heroText || defaultDesc,
         images: profile.logoUrl ? [profile.logoUrl] : [],
       },
     };
   } catch {
-    return { title: 'Profil introuvable — qoe.fi' };
+    return { title: isFr ? 'Profil introuvable — qoe.fi' : 'Profile not found — qoe.fi' };
   }
 }
 

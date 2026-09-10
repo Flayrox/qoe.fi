@@ -1,6 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { ChevronDown, ArrowLeft } from 'lucide-react';
+import { t } from '@lingui/core/macro';
 import type { NavigationItem, SocialLink } from '@qoe/sdk/types';
 import { SocialIcon } from './SocialIcon';
 
@@ -66,7 +67,7 @@ export function TenantHeader({
               className={`flex items-center gap-1.5 text-sm font-medium mr-4 text-muted-foreground hover:text-foreground transition-all hover:-translate-x-1 ${isBrutalist ? 'uppercase tracking-wider font-bold text-foreground' : ''}`}
             >
               <ArrowLeft className="w-4 h-4" />
-              <span className="hidden sm:inline">Back</span>
+              <span className="hidden sm:inline">{t`Retour`}</span>
             </Link>
           )}
 
@@ -106,7 +107,7 @@ export function TenantHeader({
                         {nav.children!.map((child: NavigationItem) => (
                           <Link
                             key={child.id}
-                            href="/"
+                            href={child.url || '/'}
                             target={child.isExternal ? '_blank' : '_self'}
                             className={`block px-4 py-3 hover:bg-[var(--tenant-accent)]/10 hover:text-[var(--tenant-accent)] transition-colors ${isBrutalist ? 'border-b-2 border-foreground last:border-0 font-bold uppercase text-xs' : ''}`}
                           >
@@ -122,7 +123,7 @@ export function TenantHeader({
               return (
                 <Link
                   key={nav.id}
-                  href="/"
+                  href={nav.url || '/'}
                   target={nav.isExternal ? '_blank' : '_self'}
                   className="hover:text-foreground hover:text-[var(--tenant-accent)] transition-colors py-2 block"
                 >
@@ -136,7 +137,7 @@ export function TenantHeader({
             {socialLinks.slice(0, 3).map((social: SocialLink) => (
               <Link
                 key={social.id}
-                href="/"
+                href={social.url || '/'}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-muted-foreground hover:text-[var(--tenant-accent)] hover:scale-110 transition-all hidden lg:block"
@@ -147,12 +148,12 @@ export function TenantHeader({
 
             {supportLink && (
               <Link
-                href="/"
+                href={supportLink}
                 target={supportUrl && !stripeAccountId ? '_blank' : '_self'}
                 className={`px-4 py-2 text-sm font-semibold text-white transition-all whitespace-nowrap ${isBrutalist ? 'border-2 border-foreground shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] uppercase tracking-wider hover:translate-y-px hover:shadow-none' : 'rounded-full hover:opacity-90 active:scale-95'}`}
                 style={{ backgroundColor: 'var(--tenant-accent)' }}
               >
-                Support Us
+                {t`Nous soutenir`}
               </Link>
             )}
           </div>

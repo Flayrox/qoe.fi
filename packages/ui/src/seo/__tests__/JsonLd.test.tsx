@@ -72,7 +72,7 @@ describe('🛡️ SEO JsonLd Component & Builders', () => {
     const schema = buildWebSiteSchema({
       name: 'qoe.fi',
       url: 'https://qoe.fi',
-      description: 'Your Digital Sanctuary',
+      description: 'Plateforme indépendante de publication et de lecture',
     });
 
     expect(schema['@context']).toBe('https://schema.org');
