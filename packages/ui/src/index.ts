@@ -90,3 +90,6 @@ export {
   type InvertedCurveBannerProps,
   type AnnouncementType,
 } from './notifications/InvertedCurveBanner';
+
+// 🌐 SEO Sémantique & JSON-LD (Schema.org)
+export * from './seo/JsonLd';

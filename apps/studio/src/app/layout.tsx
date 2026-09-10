@@ -43,9 +43,13 @@ const displayFont = Geist({ variable: '--font-classical', subsets: ['latin'] });
 const jetbrainsMono = JetBrains_Mono({ variable: '--font-mono', subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'qoe.fi — Your Digital Sanctuary in Europe',
-  description:
-    'A sophisticated platform for modern creators. Retain your revenue, automate compliance, and grow your audience within a secure, GDPR-first ecosystem.',
+  title: 'qoe.fi Studio — Creator Dashboard',
+  description: 'Creator management console for qoe.fi.',
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+  },
 };
 
 export default async function RootLayout({

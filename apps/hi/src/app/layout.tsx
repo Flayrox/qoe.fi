@@ -34,10 +34,46 @@ const inter = Inter({ variable: '--font-body', subsets: ['latin'] });
 const displayFont = Geist({ variable: '--font-classical', subsets: ['latin'] });
 const jetbrainsMono = JetBrains_Mono({ variable: '--font-mono', subsets: ['latin'] });
 
+const landingUrl = (process.env.NEXT_PUBLIC_LANDING_URL || 'https://hi.qoe.fi').replace(/\/$/, '');
+
 export const metadata: Metadata = {
-  title: 'qoe.fi — Your Digital Sanctuary in Europe',
+  metadataBase: new URL(landingUrl),
+  title: {
+    default: 'qoe.fi — The Independent European Creator Platform',
+    template: '%s | qoe.fi',
+  },
   description:
     'A sophisticated platform for modern creators. Retain your revenue, automate compliance, and grow your audience within a secure, GDPR-first ecosystem.',
+  applicationName: 'qoe.fi',
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  openGraph: {
+    type: 'website',
+    locale: 'fr_FR',
+    alternateLocale: ['en_US'],
+    url: landingUrl,
+    siteName: 'qoe.fi',
+    title: 'qoe.fi — The Independent European Creator Platform',
+    description:
+      'A sophisticated platform for modern creators. Retain your revenue, automate compliance, and grow your audience within a secure, GDPR-first ecosystem.',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    site: '@qoefi',
+    creator: '@qoefi',
+    title: 'qoe.fi — The Independent European Creator Platform',
+    description:
+      'A sophisticated platform for modern creators. Retain your revenue, automate compliance, and grow your audience within a secure, GDPR-first ecosystem.',
+  },
 };
 
 export default async function RootLayout({

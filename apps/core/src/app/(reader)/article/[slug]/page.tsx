@@ -57,7 +57,14 @@ async function fetchCanonicalDocument(articleId: string): Promise<CanonicalDocum
   }
 }
 
-export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
+import type { Metadata } from 'next';
+import { JsonLd, buildArticleSchema } from '@qoe/ui';
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
   const resolvedParams = await params;
   const article = await fetchArticleBySlug(resolvedParams.slug);
 
@@ -67,11 +74,39 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     };
   }
 
+  const cleanDescription = article.content
+    ? article.content
+        .replace(/<[^>]*>?/gm, '')
+        .trim()
+        .slice(0, 160)
+    : undefined;
+
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://qoe.fi').replace(/\/$/, '');
+  const canonicalUrl = `${appUrl}/article/${encodeURIComponent(article.slug)}`;
+  const authorName =
+    article.author?.name || (article.author?.username ? `@${article.author.username}` : 'Auteur');
+
   return {
     title: `${article.title} | qoe.fi`,
-    description: article.content
-      ? article.content.replace(/<[^>]*>?/gm, '').slice(0, 160)
-      : undefined,
+    description: cleanDescription,
+    alternates: {
+      canonical: canonicalUrl,
+    },
+    openGraph: {
+      type: 'article',
+      title: article.title,
+      description: cleanDescription,
+      url: canonicalUrl,
+      publishedTime: article.createdAt,
+      authors: [authorName],
+      images: article.author?.logoUrl ? [{ url: article.author.logoUrl }] : [],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: article.title,
+      description: cleanDescription,
+      images: article.author?.logoUrl ? [article.author.logoUrl] : [],
+    },
   };
 }
 
@@ -99,8 +134,26 @@ export default async function ArticlePage({
   const canReadFull = !article.isPremium || article.accessGranted === true;
   const canonicalDocument = canReadFull ? await fetchCanonicalDocument(article.id) : null;
 
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://qoe.fi').replace(/\/$/, '');
+  const jsonLdData = buildArticleSchema({
+    title: article.title,
+    description: article.content
+      ? article.content
+          .replace(/<[^>]*>?/gm, '')
+          .trim()
+          .slice(0, 200)
+      : undefined,
+    slug: article.slug,
+    createdAt: article.createdAt,
+    authorName: article.author?.name,
+    authorUsername: article.author?.username,
+    authorLogo: article.author?.logoUrl,
+    baseUrl: appUrl,
+  });
+
   return (
     <main className="w-full min-h-screen bg-background">
+      <JsonLd data={jsonLdData} />
       <ArticleAnnotatorView
         article={article}
         canonicalDocument={canonicalDocument}
