@@ -159,22 +159,10 @@ export function normalizeThought(input: AnyThought): NormalizedThought {
   return normLegacy(input as ThoughtData);
 }
 
-/**
- * Résout le post à AFFICHER pour une pensée (repost vs citation) :
- *   - repost pur (pas de texte) → on affiche le post d'origine,
- *   - citation (texte + repost) → on affiche SON texte + la carte citée.
- * Partagé par la carte feed et les cartes de fil pour un rendu cohérent.
- */
-export function resolveDisplay(post: NormalizedThought): {
+import { resolveDisplay as resolveDisplayBase } from '@qoe/social';
+
+export const resolveDisplay: (post: NormalizedThought) => {
   display: NormalizedThought;
   quoted: NormalizedThought | null;
   isPureRepost: boolean;
-} {
-  const isPureRepost = !!post.repost && !post.content?.trim();
-  const isQuotePost = !!post.repost && !!post.content?.trim();
-  return {
-    display: isPureRepost && post.repost ? post.repost : post,
-    quoted: isQuotePost ? post.repost : null,
-    isPureRepost,
-  };
-}
+} = resolveDisplayBase as any;
