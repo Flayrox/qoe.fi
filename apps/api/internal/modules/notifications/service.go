@@ -41,36 +41,40 @@ type PublicationRef struct {
 
 // Notification est la forme groupée d'une notification (miroir TS).
 type Notification struct {
-	ID          string          `json:"id"`
-	Type        string          `json:"type"`
-	IsRead      bool            `json:"isRead"`
-	CreatedAt   string          `json:"createdAt"`
-	ThoughtID   *string         `json:"thoughtId"`
-	ArticleID   *string         `json:"articleId"`
-	CommentID   *string         `json:"commentId"`
-	Thought     *ThoughtRef     `json:"thought"`
-	Article     *ArticleRef     `json:"article"`
-	Publication *PublicationRef `json:"publication"`
-	Senders     []Sender        `json:"senders"`
-	TotalCount  int             `json:"totalCount"`
+	ID              string          `json:"id"`
+	NotificationIDs []string        `json:"notificationIds"`
+	Type            string          `json:"type"`
+	IsRead          bool            `json:"isRead"`
+	CreatedAt       string          `json:"createdAt"`
+	ThoughtID       *string         `json:"thoughtId"`
+	ArticleID       *string         `json:"articleId"`
+	CommentID       *string         `json:"commentId"`
+	Thought         *ThoughtRef     `json:"thought"`
+	Article         *ArticleRef     `json:"article"`
+	Publication     *PublicationRef `json:"publication"`
+	Senders         []Sender        `json:"senders"`
+	TotalCount      int             `json:"totalCount"`
+	createdAtTime   time.Time
 }
 
 // Preferences est l'ensemble des toggles.
 type Preferences struct {
-	EmailLikes    bool `json:"emailLikes"`
-	PushLikes     bool `json:"pushLikes"`
-	EmailReplies  bool `json:"emailReplies"`
-	PushReplies   bool `json:"pushReplies"`
-	EmailComments bool `json:"emailComments"`
-	PushComments  bool `json:"pushComments"`
-	EmailMentions bool `json:"emailMentions"`
-	PushMentions  bool `json:"pushMentions"`
-	EmailFollows  bool `json:"emailFollows"`
-	PushFollows   bool `json:"pushFollows"`
-	EmailReposts  bool `json:"emailReposts"`
-	PushReposts   bool `json:"pushReposts"`
-	EmailMedia    bool `json:"emailMedia"`
-	PushMedia     bool `json:"pushMedia"`
+	EmailLikes          bool `json:"emailLikes"`
+	PushLikes           bool `json:"pushLikes"`
+	EmailReplies        bool `json:"emailReplies"`
+	PushReplies         bool `json:"pushReplies"`
+	EmailComments       bool `json:"emailComments"`
+	PushComments        bool `json:"pushComments"`
+	EmailMentions       bool `json:"emailMentions"`
+	PushMentions        bool `json:"pushMentions"`
+	EmailFollows        bool `json:"emailFollows"`
+	PushFollows         bool `json:"pushFollows"`
+	EmailReposts        bool `json:"emailReposts"`
+	PushReposts         bool `json:"pushReposts"`
+	EmailMedia          bool `json:"emailMedia"`
+	PushMedia           bool `json:"pushMedia"`
+	EmailCollaborations bool `json:"emailCollaborations"`
+	PushCollaborations  bool `json:"pushCollaborations"`
 }
 
 // NotificationResult est la réponse paginée.
@@ -99,6 +103,17 @@ func typeFilter(filter string) []string {
 		return []string{"REPLY", "COMMENT"}
 	case "likes":
 		return []string{"LIKE"}
+	case "collaborations":
+		return []string{
+			"ARTICLE_CONTRIBUTOR_INVITED",
+			"ARTICLE_CONTRIBUTOR_ACCEPTED",
+			"ARTICLE_CONTRIBUTOR_DECLINED",
+			"ARTICLE_CONTRIBUTOR_REMOVED",
+			"MEDIA_INVITE",
+			"MEDIA_MEMBER_JOINED",
+			"MEDIA_ARTICLE_SUBMITTED",
+			"MEDIA_ARTICLE_PUBLISHED",
+		}
 	}
 	return nil
 }
@@ -130,14 +145,23 @@ func (s *Service) List(ctx context.Context, recipientID, filter string, limit, o
 		added := false
 		for gi := range grouped {
 			g := &grouped[gi]
-			sameTarget := (g.ThoughtID != nil && item.ThoughtID != nil && *g.ThoughtID == *item.ThoughtID) ||
-				(g.ArticleID != nil && item.ArticleID != nil && *g.ArticleID == *item.ArticleID)
-			closeInTime := within48h(g.CreatedAt, item.CreatedAt)
+			sameTarget := false
+			if g.ThoughtID != nil && item.ThoughtID != nil && *g.ThoughtID == *item.ThoughtID {
+				sameTarget = true
+			} else if g.ArticleID != nil && item.ArticleID != nil && *g.ArticleID == *item.ArticleID {
+				sameTarget = true
+			} else if g.CommentID != nil && item.CommentID != nil && *g.CommentID == *item.CommentID {
+				sameTarget = true
+			} else if g.Publication != nil && item.Publication != nil && g.Publication.ID == item.Publication.ID {
+				sameTarget = true
+			}
+			closeInTime := within48hFast(g.createdAtTime, item.createdAtTime)
 			if g.Type == item.Type && sameTarget && closeInTime {
 				if !senderExists(g.Senders, item.Senders[0].ID) {
 					g.Senders = append(g.Senders, item.Senders[0])
 					g.TotalCount++
 				}
+				g.NotificationIDs = append(g.NotificationIDs, item.ID)
 				if !item.IsRead {
 					g.IsRead = false
 				}
@@ -208,6 +232,7 @@ func (s *Service) GetPreferences(ctx context.Context, userID string) (Preference
 				EmailComments: true, PushComments: true, EmailMentions: true, PushMentions: true,
 				EmailFollows: true, PushFollows: true, EmailReposts: true, PushReposts: true,
 				EmailMedia: true, PushMedia: true,
+				EmailCollaborations: true, PushCollaborations: true,
 			}, nil
 		}
 		return Preferences{}, err
@@ -220,6 +245,7 @@ func (s *Service) GetPreferences(ctx context.Context, userID string) (Preference
 		EmailFollows: row.EmailFollows, PushFollows: row.PushFollows,
 		EmailReposts: row.EmailReposts, PushReposts: row.PushReposts,
 		EmailMedia: row.EmailMedia, PushMedia: row.PushMedia,
+		EmailCollaborations: row.EmailCollaborations, PushCollaborations: row.PushCollaborations,
 	}, nil
 }
 
@@ -248,23 +274,27 @@ func (s *Service) UpdatePreferences(ctx context.Context, userID string, patch ma
 	apply("pushReposts", &cur.PushReposts)
 	apply("emailMedia", &cur.EmailMedia)
 	apply("pushMedia", &cur.PushMedia)
+	apply("emailCollaborations", &cur.EmailCollaborations)
+	apply("pushCollaborations", &cur.PushCollaborations)
 
 	err = s.q.UpsertNotificationPreferences(ctx, db.UpsertNotificationPreferencesParams{
-		UserId:        toUUID(userID),
-		EmailLikes:    cur.EmailLikes,
-		PushLikes:     cur.PushLikes,
-		EmailReplies:  cur.EmailReplies,
-		PushReplies:   cur.PushReplies,
-		EmailComments: cur.EmailComments,
-		PushComments:  cur.PushComments,
-		EmailMentions: cur.EmailMentions,
-		PushMentions:  cur.PushMentions,
-		EmailFollows:  cur.EmailFollows,
-		PushFollows:   cur.PushFollows,
-		EmailReposts:  cur.EmailReposts,
-		PushReposts:   cur.PushReposts,
-		EmailMedia:    cur.EmailMedia,
-		PushMedia:     cur.PushMedia,
+		UserId:              toUUID(userID),
+		EmailLikes:          cur.EmailLikes,
+		PushLikes:           cur.PushLikes,
+		EmailReplies:        cur.EmailReplies,
+		PushReplies:         cur.PushReplies,
+		EmailComments:       cur.EmailComments,
+		PushComments:        cur.PushComments,
+		EmailMentions:       cur.EmailMentions,
+		PushMentions:        cur.PushMentions,
+		EmailFollows:        cur.EmailFollows,
+		PushFollows:         cur.PushFollows,
+		EmailReposts:        cur.EmailReposts,
+		PushReposts:         cur.PushReposts,
+		EmailMedia:          cur.EmailMedia,
+		PushMedia:           cur.PushMedia,
+		EmailCollaborations: cur.EmailCollaborations,
+		PushCollaborations:  cur.PushCollaborations,
 	})
 	if err != nil {
 		return cur, err
@@ -274,10 +304,12 @@ func (s *Service) UpdatePreferences(ctx context.Context, userID string, patch ma
 
 func notificationFromRow(r *db.GetNotificationsRow) Notification {
 	n := Notification{
-		ID:        r.ID,
-		Type:      string(r.Type),
-		IsRead:    r.IsRead,
-		CreatedAt: r.CreatedAt.Time.Format(time.RFC3339),
+		ID:              r.ID,
+		NotificationIDs: []string{r.ID},
+		Type:            string(r.Type),
+		IsRead:          r.IsRead,
+		CreatedAt:       r.CreatedAt.Time.Format(time.RFC3339),
+		createdAtTime:   r.CreatedAt.Time,
 		Senders: []Sender{{
 			ID:          r.SenderID,
 			Name:        textPtr(r.SenderName),
@@ -319,17 +351,21 @@ func notificationFromRow(r *db.GetNotificationsRow) Notification {
 	return n
 }
 
+func within48hFast(t1, t2 time.Time) bool {
+	diff := t1.Sub(t2)
+	if diff < 0 {
+		diff = -diff
+	}
+	return diff < ms48h
+}
+
 func within48h(a, b string) bool {
 	ta, err1 := time.Parse(time.RFC3339, a)
 	tb, err2 := time.Parse(time.RFC3339, b)
 	if err1 != nil || err2 != nil {
 		return false
 	}
-	diff := ta.Sub(tb)
-	if diff < 0 {
-		diff = -diff
-	}
-	return diff < ms48h
+	return within48hFast(ta, tb)
 }
 
 func senderExists(senders []Sender, id string) bool {

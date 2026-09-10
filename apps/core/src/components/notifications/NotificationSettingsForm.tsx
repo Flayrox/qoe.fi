@@ -24,7 +24,7 @@ export function NotificationSettingsForm() {
     return (
       <div className="flex flex-col items-center justify-center p-12 text-muted-foreground">
         <Loader2 className="w-6 h-6 animate-spin mb-2 text-primary" />
-        <p className="text-sm">Chargement de vos préférences...</p>
+        <p className="text-sm">{t`Chargement de vos préférences...`}</p>
       </div>
     );
   }
@@ -142,7 +142,7 @@ export function NotificationSettingsForm() {
                     onChange={(e) => handleToggle(section.pushKey, e.target.checked)}
                     className="w-4 h-4 rounded border-border text-primary focus:ring-primary accent-primary"
                   />
-                  <span>Notifications App / Push</span>
+                  <span>{t`Notifications App / Push`}</span>
                 </label>
 
                 <label className="flex items-center gap-2 cursor-pointer text-sm text-foreground">
@@ -152,7 +152,7 @@ export function NotificationSettingsForm() {
                     onChange={(e) => handleToggle(section.emailKey, e.target.checked)}
                     className="w-4 h-4 rounded border-border text-primary focus:ring-primary accent-primary"
                   />
-                  <span>Alertes Email</span>
+                  <span>{t`Alertes Email`}</span>
                 </label>
               </div>
             </div>

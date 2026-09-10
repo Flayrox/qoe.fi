@@ -24,7 +24,13 @@ export type GroupedNotificationType =
   | 'MENTION'
   | 'COMMENT'
   | 'MEDIA_INVITE'
-  | 'MEDIA_MEMBER_JOINED';
+  | 'MEDIA_MEMBER_JOINED'
+  | 'MEDIA_ARTICLE_PUBLISHED'
+  | 'MEDIA_ARTICLE_SUBMITTED'
+  | 'ARTICLE_CONTRIBUTOR_INVITED'
+  | 'ARTICLE_CONTRIBUTOR_ACCEPTED'
+  | 'ARTICLE_CONTRIBUTOR_DECLINED'
+  | 'ARTICLE_CONTRIBUTOR_REMOVED';
 
 /** 🔔 Notification groupée (shape API Go /v1/notifications). */
 export interface GroupedNotification {

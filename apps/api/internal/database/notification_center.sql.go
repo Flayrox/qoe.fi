@@ -14,26 +14,29 @@ import (
 const getNotificationPreferences = `-- name: GetNotificationPreferences :one
 SELECT "emailLikes", "pushLikes", "emailReplies", "pushReplies", "emailComments", "pushComments",
        "emailMentions", "pushMentions", "emailFollows", "pushFollows",
-       "emailReposts", "pushReposts", "emailMedia", "pushMedia"
+       "emailReposts", "pushReposts", "emailMedia", "pushMedia",
+       "emailCollaborations", "pushCollaborations"
 FROM "NotificationPreference"
 WHERE "userId" = $1
 `
 
 type GetNotificationPreferencesRow struct {
-	EmailLikes    bool `json:"emailLikes"`
-	PushLikes     bool `json:"pushLikes"`
-	EmailReplies  bool `json:"emailReplies"`
-	PushReplies   bool `json:"pushReplies"`
-	EmailComments bool `json:"emailComments"`
-	PushComments  bool `json:"pushComments"`
-	EmailMentions bool `json:"emailMentions"`
-	PushMentions  bool `json:"pushMentions"`
-	EmailFollows  bool `json:"emailFollows"`
-	PushFollows   bool `json:"pushFollows"`
-	EmailReposts  bool `json:"emailReposts"`
-	PushReposts   bool `json:"pushReposts"`
-	EmailMedia    bool `json:"emailMedia"`
-	PushMedia     bool `json:"pushMedia"`
+	EmailLikes          bool `json:"emailLikes"`
+	PushLikes           bool `json:"pushLikes"`
+	EmailReplies        bool `json:"emailReplies"`
+	PushReplies         bool `json:"pushReplies"`
+	EmailComments       bool `json:"emailComments"`
+	PushComments        bool `json:"pushComments"`
+	EmailMentions       bool `json:"emailMentions"`
+	PushMentions        bool `json:"pushMentions"`
+	EmailFollows        bool `json:"emailFollows"`
+	PushFollows         bool `json:"pushFollows"`
+	EmailReposts        bool `json:"emailReposts"`
+	PushReposts         bool `json:"pushReposts"`
+	EmailMedia          bool `json:"emailMedia"`
+	PushMedia           bool `json:"pushMedia"`
+	EmailCollaborations bool `json:"emailCollaborations"`
+	PushCollaborations  bool `json:"pushCollaborations"`
 }
 
 func (q *Queries) GetNotificationPreferences(ctx context.Context, userid pgtype.UUID) (GetNotificationPreferencesRow, error) {
@@ -54,6 +57,8 @@ func (q *Queries) GetNotificationPreferences(ctx context.Context, userid pgtype.
 		&i.PushReposts,
 		&i.EmailMedia,
 		&i.PushMedia,
+		&i.EmailCollaborations,
+		&i.PushCollaborations,
 	)
 	return i, err
 }
@@ -195,8 +200,9 @@ func (q *Queries) MarkNotificationsRead(ctx context.Context, arg MarkNotificatio
 const upsertNotificationPreferences = `-- name: UpsertNotificationPreferences :exec
 INSERT INTO "NotificationPreference" ("id", "userId", "emailLikes", "pushLikes", "emailReplies", "pushReplies",
        "emailComments", "pushComments", "emailMentions", "pushMentions", "emailFollows", "pushFollows",
-       "emailReposts", "pushReposts", "emailMedia", "pushMedia", "updatedAt")
-VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, now())
+       "emailReposts", "pushReposts", "emailMedia", "pushMedia",
+       "emailCollaborations", "pushCollaborations", "updatedAt")
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, now())
 ON CONFLICT ("userId") DO UPDATE SET
   "emailLikes" = EXCLUDED."emailLikes", "pushLikes" = EXCLUDED."pushLikes",
   "emailReplies" = EXCLUDED."emailReplies", "pushReplies" = EXCLUDED."pushReplies",
@@ -205,25 +211,28 @@ ON CONFLICT ("userId") DO UPDATE SET
   "emailFollows" = EXCLUDED."emailFollows", "pushFollows" = EXCLUDED."pushFollows",
   "emailReposts" = EXCLUDED."emailReposts", "pushReposts" = EXCLUDED."pushReposts",
   "emailMedia" = EXCLUDED."emailMedia", "pushMedia" = EXCLUDED."pushMedia",
+  "emailCollaborations" = EXCLUDED."emailCollaborations", "pushCollaborations" = EXCLUDED."pushCollaborations",
   "updatedAt" = now()
 `
 
 type UpsertNotificationPreferencesParams struct {
-	UserId        pgtype.UUID `json:"userId"`
-	EmailLikes    bool        `json:"emailLikes"`
-	PushLikes     bool        `json:"pushLikes"`
-	EmailReplies  bool        `json:"emailReplies"`
-	PushReplies   bool        `json:"pushReplies"`
-	EmailComments bool        `json:"emailComments"`
-	PushComments  bool        `json:"pushComments"`
-	EmailMentions bool        `json:"emailMentions"`
-	PushMentions  bool        `json:"pushMentions"`
-	EmailFollows  bool        `json:"emailFollows"`
-	PushFollows   bool        `json:"pushFollows"`
-	EmailReposts  bool        `json:"emailReposts"`
-	PushReposts   bool        `json:"pushReposts"`
-	EmailMedia    bool        `json:"emailMedia"`
-	PushMedia     bool        `json:"pushMedia"`
+	UserId              pgtype.UUID `json:"userId"`
+	EmailLikes          bool        `json:"emailLikes"`
+	PushLikes           bool        `json:"pushLikes"`
+	EmailReplies        bool        `json:"emailReplies"`
+	PushReplies         bool        `json:"pushReplies"`
+	EmailComments       bool        `json:"emailComments"`
+	PushComments        bool        `json:"pushComments"`
+	EmailMentions       bool        `json:"emailMentions"`
+	PushMentions        bool        `json:"pushMentions"`
+	EmailFollows        bool        `json:"emailFollows"`
+	PushFollows         bool        `json:"pushFollows"`
+	EmailReposts        bool        `json:"emailReposts"`
+	PushReposts         bool        `json:"pushReposts"`
+	EmailMedia          bool        `json:"emailMedia"`
+	PushMedia           bool        `json:"pushMedia"`
+	EmailCollaborations bool        `json:"emailCollaborations"`
+	PushCollaborations  bool        `json:"pushCollaborations"`
 }
 
 func (q *Queries) UpsertNotificationPreferences(ctx context.Context, arg UpsertNotificationPreferencesParams) error {
@@ -243,6 +252,8 @@ func (q *Queries) UpsertNotificationPreferences(ctx context.Context, arg UpsertN
 		arg.PushReposts,
 		arg.EmailMedia,
 		arg.PushMedia,
+		arg.EmailCollaborations,
+		arg.PushCollaborations,
 	)
 	return err
 }

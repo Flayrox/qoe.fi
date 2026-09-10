@@ -24,3 +24,53 @@ func TestMarkReadIDs(t *testing.T) {
 		})
 	}
 }
+
+func TestTypeFilter(t *testing.T) {
+	tests := []struct {
+		filter string
+		want   []string
+	}{
+		{
+			filter: "mentions",
+			want:   []string{"MENTION"},
+		},
+		{
+			filter: "replies",
+			want:   []string{"REPLY", "COMMENT"},
+		},
+		{
+			filter: "likes",
+			want:   []string{"LIKE"},
+		},
+		{
+			filter: "collaborations",
+			want: []string{
+				"ARTICLE_CONTRIBUTOR_INVITED",
+				"ARTICLE_CONTRIBUTOR_ACCEPTED",
+				"ARTICLE_CONTRIBUTOR_DECLINED",
+				"ARTICLE_CONTRIBUTOR_REMOVED",
+				"MEDIA_INVITE",
+				"MEDIA_MEMBER_JOINED",
+				"MEDIA_ARTICLE_SUBMITTED",
+				"MEDIA_ARTICLE_PUBLISHED",
+			},
+		},
+		{
+			filter: "all",
+			want:   nil,
+		},
+		{
+			filter: "unknown",
+			want:   nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.filter, func(t *testing.T) {
+			got := typeFilter(tt.filter)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("typeFilter(%q) = %v, want %v", tt.filter, got, tt.want)
+			}
+		})
+	}
+}
