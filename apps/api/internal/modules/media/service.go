@@ -114,7 +114,7 @@ func (s *Service) authorizeMedia(ctx context.Context, mediaID, userID, permissio
 func (s *Service) audit(ctx context.Context, mediaID, actorID, action string, metadata any) {
 	raw, _ := json.Marshal(metadata)
 	_ = s.q.InsertMediaAuditLog(ctx, db.InsertMediaAuditLogParams{
-		MediaId: mediaID, ActorId: toUUID(actorID), Action: action, Metadata: raw,
+		MediaId: mediaID, ActorId: toUUID(actorID), Action: action, Metadata: string(raw),
 	})
 }
 
@@ -414,7 +414,7 @@ func (s *Service) CreateMedia(ctx context.Context, userID, name, slug, bio, logo
 	}
 	if err := tq.InsertMediaAuditLog(ctx, db.InsertMediaAuditLogParams{
 		MediaId: mediaID, ActorId: toUUID(userID), Action: "media.created",
-		Metadata: mustJSON(map[string]string{"name": name, "slug": clean}),
+		Metadata: string(mustJSON(map[string]string{"name": name, "slug": clean})),
 	}); err != nil {
 		return nil, err
 	}
@@ -636,7 +636,7 @@ func (s *Service) AcceptInvite(ctx context.Context, userID, token string) (strin
 	}
 	if err := tq.InsertMediaAuditLog(ctx, db.InsertMediaAuditLogParams{
 		MediaId: invite.MediaId, ActorId: toUUID(userID), Action: "member.joined",
-		Metadata: mustJSON(map[string]string{"email": identity.Email}),
+		Metadata: string(mustJSON(map[string]string{"email": identity.Email})),
 	}); err != nil {
 		return "", err
 	}

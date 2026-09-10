@@ -68,8 +68,10 @@ WHERE "mediaId" = $1 AND "userId" = $2;
 DELETE FROM "MediaMember" WHERE "mediaId" = $1 AND "userId" = $2;
 
 -- name: InsertMediaAuditLog :exec
+-- metadata est passé en texte puis casté en jsonb : le pool API force
+-- QueryExecModeExec (PgBouncer), où pgx encoderait []byte en bytea → 22P02.
 INSERT INTO "MediaAuditLog" (id, "mediaId", "actorId", action, metadata)
-VALUES (gen_random_uuid()::text, $1, $2, $3, $4);
+VALUES (gen_random_uuid()::text, $1, $2, $3, sqlc.arg('metadata')::text::jsonb);
 
 -- name: GetUserByEmail :one
 SELECT id::text AS id, email, name, username, "logoUrl", "isCertified"
