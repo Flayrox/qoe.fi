@@ -61,8 +61,8 @@ const apiHighlightsQuery = `
 	WHERE h."isPublic" = true
 	  AND (
 	    a."publicationId" = $1
-	    OR a."authorId"::text = $2
-	    OR a.id IN (SELECT "A" FROM "_CoAuthors" WHERE "B" = $3)
+	    OR ($2 <> '' AND a."authorId"::text = $2)
+	    OR ($3 <> '' AND a.id IN (SELECT "A" FROM "_CoAuthors" WHERE "B"::text = $3))
 	  )`
 
 // apiHighlightsPage renvoie une page de surlignages publics des lecteurs.

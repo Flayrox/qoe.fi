@@ -11,6 +11,7 @@ import (
 )
 
 type Querier interface {
+	AddRecommendation(ctx context.Context, arg AddRecommendationParams) (Recommendation, error)
 	AdminDashboardCounts(ctx context.Context) (AdminDashboardCountsRow, error)
 	// Vrai si l'un des deux a bloqué l'autre (les deux sens).
 	AreUsersBlocked(ctx context.Context, arg AreUsersBlockedParams) (bool, error)
@@ -54,6 +55,8 @@ type Querier interface {
 	CountReadingSessionsByArticleId(ctx context.Context, arg CountReadingSessionsByArticleIdParams) (int32, error)
 	// Variante batch pour provenance globale (tous les articleIds du créateur).
 	CountReadingSessionsByArticleIds(ctx context.Context, arg CountReadingSessionsByArticleIdsParams) ([]int32, error)
+	CountRecommendationsByPublication(ctx context.Context, recommenderid string) (int64, error)
+	CountSubscribersByPublication(ctx context.Context, publicationid string) (int64, error)
 	// Nombre de conversations avec au moins un message non lu (badge tab).
 	// Les messages que l'on a SOI-MÊME envoyés ne comptent jamais comme non-lus ;
 	// COUNT(DISTINCT conversation) : plusieurs messages ≠ plusieurs badges.
@@ -85,6 +88,7 @@ type Querier interface {
 	CreateWalletTransaction(ctx context.Context, arg CreateWalletTransactionParams) (string, error)
 	CreateWebhook(ctx context.Context, arg CreateWebhookParams) (CreateWebhookRow, error)
 	CreateWebhookDelivery(ctx context.Context, arg CreateWebhookDeliveryParams) (string, error)
+	DeactivateSubscriber(ctx context.Context, arg DeactivateSubscriberParams) (string, error)
 	DecrementLikeCount(ctx context.Context, id string) error
 	DecrementReplyCount(ctx context.Context, id string) error
 	DecrementRepostCount(ctx context.Context, id string) error
@@ -206,6 +210,7 @@ type Querier interface {
 	GetMediaWithPublication(ctx context.Context, id string) (GetMediaWithPublicationRow, error)
 	GetModerationReport(ctx context.Context, id string) (ModerationReport, error)
 	GetNewsletterIssue(ctx context.Context, id string) (NewsletterIssue, error)
+	GetNewsletterIssueWithPublication(ctx context.Context, id string) (GetNewsletterIssueWithPublicationRow, error)
 	GetNotificationPreferences(ctx context.Context, userid pgtype.UUID) (GetNotificationPreferencesRow, error)
 	// Centre de notifications : liste groupée, non-lus, lecture, préférences.
 	GetNotifications(ctx context.Context, arg GetNotificationsParams) ([]GetNotificationsRow, error)
@@ -238,6 +243,7 @@ type Querier interface {
 	// Page settings créateur (parité prisma.publication.findUnique include dans
 	// apps/studio/src/app/(creator)/settings/page.tsx).
 	GetPublicationForSettings(ctx context.Context, id string) (GetPublicationForSettingsRow, error)
+	GetPublicationMetadataByID(ctx context.Context, id string) (GetPublicationMetadataByIDRow, error)
 	GetPublicationOwner(ctx context.Context, id string) (string, error)
 	GetPublicationTypeByID(ctx context.Context, id string) (GetPublicationTypeByIDRow, error)
 	GetPublicationUmamiWebsiteId(ctx context.Context, id string) (pgtype.Text, error)
@@ -251,6 +257,7 @@ type Querier interface {
 	GetReplyPrefs(ctx context.Context, userid pgtype.UUID) (GetReplyPrefsRow, error)
 	GetStarterPackByID(ctx context.Context, id string) (GetStarterPackByIDRow, error)
 	GetSubscriberEntitlement(ctx context.Context, arg GetSubscriberEntitlementParams) (GetSubscriberEntitlementRow, error)
+	GetSubscriberStatsByPublication(ctx context.Context, publicationid string) (GetSubscriberStatsByPublicationRow, error)
 	GetSystemConfigsByKeys(ctx context.Context, dollar_1 []string) ([]SystemConfig, error)
 	GetThoughtByID(ctx context.Context, id string) (GetThoughtByIDRow, error)
 	// Threadgates & réponses
@@ -440,12 +447,17 @@ type Querier interface {
 	// Articles publiés récents (feed mobile « écran principal »), avec auteur /
 	// publication / catégorie dénormalisés. Public, trié par date décroissante.
 	ListRecentPublishedArticles(ctx context.Context, arg ListRecentPublishedArticlesParams) ([]ListRecentPublishedArticlesRow, error)
+	// =====================================================================
+	// 🤝 Recommandations croisées entre créateurs (Substack Killer)
+	// =====================================================================
+	ListRecommendationsByPublication(ctx context.Context, recommenderid string) ([]ListRecommendationsByPublicationRow, error)
 	ListRepostsForPost(ctx context.Context, arg ListRepostsForPostParams) ([]ListRepostsForPostRow, error)
 	ListSentCollaborationRequests(ctx context.Context, inviterid pgtype.UUID) ([]ListSentCollaborationRequestsRow, error)
 	ListSocialLinksForPublication(ctx context.Context, publicationid string) ([]ListSocialLinksForPublicationRow, error)
 	ListStarterPackItems(ctx context.Context, starterpackid string) ([]ListStarterPackItemsRow, error)
 	ListStarterPacks(ctx context.Context, arg ListStarterPacksParams) ([]ListStarterPacksRow, error)
 	ListSubscribers(ctx context.Context, publicationid string) ([]ListSubscribersRow, error)
+	ListSubscribersByPublication(ctx context.Context, arg ListSubscribersByPublicationParams) ([]ListSubscribersByPublicationRow, error)
 	// ── Feature Flags / Config / Frontend / Translations ────────────────────────
 	ListSystemConfigs(ctx context.Context) ([]SystemConfig, error)
 	ListUserDrafts(ctx context.Context, arg ListUserDraftsParams) ([]ListUserDraftsRow, error)
@@ -460,7 +472,9 @@ type Querier interface {
 	PinPost(ctx context.Context, arg PinPostParams) (bool, error)
 	// Réactive un asset purgé/supprimé (nouvelle fenêtre de 3 jours).
 	ReactivateMediaAsset(ctx context.Context, id string) (MediaAsset, error)
+	RemoveRecommendation(ctx context.Context, arg RemoveRecommendationParams) error
 	ResetNewsletterIssueToDraft(ctx context.Context, id string) error
+	ResolvePublicationIDBySlugOrID(ctx context.Context, id string) (string, error)
 	RetryNotificationDelivery(ctx context.Context, id string) error
 	RevokeCollaborationRequestsForArticle(ctx context.Context, arg RevokeCollaborationRequestsForArticleParams) error
 	RevokeOAuthTokenByAccessHash(ctx context.Context, accesstokenhash string) error
@@ -526,6 +540,10 @@ type Querier interface {
 	// Écrit le vecteur d'une pensée (généré par le worker jina-embeddings-v3).
 	UpsertPostEmbedding(ctx context.Context, arg UpsertPostEmbeddingParams) error
 	UpsertPromo(ctx context.Context, arg UpsertPromoParams) (UpsertPromoRow, error)
+	// =====================================================================
+	// 👥 Gestion des abonnés (Subscribers API & Headless integrations)
+	// =====================================================================
+	UpsertSubscriber(ctx context.Context, arg UpsertSubscriberParams) (UpsertSubscriberRow, error)
 	UpsertSubscriberPayment(ctx context.Context, arg UpsertSubscriberPaymentParams) (string, error)
 	UpsertSystemConfig(ctx context.Context, arg UpsertSystemConfigParams) (SystemConfig, error)
 	UpsertTrend(ctx context.Context, arg UpsertTrendParams) (UpsertTrendRow, error)
