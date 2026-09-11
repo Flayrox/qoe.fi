@@ -205,8 +205,12 @@ func (mc memberContext) can(perm string) bool {
 }
 
 // GetBySlugAny lit le premier article publié par slug seul (sans publicationId)
-// avec le contenu COMPLET — parité avec findFirstBySlug Prisma de la page
-// autonome /article/[slug] du reader core (le paywall est géré côté tenant/mobile).
+// et applique la troncature paywall. Aucun entitlement n'est disponible dans ce
+// mode (pas de publication de référence, donc pas d'abonnement résolvable) : il
+// est PUBLIC par nature (page autonome /article/[slug] du reader core, unfurl
+// OpenGraph, thread de citation). Le contenu premium au-delà du marqueur n'est
+// donc JAMAIS transmis au client — le rendu affiche le CTA d'abonnement quand
+// `accessGranted` est faux (zéro-fuite, même contrat que tenants/mobile).
 func (s *Service) GetBySlugAny(ctx context.Context, slug string) (ArticleResponse, error) {
 	row, err := s.q.GetArticleBySlugAny(ctx, slug)
 	if err != nil {
@@ -215,19 +219,23 @@ func (s *Service) GetBySlugAny(ctx context.Context, slug string) (ArticleRespons
 		}
 		return ArticleResponse{}, err
 	}
+	// 🔒 Troncature serveur systématique des articles verrouillés : le passage
+	// réservé ne doit jamais franchir la frontière HTTP sans entitlement.
+	cut := SliceContentAtPaywall(row.Content, UserEntitlements{}, string(row.Visibility), textPtr(row.TierId))
+
 	// GetArticleBySlugAnyRow a le même shape que GetArticleBySlugRow mais c'est
 	// un type distinct → conversion explicite vers le mapping existant.
 	return ArticleResponse{
-		ID: row.ID, Title: row.Title, Slug: row.Slug, Content: row.Content,
+		ID: row.ID, Title: row.Title, Slug: row.Slug, Content: cut.Content,
 		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),
 		ReadingTime: int(row.ReadingTime), Status: row.Status, PublicationID: row.PublicationId,
 		AuthorID: row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
 		SeoTitle: textPtr(row.SeoTitle), SeoDescription: textPtr(row.SeoDescription),
-		CreatedAt:     row.CreatedAt.Time.Format(time.RFC3339),
-		UpdatedAt:     row.UpdatedAt.Time.Format(time.RFC3339),
-		AccessGranted: true,
-		Author:        AuthorInfo{ID: row.AuthorID, Name: textPtr(row.AuthorName), Username: textPtr(row.AuthorUsername), LogoURL: textPtr(row.AuthorLogo)},
-		Publication:   &PublicationInfo{ID: row.PublicationId, Name: row.PublicationName, Slug: row.PublicationSlug, Subdomain: textPtr(row.PublicationSubdomain), CustomDomain: textPtr(row.PublicationCustomDomain)},
+		CreatedAt:   row.CreatedAt.Time.Format(time.RFC3339),
+		UpdatedAt:   row.UpdatedAt.Time.Format(time.RFC3339),
+		IsTruncated: cut.IsTruncated, AccessGranted: cut.AccessGranted, PaywallMeta: cut.PaywallMeta,
+		Author:      AuthorInfo{ID: row.AuthorID, Name: textPtr(row.AuthorName), Username: textPtr(row.AuthorUsername), LogoURL: textPtr(row.AuthorLogo)},
+		Publication: &PublicationInfo{ID: row.PublicationId, Name: row.PublicationName, Slug: row.PublicationSlug, Subdomain: textPtr(row.PublicationSubdomain), CustomDomain: textPtr(row.PublicationCustomDomain)},
 	}, nil
 }
 
@@ -1021,7 +1029,7 @@ func (s *Service) articleResponseFromIDRow(row db.GetArticleByIDRow) ArticleResp
 		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),
 		ReadingTime: int(row.ReadingTime), Status: row.Status, ScheduledAt: tsPtr(row.ScheduledAt),
 		PublicationID: row.PublicationId,
-		AuthorID: row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
+		AuthorID:      row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
 		SeoTitle: textPtr(row.SeoTitle), SeoDescription: textPtr(row.SeoDescription),
 		CreatedAt:     row.CreatedAt.Time.Format(time.RFC3339),
 		UpdatedAt:     row.UpdatedAt.Time.Format(time.RFC3339),
@@ -1039,7 +1047,7 @@ func articleFromSlugRow(row db.GetArticleBySlugRow, cut PaywallCutResult) Articl
 		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),
 		ReadingTime: int(row.ReadingTime), Status: row.Status, ScheduledAt: tsPtr(row.ScheduledAt),
 		PublicationID: row.PublicationId,
-		AuthorID: row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
+		AuthorID:      row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
 		SeoTitle: textPtr(row.SeoTitle), SeoDescription: textPtr(row.SeoDescription),
 		CreatedAt:   row.CreatedAt.Time.Format(time.RFC3339),
 		UpdatedAt:   row.UpdatedAt.Time.Format(time.RFC3339),
@@ -1055,7 +1063,7 @@ func articleFromRow(row db.GetArticleByIDRow, cut PaywallCutResult) ArticleRespo
 		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),
 		ReadingTime: int(row.ReadingTime), Status: row.Status, ScheduledAt: tsPtr(row.ScheduledAt),
 		PublicationID: row.PublicationId,
-		AuthorID: row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
+		AuthorID:      row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
 		SeoTitle: textPtr(row.SeoTitle), SeoDescription: textPtr(row.SeoDescription),
 		CreatedAt:   row.CreatedAt.Time.Format(time.RFC3339),
 		UpdatedAt:   row.UpdatedAt.Time.Format(time.RFC3339),

@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/meilisearch/meilisearch-go"
+	"github.com/qoefi/api/internal/modules/articles"
 	"github.com/qoefi/api/internal/response"
 )
 
@@ -105,8 +106,9 @@ func (h *Handler) searchArticles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Filtre optionnel par publication (scope « mine » du Cmd+K studio).
+	pubID := r.URL.Query().Get("publicationId")
 	req := &meilisearch.SearchRequest{Limit: 10}
-	if pubID := r.URL.Query().Get("publicationId"); pubID != "" {
+	if pubID != "" {
 		req.Filter = "publicationId = '" + strings.ReplaceAll(pubID, "'", "''") + "'"
 	}
 
@@ -122,6 +124,16 @@ func (h *Handler) searchArticles(w http.ResponseWriter, r *http.Request) {
 		hits = meilisearch.Hits{}
 	}
 
+	// 🔒 Zéro-fuite : l'index Meilisearch stocke le contenu BRUT des articles et
+	// les hits sont renvoyés tels quels. En recherche publique (sans filtre de
+	// publication donc sans scope studio authentifié), un article premium
+	// exposerait son passage réservé dans la réponse JSON. On le retronque ici.
+	// Le scope studio (`publicationId`, créateur authentifié) garde le contenu
+	// complet : il a le droit d'éditer ses propres écrits.
+	if pubID == "" {
+		redactPremiumHitContents(hits)
+	}
+
 	// Sérialisation explicite : les hits meilisearch sont des maps de
 	// json.RawMessage, stables en sortie.
 	out, err := json.Marshal(map[string]any{
@@ -134,6 +146,36 @@ func (h *Handler) searchArticles(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = w.Write(out)
+}
+
+// redactPremiumHitContents remplace, dans les hits de recherche PUBLIQUE, le
+// `content` d'un article premium par sa version tronquée au paywall. Les hits
+// portent `isPremium` mais pas la visibilité complète : on tronque donc au
+// niveau le plus restrictif (abonnés payants), jamais moins.
+func redactPremiumHitContents(hits meilisearch.Hits) {
+	for _, hit := range hits {
+		var premium bool
+		if raw, ok := hit["isPremium"]; ok {
+			_ = json.Unmarshal(raw, &premium)
+		}
+		if !premium {
+			continue
+		}
+		var content string
+		if raw, ok := hit["content"]; ok {
+			if err := json.Unmarshal(raw, &content); err != nil {
+				continue
+			}
+		}
+		cut := articles.SliceContentAtPaywall(
+			content, articles.UserEntitlements{}, articles.VisPaidSubscribers, nil,
+		)
+		encoded, err := json.Marshal(cut.Content)
+		if err != nil {
+			continue
+		}
+		hit["content"] = json.RawMessage(encoded)
+	}
 }
 
 // searchSemantic cherche par similarité sémantique (jina + pgvector).

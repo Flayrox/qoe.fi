@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/modules/posts"
 )
 
@@ -51,38 +52,38 @@ type HydrateAttribution struct {
 // HydrateArticle est un article complet du lecteur (parité ArticleWithDetails
 // minimal — les champs lus par mapArticleToFeedItem / FeedDashboard).
 type HydrateArticle struct {
-	ID                  string               `json:"id"`
-	Title               string               `json:"title"`
-	Slug                string               `json:"slug"`
-	Content             string               `json:"content"`
-	ImageURL            *string              `json:"imageUrl"`
-	Published           bool                 `json:"published"`
-	IsPremium           bool                 `json:"isPremium"`
-	Visibility          string               `json:"visibility"`
-	ReadingTime         int                  `json:"readingTime"`
-	Status              string               `json:"status"`
-	CompletionRate      float64              `json:"completionRate"`
-	SemanticTags        []string             `json:"semanticTags"`
-	AllowPublicAnnotations bool              `json:"allowPublicAnnotations"`
-	AllowComments       bool                 `json:"allowComments"`
-	ScheduledAt         *string              `json:"scheduledAt"`
-	PublicationID       string               `json:"publicationId"`
-	AuthorID            string               `json:"authorId"`
-	CategoryID          *string              `json:"categoryId"`
-	TierID              *string              `json:"tierId"`
-	SeoTitle            *string              `json:"seoTitle"`
-	SeoDescription      *string              `json:"seoDescription"`
-	CreatedAt           string               `json:"createdAt"`
-	UpdatedAt           string               `json:"updatedAt"`
-	Author              HydrateAuthor        `json:"author"`
-	Publication         HydratePublication   `json:"publication"`
-	CoAuthors           []HydrateAuthor      `json:"coAuthors"`
-	Attributions        []HydrateAttribution `json:"attributions"`
+	ID                     string               `json:"id"`
+	Title                  string               `json:"title"`
+	Slug                   string               `json:"slug"`
+	Content                string               `json:"content"`
+	ImageURL               *string              `json:"imageUrl"`
+	Published              bool                 `json:"published"`
+	IsPremium              bool                 `json:"isPremium"`
+	Visibility             string               `json:"visibility"`
+	ReadingTime            int                  `json:"readingTime"`
+	Status                 string               `json:"status"`
+	CompletionRate         float64              `json:"completionRate"`
+	SemanticTags           []string             `json:"semanticTags"`
+	AllowPublicAnnotations bool                 `json:"allowPublicAnnotations"`
+	AllowComments          bool                 `json:"allowComments"`
+	ScheduledAt            *string              `json:"scheduledAt"`
+	PublicationID          string               `json:"publicationId"`
+	AuthorID               string               `json:"authorId"`
+	CategoryID             *string              `json:"categoryId"`
+	TierID                 *string              `json:"tierId"`
+	SeoTitle               *string              `json:"seoTitle"`
+	SeoDescription         *string              `json:"seoDescription"`
+	CreatedAt              string               `json:"createdAt"`
+	UpdatedAt              string               `json:"updatedAt"`
+	Author                 HydrateAuthor        `json:"author"`
+	Publication            HydratePublication   `json:"publication"`
+	CoAuthors              []HydrateAuthor      `json:"coAuthors"`
+	Attributions           []HydrateAttribution `json:"attributions"`
 }
 
 // HydrateResult est la réponse de POST /v1/feed/hydrate.
 type HydrateResult struct {
-	Articles []HydrateArticle `json:"articles"`
+	Articles []HydrateArticle  `json:"articles"`
 	Thoughts []posts.FeedSlice `json:"thoughts"`
 }
 
@@ -134,6 +135,9 @@ func (s *Service) HydrateArticles(ctx context.Context, articleIDs []string) ([]H
 		a.TierID = tier
 		a.SeoTitle = seoTitle
 		a.SeoDescription = seoDesc
+		// 🔒 Zéro-fuite : POST /v1/feed/hydrate est public (visiteur anonyme),
+		// le contenu premium au-delà du marqueur ne doit jamais être transmis.
+		a.Content = truncatePaywall(a.Content, db.ContentVisibility(a.Visibility), tier)
 		if scheduled.Valid {
 			v := scheduled.Time.Format(time.RFC3339)
 			a.ScheduledAt = &v

@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/qoefi/api/internal/cache"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/modules/articles"
 	"github.com/qoefi/api/internal/modules/posts"
 	"github.com/redis/go-redis/v9"
 )
@@ -177,19 +178,19 @@ func (s *Service) UserPosts(ctx context.Context, username, viewerID string, limi
 // FeedArticle est un article du feed mobile (écran principal), avec auteur /
 // publication / catégorie dénormalisés — miroir de ArticleCard web.
 type FeedArticle struct {
-	ID           string  `json:"id"`
-	Title        string  `json:"title"`
-	Slug         string  `json:"slug"`
-	Content      string  `json:"content"`
-	ImageURL     *string `json:"imageUrl"`
-	IsPremium    bool    `json:"isPremium"`
-	Visibility   string  `json:"visibility"`
-	ReadingTime  int     `json:"readingTime"`
-	CreatedAt    string  `json:"createdAt"`
-	PublicationID string `json:"publicationId"`
-	Author      FeedArticleAuthor `json:"author"`
-	Publication FeedArticlePub   `json:"publication"`
-	Category    *FeedArticleCat  `json:"category"`
+	ID            string            `json:"id"`
+	Title         string            `json:"title"`
+	Slug          string            `json:"slug"`
+	Content       string            `json:"content"`
+	ImageURL      *string           `json:"imageUrl"`
+	IsPremium     bool              `json:"isPremium"`
+	Visibility    string            `json:"visibility"`
+	ReadingTime   int               `json:"readingTime"`
+	CreatedAt     string            `json:"createdAt"`
+	PublicationID string            `json:"publicationId"`
+	Author        FeedArticleAuthor `json:"author"`
+	Publication   FeedArticlePub    `json:"publication"`
+	Category      *FeedArticleCat   `json:"category"`
 }
 
 // FeedArticleAuthor est l'auteur dénormalisé d'un article du feed.
@@ -203,12 +204,12 @@ type FeedArticleAuthor struct {
 
 // FeedArticlePub est la publication dénormalisée d'un article du feed.
 type FeedArticlePub struct {
-	ID         string  `json:"id"`
-	Name       string  `json:"name"`
-	Slug       string  `json:"slug"`
-	Subdomain  *string `json:"subdomain"`
-	LogoURL    *string `json:"logoUrl"`
-	Type       string  `json:"type"`
+	ID        string  `json:"id"`
+	Name      string  `json:"name"`
+	Slug      string  `json:"slug"`
+	Subdomain *string `json:"subdomain"`
+	LogoURL   *string `json:"logoUrl"`
+	Type      string  `json:"type"`
 }
 
 // FeedArticleCat est la catégorie d'un article du feed.
@@ -226,8 +227,9 @@ type ThreadPost struct {
 
 // Thread retourne une pensée + sa chaîne parent/repost + ses réponses.
 // ⚠️ La chaîne d'ancêtres (root → … → parent direct) est chargée et peuplée
-//    dans `Parent` pour que le mobile affiche ce qu'il y a au-dessus d'une
-//    réponse (parité ThoughtThreadParentContext web).
+//
+//	dans `Parent` pour que le mobile affiche ce qu'il y a au-dessus d'une
+//	réponse (parité ThoughtThreadParentContext web).
 func (s *Service) Thread(ctx context.Context, postID, viewerID string) (*ThreadPost, error) {
 	rows, err := s.q.GetPostsByIDs(ctx, db.GetPostsByIDsParams{Ids: []string{postID}, ViewerID: toUUID(viewerID)})
 	if err != nil {
@@ -411,13 +413,27 @@ type publishedArticleRow struct {
 	CategorySlug         pgtype.Text
 }
 
+// truncatePaywall applique la troncature zéro-fuite du paywall à un contenu
+// servi par un endpoint PUBLIC du feed.
+//
+// ⚠️ Les cartes et les payloads de feed sont servis à des visiteurs anonymes :
+// aucun entitlement n'est résolvable à ce niveau. Servir `Article.content` brut
+// pour un article premium ferait fuiter le passage réservé dans le réseau, le
+// DOM des cartes et les extraits rendus (fuite silencieuse du paywall).
+func truncatePaywall(content string, visibility db.ContentVisibility, tierID *string) string {
+	cut := articles.SliceContentAtPaywall(
+		content, articles.UserEntitlements{}, string(visibility), tierID,
+	)
+	return cut.Content
+}
+
 // buildFeedArticle construit la carte d'article du feed depuis la vue commune.
 func buildFeedArticle(r *publishedArticleRow) FeedArticle {
 	return FeedArticle{
 		ID:            r.ID,
 		Title:         r.Title,
 		Slug:          r.Slug,
-		Content:       r.Content,
+		Content:       truncatePaywall(r.Content, r.Visibility, nil),
 		IsPremium:     r.IsPremium,
 		Visibility:    string(r.Visibility),
 		ReadingTime:   int(r.ReadingTime),
