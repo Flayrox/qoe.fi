@@ -548,9 +548,15 @@ CREATE TABLE "ApiKey" (
     "scopes" TEXT[] DEFAULT ARRAY['READ', 'WRITE', 'ANALYTICS']::TEXT[],
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "lastUsedAt" TIMESTAMP(3),
-    "userId" UUID NOT NULL,
+    "userId" UUID,
+    "publicationId" TEXT,
+    "createdByUserId" UUID,
 
-    CONSTRAINT "ApiKey_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "ApiKey_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "chk_apikey_single_owner" CHECK (
+        ("userId" IS NOT NULL AND "publicationId" IS NULL) OR
+        ("userId" IS NULL AND "publicationId" IS NOT NULL)
+    )
 );
 
 -- CreateTable
@@ -1199,6 +1205,12 @@ CREATE INDEX "ApiKey_userId_idx" ON "ApiKey"("userId");
 CREATE INDEX "ApiKey_keyHash_idx" ON "ApiKey"("keyHash");
 
 -- CreateIndex
+CREATE INDEX "ApiKey_publicationId_idx" ON "ApiKey"("publicationId");
+
+-- CreateIndex
+CREATE INDEX "ApiKey_createdByUserId_idx" ON "ApiKey"("createdByUserId");
+
+-- CreateIndex
 CREATE INDEX "Webhook_publicationId_idx" ON "Webhook"("publicationId");
 
 -- CreateIndex
@@ -1534,8 +1546,13 @@ ALTER TABLE "Like" ADD CONSTRAINT "Like_postId_fkey" FOREIGN KEY ("postId") REFE
 -- AddForeignKey
 ALTER TABLE "Like" ADD CONSTRAINT "Like_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
--- AddForeignKey
 ALTER TABLE "ApiKey" ADD CONSTRAINT "ApiKey_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ApiKey" ADD CONSTRAINT "ApiKey_publicationId_fkey" FOREIGN KEY ("publicationId") REFERENCES "Publication"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ApiKey" ADD CONSTRAINT "ApiKey_createdByUserId_fkey" FOREIGN KEY ("createdByUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Webhook" ADD CONSTRAINT "Webhook_publicationId_fkey" FOREIGN KEY ("publicationId") REFERENCES "Publication"("id") ON DELETE CASCADE ON UPDATE CASCADE;

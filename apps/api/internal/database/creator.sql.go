@@ -69,40 +69,56 @@ func (q *Queries) DeleteFollow(ctx context.Context, arg DeleteFollowParams) erro
 
 const getApiKeyByHash = `-- name: GetApiKeyByHash :one
 
-SELECT ak.id            AS api_key_id,
-       ak."keyHash"     AS key_hash,
-       ak.scopes        AS scopes,
-       u.id::text       AS user_id,
-       u.email,
-       u.username,
-       u.name,
-       u."logoUrl"      AS logo_url,
-       u."isCertified"  AS is_certified,
-       u.role,
-       u."apiAccessStatus" AS api_access_status,
-       COALESCE(p.id::text, '')::text AS publication_id,
-       p."umamiWebsiteId" AS umami_website_id
+SELECT ak.id                                            AS api_key_id,
+       ak."keyHash"                                     AS key_hash,
+       ak.scopes                                        AS scopes,
+       COALESCE(ak."userId"::text, '')::text            AS key_user_id,
+       COALESCE(ak."publicationId"::text, '')::text    AS key_publication_id,
+       COALESCE(ak."createdByUserId"::text, '')::text  AS created_by_user_id,
+       COALESCE(u.id::text, '')::text                   AS user_id,
+       u.email                                          AS user_email,
+       u.username                                       AS user_username,
+       u.name                                           AS user_name,
+       u."logoUrl"                                      AS user_logo_url,
+       u."isCertified"                                  AS user_is_certified,
+       u.role                                           AS user_role,
+       u."apiAccessStatus"                              AS user_api_access_status,
+       u."apiGrants"                                    AS user_api_grants,
+       COALESCE(p.id::text, '')::text                   AS publication_id,
+       COALESCE(p.type::text, '')::text                 AS publication_type,
+       p."umamiWebsiteId"                               AS umami_website_id,
+       COALESCE(md.id::text, '')::text                  AS media_id,
+       sc.value                                         AS platform_api_modules
 FROM "ApiKey" ak
-JOIN "User" u ON u.id = ak."userId"
-LEFT JOIN "Publication" p ON p.id = u."publicationId" AND p.type = 'PERSONAL'
+LEFT JOIN "User" u ON u.id = ak."userId"
+LEFT JOIN "Publication" p ON p.id = COALESCE(ak."publicationId", u."publicationId")
+LEFT JOIN "Media" md ON md."publicationId" = p.id
+LEFT JOIN "SystemConfig" sc ON sc.key = 'API_ACCESS_MODULES'
 WHERE ak."keyHash" = $1
 LIMIT 1
 `
 
 type GetApiKeyByHashRow struct {
-	ApiKeyID        string      `json:"api_key_id"`
-	KeyHash         string      `json:"key_hash"`
-	Scopes          []string    `json:"scopes"`
-	UserID          string      `json:"user_id"`
-	Email           string      `json:"email"`
-	Username        pgtype.Text `json:"username"`
-	Name            pgtype.Text `json:"name"`
-	LogoUrl         pgtype.Text `json:"logo_url"`
-	IsCertified     bool        `json:"is_certified"`
-	Role            string      `json:"role"`
-	ApiAccessStatus string      `json:"api_access_status"`
-	PublicationID   string      `json:"publication_id"`
-	UmamiWebsiteID  pgtype.Text `json:"umami_website_id"`
+	ApiKeyID            string      `json:"api_key_id"`
+	KeyHash             string      `json:"key_hash"`
+	Scopes              []string    `json:"scopes"`
+	KeyUserID           string      `json:"key_user_id"`
+	KeyPublicationID    string      `json:"key_publication_id"`
+	CreatedByUserID     string      `json:"created_by_user_id"`
+	UserID              string      `json:"user_id"`
+	UserEmail           pgtype.Text `json:"user_email"`
+	UserUsername        pgtype.Text `json:"user_username"`
+	UserName            pgtype.Text `json:"user_name"`
+	UserLogoUrl         pgtype.Text `json:"user_logo_url"`
+	UserIsCertified     pgtype.Bool `json:"user_is_certified"`
+	UserRole            pgtype.Text `json:"user_role"`
+	UserApiAccessStatus pgtype.Text `json:"user_api_access_status"`
+	UserApiGrants       []string    `json:"user_api_grants"`
+	PublicationID       string      `json:"publication_id"`
+	PublicationType     string      `json:"publication_type"`
+	UmamiWebsiteID      pgtype.Text `json:"umami_website_id"`
+	MediaID             string      `json:"media_id"`
+	PlatformApiModules  pgtype.Text `json:"platform_api_modules"`
 }
 
 // API Créateur (migration depuis Hono apps/api) : clés API, catégories, users, follows, bookmarks.
@@ -113,16 +129,23 @@ func (q *Queries) GetApiKeyByHash(ctx context.Context, keyhash string) (GetApiKe
 		&i.ApiKeyID,
 		&i.KeyHash,
 		&i.Scopes,
+		&i.KeyUserID,
+		&i.KeyPublicationID,
+		&i.CreatedByUserID,
 		&i.UserID,
-		&i.Email,
-		&i.Username,
-		&i.Name,
-		&i.LogoUrl,
-		&i.IsCertified,
-		&i.Role,
-		&i.ApiAccessStatus,
+		&i.UserEmail,
+		&i.UserUsername,
+		&i.UserName,
+		&i.UserLogoUrl,
+		&i.UserIsCertified,
+		&i.UserRole,
+		&i.UserApiAccessStatus,
+		&i.UserApiGrants,
 		&i.PublicationID,
+		&i.PublicationType,
 		&i.UmamiWebsiteID,
+		&i.MediaID,
+		&i.PlatformApiModules,
 	)
 	return i, err
 }

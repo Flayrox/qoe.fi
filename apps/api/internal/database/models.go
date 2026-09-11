@@ -503,14 +503,16 @@ type AnnotationUpvote struct {
 }
 
 type ApiKey struct {
-	ID         string           `json:"id"`
-	Name       string           `json:"name"`
-	KeyPrefix  string           `json:"keyPrefix"`
-	KeyHash    string           `json:"keyHash"`
-	Scopes     []string         `json:"scopes"`
-	CreatedAt  pgtype.Timestamp `json:"createdAt"`
-	LastUsedAt pgtype.Timestamp `json:"lastUsedAt"`
-	UserId     pgtype.UUID      `json:"userId"`
+	ID              string           `json:"id"`
+	Name            string           `json:"name"`
+	KeyPrefix       string           `json:"keyPrefix"`
+	KeyHash         string           `json:"keyHash"`
+	Scopes          []string         `json:"scopes"`
+	CreatedAt       pgtype.Timestamp `json:"createdAt"`
+	LastUsedAt      pgtype.Timestamp `json:"lastUsedAt"`
+	UserId          pgtype.UUID      `json:"userId"`
+	PublicationId   pgtype.Text      `json:"publicationId"`
+	CreatedByUserId pgtype.UUID      `json:"createdByUserId"`
 }
 
 type Article struct {

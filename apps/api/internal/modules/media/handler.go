@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/qoefi/api/internal/middleware"
+	"github.com/qoefi/api/internal/permissions"
 	"github.com/qoefi/api/internal/response"
 )
 
@@ -33,6 +34,13 @@ func (h *Handler) Register(r chi.Router) {
 		r.Patch("/{id}/members/{userId}/permissions", h.updateMemberPermissions)
 		r.Delete("/{id}/members/{userId}", h.removeMember)
 		r.Post("/invites/{token}/accept", h.acceptInvite)
+
+		// Clés API Média (gestion workspace / délégation fine api_keys:manage)
+		r.Get("/{id}/api-keys", h.listApiKeys)
+		r.Post("/{id}/api-keys", h.createApiKey)
+		r.Patch("/{id}/api-keys/{keyId}", h.updateApiKey)
+		r.Post("/{id}/api-keys/{keyId}/rotate", h.rotateApiKey)
+		r.Delete("/{id}/api-keys/{keyId}", h.revokeApiKey)
 	})
 }
 
@@ -43,6 +51,8 @@ func userID(r *http.Request) string {
 
 func writeErr(w http.ResponseWriter, err error) {
 	switch {
+	case errors.Is(err, ErrInvalidScopes):
+		response.Error(w, http.StatusUnprocessableEntity, "scopes invalides")
 	case errors.Is(err, errForbidden):
 		response.Forbidden(w, "Permission insuffisante")
 	case errors.Is(err, errNotFound):
@@ -115,12 +125,23 @@ func (h *Handler) getMedia(w http.ResponseWriter, r *http.Request) {
 		response.Unauthorized(w, "Authentification requise")
 		return
 	}
-	detail, myRole, err := h.svc.GetMedia(r.Context(), id, chi.URLParam(r, "id"))
+	mediaID := chi.URLParam(r, "id")
+	detail, myRole, err := h.svc.GetMedia(r.Context(), id, mediaID)
 	if err != nil {
 		writeErr(w, err)
 		return
 	}
-	response.OK(w, map[string]any{"media": detail, "myRole": myRole})
+	canManageKeys := false
+	if m, _ := h.svc.member(r.Context(), mediaID, id); m != nil {
+		canManageKeys = permissions.CanMedia(&permissions.MediaMember{
+			Role: m.Role, Permissions: m.Permissions, Status: m.Status,
+		}, permissions.PermManageApiKeys)
+	}
+	response.OK(w, map[string]any{
+		"media":            detail,
+		"myRole":           myRole,
+		"canManageApiKeys": canManageKeys,
+	})
 }
 
 // PATCH /v1/media/{id}/settings — réglages (identity, design, SEO).
@@ -236,3 +257,100 @@ func (h *Handler) removeMember(w http.ResponseWriter, r *http.Request) {
 	}
 	response.OK(w, map[string]bool{"success": true})
 }
+
+// GET /v1/media/{id}/api-keys — liste les clés API du média.
+func (h *Handler) listApiKeys(w http.ResponseWriter, r *http.Request) {
+	id := userID(r)
+	if id == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	mediaID := chi.URLParam(r, "id")
+	keys, err := h.svc.ListApiKeys(r.Context(), id, mediaID)
+	if err != nil {
+		writeErr(w, err)
+		return
+	}
+	response.OK(w, map[string]any{"keys": keys})
+}
+
+// POST /v1/media/{id}/api-keys — génère une clé API média (secret retourné une seule fois).
+func (h *Handler) createApiKey(w http.ResponseWriter, r *http.Request) {
+	id := userID(r)
+	if id == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	mediaID := chi.URLParam(r, "id")
+	var in struct {
+		Name   string   `json:"name"`
+		Scopes []string `json:"scopes"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	key, err := h.svc.CreateApiKey(r.Context(), id, mediaID, in.Name, in.Scopes)
+	if err != nil {
+		writeErr(w, err)
+		return
+	}
+	response.Created(w, key)
+}
+
+// PATCH /v1/media/{id}/api-keys/{keyId} — renomme une clé API média.
+func (h *Handler) updateApiKey(w http.ResponseWriter, r *http.Request) {
+	id := userID(r)
+	if id == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	mediaID := chi.URLParam(r, "id")
+	keyID := chi.URLParam(r, "keyId")
+	var in struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	if err := h.svc.UpdateApiKeyName(r.Context(), id, mediaID, keyID, in.Name); err != nil {
+		writeErr(w, err)
+		return
+	}
+	response.OK(w, map[string]bool{"success": true})
+}
+
+// POST /v1/media/{id}/api-keys/{keyId}/rotate — régénère le secret d'une clé API média.
+func (h *Handler) rotateApiKey(w http.ResponseWriter, r *http.Request) {
+	id := userID(r)
+	if id == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	mediaID := chi.URLParam(r, "id")
+	keyID := chi.URLParam(r, "keyId")
+	res, err := h.svc.RotateApiKey(r.Context(), id, mediaID, keyID)
+	if err != nil {
+		writeErr(w, err)
+		return
+	}
+	response.OK(w, res)
+}
+
+// DELETE /v1/media/{id}/api-keys/{keyId} — révoque/supprime une clé API média.
+func (h *Handler) revokeApiKey(w http.ResponseWriter, r *http.Request) {
+	id := userID(r)
+	if id == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	mediaID := chi.URLParam(r, "id")
+	keyID := chi.URLParam(r, "keyId")
+	if err := h.svc.RevokeApiKey(r.Context(), id, mediaID, keyID); err != nil {
+		writeErr(w, err)
+		return
+	}
+	response.OK(w, map[string]bool{"success": true})
+}
+

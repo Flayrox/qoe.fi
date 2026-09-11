@@ -570,6 +570,24 @@ func (h *Handler) apiArticleCreate(w http.ResponseWriter, r *http.Request) {
 		strconv.FormatInt(time.Now().UnixNano()%100000, 10)
 	slug := h.uniqueArticleSlug(r.Context(), slugify(in.Title))
 
+	authorID := userID
+	if authorID == "" {
+		if p, ok := middleware.GetPrincipal(r.Context()); ok {
+			if p.UserID != nil && *p.UserID != "" {
+				authorID = *p.UserID
+			} else if p.CreatedByUserID != nil && *p.CreatedByUserID != "" {
+				authorID = *p.CreatedByUserID
+			}
+		}
+	}
+	if authorID == "" && publicationID != "" {
+		_ = h.pool.QueryRow(r.Context(),
+			`SELECT mm."userId"::text FROM "MediaMember" mm
+			 JOIN "Media" m ON m.id = mm."mediaId"
+			 WHERE m."publicationId" = $1 AND mm.role = 'owner' LIMIT 1`,
+			publicationID).Scan(&authorID)
+	}
+
 	tags := in.Tags
 	if tags == nil {
 		tags = []string{}
@@ -582,7 +600,7 @@ func (h *Handler) apiArticleCreate(w http.ResponseWriter, r *http.Request) {
 		        NULLIF($9,''), NULLIF($10,''), $11, now(), now())`,
 		id, in.Title, slug, in.Content, visibility,
 		readingTimeFromHTML(in.Content), in.IsPremium, tags,
-		in.CategoryID, publicationID, userID); err != nil {
+		in.CategoryID, publicationID, authorID); err != nil {
 		log.Printf("[creator] article create: %v", err)
 		response.Internal(w)
 		return

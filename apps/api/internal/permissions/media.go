@@ -27,12 +27,13 @@ const (
 	PermViewAnalytics    = "media:view_analytics"
 	PermCreateArticles   = "media:create_articles"
 	PermEditOwn          = "media:edit_own"
+	PermManageApiKeys    = "api_keys:manage"
 )
 
 var allMediaPermissions = []string{
 	PermManageMembers, PermManageSettings, PermManageBilling, PermManageCategories,
 	PermManageNewsletter, PermPublishAny, PermEditAny, PermDeleteAny, PermReview,
-	PermViewAnalytics, PermCreateArticles, PermEditOwn,
+	PermViewAnalytics, PermCreateArticles, PermEditOwn, PermManageApiKeys,
 }
 
 // rolePermissions définit les permissions de base par rôle.

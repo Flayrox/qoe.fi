@@ -145,3 +145,64 @@ FROM "MediaMember" m
 JOIN "User" u ON u.id = m."userId"
 WHERE m."mediaId" = $1
 ORDER BY m."joinedAt" ASC;
+
+-- ============================================================================
+-- Clés API Média (gestion par le média, délégation api_keys:manage)
+-- ============================================================================
+
+-- name: ListMediaApiKeys :many
+SELECT ak.id,
+       ak.name,
+       ak."keyPrefix",
+       ak.scopes,
+       ak."createdAt",
+       ak."lastUsedAt",
+       COALESCE(ak."createdByUserId"::text, '')::text AS created_by_user_id,
+       u.name                                         AS created_by_name,
+       u.username                                     AS created_by_username
+FROM "ApiKey" ak
+JOIN "Media" m ON m."publicationId" = ak."publicationId"
+LEFT JOIN "User" u ON u.id = ak."createdByUserId"
+WHERE m.id = $1
+ORDER BY ak."createdAt" DESC;
+
+-- name: CountMediaApiKeys :one
+SELECT COUNT(*)::int
+FROM "ApiKey" ak
+JOIN "Media" m ON m."publicationId" = ak."publicationId"
+WHERE m.id = $1;
+
+-- name: InsertMediaApiKey :exec
+INSERT INTO "ApiKey" (id, name, "keyPrefix", "keyHash", scopes, "publicationId", "createdByUserId")
+VALUES ($1, $2, $3, $4, $5, $6, $7);
+
+-- name: GetMediaApiKeyByID :one
+SELECT ak.id,
+       ak.name,
+       ak."keyPrefix",
+       ak.scopes,
+       ak."createdAt",
+       ak."lastUsedAt",
+       ak."publicationId",
+       COALESCE(ak."createdByUserId"::text, '')::text AS created_by_user_id,
+       m.id                                           AS media_id
+FROM "ApiKey" ak
+JOIN "Media" m ON m."publicationId" = ak."publicationId"
+WHERE ak.id = sqlc.arg('key_id') AND m.id = sqlc.arg('media_id');
+
+-- name: UpdateMediaApiKeyName :execrows
+UPDATE "ApiKey" ak
+SET name = sqlc.arg('name')
+FROM "Media" m
+WHERE ak.id = sqlc.arg('key_id') AND m.id = sqlc.arg('media_id') AND ak."publicationId" = m."publicationId";
+
+-- name: UpdateMediaApiKeySecret :execrows
+UPDATE "ApiKey" ak
+SET "keyHash" = sqlc.arg('key_hash'), "keyPrefix" = sqlc.arg('key_prefix')
+FROM "Media" m
+WHERE ak.id = sqlc.arg('key_id') AND m.id = sqlc.arg('media_id') AND ak."publicationId" = m."publicationId";
+
+-- name: DeleteMediaApiKey :execrows
+DELETE FROM "ApiKey" ak
+USING "Media" m
+WHERE ak.id = sqlc.arg('key_id') AND m.id = sqlc.arg('media_id') AND ak."publicationId" = m."publicationId";

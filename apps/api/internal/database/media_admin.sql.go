@@ -35,6 +35,20 @@ func (q *Queries) CountArticlesByPublication(ctx context.Context, publicationid 
 	return count, err
 }
 
+const countMediaApiKeys = `-- name: CountMediaApiKeys :one
+SELECT COUNT(*)::int
+FROM "ApiKey" ak
+JOIN "Media" m ON m."publicationId" = ak."publicationId"
+WHERE m.id = $1
+`
+
+func (q *Queries) CountMediaApiKeys(ctx context.Context, id string) (int32, error) {
+	row := q.db.QueryRow(ctx, countMediaApiKeys, id)
+	var column_1 int32
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const countMediaInvites = `-- name: CountMediaInvites :one
 SELECT COUNT(*)::int AS count FROM "MediaInvite" WHERE "mediaId" = $1
 `
@@ -150,6 +164,25 @@ func (q *Queries) CreateMediaPublication(ctx context.Context, arg CreateMediaPub
 	return id, err
 }
 
+const deleteMediaApiKey = `-- name: DeleteMediaApiKey :execrows
+DELETE FROM "ApiKey" ak
+USING "Media" m
+WHERE ak.id = $1 AND m.id = $2 AND ak."publicationId" = m."publicationId"
+`
+
+type DeleteMediaApiKeyParams struct {
+	KeyID   string `json:"key_id"`
+	MediaID string `json:"media_id"`
+}
+
+func (q *Queries) DeleteMediaApiKey(ctx context.Context, arg DeleteMediaApiKeyParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteMediaApiKey, arg.KeyID, arg.MediaID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteMediaMember = `-- name: DeleteMediaMember :exec
 DELETE FROM "MediaMember" WHERE "mediaId" = $1 AND "userId" = $2
 `
@@ -162,6 +195,55 @@ type DeleteMediaMemberParams struct {
 func (q *Queries) DeleteMediaMember(ctx context.Context, arg DeleteMediaMemberParams) error {
 	_, err := q.db.Exec(ctx, deleteMediaMember, arg.MediaId, arg.UserId)
 	return err
+}
+
+const getMediaApiKeyByID = `-- name: GetMediaApiKeyByID :one
+SELECT ak.id,
+       ak.name,
+       ak."keyPrefix",
+       ak.scopes,
+       ak."createdAt",
+       ak."lastUsedAt",
+       ak."publicationId",
+       COALESCE(ak."createdByUserId"::text, '')::text AS created_by_user_id,
+       m.id                                           AS media_id
+FROM "ApiKey" ak
+JOIN "Media" m ON m."publicationId" = ak."publicationId"
+WHERE ak.id = $1 AND m.id = $2
+`
+
+type GetMediaApiKeyByIDParams struct {
+	KeyID   string `json:"key_id"`
+	MediaID string `json:"media_id"`
+}
+
+type GetMediaApiKeyByIDRow struct {
+	ID              string           `json:"id"`
+	Name            string           `json:"name"`
+	KeyPrefix       string           `json:"keyPrefix"`
+	Scopes          []string         `json:"scopes"`
+	CreatedAt       pgtype.Timestamp `json:"createdAt"`
+	LastUsedAt      pgtype.Timestamp `json:"lastUsedAt"`
+	PublicationId   pgtype.Text      `json:"publicationId"`
+	CreatedByUserID string           `json:"created_by_user_id"`
+	MediaID         string           `json:"media_id"`
+}
+
+func (q *Queries) GetMediaApiKeyByID(ctx context.Context, arg GetMediaApiKeyByIDParams) (GetMediaApiKeyByIDRow, error) {
+	row := q.db.QueryRow(ctx, getMediaApiKeyByID, arg.KeyID, arg.MediaID)
+	var i GetMediaApiKeyByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.KeyPrefix,
+		&i.Scopes,
+		&i.CreatedAt,
+		&i.LastUsedAt,
+		&i.PublicationId,
+		&i.CreatedByUserID,
+		&i.MediaID,
+	)
+	return i, err
 }
 
 const getMediaInviteByToken = `-- name: GetMediaInviteByToken :one
@@ -453,6 +535,34 @@ func (q *Queries) GetUserMediaMemberships(ctx context.Context, userid pgtype.UUI
 	return items, nil
 }
 
+const insertMediaApiKey = `-- name: InsertMediaApiKey :exec
+INSERT INTO "ApiKey" (id, name, "keyPrefix", "keyHash", scopes, "publicationId", "createdByUserId")
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+`
+
+type InsertMediaApiKeyParams struct {
+	ID              string      `json:"id"`
+	Name            string      `json:"name"`
+	KeyPrefix       string      `json:"keyPrefix"`
+	KeyHash         string      `json:"keyHash"`
+	Scopes          []string    `json:"scopes"`
+	PublicationId   pgtype.Text `json:"publicationId"`
+	CreatedByUserId pgtype.UUID `json:"createdByUserId"`
+}
+
+func (q *Queries) InsertMediaApiKey(ctx context.Context, arg InsertMediaApiKeyParams) error {
+	_, err := q.db.Exec(ctx, insertMediaApiKey,
+		arg.ID,
+		arg.Name,
+		arg.KeyPrefix,
+		arg.KeyHash,
+		arg.Scopes,
+		arg.PublicationId,
+		arg.CreatedByUserId,
+	)
+	return err
+}
+
 const insertMediaAuditLog = `-- name: InsertMediaAuditLog :exec
 INSERT INTO "MediaAuditLog" (id, "mediaId", "actorId", action, metadata)
 VALUES (gen_random_uuid()::text, $1, $2, $3, $4::text::jsonb)
@@ -475,6 +585,69 @@ func (q *Queries) InsertMediaAuditLog(ctx context.Context, arg InsertMediaAuditL
 		arg.Metadata,
 	)
 	return err
+}
+
+const listMediaApiKeys = `-- name: ListMediaApiKeys :many
+
+SELECT ak.id,
+       ak.name,
+       ak."keyPrefix",
+       ak.scopes,
+       ak."createdAt",
+       ak."lastUsedAt",
+       COALESCE(ak."createdByUserId"::text, '')::text AS created_by_user_id,
+       u.name                                         AS created_by_name,
+       u.username                                     AS created_by_username
+FROM "ApiKey" ak
+JOIN "Media" m ON m."publicationId" = ak."publicationId"
+LEFT JOIN "User" u ON u.id = ak."createdByUserId"
+WHERE m.id = $1
+ORDER BY ak."createdAt" DESC
+`
+
+type ListMediaApiKeysRow struct {
+	ID                string           `json:"id"`
+	Name              string           `json:"name"`
+	KeyPrefix         string           `json:"keyPrefix"`
+	Scopes            []string         `json:"scopes"`
+	CreatedAt         pgtype.Timestamp `json:"createdAt"`
+	LastUsedAt        pgtype.Timestamp `json:"lastUsedAt"`
+	CreatedByUserID   string           `json:"created_by_user_id"`
+	CreatedByName     pgtype.Text      `json:"created_by_name"`
+	CreatedByUsername pgtype.Text      `json:"created_by_username"`
+}
+
+// ============================================================================
+// Clés API Média (gestion par le média, délégation api_keys:manage)
+// ============================================================================
+func (q *Queries) ListMediaApiKeys(ctx context.Context, id string) ([]ListMediaApiKeysRow, error) {
+	rows, err := q.db.Query(ctx, listMediaApiKeys, id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMediaApiKeysRow{}
+	for rows.Next() {
+		var i ListMediaApiKeysRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.KeyPrefix,
+			&i.Scopes,
+			&i.CreatedAt,
+			&i.LastUsedAt,
+			&i.CreatedByUserID,
+			&i.CreatedByName,
+			&i.CreatedByUsername,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listMediaInvites = `-- name: ListMediaInvites :many
@@ -577,6 +750,54 @@ func (q *Queries) ListMediaMembers(ctx context.Context, mediaid string) ([]ListM
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateMediaApiKeyName = `-- name: UpdateMediaApiKeyName :execrows
+UPDATE "ApiKey" ak
+SET name = $1
+FROM "Media" m
+WHERE ak.id = $2 AND m.id = $3 AND ak."publicationId" = m."publicationId"
+`
+
+type UpdateMediaApiKeyNameParams struct {
+	Name    string `json:"name"`
+	KeyID   string `json:"key_id"`
+	MediaID string `json:"media_id"`
+}
+
+func (q *Queries) UpdateMediaApiKeyName(ctx context.Context, arg UpdateMediaApiKeyNameParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateMediaApiKeyName, arg.Name, arg.KeyID, arg.MediaID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const updateMediaApiKeySecret = `-- name: UpdateMediaApiKeySecret :execrows
+UPDATE "ApiKey" ak
+SET "keyHash" = $1, "keyPrefix" = $2
+FROM "Media" m
+WHERE ak.id = $3 AND m.id = $4 AND ak."publicationId" = m."publicationId"
+`
+
+type UpdateMediaApiKeySecretParams struct {
+	KeyHash   string `json:"key_hash"`
+	KeyPrefix string `json:"key_prefix"`
+	KeyID     string `json:"key_id"`
+	MediaID   string `json:"media_id"`
+}
+
+func (q *Queries) UpdateMediaApiKeySecret(ctx context.Context, arg UpdateMediaApiKeySecretParams) (int64, error) {
+	result, err := q.db.Exec(ctx, updateMediaApiKeySecret,
+		arg.KeyHash,
+		arg.KeyPrefix,
+		arg.KeyID,
+		arg.MediaID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const updateMediaInviteStatus = `-- name: UpdateMediaInviteStatus :exec
