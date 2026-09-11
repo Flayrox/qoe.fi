@@ -13,7 +13,7 @@ import { PaywallCut } from './PaywallCut';
 import { ReaderActions } from './ReaderActions';
 import { ArticleCommentsSection } from './ArticleCommentsSection';
 import { getArticleCommentsAction } from './actions';
-import { buildPublicDescription, sliceContentAtPaywall } from '@qoe/utils';
+import { buildPublicDescription, buildPublicExcerpt, sliceContentAtPaywall } from '@qoe/utils';
 import { ContentVisibility } from '@qoe/config';
 import { t } from '@lingui/core/macro';
 import {
@@ -50,12 +50,17 @@ export async function generateMetadata({ params }: TenantArticlePageProps): Prom
     ? `Lisez ${article.title} sur ${publication.name || decodedDomain}.`
     : `Read ${article.title} on ${publication.name || decodedDomain}.`;
 
-  const description = article.content
-    ? article.content
-        .replace(/<[^>]*>?/gm, '')
-        .trim()
-        .slice(0, 160)
-    : defaultDesc;
+  // 🔒 Zéro-fuite : la description SEO/OpenGraph d'un visiteur anonyme est
+  // dérivée du contenu DÉJÀ tronqué au paywall — jamais du contenu brut, sinon
+  // le passage réservé partirait dans le HTML public, les métadonnées sociales
+  // (OpenGraph/Twitter) et l'index des moteurs de recherche.
+  const description =
+    buildPublicExcerpt(
+      article.content || '',
+      article.isPremium ? ContentVisibility.PAID_SUBSCRIBERS : ContentVisibility.PUBLIC,
+      null,
+      160
+    ) || defaultDesc;
 
   const canonicalUrl = `https://${decodedDomain}/article/${encodeURIComponent(article.slug)}`;
   const authorName =
@@ -250,11 +255,20 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
     ? ContentVisibility.PAID_SUBSCRIBERS
     : ContentVisibility.PUBLIC;
 
-  const paywallCutResult = sliceContentAtPaywall(
-    article.content || '',
-    { isMember, isPaidSubscriber },
-    visibility
-  );
+  // 🔒 Zéro-fuite, défense en profondeur : le backend Go tronque DÉJÀ le
+  // contenu pour un lecteur non autorisé (`accessGranted === false`).
+  // `article.content` est alors l'aperçu public exact — on le réutilise tel
+  // quel au lieu de le retronquer (le marqueur de coupure ayant disparu, une
+  // seconde passe raboterait le teaser légitime). Sinon on recoupe localement.
+  const paywallCutResult =
+    article.accessGranted === false
+      ? {
+          content: article.content,
+          isTruncated: true,
+          accessGranted: false,
+          paywallMeta: null,
+        }
+      : sliceContentAtPaywall(article.content || '', { isMember, isPaidSubscriber }, visibility);
 
   // Tranche 1-b : document canonique (rendu par blocs + marques par offsets).
   // Uniquement quand l'accès complet est acquis — ne JAMAIS télécharger le
