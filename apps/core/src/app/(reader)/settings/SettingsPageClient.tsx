@@ -722,6 +722,12 @@ export default function AccountSettingsPage({
               description={t`Les réglages de lecture sont disponibles dans Apparence & lecture.`}
               onClick={() => navigateToSection('appearance')}
             />
+            <SettingsLink
+              icon={FileText}
+              title={t`Documents légaux`}
+              description={t`Conditions, confidentialité, cookies et consentements enregistrés.`}
+              onClick={() => router.push('/legal')}
+            />
             {data.deletionRequest?.status === 'PENDING' && (
               <div className="flex items-center justify-between gap-3 rounded-xl border border-highlight/25 bg-highlight/[0.05] px-4 py-3 text-sm">
                 <div>
