@@ -8,7 +8,7 @@
 // =====================================================================
 
 import { describe, expect, it } from 'vitest';
-import { sliceContentAtPaywall } from '../paywall';
+import { buildPublicDescription, sliceContentAtPaywall } from '../paywall';
 
 const TIPTAP_PAYWALL =
   '<p>Free teaser</p><div data-type="paywall-divider"></div><p>Secret premium body</p>';
@@ -104,5 +104,44 @@ describe('sliceContentAtPaywall', () => {
     const paidOnly = sliceContentAtPaywall(content, entitlements, 'PAID_SUBSCRIBERS');
     expect(paidOnly.accessGranted).toBe(false);
     expect(paidOnly.content).not.toContain('Secret');
+  });
+});
+
+// =====================================================================
+describe('buildPublicDescription (zero-leak SEO)', () => {
+  it('nettoie le HTML et compresse les espaces', () => {
+    expect(buildPublicDescription('<p>Bonjour   <strong>le</strong>\n monde</p>')).toBe(
+      'Bonjour le monde'
+    );
+  });
+
+  it('tronque à 200 caractères par défaut et respecte la longueur demandée', () => {
+    const long = `<p>${'a'.repeat(500)}</p>`;
+    expect(buildPublicDescription(long)?.length).toBe(200);
+    expect(buildPublicDescription(long, 42)?.length).toBe(42);
+  });
+
+  it('retourne undefined sur un contenu vide', () => {
+    expect(buildPublicDescription('')).toBeUndefined();
+    expect(buildPublicDescription('<p>   </p>')).toBeUndefined();
+  });
+
+  it('🚨 ne laisse JAMAIS fuiter le passage premium d’un article verrouillé', () => {
+    const raw =
+      '<p>Premier paragraphe offert</p><!--qoe-paywall--><p>Ce passage est réservé aux abonnés premium.</p>';
+
+    // On ne décrit QUE le contenu déjà tronqué par le paywall.
+    const cut = sliceContentAtPaywall(
+      raw,
+      { isMember: false, isPaidSubscriber: false },
+      'PAID_SUBSCRIBERS'
+    );
+    const description = buildPublicDescription(cut.content);
+
+    expect(description).toContain('Premier paragraphe offert');
+    expect(description).not.toContain('réservé aux abonnés premium');
+
+    // Garde-fou : passer le contenu brut fuiterait (c'est le bug corrigé).
+    expect(buildPublicDescription(raw)).toContain('réservé aux abonnés premium');
   });
 });

@@ -76,6 +76,10 @@ func (h *Handler) RegisterAPIKey(r chi.Router) {
 	r.With(middleware.RequireAPIScope(middleware.ScopeWrite)).Delete("/v1/creator/subscribers/{idOrEmail}", h.apiSubscriberDelete)
 	// Métadonnées complètes de branding de la publication pour front headless
 	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/publication", h.apiPublicationMetadata)
+	// Recommandations croisées de publications
+	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/recommendations", h.apiRecommendationsList)
+	r.With(middleware.RequireAPIScope(middleware.ScopeWrite)).Post("/v1/creator/recommendations", h.apiRecommendationAdd)
+	r.With(middleware.RequireAPIScope(middleware.ScopeWrite)).Delete("/v1/creator/recommendations/{recommendedId}", h.apiRecommendationRemove)
 }
 
 // apiHighlights — GET /v1/creator/highlights : surlignages publics des
@@ -128,6 +132,10 @@ func (h *Handler) RegisterProtected(r chi.Router, requireScope func(string) func
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/categories", h.createCategory)
 	r.With(requireScope(middleware.ScopeWrite)).Patch("/v1/categories/{id}", h.updateCategory)
 	r.With(requireScope(middleware.ScopeWrite)).Delete("/v1/categories/{id}", h.deleteCategory)
+	// Recommandations croisées de publications
+	r.With(requireScope(middleware.ScopeRead)).Get("/v1/creator/recommendations", h.apiRecommendationsList)
+	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/creator/recommendations", h.apiRecommendationAdd)
+	r.With(requireScope(middleware.ScopeWrite)).Delete("/v1/creator/recommendations/{recommendedId}", h.apiRecommendationRemove)
 }
 
 // category est la forme API d'une catégorie (parité Hono).

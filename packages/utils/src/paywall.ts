@@ -139,3 +139,21 @@ export function sliceContentAtPaywall(
     },
   };
 }
+
+/**
+ * Construit la description publique d'un article (SEO, OpenGraph, JSON-LD) à
+ * partir du contenu DÉJÀ tronqué par `sliceContentAtPaywall`.
+ *
+ * ⚠️ Ne JAMAIS lui passer le contenu brut d'un article verrouillé : le passage
+ * réservé se retrouverait alors dans le DOM public, dans les métadonnées
+ * OpenGraph/JSON-LD et dans l'index des moteurs de recherche — soit un
+ * contournement silencieux du paywall (zéro-fuite).
+ */
+export function buildPublicDescription(publicContent: string, maxLength = 200): string | undefined {
+  const text = (publicContent || '')
+    .replace(/<[^>]*>?/gm, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!text) return undefined;
+  return text.slice(0, maxLength);
+}

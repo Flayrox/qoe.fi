@@ -86,12 +86,12 @@ export default defineConfig({
     {
       name: 'tenants',
       use: { ...devices['Desktop Chrome'], baseURL: TENANTS_URL },
-      testMatch: /tenants\.spec\.ts/,
+      testMatch: /tenants.*\.spec\.ts/,
     },
     {
       name: 'studio',
       use: { ...devices['Desktop Chrome'], baseURL: STUDIO_URL },
-      testMatch: /studio\.spec\.ts/,
+      testMatch: /studio.*\.spec\.ts/,
     },
     {
       name: 'admin',

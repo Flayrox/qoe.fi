@@ -6,6 +6,8 @@ import { SocialIcon, TenantHeader, SubscribeForm, JsonLd, buildWebSiteSchema } f
 import { t } from '@lingui/core/macro';
 import { fetchTenantPublication, fetchTenantRecommendations } from '@/lib/tenant-data';
 import { RecommendedSection } from '@/components/RecommendedSection';
+import { buildPublicDescription, sliceContentAtPaywall } from '@qoe/utils';
+import { ContentVisibility } from '@qoe/config';
 import { getLanguage } from '@qoe/i18n/server';
 
 interface PageProps {
@@ -99,6 +101,20 @@ export default async function TenantHomepage({ params }: PageProps) {
 
   const isMagazine = layoutStyle === 'magazine';
   const isBrutalist = layoutStyle === 'brutalist';
+
+  // 🔒 Zéro-fuite : les extraits des cartes sont dérivés du contenu DÉJÀ tronqué
+  // par le paywall. Rendre `article.content` brut exposait le passage réservé
+  // aux visiteurs non authentifiés (et aux crawlers) dès la page d'accueil.
+  const articleExcerpts = new Map(
+    articles.map((article) => {
+      const cut = sliceContentAtPaywall(
+        article.content || '',
+        { isMember: false, isPaidSubscriber: false },
+        article.isPremium ? ContentVisibility.PAID_SUBSCRIBERS : ContentVisibility.PUBLIC
+      );
+      return [article.id, buildPublicDescription(cut.content, 250) ?? ''];
+    })
+  );
 
   const jsonLdData = buildWebSiteSchema({
     name: name || decodedDomain,
@@ -238,7 +254,7 @@ export default async function TenantHomepage({ params }: PageProps) {
                   <p
                     className={`line-clamp-3 text-muted-foreground leading-relaxed ${isMagazine && i === 0 ? 'text-lg md:text-xl md:line-clamp-4' : 'text-base'}`}
                   >
-                    {article.content.replace(/<[^>]*>?/gm, '').substring(0, 250)}...
+                    {articleExcerpts.get(article.id)}...
                   </p>
                 </div>
               </Link>

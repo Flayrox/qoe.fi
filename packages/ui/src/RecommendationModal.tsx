@@ -203,7 +203,11 @@ export function RecommendationModal({
               </>
             ) : selectedIds.size > 0 ? (
               <>
-                <span>{t`S'abonner aux ${selectedIds.size} publications`}</span>
+                <span>
+                  {selectedIds.size === 1
+                    ? t`S'abonner à 1 publication`
+                    : t`S'abonner aux ${selectedIds.size} publications`}
+                </span>
                 <ArrowRight className="w-4 h-4" />
               </>
             ) : (

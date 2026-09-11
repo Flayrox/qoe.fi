@@ -15,7 +15,7 @@ import { PaywallCut } from '../../article/[slug]/PaywallCut';
 import { ReaderActions } from '../../article/[slug]/ReaderActions';
 import { ArticleCommentsSection } from '../../article/[slug]/ArticleCommentsSection';
 import { getArticleCommentsAction } from '../../article/[slug]/actions';
-import { sliceContentAtPaywall } from '@qoe/utils';
+import { buildPublicDescription, sliceContentAtPaywall } from '@qoe/utils';
 import { ContentVisibility } from '@qoe/config';
 import { t } from '@lingui/core/macro';
 import {
@@ -276,12 +276,9 @@ export default async function TenantCategoryArticlePage({
     : null;
   const jsonLdData = buildArticleSchema({
     title: article.title,
-    description: article.content
-      ? article.content
-          .replace(/<[^>]*>?/gm, '')
-          .trim()
-          .slice(0, 200)
-      : undefined,
+    // 🔒 Zéro-fuite : la description SEO/JSON-LD est dérivée du contenu DÉJÀ
+    // tronqué par le paywall, jamais du contenu brut de l'article.
+    description: buildPublicDescription(paywallCutResult.content),
     slug: article.slug,
     createdAt: article.createdAt,
     authorName: article.author?.name || article.author?.username || displayName,

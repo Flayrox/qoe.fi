@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
+	"github.com/qoefi/api/internal/workers"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -160,14 +161,26 @@ func (h *Handler) send(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, map[string]bool{"success": true})
 }
 
-// GET & POST /v1/newsletters/unsubscribe?pub=&email= — désabonnement
-// one-click (RFC 8058) : désactive receiveArticles, sans authentification.
+// GET & POST /v1/newsletters/unsubscribe?pub=&email=&sig= — désabonnement
+// one-click (RFC 8058) : désactive receiveArticles après vérification HMAC timing-safe.
 func (h *Handler) unsubscribe(w http.ResponseWriter, r *http.Request) {
 	pubID := r.URL.Query().Get("pub")
 	if pubID == "" {
 		pubID = r.URL.Query().Get("publicationId")
 	}
 	email := r.URL.Query().Get("email")
+	sig := r.URL.Query().Get("sig")
+
+	if pubID == "" || email == "" {
+		response.BadRequest(w, "pub et email requis")
+		return
+	}
+
+	// 🛡️ Vérification cryptographique HMAC timing-safe (RFC 8058 anti-IDOR)
+	if !workers.VerifyUnsubscribe(pubID, email, sig) {
+		response.Forbidden(w, "Signature de désabonnement invalide ou expirée")
+		return
+	}
 
 	if err := h.svc.Unsubscribe(r.Context(), pubID, email); err != nil {
 		h.handleErr(w, err)
