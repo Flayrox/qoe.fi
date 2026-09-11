@@ -133,9 +133,36 @@ cartes de la home) doit être construite à partir de ce contenu **déjà tronqu
 (`buildPublicDescription`) et jamais de `article.content` brut : sinon le passage
 réservé fuite dans le DOM public et dans l'index des moteurs de recherche.
 
-Les specs `tenants*` dépendent du seed (`cmd/seed`), qui pose les sous-domaines
-`admin` et `media-clair` (`pub_media_00000000000000000001`). Sur une base de dev
-non seedée, le parcours média échoue en 404 : rejouer `pnpm db:seed`.
+`e2e/tenants.spec.ts` est **hermétique** : il crée lui-même (via `e2e/lib/db.ts`
+→ `ensurePublication`/`ensureArticle`) son tenant MEDIA et son article premium à
+sentinelle, puis les nettoie en `afterAll` (spec `serial`). Il ne dépend donc
+plus du seed et échoue désormais si le passage réservé apparaît dans le HTML,
+les `<meta>` ou le JSON-LD (`SECRET-E2E-RESERVE-ABONNES`).
+
+`e2e/tenants-paywall.spec.ts` reste adossé au seed (`cmd/seed`), qui pose le
+sous-domaine `admin` et l'article `essai-premium-souverainete`. Sur une base de
+dev non seedée, rejouer `pnpm db:seed`.
+
+**Frontière API zéro-fuite.** Le backend Go tronque lui-même le contenu premium
+de toutes les sorties publiques — pas seulement au rendu Next : mode « slug
+seul » de `GET /v1/articles/{slug}`, bundle tenant
+`GET /v1/publications/by-domain/{domain}/article/{slug}`, liste d'articles de la
+home, cartes/hydratation du feed (`truncatePaywall`) et hits de la recherche
+publique (`redactPremiumHitContents`). Le scope studio authentifié
+(`?publicationId=`) conserve le contenu complet.
+
+**Garde-fou build-breaking.** `packages/utils/src/__tests__/paywall-leak-guard.test.ts`
+échoue dès qu'une recherche/description publique dérive du `article.content`
+brut (scan statique de `apps/**` + `packages/**`) ou qu'une sortie API gardée
+cesse d'appeler `SliceContentAtPaywall`. Tests unitaires Go associés :
+`articles/handler_integration_test.go` (`GetBySlugAny` tronqué),
+`feed/paywall_leak_test.go`, `search/paywall_leak_test.go`.
+
+**Contrat des actions tenant.** `packages/sdk/src/__tests__/tenantActions.test.ts`
+verrouille chemin/méthode/forme du body de chaque action publique (dont
+`subscribeToNewsletterAction`) et refuse tout `body` sérialisé — la régression de
+double encodage JSON de `goFetch` (400 « JSON invalide ») ne peut plus revenir
+silencieusement.
 
 ### Quirk macOS local (firewall applicatif)
 
