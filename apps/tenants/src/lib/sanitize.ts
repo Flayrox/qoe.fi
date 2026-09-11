@@ -36,6 +36,18 @@ export function sanitizeHtml(html: string): string {
       'span',
       'mark',
       'section',
+      // Tableaux + délimitation : utilisés par les documents juridiques
+      // (grilles de rétrocession, mesures de sécurité, durées de conservation).
+      'table',
+      'thead',
+      'tbody',
+      'tfoot',
+      'tr',
+      'th',
+      'td',
+      'caption',
+      'del',
+      's',
     ],
     ALLOWED_ATTR: [
       'href',
@@ -45,6 +57,8 @@ export function sanitizeHtml(html: string): string {
       'alt',
       'title',
       'class',
+      'id',
+      'loading',
       'style',
       'data-type',
       'data-annotation-note',

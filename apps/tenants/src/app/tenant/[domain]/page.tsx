@@ -6,6 +6,7 @@ import { SocialIcon, TenantHeader, SubscribeForm, JsonLd, buildWebSiteSchema } f
 import { t } from '@lingui/core/macro';
 import { fetchTenantPublication, fetchTenantRecommendations } from '@/lib/tenant-data';
 import { RecommendedSection } from '@/components/RecommendedSection';
+import { LegalFooterLinks } from '@/components/legal/LegalFooterLinks';
 import { buildPublicDescription, sliceContentAtPaywall } from '@qoe/utils';
 import { ContentVisibility } from '@qoe/config';
 import { getLanguage } from '@qoe/i18n/server';
@@ -313,6 +314,7 @@ export default async function TenantHomepage({ params }: PageProps) {
                 ))}
               </div>
             )}
+            <LegalFooterLinks />
             <div className="text-sm font-medium text-muted-foreground">
               &copy; {new Date().getFullYear()} {name}. {t`Propulsé par`}{' '}
               <Link

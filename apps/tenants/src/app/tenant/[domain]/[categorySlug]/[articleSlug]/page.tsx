@@ -8,6 +8,7 @@ import { TenantHeader, SubscribeForm, JsonLd, buildArticleSchema } from '@qoe/ui
 import type { Metadata } from 'next';
 import { getLanguage } from '@qoe/i18n/server';
 import { type AnnotationItem, type HighlightItem } from '@qoe/ui/annotations';
+import { LegalFooterLinks } from '@/components/legal/LegalFooterLinks';
 import { TenantArticleHighlighter } from '../../article/[slug]/TenantArticleHighlighter';
 import { TenantArticleReadingTracker } from '../../article/[slug]/TenantArticleReadingTracker';
 import { type CommentItem } from '../../article/[slug]/ArticleCommentsSection';
@@ -436,6 +437,7 @@ export default async function TenantCategoryArticlePage({
         className={`py-16 px-4 text-center ${isBrutalist ? 'border-t-4 border-foreground' : 'border-t border-border/40 bg-muted/20'}`}
       >
         <div className="max-w-2xl mx-auto space-y-6 text-sm text-muted-foreground">
+          <LegalFooterLinks />
           <p>{footerText || t`© ${new Date().getFullYear()} ${name ?? ''}. Propulsé par qoe.fi`}</p>
         </div>
       </footer>

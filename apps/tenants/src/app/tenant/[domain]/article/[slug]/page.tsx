@@ -25,6 +25,7 @@ import type { Metadata } from 'next';
 import { JsonLd, buildArticleSchema } from '@qoe/ui';
 import { getLanguage } from '@qoe/i18n/server';
 import { ReadingProgressBar } from '@/components/ReadingProgressBar';
+import { LegalFooterLinks } from '@/components/legal/LegalFooterLinks';
 
 interface TenantArticlePageProps {
   params: Promise<{
@@ -454,6 +455,7 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
         className={`py-16 px-4 text-center ${isBrutalist ? 'border-t-4 border-foreground' : 'border-t border-border/40 bg-muted/20'}`}
       >
         <div className="max-w-2xl mx-auto space-y-6 text-sm text-muted-foreground">
+          <LegalFooterLinks />
           <p>{footerText || t`© ${new Date().getFullYear()} ${name ?? ''}. Propulsé par qoe.fi`}</p>
         </div>
       </footer>
