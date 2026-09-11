@@ -53,6 +53,19 @@ func (q *Queries) CountNewsletterDeliveriesByIssue(ctx context.Context, issueid 
 	return i, err
 }
 
+const countSubscribersByPublication = `-- name: CountSubscribersByPublication :one
+SELECT COUNT(*)::bigint
+FROM "Subscriber"
+WHERE "publicationId" = $1
+`
+
+func (q *Queries) CountSubscribersByPublication(ctx context.Context, publicationid string) (int64, error) {
+	row := q.db.QueryRow(ctx, countSubscribersByPublication, publicationid)
+	var column_1 int64
+	err := row.Scan(&column_1)
+	return column_1, err
+}
+
 const createNewsletterIssue = `-- name: CreateNewsletterIssue :one
 
 INSERT INTO "NewsletterIssue" (id, "publicationId", subject, "previewText", html, "updatedAt")
@@ -93,6 +106,29 @@ func (q *Queries) CreateNewsletterIssue(ctx context.Context, arg CreateNewslette
 		&i.SentAt,
 	)
 	return i, err
+}
+
+const deactivateSubscriber = `-- name: DeactivateSubscriber :one
+UPDATE "Subscriber"
+SET "isActive" = false,
+    "receiveArticles" = false,
+    status = 'CANCELED',
+    "updatedAt" = now()
+WHERE "publicationId" = $1::text
+  AND (id = $2::text OR LOWER(email) = LOWER(TRIM($2::text)))
+RETURNING id
+`
+
+type DeactivateSubscriberParams struct {
+	PublicationID string `json:"publication_id"`
+	ID            string `json:"id"`
+}
+
+func (q *Queries) DeactivateSubscriber(ctx context.Context, arg DeactivateSubscriberParams) (string, error) {
+	row := q.db.QueryRow(ctx, deactivateSubscriber, arg.PublicationID, arg.ID)
+	var id string
+	err := row.Scan(&id)
+	return id, err
 }
 
 const deleteNewsletterIssueDraft = `-- name: DeleteNewsletterIssueDraft :exec
@@ -204,6 +240,168 @@ func (q *Queries) GetNewsletterIssue(ctx context.Context, id string) (Newsletter
 		&i.UpdatedAt,
 		&i.SentAt,
 	)
+	return i, err
+}
+
+const getNewsletterIssueWithPublication = `-- name: GetNewsletterIssueWithPublication :one
+SELECT i.id, i."publicationId", i.subject, i."previewText", i.html, i.status, i."totalRecipients", i."sentCount", i."failedCount", i."createdAt", i."updatedAt", i."sentAt", p.name AS publication_name, p.subdomain AS publication_subdomain,
+       p."customDomain" AS publication_custom_domain, p."logoUrl" AS publication_logo_url
+FROM "NewsletterIssue" i
+JOIN "Publication" p ON p.id = i."publicationId"
+WHERE i.id = $1
+`
+
+type GetNewsletterIssueWithPublicationRow struct {
+	ID                      string           `json:"id"`
+	PublicationId           string           `json:"publicationId"`
+	Subject                 string           `json:"subject"`
+	PreviewText             pgtype.Text      `json:"previewText"`
+	Html                    string           `json:"html"`
+	Status                  string           `json:"status"`
+	TotalRecipients         int32            `json:"totalRecipients"`
+	SentCount               int32            `json:"sentCount"`
+	FailedCount             int32            `json:"failedCount"`
+	CreatedAt               pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt               pgtype.Timestamp `json:"updatedAt"`
+	SentAt                  pgtype.Timestamp `json:"sentAt"`
+	PublicationName         string           `json:"publication_name"`
+	PublicationSubdomain    pgtype.Text      `json:"publication_subdomain"`
+	PublicationCustomDomain pgtype.Text      `json:"publication_custom_domain"`
+	PublicationLogoUrl      pgtype.Text      `json:"publication_logo_url"`
+}
+
+func (q *Queries) GetNewsletterIssueWithPublication(ctx context.Context, id string) (GetNewsletterIssueWithPublicationRow, error) {
+	row := q.db.QueryRow(ctx, getNewsletterIssueWithPublication, id)
+	var i GetNewsletterIssueWithPublicationRow
+	err := row.Scan(
+		&i.ID,
+		&i.PublicationId,
+		&i.Subject,
+		&i.PreviewText,
+		&i.Html,
+		&i.Status,
+		&i.TotalRecipients,
+		&i.SentCount,
+		&i.FailedCount,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.SentAt,
+		&i.PublicationName,
+		&i.PublicationSubdomain,
+		&i.PublicationCustomDomain,
+		&i.PublicationLogoUrl,
+	)
+	return i, err
+}
+
+const getPublicationMetadataByID = `-- name: GetPublicationMetadataByID :one
+SELECT 
+    p.id,
+    p.type,
+    p.name,
+    p.slug,
+    p.bio,
+    p.subdomain,
+    p."customDomain",
+    p."heroText",
+    p."footerText",
+    p."logoUrl",
+    p."headerImageUrl",
+    p."accentColor",
+    p."themeMode",
+    p."layoutStyle",
+    p."fontFamily",
+    p."supportUrl",
+    p."seoTitle",
+    p."seoDescription",
+    p."allowIndexing",
+    p."allowPublicAnnotations",
+    p."allowComments",
+    p."isCertified",
+    p."createdAt",
+    p."updatedAt"
+FROM "Publication" p
+WHERE p.id = $1
+`
+
+type GetPublicationMetadataByIDRow struct {
+	ID                     string           `json:"id"`
+	Type                   PublicationType  `json:"type"`
+	Name                   string           `json:"name"`
+	Slug                   string           `json:"slug"`
+	Bio                    pgtype.Text      `json:"bio"`
+	Subdomain              pgtype.Text      `json:"subdomain"`
+	CustomDomain           pgtype.Text      `json:"customDomain"`
+	HeroText               pgtype.Text      `json:"heroText"`
+	FooterText             pgtype.Text      `json:"footerText"`
+	LogoUrl                pgtype.Text      `json:"logoUrl"`
+	HeaderImageUrl         pgtype.Text      `json:"headerImageUrl"`
+	AccentColor            pgtype.Text      `json:"accentColor"`
+	ThemeMode              pgtype.Text      `json:"themeMode"`
+	LayoutStyle            pgtype.Text      `json:"layoutStyle"`
+	FontFamily             pgtype.Text      `json:"fontFamily"`
+	SupportUrl             pgtype.Text      `json:"supportUrl"`
+	SeoTitle               pgtype.Text      `json:"seoTitle"`
+	SeoDescription         pgtype.Text      `json:"seoDescription"`
+	AllowIndexing          bool             `json:"allowIndexing"`
+	AllowPublicAnnotations bool             `json:"allowPublicAnnotations"`
+	AllowComments          bool             `json:"allowComments"`
+	IsCertified            bool             `json:"isCertified"`
+	CreatedAt              pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt              pgtype.Timestamp `json:"updatedAt"`
+}
+
+func (q *Queries) GetPublicationMetadataByID(ctx context.Context, id string) (GetPublicationMetadataByIDRow, error) {
+	row := q.db.QueryRow(ctx, getPublicationMetadataByID, id)
+	var i GetPublicationMetadataByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.Type,
+		&i.Name,
+		&i.Slug,
+		&i.Bio,
+		&i.Subdomain,
+		&i.CustomDomain,
+		&i.HeroText,
+		&i.FooterText,
+		&i.LogoUrl,
+		&i.HeaderImageUrl,
+		&i.AccentColor,
+		&i.ThemeMode,
+		&i.LayoutStyle,
+		&i.FontFamily,
+		&i.SupportUrl,
+		&i.SeoTitle,
+		&i.SeoDescription,
+		&i.AllowIndexing,
+		&i.AllowPublicAnnotations,
+		&i.AllowComments,
+		&i.IsCertified,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getSubscriberStatsByPublication = `-- name: GetSubscriberStatsByPublication :one
+SELECT 
+    COUNT(*)::bigint AS total,
+    COUNT(*) FILTER (WHERE "isActive" = true)::bigint AS active,
+    COUNT(*) FILTER (WHERE "isActive" = true AND "isPremium" = true)::bigint AS premium
+FROM "Subscriber"
+WHERE "publicationId" = $1
+`
+
+type GetSubscriberStatsByPublicationRow struct {
+	Total   int64 `json:"total"`
+	Active  int64 `json:"active"`
+	Premium int64 `json:"premium"`
+}
+
+func (q *Queries) GetSubscriberStatsByPublication(ctx context.Context, publicationid string) (GetSubscriberStatsByPublicationRow, error) {
+	row := q.db.QueryRow(ctx, getSubscriberStatsByPublication, publicationid)
+	var i GetSubscriberStatsByPublicationRow
+	err := row.Scan(&i.Total, &i.Active, &i.Premium)
 	return i, err
 }
 
@@ -392,6 +590,60 @@ func (q *Queries) ListQueuedArticleReleaseDeliveries(ctx context.Context, arg Li
 	return items, nil
 }
 
+const listSubscribersByPublication = `-- name: ListSubscribersByPublication :many
+SELECT id, email, status, "isActive", "isPremium", "receiveArticles", "createdAt", "updatedAt"
+FROM "Subscriber"
+WHERE "publicationId" = $1
+ORDER BY "createdAt" DESC
+LIMIT $2 OFFSET $3
+`
+
+type ListSubscribersByPublicationParams struct {
+	PublicationId string `json:"publicationId"`
+	Limit         int32  `json:"limit"`
+	Offset        int32  `json:"offset"`
+}
+
+type ListSubscribersByPublicationRow struct {
+	ID              string             `json:"id"`
+	Email           string             `json:"email"`
+	Status          SubscriptionStatus `json:"status"`
+	IsActive        bool               `json:"isActive"`
+	IsPremium       bool               `json:"isPremium"`
+	ReceiveArticles bool               `json:"receiveArticles"`
+	CreatedAt       pgtype.Timestamp   `json:"createdAt"`
+	UpdatedAt       pgtype.Timestamp   `json:"updatedAt"`
+}
+
+func (q *Queries) ListSubscribersByPublication(ctx context.Context, arg ListSubscribersByPublicationParams) ([]ListSubscribersByPublicationRow, error) {
+	rows, err := q.db.Query(ctx, listSubscribersByPublication, arg.PublicationId, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSubscribersByPublicationRow{}
+	for rows.Next() {
+		var i ListSubscribersByPublicationRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.Status,
+			&i.IsActive,
+			&i.IsPremium,
+			&i.ReceiveArticles,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const markArticleReleaseDelivery = `-- name: MarkArticleReleaseDelivery :exec
 UPDATE "ArticleReleaseDelivery"
 SET status     = $3,
@@ -457,6 +709,22 @@ WHERE id = $1
 func (q *Queries) ResetNewsletterIssueToDraft(ctx context.Context, id string) error {
 	_, err := q.db.Exec(ctx, resetNewsletterIssueToDraft, id)
 	return err
+}
+
+const resolvePublicationIDBySlugOrID = `-- name: ResolvePublicationIDBySlugOrID :one
+SELECT id
+FROM "Publication"
+WHERE id = $1
+   OR LOWER(slug) = LOWER($1)
+   OR LOWER(COALESCE(subdomain, '')) = LOWER($1)
+LIMIT 1
+`
+
+func (q *Queries) ResolvePublicationIDBySlugOrID(ctx context.Context, id string) (string, error) {
+	row := q.db.QueryRow(ctx, resolvePublicationIDBySlugOrID, id)
+	var id_2 string
+	err := row.Scan(&id_2)
+	return id_2, err
 }
 
 const setNewsletterIssueSending = `-- name: SetNewsletterIssueSending :one
@@ -532,6 +800,66 @@ func (q *Queries) UpdateNewsletterIssueDraft(ctx context.Context, arg UpdateNews
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.SentAt,
+	)
+	return i, err
+}
+
+const upsertSubscriber = `-- name: UpsertSubscriber :one
+
+INSERT INTO "Subscriber" (
+    id, email, "publicationId", status, "isActive", "receiveArticles", "createdAt", "updatedAt"
+)
+VALUES (
+    gen_random_uuid()::text,
+    LOWER(TRIM($1::text)),
+    $2::text,
+    'ACTIVE',
+    true,
+    true,
+    now(),
+    now()
+)
+ON CONFLICT ("email", "publicationId") DO UPDATE
+SET "isActive" = true,
+    "receiveArticles" = true,
+    status = 'ACTIVE',
+    "updatedAt" = now()
+RETURNING id, email, status, "isActive", "isPremium", "receiveArticles", "createdAt", "updatedAt", "publicationId"
+`
+
+type UpsertSubscriberParams struct {
+	Email         string `json:"email"`
+	PublicationID string `json:"publication_id"`
+}
+
+type UpsertSubscriberRow struct {
+	ID              string             `json:"id"`
+	Email           string             `json:"email"`
+	Status          SubscriptionStatus `json:"status"`
+	IsActive        bool               `json:"isActive"`
+	IsPremium       bool               `json:"isPremium"`
+	ReceiveArticles bool               `json:"receiveArticles"`
+	CreatedAt       pgtype.Timestamp   `json:"createdAt"`
+	UpdatedAt       pgtype.Timestamp   `json:"updatedAt"`
+	PublicationId   string             `json:"publicationId"`
+}
+
+// =====================================================================
+// 👥 Gestion des abonnés (Subscribers API & Headless integrations)
+// =====================================================================
+func (q *Queries) UpsertSubscriber(ctx context.Context, arg UpsertSubscriberParams) (UpsertSubscriberRow, error) {
+	row := q.db.QueryRow(ctx, upsertSubscriber, arg.Email, arg.PublicationID)
+	var i UpsertSubscriberRow
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Status,
+		&i.IsActive,
+		&i.IsPremium,
+		&i.ReceiveArticles,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.PublicationId,
 	)
 	return i, err
 }

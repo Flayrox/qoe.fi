@@ -137,8 +137,8 @@ const apiArticlesFrom = `
 	LEFT JOIN "Category" cat ON cat.id = a."categoryId"
 	WHERE (
 	    a."publicationId" = $1
-	    OR a."authorId"::text = $2
-	    OR a.id IN (SELECT "A" FROM "_CoAuthors" WHERE "B" = $3)
+	    OR ($2 <> '' AND a."authorId"::text = $2)
+	    OR ($3 <> '' AND a.id IN (SELECT "A" FROM "_CoAuthors" WHERE "B"::text = $3))
 	  )`
 
 var apiArticlesSorts = map[string]string{

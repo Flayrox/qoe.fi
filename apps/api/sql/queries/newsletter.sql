@@ -18,6 +18,13 @@ SELECT *
 FROM "NewsletterIssue"
 WHERE id = $1;
 
+-- name: GetNewsletterIssueWithPublication :one
+SELECT i.*, p.name AS publication_name, p.subdomain AS publication_subdomain,
+       p."customDomain" AS publication_custom_domain, p."logoUrl" AS publication_logo_url
+FROM "NewsletterIssue" i
+JOIN "Publication" p ON p.id = i."publicationId"
+WHERE i.id = $1;
+
 -- name: UpdateNewsletterIssueDraft :one
 UPDATE "NewsletterIssue"
 SET subject       = $2,
@@ -154,3 +161,96 @@ SELECT (
                WHERE mm."userId" = $1 AND md."publicationId" = $2
                  AND mm.role = 'owner' AND mm.status = 'active')
 )::boolean AS owns;
+
+-- =====================================================================
+-- 👥 Gestion des abonnés (Subscribers API & Headless integrations)
+-- =====================================================================
+
+-- name: UpsertSubscriber :one
+INSERT INTO "Subscriber" (
+    id, email, "publicationId", status, "isActive", "receiveArticles", "createdAt", "updatedAt"
+)
+VALUES (
+    gen_random_uuid()::text,
+    LOWER(TRIM(sqlc.arg(email)::text)),
+    sqlc.arg(publication_id)::text,
+    'ACTIVE',
+    true,
+    true,
+    now(),
+    now()
+)
+ON CONFLICT ("email", "publicationId") DO UPDATE
+SET "isActive" = true,
+    "receiveArticles" = true,
+    status = 'ACTIVE',
+    "updatedAt" = now()
+RETURNING id, email, status, "isActive", "isPremium", "receiveArticles", "createdAt", "updatedAt", "publicationId";
+
+-- name: ListSubscribersByPublication :many
+SELECT id, email, status, "isActive", "isPremium", "receiveArticles", "createdAt", "updatedAt"
+FROM "Subscriber"
+WHERE "publicationId" = $1
+ORDER BY "createdAt" DESC
+LIMIT $2 OFFSET $3;
+
+-- name: CountSubscribersByPublication :one
+SELECT COUNT(*)::bigint
+FROM "Subscriber"
+WHERE "publicationId" = $1;
+
+-- name: GetSubscriberStatsByPublication :one
+SELECT 
+    COUNT(*)::bigint AS total,
+    COUNT(*) FILTER (WHERE "isActive" = true)::bigint AS active,
+    COUNT(*) FILTER (WHERE "isActive" = true AND "isPremium" = true)::bigint AS premium
+FROM "Subscriber"
+WHERE "publicationId" = $1;
+
+-- name: DeactivateSubscriber :one
+UPDATE "Subscriber"
+SET "isActive" = false,
+    "receiveArticles" = false,
+    status = 'CANCELED',
+    "updatedAt" = now()
+WHERE "publicationId" = sqlc.arg(publication_id)::text
+  AND (id = sqlc.arg(id)::text OR LOWER(email) = LOWER(TRIM(sqlc.arg(id)::text)))
+RETURNING id;
+
+-- name: ResolvePublicationIDBySlugOrID :one
+SELECT id
+FROM "Publication"
+WHERE id = $1
+   OR LOWER(slug) = LOWER($1)
+   OR LOWER(COALESCE(subdomain, '')) = LOWER($1)
+LIMIT 1;
+
+-- name: GetPublicationMetadataByID :one
+SELECT 
+    p.id,
+    p.type,
+    p.name,
+    p.slug,
+    p.bio,
+    p.subdomain,
+    p."customDomain",
+    p."heroText",
+    p."footerText",
+    p."logoUrl",
+    p."headerImageUrl",
+    p."accentColor",
+    p."themeMode",
+    p."layoutStyle",
+    p."fontFamily",
+    p."supportUrl",
+    p."seoTitle",
+    p."seoDescription",
+    p."allowIndexing",
+    p."allowPublicAnnotations",
+    p."allowComments",
+    p."isCertified",
+    p."createdAt",
+    p."updatedAt"
+FROM "Publication" p
+WHERE p.id = $1;
+

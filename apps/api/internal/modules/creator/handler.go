@@ -69,6 +69,13 @@ func (h *Handler) RegisterAPIKey(r chi.Router) {
 	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/articles/{slug}/annotations", h.apiArticleAnnotations)
 	// Upload d'images (couvertures, corps) — scope WRITE.
 	r.With(middleware.RequireAPIScope(middleware.ScopeWrite)).Post("/v1/creator/media", h.apiMediaUpload)
+	// Abonnés et audience de la publication (scope READ pour listing/stats, WRITE pour ajout/suppression)
+	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/subscribers", h.apiSubscribersList)
+	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/subscribers/stats", h.apiSubscribersStats)
+	r.With(middleware.RequireAPIScope(middleware.ScopeWrite)).Post("/v1/creator/subscribers", h.apiSubscriberCreate)
+	r.With(middleware.RequireAPIScope(middleware.ScopeWrite)).Delete("/v1/creator/subscribers/{idOrEmail}", h.apiSubscriberDelete)
+	// Métadonnées complètes de branding de la publication pour front headless
+	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/publication", h.apiPublicationMetadata)
 }
 
 // apiHighlights — GET /v1/creator/highlights : surlignages publics des
@@ -77,7 +84,7 @@ func (h *Handler) RegisterAPIKey(r chi.Router) {
 func (h *Handler) apiHighlights(w http.ResponseWriter, r *http.Request) {
 	publicationID, _ := middleware.PublicationID(r.Context())
 	userID, _ := middleware.UserID(r.Context())
-	if userID == "" {
+	if userID == "" && publicationID == "" {
 		response.Unauthorized(w, "Authentification requise")
 		return
 	}
@@ -106,6 +113,9 @@ func (h *Handler) RegisterPublic(r chi.Router) {
 	r.Get("/v1/users/{username}", h.userByUsername)
 	r.Get("/v1/users/{username}/followers", h.userFollowers)
 	r.Get("/v1/users/{username}/following", h.userFollowing)
+	// Inscription publique à la newsletter d'une publication (CORS activé pour intégration externe)
+	r.Options("/v1/publications/{slugOrId}/subscribe", h.publicSubscribeOptions)
+	r.Post("/v1/publications/{slugOrId}/subscribe", h.publicSubscribe)
 }
 
 // RegisterProtected — routes créateur authentifiées JWT (ou clé API via
