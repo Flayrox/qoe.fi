@@ -57,10 +57,20 @@ func TestHTTP_NewsletterAuthRequired(t *testing.T) {
 		}
 	}
 
-	// Le désabonnement public reste accessible sans auth.
+	// Le désabonnement public reste accessible sans auth (GET avec publicationId ou pub, et POST RFC 8058).
 	w := nlReq(r, http.MethodGet, "/v1/newsletters/unsubscribe?publicationId="+pubID+"&email=reader@test.dev", "", "")
 	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "désabonné") {
 		t.Fatalf("unsubscribe = %d %s", w.Code, w.Body.String())
+	}
+
+	wPub := nlReq(r, http.MethodGet, "/v1/newsletters/unsubscribe?pub="+pubID+"&email=reader@test.dev", "", "")
+	if wPub.Code != http.StatusOK || !strings.Contains(wPub.Body.String(), "désabonné") {
+		t.Fatalf("unsubscribe with pub param = %d %s", wPub.Code, wPub.Body.String())
+	}
+
+	wPost := nlReq(r, http.MethodPost, "/v1/newsletters/unsubscribe?pub="+pubID+"&email=reader@test.dev", "", "List-Unsubscribe=One-Click")
+	if wPost.Code != http.StatusOK || !strings.Contains(wPost.Body.String(), "Unsubscribed successfully") {
+		t.Fatalf("unsubscribe POST RFC 8058 = %d %s", wPost.Code, wPost.Body.String())
 	}
 }
 

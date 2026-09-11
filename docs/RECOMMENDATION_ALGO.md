@@ -131,3 +131,21 @@ Toutes les valeurs du moteur sont pilotables sans recompiler via `SystemConfig` 
 | `feed.exploration_ratio` / `feed.exploration_ratio_cold` / `feed.exploration_min_signals` / `feed.exploration_min_quality` | 0.12 / 0.22 / 10 / 0.8 | Exploration ε-greedy : taux mature/froid, seuil de maturité, qualité minimale. |
 
 Les quotas OAuth (`OAUTH_MAX_CLIENTS_PER_USER`, `OAUTH_MAX_REDIRECT_URIS`, `OAUTH_MAX_ACTIVE_TOKENS_PER_USER`, `OAUTH_AUTH_CODE_TTL`, `OAUTH_ACCESS_TOKEN_TTL`, `OAUTH_REFRESH_TOKEN_TTL`, `OAUTH_ID_TOKEN_TTL`, `OAUTH_ALLOW_INSECURE_REDIRECT`) sont également seedés avec leur description (voir `docs/OAUTH_PROVIDER.md`).
+
+---
+
+## 8. Boucle de Viralité & Recommandations Croisées entre Publications (Substack Network Effect)
+
+Au-delà du classement personnalisé dans le feed global (Two-Tower lecteur), qoe.fi intègre un **graphe de recommandation explicite et réciproque entre publications de créateurs** (équivalent du Substack Recommendation Network) :
+
+### 8.1 Modèle de Données (`Recommendation`)
+- Chaque créateur peut sélectionner 1 à 5 publications partenaires qu'il recommande à son lectorat (`recommenderId` → `recommendedId` dans la table `"Recommendation"`).
+- Lorsqu'un lecteur s'abonne à la publication A via son blog sous-domaine (`tenants`) ou un article, un modal d'onboarding post-abonnement propose instantanément l'abonnement en 1 clic aux publications recommandées par l'auteur de A.
+
+### 8.2 API & Intégration
+- Route publique : `GET /v1/publications/by-domain/{domain}/recommendations`
+- Rendu :
+  - **Modal d'inscription post-conversion** (`packages/ui/src/RecommendationModal.tsx`) : 1-click multi-subscribe.
+  - **Section Footer / Sidebar du blog** (`apps/tenants/src/components/RecommendedSection.tsx`) : vitrine éditoriale des publications alliées.
+- Métriques : Chaque abonnement généré via une recommandation est tracé avec `source = "recommendation"`, permettant aux créateurs de voir dans leur Studio combien d'abonnés leurs confrères leur envoient chaque mois.
+

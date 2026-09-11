@@ -271,3 +271,31 @@ export async function fetchArticleHighlights(articleId: string): Promise<{
     return { publicHighlights: [], myPrivateHighlights: [] };
   }
 }
+
+export interface RecommendationItem {
+  id: string;
+  name: string;
+  slug: string;
+  subdomain: string;
+  customDomain?: string | null;
+  logoUrl?: string | null;
+  description?: string | null;
+  authorName?: string | null;
+  authorHandle?: string | null;
+  authorAvatarUrl?: string | null;
+  articlesCount: number;
+  subscribersCount: number;
+}
+
+/** Recommandations croisées entre créateurs (réseau viral Substack-style). */
+export async function fetchTenantRecommendations(domain: string): Promise<RecommendationItem[]> {
+  try {
+    const res = await goFetch<{ items: RecommendationItem[] }>(
+      `/v1/publications/by-domain/${encodeURIComponent(domain)}/recommendations`
+    );
+    return res?.items ?? [];
+  } catch (err) {
+    console.warn('[tenant-data] fetchTenantRecommendations:', err);
+    return [];
+  }
+}

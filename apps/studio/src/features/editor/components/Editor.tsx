@@ -56,6 +56,7 @@ import type { EditorCapabilities } from '@qoe/sdk/actions/articles';
 import { ArticleInspectorModal } from '@/app/(creator)/analytics/components/ArticleInspectorModal';
 import { t } from '@lingui/core/macro';
 import { ArticleAttributionEditor, type ArticleAttributionDraft } from './ArticleAttributionEditor';
+import { PublishModal, type PublishOptions } from './PublishModal';
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error) return error.message;
@@ -184,6 +185,7 @@ export function Editor({
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const [showSettings, setShowSettings] = useState(false);
+  const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [showAuthorAnnotationModal, setShowAuthorAnnotationModal] = useState(false);
   const [authorNoteInput, setAuthorNoteInput] = useState('');
@@ -622,6 +624,51 @@ export function Editor({
     handleManualSave('SUBMITTED');
   };
 
+  const handleConfirmPublish = async (options: PublishOptions) => {
+    setIsPremium(options.isPremium);
+    setPublished(true);
+    setStatus('PUBLISHED');
+    setScheduledAt(null);
+
+    try {
+      setError(null);
+      const htmlContent = editor?.getHTML() || '';
+      let finalSlug = slug;
+      if (!finalSlug) {
+        finalSlug = title
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)+/g, '');
+        setSlug(finalSlug);
+      }
+
+      await onSave({
+        title,
+        content: htmlContent,
+        imageUrl,
+        slug: finalSlug,
+        published: true,
+        status: 'PUBLISHED',
+        scheduledAt: null,
+        isPremium: options.isPremium,
+        categoryId,
+        seoTitle: seoTitle || null,
+        seoDescription: seoDescription || null,
+        allowPublicAnnotations,
+        allowComments,
+        attributions,
+      });
+      setLastSaved(new Date());
+      setHasUnsavedChanges(false);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, t`Échec de la publication.`));
+      setPublished(false);
+      setStatus('DRAFT');
+    }
+  };
+
   // Keyboard shortcut for saving (Cmd+S / Ctrl+S)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -811,31 +858,35 @@ export function Editor({
               )}
             </>
           ) : (
-            /* Published / Draft Toggle (créateur perso ou éditeur/owner média) */
+            /* Published / Draft Toggle avec modal de distribution */
             <button
               onClick={() => {
-                setPublished(!published);
                 if (!published) {
-                  setStatus('PUBLISHED');
-                  setScheduledAt(null); // publication immédiate → plus de programmation
+                  setIsPublishModalOpen(true);
                 } else {
+                  setPublished(false);
                   setStatus('DRAFT');
+                  setHasUnsavedChanges(true);
                 }
-                setHasUnsavedChanges(true);
               }}
               className={cn(
                 'h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-medium transition-all cursor-pointer border border-border/40',
                 published
                   ? 'bg-success/10 border-success/30 text-success font-semibold'
-                  : 'bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  : 'bg-primary text-primary-foreground hover:opacity-90 shadow-xs'
               )}
             >
               {published ? (
-                <Globe className="h-3 w-3 text-success" />
+                <>
+                  <Globe className="h-3.5 w-3.5 text-success" />
+                  <span>{t`Publié`}</span>
+                </>
               ) : (
-                <Lock className="h-3 w-3" />
+                <>
+                  <Send className="h-3.5 w-3.5" />
+                  <span>{t`Publier`}</span>
+                </>
               )}
-              <span>{published ? t`Publié` : t`Brouillon`}</span>
             </button>
           )}
 
@@ -1396,6 +1447,17 @@ export function Editor({
           </div>
         </div>
       )}
+
+      {/* Modal de publication & diffusion multicanale */}
+      <PublishModal
+        isOpen={isPublishModalOpen}
+        onClose={() => setIsPublishModalOpen(false)}
+        onConfirm={handleConfirmPublish}
+        articleTitle={title}
+        articleExcerpt={editor?.getText().slice(0, 180) || ''}
+        publicationName={subdomain ? `${subdomain}.qoe.fi` : 'Votre publication'}
+        initialIsPremium={isPremium}
+      />
     </div>
   );
 }

@@ -110,6 +110,19 @@ type PublicationDetail struct {
 	User                    *PublicationUser  `json:"user,omitempty"`
 }
 
+// RecommendationItem est une publication recommandée par un créateur.
+type RecommendationItem struct {
+	ID                      string  `json:"id"`
+	PublicationID           string  `json:"publicationId"`
+	PublicationName         string  `json:"name"`
+	PublicationSlug         string  `json:"slug"`
+	PublicationSubdomain    *string `json:"subdomain"`
+	PublicationCustomDomain *string `json:"customDomain"`
+	PublicationBio          *string `json:"bio"`
+	PublicationLogoURL      *string `json:"logoUrl"`
+	Description             *string `json:"description"`
+}
+
 // AuthorInfo est l'auteur dénormalisé d'un article.
 type AuthorInfo struct {
 	ID       string  `json:"id"`
@@ -250,6 +263,12 @@ func (s *Service) Article(ctx context.Context, domain, slug, viewerID, viewerEma
 // ---------------------------------------------------------------------------
 
 func (s *Service) publicationByDomain(ctx context.Context, domain string) (*PublicationDetail, error) {
+	clean := strings.TrimSpace(domain)
+	sub := clean
+	for _, suffix := range []string{".qoe.fi", ".qoe.test", ".localhost", ":15403", ":80", ":443"} {
+		sub = strings.TrimSuffix(sub, suffix)
+	}
+
 	var p PublicationDetail
 	var userID, username *string
 	var createdAt, updatedAt time.Time
@@ -263,8 +282,8 @@ func (s *Service) publicationByDomain(ctx context.Context, domain string) (*Publ
 		       p."createdAt", p."updatedAt", u.id, u.username
 		FROM "Publication" p
 		LEFT JOIN "User" u ON u."publicationId" = p.id
-		WHERE lower(p.subdomain) = lower($1) OR lower(p."customDomain") = lower($1)
-		LIMIT 1`, domain).Scan(
+		WHERE lower(p.subdomain) = lower($1) OR lower(p.subdomain) = lower($2) OR lower(p."customDomain") = lower($1)
+		LIMIT 1`, clean, sub).Scan(
 		&p.ID, &p.Type, &p.Name, &p.Slug, &p.Bio, &p.LogoURL, &p.IsCertified,
 		&p.Subdomain, &p.CustomDomain, &p.UmamiWebsiteID, &p.AccentColor,
 		&p.FontFamily, &p.HeroText, &p.HeaderImageURL, &p.FooterText,
@@ -513,4 +532,40 @@ func (s *Service) isFollowed(ctx context.Context, pubID, viewerID string) (bool,
 		return false, err
 	}
 	return true, nil
+}
+
+// Recommendations retourne les publications recommandées par le créateur.
+func (s *Service) Recommendations(ctx context.Context, domain string) ([]RecommendationItem, error) {
+	domain = strings.ToLower(strings.TrimSpace(domain))
+	pub, err := s.publicationByDomain(ctx, domain)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT r.id, r."description", p.id, p.name, p.slug, p.subdomain, p."customDomain", p.bio, p."logoUrl"
+		FROM "Recommendation" r
+		JOIN "Publication" p ON p.id = r."recommendedId"
+		WHERE r."recommenderId" = $1
+		ORDER BY r."createdAt" DESC
+	`, pub.ID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]RecommendationItem, 0)
+	for rows.Next() {
+		var item RecommendationItem
+		var desc, sub, custom, bio, logo *string
+		if err := rows.Scan(&item.ID, &desc, &item.PublicationID, &item.PublicationName, &item.PublicationSlug, &sub, &custom, &bio, &logo); err != nil {
+			return nil, err
+		}
+		item.Description = desc
+		item.PublicationSubdomain = sub
+		item.PublicationCustomDomain = custom
+		item.PublicationBio = bio
+		item.PublicationLogoURL = logo
+		out = append(out, item)
+	}
+	return out, rows.Err()
 }

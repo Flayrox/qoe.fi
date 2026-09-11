@@ -4,27 +4,41 @@ import { useState } from 'react';
 import { t } from '@lingui/core/macro';
 import { subscribeToNewsletterAction } from '@qoe/sdk/actions/tenant';
 import { Loader2 } from 'lucide-react';
+import { RecommendationModal, type RecommendedPublication } from './RecommendationModal';
 
 interface SubscribeFormProps {
   publicationId: string;
   isBrutalist?: boolean;
+  authorName?: string;
+  recommendations?: RecommendedPublication[];
 }
 
-export function SubscribeForm({ publicationId, isBrutalist }: SubscribeFormProps) {
+export function SubscribeForm({
+  publicationId,
+  isBrutalist,
+  authorName,
+  recommendations = [],
+}: SubscribeFormProps) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
+  const [submittedEmail, setSubmittedEmail] = useState('');
+  const [showModal, setShowModal] = useState(false);
 
   async function handleSubmit(formData: FormData) {
     setStatus('loading');
     setMessage('');
 
     const email = String(formData.get('email') || '');
+    setSubmittedEmail(email);
 
     const res = await subscribeToNewsletterAction({ email, publicationId });
 
     if (res.ok) {
       setStatus('success');
       setMessage(t`Merci ! Vérifiez votre boîte mail pour confirmer votre abonnement.`);
+      if (recommendations && recommendations.length > 0) {
+        setShowModal(true);
+      }
     } else {
       setStatus('error');
       setMessage(res.error?.message || t`Une erreur est survenue lors de la souscription.`);
@@ -33,18 +47,29 @@ export function SubscribeForm({ publicationId, isBrutalist }: SubscribeFormProps
 
   if (status === 'success') {
     return (
-      <div
-        className={`p-6 max-w-md mx-auto text-center ${isBrutalist ? 'border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-background' : 'bg-success/10 rounded-xl'}`}
-      >
-        <h4 className="text-lg font-bold text-success mb-2">{t`Vous êtes sur la liste !`}</h4>
-        <p className="text-muted-foreground">{message}</p>
-        <button
-          onClick={() => setStatus('idle')}
-          className="mt-4 text-sm font-medium text-[var(--tenant-accent)] hover:underline"
+      <>
+        {recommendations.length > 0 && (
+          <RecommendationModal
+            isOpen={showModal}
+            onClose={() => setShowModal(false)}
+            authorName={authorName}
+            recommendations={recommendations}
+            subscriberEmail={submittedEmail}
+          />
+        )}
+        <div
+          className={`p-6 max-w-md mx-auto text-center ${isBrutalist ? 'border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-background' : 'bg-success/10 rounded-xl'}`}
         >
-          {t`S'abonner avec une autre adresse`}
-        </button>
-      </div>
+          <h4 className="text-lg font-bold text-success mb-2">{t`Vous êtes sur la liste !`}</h4>
+          <p className="text-muted-foreground">{message}</p>
+          <button
+            onClick={() => setStatus('idle')}
+            className="mt-4 text-sm font-medium text-[var(--tenant-accent)] hover:underline"
+          >
+            {t`S'abonner avec une autre adresse`}
+          </button>
+        </div>
+      </>
     );
   }
 
