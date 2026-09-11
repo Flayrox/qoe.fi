@@ -15,6 +15,7 @@ export { CertifiedBadge, type CertifiedBadgeProps } from './ui/CertifiedBadge';
 export { SocialIcon } from './SocialIcon';
 export { TenantHeader } from './TenantHeader';
 export { SubscribeForm } from './SubscribeForm';
+export { RecommendationModal, type RecommendedPublication } from './RecommendationModal';
 export { Logo, LogoSymbol, LogoWordmark } from './Logo';
 export { DevtoolsPanel } from './devtools/DevtoolsPanel';
 export { ThemeProvider, ThemeSeedScript } from './theme-provider';

@@ -27,10 +27,13 @@ import (
 
 // EmailMessage est le message envoyé par un EmailProvider.
 type EmailMessage struct {
-	From    string
-	To      string
-	Subject string
-	HTML    string
+	From            string
+	To              string
+	Subject         string
+	HTML            string
+	ReplyTo         string
+	ListUnsubscribe string
+	IsBulk          bool
 }
 
 // EmailProvider envoie un email transactionnel.
@@ -155,9 +158,20 @@ func smtpAddr(cfg SMTPConfig) string {
 // buildSMTPHeaders compose les en-têtes RFC 5322 (sujet encodé RFC 2047 +
 // Message-ID unique — absent côté GoTrue, pénalisé par Gmail/mail-tester).
 func buildSMTPHeaders(from string, msg EmailMessage) string {
-	return fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMessage-ID: <%s@qoe.fi>\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\nDate: %s\r\nX-Mailer: qoe-worker",
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMessage-ID: <%s@qoe.fi>\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\nDate: %s\r\nX-Mailer: qoe-worker\r\n",
 		encodeAddressHeader(from), encodeAddressHeader(msg.To), encodeRFC2047(msg.Subject),
-		messageID(), time.Now().UTC().Format(time.RFC1123Z))
+		messageID(), time.Now().UTC().Format(time.RFC1123Z)))
+	if msg.ReplyTo != "" {
+		b.WriteString(fmt.Sprintf("Reply-To: %s\r\n", encodeAddressHeader(msg.ReplyTo)))
+	}
+	if msg.ListUnsubscribe != "" {
+		b.WriteString(fmt.Sprintf("List-Unsubscribe: <%s>\r\nList-Unsubscribe-Post: List-Unsubscribe=One-Click\r\n", msg.ListUnsubscribe))
+	}
+	if msg.IsBulk {
+		b.WriteString("Precedence: bulk\r\nAuto-Submitted: auto-generated\r\n")
+	}
+	return b.String()
 }
 
 // messageID génère un identifiant unique pour l'en-tête Message-ID.
@@ -216,12 +230,22 @@ func NewResendProvider(apiKey string) *ResendProvider {
 func (p *ResendProvider) Name() string { return "resend" }
 
 func (p *ResendProvider) Send(ctx context.Context, msg EmailMessage) error {
-	payload, err := json.Marshal(map[string]any{
+	payloadMap := map[string]any{
 		"from":    msg.From,
 		"to":      []string{msg.To},
 		"subject": msg.Subject,
 		"html":    msg.HTML,
-	})
+	}
+	if msg.ReplyTo != "" {
+		payloadMap["reply_to"] = msg.ReplyTo
+	}
+	if msg.ListUnsubscribe != "" {
+		payloadMap["headers"] = map[string]string{
+			"List-Unsubscribe":      fmt.Sprintf("<%s>", msg.ListUnsubscribe),
+			"List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+		}
+	}
+	payload, err := json.Marshal(payloadMap)
 	if err != nil {
 		return err
 	}

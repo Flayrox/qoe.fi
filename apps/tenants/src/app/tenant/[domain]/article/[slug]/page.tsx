@@ -24,6 +24,7 @@ import {
 import type { Metadata } from 'next';
 import { JsonLd, buildArticleSchema } from '@qoe/ui';
 import { getLanguage } from '@qoe/i18n/server';
+import { ReadingProgressBar } from '@/components/ReadingProgressBar';
 
 interface TenantArticlePageProps {
   params: Promise<{
@@ -285,6 +286,7 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
       style={customStyle}
     >
       <JsonLd data={jsonLdData} />
+      <ReadingProgressBar />
       {/* Header */}
       <TenantHeader
         name={name}

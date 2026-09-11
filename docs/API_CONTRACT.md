@@ -582,7 +582,7 @@ avec `author` dénormalisé. **Body POST** : `{"content": "…"}`.
 
 Le masquage modérateur est distinct du soft-delete auteur (`deletedAt`) : colonnes `isHiddenByModerator`/`hiddenByModeratorAt` sur `Post` et `Article`, résolution (`resolvedById`, `resolvedAt`, `resolutionNote`, `actionTaken`) + index unique partiel anti-spam sur `ModerationReport` (migration `00008_moderation_queue.sql`).
 
-## 10. Newsletters créateurs — sept. 2026
+## 10. Newsletters créateurs & Délivrabilité (RFC 8058) — sept. 2026
 
 | Méthode | Route | Auth | Description |
 |---|---|---|---|
@@ -591,10 +591,43 @@ Le masquage modérateur est distinct du soft-delete auteur (`deletedAt`) : colon
 | `PATCH` | `/v1/newsletters/{id}` | protégée (créateur) | Met à jour un brouillon (DRAFT uniquement, sinon 400) |
 | `DELETE` | `/v1/newsletters/{id}` | protégée (créateur) | Supprime un brouillon (DRAFT uniquement) |
 | `POST` | `/v1/newsletters/{id}/send` | protégée (créateur) | `DRAFT → SENDING` + enqueue asynq `newsletter.send` (worker distribue aux abonnés actifs `receiveArticles=true` via l'EmailProvider, puis `SENT`/`FAILED` avec compteurs) |
-| `GET` | `/v1/newsletters/unsubscribe?publicationId=&email=` | **publique** (sans auth) | Désabonnement one-click (RFC 8058) : passe `receiveArticles=false` pour l'abonné |
+| `GET`, `POST` | `/v1/newsletters/unsubscribe?pub=&email=&sig=` | **publique** (sans auth) | Désabonnement one-click conforme RFC 8058 (GET interactif avec page web confirmant le désabonnement, POST silencieux 200 OK pour clients mail natifs type Apple Mail / Gmail). Accepte `pub` ou `publicationId`. |
 
-**Issue (shape)** : `{id, publicationId, subject, previewText|null, html, status: DRAFT\|SENDING\|SENT\|FAILED, totalRecipients, sentCount, failedCount, createdAt, updatedAt, sentAt|null}`.
+**Issue (shape)** : `{id, publicationId, subject, previewText|null, html, status: DRAFT|SENDING|SENT|FAILED, totalRecipients, sentCount, failedCount, createdAt, updatedAt, sentAt|null}`.
 
-Le contenu HTML du créateur est enveloppé dans un gabarit qoe.fi (preheader + lien de désabonnement) ; chaque livraison est tracée dans `NewsletterDelivery` (migration `00009_newsletters.sql`).
+Le contenu HTML du créateur est enveloppé dans un gabarit qoe.fi (preheader + branding publication dynamique + bouton lire sur le web + footer épuré + lien de désabonnement) ; chaque livraison est tracée dans `NewsletterDelivery` (migration `00009_newsletters.sql`). Les e-mails injectent systématiquement les en-têtes `List-Unsubscribe` et `List-Unsubscribe-Post: List-Unsubscribe=One-Click` avec `Precedence: bulk`.
 
-> Ces gaps sont autant de tickets concrets pour le sprint mobile.
+---
+
+## 11. Recommandations croisées entre publications (Viral Loop) — sept. 2026
+
+Réseau d'acquisition organique façon Substack / Beehiiv : permet aux créateurs de se recommander mutuellement pour booster les abonnements croisés lors de l'onboarding ou via un widget dédié.
+
+| Méthode | Route | Auth | Description |
+|---|---|---|---|
+| `GET` | `/v1/publications/by-domain/{domain}/recommendations` | **publique** (OptionalAuth) | Renvoie la liste ordonnée des publications recommandées par la publication courante identifiée par son sous-domaine ou domaine personnalisé. |
+
+**Réponse shape** :
+```json
+{
+  "recommendations": [
+    {
+      "id": "pub_rec_...",
+      "name": "Chroniques de l'Éther",
+      "slug": "ether",
+      "subdomain": "ether",
+      "customDomain": null,
+      "logoUrl": "https://img.qoe.fi/...",
+      "description": "Essais hebdomadaires sur la philosophie et la technologie",
+      "authorName": "Marc D.",
+      "authorHandle": "marcd",
+      "authorAvatarUrl": "https://img.qoe.fi/...",
+      "articlesCount": 42,
+      "subscribersCount": 1250
+    }
+  ]
+}
+```
+
+> Ces gaps sont autant de tickets concrets pour le sprint mobile et web.
+

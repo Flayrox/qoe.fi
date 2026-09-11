@@ -135,3 +135,77 @@ export async function importRssFeedAction(rssUrl: string) {
     };
   }
 }
+
+/**
+ * 👥 Importer des abonnés depuis un fichier CSV (Substack, Ghost, Beehiiv).
+ */
+export async function importSubscribersCsvAction(csvContent: string) {
+  try {
+    const creator = await getAuthenticatedCreator();
+    const publicationId = await getActivePublicationId(creator.id);
+
+    if (!csvContent || !csvContent.trim()) {
+      return { success: false, error: 'Fichier CSV vide' };
+    }
+
+    const lines = csvContent
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (lines.length === 0) {
+      return { success: false, error: 'Aucune ligne détectée dans le fichier' };
+    }
+
+    // Determine email column index if header exists
+    let emailColIdx = 0;
+    const header = lines[0]
+      .toLowerCase()
+      .split(/[,;\t]/)
+      .map((h) => h.trim().replace(/^["']|["']$/g, ''));
+    const foundIdx = header.findIndex(
+      (col) => col === 'email' || col === 'email address' || col === 'adresse email'
+    );
+    if (foundIdx !== -1) {
+      emailColIdx = foundIdx;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const emailsToImport = new Set<string>();
+
+    const startIndex = foundIdx !== -1 ? 1 : 0;
+    for (let i = startIndex; i < lines.length; i++) {
+      const parts = lines[i].split(/[,;\t]/).map((p) => p.trim().replace(/^["']|["']$/g, ''));
+      const candidate = parts[emailColIdx] || parts.find((p) => emailRegex.test(p));
+      if (candidate && emailRegex.test(candidate.toLowerCase())) {
+        emailsToImport.add(candidate.toLowerCase());
+      }
+    }
+
+    if (emailsToImport.size === 0) {
+      return { success: false, error: 'Aucune adresse email valide trouvée dans le fichier CSV' };
+    }
+
+    // Batch register subscribers via Go API
+    let imported = 0;
+    for (const email of emailsToImport) {
+      try {
+        await goFetch('/v1/home/subscribe', {
+          method: 'POST',
+          body: { email, publicationId },
+        });
+        imported++;
+      } catch {
+        // Continue with next email
+      }
+    }
+
+    revalidatePath('/audience');
+    return { success: true, count: imported };
+  } catch (err: unknown) {
+    console.error('[CSV Import Error]', err);
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : "Échec de l'importation des abonnés",
+    };
+  }
+}

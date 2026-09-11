@@ -4,7 +4,8 @@ import Image from 'next/image';
 import { Metadata } from 'next';
 import { SocialIcon, TenantHeader, SubscribeForm, JsonLd, buildWebSiteSchema } from '@qoe/ui';
 import { t } from '@lingui/core/macro';
-import { fetchTenantPublication } from '@/lib/tenant-data';
+import { fetchTenantPublication, fetchTenantRecommendations } from '@/lib/tenant-data';
+import { RecommendedSection } from '@/components/RecommendedSection';
 import { getLanguage } from '@qoe/i18n/server';
 
 interface PageProps {
@@ -63,8 +64,11 @@ export default async function TenantHomepage({ params }: PageProps) {
   const decodedDomain = decodeURIComponent(domain);
 
   // Go-first : GET /v1/publications/by-domain/{domain} — publication avec
-  // navigation, réseaux sociaux, catégories et articles publiés.
-  const publication = await fetchTenantPublication(decodedDomain);
+  // navigation, réseaux sociaux, catégories, articles et recommandations.
+  const [publication, recommendations] = await Promise.all([
+    fetchTenantPublication(decodedDomain),
+    fetchTenantRecommendations(decodedDomain),
+  ]);
 
   if (!publication) {
     return notFound();
@@ -243,6 +247,10 @@ export default async function TenantHomepage({ params }: PageProps) {
         )}
       </main>
 
+      {recommendations.length > 0 && (
+        <RecommendedSection authorName={name} recommendations={recommendations} />
+      )}
+
       <footer
         className={`mt-24 py-20 px-4 text-center ${isBrutalist ? 'border-t-4 border-foreground' : 'border-t bg-muted dark:bg-foreground/5'}`}
       >
@@ -266,7 +274,12 @@ export default async function TenantHomepage({ params }: PageProps) {
             {footerText ||
               `Subscribe to receive the latest stories and insights from ${name} directly in your inbox.`}
           </p>
-          <SubscribeForm publicationId={publication.id} isBrutalist={isBrutalist} />
+          <SubscribeForm
+            publicationId={publication.id}
+            isBrutalist={isBrutalist}
+            authorName={name}
+            recommendations={recommendations}
+          />
 
           <div className="pt-16 flex flex-col items-center gap-6">
             {socialLinks.length > 0 && (

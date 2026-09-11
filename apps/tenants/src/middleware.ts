@@ -39,12 +39,14 @@ export async function middleware(request: NextRequest) {
   const { subdomain, isSystemDomain } = parseTenantHost(hostname);
 
   if (!isSystemDomain && subdomain) {
-    // If the user has no session locally, and we haven't checked SSO in the last 5 mins, redirect to main platform SSO sync.
-    const ssoChecked = request.cookies.get('sso_checked')?.value === 'true';
-    if (!user && !ssoChecked) {
+    // ⚡ Passive SSO: Never redirect anonymous visitors or bots.
+    // Redirection is strictly opt-in if explicitly requested via query param (?sso=sync).
+    const isExplicitSync = url.searchParams.get('sso') === 'sync';
+    if (isExplicitSync && !user) {
       const mainAppUrl = getMainAppUrl(hostname);
       const host = request.headers.get('host') || 'localhost:3000';
       const protocol = request.headers.get('x-forwarded-proto') || 'http';
+      url.searchParams.delete('sso');
       const callbackPath = `/auth/sso/callback?redirect_to=${encodeURIComponent(pathname + url.search)}`;
       const callbackUrl = `${protocol}://${host}${callbackPath}`;
 

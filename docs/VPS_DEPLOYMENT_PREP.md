@@ -218,9 +218,9 @@ Il remplace à la fois Postfix, OpenDKIM **et** Maddy.
 
 | Canal | Où configurer |
 |---|---|
-| **GoTrue** | `.env` du stack Supabase : `SMTP_HOST=127.0.0.1` (ou `mail` du réseau Docker), `SMTP_PORT=25` (ou `587` + compte relay), `SMTP_USER`/`SMTP_PASS` (vide si relais local), `SMTP_ADMIN_EMAIL`… |
-| **mailer sécurité** | ✅ **migré** : `@qoe/auth/mailer.ts` lit `EMAIL_PROVIDER` → `smtp` (client minimal sans dépendance, testé) ou `resend` ; `SMTP_*` + `EMAIL_FROM` |
-| **Newsletter/notifs** | ✅ **adaptateur écrit** : `EmailProvider` SMTP dans le worker Go + drain de la boîte d'envoi (`NOTIFICATION_DELIVERY_ENABLED=true`, testé) |
+| **GoTrue (Auth)** | `.env` du stack Supabase : `SMTP_HOST=127.0.0.1` (ou `mail` du réseau Docker), `SMTP_PORT=25` (ou `587` + compte relay), `SMTP_USER`/`SMTP_PASS`, `SMTP_ADMIN_EMAIL=auth@qoe.fi` — **flux transactionnel isolé**. |
+| **mailer sécurité** | ✅ **migré** : `@qoe/auth/mailer.ts` lit `EMAIL_PROVIDER` → `smtp` ou `resend` ; `SMTP_*` + `EMAIL_FROM=auth@qoe.fi`. |
+| **Newsletter créateurs** | ✅ **adaptateur écrit** : `EmailProvider` SMTP dans le worker Go avec séparation de l'expéditeur (`NEWSLETTER_FROM=newsletter@qoe.fi`), en-têtes RFC 8058 One-Click Unsubscribe, Reply-To personnalisé et lissage asynq. |
 
 ### 🎛️ Choix du fournisseur — switch local / Hostinger / Resend
 
@@ -230,15 +230,14 @@ Il remplace à la fois Postfix, OpenDKIM **et** Maddy.
 
 | `EMAIL_PROVIDER` | Variables requises | Cas d'usage |
 |---|---|---|
-| `smtp` (défaut si `SMTP_HOST`) | `SMTP_HOST`, `SMTP_PORT` (587/465/25), `SMTP_USER`, `SMTP_PASS`, `SMTP_SECURE` (`true` pour 465), `EMAIL_FROM` | **Stalwart local** (`127.0.0.1:25` sans auth, ou `:587` + compte relay) dès que Netcup ouvre le port 25 ; **Hostinger** (`smtp.hostinger.com:587`) ; SendGrid… |
-| `resend` (défaut si `RESEND_API_KEY`) | `RESEND_API_KEY`, `EMAIL_FROM` | **En attendant le port 25 ouvert** chez Netcup, ou pour un volume cloud |
+| `smtp` (défaut si `SMTP_HOST`) | `SMTP_HOST`, `SMTP_PORT` (587/465/25), `SMTP_USER`, `SMTP_PASS`, `SMTP_SECURE` (`true` pour 465), `EMAIL_FROM`, `NEWSLETTER_FROM` | **Stalwart local** (`127.0.0.1:25` sans auth, ou `:587` + compte relay) dès que Netcup ouvre le port 25 ; **Hostinger** (`smtp.hostinger.com:587`) ; SendGrid… |
+| `resend` (défaut si `RESEND_API_KEY`) | `RESEND_API_KEY`, `EMAIL_FROM`, `NEWSLETTER_FROM` | **En attendant le port 25 ouvert** chez Netcup, ou pour un volume cloud |
 | *(vide)* | aucune | dev → email simulé dans les logs |
 
-- **GoTrue (emails d'auth)** garde son propre SMTP, configuré dans le `.env` du stack
-  Supabase — il peut pointer vers le **même** relais (Postfix local ou Hostinger) avec des
-  identifiants dédiés.
-- **Cohérence** : le worker Go et le mailer TS lisent les mêmes `EMAIL_PROVIDER`/`SMTP_*` —
-  un seul fichier `.env.docker` à maintenir.
+- **Séparation des flux (Standard 2026)** :
+  - **Flux Transactionnel / Auth** (`auth@qoe.fi`) : 100% de priorité pour les codes de vérification, reset de mot de passe et alertes de sécurité.
+  - **Flux Bulk / Newsletters** (`newsletter@qoe.fi` ou `news.qoe.fi`) : Émis avec en-têtes `List-Unsubscribe` + `List-Unsubscribe-Post: List-Unsubscribe=One-Click` (RFC 8058 exigé par Gmail/Yahoo), `Precedence: bulk` et token de désabonnement signé cryptographiquement HMAC.
+- **Cohérence** : le worker Go et le mailer TS lisent les mêmes `EMAIL_PROVIDER`/`SMTP_*` — un seul fichier `.env.docker` à maintenir.
 
 > ✅ **Amorçage** : le fanout de newsletter crée les `Subscriber` + tâches asynq, et le worker
 > draine maintenant la boîte d'envoi (adaptateur SMTP/Resend implémenté + testé). À activer

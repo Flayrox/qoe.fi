@@ -25,6 +25,7 @@ func NewHandler(svc *Service) *Handler {
 func (h *Handler) RegisterPublic(r chi.Router) {
 	r.Get("/v1/publications/by-domain/{domain}", h.byDomain)
 	r.Get("/v1/publications/by-domain/{domain}/article/{slug}", h.article)
+	r.Get("/v1/publications/by-domain/{domain}/recommendations", h.recommendations)
 }
 
 func (h *Handler) handleErr(w http.ResponseWriter, err error) {
@@ -72,4 +73,19 @@ func (h *Handler) article(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, bundle)
+}
+
+// GET /v1/publications/by-domain/{domain}/recommendations — publications recommandées par le créateur.
+func (h *Handler) recommendations(w http.ResponseWriter, r *http.Request) {
+	domain := chi.URLParam(r, "domain")
+	if strings.TrimSpace(domain) == "" {
+		response.BadRequest(w, "domaine requis")
+		return
+	}
+	items, err := h.svc.Recommendations(r.Context(), domain)
+	if err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, map[string]any{"items": items})
 }

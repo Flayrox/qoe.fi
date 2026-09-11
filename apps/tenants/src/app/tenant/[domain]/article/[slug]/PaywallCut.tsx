@@ -8,7 +8,6 @@ import {
   getCurrentUserWalletAction as getCurrentUser,
 } from '@qoe/sdk/actions/tenant';
 
-import { cn } from '@qoe/utils';
 import { sanitizeHtml } from '@/lib/sanitize';
 import { t } from '@lingui/core/macro';
 
@@ -120,87 +119,146 @@ function PaywallOverlay({
   };
 
   return (
-    <div className="relative mt-8 w-full">
-      <div className="absolute -top-32 left-0 w-full h-32 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+    <div className="relative mt-12 w-full">
+      {/* Smooth fade-out gradient over teaser */}
+      <div className="absolute -top-36 left-0 w-full h-36 bg-gradient-to-t from-background via-background/80 to-transparent pointer-events-none" />
+
+      {/* Frosted Glass Paywall Container */}
       <div
-        className={`p-8 md:p-12 mx-auto max-w-2xl text-center not-prose relative z-10 ${isBrutalist ? 'bg-background border-4 border-foreground shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]' : 'bg-card border border-border/80 rounded-3xl shadow-2xl'}`}
+        className={`p-6 sm:p-10 md:p-12 mx-auto max-w-3xl text-center not-prose relative z-10 ${
+          isBrutalist
+            ? 'bg-background border-4 border-foreground shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]'
+            : 'bg-card/90 backdrop-blur-xl border border-border/80 rounded-3xl shadow-2xl'
+        }`}
       >
-        <div className="w-16 h-16 rounded-full bg-[var(--tenant-accent)]/10 text-[var(--tenant-accent)] flex items-center justify-center mx-auto mb-6">
-          <Lock className="w-8 h-8" />
+        <div className="w-14 h-14 rounded-2xl bg-[var(--tenant-accent)]/10 text-[var(--tenant-accent)] flex items-center justify-center mx-auto mb-5 border border-[var(--tenant-accent)]/20">
+          <Lock className="w-6 h-6" />
         </div>
+
         <h3
-          className={`text-2xl md:text-3xl mb-4 ${isBrutalist ? 'font-black uppercase' : 'font-bold'}`}
+          className={`text-2xl sm:text-3xl tracking-tight mb-3 ${
+            isBrutalist ? 'font-black uppercase' : 'font-bold'
+          }`}
         >
-          {t`Histoire Premium`}
+          {t`Accéder à la suite de l'article`}
         </h3>
-        <p className="text-muted-foreground mb-8 text-lg">
-          {t`La suite de cette publication est exclusivement réservée aux abonnés de `}
+        <p className="text-muted-foreground mb-8 text-sm sm:text-base max-w-xl mx-auto leading-relaxed">
+          {t`Cet écrit approfondi est une exclusivité pour les soutiens et abonnés de `}
           <strong className="text-foreground">{name}</strong>.
         </p>
 
         {errorMessage && (
-          <div className="p-4 mb-6 bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium rounded-xl flex items-start gap-2 text-left max-w-sm mx-auto animate-in fade-in slide-in-from-top-1">
+          <div className="p-4 mb-6 bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium rounded-xl flex items-start gap-2 text-left max-w-md mx-auto animate-in fade-in slide-in-from-top-1">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
             <span>{errorMessage}</span>
           </div>
         )}
 
-        <div className="flex flex-col gap-4 max-w-sm mx-auto">
-          <button
+        {/* Triptyque Monetization Options */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8 text-left max-w-xl mx-auto">
+          {/* Option 1: Instant Article Unlock via Wallet */}
+          <div
             onClick={handleUnlock}
-            disabled={unlocking}
-            className={cn(
-              'w-full flex items-center justify-center gap-2 py-4 font-bold text-white text-lg transition-all cursor-pointer',
+            className={`p-5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
               isBrutalist
-                ? 'border-4 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase tracking-wider hover:translate-y-1 hover:shadow-none'
-                : 'rounded-xl hover:opacity-90 active:scale-95'
-            )}
-            style={{ backgroundColor: accentColor || '#EE4B2B' }}
+                ? 'border-2 border-foreground hover:bg-muted'
+                : 'border-border/80 bg-background/60 hover:border-[var(--tenant-accent)] hover:shadow-md'
+            }`}
           >
-            {unlocking ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <>
-                <Wallet className="w-5 h-5" />
-                {t`Débloquer pour 2,00 €`}
-              </>
-            )}
-          </button>
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-[var(--tenant-accent)]">
+                  {t`À la carte`}
+                </span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-muted font-medium text-foreground">
+                  {t`1 clic`}
+                </span>
+              </div>
+              <h4 className="font-bold text-lg text-foreground mb-1">{t`Débloquer cet article`}</h4>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {t`Accès permanent et illimité à cette publication sans engagement.`}
+              </p>
+            </div>
 
-          {/* Show wallet balance if user is logged in */}
-          {user && (
-            <p className="text-xs text-muted-foreground font-mono">
-              {t`Solde actuel : ${((user.walletBalanceCents || 0) / 100).toFixed(2)} €`}
-            </p>
-          )}
+            <div className="mt-4 pt-3 border-t border-border/40 flex items-center justify-between">
+              <span className="font-extrabold text-xl text-foreground">2,00 €</span>
+              <button
+                disabled={unlocking}
+                className="px-4 py-2 rounded-full font-medium text-xs text-white transition-all flex items-center gap-1.5"
+                style={{ backgroundColor: accentColor || 'var(--tenant-accent)' }}
+              >
+                {unlocking ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <>
+                    <Wallet className="w-3.5 h-3.5" />
+                    <span>{t`Débloquer`}</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
 
+          {/* Option 2: Full Membership Subscription */}
           <Link
             href="#subscribe"
-            className={`w-full py-3 font-semibold text-foreground bg-secondary hover:bg-muted transition-all ${isBrutalist ? 'border-4 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase tracking-wider hover:translate-y-1 hover:shadow-none' : 'rounded-xl'}`}
+            className={`p-5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between relative overflow-hidden group ${
+              isBrutalist
+                ? 'border-2 border-foreground hover:bg-muted'
+                : 'border-border/80 bg-background/60 hover:border-foreground/40 hover:shadow-md'
+            }`}
           >
-            {t`Voir les formules d'abonnement`}
-          </Link>
+            <div>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  {t`Abonnement`}
+                </span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-success/10 text-success font-medium">
+                  {t`Illimité`}
+                </span>
+              </div>
+              <h4 className="font-bold text-lg text-foreground mb-1">{t`Membre Premium`}</h4>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {t`Accédez à l'intégralité des archives et soutenez l'auteur chaque mois.`}
+              </p>
+            </div>
 
-          <p className="text-sm text-muted-foreground mt-2">
-            {!user ? (
-              <>
-                {t`Déjà abonné ?`}{' '}
-                <button
-                  onClick={() =>
-                    (window.location.href = `${mainAppUrl}/login?redirect=${encodeURIComponent(window.location.href)}`)
-                  }
-                  className="underline font-semibold hover:text-[var(--tenant-accent)] cursor-pointer bg-transparent border-0 p-0 text-foreground"
-                >
-                  {t`Se connecter`}
-                </button>
-              </>
-            ) : (
+            <div className="mt-4 pt-3 border-t border-border/40 flex items-center justify-between">
+              <span className="font-extrabold text-xl text-foreground">
+                5,00 €<span className="text-xs font-normal text-muted-foreground">/mois</span>
+              </span>
+              <span className="px-4 py-2 rounded-full font-medium text-xs bg-foreground text-background group-hover:opacity-90 transition-opacity">
+                {t`S'abonner`}
+              </span>
+            </div>
+          </Link>
+        </div>
+
+        {/* User Session Info / Quick Login */}
+        <div className="text-xs text-muted-foreground pt-4 border-t border-border/40 max-w-md mx-auto">
+          {user ? (
+            <div className="flex items-center justify-between">
               <span>
                 {t`Connecté en tant que `}
                 <strong className="text-foreground">{user.name || user.email}</strong>
               </span>
-            )}
-          </p>
+              <span className="font-medium text-foreground">
+                {t`Solde : ${((user.walletBalanceCents || 0) / 100).toFixed(2)} €`}
+              </span>
+            </div>
+          ) : (
+            <div>
+              {t`Vous avez déjà un compte ou êtes déjà abonné ?`}{' '}
+              <button
+                onClick={() =>
+                  (window.location.href = `${mainAppUrl}/login?redirect=${encodeURIComponent(window.location.href)}`)
+                }
+                className="underline font-semibold hover:text-[var(--tenant-accent)] cursor-pointer bg-transparent border-0 p-0 text-foreground"
+              >
+                {t`Se connecter avec qoe.fi`}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
