@@ -157,3 +157,37 @@ export function buildPublicDescription(publicContent: string, maxLength = 200): 
   if (!text) return undefined;
   return text.slice(0, maxLength);
 }
+
+/** Entitlements d'un visiteur anonyme : aucun accès au contenu verrouillé. */
+export const ANONYMOUS_ENTITLEMENTS: UserEntitlements = {
+  isMember: false,
+  isPaidSubscriber: false,
+  tierId: null,
+};
+
+/**
+ * Extrait public d'un article destiné à un visiteur ANONYME : tronque d'abord
+ * le contenu au paywall (aucun entitlement), puis en dérive une description
+ * texte (HTML retiré, espaces normalisés).
+ *
+ * ⚠️ C'est LA seule porte d'entrée autorisée pour alimenter une description
+ * SEO/OpenGraph/JSON-LD ou un extrait de carte publique. Passer directement
+ * `article.content` y ferait fuiter le passage réservé — dans le DOM public,
+ * les métadonnées sociales et l'index des moteurs de recherche.
+ *
+ * Retourne `undefined` si le contenu est vide (l'appelant décide du fallback).
+ */
+export function buildPublicExcerpt(
+  rawContent: string,
+  visibility: ContentVisibility = ContentVisibility.PUBLIC,
+  requiredTierId?: string | null,
+  maxLength = 200
+): string | undefined {
+  const cut = sliceContentAtPaywall(
+    rawContent || '',
+    ANONYMOUS_ENTITLEMENTS,
+    visibility,
+    requiredTierId
+  );
+  return buildPublicDescription(cut.content, maxLength);
+}

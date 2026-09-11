@@ -1,4 +1,5 @@
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import { buildPublicDescription } from '@qoe/utils';
 import { parseSpotlightParams } from '@qoe/sdk/spotlight';
 import { type CanonicalDocument } from '@qoe/ui/annotations';
 import { ArticleAnnotatorView } from '@/components/social/ArticleAnnotatorView';
@@ -78,12 +79,10 @@ export async function generateMetadata({
     };
   }
 
-  const cleanDescription = article.content
-    ? article.content
-        .replace(/<[^>]*>?/gm, '')
-        .trim()
-        .slice(0, 160)
-    : undefined;
+  // 🔒 Zéro-fuite : `article.content` arrive DÉJÀ tronqué par le backend Go
+  // (mode « slug seul » public, sans entitlement). On en dérive la description
+  // sans jamais retomber sur le contenu brut.
+  const cleanDescription = buildPublicDescription(article.content, 160);
 
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://qoe.fi').replace(/\/$/, '');
   const canonicalUrl = `${appUrl}/article/${encodeURIComponent(article.slug)}`;
@@ -143,12 +142,8 @@ export default async function ArticlePage({
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://qoe.fi').replace(/\/$/, '');
   const jsonLdData = buildArticleSchema({
     title: article.title,
-    description: article.content
-      ? article.content
-          .replace(/<[^>]*>?/gm, '')
-          .trim()
-          .slice(0, 200)
-      : undefined,
+    // 🔒 Zéro-fuite : contenu déjà tronqué côté Go pour un lecteur anonyme.
+    description: buildPublicDescription(article.content, 200),
     slug: article.slug,
     createdAt: article.createdAt,
     authorName: article.author?.name,

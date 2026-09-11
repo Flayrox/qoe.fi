@@ -101,6 +101,14 @@ export interface TenantArticle {
   status: string;
   isPremium: boolean;
   visibility: string;
+  /**
+   * 🔒 Zéro-fuite : le backend Go tronque DÉJÀ le contenu au paywall pour un
+   * lecteur non autorisé. `accessGranted === false` signifie que `content` EST
+   * l'aperçu public exact (le marqueur de coupure a disparu) — ne pas le
+   * retronquer, sous peine de raboter le teaser légitime.
+   */
+  accessGranted?: boolean;
+  isTruncated?: boolean;
   readingTime: number;
   allowPublicAnnotations: boolean;
   allowComments: boolean;
