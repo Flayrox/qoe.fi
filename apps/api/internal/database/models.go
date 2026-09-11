@@ -725,6 +725,50 @@ type Highlight struct {
 	CreatedAt      pgtype.Timestamp `json:"createdAt"`
 }
 
+type LegalAcceptance struct {
+	ID         string           `json:"id"`
+	UserID     pgtype.UUID      `json:"user_id"`
+	DocumentID string           `json:"document_id"`
+	VersionID  string           `json:"version_id"`
+	Version    string           `json:"version"`
+	Locale     string           `json:"locale"`
+	AcceptedAt pgtype.Timestamp `json:"accepted_at"`
+	Ip         pgtype.Text      `json:"ip"`
+	UserAgent  pgtype.Text      `json:"user_agent"`
+	Source     string           `json:"source"`
+	Method     string           `json:"method"`
+}
+
+type LegalDocument struct {
+	ID                 string           `json:"id"`
+	Slug               string           `json:"slug"`
+	Category           string           `json:"category"`
+	Audience           string           `json:"audience"`
+	RequiresAcceptance bool             `json:"requires_acceptance"`
+	IsActive           bool             `json:"is_active"`
+	SortOrder          int32            `json:"sort_order"`
+	CreatedAt          pgtype.Timestamp `json:"created_at"`
+	UpdatedAt          pgtype.Timestamp `json:"updated_at"`
+}
+
+type LegalDocumentVersion struct {
+	ID          string           `json:"id"`
+	DocumentID  string           `json:"document_id"`
+	Locale      string           `json:"locale"`
+	Version     string           `json:"version"`
+	Title       string           `json:"title"`
+	Summary     string           `json:"summary"`
+	Body        string           `json:"body"`
+	Status      string           `json:"status"`
+	Changelog   pgtype.Text      `json:"changelog"`
+	EffectiveAt pgtype.Timestamp `json:"effective_at"`
+	PublishedAt pgtype.Timestamp `json:"published_at"`
+	ArchivedAt  pgtype.Timestamp `json:"archived_at"`
+	CreatedBy   pgtype.UUID      `json:"created_by"`
+	CreatedAt   pgtype.Timestamp `json:"created_at"`
+	UpdatedAt   pgtype.Timestamp `json:"updated_at"`
+}
+
 type Letter struct {
 	ID          string           `json:"id"`
 	Content     string           `json:"content"`
