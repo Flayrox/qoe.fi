@@ -12,7 +12,9 @@
     "./slugify": "./src/slugify.ts",
     "./validation": "./src/validation.ts",
     "./action": "./src/action.ts",
-    "./paywall": "./src/paywall.ts"
+    "./paywall": "./src/paywall.ts",
+    "./markdown": "./src/markdown.ts",
+    "./cookie-consent": "./src/cookie-consent.ts"
   },
   "scripts": {
     "lint": "eslint .",

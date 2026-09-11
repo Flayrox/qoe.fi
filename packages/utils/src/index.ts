@@ -11,3 +11,5 @@ export * from './paywall';
 export * from './redirect';
 export * from './article-attribution';
 export * from './ssrf';
+export * from './markdown';
+export * from './cookie-consent';
