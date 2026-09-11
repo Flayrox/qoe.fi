@@ -155,18 +155,52 @@ func smtpAddr(cfg SMTPConfig) string {
 	return net.JoinHostPort(cfg.Host, fmt.Sprintf("%d", port))
 }
 
+// SanitizeHeaderValue élimine les caractères \r, \n et les caractères de contrôle
+// ASCII non imprimables pour prévenir toute attaque par injection d'en-têtes CRLF
+// ou découpage d'en-tête SMTP (SMTP header splitting).
+func SanitizeHeaderValue(val string) string {
+	var b strings.Builder
+	b.Grow(len(val))
+	prevSpace := false
+	for _, r := range val {
+		if r == '\r' || r == '\n' || (r < 32 && r != '\t') || r == 127 {
+			if !prevSpace {
+				b.WriteRune(' ')
+				prevSpace = true
+			}
+			continue
+		}
+		if r == ' ' || r == '\t' {
+			if !prevSpace {
+				b.WriteRune(' ')
+				prevSpace = true
+			}
+			continue
+		}
+		b.WriteRune(r)
+		prevSpace = false
+	}
+	return strings.TrimSpace(b.String())
+}
+
 // buildSMTPHeaders compose les en-têtes RFC 5322 (sujet encodé RFC 2047 +
-// Message-ID unique — absent côté GoTrue, pénalisé par Gmail/mail-tester).
+// Message-ID unique — blindé contre l'injection CRLF).
 func buildSMTPHeaders(from string, msg EmailMessage) string {
+	cleanFrom := SanitizeHeaderValue(from)
+	cleanTo := SanitizeHeaderValue(msg.To)
+	cleanSubject := SanitizeHeaderValue(msg.Subject)
+
 	var b strings.Builder
 	b.WriteString(fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMessage-ID: <%s@qoe.fi>\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\nDate: %s\r\nX-Mailer: qoe-worker\r\n",
-		encodeAddressHeader(from), encodeAddressHeader(msg.To), encodeRFC2047(msg.Subject),
+		encodeAddressHeader(cleanFrom), encodeAddressHeader(cleanTo), encodeRFC2047(cleanSubject),
 		messageID(), time.Now().UTC().Format(time.RFC1123Z)))
 	if msg.ReplyTo != "" {
-		b.WriteString(fmt.Sprintf("Reply-To: %s\r\n", encodeAddressHeader(msg.ReplyTo)))
+		cleanReplyTo := SanitizeHeaderValue(msg.ReplyTo)
+		b.WriteString(fmt.Sprintf("Reply-To: %s\r\n", encodeAddressHeader(cleanReplyTo)))
 	}
 	if msg.ListUnsubscribe != "" {
-		b.WriteString(fmt.Sprintf("List-Unsubscribe: <%s>\r\nList-Unsubscribe-Post: List-Unsubscribe=One-Click\r\n", msg.ListUnsubscribe))
+		cleanListUnsub := SanitizeHeaderValue(msg.ListUnsubscribe)
+		b.WriteString(fmt.Sprintf("List-Unsubscribe: <%s>\r\nList-Unsubscribe-Post: List-Unsubscribe=One-Click\r\n", cleanListUnsub))
 	}
 	if msg.IsBulk {
 		b.WriteString("Precedence: bulk\r\nAuto-Submitted: auto-generated\r\n")

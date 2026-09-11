@@ -4,6 +4,7 @@ import { createClient as createServerClient } from '@qoe/supabase/server';
 import { revalidatePath } from 'next/cache';
 import DOMPurify from 'isomorphic-dompurify';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import { validateSafeExternalUrl } from '@qoe/utils';
 import { getActivePublicationId } from '@/lib/active-workspace';
 
 async function getAuthenticatedCreator() {
@@ -25,15 +26,26 @@ export async function importRssFeedAction(rssUrl: string) {
   try {
     const creator = await getAuthenticatedCreator();
 
-    if (!rssUrl || !rssUrl.startsWith('http')) {
-      return { success: false, error: 'URL de flux RSS invalide' };
+    // 🛡️ Blindage anti-SSRF (DNS rebinding, loopback, metadata cloud, ports non-standards)
+    const ssrfCheck = await validateSafeExternalUrl(rssUrl);
+    if (!ssrfCheck.valid || !ssrfCheck.url) {
+      return {
+        success: false,
+        error: ssrfCheck.error || 'URL de flux RSS invalide ou non sécurisée',
+      };
     }
 
-    const res = await fetch(rssUrl, {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10_000);
+
+    const res = await fetch(ssrfCheck.url.toString(), {
+      signal: controller.signal,
       headers: {
         'User-Agent': 'qoe-fi-importer/1.0 (+https://qoe.fi)',
+        Accept: 'application/rss+xml, application/atom+xml, text/xml, application/xml, */*',
       },
     });
+    clearTimeout(timeoutId);
 
     if (!res.ok) {
       return {
@@ -42,7 +54,16 @@ export async function importRssFeedAction(rssUrl: string) {
       };
     }
 
+    // Protection anti-bombe mémoire (max 10 Mo)
+    const contentLength = res.headers.get('content-length');
+    if (contentLength && parseInt(contentLength, 10) > 10 * 1024 * 1024) {
+      return { success: false, error: 'Le flux RSS dépasse la taille maximale autorisée (10 Mo)' };
+    }
+
     const xmlText = await res.text();
+    if (xmlText.length > 10 * 1024 * 1024) {
+      return { success: false, error: 'Le contenu du flux RSS est trop volumineux' };
+    }
 
     // Extract items using regex matches for RSS/Atom tags
     const itemRegex = /<item[\s\S]*?<\/item>/gi;

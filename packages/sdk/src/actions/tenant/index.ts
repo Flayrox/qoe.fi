@@ -27,9 +27,11 @@ export const subscribeToNewsletterAction = safeAction<
     }
 
     // Go-only : POST /v1/home/subscribe (idempotent, backend-of-record).
+    // ⚠️ `goFetch` sérialise déjà `body` : lui passer une chaîne provoquerait un
+    // double encodage JSON (le backend reçoit un string littéral → 400).
     await goFetch<{ success: boolean }>('/v1/home/subscribe', {
       method: 'POST',
-      body: JSON.stringify({ email: cleanEmail, publicationId }),
+      body: { email: cleanEmail, publicationId },
     });
     return { success: true };
   },

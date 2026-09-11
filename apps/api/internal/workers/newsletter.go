@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -392,20 +393,29 @@ func (n *NewsletterWorker) finishNewsletterIssue(ctx context.Context, issueID st
 	return nil
 }
 
-// signUnsubscribe génère une signature cryptographique HMAC-SHA256 infalsifiable pour la désinscription.
-func signUnsubscribe(pubID, email string) string {
+// SignUnsubscribe génère une signature cryptographique HMAC-SHA256 infalsifiable pour la désinscription.
+func SignUnsubscribe(pubID, email string) string {
 	secret := os.Getenv("NEWSLETTER_UNSUB_SECRET")
 	if secret == "" {
 		secret = "qoe-unsub-default-secret-min32chars"
 	}
 	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write([]byte(pubID + ":" + email))
+	mac.Write([]byte(pubID + ":" + strings.ToLower(strings.TrimSpace(email))))
 	return hex.EncodeToString(mac.Sum(nil))
+}
+
+// VerifyUnsubscribe valide de manière timing-safe (crypto/subtle) la signature de désinscription RFC 8058.
+func VerifyUnsubscribe(pubID, email, sig string) bool {
+	if pubID == "" || email == "" || sig == "" {
+		return false
+	}
+	expected := SignUnsubscribe(pubID, email)
+	return subtle.ConstantTimeCompare([]byte(expected), []byte(sig)) == 1
 }
 
 // buildUnsubURL construit le lien de désinscription RFC 8058 One-Click.
 func buildUnsubURL(pubID, email string) string {
-	sig := signUnsubscribe(pubID, email)
+	sig := SignUnsubscribe(pubID, email)
 	return fmt.Sprintf("https://api.qoe.fi/v1/newsletters/unsubscribe?pub=%s&email=%s&sig=%s",
 		url.QueryEscape(pubID), url.QueryEscape(email), sig)
 }

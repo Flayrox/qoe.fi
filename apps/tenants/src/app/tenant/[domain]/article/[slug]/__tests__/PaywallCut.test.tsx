@@ -57,16 +57,16 @@ describe('PaywallCut', () => {
 
     // Le contenu teaser est rendu, PAS d'overlay paywall
     expect(screen.getByText('Teaser content')).toBeInTheDocument();
-    expect(screen.queryByText('Histoire Premium')).not.toBeInTheDocument();
-    expect(screen.queryByText('Débloquer pour 2,00 €')).not.toBeInTheDocument();
+    expect(screen.queryByText("Accéder à la suite de l'article")).not.toBeInTheDocument();
+    expect(screen.queryByText('Débloquer')).not.toBeInTheDocument();
   });
 
   it("rend l'overlay paywall avec le bouton de déverrouillage pour un article premium", () => {
     render(<PaywallCut {...baseProps} />);
 
-    expect(screen.getByText('Histoire Premium')).toBeInTheDocument();
-    expect(screen.getByText('Débloquer pour 2,00 €')).toBeInTheDocument();
-    expect(screen.getByText("Voir les formules d'abonnement")).toBeInTheDocument();
+    expect(screen.getByText("Accéder à la suite de l'article")).toBeInTheDocument();
+    expect(screen.getByText('Débloquer')).toBeInTheDocument();
+    expect(screen.getByText('Membre Premium')).toBeInTheDocument();
   });
 
   it("redirige vers le login si l'utilisateur n'est pas connecté et clique Débloquer", async () => {
@@ -76,7 +76,7 @@ describe('PaywallCut', () => {
     await waitFor(() => expect(mocks.getCurrentUserWalletAction).toHaveBeenCalled());
 
     const user = userEvent.setup();
-    await user.click(screen.getByText('Débloquer pour 2,00 €'));
+    await user.click(screen.getByText('Débloquer'));
 
     // window.location.href doit être mis à jour avec le redirect login
     expect(window.location.href).toContain('/login?redirect=');
@@ -106,7 +106,7 @@ describe('PaywallCut', () => {
     await waitFor(() => expect(mocks.getCurrentUserWalletAction).toHaveBeenCalled());
 
     const user = userEvent.setup();
-    await user.click(screen.getByText('Débloquer pour 2,00 €'));
+    await user.click(screen.getByText('Débloquer'));
 
     await waitFor(() =>
       expect(screen.getByText(/Solde insuffisant dans votre portefeuille/)).toBeInTheDocument()
@@ -138,7 +138,7 @@ describe('PaywallCut', () => {
     await waitFor(() => expect(mocks.getCurrentUserWalletAction).toHaveBeenCalled());
 
     const user = userEvent.setup();
-    await user.click(screen.getByText('Débloquer pour 2,00 €'));
+    await user.click(screen.getByText('Débloquer'));
 
     await waitFor(() => expect(reloadMock).toHaveBeenCalled());
   });
@@ -152,7 +152,7 @@ describe('PaywallCut', () => {
 
     render(<PaywallCut {...baseProps} />);
 
-    await waitFor(() => expect(screen.getByText(/Solde actuel : 12\.34 €/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Solde : 12\.34 €/)).toBeInTheDocument());
     expect(screen.getByText(/Connecté en tant que/)).toBeInTheDocument();
   });
 });

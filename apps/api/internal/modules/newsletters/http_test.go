@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/middleware"
+	"github.com/qoefi/api/internal/workers"
 )
 
 // Tests HTTP du handler newsletters : auth requise, CRUD brouillon, envoi
@@ -57,18 +58,28 @@ func TestHTTP_NewsletterAuthRequired(t *testing.T) {
 		}
 	}
 
-	// Le désabonnement public reste accessible sans auth (GET avec publicationId ou pub, et POST RFC 8058).
-	w := nlReq(r, http.MethodGet, "/v1/newsletters/unsubscribe?publicationId="+pubID+"&email=reader@test.dev", "", "")
+	// Le désabonnement exige une signature HMAC valide (RFC 8058 anti-IDOR).
+	// 1. Sans signature -> 403 Forbidden.
+	wNoSig := nlReq(r, http.MethodGet, "/v1/newsletters/unsubscribe?pub="+pubID+"&email=reader@test.dev", "", "")
+	if wNoSig.Code != http.StatusForbidden {
+		t.Fatalf("unsubscribe without sig = %d, want 403", wNoSig.Code)
+	}
+
+	// 2. Avec signature falsifiée -> 403 Forbidden.
+	wBadSig := nlReq(r, http.MethodGet, "/v1/newsletters/unsubscribe?pub="+pubID+"&email=reader@test.dev&sig=bad_sig_123", "", "")
+	if wBadSig.Code != http.StatusForbidden {
+		t.Fatalf("unsubscribe with bad sig = %d, want 403", wBadSig.Code)
+	}
+
+	// 3. Avec signature valide en GET.
+	validSig := workers.SignUnsubscribe(pubID, "reader@test.dev")
+	w := nlReq(r, http.MethodGet, "/v1/newsletters/unsubscribe?publicationId="+pubID+"&email=reader@test.dev&sig="+validSig, "", "")
 	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), "désabonné") {
-		t.Fatalf("unsubscribe = %d %s", w.Code, w.Body.String())
+		t.Fatalf("unsubscribe GET = %d %s", w.Code, w.Body.String())
 	}
 
-	wPub := nlReq(r, http.MethodGet, "/v1/newsletters/unsubscribe?pub="+pubID+"&email=reader@test.dev", "", "")
-	if wPub.Code != http.StatusOK || !strings.Contains(wPub.Body.String(), "désabonné") {
-		t.Fatalf("unsubscribe with pub param = %d %s", wPub.Code, wPub.Body.String())
-	}
-
-	wPost := nlReq(r, http.MethodPost, "/v1/newsletters/unsubscribe?pub="+pubID+"&email=reader@test.dev", "", "List-Unsubscribe=One-Click")
+	// 4. Avec signature valide en POST RFC 8058 (One-Click).
+	wPost := nlReq(r, http.MethodPost, "/v1/newsletters/unsubscribe?pub="+pubID+"&email=reader@test.dev&sig="+validSig, "", "List-Unsubscribe=One-Click")
 	if wPost.Code != http.StatusOK || !strings.Contains(wPost.Body.String(), "Unsubscribed successfully") {
 		t.Fatalf("unsubscribe POST RFC 8058 = %d %s", wPost.Code, wPost.Body.String())
 	}

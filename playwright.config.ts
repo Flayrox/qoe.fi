@@ -100,10 +100,10 @@ export default defineConfig({
     },
     {
       // Campagne de sécurité au niveau HTTP (API Go + apps web) + contrôle
-      // d'accès global (kill switch API / endpoints désactivés).
+      // d'accès global (kill switch API / endpoints désactivés) + RFC 8058.
       name: 'security',
       use: { ...devices['Desktop Chrome'] },
-      testMatch: /(security|api-access-control)\.spec\.ts/,
+      testMatch: /(security|api-access-control|newsletter)\.spec\.ts/,
     },
     {
       // Vraie page de consentement OAuth (apps/core) : rendu + autorisation
@@ -114,11 +114,11 @@ export default defineConfig({
     },
     {
       // Suite autonome (page.setContent, sans serveur/DB) — tourne en CI :
-      // contrat UI (drawer physics, tenant accent, paywall) sans dépendre
-      // de Supabase ni du seed.
-      name: 'annotations',
+      // contrat UI (drawer physics, tenant accent, paywall, studio distribution)
+      // sans dépendre de Supabase ni du seed.
+      name: 'standalone-contracts',
       use: { ...devices['Desktop Chrome'] },
-      testMatch: /annotations\.spec\.ts/,
+      testMatch: /(annotations|studio-newsletter-distribution)\.spec\.ts/,
     },
     {
       // Parcours réel isolé : la spec crée son propre compte GoTrue et ne

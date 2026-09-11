@@ -117,6 +117,26 @@ RUN_FULL_STACK=1 pnpm exec playwright test --config playwright.apps.config.ts
 Les fixtures E2E (`e2e/lib/db.ts`) insèrent des users dont l'id est UUID
 (schema goose) : utiliser des UUID deterministes comme JWT sub.
 
+### Suites sécurité & écosystème (2026-09)
+
+| Spec                                         | Projet                                  | Couvre                                                                                                                                          |
+| -------------------------------------------- | --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `e2e/security-ssrf.spec.ts`                  | `chromium`                              | `validateSafeExternalUrl` : refus des schémas non-HTTP(S), ports non standards (22/3306/5432), loopback, RFC 1918, métadonnées cloud, NXDOMAIN. |
+| `e2e/newsletter-rfc8058.spec.ts`             | `chromium`                              | Désabonnement one-click `GET`/`POST`, page de succès, rejet `403` des signatures HMAC falsifiées.                                               |
+| `e2e/studio-newsletter-distribution.spec.ts` | `standalone-contracts`                  | Modal de publication multi-canal (Web / Web + Newsletter), aperçu, email de test, zéro police monospace.                                        |
+| `e2e/tenants-paywall.spec.ts`                | `playwright.apps.config.ts` → `tenants` | Teaser public + étanchéité serveur : le passage premium ne doit apparaître **nulle part** dans le DOM rendu.                                    |
+| `e2e/tenants-recommendations.spec.ts`        | `playwright.apps.config.ts` → `tenants` | Section « recommandées par », modale virale post-abonnement, abonnement groupé en 1 clic.                                                       |
+
+**Contrat zéro-fuite du paywall.** `sliceContentAtPaywall` (Go + TS) tronque le
+contenu côté serveur. Toute métadonnée dérivée (JSON-LD, OpenGraph, extraits des
+cartes de la home) doit être construite à partir de ce contenu **déjà tronqué**
+(`buildPublicDescription`) et jamais de `article.content` brut : sinon le passage
+réservé fuite dans le DOM public et dans l'index des moteurs de recherche.
+
+Les specs `tenants*` dépendent du seed (`cmd/seed`), qui pose les sous-domaines
+`admin` et `media-clair` (`pub_media_00000000000000000001`). Sur une base de dev
+non seedée, le parcours média échoue en 404 : rejouer `pnpm db:seed`.
+
 ### Quirk macOS local (firewall applicatif)
 
 Sur certaines machines macOS, le firewall applicatif ou un filtre reseau
