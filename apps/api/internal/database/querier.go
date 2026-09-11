@@ -36,6 +36,7 @@ type Querier interface {
 	CountFollowers(ctx context.Context, publicationid string) (int32, error)
 	CountFollowing(ctx context.Context, readerid pgtype.UUID) (int32, error)
 	CountHighlightUpvotes(ctx context.Context, highlightid string) (int32, error)
+	CountMediaApiKeys(ctx context.Context, id string) (int32, error)
 	CountMediaInvites(ctx context.Context, mediaid string) (int32, error)
 	CountMediaMembers(ctx context.Context, mediaid string) (int32, error)
 	CountModerationReportsByStatus(ctx context.Context) ([]CountModerationReportsByStatusRow, error)
@@ -101,6 +102,7 @@ type Querier interface {
 	DeleteHighlightUpvote(ctx context.Context, arg DeleteHighlightUpvoteParams) error
 	DeleteLike(ctx context.Context, arg DeleteLikeParams) error
 	DeleteLikeNotification(ctx context.Context, arg DeleteLikeNotificationParams) error
+	DeleteMediaApiKey(ctx context.Context, arg DeleteMediaApiKeyParams) (int64, error)
 	DeleteMediaMember(ctx context.Context, arg DeleteMediaMemberParams) error
 	DeleteMute(ctx context.Context, arg DeleteMuteParams) error
 	DeleteNavigationItems(ctx context.Context, publicationid string) error
@@ -191,6 +193,7 @@ type Querier interface {
 	// Tables : Highlight, AnnotationComment, AnnotationUpvote.
 	GetHighlightByID(ctx context.Context, id string) (GetHighlightByIDRow, error)
 	GetLikePrefs(ctx context.Context, userid pgtype.UUID) (GetLikePrefsRow, error)
+	GetMediaApiKeyByID(ctx context.Context, arg GetMediaApiKeyByIDParams) (GetMediaApiKeyByIDRow, error)
 	// Dédoublonnage CAS : cherche un asset existant par hash SHA-256.
 	GetMediaAssetBySha256(ctx context.Context, sha256 string) (MediaAsset, error)
 	GetMediaInviteByToken(ctx context.Context, token string) (GetMediaInviteByTokenRow, error)
@@ -328,6 +331,7 @@ type Querier interface {
 	InsertFollowNotification(ctx context.Context, arg InsertFollowNotificationParams) error
 	InsertLike(ctx context.Context, arg InsertLikeParams) (string, error)
 	InsertLikeNotification(ctx context.Context, arg InsertLikeNotificationParams) error
+	InsertMediaApiKey(ctx context.Context, arg InsertMediaApiKeyParams) error
 	InsertMediaArticlePublishedFanout(ctx context.Context, arg InsertMediaArticlePublishedFanoutParams) error
 	InsertMediaArticleSubmittedFanout(ctx context.Context, arg InsertMediaArticleSubmittedFanoutParams) error
 	// metadata est passé en texte puis casté en jsonb : le pool API force
@@ -397,6 +401,10 @@ type Querier interface {
 	// Surlignages d'un article : publics + les siens (privés) + état upvote du viewer.
 	ListHighlightsByArticle(ctx context.Context, arg ListHighlightsByArticleParams) ([]ListHighlightsByArticleRow, error)
 	ListLikesForPost(ctx context.Context, arg ListLikesForPostParams) ([]ListLikesForPostRow, error)
+	// ============================================================================
+	// Clés API Média (gestion par le média, délégation api_keys:manage)
+	// ============================================================================
+	ListMediaApiKeys(ctx context.Context, id string) ([]ListMediaApiKeysRow, error)
 	ListMediaInvites(ctx context.Context, mediaid string) ([]ListMediaInvitesRow, error)
 	ListMediaMembers(ctx context.Context, mediaid string) ([]ListMediaMembersRow, error)
 	// Nouveaux messages STRICTEMENT postérieurs à `after` (polling), ordre
@@ -488,6 +496,8 @@ type Querier interface {
 	UpdateCategory(ctx context.Context, arg UpdateCategoryParams) error
 	UpdateCollaborationRequestResponse(ctx context.Context, arg UpdateCollaborationRequestResponseParams) error
 	UpdateHighlight(ctx context.Context, arg UpdateHighlightParams) (UpdateHighlightRow, error)
+	UpdateMediaApiKeyName(ctx context.Context, arg UpdateMediaApiKeyNameParams) (int64, error)
+	UpdateMediaApiKeySecret(ctx context.Context, arg UpdateMediaApiKeySecretParams) (int64, error)
 	UpdateMediaInviteStatus(ctx context.Context, arg UpdateMediaInviteStatusParams) error
 	UpdateMediaMemberPermissions(ctx context.Context, arg UpdateMediaMemberPermissionsParams) error
 	UpdateMediaMemberRole(ctx context.Context, arg UpdateMediaMemberRoleParams) error

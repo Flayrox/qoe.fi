@@ -258,8 +258,8 @@ func (q *Queries) GetUserForSettings(ctx context.Context, id string) (GetUserFor
 }
 
 const insertApiKey = `-- name: InsertApiKey :exec
-INSERT INTO "ApiKey" (id, name, "keyPrefix", "keyHash", scopes, "userId")
-VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5)
+INSERT INTO "ApiKey" (id, name, "keyPrefix", "keyHash", scopes, "userId", "createdByUserId")
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $5)
 `
 
 type InsertApiKeyParams struct {

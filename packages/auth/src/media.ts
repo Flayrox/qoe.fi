@@ -38,7 +38,8 @@ export type MediaPermission =
   | 'media:review' // approuver les soumissions
   | 'media:view_analytics'
   | 'media:create_articles'
-  | 'media:edit_own'; // éditer ses propres articles
+  | 'media:edit_own' // éditer ses propres articles
+  | 'api_keys:manage'; // créer, voir métadonnées, rotater et révoquer les clés du média
 
 export const ALL_MEDIA_PERMISSIONS: MediaPermission[] = [
   'media:manage_members',
@@ -53,6 +54,7 @@ export const ALL_MEDIA_PERMISSIONS: MediaPermission[] = [
   'media:view_analytics',
   'media:create_articles',
   'media:edit_own',
+  'api_keys:manage',
 ];
 
 /**

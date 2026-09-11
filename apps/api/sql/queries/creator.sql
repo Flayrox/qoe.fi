@@ -1,22 +1,31 @@
 -- API Créateur (migration depuis Hono apps/api) : clés API, catégories, users, follows, bookmarks.
 
 -- name: GetApiKeyByHash :one
-SELECT ak.id            AS api_key_id,
-       ak."keyHash"     AS key_hash,
-       ak.scopes        AS scopes,
-       u.id::text       AS user_id,
-       u.email,
-       u.username,
-       u.name,
-       u."logoUrl"      AS logo_url,
-       u."isCertified"  AS is_certified,
-       u.role,
-       u."apiAccessStatus" AS api_access_status,
-       COALESCE(p.id::text, '')::text AS publication_id,
-       p."umamiWebsiteId" AS umami_website_id
+SELECT ak.id                                            AS api_key_id,
+       ak."keyHash"                                     AS key_hash,
+       ak.scopes                                        AS scopes,
+       COALESCE(ak."userId"::text, '')::text            AS key_user_id,
+       COALESCE(ak."publicationId"::text, '')::text    AS key_publication_id,
+       COALESCE(ak."createdByUserId"::text, '')::text  AS created_by_user_id,
+       COALESCE(u.id::text, '')::text                   AS user_id,
+       u.email                                          AS user_email,
+       u.username                                       AS user_username,
+       u.name                                           AS user_name,
+       u."logoUrl"                                      AS user_logo_url,
+       u."isCertified"                                  AS user_is_certified,
+       u.role                                           AS user_role,
+       u."apiAccessStatus"                              AS user_api_access_status,
+       u."apiGrants"                                    AS user_api_grants,
+       COALESCE(p.id::text, '')::text                   AS publication_id,
+       COALESCE(p.type::text, '')::text                 AS publication_type,
+       p."umamiWebsiteId"                               AS umami_website_id,
+       COALESCE(md.id::text, '')::text                  AS media_id,
+       sc.value                                         AS platform_api_modules
 FROM "ApiKey" ak
-JOIN "User" u ON u.id = ak."userId"
-LEFT JOIN "Publication" p ON p.id = u."publicationId" AND p.type = 'PERSONAL'
+LEFT JOIN "User" u ON u.id = ak."userId"
+LEFT JOIN "Publication" p ON p.id = COALESCE(ak."publicationId", u."publicationId")
+LEFT JOIN "Media" md ON md."publicationId" = p.id
+LEFT JOIN "SystemConfig" sc ON sc.key = 'API_ACCESS_MODULES'
 WHERE ak."keyHash" = $1
 LIMIT 1;
 

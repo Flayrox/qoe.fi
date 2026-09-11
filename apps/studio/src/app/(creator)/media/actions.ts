@@ -147,7 +147,7 @@ export async function getMediaByIdAction(mediaId: string) {
     await getAuthUser();
 
     // Go : GET /v1/media/{id}.
-    const res = await goFetch<{ media: GoMediaDetail; myRole: string }>(
+    const res = await goFetch<{ media: GoMediaDetail; myRole: string; canManageApiKeys?: boolean }>(
       `/v1/media/${encodeURIComponent(mediaId)}`
     );
     return {
@@ -155,6 +155,7 @@ export async function getMediaByIdAction(mediaId: string) {
       media: res.media,
       articlesCount: res.media.publication._count.articles,
       myRole: res.myRole,
+      canManageApiKeys: res.canManageApiKeys ?? false,
     };
   } catch (err: unknown) {
     return {
@@ -340,6 +341,135 @@ export async function updateMediaSettingsAction(
     return {
       success: false,
       error: err instanceof Error ? err.message : 'Échec de la mise à jour',
+    };
+  }
+}
+
+export interface MediaApiKeyInfo {
+  id: string;
+  name: string;
+  keyPrefix: string;
+  scopes: string[];
+  createdAt: string;
+  lastUsedAt?: string | null;
+  createdByUserId?: string | null;
+  createdByName?: string | null;
+  createdByUsername?: string | null;
+}
+
+export interface MediaApiKeyCreatedInfo extends MediaApiKeyInfo {
+  secret: string;
+}
+
+/**
+ * 🔑 Récupérer les clés API d'un Média.
+ * RBAC : api_keys:manage (vérifié côté Go).
+ */
+export async function listMediaApiKeysAction(mediaId: string) {
+  try {
+    await getAuthUser();
+    const res = await goFetch<{ keys: MediaApiKeyInfo[] }>(
+      `/v1/media/${encodeURIComponent(mediaId)}/api-keys`
+    );
+    return { success: true as const, keys: res.keys };
+  } catch (err: unknown) {
+    return {
+      success: false as const,
+      error: err instanceof Error ? err.message : 'Impossible de récupérer les clés API',
+    };
+  }
+}
+
+/**
+ * 🔑 Créer une nouvelle clé API pour un Média.
+ * RBAC : api_keys:manage.
+ */
+export async function createMediaApiKeyAction(mediaId: string, name: string, scopes: string[]) {
+  try {
+    await getAuthUser();
+    const res = await goFetch<MediaApiKeyCreatedInfo>(
+      `/v1/media/${encodeURIComponent(mediaId)}/api-keys`,
+      {
+        method: 'POST',
+        body: { name, scopes },
+      }
+    );
+    revalidatePath('/media');
+    return { success: true as const, key: res };
+  } catch (err: unknown) {
+    return {
+      success: false as const,
+      error: err instanceof Error ? err.message : 'Échec de la création de la clé API',
+    };
+  }
+}
+
+/**
+ * ✏️ Renommer une clé API de Média.
+ * RBAC : api_keys:manage.
+ */
+export async function updateMediaApiKeyAction(mediaId: string, keyId: string, name: string) {
+  try {
+    await getAuthUser();
+    await goFetch(
+      `/v1/media/${encodeURIComponent(mediaId)}/api-keys/${encodeURIComponent(keyId)}`,
+      {
+        method: 'PATCH',
+        body: { name },
+      }
+    );
+    revalidatePath('/media');
+    return { success: true as const };
+  } catch (err: unknown) {
+    return {
+      success: false as const,
+      error: err instanceof Error ? err.message : 'Échec du renommage de la clé API',
+    };
+  }
+}
+
+/**
+ * 🔄 Faire tourner le secret d'une clé API de Média.
+ * RBAC : api_keys:manage.
+ */
+export async function rotateMediaApiKeyAction(mediaId: string, keyId: string) {
+  try {
+    await getAuthUser();
+    const res = await goFetch<MediaApiKeyCreatedInfo>(
+      `/v1/media/${encodeURIComponent(mediaId)}/api-keys/${encodeURIComponent(keyId)}/rotate`,
+      {
+        method: 'POST',
+      }
+    );
+    revalidatePath('/media');
+    return { success: true as const, key: res };
+  } catch (err: unknown) {
+    return {
+      success: false as const,
+      error: err instanceof Error ? err.message : 'Échec de la rotation de la clé API',
+    };
+  }
+}
+
+/**
+ * 🗑️ Révoquer une clé API de Média.
+ * RBAC : api_keys:manage.
+ */
+export async function revokeMediaApiKeyAction(mediaId: string, keyId: string) {
+  try {
+    await getAuthUser();
+    await goFetch(
+      `/v1/media/${encodeURIComponent(mediaId)}/api-keys/${encodeURIComponent(keyId)}`,
+      {
+        method: 'DELETE',
+      }
+    );
+    revalidatePath('/media');
+    return { success: true as const };
+  } catch (err: unknown) {
+    return {
+      success: false as const,
+      error: err instanceof Error ? err.message : 'Échec de la révocation de la clé API',
     };
   }
 }

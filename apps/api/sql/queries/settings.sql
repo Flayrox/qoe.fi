@@ -57,8 +57,8 @@ SELECT "apiAccessStatus" FROM "User" WHERE id = $1;
 SELECT "apiGrants" FROM "User" WHERE id = $1;
 
 -- name: InsertApiKey :exec
-INSERT INTO "ApiKey" (id, name, "keyPrefix", "keyHash", scopes, "userId")
-VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5);
+INSERT INTO "ApiKey" (id, name, "keyPrefix", "keyHash", scopes, "userId", "createdByUserId")
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $5);
 
 -- name: ListApiKeys :many
 SELECT id, name, "keyPrefix", scopes, "createdAt", "lastUsedAt"

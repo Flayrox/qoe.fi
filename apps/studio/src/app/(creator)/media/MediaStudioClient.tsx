@@ -23,6 +23,7 @@ import {
   ArrowRight,
   FileText,
   Clock,
+  Key,
 } from 'lucide-react';
 import { toast } from '@qoe/ui/toast';
 import { cn } from '@qoe/utils';
@@ -37,6 +38,7 @@ import {
   removeMediaMemberAction,
   updateMediaSettingsAction,
 } from './actions';
+import { MediaApiKeysTab } from './MediaApiKeysTab';
 import { ALL_MEDIA_PERMISSIONS, MEDIA_ROLES } from '@qoe/auth/media';
 
 interface MediaSummary {
@@ -122,6 +124,7 @@ const PERMISSION_LABELS: Record<string, () => string> = {
   'media:view_analytics': () => t`Analytics`,
   'media:create_articles': () => t`Écrire`,
   'media:edit_own': () => t`Éditer ses écrits`,
+  'api_keys:manage': () => t`Gérer les clés API`,
 };
 
 const ROLE_DEFAULT_PERMS: Record<string, string[]> = {
@@ -141,17 +144,7 @@ const ROLE_DEFAULT_PERMS: Record<string, string[]> = {
   viewer: ['media:view_analytics'],
 };
 
-type StudioTab = 'members' | 'invites' | 'settings';
-
-const TABS: Array<{
-  key: StudioTab;
-  label: () => string;
-  icon: React.ComponentType<{ className?: string; strokeWidth?: number | string }>;
-}> = [
-  { key: 'members', label: () => t`Membres`, icon: Users },
-  { key: 'invites', label: () => t`Invitations`, icon: Mail },
-  { key: 'settings', label: () => t`Réglages`, icon: Settings },
-];
+type StudioTab = 'members' | 'invites' | 'api-keys' | 'settings';
 
 function formatDate(iso: string | null): string {
   if (!iso) return '—';
@@ -189,6 +182,7 @@ export function MediaStudioClient({
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [tab, setTab] = useState<StudioTab>('members');
   const [myRole, setMyRole] = useState<string | null>(null);
+  const [canManageApiKeys, setCanManageApiKeys] = useState(false);
 
   const [createName, setCreateName] = useState('');
   const [createSlug, setCreateSlug] = useState('');
@@ -209,6 +203,7 @@ export function MediaStudioClient({
     if (res.success) {
       setDetail(res.media as unknown as MediaDetail);
       setMyRole(res.myRole ?? null);
+      setCanManageApiKeys(res.canManageApiKeys ?? false);
     } else {
       toast.error(res.error || t`Erreur de chargement du Média`);
     }
@@ -573,7 +568,14 @@ export function MediaStudioClient({
 
       {/* ── Tabs (clean segmented) ── */}
       <div className="flex items-center gap-1 border-b border-border/40 mb-6">
-        {TABS.map((tabItem) => {
+        {[
+          { key: 'members' as const, label: () => t`Membres`, icon: Users },
+          { key: 'invites' as const, label: () => t`Invitations`, icon: Mail },
+          ...(canManageApiKeys
+            ? [{ key: 'api-keys' as const, label: () => t`Clés API`, icon: Key }]
+            : []),
+          { key: 'settings' as const, label: () => t`Réglages`, icon: Settings },
+        ].map((tabItem) => {
           const active = tab === tabItem.key;
           return (
             <button
@@ -836,6 +838,11 @@ export function MediaStudioClient({
             </p>
           </div>
         </div>
+      )}
+
+      {/* ── API Keys ── */}
+      {tab === 'api-keys' && canManageApiKeys && (
+        <MediaApiKeysTab mediaId={detail.id} mediaName={detail.publication.name} />
       )}
 
       {/* ── Settings ── */}
