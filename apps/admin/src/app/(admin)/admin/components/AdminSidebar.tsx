@@ -17,6 +17,7 @@ const NAV_ITEMS = [
   { href: '/admin/widgets', label: 'Widgets & Tendances' },
   { href: '/admin/notifications', label: 'Notifications & Emails' },
   { href: '/admin/translations', label: 'Traducteur & Langues' },
+  { href: '/admin/legal', label: 'Contenu juridique' },
 ];
 
 export function AdminSidebar() {

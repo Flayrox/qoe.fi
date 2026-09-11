@@ -254,6 +254,103 @@ export async function getAdminAuditLog(limit = 100): Promise<AdminAuditEntry[]> 
   return data.items;
 }
 
+// ── ⚖️ Contenu juridique ─────────────────────────────────────────────────────
+
+export interface AdminLegalDocument {
+  id: string;
+  slug: string;
+  category: string;
+  audience: string;
+  requiresAcceptance: boolean;
+  isActive: boolean;
+  sortOrder: number;
+  versionsCount: number;
+  draftsCount: number;
+  acceptancesCount: number;
+  publishedVersion?: string;
+  publishedLocale?: string;
+  publishedTitle?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface AdminLegalVersion {
+  id: string;
+  documentId: string;
+  documentSlug?: string;
+  locale: string;
+  version: string;
+  title: string;
+  summary: string;
+  body?: string;
+  status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+  changelog?: string;
+  effectiveAt?: string;
+  publishedAt?: string;
+  archivedAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface AdminLegalAcceptance {
+  id: string;
+  documentId: string;
+  documentSlug?: string;
+  category?: string;
+  versionId: string;
+  version: string;
+  locale: string;
+  acceptedAt: string;
+  source: string;
+  method: string;
+  ip?: string;
+  userAgent?: string;
+  userEmail?: string;
+}
+
+export interface AdminLegalStats {
+  id: string;
+  slug: string;
+  requiresAcceptance: boolean;
+  acceptances: number;
+  acceptances30d: number;
+  versionsCount: number;
+}
+
+/** ⚖️ Tous les documents juridiques (brouillons et inactifs inclus). */
+export async function getAdminLegalDocuments(): Promise<AdminLegalDocument[]> {
+  const data = await goFetch<{ items: AdminLegalDocument[] }>('/v1/admin/legal');
+  return data.items;
+}
+
+/** 📚 Toutes les versions d'un document (drafts, publiées, archivées). */
+export async function getAdminLegalVersions(documentId: string): Promise<AdminLegalVersion[]> {
+  const data = await goFetch<{ items: AdminLegalVersion[] }>(
+    `/v1/admin/legal/${encodeURIComponent(documentId)}/versions`
+  );
+  return data.items;
+}
+
+/** ✍️ Preuves de consentement (qui a accepté quelle version). */
+export async function getAdminLegalAcceptances(
+  slug?: string,
+  limit = 100
+): Promise<AdminLegalAcceptance[]> {
+  const qs = new URLSearchParams();
+  if (slug) qs.set('slug', slug);
+  qs.set('limit', String(limit));
+  const data = await goFetch<{ items: AdminLegalAcceptance[] }>(
+    `/v1/admin/legal/acceptances?${qs.toString()}`
+  );
+  return data.items;
+}
+
+/** 📊 Volumétrie de consentement par document. */
+export async function getAdminLegalStats(): Promise<AdminLegalStats[]> {
+  const data = await goFetch<{ items: AdminLegalStats[] }>('/v1/admin/legal/stats');
+  return data.items;
+}
+
 export interface FeatureFlagItem {
   key: string;
   is_enabled: boolean;

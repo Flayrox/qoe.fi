@@ -82,6 +82,15 @@ export function CommandPalette() {
             >
               Frontend & UI
             </Command.Item>
+            <Command.Item
+              onSelect={() => {
+                router.push('/admin/legal');
+                setOpen(false);
+              }}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-muted-foreground aria-selected:bg-muted/80 aria-selected:text-foreground cursor-pointer text-sm font-medium transition-colors"
+            >
+              Contenu juridique
+            </Command.Item>
           </Command.Group>
         </Command.List>
       </Command>
