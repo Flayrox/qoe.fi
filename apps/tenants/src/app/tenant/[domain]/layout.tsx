@@ -2,10 +2,16 @@ import React from 'react';
 import { notFound } from 'next/navigation';
 import { createClient } from '@qoe/supabase/server';
 import { getCurrentUser } from '@qoe/auth/current-user';
-import { AnalyticsScript } from '@qoe/analytics/client';
-import { OnboardingModal, type OnboardingCategory, type OnboardingCreator } from '@qoe/ui';
+import {
+  CookieConsentBanner,
+  OnboardingModal,
+  type OnboardingCategory,
+  type OnboardingCreator,
+} from '@qoe/ui';
+import { getLanguage } from '@qoe/i18n/server';
 import { completeOnboarding } from './onboarding-actions';
 import { fetchTenantPublication } from '@/lib/tenant-data';
+import { AnalyticsGate } from '@/components/AnalyticsGate';
 
 interface TenantLayoutProps {
   children: React.ReactNode;
@@ -25,6 +31,7 @@ export default async function TenantLayout({ children, params }: TenantLayoutPro
   }
 
   const umamiWebsiteId = publication.umamiWebsiteId || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID;
+  const locale = await getLanguage();
 
   // Onboarding en popup : si l'utilisateur est connecté mais n'a pas terminé
   // l'onboarding, on l'affiche sur n'importe quelle page tenant (pas de redirect
@@ -61,8 +68,10 @@ export default async function TenantLayout({ children, params }: TenantLayoutPro
 
   return (
     <>
-      <AnalyticsScript websiteId={umamiWebsiteId} />
+      {/* Mesure d'audience conditionnée au consentement traceurs. */}
+      <AnalyticsGate websiteId={umamiWebsiteId} />
       {children}
+      <CookieConsentBanner locale={locale} />
       {onboardingProps && (
         <OnboardingModal
           open
