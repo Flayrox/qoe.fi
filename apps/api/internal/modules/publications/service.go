@@ -17,6 +17,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/modules/articles"
 )
 
 var errNotFound = errors.New("introuvable")
@@ -59,17 +60,17 @@ type CategoryItem struct {
 }
 
 type ArticleSummary struct {
-	ID          string         `json:"id"`
-	Title       string         `json:"title"`
-	Slug        string         `json:"slug"`
-	Content     string         `json:"content"`
-	Published   bool           `json:"published"`
-	IsPremium   bool           `json:"isPremium"`
-	Visibility  string         `json:"visibility"`
-	ReadingTime int32          `json:"readingTime"`
-	CreatedAt   string         `json:"createdAt"`
-	CategoryID  *string        `json:"categoryId"`
-	Category    *CategoryItem  `json:"category,omitempty"`
+	ID          string        `json:"id"`
+	Title       string        `json:"title"`
+	Slug        string        `json:"slug"`
+	Content     string        `json:"content"`
+	Published   bool          `json:"published"`
+	IsPremium   bool          `json:"isPremium"`
+	Visibility  string        `json:"visibility"`
+	ReadingTime int32         `json:"readingTime"`
+	CreatedAt   string        `json:"createdAt"`
+	CategoryID  *string       `json:"categoryId"`
+	Category    *CategoryItem `json:"category,omitempty"`
 }
 
 type PublicationUser struct {
@@ -79,35 +80,35 @@ type PublicationUser struct {
 
 // PublicationDetail est la publication dénormalisée (header + home).
 type PublicationDetail struct {
-	ID                      string            `json:"id"`
-	Type                    string            `json:"type"`
-	Name                    string            `json:"name"`
-	Slug                    string            `json:"slug"`
-	Bio                     *string           `json:"bio"`
-	LogoURL                 *string           `json:"logoUrl"`
-	IsCertified             bool              `json:"isCertified"`
-	Subdomain               *string           `json:"subdomain"`
-	CustomDomain            *string           `json:"customDomain"`
-	UmamiWebsiteID          *string           `json:"umamiWebsiteId"`
-	AccentColor             *string           `json:"accentColor"`
-	FontFamily              *string           `json:"fontFamily"`
-	HeroText                *string           `json:"heroText"`
-	HeaderImageURL          *string           `json:"headerImageUrl"`
-	FooterText              *string           `json:"footerText"`
-	ThemeMode               *string           `json:"themeMode"`
-	LayoutStyle             *string           `json:"layoutStyle"`
-	AllowIndexing           bool              `json:"allowIndexing"`
-	AllowPublicAnnotations  bool              `json:"allowPublicAnnotations"`
-	AllowComments           bool              `json:"allowComments"`
-	SeoTitle                *string           `json:"seoTitle"`
-	SeoDescription          *string           `json:"seoDescription"`
-	SupportURL              *string           `json:"supportUrl"`
-	StripeAccountID         *string           `json:"stripeAccountId"`
-	Navigation              []NavItem         `json:"navigation"`
-	SocialLinks             []SocialLinkItem  `json:"socialLinks"`
-	Categories              []CategoryItem    `json:"categories"`
-	Articles                []ArticleSummary  `json:"articles,omitempty"`
-	User                    *PublicationUser  `json:"user,omitempty"`
+	ID                     string           `json:"id"`
+	Type                   string           `json:"type"`
+	Name                   string           `json:"name"`
+	Slug                   string           `json:"slug"`
+	Bio                    *string          `json:"bio"`
+	LogoURL                *string          `json:"logoUrl"`
+	IsCertified            bool             `json:"isCertified"`
+	Subdomain              *string          `json:"subdomain"`
+	CustomDomain           *string          `json:"customDomain"`
+	UmamiWebsiteID         *string          `json:"umamiWebsiteId"`
+	AccentColor            *string          `json:"accentColor"`
+	FontFamily             *string          `json:"fontFamily"`
+	HeroText               *string          `json:"heroText"`
+	HeaderImageURL         *string          `json:"headerImageUrl"`
+	FooterText             *string          `json:"footerText"`
+	ThemeMode              *string          `json:"themeMode"`
+	LayoutStyle            *string          `json:"layoutStyle"`
+	AllowIndexing          bool             `json:"allowIndexing"`
+	AllowPublicAnnotations bool             `json:"allowPublicAnnotations"`
+	AllowComments          bool             `json:"allowComments"`
+	SeoTitle               *string          `json:"seoTitle"`
+	SeoDescription         *string          `json:"seoDescription"`
+	SupportURL             *string          `json:"supportUrl"`
+	StripeAccountID        *string          `json:"stripeAccountId"`
+	Navigation             []NavItem        `json:"navigation"`
+	SocialLinks            []SocialLinkItem `json:"socialLinks"`
+	Categories             []CategoryItem   `json:"categories"`
+	Articles               []ArticleSummary `json:"articles,omitempty"`
+	User                   *PublicationUser `json:"user,omitempty"`
 }
 
 // RecommendationItem est une publication recommandée par un créateur.
@@ -132,14 +133,19 @@ type AuthorInfo struct {
 }
 
 type ArticleDetail struct {
-	ID                     string        `json:"id"`
-	Title                  string        `json:"title"`
-	Slug                   string        `json:"slug"`
-	Content                string        `json:"content"`
-	Published              bool          `json:"published"`
-	Status                 string        `json:"status"`
-	IsPremium              bool          `json:"isPremium"`
-	Visibility             string        `json:"visibility"`
+	ID         string `json:"id"`
+	Title      string `json:"title"`
+	Slug       string `json:"slug"`
+	Content    string `json:"content"`
+	Published  bool   `json:"published"`
+	Status     string `json:"status"`
+	IsPremium  bool   `json:"isPremium"`
+	Visibility string `json:"visibility"`
+	// 🔒 Zéro-fuite : le contenu servi ici est DÉJÀ tronqué au paywall pour un
+	// lecteur non autorisé. `accessGranted` doit être lu par les clients pour
+	// ne PAS retronquer (le marqueur de coupure a disparu de la charge utile).
+	IsTruncated            bool          `json:"isTruncated"`
+	AccessGranted          bool          `json:"accessGranted"`
 	ReadingTime            int32         `json:"readingTime"`
 	AllowPublicAnnotations bool          `json:"allowPublicAnnotations"`
 	AllowComments          bool          `json:"allowComments"`
@@ -150,20 +156,20 @@ type ArticleDetail struct {
 }
 
 type Entitlements struct {
-	IsMember          bool   `json:"isMember"`
-	IsPaidSubscriber  bool   `json:"isPaidSubscriber"`
-	TierID            string `json:"tierId,omitempty"`
+	IsMember         bool   `json:"isMember"`
+	IsPaidSubscriber bool   `json:"isPaidSubscriber"`
+	TierID           string `json:"tierId,omitempty"`
 }
 
 // ArticleBundle est la réponse complète de la page article tenant.
 type ArticleBundle struct {
-	Publication            PublicationDetail `json:"publication"`
-	Article                ArticleDetail     `json:"article"`
-	Entitlements           Entitlements      `json:"entitlements"`
-	Bookmarked             bool              `json:"bookmarked"`
-	Followed               bool              `json:"followed"`
-	IsViaAttribution       bool              `json:"isViaAttribution"`
-	AttributionCategorySlug *string          `json:"attributionCategorySlug"`
+	Publication             PublicationDetail `json:"publication"`
+	Article                 ArticleDetail     `json:"article"`
+	Entitlements            Entitlements      `json:"entitlements"`
+	Bookmarked              bool              `json:"bookmarked"`
+	Followed                bool              `json:"followed"`
+	IsViaAttribution        bool              `json:"isViaAttribution"`
+	AttributionCategorySlug *string           `json:"attributionCategorySlug"`
 }
 
 // ---------------------------------------------------------------------------
@@ -255,6 +261,25 @@ func (s *Service) Article(ctx context.Context, domain, slug, viewerID, viewerEma
 			bundle.Followed = followed
 		}
 	}
+
+	// 🔒 Zéro-fuite : cette route est PUBLIQUE (lecture anonyme du site tenant).
+	// Le passage réservé d'un article verrouillé ne doit donc JAMAIS franchir
+	// la frontière HTTP, même pour un appel direct à l'API qui contournerait le
+	// rendu Next. Les entitlements sont résolus avant la coupure (l'auteur voit
+	// toujours son propre article en entier).
+	access := bundle.Entitlements
+	cut := articles.SliceContentAtPaywall(
+		bundle.Article.Content,
+		articles.UserEntitlements{
+			IsMember:         access.IsMember,
+			IsPaidSubscriber: access.IsPaidSubscriber || (viewerID != "" && viewerID == bundle.Article.AuthorID),
+		},
+		bundle.Article.Visibility,
+		nil,
+	)
+	bundle.Article.Content = cut.Content
+	bundle.Article.IsTruncated = cut.IsTruncated
+	bundle.Article.AccessGranted = cut.AccessGranted
 	return bundle, nil
 }
 
@@ -384,6 +409,13 @@ func (s *Service) publishedArticles(ctx context.Context, pubID string) ([]Articl
 			&a.Visibility, &a.ReadingTime, &createdAt, &a.CategoryID, &catID, &catName, &catSlug); err != nil {
 			return nil, err
 		}
+		// 🔒 Zéro-fuite : la liste d'articles publiés alimente les cartes de la
+		// home tenant, servie à des visiteurs anonymes. On tronque au paywall
+		// avant de sérialiser (l'extrait rendu ne peut donc jamais exposer le
+		// passage réservé).
+		a.Content = articles.SliceContentAtPaywall(
+			a.Content, articles.UserEntitlements{}, a.Visibility, nil,
+		).Content
 		a.CreatedAt = createdAt.Format(time.RFC3339)
 		if catID != nil {
 			a.Category = &CategoryItem{ID: *catID, Name: *catName, Slug: *catSlug}
