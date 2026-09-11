@@ -69,6 +69,106 @@ export class TestDb {
     );
   }
 
+  /**
+   * 🏗️ Fixture hermétique de tenant : garantit l'auteur, la publication
+   * (MEDIA ou PERSONAL) et son sous-domaine, sans dépendre du seed.
+   *
+   * Les specs média/paywall peuvent ainsi écrire leurs propres articles et
+   * vérifier un contenu maîtrisé (marqueur de paywall inclus) plutôt que de
+   * parier sur l'état d'une base seedée.
+   */
+  async ensurePublication(opts: {
+    id: string;
+    subdomain: string;
+    name: string;
+    type?: 'MEDIA' | 'PERSONAL';
+    authorId: string;
+    authorEmail: string;
+    authorUsername: string;
+    authorRole?: string;
+    isCertified?: boolean;
+    /** Désactive l'indexation si le test veut vérifier le contrat sitemap. */
+    allowIndexing?: boolean;
+  }): Promise<string> {
+    const type = opts.type ?? 'MEDIA';
+    await this.query(
+      `INSERT INTO "User" (id, email, username, name, role, "hasCompletedOnboarding", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $3, $4, true, now(), now())
+       ON CONFLICT (id) DO UPDATE SET email = $2, username = $3, role = $4, "updatedAt" = now()`,
+      [opts.authorId, opts.authorEmail, opts.authorUsername, opts.authorRole ?? 'creator']
+    );
+    await this.query(
+      `INSERT INTO "Publication" (id, type, name, slug, subdomain, "isCertified", "allowIndexing", "updatedAt")
+       VALUES ($1, $2::"PublicationType", $3, $4, $5, $6, $7, now())
+       ON CONFLICT (id) DO UPDATE SET type = $2::"PublicationType", name = $3, slug = $4,
+         subdomain = $5, "isCertified" = $6, "allowIndexing" = $7, "updatedAt" = now()`,
+      [
+        opts.id,
+        type,
+        opts.name,
+        opts.subdomain,
+        opts.subdomain,
+        opts.isCertified ?? type === 'MEDIA',
+        opts.allowIndexing ?? true,
+      ]
+    );
+    return opts.id;
+  }
+
+  /**
+   * 📝 Fixture hermétique d'article : upsert complet au contenu maîtrisé.
+   * Le contenu peut embarquer un marqueur de paywall (`<!--members-only-->`)
+   * pour vérifier la coupure zéro-fuite de bout en bout.
+   */
+  async ensureArticle(opts: {
+    id: string;
+    publicationId: string;
+    authorId: string;
+    title: string;
+    slug: string;
+    content: string;
+    published?: boolean;
+    isPremium?: boolean;
+    visibility?: 'PUBLIC' | 'MEMBERS_ONLY' | 'PAID_SUBSCRIBERS' | 'TIER_SPECIFIC';
+    readingTime?: number;
+    status?: string;
+  }): Promise<string> {
+    await this.query(
+      `INSERT INTO "Article"
+         (id, title, slug, content, published, "isPremium", visibility, "readingTime",
+          status, "publicationId", "authorId", "createdAt", "updatedAt")
+       VALUES ($1, $2, $3, $4, $5, $6, $7::"ContentVisibility", $8, $9, $10, $11::uuid, now(), now())
+       ON CONFLICT (id) DO UPDATE SET
+         title = $2, slug = $3, content = $4, published = $5, "isPremium" = $6,
+         visibility = $7::"ContentVisibility", "readingTime" = $8, status = $9,
+         "publicationId" = $10, "authorId" = $11::uuid, "updatedAt" = now()`,
+      [
+        opts.id,
+        opts.title,
+        opts.slug,
+        opts.content,
+        opts.published ?? true,
+        opts.isPremium ?? false,
+        opts.visibility ?? (opts.isPremium ? 'PAID_SUBSCRIBERS' : 'PUBLIC'),
+        opts.readingTime ?? 3,
+        opts.status ?? (opts.published === false ? 'DRAFT' : 'PUBLISHED'),
+        opts.publicationId,
+        opts.authorId,
+      ]
+    );
+    return opts.id;
+  }
+
+  /** 🧹 Retire une fixture d'article (les FK en cascade nettoient le reste). */
+  async deleteArticle(id: string): Promise<void> {
+    await this.query(`DELETE FROM "Article" WHERE id = $1`, [id]);
+  }
+
+  /** 🧹 Retire une fixture de publication (cascade sur ses dépendances). */
+  async deletePublication(id: string): Promise<void> {
+    await this.query(`DELETE FROM "Publication" WHERE id = $1`, [id]);
+  }
+
   /** Retourne l'id d'un article seedé par slug. */
   async articleIdBySlug(slug: string): Promise<string | null> {
     const rows = await this.query<{ id: string }>(
