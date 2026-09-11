@@ -36,6 +36,7 @@ import (
 	"github.com/qoefi/api/internal/modules/highlights"
 	"github.com/qoefi/api/internal/modules/home"
 	"github.com/qoefi/api/internal/modules/imports"
+	"github.com/qoefi/api/internal/modules/legal"
 	"github.com/qoefi/api/internal/modules/media"
 	"github.com/qoefi/api/internal/modules/mediaassets"
 	"github.com/qoefi/api/internal/modules/newsletters"
@@ -212,6 +213,23 @@ func newRouter(d RouterDeps) *chi.Mux {
 	searchHandler := search.NewHandler(search.NewSemanticService(d.Pool))
 	searchHandler.RegisterPublic(r)
 
+	// Contenu légal (CGU, confidentialité, cookies, CGV, DPA…) : la lecture est
+	// publique (c'est la loi), l'édition est réservée au superadmin via
+	// /v1/admin/legal/* (console admin).
+	legalSvc := legal.NewService(pool)
+	legalSvc.SetFlags(flagsSvc)
+	legalHandler := legal.NewHandler(legalSvc)
+	legalHandler.RegisterPublic(r)
+
+	// Amorçage du contenu juridique : une base sans documents (premier
+	// déploiement, base de test) reçoit le contenu embarqué. Idempotent et
+	// respectueux de l'éditeur : un contenu déjà publié n'est jamais touché.
+	if seeded, err := legalSvc.EnsureSeeded(context.Background()); err != nil {
+		log.Printf("[legal] amorçage du contenu juridique: %v", err)
+	} else if seeded.Created > 0 {
+		log.Printf("[legal] %d document(s) juridique(s) installé(s)", seeded.Created)
+	}
+
 	// Endpoints internes (émission d'événements → asynq), protégés par secret.
 	eventsHandler := events.NewHandler(asynqClient, d.InternalSecret)
 	eventsHandler.Register(r)
@@ -372,6 +390,9 @@ func newRouter(d RouterDeps) *chi.Mux {
 		adminHandler := admin.NewHandler(adminSvc)
 		adminHandler.Register(protected)
 
+		// Édition du contenu légal (superadmin, revérifié dans le service).
+		legalHandler.RegisterAdmin(protected)
+
 		newslettersHandler.Register(protected)
 
 		// Routes reader (/v1/me*, feed protégé, lecture) : auto-réparation
@@ -386,6 +407,9 @@ func newRouter(d RouterDeps) *chi.Mux {
 			feedHandler.RegisterProtected(reader)
 			usersHandler.Register(reader)
 			trackingHandler.RegisterReader(reader)
+
+			// Consentement légal du lecteur (acceptation versionnée + état).
+			legalHandler.RegisterProtected(reader)
 
 			// Messagerie directe : conversations + messages (reader).
 			conversationsHandler := conversations.NewHandler(conversations.NewService(pool))

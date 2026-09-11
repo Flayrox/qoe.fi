@@ -13,6 +13,8 @@ import (
 type Querier interface {
 	AddRecommendation(ctx context.Context, arg AddRecommendationParams) (Recommendation, error)
 	AdminDashboardCounts(ctx context.Context) (AdminDashboardCountsRow, error)
+	ArchiveLegalDocumentVersion(ctx context.Context, id string) (LegalDocumentVersion, error)
+	ArchivePublishedLegalVersions(ctx context.Context, arg ArchivePublishedLegalVersionsParams) error
 	// Vrai si l'un des deux a bloqué l'autre (les deux sens).
 	AreUsersBlocked(ctx context.Context, arg AreUsersBlockedParams) (bool, error)
 	CheckArticleSlugExists(ctx context.Context, arg CheckArticleSlugExistsParams) (bool, error)
@@ -37,6 +39,7 @@ type Querier interface {
 	CountFollowers(ctx context.Context, publicationid string) (int32, error)
 	CountFollowing(ctx context.Context, readerid pgtype.UUID) (int32, error)
 	CountHighlightUpvotes(ctx context.Context, highlightid string) (int32, error)
+	CountLegalDocuments(ctx context.Context) (int64, error)
 	CountMediaApiKeys(ctx context.Context, id string) (int32, error)
 	CountMediaInvites(ctx context.Context, mediaid string) (int32, error)
 	CountMediaMembers(ctx context.Context, mediaid string) (int32, error)
@@ -104,6 +107,8 @@ type Querier interface {
 	DeleteFollowNotification(ctx context.Context, arg DeleteFollowNotificationParams) error
 	DeleteHighlight(ctx context.Context, arg DeleteHighlightParams) (int64, error)
 	DeleteHighlightUpvote(ctx context.Context, arg DeleteHighlightUpvoteParams) error
+	DeleteLegalDocument(ctx context.Context, id string) error
+	DeleteLegalDocumentVersion(ctx context.Context, id string) error
 	DeleteLike(ctx context.Context, arg DeleteLikeParams) error
 	DeleteLikeNotification(ctx context.Context, arg DeleteLikeNotificationParams) error
 	DeleteMediaApiKey(ctx context.Context, arg DeleteMediaApiKeyParams) (int64, error)
@@ -196,6 +201,10 @@ type Querier interface {
 	// visibilité publique, upvotes et commentaires d'annotation.
 	// Tables : Highlight, AnnotationComment, AnnotationUpvote.
 	GetHighlightByID(ctx context.Context, id string) (GetHighlightByIDRow, error)
+	GetLegalAcceptance(ctx context.Context, arg GetLegalAcceptanceParams) (LegalAcceptance, error)
+	GetLegalDocumentByID(ctx context.Context, id string) (LegalDocument, error)
+	GetLegalDocumentBySlug(ctx context.Context, slug string) (LegalDocument, error)
+	GetLegalDocumentVersion(ctx context.Context, id string) (LegalDocumentVersion, error)
 	GetLikePrefs(ctx context.Context, userid pgtype.UUID) (GetLikePrefsRow, error)
 	GetMediaApiKeyByID(ctx context.Context, arg GetMediaApiKeyByIDParams) (GetMediaApiKeyByIDRow, error)
 	// Dédoublonnage CAS : cherche un asset existant par hash SHA-256.
@@ -247,6 +256,8 @@ type Querier interface {
 	GetPublicationOwner(ctx context.Context, id string) (string, error)
 	GetPublicationTypeByID(ctx context.Context, id string) (GetPublicationTypeByIDRow, error)
 	GetPublicationUmamiWebsiteId(ctx context.Context, id string) (pgtype.Text, error)
+	// Contenu complet d'un document publié (markdown).
+	GetPublishedLegalDocument(ctx context.Context, arg GetPublishedLegalDocumentParams) (GetPublishedLegalDocumentRow, error)
 	GetQuotedArticlesByIDs(ctx context.Context, ids []string) ([]GetQuotedArticlesByIDsRow, error)
 	GetReadingSessionDailySeries(ctx context.Context, arg GetReadingSessionDailySeriesParams) ([]GetReadingSessionDailySeriesRow, error)
 	GetRecentArticlesForAnalytics(ctx context.Context, arg GetRecentArticlesForAnalyticsParams) ([]GetRecentArticlesForAnalyticsRow, error)
@@ -336,6 +347,8 @@ type Querier interface {
 	InsertDirectConversation(ctx context.Context, directkey pgtype.Text) (string, error)
 	InsertFollow(ctx context.Context, arg InsertFollowParams) error
 	InsertFollowNotification(ctx context.Context, arg InsertFollowNotificationParams) error
+	InsertLegalDocument(ctx context.Context, arg InsertLegalDocumentParams) (LegalDocument, error)
+	InsertLegalDocumentVersion(ctx context.Context, arg InsertLegalDocumentVersionParams) (LegalDocumentVersion, error)
 	InsertLike(ctx context.Context, arg InsertLikeParams) (string, error)
 	InsertLikeNotification(ctx context.Context, arg InsertLikeNotificationParams) error
 	InsertMediaApiKey(ctx context.Context, arg InsertMediaApiKeyParams) error
@@ -366,6 +379,9 @@ type Querier interface {
 	InsertStarterPackItem(ctx context.Context, arg InsertStarterPackItemParams) error
 	InsertWebhookDeliveryResult(ctx context.Context, arg InsertWebhookDeliveryResultParams) error
 	IsActiveMediaMember(ctx context.Context, arg IsActiveMediaMemberParams) (bool, error)
+	// Preuve d'acceptation agrégée par document : combien d'utilisateurs ont
+	// accepté la version publiée courante (et combien ne l'ont pas encore fait).
+	LegalAcceptanceStats(ctx context.Context) ([]LegalAcceptanceStatsRow, error)
 	LinkUserPublication(ctx context.Context, arg LinkUserPublicationParams) error
 	// ── Demandes d'accès API ─────────────────────────────────────────────────────
 	ListAdminApiApplicants(ctx context.Context) ([]ListAdminApiApplicantsRow, error)
@@ -407,6 +423,10 @@ type Querier interface {
 	ListFollowingByUser(ctx context.Context, arg ListFollowingByUserParams) ([]ListFollowingByUserRow, error)
 	// Surlignages d'un article : publics + les siens (privés) + état upvote du viewer.
 	ListHighlightsByArticle(ctx context.Context, arg ListHighlightsByArticleParams) ([]ListHighlightsByArticleRow, error)
+	ListLegalAcceptancesAdmin(ctx context.Context, arg ListLegalAcceptancesAdminParams) ([]ListLegalAcceptancesAdminRow, error)
+	ListLegalDocumentVersions(ctx context.Context, documentID string) ([]ListLegalDocumentVersionsRow, error)
+	// ─── Superadmin ─────────────────────────────────────────────────────
+	ListLegalDocumentsAdmin(ctx context.Context) ([]ListLegalDocumentsAdminRow, error)
 	ListLikesForPost(ctx context.Context, arg ListLikesForPostParams) ([]ListLikesForPostRow, error)
 	// ============================================================================
 	// Clés API Média (gestion par le média, délégation api_keys:manage)
@@ -432,6 +452,10 @@ type Querier interface {
 	ListNotificationDeliveries(ctx context.Context) ([]ListNotificationDeliveriesRow, error)
 	ListOAuthClientsByOwner(ctx context.Context, owneruserid string) ([]ListOAuthClientsByOwnerRow, error)
 	ListOAuthConfig(ctx context.Context) ([]ListOAuthConfigRow, error)
+	// Documents qui exigent une acceptation et que l'utilisateur n'a pas encore
+	// acceptés dans leur version publiée courante (déclencheur de re-consentement
+	// après une nouvelle version).
+	ListPendingLegalAcceptances(ctx context.Context, arg ListPendingLegalAcceptancesParams) ([]ListPendingLegalAcceptancesRow, error)
 	// Provisionnement automatique des websites Umami par publication.
 	// Chaque publication (blog créateur) a son propre website Umami pour que
 	// le créateur voie SES stats (visites, sources, pages, temps passé) sans
@@ -441,6 +465,17 @@ type Querier interface {
 	// Articles publiés d'une publication (profil), résolue par slug OU subdomain
 	// (insensible à la casse). Même shape que ListRecentPublishedArticles.
 	ListPublishedArticlesByPublication(ctx context.Context, arg ListPublishedArticlesByPublicationParams) ([]ListPublishedArticlesByPublicationRow, error)
+	// ═══════════════════════════════════════════════════════════════════
+	// ⚖️ Legal — documents juridiques versionnés
+	//   Public  : lecture des versions publiées + consentement du lecteur
+	//   Admin   : CRUD superadmin (brouillons, publication, archivage, preuves)
+	// ═══════════════════════════════════════════════════════════════════
+	// ─── Public ─────────────────────────────────────────────────────────
+	// Sommaire public : uniquement les documents actifs ayant une version
+	// publiée dans la locale demandée.
+	ListPublishedLegalDocuments(ctx context.Context, locale string) ([]ListPublishedLegalDocumentsRow, error)
+	// Historique public (transparence) : versions publiées/archivées, jamais les brouillons.
+	ListPublishedLegalVersions(ctx context.Context, arg ListPublishedLegalVersionsParams) ([]ListPublishedLegalVersionsRow, error)
 	ListQueuedArticleReleaseDeliveries(ctx context.Context, arg ListQueuedArticleReleaseDeliveriesParams) ([]ListQueuedArticleReleaseDeliveriesRow, error)
 	ListQuotePostIDs(ctx context.Context, arg ListQuotePostIDsParams) ([]string, error)
 	ListReceivedCollaborationRequests(ctx context.Context, inviteeid pgtype.UUID) ([]ListReceivedCollaborationRequestsRow, error)
@@ -461,6 +496,7 @@ type Querier interface {
 	// ── Feature Flags / Config / Frontend / Translations ────────────────────────
 	ListSystemConfigs(ctx context.Context) ([]SystemConfig, error)
 	ListUserDrafts(ctx context.Context, arg ListUserDraftsParams) ([]ListUserDraftsRow, error)
+	ListUserLegalAcceptances(ctx context.Context, userID pgtype.UUID) ([]ListUserLegalAcceptancesRow, error)
 	ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeliveriesParams) ([]ListWebhookDeliveriesRow, error)
 	ListWebhooksByPublication(ctx context.Context, publicationid string) ([]ListWebhooksByPublicationRow, error)
 	MarkArticleImportJobRunning(ctx context.Context, id string) error
@@ -470,6 +506,7 @@ type Querier interface {
 	MarkNewsletterDelivery(ctx context.Context, arg MarkNewsletterDeliveryParams) error
 	MarkNotificationsRead(ctx context.Context, arg MarkNotificationsReadParams) error
 	PinPost(ctx context.Context, arg PinPostParams) (bool, error)
+	PublishLegalDocumentVersion(ctx context.Context, id string) (LegalDocumentVersion, error)
 	// Réactive un asset purgé/supprimé (nouvelle fenêtre de 3 jours).
 	ReactivateMediaAsset(ctx context.Context, id string) (MediaAsset, error)
 	RemoveRecommendation(ctx context.Context, arg RemoveRecommendationParams) error
@@ -510,6 +547,10 @@ type Querier interface {
 	UpdateCategory(ctx context.Context, arg UpdateCategoryParams) error
 	UpdateCollaborationRequestResponse(ctx context.Context, arg UpdateCollaborationRequestResponseParams) error
 	UpdateHighlight(ctx context.Context, arg UpdateHighlightParams) (UpdateHighlightRow, error)
+	UpdateLegalDocument(ctx context.Context, arg UpdateLegalDocumentParams) (LegalDocument, error)
+	// Un brouillon est éditable ; une version publiée est immuable (on publie une
+	// nouvelle version, l'ancienne reste archivée comme preuve légale).
+	UpdateLegalDocumentVersion(ctx context.Context, arg UpdateLegalDocumentVersionParams) (LegalDocumentVersion, error)
 	UpdateMediaApiKeyName(ctx context.Context, arg UpdateMediaApiKeyNameParams) (int64, error)
 	UpdateMediaApiKeySecret(ctx context.Context, arg UpdateMediaApiKeySecretParams) (int64, error)
 	UpdateMediaInviteStatus(ctx context.Context, arg UpdateMediaInviteStatusParams) error
@@ -534,6 +575,10 @@ type Querier interface {
 	UpsertCollaborationRequest(ctx context.Context, arg UpsertCollaborationRequestParams) (UpsertCollaborationRequestRow, error)
 	// Ajoute un membre s'il manque (conversation existante re-ouverte).
 	UpsertConversationMember(ctx context.Context, arg UpsertConversationMemberParams) error
+	// Idempotent : un re-clic ne crée pas de doublon, il rafraîchit la preuve.
+	// La preuve est immuable : un re-clic renvoie la première acceptation sans
+	// la réécrire (sinon une source par défaut écraserait la preuve d'origine).
+	UpsertLegalAcceptance(ctx context.Context, arg UpsertLegalAcceptanceParams) (LegalAcceptance, error)
 	UpsertMediaMember(ctx context.Context, arg UpsertMediaMemberParams) error
 	UpsertNotificationPreferences(ctx context.Context, arg UpsertNotificationPreferencesParams) error
 	UpsertOAuthConsent(ctx context.Context, arg UpsertOAuthConsentParams) error
