@@ -13,7 +13,8 @@ import { I18nClientProvider } from '@qoe/i18n/provider';
 import { getStaticTranslations, getLanguage, initI18n } from '@qoe/i18n/server';
 import { TooltipProvider } from '@qoe/ui/ui/tooltip';
 import { Toaster } from '@qoe/ui/toast';
-import { AnalyticsScript } from '@qoe/analytics/client';
+import { CookieConsentBanner } from '@qoe/ui';
+import { AnalyticsGate } from '@/components/AnalyticsGate';
 import { cn } from '@qoe/utils';
 import {
   DevtoolsPanel,
@@ -235,7 +236,10 @@ export default async function RootLayout({
           </I18nClientProvider>
         </ThemeProvider>
 
-        <AnalyticsScript />
+        {/* Mesure d'audience conditionnée au consentement traceurs, et
+            bannière de choix (refus aussi simple qu'acceptation). */}
+        <AnalyticsGate />
+        <CookieConsentBanner locale={locale} />
       </body>
     </html>
   );
