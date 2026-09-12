@@ -285,7 +285,13 @@ func newRouter(d RouterDeps) *chi.Mux {
 	// Home widgets publics (systemConfig, trends, promos, onboarding, créateurs
 	// suggérés, trends sémantiques) — Go-only. Auth optionnelle : suggested-creators
 	// utilise le userID pour la similarité vectorielle.
-	homeHandler := home.NewHandler(home.NewService(pool))
+	// POST /subscribe : endpoint PUBLIC d'écriture du growth loop → rate-limit
+	// dédié anti-bots (10/min/IP, miroir tenant-check) + émission de
+	// subscriber.created (webhooks créateur) à chaque NOUVELLE inscription.
+	homeSvc := home.NewService(pool)
+	homeSvc.SetEventEmitter(asynqClient)
+	homeHandler := home.NewHandler(homeSvc)
+	homeHandler.SetSubscribeRateLimit(rc, time.Minute, 10)
 	r.With(auth.OptionalAuth).Group(func(pub chi.Router) {
 		homeHandler.RegisterPublic(pub)
 	})

@@ -7,18 +7,50 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
+	"github.com/redis/go-redis/v9"
 )
+
+// emailRegex compilée UNE fois au chargement du package (sinon recompilée
+// à chaque requête sur l'endpoint le plus exposé du growth loop).
+var emailRegex = regexp.MustCompile(`^[^\s@]+@[^\s@]+\.[^\s@]+$`)
 
 type Handler struct {
 	svc *Service
+
+	// subscribeLimiter (optionnel) : rate-limit Redis dédié de l'inscription
+	// newsletter — anti-abus d'un endpoint PUBLIC d'écriture (pollution de
+	// la base Subscriber, délivrabilité email, stats fausses). Miroir du
+	// pattern SetSendRateLimit du module newsletters. Défaut si non branché
+	// (tests, rc nil) : aucun.
+	rc     *redis.Client
+	window time.Duration
+	max    int
 }
 
 func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
+}
+
+// SetSubscribeRateLimit branche le rate-limit anti-abus de POST /subscribe
+// (par IP, fenêtre fixe — la boucle de croissance est le point d'entrée
+// privilégié des bots sur les sites tenants).
+func (h *Handler) SetSubscribeRateLimit(rc *redis.Client, window time.Duration, max int) {
+	h.rc = rc
+	h.window = window
+	h.max = max
+}
+
+// subscribeLimiter enveloppe h.subscribe du limiteur branché (no-op sinon).
+func (h *Handler) subscribeLimiter(next http.HandlerFunc) http.Handler {
+	if h.rc == nil || h.max <= 0 {
+		return next
+	}
+	return middleware.RateLimit("home-subscribe", h.rc, h.window, h.max, false)(next)
 }
 
 func (h *Handler) RegisterPublic(r chi.Router) {
@@ -30,7 +62,7 @@ func (h *Handler) RegisterPublic(r chi.Router) {
 		r.Get("/onboarding", h.getOnboarding)
 		r.Get("/suggested-creators", h.getSuggestedCreators)
 		r.Get("/semantic-trends", h.getSemanticTrends)
-		r.Post("/subscribe", h.subscribe)
+		r.Post("/subscribe", h.subscribeLimiter(h.subscribe).ServeHTTP)
 	})
 }
 
@@ -110,7 +142,6 @@ func (h *Handler) subscribe(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "email et publicationId requis")
 		return
 	}
-	emailRegex := regexp.MustCompile(`^[^\s@]+@[^\s@]+\.[^\s@]+$`)
 	if !emailRegex.MatchString(body.Email) {
 		response.BadRequest(w, "Veuillez saisir une adresse email valide.")
 		return
