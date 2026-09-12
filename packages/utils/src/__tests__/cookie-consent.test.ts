@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   acceptedOptionalCount,
+  activeConsentCategories,
+  analyticsAllowed,
   categoriesToChoice,
   choiceToCategories,
   COOKIE_CATEGORIES,
@@ -9,10 +11,14 @@ import {
   COOKIE_CONSENT_MAX_AGE,
   COOKIE_CONSENT_VERSION,
   defaultChoice,
+  hasAnalyticsObjection,
   normalizeConsent,
   parseConsentCookie,
+  requiresConsentBanner,
+  resolveAnalyticsMode,
   TRACKER_REGISTRY,
   trackersByCategory,
+  trackersRequiringConsent,
 } from '../cookie-consent';
 
 describe('🍪 cookie-consent — normalizeConsent', () => {
@@ -90,12 +96,25 @@ describe('🍪 cookie-consent — catégories', () => {
     expect(locked).toEqual(['necessary']);
   });
 
-  it('part d’un refus par défaut, jamais d’une acceptation implicite', () => {
+  it('part d’une mesure d’audience allumée (exemptée) et de rien d’autre', () => {
     const choice = defaultChoice();
-    expect(choice.analytics).toBe(false);
+    expect(choice.analytics).toBe(true);
     expect(choice.functional).toBe(false);
     expect(choice.marketing).toBe(false);
-    expect(acceptedOptionalCount(choice)).toBe(0);
+    expect(acceptedOptionalCount(choice)).toBe(1);
+  });
+
+  it('ne déclare plus aucune catégorie déployée comme soumise à consentement', () => {
+    // C'est la justification même de la disparition de la bannière : s'il
+    // restait un seul traceur déployé exigeant un accord, la supprimer serait
+    // une violation.
+    expect(trackersRequiringConsent()).toEqual([]);
+  });
+
+  it('ne conserve la catégorie publicitaire que comme garde-fou, vide', () => {
+    const marketing = COOKIE_CATEGORIES.find((category) => category.key === 'marketing');
+    expect(marketing?.consentRequired).toBe(true);
+    expect(trackersByCategory('marketing')).toEqual([]);
   });
 
   it('convertit un choix en dictionnaire de catégories, nécessaire toujours actif', () => {
@@ -165,5 +184,58 @@ describe('🍪 cookie-consent — registre des traceurs', () => {
       0
     );
     expect(total).toBe(TRACKER_REGISTRY.length);
+  });
+
+  it('justifie la dispense du traceur qui en bénéficie', () => {
+    const exempt = TRACKER_REGISTRY.filter((tracker) => !tracker.consentRequired);
+    expect(exempt.length).toBeGreaterThan(0);
+    // Le traceur de mesure d'audience doit porter sa justification : c'est la
+    // pièce que l'on oppose à un contrôle, elle ne peut pas être implicite.
+    const analytics = TRACKER_REGISTRY.find((tracker) => tracker.category === 'analytics');
+    expect(analytics?.exemption?.fr).toMatch(/cookie/);
+    expect(analytics?.exemption?.en).toMatch(/IP/);
+  });
+});
+
+describe('🍪 cookie-consent — mode exempté', () => {
+  const choice = (analytics: boolean) =>
+    encodeURIComponent(
+      JSON.stringify({
+        version: COOKIE_CONSENT_VERSION,
+        analytics,
+        functional: false,
+        marketing: false,
+        decidedAt: new Date().toISOString(),
+      })
+    );
+
+  it('ne bascule en régime « consentement » que sur demande explicite', () => {
+    expect(resolveAnalyticsMode(undefined)).toBe('exempt');
+    expect(resolveAnalyticsMode('')).toBe('exempt');
+    expect(resolveAnalyticsMode('n’importe quoi')).toBe('exempt');
+    expect(resolveAnalyticsMode('CONSENT')).toBe('consent');
+  });
+
+  it('supprime la bannière bloquante en mode exempté', () => {
+    expect(requiresConsentBanner('exempt')).toBe(false);
+    expect(activeConsentCategories('exempt')).toEqual([]);
+    expect(requiresConsentBanner('consent')).toBe(true);
+    expect(activeConsentCategories('consent')).toContain('analytics');
+  });
+
+  it('sert la mesure d’audience sans aucune décision préalable', () => {
+    expect(analyticsAllowed(undefined, 'exempt')).toBe(true);
+    expect(analyticsAllowed(undefined, 'consent')).toBe(false);
+  });
+
+  it('honore une opposition : un ancien refus ne devient jamais un accord', () => {
+    const refused = choice(false);
+    expect(analyticsAllowed(refused, 'exempt')).toBe(false);
+    expect(hasAnalyticsObjection(refused)).toBe(true);
+  });
+
+  it('n’exige un accord qu’en régime « consentement »', () => {
+    expect(analyticsAllowed(choice(true), 'consent')).toBe(true);
+    expect(analyticsAllowed(choice(false), 'consent')).toBe(false);
   });
 });
