@@ -123,12 +123,12 @@ func TestDerivedUserName(t *testing.T) {
 	cases := []struct {
 		email, username, want string
 	}{
-		{"alice@test.dev", "Alice-42", "alice42"},   // sanitisé (le `-` est retiré)
-		{"alice@test.dev", "bob", "bob"},             // claim valide
-		{"alice@test.dev", "@#", "alice"},            // invalide → préfixe email
-		{"alice@test.dev", "admin", "alice"},         // réservé → préfixe email
-		{"bob@test.dev", "", "bob"},                  // vide → préfixe email
-		{"", "", "user"},                             // tout vide → fallback
+		{"alice@test.dev", "Alice-42", "alice42"}, // sanitisé (le `-` est retiré)
+		{"alice@test.dev", "bob", "bob"},          // claim valide
+		{"alice@test.dev", "@#", "alice"},         // invalide → préfixe email
+		{"alice@test.dev", "admin", "alice"},      // réservé → préfixe email
+		{"bob@test.dev", "", "bob"},               // vide → préfixe email
+		{"", "", "user"},                          // tout vide → fallback
 	}
 	for _, c := range cases {
 		if got := derivedUserName(c.email, c.username); got != c.want {

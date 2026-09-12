@@ -29,7 +29,14 @@ func (s *Service) readConfig(ctx context.Context, key string) string {
 
 // SyncUserFromAuth crée (ou met à jour) la ligne User depuis les claims du
 // JWT Supabase — parité syncUserFromAuth Prisma (routes /auth/callback).
+// Variante sans métadonnées de requête (auto-réparation, tests).
 func (s *Service) SyncUserFromAuth(ctx context.Context, userID string, claims map[string]any) (created, needsOnboarding bool, err error) {
+	return s.syncUserFromAuth(ctx, userID, claims, requestMeta{})
+}
+
+// syncUserFromAuth est l'implémentation réelle : elle reçoit en plus l'origine
+// de la requête, qui sert d'élément de preuve aux consentements d'inscription.
+func (s *Service) syncUserFromAuth(ctx context.Context, userID string, claims map[string]any, origin requestMeta) (created, needsOnboarding bool, err error) {
 	email, _ := claims["email"].(string)
 	meta, _ := claims["user_metadata"].(map[string]any)
 	if meta == nil {
@@ -96,6 +103,9 @@ func (s *Service) SyncUserFromAuth(ctx context.Context, userID string, claims ma
 			return false, false, insertErr
 		}
 		if insertErr == nil {
+			// 🆕 Le compte vient de naître : on ancre ici les acceptations
+			// cochées au formulaire d'inscription (métadonnées du JWT).
+			s.recordSignupConsent(ctx, userID, claims, origin)
 			return true, true, nil
 		}
 		// L'email existe déjà avec un AUTRE id (session Supabase plus récente

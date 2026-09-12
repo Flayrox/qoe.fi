@@ -308,7 +308,12 @@ func newRouter(d RouterDeps) *chi.Mux {
 	// (/v1/me*) protégé. RegisterPublic est monté DIRECTEMENT sur le routeur
 	// racine pour battre le wildcard public du module creator
 	// (/v1/users/{username}) qui masquerait /v1/users/search sinon.
-	usersHandler := users.NewHandler(users.NewServiceWithGoTrue(pool, d.SupabaseAuthURL, d.SupabaseServiceRoleKey))
+	// Une seule instance du service users : c'est elle qui crée la ligne User
+	// au premier JWT (SyncUserFromAuth) et qui doit donc porter le dépositaire
+	// des preuves de consentement recueillies au formulaire d'inscription.
+	usersSvc := users.NewServiceWithGoTrue(pool, d.SupabaseAuthURL, d.SupabaseServiceRoleKey)
+	usersSvc.SetSignupConsentRecorder(legalSvc)
+	usersHandler := users.NewHandler(usersSvc)
 	r.With(authmw.RateLimit("username-search", rc, time.Minute, 60, false)).Group(func(publicUsers chi.Router) {
 		usersHandler.RegisterPublic(publicUsers)
 	})
@@ -405,7 +410,6 @@ func newRouter(d RouterDeps) *chi.Mux {
 		// centralisée de la ligne User absente (login de démo / reseed /
 		// backup restauré → 404 « Utilisateur introuvable »). Un 404 sur ces
 		// endpoints recrée la ligne depuis les claims JWT puis rejoue une fois.
-		var usersSvc = users.NewServiceWithGoTrue(d.Pool, d.SupabaseAuthURL, d.SupabaseServiceRoleKey)
 		protected.With(authmw.AutoRepairReaderUser(func(ctx context.Context, userID string, claims map[string]any) (bool, error) {
 			created, _, err := usersSvc.SyncUserFromAuth(ctx, userID, claims)
 			return created, err

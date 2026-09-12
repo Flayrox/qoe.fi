@@ -212,3 +212,182 @@ SELECT d.id, d.slug, d.requires_acceptance,
        (SELECT count(*) FROM legal_document_version v WHERE v.document_id = d.id) AS versions_count
 FROM legal_document d
 ORDER BY d.sort_order ASC;
+
+-- ─── Avis de nouvelle version (outbox email) ─────────────────────────
+
+-- name: InsertLegalNotice :one
+-- Un avis par version publiée. ON CONFLICT revoie la ligne existante pour que
+-- le service soit idempotent sans avoir à gérer un cas d'erreur particulier.
+INSERT INTO legal_notice (document_id, version_id, locale, version, title, changelog, portal_path, created_by)
+VALUES (
+  sqlc.arg(document_id),
+  sqlc.arg(version_id),
+  sqlc.arg(locale),
+  sqlc.arg(version),
+  sqlc.arg(title),
+  sqlc.narg(changelog),
+  sqlc.arg(portal_path),
+  sqlc.narg(created_by)
+)
+ON CONFLICT (version_id) DO UPDATE
+  SET title = legal_notice.title
+RETURNING *;
+
+-- name: ListLegalNoticeRecipients :many
+-- Destinataires d'un avis : les comptes qui avaient accepté une AUTRE version
+-- du même document (ceux dont le consentement doit être renouvelé). Un compte
+-- suspendu ou sans email est exclu : l'email ne part pas dans le vide.
+SELECT DISTINCT a.user_id, u.email
+FROM legal_acceptance a
+JOIN "User" u ON u.id = a.user_id
+WHERE a.document_id = sqlc.arg(document_id)::text
+  AND a.version_id <> sqlc.arg(version_id)::text
+  AND u."isSuspended" = false
+  AND u.email IS NOT NULL AND u.email <> ''
+  AND (sqlc.narg(exclude_user_id)::uuid IS DISTINCT FROM a.user_id)
+ORDER BY u.email ASC;
+
+-- name: InsertLegalNoticeDelivery :exec
+INSERT INTO legal_notice_delivery (notice_id, user_id, email)
+VALUES (sqlc.arg(notice_id), sqlc.arg(user_id)::uuid, sqlc.arg(email))
+ON CONFLICT (notice_id, user_id) DO NOTHING;
+
+-- name: ClaimLegalNoticeDeliveries :many
+-- Réclamation atomique (QUEUED → PROCESSING) : plusieurs instances du worker
+-- peuvent tourner sans envoyer deux fois le même email.
+WITH candidates AS (
+  SELECT id FROM legal_notice_delivery
+  WHERE status = 'QUEUED' AND available_at <= now()
+  ORDER BY created_at ASC
+  FOR UPDATE SKIP LOCKED
+  LIMIT sqlc.arg(batch_size)
+)
+UPDATE legal_notice_delivery d
+SET status = 'PROCESSING', attempts = d.attempts + 1, updated_at = now()
+FROM candidates c
+WHERE d.id = c.id
+RETURNING d.id, d.notice_id, d.user_id, d.email, d.attempts;
+
+-- name: MarkLegalNoticeDelivery :exec
+UPDATE legal_notice_delivery
+SET status = sqlc.arg(status),
+    provider = sqlc.narg(provider),
+    last_error = sqlc.narg(last_error),
+    sent_at = sqlc.narg(sent_at),
+    updated_at = now()
+WHERE id = sqlc.arg(id);
+
+-- name: GetLegalNoticeEmailContext :one
+SELECT n.id, n.title, n.version, n.locale, n.changelog, n.portal_path,
+       d.slug, d.audience, d.category,
+       COALESCE(u.name, u.username, '')::text AS recipient_name
+FROM legal_notice n
+JOIN legal_document d ON d.id = n.document_id
+LEFT JOIN "User" u ON u.id = sqlc.arg(user_id)::uuid
+WHERE n.id = sqlc.arg(notice_id);
+
+-- name: ListLegalNoticesAdmin :many
+SELECT n.id, n.document_id, n.version_id, n.locale, n.version, n.title, n.changelog,
+       n.portal_path, n.created_at, d.slug AS document_slug,
+       (SELECT count(*) FROM legal_notice_delivery dd WHERE dd.notice_id = n.id) AS deliveries,
+       (SELECT count(*) FROM legal_notice_delivery dd WHERE dd.notice_id = n.id AND dd.status = 'SENT') AS sent,
+       (SELECT count(*) FROM legal_notice_delivery dd WHERE dd.notice_id = n.id AND dd.status = 'FAILED') AS failed
+FROM legal_notice n
+JOIN legal_document d ON d.id = n.document_id
+ORDER BY n.created_at DESC
+LIMIT sqlc.arg(limit_count);
+
+-- name: CountLegalNotices :one
+SELECT count(*) FROM legal_notice;
+
+-- ─── Consentement traceurs (journal serveur) ─────────────────────────
+
+-- name: InsertCookieConsentRecord :one
+-- Journal append-only : un changement de choix ajoute une ligne, on n'écrase
+-- jamais une preuve. `consent_id` est l'identifiant que le navigateur conserve
+-- pour corréler ses choix successifs.
+INSERT INTO cookie_consent_record (consent_id, user_id, session_id, locale, policy_version, categories, source, country, ip, user_agent)
+VALUES (
+  sqlc.narg(consent_id),
+  sqlc.narg(user_id)::uuid,
+  sqlc.narg(session_id),
+  sqlc.arg(locale),
+  sqlc.arg(policy_version),
+  sqlc.arg(categories),
+  sqlc.arg(source),
+  sqlc.narg(country),
+  sqlc.narg(ip),
+  sqlc.narg(user_agent)
+)
+RETURNING id, created_at;
+
+-- name: CookieConsentStats :one
+SELECT count(*) AS total,
+       count(*) FILTER (WHERE created_at > CURRENT_TIMESTAMP - INTERVAL '30 days') AS last_30d,
+       count(DISTINCT consent_id) AS distinct_browsers,
+       count(*) FILTER (WHERE (categories->>'analytics')::text = 'true') AS analytics_opt_in,
+       count(*) FILTER (WHERE (categories->>'analytics')::text = 'false') AS analytics_opt_out,
+       max(created_at)::timestamp(3) AS last_choice_at
+FROM cookie_consent_record;
+
+-- name: ListCookieConsentRecords :many
+SELECT id, consent_id, user_id, locale, policy_version, categories, source, country, ip, user_agent, created_at
+FROM cookie_consent_record
+WHERE (sqlc.narg(consent_id)::text IS NULL OR consent_id = sqlc.narg(consent_id)::text)
+ORDER BY seq DESC
+LIMIT sqlc.arg(limit_count);
+
+-- ─── Conformité ──────────────────────────────────────────────────────
+
+-- name: ListLegalComplianceDocuments :many
+-- Vue conformité : pour chaque document, la version publiée, la couverture du
+-- consentement sur la version courante, et l'activité d'édition.
+SELECT d.id, d.slug, d.category, d.audience, d.requires_acceptance, d.is_active, d.sort_order,
+       COALESCE((SELECT v.version FROM legal_document_version v
+                  WHERE v.document_id = d.id AND v.status = 'PUBLISHED'
+                  ORDER BY v.published_at DESC NULLS LAST LIMIT 1), '')::text AS published_version,
+       (SELECT count(*) FROM legal_document_version v WHERE v.document_id = d.id AND v.status = 'PUBLISHED') AS published_locales,
+       (SELECT count(DISTINCT v.locale) FROM legal_document_version v WHERE v.document_id = d.id AND v.status = 'PUBLISHED') AS distinct_locales,
+       (SELECT count(*) FROM legal_document_version v WHERE v.document_id = d.id AND v.status = 'DRAFT') AS drafts_count,
+       (SELECT max(v.published_at)::timestamp(3) FROM legal_document_version v WHERE v.document_id = d.id AND v.status = 'PUBLISHED') AS last_published_at,
+       (SELECT count(*) FROM legal_acceptance a WHERE a.document_id = d.id) AS total_acceptances,
+       (SELECT count(*) FROM legal_acceptance a
+          JOIN legal_document_version v ON v.id = a.version_id AND v.status = 'PUBLISHED'
+         WHERE a.document_id = d.id) AS current_acceptances,
+       (SELECT max(a.accepted_at)::timestamp(3) FROM legal_acceptance a WHERE a.document_id = d.id) AS last_accepted_at
+FROM legal_document d
+ORDER BY d.sort_order ASC, d.slug ASC;
+
+-- name: CountLegalEligibleUsers :one
+SELECT count(*) AS eligible,
+       count(*) FILTER (WHERE role IN ('creator', 'superadmin')) AS creators
+FROM "User"
+WHERE "isSuspended" = false;
+
+-- name: CountLegalConsentGaps :one
+-- Utilisateurs actifs qui doivent encore accepter un document « à accepter »
+-- dans sa version publiée courante.
+SELECT count(DISTINCT u.id) AS users_with_gaps,
+       COALESCE(sum(gaps.pending), 0)::bigint AS pending_acceptances
+FROM "User" u
+JOIN LATERAL (
+  SELECT count(*) AS pending
+  FROM legal_document d
+  JOIN legal_document_version v
+    ON v.document_id = d.id AND v.status = 'PUBLISHED' AND v.locale = 'fr'
+  LEFT JOIN legal_acceptance a ON a.version_id = v.id AND a.user_id = u.id
+  WHERE d.is_active = true AND d.requires_acceptance = true AND a.id IS NULL
+) gaps ON true
+WHERE u."isSuspended" = false AND gaps.pending > 0;
+
+-- name: GetLegalConsentCoverageByAudience :many
+-- Couverture du consentement par audience, pour repérer un segment oublié.
+SELECT d.audience,
+       count(DISTINCT d.id) AS documents,
+       count(DISTINCT a.user_id) AS accepted_users
+FROM legal_document d
+LEFT JOIN legal_document_version v ON v.document_id = d.id AND v.status = 'PUBLISHED'
+LEFT JOIN legal_acceptance a ON a.version_id = v.id
+WHERE d.requires_acceptance = true AND d.is_active = true
+GROUP BY d.audience
+ORDER BY d.audience ASC;

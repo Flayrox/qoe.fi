@@ -13,6 +13,7 @@
 //     version qui exige un consentement redéclenche le consentement.
 //   - Le contenu de départ est embarqué dans le binaire (seed idempotent) :
 //     aucune page légale vide après un déploiement.
+//
 // =====================================================================
 package legal
 
@@ -20,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 
@@ -60,17 +62,17 @@ func (s *Service) SetFlags(f FlagChecker) { s.flags = f }
 
 // Document est un document juridique publié (résumé public, sans corps).
 type Document struct {
-	ID                 string    `json:"id"`
-	Slug               string    `json:"slug"`
-	Category           string    `json:"category"`
-	Audience           string    `json:"audience"`
-	RequiresAcceptance bool      `json:"requiresAcceptance"`
-	Version            string    `json:"version"`
-	VersionID          string    `json:"versionId"`
-	Locale             string    `json:"locale"`
-	Title              string    `json:"title"`
-	Summary            string    `json:"summary"`
-	Changelog          *string   `json:"changelog,omitempty"`
+	ID                 string     `json:"id"`
+	Slug               string     `json:"slug"`
+	Category           string     `json:"category"`
+	Audience           string     `json:"audience"`
+	RequiresAcceptance bool       `json:"requiresAcceptance"`
+	Version            string     `json:"version"`
+	VersionID          string     `json:"versionId"`
+	Locale             string     `json:"locale"`
+	Title              string     `json:"title"`
+	Summary            string     `json:"summary"`
+	Changelog          *string    `json:"changelog,omitempty"`
 	EffectiveAt        *time.Time `json:"effectiveAt,omitempty"`
 	PublishedAt        *time.Time `json:"publishedAt,omitempty"`
 	UpdatedAt          *time.Time `json:"updatedAt,omitempty"`
@@ -101,6 +103,9 @@ type Version struct {
 	CreatedByName *string    `json:"createdByName,omitempty"`
 	CreatedAt     *time.Time `json:"createdAt,omitempty"`
 	UpdatedAt     *time.Time `json:"updatedAt,omitempty"`
+	// Notice résume la campagne d'information déclenchée par la publication
+	// (nil quand le document n'exige pas d'acceptation).
+	Notice *NoticeDispatch `json:"notice,omitempty"`
 }
 
 // AdminDocument est la vue console (documents inactifs, brouillons, compteurs).
@@ -136,19 +141,19 @@ type PendingAcceptance struct {
 
 // Acceptance est la preuve de consentement enregistrée.
 type Acceptance struct {
-	ID          string     `json:"id"`
-	DocumentID  string     `json:"documentId"`
-	DocumentSlug string    `json:"documentSlug,omitempty"`
-	Category    string     `json:"category,omitempty"`
-	VersionID   string     `json:"versionId"`
-	Version     string     `json:"version"`
-	Locale      string     `json:"locale"`
-	AcceptedAt  *time.Time `json:"acceptedAt"`
-	Source      string     `json:"source"`
-	Method      string     `json:"method"`
-	IP          *string    `json:"ip,omitempty"`
-	UserAgent   *string    `json:"userAgent,omitempty"`
-	UserEmail   *string    `json:"userEmail,omitempty"`
+	ID           string     `json:"id"`
+	DocumentID   string     `json:"documentId"`
+	DocumentSlug string     `json:"documentSlug,omitempty"`
+	Category     string     `json:"category,omitempty"`
+	VersionID    string     `json:"versionId"`
+	Version      string     `json:"version"`
+	Locale       string     `json:"locale"`
+	AcceptedAt   *time.Time `json:"acceptedAt"`
+	Source       string     `json:"source"`
+	Method       string     `json:"method"`
+	IP           *string    `json:"ip,omitempty"`
+	UserAgent    *string    `json:"userAgent,omitempty"`
+	UserEmail    *string    `json:"userEmail,omitempty"`
 }
 
 // Stats agrège les preuves d'acceptation par document (console admin).
@@ -746,7 +751,17 @@ func (s *Service) PublishVersion(ctx context.Context, actor, versionID string) (
 	s.audit(ctx, actor, "legal.version.publish", current.DocumentID, map[string]any{
 		"versionId": published.ID, "version": published.Version, "locale": published.Locale,
 	})
-	return adminVersion(published), nil
+	out := adminVersion(published)
+	// 📣 Prévenir les personnes qui avaient accepté la version précédente :
+	// c'est l'obligation d'information effective (art. 12 RGPD), et sans elle
+	// une acceptation tacite ne vaudrait rien. Best-effort : une campagne qui
+	// échoue ne doit pas annuler une publication déjà commitée.
+	if notice, err := s.EnqueueNotice(ctx, actor, published); err != nil {
+		log.Printf("[legal] avis de publication non préparé (version %s): %v", published.ID, err)
+	} else {
+		out.Notice = notice
+	}
+	return out, nil
 }
 
 // ArchiveVersion dépublie une version publiée (le document disparaît du public

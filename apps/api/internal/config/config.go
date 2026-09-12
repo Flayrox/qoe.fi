@@ -56,12 +56,15 @@ type Config struct {
 	NotificationDeliveryEnabled bool
 	EmailProvider               string
 	EmailFrom                   string
-	SMTPHost                    string
-	SMTPPort                    int
-	SMTPUser                    string
-	SMTPPass                    string
-	SMTPSecure                  bool
-	ResendAPIKey                string
+	// LegalPortalBaseURL : racine publique utilisée dans les emails d'avis
+	// légal (le portail de re-consentement du domaine principal).
+	LegalPortalBaseURL string
+	SMTPHost           string
+	SMTPPort           int
+	SMTPUser           string
+	SMTPPass           string
+	SMTPSecure         bool
+	ResendAPIKey       string
 	// NewsletterRatePerMinute est le rythme d'envoi des emails newsletter /
 	// release d'articles (emails par minute, défaut 30 — SMTP self-hosté safe).
 	NewsletterRatePerMinute int
@@ -102,6 +105,7 @@ func Load() *Config {
 		NotificationDeliveryEnabled: boolEnv("NOTIFICATION_DELIVERY_ENABLED"),
 		EmailProvider:               envOr("EMAIL_PROVIDER", ""),
 		EmailFrom:                   envOr("EMAIL_FROM", ""),
+		LegalPortalBaseURL:          envOr("LEGAL_PORTAL_BASE_URL", "https://qoe.fi"),
 		SMTPHost:                    envOr("SMTP_HOST", ""),
 		SMTPPort:                    envInt("SMTP_PORT", 587),
 		SMTPUser:                    envOr("SMTP_USER", ""),

@@ -85,11 +85,11 @@ func TestFault_Handlers_PoolErrors(t *testing.T) {
 	userID := seedUsers(t)
 
 	cases := []struct {
-		name     string
-		fail     string // exec | query | queryrow
+		name         string
+		fail         string // exec | query | queryrow
 		method, path string
-		body     string
-		want     int
+		body         string
+		want         int
 	}{
 		{"me-500", "queryrow", http.MethodGet, "/v1/me", "", http.StatusInternalServerError},
 		{"billing-500", "queryrow", http.MethodGet, "/v1/me/billing", "", http.StatusInternalServerError},

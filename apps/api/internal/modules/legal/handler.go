@@ -26,12 +26,17 @@ func (h *Handler) RegisterPublic(r chi.Router) {
 	r.Get("/v1/legal", h.list)
 	r.Get("/v1/legal/{slug}", h.get)
 	r.Get("/v1/legal/{slug}/versions", h.versions)
+	// 🍪 Le choix traceurs d'un visiteur anonyme doit être journalisé même sans
+	// compte : c'est la preuve légale opposable, pas un service réservé.
+	r.Post("/v1/legal/cookie-consent", h.recordCookieConsent)
 }
 
 // RegisterProtected monte les routes du lecteur authentifié (JWT) :
 // consentement versionné + état des consentements manquants.
 func (h *Handler) RegisterProtected(r chi.Router) {
 	r.Post("/v1/legal/{slug}/accept", h.accept)
+	// Acceptation par lot : fin d'onboarding, portail multi-documents.
+	r.Post("/v1/legal/accept-batch", h.acceptBatch)
 	r.Get("/v1/me/legal-acceptances", h.myAcceptances)
 	r.Get("/v1/me/legal-pending", h.myPending)
 }
@@ -44,6 +49,9 @@ func (h *Handler) RegisterAdmin(r chi.Router) {
 	r.Post("/v1/admin/legal/seed", h.adminSeed)
 	r.Get("/v1/admin/legal/acceptances", h.adminAcceptances)
 	r.Get("/v1/admin/legal/stats", h.adminStats)
+	r.Get("/v1/admin/legal/compliance", h.adminCompliance)
+	r.Get("/v1/admin/legal/notices", h.adminNotices)
+	r.Get("/v1/admin/legal/cookie-consents", h.adminCookieConsents)
 	r.Get("/v1/admin/legal/{id}/versions", h.adminVersions)
 	r.Post("/v1/admin/legal/{id}/versions", h.adminCreateVersion)
 	r.Patch("/v1/admin/legal/{id}", h.adminUpdate)
@@ -149,6 +157,62 @@ func (h *Handler) myPending(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, map[string]any{"items": items, "count": len(items)})
+}
+
+// POST /v1/legal/accept-batch — accepte d'un coup plusieurs documents
+// (onboarding créateur, portail). Authentification requise.
+func (h *Handler) acceptBatch(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok || userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	var body struct {
+		Locale string   `json:"locale"`
+		Source string   `json:"source"`
+		Method string   `json:"method"`
+		Slugs  []string `json:"slugs"`
+	}
+	if r.Body != nil {
+		_ = json.NewDecoder(r.Body).Decode(&body)
+	}
+	if strings.TrimSpace(body.Locale) == "" {
+		body.Locale = localeOf(r)
+	}
+	items, err := h.svc.AcceptBatch(r.Context(), userID, AcceptBatchInput{
+		Locale: body.Locale, Source: body.Source, Method: body.Method, Slugs: body.Slugs,
+		IP: clientIP(r), UserAgent: r.UserAgent(),
+	})
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	response.Created(w, map[string]any{"items": items, "count": len(items)})
+}
+
+// POST /v1/legal/cookie-consent — journalise un choix de traceurs. Accessible
+// sans compte : la preuve existe pour un visiteur anonyme. Si la requête porte
+// un JWT valide, la ligne est rattachée au compte.
+func (h *Handler) recordCookieConsent(w http.ResponseWriter, r *http.Request) {
+	var body CookieConsentInput
+	if r.Body != nil {
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			response.BadRequest(w, "JSON invalide")
+			return
+		}
+	}
+	body.IP = clientIP(r)
+	body.UserAgent = r.UserAgent()
+	body.Country = countryFromRequest(r)
+	if userID, ok := middleware.UserID(r.Context()); ok {
+		body.UserID = userID
+	}
+	receipt, err := h.svc.RecordCookieConsent(r.Context(), body)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	response.Created(w, receipt)
 }
 
 // ─── Superadmin ──────────────────────────────────────────────────────
@@ -329,6 +393,62 @@ func (h *Handler) adminStats(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, map[string]any{"items": items})
 }
 
+// GET /v1/admin/legal/compliance — photographie de conformité (couverture,
+// documents sans version publiée, échéances réglementaires).
+func (h *Handler) adminCompliance(w http.ResponseWriter, r *http.Request) {
+	actor := h.actor(w, r)
+	if actor == "" {
+		return
+	}
+	snapshot, err := h.svc.Compliance(r.Context(), actor)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	response.OK(w, snapshot)
+}
+
+// GET /v1/admin/legal/notices — campagnes d'information déclenchées par les
+// publications (avec l'état d'envoi de chaque destinataire).
+func (h *Handler) adminNotices(w http.ResponseWriter, r *http.Request) {
+	actor := h.actor(w, r)
+	if actor == "" {
+		return
+	}
+	limit := int32(50)
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil {
+			limit = int32(n)
+		}
+	}
+	items, err := h.svc.AdminNotices(r.Context(), actor, limit)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	response.OK(w, map[string]any{"items": items, "count": len(items)})
+}
+
+// GET /v1/admin/legal/cookie-consents — journal des choix de traceurs.
+func (h *Handler) adminCookieConsents(w http.ResponseWriter, r *http.Request) {
+	actor := h.actor(w, r)
+	if actor == "" {
+		return
+	}
+	limit := int32(100)
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil {
+			limit = int32(n)
+		}
+	}
+	items, err := h.svc.ListCookieConsentRecords(r.Context(), actor, r.URL.Query().Get("consentId"), limit)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	response.OK(w, map[string]any{"items": items, "count": len(items)})
+}
+
 // POST /v1/admin/legal/seed — installe les documents manquants depuis le
 // contenu embarqué (idempotent : ne touche jamais à une version existante).
 func (h *Handler) adminSeed(w http.ResponseWriter, r *http.Request) {
@@ -373,6 +493,17 @@ func localeOf(r *http.Request) string {
 		return NormalizeLocale(strings.Split(raw, ",")[0])
 	}
 	return "fr"
+}
+
+// countryFromRequest lit le pays propagé par le proxy (Cloudflare / Caddy)
+// quand il existe. Jamais déduit d'une base GeoIP locale : absent = absent.
+func countryFromRequest(r *http.Request) string {
+	for _, header := range []string{"CF-IPCountry", "X-Country-Code"} {
+		if v := strings.TrimSpace(r.Header.Get(header)); v != "" && len(v) <= 2 {
+			return strings.ToUpper(v)
+		}
+	}
+	return ""
 }
 
 // clientIP privilégie l'IP réelle (middleware.RealIP) puis X-Forwarded-For.

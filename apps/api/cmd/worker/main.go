@@ -106,6 +106,9 @@ func main() {
 	newsletterWorker.SetEmailProvider(emailProvider, cfg.EmailFrom)
 	if emailProvider != nil {
 		go workers.RunEmailDeliveryLoop(ctx, pool, emailProvider, cfg.EmailFrom, 30*time.Second, 50)
+		// 📣 Avis légaux : prévenir les personnes dont le consentement doit être
+		// renouvelé après la publication d'une nouvelle version (art. 12 RGPD).
+		go workers.RunLegalNoticeLoop(ctx, pool, emailProvider, cfg.EmailFrom, cfg.LegalPortalBaseURL, time.Minute, 50)
 	} else {
 		log.Println("[email-delivery] désactivé (EMAIL_PROVIDER non configuré)")
 	}

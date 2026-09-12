@@ -491,6 +491,22 @@ func (h *Handler) toggleMuteWord(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, map[string]any{"muted": muted, "word": word})
 }
 
+// requestIP résout l'IP d'origine (posée par le reverse-proxy) sans dépendre
+// d'un middleware précis : Real-IP d'abord, puis le premier X-Forwarded-For.
+func requestIP(r *http.Request) string {
+	if ip := strings.TrimSpace(r.Header.Get("X-Real-IP")); ip != "" {
+		return ip
+	}
+	if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
+		return strings.TrimSpace(strings.Split(fwd, ",")[0])
+	}
+	host := r.RemoteAddr
+	if i := strings.LastIndex(host, ":"); i > 0 {
+		host = host[:i]
+	}
+	return host
+}
+
 // POST /v1/me/sync — crée/met à jour la ligne User depuis les claims JWT
 // (parité syncUserFromAuth Prisma, utilisé par les routes /auth/callback).
 func (h *Handler) syncUser(w http.ResponseWriter, r *http.Request) {
@@ -500,7 +516,12 @@ func (h *Handler) syncUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	claims := middleware.Claims(r.Context())
-	created, needsOnboarding, err := h.svc.SyncUserFromAuth(r.Context(), userID, claims)
+	// L'IP et l'agent servent d'éléments de preuve aux consentements
+	// d'inscription : on les fait descendre avec les claims.
+	created, needsOnboarding, err := h.svc.syncUserFromAuth(r.Context(), userID, claims, requestMeta{
+		IP:        requestIP(r),
+		UserAgent: r.UserAgent(),
+	})
 	if err != nil {
 		if errors.Is(err, ErrRegistrationsClosed) {
 			response.Forbidden(w, err.Error())
