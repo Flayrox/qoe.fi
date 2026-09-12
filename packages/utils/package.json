@@ -14,7 +14,8 @@
     "./action": "./src/action.ts",
     "./paywall": "./src/paywall.ts",
     "./markdown": "./src/markdown.ts",
-    "./cookie-consent": "./src/cookie-consent.ts"
+    "./cookie-consent": "./src/cookie-consent.ts",
+    "./legal-consent": "./src/legal-consent.ts"
   },
   "scripts": {
     "lint": "eslint .",
