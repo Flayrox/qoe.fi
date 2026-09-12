@@ -755,6 +755,27 @@ type LegalAcceptance struct {
 	Method     string           `json:"method"`
 }
 
+type LegalConsentExport struct {
+	ID                 string           `json:"id"`
+	Seq                int64            `json:"seq"`
+	Scope              string           `json:"scope"`
+	Subject            pgtype.Text      `json:"subject"`
+	Reason             pgtype.Text      `json:"reason"`
+	Filters            []byte           `json:"filters"`
+	RequestedBy        pgtype.UUID      `json:"requested_by"`
+	RequestedByEmail   pgtype.Text      `json:"requested_by_email"`
+	DocumentsCount     int32            `json:"documents_count"`
+	AcceptancesCount   int32            `json:"acceptances_count"`
+	CookieRecordsCount int32            `json:"cookie_records_count"`
+	ContentSha256      string           `json:"content_sha256"`
+	PreviousChain      pgtype.Text      `json:"previous_chain"`
+	ChainSha256        string           `json:"chain_sha256"`
+	Signature          string           `json:"signature"`
+	KeyID              string           `json:"key_id"`
+	Algorithm          string           `json:"algorithm"`
+	GeneratedAt        pgtype.Timestamp `json:"generated_at"`
+}
+
 type LegalDocument struct {
 	ID                 string           `json:"id"`
 	Slug               string           `json:"slug"`
@@ -780,6 +801,7 @@ type LegalDocumentVersion struct {
 	EffectiveAt pgtype.Timestamp `json:"effective_at"`
 	PublishedAt pgtype.Timestamp `json:"published_at"`
 	ArchivedAt  pgtype.Timestamp `json:"archived_at"`
+	ScheduledAt pgtype.Timestamp `json:"scheduled_at"`
 	CreatedBy   pgtype.UUID      `json:"created_by"`
 	CreatedAt   pgtype.Timestamp `json:"created_at"`
 	UpdatedAt   pgtype.Timestamp `json:"updated_at"`
@@ -803,6 +825,36 @@ type LegalNoticeDelivery struct {
 	NoticeID    string           `json:"notice_id"`
 	UserID      pgtype.UUID      `json:"user_id"`
 	Email       string           `json:"email"`
+	Status      string           `json:"status"`
+	Attempts    int32            `json:"attempts"`
+	Provider    pgtype.Text      `json:"provider"`
+	AvailableAt pgtype.Timestamp `json:"available_at"`
+	SentAt      pgtype.Timestamp `json:"sent_at"`
+	LastError   pgtype.Text      `json:"last_error"`
+	CreatedAt   pgtype.Timestamp `json:"created_at"`
+	UpdatedAt   pgtype.Timestamp `json:"updated_at"`
+}
+
+type LegalReview struct {
+	ID             string           `json:"id"`
+	DocumentID     string           `json:"document_id"`
+	RuleKey        string           `json:"rule_key"`
+	DueAt          pgtype.Timestamp `json:"due_at"`
+	Status         string           `json:"status"`
+	DraftVersionID pgtype.Text      `json:"draft_version_id"`
+	Notes          pgtype.Text      `json:"notes"`
+	OpenedAt       pgtype.Timestamp `json:"opened_at"`
+	CompletedAt    pgtype.Timestamp `json:"completed_at"`
+	CreatedAt      pgtype.Timestamp `json:"created_at"`
+	UpdatedAt      pgtype.Timestamp `json:"updated_at"`
+}
+
+type LegalReviewReminder struct {
+	ID          string           `json:"id"`
+	ReviewID    string           `json:"review_id"`
+	UserID      pgtype.UUID      `json:"user_id"`
+	Email       string           `json:"email"`
+	Stage       string           `json:"stage"`
 	Status      string           `json:"status"`
 	Attempts    int32            `json:"attempts"`
 	Provider    pgtype.Text      `json:"provider"`
@@ -1242,6 +1294,8 @@ type Subscriber struct {
 	LtvCents             int32              `json:"ltvCents"`
 	ReceiveArticles      bool               `json:"receiveArticles"`
 	ReceivePosts         bool               `json:"receivePosts"`
+	ConfirmedAt          pgtype.Timestamp   `json:"confirmedAt"`
+	ConfirmationToken    pgtype.Text        `json:"confirmationToken"`
 	CurrentPeriodEnd     pgtype.Timestamp   `json:"currentPeriodEnd"`
 	StripeSubscriptionId pgtype.Text        `json:"stripeSubscriptionId"`
 	StripeCustomerId     pgtype.Text        `json:"stripeCustomerId"`

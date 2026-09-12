@@ -59,12 +59,22 @@ type Config struct {
 	// LegalPortalBaseURL : racine publique utilisée dans les emails d'avis
 	// légal (le portail de re-consentement du domaine principal).
 	LegalPortalBaseURL string
-	SMTPHost           string
-	SMTPPort           int
-	SMTPUser           string
-	SMTPPass           string
-	SMTPSecure         bool
-	ResendAPIKey       string
+	// LegalAdminBaseURL : racine de la console superadmin, cible des rappels
+	// d'échéance réglementaire.
+	LegalAdminBaseURL string
+	// LegalLifecycleIntervalMinutes : cadence du cycle de vie légal (ouverture
+	// des revues, brouillon proposé, publication planifiée, rappels).
+	LegalLifecycleIntervalMinutes int
+	// LegalExportSigningKey : graine Ed25519 encodée en base64 (32 octets) qui
+	// signe les exports du registre de consentement. Absente → les exports
+	// signés sont refusés (une clé éphémère n'est générée qu'en développement).
+	LegalExportSigningKey string
+	SMTPHost              string
+	SMTPPort              int
+	SMTPUser              string
+	SMTPPass              string
+	SMTPSecure            bool
+	ResendAPIKey          string
 	// NewsletterRatePerMinute est le rythme d'envoi des emails newsletter /
 	// release d'articles (emails par minute, défaut 30 — SMTP self-hosté safe).
 	NewsletterRatePerMinute int
@@ -102,17 +112,20 @@ func Load() *Config {
 		FlagsSigningKey:   envOr("FLAGS_SIGNING_KEY", ""),
 
 		// ── Boîte d'envoi email (drain des notifications) ────────────────
-		NotificationDeliveryEnabled: boolEnv("NOTIFICATION_DELIVERY_ENABLED"),
-		EmailProvider:               envOr("EMAIL_PROVIDER", ""),
-		EmailFrom:                   envOr("EMAIL_FROM", ""),
-		LegalPortalBaseURL:          envOr("LEGAL_PORTAL_BASE_URL", "https://qoe.fi"),
-		SMTPHost:                    envOr("SMTP_HOST", ""),
-		SMTPPort:                    envInt("SMTP_PORT", 587),
-		SMTPUser:                    envOr("SMTP_USER", ""),
-		SMTPPass:                    envOr("SMTP_PASS", ""),
-		SMTPSecure:                  boolEnv("SMTP_SECURE"),
-		ResendAPIKey:                envOr("RESEND_API_KEY", ""),
-		NewsletterRatePerMinute:     envInt("NEWSLETTER_RATE_PER_MINUTE", 30),
+		NotificationDeliveryEnabled:   boolEnv("NOTIFICATION_DELIVERY_ENABLED"),
+		EmailProvider:                 envOr("EMAIL_PROVIDER", ""),
+		EmailFrom:                     envOr("EMAIL_FROM", ""),
+		LegalPortalBaseURL:            envOr("LEGAL_PORTAL_BASE_URL", "https://qoe.fi"),
+		LegalAdminBaseURL:             envOr("LEGAL_ADMIN_BASE_URL", "https://admin.qoe.fi"),
+		LegalLifecycleIntervalMinutes: envInt("LEGAL_LIFECYCLE_INTERVAL_MINUTES", 15),
+		LegalExportSigningKey:         envOr("LEGAL_EXPORT_SIGNING_KEY", ""),
+		SMTPHost:                      envOr("SMTP_HOST", ""),
+		SMTPPort:                      envInt("SMTP_PORT", 587),
+		SMTPUser:                      envOr("SMTP_USER", ""),
+		SMTPPass:                      envOr("SMTP_PASS", ""),
+		SMTPSecure:                    boolEnv("SMTP_SECURE"),
+		ResendAPIKey:                  envOr("RESEND_API_KEY", ""),
+		NewsletterRatePerMinute:       envInt("NEWSLETTER_RATE_PER_MINUTE", 30),
 	}
 }
 

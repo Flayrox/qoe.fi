@@ -15,7 +15,7 @@ const archiveLegalDocumentVersion = `-- name: ArchiveLegalDocumentVersion :one
 UPDATE legal_document_version
 SET status = 'ARCHIVED', archived_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
 WHERE id = $1 AND status = 'PUBLISHED'
-RETURNING id, document_id, locale, version, title, summary, body, status, changelog, effective_at, published_at, archived_at, created_by, created_at, updated_at
+RETURNING id, document_id, locale, version, title, summary, body, status, changelog, effective_at, published_at, archived_at, scheduled_at, created_by, created_at, updated_at
 `
 
 func (q *Queries) ArchiveLegalDocumentVersion(ctx context.Context, id string) (LegalDocumentVersion, error) {
@@ -34,6 +34,7 @@ func (q *Queries) ArchiveLegalDocumentVersion(ctx context.Context, id string) (L
 		&i.EffectiveAt,
 		&i.PublishedAt,
 		&i.ArchivedAt,
+		&i.ScheduledAt,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -340,7 +341,7 @@ func (q *Queries) GetLegalDocumentBySlug(ctx context.Context, slug string) (Lega
 }
 
 const getLegalDocumentVersion = `-- name: GetLegalDocumentVersion :one
-SELECT id, document_id, locale, version, title, summary, body, status, changelog, effective_at, published_at, archived_at, created_by, created_at, updated_at FROM legal_document_version WHERE id = $1
+SELECT id, document_id, locale, version, title, summary, body, status, changelog, effective_at, published_at, archived_at, scheduled_at, created_by, created_at, updated_at FROM legal_document_version WHERE id = $1
 `
 
 func (q *Queries) GetLegalDocumentVersion(ctx context.Context, id string) (LegalDocumentVersion, error) {
@@ -359,6 +360,7 @@ func (q *Queries) GetLegalDocumentVersion(ctx context.Context, id string) (Legal
 		&i.EffectiveAt,
 		&i.PublishedAt,
 		&i.ArchivedAt,
+		&i.ScheduledAt,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -580,7 +582,7 @@ VALUES (
   $8,
   $9
 )
-RETURNING id, document_id, locale, version, title, summary, body, status, changelog, effective_at, published_at, archived_at, created_by, created_at, updated_at
+RETURNING id, document_id, locale, version, title, summary, body, status, changelog, effective_at, published_at, archived_at, scheduled_at, created_by, created_at, updated_at
 `
 
 type InsertLegalDocumentVersionParams struct {
@@ -621,6 +623,7 @@ func (q *Queries) InsertLegalDocumentVersion(ctx context.Context, arg InsertLega
 		&i.EffectiveAt,
 		&i.PublishedAt,
 		&i.ArchivedAt,
+		&i.ScheduledAt,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -1484,7 +1487,7 @@ const publishLegalDocumentVersion = `-- name: PublishLegalDocumentVersion :one
 UPDATE legal_document_version
 SET status = 'PUBLISHED', published_at = CURRENT_TIMESTAMP, archived_at = NULL, updated_at = CURRENT_TIMESTAMP
 WHERE id = $1 AND status = 'DRAFT'
-RETURNING id, document_id, locale, version, title, summary, body, status, changelog, effective_at, published_at, archived_at, created_by, created_at, updated_at
+RETURNING id, document_id, locale, version, title, summary, body, status, changelog, effective_at, published_at, archived_at, scheduled_at, created_by, created_at, updated_at
 `
 
 func (q *Queries) PublishLegalDocumentVersion(ctx context.Context, id string) (LegalDocumentVersion, error) {
@@ -1503,6 +1506,7 @@ func (q *Queries) PublishLegalDocumentVersion(ctx context.Context, id string) (L
 		&i.EffectiveAt,
 		&i.PublishedAt,
 		&i.ArchivedAt,
+		&i.ScheduledAt,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,
@@ -1567,7 +1571,7 @@ SET title = $1,
     effective_at = $5,
     updated_at = CURRENT_TIMESTAMP
 WHERE id = $6 AND status = 'DRAFT'
-RETURNING id, document_id, locale, version, title, summary, body, status, changelog, effective_at, published_at, archived_at, created_by, created_at, updated_at
+RETURNING id, document_id, locale, version, title, summary, body, status, changelog, effective_at, published_at, archived_at, scheduled_at, created_by, created_at, updated_at
 `
 
 type UpdateLegalDocumentVersionParams struct {
@@ -1604,6 +1608,7 @@ func (q *Queries) UpdateLegalDocumentVersion(ctx context.Context, arg UpdateLega
 		&i.EffectiveAt,
 		&i.PublishedAt,
 		&i.ArchivedAt,
+		&i.ScheduledAt,
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.UpdatedAt,

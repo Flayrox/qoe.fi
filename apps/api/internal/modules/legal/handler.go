@@ -3,10 +3,12 @@ package legal
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/qoefi/api/internal/middleware"
@@ -52,6 +54,16 @@ func (h *Handler) RegisterAdmin(r chi.Router) {
 	r.Get("/v1/admin/legal/compliance", h.adminCompliance)
 	r.Get("/v1/admin/legal/notices", h.adminNotices)
 	r.Get("/v1/admin/legal/cookie-consents", h.adminCookieConsents)
+	// 🧾 Exports signés du registre de consentement (contrôle, réquisition).
+	r.Post("/v1/admin/legal/consent-exports", h.adminCreateConsentExport)
+	r.Get("/v1/admin/legal/consent-exports", h.adminListConsentExports)
+	r.Get("/v1/admin/legal/consent-exports/verify", h.adminVerifyConsentExports)
+	// 🔄 Cycle de vie : revues périodiques et publication planifiée.
+	r.Get("/v1/admin/legal/reviews", h.adminReviews)
+	r.Post("/v1/admin/legal/reviews", h.adminOpenReview)
+	r.Post("/v1/admin/legal/reviews/{reviewID}/dismiss", h.adminDismissReview)
+	r.Post("/v1/admin/legal/versions/{versionID}/schedule", h.adminScheduleVersion)
+	r.Post("/v1/admin/legal/lifecycle/run", h.adminRunLifecycle)
 	r.Get("/v1/admin/legal/{id}/versions", h.adminVersions)
 	r.Post("/v1/admin/legal/{id}/versions", h.adminCreateVersion)
 	r.Patch("/v1/admin/legal/{id}", h.adminUpdate)
@@ -447,6 +459,172 @@ func (h *Handler) adminCookieConsents(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, map[string]any{"items": items, "count": len(items)})
+}
+
+// POST /v1/admin/legal/consent-exports — produit un export signé du registre
+// (acceptations, versions, journal des traceurs).
+//
+// La réponse est écrite telle quelle, octet pour octet : l'empreinte du
+// contenu est calculée sur ces octets, et laisser le framework re-sérialiser
+// le document casserait la preuve.
+func (h *Handler) adminCreateConsentExport(w http.ResponseWriter, r *http.Request) {
+	actor := h.actor(w, r)
+	if actor == "" {
+		return
+	}
+	var in ConsentExportInput
+	if r.Body != nil {
+		_ = json.NewDecoder(r.Body).Decode(&in)
+	}
+	result, err := h.svc.ExportConsentRegister(r.Context(), actor, in)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	stamp := time.Now().UTC().Format("20060102-150405")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"qoe-consentements-%s.json\"", stamp))
+	w.Header().Set("X-Qoe-Export-Id", result.Record.ID)
+	w.Header().Set("X-Qoe-Export-Chain", result.Record.ChainSha256)
+	w.WriteHeader(http.StatusCreated)
+	_, _ = w.Write(result.Document)
+}
+
+// GET /v1/admin/legal/consent-exports — registre des exports produits.
+func (h *Handler) adminListConsentExports(w http.ResponseWriter, r *http.Request) {
+	actor := h.actor(w, r)
+	if actor == "" {
+		return
+	}
+	limit := int32(50)
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil {
+			limit = int32(n)
+		}
+	}
+	items, err := h.svc.ListConsentExports(r.Context(), actor, limit)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	response.OK(w, map[string]any{"items": items, "count": len(items)})
+}
+
+// GET /v1/admin/legal/consent-exports/verify — recompte la chaîne des exports.
+func (h *Handler) adminVerifyConsentExports(w http.ResponseWriter, r *http.Request) {
+	actor := h.actor(w, r)
+	if actor == "" {
+		return
+	}
+	verdict, err := h.svc.VerifyConsentExports(r.Context(), actor)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	response.OK(w, verdict)
+}
+
+// GET /v1/admin/legal/reviews — revues périodiques suivies.
+func (h *Handler) adminReviews(w http.ResponseWriter, r *http.Request) {
+	actor := h.actor(w, r)
+	if actor == "" {
+		return
+	}
+	limit := int32(100)
+	if raw := r.URL.Query().Get("limit"); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil {
+			limit = int32(n)
+		}
+	}
+	items, err := h.svc.AdminReviews(r.Context(), actor, limit)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	response.OK(w, map[string]any{"items": items, "count": len(items)})
+}
+
+// POST /v1/admin/legal/reviews — programme une revue à la demande.
+func (h *Handler) adminOpenReview(w http.ResponseWriter, r *http.Request) {
+	actor := h.actor(w, r)
+	if actor == "" {
+		return
+	}
+	var body struct {
+		Slug  string `json:"slug"`
+		DueAt string `json:"dueAt"`
+		Notes string `json:"notes"`
+	}
+	if !decode(w, r, &body) {
+		return
+	}
+	review, err := h.svc.OpenReview(r.Context(), actor, body.Slug, body.DueAt, body.Notes)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	response.Created(w, review)
+}
+
+// POST /v1/admin/legal/reviews/{reviewID}/dismiss — clôt une revue sans
+// publication (un motif est exigé : c'est une décision, pas une disparition).
+func (h *Handler) adminDismissReview(w http.ResponseWriter, r *http.Request) {
+	actor := h.actor(w, r)
+	if actor == "" {
+		return
+	}
+	var body struct {
+		Notes string `json:"notes"`
+	}
+	if r.Body != nil {
+		_ = json.NewDecoder(r.Body).Decode(&body)
+	}
+	review, err := h.svc.DismissReview(r.Context(), actor, chi.URLParam(r, "reviewID"), body.Notes)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	response.OK(w, review)
+}
+
+// POST /v1/admin/legal/versions/{versionID}/schedule — programme (ou annule)
+// la publication automatique d'un brouillon.
+func (h *Handler) adminScheduleVersion(w http.ResponseWriter, r *http.Request) {
+	actor := h.actor(w, r)
+	if actor == "" {
+		return
+	}
+	var body struct {
+		ScheduledAt string `json:"scheduledAt"`
+	}
+	if r.Body != nil {
+		_ = json.NewDecoder(r.Body).Decode(&body)
+	}
+	version, err := h.svc.ScheduleVersion(r.Context(), actor, chi.URLParam(r, "versionID"), body.ScheduledAt)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	response.OK(w, version)
+}
+
+// POST /v1/admin/legal/lifecycle/run — déclenche un passage du cycle sans
+// attendre le worker (audit, mise à jour volontaire, rattrapage).
+func (h *Handler) adminRunLifecycle(w http.ResponseWriter, r *http.Request) {
+	actor := h.actor(w, r)
+	if actor == "" {
+		return
+	}
+	if _, err := h.svc.RequireSuperadmin(r.Context(), actor); err != nil {
+		h.fail(w, err)
+		return
+	}
+	run, err := h.svc.RunLifecycle(r.Context(), time.Now())
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	response.OK(w, run)
 }
 
 // POST /v1/admin/legal/seed — installe les documents manquants depuis le

@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -49,6 +50,12 @@ type Service struct {
 	pool  *pgxpool.Pool
 	q     *db.Queries
 	flags FlagChecker
+
+	// exportSigner signe les exports du registre de consentement. Nul tant
+	// qu'aucune clé n'est configurée ; une clé éphémère n'est générée qu'en
+	// dernier recours (développement), et jamais silencieusement.
+	exportSigner     *exportSigner
+	exportSignerOnce sync.Once
 }
 
 func NewService(pool *pgxpool.Pool) *Service {
@@ -303,6 +310,15 @@ func (s *Service) checkSuperadmin(ctx context.Context, userID string) error {
 		return errForbidden
 	}
 	return nil
+}
+
+// RequireSuperadmin expose la garde de rôle aux handlers dont l'action n'est
+// portée par aucune méthode métier (déclenchement manuel du cycle de vie).
+func (s *Service) RequireSuperadmin(ctx context.Context, userID string) (string, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return "", err
+	}
+	return userID, nil
 }
 
 func (s *Service) audit(ctx context.Context, actor, action, targetID string, metadata any) {
@@ -752,6 +768,12 @@ func (s *Service) PublishVersion(ctx context.Context, actor, versionID string) (
 		"versionId": published.ID, "version": published.Version, "locale": published.Locale,
 	})
 	out := adminVersion(published)
+	// 🔄 Si cette version était le brouillon d'une revue périodique, publier
+	// la clôt : la revue a rempli son rôle, on ne la laisse pas ouverte à
+	// traîner dans le tableau de conformité.
+	if err := s.q.CompleteLegalReviewsForVersion(ctx, optText(published.ID)); err != nil {
+		log.Printf("[legal] revue non clôturée après publication (version %s): %v", published.ID, err)
+	}
 	// 📣 Prévenir les personnes qui avaient accepté la version précédente :
 	// c'est l'obligation d'information effective (art. 12 RGPD), et sans elle
 	// une acceptation tacite ne vaudrait rien. Best-effort : une campagne qui

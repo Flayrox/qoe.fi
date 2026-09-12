@@ -156,6 +156,8 @@ CREATE TABLE "Subscriber" (
     "ltvCents" INTEGER NOT NULL DEFAULT 0,
     "receiveArticles" BOOLEAN NOT NULL DEFAULT true,
     "receivePosts" BOOLEAN NOT NULL DEFAULT false,
+    "confirmedAt" TIMESTAMP(3),
+    "confirmationToken" TEXT,
     "currentPeriodEnd" TIMESTAMP(3),
     "stripeSubscriptionId" TEXT,
     "stripeCustomerId" TEXT,
@@ -1887,6 +1889,7 @@ CREATE TABLE "legal_document_version" (
     "effective_at" TIMESTAMP(3),
     "published_at" TIMESTAMP(3),
     "archived_at"  TIMESTAMP(3),
+    "scheduled_at" TIMESTAMP(3),
     "created_by"   UUID,
     "created_at"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1906,6 +1909,10 @@ CREATE UNIQUE INDEX "legal_document_version_one_published_idx"
 -- CreateIndex
 CREATE INDEX "legal_document_version_document_idx"
     ON "legal_document_version" ("document_id", "locale", "created_at" DESC);
+
+-- CreateIndex
+CREATE INDEX "legal_document_version_schedule_idx"
+    ON "legal_document_version" ("status", "scheduled_at");
 
 -- CreateTable
 CREATE TABLE "legal_acceptance" (
@@ -2015,3 +2022,87 @@ CREATE INDEX "cookie_consent_record_created_idx"
 -- CreateIndex
 CREATE INDEX "cookie_consent_record_user_idx"
     ON "cookie_consent_record" ("user_id", "created_at" DESC);
+
+-- CreateTable
+CREATE TABLE "legal_review" (
+    "id"               TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+    "document_id"      TEXT NOT NULL,
+    "rule_key"         TEXT NOT NULL,
+    "due_at"           TIMESTAMP(3) NOT NULL,
+    "status"           TEXT NOT NULL DEFAULT 'OPEN',
+    "draft_version_id" TEXT,
+    "notes"            TEXT,
+    "opened_at"        TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "completed_at"     TIMESTAMP(3),
+    "created_at"       TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at"       TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "legal_review_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "legal_review_obligation_key" UNIQUE ("document_id", "rule_key", "due_at"),
+    CONSTRAINT "legal_review_status_check" CHECK ("status" IN ('OPEN', 'DRAFTED', 'PUBLISHED', 'DISMISSED')),
+    CONSTRAINT "legal_review_document_fkey" FOREIGN KEY ("document_id")
+        REFERENCES "legal_document" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "legal_review_draft_fkey" FOREIGN KEY ("draft_version_id")
+        REFERENCES "legal_document_version" ("id") ON DELETE SET NULL ON UPDATE CASCADE
+);
+
+-- CreateIndex
+CREATE INDEX "legal_review_status_due_idx"
+    ON "legal_review" ("status", "due_at");
+
+-- CreateTable
+CREATE TABLE "legal_review_reminder" (
+    "id"           TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+    "review_id"    TEXT NOT NULL,
+    "user_id"      UUID NOT NULL,
+    "email"        TEXT NOT NULL,
+    "stage"        TEXT NOT NULL,
+    "status"       TEXT NOT NULL DEFAULT 'QUEUED',
+    "attempts"     INTEGER NOT NULL DEFAULT 0,
+    "provider"     TEXT,
+    "available_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "sent_at"      TIMESTAMP(3),
+    "last_error"   TEXT,
+    "created_at"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "legal_review_reminder_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "legal_review_reminder_unique" UNIQUE ("review_id", "user_id", "stage"),
+    CONSTRAINT "legal_review_reminder_status_check" CHECK ("status" IN ('QUEUED', 'PROCESSING', 'SENT', 'FAILED', 'SKIPPED')),
+    CONSTRAINT "legal_review_reminder_stage_check" CHECK ("stage" IN ('SOON', 'OVERDUE', 'DRAFTED')),
+    CONSTRAINT "legal_review_reminder_review_fkey" FOREIGN KEY ("review_id")
+        REFERENCES "legal_review" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateIndex
+CREATE INDEX "legal_review_reminder_queue_idx"
+    ON "legal_review_reminder" ("status", "available_at");
+
+-- CreateTable
+CREATE TABLE "legal_consent_export" (
+    "id"                   TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+    "seq"                  BIGSERIAL NOT NULL,
+    "scope"                TEXT NOT NULL DEFAULT 'full',
+    "subject"              TEXT,
+    "reason"               TEXT,
+    "filters"              JSONB NOT NULL DEFAULT '{}'::jsonb,
+    "requested_by"         UUID,
+    "requested_by_email"   TEXT,
+    "documents_count"      INTEGER NOT NULL DEFAULT 0,
+    "acceptances_count"    INTEGER NOT NULL DEFAULT 0,
+    "cookie_records_count" INTEGER NOT NULL DEFAULT 0,
+    "content_sha256"       TEXT NOT NULL,
+    "previous_chain"       TEXT,
+    "chain_sha256"         TEXT NOT NULL,
+    "signature"            TEXT NOT NULL,
+    "key_id"               TEXT NOT NULL,
+    "algorithm"            TEXT NOT NULL DEFAULT 'HMAC-SHA256',
+    "generated_at"         TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "legal_consent_export_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "legal_consent_export_scope_check" CHECK ("scope" IN ('full', 'document', 'user', 'window'))
+);
+
+-- CreateIndex
+CREATE INDEX "legal_consent_export_created_idx"
+    ON "legal_consent_export" ("generated_at" DESC);
