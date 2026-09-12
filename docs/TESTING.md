@@ -139,9 +139,12 @@ sentinelle, puis les nettoie en `afterAll` (spec `serial`). Il ne dépend donc
 plus du seed et échoue désormais si le passage réservé apparaît dans le HTML,
 les `<meta>` ou le JSON-LD (`SECRET-E2E-RESERVE-ABONNES`).
 
-`e2e/tenants-paywall.spec.ts` reste adossé au seed (`cmd/seed`), qui pose le
-sous-domaine `admin` et l'article `essai-premium-souverainete`. Sur une base de
-dev non seedée, rejouer `pnpm db:seed`.
+`e2e/tenants-paywall.spec.ts` est **hermétique** lui aussi : il crée lui-même
+(via `e2e/lib/db.ts`) son tenant `paywall-e2e` et son article premium à
+sentinelle (`SECRET-E2E-PAYWALL-RESERVE`), vérifie l'étanchéité HTML / `<meta>` /
+JSON-LD **et** la carte triptyque (déverrouillage à l'acte 2,00 €, abonnement
+5,00 €/mois, zéro police monospace), puis nettoie en `afterAll` (spec `serial`).
+Aucune dépendance au seed : la suite tourne sur n'importe quelle base de dev.
 
 **Frontière API zéro-fuite.** Le backend Go tronque lui-même le contenu premium
 de toutes les sorties publiques — pas seulement au rendu Next : mode « slug
