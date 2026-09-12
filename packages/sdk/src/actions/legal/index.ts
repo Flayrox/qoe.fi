@@ -66,6 +66,101 @@ export async function fetchLegalDocuments(locale: string): Promise<PublicLegalDo
   return data.items ?? [];
 }
 
+/**
+ * 📝 Documents qui exigent une acceptation, version courante incluse.
+ *
+ * Utilisé par le formulaire d'inscription : on affiche les cases à cocher avec
+ * la version exacte (versionId) affichée à l'instant du clic. Le serveur ne
+ * transformera le choix en preuve que si cette version est toujours celle qui
+ * est publiée au moment où le compte est créé.
+ */
+export async function fetchLegalDocumentsToAccept(
+  locale: string,
+  audience?: string
+): Promise<PublicLegalDocument[]> {
+  try {
+    const docs = await fetchLegalDocuments(locale);
+    return docs.filter(
+      (doc) =>
+        doc.requiresAcceptance &&
+        doc.versionId &&
+        (audience === undefined || doc.audience === audience)
+    );
+  } catch {
+    // Le contenu légal est indisponible (déploiement, incident) : on ne bloque
+    // jamais une inscription pour ça. Le portail reposera la question.
+    return [];
+  }
+}
+
+/**
+ * 🖊️ La charge utile déposée dans `user_metadata.signupConsent`, son type et
+ * son constructeur pur vivent dans `@qoe/utils/legal-consent` : un module
+ * `'use server'` ne peut exporter que des fonctions asynchrones, et le
+ * formulaire d'inscription est un composant client.
+ */
+export type { SignupConsentPayload, ConsentDocument } from '@qoe/utils/legal-consent';
+
+/**
+ * ✅ Accepte plusieurs documents en une requête (fin d'onboarding, portail).
+ * Idempotent côté API : un document déjà accepté n'est pas réécrit.
+ */
+export async function acceptLegalConsentsAction(input: {
+  slugs: string[];
+  locale: string;
+  source?: string;
+  method?: string;
+}): Promise<{ success: boolean; count: number; error?: string }> {
+  const slugs = Array.from(new Set(input.slugs.filter(Boolean)));
+  if (slugs.length === 0) return { success: true, count: 0 };
+  try {
+    const data = await goFetch<{ count: number }>('/v1/legal/accept-batch', {
+      method: 'POST',
+      body: {
+        slugs,
+        locale: input.locale,
+        source: input.source ?? 'web',
+        method: input.method ?? 'checkbox',
+      },
+    });
+    return { success: true, count: data.count ?? slugs.length };
+  } catch (error) {
+    return {
+      success: false,
+      count: 0,
+      error: error instanceof Error ? error.message : 'Consentement non enregistré',
+    };
+  }
+}
+
+/**
+ * 🍪 Journalise un choix de traceurs côté serveur (append-only).
+ *
+ * Volontairement accessible sans compte : la preuve d'un choix doit exister
+ * pour un visiteur anonyme, c'est-à-dire pour l'immense majorité des visites.
+ */
+export async function recordCookieConsentAction(input: {
+  consentId: string;
+  sessionId?: string;
+  locale: string;
+  policyVersion: string;
+  categories: Record<string, boolean>;
+  source?: string;
+}): Promise<{ success: boolean; id?: string; error?: string }> {
+  try {
+    const data = await goFetch<{ id: string }>('/v1/legal/cookie-consent', {
+      method: 'POST',
+      body: input,
+    });
+    return { success: true, id: data.id };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Choix non journalisé',
+    };
+  }
+}
+
 /** 📄 Contenu complet d'un document publié (markdown). null si inconnu. */
 export async function fetchLegalDocument(
   slug: string,
