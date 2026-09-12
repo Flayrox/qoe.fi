@@ -139,6 +139,11 @@ sentinelle, puis les nettoie en `afterAll` (spec `serial`). Il ne dépend donc
 plus du seed et échoue désormais si le passage réservé apparaît dans le HTML,
 les `<meta>` ou le JSON-LD (`SECRET-E2E-RESERVE-ABONNES`).
 
+`e2e/tenants-recommendations.spec.ts` est **hermétique** : deux tenants
+(recommandeur `reco-main-e2e` + partenaire `reco-partner-e2e`) reliés par une
+`Recommendation`, créés et nettoyés par le spec — plus aucune dépendance aux
+publications seedées (`admin`, `pubw_…`).
+
 `e2e/tenants-paywall.spec.ts` est **hermétique** lui aussi : il crée lui-même
 (via `e2e/lib/db.ts`) son tenant `paywall-e2e` et son article premium à
 sentinelle (`SECRET-E2E-PAYWALL-RESERVE`), vérifie l'étanchéité HTML / `<meta>` /
