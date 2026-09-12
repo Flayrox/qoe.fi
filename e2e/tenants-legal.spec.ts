@@ -71,34 +71,41 @@ test.describe('Pages légales & consentement (tenant)', () => {
     expect(body).not.toContain('## Objet');
   });
 
-  test('aucun traceur avant le choix, refus simple, choix conservé', async ({ page, context }) => {
+  test('mesure d’audience exemptée : plus de bannière bloquante, opposition en un clic', async ({
+    page,
+    context,
+  }) => {
     await context.clearCookies();
     await page.goto(`/tenant/${domain}/legal`, { waitUntil: 'networkidle' });
 
-    const banner = page.getByRole('dialog', { name: 'Préférences de cookies' });
-    await expect(banner).toBeVisible({ timeout: 20_000 });
+    // Plus de dialogue bloquant : la mesure d'audience est anonyme et sans
+    // cookie, donc dispensée de consentement. On informe, on ne barre pas.
+    await expect(page.getByRole('dialog', { name: 'Préférences de cookies' })).toBeHidden();
 
-    // Refuser est proposé comme une action de premier niveau, au même titre
-    // qu'accepter (exigence de symétrie des choix).
-    await expect(page.getByRole('button', { name: 'Tout accepter' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Tout refuser' })).toBeVisible();
+    const notice = page.getByRole('region', { name: 'Mesure d’audience sans cookie' });
+    await expect(notice).toBeVisible({ timeout: 20_000 });
+    // Rien n'est suspendu à un clic : la page est entièrement utilisable.
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
-    // Aucun traceur non essentiel ne doit être monté avant le choix.
-    expect(await page.locator('script[data-website-id]').count()).toBe(0);
+    // Le droit d'opposition reste exerçable en un clic, au même endroit.
+    await page.getByRole('button', { name: 'M’y opposer' }).click();
+    await expect(notice).toBeHidden();
 
-    await page.getByRole('button', { name: 'Tout refuser' }).click();
-    await expect(banner).toBeHidden();
-
-    // Le choix est persisté en cookie lisible côté serveur (AnalyticsGate).
+    // L'opposition est persistée pour le serveur (AnalyticsGate) ET pour le
+    // navigateur : les deux doivent s'accorder, sinon la promesse est fausse.
     await expect
       .poll(async () => (await context.cookies()).some((c) => c.name === 'qoe_cookie_consent'))
       .toBe(true);
-
+    expect(await page.evaluate(() => window.localStorage.getItem('umami.disabled'))).toBe('true');
+    // Une opposition enregistrée côté serveur => le script n'est même plus servi.
     await page.reload({ waitUntil: 'networkidle' });
-    await expect(page.getByRole('dialog', { name: 'Préférences de cookies' })).toBeHidden();
+    expect(await page.locator('script[data-website-id]').count()).toBe(0);
 
-    // Réouverture possible à tout moment (« Gérer mes cookies »).
+    // Le centre de préférences reste accessible à tout moment, et il explique
+    // la base de la dispense plutôt que de la laisser implicite.
     await page.getByRole('button', { name: 'Gérer mes cookies' }).first().click();
-    await expect(page.getByRole('dialog', { name: 'Préférences de cookies' })).toBeVisible();
+    const center = page.getByRole('dialog', { name: 'Préférences de traceurs' });
+    await expect(center).toBeVisible();
+    await expect(page.getByText('Dispensée de consentement').first()).toBeVisible();
   });
 });
