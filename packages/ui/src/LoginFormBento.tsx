@@ -8,6 +8,7 @@ import { t } from '@lingui/core/macro';
 // Sous-chemin constants : évite la validation d'env (Zod) déclenchée par le barrel.
 import { URLS } from '@qoe/config/constants';
 import { cn } from '@qoe/utils';
+import { buildSignupConsent, type ConsentDocument } from '@qoe/utils/legal-consent';
 import { BentoPlateau, BentoItem } from './ui/BentoPlateau';
 import { Logo } from './Logo';
 import { Button } from './ui/button';
@@ -19,6 +20,15 @@ export interface LoginFormBentoProps {
   onSuccess?: () => void;
   showLanguageSwitch?: boolean;
   className?: string;
+  /**
+   * ⚖️ Documents à accepter à l'inscription (CGU, confidentialité…), avec la
+   * version publiée courante. Optionnel : un formulaire qui ne les reçoit pas
+   * n'affiche simplement pas les cases — le portail de consentement prendra
+   * le relais à la première navigation authentifiée.
+   */
+  consentDocuments?: ConsentDocument[];
+  /** Locale transmise au serveur avec le consentement d'inscription. */
+  consentLocale?: string;
 }
 
 // ── Démographie signup (optionnelle, jamais obligatoire) ────────────────
@@ -52,6 +62,8 @@ export function LoginFormBento({
   actionContext,
   onSuccess,
   className,
+  consentDocuments = [],
+  consentLocale = 'fr',
 }: LoginFormBentoProps) {
   const [authMode, setAuthMode] = useState<'magic-link' | 'password' | 'signup'>(
     initialMode === 'signup' ? 'signup' : 'magic-link'
@@ -68,6 +80,9 @@ export function LoginFormBento({
   const [magicLinkSent, setMagicLinkSent] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const [manifestoIdx, setManifestoIdx] = useState(0);
+  // ⚖️ Consentement explicite à l'inscription : la case doit être cochée pour
+  // créer le compte quand des documents l'exigent.
+  const [consentAccepted, setConsentAccepted] = useState(false);
 
   // ── Méthodes de connexion pilotées par l'admin (SystemConfig AUTH_METHODS) ──
   // Google/Apple sont en phase de test : le superadmin active/désactive chaque
@@ -243,6 +258,17 @@ export function LoginFormBento({
           setLoading(false);
           return;
         }
+        if (consentDocuments.length > 0 && !consentAccepted) {
+          setLocalError(t`Vous devez accepter les documents juridiques pour créer votre compte.`);
+          setLoading(false);
+          return;
+        }
+        // ⚖️ Le choix est déposé dans les métadonnées du compte : le serveur
+        // le transformera en preuve de consentement à la création de la ligne
+        // User (POST /v1/me/sync), avec la version exacte affichée ici.
+        const signupConsent = consentAccepted
+          ? buildSignupConsent(consentLocale, consentDocuments)
+          : undefined;
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -253,6 +279,8 @@ export function LoginFormBento({
               gender: gender || undefined,
               ageRange: ageRange || undefined,
               pronouns: pronouns.trim() || undefined,
+              languageCode: consentLocale,
+              signupConsent,
             },
           },
         });
@@ -682,6 +710,41 @@ export function LoginFormBento({
                           </div>
                         )}
                       </div>
+
+                      {consentDocuments.length > 0 && (
+                        <div className="rounded-xl border border-border/60 bg-muted/20 px-3 py-2.5">
+                          <label className="flex items-start gap-2.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={consentAccepted}
+                              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                                setConsentAccepted(e.target.checked)
+                              }
+                              className="mt-0.5 h-4 w-4 shrink-0"
+                              required
+                            />
+                            <span className="text-[11px] leading-relaxed text-muted-foreground">
+                              {t`J'ai lu et j'accepte`}{' '}
+                              {consentDocuments.map((doc, index) => (
+                                <span key={doc.slug}>
+                                  <a
+                                    href={`/legal/${doc.slug}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="font-semibold text-primary underline"
+                                  >
+                                    {doc.title}
+                                  </a>
+                                  {index < consentDocuments.length - 1 ? ', ' : '. '}
+                                </span>
+                              ))}
+                              {t`L'acceptation est horodatée, associée à la version en vigueur (v`}
+                              {consentDocuments[0]?.version}
+                              {t`) et conservée comme preuve.`}
+                            </span>
+                          </label>
+                        </div>
+                      )}
 
                       <Button
                         type="submit"

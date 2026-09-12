@@ -5,6 +5,10 @@
 // donc utilisable côté serveur). Ici : localStorage pour un état instantané
 // à l'hydratation, cookie pour que le serveur puisse conditionner — AVANT
 // tout JavaScript — le chargement des traceurs non essentiels.
+//
+// On conserve aussi un `consentId` stable pour ce navigateur : c'est lui qui
+// permet, côté serveur, de relier les choix successifs d'un même visiteur
+// (accepter, puis refuser, puis ré-accepter) sans jamais identifier la personne.
 // =====================================================================
 
 import {
@@ -15,6 +19,35 @@ import {
   normalizeConsent,
   type CookieConsentChoice,
 } from '@qoe/utils/cookie-consent';
+
+export const COOKIE_CONSENT_ID_KEY = 'qoe.cookie-consent-id';
+
+// Identifiant — volontairement aléatoire et local : ni e-mail, ni empreinte
+// d'appareil. Il ne sert qu'à corréler un journal, pas à reconnaître un humain.
+function randomId(): string {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+  } catch {
+    // Navigateur ancien : on retombe sur une valeur aléatoire simple.
+  }
+  return `c-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+/** 🔑 Identifiant de consentement de ce navigateur (créé au premier besoin). */
+export function readConsentId(): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    const existing = window.localStorage.getItem(COOKIE_CONSENT_ID_KEY);
+    if (existing && existing.length >= 8) return existing;
+    const created = randomId();
+    window.localStorage.setItem(COOKIE_CONSENT_ID_KEY, created);
+    return created;
+  } catch {
+    return '';
+  }
+}
 
 /** Lit le choix local (null si absent, illisible ou périmé). */
 export function readLocalConsent(): CookieConsentChoice | null {

@@ -3,11 +3,13 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 
 const mocks = vi.hoisted(() => ({
   record: vi.fn().mockResolvedValue({ success: true }),
+  recordCookie: vi.fn().mockResolvedValue({ success: true, id: 'rec-1' }),
   refresh: vi.fn(),
 }));
 
 vi.mock('@qoe/sdk/actions/legal', () => ({
   recordLegalConsentAction: mocks.record,
+  recordCookieConsentAction: mocks.recordCookie,
 }));
 
 vi.mock('next/navigation', () => ({
@@ -42,6 +44,7 @@ describe('🍪 CookieConsentBanner', () => {
     window.localStorage.clear();
     document.cookie = `${COOKIE_CONSENT_COOKIE}=; Max-Age=0; Path=/`;
     mocks.record.mockClear();
+    mocks.recordCookie.mockClear();
     mocks.refresh.mockClear();
   });
 
@@ -58,14 +61,24 @@ describe('🍪 CookieConsentBanner', () => {
     expect(refuse.className).toContain('border');
   });
 
-  it('refuse : enregistre le refus, masque la bannière et trace le choix', async () => {
+  it('refuse : enregistre le refus, masque la bannière et journalise le choix', async () => {
     render(<CookieConsentBanner locale="fr" />);
     fireEvent.click(await screen.findByRole('button', { name: 'Tout refuser' }));
 
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     expect(readLocalConsent()?.analytics).toBe(false);
     expect(window.localStorage.getItem(COOKIE_CONSENT_KEY)).toContain('"analytics":false');
-    await waitFor(() => expect(mocks.record).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mocks.recordCookie).toHaveBeenCalledTimes(1));
+    // 🧾 La preuve serveur porte la catégorie refusée et un identifiant de
+    // consentement — sans compte, c'est la seule trace opposable.
+    const payload = mocks.recordCookie.mock.calls[0][0];
+    expect(payload.categories).toEqual({
+      necessary: true,
+      analytics: false,
+      functional: false,
+      marketing: false,
+    });
+    expect(payload.source).toBe('cookie-banner');
     expect(mocks.refresh).toHaveBeenCalled();
   });
 
@@ -104,5 +117,42 @@ describe('🍪 CookieConsentBanner', () => {
 
     act(() => openCookiePreferences());
     expect(await screen.findByRole('dialog')).not.toBeNull();
+  });
+
+  it('ouvre le centre de préférences avec les catégories et le registre de traceurs', async () => {
+    render(<CookieConsentBanner locale="fr" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Personnaliser' }));
+
+    const center = await screen.findByRole('dialog', { name: 'Préférences de traceurs' });
+    expect(center).not.toBeNull();
+    // Les quatre catégories sont expliquées, y compris celle qui ne sert pas
+    // encore (publicité) : c'est la transparence qui rend le choix crédible.
+    expect(screen.getByText('Strictement nécessaires')).not.toBeNull();
+    expect(screen.getByText('Mesure d’audience')).not.toBeNull();
+    expect(screen.getByText('Préférences de confort')).not.toBeNull();
+    expect(screen.getByText('Publicité et réseaux sociaux')).not.toBeNull();
+    // Le registre affiche les traceurs réellement déposés.
+    expect(screen.getByText('umami')).not.toBeNull();
+    // Catégorie repliée par défaut : on la déplie pour vérifier le registre.
+    fireEvent.click(screen.getAllByRole('button', { name: /Traceurs de cette catégorie/ })[0]);
+    expect(await screen.findByText('qoe_cookie_consent')).not.toBeNull();
+  });
+
+  it('permet de n’accepter qu’une seule catégorie optionnelle', async () => {
+    render(<CookieConsentBanner locale="fr" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Personnaliser' }));
+    await screen.findByRole('dialog', { name: 'Préférences de traceurs' });
+
+    // Seule la mesure d’audience est cochée, puis enregistrée.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Mesure d’audience' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Enregistrer mes choix' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    const stored = readLocalConsent();
+    expect(stored?.analytics).toBe(true);
+    expect(stored?.functional).toBe(false);
+    expect(mocks.recordCookie).toHaveBeenCalledTimes(1);
+    expect(mocks.recordCookie.mock.calls[0][0].categories.analytics).toBe(true);
+    expect(mocks.recordCookie.mock.calls[0][0].categories.functional).toBe(false);
   });
 });
