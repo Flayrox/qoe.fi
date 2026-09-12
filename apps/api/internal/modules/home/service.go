@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/qoefi/api/internal/database"
@@ -12,10 +13,20 @@ import (
 type Service struct {
 	pool pooler
 	q    *db.Queries
+
+	// events (optionnel) : client asynq pour émettre l'événement
+	// subscriber.created (webhooks créateur). Nil en tests → aucun enqueue.
+	events *asynq.Client
 }
 
 func NewService(pool *pgxpool.Pool) *Service {
 	return &Service{pool: pool, q: db.New(pool)}
+}
+
+// SetEventEmitter branche l'émission de l'événement subscriber.created
+// (chaîne : /internal/events/subscriber-created → asynq → workers webhook).
+func (s *Service) SetEventEmitter(client *asynq.Client) {
+	s.events = client
 }
 
 type SystemConfig map[string]string

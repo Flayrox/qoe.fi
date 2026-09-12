@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/qoefi/api/internal/queue"
 )
 
 // ── Onboarding data ──────────────────────────────────────────────────────────
@@ -400,6 +401,12 @@ func (s *Service) GetSemanticTrends(ctx context.Context, limit int) ([]SemanticT
 
 // SubscribeToNewsletter inscrit un email à la newsletter d'une publication
 // (upsert idempotent, isActive=true) — port Go de subscribeToNewsletterAction.
+//
+// Émet l'événement subscriber.created (webhooks créateur) UNIQUEMENT à la
+// création effective : une re-subscription (réactivation d'un désabonné ou
+// doublon) reste silencieuse — l'abonné connaît déjà la publication. L'uid
+// de la ligne créée est dérivé de xmax (0 pour un INSERT frais, cf. la
+// communauté pgx) : pas de round-trip supplémentaire.
 func (s *Service) SubscribeToNewsletter(ctx context.Context, email, publicationID string) (bool, error) {
 	var exists bool
 	err := s.pool.QueryRow(ctx,
@@ -410,13 +417,28 @@ func (s *Service) SubscribeToNewsletter(ctx context.Context, email, publicationI
 	if !exists {
 		return false, errors.New("publication introuvable")
 	}
-	_, err = s.pool.Exec(ctx, `
+	var subscriberID string
+	var inserted bool
+	err = s.pool.QueryRow(ctx, `
 		INSERT INTO "Subscriber" (id, email, "publicationId", "isActive", "receiveArticles", "createdAt", "updatedAt")
 		VALUES (gen_random_uuid()::text, $1, $2, true, true, now(), now())
-		ON CONFLICT ("email", "publicationId") DO UPDATE SET "isActive" = true, "updatedAt" = now()`,
-		email, publicationID)
+		ON CONFLICT ("email", "publicationId") DO UPDATE SET "isActive" = true, "updatedAt" = now()
+		RETURNING id, (xmax = 0) AS inserted`,
+		email, publicationID).Scan(&subscriberID, &inserted)
 	if err != nil {
 		return false, err
+	}
+
+	// Création effective (pas une réactivation) → événement webhook. Best-
+	// effort : une panne Redis n'empêche JAMAIS l'inscription de réussir.
+	if inserted && s.events != nil {
+		if err := queue.PublishSubscriberCreated(s.events, queue.SubscriberCreatedPayload{
+			SubscriberID:  subscriberID,
+			PublicationID: publicationID,
+			Email:         email,
+		}); err != nil {
+			log.Printf("[home] subscriber.created enqueue: %v", err)
+		}
 	}
 	return true, nil
 }
