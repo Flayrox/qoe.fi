@@ -65,3 +65,50 @@ export async function goFetch<T = Record<string, unknown>>(
   }
   return body;
 }
+
+/**
+ * Appelle le backend Go et rend la réponse **brute**, en texte, sans la
+ * désérialiser ni lever d'exception sur un statut non-2xx.
+ *
+ * Indispensable pour les pièces signées : la signature porte sur les octets
+ * exacts du document, donc re-sérialiser le JSON ou échapper les caractères
+ * invaliderait la preuve. L'appelant relaie le statut et les en-têtes tels
+ * quels.
+ */
+export async function goFetchRaw(
+  path: string,
+  init?: { method?: string; body?: unknown; accept?: string }
+): Promise<{
+  status: number;
+  ok: boolean;
+  text: string;
+  contentType: string;
+  contentDisposition: string;
+}> {
+  if (!GO_API_URL) {
+    throw new Error('QOE_API_URL non configuré');
+  }
+  const token = await getAccessToken();
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: init?.accept ?? 'application/json',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${GO_API_URL}${path}`, {
+    method: init?.method ?? 'GET',
+    headers,
+    body: init?.body ? JSON.stringify(init.body) : undefined,
+    cache: 'no-store',
+  });
+
+  return {
+    status: res.status,
+    ok: res.ok,
+    text: await res.text(),
+    contentType: res.headers.get('content-type') ?? 'application/json; charset=utf-8',
+    contentDisposition: res.headers.get('content-disposition') ?? '',
+  };
+}

@@ -29,6 +29,10 @@ function revalidateLegal() {
   revalidatePath('/admin/legal');
 }
 
+function revalidateCompliance() {
+  revalidatePath('/admin/compliance');
+}
+
 export interface LegalDocumentInput {
   slug: string;
   category: string;
@@ -62,6 +66,8 @@ export interface LegalVersionRow {
   createdByName?: string;
   createdAt?: string;
   updatedAt?: string;
+  /** Fenêtre de publication automatique d'un brouillon (RFC3339). */
+  scheduledAt?: string;
 }
 
 /** 📚 Charge l'historique complet d'un document (chargement à la demande). */
@@ -204,6 +210,44 @@ export async function deleteLegalDraftAction(versionId: string) {
     console.error(error);
     return { success: false as const, error: errorMessage(error, 'Erreur de suppression') };
   }
+}
+
+/** ⏱️ Programme (ou annule) la publication automatique d'un brouillon. */
+export async function scheduleLegalVersionAction(versionId: string, scheduledAt: string) {
+  await verifySuperadmin();
+  try {
+    const version = await goFetch(
+      `/v1/admin/legal/versions/${encodeURIComponent(versionId)}/schedule`,
+      { method: 'POST', body: { scheduledAt } }
+    );
+    revalidateLegal();
+    revalidateCompliance();
+    return { success: true as const, version };
+  } catch (error: unknown) {
+    console.error(error);
+    return { success: false as const, error: errorMessage(error, 'Erreur de planification') };
+  }
+}
+
+/** 🔄 Déclenche un passage du cycle de vie sans attendre le worker. */
+export async function runLegalLifecycleAction() {
+  await verifySuperadmin();
+  await goFetch('/v1/admin/legal/lifecycle/run', { method: 'POST' });
+  revalidateCompliance();
+  revalidateLegal();
+}
+
+/** ⏹️ Clôt une revue sans publication — un motif est exigé, c'est une décision. */
+export async function dismissLegalReviewAction(formData: FormData) {
+  await verifySuperadmin();
+  const reviewId = String(formData.get('reviewId') ?? '');
+  const notes = String(formData.get('notes') ?? '');
+  if (!reviewId) throw new Error('Revue inconnue');
+  await goFetch(`/v1/admin/legal/reviews/${encodeURIComponent(reviewId)}/dismiss`, {
+    method: 'POST',
+    body: { notes },
+  });
+  revalidateCompliance();
 }
 
 /** 🌱 Installe les documents manquants depuis le contenu embarqué (idempotent). */

@@ -42,6 +42,7 @@ import {
   deleteLegalDocumentAction,
   loadLegalVersionsAction,
   publishLegalVersionAction,
+  scheduleLegalVersionAction,
   seedLegalDefaultsAction,
   updateLegalDocumentAction,
   updateLegalVersionAction,
@@ -258,6 +259,46 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
         return;
       }
       notify('ok', `Version ${version.version} publiée.`);
+      if (selected) await loadVersions(selected.id);
+      router.refresh();
+    });
+  }
+
+  // ⏱️ Publication planifiée : le brouillon partira tout seul dans la fenêtre
+  // choisie, par le même chemin qu'une publication manuelle (archivage de
+  // l'ancienne version, avis aux personnes concernées, clôture de la revue).
+  function schedule(version: LegalVersionRow) {
+    const current = version.scheduledAt ? version.scheduledAt.slice(0, 16) : '';
+    const raw = prompt(
+      `Publication automatique de la version ${version.version} (${version.locale.toUpperCase()})\n\n` +
+        'Date et heure locales, au format AAAA-MM-JJTHH:MM.\n' +
+        'Laissez vide pour annuler la planification.',
+      current
+    );
+    if (raw === null) return;
+
+    let iso = '';
+    if (raw.trim() !== '') {
+      const parsed = new Date(raw.trim());
+      if (Number.isNaN(parsed.getTime())) {
+        notify('error', 'Date illisible : attendu AAAA-MM-JJTHH:MM.');
+        return;
+      }
+      iso = parsed.toISOString();
+    }
+
+    startTransition(async () => {
+      const res = await scheduleLegalVersionAction(version.id, iso);
+      if (!res.success) {
+        notify('error', res.error);
+        return;
+      }
+      notify(
+        'ok',
+        iso
+          ? `Publication de ${version.version} planifiée.`
+          : `Planification de ${version.version} annulée.`
+      );
       if (selected) await loadVersions(selected.id);
       router.refresh();
     });
@@ -552,6 +593,9 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
                             {version.effectiveAt
                               ? ` · en vigueur le ${formatDate(version.effectiveAt)}`
                               : ''}
+                            {version.scheduledAt
+                              ? ` · publication planifiée le ${formatDate(version.scheduledAt)}`
+                              : ''}
                           </p>
                         </div>
 
@@ -570,6 +614,23 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
                                 className="inline-flex items-center gap-1 rounded-lg bg-success px-2 py-1 text-[11px] font-semibold text-success-foreground hover:opacity-90 disabled:opacity-50"
                               >
                                 <Rocket className="h-3 w-3" /> Publier
+                              </button>
+                              <button
+                                onClick={() => schedule(version)}
+                                disabled={isPending}
+                                aria-label="Planifier la publication"
+                                title={
+                                  version.scheduledAt
+                                    ? 'Modifier ou annuler la planification'
+                                    : 'Planifier la publication automatique'
+                                }
+                                className={`rounded-lg border px-2 py-1 text-[11px] font-semibold hover:bg-muted disabled:opacity-50 ${
+                                  version.scheduledAt
+                                    ? 'border-primary text-primary'
+                                    : 'border-border text-foreground'
+                                }`}
+                              >
+                                <Clock className="h-3 w-3" />
                               </button>
                               <button
                                 onClick={() => removeDraft(version)}

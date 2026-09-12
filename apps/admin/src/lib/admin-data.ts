@@ -446,6 +446,108 @@ export async function getAdminLegalNotices(limit = 20): Promise<LegalNotice[]> {
   return data.items;
 }
 
+// ─── Registre signé des consentements ────────────────────────────────
+
+/** Périmètre (rejoué à l'identique) d'un export du registre. */
+export interface ConsentExportFilters {
+  slug?: string;
+  userId?: string;
+  consentId?: string;
+  from?: string;
+  to?: string;
+  maxRows?: number;
+  includeCookieJournal?: boolean;
+}
+
+/** Une pièce du registre des exports, telle qu'elle est scellée. */
+export interface ConsentExportRecord {
+  id: string;
+  seq: number;
+  scope: 'full' | 'document' | 'user' | 'window';
+  subject?: string;
+  reason?: string;
+  filters: ConsentExportFilters;
+  generatedAt?: string;
+  requestedBy?: string;
+  requestedByEmail?: string;
+  documentsCount: number;
+  acceptancesCount: number;
+  cookieRecordsCount: number;
+  contentSha256: string;
+  previousChain?: string;
+  chainSha256: string;
+  signature: string;
+  keyId: string;
+  algorithm: string;
+}
+
+/** Verdict du contrôle de chaîne des exports. */
+export interface ConsentExportVerification {
+  total: number;
+  valid: number;
+  broken: { exportId: string; seq: number; reason: string }[];
+  headChain?: string;
+  keyId?: string;
+  checkedAt: string;
+}
+
+/** 🧾 Registre des exports signés (les plus récents d'abord). */
+export async function getAdminConsentExports(limit = 25): Promise<ConsentExportRecord[]> {
+  try {
+    const data = await goFetch<{ items: ConsentExportRecord[] }>(
+      `/v1/admin/legal/consent-exports?limit=${limit}`
+    );
+    return data.items ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/** 🔐 Recalcule la chaîne de signatures : la pièce est-elle intacte ? */
+export async function verifyAdminConsentExports(): Promise<ConsentExportVerification | null> {
+  try {
+    return await goFetch<ConsentExportVerification>('/v1/admin/legal/consent-exports/verify');
+  } catch {
+    return null;
+  }
+}
+
+// ─── Cycle de vie légal ──────────────────────────────────────────────
+
+/** Une revue périodique suivie par la console. */
+export interface AdminLegalReview {
+  id: string;
+  documentId: string;
+  documentSlug: string;
+  audience: string;
+  ruleKey: string;
+  label: string;
+  legal: string;
+  dueAt?: string;
+  daysLeft: number;
+  status: 'OPEN' | 'DRAFTED' | 'PUBLISHED' | 'DISMISSED';
+  draftVersionId?: string;
+  draftVersion?: string;
+  draftScheduledAt?: string;
+  notes?: string;
+  openedAt?: string;
+  completedAt?: string;
+  reminders: number;
+  remindersSent: number;
+}
+
+/** 🔄 Revues périodiques (échéances ouvertes et historique récent). */
+export async function getAdminLegalReviews(limit = 100): Promise<AdminLegalReview[]> {
+  try {
+    const data = await goFetch<{ items: AdminLegalReview[] }>(
+      `/v1/admin/legal/reviews?limit=${limit}`
+    );
+    return data.items ?? [];
+  } catch {
+    return [];
+  }
+}
+
 export interface FeatureFlagItem {
   key: string;
   is_enabled: boolean;
