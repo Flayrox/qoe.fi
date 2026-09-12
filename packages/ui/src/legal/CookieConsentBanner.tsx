@@ -27,10 +27,11 @@ import {
   COOKIE_CATEGORIES,
   COOKIE_CONSENT_VERSION,
   acceptedOptionalCount,
+  analyticsMode,
   choiceToCategories,
   defaultChoice,
   localized,
-  normalizeConsent,
+  requiresConsentBanner,
   trackersByCategory,
   type CookieCategory,
   type CookieConsentChoice,
@@ -41,6 +42,7 @@ import {
   subscribeCookiePreferences,
   writeConsent,
 } from './cookie-consent-storage';
+import { AnalyticsNotice } from './AnalyticsNotice';
 
 const COPY = {
   fr: {
@@ -70,6 +72,9 @@ const COPY = {
     summaryCount: (n: number) => `${n} catégorie${n > 1 ? 's' : ''} activée${n > 1 ? 's' : ''}`,
     firstParty: 'Première partie',
     thirdParty: 'Tiers',
+    exemptBadge: 'Dispensée de consentement',
+    exemptIntro:
+      'La mesure d’audience est anonyme et sans cookie : aucune de ces catégories ne vous demande d’accord préalable. Vous gardez toutefois le droit de vous opposer à la mesure d’audience, et ce choix vaut pour toutes les apps qoe.fi.',
   },
   en: {
     title: 'Your tracker choices',
@@ -98,6 +103,9 @@ const COPY = {
     summaryCount: (n: number) => `${n} categor${n > 1 ? 'ies' : 'y'} enabled`,
     firstParty: 'First party',
     thirdParty: 'Third party',
+    exemptBadge: 'Exempt from consent',
+    exemptIntro:
+      'Audience measurement is anonymous and cookieless: none of these categories asks for prior agreement. You still hold the right to object to audience measurement, and that choice applies across every qoe.fi app.',
   },
 } as const;
 
@@ -115,12 +123,20 @@ export function CookieConsentBanner({
 }: CookieConsentBannerProps) {
   const router = useRouter();
   const copy = locale.startsWith('en') ? COPY.en : COPY.fr;
+  // 🔓 Mode exempté (défaut) : plus aucun traceur ne dépend d'un accord
+  // préalable, donc plus de bannière bloquante. Le centre de préférences et
+  // le droit d'opposition restent, eux, pleinement accessibles.
+  const exempt = !requiresConsentBanner(analyticsMode());
   const [visible, setVisible] = useState(false);
   const [centerOpen, setCenterOpen] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [choice, setChoice] = useState<CookieConsentChoice>(
-    () => normalizeConsent(defaultChoice()) ?? defaultChoice()
-  );
+  // En régime « consentement », on part d'un refus (rien n'est activé tant que
+  // la personne ne s'est pas prononcée). En régime exempté, la mesure
+  // d'audience anonyme est déjà en marche — il n'y a rien à autoriser.
+  const [choice, setChoice] = useState<CookieConsentChoice>(() => ({
+    ...defaultChoice(),
+    analytics: exempt,
+  }));
   const [, startTransition] = useTransition();
 
   useEffect(() => {
@@ -135,7 +151,7 @@ export function CookieConsentBanner({
     });
   }, []);
 
-  function decide(next: CookieConsentChoice) {
+  function decide(next: CookieConsentChoice, source = 'cookie-banner') {
     const wasBanner = visible;
     const normalized = { ...next, decidedAt: new Date().toISOString() };
     writeConsent(normalized);
@@ -152,7 +168,7 @@ export function CookieConsentBanner({
       locale,
       policyVersion: normalized.version || COOKIE_CONSENT_VERSION,
       categories: choiceToCategories(normalized),
-      source: 'cookie-banner',
+      source,
     }).catch(() => {});
 
     startTransition(() => router.refresh());
@@ -165,8 +181,21 @@ export function CookieConsentBanner({
 
   const optionalCount = acceptedOptionalCount(choice);
 
+  // Sources du journal : un enregistrement depuis le centre de préférences
+  // n'est pas un clic sur la bannière, la distinction compte en cas de
+  // contrôle (elle dit *où* l'information a été délivrée).
+  const centerSource = exempt ? 'exempt-preferences' : 'cookie-banner';
+
   return (
     <>
+      {exempt && !centerOpen && (
+        <AnalyticsNotice
+          locale={locale}
+          policyVersion={policyVersion}
+          onOpenCenter={() => setCenterOpen(true)}
+        />
+      )}
+
       {saved && !centerOpen && (
         <div
           role="status"
@@ -183,7 +212,7 @@ export function CookieConsentBanner({
         </div>
       )}
 
-      {visible && !centerOpen && (
+      {!exempt && visible && !centerOpen && (
         <div
           role="dialog"
           aria-live="polite"
@@ -254,13 +283,17 @@ export function CookieConsentBanner({
           choice={choice}
           policyVersion={policyVersion}
           showTrackers={showTrackers}
+          exempt={exempt}
           onToggle={toggle}
-          onSave={() => decide(choice)}
+          onSave={() => decide(choice, centerSource)}
           onAcceptAll={() =>
-            decide({ ...choice, analytics: true, functional: true, marketing: false })
+            decide({ ...choice, analytics: true, functional: true, marketing: false }, centerSource)
           }
           onRejectAll={() =>
-            decide({ ...choice, analytics: false, functional: false, marketing: false })
+            decide(
+              { ...choice, analytics: false, functional: false, marketing: false },
+              centerSource
+            )
           }
           onClose={() => setCenterOpen(false)}
         />
@@ -276,6 +309,8 @@ interface CookiePreferencesCenterProps {
   choice: CookieConsentChoice;
   policyVersion?: string;
   showTrackers?: boolean;
+  /** Mode exempté : aucun accord préalable n'est requis, on l'explique. */
+  exempt?: boolean;
   onToggle: (category: CookieCategory, value: boolean) => void;
   onSave: () => void;
   onAcceptAll: () => void;
@@ -292,6 +327,7 @@ export function CookiePreferencesCenter({
   choice,
   policyVersion,
   showTrackers = true,
+  exempt = false,
   onToggle,
   onSave,
   onAcceptAll,
@@ -315,7 +351,9 @@ export function CookiePreferencesCenter({
           </span>
           <div className="min-w-0 flex-1">
             <h2 className="text-sm font-semibold text-foreground">{copy.centerTitle}</h2>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{copy.centerIntro}</p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              {exempt ? copy.exemptIntro : copy.centerIntro}
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -357,6 +395,11 @@ export function CookiePreferencesCenter({
                       {category.locked && (
                         <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                           {copy.alwaysOn}
+                        </span>
+                      )}
+                      {!category.locked && !category.consentRequired && (
+                        <span className="rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-success">
+                          {copy.exemptBadge}
                         </span>
                       )}
                     </p>
@@ -417,6 +460,12 @@ export function CookiePreferencesCenter({
                           <span className="font-medium text-foreground/80">{copy.retention} :</span>{' '}
                           {localized(tracker.retention, locale)}
                         </p>
+                        {tracker.exemption && (
+                          <p className="mt-1 rounded-lg bg-success/10 px-2 py-1 text-[11px] leading-relaxed text-foreground/80">
+                            <span className="font-medium">{copy.exemptBadge} :</span>{' '}
+                            {localized(tracker.exemption, locale)}
+                          </p>
+                        )}
                       </li>
                     ))}
                   </ul>

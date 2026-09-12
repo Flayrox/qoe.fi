@@ -12,6 +12,7 @@
 // =====================================================================
 
 import {
+  ANALYTICS_DISABLED_KEY,
   COOKIE_CONSENT_COOKIE,
   COOKIE_CONSENT_KEY,
   COOKIE_CONSENT_MAX_AGE,
@@ -69,6 +70,18 @@ export function writeConsent(choice: CookieConsentChoice): void {
     window.localStorage.setItem(COOKIE_CONSENT_KEY, JSON.stringify(normalized));
   } catch {
     // Mode privé / stockage plein : le cookie reste la source de vérité.
+  }
+  // 🚫 Le script de mesure d'audience relit cette clé avant chaque envoi : une
+  // opposition exprimée éteint la mesure côté navigateur, sans dépendre d'un
+  // aller-retour serveur.
+  try {
+    if (normalized.analytics === false) {
+      window.localStorage.setItem(ANALYTICS_DISABLED_KEY, 'true');
+    } else {
+      window.localStorage.removeItem(ANALYTICS_DISABLED_KEY);
+    }
+  } catch {
+    // Stockage indisponible : le cookie fait foi pour le rendu serveur.
   }
   const secure = window.location.protocol === 'https:' ? '; Secure' : '';
   document.cookie =
