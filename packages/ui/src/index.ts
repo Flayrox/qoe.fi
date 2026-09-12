@@ -12,6 +12,7 @@ export { ImageUploader } from './ui/ImageUploader';
 export { CertifiedBadge, type CertifiedBadgeProps } from './ui/CertifiedBadge';
 export { CookieConsentBanner, CookiePreferencesCenter } from './legal/CookieConsentBanner';
 export { CookiePreferencesButton } from './legal/CookiePreferencesButton';
+export { AnalyticsNotice } from './legal/AnalyticsNotice';
 export {
   LegalConsentGate,
   type ConsentItem,

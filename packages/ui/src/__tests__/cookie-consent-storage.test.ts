@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  ANALYTICS_DISABLED_KEY,
   COOKIE_CONSENT_COOKIE,
   COOKIE_CONSENT_KEY,
   COOKIE_CONSENT_VERSION,
@@ -56,12 +57,29 @@ describe('🍪 cookie-consent-storage', () => {
     expect(parseConsentCookie(readCookieRaw())?.analytics).toBe(true);
   });
 
-  it('refuse est bien une décision enregistrée (pas une absence de choix)', () => {
-    writeConsent({ ...defaultChoice(), decidedAt: new Date().toISOString() });
+  it('un refus est une décision enregistrée (pas une absence de choix)', () => {
+    writeConsent({
+      ...defaultChoice(),
+      analytics: false,
+      functional: false,
+      marketing: false,
+      decidedAt: new Date().toISOString(),
+    });
     const stored = readLocalConsent();
     expect(stored).not.toBeNull();
     expect(stored?.version).toBe(COOKIE_CONSENT_VERSION);
     expect(stored?.analytics).toBe(false);
+  });
+
+  it('un refus éteint aussi le script côté navigateur', () => {
+    // La mesure d'audience est exemptée de consentement, donc servie par
+    // défaut : l'opposition doit donc couper le traceur localement, sans
+    // dépendre d'un aller-retour serveur.
+    writeConsent({ ...defaultChoice(), analytics: false, decidedAt: new Date().toISOString() });
+    expect(window.localStorage.getItem(ANALYTICS_DISABLED_KEY)).toBe('true');
+
+    writeConsent({ ...defaultChoice(), analytics: true, decidedAt: new Date().toISOString() });
+    expect(window.localStorage.getItem(ANALYTICS_DISABLED_KEY)).toBeNull();
   });
 
   it('notifie les abonnés au clic sur « Gérer mes cookies »', () => {

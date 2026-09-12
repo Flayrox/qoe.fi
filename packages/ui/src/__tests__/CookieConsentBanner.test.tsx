@@ -39,8 +39,11 @@ if (!window.localStorage) {
   });
 }
 
-describe('🍪 CookieConsentBanner', () => {
+// Ces tests couvrent le régime « consentement », conservé pour un éventuel
+// fournisseur non exempté. Le régime par défaut (exempté) est testé plus bas.
+describe('🍪 CookieConsentBanner — régime consentement', () => {
   beforeEach(() => {
+    process.env.NEXT_PUBLIC_ANALYTICS_MODE = 'consent';
     window.localStorage.clear();
     document.cookie = `${COOKIE_CONSENT_COOKIE}=; Max-Age=0; Path=/`;
     mocks.record.mockClear();
@@ -154,5 +157,70 @@ describe('🍪 CookieConsentBanner', () => {
     expect(mocks.recordCookie).toHaveBeenCalledTimes(1);
     expect(mocks.recordCookie.mock.calls[0][0].categories.analytics).toBe(true);
     expect(mocks.recordCookie.mock.calls[0][0].categories.functional).toBe(false);
+  });
+});
+
+describe('📊 CookieConsentBanner — régime exempté (défaut)', () => {
+  beforeEach(() => {
+    process.env.NEXT_PUBLIC_ANALYTICS_MODE = 'exempt';
+    window.localStorage.clear();
+    document.cookie = `${COOKIE_CONSENT_COOKIE}=; Max-Age=0; Path=/`;
+    mocks.record.mockClear();
+    mocks.recordCookie.mockClear();
+    mocks.refresh.mockClear();
+  });
+
+  it('n’affiche plus de bannière bloquante', async () => {
+    render(<CookieConsentBanner locale="fr" />);
+    // L'avis n'est pas un dialogue : rien n'est suspendu à un clic.
+    expect(await screen.findByText('Mesure d’audience sans cookie')).not.toBeNull();
+    expect(screen.queryByRole('button', { name: 'Tout accepter' })).toBeNull();
+  });
+
+  it('coupe la mesure d’audience et journalise l’opposition', async () => {
+    render(<CookieConsentBanner locale="fr" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'M’y opposer' }));
+
+    await waitFor(() => expect(readLocalConsent()?.analytics).toBe(false));
+    await waitFor(() => expect(mocks.recordCookie).toHaveBeenCalledTimes(1));
+    const payload = mocks.recordCookie.mock.calls[0][0];
+    expect(payload.source).toBe('exempt-objection');
+    expect(payload.categories.analytics).toBe(false);
+    // Le script Umami relit cette clé avant chaque envoi.
+    expect(window.localStorage.getItem('umami.disabled')).toBe('true');
+  });
+
+  it('une prise de connaissance suffit à ne plus solliciter la personne', async () => {
+    render(<CookieConsentBanner locale="fr" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Compris, masquer' }));
+
+    await waitFor(() => expect(screen.queryByText('Mesure d’audience sans cookie')).toBeNull());
+    expect(readLocalConsent()?.analytics).toBe(true);
+    expect(mocks.recordCookie.mock.calls[0][0].source).toBe('exempt-notice');
+  });
+
+  it('garde le centre de préférences accessible et explique la dispense', async () => {
+    render(<CookieConsentBanner locale="fr" />);
+    fireEvent.click(await screen.findByRole('button', { name: 'En savoir plus' }));
+
+    await screen.findByRole('dialog', { name: 'Préférences de traceurs' });
+    expect(screen.getAllByText('Dispensée de consentement').length).toBeGreaterThan(0);
+  });
+
+  it('un refus antérieur au passage en mode exempté reste un refus', async () => {
+    window.localStorage.setItem(
+      COOKIE_CONSENT_KEY,
+      JSON.stringify({
+        version: '1.0',
+        analytics: false,
+        functional: false,
+        marketing: false,
+        decidedAt: new Date().toISOString(),
+      })
+    );
+    render(<CookieConsentBanner locale="fr" />);
+    // Un choix existe déjà : on ne redemande rien, et la mesure reste coupée.
+    expect(screen.queryByText('Mesure d’audience sans cookie')).toBeNull();
+    expect(readLocalConsent()?.analytics).toBe(false);
   });
 });
