@@ -351,6 +351,101 @@ export async function getAdminLegalStats(): Promise<AdminLegalStats[]> {
   return data.items;
 }
 
+// ─── Conformité ──────────────────────────────────────────────────────
+
+/** État de conformité d'un document (couverture, version publiée, angles morts). */
+export interface ComplianceDocument {
+  id: string;
+  slug: string;
+  category: string;
+  audience: string;
+  requiresAcceptance: boolean;
+  isActive: boolean;
+  publishedVersion: string;
+  publishedLocales: number;
+  distinctLocales: number;
+  draftsCount: number;
+  totalAcceptances: number;
+  currentAcceptances: number;
+  coveragePercent: number;
+  lastPublishedAt?: string;
+  lastAcceptedAt?: string;
+  status: 'ok' | 'warning' | 'critical';
+  issues: string[];
+}
+
+/** Échéance réglementaire suivie par la console. */
+export interface ComplianceObligation {
+  key: string;
+  label: string;
+  document: string;
+  legal: string;
+  cadenceDays: number;
+  lastDone?: string;
+  nextDue?: string;
+  daysLeft?: number;
+  status: 'ok' | 'soon' | 'overdue' | 'unknown';
+}
+
+/** Campagne d'information déclenchée par la publication d'une version. */
+export interface LegalNotice {
+  id: string;
+  documentId: string;
+  documentSlug: string;
+  versionId: string;
+  version: string;
+  locale: string;
+  title: string;
+  changelog?: string;
+  portalPath: string;
+  createdAt?: string;
+  deliveries: number;
+  sent: number;
+  failed: number;
+}
+
+/** Journal agrégé des choix de traceurs. */
+export interface CookieConsentStats {
+  total: number;
+  last30d: number;
+  distinctBrowsers: number;
+  analyticsOptIn: number;
+  analyticsOptOut: number;
+  lastChoiceAt?: string;
+}
+
+/** Photographie de conformité complète. */
+export interface ComplianceSnapshot {
+  generatedAt: string;
+  documents: ComplianceDocument[];
+  obligations: ComplianceObligation[];
+  notices: LegalNotice[];
+  cookieConsent?: CookieConsentStats;
+  eligibleUsers: number;
+  creatorUsers: number;
+  usersWithGaps: number;
+  pendingAcceptances: number;
+  summary: {
+    score: number;
+    critical: number;
+    warning: number;
+    documentsTracked: number;
+    missingPublications: number;
+    overdueObligations: number;
+  };
+}
+
+/** 🛡️ Photographie de conformité (couverture, publications manquantes, échéances). */
+export async function getAdminLegalCompliance(): Promise<ComplianceSnapshot> {
+  return goFetch<ComplianceSnapshot>('/v1/admin/legal/compliance');
+}
+
+/** 📣 Campagnes d'information légale (avec état d'envoi). */
+export async function getAdminLegalNotices(limit = 20): Promise<LegalNotice[]> {
+  const data = await goFetch<{ items: LegalNotice[] }>(`/v1/admin/legal/notices?limit=${limit}`);
+  return data.items;
+}
+
 export interface FeatureFlagItem {
   key: string;
   is_enabled: boolean;
