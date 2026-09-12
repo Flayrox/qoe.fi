@@ -119,6 +119,7 @@ Navigateur (web) / Mobile
   `apps/api/internal/workers/` :
   - `TaskArticlePublished/Updated/Deleted` → webhooks + newsletter + embedding + Meilisearch
   - `TaskSubscriberCreated` → webhooks
+  - `TaskSubscriberConfirm` → email de confirmation double opt-in (worker ConfirmEmailWorker)
   - `TaskPostLiked` → newsletter (likes)
   - `TaskStripeEvent` → billing
   - `TaskSearchSync` → Meilisearch

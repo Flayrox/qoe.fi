@@ -46,11 +46,11 @@ func TestNewsletterSend_Fanout(t *testing.T) {
 		`INSERT INTO "Publication" (id, name, slug, "updatedAt") VALUES ('pub_nl_test', 'Test Pub', 'test-pub', now())`); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
-	// Abonné actif + opt-in articles → doit recevoir ; actif mais opt-out → non.
+	// Abonné actif + opt-in articles (confirmé) → doit recevoir ; actif mais opt-out → non.
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Subscriber" (id, email, "receiveArticles", "updatedAt", "publicationId")
-		 VALUES ('sub_nl_1', 'active@test.dev', true, now(), 'pub_nl_test'),
-		        ('sub_nl_2', 'muted@test.dev', false, now(), 'pub_nl_test')`); err != nil {
+		`INSERT INTO "Subscriber" (id, email, "receiveArticles", "confirmedAt", "updatedAt", "publicationId")
+		 VALUES ('sub_nl_1', 'active@test.dev', true, now(), now(), 'pub_nl_test'),
+		        ('sub_nl_2', 'muted@test.dev', false, NULL, now(), 'pub_nl_test')`); err != nil {
 		t.Fatalf("subscribers: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
@@ -208,8 +208,8 @@ func TestNewsletterSend_Batches(t *testing.T) {
 	for i := 0; i < 65; i++ {
 		email := fmt.Sprintf("sub%02d@test.dev", i)
 		if _, err := poolTest.Exec(ctx,
-			`INSERT INTO "Subscriber" (id, email, "updatedAt", "publicationId")
-			 VALUES (gen_random_uuid()::text, $1, now(), 'pub_nl_batch')`, email); err != nil {
+			`INSERT INTO "Subscriber" (id, email, "confirmedAt", "updatedAt", "publicationId")
+			 VALUES (gen_random_uuid()::text, $1, now(), now(), 'pub_nl_batch')`, email); err != nil {
 			t.Fatalf("subscriber %s: %v", email, err)
 		}
 	}
@@ -299,9 +299,9 @@ func TestArticleRelease_Fanout(t *testing.T) {
 		t.Fatalf("user: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Subscriber" (id, email, "receiveArticles", "updatedAt", "publicationId")
-		 VALUES ('sub_rel_1', 'reader@test.dev', true, now(), 'pub_rel_1'),
-		        ('sub_rel_2', 'muted@test.dev', false, now(), 'pub_rel_1')`); err != nil {
+		`INSERT INTO "Subscriber" (id, email, "receiveArticles", "confirmedAt", "updatedAt", "publicationId")
+		 VALUES ('sub_rel_1', 'reader@test.dev', true, now(), now(), 'pub_rel_1'),
+		        ('sub_rel_2', 'muted@test.dev', false, NULL, now(), 'pub_rel_1')`); err != nil {
 		t.Fatalf("subscribers: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
@@ -371,8 +371,8 @@ func TestArticleRelease_Premium(t *testing.T) {
 		t.Fatalf("user: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Subscriber" (id, email, "updatedAt", "publicationId")
-		 VALUES ('sub_rel_p', 'prem@test.dev', now(), 'pub_rel_p')`); err != nil {
+		`INSERT INTO "Subscriber" (id, email, "confirmedAt", "updatedAt", "publicationId")
+		 VALUES ('sub_rel_p', 'prem@test.dev', now(), now(), 'pub_rel_p')`); err != nil {
 		t.Fatalf("subscriber: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
@@ -476,8 +476,8 @@ func TestNewsletterSend_Failure(t *testing.T) {
 		t.Fatalf("publication: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
-		`INSERT INTO "Subscriber" (id, email, "updatedAt", "publicationId")
-		 VALUES ('sub_nl_f1', 'fail@test.dev', now(), 'pub_nl_fail')`); err != nil {
+		`INSERT INTO "Subscriber" (id, email, "confirmedAt", "updatedAt", "publicationId")
+		 VALUES ('sub_nl_f1', 'fail@test.dev', now(), now(), 'pub_nl_fail')`); err != nil {
 		t.Fatalf("subscriber: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,

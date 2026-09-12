@@ -66,6 +66,7 @@ FROM "Subscriber" s
 WHERE s."publicationId" = $2
   AND s."isActive" = true
   AND s."receiveArticles" = true
+  AND s."confirmedAt" IS NOT NULL  -- double opt-in : jamais de bulk vers un email non confirmé
 ON CONFLICT ("issueId", email) DO NOTHING;
 
 -- name: ListNewsletterDeliveriesByIssue :many
@@ -92,6 +93,7 @@ FROM "Subscriber" s
 WHERE s."publicationId" = $2
   AND s."isActive" = true
   AND s."receiveArticles" = true
+  AND s."confirmedAt" IS NOT NULL  -- double opt-in : jamais de bulk vers un email non confirmé
 ON CONFLICT ("articleId", email) DO NOTHING;
 
 -- name: ListQueuedArticleReleaseDeliveries :many
@@ -181,9 +183,12 @@ VALUES (
     now()
 )
 ON CONFLICT ("email", "publicationId") DO UPDATE
+-- Double opt-in : les canaux authentifiés (studio, API clé) confirment
+-- d'office l'email — pas de friction là où la relation est déjà vérifiée.
 SET "isActive" = true,
     "receiveArticles" = true,
     status = 'ACTIVE',
+    "confirmedAt" = COALESCE("Subscriber"."confirmedAt", now()),
     "updatedAt" = now()
 RETURNING id, email, status, "isActive", "isPremium", "receiveArticles", "createdAt", "updatedAt", "publicationId";
 
@@ -254,3 +259,27 @@ SELECT
 FROM "Publication" p
 WHERE p.id = $1;
 
+
+-- =====================================================================
+-- ✅ Double opt-in — email de confirmation des inscriptions publiques
+-- =====================================================================
+
+-- name: GetPendingConfirmation :one
+SELECT s.email, s."publicationId", s."confirmationToken",
+       p.name AS publication_name, p.subdomain, p."customDomain", p."accentColor"
+FROM "Subscriber" s
+JOIN "Publication" p ON p.id = s."publicationId"
+WHERE s.email = $1
+  AND s."publicationId" = $2
+  AND s."confirmationToken" IS NOT NULL;
+
+-- name: ConfirmSubscriberByToken :one
+UPDATE "Subscriber"
+SET "receiveArticles" = true,
+    "confirmedAt" = now(),
+    "confirmationToken" = NULL,
+    "updatedAt" = now()
+WHERE email = $1
+  AND "publicationId" = $2
+  AND "confirmationToken" = $3
+RETURNING id;

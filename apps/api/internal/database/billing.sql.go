@@ -130,12 +130,14 @@ func (q *Queries) SetSubscriberPremiumStatus(ctx context.Context, arg SetSubscri
 }
 
 const upsertSubscriberPayment = `-- name: UpsertSubscriberPayment :one
-INSERT INTO "Subscriber" (id, email, "publicationId", status, "isActive", "isPremium", "ltvCents", "updatedAt")
-VALUES (gen_random_uuid()::text, $1, $2, 'ACTIVE', true, true, $3, now())
+INSERT INTO "Subscriber" (id, email, "publicationId", status, "isActive", "isPremium", "ltvCents", "confirmedAt", "updatedAt")
+VALUES (gen_random_uuid()::text, $1, $2, 'ACTIVE', true, true, $3, now(), now())
 ON CONFLICT ("email", "publicationId") DO UPDATE SET
   "isActive" = true, "isPremium" = true,
   "ltvCents" = "Subscriber"."ltvCents" + EXCLUDED."ltvCents",
   status = 'ACTIVE',
+  "receiveArticles" = true,
+  "confirmedAt" = COALESCE("Subscriber"."confirmedAt", now()),
   "updatedAt" = now()
 RETURNING id
 `
@@ -146,6 +148,8 @@ type UpsertSubscriberPaymentParams struct {
 	LtvCents      int32  `json:"ltvCents"`
 }
 
+// Double opt-in : Stripe/paiement confirme d'office l'email (relation facturée
+// authentifiée) — receiveArticles reste actif sans confirmation email.
 func (q *Queries) UpsertSubscriberPayment(ctx context.Context, arg UpsertSubscriberPaymentParams) (string, error) {
 	row := q.db.QueryRow(ctx, upsertSubscriberPayment, arg.Email, arg.PublicationId, arg.LtvCents)
 	var id string

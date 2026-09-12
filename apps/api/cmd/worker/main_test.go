@@ -33,6 +33,7 @@ func testDeps() workerDeps {
 	return workerDeps{
 		webhook:    workers.NewWebhookWorker(poolTest),
 		newsletter: workers.NewNewsletterWorker(poolTest),
+		confirm:    workers.NewConfirmEmailWorker(poolTest),
 		stripe:     workers.NewStripeWorker(poolTest, cache.Client("redis://127.0.0.1:1")),
 		search:     workers.NewSearchWorker(poolTest),
 		embedding:  workers.NewEmbeddingWorker(poolTest),
@@ -49,6 +50,7 @@ func TestBuildHandlers(t *testing.T) {
 		queue.TaskArticleUpdated,
 		queue.TaskArticleDeleted,
 		queue.TaskSubscriberCreated,
+		queue.TaskSubscriberConfirm,
 		queue.TaskPostLiked,
 		queue.TaskStripeEvent,
 		queue.TaskSearchSync,
@@ -92,6 +94,7 @@ func TestWorkerMuxDispatch(t *testing.T) {
 		queue.TaskArticleUpdated:       []byte(`{}`),
 		queue.TaskArticleDeleted:       []byte(`{}`),
 		queue.TaskSubscriberCreated:    []byte(`{}`),
+		queue.TaskSubscriberConfirm:    []byte(`{}`),
 		queue.TaskPostLiked:            []byte(`{}`),
 		queue.TaskStripeEvent:          []byte(`{}`),
 		queue.TaskSearchSync:           []byte(`{}`),

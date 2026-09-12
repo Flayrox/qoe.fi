@@ -16,6 +16,7 @@ const (
 	TaskNewsletterSend       = "newsletter.send"
 	TaskNewsletterArticleRel = "newsletter.article_release"
 	TaskBulkImport           = "article.bulk_import"
+	TaskSubscriberConfirm    = "subscriber.confirm"
 )
 
 // BulkImportPayload est le payload de TaskBulkImport (import bulk asynchrone).
@@ -57,6 +58,13 @@ type SubscriberCreatedPayload struct {
 	Email         string `json:"email"`
 	IsPremium     bool   `json:"isPremium"`
 	CreatedAt     string `json:"createdAt"`
+}
+
+// SubscriberConfirmPayload est le payload de TaskSubscriberConfirm : envoi de
+// l'email de confirmation double opt-in après une inscription publique.
+type SubscriberConfirmPayload struct {
+	Email         string `json:"email"`
+	PublicationID string `json:"publicationId"`
 }
 
 // EmbeddingPayload est un job de génération d'embedding (article, user ou post).
