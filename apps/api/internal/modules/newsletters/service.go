@@ -14,9 +14,10 @@ import (
 )
 
 var (
-	errNotFound  = errors.New("newsletter introuvable")
-	errForbidden = errors.New("vous ne gérez pas cette publication")
-	errNotDraft  = errors.New("seuls les brouillons peuvent être modifiés ou envoyés")
+	errNotFound       = errors.New("newsletter introuvable")
+	errForbidden      = errors.New("vous ne gérez pas cette publication")
+	errNotDraft       = errors.New("seuls les brouillons peuvent être modifiés ou envoyés")
+	errConfirmInvalid = errors.New("lien de confirmation invalide ou déjà utilisé")
 )
 
 // Service porte les opérations newsletters (côté créateur).
@@ -232,4 +233,23 @@ func (s *Service) Unsubscribe(ctx context.Context, publicationID, email string) 
 		PublicationId: publicationID,
 		Email:         email,
 	})
+}
+
+// ConfirmSubscriber consomme un token de confirmation double opt-in : active
+// receiveArticles, horodate confirmedAt et efface le token (usage unique).
+// Retourne errConfirmInvalid si le token ne correspond pas (lien expiré,
+// déjà consommé ou falsifié) — la sig HMAC a déjà été vérifiée côté handler.
+func (s *Service) ConfirmSubscriber(ctx context.Context, publicationID, email, token string) error {
+	if publicationID == "" || email == "" || token == "" {
+		return errConfirmInvalid
+	}
+	_, err := s.q.ConfirmSubscriberByToken(ctx, db.ConfirmSubscriberByTokenParams{
+		Email:             email,
+		PublicationId:     publicationID,
+		ConfirmationToken: pgtype.Text{String: token, Valid: true},
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return errConfirmInvalid
+	}
+	return err
 }

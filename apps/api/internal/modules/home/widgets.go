@@ -400,13 +400,17 @@ func (s *Service) GetSemanticTrends(ctx context.Context, limit int) ([]SemanticT
 // ── Newsletter ─────────────────────────────────────────────────────────────────
 
 // SubscribeToNewsletter inscrit un email à la newsletter d'une publication
-// (upsert idempotent, isActive=true) — port Go de subscribeToNewsletterAction.
+// (upsert idempotent) — port Go de subscribeToNewsletterAction.
 //
-// Émet l'événement subscriber.created (webhooks créateur) UNIQUEMENT à la
-// création effective : une re-subscription (réactivation d'un désabonné ou
-// doublon) reste silencieuse — l'abonné connaît déjà la publication. L'uid
-// de la ligne créée est dérivé de xmax (0 pour un INSERT frais, cf. la
-// communauté pgx) : pas de round-trip supplémentaire.
+// Double opt-in (RGPD/CNIL + délivrabilité) : l'inscription publique crée un
+// abonné SANS receiveArticles, porteur d'un confirmationToken, puis enfile
+// l'envoi de l'email de confirmation (tâche asynq subscriber.confirm). Le lien
+// signé envoyé par email confirme l'abonnement (Service.ConfirmSubscriber).
+// Une adresse DÉJÀ confirmée qui se réinscrit est réactivée directement —
+// elle a déjà prouvé la possession de sa boîte (et une réinscription après
+// désabonnement RFC 8058 retrouve receiveArticles=true, comme annoncé sur la
+// page de désinscription). L'uid de la ligne créée est dérivé de xmax (0 pour
+// un INSERT frais, cf. la communauté pgx) : pas de round-trip supplémentaire.
 func (s *Service) SubscribeToNewsletter(ctx context.Context, email, publicationID string) (bool, error) {
 	var exists bool
 	err := s.pool.QueryRow(ctx,
@@ -417,14 +421,19 @@ func (s *Service) SubscribeToNewsletter(ctx context.Context, email, publicationI
 	if !exists {
 		return false, errors.New("publication introuvable")
 	}
+
 	var subscriberID string
 	var inserted bool
+	var confirmed pgtype.Timestamp
 	err = s.pool.QueryRow(ctx, `
-		INSERT INTO "Subscriber" (id, email, "publicationId", "isActive", "receiveArticles", "createdAt", "updatedAt")
-		VALUES (gen_random_uuid()::text, $1, $2, true, true, now(), now())
-		ON CONFLICT ("email", "publicationId") DO UPDATE SET "isActive" = true, "updatedAt" = now()
-		RETURNING id, (xmax = 0) AS inserted`,
-		email, publicationID).Scan(&subscriberID, &inserted)
+		INSERT INTO "Subscriber" (id, email, "publicationId", "isActive", "receiveArticles", "confirmationToken", "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1, $2, true, false, md5(gen_random_uuid()::text || clock_timestamp()::text), now(), now())
+		ON CONFLICT ("email", "publicationId") DO UPDATE SET
+		  "isActive" = true,
+		  "receiveArticles" = ("Subscriber"."confirmedAt" IS NOT NULL),
+		  "updatedAt" = now()
+		RETURNING id, (xmax = 0) AS inserted, "confirmedAt"`,
+		email, publicationID).Scan(&subscriberID, &inserted, &confirmed)
 	if err != nil {
 		return false, err
 	}
@@ -438,6 +447,17 @@ func (s *Service) SubscribeToNewsletter(ctx context.Context, email, publicationI
 			Email:         email,
 		}); err != nil {
 			log.Printf("[home] subscriber.created enqueue: %v", err)
+		}
+	}
+	// Double opt-in : email de confirmation uniquement à la création d'un
+	// abonné non confirmé (ré-inscription d'une adresse en attente : le token
+	// et l'email initial restent valables — pas de re-spam).
+	if inserted && !confirmed.Valid && s.events != nil {
+		if err := queue.PublishSubscriberConfirm(s.events, queue.SubscriberConfirmPayload{
+			Email:         email,
+			PublicationID: publicationID,
+		}); err != nil {
+			log.Printf("[home] subscriber.confirm enqueue: %v", err)
 		}
 	}
 	return true, nil

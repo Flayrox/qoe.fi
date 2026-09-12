@@ -877,10 +877,11 @@ func (s *Service) SimulateSubscriber(ctx context.Context, userID string, p Simul
 	}
 
 	if _, err := s.pool.Exec(ctx, `
-		INSERT INTO "Subscriber" (id, email, "publicationId", "isActive", "isPremium", "ltvCents", "createdAt", "updatedAt")
-		VALUES (gen_random_uuid()::text, $1, $2, true, $3, $4, now(), now())
+		INSERT INTO "Subscriber" (id, email, "publicationId", "isActive", "isPremium", "ltvCents", "confirmedAt", "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1, $2, true, $3, $4, now(), now(), now())
 		ON CONFLICT ("email", "publicationId") DO UPDATE SET
 		  "isActive" = true, "isPremium" = $3, "ltvCents" = "Subscriber"."ltvCents" + $4,
+		  "confirmedAt" = COALESCE("Subscriber"."confirmedAt", now()),
 		  "updatedAt" = now()`,
 		email, p.PublicationID, p.IsPremium, p.LtvCents); err != nil {
 		return fmt.Errorf("subscriber: %w", err)

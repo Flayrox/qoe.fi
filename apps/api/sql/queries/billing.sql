@@ -17,12 +17,16 @@ WHERE md."publicationId" = $1 AND mm.role = 'owner' AND mm.status = 'active'
 LIMIT 1;
 
 -- name: UpsertSubscriberPayment :one
-INSERT INTO "Subscriber" (id, email, "publicationId", status, "isActive", "isPremium", "ltvCents", "updatedAt")
-VALUES (gen_random_uuid()::text, $1, $2, 'ACTIVE', true, true, $3, now())
+-- Double opt-in : Stripe/paiement confirme d'office l'email (relation facturée
+-- authentifiée) — receiveArticles reste actif sans confirmation email.
+INSERT INTO "Subscriber" (id, email, "publicationId", status, "isActive", "isPremium", "ltvCents", "confirmedAt", "updatedAt")
+VALUES (gen_random_uuid()::text, $1, $2, 'ACTIVE', true, true, $3, now(), now())
 ON CONFLICT ("email", "publicationId") DO UPDATE SET
   "isActive" = true, "isPremium" = true,
   "ltvCents" = "Subscriber"."ltvCents" + EXCLUDED."ltvCents",
   status = 'ACTIVE',
+  "receiveArticles" = true,
+  "confirmedAt" = COALESCE("Subscriber"."confirmedAt", now()),
   "updatedAt" = now()
 RETURNING id;
 

@@ -24,9 +24,14 @@ type Querier interface {
 	// Réclamation atomique (QUEUED → PROCESSING) : plusieurs instances du worker
 	// peuvent tourner sans envoyer deux fois le même email.
 	ClaimLegalNoticeDeliveries(ctx context.Context, batchSize int32) ([]ClaimLegalNoticeDeliveriesRow, error)
+	ClaimLegalReviewReminders(ctx context.Context, batchSize int32) ([]ClaimLegalReviewRemindersRow, error)
 	ClearArticleEditorPicks(ctx context.Context) error
 	ClearPinnedPosts(ctx context.Context, authorid string) error
+	// Publier le brouillon d'une revue clôt la revue : la boucle est bouclée sans
+	// qu'un humain ait à cocher quoi que ce soit en plus.
+	CompleteLegalReviewsForVersion(ctx context.Context, versionID pgtype.Text) error
 	CompleteOnboardingUser(ctx context.Context, arg CompleteOnboardingUserParams) error
+	ConfirmSubscriberByToken(ctx context.Context, arg ConfirmSubscriberByTokenParams) (string, error)
 	ConsumeOAuthAuthorizationCode(ctx context.Context, id string) error
 	CookieConsentStats(ctx context.Context) (CookieConsentStatsRow, error)
 	CountActiveOAuthTokens(ctx context.Context, userid string) (int64, error)
@@ -40,6 +45,7 @@ type Querier interface {
 	CountDevtoolsSubscribers(ctx context.Context) (int64, error)
 	CountDevtoolsThoughts(ctx context.Context) (int64, error)
 	CountDevtoolsUsers(ctx context.Context) (int64, error)
+	CountDueScheduledLegalVersions(ctx context.Context) (int64, error)
 	CountFollowers(ctx context.Context, publicationid string) (int32, error)
 	CountFollowing(ctx context.Context, readerid pgtype.UUID) (int32, error)
 	CountHighlightUpvotes(ctx context.Context, highlightid string) (int32, error)
@@ -135,6 +141,7 @@ type Querier interface {
 	DeleteSystemConfig(ctx context.Context, key string) error
 	DeleteTrend(ctx context.Context, id string) error
 	DeleteWebhook(ctx context.Context, id string) error
+	DismissLegalReview(ctx context.Context, arg DismissLegalReviewParams) (LegalReview, error)
 	ExistsUnreadCommentNotification(ctx context.Context, arg ExistsUnreadCommentNotificationParams) (int32, error)
 	ExistsUnreadFollowNotification(ctx context.Context, arg ExistsUnreadFollowNotificationParams) (int32, error)
 	ExistsUnreadLikeNotification(ctx context.Context, arg ExistsUnreadLikeNotificationParams) (int32, error)
@@ -210,13 +217,20 @@ type Querier interface {
 	// visibilité publique, upvotes et commentaires d'annotation.
 	// Tables : Highlight, AnnotationComment, AnnotationUpvote.
 	GetHighlightByID(ctx context.Context, id string) (GetHighlightByIDRow, error)
+	GetLatestLegalConsentExport(ctx context.Context) (LegalConsentExport, error)
 	GetLegalAcceptance(ctx context.Context, arg GetLegalAcceptanceParams) (LegalAcceptance, error)
+	// ─── Rappels aux superadmins ─────────────────────────────────────────
+	// L'email de l'auteur d'un export : le registre doit dire QUI a produit la
+	// pièce, pas seulement quel compte technique.
+	GetLegalActorEmail(ctx context.Context, id pgtype.UUID) (string, error)
 	// Couverture du consentement par audience, pour repérer un segment oublié.
 	GetLegalConsentCoverageByAudience(ctx context.Context) ([]GetLegalConsentCoverageByAudienceRow, error)
 	GetLegalDocumentByID(ctx context.Context, id string) (LegalDocument, error)
 	GetLegalDocumentBySlug(ctx context.Context, slug string) (LegalDocument, error)
+	GetLegalDocumentBySlugAdmin(ctx context.Context, slug string) (LegalDocument, error)
 	GetLegalDocumentVersion(ctx context.Context, id string) (LegalDocumentVersion, error)
 	GetLegalNoticeEmailContext(ctx context.Context, arg GetLegalNoticeEmailContextParams) (GetLegalNoticeEmailContextRow, error)
+	GetLegalReviewReminderContext(ctx context.Context, id string) (GetLegalReviewReminderContextRow, error)
 	GetLikePrefs(ctx context.Context, userid pgtype.UUID) (GetLikePrefsRow, error)
 	GetMediaApiKeyByID(ctx context.Context, arg GetMediaApiKeyByIDParams) (GetMediaApiKeyByIDRow, error)
 	// Dédoublonnage CAS : cherche un asset existant par hash SHA-256.
@@ -243,6 +257,10 @@ type Querier interface {
 	GetOAuthTokenByAccessHash(ctx context.Context, accesstokenhash string) (GetOAuthTokenByAccessHashRow, error)
 	GetOAuthTokenByRefreshHash(ctx context.Context, refreshtokenhash pgtype.Text) (GetOAuthTokenByRefreshHashRow, error)
 	GetOAuthUserClaims(ctx context.Context, id string) (GetOAuthUserClaimsRow, error)
+	// =====================================================================
+	// ✅ Double opt-in — email de confirmation des inscriptions publiques
+	// =====================================================================
+	GetPendingConfirmation(ctx context.Context, arg GetPendingConfirmationParams) (GetPendingConfirmationRow, error)
 	GetPersonalOwnerForCredit(ctx context.Context, publicationid pgtype.Text) (GetPersonalOwnerForCreditRow, error)
 	GetPersonalPublicationByUserID(ctx context.Context, id string) (pgtype.Text, error)
 	GetPersonalPublicationForUser(ctx context.Context, id string) (GetPersonalPublicationForUserRow, error)
@@ -274,6 +292,9 @@ type Querier interface {
 	GetReadingSessionDailySeries(ctx context.Context, arg GetReadingSessionDailySeriesParams) ([]GetReadingSessionDailySeriesRow, error)
 	GetRecentArticlesForAnalytics(ctx context.Context, arg GetRecentArticlesForAnalyticsParams) ([]GetRecentArticlesForAnalyticsRow, error)
 	GetRecentThoughtsForAnalytics(ctx context.Context, arg GetRecentThoughtsForAnalyticsParams) ([]GetRecentThoughtsForAnalyticsRow, error)
+	// Version publiée de référence d'un document (FR en priorité : c'est le texte
+	// qui fait foi). Sert de base au brouillon de revue.
+	GetReferencePublishedVersion(ctx context.Context, documentID string) (LegalDocumentVersion, error)
 	GetRepliesForThought(ctx context.Context, arg GetRepliesForThoughtParams) ([]GetRepliesForThoughtRow, error)
 	GetReplyIDsForThought(ctx context.Context, parentid pgtype.Text) ([]string, error)
 	// Notifications REPLY / MENTION
@@ -364,6 +385,7 @@ type Querier interface {
 	InsertDirectConversation(ctx context.Context, directkey pgtype.Text) (string, error)
 	InsertFollow(ctx context.Context, arg InsertFollowParams) error
 	InsertFollowNotification(ctx context.Context, arg InsertFollowNotificationParams) error
+	InsertLegalConsentExport(ctx context.Context, arg InsertLegalConsentExportParams) (LegalConsentExport, error)
 	InsertLegalDocument(ctx context.Context, arg InsertLegalDocumentParams) (LegalDocument, error)
 	InsertLegalDocumentVersion(ctx context.Context, arg InsertLegalDocumentVersionParams) (LegalDocumentVersion, error)
 	// ─── Avis de nouvelle version (outbox email) ─────────────────────────
@@ -371,6 +393,9 @@ type Querier interface {
 	// le service soit idempotent sans avoir à gérer un cas d'erreur particulier.
 	InsertLegalNotice(ctx context.Context, arg InsertLegalNoticeParams) (LegalNotice, error)
 	InsertLegalNoticeDelivery(ctx context.Context, arg InsertLegalNoticeDeliveryParams) error
+	// Le nombre de lignes réellement insérées compte : un rappel déjà émis n'est
+	// pas un rappel émis, et le rapport du cycle doit le dire honnêtement.
+	InsertLegalReviewReminder(ctx context.Context, arg InsertLegalReviewReminderParams) (int64, error)
 	InsertLike(ctx context.Context, arg InsertLikeParams) (string, error)
 	InsertLikeNotification(ctx context.Context, arg InsertLikeNotificationParams) error
 	InsertMediaApiKey(ctx context.Context, arg InsertMediaApiKeyParams) error
@@ -434,6 +459,9 @@ type Querier interface {
 	// Conversations de l'utilisateur (directes : un seul autre participant),
 	// avec le dernier message et le nombre de non-lus, triées par activité.
 	ListConversationsForUser(ctx context.Context, arg ListConversationsForUserParams) ([]ListConversationsForUserRow, error)
+	// Journal des choix de traceurs. Le consent_id est un identifiant aléatoire de
+	// navigateur, pas une personne : il permet de reconstituer une suite de choix.
+	ListCookieConsentForExport(ctx context.Context, arg ListCookieConsentForExportParams) ([]CookieConsentRecord, error)
 	ListCookieConsentRecords(ctx context.Context, arg ListCookieConsentRecordsParams) ([]ListCookieConsentRecordsRow, error)
 	// Liste des articles d'une publication au format contrat créateurs (Hono) :
 	// filtres `published` (défaut true) et `category` (slug), catégorie embarquée.
@@ -447,10 +475,19 @@ type Querier interface {
 	// Surlignages d'un article : publics + les siens (privés) + état upvote du viewer.
 	ListHighlightsByArticle(ctx context.Context, arg ListHighlightsByArticleParams) ([]ListHighlightsByArticleRow, error)
 	ListLegalAcceptancesAdmin(ctx context.Context, arg ListLegalAcceptancesAdminParams) ([]ListLegalAcceptancesAdminRow, error)
+	// Preuves de consentement. L'IP et l'agent utilisateur sont inclus : c'est
+	// précisément ce qu'une autorité de contrôle demande pour établir qu'une
+	// acceptation vient d'un vrai parcours, et l'export est nominatif par nature.
+	ListLegalAcceptancesForExport(ctx context.Context, arg ListLegalAcceptancesForExportParams) ([]ListLegalAcceptancesForExportRow, error)
 	// ─── Conformité ──────────────────────────────────────────────────────
 	// Vue conformité : pour chaque document, la version publiée, la couverture du
 	// consentement sur la version courante, et l'activité d'édition.
 	ListLegalComplianceDocuments(ctx context.Context) ([]ListLegalComplianceDocumentsRow, error)
+	ListLegalConsentExports(ctx context.Context, limitCount int32) ([]LegalConsentExport, error)
+	// Chaîne complète, du plus ancien au plus récent : c'est l'ordre dans lequel
+	// les signatures doivent être recomputées pour vérifier qu'aucun maillon n'a
+	// été retiré ni réécrit.
+	ListLegalConsentExportsForVerify(ctx context.Context) ([]LegalConsentExport, error)
 	ListLegalDocumentVersions(ctx context.Context, documentID string) ([]ListLegalDocumentVersionsRow, error)
 	// ─── Superadmin ─────────────────────────────────────────────────────
 	ListLegalDocumentsAdmin(ctx context.Context) ([]ListLegalDocumentsAdminRow, error)
@@ -459,6 +496,17 @@ type Querier interface {
 	// suspendu ou sans email est exclu : l'email ne part pas dans le vide.
 	ListLegalNoticeRecipients(ctx context.Context, arg ListLegalNoticeRecipientsParams) ([]ListLegalNoticeRecipientsRow, error)
 	ListLegalNoticesAdmin(ctx context.Context, limitCount int32) ([]ListLegalNoticesAdminRow, error)
+	ListLegalReviewsAdmin(ctx context.Context, limitCount int32) ([]ListLegalReviewsAdminRow, error)
+	ListLegalSuperadmins(ctx context.Context) ([]ListLegalSuperadminsRow, error)
+	// ═══════════════════════════════════════════════════════════════════
+	// ⚖️ Legal — cycle de vie (revues, publication planifiée, rappels)
+	//            et registre des exports signés du consentement
+	// ═══════════════════════════════════════════════════════════════════
+	// ─── Exports signés du registre du consentement ──────────────────────
+	// Le texte accepté fait partie de la preuve : on exporte la version complète
+	// (corps inclus) et son empreinte SHA-256, pour qu'un vérificateur puisse
+	// contrôler l'intégrité sans dépendre de notre base.
+	ListLegalVersionsForExport(ctx context.Context, slug pgtype.Text) ([]ListLegalVersionsForExportRow, error)
 	ListLikesForPost(ctx context.Context, arg ListLikesForPostParams) ([]ListLikesForPostRow, error)
 	// ============================================================================
 	// Clés API Média (gestion par le média, délégation api_keys:manage)
@@ -484,6 +532,7 @@ type Querier interface {
 	ListNotificationDeliveries(ctx context.Context) ([]ListNotificationDeliveriesRow, error)
 	ListOAuthClientsByOwner(ctx context.Context, owneruserid string) ([]ListOAuthClientsByOwnerRow, error)
 	ListOAuthConfig(ctx context.Context) ([]ListOAuthConfigRow, error)
+	ListOpenLegalReviews(ctx context.Context) ([]ListOpenLegalReviewsRow, error)
 	// Documents qui exigent une acceptation et que l'utilisateur n'a pas encore
 	// acceptés dans leur version publiée courante (déclencheur de re-consentement
 	// après une nouvelle version).
@@ -531,11 +580,16 @@ type Querier interface {
 	ListUserLegalAcceptances(ctx context.Context, userID pgtype.UUID) ([]ListUserLegalAcceptancesRow, error)
 	ListWebhookDeliveries(ctx context.Context, arg ListWebhookDeliveriesParams) ([]ListWebhookDeliveriesRow, error)
 	ListWebhooksByPublication(ctx context.Context, publicationid string) ([]ListWebhooksByPublicationRow, error)
+	// Réclame UN brouillon arrivé à échéance, verrouillé jusqu'à la fin de la
+	// transaction : la publication et le déverrouillage sont donc atomiques, et
+	// deux workers ne peuvent pas publier la même version.
+	LockDueScheduledLegalVersion(ctx context.Context) (LockDueScheduledLegalVersionRow, error)
 	MarkArticleImportJobRunning(ctx context.Context, id string) error
 	MarkArticleReleaseDelivery(ctx context.Context, arg MarkArticleReleaseDeliveryParams) error
 	// Marque TOUS les messages comme lus (upsert du lastReadAt à maintenant).
 	MarkConversationRead(ctx context.Context, arg MarkConversationReadParams) error
 	MarkLegalNoticeDelivery(ctx context.Context, arg MarkLegalNoticeDeliveryParams) error
+	MarkLegalReviewReminder(ctx context.Context, arg MarkLegalReviewReminderParams) error
 	MarkNewsletterDelivery(ctx context.Context, arg MarkNewsletterDeliveryParams) error
 	MarkNotificationsRead(ctx context.Context, arg MarkNotificationsReadParams) error
 	PinPost(ctx context.Context, arg PinPostParams) (bool, error)
@@ -550,12 +604,22 @@ type Querier interface {
 	RevokeOAuthTokenByAccessHash(ctx context.Context, accesstokenhash string) error
 	RevokeOAuthTokenByRefreshHash(ctx context.Context, refreshtokenhash pgtype.Text) error
 	RevokeOAuthTokensByUserClient(ctx context.Context, arg RevokeOAuthTokensByUserClientParams) error
+	// ─── Publication planifiée ───────────────────────────────────────────
+	// Programme (ou déprogramme, si la date est nulle) la publication automatique
+	// d'un brouillon. Refusé sur une version déjà publiée.
+	ScheduleLegalDocumentVersion(ctx context.Context, arg ScheduleLegalDocumentVersionParams) (LegalDocumentVersion, error)
 	// Recherche sémantique plein corpus (ordre par similarité cosinus).
 	SearchSemanticArticles(ctx context.Context, arg SearchSemanticArticlesParams) ([]SearchSemanticArticlesRow, error)
 	SearchThoughts(ctx context.Context, arg SearchThoughtsParams) ([]SearchThoughtsRow, error)
 	SetApiApplication(ctx context.Context, arg SetApiApplicationParams) error
 	SetArticleEditorPick(ctx context.Context, arg SetArticleEditorPickParams) (SetArticleEditorPickRow, error)
 	SetArticleStatus(ctx context.Context, arg SetArticleStatusParams) (string, error)
+	// L'identifiant et le numéro de séquence ne sont connus qu'après insertion :
+	// on écrit donc d'abord la ligne (dans la transaction), puis on y scelle
+	// l'empreinte du contenu, le maillon précédent et la signature. Tant que la
+	// transaction n'est pas validée, personne ne voit d'export non signé.
+	SetLegalConsentExportSignature(ctx context.Context, arg SetLegalConsentExportSignatureParams) (LegalConsentExport, error)
+	SetLegalReviewDraft(ctx context.Context, arg SetLegalReviewDraftParams) (LegalReview, error)
 	SetNewsletterIssueSending(ctx context.Context, id string) (string, error)
 	SetPublicationUmamiWebsite(ctx context.Context, arg SetPublicationUmamiWebsiteParams) error
 	SetSubscriberPremiumStatus(ctx context.Context, arg SetSubscriberPremiumStatusParams) error
@@ -612,6 +676,11 @@ type Querier interface {
 	// La preuve est immuable : un re-clic renvoie la première acceptation sans
 	// la réécrire (sinon une source par défaut écraserait la preuve d'origine).
 	UpsertLegalAcceptance(ctx context.Context, arg UpsertLegalAcceptanceParams) (LegalAcceptance, error)
+	// ─── Revues périodiques ──────────────────────────────────────────────
+	// Ouvre (ou retrouve) la revue d'une échéance. `DO UPDATE` sans effet permet
+	// de récupérer la ligne existante : une même échéance n'ouvre qu'une revue,
+	// quel que soit le nombre de passages du worker.
+	UpsertLegalReview(ctx context.Context, arg UpsertLegalReviewParams) (LegalReview, error)
 	UpsertMediaMember(ctx context.Context, arg UpsertMediaMemberParams) error
 	UpsertNotificationPreferences(ctx context.Context, arg UpsertNotificationPreferencesParams) error
 	UpsertOAuthConsent(ctx context.Context, arg UpsertOAuthConsentParams) error
@@ -621,7 +690,11 @@ type Querier interface {
 	// =====================================================================
 	// 👥 Gestion des abonnés (Subscribers API & Headless integrations)
 	// =====================================================================
+	// Double opt-in : les canaux authentifiés (studio, API clé) confirment
+	// d'office l'email — pas de friction là où la relation est déjà vérifiée.
 	UpsertSubscriber(ctx context.Context, arg UpsertSubscriberParams) (UpsertSubscriberRow, error)
+	// Double opt-in : Stripe/paiement confirme d'office l'email (relation facturée
+	// authentifiée) — receiveArticles reste actif sans confirmation email.
 	UpsertSubscriberPayment(ctx context.Context, arg UpsertSubscriberPaymentParams) (string, error)
 	UpsertSystemConfig(ctx context.Context, arg UpsertSystemConfigParams) (SystemConfig, error)
 	UpsertTrend(ctx context.Context, arg UpsertTrendParams) (UpsertTrendRow, error)

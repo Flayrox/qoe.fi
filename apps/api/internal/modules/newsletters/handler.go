@@ -52,10 +52,13 @@ func (h *Handler) Register(r chi.Router) {
 	r.Post("/v1/newsletters/{id}/send", h.send)
 }
 
-// RegisterPublic monte le désabonnement (GET pour lien web et POST pour RFC 8058 one-click).
+// RegisterPublic monte le désabonnement (GET pour lien web et POST pour RFC 8058 one-click)
+// et la confirmation double opt-in (GET lien email, POST re-soumission).
 func (h *Handler) RegisterPublic(r chi.Router) {
 	r.Get("/v1/newsletters/unsubscribe", h.unsubscribe)
 	r.Post("/v1/newsletters/unsubscribe", h.unsubscribe)
+	r.Get("/v1/newsletters/confirm", h.confirm)
+	r.Post("/v1/newsletters/confirm", h.confirm)
 }
 
 func (h *Handler) userID(w http.ResponseWriter, r *http.Request) (string, bool) {
@@ -203,4 +206,66 @@ func (h *Handler) unsubscribe(w http.ResponseWriter, r *http.Request) {
 <p style="font-size:14px;line-height:1.6;color:#6b7280;margin:0 0 24px;">Vous ne recevrez plus les e-mails ni les newsletters de cette publication. Vous pouvez vous réabonner à tout moment depuis le site.</p>
 <a href="https://qoe.fi" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;font-size:13px;font-weight:500;padding:10px 24px;border-radius:9999px;transition:background 0.2s;">Retourner à l'accueil</a>
 </div></body></html>`))
+}
+
+// GET & POST /v1/newsletters/confirm?pub=&email=&token=&sig= — confirmation
+// double opt-in : le lien signé (HMAC timing-safe) envoyé par email valide la
+// possession de la boîte et active receiveArticles. Token à usage unique : un
+// lien rejoué (déjà consommé) répond 409 « déjà utilisé » — jamais une 500.
+func (h *Handler) confirm(w http.ResponseWriter, r *http.Request) {
+	pubID := r.URL.Query().Get("pub")
+	if pubID == "" {
+		pubID = r.URL.Query().Get("publicationId")
+	}
+	email := r.URL.Query().Get("email")
+	token := r.URL.Query().Get("token")
+	sig := r.URL.Query().Get("sig")
+
+	if pubID == "" || email == "" || token == "" {
+		response.BadRequest(w, "pub, email et token requis")
+		return
+	}
+
+	// 🛡️ Signature HMAC timing-safe (miroir de l'unsubscribe RFC 8058) : le
+	// token (hash md5 non secret, jamais réutilisé) est blindé par la sig.
+	if !workers.VerifyConfirm(pubID, email, sig) {
+		response.Forbidden(w, "Lien de confirmation invalide")
+		return
+	}
+
+	if err := h.svc.ConfirmSubscriber(r.Context(), pubID, email, token); err != nil {
+		h.handleConfirmErr(w, err)
+		return
+	}
+
+	if r.Method == http.MethodPost {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("Subscription confirmed"))
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write([]byte(`<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Abonnement confirmé</title></head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;background:#f9fafb;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:20px;-webkit-font-smoothing:antialiased;">
+<div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,0.04);padding:40px 32px;max-width:440px;width:100%;text-align:center;">
+<div style="width:48px;height:48px;background:#f0fdf4;border:1px solid #dcfce7;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:22px;color:#16a34a;">✓</div>
+<h1 style="font-size:20px;font-weight:600;color:#111827;margin:0 0 8px;letter-spacing:-0.01em;">Abonnement confirmé !</h1>
+<p style="font-size:14px;line-height:1.6;color:#6b7280;margin:0 0 24px;">Votre adresse email est validée : vous recevrez désormais les nouvelles publications. Chaque email contiendra un lien de désabonnement en un clic.</p>
+<a href="https://qoe.fi" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;font-size:13px;font-weight:500;padding:10px 24px;border-radius:9999px;">Retourner à l'accueil</a>
+</div></body></html>`))
+}
+
+// handleConfirmErr mappe les erreurs de confirmation — un token inconnu ou
+// expiré est un 409 (le lien ne peut plus rien confirmer), pas une 500.
+func (h *Handler) handleConfirmErr(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, errConfirmInvalid):
+		response.Error(w, http.StatusConflict, "Lien de confirmation invalide ou déjà utilisé")
+	case errors.Is(err, pgx.ErrNoRows):
+		response.Error(w, http.StatusConflict, "Lien de confirmation invalide ou déjà utilisé")
+	default:
+		log.Printf("[newsletters] confirm: %v", err)
+		response.Internal(w)
+	}
 }

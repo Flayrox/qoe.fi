@@ -11,6 +11,31 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const confirmSubscriberByToken = `-- name: ConfirmSubscriberByToken :one
+UPDATE "Subscriber"
+SET "receiveArticles" = true,
+    "confirmedAt" = now(),
+    "confirmationToken" = NULL,
+    "updatedAt" = now()
+WHERE email = $1
+  AND "publicationId" = $2
+  AND "confirmationToken" = $3
+RETURNING id
+`
+
+type ConfirmSubscriberByTokenParams struct {
+	Email             string      `json:"email"`
+	PublicationId     string      `json:"publicationId"`
+	ConfirmationToken pgtype.Text `json:"confirmationToken"`
+}
+
+func (q *Queries) ConfirmSubscriberByToken(ctx context.Context, arg ConfirmSubscriberByTokenParams) (string, error) {
+	row := q.db.QueryRow(ctx, confirmSubscriberByToken, arg.Email, arg.PublicationId, arg.ConfirmationToken)
+	var id string
+	err := row.Scan(&id)
+	return id, err
+}
+
 const countArticleReleaseDeliveries = `-- name: CountArticleReleaseDeliveries :one
 SELECT COUNT(*)::bigint AS total,
        COUNT(*) FILTER (WHERE status = 'SENT')::bigint   AS sent,
@@ -294,6 +319,50 @@ func (q *Queries) GetNewsletterIssueWithPublication(ctx context.Context, id stri
 	return i, err
 }
 
+const getPendingConfirmation = `-- name: GetPendingConfirmation :one
+
+SELECT s.email, s."publicationId", s."confirmationToken",
+       p.name AS publication_name, p.subdomain, p."customDomain", p."accentColor"
+FROM "Subscriber" s
+JOIN "Publication" p ON p.id = s."publicationId"
+WHERE s.email = $1
+  AND s."publicationId" = $2
+  AND s."confirmationToken" IS NOT NULL
+`
+
+type GetPendingConfirmationParams struct {
+	Email         string `json:"email"`
+	PublicationId string `json:"publicationId"`
+}
+
+type GetPendingConfirmationRow struct {
+	Email             string      `json:"email"`
+	PublicationId     string      `json:"publicationId"`
+	ConfirmationToken pgtype.Text `json:"confirmationToken"`
+	PublicationName   string      `json:"publication_name"`
+	Subdomain         pgtype.Text `json:"subdomain"`
+	CustomDomain      pgtype.Text `json:"customDomain"`
+	AccentColor       pgtype.Text `json:"accentColor"`
+}
+
+// =====================================================================
+// ✅ Double opt-in — email de confirmation des inscriptions publiques
+// =====================================================================
+func (q *Queries) GetPendingConfirmation(ctx context.Context, arg GetPendingConfirmationParams) (GetPendingConfirmationRow, error) {
+	row := q.db.QueryRow(ctx, getPendingConfirmation, arg.Email, arg.PublicationId)
+	var i GetPendingConfirmationRow
+	err := row.Scan(
+		&i.Email,
+		&i.PublicationId,
+		&i.ConfirmationToken,
+		&i.PublicationName,
+		&i.Subdomain,
+		&i.CustomDomain,
+		&i.AccentColor,
+	)
+	return i, err
+}
+
 const getPublicationMetadataByID = `-- name: GetPublicationMetadataByID :one
 SELECT 
     p.id,
@@ -425,6 +494,7 @@ FROM "Subscriber" s
 WHERE s."publicationId" = $2
   AND s."isActive" = true
   AND s."receiveArticles" = true
+  AND s."confirmedAt" IS NOT NULL  -- double opt-in : jamais de bulk vers un email non confirmé
 ON CONFLICT ("articleId", email) DO NOTHING
 `
 
@@ -445,6 +515,7 @@ FROM "Subscriber" s
 WHERE s."publicationId" = $2
   AND s."isActive" = true
   AND s."receiveArticles" = true
+  AND s."confirmedAt" IS NOT NULL  -- double opt-in : jamais de bulk vers un email non confirmé
 ON CONFLICT ("issueId", email) DO NOTHING
 `
 
@@ -823,6 +894,7 @@ ON CONFLICT ("email", "publicationId") DO UPDATE
 SET "isActive" = true,
     "receiveArticles" = true,
     status = 'ACTIVE',
+    "confirmedAt" = COALESCE("Subscriber"."confirmedAt", now()),
     "updatedAt" = now()
 RETURNING id, email, status, "isActive", "isPremium", "receiveArticles", "createdAt", "updatedAt", "publicationId"
 `
@@ -847,6 +919,8 @@ type UpsertSubscriberRow struct {
 // =====================================================================
 // 👥 Gestion des abonnés (Subscribers API & Headless integrations)
 // =====================================================================
+// Double opt-in : les canaux authentifiés (studio, API clé) confirment
+// d'office l'email — pas de friction là où la relation est déjà vérifiée.
 func (q *Queries) UpsertSubscriber(ctx context.Context, arg UpsertSubscriberParams) (UpsertSubscriberRow, error) {
 	row := q.db.QueryRow(ctx, upsertSubscriber, arg.Email, arg.PublicationID)
 	var i UpsertSubscriberRow

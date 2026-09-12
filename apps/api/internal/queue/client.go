@@ -242,3 +242,18 @@ func PublishSubscriberCreated(c *asynq.Client, p SubscriberCreatedPayload) error
 	_, err = c.Enqueue(task, asynq.Queue("default"))
 	return err
 }
+
+// PublishSubscriberConfirm enqueue l'envoi de l'email de confirmation double
+// opt-in (tâche asynq TaskSubscriberConfirm).
+func PublishSubscriberConfirm(c *asynq.Client, p SubscriberConfirmPayload) error {
+	if c == nil {
+		return nil
+	}
+	payload, err := json.Marshal(p)
+	if err != nil {
+		return err
+	}
+	task := asynq.NewTask(TaskSubscriberConfirm, payload, asynq.MaxRetry(3), asynq.Timeout(30*time.Second))
+	_, err = c.Enqueue(task, asynq.Queue("default"))
+	return err
+}
