@@ -7,6 +7,8 @@ import {
   checkSubdomainAvailabilityAction as checkSubdomainAction,
   completeOnboardingAction,
 } from '@qoe/sdk/actions/dashboard';
+import { acceptLegalConsentsAction } from '@qoe/sdk/actions/legal';
+import type { ConsentDocument } from '@qoe/utils/legal-consent';
 
 import { useRouter } from 'next/navigation';
 import { toast } from '@qoe/ui/toast';
@@ -211,12 +213,28 @@ function MockDashboard() {
   );
 }
 
-export function OnboardingWizard({ initialName = '' }: { initialName?: string }) {
+export function OnboardingWizard({
+  initialName = '',
+  consentDocuments = [],
+  locale = 'fr',
+}: {
+  initialName?: string;
+  /**
+   * ⚖️ Documents que le créateur doit accepter (accord créateur, CGU,
+   * confidentialité). Fournis par la page (rendu serveur) avec la version
+   * publiée courante : la preuve enregistrée pointe vers cette version exacte.
+   */
+  consentDocuments?: ConsentDocument[];
+  locale?: string;
+}) {
   const router = useRouter();
   const [, startTransition] = useTransition();
 
   const [name, setName] = useState(initialName);
   const [status, setStatus] = useState<'idle' | 'creating'>('idle');
+  // Créer un espace créateur engage (revenue, fiscalité, éditorial) : on rend
+  // l'acceptation explicite et bloquante, pas une case pré-cochée.
+  const [consentAccepted, setConsentAccepted] = useState(false);
 
   // Adresse générée automatiquement depuis le nom — modifiable ensuite dans
   // les réglages. C'est l'adresse affichée dans l'aperçu en temps réel.
@@ -226,6 +244,10 @@ export function OnboardingWizard({ initialName = '' }: { initialName?: string })
     if (status !== 'idle') return;
     if (!name.trim()) {
       toast.error(t`Ton nom est requis pour créer ton espace.`);
+      return;
+    }
+    if (consentDocuments.length > 0 && !consentAccepted) {
+      toast.error(t`Tu dois accepter l'accord créateur pour ouvrir ton espace.`);
       return;
     }
 
@@ -242,6 +264,22 @@ export function OnboardingWizard({ initialName = '' }: { initialName?: string })
           subdomain,
           layoutStyle: 'minimal',
         });
+        // 3. ⚖️ Preuve de consentement au moment de l'ouverture du compte
+        //    créateur : c'est le seul instant où l'on sait que la personne est
+        //    devenue créatrice et qu'elle vient d'accepter ces documents.
+        if (consentDocuments.length > 0) {
+          const consent = await acceptLegalConsentsAction({
+            slugs: consentDocuments.map((doc) => doc.slug),
+            locale,
+            source: 'onboarding',
+            method: 'onboarding-checkbox',
+          });
+          if (!consent.success) {
+            // On ne bloque pas l'ouverture de l'espace : le portail de
+            // consentement reposera la question à la première navigation.
+            console.warn('[onboarding] consentement non enregistré', consent.error);
+          }
+        }
         // Petite pause pour laisser le temps à l'animation de génération.
         setTimeout(() => {
           router.push('/settings');
@@ -339,6 +377,36 @@ export function OnboardingWizard({ initialName = '' }: { initialName?: string })
                             <span className="opacity-70">— modifiable plus tard</span>
                           </span>
                         </div>
+
+                        {consentDocuments.length > 0 && (
+                          <label className="flex items-start gap-3 rounded-xl border border-border bg-[#FAF9F6] p-3 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={consentAccepted}
+                              onChange={(e) => setConsentAccepted(e.target.checked)}
+                              className="mt-0.5 h-4 w-4 shrink-0"
+                              required
+                            />
+                            <span className="text-[11px] leading-relaxed text-muted-foreground">
+                              J&apos;accepte{' '}
+                              {consentDocuments.map((doc, index) => (
+                                <span key={doc.slug}>
+                                  <a
+                                    href={`${process.env.NEXT_PUBLIC_APP_URL ?? 'https://qoe.fi'}/legal/${doc.slug}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="font-semibold text-[#EE4B2B] underline"
+                                  >
+                                    {doc.title}
+                                  </a>
+                                  {index < consentDocuments.length - 1 ? ', ' : '. '}
+                                </span>
+                              ))}
+                              Mon acceptation est horodatée et conservée comme preuve, rattachée à
+                              la version en vigueur.
+                            </span>
+                          </label>
+                        )}
                       </div>
                     </motion.div>
                   ) : (
@@ -371,7 +439,7 @@ export function OnboardingWizard({ initialName = '' }: { initialName?: string })
 
                   <button
                     onClick={handleLaunch}
-                    disabled={!name.trim()}
+                    disabled={!name.trim() || (consentDocuments.length > 0 && !consentAccepted)}
                     className="flex items-center bg-[#EE4B2B] hover:bg-[#d63d20] text-white px-6 py-3 rounded-full text-xs font-bold uppercase tracking-wider transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-md shadow-red-500/10"
                   >
                     Lancer mon espace <ArrowRight size={14} className="ml-1.5" />
