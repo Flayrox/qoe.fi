@@ -57,12 +57,155 @@ func (q *Queries) ArchivePublishedLegalVersions(ctx context.Context, arg Archive
 	return err
 }
 
+const claimLegalNoticeDeliveries = `-- name: ClaimLegalNoticeDeliveries :many
+WITH candidates AS (
+  SELECT id FROM legal_notice_delivery
+  WHERE status = 'QUEUED' AND available_at <= now()
+  ORDER BY created_at ASC
+  FOR UPDATE SKIP LOCKED
+  LIMIT $1
+)
+UPDATE legal_notice_delivery d
+SET status = 'PROCESSING', attempts = d.attempts + 1, updated_at = now()
+FROM candidates c
+WHERE d.id = c.id
+RETURNING d.id, d.notice_id, d.user_id, d.email, d.attempts
+`
+
+type ClaimLegalNoticeDeliveriesRow struct {
+	ID       string      `json:"id"`
+	NoticeID string      `json:"notice_id"`
+	UserID   pgtype.UUID `json:"user_id"`
+	Email    string      `json:"email"`
+	Attempts int32       `json:"attempts"`
+}
+
+// Réclamation atomique (QUEUED → PROCESSING) : plusieurs instances du worker
+// peuvent tourner sans envoyer deux fois le même email.
+func (q *Queries) ClaimLegalNoticeDeliveries(ctx context.Context, batchSize int32) ([]ClaimLegalNoticeDeliveriesRow, error) {
+	rows, err := q.db.Query(ctx, claimLegalNoticeDeliveries, batchSize)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ClaimLegalNoticeDeliveriesRow{}
+	for rows.Next() {
+		var i ClaimLegalNoticeDeliveriesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.NoticeID,
+			&i.UserID,
+			&i.Email,
+			&i.Attempts,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const cookieConsentStats = `-- name: CookieConsentStats :one
+SELECT count(*) AS total,
+       count(*) FILTER (WHERE created_at > CURRENT_TIMESTAMP - INTERVAL '30 days') AS last_30d,
+       count(DISTINCT consent_id) AS distinct_browsers,
+       count(*) FILTER (WHERE (categories->>'analytics')::text = 'true') AS analytics_opt_in,
+       count(*) FILTER (WHERE (categories->>'analytics')::text = 'false') AS analytics_opt_out,
+       max(created_at)::timestamp(3) AS last_choice_at
+FROM cookie_consent_record
+`
+
+type CookieConsentStatsRow struct {
+	Total            int64            `json:"total"`
+	Last30d          int64            `json:"last_30d"`
+	DistinctBrowsers int64            `json:"distinct_browsers"`
+	AnalyticsOptIn   int64            `json:"analytics_opt_in"`
+	AnalyticsOptOut  int64            `json:"analytics_opt_out"`
+	LastChoiceAt     pgtype.Timestamp `json:"last_choice_at"`
+}
+
+func (q *Queries) CookieConsentStats(ctx context.Context) (CookieConsentStatsRow, error) {
+	row := q.db.QueryRow(ctx, cookieConsentStats)
+	var i CookieConsentStatsRow
+	err := row.Scan(
+		&i.Total,
+		&i.Last30d,
+		&i.DistinctBrowsers,
+		&i.AnalyticsOptIn,
+		&i.AnalyticsOptOut,
+		&i.LastChoiceAt,
+	)
+	return i, err
+}
+
+const countLegalConsentGaps = `-- name: CountLegalConsentGaps :one
+SELECT count(DISTINCT u.id) AS users_with_gaps,
+       COALESCE(sum(gaps.pending), 0)::bigint AS pending_acceptances
+FROM "User" u
+JOIN LATERAL (
+  SELECT count(*) AS pending
+  FROM legal_document d
+  JOIN legal_document_version v
+    ON v.document_id = d.id AND v.status = 'PUBLISHED' AND v.locale = 'fr'
+  LEFT JOIN legal_acceptance a ON a.version_id = v.id AND a.user_id = u.id
+  WHERE d.is_active = true AND d.requires_acceptance = true AND a.id IS NULL
+) gaps ON true
+WHERE u."isSuspended" = false AND gaps.pending > 0
+`
+
+type CountLegalConsentGapsRow struct {
+	UsersWithGaps      int64 `json:"users_with_gaps"`
+	PendingAcceptances int64 `json:"pending_acceptances"`
+}
+
+// Utilisateurs actifs qui doivent encore accepter un document « à accepter »
+// dans sa version publiée courante.
+func (q *Queries) CountLegalConsentGaps(ctx context.Context) (CountLegalConsentGapsRow, error) {
+	row := q.db.QueryRow(ctx, countLegalConsentGaps)
+	var i CountLegalConsentGapsRow
+	err := row.Scan(&i.UsersWithGaps, &i.PendingAcceptances)
+	return i, err
+}
+
 const countLegalDocuments = `-- name: CountLegalDocuments :one
 SELECT count(*) FROM legal_document
 `
 
 func (q *Queries) CountLegalDocuments(ctx context.Context) (int64, error) {
 	row := q.db.QueryRow(ctx, countLegalDocuments)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countLegalEligibleUsers = `-- name: CountLegalEligibleUsers :one
+SELECT count(*) AS eligible,
+       count(*) FILTER (WHERE role IN ('creator', 'superadmin')) AS creators
+FROM "User"
+WHERE "isSuspended" = false
+`
+
+type CountLegalEligibleUsersRow struct {
+	Eligible int64 `json:"eligible"`
+	Creators int64 `json:"creators"`
+}
+
+func (q *Queries) CountLegalEligibleUsers(ctx context.Context) (CountLegalEligibleUsersRow, error) {
+	row := q.db.QueryRow(ctx, countLegalEligibleUsers)
+	var i CountLegalEligibleUsersRow
+	err := row.Scan(&i.Eligible, &i.Creators)
+	return i, err
+}
+
+const countLegalNotices = `-- name: CountLegalNotices :one
+SELECT count(*) FROM legal_notice
+`
+
+func (q *Queries) CountLegalNotices(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countLegalNotices)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
@@ -113,6 +256,45 @@ func (q *Queries) GetLegalAcceptance(ctx context.Context, arg GetLegalAcceptance
 		&i.Method,
 	)
 	return i, err
+}
+
+const getLegalConsentCoverageByAudience = `-- name: GetLegalConsentCoverageByAudience :many
+SELECT d.audience,
+       count(DISTINCT d.id) AS documents,
+       count(DISTINCT a.user_id) AS accepted_users
+FROM legal_document d
+LEFT JOIN legal_document_version v ON v.document_id = d.id AND v.status = 'PUBLISHED'
+LEFT JOIN legal_acceptance a ON a.version_id = v.id
+WHERE d.requires_acceptance = true AND d.is_active = true
+GROUP BY d.audience
+ORDER BY d.audience ASC
+`
+
+type GetLegalConsentCoverageByAudienceRow struct {
+	Audience      string `json:"audience"`
+	Documents     int64  `json:"documents"`
+	AcceptedUsers int64  `json:"accepted_users"`
+}
+
+// Couverture du consentement par audience, pour repérer un segment oublié.
+func (q *Queries) GetLegalConsentCoverageByAudience(ctx context.Context) ([]GetLegalConsentCoverageByAudienceRow, error) {
+	rows, err := q.db.Query(ctx, getLegalConsentCoverageByAudience)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []GetLegalConsentCoverageByAudienceRow{}
+	for rows.Next() {
+		var i GetLegalConsentCoverageByAudienceRow
+		if err := rows.Scan(&i.Audience, &i.Documents, &i.AcceptedUsers); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const getLegalDocumentByID = `-- name: GetLegalDocumentByID :one
@@ -184,6 +366,52 @@ func (q *Queries) GetLegalDocumentVersion(ctx context.Context, id string) (Legal
 	return i, err
 }
 
+const getLegalNoticeEmailContext = `-- name: GetLegalNoticeEmailContext :one
+SELECT n.id, n.title, n.version, n.locale, n.changelog, n.portal_path,
+       d.slug, d.audience, d.category,
+       COALESCE(u.name, u.username, '')::text AS recipient_name
+FROM legal_notice n
+JOIN legal_document d ON d.id = n.document_id
+LEFT JOIN "User" u ON u.id = $1::uuid
+WHERE n.id = $2
+`
+
+type GetLegalNoticeEmailContextParams struct {
+	UserID   pgtype.UUID `json:"user_id"`
+	NoticeID string      `json:"notice_id"`
+}
+
+type GetLegalNoticeEmailContextRow struct {
+	ID            string      `json:"id"`
+	Title         string      `json:"title"`
+	Version       string      `json:"version"`
+	Locale        string      `json:"locale"`
+	Changelog     pgtype.Text `json:"changelog"`
+	PortalPath    string      `json:"portal_path"`
+	Slug          string      `json:"slug"`
+	Audience      string      `json:"audience"`
+	Category      string      `json:"category"`
+	RecipientName string      `json:"recipient_name"`
+}
+
+func (q *Queries) GetLegalNoticeEmailContext(ctx context.Context, arg GetLegalNoticeEmailContextParams) (GetLegalNoticeEmailContextRow, error) {
+	row := q.db.QueryRow(ctx, getLegalNoticeEmailContext, arg.UserID, arg.NoticeID)
+	var i GetLegalNoticeEmailContextRow
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Version,
+		&i.Locale,
+		&i.Changelog,
+		&i.PortalPath,
+		&i.Slug,
+		&i.Audience,
+		&i.Category,
+		&i.RecipientName,
+	)
+	return i, err
+}
+
 const getPublishedLegalDocument = `-- name: GetPublishedLegalDocument :one
 SELECT d.id, d.slug, d.category, d.audience, d.requires_acceptance,
        v.id AS version_id, v.version, v.title, v.summary, v.body, v.changelog,
@@ -238,6 +466,64 @@ func (q *Queries) GetPublishedLegalDocument(ctx context.Context, arg GetPublishe
 		&i.PublishedAt,
 		&i.UpdatedAt,
 	)
+	return i, err
+}
+
+const insertCookieConsentRecord = `-- name: InsertCookieConsentRecord :one
+
+INSERT INTO cookie_consent_record (consent_id, user_id, session_id, locale, policy_version, categories, source, country, ip, user_agent)
+VALUES (
+  $1,
+  $2::uuid,
+  $3,
+  $4,
+  $5,
+  $6,
+  $7,
+  $8,
+  $9,
+  $10
+)
+RETURNING id, created_at
+`
+
+type InsertCookieConsentRecordParams struct {
+	ConsentID     pgtype.Text `json:"consent_id"`
+	UserID        pgtype.UUID `json:"user_id"`
+	SessionID     pgtype.Text `json:"session_id"`
+	Locale        string      `json:"locale"`
+	PolicyVersion string      `json:"policy_version"`
+	Categories    []byte      `json:"categories"`
+	Source        string      `json:"source"`
+	Country       pgtype.Text `json:"country"`
+	Ip            pgtype.Text `json:"ip"`
+	UserAgent     pgtype.Text `json:"user_agent"`
+}
+
+type InsertCookieConsentRecordRow struct {
+	ID        string           `json:"id"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
+}
+
+// ─── Consentement traceurs (journal serveur) ─────────────────────────
+// Journal append-only : un changement de choix ajoute une ligne, on n'écrase
+// jamais une preuve. `consent_id` est l'identifiant que le navigateur conserve
+// pour corréler ses choix successifs.
+func (q *Queries) InsertCookieConsentRecord(ctx context.Context, arg InsertCookieConsentRecordParams) (InsertCookieConsentRecordRow, error) {
+	row := q.db.QueryRow(ctx, insertCookieConsentRecord,
+		arg.ConsentID,
+		arg.UserID,
+		arg.SessionID,
+		arg.Locale,
+		arg.PolicyVersion,
+		arg.Categories,
+		arg.Source,
+		arg.Country,
+		arg.Ip,
+		arg.UserAgent,
+	)
+	var i InsertCookieConsentRecordRow
+	err := row.Scan(&i.ID, &i.CreatedAt)
 	return i, err
 }
 
@@ -342,6 +628,82 @@ func (q *Queries) InsertLegalDocumentVersion(ctx context.Context, arg InsertLega
 	return i, err
 }
 
+const insertLegalNotice = `-- name: InsertLegalNotice :one
+
+INSERT INTO legal_notice (document_id, version_id, locale, version, title, changelog, portal_path, created_by)
+VALUES (
+  $1,
+  $2,
+  $3,
+  $4,
+  $5,
+  $6,
+  $7,
+  $8
+)
+ON CONFLICT (version_id) DO UPDATE
+  SET title = legal_notice.title
+RETURNING id, document_id, version_id, locale, version, title, changelog, portal_path, created_by, created_at
+`
+
+type InsertLegalNoticeParams struct {
+	DocumentID string      `json:"document_id"`
+	VersionID  string      `json:"version_id"`
+	Locale     string      `json:"locale"`
+	Version    string      `json:"version"`
+	Title      string      `json:"title"`
+	Changelog  pgtype.Text `json:"changelog"`
+	PortalPath string      `json:"portal_path"`
+	CreatedBy  pgtype.UUID `json:"created_by"`
+}
+
+// ─── Avis de nouvelle version (outbox email) ─────────────────────────
+// Un avis par version publiée. ON CONFLICT revoie la ligne existante pour que
+// le service soit idempotent sans avoir à gérer un cas d'erreur particulier.
+func (q *Queries) InsertLegalNotice(ctx context.Context, arg InsertLegalNoticeParams) (LegalNotice, error) {
+	row := q.db.QueryRow(ctx, insertLegalNotice,
+		arg.DocumentID,
+		arg.VersionID,
+		arg.Locale,
+		arg.Version,
+		arg.Title,
+		arg.Changelog,
+		arg.PortalPath,
+		arg.CreatedBy,
+	)
+	var i LegalNotice
+	err := row.Scan(
+		&i.ID,
+		&i.DocumentID,
+		&i.VersionID,
+		&i.Locale,
+		&i.Version,
+		&i.Title,
+		&i.Changelog,
+		&i.PortalPath,
+		&i.CreatedBy,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const insertLegalNoticeDelivery = `-- name: InsertLegalNoticeDelivery :exec
+INSERT INTO legal_notice_delivery (notice_id, user_id, email)
+VALUES ($1, $2::uuid, $3)
+ON CONFLICT (notice_id, user_id) DO NOTHING
+`
+
+type InsertLegalNoticeDeliveryParams struct {
+	NoticeID string      `json:"notice_id"`
+	UserID   pgtype.UUID `json:"user_id"`
+	Email    string      `json:"email"`
+}
+
+func (q *Queries) InsertLegalNoticeDelivery(ctx context.Context, arg InsertLegalNoticeDeliveryParams) error {
+	_, err := q.db.Exec(ctx, insertLegalNoticeDelivery, arg.NoticeID, arg.UserID, arg.Email)
+	return err
+}
+
 const legalAcceptanceStats = `-- name: LegalAcceptanceStats :many
 SELECT d.id, d.slug, d.requires_acceptance,
        (SELECT count(*) FROM legal_acceptance a WHERE a.document_id = d.id) AS acceptances,
@@ -378,6 +740,65 @@ func (q *Queries) LegalAcceptanceStats(ctx context.Context) ([]LegalAcceptanceSt
 			&i.Acceptances,
 			&i.Acceptances30d,
 			&i.VersionsCount,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listCookieConsentRecords = `-- name: ListCookieConsentRecords :many
+SELECT id, consent_id, user_id, locale, policy_version, categories, source, country, ip, user_agent, created_at
+FROM cookie_consent_record
+WHERE ($1::text IS NULL OR consent_id = $1::text)
+ORDER BY seq DESC
+LIMIT $2
+`
+
+type ListCookieConsentRecordsParams struct {
+	ConsentID  pgtype.Text `json:"consent_id"`
+	LimitCount int32       `json:"limit_count"`
+}
+
+type ListCookieConsentRecordsRow struct {
+	ID            string           `json:"id"`
+	ConsentID     pgtype.Text      `json:"consent_id"`
+	UserID        pgtype.UUID      `json:"user_id"`
+	Locale        string           `json:"locale"`
+	PolicyVersion string           `json:"policy_version"`
+	Categories    []byte           `json:"categories"`
+	Source        string           `json:"source"`
+	Country       pgtype.Text      `json:"country"`
+	Ip            pgtype.Text      `json:"ip"`
+	UserAgent     pgtype.Text      `json:"user_agent"`
+	CreatedAt     pgtype.Timestamp `json:"created_at"`
+}
+
+func (q *Queries) ListCookieConsentRecords(ctx context.Context, arg ListCookieConsentRecordsParams) ([]ListCookieConsentRecordsRow, error) {
+	rows, err := q.db.Query(ctx, listCookieConsentRecords, arg.ConsentID, arg.LimitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCookieConsentRecordsRow{}
+	for rows.Next() {
+		var i ListCookieConsentRecordsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ConsentID,
+			&i.UserID,
+			&i.Locale,
+			&i.PolicyVersion,
+			&i.Categories,
+			&i.Source,
+			&i.Country,
+			&i.Ip,
+			&i.UserAgent,
+			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -442,6 +863,82 @@ func (q *Queries) ListLegalAcceptancesAdmin(ctx context.Context, arg ListLegalAc
 			&i.Method,
 			&i.UserEmail,
 			&i.DocumentSlug,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listLegalComplianceDocuments = `-- name: ListLegalComplianceDocuments :many
+
+SELECT d.id, d.slug, d.category, d.audience, d.requires_acceptance, d.is_active, d.sort_order,
+       COALESCE((SELECT v.version FROM legal_document_version v
+                  WHERE v.document_id = d.id AND v.status = 'PUBLISHED'
+                  ORDER BY v.published_at DESC NULLS LAST LIMIT 1), '')::text AS published_version,
+       (SELECT count(*) FROM legal_document_version v WHERE v.document_id = d.id AND v.status = 'PUBLISHED') AS published_locales,
+       (SELECT count(DISTINCT v.locale) FROM legal_document_version v WHERE v.document_id = d.id AND v.status = 'PUBLISHED') AS distinct_locales,
+       (SELECT count(*) FROM legal_document_version v WHERE v.document_id = d.id AND v.status = 'DRAFT') AS drafts_count,
+       (SELECT max(v.published_at)::timestamp(3) FROM legal_document_version v WHERE v.document_id = d.id AND v.status = 'PUBLISHED') AS last_published_at,
+       (SELECT count(*) FROM legal_acceptance a WHERE a.document_id = d.id) AS total_acceptances,
+       (SELECT count(*) FROM legal_acceptance a
+          JOIN legal_document_version v ON v.id = a.version_id AND v.status = 'PUBLISHED'
+         WHERE a.document_id = d.id) AS current_acceptances,
+       (SELECT max(a.accepted_at)::timestamp(3) FROM legal_acceptance a WHERE a.document_id = d.id) AS last_accepted_at
+FROM legal_document d
+ORDER BY d.sort_order ASC, d.slug ASC
+`
+
+type ListLegalComplianceDocumentsRow struct {
+	ID                 string           `json:"id"`
+	Slug               string           `json:"slug"`
+	Category           string           `json:"category"`
+	Audience           string           `json:"audience"`
+	RequiresAcceptance bool             `json:"requires_acceptance"`
+	IsActive           bool             `json:"is_active"`
+	SortOrder          int32            `json:"sort_order"`
+	PublishedVersion   string           `json:"published_version"`
+	PublishedLocales   int64            `json:"published_locales"`
+	DistinctLocales    int64            `json:"distinct_locales"`
+	DraftsCount        int64            `json:"drafts_count"`
+	LastPublishedAt    pgtype.Timestamp `json:"last_published_at"`
+	TotalAcceptances   int64            `json:"total_acceptances"`
+	CurrentAcceptances int64            `json:"current_acceptances"`
+	LastAcceptedAt     pgtype.Timestamp `json:"last_accepted_at"`
+}
+
+// ─── Conformité ──────────────────────────────────────────────────────
+// Vue conformité : pour chaque document, la version publiée, la couverture du
+// consentement sur la version courante, et l'activité d'édition.
+func (q *Queries) ListLegalComplianceDocuments(ctx context.Context) ([]ListLegalComplianceDocumentsRow, error) {
+	rows, err := q.db.Query(ctx, listLegalComplianceDocuments)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListLegalComplianceDocumentsRow{}
+	for rows.Next() {
+		var i ListLegalComplianceDocumentsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Slug,
+			&i.Category,
+			&i.Audience,
+			&i.RequiresAcceptance,
+			&i.IsActive,
+			&i.SortOrder,
+			&i.PublishedVersion,
+			&i.PublishedLocales,
+			&i.DistinctLocales,
+			&i.DraftsCount,
+			&i.LastPublishedAt,
+			&i.TotalAcceptances,
+			&i.CurrentAcceptances,
+			&i.LastAcceptedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -582,6 +1079,114 @@ func (q *Queries) ListLegalDocumentsAdmin(ctx context.Context) ([]ListLegalDocum
 			&i.PublishedVersion,
 			&i.PublishedLocale,
 			&i.PublishedTitle,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listLegalNoticeRecipients = `-- name: ListLegalNoticeRecipients :many
+SELECT DISTINCT a.user_id, u.email
+FROM legal_acceptance a
+JOIN "User" u ON u.id = a.user_id
+WHERE a.document_id = $1::text
+  AND a.version_id <> $2::text
+  AND u."isSuspended" = false
+  AND u.email IS NOT NULL AND u.email <> ''
+  AND ($3::uuid IS DISTINCT FROM a.user_id)
+ORDER BY u.email ASC
+`
+
+type ListLegalNoticeRecipientsParams struct {
+	DocumentID    string      `json:"document_id"`
+	VersionID     string      `json:"version_id"`
+	ExcludeUserID pgtype.UUID `json:"exclude_user_id"`
+}
+
+type ListLegalNoticeRecipientsRow struct {
+	UserID pgtype.UUID `json:"user_id"`
+	Email  string      `json:"email"`
+}
+
+// Destinataires d'un avis : les comptes qui avaient accepté une AUTRE version
+// du même document (ceux dont le consentement doit être renouvelé). Un compte
+// suspendu ou sans email est exclu : l'email ne part pas dans le vide.
+func (q *Queries) ListLegalNoticeRecipients(ctx context.Context, arg ListLegalNoticeRecipientsParams) ([]ListLegalNoticeRecipientsRow, error) {
+	rows, err := q.db.Query(ctx, listLegalNoticeRecipients, arg.DocumentID, arg.VersionID, arg.ExcludeUserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListLegalNoticeRecipientsRow{}
+	for rows.Next() {
+		var i ListLegalNoticeRecipientsRow
+		if err := rows.Scan(&i.UserID, &i.Email); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listLegalNoticesAdmin = `-- name: ListLegalNoticesAdmin :many
+SELECT n.id, n.document_id, n.version_id, n.locale, n.version, n.title, n.changelog,
+       n.portal_path, n.created_at, d.slug AS document_slug,
+       (SELECT count(*) FROM legal_notice_delivery dd WHERE dd.notice_id = n.id) AS deliveries,
+       (SELECT count(*) FROM legal_notice_delivery dd WHERE dd.notice_id = n.id AND dd.status = 'SENT') AS sent,
+       (SELECT count(*) FROM legal_notice_delivery dd WHERE dd.notice_id = n.id AND dd.status = 'FAILED') AS failed
+FROM legal_notice n
+JOIN legal_document d ON d.id = n.document_id
+ORDER BY n.created_at DESC
+LIMIT $1
+`
+
+type ListLegalNoticesAdminRow struct {
+	ID           string           `json:"id"`
+	DocumentID   string           `json:"document_id"`
+	VersionID    string           `json:"version_id"`
+	Locale       string           `json:"locale"`
+	Version      string           `json:"version"`
+	Title        string           `json:"title"`
+	Changelog    pgtype.Text      `json:"changelog"`
+	PortalPath   string           `json:"portal_path"`
+	CreatedAt    pgtype.Timestamp `json:"created_at"`
+	DocumentSlug string           `json:"document_slug"`
+	Deliveries   int64            `json:"deliveries"`
+	Sent         int64            `json:"sent"`
+	Failed       int64            `json:"failed"`
+}
+
+func (q *Queries) ListLegalNoticesAdmin(ctx context.Context, limitCount int32) ([]ListLegalNoticesAdminRow, error) {
+	rows, err := q.db.Query(ctx, listLegalNoticesAdmin, limitCount)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListLegalNoticesAdminRow{}
+	for rows.Next() {
+		var i ListLegalNoticesAdminRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.DocumentID,
+			&i.VersionID,
+			&i.Locale,
+			&i.Version,
+			&i.Title,
+			&i.Changelog,
+			&i.PortalPath,
+			&i.CreatedAt,
+			&i.DocumentSlug,
+			&i.Deliveries,
+			&i.Sent,
+			&i.Failed,
 		); err != nil {
 			return nil, err
 		}
@@ -844,6 +1449,35 @@ func (q *Queries) ListUserLegalAcceptances(ctx context.Context, userID pgtype.UU
 		return nil, err
 	}
 	return items, nil
+}
+
+const markLegalNoticeDelivery = `-- name: MarkLegalNoticeDelivery :exec
+UPDATE legal_notice_delivery
+SET status = $1,
+    provider = $2,
+    last_error = $3,
+    sent_at = $4,
+    updated_at = now()
+WHERE id = $5
+`
+
+type MarkLegalNoticeDeliveryParams struct {
+	Status    string           `json:"status"`
+	Provider  pgtype.Text      `json:"provider"`
+	LastError pgtype.Text      `json:"last_error"`
+	SentAt    pgtype.Timestamp `json:"sent_at"`
+	ID        string           `json:"id"`
+}
+
+func (q *Queries) MarkLegalNoticeDelivery(ctx context.Context, arg MarkLegalNoticeDeliveryParams) error {
+	_, err := q.db.Exec(ctx, markLegalNoticeDelivery,
+		arg.Status,
+		arg.Provider,
+		arg.LastError,
+		arg.SentAt,
+		arg.ID,
+	)
+	return err
 }
 
 const publishLegalDocumentVersion = `-- name: PublishLegalDocumentVersion :one

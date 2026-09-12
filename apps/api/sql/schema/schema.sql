@@ -1934,3 +1934,84 @@ CREATE INDEX "legal_acceptance_user_idx" ON "legal_acceptance" ("user_id", "acce
 
 -- CreateIndex
 CREATE INDEX "legal_acceptance_document_idx" ON "legal_acceptance" ("document_id", "accepted_at" DESC);
+
+-- CreateTable
+CREATE TABLE "legal_notice" (
+    "id"          TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+    "document_id" TEXT NOT NULL,
+    "version_id"  TEXT NOT NULL,
+    "locale"      TEXT NOT NULL DEFAULT 'fr',
+    "version"     TEXT NOT NULL,
+    "title"       TEXT NOT NULL,
+    "changelog"   TEXT,
+    "portal_path" TEXT NOT NULL DEFAULT '/legal',
+    "created_by"  UUID,
+    "created_at"  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "legal_notice_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "legal_notice_version_key" UNIQUE ("version_id"),
+    CONSTRAINT "legal_notice_document_fkey" FOREIGN KEY ("document_id")
+        REFERENCES "legal_document" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT "legal_notice_version_fkey" FOREIGN KEY ("version_id")
+        REFERENCES "legal_document_version" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateIndex
+CREATE INDEX "legal_notice_created_idx" ON "legal_notice" ("created_at" DESC);
+
+-- CreateTable
+CREATE TABLE "legal_notice_delivery" (
+    "id"           TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+    "notice_id"    TEXT NOT NULL,
+    "user_id"      UUID NOT NULL,
+    "email"        TEXT NOT NULL,
+    "status"       TEXT NOT NULL DEFAULT 'QUEUED',
+    "attempts"     INTEGER NOT NULL DEFAULT 0,
+    "provider"     TEXT,
+    "available_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "sent_at"      TIMESTAMP(3),
+    "last_error"   TEXT,
+    "created_at"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "legal_notice_delivery_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "legal_notice_delivery_unique" UNIQUE ("notice_id", "user_id"),
+    CONSTRAINT "legal_notice_delivery_status_check" CHECK ("status" IN ('QUEUED', 'PROCESSING', 'SENT', 'FAILED', 'SKIPPED')),
+    CONSTRAINT "legal_notice_delivery_notice_fkey" FOREIGN KEY ("notice_id")
+        REFERENCES "legal_notice" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateIndex
+CREATE INDEX "legal_notice_delivery_queue_idx"
+    ON "legal_notice_delivery" ("status", "available_at");
+
+-- CreateTable
+CREATE TABLE "cookie_consent_record" (
+    "id"             TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+    "seq"            BIGSERIAL NOT NULL,
+    "consent_id"     TEXT,
+    "user_id"        UUID,
+    "session_id"     TEXT,
+    "locale"         TEXT NOT NULL DEFAULT 'fr',
+    "policy_version" TEXT NOT NULL,
+    "categories"     JSONB NOT NULL DEFAULT '{}'::jsonb,
+    "source"         TEXT NOT NULL DEFAULT 'banner',
+    "country"        TEXT,
+    "ip"             TEXT,
+    "user_agent"     TEXT,
+    "created_at"     TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "cookie_consent_record_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateIndex
+CREATE INDEX "cookie_consent_record_consent_idx"
+    ON "cookie_consent_record" ("consent_id", "created_at" DESC);
+
+-- CreateIndex
+CREATE INDEX "cookie_consent_record_created_idx"
+    ON "cookie_consent_record" ("created_at" DESC);
+
+-- CreateIndex
+CREATE INDEX "cookie_consent_record_user_idx"
+    ON "cookie_consent_record" ("user_id", "created_at" DESC);

@@ -21,10 +21,14 @@ type Querier interface {
 	CheckCategorySlugExists(ctx context.Context, arg CheckCategorySlugExistsParams) (bool, error)
 	CheckMediaSlugExists(ctx context.Context, slug string) (bool, error)
 	CheckSubdomainExists(ctx context.Context, subdomain pgtype.Text) (bool, error)
+	// Réclamation atomique (QUEUED → PROCESSING) : plusieurs instances du worker
+	// peuvent tourner sans envoyer deux fois le même email.
+	ClaimLegalNoticeDeliveries(ctx context.Context, batchSize int32) ([]ClaimLegalNoticeDeliveriesRow, error)
 	ClearArticleEditorPicks(ctx context.Context) error
 	ClearPinnedPosts(ctx context.Context, authorid string) error
 	CompleteOnboardingUser(ctx context.Context, arg CompleteOnboardingUserParams) error
 	ConsumeOAuthAuthorizationCode(ctx context.Context, id string) error
+	CookieConsentStats(ctx context.Context) (CookieConsentStatsRow, error)
 	CountActiveOAuthTokens(ctx context.Context, userid string) (int64, error)
 	CountAllNotificationDeliveries(ctx context.Context) (int64, error)
 	CountArticleReleaseDeliveries(ctx context.Context, articleid string) (CountArticleReleaseDeliveriesRow, error)
@@ -39,7 +43,12 @@ type Querier interface {
 	CountFollowers(ctx context.Context, publicationid string) (int32, error)
 	CountFollowing(ctx context.Context, readerid pgtype.UUID) (int32, error)
 	CountHighlightUpvotes(ctx context.Context, highlightid string) (int32, error)
+	// Utilisateurs actifs qui doivent encore accepter un document « à accepter »
+	// dans sa version publiée courante.
+	CountLegalConsentGaps(ctx context.Context) (CountLegalConsentGapsRow, error)
 	CountLegalDocuments(ctx context.Context) (int64, error)
+	CountLegalEligibleUsers(ctx context.Context) (CountLegalEligibleUsersRow, error)
+	CountLegalNotices(ctx context.Context) (int64, error)
 	CountMediaApiKeys(ctx context.Context, id string) (int32, error)
 	CountMediaInvites(ctx context.Context, mediaid string) (int32, error)
 	CountMediaMembers(ctx context.Context, mediaid string) (int32, error)
@@ -202,9 +211,12 @@ type Querier interface {
 	// Tables : Highlight, AnnotationComment, AnnotationUpvote.
 	GetHighlightByID(ctx context.Context, id string) (GetHighlightByIDRow, error)
 	GetLegalAcceptance(ctx context.Context, arg GetLegalAcceptanceParams) (LegalAcceptance, error)
+	// Couverture du consentement par audience, pour repérer un segment oublié.
+	GetLegalConsentCoverageByAudience(ctx context.Context) ([]GetLegalConsentCoverageByAudienceRow, error)
 	GetLegalDocumentByID(ctx context.Context, id string) (LegalDocument, error)
 	GetLegalDocumentBySlug(ctx context.Context, slug string) (LegalDocument, error)
 	GetLegalDocumentVersion(ctx context.Context, id string) (LegalDocumentVersion, error)
+	GetLegalNoticeEmailContext(ctx context.Context, arg GetLegalNoticeEmailContextParams) (GetLegalNoticeEmailContextRow, error)
 	GetLikePrefs(ctx context.Context, userid pgtype.UUID) (GetLikePrefsRow, error)
 	GetMediaApiKeyByID(ctx context.Context, arg GetMediaApiKeyByIDParams) (GetMediaApiKeyByIDRow, error)
 	// Dédoublonnage CAS : cherche un asset existant par hash SHA-256.
@@ -338,6 +350,11 @@ type Querier interface {
 	InsertBlock(ctx context.Context, arg InsertBlockParams) error
 	InsertBookmark(ctx context.Context, arg InsertBookmarkParams) error
 	InsertCommentNotification(ctx context.Context, arg InsertCommentNotificationParams) error
+	// ─── Consentement traceurs (journal serveur) ─────────────────────────
+	// Journal append-only : un changement de choix ajoute une ligne, on n'écrase
+	// jamais une preuve. `consent_id` est l'identifiant que le navigateur conserve
+	// pour corréler ses choix successifs.
+	InsertCookieConsentRecord(ctx context.Context, arg InsertCookieConsentRecordParams) (InsertCookieConsentRecordRow, error)
 	// Messagerie directe : conversations (tranche 1 — direct à 2 participants).
 	// Tables : Conversation, ConversationMember.
 	// La paire (conversationId, userId) est la clé de ConversationMember : chaque
@@ -349,6 +366,11 @@ type Querier interface {
 	InsertFollowNotification(ctx context.Context, arg InsertFollowNotificationParams) error
 	InsertLegalDocument(ctx context.Context, arg InsertLegalDocumentParams) (LegalDocument, error)
 	InsertLegalDocumentVersion(ctx context.Context, arg InsertLegalDocumentVersionParams) (LegalDocumentVersion, error)
+	// ─── Avis de nouvelle version (outbox email) ─────────────────────────
+	// Un avis par version publiée. ON CONFLICT revoie la ligne existante pour que
+	// le service soit idempotent sans avoir à gérer un cas d'erreur particulier.
+	InsertLegalNotice(ctx context.Context, arg InsertLegalNoticeParams) (LegalNotice, error)
+	InsertLegalNoticeDelivery(ctx context.Context, arg InsertLegalNoticeDeliveryParams) error
 	InsertLike(ctx context.Context, arg InsertLikeParams) (string, error)
 	InsertLikeNotification(ctx context.Context, arg InsertLikeNotificationParams) error
 	InsertMediaApiKey(ctx context.Context, arg InsertMediaApiKeyParams) error
@@ -412,6 +434,7 @@ type Querier interface {
 	// Conversations de l'utilisateur (directes : un seul autre participant),
 	// avec le dernier message et le nombre de non-lus, triées par activité.
 	ListConversationsForUser(ctx context.Context, arg ListConversationsForUserParams) ([]ListConversationsForUserRow, error)
+	ListCookieConsentRecords(ctx context.Context, arg ListCookieConsentRecordsParams) ([]ListCookieConsentRecordsRow, error)
 	// Liste des articles d'une publication au format contrat créateurs (Hono) :
 	// filtres `published` (défaut true) et `category` (slug), catégorie embarquée.
 	ListCreatorArticles(ctx context.Context, arg ListCreatorArticlesParams) ([]ListCreatorArticlesRow, error)
@@ -424,9 +447,18 @@ type Querier interface {
 	// Surlignages d'un article : publics + les siens (privés) + état upvote du viewer.
 	ListHighlightsByArticle(ctx context.Context, arg ListHighlightsByArticleParams) ([]ListHighlightsByArticleRow, error)
 	ListLegalAcceptancesAdmin(ctx context.Context, arg ListLegalAcceptancesAdminParams) ([]ListLegalAcceptancesAdminRow, error)
+	// ─── Conformité ──────────────────────────────────────────────────────
+	// Vue conformité : pour chaque document, la version publiée, la couverture du
+	// consentement sur la version courante, et l'activité d'édition.
+	ListLegalComplianceDocuments(ctx context.Context) ([]ListLegalComplianceDocumentsRow, error)
 	ListLegalDocumentVersions(ctx context.Context, documentID string) ([]ListLegalDocumentVersionsRow, error)
 	// ─── Superadmin ─────────────────────────────────────────────────────
 	ListLegalDocumentsAdmin(ctx context.Context) ([]ListLegalDocumentsAdminRow, error)
+	// Destinataires d'un avis : les comptes qui avaient accepté une AUTRE version
+	// du même document (ceux dont le consentement doit être renouvelé). Un compte
+	// suspendu ou sans email est exclu : l'email ne part pas dans le vide.
+	ListLegalNoticeRecipients(ctx context.Context, arg ListLegalNoticeRecipientsParams) ([]ListLegalNoticeRecipientsRow, error)
+	ListLegalNoticesAdmin(ctx context.Context, limitCount int32) ([]ListLegalNoticesAdminRow, error)
 	ListLikesForPost(ctx context.Context, arg ListLikesForPostParams) ([]ListLikesForPostRow, error)
 	// ============================================================================
 	// Clés API Média (gestion par le média, délégation api_keys:manage)
@@ -503,6 +535,7 @@ type Querier interface {
 	MarkArticleReleaseDelivery(ctx context.Context, arg MarkArticleReleaseDeliveryParams) error
 	// Marque TOUS les messages comme lus (upsert du lastReadAt à maintenant).
 	MarkConversationRead(ctx context.Context, arg MarkConversationReadParams) error
+	MarkLegalNoticeDelivery(ctx context.Context, arg MarkLegalNoticeDeliveryParams) error
 	MarkNewsletterDelivery(ctx context.Context, arg MarkNewsletterDeliveryParams) error
 	MarkNotificationsRead(ctx context.Context, arg MarkNotificationsReadParams) error
 	PinPost(ctx context.Context, arg PinPostParams) (bool, error)

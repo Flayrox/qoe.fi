@@ -683,6 +683,22 @@ type ConversationMember struct {
 	CreatedAt      pgtype.Timestamp `json:"createdAt"`
 }
 
+type CookieConsentRecord struct {
+	ID            string           `json:"id"`
+	Seq           int64            `json:"seq"`
+	ConsentID     pgtype.Text      `json:"consent_id"`
+	UserID        pgtype.UUID      `json:"user_id"`
+	SessionID     pgtype.Text      `json:"session_id"`
+	Locale        string           `json:"locale"`
+	PolicyVersion string           `json:"policy_version"`
+	Categories    []byte           `json:"categories"`
+	Source        string           `json:"source"`
+	Country       pgtype.Text      `json:"country"`
+	Ip            pgtype.Text      `json:"ip"`
+	UserAgent     pgtype.Text      `json:"user_agent"`
+	CreatedAt     pgtype.Timestamp `json:"created_at"`
+}
+
 type FeatureFlag struct {
 	Key         string           `json:"key"`
 	IsEnabled   bool             `json:"is_enabled"`
@@ -765,6 +781,34 @@ type LegalDocumentVersion struct {
 	PublishedAt pgtype.Timestamp `json:"published_at"`
 	ArchivedAt  pgtype.Timestamp `json:"archived_at"`
 	CreatedBy   pgtype.UUID      `json:"created_by"`
+	CreatedAt   pgtype.Timestamp `json:"created_at"`
+	UpdatedAt   pgtype.Timestamp `json:"updated_at"`
+}
+
+type LegalNotice struct {
+	ID         string           `json:"id"`
+	DocumentID string           `json:"document_id"`
+	VersionID  string           `json:"version_id"`
+	Locale     string           `json:"locale"`
+	Version    string           `json:"version"`
+	Title      string           `json:"title"`
+	Changelog  pgtype.Text      `json:"changelog"`
+	PortalPath string           `json:"portal_path"`
+	CreatedBy  pgtype.UUID      `json:"created_by"`
+	CreatedAt  pgtype.Timestamp `json:"created_at"`
+}
+
+type LegalNoticeDelivery struct {
+	ID          string           `json:"id"`
+	NoticeID    string           `json:"notice_id"`
+	UserID      pgtype.UUID      `json:"user_id"`
+	Email       string           `json:"email"`
+	Status      string           `json:"status"`
+	Attempts    int32            `json:"attempts"`
+	Provider    pgtype.Text      `json:"provider"`
+	AvailableAt pgtype.Timestamp `json:"available_at"`
+	SentAt      pgtype.Timestamp `json:"sent_at"`
+	LastError   pgtype.Text      `json:"last_error"`
 	CreatedAt   pgtype.Timestamp `json:"created_at"`
 	UpdatedAt   pgtype.Timestamp `json:"updated_at"`
 }

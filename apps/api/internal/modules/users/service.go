@@ -23,8 +23,9 @@ import (
 )
 
 type Service struct {
-	pool   pooler
-	gotrue *goTrueClient
+	pool    pooler
+	gotrue  *goTrueClient
+	consent SignupConsentRecorder
 }
 
 type Identity struct {

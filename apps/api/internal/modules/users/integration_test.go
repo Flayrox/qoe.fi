@@ -388,7 +388,6 @@ func TestMediaPublication(t *testing.T) {
 	}
 }
 
-
 // TestSyncUserAdoptsEmailConflict — session Supabase dont l'id JWT ne
 // correspond plus à la ligne User (même email, id différent : base reseedée,
 // backup restauré, compte recréé) : SyncUserFromAuth doit ADOPTER la ligne
@@ -469,7 +468,7 @@ func TestSyncUserFillsEmptyUsername(t *testing.T) {
 
 	// Login avec un username explicite fourni dans user_metadata.
 	claims := map[string]any{
-		"email": "jane.empty@test.dev",
+		"email":         "jane.empty@test.dev",
 		"user_metadata": map[string]any{"name": "Jane", "username": "janepro"},
 	}
 	created, _, err := svc.SyncUserFromAuth(ctx, emptyID, claims)
