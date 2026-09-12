@@ -2,7 +2,13 @@
 // 📦 @qoe/analytics — Re-exports
 // =====================================================================
 
-export { AnalyticsScript, useTrackEvent, trackEvent } from './client';
+export {
+  AnalyticsScript,
+  useTrackEvent,
+  trackEvent,
+  setAnalyticsDisabled,
+  isAnalyticsDisabled,
+} from './client';
 export {
   trackServerEvent,
   fetchUmamiWebsiteStats,
