@@ -104,6 +104,7 @@ func run(ctx context.Context) error {
 		SupabaseURL:            cfg.SupabaseURL,
 		APIKeyRateLimit:        cfg.APIKeyRateLimit,
 		FlagsSigningKey:        cfg.FlagsSigningKey,
+		LegalExportSigningKey:  cfg.LegalExportSigningKey,
 		OAuth:                  oauthService,
 	})
 
@@ -161,6 +162,9 @@ type RouterDeps struct {
 	APIKeyRateLimit int
 	// FlagsSigningKey signe GET /v1/flags (HMAC-SHA256) pour les widgets tiers.
 	FlagsSigningKey string
+	// LegalExportSigningKey est la graine Ed25519 (base64) qui signe les exports
+	// du registre de consentement. Vide → exports signés refusés.
+	LegalExportSigningKey string
 }
 
 // newRouter assemble l'API complète (routes publiques + créateur + workers
@@ -218,6 +222,9 @@ func newRouter(d RouterDeps) *chi.Mux {
 	// /v1/admin/legal/* (console admin).
 	legalSvc := legal.NewService(pool)
 	legalSvc.SetFlags(flagsSvc)
+	// 🧾 Signature Ed25519 des exports du registre de consentement. Sans clé
+	// configurée, l'API refuse de produire une « preuve » non signée.
+	legalSvc.SetExportSigningKey(d.LegalExportSigningKey)
 	legalHandler := legal.NewHandler(legalSvc)
 	legalHandler.RegisterPublic(r)
 
