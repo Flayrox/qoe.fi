@@ -265,13 +265,26 @@ WHERE p.id = $1;
 -- =====================================================================
 
 -- name: GetPendingConfirmation :one
-SELECT s.email, s."publicationId", s."confirmationToken",
-       p.name AS publication_name, p.subdomain, p."customDomain", p."accentColor"
+SELECT s.email, s."publicationId", s.locale,
+       s."confirmationToken",
+       p.name AS publication_name, p.subdomain, p."customDomain", p."accentColor",
+       p."logoUrl", p."emailSettings"
 FROM "Subscriber" s
 JOIN "Publication" p ON p.id = s."publicationId"
 WHERE s.email = $1
   AND s."publicationId" = $2
   AND s."confirmationToken" IS NOT NULL;
+
+-- name: GetSubscriberEmailContext :one
+-- Contexte complet pour les emails transactionnels (bienvenue) :
+-- locale de l'abonné + personnalisation de la publication.
+SELECT s.email, s.locale, s."confirmedAt",
+       p.name AS publication_name, p.subdomain, p."customDomain", p."accentColor",
+       p."logoUrl", p."emailSettings"
+FROM "Subscriber" s
+JOIN "Publication" p ON p.id = s."publicationId"
+WHERE s.email = $1
+  AND s."publicationId" = $2;
 
 -- name: ConfirmSubscriberByToken :one
 UPDATE "Subscriber"

@@ -120,6 +120,7 @@ Navigateur (web) / Mobile
   - `TaskArticlePublished/Updated/Deleted` → webhooks + newsletter + embedding + Meilisearch
   - `TaskSubscriberCreated` → webhooks
   - `TaskSubscriberConfirm` → email de confirmation double opt-in (worker ConfirmEmailWorker)
+  - `TaskSubscriberWelcome` → email de bienvenue après confirmation (worker WelcomeEmailWorker ; i18n fr/en + personnalisation via Publication.emailSettings, voir docs/CONSENT_OPTIN.md)
   - `TaskPostLiked` → newsletter (likes)
   - `TaskStripeEvent` → billing
   - `TaskSearchSync` → Meilisearch

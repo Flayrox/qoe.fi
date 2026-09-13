@@ -31,12 +31,27 @@ export const subscribeToNewsletterAction = safeAction<
     // double encodage JSON (le backend reçoit un string littéral → 400).
     await goFetch<{ success: boolean }>('/v1/home/subscribe', {
       method: 'POST',
-      body: { email: cleanEmail, publicationId },
+      body: { email: cleanEmail, publicationId, locale: await detectLocale() },
     });
     return { success: true };
   },
   { requireAuth: false }
 );
+
+// detectLocale lit la locale courante côté serveur (cookie/header x-locale).
+// Import dynamique + try/catch : l'action reste utilisable hors contexte de
+// requête (scripts, tests) — défaut fr. Mêmes signaux que getLanguage
+// (@qoe/i18n) ; le backend re-borne à fr/en.
+async function detectLocale(): Promise<string> {
+  try {
+    const { cookies, headers } = await import('next/headers');
+    const cookieLocale = (await cookies()).get('x-locale')?.value;
+    if (cookieLocale === 'en' || cookieLocale === 'fr') return cookieLocale;
+    const headerLocale = (await headers()).get('x-locale');
+    if (headerLocale === 'en' || headerLocale === 'fr') return headerLocale;
+  } catch {}
+  return 'fr';
+}
 
 export const toggleFollowCreatorAction = safeAction<string, { followed: boolean }>(
   async (publicationId) => {

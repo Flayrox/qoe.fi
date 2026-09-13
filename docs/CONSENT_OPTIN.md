@@ -35,3 +35,43 @@
 # Délivrabilité : plus aucun bounce de typo entrant dans les envois bulk
 # (l'adresse doit avoir cliqué le lien), plus d'inscription possible d'un
 # tiers à son insu. Le unsubscribe RFC 8058 reste le droit de retrait.
+
+# =====================================================================
+# 🌍 Emails d'abonnés localisés et personnalisables (migration 00022)
+# =====================================================================
+#
+# LANGUE — chaque email part dans la langue de l'abonné :
+#   - Subscriber.locale (défaut fr) captée à l'inscription : ?locale= puis
+#     Accept-Language côté API, cookie/header x-locale côté SDK
+#     (subscribeToNewsletterAction). Bornée fr/en.
+#   - FR/EN : confirmation, bienvenue, mentions de consentement,
+#     libellés de liens. NormalizeEmailLocale borne tout à fr/en.
+#
+# PERSONNALISATION — Publication.emailSettings (JSONB), édité via
+#   GET|PATCH /v1/settings/email (module settings, autorisation créateur) :
+#   fromName, replyTo, accentColor (boutons), logoUrl, subjects{confirm,
+#   welcome}, preheaders{confirm, welcome}, footerNote, welcomeBodyFr/En,
+#   welcomeEnabled (false = l'email de bienvenue est coupé).
+#   Validation : workers.ParseEmailPrefs — bornes strictes, valeurs
+#   invalides IGNORÉES jamais bloquantes ; ce qui est stocké est assaini.
+#
+# BIENVENUE — envoyé au clic de confirmation (le vrai moment « abonné
+#   actif ») : ConfirmSubscriber enfile asynq subscriber.welcome →
+#   WelcomeEmailWorker. Idempotent, nil-safe, no-op sans EMAIL_PROVIDER,
+#   silencieux si le créateur l'a désactivé.
+#
+# DÉLIVRABILITÉ (moteur email_content.go + en-têtes email_provider.go) :
+#   - multipart/alternative texte + HTML quoted-printable (note
+#     SpamAssassin MultipartMessageNeeded) pour confirm, welcome ET bulk ;
+#   - preheader d'aperçu, bouton en couleur d'accent contrastée, aucune
+#     police monospace (option Apple), tables Outlook-compatible ;
+#   - List-Id (liste slugifiée + domaine), X-Entity-Ref-ID unique
+#     (anti-threading Gmail), List-Unsubscribe + List-Unsubscribe-Post
+#     One-Click (RFC 8058) ; Reply-To personnalisable.
+#
+# Tests : TestNormalizeEmailLocale, TestParseEmailPrefs_*,
+#   TestResolveCustomization_LocalePicksBody,
+#   TestRenderTransactionEmail_* (multipart, échappement, monospace),
+#   TestWelcomeEmailWorker_* (fr/en, personnalisation, désactivation,
+#   silences), TestHandler_EmailSettings_* (API),
+#   TestSubscribeToNewsletter_StoresLocale, TestBuildHandlers (wiring).

@@ -1,17 +1,26 @@
 package workers
 
 // =====================================================================
-// ✅ ConfirmEmailWorker — double opt-in des inscriptions newsletter
+// ✅ SubscriberMailer — socle commun des emails d'abonnés (double opt-in)
 // =====================================================================
-// L'inscription publique (POST /v1/home/subscribe) crée un abonné sans
-// receiveArticles et enfile TaskSubscriberConfirm ; ce worker lui envoie
-// l'email de confirmation. Le lien signé (HMAC-SHA256, miroir de l'unsub
-// RFC 8058 : SignUnsubscribe/VerifyUnsubscribe) pointe vers
+// Un seul cœur au service des deux emails transactionnels d'abonné :
+//   - TaskSubscriberConfirm : l'email de confirmation double opt-in,
+//     envoyé après une inscription publique (POST /v1/home/subscribe) ;
+//   - TaskSubscriberWelcome : l'email de bienvenue, envoyé après le clic
+//     sur le lien de confirmation (voir welcome_email.go).
+//
+// Le lien de confirmation est signé HMAC-SHA256 (miroir de l'unsubscribe
+// RFC 8058 : SignUnsubscribe/VerifyUnsubscribe) et pointe vers
 // GET|POST /v1/newsletters/confirm, qui confirme l'abonnement.
 //
-// Idempotence : si l'abonné a déjà confirmé (token effacé), l'email est
-// simplement ignoré (pas de spam à la re-inscription, pas d'erreur asynq).
-// Inactif sans fournisseur email configuré (EMAIL_PROVIDER).
+// Le contenu est rendu par le moteur email_content.go : langue de
+// l'abonné (Subscriber.locale), personnalisation par publication
+// (Publication.emailSettings), coquille multipart texte+HTML orientée
+// délivrabilité.
+//
+// Idempotence : si l'abonné a déjà confirmé (token effacé), l'email de
+// confirmation est ignoré (pas de spam à la re-inscription, pas d'erreur
+// asynq). Inactif sans fournisseur email configuré (EMAIL_PROVIDER).
 
 import (
 	"context"
@@ -28,6 +37,30 @@ import (
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/queue"
 )
+
+// subscriberMailer porte le pool + le fournisseur email partagés par les
+// workers d'emails d'abonnés.
+type subscriberMailer struct {
+	pool     *pgxpool.Pool
+	provider EmailProvider
+	from     string
+}
+
+// SetEmailProvider branche le fournisseur email partagé (nil → worker inactif).
+func (m *subscriberMailer) SetEmailProvider(p EmailProvider, from string) {
+	m.provider = p
+	m.from = from
+}
+
+// fromAddress retourne l'expéditeur par défaut (fallback noreply@qoe.fi).
+func (m *subscriberMailer) fromAddress() string {
+	if m.from != "" {
+		return m.from
+	}
+	return "noreply@qoe.fi"
+}
+
+// ── Signature HMAC des liens de confirmation ─────────────────────────
 
 // confirmEmailBaseURL est la racine des liens de confirmation.
 // QOE_CONFIRM_BASE_URL surcharge (self-host / staging), défaut api.qoe.fi
@@ -51,23 +84,107 @@ func VerifyConfirm(pubID, email, sig string) bool {
 	return VerifyUnsubscribe("confirm:"+pubID, email, sig)
 }
 
+// buildConfirmURL construit le lien de confirmation signé (HMAC).
+func buildConfirmURL(base, pubID, email, token string) string {
+	sig := SignConfirm(pubID, email)
+	return fmt.Sprintf("%s/v1/newsletters/confirm?pub=%s&email=%s&token=%s&sig=%s",
+		base,
+		url.QueryEscape(pubID), url.QueryEscape(email),
+		url.QueryEscape(token), sig)
+}
+
+// ── Rendu commun : coquille + personnalisation + locale ──────────────
+
+// subscriberShellInput décrit un email d'abonné avant rendu. pubName et
+// bodyParagraphs sont échappés ici (une seule fois).
+type subscriberShellInput struct {
+	locale         string
+	pubName        string
+	pubURL         string
+	fromName       string // nom d'expéditeur personnalisé ("" = nom de publication)
+	replyTo        string // réponse personnalisée ("" = from plateforme)
+	accentFallback string // couleur de la publication si emailSettings n'en fixe pas
+	logoURL        string // logo de la publication si emailSettings n'en fixe pas
+	unsubURL       string
+	preheader      string
+	title          string
+	bodyParagraphs []string
+	ctaLabel       string
+	ctaURL         string
+	consentLine    string
+	footerNote     string
+}
+
+// renderSubscriberEmail rend l'email d'un abonné via le moteur : personnalisation
+// (réglages > publication > défauts), coquille multipart texte+HTML, en-têtes
+// anti-threading (X-Entity-Ref-ID unique par email).
+func renderSubscriberEmail(m *subscriberMailer, email string, in subscriberShellInput) EmailMessage {
+	// La coquille échappe elle-même tous les textes (contrat ShellInput) :
+	// on lui passe du texte brut.
+	var bodyHTML string
+	for _, p := range in.bodyParagraphs {
+		bodyHTML += `<p style="font-size:14px;line-height:1.65;color:#52525b;margin:0 0 12px;">` + html.EscapeString(p) + `</p>`
+	}
+
+	htmlPart, textPart := RenderTransactionEmail(ShellInput{
+		Locale:      in.locale,
+		Preheader:   in.preheader,
+		Title:       in.title,
+		BodyHTML:    bodyHTML,
+		CTALabel:    in.ctaLabel,
+		CTAURL:      in.ctaURL,
+		Accent:      in.accentFallback,
+		LogoURL:     in.logoURL,
+		PubName:     in.pubName,
+		PubURL:      in.pubURL,
+		UnsubURL:    in.unsubURL,
+		UnsubLabel:  T(in.locale, "Se désabonner", "Unsubscribe"),
+		ConsentLine: in.consentLine,
+		FooterNote:  in.footerNote,
+	})
+
+	fromName := in.pubName
+	if in.fromName != "" {
+		fromName = in.fromName
+	}
+	from := m.fromAddress()
+	if fromName != "" {
+		from = fmt.Sprintf("%s <%s>", fromName, m.fromAddress())
+	}
+
+	refID := "sub-" + shortHash(email+"|"+in.title+"|"+in.ctaURL)
+	return EmailMessage{
+		From:    from,
+		To:      email,
+		Subject: in.title,
+		HTML:    htmlPart,
+		Text:    textPart,
+		ReplyTo: in.replyTo,
+		ListID:  listIDFor(fromName),
+		RefID:   refID,
+	}
+}
+
+// localizedPublicationName échappe le nom de publication (vide → libellé
+// localisé « la publication » pour les phrases).
+func localizedPublicationName(locale, rawName string) string {
+	if rawName != "" {
+		return rawName
+	}
+	return T(locale, "la publication", "the publication")
+}
+
+// ── Worker de confirmation ───────────────────────────────────────────
+
 // ConfirmEmailWorker envoie les emails de confirmation (TaskSubscriberConfirm).
 type ConfirmEmailWorker struct {
-	pool     *pgxpool.Pool
-	provider EmailProvider
-	from     string
+	subscriberMailer
 }
 
 // NewConfirmEmailWorker construit le worker. Inactif tant que
 // SetEmailProvider n'a pas été appelé (les tâches sont alors ignorées).
 func NewConfirmEmailWorker(pool *pgxpool.Pool) *ConfirmEmailWorker {
-	return &ConfirmEmailWorker{pool: pool}
-}
-
-// SetEmailProvider branche le fournisseur email partagé (nil → worker inactif).
-func (w *ConfirmEmailWorker) SetEmailProvider(p EmailProvider, from string) {
-	w.provider = p
-	w.from = from
+	return &ConfirmEmailWorker{subscriberMailer{pool: pool}}
 }
 
 // HandleSubscriberConfirm traite TaskSubscriberConfirm.
@@ -97,53 +214,60 @@ func (w *ConfirmEmailWorker) HandleSubscriberConfirm(ctx context.Context, t *asy
 		return nil
 	}
 
+	locale := NormalizeEmailLocale(info.Locale)
+	prefs := ParseEmailPrefs(info.EmailSettings)
+	pubName := localizedPublicationName(locale, info.PublicationName)
+	pubURL := publicationPublicURL(info.Subdomain, info.CustomDomain)
 	link := buildConfirmURL(confirmEmailBaseURL(), p.PublicationID, p.Email, info.ConfirmationToken.String)
-	name := "la publication"
-	if info.PublicationName != "" {
-		name = html.EscapeString(info.PublicationName)
+
+	// Priorité : réglages email > identité de la publication.
+	accent := prefs.AccentColor
+	if accent == "" && info.AccentColor.Valid {
+		accent = info.AccentColor.String
 	}
-	from := w.from
-	if from == "" {
-		from = "noreply@qoe.fi"
+	logo := prefs.LogoURL
+	if logo == "" && info.LogoUrl.Valid {
+		logo = info.LogoUrl.String
 	}
-	msg := EmailMessage{
-		From:    from,
-		To:      p.Email,
-		Subject: "Confirmez votre abonnement — " + name,
-		HTML:    buildConfirmEmailHTML(name, link, publicationPublicURL(info.Subdomain, info.CustomDomain)),
+	subject := prefs.Subjects[EmailTemplateConfirm]
+	if subject == "" {
+		subject = T(locale, "Confirmez votre abonnement — ", "Confirm your subscription — ") + pubName
 	}
+	preheader := prefs.Preheaders[EmailTemplateConfirm]
+	if preheader == "" {
+		preheader = T(locale,
+			"Confirmez votre inscription à la newsletter de "+pubName+".",
+			"Confirm your subscription to "+pubName+".")
+	}
+
+	msg := renderSubscriberEmail(&w.subscriberMailer, p.Email, subscriberShellInput{
+		locale:         locale,
+		pubName:        pubName,
+		pubURL:         pubURL,
+		fromName:       prefs.FromName,
+		replyTo:        prefs.ReplyTo,
+		accentFallback: accent,
+		logoURL:        logo,
+		preheader:      preheader,
+		title:          subject,
+		bodyParagraphs: []string{
+			T(locale,
+				"Vous avez demandé à recevoir les nouvelles publications de "+pubName+". Confirmez votre adresse email pour finaliser votre inscription.",
+				"You asked to receive new posts from "+pubName+". Confirm your email address to complete your subscription.",
+			),
+		},
+		ctaLabel: T(locale, "Confirmer mon abonnement", "Confirm my subscription"),
+		ctaURL:   link,
+		consentLine: T(locale,
+			"Vous recevez cet email suite à une demande d'inscription. Si vous n'en êtes pas à l'origine, ignorez simplement ce message — aucune inscription ne sera prise en compte.",
+			"You received this email following a subscription request. If this wasn't you, simply ignore it — no subscription will be created.",
+		),
+		footerNote: prefs.FooterNote,
+	})
+
 	if err := w.provider.Send(ctx, msg); err != nil {
 		return fmt.Errorf("confirm: envoi à %s: %w", p.Email, err)
 	}
-	log.Printf("[confirm] email de confirmation envoyé à %s (%s)", p.Email, p.PublicationID)
+	log.Printf("[confirm] email de confirmation envoyé à %s (%s) [%s]", p.Email, p.PublicationID, locale)
 	return nil
-}
-
-// buildConfirmURL construit le lien de confirmation signé (HMAC).
-func buildConfirmURL(base, pubID, email, token string) string {
-	sig := SignConfirm(pubID, email)
-	return fmt.Sprintf("%s/v1/newsletters/confirm?pub=%s&email=%s&token=%s&sig=%s",
-		base,
-		url.QueryEscape(pubID), url.QueryEscape(email),
-		url.QueryEscape(token), sig)
-}
-
-// buildConfirmEmailHTML compose l'email de confirmation (option Apple : pas de
-// monospace, contrastes élevés, mise en page simple et sobre).
-func buildConfirmEmailHTML(publicationName, confirmURL, publicationURL string) string {
-	pubLink := ""
-	if publicationURL != "" {
-		pubLink = `<a href="` + html.EscapeString(publicationURL) + `" style="color:#6b7280;text-decoration:underline;">` + publicationName + `</a>`
-	} else {
-		pubLink = publicationName
-	}
-	return `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Confirmation d'abonnement</title></head>
-<body style="font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;background:#f9fafb;margin:0;padding:32px 20px;-webkit-font-smoothing:antialiased;">
-<div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,0.04);padding:40px 32px;max-width:440px;margin:0 auto;text-align:center;">
-<div style="width:48px;height:48px;background:#eef2ff;border:1px solid #e0e7ff;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:22px;">✉️</div>
-<h1 style="font-size:20px;font-weight:600;color:#111827;margin:0 0 8px;letter-spacing:-0.01em;">Confirmez votre abonnement</h1>
-<p style="font-size:14px;line-height:1.6;color:#6b7280;margin:0 0 24px;">Vous avez demandé à recevoir les nouvelles publications de ` + pubLink + `. Confirmez votre adresse email pour finaliser votre inscription.</p>
-<a href="` + html.EscapeString(confirmURL) + `" style="display:inline-block;background:#111827;color:#ffffff;text-decoration:none;font-size:14px;font-weight:500;padding:12px 28px;border-radius:9999px;">Confirmer mon abonnement</a>
-<p style="font-size:12px;line-height:1.6;color:#9ca3af;margin:24px 0 0;">Si vous n'êtes pas à l'origine de cette demande, ignorez simplement cet email — aucune inscription ne sera prise en compte.</p>
-</div></body></html>`
 }

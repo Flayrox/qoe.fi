@@ -146,10 +146,37 @@ func (h *Handler) subscribe(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "Veuillez saisir une adresse email valide.")
 		return
 	}
-	if _, err := h.svc.SubscribeToNewsletter(r.Context(), body.Email, body.PublicationID); err != nil {
+	// Langue de l'abonné : ?locale= explicite puis Accept-Language, bornée
+	// à fr/en (défaut fr) — pilote la langue des emails transactionnels.
+	locale := normalizeSubscribeLocale(r)
+	if _, err := h.svc.SubscribeToNewsletter(r.Context(), body.Email, body.PublicationID, locale); err != nil {
 		log.Printf("[home] subscribe: %v", err)
 		response.Internal(w)
 		return
 	}
 	response.OK(w, map[string]bool{"success": true})
+}
+
+// normalizeSubscribeLocale résout la locale d'inscription : ?locale= puis
+// Accept-Language, bornée aux deux locales supportées des emails (fr/en).
+func normalizeSubscribeLocale(r *http.Request) string {
+	if v := strings.TrimSpace(r.URL.Query().Get("locale")); v != "" {
+		return normalizeSubscribeLocaleRaw(v)
+	}
+	if v := r.Header.Get("Accept-Language"); v != "" {
+		return normalizeSubscribeLocaleRaw(strings.Split(v, ",")[0])
+	}
+	return "fr"
+}
+
+// normalizeSubscribeLocaleRaw réduit une locale HTTP à fr/en (défaut fr).
+func normalizeSubscribeLocaleRaw(raw string) string {
+	l := strings.ToLower(strings.TrimSpace(raw))
+	if i := strings.IndexAny(l, "-_,;"); i > 0 {
+		l = l[:i]
+	}
+	if l == "en" {
+		return "en"
+	}
+	return "fr"
 }

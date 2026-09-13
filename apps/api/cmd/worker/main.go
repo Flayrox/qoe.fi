@@ -45,6 +45,7 @@ func main() {
 	newsletterWorker.SetAsynqClient(asynqClient)
 	newsletterWorker.SetRatePerMinute(cfg.NewsletterRatePerMinute)
 	confirmWorker := workers.NewConfirmEmailWorker(pool)
+	welcomeWorker := workers.NewWelcomeEmailWorker(pool)
 	stripeWorker := workers.NewStripeWorker(pool, cache.Client(cfg.RedisURL))
 	searchWorker := workers.NewSearchWorker(pool)
 	searchWorker.Setup(ctx)
@@ -56,6 +57,7 @@ func main() {
 		webhook:    webhookWorker,
 		newsletter: newsletterWorker,
 		confirm:    confirmWorker,
+		welcome:    welcomeWorker,
 		stripe:     stripeWorker,
 		search:     searchWorker,
 		embedding:  embeddingWorker,
@@ -108,6 +110,7 @@ func main() {
 	})
 	newsletterWorker.SetEmailProvider(emailProvider, cfg.EmailFrom)
 	confirmWorker.SetEmailProvider(emailProvider, cfg.EmailFrom)
+	welcomeWorker.SetEmailProvider(emailProvider, cfg.EmailFrom)
 	if emailProvider != nil {
 		go workers.RunEmailDeliveryLoop(ctx, pool, emailProvider, cfg.EmailFrom, 30*time.Second, 50)
 		// 📣 Avis légaux : prévenir les personnes dont le consentement doit être
@@ -152,6 +155,7 @@ type workerDeps struct {
 	webhook    *workers.WebhookWorker
 	newsletter *workers.NewsletterWorker
 	confirm    *workers.ConfirmEmailWorker
+	welcome    *workers.WelcomeEmailWorker
 	stripe     *workers.StripeWorker
 	search     *workers.SearchWorker
 	embedding  *workers.EmbeddingWorker
@@ -179,6 +183,7 @@ func buildHandlers(d workerDeps) map[string]asynq.HandlerFunc {
 			return d.webhook.HandleProcesses(ctx, t, queue.TaskSubscriberCreated)
 		},
 		queue.TaskSubscriberConfirm:    d.confirm.HandleSubscriberConfirm,
+		queue.TaskSubscriberWelcome:    d.welcome.HandleSubscriberWelcome,
 		queue.TaskPostLiked:            d.newsletter.HandlePostLiked,
 		queue.TaskNewsletterSend:       d.newsletter.HandleNewsletterSend,
 		queue.TaskNewsletterArticleRel: d.newsletter.HandleArticleRelease,

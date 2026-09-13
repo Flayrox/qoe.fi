@@ -105,12 +105,12 @@ func TestSubscribe_EventOnCreationOnly(t *testing.T) {
 	const pubID = "pub_home_001"
 
 	// 1re inscription → création effective → événement émis.
-	if _, err := svc.SubscribeToNewsletter(ctx, email, pubID); err != nil {
+	if _, err := svc.SubscribeToNewsletter(ctx, email, pubID, "fr"); err != nil {
 		t.Fatalf("subscribe: %v", err)
 	}
 
 	// Re-inscription (idempotent, upsert) → AUCUN nouvel événement.
-	if _, err := svc.SubscribeToNewsletter(ctx, email, pubID); err != nil {
+	if _, err := svc.SubscribeToNewsletter(ctx, email, pubID, "fr"); err != nil {
 		t.Fatalf("resubscribe: %v", err)
 	}
 
@@ -118,7 +118,7 @@ func TestSubscribe_EventOnCreationOnly(t *testing.T) {
 	// (err journalisée, best-effort) ou s'exécute selon la version. On
 	// valide le contrat IMPORTANT : l'inscription réussit dans les deux cas
 	// et l'échec d'enqueue ne bloque jamais le growth loop.
-	if _, err := svc.SubscribeToNewsletter(ctx, email, pubID); err != nil {
+	if _, err := svc.SubscribeToNewsletter(ctx, email, pubID, "fr"); err != nil {
 		t.Fatalf("resubscribe après panne d'enqueue: %v", err)
 	}
 
@@ -139,7 +139,7 @@ func TestSubscribe_NilEmitter_StillWorks(t *testing.T) {
 	subscribeFixture(t)
 	// svc.events == nil (tests, boot sans Redis) → pas de panic, inscription OK.
 	svc := &Service{pool: poolTest}
-	ok, err := svc.SubscribeToNewsletter(context.Background(), "nil-emitter@qoe.test", "pub_home_001")
+	ok, err := svc.SubscribeToNewsletter(context.Background(), "nil-emitter@qoe.test", "pub_home_001", "fr")
 	if err != nil || !ok {
 		t.Fatalf("subscribe sans emitter = %v, %v", ok, err)
 	}
