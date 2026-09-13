@@ -34,6 +34,8 @@ func (h *Handler) RegisterProtected(r chi.Router) {
 		r.Get("/consent", h.getConsent)
 		r.Patch("/consent", h.updateConsent)
 		r.Patch("/preferences", h.updatePreferences)
+		r.Get("/email", h.getEmailSettings)
+		r.Patch("/email", h.updateEmailSettings)
 		r.Post("/subdomain", h.updateSubdomain)
 		r.Put("/navigation", h.saveNavigation)
 		r.Put("/social", h.saveSocial)

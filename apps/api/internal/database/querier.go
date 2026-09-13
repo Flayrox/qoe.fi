@@ -279,6 +279,9 @@ type Querier interface {
 	GetPremiumActiveSubscribers(ctx context.Context, publicationid string) ([]GetPremiumActiveSubscribersRow, error)
 	GetPublicationByID(ctx context.Context, id string) (string, error)
 	GetPublicationBySlugOrSubdomain(ctx context.Context, lower string) (GetPublicationBySlugOrSubdomainRow, error)
+	// Identité par défaut de la publication (pré-remplissage du formulaire
+	// email du studio) + réglages email stockés.
+	GetPublicationEmailDefaults(ctx context.Context, id string) (GetPublicationEmailDefaultsRow, error)
 	// Page settings créateur (parité prisma.publication.findUnique include dans
 	// apps/studio/src/app/(creator)/settings/page.tsx).
 	GetPublicationForSettings(ctx context.Context, id string) (GetPublicationForSettingsRow, error)
@@ -300,6 +303,9 @@ type Querier interface {
 	// Notifications REPLY / MENTION
 	GetReplyPrefs(ctx context.Context, userid pgtype.UUID) (GetReplyPrefsRow, error)
 	GetStarterPackByID(ctx context.Context, id string) (GetStarterPackByIDRow, error)
+	// Contexte complet pour les emails transactionnels (bienvenue) :
+	// locale de l'abonné + personnalisation de la publication.
+	GetSubscriberEmailContext(ctx context.Context, arg GetSubscriberEmailContextParams) (GetSubscriberEmailContextRow, error)
 	GetSubscriberEntitlement(ctx context.Context, arg GetSubscriberEntitlementParams) (GetSubscriberEntitlementRow, error)
 	GetSubscriberStatsByPublication(ctx context.Context, publicationid string) (GetSubscriberStatsByPublicationRow, error)
 	GetSystemConfigsByKeys(ctx context.Context, dollar_1 []string) ([]SystemConfig, error)
@@ -661,6 +667,11 @@ type Querier interface {
 	UpdatePersonalPublication(ctx context.Context, arg UpdatePersonalPublicationParams) error
 	UpdatePromoActive(ctx context.Context, arg UpdatePromoActiveParams) (UpdatePromoActiveRow, error)
 	UpdatePublicationCertified(ctx context.Context, arg UpdatePublicationCertifiedParams) (UpdatePublicationCertifiedRow, error)
+	// =====================================================================
+	// ✅ Réglages email transactionnels par publication (double opt-in,
+	//    bienvenue) — personnalisation + délivrabilité.
+	// =====================================================================
+	UpdatePublicationEmailSettings(ctx context.Context, arg UpdatePublicationEmailSettingsParams) error
 	UpdatePublicationSubdomain(ctx context.Context, arg UpdatePublicationSubdomainParams) error
 	UpdateTrendCount(ctx context.Context, arg UpdateTrendCountParams) (UpdateTrendCountRow, error)
 	UpdateUserOnboardingText(ctx context.Context, arg UpdateUserOnboardingTextParams) error

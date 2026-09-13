@@ -321,8 +321,10 @@ func (q *Queries) GetNewsletterIssueWithPublication(ctx context.Context, id stri
 
 const getPendingConfirmation = `-- name: GetPendingConfirmation :one
 
-SELECT s.email, s."publicationId", s."confirmationToken",
-       p.name AS publication_name, p.subdomain, p."customDomain", p."accentColor"
+SELECT s.email, s."publicationId", s.locale,
+       s."confirmationToken",
+       p.name AS publication_name, p.subdomain, p."customDomain", p."accentColor",
+       p."logoUrl", p."emailSettings"
 FROM "Subscriber" s
 JOIN "Publication" p ON p.id = s."publicationId"
 WHERE s.email = $1
@@ -338,11 +340,14 @@ type GetPendingConfirmationParams struct {
 type GetPendingConfirmationRow struct {
 	Email             string      `json:"email"`
 	PublicationId     string      `json:"publicationId"`
+	Locale            string      `json:"locale"`
 	ConfirmationToken pgtype.Text `json:"confirmationToken"`
 	PublicationName   string      `json:"publication_name"`
 	Subdomain         pgtype.Text `json:"subdomain"`
 	CustomDomain      pgtype.Text `json:"customDomain"`
 	AccentColor       pgtype.Text `json:"accentColor"`
+	LogoUrl           pgtype.Text `json:"logoUrl"`
+	EmailSettings     []byte      `json:"emailSettings"`
 }
 
 // =====================================================================
@@ -354,11 +359,14 @@ func (q *Queries) GetPendingConfirmation(ctx context.Context, arg GetPendingConf
 	err := row.Scan(
 		&i.Email,
 		&i.PublicationId,
+		&i.Locale,
 		&i.ConfirmationToken,
 		&i.PublicationName,
 		&i.Subdomain,
 		&i.CustomDomain,
 		&i.AccentColor,
+		&i.LogoUrl,
+		&i.EmailSettings,
 	)
 	return i, err
 }
@@ -448,6 +456,52 @@ func (q *Queries) GetPublicationMetadataByID(ctx context.Context, id string) (Ge
 		&i.IsCertified,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getSubscriberEmailContext = `-- name: GetSubscriberEmailContext :one
+SELECT s.email, s.locale, s."confirmedAt",
+       p.name AS publication_name, p.subdomain, p."customDomain", p."accentColor",
+       p."logoUrl", p."emailSettings"
+FROM "Subscriber" s
+JOIN "Publication" p ON p.id = s."publicationId"
+WHERE s.email = $1
+  AND s."publicationId" = $2
+`
+
+type GetSubscriberEmailContextParams struct {
+	Email         string `json:"email"`
+	PublicationId string `json:"publicationId"`
+}
+
+type GetSubscriberEmailContextRow struct {
+	Email           string           `json:"email"`
+	Locale          string           `json:"locale"`
+	ConfirmedAt     pgtype.Timestamp `json:"confirmedAt"`
+	PublicationName string           `json:"publication_name"`
+	Subdomain       pgtype.Text      `json:"subdomain"`
+	CustomDomain    pgtype.Text      `json:"customDomain"`
+	AccentColor     pgtype.Text      `json:"accentColor"`
+	LogoUrl         pgtype.Text      `json:"logoUrl"`
+	EmailSettings   []byte           `json:"emailSettings"`
+}
+
+// Contexte complet pour les emails transactionnels (bienvenue) :
+// locale de l'abonné + personnalisation de la publication.
+func (q *Queries) GetSubscriberEmailContext(ctx context.Context, arg GetSubscriberEmailContextParams) (GetSubscriberEmailContextRow, error) {
+	row := q.db.QueryRow(ctx, getSubscriberEmailContext, arg.Email, arg.PublicationId)
+	var i GetSubscriberEmailContextRow
+	err := row.Scan(
+		&i.Email,
+		&i.Locale,
+		&i.ConfirmedAt,
+		&i.PublicationName,
+		&i.Subdomain,
+		&i.CustomDomain,
+		&i.AccentColor,
+		&i.LogoUrl,
+		&i.EmailSettings,
 	)
 	return i, err
 }

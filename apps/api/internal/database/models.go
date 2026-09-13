@@ -1233,6 +1233,7 @@ type Publication struct {
 	SeoTitle               pgtype.Text      `json:"seoTitle"`
 	SeoDescription         pgtype.Text      `json:"seoDescription"`
 	SupportUrl             pgtype.Text      `json:"supportUrl"`
+	EmailSettings          []byte           `json:"emailSettings"`
 	StripeAccountId        pgtype.Text      `json:"stripeAccountId"`
 	CreatedAt              pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt              pgtype.Timestamp `json:"updatedAt"`
@@ -1294,6 +1295,7 @@ type Subscriber struct {
 	LtvCents             int32              `json:"ltvCents"`
 	ReceiveArticles      bool               `json:"receiveArticles"`
 	ReceivePosts         bool               `json:"receivePosts"`
+	Locale               string             `json:"locale"`
 	ConfirmedAt          pgtype.Timestamp   `json:"confirmedAt"`
 	ConfirmationToken    pgtype.Text        `json:"confirmationToken"`
 	CurrentPeriodEnd     pgtype.Timestamp   `json:"currentPeriodEnd"`

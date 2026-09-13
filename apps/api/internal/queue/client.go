@@ -257,3 +257,18 @@ func PublishSubscriberConfirm(c *asynq.Client, p SubscriberConfirmPayload) error
 	_, err = c.Enqueue(task, asynq.Queue("default"))
 	return err
 }
+
+// PublishSubscriberWelcome enqueue l'envoi de l'email de bienvenue après
+// confirmation du double opt-in (tâche asynq TaskSubscriberWelcome).
+func PublishSubscriberWelcome(c *asynq.Client, p SubscriberWelcomePayload) error {
+	if c == nil {
+		return nil
+	}
+	payload, err := json.Marshal(p)
+	if err != nil {
+		return err
+	}
+	task := asynq.NewTask(TaskSubscriberWelcome, payload, asynq.MaxRetry(3), asynq.Timeout(30*time.Second))
+	_, err = c.Enqueue(task, asynq.Queue("default"))
+	return err
+}

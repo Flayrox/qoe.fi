@@ -4,6 +4,7 @@ package newsletters
 import (
 	"context"
 	"errors"
+	"log"
 	"time"
 
 	"github.com/hibiken/asynq"
@@ -251,5 +252,17 @@ func (s *Service) ConfirmSubscriber(ctx context.Context, publicationID, email, t
 	if errors.Is(err, pgx.ErrNoRows) {
 		return errConfirmInvalid
 	}
-	return err
+	if err != nil {
+		return err
+	}
+	// Confirmation effective → email de bienvenue (localisé, personnalisé,
+	// coupable par le créateur côté worker). Best-effort : une panne Redis
+	// n'invalide JAMAIS une confirmation.
+	if err := queue.PublishSubscriberWelcome(s.ac, queue.SubscriberWelcomePayload{
+		Email:         email,
+		PublicationID: publicationID,
+	}); err != nil {
+		log.Printf("[newsletters] subscriber.welcome enqueue: %v", err)
+	}
+	return nil
 }

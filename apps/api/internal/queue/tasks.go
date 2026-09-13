@@ -17,6 +17,7 @@ const (
 	TaskNewsletterArticleRel = "newsletter.article_release"
 	TaskBulkImport           = "article.bulk_import"
 	TaskSubscriberConfirm    = "subscriber.confirm"
+	TaskSubscriberWelcome    = "subscriber.welcome"
 )
 
 // BulkImportPayload est le payload de TaskBulkImport (import bulk asynchrone).
@@ -63,6 +64,13 @@ type SubscriberCreatedPayload struct {
 // SubscriberConfirmPayload est le payload de TaskSubscriberConfirm : envoi de
 // l'email de confirmation double opt-in après une inscription publique.
 type SubscriberConfirmPayload struct {
+	Email         string `json:"email"`
+	PublicationID string `json:"publicationId"`
+}
+
+// SubscriberWelcomePayload est le payload de TaskSubscriberWelcome : envoi de
+// l'email de bienvenue après confirmation du double opt-in.
+type SubscriberWelcomePayload struct {
 	Email         string `json:"email"`
 	PublicationID string `json:"publicationId"`
 }

@@ -303,7 +303,7 @@ func TestSubscribeToNewsletter(t *testing.T) {
 	seedHomeWidgets(t, ctx)
 	svc := newTestService()
 
-	ok, err := svc.SubscribeToNewsletter(ctx, "Newsletter@Test.dev", "pub_home_001")
+	ok, err := svc.SubscribeToNewsletter(ctx, "Newsletter@Test.dev", "pub_home_001", "fr")
 	if err != nil {
 		t.Fatalf("subscribe: %v", err)
 	}
@@ -312,7 +312,7 @@ func TestSubscribeToNewsletter(t *testing.T) {
 	}
 
 	// Idempotent : re-inscription → toujours 1 ligne active.
-	if _, err := svc.SubscribeToNewsletter(ctx, "newsletter@test.dev", "pub_home_001"); err != nil {
+	if _, err := svc.SubscribeToNewsletter(ctx, "newsletter@test.dev", "pub_home_001", "fr"); err != nil {
 		t.Fatalf("resubscribe: %v", err)
 	}
 	var count int
@@ -325,7 +325,7 @@ func TestSubscribeToNewsletter(t *testing.T) {
 	}
 
 	// Publication inconnue → erreur.
-	if _, err := svc.SubscribeToNewsletter(ctx, "x@test.dev", "pub_inconnue"); err == nil {
+	if _, err := svc.SubscribeToNewsletter(ctx, "x@test.dev", "pub_inconnue", "fr"); err == nil {
 		t.Fatal("subscribe sur publication inconnue devrait échouer")
 	}
 }

@@ -131,3 +131,20 @@ SELECT id, name, slug
 FROM "Category"
 WHERE "publicationId" = $1
 ORDER BY name ASC;
+
+-- =====================================================================
+-- ✅ Réglages email transactionnels par publication (double opt-in,
+--    bienvenue) — personnalisation + délivrabilité.
+-- =====================================================================
+
+-- name: UpdatePublicationEmailSettings :exec
+UPDATE "Publication"
+SET "emailSettings" = sqlc.arg(email_settings)::jsonb, "updatedAt" = now()
+WHERE id = sqlc.arg(publication_id);
+
+-- name: GetPublicationEmailDefaults :one
+-- Identité par défaut de la publication (pré-remplissage du formulaire
+-- email du studio) + réglages email stockés.
+SELECT p.name, p."accentColor", p."logoUrl", p."emailSettings"
+FROM "Publication" p
+WHERE p.id = $1;

@@ -103,6 +103,33 @@ func (q *Queries) DeleteSocialLinks(ctx context.Context, publicationid string) e
 	return err
 }
 
+const getPublicationEmailDefaults = `-- name: GetPublicationEmailDefaults :one
+SELECT p.name, p."accentColor", p."logoUrl", p."emailSettings"
+FROM "Publication" p
+WHERE p.id = $1
+`
+
+type GetPublicationEmailDefaultsRow struct {
+	Name          string      `json:"name"`
+	AccentColor   pgtype.Text `json:"accentColor"`
+	LogoUrl       pgtype.Text `json:"logoUrl"`
+	EmailSettings []byte      `json:"emailSettings"`
+}
+
+// Identité par défaut de la publication (pré-remplissage du formulaire
+// email du studio) + réglages email stockés.
+func (q *Queries) GetPublicationEmailDefaults(ctx context.Context, id string) (GetPublicationEmailDefaultsRow, error) {
+	row := q.db.QueryRow(ctx, getPublicationEmailDefaults, id)
+	var i GetPublicationEmailDefaultsRow
+	err := row.Scan(
+		&i.Name,
+		&i.AccentColor,
+		&i.LogoUrl,
+		&i.EmailSettings,
+	)
+	return i, err
+}
+
 const getPublicationForSettings = `-- name: GetPublicationForSettings :one
 
 SELECT p.id, p.name, p.slug, p."subdomain", p."customDomain", p."heroText",
@@ -613,6 +640,29 @@ func (q *Queries) UpdatePersonalPublication(ctx context.Context, arg UpdatePerso
 		arg.HeroText,
 		arg.LayoutStyle,
 	)
+	return err
+}
+
+const updatePublicationEmailSettings = `-- name: UpdatePublicationEmailSettings :exec
+
+UPDATE "Publication"
+SET "emailSettings" = $1::jsonb, "updatedAt" = now()
+WHERE id = $2
+`
+
+type UpdatePublicationEmailSettingsParams struct {
+	EmailSettings []byte `json:"email_settings"`
+	PublicationID string `json:"publication_id"`
+}
+
+// =====================================================================
+// ✅ Réglages email transactionnels par publication (double opt-in,
+//
+//	bienvenue) — personnalisation + délivrabilité.
+//
+// =====================================================================
+func (q *Queries) UpdatePublicationEmailSettings(ctx context.Context, arg UpdatePublicationEmailSettingsParams) error {
+	_, err := q.db.Exec(ctx, updatePublicationEmailSettings, arg.EmailSettings, arg.PublicationID)
 	return err
 }
 

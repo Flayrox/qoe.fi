@@ -88,6 +88,7 @@ describe('📮 subscribeToNewsletterAction', () => {
     expect(calls()[0][1]?.body).toEqual({
       email: 'reader@example.com',
       publicationId: 'pub_1',
+      locale: 'fr', // hors contexte de requête (tests) : défaut fr
     });
   });
 

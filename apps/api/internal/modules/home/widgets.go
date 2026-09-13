@@ -411,7 +411,7 @@ func (s *Service) GetSemanticTrends(ctx context.Context, limit int) ([]SemanticT
 // désabonnement RFC 8058 retrouve receiveArticles=true, comme annoncé sur la
 // page de désinscription). L'uid de la ligne créée est dérivé de xmax (0 pour
 // un INSERT frais, cf. la communauté pgx) : pas de round-trip supplémentaire.
-func (s *Service) SubscribeToNewsletter(ctx context.Context, email, publicationID string) (bool, error) {
+func (s *Service) SubscribeToNewsletter(ctx context.Context, email, publicationID, locale string) (bool, error) {
 	var exists bool
 	err := s.pool.QueryRow(ctx,
 		`SELECT EXISTS(SELECT 1 FROM "Publication" WHERE id = $1)`, publicationID).Scan(&exists)
@@ -426,14 +426,14 @@ func (s *Service) SubscribeToNewsletter(ctx context.Context, email, publicationI
 	var inserted bool
 	var confirmed pgtype.Timestamp
 	err = s.pool.QueryRow(ctx, `
-		INSERT INTO "Subscriber" (id, email, "publicationId", "isActive", "receiveArticles", "confirmationToken", "createdAt", "updatedAt")
-		VALUES (gen_random_uuid()::text, $1, $2, true, false, md5(gen_random_uuid()::text || clock_timestamp()::text), now(), now())
+		INSERT INTO "Subscriber" (id, email, "publicationId", locale, "isActive", "receiveArticles", "confirmationToken", "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1, $2, $3, true, false, md5(gen_random_uuid()::text || clock_timestamp()::text), now(), now())
 		ON CONFLICT ("email", "publicationId") DO UPDATE SET
 		  "isActive" = true,
 		  "receiveArticles" = ("Subscriber"."confirmedAt" IS NOT NULL),
 		  "updatedAt" = now()
 		RETURNING id, (xmax = 0) AS inserted, "confirmedAt"`,
-		email, publicationID).Scan(&subscriberID, &inserted, &confirmed)
+		email, publicationID, locale).Scan(&subscriberID, &inserted, &confirmed)
 	if err != nil {
 		return false, err
 	}

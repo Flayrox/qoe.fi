@@ -18,6 +18,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"mime/quotedprintable"
 	"net"
 	"net/http"
 	"net/smtp"
@@ -27,13 +28,21 @@ import (
 
 // EmailMessage est le message envoyé par un EmailProvider.
 type EmailMessage struct {
-	From            string
-	To              string
-	Subject         string
-	HTML            string
+	From    string
+	To      string
+	Subject string
+	HTML    string
+	// Text est l'alternative texte brut (multipart/alternative) — note
+	// délivrabilité : un email HTML sans partie texte est pénalisé.
+	Text            string
 	ReplyTo         string
 	ListUnsubscribe string
-	IsBulk          bool
+	// ListID alimente l'en-tête List-Id (identification de la liste).
+	ListID string
+	// RefID alimente X-Entity-Ref-ID (anti-threading Gmail : deux emails
+	// transactionnels distincts ne doivent jamais être filés ensemble).
+	RefID  string
+	IsBulk bool
 }
 
 // EmailProvider envoie un email transactionnel.
@@ -135,7 +144,7 @@ func (p *SMTPProvider) Send(ctx context.Context, msg EmailMessage) error {
 		return fmt.Errorf("smtp: data: %w", err)
 	}
 	headers := buildSMTPHeaders(from, msg)
-	body := headers + "\r\n" + msg.HTML
+	body := headers + "\r\n" + buildSMTPBody(msg)
 	if _, err := w.Write([]byte(body)); err != nil {
 		_ = w.Close()
 		return fmt.Errorf("smtp: écriture: %w", err)
@@ -191,9 +200,17 @@ func buildSMTPHeaders(from string, msg EmailMessage) string {
 	cleanSubject := SanitizeHeaderValue(msg.Subject)
 
 	var b strings.Builder
-	b.WriteString(fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMessage-ID: <%s@qoe.fi>\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\nDate: %s\r\nX-Mailer: qoe-worker\r\n",
+	b.WriteString(fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\nMessage-ID: <%s@qoe.fi>\r\nMIME-Version: 1.0\r\n",
 		encodeAddressHeader(cleanFrom), encodeAddressHeader(cleanTo), encodeRFC2047(cleanSubject),
-		messageID(), time.Now().UTC().Format(time.RFC1123Z)))
+		messageID()))
+	b.WriteString("Date: " + time.Now().UTC().Format(time.RFC1123Z) + "\r\n")
+	b.WriteString("X-Mailer: qoe-worker\r\n")
+	if msg.ListID != "" {
+		b.WriteString(fmt.Sprintf("List-Id: %s\r\n", SanitizeHeaderValue(msg.ListID)))
+	}
+	if msg.RefID != "" {
+		b.WriteString(fmt.Sprintf("X-Entity-Ref-ID: %s\r\n", SanitizeHeaderValue(msg.RefID)))
+	}
 	if msg.ReplyTo != "" {
 		cleanReplyTo := SanitizeHeaderValue(msg.ReplyTo)
 		b.WriteString(fmt.Sprintf("Reply-To: %s\r\n", encodeAddressHeader(cleanReplyTo)))
@@ -206,6 +223,38 @@ func buildSMTPHeaders(from string, msg EmailMessage) string {
 		b.WriteString("Precedence: bulk\r\nAuto-Submitted: auto-generated\r\n")
 	}
 	return b.String()
+}
+
+// buildSMTPBody écrit le corps MIME : multipart/alternative (texte + HTML en
+// quoted-printable) quand l'alternative texte existe, HTML brut sinon
+// (compatibilité avec les envois historiques).
+func buildSMTPBody(msg EmailMessage) string {
+	if strings.TrimSpace(msg.Text) == "" {
+		return "Content-Type: text/html; charset=UTF-8\r\n\r\n" + msg.HTML
+	}
+	boundary := "qoe_" + messageID()
+	var b strings.Builder
+	b.WriteString("Content-Type: multipart/alternative; boundary=\"" + boundary + "\"\r\n\r\n")
+	b.WriteString("--" + boundary + "\r\n")
+	b.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
+	b.WriteString("Content-Transfer-Encoding: quoted-printable\r\n\r\n")
+	b.WriteString(quotedPrintableEncode(msg.Text))
+	b.WriteString("\r\n--" + boundary + "\r\n")
+	b.WriteString("Content-Type: text/html; charset=UTF-8\r\n")
+	b.WriteString("Content-Transfer-Encoding: quoted-printable\r\n\r\n")
+	b.WriteString(quotedPrintableEncode(msg.HTML))
+	b.WriteString("\r\n--" + boundary + "--\r\n")
+	return b.String()
+}
+
+// quotedPrintableEncode encode un corps en quoted-printable (retours à la
+// ligne SMTP, lignes ≤ 76 chars — jamais de ligne > 998).
+func quotedPrintableEncode(s string) string {
+	var buf bytes.Buffer
+	w := quotedprintable.NewWriter(&buf)
+	_, _ = w.Write([]byte(strings.ReplaceAll(s, "\r\n", "\n")))
+	_ = w.Close()
+	return buf.String()
 }
 
 // messageID génère un identifiant unique pour l'en-tête Message-ID.
@@ -270,14 +319,27 @@ func (p *ResendProvider) Send(ctx context.Context, msg EmailMessage) error {
 		"subject": msg.Subject,
 		"html":    msg.HTML,
 	}
-	if msg.ReplyTo != "" {
-		payloadMap["reply_to"] = msg.ReplyTo
+	if strings.TrimSpace(msg.Text) != "" {
+		payloadMap["text"] = msg.Text
+	}
+	customHeaders := map[string]string{}
+	if msg.ListID != "" {
+		customHeaders["List-Id"] = msg.ListID
+	}
+	if msg.RefID != "" {
+		customHeaders["X-Entity-Ref-ID"] = msg.RefID
+	}
+	if len(customHeaders) > 0 {
+		payloadMap["headers"] = customHeaders
 	}
 	if msg.ListUnsubscribe != "" {
-		payloadMap["headers"] = map[string]string{
-			"List-Unsubscribe":      fmt.Sprintf("<%s>", msg.ListUnsubscribe),
-			"List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+		lu, ok := payloadMap["headers"].(map[string]string)
+		if !ok {
+			lu = map[string]string{}
+			payloadMap["headers"] = lu
 		}
+		lu["List-Unsubscribe"] = fmt.Sprintf("<%s>", msg.ListUnsubscribe)
+		lu["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click"
 	}
 	payload, err := json.Marshal(payloadMap)
 	if err != nil {
