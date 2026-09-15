@@ -82,3 +82,56 @@ export async function exportAccountSecurityDataAction() {
 export async function requestAccountSecurityDeletionAction() {
   return goFetch('/v1/me/account-deletion-request', { method: 'POST', body: {} });
 }
+
+// =====================================================================
+// 📧 Réglages email transactionnels (double opt-in + bienvenue)
+// =====================================================================
+// GET  /v1/settings/email        → défauts + réglages assainis
+// PATCH /v1/settings/email       → enregistre (les champs absents
+//                                  retombent sur les défauts plateforme)
+// POST /v1/settings/email/preview → rendu réel (même moteur que les
+//                                  envois) pour la prévisualisation live.
+
+export interface PublicationEmailSettings {
+  fromName?: string;
+  replyTo?: string;
+  accentColor?: string;
+  logoUrl?: string;
+  subjects?: { confirm?: string; welcome?: string };
+  preheaders?: { confirm?: string; welcome?: string };
+  footerNote?: string;
+  welcomeEnabled?: boolean;
+  welcomeBodyFr?: string;
+  welcomeBodyEn?: string;
+}
+
+export async function getEmailSettingsAction(publicationId: string) {
+  return goFetch<{
+    publicationName: string;
+    emailSettings: PublicationEmailSettings;
+    accentColor?: string;
+    logoUrl?: string;
+  }>(`/v1/settings/email?publicationId=${encodeURIComponent(publicationId)}`);
+}
+
+export async function updateEmailSettingsAction(
+  publicationId: string,
+  settings: PublicationEmailSettings
+) {
+  return goFetch<{ emailSettings: PublicationEmailSettings }>('/v1/settings/email', {
+    method: 'PATCH',
+    body: { publicationId, settings },
+  });
+}
+
+export async function previewEmailSettingsAction(
+  publicationId: string,
+  template: 'confirm' | 'welcome',
+  locale: 'fr' | 'en',
+  settings: PublicationEmailSettings
+) {
+  return goFetch<{ subject: string; from: string; html: string; text: string }>(
+    '/v1/settings/email/preview',
+    { method: 'POST', body: { publicationId, template, locale, settings } }
+  );
+}

@@ -183,7 +183,7 @@ export default async function CreatorSettingsPage() {
   return (
     <>
       <AccountSecurity profile={account} />
-      <VisualStudio initialCreator={initialCreatorData} />
+      <VisualStudio initialCreator={initialCreatorData} publicationId={publication.id} />
     </>
   );
 }

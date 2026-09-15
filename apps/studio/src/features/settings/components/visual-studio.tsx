@@ -37,6 +37,8 @@ import {
   saveSocialLinksAction,
 } from '@qoe/sdk/actions/dashboard';
 
+import { EmailTemplates } from './email-templates';
+
 // =====================================================================
 // 🎨 TYPES & DATA DEFINITIONS
 // =====================================================================
@@ -134,11 +136,13 @@ export const SUPPORTED_SOCIAL_PLATFORMS = [
 
 interface VisualStudioProps {
   initialCreator: CreatorProfile;
+  /** ID de la publication active — requis pour les réglages email (Go API). */
+  publicationId?: string;
 }
 
-type TabType = 'general' | 'domain' | 'navigation' | 'seo';
+type TabType = 'general' | 'emails' | 'domain' | 'navigation' | 'seo';
 
-export default function VisualStudio({ initialCreator }: VisualStudioProps) {
+export default function VisualStudio({ initialCreator, publicationId }: VisualStudioProps) {
   // =====================================================================
   // 💾 STATE MANAGEMENT
   // =====================================================================
@@ -155,7 +159,7 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
       const hash = hashToUse || window.location.hash;
       if (!hash) return;
 
-      const tabMatch = hash.match(/^#(general|domain|navigation|seo)/);
+      const tabMatch = hash.match(/^#(general|emails|domain|navigation|seo)/);
       if (tabMatch) {
         setActiveTab(tabMatch[1] as TabType);
       }
@@ -470,6 +474,7 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
             {(
               [
                 { id: 'general', label: t`Général` },
+                { id: 'emails', label: t`Emails` },
                 { id: 'domain', label: t`Domaine & DNS` },
                 { id: 'navigation', label: t`Navigation & Réseaux` },
                 { id: 'seo', label: t`SEO & Pied de page` },
@@ -499,6 +504,25 @@ export default function VisualStudio({ initialCreator }: VisualStudioProps) {
           ===================================================================== */}
       <main className="max-w-3xl mx-auto px-6 pt-8">
         <AnimatePresence mode="wait">
+          {/* TAB: EMAILS (confirmation + bienvenue, personnalisation + aperçu réel) */}
+          {activeTab === 'emails' && (
+            <motion.div
+              key="tab-emails"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.1 }}
+            >
+              {publicationId ? (
+                <EmailTemplates publicationId={publicationId} />
+              ) : (
+                <div className="py-16 text-center text-xs text-muted-foreground">
+                  {t`Réglages email indisponibles pour ce workspace.`}
+                </div>
+              )}
+            </motion.div>
+          )}
+
           {/* TAB 1: GÉNÉRAL */}
           {activeTab === 'general' && (
             <motion.div
