@@ -542,15 +542,23 @@ func (s *Service) OnboardingComplete(ctx context.Context, userID string, in Onbo
 	}
 
 	// 4. Suivis des créateurs choisis (skip duplicates).
-	for _, pubID := range in.CreatorsToFollow {
-		if pubID == "" {
+	for _, target := range in.CreatorsToFollow {
+		if target == "" {
 			continue
 		}
-		if _, err := s.pool.Exec(ctx, `
-			INSERT INTO "Follows" (id, "readerId", "publicationId", "createdAt")
-			VALUES (gen_random_uuid()::text, $1, $2, now())
-			ON CONFLICT ("readerId", "publicationId") DO NOTHING`, toUUID(userID), pubID); err != nil {
-			return err
+		var pubID string
+		errPub := s.pool.QueryRow(ctx, `
+			SELECT COALESCE(
+				(SELECT id FROM "Publication" WHERE id = $1 LIMIT 1),
+				(SELECT "publicationId" FROM "User" WHERE id::text = $1 AND "publicationId" IS NOT NULL LIMIT 1)
+			)`, target).Scan(&pubID)
+		if errPub == nil && pubID != "" {
+			if _, err := s.pool.Exec(ctx, `
+				INSERT INTO "Follows" (id, "readerId", "publicationId", "createdAt")
+				VALUES (gen_random_uuid()::text, $1, $2, now())
+				ON CONFLICT ("readerId", "publicationId") DO NOTHING`, toUUID(userID), pubID); err != nil {
+				log.Printf("[users] onboarding follow %s: %v", pubID, err)
+			}
 		}
 	}
 

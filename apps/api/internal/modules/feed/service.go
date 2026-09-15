@@ -144,18 +144,38 @@ func (s *Service) UserPosts(ctx context.Context, username, viewerID string, limi
 	fetch := limit + 1
 
 	pub, err := s.q.GetPublicationBySlugOrSubdomain(ctx, username)
+	var ownerID string
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return FeedResult{}, ErrNotFound
+			if s.pool != nil {
+				var uID string
+				errUser := s.pool.QueryRow(ctx, `
+					SELECT id::text
+					FROM "User"
+					WHERE LOWER(username) = LOWER($1) OR id::text = $1
+					LIMIT 1`, username).Scan(&uID)
+				if errUser != nil {
+					if errors.Is(errUser, pgx.ErrNoRows) {
+						return FeedResult{}, ErrNotFound
+					}
+					return FeedResult{}, errUser
+				}
+				ownerID = uID
+			} else {
+				return FeedResult{}, ErrNotFound
+			}
+		} else {
+			return FeedResult{}, err
 		}
-		return FeedResult{}, err
-	}
-	ownerID, err := s.q.GetPublicationOwner(ctx, pub.ID)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return FeedResult{Items: []posts.FeedSlice{}, HasMore: false}, nil
+	} else {
+		var errOwner error
+		ownerID, errOwner = s.q.GetPublicationOwner(ctx, pub.ID)
+		if errOwner != nil {
+			if errors.Is(errOwner, pgx.ErrNoRows) {
+				return FeedResult{Items: []posts.FeedSlice{}, HasMore: false}, nil
+			}
+			return FeedResult{}, errOwner
 		}
-		return FeedResult{}, err
 	}
 
 	rows, err := s.q.FindPostsByAuthor(ctx, db.FindPostsByAuthorParams{

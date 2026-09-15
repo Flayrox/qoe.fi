@@ -45,8 +45,9 @@ export function NewArticleClient({ categories, capabilities }: NewArticleClientP
         const newId = (res.data as { id: string }).id;
         if (!createdIdRef.current) {
           createdIdRef.current = newId;
-          router.push(`/articles/${newId}`);
-          router.refresh();
+          if (typeof window !== 'undefined') {
+            window.history.replaceState(null, '', `/articles/${newId}`);
+          }
         }
         return { id: newId };
       } else if (!res.ok) {

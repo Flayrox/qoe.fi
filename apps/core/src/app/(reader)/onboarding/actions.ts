@@ -2,6 +2,7 @@
 
 import { createClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import { revalidatePath } from 'next/cache';
 
 export async function completeOnboarding(data: {
   interests: string[];
@@ -26,6 +27,10 @@ export async function completeOnboarding(data: {
     method: 'POST',
     body: data,
   });
+
+  revalidatePath('/', 'layout');
+  revalidatePath('/home');
+  revalidatePath('/onboarding');
 
   return { success: true };
 }

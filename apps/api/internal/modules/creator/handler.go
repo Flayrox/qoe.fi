@@ -491,15 +491,34 @@ func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			// Fallback : cherche si c'est un User.username ou User.id
-			var pubID string
+			var pubID pgtype.Text
+			var uID, uName, uUsername string
+			var uBio, uLogo pgtype.Text
+			var uCreatedAt pgtype.Timestamp
 			errUser := h.pool.QueryRow(r.Context(), `
-				SELECT "publicationId" FROM "User" 
+				SELECT id, "publicationId", COALESCE(name, username, 'Lecteur'), COALESCE(username, id::text), "onboardingText", "logoUrl", "createdAt"
+				FROM "User" 
 				WHERE LOWER(username) = LOWER($1) 
 				   OR id::text = $1 
 				   OR "publicationId" = $1
-				LIMIT 1`, username).Scan(&pubID)
-			if errUser == nil && pubID != "" {
-				row, err = h.q.GetPublicationBySlugOrSubdomain(r.Context(), pubID)
+				LIMIT 1`, username).Scan(&uID, &pubID, &uName, &uUsername, &uBio, &uLogo, &uCreatedAt)
+			if errUser == nil {
+				if pubID.Valid && pubID.String != "" {
+					row, err = h.q.GetPublicationBySlugOrSubdomain(r.Context(), pubID.String)
+				} else {
+					row = db.GetPublicationBySlugOrSubdomainRow{
+						ID:             uID,
+						Type:           db.PublicationTypePERSONAL,
+						Name:           uName,
+						Slug:           uUsername,
+						HeroText:       uBio,
+						LogoUrl:        uLogo,
+						CreatedAt:      uCreatedAt,
+						FollowersCount: 0,
+						ArticlesCount:  0,
+					}
+					err = nil
+				}
 			}
 		}
 		if err != nil {

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -106,6 +107,8 @@ func (s *Service) syncUserFromAuth(ctx context.Context, userID string, claims ma
 			// 🆕 Le compte vient de naître : on ancre ici les acceptations
 			// cochées au formulaire d'inscription (métadonnées du JWT).
 			s.recordSignupConsent(ctx, userID, claims, origin)
+			// Initialise sa publication personnelle pour que son profil /@username existe toujours
+			_, _ = s.GetOrCreatePersonalPublication(ctx, userID)
 			return true, true, nil
 		}
 		// L'email existe déjà avec un AUTRE id (session Supabase plus récente
@@ -133,9 +136,12 @@ func (s *Service) syncUserFromAuth(ctx context.Context, userID string, claims ma
 	// quand le username DB est NULL). On se base sur les VALEURS DB, pas sur
 	// les claims : un username explicite dans user_metadata doit bien s'écrire
 	// quand la colonne est vide.
-	var dbName, dbUsername pgtype.Text
+	var dbName, dbUsername, dbPubID pgtype.Text
 	_ = s.pool.QueryRow(ctx,
-		`SELECT name, username FROM "User" WHERE id = $1`, userID).Scan(&dbName, &dbUsername)
+		`SELECT name, username, "publicationId" FROM "User" WHERE id = $1`, userID).Scan(&dbName, &dbUsername, &dbPubID)
+	if !dbPubID.Valid || dbPubID.String == "" {
+		_, _ = s.GetOrCreatePersonalPublication(ctx, userID)
+	}
 	needsUsername := !dbUsername.Valid || dbUsername.String == ""
 	if needsUsername || !dbName.Valid || dbName.String == "" {
 		// Username à écrire : dérivé des claims (meta sinon email), uniquement
@@ -194,11 +200,12 @@ func safeProvisionedUsername(email, username string) string {
 	if !identifier.ValidUsername(candidate) || identifier.IsReserved(candidate) {
 		candidate = strings.Split(email, "@")[0]
 		candidate = strings.ToLower(strings.Map(func(r rune) rune {
-			if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
+			if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '.' {
 				return r
 			}
 			return -1
 		}, candidate))
+		candidate = strings.Trim(candidate, "._")
 		if len(candidate) > 24 {
 			candidate = candidate[:24]
 		}
@@ -210,6 +217,17 @@ func safeProvisionedUsername(email, username string) string {
 }
 
 func uniqueProvisionedUsername(ctx context.Context, pool pooler, base string) string {
+	for i := 1; i <= 30; i++ {
+		candidate := fmt.Sprintf("%s%d", base, i)
+		if len(candidate) > 24 {
+			candidate = candidate[:24]
+			candidate = strings.TrimRight(candidate, "._")
+		}
+		var exists bool
+		if err := pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM "User" WHERE lower(username) = lower($1))`, candidate).Scan(&exists); err == nil && !exists {
+			return candidate
+		}
+	}
 	for i := 0; i < 8; i++ {
 		candidate := base + "_" + strings.ToLower(shortID())
 		if len(candidate) > 24 {
