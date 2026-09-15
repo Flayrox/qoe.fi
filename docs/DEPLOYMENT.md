@@ -159,16 +159,17 @@ généré : clés Supabase fraîches, seed complet, modèle téléchargé.
      (buckets publics + policies storage : lecture publique, upload par owner — requis upload mobile)
 - Vérification des comptages
 
-### Étape 5 — Build des images
+### Étape 5 — Pull des images (pré-compilées en CI)
+
+Les images ne sont plus buildées sur le VPS (ce qui prenait 20-30 min et saturait les ressources). Elles sont buildées automatiquement par GitHub Actions (`build-images.yml`) à chaque push sur `main` et poussées sur GitHub Container Registry (`ghcr.io/flayrox/qoefi-*`).
+
+Sur le VPS, le téléchargement prend moins d'une minute :
 
 ```bash
-cd /var/www/qoe.fi && docker compose build   # ~20-30 min
+cd /var/www/qoe.fi
+bash scripts/ghcr-login.sh
+docker compose pull
 ```
-
-> ⚠️ **Leçon n°3 (build qui meurt avec la session SSH)** : `docker compose build &` lancé
-> via SSH meurt à la déconnexion. Toujours détacher proprement :
-> `nohup docker compose build > /root/qoe-build.log 2>&1 < /dev/null &`
-> puis surveiller avec `tail -f /root/qoe-build.log`.
 
 ### Étape 6 — Démarrage du stack
 
@@ -388,21 +389,58 @@ zéro friction). Procédure :
 
 ---
 
-## 🔄 Mise à jour & maintenance
+## 🔄 Déploiement & Mise à jour (Production Netcup)
+
+> 🚀 **Architecture validée (CI + GHCR)** : Plus **AUCUN** build lourd n'est effectué sur le VPS.
+> 1. À chaque `git push origin main`, GitHub Actions (`build-images.yml`) compile automatiquement l'ensemble des applications (Next.js, API Go, worker) et publie les images Docker prêtes à l'emploi sur GitHub Container Registry (**`ghcr.io/flayrox/qoefi-*`**).
+> 2. Le déploiement s'exécute directement depuis votre machine en **une seule commande** via `scripts/deploy-prod.sh` (pull des images en < 1 min, backup automatique de la base, migrations Goose, redémarrage propre et smoke tests).
+
+### 1. Déploiement en une commande (recommandé)
+
+Depuis votre machine locale :
 
 ```bash
-# Sur le VPS
-cd /var/www/qoe.fi
-git pull                       # (ou re-transférer les fichiers changés si pas de repo public)
-docker compose build           # long — toujours avec nohup !
-nohup docker compose build > /root/qoe-build.log 2>&1 < /dev/null &
-docker compose up -d
+# Déploiement complet (sync code + pull images GHCR + backup DB + migrations + up + smoke tests)
+bash scripts/deploy-prod.sh
+
+# Déploiement ciblé (ex. pour un fix sur Studio et Core uniquement)
+bash scripts/deploy-prod.sh core studio
+
+# Afficher l'inventaire des accès et credentials sans déployer
+bash scripts/deploy-prod.sh --credentials
 ```
 
-Logs / état :
+### 2. Procédure manuelle sur le VPS (si besoin)
+
+Si vous devez intervenir directement sur le VPS (`ssh root@159.195.110.239`) :
+
 ```bash
+cd /var/www/qoe.fi
+
+# 1. Mettre à jour les images pré-compilées depuis GHCR (< 30 secondes)
+bash scripts/ghcr-login.sh
+docker compose pull
+
+# 2. Migrations goose
+docker compose up -d migrate
+
+# 3. Redémarrage propre
+docker compose up -d
+
+# 4. Ré-application du firewall tailnet
+bash scripts/tailnet-firewall.sh
+```
+
+### 3. Monitoring, logs et état des services
+
+```bash
+# État de tous les containers
 docker compose ps
-docker compose logs -f core    # ou api, worker, caddy…
+
+# Suivi des logs en direct
+docker compose logs -f core    # ou api, studio, worker, caddy…
+
+# Consommation CPU / RAM
 docker stats
 ```
 
