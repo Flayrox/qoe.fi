@@ -16,7 +16,7 @@
 
 import { useState, useTransition } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { ExternalLink, Loader2, Scale, ShieldCheck } from 'lucide-react';
 import { recordLegalConsentAction } from '@qoe/sdk/actions/legal';
 
@@ -62,13 +62,17 @@ export interface LegalConsentGateProps {
 
 export function LegalConsentGate({ pending, locale, hrefBase = '/legal' }: LegalConsentGateProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const copy = locale.startsWith('en') ? COPY.en : COPY.fr;
   const [dismissed, setDismissed] = useState(false);
   const [checked, setChecked] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  if (pending.length === 0 || dismissed) return null;
+  // Ne jamais afficher la modale par-dessus les pages légales (/legal, /legal/[slug])
+  // afin que l'utilisateur puisse lire les documents sans être bloqué par la pop-up.
+  const isLegalPage = pathname?.includes('/legal');
+  if (pending.length === 0 || dismissed || isLegalPage) return null;
 
   const base = hrefBase.replace(/\/+$/, '');
   const isExternal = /^https?:\/\//i.test(base);
