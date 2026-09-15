@@ -18,8 +18,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pgvector/pgvector-go"
 	db "github.com/qoefi/api/internal/database"
-	"github.com/qoefi/api/internal/vectorfeed"
 	"github.com/qoefi/api/internal/queue"
+	"github.com/qoefi/api/internal/vectorfeed"
 )
 
 // ---------------------------------------------------------------------
