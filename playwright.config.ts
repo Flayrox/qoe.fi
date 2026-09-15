@@ -79,6 +79,22 @@ export default defineConfig({
         QOE_API_URL: GO_API_URL,
       },
     },
+    {
+      // 🛡️ Console admin (apps/admin) : requise par admin-legal.spec.ts
+      // (RUN_FULL_STACK=1). Le middleware canonicalise localhost →
+      // admin.lvh.me : la spec navigue directement sur admin.lvh.me:15405.
+      command: 'pnpm --filter @qoe/admin exec next dev',
+      port: 15405,
+      reuseExistingServer: !process.env.CI,
+      timeout: 180_000,
+      env: {
+        PORT: '15405',
+        HOSTNAME: '127.0.0.1',
+        NEXT_TELEMETRY_DISABLED: '1',
+        SKIP_ENV_VALIDATION: 'true',
+        QOE_API_URL: GO_API_URL,
+      },
+    },
   ],
   projects: [
     {
@@ -126,6 +142,15 @@ export default defineConfig({
       name: 'like-privacy',
       use: { ...devices['Desktop Chrome'] },
       testMatch: /like-privacy\.spec\.ts/,
+    },
+    {
+      // ⚖️ Cycle de vie d'un document légal dans la console admin :
+      // brouillon → avertissement placeholder → publication → page publique.
+      // Le parcours complet est gated RUN_FULL_STACK=1 (session GoTrue
+      // réelle) ; le gate d'authentification tourne partout.
+      name: 'admin-legal',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: /admin-legal\.spec\.ts/,
     },
     {
       name: 'chromium',

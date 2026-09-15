@@ -10,8 +10,9 @@
 
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
-import { markdownToHtml } from '@qoe/utils';
+import { findLegalPlaceholders, markdownToHtml } from '@qoe/utils';
 import {
+  AlertTriangle,
   Archive,
   CheckCircle2,
   Clock,
@@ -145,6 +146,32 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
     [documents, selectedId]
   );
 
+  // 🏷️ Jetons non remplis ([RAISON SOCIALE], [EMAIL DPO]…) par document,
+  // calculés sur le contenu chargé (versions consultées). Un badge
+  // incomplet empêche une publication inattentive d'un document à trous.
+  const placeholdersByDoc = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const version of versions) {
+      const count = findLegalPlaceholders(version.body ?? '').reduce((acc, p) => acc + p.count, 0);
+      if (count > 0) {
+        map.set(version.documentId, Math.max(map.get(version.documentId) ?? 0, count));
+      }
+    }
+    return map;
+  }, [versions]);
+
+  // Avertissement détaillé : jetons dans le brouillon en cours d'édition,
+  // sinon dans les versions chargées du document sélectionné.
+  const selectedPlaceholders = useMemo(() => {
+    if (draft) return findLegalPlaceholders(draft.body);
+    if (!selected) return [];
+    const merged = versions
+      .filter((v) => v.documentId === selected.id)
+      .map((v) => v.body ?? '')
+      .join('\n');
+    return findLegalPlaceholders(merged);
+  }, [draft, selected, versions]);
+
   const statsBySlug = useMemo(() => {
     const map = new Map<string, AdminLegalStats>();
     for (const item of stats) map.set(item.slug, item);
@@ -244,6 +271,20 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
   }
 
   function publish(version: LegalVersionRow) {
+    const placeholderCount = findLegalPlaceholders(version.body ?? '').reduce(
+      (acc, p) => acc + p.count,
+      0
+    );
+    if (placeholderCount > 0) {
+      const proceed = confirm(
+        `⚠️ Cette version contient ${placeholderCount} jeton(s) non rempli(s) ` +
+          '(ex. [RAISON SOCIALE], [EMAIL DPO]).\n\n' +
+          'Publier un document juridique à trous expose la plateforme. ' +
+          'Remplis les jetons dans le brouillon avant publication.\n\n' +
+          'Publier quand même ?'
+      );
+      if (!proceed) return;
+    }
     if (
       !confirm(
         `Publier la version ${version.version} (${version.locale.toUpperCase()}) ?\n\n` +
@@ -463,6 +504,14 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
                       <span className="truncate text-sm font-semibold text-foreground">
                         {doc.publishedTitle ?? doc.slug}
                       </span>
+                      {(placeholdersByDoc.get(doc.id) ?? 0) > 0 && (
+                        <span
+                          title={`${placeholdersByDoc.get(doc.id)} jeton(s) à compléter dans le contenu`}
+                          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-highlight/10 px-2 py-0.5 text-[10px] font-semibold text-highlight ring-1 ring-highlight/40"
+                        >
+                          <AlertTriangle className="h-3 w-3" /> à compléter
+                        </span>
+                      )}
                       {doc.requiresAcceptance && (
                         <span className="shrink-0 rounded-full bg-highlight/15 px-2 py-0.5 text-[10px] font-semibold text-foreground ring-1 ring-highlight/40">
                           à accepter
@@ -525,6 +574,28 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
               </div>
             ) : (
               <>
+                {selectedPlaceholders.length > 0 && (
+                  <div className="rounded-2xl border border-highlight/30 bg-highlight/5 px-5 py-4">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-highlight">
+                      <AlertTriangle className="h-4 w-4" />
+                      Jetons à compléter avant publication
+                    </div>
+                    <ul className="mt-2 space-y-1 text-xs text-highlight">
+                      {selectedPlaceholders.map((p) => (
+                        <li key={p.token}>
+                          <code className="rounded bg-highlight/15 px-1.5 py-0.5 font-mono font-semibold">
+                            {p.token}
+                          </code>{' '}
+                          — {p.count} occurrence(s), ligne {p.line}
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="mt-2 text-[11px] text-highlight/90">
+                      Ces valeurs (raison sociale, adresse, DPO, hébergeur…) sont des décisions
+                      commerciales : remplace-les dans le contenu avant de publier.
+                    </p>
+                  </div>
+                )}
                 <DocumentMeta
                   key={selected.id}
                   document={selected}

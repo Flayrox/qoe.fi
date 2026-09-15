@@ -174,3 +174,5 @@ skills-lock.json
 
 # Artifacts de preview locale (screenshots emulator)
 .preview/
+
+docs-*.cjs
