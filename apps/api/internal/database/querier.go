@@ -306,6 +306,11 @@ type Querier interface {
 	// Contexte complet pour les emails transactionnels (bienvenue) :
 	// locale de l'abonné + personnalisation de la publication.
 	GetSubscriberEmailContext(ctx context.Context, arg GetSubscriberEmailContextParams) (GetSubscriberEmailContextRow, error)
+	// Identité d'une publication pour la prévisualisation des emails
+	// transactionnels (POST /v1/settings/email/preview) : mêmes colonnes que
+	// GetSubscriberEmailContext (newsletter.sql) sans ligne Subscriber — la
+	// prévisualisation ne suppose aucun abonné réel.
+	GetSubscriberEmailDefaults(ctx context.Context, id string) (GetSubscriberEmailDefaultsRow, error)
 	GetSubscriberEntitlement(ctx context.Context, arg GetSubscriberEntitlementParams) (GetSubscriberEntitlementRow, error)
 	GetSubscriberStatsByPublication(ctx context.Context, publicationid string) (GetSubscriberStatsByPublicationRow, error)
 	GetSystemConfigsByKeys(ctx context.Context, dollar_1 []string) ([]SystemConfig, error)

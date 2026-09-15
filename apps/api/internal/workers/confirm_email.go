@@ -26,10 +26,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"html"
 	"log"
 	"net/url"
 	"os"
+	"strings"
 
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -93,87 +93,6 @@ func buildConfirmURL(base, pubID, email, token string) string {
 		url.QueryEscape(token), sig)
 }
 
-// ── Rendu commun : coquille + personnalisation + locale ──────────────
-
-// subscriberShellInput décrit un email d'abonné avant rendu. pubName et
-// bodyParagraphs sont échappés ici (une seule fois).
-type subscriberShellInput struct {
-	locale         string
-	pubName        string
-	pubURL         string
-	fromName       string // nom d'expéditeur personnalisé ("" = nom de publication)
-	replyTo        string // réponse personnalisée ("" = from plateforme)
-	accentFallback string // couleur de la publication si emailSettings n'en fixe pas
-	logoURL        string // logo de la publication si emailSettings n'en fixe pas
-	unsubURL       string
-	preheader      string
-	title          string
-	bodyParagraphs []string
-	ctaLabel       string
-	ctaURL         string
-	consentLine    string
-	footerNote     string
-}
-
-// renderSubscriberEmail rend l'email d'un abonné via le moteur : personnalisation
-// (réglages > publication > défauts), coquille multipart texte+HTML, en-têtes
-// anti-threading (X-Entity-Ref-ID unique par email).
-func renderSubscriberEmail(m *subscriberMailer, email string, in subscriberShellInput) EmailMessage {
-	// La coquille échappe elle-même tous les textes (contrat ShellInput) :
-	// on lui passe du texte brut.
-	var bodyHTML string
-	for _, p := range in.bodyParagraphs {
-		bodyHTML += `<p style="font-size:14px;line-height:1.65;color:#52525b;margin:0 0 12px;">` + html.EscapeString(p) + `</p>`
-	}
-
-	htmlPart, textPart := RenderTransactionEmail(ShellInput{
-		Locale:      in.locale,
-		Preheader:   in.preheader,
-		Title:       in.title,
-		BodyHTML:    bodyHTML,
-		CTALabel:    in.ctaLabel,
-		CTAURL:      in.ctaURL,
-		Accent:      in.accentFallback,
-		LogoURL:     in.logoURL,
-		PubName:     in.pubName,
-		PubURL:      in.pubURL,
-		UnsubURL:    in.unsubURL,
-		UnsubLabel:  T(in.locale, "Se désabonner", "Unsubscribe"),
-		ConsentLine: in.consentLine,
-		FooterNote:  in.footerNote,
-	})
-
-	fromName := in.pubName
-	if in.fromName != "" {
-		fromName = in.fromName
-	}
-	from := m.fromAddress()
-	if fromName != "" {
-		from = fmt.Sprintf("%s <%s>", fromName, m.fromAddress())
-	}
-
-	refID := "sub-" + shortHash(email+"|"+in.title+"|"+in.ctaURL)
-	return EmailMessage{
-		From:    from,
-		To:      email,
-		Subject: in.title,
-		HTML:    htmlPart,
-		Text:    textPart,
-		ReplyTo: in.replyTo,
-		ListID:  listIDFor(fromName),
-		RefID:   refID,
-	}
-}
-
-// localizedPublicationName échappe le nom de publication (vide → libellé
-// localisé « la publication » pour les phrases).
-func localizedPublicationName(locale, rawName string) string {
-	if rawName != "" {
-		return rawName
-	}
-	return T(locale, "la publication", "the publication")
-}
-
 // ── Worker de confirmation ───────────────────────────────────────────
 
 // ConfirmEmailWorker envoie les emails de confirmation (TaskSubscriberConfirm).
@@ -216,54 +135,22 @@ func (w *ConfirmEmailWorker) HandleSubscriberConfirm(ctx context.Context, t *asy
 
 	locale := NormalizeEmailLocale(info.Locale)
 	prefs := ParseEmailPrefs(info.EmailSettings)
-	pubName := localizedPublicationName(locale, info.PublicationName)
 	pubURL := publicationPublicURL(info.Subdomain, info.CustomDomain)
 	link := buildConfirmURL(confirmEmailBaseURL(), p.PublicationID, p.Email, info.ConfirmationToken.String)
 
-	// Priorité : réglages email > identité de la publication.
-	accent := prefs.AccentColor
-	if accent == "" && info.AccentColor.Valid {
-		accent = info.AccentColor.String
-	}
-	logo := prefs.LogoURL
-	if logo == "" && info.LogoUrl.Valid {
-		logo = info.LogoUrl.String
-	}
-	subject := prefs.Subjects[EmailTemplateConfirm]
-	if subject == "" {
-		subject = T(locale, "Confirmez votre abonnement — ", "Confirm your subscription — ") + pubName
-	}
-	preheader := prefs.Preheaders[EmailTemplateConfirm]
-	if preheader == "" {
-		preheader = T(locale,
-			"Confirmez votre inscription à la newsletter de "+pubName+".",
-			"Confirm your subscription to "+pubName+".")
-	}
-
-	msg := renderSubscriberEmail(&w.subscriberMailer, p.Email, subscriberShellInput{
-		locale:         locale,
-		pubName:        pubName,
-		pubURL:         pubURL,
-		fromName:       prefs.FromName,
-		replyTo:        prefs.ReplyTo,
-		accentFallback: accent,
-		logoURL:        logo,
-		preheader:      preheader,
-		title:          subject,
-		bodyParagraphs: []string{
-			T(locale,
-				"Vous avez demandé à recevoir les nouvelles publications de "+pubName+". Confirmez votre adresse email pour finaliser votre inscription.",
-				"You asked to receive new posts from "+pubName+". Confirm your email address to complete your subscription.",
-			),
-		},
-		ctaLabel: T(locale, "Confirmer mon abonnement", "Confirm my subscription"),
-		ctaURL:   link,
-		consentLine: T(locale,
-			"Vous recevez cet email suite à une demande d'inscription. Si vous n'en êtes pas à l'origine, ignorez simplement ce message — aucune inscription ne sera prise en compte.",
-			"You received this email following a subscription request. If this wasn't you, simply ignore it — no subscription will be created.",
-		),
-		footerNote: prefs.FooterNote,
-	})
+	msg := BuildSubscriberEmail(&w.subscriberMailer, SubscriberEmailSpec{
+		Template: EmailTemplateConfirm,
+		Locale:   locale,
+		Email:    p.Email,
+		PubID:    p.PublicationID,
+		PubName:  info.PublicationName,
+		PubURL:   pubURL,
+		Accent:   PubAccentColor(info.AccentColor),
+		LogoURL:  PubLogoURL(info.LogoUrl),
+	}, prefs)
+	// Le vrai lien signé remplace le placeholder de la coquille confirm.
+	msg.HTML = strings.Replace(msg.HTML, buildConfirmURL(confirmEmailBaseURL(), p.PublicationID, p.Email, "TOKEN"), link, 1)
+	msg.Text = strings.Replace(msg.Text, buildConfirmURL(confirmEmailBaseURL(), p.PublicationID, p.Email, "TOKEN"), link, 1)
 
 	if err := w.provider.Send(ctx, msg); err != nil {
 		return fmt.Errorf("confirm: envoi à %s: %w", p.Email, err)

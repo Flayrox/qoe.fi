@@ -79,56 +79,18 @@ func (w *WelcomeEmailWorker) HandleSubscriberWelcome(ctx context.Context, t *asy
 		return nil
 	}
 
-	pubName := localizedPublicationName(locale, info.PublicationName)
 	pubURL := publicationPublicURL(info.Subdomain, info.CustomDomain)
 
-	// Priorité : réglages email > identité de la publication.
-	accent := prefs.AccentColor
-	if accent == "" && info.AccentColor.Valid {
-		accent = info.AccentColor.String
-	}
-	logo := prefs.LogoURL
-	if logo == "" && info.LogoUrl.Valid {
-		logo = info.LogoUrl.String
-	}
-
-	// Corps : personnalisé (locale correspondante) sinon défaut localisé.
-	body := T(locale, prefs.WelcomeBodyFR, prefs.WelcomeBodyEN)
-	if body == "" {
-		body = T(locale,
-			"Votre inscription à la newsletter de "+pubName+" est confirmée. À très vite !",
-			"Your subscription to "+pubName+" is confirmed. See you soon!")
-	}
-
-	subject := prefs.Subjects[EmailTemplateWelcome]
-	if subject == "" {
-		subject = T(locale, "Bienvenue chez ", "Welcome to ") + pubName
-	}
-	preheader := prefs.Preheaders[EmailTemplateWelcome]
-	if preheader == "" {
-		preheader = T(locale,
-			"Votre abonnement est confirmé — bienvenue !",
-			"Your subscription is confirmed — welcome!")
-	}
-
-	msg := renderSubscriberEmail(&w.subscriberMailer, p.Email, subscriberShellInput{
-		locale:         locale,
-		pubName:        pubName,
-		pubURL:         pubURL,
-		fromName:       prefs.FromName,
-		replyTo:        prefs.ReplyTo,
-		accentFallback: accent,
-		logoURL:        logo,
-		preheader:      preheader,
-		title:          subject,
-		bodyParagraphs: []string{body},
-		ctaLabel:       T(locale, "Découvrir "+pubName, "Discover "+pubName),
-		ctaURL:         pubURL,
-		consentLine: T(locale,
-			"Vous recevez cet email car vous venez de confirmer votre abonnement.",
-			"You're receiving this email because you just confirmed your subscription."),
-		footerNote: prefs.FooterNote,
-	})
+	msg := BuildSubscriberEmail(&w.subscriberMailer, SubscriberEmailSpec{
+		Template: EmailTemplateWelcome,
+		Locale:   locale,
+		Email:    p.Email,
+		PubID:    p.PublicationID,
+		PubName:  info.PublicationName,
+		PubURL:   pubURL,
+		Accent:   PubAccentColor(info.AccentColor),
+		LogoURL:  PubLogoURL(info.LogoUrl),
+	}, prefs)
 
 	if err := w.provider.Send(ctx, msg); err != nil {
 		return err

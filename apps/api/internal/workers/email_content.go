@@ -164,13 +164,43 @@ func clampLocaleMap(m map[string]string, max int) map[string]string {
 	if m == nil {
 		return nil
 	}
-	out := make(map[string]string, 2)
-	for _, k := range []string{EmailTemplateConfirm, EmailTemplateWelcome} {
+	out := make(map[string]string, 6)
+	// Clés par template (« confirm ») et par template+locale (« confirm.fr ») :
+	// l'override localisé prime sur l'override générique (voir resolvers).
+	for _, k := range []string{
+		EmailTemplateConfirm, EmailTemplateWelcome,
+		EmailTemplateConfirm + ".fr", EmailTemplateConfirm + ".en",
+		EmailTemplateWelcome + ".fr", EmailTemplateWelcome + ".en",
+	} {
 		if v := clampString(m[k], max); v != "" {
 			out[k] = v
 		}
 	}
 	return out
+}
+
+// subjectFor résout un sujet par template avec priorité locale :
+// Subjects[template.locale] > Subjects[template] > défaut localisé.
+func subjectFor(prefs EmailPrefs, template, locale, defFR, defEN string) string {
+	if s := prefs.Subjects[template+"."+locale]; s != "" {
+		return s
+	}
+	if s := prefs.Subjects[template]; s != "" {
+		return s
+	}
+	return T(locale, defFR, defEN)
+}
+
+// preheaderFor résout un texte d'aperçu par template avec priorité locale :
+// Preheaders[template.locale] > Preheaders[template] > défaut localisé.
+func preheaderFor(prefs EmailPrefs, template, locale, defFR, defEN string) string {
+	if s := prefs.Preheaders[template+"."+locale]; s != "" {
+		return s
+	}
+	if s := prefs.Preheaders[template]; s != "" {
+		return s
+	}
+	return T(locale, defFR, defEN)
 }
 
 // ParseEmailPrefs décode et assainit les réglages email d'une publication.
@@ -242,6 +272,53 @@ func ResolveCustomization(prefs EmailPrefs, locale string) CustomizedEmail {
 		return T(locale, defaultFR, defaultEN)
 	}
 	return c
+}
+
+// ── Résolution des sujets/preheaders d'un email d'abonné ─────────────
+
+// ConfirmSubject résout le sujet de l'email de confirmation : override
+// créateur (Subjects[confirm]) > défaut localisé. Partagé par le worker
+// (envoi réel) et l'endpoint de prévisualisation du studio — une seule
+// source de vérité pour le rendu.
+func ConfirmSubject(prefs EmailPrefs, locale, pubName string) string {
+	return subjectFor(prefs, EmailTemplateConfirm, locale,
+		"Confirmez votre abonnement — "+pubName,
+		"Confirm your subscription — "+pubName)
+}
+
+// ConfirmPreheader résout le texte d'aperçu de l'email de confirmation.
+func ConfirmPreheader(prefs EmailPrefs, locale, pubName string) string {
+	return preheaderFor(prefs, EmailTemplateConfirm, locale,
+		"Confirmez votre inscription à la newsletter de "+pubName+".",
+		"Confirm your subscription to "+pubName+".")
+}
+
+// WelcomeSubject résout le sujet de l'email de bienvenue : override
+// créateur (Subjects[welcome]) > défaut localisé.
+func WelcomeSubject(prefs EmailPrefs, locale, pubName string) string {
+	return subjectFor(prefs, EmailTemplateWelcome, locale,
+		"Bienvenue chez "+pubName,
+		"Welcome to "+pubName)
+}
+
+// WelcomePreheader résout le texte d'aperçu de l'email de bienvenue.
+func WelcomePreheader(prefs EmailPrefs, locale, pubName string) string {
+	return preheaderFor(prefs, EmailTemplateWelcome, locale,
+		"Votre abonnement est confirmé — bienvenue !",
+		"Your subscription is confirmed — welcome!")
+}
+
+// WelcomeBody resolves the welcome body: creator override (locale
+// matching) else localized default. Shared by the welcome worker and the
+// studio preview endpoint.
+func WelcomeBody(prefs EmailPrefs, locale, pubName string) string {
+	body := T(locale, prefs.WelcomeBodyFR, prefs.WelcomeBodyEN)
+	if body == "" {
+		body = T(locale,
+			"Votre inscription à la newsletter de "+pubName+" est confirmée. À très vite !",
+			"Your subscription to "+pubName+" is confirmed. See you soon!")
+	}
+	return body
 }
 
 // ── Coquille d'email transactionnel (HTML + texte) ───────────────────

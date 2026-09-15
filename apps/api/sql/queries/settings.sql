@@ -148,3 +148,17 @@ WHERE id = sqlc.arg(publication_id);
 SELECT p.name, p."accentColor", p."logoUrl", p."emailSettings"
 FROM "Publication" p
 WHERE p.id = $1;
+
+-- name: GetSubscriberEmailDefaults :one
+-- Identité d'une publication pour la prévisualisation des emails
+-- transactionnels (POST /v1/settings/email/preview) : mêmes colonnes que
+-- GetSubscriberEmailContext (newsletter.sql) sans ligne Subscriber — la
+-- prévisualisation ne suppose aucun abonné réel.
+SELECT p.name AS publication_name,
+       p.subdomain,
+       p."customDomain" AS custom_domain,
+       p."accentColor" AS accent_color,
+       p."logoUrl" AS logo_url,
+       p."emailSettings"
+FROM "Publication" p
+WHERE p.id = $1;

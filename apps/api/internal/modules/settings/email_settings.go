@@ -79,7 +79,57 @@ func (s *Service) UpdateEmailSettings(ctx context.Context, userID, publicationID
 	return map[string]any{"emailSettings": clean}, nil
 }
 
-// ── Handlers HTTP ────────────────────────────────────────────────────
+// PreviewEmailSettings rend, sans base ni envoi, les deux emails
+// transactionnels (confirmation + bienvenue) dans la langue demandée avec
+// les réglages fournis (brouillon du panneau) — ou les réglages stockés si
+// absents. Même moteur de rendu que les envois réels (BuildSubscriberEmail
+// côté workers) : l'aperçu est fidèle à 100 %.
+func (s *Service) PreviewEmailSettings(ctx context.Context, userID, publicationID, locale, template string, draft json.RawMessage) (map[string]any, error) {
+	if err := s.authorizeSettings(ctx, userID, publicationID); err != nil {
+		return nil, errForbidden
+	}
+	row, err := s.q.GetSubscriberEmailDefaults(ctx, publicationID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errNotFound
+		}
+		return nil, err
+	}
+
+	// Réglages : brouillon du panneau (déjà assaini par ParseEmailPrefs)
+	// sinon ceux stockés. Locale bornée fr/en, template borné confirm/welcome.
+	prefs := workers.ParseEmailPrefs(row.EmailSettings)
+	if len(draft) > 0 {
+		prefs = workers.ParseEmailPrefs(draft)
+	}
+	loc := workers.NormalizeEmailLocale(locale)
+	tpl := template
+	if tpl != workers.EmailTemplateWelcome {
+		tpl = workers.EmailTemplateConfirm
+	}
+
+	msg := workers.PreviewSubscriberEmail(workers.SubscriberEmailSpec{
+		Template: tpl,
+		Locale:   loc,
+		Email:    "exemple@exemple.fr",
+		PubID:    publicationID,
+		PubName:  row.PublicationName,
+		PubURL:   workers.PublicationPublicURL(row.Subdomain, row.CustomDomain),
+		Accent:   workers.PubAccentColor(row.AccentColor),
+		LogoURL:  workers.PubLogoURL(row.LogoUrl),
+	}, prefs)
+
+	return map[string]any{
+		"locale":   loc,
+		"template": tpl,
+		"subject":  msg.Subject,
+		"from":     msg.From,
+		"html":     msg.HTML,
+		"text":     msg.Text,
+	}, nil
+}
+
+// ── Handlers HTTP ──────────────────────────────────────────────
 
 func (h *Handler) getEmailSettings(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middleware.UserID(r.Context())
@@ -133,6 +183,44 @@ func (h *Handler) updateEmailSettings(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		response.BadRequest(w, err.Error())
+		return
+	}
+	response.OK(w, out)
+}
+
+// previewEmailSettings rend un email transactionnel (confirm|welcome) en
+// fr|en avec les réglages en brouillon — même moteur que les envois réels.
+func (h *Handler) previewEmailSettings(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok || userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	var body struct {
+		PublicationID string          `json:"publicationId"`
+		Locale        string          `json:"locale"`
+		Template      string          `json:"template"`
+		Settings      json.RawMessage `json:"settings"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	if body.PublicationID == "" {
+		response.BadRequest(w, "publicationId requis")
+		return
+	}
+	out, err := h.svc.PreviewEmailSettings(r.Context(), userID, body.PublicationID, body.Locale, body.Template, body.Settings)
+	if err != nil {
+		if errors.Is(err, errForbidden) {
+			response.Forbidden(w, "Accès refusé à cette publication.")
+			return
+		}
+		if errors.Is(err, errNotFound) {
+			response.NotFound(w, "Publication introuvable")
+			return
+		}
+		response.Internal(w)
 		return
 	}
 	response.OK(w, out)

@@ -202,6 +202,44 @@ func (q *Queries) GetPublicationForSettings(ctx context.Context, id string) (Get
 	return i, err
 }
 
+const getSubscriberEmailDefaults = `-- name: GetSubscriberEmailDefaults :one
+SELECT p.name AS publication_name,
+       p.subdomain,
+       p."customDomain" AS custom_domain,
+       p."accentColor" AS accent_color,
+       p."logoUrl" AS logo_url,
+       p."emailSettings"
+FROM "Publication" p
+WHERE p.id = $1
+`
+
+type GetSubscriberEmailDefaultsRow struct {
+	PublicationName string      `json:"publication_name"`
+	Subdomain       pgtype.Text `json:"subdomain"`
+	CustomDomain    pgtype.Text `json:"custom_domain"`
+	AccentColor     pgtype.Text `json:"accent_color"`
+	LogoUrl         pgtype.Text `json:"logo_url"`
+	EmailSettings   []byte      `json:"emailSettings"`
+}
+
+// Identité d'une publication pour la prévisualisation des emails
+// transactionnels (POST /v1/settings/email/preview) : mêmes colonnes que
+// GetSubscriberEmailContext (newsletter.sql) sans ligne Subscriber — la
+// prévisualisation ne suppose aucun abonné réel.
+func (q *Queries) GetSubscriberEmailDefaults(ctx context.Context, id string) (GetSubscriberEmailDefaultsRow, error) {
+	row := q.db.QueryRow(ctx, getSubscriberEmailDefaults, id)
+	var i GetSubscriberEmailDefaultsRow
+	err := row.Scan(
+		&i.PublicationName,
+		&i.Subdomain,
+		&i.CustomDomain,
+		&i.AccentColor,
+		&i.LogoUrl,
+		&i.EmailSettings,
+	)
+	return i, err
+}
+
 const getUserApiAccessStatus = `-- name: GetUserApiAccessStatus :one
 SELECT "apiAccessStatus" FROM "User" WHERE id = $1
 `

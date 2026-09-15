@@ -11,6 +11,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -136,5 +137,130 @@ func TestHandler_EmailSettings_AuthAndErrors(t *testing.T) {
 	clean, _ := body4["emailSettings"].(map[string]any)
 	if clean == nil {
 		t.Error("emailSettings attendu (défauts) même avec entrée invalide")
+	}
+}
+
+// =====================================================================
+// 👁️ POST /v1/settings/email/preview — rendu réel sans envoi
+// =====================================================================
+// Contrat : même moteur que les envois (sujets localisés, coquille
+// multipart, personnalisation), brouillon du panneau prioritaire sur les
+// réglages stockés, locale/template bornés, auth + autorisation.
+
+func TestHandler_EmailSettings_PreviewConfirmFR(t *testing.T) {
+	fx := seed(t)
+	r := newTestRouter()
+	token := testJWT(fx.OwnerID)
+
+	w, body := doJSON(t, r, "POST", "/v1/settings/email/preview", token, map[string]any{
+		"publicationId": fx.PubID,
+		"template":      "confirm",
+		"locale":        "fr",
+	})
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+	}
+	if got := body["subject"].(string); got != "Confirmez votre abonnement — Owner Blog" {
+		t.Errorf("sujet FR = %q", got)
+	}
+	html, _ := body["html"].(string)
+	text, _ := body["text"].(string)
+	for _, want := range []string{"Confirmer mon abonnement"} {
+		if !strings.Contains(html, want) || !strings.Contains(text, want) {
+			t.Errorf("CTA localisé attendu dans les DEUX parties, manquant %q (html=%d bytes, text=%d bytes)", want, len(html), len(text))
+		}
+	}
+	// Coquille : version texte brute non vide + HTML complet.
+	if len(text) < 50 || !strings.Contains(html, "<!DOCTYPE html>") {
+		t.Error("coquille multipart attendue (texte brut substantiel + HTML document)")
+	}
+}
+
+func TestHandler_EmailSettings_PreviewWelcomeEN(t *testing.T) {
+	fx := seed(t)
+	r := newTestRouter()
+	token := testJWT(fx.OwnerID)
+
+	w, body := doJSON(t, r, "POST", "/v1/settings/email/preview", token, map[string]any{
+		"publicationId": fx.PubID,
+		"template":      "welcome",
+		"locale":        "en-US", // borne → "en"
+	})
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+	}
+	if got := body["subject"].(string); got != "Welcome to Owner Blog" {
+		t.Errorf("sujet EN = %q", got)
+	}
+	if !strings.Contains(body["html"].(string), "Discover Owner Blog") {
+		t.Error("CTA EN attendu dans le HTML")
+	}
+}
+
+func TestHandler_EmailSettings_PreviewDraftOverridesStored(t *testing.T) {
+	fx := seed(t)
+	r := newTestRouter()
+	token := testJWT(fx.OwnerID)
+
+	// 1) Stocker une personnalisation.
+	_, _ = doJSON(t, r, "PATCH", "/v1/settings/email", token, map[string]any{
+		"publicationId": fx.PubID,
+		"settings":      map[string]any{"accentColor": "#2563eb", "subjects": map[string]any{"confirm": "Sujet stocké"}},
+	})
+
+	// 2) Prévisualiser avec un brouillon différent : le brouillon gagne.
+	w, body := doJSON(t, r, "POST", "/v1/settings/email/preview", token, map[string]any{
+		"publicationId": fx.PubID,
+		"template":      "confirm",
+		"locale":        "fr",
+		"settings":      map[string]any{"subjects": map[string]any{"confirm": "Sujet brouillon"}},
+	})
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+	}
+	if got := body["subject"].(string); got != "Sujet brouillon" {
+		t.Errorf("le brouillon devrait primer, sujet = %q", got)
+	}
+
+	// 3) Sans brouillon : les réglages stockés s'appliquent.
+	w2, body2 := doJSON(t, r, "POST", "/v1/settings/email/preview", token, map[string]any{
+		"publicationId": fx.PubID,
+		"template":      "confirm",
+		"locale":        "fr",
+	})
+	if w2.Code != http.StatusOK {
+		t.Fatalf("status = %d", w2.Code)
+	}
+	if got := body2["subject"].(string); got != "Sujet stocké" {
+		t.Errorf("réglages stockés attendus, sujet = %q", got)
+	}
+}
+
+func TestHandler_EmailSettings_PreviewAuthAndBounds(t *testing.T) {
+	fx := seed(t)
+	r := newTestRouter()
+	token := testJWT(fx.OwnerID)
+
+	// Sans auth → 401.
+	if w, _ := doJSON(t, r, "POST", "/v1/settings/email/preview", "", map[string]any{"publicationId": fx.PubID}); w.Code != http.StatusUnauthorized {
+		t.Errorf("sans token : status = %d, veut 401", w.Code)
+	}
+	// Pas owner → 403.
+	if w, _ := doJSON(t, r, "POST", "/v1/settings/email/preview", testJWT(fx.ViewerID), map[string]any{"publicationId": fx.PubID}); w.Code != http.StatusForbidden {
+		t.Errorf("viewer : status = %d, veut 403", w.Code)
+	}
+	// publicationId manquant → 400.
+	if w, _ := doJSON(t, r, "POST", "/v1/settings/email/preview", token, map[string]any{}); w.Code != http.StatusBadRequest {
+		t.Errorf("sans publicationId : status = %d, veut 400", w.Code)
+	}
+	// Template inconnu → borné à confirm (200, jamais d'erreur).
+	w, body := doJSON(t, r, "POST", "/v1/settings/email/preview", token, map[string]any{
+		"publicationId": fx.PubID, "template": "hack", "locale": "xx",
+	})
+	if w.Code != http.StatusOK {
+		t.Fatalf("template inconnu : status = %d", w.Code)
+	}
+	if tpl, _ := body["template"].(string); tpl != "confirm" {
+		t.Errorf("template borné attendu 'confirm', got %q", tpl)
 	}
 }
