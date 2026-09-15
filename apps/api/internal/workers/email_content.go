@@ -33,6 +33,7 @@ import (
 	"encoding/json"
 	"html"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 )
@@ -45,25 +46,78 @@ const (
 	EmailTemplateWelcome = "welcome"
 )
 
-// NormalizeEmailLocale borne la locale aux deux langues supportées des
-// emails transactionnels (« fr » par défaut, « en » accepté).
+// NormalizeEmailLocale borne la locale aux langues d'emails déclarées
+// (QOE_EMAIL_LOCALES, défaut « fr,en » ; première langue = repli).
 func NormalizeEmailLocale(raw string) string {
 	lang := strings.ToLower(strings.TrimSpace(raw))
 	if i := strings.IndexAny(lang, "-_"); i > 0 {
 		lang = lang[:i]
 	}
-	if lang == "en" {
-		return "en"
+	for _, k := range EmailLocales() {
+		if lang == k {
+			return k
+		}
 	}
-	return "fr"
+	return emailFallbackLocale()
 }
 
-// T choisit le libellé selon la locale de l'abonné (défaut français).
+// EmailLocales retourne la liste des langues d'emails transactionnels.
+// Source de vérité unique : QOE_EMAIL_LOCALES (codes 2 lettres séparés
+// par des virgules, ex. « fr,en,es,de ») — défaut « fr,en ». Ajouter une
+// langue = ajouter un code ici (env) ; tout est piloté par clés
+// « template.locale », la première langue de la liste est la langue de
+// repli. Exporté pour le module settings (panneau studio).
+func EmailLocales() []string {
+	out := make([]string, 0, 4)
+	seen := map[string]bool{}
+	for _, raw := range strings.Split(os.Getenv("QOE_EMAIL_LOCALES"), ",") {
+		l := strings.ToLower(strings.TrimSpace(raw))
+		if len(l) == 2 && !seen[l] {
+			seen[l] = true
+			out = append(out, l)
+		}
+	}
+	if len(out) == 0 {
+		out = []string{"fr", "en"}
+	}
+	return out
+}
+
+// emailFallbackLocale est la première langue de EmailLocales : tout
+// libellé sans traduction y retombe.
+func emailFallbackLocale() string {
+	return EmailLocales()[0]
+}
+
+// T choisit le libellé selon la locale de l'abonné parmi les paires
+// fr/en passées en arguments variadiques T(locale, fr, en). Le chemin
+// extensible (toutes langues déclarées) est le dictionnaire L() : cette
+// fonction reste pour la compat des appels existants et retombe sur la
+// 2e langue pour toute locale ≠ fr.
 func T(locale, fr, en string) string {
 	if locale == "en" {
 		return en
 	}
 	return fr
+}
+
+// L résout un libellé d'un dictionnaire de traductions pour la locale de
+// l'abonné : traduction exacte > langue de repli (1re de QOE_EMAIL_LOCALES)
+// > premier libellé disponible. C'est LA porte d'entrée des défauts
+// multi-langues : ajouter une langue = ajouter une entrée au dictionnaire.
+func L(locale string, dict map[string]string) string {
+	if v, ok := dict[locale]; ok && v != "" {
+		return v
+	}
+	if v, ok := dict[emailFallbackLocale()]; ok && v != "" {
+		return v
+	}
+	for _, v := range dict {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 // ── Réglages par publication (Publication.emailSettings) ─────────────
@@ -89,8 +143,12 @@ type EmailPrefs struct {
 	Preheaders     map[string]string `json:"preheaders,omitempty"`     // texte d'aperçu par template
 	FooterNote     string            `json:"footerNote,omitempty"`     // note créateur en pied de page
 	WelcomeEnabled *bool             `json:"welcomeEnabled,omitempty"` // nil = activé
-	WelcomeBodyFR  string            `json:"welcomeBodyFr,omitempty"`  // corps du bienvenue (fr)
-	WelcomeBodyEN  string            `json:"welcomeBodyEn,omitempty"`  // corps du bienvenue (en)
+	WelcomeBodyFR  string            `json:"welcomeBodyFr,omitempty"`  // corps du bienvenue (fr) — clé historique, voir WelcomeBodies
+	WelcomeBodyEN  string            `json:"welcomeBodyEn,omitempty"`  // corps du bienvenue (en) — clé historique
+	// WelcomeBodies : corps du bienvenue par langue (« fr », « en », « es »…)
+	// — voie extensible : toute langue de QOE_EMAIL_LOCALES est acceptée.
+	// Les clés historiques welcomeBodyFr/En restent lues (rétrocompatibilité).
+	WelcomeBodies map[string]string `json:"welcomeBodies,omitempty"`
 }
 
 var (
@@ -165,15 +223,17 @@ func clampLocaleMap(m map[string]string, max int) map[string]string {
 		return nil
 	}
 	out := make(map[string]string, 6)
-	// Clés par template (« confirm ») et par template+locale (« confirm.fr ») :
-	// l'override localisé prime sur l'override générique (voir resolvers).
-	for _, k := range []string{
-		EmailTemplateConfirm, EmailTemplateWelcome,
-		EmailTemplateConfirm + ".fr", EmailTemplateConfirm + ".en",
-		EmailTemplateWelcome + ".fr", EmailTemplateWelcome + ".en",
-	} {
-		if v := clampString(m[k], max); v != "" {
-			out[k] = v
+	// Clés par template (« confirm ») et par template+locale (« confirm.fr »,
+	// « confirm.es »…) pour TOUTES les langues déclarées : l'override
+	// localisé prime sur l'override générique (voir resolvers).
+	for _, tpl := range []string{EmailTemplateConfirm, EmailTemplateWelcome} {
+		if v := clampString(m[tpl], max); v != "" {
+			out[tpl] = v
+		}
+		for _, l := range EmailLocales() {
+			if v := clampString(m[tpl+"."+l], max); v != "" {
+				out[tpl+"."+l] = v
+			}
 		}
 	}
 	return out
@@ -202,9 +262,6 @@ func preheaderFor(prefs EmailPrefs, template, locale, defFR, defEN string) strin
 	}
 	return T(locale, defFR, defEN)
 }
-
-// ParseEmailPrefs décode et assainit les réglages email d'une publication.
-// Tolérant aux pannes : JSON invalide ou valeurs aberrantes → défauts.
 func ParseEmailPrefs(raw []byte) EmailPrefs {
 	var p EmailPrefs
 	if len(raw) == 0 {
@@ -218,6 +275,27 @@ func ParseEmailPrefs(raw []byte) EmailPrefs {
 	p.FooterNote = clampString(p.FooterNote, maxEmailFooterNoteLen)
 	p.WelcomeBodyFR = clampString(p.WelcomeBodyFR, maxEmailBodyLen)
 	p.WelcomeBodyEN = clampString(p.WelcomeBodyEN, maxEmailBodyLen)
+	// welcomeBodies : toutes langues déclarées bornées + import des clés
+	// historiques welcomeBodyFr/En si la nouvelle carte est absente.
+	if p.WelcomeBodies != nil {
+		clean := make(map[string]string, len(p.WelcomeBodies))
+		for _, l := range EmailLocales() {
+			if v := clampString(p.WelcomeBodies[l], maxEmailBodyLen); v != "" {
+				clean[l] = v
+			}
+		}
+		p.WelcomeBodies = clean
+	} else {
+		if p.WelcomeBodyFR != "" || p.WelcomeBodyEN != "" {
+			p.WelcomeBodies = map[string]string{}
+			if p.WelcomeBodyFR != "" {
+				p.WelcomeBodies["fr"] = p.WelcomeBodyFR
+			}
+			if p.WelcomeBodyEN != "" {
+				p.WelcomeBodies["en"] = p.WelcomeBodyEN
+			}
+		}
+	}
 	p.AccentColor = safeAccent(p.AccentColor)
 	p.LogoURL = safeEmailURL(p.LogoURL)
 	p.Subjects = clampLocaleMap(p.Subjects, maxEmailSubjectLen)
@@ -256,7 +334,7 @@ func ResolveCustomization(prefs EmailPrefs, locale string) CustomizedEmail {
 		Accent:          prefs.AccentColor,
 		LogoURL:         prefs.LogoURL,
 		FooterNote:      prefs.FooterNote,
-		WelcomeBody:     T(locale, prefs.WelcomeBodyFR, prefs.WelcomeBodyEN),
+		WelcomeBody:     WelcomeBody(prefs, locale, localizedPublicationName(locale, "")),
 		WelcomeDisabled: prefs.WelcomeEnabled != nil && !*prefs.WelcomeEnabled,
 	}
 	c.Subject = func(template, defaultFR, defaultEN string) string {
@@ -309,10 +387,14 @@ func WelcomePreheader(prefs EmailPrefs, locale, pubName string) string {
 }
 
 // WelcomeBody resolves the welcome body: creator override (locale
-// matching) else localized default. Shared by the welcome worker and the
-// studio preview endpoint.
+// matching, via welcomeBodies or the legacy welcomeBodyFr/En keys) else
+// localized default. Shared by the welcome worker and the studio preview
+// endpoint.
 func WelcomeBody(prefs EmailPrefs, locale, pubName string) string {
-	body := T(locale, prefs.WelcomeBodyFR, prefs.WelcomeBodyEN)
+	body := L(locale, prefs.WelcomeBodies)
+	if body == "" {
+		body = T(locale, prefs.WelcomeBodyFR, prefs.WelcomeBodyEN)
+	}
 	if body == "" {
 		body = T(locale,
 			"Votre inscription à la newsletter de "+pubName+" est confirmée. À très vite !",

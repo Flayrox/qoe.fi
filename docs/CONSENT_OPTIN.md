@@ -23,6 +23,19 @@
 #   - GET|POST /v1/newsletters/confirm?pub=&email=&token=&sig= : signature
 #     HMAC timing-safe (miroir de l'unsubscribe), token à usage unique
 #     (replay → 409), active receiveArticles + horodate confirmedAt.
+#
+# LANGUES ET PERSONNALISATION (studio → réglages publication → onglet Emails) :
+#   - Langues d'emails : QOE_EMAIL_LOCALES (défaut « fr,en », ex. « fr,en,es »).
+#     Ajouter une langue = ajouter un code dans l'env ; tout est piloté par
+#     clés « template.locale » côté Publication.emailSettings, la 1re langue
+#     de la liste est la langue de repli. Le panneau studio génère ses
+#     onglets depuis GET /v1/settings/email (champ `locales`).
+#   - POST /v1/settings/email/preview : rendu réel (moteur des workers) en
+#     fr/en/es/… pour l'aperçu live du panneau.
+#   - POST /v1/settings/email/test : envoie un VRAI email de test à l'adresse
+#     du compte créateur (sujet préfixé [TEST], RefID test-*), brouillon du
+#     panneau accepté — tester avant de sauvegarder. 503 explicite si
+#     EMAIL_PROVIDER n'est pas configuré sur l'instance.
 #   - GARDE-FOU CONSENTEMENT : les fanouts bulk (InsertNewsletterDeliveries,
 #     InsertArticleReleaseDeliveries) excluent confirmedAt IS NULL — un
 #     abonné non confirmé ne reçoit JAMAIS d'email bulk. Test de contrat :

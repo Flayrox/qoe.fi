@@ -162,3 +162,16 @@ SELECT p.name AS publication_name,
        p."emailSettings"
 FROM "Publication" p
 WHERE p.id = $1;
+
+-- name: GetPublicationForEmailTest :one
+-- Identité complète de la publication pour l'envoi d'un email de test
+-- (POST /v1/settings/email/test) : mêmes colonnes que
+-- GetSubscriberEmailDefaults + réglages stockés rendus par le moteur.
+SELECT p.name AS publication_name,
+       p.subdomain,
+       p."customDomain" AS custom_domain,
+       p."accentColor" AS accent_color,
+       p."logoUrl" AS logo_url,
+       p."emailSettings"
+FROM "Publication" p
+WHERE p.id = $1;
