@@ -232,6 +232,7 @@ export function OnboardingWizard({
 
   const [name, setName] = useState(initialName);
   const [status, setStatus] = useState<'idle' | 'creating'>('idle');
+  const consentAccepted = true; // Acte d'acceptation implicite en lançant l'espace créateur
 
   // Adresse générée automatiquement depuis le nom — modifiable ensuite dans
   // les réglages. C'est l'adresse affichée dans l'aperçu en temps réel.

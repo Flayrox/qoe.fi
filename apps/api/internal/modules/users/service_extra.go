@@ -200,15 +200,11 @@ func safeProvisionedUsername(email, username string) string {
 	if !identifier.ValidUsername(candidate) || identifier.IsReserved(candidate) {
 		candidate = strings.Split(email, "@")[0]
 		candidate = strings.ToLower(strings.Map(func(r rune) rune {
-			if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' || r == '.' {
+			if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') {
 				return r
 			}
 			return -1
 		}, candidate))
-		candidate = strings.Trim(candidate, "._")
-		if len(candidate) > 24 {
-			candidate = candidate[:24]
-		}
 	}
 	if !identifier.ValidUsername(candidate) || identifier.IsReserved(candidate) {
 		candidate = "user"
