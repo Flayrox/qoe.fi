@@ -48,6 +48,10 @@ func (s *Service) GetEmailSettings(ctx context.Context, userID, publicationID st
 	out := map[string]any{
 		"publicationName": row.Name,
 		"emailSettings":   clean,
+		// Langues d'emails disponibles (QOE_EMAIL_LOCALES, défaut fr,en) :
+		// le panneau studio génère ses onglets de langue depuis cette liste —
+		// ajouter une langue côté serveur suffit, zéro front à déployer.
+		"locales": workers.EmailLocales(),
 	}
 	if row.AccentColor.Valid && row.AccentColor.String != "" {
 		out["accentColor"] = row.AccentColor.String

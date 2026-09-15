@@ -39,6 +39,12 @@ type Service struct {
 
 	// flags gate le journal d'audit superadmin (flag admin-audit-log).
 	flags *flags.Service
+
+	// Fournisseur email + adresse d'expéditeur pour l'envoi de test du
+	// panneau email (POST /v1/settings/email/test). Nil = fonctionnalité
+	// éteinte (503 explicite).
+	emailProvider emailTester
+	emailFrom     string
 }
 
 func NewService(pool *pgxpool.Pool) *Service {

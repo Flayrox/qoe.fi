@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   getEmailSettingsAction: vi.fn(),
   updateEmailSettingsAction: vi.fn(),
   previewEmailSettingsAction: vi.fn(),
+  sendTestEmailAction: vi.fn(),
 }));
 
 vi.mock('../../actions', async (importOriginal) => {
@@ -15,6 +16,7 @@ vi.mock('../../actions', async (importOriginal) => {
     getEmailSettingsAction: mocks.getEmailSettingsAction,
     updateEmailSettingsAction: mocks.updateEmailSettingsAction,
     previewEmailSettingsAction: mocks.previewEmailSettingsAction,
+    sendTestEmailAction: mocks.sendTestEmailAction,
   };
 });
 
@@ -53,6 +55,11 @@ describe('EmailTemplates', () => {
           text: `rendu texte ${template} ${locale}`,
         })
     );
+    mocks.sendTestEmailAction.mockResolvedValue({
+      sent: true,
+      to: 'lea@qoe.fi',
+      subject: '[TEST] Confirmez — La Gazette',
+    });
   });
 
   it('charge les réglages existants', async () => {
@@ -127,5 +134,48 @@ describe('EmailTemplates', () => {
       },
       { timeout: 5000 }
     );
+  });
+
+  it('envoie un test avec le template et la langue affichés', async () => {
+    render(<EmailTemplates publicationId="pub-1" />);
+    await waitFor(() => {
+      expect(mocks.previewEmailSettingsAction).toHaveBeenCalled();
+    });
+
+    // Bascule sur le bienvenue puis envoi du test.
+    fireEvent.click(screen.getByRole('button', { name: /Bienvenue/ }));
+    fireEvent.click(screen.getByText(/Envoyer un test à mon adresse/));
+
+    await waitFor(() => {
+      expect(mocks.sendTestEmailAction).toHaveBeenCalledWith(
+        'pub-1',
+        'welcome',
+        'fr',
+        expect.anything()
+      );
+    });
+  });
+
+  it('expose les langues supplémentaires renvoyées par l’API', async () => {
+    mocks.getEmailSettingsAction.mockResolvedValue({
+      publicationName: 'La Gazette',
+      emailSettings: {},
+      locales: ['fr', 'en', 'es'],
+    });
+    render(<EmailTemplates publicationId="pub-1" />);
+
+    // L'onglet espagnol apparaît sans aucun changement de code front.
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'es' })).toBeDefined();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'es' }));
+    await waitFor(() => {
+      expect(mocks.previewEmailSettingsAction).toHaveBeenCalledWith(
+        'pub-1',
+        'confirm',
+        'es',
+        expect.anything()
+      );
+    });
   });
 });

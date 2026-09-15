@@ -13,6 +13,8 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+
+	"github.com/qoefi/api/internal/workers"
 )
 
 func TestHandler_EmailSettings_GetDefaults(t *testing.T) {
@@ -262,5 +264,109 @@ func TestHandler_EmailSettings_PreviewAuthAndBounds(t *testing.T) {
 	}
 	if tpl, _ := body["template"].(string); tpl != "confirm" {
 		t.Errorf("template borné attendu 'confirm', got %q", tpl)
+	}
+}
+
+// ── POST /v1/settings/email/test — envoi d'un vrai email au créateur ──
+
+// fakeProvider capture les envois (jamais de réseau dans les tests).
+type fakeProvider struct {
+	msgs []workers.EmailMessage
+	err  error
+}
+
+func (f *fakeProvider) Send(_ context.Context, m workers.EmailMessage) error {
+	if f.err != nil {
+		return f.err
+	}
+	f.msgs = append(f.msgs, m)
+	return nil
+}
+
+func TestHandler_EmailTest_SendsToCreator(t *testing.T) {
+	fx := seed(t)
+	fake := &fakeProvider{}
+	r := newTestRouter(func(svc *Service) { svc.SetEmailTestSender(fake, "noreply@qoe.fi") })
+	token := testJWT(fx.OwnerID)
+
+	w, body := doJSON(t, r, "POST", "/v1/settings/email/test", token, map[string]any{
+		"publicationId": fx.PubID,
+		"template":      "welcome",
+		"locale":        "en",
+	})
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+	}
+	if sent, _ := body["sent"].(bool); !sent {
+		t.Fatalf("sent attendu : %s", w.Body.String())
+	}
+	if len(fake.msgs) != 1 {
+		t.Fatalf("1 email attendu, got %d", len(fake.msgs))
+	}
+	m := fake.msgs[0]
+	if !strings.HasPrefix(m.Subject, "[TEST] ") {
+		t.Errorf("le sujet doit être marqué [TEST] : %q", m.Subject)
+	}
+	if !strings.HasPrefix(m.RefID, "test-") {
+		t.Errorf("RefID marqué test- attendu : %q", m.RefID)
+	}
+	if m.Text == "" || m.HTML == "" {
+		t.Error("multipart attendu (texte + HTML)")
+	}
+}
+
+func TestHandler_EmailTest_DraftSettingsApplied(t *testing.T) {
+	fx := seed(t)
+	fake := &fakeProvider{}
+	r := newTestRouter(func(svc *Service) { svc.SetEmailTestSender(fake, "noreply@qoe.fi") })
+	token := testJWT(fx.OwnerID)
+
+	w, _ := doJSON(t, r, "POST", "/v1/settings/email/test", token, map[string]any{
+		"publicationId": fx.PubID,
+		"template":      "confirm",
+		"locale":        "fr",
+		"settings": map[string]any{
+			"subjects": map[string]any{"confirm.fr": "Mon sujet de test"},
+		},
+	})
+	if w.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
+	}
+	if got := fake.msgs[0].Subject; got != "[TEST] Mon sujet de test" {
+		t.Errorf("sujet du brouillon attendu, got %q", got)
+	}
+}
+
+func TestHandler_EmailTest_NoProvider503(t *testing.T) {
+	fx := seed(t)
+	r := newTestRouter()
+	token := testJWT(fx.OwnerID)
+
+	// Pas de SetEmailTestSender : fonctionnalité éteinte → 503, jamais un
+	// faux « envoyé ».
+	w, _ := doJSON(t, r, "POST", "/v1/settings/email/test", token, map[string]any{
+		"publicationId": fx.PubID,
+	})
+	if w.Code != http.StatusServiceUnavailable {
+		t.Errorf("503 attendu, got %d (%s)", w.Code, w.Body.String())
+	}
+}
+
+func TestHandler_EmailTest_UnauthorizedAndForbidden(t *testing.T) {
+	fx := seed(t)
+	r := newTestRouter()
+
+	// Pas de token → 401.
+	if w, _ := doJSON(t, r, "POST", "/v1/settings/email/test", "", map[string]any{
+		"publicationId": fx.PubID,
+	}); w.Code != http.StatusUnauthorized {
+		t.Errorf("401 attendu, got %d", w.Code)
+	}
+
+	// Token valide mais publication d'un autre créateur → 403.
+	if w, _ := doJSON(t, r, "POST", "/v1/settings/email/test", testJWT("user-other"), map[string]any{
+		"publicationId": fx.PubID,
+	}); w.Code != http.StatusForbidden {
+		t.Errorf("403 attendu, got %d (%s)", w.Code, w.Body.String())
 	}
 }

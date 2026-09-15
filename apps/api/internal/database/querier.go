@@ -282,6 +282,10 @@ type Querier interface {
 	// Identité par défaut de la publication (pré-remplissage du formulaire
 	// email du studio) + réglages email stockés.
 	GetPublicationEmailDefaults(ctx context.Context, id string) (GetPublicationEmailDefaultsRow, error)
+	// Identité complète de la publication pour l'envoi d'un email de test
+	// (POST /v1/settings/email/test) : mêmes colonnes que
+	// GetSubscriberEmailDefaults + réglages stockés rendus par le moteur.
+	GetPublicationForEmailTest(ctx context.Context, id string) (GetPublicationForEmailTestRow, error)
 	// Page settings créateur (parité prisma.publication.findUnique include dans
 	// apps/studio/src/app/(creator)/settings/page.tsx).
 	GetPublicationForSettings(ctx context.Context, id string) (GetPublicationForSettingsRow, error)

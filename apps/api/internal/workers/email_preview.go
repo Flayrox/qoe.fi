@@ -201,6 +201,13 @@ func BuildSubscriberEmail(m *subscriberMailer, spec SubscriberEmailSpec, prefs E
 	return renderContent(m, spec.Email, buildContent(spec, prefs))
 }
 
+// NewSubscriberMailer construit un mailer autonome (sans pool ni asynq)
+// pour les envois hors-file : email de test du panneau studio. from est
+// l'expéditeur plateforme (cfg.EmailFrom) ; vide = défaut noreply@qoe.fi.
+func NewSubscriberMailer(from string) *subscriberMailer {
+	return &subscriberMailer{from: from}
+}
+
 // PreviewSubscriberEmail rend un email de prévisualisation sans base ni
 // réseau : c'est la fonction qu'appelle POST /v1/settings/email/preview.
 // Même rendu que BuildSubscriberEmail, expéditeur par défaut.

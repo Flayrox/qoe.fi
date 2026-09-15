@@ -15,10 +15,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { t } from '@lingui/core/macro';
 import { toast } from '@qoe/ui/toast';
-import { Check, Loader2, Mail } from 'lucide-react';
+import { Check, Loader2, Mail, SendHorizonal } from 'lucide-react';
 import {
   getEmailSettingsAction,
   previewEmailSettingsAction,
+  sendTestEmailAction,
   updateEmailSettingsAction,
   type PublicationEmailSettings,
 } from '../actions';
@@ -45,20 +46,28 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [lang, setLang] = useState<'fr' | 'en'>('fr');
+  // Langues disponibles : fournies par l'API (QOE_EMAIL_LOCALES côté Go).
+  // Ajouter une langue = un seul changement côté backend, le panneau suit.
+  const [locales, setLocales] = useState<string[]>(['fr', 'en']);
+  const [lang, setLang] = useState('fr');
   const [template, setTemplate] = useState<'confirm' | 'welcome'>('confirm');
   const [preview, setPreview] = useState<PreviewState>(null);
   const [previewing, setPreviewing] = useState(false);
   const [showText, setShowText] = useState(false);
+  const [sendingTest, setSendingTest] = useState(false);
   const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Chargement initial : réglages stockés (assainis côté API).
+  // Chargement initial : réglages stockés (assainis côté API) + langues.
   useEffect(() => {
     let alive = true;
     getEmailSettingsAction(publicationId)
       .then((res) => {
         if (!alive) return;
         setSettings(res.emailSettings ?? {});
+        if (res.locales?.length) {
+          setLocales(res.locales);
+          if (!res.locales.includes(lang)) setLang(res.locales[0]);
+        }
       })
       .catch(() => {
         if (alive) toast.error(t`Impossible de charger les réglages email.`);
@@ -106,7 +115,7 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
   const setMap = (
     key: 'subjects' | 'preheaders',
     tpl: 'confirm' | 'welcome',
-    locale: 'fr' | 'en',
+    locale: string,
     value: string
   ) => {
     setSettings((prev) => ({
@@ -114,6 +123,26 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
       [key]: { ...prev[key], [`${tpl}.${locale}`]: value },
     }));
     setSaved(false);
+  };
+
+  const setWelcomeBody = (locale: string, value: string) => {
+    setSettings((prev) => ({
+      ...prev,
+      welcomeBodies: { ...prev.welcomeBodies, [locale]: value },
+    }));
+    setSaved(false);
+  };
+
+  const handleSendTest = async () => {
+    setSendingTest(true);
+    try {
+      const res = await sendTestEmailAction(publicationId, template, lang, settings);
+      toast.success(t`Email de test envoyé à ${res.to} — vérifiez votre boîte (pensez aux spams).`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t`Échec de l'envoi du test.`);
+    } finally {
+      setSendingTest(false);
+    }
   };
 
   const handleSave = async () => {
@@ -250,7 +279,7 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
               >{t`Texte d'aperçu = phrase visible dans la boîte de réception.`}</span>
             </div>
             <div className="sm:col-span-2 space-y-2">
-              {(['fr', 'en'] as const).map((l) => (
+              {locales.map((l) => (
                 <div key={l} className="flex items-center gap-2">
                   <span className="w-8 text-[10px] font-bold uppercase text-muted-foreground">
                     {l}
@@ -273,7 +302,7 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
                   />
                 </div>
               ))}
-              {(['fr', 'en'] as const).map((l) => (
+              {locales.map((l) => (
                 <div key={`pre-${l}`} className="flex items-center gap-2">
                   <span className="w-8 text-[10px] font-bold uppercase text-muted-foreground opacity-50">
                     {l}
@@ -312,23 +341,23 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
             </div>
           </div>
           <div className="sm:col-span-2 space-y-2">
-            {(['fr', 'en'] as const).map((l) => (
+            {locales.map((l) => (
               <div key={l} className="flex items-start gap-2">
                 <span className="w-8 pt-2 text-[10px] font-bold uppercase text-muted-foreground">
                   {l}
                 </span>
                 <textarea
-                  value={l === 'fr' ? settings.welcomeBodyFr || '' : settings.welcomeBodyEn || ''}
-                  onChange={(e) =>
-                    set(l === 'fr' ? 'welcomeBodyFr' : 'welcomeBodyEn', e.target.value)
-                  }
+                  value={settings.welcomeBodies?.[l] ?? ''}
+                  onChange={(e) => setWelcomeBody(l, e.target.value)}
                   maxLength={2000}
                   rows={3}
                   disabled={!welcomeOn}
                   placeholder={
                     l === 'fr'
                       ? t`Votre inscription est confirmée. À très vite !`
-                      : 'Your subscription is confirmed. See you soon!'
+                      : l === 'en'
+                        ? 'Your subscription is confirmed. See you soon!'
+                        : ''
                   }
                   className={`${inputClass} resize-none disabled:opacity-40`}
                 />
@@ -399,7 +428,7 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
 
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1 bg-muted/40 rounded-lg p-0.5">
-            {(['fr', 'en'] as const).map((l) => (
+            {locales.map((l) => (
               <button
                 key={l}
                 onClick={() => setLang(l)}
@@ -435,6 +464,23 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
             />
           )}
         </div>
+
+        {/* Envoi d'un vrai email de test à l'adresse du compte créateur */}
+        <button
+          onClick={handleSendTest}
+          disabled={sendingTest || loading}
+          className="w-full flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg border border-border/50 bg-muted/30 text-xs font-semibold text-foreground transition-all active:scale-95 hover:bg-muted/50 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
+        >
+          {sendingTest ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <SendHorizonal className="w-3.5 h-3.5" />
+          )}
+          <span>
+            {t`Envoyer un test à mon adresse`}
+            <span className="uppercase opacity-60"> ({lang})</span>
+          </span>
+        </button>
 
         <button
           onClick={() => setShowText((v) => !v)}

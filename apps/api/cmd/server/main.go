@@ -54,6 +54,7 @@ import (
 	"github.com/qoefi/api/internal/queue"
 	"github.com/qoefi/api/internal/supastorage"
 	"github.com/qoefi/api/internal/umami"
+	"github.com/qoefi/api/internal/workers"
 )
 
 func main() {
@@ -106,6 +107,16 @@ func run(ctx context.Context) error {
 		FlagsSigningKey:        cfg.FlagsSigningKey,
 		LegalExportSigningKey:  cfg.LegalExportSigningKey,
 		OAuth:                  oauthService,
+		EmailProvider: workers.NewEmailProvider(workers.EmailProviderConfig{
+			Provider: cfg.EmailProvider,
+			SMTP: workers.SMTPConfig{
+				Host: cfg.SMTPHost, Port: cfg.SMTPPort,
+				User: cfg.SMTPUser, Pass: cfg.SMTPPass,
+				From: cfg.EmailFrom, Secure: cfg.SMTPSecure,
+			},
+			ResendAPIKey: cfg.ResendAPIKey,
+		}),
+		EmailFrom: cfg.EmailFrom,
 	})
 
 	srv := &http.Server{
@@ -165,6 +176,11 @@ type RouterDeps struct {
 	// LegalExportSigningKey est la graine Ed25519 (base64) qui signe les exports
 	// du registre de consentement. Vide → exports signés refusés.
 	LegalExportSigningKey string
+	// EmailProvider est le fournisseur email partagé (SMTP/Resend) pour
+	// l'envoi de test du panneau email. Nil → 503 explicite sur l'endpoint.
+	EmailProvider workers.EmailProvider
+	// EmailFrom est l'adresse d'expéditeur plateforme (cfg.EmailFrom).
+	EmailFrom string
 }
 
 // newRouter assemble l'API complète (routes publiques + créateur + workers
@@ -306,6 +322,9 @@ func newRouter(d RouterDeps) *chi.Mux {
 	// Settings créateur : sous-domaine (public) + profil/onboarding/clés API (protégé).
 	settingsSvc := settings.NewService(pool)
 	settingsSvc.SetFlags(flagsSvc)
+	// Envoi d'email de test du panneau email : même fournisseur que les
+	// workers (SMTP/Resend). Nil → 503 explicite côté endpoint.
+	settingsSvc.SetEmailTestSender(d.EmailProvider, d.EmailFrom)
 	settingsHandler := settings.NewHandler(settingsSvc)
 	r.With(authmw.RateLimit("tenant-check", rc, time.Minute, 30, false)).Group(func(publicSettings chi.Router) {
 		settingsHandler.RegisterPublic(publicSettings)

@@ -130,6 +130,43 @@ func (q *Queries) GetPublicationEmailDefaults(ctx context.Context, id string) (G
 	return i, err
 }
 
+const getPublicationForEmailTest = `-- name: GetPublicationForEmailTest :one
+SELECT p.name AS publication_name,
+       p.subdomain,
+       p."customDomain" AS custom_domain,
+       p."accentColor" AS accent_color,
+       p."logoUrl" AS logo_url,
+       p."emailSettings"
+FROM "Publication" p
+WHERE p.id = $1
+`
+
+type GetPublicationForEmailTestRow struct {
+	PublicationName string      `json:"publication_name"`
+	Subdomain       pgtype.Text `json:"subdomain"`
+	CustomDomain    pgtype.Text `json:"custom_domain"`
+	AccentColor     pgtype.Text `json:"accent_color"`
+	LogoUrl         pgtype.Text `json:"logo_url"`
+	EmailSettings   []byte      `json:"emailSettings"`
+}
+
+// Identité complète de la publication pour l'envoi d'un email de test
+// (POST /v1/settings/email/test) : mêmes colonnes que
+// GetSubscriberEmailDefaults + réglages stockés rendus par le moteur.
+func (q *Queries) GetPublicationForEmailTest(ctx context.Context, id string) (GetPublicationForEmailTestRow, error) {
+	row := q.db.QueryRow(ctx, getPublicationForEmailTest, id)
+	var i GetPublicationForEmailTestRow
+	err := row.Scan(
+		&i.PublicationName,
+		&i.Subdomain,
+		&i.CustomDomain,
+		&i.AccentColor,
+		&i.LogoUrl,
+		&i.EmailSettings,
+	)
+	return i, err
+}
+
 const getPublicationForSettings = `-- name: GetPublicationForSettings :one
 
 SELECT p.id, p.name, p.slug, p."subdomain", p."customDomain", p."heroText",

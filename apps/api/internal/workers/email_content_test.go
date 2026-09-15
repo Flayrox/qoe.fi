@@ -237,3 +237,63 @@ func TestQuotedPrintableEncode_LinesAndAccents(t *testing.T) {
 		}
 	}
 }
+
+// ── Extensibilité des langues (QOE_EMAIL_LOCALES) ──────────────────────
+
+func TestEmailLocales_DefaultAndEnv(t *testing.T) {
+	// Défaut sans env : fr,en.
+	t.Setenv("QOE_EMAIL_LOCALES", "")
+	if got := EmailLocales(); len(got) != 2 || got[0] != "fr" || got[1] != "en" {
+		t.Errorf("EmailLocales() défaut = %v, attendu [fr en]", got)
+	}
+
+	// Ajouter une langue = une variable d'env, zéro code.
+	t.Setenv("QOE_EMAIL_LOCALES", "fr,en,es")
+	if got := EmailLocales(); len(got) != 3 || got[2] != "es" {
+		t.Errorf("EmailLocales() = %v, attendu [fr en es]", got)
+	}
+	if NormalizeEmailLocale("es-ES") != "es" {
+		t.Error("es-ES doit se normaliser en es quand déclaré")
+	}
+	if NormalizeEmailLocale("de") != "fr" {
+		t.Error("langue non déclarée → repli (1re langue)")
+	}
+}
+
+func TestEmailLocales_PerLocaleOverrides(t *testing.T) {
+	t.Setenv("QOE_EMAIL_LOCALES", "fr,en,es")
+	prefs := EmailPrefs{
+		Subjects: map[string]string{
+			"confirm.fr": "Sujet français",
+			"confirm.en": "English subject",
+			"confirm.es": "Asunto español",
+		},
+	}
+	if got := ConfirmSubject(prefs, "es", "Lab"); got != "Asunto español" {
+		t.Errorf("sujet es = %q, attendu « Asunto español »", got)
+	}
+	if got := ConfirmSubject(prefs, "en", "Lab"); got != "English subject" {
+		t.Errorf("sujet en = %q", got)
+	}
+}
+
+func TestEmailLocales_WelcomeBodiesAnyLanguage(t *testing.T) {
+	t.Setenv("QOE_EMAIL_LOCALES", "fr,en,es")
+	prefs := EmailPrefs{
+		WelcomeBodies: map[string]string{"es": "¡Bienvenido al laboratorio!"},
+	}
+	if got := WelcomeBody(prefs, "es", "Lab"); got != "¡Bienvenido al laboratorio!" {
+		t.Errorf("corps es = %q", got)
+	}
+	// Pas d'override es → repli sur le défaut (1re langue = fr).
+	if got := WelcomeBody(EmailPrefs{}, "es", "Lab"); got == "" {
+		t.Error("repli attendu, jamais vide")
+	}
+}
+
+func TestEmailLocales_FallbackOrder(t *testing.T) {
+	t.Setenv("QOE_EMAIL_LOCALES", "en,fr") // en = langue de repli
+	if got := NormalizeEmailLocale("xyz"); got != "en" {
+		t.Errorf("repli = %q, attendu en", got)
+	}
+}

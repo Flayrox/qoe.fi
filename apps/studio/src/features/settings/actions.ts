@@ -97,12 +97,16 @@ export interface PublicationEmailSettings {
   replyTo?: string;
   accentColor?: string;
   logoUrl?: string;
-  subjects?: { confirm?: string; welcome?: string };
-  preheaders?: { confirm?: string; welcome?: string };
+  // Clés « template.locale » (« confirm.fr », « welcome.es »…) générées
+  // dynamiquement depuis la liste `locales` renvoyée par l'API — ajouter
+  // une langue côté serveur suffit, aucun changement de type nécessaire.
+  subjects?: Record<string, string>;
+  preheaders?: Record<string, string>;
   footerNote?: string;
   welcomeEnabled?: boolean;
   welcomeBodyFr?: string;
   welcomeBodyEn?: string;
+  welcomeBodies?: Record<string, string>;
 }
 
 export async function getEmailSettingsAction(publicationId: string) {
@@ -111,6 +115,7 @@ export async function getEmailSettingsAction(publicationId: string) {
     emailSettings: PublicationEmailSettings;
     accentColor?: string;
     logoUrl?: string;
+    locales: string[];
   }>(`/v1/settings/email?publicationId=${encodeURIComponent(publicationId)}`);
 }
 
@@ -127,11 +132,23 @@ export async function updateEmailSettingsAction(
 export async function previewEmailSettingsAction(
   publicationId: string,
   template: 'confirm' | 'welcome',
-  locale: 'fr' | 'en',
+  locale: string,
   settings: PublicationEmailSettings
 ) {
   return goFetch<{ subject: string; from: string; html: string; text: string }>(
     '/v1/settings/email/preview',
     { method: 'POST', body: { publicationId, template, locale, settings } }
   );
+}
+
+export async function sendTestEmailAction(
+  publicationId: string,
+  template: 'confirm' | 'welcome',
+  locale: string,
+  settings: PublicationEmailSettings
+) {
+  return goFetch<{ sent: boolean; to: string; subject: string }>('/v1/settings/email/test', {
+    method: 'POST',
+    body: { publicationId, template, locale, settings },
+  });
 }

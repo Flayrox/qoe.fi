@@ -19,8 +19,11 @@ import (
 
 const testSecret = "settings-test-secret-0123456789"
 
-func newTestRouter() *chi.Mux {
+func newTestRouter(setup ...func(*Service)) *chi.Mux {
 	svc := NewService(poolTest)
+	for _, s := range setup {
+		s(svc)
+	}
 	h := NewHandler(svc)
 	auth := middleware.NewAuth(testSecret, "")
 
