@@ -122,4 +122,3 @@ func TestEmailDelivery_DrainSkipsFutureAndDisabledWithoutProvider(t *testing.T) 
 		t.Fatalf("drain sans provider: sent=%d failed=%d err=%v, attendu 0/0/nil", sent, failed, err)
 	}
 }
-

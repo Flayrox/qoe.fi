@@ -35,12 +35,12 @@ func TestFault_Handlers_InternalErrors(t *testing.T) {
 	tok := testJWT(fx.OwnerID)
 
 	cases := []struct {
-		name       string
-		qf         map[string]error
-		poolFail   string // "exec" | "queryrow" | ""
+		name        string
+		qf          map[string]error
+		poolFail    string // "exec" | "queryrow" | ""
 		method, url string
-		body       any
-		want       int
+		body        any
+		want        int
 	}{
 		{"getPreferences-500", nil, "queryrow", http.MethodGet, "/v1/settings/preferences", nil, http.StatusInternalServerError},
 		{"updatePreferences-400", nil, "exec", http.MethodPatch, "/v1/settings/preferences", map[string]any{"fontScale": 110}, http.StatusBadRequest},
