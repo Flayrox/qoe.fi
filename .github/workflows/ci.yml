@@ -41,6 +41,12 @@ jobs:
       - name: Guard seed-script (next/script + warning « script tag »)
         run: pnpm guard:seed-script
 
+      # Guard légal : consentement d'inscription/onboarding câblé partout,
+      # registre des traceurs complet (catégorie, finalité, durée, unicité),
+      # sentinelle publicitaire et mode exempté en place.
+      - name: Guard legal-consent (consentement + registre des traceurs)
+        run: pnpm guard:legal-consent
+
       - name: Typecheck Monorepo
         run: pnpm typecheck
 
