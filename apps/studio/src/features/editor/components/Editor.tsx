@@ -971,18 +971,34 @@ export function Editor({
           </div>
 
           {/* Public Article Page Preview Link */}
-          {slug && (
-            <a
-              href={`http://${subdomain || 'heheheh'}.lvh.me:15403/article/${slug}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-semibold bg-muted/50 text-foreground hover:bg-muted border border-border/40 transition-all cursor-pointer shadow-xs"
-              title={t`Ouvrir la page publique ou la prévisualisation de l'écrit`}
-            >
-              <ExternalLink className="h-3.5 w-3.5 text-primary" />
-              <span>{t`Aperçu`}</span>
-            </a>
-          )}
+          {slug &&
+            (() => {
+              const sub = subdomain || 'preview';
+              let previewUrl = `https://${sub}.qoe.fi/article/${slug}`;
+              if (typeof window !== 'undefined') {
+                const host = window.location.hostname;
+                const isCaddy = !window.location.port;
+                if (host.includes('lvh.me')) {
+                  previewUrl = `http://${sub}.lvh.me${isCaddy ? '' : ':15403'}/article/${slug}`;
+                } else if (host.includes('qoe.test')) {
+                  previewUrl = `http://${sub}.qoe.test/article/${slug}`;
+                } else if (host.includes('localhost')) {
+                  previewUrl = `http://${sub}.lvh.me:15403/article/${slug}`;
+                }
+              }
+              return (
+                <a
+                  href={previewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-semibold bg-muted/50 text-foreground hover:bg-muted border border-border/40 transition-all cursor-pointer shadow-xs"
+                  title={t`Ouvrir la page publique ou la prévisualisation de l'écrit`}
+                >
+                  <ExternalLink className="h-3.5 w-3.5 text-primary" />
+                  <span>{t`Aperçu`}</span>
+                </a>
+              );
+            })()}
 
           {/* Save Action */}
           <button

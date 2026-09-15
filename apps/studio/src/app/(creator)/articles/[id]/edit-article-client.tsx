@@ -85,7 +85,6 @@ export function EditArticleClient({ article, categories, capabilities }: EditArt
       });
       // saveArticleAction renvoie l'article mis à jour ; on garde l'id pour l'auto-save
       const newId = (res as { data?: { id?: string } })?.data?.id || article.id;
-      router.refresh();
       return { id: newId };
     } catch (err: unknown) {
       throw new Error(err instanceof Error ? err.message : t`Échec de l'enregistrement.`);

@@ -2,7 +2,6 @@
 
 import React, { useState, useMemo } from 'react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
 import { t } from '@lingui/core/macro';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@qoe/utils';
@@ -123,7 +122,6 @@ export function OnboardingFlow({
   onSubmit,
   onDone,
 }: OnboardingFlowProps) {
-  const router = useRouter();
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
   // Gamification state
@@ -231,8 +229,7 @@ export function OnboardingFlow({
       if (onDone) {
         onDone();
       } else {
-        router.push('/home');
-        router.refresh();
+        window.location.href = '/home';
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : t`Erreur lors de la configuration.`;

@@ -1066,7 +1066,9 @@ export function FeedDashboard({
           suggestedCreators={onboardingSuggestedCreators || []}
           onSubmit={async (data: OnboardingSubmitData) => {
             const { completeOnboarding } = await import('@/app/(reader)/onboarding/actions');
-            return completeOnboarding(data);
+            const res = await completeOnboarding(data);
+            setIsOnboardingModalOpen(false);
+            return res;
           }}
         />
       )}
