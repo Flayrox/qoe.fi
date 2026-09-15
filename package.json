@@ -45,6 +45,7 @@
     "brand:sync": "node scripts/sync-brand-assets.mjs",
     "typecheck": "turbo run typecheck",
     "guard:seed-script": "bash scripts/guard-seed-script.sh",
+    "guard:legal-consent": "bash scripts/guard-legal-consent.sh",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "e2e": "playwright test",
