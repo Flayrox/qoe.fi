@@ -13,3 +13,4 @@ export * from './article-attribution';
 export * from './ssrf';
 export * from './markdown';
 export * from './cookie-consent';
+export * from './legal-placeholders';
