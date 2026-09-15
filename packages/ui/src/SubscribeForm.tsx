@@ -35,7 +35,9 @@ export function SubscribeForm({
 
     if (res.ok) {
       setStatus('success');
-      setMessage(t`Merci ! Vérifiez votre boîte mail pour confirmer votre abonnement.`);
+      setMessage(
+        t`Vous recevrez désormais les prochains écrits directement dans votre boîte mail.`
+      );
       if (recommendations && recommendations.length > 0) {
         setShowModal(true);
       }

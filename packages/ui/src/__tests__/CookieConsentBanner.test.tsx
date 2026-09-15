@@ -171,14 +171,14 @@ describe('📊 CookieConsentBanner — régime exempté (défaut)', () => {
   });
 
   it('n’affiche plus de bannière bloquante', async () => {
-    render(<CookieConsentBanner locale="fr" />);
+    render(<CookieConsentBanner locale="fr" showExemptNotice={true} />);
     // L'avis n'est pas un dialogue : rien n'est suspendu à un clic.
     expect(await screen.findByText('Mesure d’audience sans cookie')).not.toBeNull();
     expect(screen.queryByRole('button', { name: 'Tout accepter' })).toBeNull();
   });
 
   it('coupe la mesure d’audience et journalise l’opposition', async () => {
-    render(<CookieConsentBanner locale="fr" />);
+    render(<CookieConsentBanner locale="fr" showExemptNotice={true} />);
     fireEvent.click(await screen.findByRole('button', { name: 'M’y opposer' }));
 
     await waitFor(() => expect(readLocalConsent()?.analytics).toBe(false));
@@ -191,7 +191,7 @@ describe('📊 CookieConsentBanner — régime exempté (défaut)', () => {
   });
 
   it('une prise de connaissance suffit à ne plus solliciter la personne', async () => {
-    render(<CookieConsentBanner locale="fr" />);
+    render(<CookieConsentBanner locale="fr" showExemptNotice={true} />);
     fireEvent.click(await screen.findByRole('button', { name: 'Compris, masquer' }));
 
     await waitFor(() => expect(screen.queryByText('Mesure d’audience sans cookie')).toBeNull());
@@ -200,7 +200,7 @@ describe('📊 CookieConsentBanner — régime exempté (défaut)', () => {
   });
 
   it('garde le centre de préférences accessible et explique la dispense', async () => {
-    render(<CookieConsentBanner locale="fr" />);
+    render(<CookieConsentBanner locale="fr" showExemptNotice={true} />);
     fireEvent.click(await screen.findByRole('button', { name: 'En savoir plus' }));
 
     await screen.findByRole('dialog', { name: 'Préférences de traceurs' });
