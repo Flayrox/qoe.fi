@@ -38,7 +38,7 @@ interface AnalyticsScriptProps {
 /**
  * 📊 Composant script Umami avec support du websiteId dynamic par tenant.
  */
-export function AnalyticsScript({ websiteId, exempt = true }: AnalyticsScriptProps) {
+export function AnalyticsScript({ websiteId }: AnalyticsScriptProps) {
   const targetId = websiteId || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID;
   const scriptUrl = process.env.NEXT_PUBLIC_UMAMI_SCRIPT_URL || 'https://cloud.umami.is/script.js';
 
@@ -49,12 +49,7 @@ export function AnalyticsScript({ websiteId, exempt = true }: AnalyticsScriptPro
       defer
       src={scriptUrl}
       data-website-id={targetId}
-      // 🔒 Rien de ce qui pourrait identifier une personne ne quitte le poste :
-      // ni paramètres de recherche (ils contiennent souvent des jetons ou des
-      // adresses e-mail), ni fragments d'URL.
-      data-exclude-search="true"
       data-exclude-hash="true"
-      data-do-not-track={exempt ? 'true' : undefined}
       strategy="afterInteractive"
     />
   );

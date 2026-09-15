@@ -426,11 +426,12 @@ func (s *Service) SubscribeToNewsletter(ctx context.Context, email, publicationI
 	var inserted bool
 	var confirmed pgtype.Timestamp
 	err = s.pool.QueryRow(ctx, `
-		INSERT INTO "Subscriber" (id, email, "publicationId", locale, "isActive", "receiveArticles", "confirmationToken", "createdAt", "updatedAt")
-		VALUES (gen_random_uuid()::text, $1, $2, $3, true, false, md5(gen_random_uuid()::text || clock_timestamp()::text), now(), now())
+		INSERT INTO "Subscriber" (id, email, "publicationId", locale, "isActive", "receiveArticles", "confirmedAt", "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1, $2, $3, true, true, now(), now(), now())
 		ON CONFLICT ("email", "publicationId") DO UPDATE SET
 		  "isActive" = true,
-		  "receiveArticles" = ("Subscriber"."confirmedAt" IS NOT NULL),
+		  "receiveArticles" = true,
+		  "confirmedAt" = COALESCE("Subscriber"."confirmedAt", now()),
 		  "updatedAt" = now()
 		RETURNING id, (xmax = 0) AS inserted, "confirmedAt"`,
 		email, publicationID, locale).Scan(&subscriberID, &inserted, &confirmed)
@@ -448,16 +449,12 @@ func (s *Service) SubscribeToNewsletter(ctx context.Context, email, publicationI
 		}); err != nil {
 			log.Printf("[home] subscriber.created enqueue: %v", err)
 		}
-	}
-	// Double opt-in : email de confirmation uniquement à la création d'un
-	// abonné non confirmé (ré-inscription d'une adresse en attente : le token
-	// et l'email initial restent valables — pas de re-spam).
-	if inserted && !confirmed.Valid && s.events != nil {
-		if err := queue.PublishSubscriberConfirm(s.events, queue.SubscriberConfirmPayload{
+		// Simple opt-in : activation directe et email de bienvenue immédiat.
+		if err := queue.PublishSubscriberWelcome(s.events, queue.SubscriberWelcomePayload{
 			Email:         email,
 			PublicationID: publicationID,
 		}); err != nil {
-			log.Printf("[home] subscriber.confirm enqueue: %v", err)
+			log.Printf("[home] subscriber.welcome enqueue: %v", err)
 		}
 	}
 	return true, nil

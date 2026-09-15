@@ -114,12 +114,15 @@ interface CookieConsentBannerProps {
   policyVersion?: string;
   /** Le registre des traceurs est affiché dans le centre (défaut : oui). */
   showTrackers?: boolean;
+  /** Afficher l'avis flottant en mode exempté (défaut : false, disponible via le footer). */
+  showExemptNotice?: boolean;
 }
 
 export function CookieConsentBanner({
   locale,
   policyVersion,
   showTrackers = true,
+  showExemptNotice = false,
 }: CookieConsentBannerProps) {
   const router = useRouter();
   const copy = locale.startsWith('en') ? COPY.en : COPY.fr;
@@ -188,7 +191,7 @@ export function CookieConsentBanner({
 
   return (
     <>
-      {exempt && !centerOpen && (
+      {exempt && showExemptNotice && !centerOpen && (
         <AnalyticsNotice
           locale={locale}
           policyVersion={policyVersion}
