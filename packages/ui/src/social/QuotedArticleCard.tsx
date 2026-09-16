@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { cn } from '@qoe/utils';
+import { getArticleUrl } from '@qoe/config';
 import { ArrowUpRight } from 'lucide-react';
 
 export interface QuoteContextData {
@@ -99,10 +100,9 @@ export function QuotedArticleCard({
       // Le drawer extrait le quoteContext de l'article pour le spotlight.
       onOpenArticle(article);
     } else {
-      const url = articleDomain
-        ? `https://${articleDomain}/article/${article.slug}${quoteParams}`
-        : `/article/${article.slug}${quoteParams}`;
-      window.open(url, '_blank');
+      const baseUrl = getArticleUrl(article, { preferTenant: true });
+      const targetUrl = quoteParams ? `${baseUrl}${quoteParams}` : baseUrl;
+      window.open(targetUrl, '_blank');
     }
   };
 

@@ -5,9 +5,8 @@ import { t } from '@lingui/core/macro';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { BookMarked, Bookmark, ArrowUpRight, Clock } from 'lucide-react';
-import { CertifiedBadge } from '@qoe/ui/ui/CertifiedBadge';
 import { cn } from '@qoe/utils';
-import { routes } from '@qoe/config/routes';
+import { getArticleUrl } from '@qoe/config/routes';
 
 export interface ArticleRowProps {
   article: {
@@ -49,17 +48,7 @@ export function ArticleRow({
     if (onOpenArticle) {
       onOpenArticle(article.slug);
     } else {
-      const authorSubdomain =
-        'subdomain' in article.author
-          ? (article.author as { subdomain?: string }).subdomain
-          : undefined;
-      const owner =
-        ('publication' in article &&
-          (article as { publication?: { slug?: string; subdomain?: string } }).publication?.slug) ||
-        article.author.username ||
-        authorSubdomain ||
-        'article';
-      window.location.href = routes.feed.article(owner, article.slug);
+      window.location.href = getArticleUrl(article);
     }
   };
 

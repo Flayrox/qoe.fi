@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Sparkles, Clock } from 'lucide-react';
 import { getSimilarArticlesAction } from '@qoe/sdk/actions/articles';
 import type { SimilarArticle } from '@qoe/sdk';
+import { getArticleUrl } from '@qoe/config/routes';
 
 interface SimilarArticlesSectionProps {
   articleId: string;
@@ -49,19 +50,19 @@ export function SimilarArticlesSection({ articleId }: SimilarArticlesSectionProp
       </h2>
       <div className="space-y-3">
         {items.map((item) => {
-          const owner =
-            ('publicationSlug' in item &&
-            typeof (item as { publicationSlug?: string }).publicationSlug === 'string'
-              ? (item as { publicationSlug?: string }).publicationSlug
-              : undefined) ||
-            item.authorUsername ||
-            'article';
+          const url = getArticleUrl({
+            slug: item.slug,
+            author: { username: item.authorUsername },
+            publication: {
+              slug:
+                ('publicationSlug' in item &&
+                typeof (item as { publicationSlug?: string }).publicationSlug === 'string'
+                  ? (item as { publicationSlug?: string }).publicationSlug
+                  : undefined) || null,
+            },
+          });
           return (
-            <Link
-              key={item.id}
-              href={`/${encodeURIComponent(owner)}/${encodeURIComponent(item.slug)}`}
-              className="block group"
-            >
+            <Link key={item.id} href={url} className="block group">
               <article className="rounded-xl border border-border/50 bg-card/60 hover:border-primary/40 hover:bg-card transition-all p-4 space-y-2">
                 <h3 className="text-sm font-semibold text-foreground group-hover:text-primary line-clamp-2 leading-snug">
                   {item.title}

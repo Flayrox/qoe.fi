@@ -4,7 +4,7 @@ import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ExternalLink } from 'lucide-react';
 import { ArticleAnnotatorView, type ArticleAnnotatorViewProps } from './ArticleAnnotatorView';
-import { routes } from '@qoe/config/routes';
+import { getArticleUrl } from '@qoe/config/routes';
 
 export interface ArticleReaderDrawerProps {
   isOpen: boolean;
@@ -61,16 +61,7 @@ export function ArticleReaderDrawer({
 
   if (!article) return null;
 
-  const subdomain = article.author?.subdomain;
-  const owner =
-    ('publication' in article &&
-      (article as { publication?: { slug?: string } }).publication?.slug) ||
-    article.author?.username ||
-    subdomain ||
-    'article';
-  const externalUrl = subdomain
-    ? routes.tenant.article(subdomain, article.slug)
-    : routes.feed.article(owner, article.slug);
+  const externalUrl = getArticleUrl(article, { preferTenant: true });
 
   return (
     <AnimatePresence>

@@ -98,9 +98,78 @@ export const routes = {
         : `${getMonorepoUrl('tenant', host, subdomain)}/article/${encodeURIComponent(slug)}`,
     articleLegacy: (subdomain: string, slug: string, host?: string) =>
       `${getMonorepoUrl('tenant', host, subdomain)}/article/${encodeURIComponent(slug)}`,
-    category: (subdomain: string, categorySlug: string, host?: string) =>
-      `${getMonorepoUrl('tenant', host, subdomain)}/${encodeURIComponent(categorySlug)}`,
   },
 } as const;
 
 export type AppRoutes = typeof routes;
+
+/** Shape minimale pour résoudre l'URL canonique d'un article */
+export interface ArticleResolvable {
+  slug: string;
+  author?: {
+    username?: string | null;
+    subdomain?: string | null;
+    customDomain?: string | null;
+  } | null;
+  publication?: {
+    slug?: string | null;
+    subdomain?: string | null;
+    customDomain?: string | null;
+  } | null;
+  category?: {
+    slug?: string | null;
+  } | null;
+}
+
+/**
+ * Détermine le propriétaire canonique d'un article (Média prioritaire, sinon créateur, sinon fallback).
+ */
+export function getArticleOwner(article: ArticleResolvable, fallbackOwner?: string): string {
+  return (
+    article.publication?.slug ||
+    article.author?.username ||
+    article.author?.subdomain ||
+    fallbackOwner ||
+    'article'
+  );
+}
+
+/**
+ * Génère l'URL d'un article (format feed /:owner/:slug ou format tenant multi-domaine).
+ */
+export function getArticleUrl(
+  article: ArticleResolvable,
+  options?: {
+    preferTenant?: boolean;
+    fallbackOwner?: string;
+    host?: string;
+  }
+): string {
+  if (options?.preferTenant) {
+    if (article.publication?.customDomain) {
+      return `https://${article.publication.customDomain}/article/${encodeURIComponent(article.slug)}`;
+    }
+    if (article.author?.customDomain) {
+      return `https://${article.author.customDomain}/article/${encodeURIComponent(article.slug)}`;
+    }
+    if (article.publication?.subdomain) {
+      return routes.tenant.article(
+        article.publication.subdomain,
+        article.slug,
+        options?.host,
+        article.category?.slug
+      );
+    }
+    if (article.author?.subdomain) {
+      return routes.tenant.article(
+        article.author.subdomain,
+        article.slug,
+        options?.host,
+        article.category?.slug
+      );
+    }
+  }
+
+  const owner = getArticleOwner(article, options?.fallbackOwner);
+  return routes.feed.article(owner, article.slug);
+}

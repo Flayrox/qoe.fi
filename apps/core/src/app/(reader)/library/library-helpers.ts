@@ -1,3 +1,4 @@
+import { getArticleUrl } from '@qoe/config/routes';
 import type { LibraryBookmark, LibraryHighlight } from './LibraryClient';
 
 export type LibraryTab = 'bookmarks' | 'highlights' | 'annotations';
@@ -75,7 +76,9 @@ export function calculateTotalReadingMinutes(bookmarks: LibraryBookmark[]): numb
  */
 export function formatQuoteForClipboard(h: LibraryHighlight): string {
   const pubName = h.article.publication.name || 'Qoe.fi';
-  return `« ${h.text} »\n— ${pubName}, dans "${h.article.title}"\nhttps://qoe.fi/article/${h.article.slug}`;
+  const url = getArticleUrl(h.article, { preferTenant: true });
+  const fullUrl = url.startsWith('http') ? url : `https://qoe.fi${url}`;
+  return `« ${h.text} »\n— ${pubName}, dans "${h.article.title}"\n${fullUrl}`;
 }
 
 /**

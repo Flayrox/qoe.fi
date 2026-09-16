@@ -36,7 +36,7 @@ import { ArticleReaderDrawer } from '@/components/social/ArticleReaderDrawer';
 import { type SemanticTrendingTopic, type SuggestedCreator } from './components/FeedSidebarWidgets';
 import { t } from '@lingui/core/macro';
 import { trackEvent } from '@/lib/analytics';
-import { routes } from '@qoe/config/routes';
+import { routes, getArticleUrl } from '@qoe/config/routes';
 import { cn } from '@qoe/utils';
 import type { ThoughtData } from '@qoe/sdk';
 import type { FeedSlice } from '@/lib/feed-types';
@@ -566,13 +566,8 @@ export function FeedDashboard({
     );
 
     setActiveArticleSource('feed');
-    const owner =
-      ('publication' in articleInput &&
-        (articleInput as { publication?: { slug?: string } }).publication?.slug) ||
-      articleInput.author?.username ||
-      articleInput.author?.subdomain ||
-      'article';
-    window.history.pushState({ articleSlug: slug, scroll }, '', routes.feed.article(owner, slug));
+    const articleTargetUrl = getArticleUrl(articleInput);
+    window.history.pushState({ articleSlug: slug, scroll }, '', articleTargetUrl);
 
     if (articleInput && articleInput.content && articleInput.title && articleInput.author) {
       setActiveArticle(articleInput as Article);
@@ -611,10 +606,10 @@ export function FeedDashboard({
       if (res.ok && res.data?.article) {
         setActiveArticle(res.data.article as unknown as Article);
       } else {
-        window.location.href = routes.feed.article(owner, slug);
+        window.location.href = articleTargetUrl;
       }
     } catch {
-      window.location.href = routes.feed.article(owner, slug);
+      window.location.href = articleTargetUrl;
     }
   };
 

@@ -5,6 +5,7 @@ import { t } from '@lingui/core/macro';
 import Link from 'next/link';
 import Image from 'next/image';
 import { BookOpen, ExternalLink, Clock, Lock, ShieldCheck } from 'lucide-react';
+import { getArticleUrl } from '@qoe/config/routes';
 
 export interface ArticleCardData {
   id: string;
@@ -45,20 +46,8 @@ export function ArticleCard({ article, onOpenReader }: ArticleCardProps) {
     ? article.content.replace(/<[^>]*>?/gm, '').slice(0, 160) + '...'
     : '';
 
-  const ownerSlug =
-    ('publication' in article &&
-      (article as { publication?: { slug?: string; subdomain?: string } }).publication?.slug) ||
-    article.author.username ||
-    article.author.subdomain ||
-    'article';
-  const articleHref = `/${encodeURIComponent(ownerSlug)}/${encodeURIComponent(article.slug)}`;
-
-  // External tenant domain URL
-  const tenantUrl = article.author.customDomain
-    ? `https://${article.author.customDomain}/article/${encodeURIComponent(article.slug)}`
-    : article.author.subdomain
-      ? `https://${article.author.subdomain}.qoe.fi/article/${encodeURIComponent(article.slug)}`
-      : articleHref;
+  const articleHref = getArticleUrl(article, { preferTenant: false });
+  const tenantUrl = getArticleUrl(article, { preferTenant: true });
 
   const getVisibilityBadge = () => {
     switch (article.visibility) {
