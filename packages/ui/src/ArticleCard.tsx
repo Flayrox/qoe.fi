@@ -444,7 +444,7 @@ export function ArticleCard({
           {article.readingTime > 0 && (
             <span className="flex items-center gap-1 whitespace-nowrap">
               <Clock className="h-3.5 w-3.5" />
-              {article.readingTime} min de lecture
+              {article.readingTime} {t`min de lecture`}
             </span>
           )}
           {article.isPremium && <Crown className="h-3.5 w-3.5 text-highlight" />}
