@@ -178,7 +178,7 @@ describe('🔒 Métadonnées & JSON-LD publics — garde-fou statique', () => {
     for (const relPath of [
       'apps/tenants/src/app/tenant/[domain]/article/[slug]/page.tsx',
       'apps/tenants/src/app/tenant/[domain]/[categorySlug]/[articleSlug]/page.tsx',
-      'apps/core/src/app/(reader)/article/[slug]/page.tsx',
+      'apps/core/src/app/(reader)/[username]/[tab]/page.tsx',
     ]) {
       const source = read(relPath);
       expect(source, `${relPath} doit dériver du contenu tronqué`).toMatch(safeHelpers);

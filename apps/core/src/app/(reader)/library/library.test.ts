@@ -273,7 +273,7 @@ describe('Library Helpers (Bibliothèque 2026)', () => {
       );
       expect(formatted).toContain('Éditions Minuit');
       expect(formatted).toContain('Éloge de la Lenteur et de l’Attention');
-      expect(formatted).toContain('https://qoe.fi/article/philosophie-du-calme');
+      expect(formatted).toContain('https://qoe.fi/editions-minuit/philosophie-du-calme');
     });
 
     it('utilise un nom de repli si le nom de publication est vide', () => {
