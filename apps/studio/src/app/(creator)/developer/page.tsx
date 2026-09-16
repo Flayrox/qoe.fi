@@ -27,23 +27,43 @@ export default async function DeveloperPage() {
     redirect('/login');
   }
 
-  // 2. Go : statut d'accès API + clés (chemin nominal).
-  const [me, keysRes] = await Promise.all([
-    goFetch<{
+  // 2. Go : statut d'accès API + clés (chemin nominal avec fallbacks résilients).
+  let status = 'none';
+  let grants: string[] = [];
+  let reason: string | null = null;
+  let keys: ApiKeyDTO[] = [];
+
+  try {
+    const me = await goFetch<{
       data: {
         apiAccessStatus: string;
         apiGrants: string[];
         apiApplicationReason: string | null;
       };
-    }>('/v1/users/me'),
-    goFetch<{ keys: ApiKeyDTO[] }>('/v1/settings/api-keys'),
-  ]);
+    }>('/v1/users/me');
+    status = (me.data?.apiAccessStatus ?? 'none').toLowerCase();
+    grants = me.data?.apiGrants ?? [];
+    reason = me.data?.apiApplicationReason ?? null;
+  } catch (err) {
+    console.warn('[developer] impossible de lire le profil utilisateur:', err);
+  }
+
+  // Ne requêter les clés API que si l'accès est approuvé
+  if (status === 'approved') {
+    try {
+      const keysRes = await goFetch<{ keys: ApiKeyDTO[] }>('/v1/settings/api-keys');
+      keys = keysRes.keys ?? [];
+    } catch (err) {
+      console.warn('[developer] impossible de lire les clés API:', err);
+    }
+  }
+
   return (
     <DeveloperClient
-      initialStatus={me.data.apiAccessStatus}
-      initialGrants={me.data.apiGrants ?? []}
-      initialReason={me.data.apiApplicationReason}
-      initialKeys={keysRes.keys ?? []}
+      initialStatus={status}
+      initialGrants={grants}
+      initialReason={reason}
+      initialKeys={keys}
     />
   );
 }

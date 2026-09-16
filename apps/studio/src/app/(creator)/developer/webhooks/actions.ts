@@ -78,18 +78,29 @@ export async function listWebhookDeliveriesAction(webhookId: string) {
 }
 
 export async function listWebhooksAction() {
-  const user = await getAuthenticatedUser();
-  const workspace = await getActiveWorkspace(user.id);
+  try {
+    const user = await getAuthenticatedUser();
+    const workspace = await getActiveWorkspace(user.id);
 
-  const webhooks = await goFetch<WebhookWithDeliveries[]>(
-    `/v1/webhooks?publicationId=${encodeURIComponent(workspace.publicationId)}`
-  );
-  return {
-    success: true as const,
-    webhooks,
-    events: WEBHOOK_EVENTS,
-    workspaceName: workspace.name,
-  };
+    const webhooks = await goFetch<WebhookWithDeliveries[]>(
+      `/v1/webhooks?publicationId=${encodeURIComponent(workspace.publicationId)}`
+    );
+    return {
+      success: true as const,
+      webhooks,
+      events: WEBHOOK_EVENTS,
+      workspaceName: workspace.name,
+    };
+  } catch (err) {
+    console.warn('[listWebhooksAction] erreur chargement webhooks:', err);
+    return {
+      success: false as const,
+      error: err instanceof Error ? err.message : 'Erreur serveur',
+      webhooks: [] as WebhookWithDeliveries[],
+      events: WEBHOOK_EVENTS,
+      workspaceName: '',
+    };
+  }
 }
 
 export async function createWebhookAction(input: {

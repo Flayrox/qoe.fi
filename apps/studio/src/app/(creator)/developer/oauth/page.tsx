@@ -5,6 +5,7 @@
 // Le statut d'accès API vient du Go (GET /v1/users/me).
 // =====================================================================
 
+import { redirect } from 'next/navigation';
 import { requireUser } from '@qoe/auth/current-user';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { listOAuthClientsAction } from './actions';
@@ -16,14 +17,23 @@ export const metadata = {
 };
 
 export default async function OAuthAppsPage() {
-  await requireUser();
+  const user = await requireUser();
+  if (!user) {
+    redirect('/login');
+  }
 
-  // Go : statut d'accès API + permissions accordées (chemin nominal).
-  const me = await goFetch<{
-    data: { apiAccessStatus: string; apiGrants: string[] };
-  }>('/v1/users/me');
-  const status = me.data.apiAccessStatus;
-  const hasOAuthGrant = (me.data.apiGrants ?? []).includes('oauth');
+  let status = 'none';
+  let hasOAuthGrant = false;
+
+  try {
+    const me = await goFetch<{
+      data: { apiAccessStatus: string; apiGrants: string[] };
+    }>('/v1/users/me');
+    status = (me.data?.apiAccessStatus ?? 'none').toLowerCase();
+    hasOAuthGrant = status === 'approved' && (me.data?.apiGrants ?? []).includes('oauth');
+  } catch (err) {
+    console.warn('[developer/oauth] impossible de lire le profil utilisateur:', err);
+  }
 
   if (status !== 'approved' || !hasOAuthGrant) {
     return <OAuthAppsClient status={status} hasOAuthGrant={hasOAuthGrant} clients={[]} />;
@@ -33,6 +43,7 @@ export default async function OAuthAppsPage() {
   return (
     <OAuthAppsClient
       status={status}
+      hasOAuthGrant={hasOAuthGrant}
       clients={res.success ? res.clients : []}
       error={res.success ? undefined : res.error}
     />
