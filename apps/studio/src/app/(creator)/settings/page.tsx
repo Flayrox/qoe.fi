@@ -10,7 +10,6 @@ import { createClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { getActiveWorkspace } from '@/lib/active-workspace';
 import VisualStudio, { CreatorProfile } from '@/features/settings/components/visual-studio';
-import { AccountSecurity } from '@/features/settings/components/account-security';
 
 // Contrat Go GET /v1/settings/publication — mêmes champs JSON que le include
 // Prisma d'origine (le mapping vers CreatorProfile ci-dessous est inchangé).
@@ -106,21 +105,6 @@ export default async function CreatorSettingsPage() {
 
   const owner = publication.user;
   const isMedia = workspace.type === 'MEDIA';
-  let account = {
-    email: user.email ?? '',
-    username: owner?.username ?? null,
-    hasCompletedOnboarding: true,
-  };
-  try {
-    const me = await goFetch<{
-      email: string;
-      username: string | null;
-      hasCompletedOnboarding: boolean;
-    }>('/v1/me');
-    account = me;
-  } catch {
-    // La publication reste affichable si la lecture du profil secondaire échoue.
-  }
 
   // Date du DTO Go = string ISO ; fallback Prisma = Date.
   const toIso = (d: string | Date) => (typeof d === 'string' ? d : d.toISOString());
@@ -181,9 +165,24 @@ export default async function CreatorSettingsPage() {
   };
 
   return (
-    <>
-      <AccountSecurity profile={account} />
+    <div className="space-y-12">
       <VisualStudio initialCreator={initialCreatorData} publicationId={publication.id} />
-    </>
+
+      <div className="p-6 rounded-2xl border border-border/80 bg-card shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="space-y-1">
+          <h3 className="text-sm font-bold text-foreground">Sécurité du compte & mot de passe</h3>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Pour modifier votre mot de passe, votre adresse e-mail, la double authentification (2FA)
+            ou vos sessions actives, rendez-vous sur les paramètres de votre compte personnel.
+          </p>
+        </div>
+        <a
+          href="https://qoe.fi/settings"
+          className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-muted text-foreground hover:bg-muted/80 border border-border/60 text-xs font-semibold shrink-0 transition-all shadow-xs"
+        >
+          Gérer mon compte personnel ↗
+        </a>
+      </div>
+    </div>
   );
 }
