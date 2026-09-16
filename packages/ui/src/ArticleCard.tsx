@@ -350,87 +350,92 @@ export function ArticleCard({
   return (
     <article
       className={cn(
-        'group relative overflow-hidden bg-card shadow-none transition-colors',
-        'rounded-[24px] p-2.5 sm:p-3',
-        featured && 'rounded-[28px]'
+        'group relative overflow-hidden bg-card border border-border/40 hover:border-border/80 transition-colors shadow-xs',
+        'rounded-[22px] p-4 sm:p-5 flex flex-col gap-3.5',
+        featured && 'rounded-[26px] border-primary/25 bg-card/90'
       )}
     >
-      <div
-        className={cn(
-          'relative overflow-hidden rounded-[17px] bg-muted',
-          featured ? 'h-[250px]' : 'h-[205px]'
-        )}
-      >
-        {coverImage ? (
-          <SafeImage
-            src={coverImage}
-            alt={article.title || ''}
-            fill
-            className="object-cover transition-transform duration-700 ease-out group-hover:scale-[1.025]"
-            sizes="(max-width: 768px) 100vw, 720px"
-          />
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/25 via-muted to-background" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-transparent to-black/30" />
+      {/* 1. HEADER ÉDITORIAL AÉRÉ */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <ProfileHoverCard user={primaryAuthor} onOpenProfile={onOpenProfile}>
+            <ProfileMark author={primaryAuthor} size={42} />
+          </ProfileHoverCard>
 
-        <div className="absolute inset-x-3 top-3 flex items-center justify-between gap-3 rounded-[14px] bg-white/90 px-2.5 py-2 text-black backdrop-blur-md dark:bg-black/75 dark:text-white">
-          <div className="flex min-w-0 items-center gap-2.5 text-left">
-            <ProfileHoverCard user={primaryAuthor} onOpenProfile={onOpenProfile}>
-              <ProfileMark author={primaryAuthor} size={40} />
-            </ProfileHoverCard>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <ProfileHoverCard user={primaryAuthor} onOpenProfile={onOpenProfile}>
-                  <span
-                    onClick={openProfile}
-                    className="truncate text-[15px] font-semibold tracking-[-0.02em] hover:underline cursor-pointer"
-                  >
-                    {primaryName}
-                  </span>
-                </ProfileHoverCard>
-                {(primaryPerson?.isCertified || article.author.isCertified) && <CertifiedBadge />}
-                <span className="text-[11px] font-normal text-black/60 dark:text-white/60">
-                  · {date}
+          <div className="min-w-0 leading-tight">
+            <div className="flex max-w-full items-center gap-1.5 flex-wrap">
+              <ProfileHoverCard user={primaryAuthor} onOpenProfile={onOpenProfile}>
+                <span
+                  onClick={openProfile}
+                  className="truncate text-[15px] font-semibold text-foreground tracking-[-0.01em] hover:underline cursor-pointer"
+                >
+                  {primaryName}
                 </span>
-              </div>
-              <SharedContributorLine
-                people={secondaryPeople}
-                forMedia={useAuthorAsPrimary ? mediaContributor : null}
-                onOpenProfile={onOpenProfile}
-              />
+              </ProfileHoverCard>
+              {(primaryPerson?.isCertified || article.author.isCertified) && <CertifiedBadge />}
+              <span className="text-xs text-muted-foreground">@{primaryHandle}</span>
+              <span className="text-xs text-muted-foreground/50">·</span>
+              <span className="text-xs text-muted-foreground/80">{date}</span>
             </div>
+
+            <SharedContributorLine
+              people={secondaryPeople}
+              forMedia={useAuthorAsPrimary ? mediaContributor : null}
+              onOpenProfile={onOpenProfile}
+            />
           </div>
-          {!isPreview && (
-            <button
-              type="button"
-              onClick={openProfile}
-              className="shrink-0 text-[11px] font-medium uppercase tracking-[0.08em] hover:opacity-80 transition-opacity cursor-pointer"
-            >
-              {t`Voir le profil`}
-            </button>
-          )}
         </div>
+
+        {!isPreview && (
+          <button
+            type="button"
+            onClick={openProfile}
+            className="shrink-0 px-3 py-1 rounded-full bg-muted hover:bg-muted/80 text-foreground text-xs font-semibold transition-colors cursor-pointer"
+          >
+            {t`Profil`}
+          </button>
+        )}
       </div>
 
+      {/* 2. TITRE & EXPOSÉ */}
       <a
         href={url}
         target="_blank"
         rel="noreferrer"
         onClick={openArticle}
-        className="block px-1.5 pb-1 pt-3"
+        className="block cursor-pointer group/title select-none"
       >
-        <h2 className="line-clamp-2 text-[21px] font-semibold leading-[1.08] tracking-[-0.04em] text-foreground">
+        <h2 className="line-clamp-2 text-[19px] sm:text-[21px] font-bold leading-snug tracking-[-0.02em] text-foreground group-hover/title:text-primary transition-colors">
           {article.title}
         </h2>
         {excerpt && (
-          <p className="mt-1.5 line-clamp-2 text-[13px] leading-snug text-muted-foreground">
+          <p className="mt-1.5 line-clamp-2 text-[13.5px] sm:text-[14px] leading-relaxed text-muted-foreground">
             {excerpt}
           </p>
         )}
       </a>
 
-      <div className="flex items-center justify-between gap-3 border-t border-border/35 px-1.5 pt-2.5 text-xs text-muted-foreground">
+      {/* 3. COVER ARTWORK (Plein cadre, 100% libre et nette) */}
+      {coverImage && (
+        <div
+          onClick={openArticle}
+          className={cn(
+            'relative w-full overflow-hidden rounded-[14px] bg-muted cursor-pointer border border-border/20',
+            featured ? 'h-[240px] sm:h-[280px]' : 'h-[190px] sm:h-[220px]'
+          )}
+        >
+          <SafeImage
+            src={coverImage}
+            alt={article.title || ''}
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, 720px"
+          />
+        </div>
+      )}
+
+      {/* 4. FOOTER D'ACTIONS & LECTURE */}
+      <div className="flex items-center justify-between gap-3 pt-1 border-t border-border/30 text-xs text-muted-foreground">
         <div className="flex min-w-0 items-center gap-2.5">
           {article.category && (
             <span className="truncate text-foreground/80">{article.category.name}</span>

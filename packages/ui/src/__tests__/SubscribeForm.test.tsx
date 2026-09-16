@@ -5,6 +5,7 @@ import { SubscribeForm } from '../SubscribeForm';
 
 const mocks = vi.hoisted(() => ({
   subscribeToNewsletterAction: vi.fn(),
+  getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: null }),
 }));
 
 vi.mock('@lingui/core/macro', () => ({
@@ -23,6 +24,14 @@ vi.mock('@qoe/sdk/actions/tenant', () => ({
   subscribeToNewsletterAction: mocks.subscribeToNewsletterAction,
 }));
 
+vi.mock('@qoe/supabase/client', () => ({
+  createClient: () => ({
+    auth: {
+      getUser: mocks.getUser,
+    },
+  }),
+}));
+
 const dummyRecs = [
   {
     id: 'pub_rec_1',
@@ -37,13 +46,13 @@ describe('SubscribeForm', () => {
     vi.clearAllMocks();
   });
 
-  it('rend le champ email et le bouton d’abonnement', () => {
+  it('rend le champ email et le bouton d’abonnement pour un visiteur anonyme', () => {
     render(<SubscribeForm publicationId="pub_test_1" />);
     expect(screen.getByPlaceholderText(/Votre adresse email/i)).toBeDefined();
     expect(screen.getByRole('button', { name: /S'abonner/i })).toBeDefined();
   });
 
-  it('affiche le message de succès après inscription', async () => {
+  it('affiche le message de succès après inscription en mode anonyme', async () => {
     mocks.subscribeToNewsletterAction.mockResolvedValue({ ok: true });
     render(<SubscribeForm publicationId="pub_test_1" />);
 
@@ -94,5 +103,41 @@ describe('SubscribeForm', () => {
     await waitFor(() => {
       expect(screen.getByText('Adresse email non autorisée')).toBeDefined();
     });
+  });
+
+  it('propose l’inscription 1-clic Substack quand un utilisateur est connecté', async () => {
+    mocks.subscribeToNewsletterAction.mockResolvedValue({ ok: true });
+    render(<SubscribeForm publicationId="pub_test_1" userEmail="abonne@qoefi.com" />);
+
+    // Doit afficher le bouton 1-clic avec son email
+    expect(screen.getByText('abonne@qoefi.com')).toBeDefined();
+    const oneClickBtn = screen.getByTitle(/S'abonner immédiatement avec abonne@qoefi.com/i);
+    expect(oneClickBtn).toBeDefined();
+
+    const user = userEvent.setup();
+    await user.click(oneClickBtn);
+
+    await waitFor(() => {
+      expect(mocks.subscribeToNewsletterAction).toHaveBeenCalledWith({
+        email: 'abonne@qoefi.com',
+        publicationId: 'pub_test_1',
+      });
+      expect(screen.getByText(/Vous êtes sur la liste !/i)).toBeDefined();
+    });
+  });
+
+  it('permet de basculer sur une autre adresse email via le chevron d’options', async () => {
+    render(<SubscribeForm publicationId="pub_test_1" userEmail="abonne@qoefi.com" />);
+
+    const user = userEvent.setup();
+    const chevronBtn = screen.getByLabelText(/Options d'inscription/i);
+    await user.click(chevronBtn);
+
+    const otherEmailOption = screen.getByText(/S'abonner avec une autre adresse.../i);
+    await user.click(otherEmailOption);
+
+    // Le champ de saisie apparaît
+    expect(screen.getByPlaceholderText(/Votre adresse email/i)).toBeDefined();
+    expect(screen.getByText(/Revenir à mon compte Qoe.fi/i)).toBeDefined();
   });
 });

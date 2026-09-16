@@ -614,7 +614,7 @@ export function ProfileView({
                           src={post.imageUrl}
                           alt=""
                           fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-200"
+                          className="object-cover"
                           sizes="(max-width: 768px) 50vw, 33vw"
                         />
                       </button>

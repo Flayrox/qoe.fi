@@ -84,7 +84,7 @@ export function ArticleRow({
               alt={article.title}
               width={36}
               height={36}
-              className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300 rounded-lg border border-border/20"
+              className="h-full w-full object-cover rounded-lg border border-border/20"
             />
           ) : (
             <SafeAvatar
