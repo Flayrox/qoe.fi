@@ -21,6 +21,9 @@ import {
   Code2,
   Sparkles,
   RefreshCw,
+  Globe,
+  ArrowRight,
+  BookOpen,
 } from 'lucide-react';
 import {
   submitApiApplicationAction,
@@ -66,6 +69,41 @@ const GRANT_META: Record<string, { label: string; badgeClass: string }> = {
   webhooks: { label: 'Webhooks', badgeClass: 'bg-highlight/10 border-highlight/20 text-highlight' },
   oauth: { label: 'OAuth', badgeClass: 'bg-success/10 border-success/20 text-success' },
 };
+
+const APPLICATION_PRESETS = [
+  {
+    id: 'portfolio',
+    title: 'Site web ou Portfolio',
+    subtitle: 'Next.js, Astro, Remix, SvelteKit',
+    icon: Globe,
+    template:
+      "Je souhaite intégrer l'API qoe.fi à mon site web personnel pour afficher dynamiquement mes derniers articles publiés, tags et informations d'auteur.",
+  },
+  {
+    id: 'automation',
+    title: 'Automatisation & CMS',
+    subtitle: 'Zapier, Notion, Make, n8n',
+    icon: Sparkles,
+    template:
+      "Je souhaite connecter l'API de publication qoe.fi à mes outils d'automatisation (Zapier / Make / Notion) pour synchroniser mes brouillons et articles.",
+  },
+  {
+    id: 'ai-agent',
+    title: 'Agent IA & Index Sémantique',
+    subtitle: 'Recherche sémantique, résumés',
+    icon: Code2,
+    template:
+      "Je souhaite utiliser l'API en lecture pour alimenter un agent d'indexation sémantique et générer des résumés contextuels de mes publications.",
+  },
+  {
+    id: 'webhooks',
+    title: 'Webhooks & Pipeline Privé',
+    subtitle: 'Discord, Telegram, Backend',
+    icon: Send,
+    template:
+      'Je souhaite souscrire aux webhooks sortants pour être notifié en direct lors de chaque publication et synchroniser ma communauté privée.',
+  },
+] as const;
 
 const SCOPE_META: Record<ApiKeyScope, { label: string; desc: () => string; badgeClass: string }> = {
   READ: {
@@ -136,6 +174,9 @@ export function DeveloperClient({
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [snippetTab, setSnippetTab] = useState<CodeSnippetTab>('curl');
   const [snippetCopied, setSnippetCopied] = useState(false);
+  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
+  const [projectUrl, setProjectUrl] = useState('');
+  const [sdkSnippetCopied, setSdkSnippetCopied] = useState(false);
 
   // Copy to clipboard
   const handleCopy = (text: string, isSnippet = false) => {
@@ -187,14 +228,18 @@ export function DeveloperClient({
   // Handle access application submission
   const handleSubmitApplication = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (reason.trim().length < 10) {
+    const finalReason = projectUrl.trim()
+      ? `${reason.trim()}\n\nLien du projet : ${projectUrl.trim()}`
+      : reason.trim();
+
+    if (finalReason.length < 10) {
       toast.error(t`Veuillez expliquer votre cas d'usage d'au moins 10 caractères.`);
       return;
     }
 
     setIsSubmittingApp(true);
     try {
-      const res = await submitApiApplicationAction(reason);
+      const res = await submitApiApplicationAction(finalReason);
       if (res.ok) {
         setStatus('pending');
         toast.success(t`Votre demande d'accès API a bien été soumise !`);
@@ -389,121 +434,239 @@ print(articles)`,
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -12 }}
             transition={{ duration: 0.25 }}
-            className="grid grid-cols-1 lg:grid-cols-3 gap-8"
+            className="space-y-8"
           >
-            {/* Form Column */}
-            <div className="lg:col-span-2 space-y-6">
-              <div className="bg-card border border-border/80 rounded-2xl shadow-xs p-6 md:p-8 space-y-6">
-                <div className="space-y-1.5">
-                  <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-primary" />
-                    Demander l'accès développeur
+            {/* Hero value proposition */}
+            <div className="relative overflow-hidden rounded-3xl border border-border/80 bg-gradient-to-br from-card via-card to-primary/5 p-6 md:p-8 shadow-xs">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+                <div className="space-y-2 max-w-2xl">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
+                      <Sparkles className="w-3 h-3" /> REST v1
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium bg-muted/60 text-muted-foreground border border-border/60">
+                      TypeScript SDK
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium bg-muted/60 text-muted-foreground border border-border/60">
+                      Webhooks HMAC
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium bg-muted/60 text-muted-foreground border border-border/60">
+                      OAuth 2.1
+                    </span>
+                  </div>
+                  <h2 className="text-2xl font-bold tracking-tight text-foreground">
+                    Développez et automatisez avec l'API qoe.fi
                   </h2>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    L'utilisation de notre API est soumise à une validation pour garantir la qualité
-                    du réseau et la sécurité des données. Remplissez ce court formulaire et notre
-                    équipe l'étudiera rapidement.
+                    Connectez vos articles, abonnés et métriques de lecture directement à vos sites
+                    personnels, vos outils d'automatisation ou vos serveurs d'événements.
                   </p>
                 </div>
 
-                <form onSubmit={handleSubmitApplication} className="space-y-5">
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="reason"
-                      className="text-xs font-semibold text-foreground flex items-center justify-between"
-                    >
-                      <span>
-                        Quelle utilisation souhaitez-vous faire de l'API ?{' '}
-                        <span className="text-primary">*</span>
-                      </span>
-                      <span
-                        className={cn(
-                          'text-[11px]',
-                          reason.trim().length >= 10
-                            ? 'text-success font-medium'
-                            : 'text-muted-foreground'
-                        )}
-                      >
-                        {reason.trim().length} car. (min 10)
-                      </span>
-                    </label>
-                    <textarea
-                      id="reason"
-                      rows={5}
-                      value={reason}
-                      onChange={(e) => setReason(e.target.value)}
-                      placeholder="Ex : Je souhaite synchroniser automatiquement mes articles sur mon blog Next.js personnel hébergé sur Vercel (https://monportfolio.com)..."
-                      className="w-full rounded-xl border border-border px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary placeholder:text-muted-foreground/60 bg-muted/30 transition-all"
-                      required
-                    />
-                  </div>
-
-                  <button
-                    type="submit"
-                    disabled={isSubmittingApp || reason.trim().length < 10}
-                    className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed font-semibold text-xs tracking-wide py-3 px-6 rounded-xl transition-all duration-200 shadow-xs"
+                <div className="flex items-center gap-3 shrink-0">
+                  <a
+                    href="https://docs.qoe.fi"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-card border border-border/80 text-foreground hover:border-primary/40 hover:text-primary text-xs font-semibold shadow-xs transition-all"
                   >
-                    {isSubmittingApp ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Traitement en cours...
-                      </>
-                    ) : (
-                      <>
-                        <Send className="w-3.5 h-3.5" />
-                        Envoyer ma demande d'accès
-                      </>
-                    )}
-                  </button>
-                </form>
+                    <BookOpen className="w-3.5 h-3.5 text-primary" />
+                    Explorer docs.qoe.fi
+                    <ExternalLink className="w-3 h-3 opacity-60" />
+                  </a>
+                </div>
               </div>
             </div>
 
-            {/* Explainer Sidebar */}
-            <div className="space-y-6">
-              <div className="bg-card border border-border/80 rounded-2xl p-6 space-y-4 shadow-xs">
-                <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-primary" />
-                  Caractéristiques de l'API
-                </h3>
-                <ul className="space-y-3.5 text-xs text-muted-foreground">
-                  <li className="flex items-start gap-2.5">
-                    <Check className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
-                    <span>
-                      <strong className="text-foreground">Lecture & Écriture</strong> : accès aux
-                      articles, métadonnées, statistiques et flux RSS JSON.
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
-                    <span>
-                      <strong className="text-foreground">Authentification Bearer</strong> :
-                      standard et sécurisée via clé secrète avec hachage SHA-256 en base.
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-2.5">
-                    <Check className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
-                    <span>
-                      <strong className="text-foreground">Webhooks temps réel</strong> :
-                      notifications instantanées signées par HMAC SHA-256 sur vos serveurs.
-                    </span>
-                  </li>
-                </ul>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Form Column */}
+              <div className="lg:col-span-2 space-y-6">
+                <div className="bg-card border border-border/80 rounded-2xl shadow-xs p-6 md:p-8 space-y-6">
+                  <div className="space-y-1.5">
+                    <h3 className="text-lg font-bold text-foreground">
+                      Demande d'activation développeur
+                    </h3>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Sélectionnez un modèle de projet ou écrivez votre cas d'usage. Notre équipe
+                      valide les demandes en moins de 24 heures ouvrées.
+                    </p>
+                  </div>
+
+                  {/* Preset Templates */}
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-foreground block">
+                      Cas d'usage rapides (cliquez pour pré-remplir)
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                      {APPLICATION_PRESETS.map((preset) => {
+                        const Icon = preset.icon;
+                        const isSelected = selectedPreset === preset.id;
+                        return (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedPreset(preset.id);
+                              setReason(preset.template);
+                            }}
+                            className={cn(
+                              'text-left p-3 rounded-xl border transition-all duration-150 cursor-pointer flex items-start gap-3',
+                              isSelected
+                                ? 'bg-primary/5 border-primary/40 ring-1 ring-primary/20'
+                                : 'bg-muted/30 border-border/70 hover:bg-muted/50 hover:border-border'
+                            )}
+                          >
+                            <div
+                              className={cn(
+                                'w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5 border',
+                                isSelected
+                                  ? 'bg-primary text-primary-foreground border-primary'
+                                  : 'bg-card text-muted-foreground border-border/80'
+                              )}
+                            >
+                              <Icon className="w-3.5 h-3.5" />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-foreground truncate">
+                                {preset.title}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground truncate">
+                                {preset.subtitle}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <form onSubmit={handleSubmitApplication} className="space-y-5">
+                    <div className="space-y-2">
+                      <label
+                        htmlFor="reason"
+                        className="text-xs font-semibold text-foreground flex items-center justify-between"
+                      >
+                        <span>
+                          Description de votre projet ou intégration{' '}
+                          <span className="text-primary">*</span>
+                        </span>
+                        <span
+                          className={cn(
+                            'text-[11px]',
+                            reason.trim().length >= 10
+                              ? 'text-success font-medium'
+                              : 'text-muted-foreground'
+                          )}
+                        >
+                          {reason.trim().length} car. (min 10)
+                        </span>
+                      </label>
+                      <textarea
+                        id="reason"
+                        rows={4}
+                        value={reason}
+                        onChange={(e) => setReason(e.target.value)}
+                        placeholder="Décrivez votre projet, les données que vous souhaitez requêter et les technologies employées..."
+                        className="w-full rounded-xl border border-border px-4 py-3 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary placeholder:text-muted-foreground/60 bg-muted/30 transition-all leading-relaxed"
+                        required
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label htmlFor="projectUrl" className="text-xs font-semibold text-foreground">
+                        Lien de votre site ou dépôt (optionnel)
+                      </label>
+                      <input
+                        id="projectUrl"
+                        type="url"
+                        value={projectUrl}
+                        onChange={(e) => setProjectUrl(e.target.value)}
+                        placeholder="https://monportfolio.com ou https://github.com/mon-projet"
+                        className="w-full rounded-xl border border-border px-3.5 py-2.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary placeholder:text-muted-foreground/60 bg-muted/30 transition-all font-mono"
+                      />
+                    </div>
+
+                    <div className="pt-1">
+                      <button
+                        type="submit"
+                        disabled={isSubmittingApp || reason.trim().length < 10}
+                        className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed font-semibold text-xs tracking-wide py-3 px-6 rounded-xl transition-all duration-200 shadow-xs cursor-pointer"
+                      >
+                        {isSubmittingApp ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Transmission de votre dossier...
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-3.5 h-3.5" />
+                            Transmettre ma demande d'accès
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                </div>
               </div>
 
-              <div className="border border-border/80 rounded-2xl p-6 bg-muted/30 space-y-2.5">
-                <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">
-                  Besoin d'aide ?
-                </h4>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Notre équipe technique valide généralement les demandes en moins de 24h ouvrées.
-                </p>
-                <a
-                  href="mailto:support@qoe.fi"
-                  className="text-xs font-semibold text-primary hover:underline inline-flex items-center gap-1 mt-1"
-                >
-                  Contacter le support <ExternalLink className="w-3 h-3" />
-                </a>
+              {/* Explainer Sidebar */}
+              <div className="space-y-6">
+                <div className="bg-card border border-border/80 rounded-2xl p-6 space-y-4 shadow-xs">
+                  <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-primary" />
+                    Permissions incluses
+                  </h3>
+                  <div className="space-y-3 text-xs text-muted-foreground">
+                    <div className="p-2.5 rounded-xl bg-muted/30 border border-border/60 space-y-1">
+                      <div className="flex items-center gap-1.5 font-bold text-foreground">
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                        Lecture (READ)
+                      </div>
+                      <p className="text-[11px] leading-normal text-muted-foreground">
+                        Articles publiés, flux JSON, taxonomies et profil public.
+                      </p>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-muted/30 border border-border/60 space-y-1">
+                      <div className="flex items-center gap-1.5 font-bold text-foreground">
+                        <span className="w-1.5 h-1.5 rounded-full bg-success" />
+                        Écriture (WRITE)
+                      </div>
+                      <p className="text-[11px] leading-normal text-muted-foreground">
+                        Création d'articles, mise à jour et gestion des brouillons.
+                      </p>
+                    </div>
+
+                    <div className="p-2.5 rounded-xl bg-muted/30 border border-border/60 space-y-1">
+                      <div className="flex items-center gap-1.5 font-bold text-foreground">
+                        <span className="w-1.5 h-1.5 rounded-full bg-highlight" />
+                        Webhooks temps réel
+                      </div>
+                      <p className="text-[11px] leading-normal text-muted-foreground">
+                        Signatures HMAC SHA-256 lors de chaque événement.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border border-border/80 rounded-2xl p-6 bg-muted/30 space-y-3">
+                  <h4 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <BookOpen className="w-3.5 h-3.5 text-primary" />
+                    Documentation & SDK
+                  </h4>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Retrouvez tous les endpoints, schémas TypeScript et exemples d'appels sur notre
+                    documentation officielle.
+                  </p>
+                  <a
+                    href="https://docs.qoe.fi"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
+                  >
+                    Consulter docs.qoe.fi <ExternalLink className="w-3 h-3" />
+                  </a>
+                </div>
               </div>
             </div>
           </motion.div>
@@ -516,34 +679,92 @@ print(articles)`,
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -12 }}
             transition={{ duration: 0.25 }}
-            className="bg-card border border-border/80 rounded-2xl shadow-xs p-8 text-center max-w-2xl mx-auto space-y-6"
+            className="max-w-3xl mx-auto space-y-8"
           >
-            <div className="w-16 h-16 bg-highlight/10 rounded-2xl flex items-center justify-center mx-auto text-highlight border border-highlight/20 animate-pulse">
-              <Clock className="w-8 h-8" />
+            {/* Timeline Stepper Tracker */}
+            <div className="bg-card border border-border/80 rounded-2xl shadow-xs p-6 md:p-8 space-y-6">
+              <div className="text-center space-y-2 max-w-md mx-auto">
+                <div className="w-14 h-14 bg-highlight/10 text-highlight rounded-2xl flex items-center justify-center mx-auto border border-highlight/20 animate-pulse">
+                  <Clock className="w-7 h-7" />
+                </div>
+                <h2 className="text-2xl font-bold text-foreground">
+                  Demande d'accès en cours d'examen
+                </h2>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Votre demande est transmise à notre équipe technique. Dès validation, vos clés
+                  d'API seront activées automatiquement.
+                </p>
+              </div>
+
+              {/* Steps */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-border/60">
+                <div className="p-4 rounded-xl border border-success/30 bg-success/5 space-y-1.5 text-left">
+                  <div className="flex items-center gap-2 text-xs font-bold text-success">
+                    <CheckCircle className="w-4 h-4 text-success" />
+                    <span>1. Demande envoyée</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Dossier technique enregistré et soumis aux admins.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-xl border border-highlight/40 bg-highlight/5 space-y-1.5 text-left ring-1 ring-highlight/20">
+                  <div className="flex items-center gap-2 text-xs font-bold text-highlight">
+                    <span className="w-2 h-2 rounded-full bg-highlight animate-ping" />
+                    <span>2. Analyse en cours</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Revue de conformité sous 24h ouvrées.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-xl border border-border/70 bg-muted/20 space-y-1.5 text-left opacity-75">
+                  <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
+                    <Key className="w-4 h-4 text-muted-foreground" />
+                    <span>3. Clés activées</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Génération des tokens et accès aux endpoints.
+                  </p>
+                </div>
+              </div>
+
+              {/* Reason card */}
+              <div className="bg-muted/30 border border-border/70 rounded-xl p-4 text-left text-xs space-y-1.5">
+                <span className="font-semibold text-foreground block text-[11px] uppercase tracking-wider text-muted-foreground">
+                  Cas d'usage renseigné :
+                </span>
+                <p className="text-foreground leading-relaxed break-words whitespace-pre-wrap font-sans text-xs">
+                  {reason || 'Aucun motif renseigné'}
+                </p>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <h2 className="text-2xl font-bold text-foreground">
-                Demande d'accès en cours d'analyse
-              </h2>
-              <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-                Votre demande a bien été transmise à notre équipe. Nous étudions votre projet pour
-                activer vos clés d'API.
-              </p>
-            </div>
+            {/* In the meantime docs card */}
+            <div className="bg-card border border-border/80 rounded-2xl p-6 md:p-8 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+              <div className="space-y-1.5">
+                <h3 className="text-base font-bold text-foreground flex items-center gap-2">
+                  <BookOpen className="w-4 h-4 text-primary" />
+                  Préparez votre code dès maintenant
+                </h3>
+                <p className="text-xs text-muted-foreground max-w-lg leading-relaxed">
+                  Consultez la documentation officielle sur{' '}
+                  <strong className="text-foreground font-semibold">docs.qoe.fi</strong> pour
+                  découvrir les schémas d'API, les types TypeScript et installer le SDK.
+                </p>
+              </div>
 
-            <div className="bg-muted/40 border border-border/80 rounded-xl p-4 text-left text-xs max-w-md mx-auto space-y-1">
-              <span className="font-semibold text-foreground block">
-                Votre message d'application :
-              </span>
-              <p className="font-mono text-muted-foreground break-words text-[11px]">
-                {reason || 'Aucun motif renseigné'}
-              </p>
+              <div className="flex items-center gap-3 shrink-0">
+                <a
+                  href="https://docs.qoe.fi"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-all shadow-xs"
+                >
+                  Ouvrir docs.qoe.fi <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
             </div>
-
-            <p className="text-xs text-muted-foreground">
-              Vous recevrez une notification par email dès confirmation.
-            </p>
           </motion.div>
         )}
 
@@ -812,9 +1033,19 @@ print(articles)`,
                 <div className="flex items-center gap-2">
                   <Code2 className="w-5 h-5 text-primary" />
                   <div>
-                    <h3 className="text-base font-bold text-foreground">
-                      Guide de démarrage rapide
-                    </h3>
+                    <div className="flex items-center gap-2.5">
+                      <h3 className="text-base font-bold text-foreground">
+                        Guide de démarrage rapide
+                      </h3>
+                      <a
+                        href="https://docs.qoe.fi"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+                      >
+                        docs.qoe.fi <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
                     <p className="text-xs text-muted-foreground">
                       Exemple d'appel d'API avec authentification Bearer.
                     </p>
@@ -885,6 +1116,23 @@ print(articles)`,
                     d'auteur.
                   </p>
                 </div>
+              </div>
+
+              {/* Footer link to docs.qoe.fi */}
+              <div className="pt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-border/60 text-xs">
+                <span className="text-muted-foreground">
+                  Besoin d'aller plus loin ? Webhooks sortants, filtres avancés, pagination et SDK
+                  officiel :
+                </span>
+                <a
+                  href="https://docs.qoe.fi"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-primary hover:underline inline-flex items-center gap-1.5 shrink-0"
+                >
+                  Explorer toute la documentation sur docs.qoe.fi{' '}
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
               </div>
             </div>
           </motion.div>

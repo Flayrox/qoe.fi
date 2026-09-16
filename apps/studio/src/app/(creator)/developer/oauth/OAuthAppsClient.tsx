@@ -233,18 +233,37 @@ export function OAuthAppsClient({
           <div className="w-14 h-14 rounded-2xl bg-muted/40 text-muted-foreground flex items-center justify-center mx-auto border border-border/60">
             <Lock className="w-6 h-6" />
           </div>
-          <h2 className="text-lg font-bold text-foreground">Accès développeur requis</h2>
+          <h2 className="text-lg font-bold text-foreground">
+            {status?.toLowerCase() !== 'approved'
+              ? 'Accès développeur requis'
+              : 'Permission OAuth non accordée'}
+          </h2>
           <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-            {hasOAuthGrant
-              ? "Les applications OAuth permettent à des tiers de se connecter avec votre identité qoe.fi. Pour en créer, votre demande d'accès API doit d'abord être approuvée."
-              : "Votre compte est approuvé, mais la permission OAuth ne vous a pas été accordée par un administrateur. Contactez-le pour l'activer — vos autres accès API restent inchangés."}
+            {status?.toLowerCase() !== 'approved'
+              ? status?.toLowerCase() === 'pending'
+                ? "Votre demande d'accès développeur est en cours d'examen par notre équipe. Une fois approuvée, vous pourrez créer des applications OAuth 2.1 et OIDC."
+                : 'Les applications OAuth permettent à des services tiers de se connecter via « Se connecter avec qoe.fi ». Activez votre accès développeur pour commencer.'
+              : "Votre compte dispose d'un accès API actif, mais la permission spécifique « OAuth » ne vous a pas encore été accordée par un administrateur."}
           </p>
-          <Link
-            href="/developer"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-all cursor-pointer shadow-xs"
-          >
-            Demander l'accès développeur <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
+          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
+            <Link
+              href="/developer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-all cursor-pointer shadow-xs"
+            >
+              {status?.toLowerCase() === 'approved'
+                ? 'Gérer mes accès développeur'
+                : "Demander l'accès développeur"}{' '}
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+            <a
+              href="https://docs.qoe.fi"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-muted text-foreground text-xs font-semibold hover:bg-muted/80 border border-border/60 transition-all"
+            >
+              Documentation OAuth <Globe className="w-3.5 h-3.5 opacity-70" />
+            </a>
+          </div>
         </div>
       )}
 
