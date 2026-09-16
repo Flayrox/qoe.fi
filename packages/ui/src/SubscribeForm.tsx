@@ -159,7 +159,7 @@ export function SubscribeForm({
           <div
             className={`flex items-stretch overflow-hidden transition-all ${
               isBrutalist
-                ? 'border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] bg-background'
+                ? 'border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] bg-background'
                 : 'rounded-xl shadow-sm border border-border/60'
             }`}
           >
@@ -168,10 +168,10 @@ export function SubscribeForm({
               type="button"
               disabled={status === 'loading'}
               onClick={() => void executeSubscribe(connectedEmail!)}
-              className={`flex-1 h-13 px-5 font-semibold text-white text-base transition-colors flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 ${
+              className={`flex-1 h-13 px-5 font-semibold text-[var(--tenant-accent-foreground,hsl(var(--primary-foreground)))] text-base transition-colors flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 ${
                 isBrutalist ? 'uppercase tracking-wider hover:opacity-95' : 'hover:opacity-95'
               }`}
-              style={{ backgroundColor: 'var(--tenant-accent, #000000)' }}
+              style={{ backgroundColor: 'var(--tenant-accent, hsl(var(--primary)))' }}
               title={t`S'abonner immédiatement avec ${connectedEmail || ''}`}
             >
               {status === 'loading' ? (
@@ -181,7 +181,7 @@ export function SubscribeForm({
                   <Mail className="w-4 h-4 shrink-0 opacity-85" />
                   <span className="truncate">
                     {t`S'abonner avec`}{' '}
-                    <span className="font-bold underline decoration-white/40 underline-offset-2">
+                    <span className="font-bold underline decoration-current/40 underline-offset-2">
                       {connectedEmail}
                     </span>
                   </span>
@@ -194,8 +194,8 @@ export function SubscribeForm({
               type="button"
               disabled={status === 'loading'}
               onClick={() => setIsDropdownOpen((prev) => !prev)}
-              className="px-3 border-l border-white/20 text-white flex items-center justify-center transition-colors hover:bg-black/10 cursor-pointer disabled:opacity-50"
-              style={{ backgroundColor: 'var(--tenant-accent, #000000)' }}
+              className="px-3 border-l border-current/20 text-[var(--tenant-accent-foreground,hsl(var(--primary-foreground)))] flex items-center justify-center transition-colors hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer disabled:opacity-50"
+              style={{ backgroundColor: 'var(--tenant-accent, hsl(var(--primary)))' }}
               title={t`Plus d'options d'inscription`}
               aria-label={t`Options d'inscription`}
             >
@@ -207,7 +207,13 @@ export function SubscribeForm({
 
           {/* Dropdown Menu */}
           {isDropdownOpen && (
-            <div className="absolute right-0 top-full mt-2 w-full sm:w-72 bg-popover text-popover-foreground border border-border/60 rounded-xl shadow-xl p-1.5 z-50 text-left">
+            <div
+              className={`absolute right-0 top-full mt-2 w-full sm:w-72 bg-popover text-popover-foreground border border-border/60 rounded-xl shadow-xl p-1.5 z-50 text-left ${
+                isBrutalist
+                  ? 'border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] bg-background'
+                  : ''
+              }`}
+            >
               <button
                 type="button"
                 onClick={() => {
@@ -253,18 +259,18 @@ export function SubscribeForm({
               className={`flex-1 h-13 px-4 text-base ${
                 isBrutalist
                   ? 'border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] bg-background text-foreground placeholder:text-muted-foreground'
-                  : 'rounded-xl border border-input bg-background focus:ring-2 focus:ring-[var(--tenant-accent)] focus:border-transparent outline-none transition-all'
+                  : 'rounded-xl border border-input bg-background focus:ring-2 focus:ring-[var(--tenant-accent,hsl(var(--primary)))] focus:border-transparent outline-none transition-all'
               }`}
             />
             <button
               type="submit"
               disabled={status === 'loading'}
-              className={`h-13 px-7 font-semibold text-white text-base transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shrink-0 ${
+              className={`h-13 px-7 font-semibold text-[var(--tenant-accent-foreground,hsl(var(--primary-foreground)))] text-base transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shrink-0 ${
                 isBrutalist
                   ? 'border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase tracking-wider hover:opacity-95'
                   : 'rounded-xl hover:opacity-95'
               }`}
-              style={{ backgroundColor: 'var(--tenant-accent, #000000)' }}
+              style={{ backgroundColor: 'var(--tenant-accent, hsl(var(--primary)))' }}
             >
               {status === 'loading' ? <Loader2 className="w-5 h-5 animate-spin" /> : t`S'abonner`}
             </button>

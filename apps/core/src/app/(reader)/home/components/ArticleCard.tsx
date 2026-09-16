@@ -163,7 +163,7 @@ function ContributorLine({
       <span className="truncate flex items-center gap-1 flex-wrap">
         {forMedia ? (
           <>
-            <span>Pour</span>
+            <span>{t`Pour`}</span>
             <ProfileHoverCard
               user={{
                 id: forMedia.id,
@@ -188,7 +188,7 @@ function ContributorLine({
             </ProfileHoverCard>
             {people.length > 0 && (
               <>
-                <span>avec</span>
+                <span>{t`avec`}</span>
                 {people.map((person, idx) => {
                   const pHandle = person.username || person.id.slice(0, 8);
                   return (
@@ -224,7 +224,7 @@ function ContributorLine({
           </>
         ) : (
           <>
-            <span>avec</span>
+            <span>{t`avec`}</span>
             {people.slice(0, 2).map((person, idx) => {
               const pHandle = person.username || person.id.slice(0, 8);
               return (
@@ -563,7 +563,7 @@ export function ArticleCard({
           {article.readingTime > 0 && (
             <span className="flex items-center gap-1 whitespace-nowrap">
               <Clock className="h-3.5 w-3.5" />
-              {article.readingTime} min de lecture
+              {article.readingTime} {t`min de lecture`}
             </span>
           )}
           {article.isPremium && (
