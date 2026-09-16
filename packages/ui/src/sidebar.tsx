@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@qoe/utils';
 import { URLS } from '@qoe/config';
 import { ThemeToggle } from './ui/ThemeToggle';
+import { SafeAvatar } from './SafeAvatar';
 import {
   Home,
   FileText,
@@ -271,22 +272,6 @@ export function SidebarFooter({
 }
 
 /* ─────────────────────────────────────────────
-   Avatar avec repli sur les initiales si l'image est cassée
-   ───────────────────────────────────────────── */
-function AvatarImage({ src, alt, fallback }: { src: string; alt: string; fallback: string }) {
-  const [failed, setFailed] = React.useState(false);
-  if (failed) return <>{fallback}</>;
-  return (
-    <img
-      src={src}
-      alt={alt}
-      className="w-full h-full object-cover"
-      onError={() => setFailed(true)}
-    />
-  );
-}
-
-/* ─────────────────────────────────────────────
    Main <Sidebar /> Component
    ───────────────────────────────────────────── */
 export function Sidebar({
@@ -296,7 +281,6 @@ export function Sidebar({
   brandName = 'qoe.fi',
   userName,
   userEmail,
-  userFallback = 'CR',
   userAvatar,
   onLogout,
   primaryAction,
@@ -513,17 +497,13 @@ export function Sidebar({
                     )}
                     aria-label={t`Menu compte`}
                   >
-                    <span className="w-7 h-7 rounded-full bg-sidebar-primary/10 text-sidebar-primary font-bold text-xs flex items-center justify-center shrink-0 border border-sidebar-primary/20 overflow-hidden">
-                      {userAvatar ? (
-                        <AvatarImage
-                          src={userAvatar}
-                          alt={userName || t`Utilisateur`}
-                          fallback={userFallback}
-                        />
-                      ) : (
-                        userFallback
-                      )}
-                    </span>
+                    <SafeAvatar
+                      src={userAvatar}
+                      name={userName}
+                      size={28}
+                      shape="circle"
+                      className="border border-sidebar-primary/20 shrink-0"
+                    />
                     <div className="flex-1 text-left truncate min-w-0">
                       <span className="text-xs font-semibold block leading-tight truncate">
                         {userName || t`Créateur`}

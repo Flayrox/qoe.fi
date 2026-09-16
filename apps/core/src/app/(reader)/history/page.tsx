@@ -1,6 +1,6 @@
 import { createClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, TrendingUp } from 'lucide-react';
 import Link from 'next/link';
 import { getArticleUrl } from '@qoe/config/routes';
 

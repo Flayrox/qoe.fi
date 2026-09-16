@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { t } from '@lingui/core/macro';
 import { subscribeToNewsletterAction } from '@qoe/sdk/actions/tenant';
 import { Check, Loader2, Sparkles, X, ArrowRight } from 'lucide-react';
-import Image from 'next/image';
+import { SafeAvatar } from './SafeAvatar';
 
 export interface RecommendedPublication {
   id: string;
@@ -135,15 +135,13 @@ export function RecommendationModal({
                 }`}
               >
                 {/* Avatar / Logo */}
-                <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-muted flex-shrink-0 border border-border/40 mt-0.5">
-                  {avatar ? (
-                    <Image src={avatar} alt={rec.name} fill className="object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center font-bold text-base text-muted-foreground">
-                      {rec.name.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                </div>
+                <SafeAvatar
+                  src={avatar}
+                  name={rec.name}
+                  size={48}
+                  shape="squircle"
+                  className="border border-border/40 shrink-0 mt-0.5 rounded-xl"
+                />
 
                 {/* Details */}
                 <div className="flex-1 min-w-0">

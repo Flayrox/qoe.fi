@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { BookMarked, Bookmark, ArrowUpRight, Clock } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { getArticleUrl } from '@qoe/config/routes';
+import { SafeAvatar, CertifiedBadge } from '@qoe/ui';
 
 export interface ArticleRowProps {
   article: {
@@ -76,19 +77,24 @@ export function ArticleRow({
         />
 
         {/* Miniature carrée (36px) */}
-        <div className="h-9 w-9 rounded-lg overflow-hidden bg-muted shrink-0 border border-border/20">
+        <div className="h-9 w-9 rounded-lg overflow-hidden shrink-0">
           {article.imageUrl ? (
             <Image
               src={article.imageUrl}
               alt={article.title}
               width={36}
               height={36}
-              className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+              className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300 rounded-lg border border-border/20"
             />
           ) : (
-            <div className="h-full w-full flex items-center justify-center bg-primary/10 text-primary text-[10px] font-bold">
-              {article.title.charAt(0).toUpperCase()}
-            </div>
+            <SafeAvatar
+              src={article.author?.logoUrl}
+              name={article.author?.name || article.title}
+              username={article.author?.username}
+              size={36}
+              shape="squircle"
+              className="rounded-lg border border-border/20"
+            />
           )}
         </div>
 

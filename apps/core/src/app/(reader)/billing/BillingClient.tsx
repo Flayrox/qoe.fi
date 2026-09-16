@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import {
   CreditCard,
@@ -17,6 +16,7 @@ import {
 import { toast } from '@qoe/ui/toast';
 import { routes } from '@qoe/config/routes';
 import { cn } from '@qoe/utils';
+import { SafeAvatar } from '@qoe/ui';
 
 import {
   type BillingTransaction,
@@ -236,19 +236,13 @@ export function BillingClient({ billing, userEmail, userName }: BillingClientPro
                   className="bg-card rounded-xl p-4 border border-border/50 hover:border-primary/30 transition-all flex items-center justify-between gap-4 shadow-2xs"
                 >
                   <Link href={profileHref} className="flex items-center gap-3 min-w-0 group">
-                    {pub?.logoUrl ? (
-                      <Image
-                        src={pub.logoUrl}
-                        width={40}
-                        height={40}
-                        className="w-10 h-10 rounded-xl object-cover border border-border/60 shrink-0"
-                        alt={pubName}
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center font-bold text-xs text-primary shrink-0">
-                        {pubName.charAt(0)}
-                      </div>
-                    )}
+                    <SafeAvatar
+                      src={pub?.logoUrl}
+                      name={pubName}
+                      size={40}
+                      shape="squircle"
+                      className="rounded-xl border border-border/60 shrink-0"
+                    />
                     <div className="min-w-0">
                       <span className="text-xs font-bold block truncate group-hover:text-primary transition-colors text-foreground">
                         {pubName}

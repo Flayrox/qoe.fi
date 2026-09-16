@@ -25,6 +25,7 @@ export type { FeedArticleDTO as Article };
 interface ArticleCardProps {
   article: FeedArticleDTO;
   isFollowedAuthor?: boolean;
+  disableAuthorOverride?: boolean;
   isBookmarked?: boolean;
   handleBookmarkToggle?: (article: FeedArticleDTO) => void;
   featured?: boolean;
@@ -40,11 +41,11 @@ function ProfileMark({ author, size = 40 }: { author: FeedArticleDTO['author']; 
     <SafeAvatar
       src={author.logoUrl}
       name={author.name}
-      username={author.username}
+      username={author.username || author.subdomain}
       size={size}
-      type={author.type}
       shape={isMedia ? 'squircle' : 'circle'}
-      className="border border-border/60"
+      type={isMedia ? 'MEDIA' : 'PERSONAL'}
+      className={isMedia ? 'rounded-xl' : 'rounded-full'}
     />
   );
 }
@@ -60,34 +61,59 @@ type SharedContributor = {
   consentStatus?: string;
 };
 
-function SharedContributorLine({ people }: { people: SharedContributor[] }) {
-  if (people.length === 0) return null;
+function SharedContributorLine({
+  people,
+  forMedia,
+}: {
+  people: SharedContributor[];
+  forMedia?: SharedContributor | null;
+}) {
+  if (!forMedia && people.length === 0) return null;
+
+  const allAvatars = forMedia ? [forMedia, ...people] : people;
+  const otherPeopleNames = people
+    .map((p) => p.name || `@${p.username || p.id.slice(0, 8)}`)
+    .join(', ');
+
   return (
-    <span className="mt-0.5 flex min-w-0 items-center gap-1.5 truncate text-[11px] text-muted-foreground">
+    <span className="mt-0.5 flex min-w-0 items-center gap-1.5 truncate text-[11px] text-muted-foreground font-sans">
       <span className="flex shrink-0 items-center -space-x-1">
-        {people.slice(0, 3).map((person) => (
+        {allAvatars.slice(0, 3).map((person) => (
           <SafeAvatar
             key={person.id}
             src={person.logoUrl}
             name={person.name}
             username={person.username}
             size={16}
+            shape={person.isMedia ? 'squircle' : 'circle'}
+            type={person.isMedia ? 'MEDIA' : 'PERSONAL'}
             className={cn(
-              'border border-border/80',
+              'border border-border/80 shrink-0',
               person.isMedia ? 'rounded-[4px]' : 'rounded-full'
             )}
           />
         ))}
       </span>
       <span className="truncate">
-        {people
-          .slice(0, 2)
-          .map((person) => {
-            const handle = person.username || person.id.slice(0, 8);
-            return person.handleOnly ? `@${handle}` : `${person.name || 'Auteur'} @${handle}`;
-          })
-          .join(' · ')}
-        {people.length > 2 ? ` +${people.length - 2}` : ''}
+        {forMedia ? (
+          <>
+            <span>{t`Pour ${forMedia.name || '@' + (forMedia.username || 'média')}`}</span>
+            {people.length > 0 && <span>{t`, avec ${otherPeopleNames}`}</span>}
+          </>
+        ) : (
+          <>
+            <span>
+              {t`avec ${people
+                .slice(0, 2)
+                .map((person) => {
+                  const handle = person.username || person.id.slice(0, 8);
+                  return person.handleOnly ? `@${handle}` : `${person.name || 'Auteur'} @${handle}`;
+                })
+                .join(' · ')}`}
+            </span>
+            {people.length > 2 ? ` +${people.length - 2}` : ''}
+          </>
+        )}
       </span>
     </span>
   );
@@ -96,6 +122,7 @@ function SharedContributorLine({ people }: { people: SharedContributor[] }) {
 export function ArticleCard({
   article,
   isFollowedAuthor = false,
+  disableAuthorOverride = false,
   isBookmarked = false,
   handleBookmarkToggle,
   featured = false,
@@ -134,7 +161,8 @@ export function ArticleCard({
     ...legacyCoAuthors.filter((contributor) => !explicitContributorIds.has(contributor.id)),
   ];
   const isMedia = article.author.type === 'MEDIA';
-  const useAuthorAsPrimary = isMedia && Boolean(journalist?.id && isFollowedAuthor);
+  const useAuthorAsPrimary =
+    !disableAuthorOverride && isMedia && Boolean(journalist?.id && isFollowedAuthor);
   const primaryPerson = useAuthorAsPrimary ? journalist : null;
   const primaryName = primaryPerson?.name || article.author?.name || 'Auteur';
   const primaryHandle = primaryPerson?.username || primaryPerson?.id?.slice(0, 8) || authorHandle;
@@ -147,15 +175,25 @@ export function ArticleCard({
         customDomain: null,
       }
     : article.author;
-  const secondaryPeople = useAuthorAsPrimary
-    ? [{ ...article.author, isMedia: true, handleOnly: true }, ...coAuthors]
+  const mediaContributor: SharedContributor = {
+    id: article.author.id,
+    name: article.author.name,
+    username: article.author.username || article.author.subdomain,
+    logoUrl: article.author.logoUrl,
+    isMedia: true,
+    handleOnly: true,
+  };
+  const otherContributors = coAuthors.filter((coAuthor) => coAuthor.id !== journalist?.id);
+  const secondaryPeople: SharedContributor[] = useAuthorAsPrimary
+    ? otherContributors.map((coAuthor) => ({ ...coAuthor, isMedia: false }))
     : isMedia
       ? journalist
-        ? [journalist, ...coAuthors]
-        : coAuthors.length > 0
-          ? coAuthors
-          : [{ ...article.author, isMedia: true, handleOnly: true }]
-      : coAuthors;
+        ? [
+            { ...journalist, isMedia: false },
+            ...otherContributors.map((coAuthor) => ({ ...coAuthor, isMedia: false })),
+          ]
+        : otherContributors.map((coAuthor) => ({ ...coAuthor, isMedia: false }))
+      : otherContributors.map((coAuthor) => ({ ...coAuthor, isMedia: false }));
   const coverImage =
     article.imageUrl || (useAuthorAsPrimary ? journalist?.logoUrl : article.author.logoUrl);
   const excerpt = article.content
@@ -260,7 +298,10 @@ export function ArticleCard({
                   · {date}
                 </span>
               </span>
-              <SharedContributorLine people={secondaryPeople} />
+              <SharedContributorLine
+                people={secondaryPeople}
+                forMedia={useAuthorAsPrimary ? mediaContributor : null}
+              />
             </span>
           </button>
           {!isPreview && (

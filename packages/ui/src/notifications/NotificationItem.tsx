@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import {
   Heart,
   Repeat,
@@ -14,6 +13,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
+import { SafeAvatar } from '../SafeAvatar';
 
 export type GroupedNotificationLike = {
   id: string;
@@ -240,23 +240,15 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
           {/* Avatar stack */}
           <div className="flex items-center gap-1.5 mb-2 overflow-hidden">
             {senders.slice(0, 5).map((sender, idx) => (
-              <div
+              <SafeAvatar
                 key={sender.id || idx}
-                className="relative size-8 rounded-full border-2 border-background overflow-hidden bg-muted shrink-0"
-              >
-                {sender.logoUrl ? (
-                  <Image
-                    src={sender.logoUrl}
-                    alt={sender.name || sender.username || t`Utilisateur`}
-                    fill
-                    className="object-cover"
-                  />
-                ) : (
-                  <div className="size-full flex items-center justify-center font-bold text-xs bg-muted text-muted-foreground">
-                    {(sender.name || sender.username || t`U`).charAt(0).toUpperCase()}
-                  </div>
-                )}
-              </div>
+                src={sender.logoUrl}
+                name={sender.name}
+                username={sender.username}
+                size={32}
+                shape="circle"
+                className="border-2 border-background shrink-0"
+              />
             ))}
           </div>
 

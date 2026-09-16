@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, Mail, ShieldCheck, Activity, Euro, Users, BookOpen } from 'lucide-react';
+import { SafeAvatar } from '@qoe/ui';
 import { getAdminUserDetail } from '@/lib/admin-data';
 
 interface PageProps {
@@ -47,9 +48,13 @@ export default async function UserProfilePage({ params }: PageProps) {
         {/* Profile Card */}
         <div className="bg-white border border-border/60 rounded-[24px] p-6 shadow-sm md:col-span-1 space-y-6">
           <div className="flex flex-col items-center text-center">
-            <div className="w-20 h-20 bg-gradient-to-tr from-[#EE4B2B] to-highlight text-white rounded-full flex items-center justify-center text-2xl font-bold mb-4 shadow-md">
-              {user.name?.charAt(0).toUpperCase() || user.email.charAt(0).toUpperCase()}
-            </div>
+            <SafeAvatar
+              name={user.name}
+              username={user.email}
+              size={80}
+              shape="circle"
+              className="mb-4 shadow-md"
+            />
             <h2 className="text-xl font-bold text-foreground">{user.name || 'Sans nom'}</h2>
             <p className="text-muted-foreground text-sm font-mono flex items-center gap-1.5 mt-1">
               <Mail className="w-3 h-3" /> {user.email}

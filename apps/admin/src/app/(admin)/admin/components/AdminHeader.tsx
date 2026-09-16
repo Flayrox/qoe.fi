@@ -2,6 +2,7 @@
 
 import { Search } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { SafeAvatar } from '@qoe/ui';
 
 interface AdminHeaderUser {
   id: string;
@@ -42,9 +43,7 @@ export function AdminHeader({ user }: AdminHeaderProps) {
           whileTap={{ scale: 0.95 }}
           className="cursor-pointer pr-1"
         >
-          <div className="w-8 h-8 rounded-full bg-gradient-to-b from-foreground to-foreground shadow-inner text-background flex items-center justify-center font-sans font-medium text-xs tracking-tight ring-1 ring-black/10">
-            {user?.username?.charAt(0).toUpperCase() || 'A'}
-          </div>
+          <SafeAvatar name={user?.name} username={user?.username} size={32} shape="circle" />
         </motion.div>
       </div>
     </header>
