@@ -286,6 +286,7 @@ CREATE TABLE "Article" (
     "title" TEXT NOT NULL,
     "slug" TEXT NOT NULL,
     "content" TEXT NOT NULL,
+    "draftContent" TEXT,
     "contentSha" TEXT,
     "imageUrl" TEXT,
     "published" BOOLEAN NOT NULL DEFAULT false,

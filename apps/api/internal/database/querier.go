@@ -608,6 +608,7 @@ type Querier interface {
 	MarkNewsletterDelivery(ctx context.Context, arg MarkNewsletterDeliveryParams) error
 	MarkNotificationsRead(ctx context.Context, arg MarkNotificationsReadParams) error
 	PinPost(ctx context.Context, arg PinPostParams) (bool, error)
+	PublishArticleDraft(ctx context.Context, id string) (string, error)
 	PublishLegalDocumentVersion(ctx context.Context, id string) (LegalDocumentVersion, error)
 	// Réactive un asset purgé/supprimé (nouvelle fenêtre de 3 jours).
 	ReactivateMediaAsset(ctx context.Context, id string) (MediaAsset, error)
@@ -655,6 +656,7 @@ type Querier interface {
 	UpdateApiKeySecret(ctx context.Context, arg UpdateApiKeySecretParams) (int64, error)
 	UpdateArticleAttributionConsent(ctx context.Context, arg UpdateArticleAttributionConsentParams) error
 	UpdateArticleContent(ctx context.Context, arg UpdateArticleContentParams) (string, error)
+	UpdateArticleDraft(ctx context.Context, arg UpdateArticleDraftParams) (string, error)
 	UpdateArticleFull(ctx context.Context, arg UpdateArticleFullParams) (string, error)
 	UpdateCategory(ctx context.Context, arg UpdateCategoryParams) error
 	UpdateCollaborationRequestResponse(ctx context.Context, arg UpdateCollaborationRequestResponseParams) error

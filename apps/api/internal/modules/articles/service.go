@@ -32,8 +32,10 @@ type ArticleResponse struct {
 	ID             string            `json:"id"`
 	Title          string            `json:"title"`
 	Slug           string            `json:"slug"`
-	Content        string            `json:"content"`
-	Published      bool              `json:"published"`
+	Content               string            `json:"content"`
+	DraftContent          *string           `json:"draftContent,omitempty"`
+	HasUnpublishedChanges bool              `json:"hasUnpublishedChanges"`
+	Published             bool              `json:"published"`
 	IsPremium      bool              `json:"isPremium"`
 	Visibility     string            `json:"visibility"`
 	ReadingTime    int               `json:"readingTime"`
@@ -491,8 +493,33 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 
 	finalSlug := s.uniqueSlug(ctx, row.PublicationId, articleID, in.Slug)
 
+	// 🛡️ Protection de l'article en ligne :
+	// Si l'article est déjà publié et que la requête ne demande PAS la publication directe
+	// (ex: auto-save en cours d'édition dans Studio), on ne touche JAMAIS au contenu public en direct.
+	// Les modifications sont isolées dans "draftContent".
+	if row.Published && !in.Published && effectiveStatus != "PUBLISHED" {
+		normalizedDraft := NormalizeContent(in.Content, in.ContentFormat)
+		if _, err := s.q.UpdateArticleDraft(ctx, db.UpdateArticleDraftParams{
+			ID:           articleID,
+			DraftContent: pgtype.Text{String: normalizedDraft, Valid: true},
+		}); err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// Si l'article est publié ET que l'auteur demande explicitement de publier/mettre à jour en ligne :
+	// Le nouveau contenu est promu en public, et on purge draftContent.
+	contentToSave := NormalizeContent(in.Content, in.ContentFormat)
+	if row.Published && in.Published {
+		_, _ = s.q.UpdateArticleDraft(ctx, db.UpdateArticleDraftParams{
+			ID:           articleID,
+			DraftContent: pgtype.Text{Valid: false},
+		})
+	}
+
 	if _, err := s.q.UpdateArticleFull(ctx, db.UpdateArticleFullParams{
-		ID: articleID, Title: in.Title, Content: NormalizeContent(in.Content, in.ContentFormat), Slug: finalSlug,
+		ID: articleID, Title: in.Title, Content: contentToSave, Slug: finalSlug,
 		Published: effectivePublished, Status: effectiveStatus,
 		IsPremium: in.IsPremium, CategoryId: textVal(in.CategoryID),
 		SeoTitle: textVal(in.SeoTitle), SeoDescription: textVal(in.SeoDescription),
@@ -535,6 +562,9 @@ func (s *Service) SetStatus(ctx context.Context, articleID, userID, status strin
 		ID: articleID, Status: status, Published: published, ScheduledAt: newScheduledAt,
 	}); err != nil {
 		return err
+	}
+	if published {
+		_, _ = s.q.PublishArticleDraft(ctx, articleID)
 	}
 	s.queueSearchSync(articleID, "upsert")
 	if published {
@@ -1024,8 +1054,21 @@ func (s *Service) EditorCapabilities(ctx context.Context, userID, publicationID 
 
 // articleResponseFromIDRow construit la réponse éditeur (contenu complet).
 func (s *Service) articleResponseFromIDRow(row db.GetArticleByIDRow) ArticleResponse {
+	content := row.Content
+	hasUnpublishedChanges := false
+	var draftContent *string
+	if row.DraftContent.Valid && row.DraftContent.String != "" {
+		draftContent = &row.DraftContent.String
+		if row.Published {
+			// Pour un article déjà publié, l'éditeur charge le brouillon en cours de travail
+			content = row.DraftContent.String
+			hasUnpublishedChanges = true
+		}
+	}
+
 	return ArticleResponse{
-		ID: row.ID, Title: row.Title, Slug: row.Slug, Content: row.Content,
+		ID: row.ID, Title: row.Title, Slug: row.Slug, Content: content,
+		DraftContent: draftContent, HasUnpublishedChanges: hasUnpublishedChanges,
 		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),
 		ReadingTime: int(row.ReadingTime), Status: row.Status, ScheduledAt: tsPtr(row.ScheduledAt),
 		PublicationID: row.PublicationId,
