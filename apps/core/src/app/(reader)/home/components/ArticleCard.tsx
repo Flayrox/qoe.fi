@@ -181,9 +181,15 @@ export function ArticleCard({
     );
   }
 
+  const ownerSlug =
+    ('publication' in article &&
+      (article as { publication?: { slug?: string; subdomain?: string } }).publication?.slug) ||
+    article.author.username ||
+    article.author.subdomain ||
+    'article';
   const articleUrl = article.author.subdomain
     ? routes.tenant.article(article.author.subdomain, article.slug)
-    : routes.feed.article(article.slug);
+    : routes.feed.article(ownerSlug, article.slug);
   const authorHandle = article.author.username || article.author.subdomain || 'qoe.fi';
   const explicitContributors = (article.author.contributors || [])
     .filter(

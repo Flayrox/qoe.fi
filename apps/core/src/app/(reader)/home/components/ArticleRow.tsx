@@ -49,7 +49,17 @@ export function ArticleRow({
     if (onOpenArticle) {
       onOpenArticle(article.slug);
     } else {
-      window.location.href = routes.feed.article(article.slug);
+      const authorSubdomain =
+        'subdomain' in article.author
+          ? (article.author as { subdomain?: string }).subdomain
+          : undefined;
+      const owner =
+        ('publication' in article &&
+          (article as { publication?: { slug?: string; subdomain?: string } }).publication?.slug) ||
+        article.author.username ||
+        authorSubdomain ||
+        'article';
+      window.location.href = routes.feed.article(owner, article.slug);
     }
   };
 

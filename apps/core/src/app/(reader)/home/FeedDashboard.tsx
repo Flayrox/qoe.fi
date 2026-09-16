@@ -566,7 +566,13 @@ export function FeedDashboard({
     );
 
     setActiveArticleSource('feed');
-    window.history.pushState({ articleSlug: slug, scroll }, '', routes.feed.article(slug));
+    const owner =
+      ('publication' in articleInput &&
+        (articleInput as { publication?: { slug?: string } }).publication?.slug) ||
+      articleInput.author?.username ||
+      articleInput.author?.subdomain ||
+      'article';
+    window.history.pushState({ articleSlug: slug, scroll }, '', routes.feed.article(owner, slug));
 
     if (articleInput && articleInput.content && articleInput.title && articleInput.author) {
       setActiveArticle(articleInput as Article);
@@ -605,10 +611,10 @@ export function FeedDashboard({
       if (res.ok && res.data?.article) {
         setActiveArticle(res.data.article as unknown as Article);
       } else {
-        window.location.href = routes.feed.article(slug);
+        window.location.href = routes.feed.article(owner, slug);
       }
     } catch {
-      window.location.href = routes.feed.article(slug);
+      window.location.href = routes.feed.article(owner, slug);
     }
   };
 

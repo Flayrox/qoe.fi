@@ -35,7 +35,12 @@ export const routes = {
       if (!tab || tab === 'thoughts') return `/${clean}`;
       return `/${clean}/${tab}`;
     },
-    article: (slug: string) => `/article/${encodeURIComponent(slug)}`,
+    article: (ownerOrSlug: string, articleSlug?: string) => {
+      if (articleSlug) {
+        return `/${encodeURIComponent(ownerOrSlug.replace(/^@/, ''))}/${encodeURIComponent(articleSlug)}`;
+      }
+      return `/article/${encodeURIComponent(ownerOrSlug)}`;
+    },
     post: (id: string) => `/post/${encodeURIComponent(id)}`,
     thought: (username: string, id: string) =>
       `/${encodeURIComponent(username.replace(/^@/, ''))}/thought/${encodeURIComponent(id)}`,

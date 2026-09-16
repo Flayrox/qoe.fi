@@ -1,165 +1,46 @@
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
-import { buildPublicDescription } from '@qoe/utils';
-import { parseSpotlightParams } from '@qoe/sdk/spotlight';
-import { type CanonicalDocument } from '@qoe/ui/annotations';
-import { ArticleAnnotatorView } from '@/components/social/ArticleAnnotatorView';
-import { notFound } from 'next/navigation';
+import { permanentRedirect, notFound } from 'next/navigation';
 
-// Contrat de l'endpoint Go GET /v1/articles/{slug} (mode slug seul : premier
-// article publié, contenu complet — parité findFirstBySlug Prisma).
 interface GoArticle {
   id: string;
-  title: string;
   slug: string;
-  content: string;
-  readingTime?: number;
-  createdAt: string;
-  isPremium?: boolean;
-  accessGranted?: boolean;
   author: {
-    id: string;
-    name?: string | null;
     username?: string | null;
-    logoUrl?: string | null;
   };
   publication?: {
+    slug?: string | null;
     subdomain?: string | null;
-    customDomain?: string | null;
   } | null;
 }
 
-async function fetchArticleBySlug(slug: string): Promise<GoArticle | null> {
-  // Go (backend-of-record, requis en Phase 3) : GET /v1/articles/{slug}.
-  // Retourne null sur 404 (goFetch lève avec err.status).
-  try {
-    return await goFetch<GoArticle>(`/v1/articles/${encodeURIComponent(slug)}`);
-  } catch (err) {
-    if ((err as { status?: number })?.status === 404) return null;
-    throw err;
-  }
-}
-
-/**
- * Document canonique d'un article (blocs + texte plat + offsets).
- * GET /v1/articles/{id}/document — base des ancres des surlignages.
- * null si indisponible → repli sur le moteur hérité (TreeWalker).
- */
-async function fetchCanonicalDocument(articleId: string): Promise<CanonicalDocument | null> {
-  try {
-    const doc = await goFetch<CanonicalDocument>(
-      `/v1/articles/${encodeURIComponent(articleId)}/document`
-    );
-    if (!doc || !Array.isArray(doc.blocks) || !doc.text) return null;
-    return doc;
-  } catch (err) {
-    if ((err as { status?: number })?.status === 404) return null;
-    console.error('[core] fetchCanonicalDocument:', err);
-    return null;
-  }
-}
-
-import type { Metadata } from 'next';
-import { JsonLd, buildArticleSchema } from '@qoe/ui';
-import { getLanguage } from '@qoe/i18n/server';
-
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}): Promise<Metadata> {
-  const lang = await getLanguage();
-  const isFr = lang === 'fr';
-
-  const resolvedParams = await params;
-  const article = await fetchArticleBySlug(resolvedParams.slug);
-
-  if (!article) {
-    return {
-      title: isFr ? 'Article introuvable | qoe.fi' : 'Article not found | qoe.fi',
-    };
-  }
-
-  // 🔒 Zéro-fuite : `article.content` arrive DÉJÀ tronqué par le backend Go
-  // (mode « slug seul » public, sans entitlement). On en dérive la description
-  // sans jamais retomber sur le contenu brut.
-  const cleanDescription = buildPublicDescription(article.content, 160);
-
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://qoe.fi').replace(/\/$/, '');
-  const canonicalUrl = `${appUrl}/article/${encodeURIComponent(article.slug)}`;
-  const authorName =
-    article.author?.name ||
-    (article.author?.username ? `@${article.author.username}` : isFr ? 'Auteur' : 'Author');
-
-  return {
-    title: `${article.title} | qoe.fi`,
-    description: cleanDescription,
-    alternates: {
-      canonical: canonicalUrl,
-    },
-    openGraph: {
-      type: 'article',
-      locale: isFr ? 'fr_FR' : 'en_US',
-      title: article.title,
-      description: cleanDescription,
-      url: canonicalUrl,
-      publishedTime: article.createdAt,
-      authors: [authorName],
-      images: article.author?.logoUrl ? [{ url: article.author.logoUrl }] : [],
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title: article.title,
-      description: cleanDescription,
-      images: article.author?.logoUrl ? [article.author.logoUrl] : [],
-    },
-  };
-}
-
-export default async function ArticlePage({
+export default async function ArticleLegacyRedirectPage({
   params,
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ hlStart?: string; hlEnd?: string; hlSha?: string }>;
+  searchParams: Promise<Record<string, string>>;
 }) {
   const resolvedParams = await params;
-  const article = await fetchArticleBySlug(resolvedParams.slug);
-
-  if (!article) {
-    notFound();
+  let article: GoArticle | null = null;
+  try {
+    article = await goFetch<GoArticle>(`/v1/articles/${encodeURIComponent(resolvedParams.slug)}`);
+  } catch (err) {
+    if ((err as { status?: number })?.status === 404) notFound();
+    throw err;
   }
 
-  // 🔦 Deep-link citation → article (tranche 6-b) : passage cité à mettre en
-  // avant. Strictement validé — toute entrée invalide → null (lecture normale).
-  const spotlight = parseSpotlightParams(await searchParams);
+  if (!article) notFound();
 
-  // Tranche 1-c : document canonique (rendu par blocs + marques par offsets).
-  // Uniquement quand l'accès complet est acquis — ne jamais télécharger le
-  // document complet d'un article verrouillé (fuite du contenu payant).
-  const canReadFull = !article.isPremium || article.accessGranted === true;
-  const canonicalDocument = canReadFull ? await fetchCanonicalDocument(article.id) : null;
+  const canonicalOwner =
+    article.publication?.slug ||
+    article.publication?.subdomain ||
+    article.author?.username ||
+    'article';
 
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://qoe.fi').replace(/\/$/, '');
-  const jsonLdData = buildArticleSchema({
-    title: article.title,
-    // 🔒 Zéro-fuite : contenu déjà tronqué côté Go pour un lecteur anonyme.
-    description: buildPublicDescription(article.content, 200),
-    slug: article.slug,
-    createdAt: article.createdAt,
-    authorName: article.author?.name,
-    authorUsername: article.author?.username,
-    authorLogo: article.author?.logoUrl,
-    baseUrl: appUrl,
-  });
-
-  return (
-    <main className="w-full min-h-screen bg-background">
-      <JsonLd data={jsonLdData} />
-      <ArticleAnnotatorView
-        article={article}
-        canonicalDocument={canonicalDocument}
-        spotlight={spotlight}
-      />
-    </main>
+  const sp = await searchParams;
+  const searchStr =
+    sp && Object.keys(sp).length > 0 ? `?${new URLSearchParams(sp).toString()}` : '';
+  permanentRedirect(
+    `/${encodeURIComponent(canonicalOwner)}/${encodeURIComponent(article.slug)}${searchStr}`
   );
 }
