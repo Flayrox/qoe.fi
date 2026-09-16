@@ -15,6 +15,14 @@ interface ApiArticleFeedResult {
   items: Array<{
     slug: string;
     createdAt?: string;
+    author?: {
+      username?: string | null;
+      subdomain?: string | null;
+    };
+    publication?: {
+      slug?: string | null;
+      subdomain?: string | null;
+    };
   }>;
 }
 
@@ -47,19 +55,27 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ];
 
-  // 2. Articles publiés récents
+  // 2. Articles publiés récents (format canonique SEO /:owner/:slug)
   let articleEntries: MetadataRoute.Sitemap = [];
   try {
     const res = await goFetch<ApiArticleFeedResult>('/v1/feed/articles?limit=100');
     if (res?.items && Array.isArray(res.items)) {
       articleEntries = res.items
         .filter((art) => Boolean(art.slug))
-        .map((art) => ({
-          url: `${baseUrl}/article/${encodeURIComponent(art.slug)}`,
-          lastModified: art.createdAt ? new Date(art.createdAt) : new Date(),
-          changeFrequency: 'weekly',
-          priority: 0.8,
-        }));
+        .map((art) => {
+          const owner =
+            art.publication?.slug ||
+            art.publication?.subdomain ||
+            art.author?.username ||
+            art.author?.subdomain ||
+            'article';
+          return {
+            url: `${baseUrl}/${encodeURIComponent(owner)}/${encodeURIComponent(art.slug)}`,
+            lastModified: art.createdAt ? new Date(art.createdAt) : new Date(),
+            changeFrequency: 'weekly',
+            priority: 0.8,
+          };
+        });
     }
   } catch (err) {
     console.error('[sitemap] Failed to fetch recent articles for sitemap:', err);
