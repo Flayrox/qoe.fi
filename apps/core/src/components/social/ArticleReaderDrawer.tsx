@@ -62,9 +62,15 @@ export function ArticleReaderDrawer({
   if (!article) return null;
 
   const subdomain = article.author?.subdomain;
+  const owner =
+    ('publication' in article &&
+      (article as { publication?: { slug?: string } }).publication?.slug) ||
+    article.author?.username ||
+    subdomain ||
+    'article';
   const externalUrl = subdomain
     ? routes.tenant.article(subdomain, article.slug)
-    : routes.feed.article(article.slug);
+    : routes.feed.article(owner, article.slug);
 
   return (
     <AnimatePresence>

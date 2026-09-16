@@ -41,9 +41,11 @@ export interface ArticleAnnotatorViewProps {
       customDomain?: string | null;
     };
     publication?: {
+      slug?: string | null;
       subdomain?: string | null;
       customDomain?: string | null;
     } | null;
+    allowPublicAnnotations?: boolean;
     isLoading?: boolean;
   };
   onClose?: () => void;
@@ -274,7 +276,7 @@ export function ArticleAnnotatorView({
       <TextHighlighter
         articleId={article.id}
         creatorName={article.author?.name || article.author?.username || "L'Auteur"}
-        allowPublicAnnotations={true}
+        allowPublicAnnotations={article.allowPublicAnnotations ?? true}
         isAuthenticated={!!user}
         initialHighlights={initialHighlights}
         publicHighlights={publicHighlights}
@@ -323,7 +325,7 @@ export function ArticleAnnotatorView({
               href={
                 article.author.subdomain
                   ? `https://${article.author.subdomain}.qoe.fi/article/${article.slug}`
-                  : `/article/${article.slug}`
+                  : `/${encodeURIComponent(article.publication?.slug || article.author.username || 'article')}/${encodeURIComponent(article.slug)}`
               }
               target="_blank"
               rel="noopener noreferrer"

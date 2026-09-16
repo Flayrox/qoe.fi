@@ -13,7 +13,6 @@ import {
   Quote,
   Eye,
   EyeOff,
-  Sparkles,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
@@ -79,7 +78,7 @@ export function TextHighlighter({
   }, [publicHighlights]);
 
   // Universal Reader Annotation Filter Mode (persisted across all tenants in localStorage)
-  const [filterMode, setFilterMode] = useState<AnnotationFilterMode>('all');
+  const [filterMode, setFilterMode] = useState<AnnotationFilterMode>('official');
 
   // Motion accessibility preference
   const shouldReduceMotion = useReducedMotion();
@@ -107,12 +106,16 @@ export function TextHighlighter({
         'qoe_annotation_filter_mode'
       ) as AnnotationFilterMode | null;
       if (savedMode && ['all', 'official', 'none'].includes(savedMode)) {
-        setFilterMode(savedMode);
+        if (!allowPublicAnnotations && savedMode === 'all') {
+          setFilterMode('official');
+        } else {
+          setFilterMode(savedMode);
+        }
       }
     } catch {
       // Ignore localStorage access restrictions
     }
-  }, []);
+  }, [allowPublicAnnotations]);
 
   // Attach interactivity to HTML-embedded <mark data-annotation-note="..."> author marks
   const setupHtmlMarksInDOM = () => {
@@ -661,18 +664,20 @@ export function TextHighlighter({
         </div>
 
         <div className="flex items-center gap-1 p-1 rounded-full bg-muted/50 border border-border/20 text-xs font-sans">
-          <button
-            onClick={() => changeFilterMode('all')}
-            className={cn(
-              'px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer',
-              filterMode === 'all'
-                ? 'bg-primary text-primary-foreground shadow-xs'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-            title={t`Afficher toutes les annotations (publiques, officielles et privées)`}
-          >
-            {t`Toutes`}
-          </button>
+          {allowPublicAnnotations && (
+            <button
+              onClick={() => changeFilterMode('all')}
+              className={cn(
+                'px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer',
+                filterMode === 'all'
+                  ? 'bg-primary text-primary-foreground shadow-xs font-semibold'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+              title={t`Afficher toutes les annotations (publiques, officielles et privées)`}
+            >
+              {t`Toutes`}
+            </button>
+          )}
 
           <button
             onClick={() => changeFilterMode('official')}
@@ -684,7 +689,6 @@ export function TextHighlighter({
             )}
             title={t`Afficher uniquement les annotations officielles de l'auteur`}
           >
-            <Sparkles className="w-3 h-3" />
             <span>{t`Officielles`}</span>
           </button>
 

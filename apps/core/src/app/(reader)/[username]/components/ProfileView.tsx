@@ -539,18 +539,31 @@ export function ProfileView({
               {articlesList.length === 0 ? (
                 <EmptyTabMessage message="Aucun article rédigé pour le moment." />
               ) : (
-                articlesList.map((article, idx: number) => (
-                  <ArticleCard
-                    key={article.id}
-                    article={article}
-                    idx={idx}
-                    dbUser={{ id: currentUserId }}
-                    isBookmarked={false}
-                    isFollowed={isFollowing}
-                    handleFollowToggle={handleFollowToggle}
-                    handleBookmarkToggle={() => {}}
-                  />
-                ))
+                articlesList.map((article, idx: number) => {
+                  const owner =
+                    ('publication' in article &&
+                      (article as { publication?: { slug?: string } }).publication?.slug) ||
+                    article.author.username ||
+                    article.author.subdomain ||
+                    user.username ||
+                    user.subdomain ||
+                    'article';
+                  return (
+                    <ArticleCard
+                      key={article.id}
+                      article={article}
+                      idx={idx}
+                      dbUser={{ id: currentUserId }}
+                      isBookmarked={false}
+                      isFollowed={isFollowing}
+                      handleFollowToggle={handleFollowToggle}
+                      handleBookmarkToggle={() => {}}
+                      onOpenArticle={() => {
+                        window.location.href = routes.feed.article(owner, article.slug);
+                      }}
+                    />
+                  );
+                })
               )}
             </div>
           )}
