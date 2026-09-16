@@ -32,12 +32,12 @@ vi.mock('react-native', () => ({
   },
 }));
 
-vi.mock('@/lib/session', () => ({
+vi.mock('../session', () => ({
   getAccessToken: mocks.getAccessToken,
   setAccessToken: mocks.setAccessToken,
 }));
 
-vi.mock('@/lib/supabase', () => ({
+vi.mock('../supabase', () => ({
   supabase: {
     auth: {
       getSession: mocks.getSession,

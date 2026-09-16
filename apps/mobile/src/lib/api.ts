@@ -4,8 +4,8 @@ import Constants from 'expo-constants';
 import { isDevice } from 'expo-device';
 import { Platform } from 'react-native';
 
-import { getAccessToken, setAccessToken } from '@/lib/session';
-import { supabase } from '@/lib/supabase';
+import { getAccessToken, setAccessToken } from './session';
+import { supabase } from './supabase';
 
 // Port de l'API Go locale (cf. apps/api : API_PORT=8090, backend unique).
 const API_PORT = 8090;

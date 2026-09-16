@@ -9,11 +9,11 @@ const mocks = vi.hoisted(() => ({
   getPublicUrl: vi.fn(),
 }));
 
-vi.mock('@/lib/env', () => ({
+vi.mock('../env', () => ({
   env: mocks.env,
 }));
 
-vi.mock('@/lib/supabase', () => ({
+vi.mock('../supabase', () => ({
   supabase: {
     storage: {
       from: vi.fn(() => ({

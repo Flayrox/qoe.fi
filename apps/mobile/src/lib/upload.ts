@@ -7,8 +7,8 @@
 // le CDN (https://cdn.qoe.fi) quand la plateforme est configurée.
 // =====================================================================
 
-import { env } from '@/lib/env';
-import { supabase } from '@/lib/supabase';
+import { env } from './env';
+import { supabase } from './supabase';
 
 // Parité packages/supabase/src/storage.ts : bucket unique des images publiques.
 const IMAGES_BUCKET = 'articles-media';
