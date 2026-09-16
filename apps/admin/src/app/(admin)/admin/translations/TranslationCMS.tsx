@@ -357,7 +357,7 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
             <button
               type="button"
               onClick={() => setShowModal(true)}
-              className="inline-flex items-center gap-1 text-[11px] bg-[#EE4B2B] text-white font-bold px-3 py-1.5 rounded-lg hover:opacity-95 transition-all cursor-pointer shadow-sm animate-in fade-in zoom-in-95 duration-200"
+              className="inline-flex items-center gap-1 text-[11px] bg-[#EE4B2B] text-white font-bold px-3 py-1.5 rounded-lg hover:opacity-95 transition-all cursor-pointer shadow-sm animate-in fade-in-0 duration-150"
             >
               <Save className="w-3.5 h-3.5" /> Enregistrer ({diff.length})
             </button>
@@ -622,7 +622,7 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
       {/* Confirmation Diffs Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 bg-foreground/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-border shadow-2xl w-full max-w-xl p-5 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-2xl border border-border shadow-2xl w-full max-w-xl p-5 space-y-4 animate-in fade-in-0 slide-in-from-bottom-1 duration-150">
             <div className="flex justify-between items-start">
               <div>
                 <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">

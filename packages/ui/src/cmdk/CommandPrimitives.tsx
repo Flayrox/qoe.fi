@@ -44,7 +44,7 @@ export function CmdKDialog({ open, onOpenChange, children }: CmdKDialogProps) {
         className="fixed inset-0 bg-background/60 backdrop-blur-sm transition-opacity duration-200"
       />
 
-      <div className="relative z-50 flex flex-col w-full max-w-lg overflow-hidden rounded-xl border border-border bg-popover/95 text-popover-foreground backdrop-blur-xl shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200">
+      <div className="relative z-50 flex flex-col w-full max-w-lg overflow-hidden rounded-xl border border-border bg-popover/95 text-popover-foreground backdrop-blur-xl shadow-2xl animate-in fade-in-0 slide-in-from-bottom-1 duration-150">
         <Command
           label="Command Menu"
           className="flex h-auto w-full flex-col overflow-hidden bg-transparent"

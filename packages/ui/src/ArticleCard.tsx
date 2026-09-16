@@ -18,6 +18,7 @@ import { useRequireAuth } from './auth/AuthModalContext';
 import { CertifiedBadge } from './ui/CertifiedBadge';
 import { SafeAvatar } from './SafeAvatar';
 import { SafeImage } from './SafeImage';
+import { ProfileHoverCard } from './social/ProfileHoverCard';
 import { t } from '@lingui/core/macro';
 
 export type { FeedArticleDTO as Article };
@@ -32,20 +33,22 @@ interface ArticleCardProps {
   isPreview?: boolean;
   onOpenArticle?: (article: FeedArticleDTO) => void;
   onOpenProfile?: (username: string) => void;
-  onOpenPost?: (postId: string) => void;
+  onOpenPost?: (id: string) => void;
 }
 
 function ProfileMark({ author, size = 40 }: { author: FeedArticleDTO['author']; size?: number }) {
-  const isMedia = author.type === 'MEDIA';
   return (
     <SafeAvatar
       src={author.logoUrl}
       name={author.name}
       username={author.username || author.subdomain}
       size={size}
-      shape={isMedia ? 'squircle' : 'circle'}
-      type={isMedia ? 'MEDIA' : 'PERSONAL'}
-      className={isMedia ? 'rounded-xl' : 'rounded-full'}
+      shape={author.type === 'MEDIA' ? 'squircle' : 'circle'}
+      type={author.type === 'MEDIA' ? 'MEDIA' : 'PERSONAL'}
+      className={cn(
+        'border border-white/80 shadow-xs shrink-0',
+        author.type === 'MEDIA' ? 'rounded-[10px]' : 'rounded-full'
+      )}
     />
   );
 }
@@ -64,54 +67,144 @@ type SharedContributor = {
 function SharedContributorLine({
   people,
   forMedia,
+  onOpenProfile,
 }: {
   people: SharedContributor[];
   forMedia?: SharedContributor | null;
+  onOpenProfile?: (username: string) => void;
 }) {
   if (!forMedia && people.length === 0) return null;
 
   const allAvatars = forMedia ? [forMedia, ...people] : people;
-  const otherPeopleNames = people
-    .map((p) => p.name || `@${p.username || p.id.slice(0, 8)}`)
-    .join(', ');
 
   return (
     <span className="mt-0.5 flex min-w-0 items-center gap-1.5 truncate text-[11px] text-muted-foreground font-sans">
       <span className="flex shrink-0 items-center -space-x-1">
         {allAvatars.slice(0, 3).map((person) => (
-          <SafeAvatar
+          <ProfileHoverCard
             key={person.id}
-            src={person.logoUrl}
-            name={person.name}
-            username={person.username}
-            size={16}
-            shape={person.isMedia ? 'squircle' : 'circle'}
-            type={person.isMedia ? 'MEDIA' : 'PERSONAL'}
-            className={cn(
-              'border border-border/80 shrink-0',
-              person.isMedia ? 'rounded-[4px]' : 'rounded-full'
-            )}
-          />
+            user={{
+              id: person.id,
+              name: person.name,
+              username: person.username,
+              logoUrl: person.logoUrl,
+              isCertified: person.isCertified,
+              isMedia: person.isMedia,
+              type: person.isMedia ? 'MEDIA' : 'PERSONAL',
+            }}
+            onOpenProfile={onOpenProfile}
+          >
+            <SafeAvatar
+              src={person.logoUrl}
+              name={person.name}
+              username={person.username}
+              size={16}
+              shape={person.isMedia ? 'squircle' : 'circle'}
+              type={person.isMedia ? 'MEDIA' : 'PERSONAL'}
+              className={cn(
+                'border border-border/80 shrink-0',
+                person.isMedia ? 'rounded-[4px]' : 'rounded-full'
+              )}
+            />
+          </ProfileHoverCard>
         ))}
       </span>
-      <span className="truncate">
+      <span className="truncate flex items-center gap-1 flex-wrap">
         {forMedia ? (
           <>
-            <span>{t`Pour ${forMedia.name || '@' + (forMedia.username || 'média')}`}</span>
-            {people.length > 0 && <span>{t`, avec ${otherPeopleNames}`}</span>}
+            <span>{t`Pour`}</span>
+            <ProfileHoverCard
+              user={{
+                id: forMedia.id,
+                name: forMedia.name,
+                username: forMedia.username,
+                logoUrl: forMedia.logoUrl,
+                isCertified: forMedia.isCertified,
+                isMedia: true,
+                type: 'MEDIA',
+              }}
+              onOpenProfile={onOpenProfile}
+            >
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenProfile?.(forMedia.username || forMedia.id);
+                }}
+                className="font-semibold text-foreground/90 hover:underline cursor-pointer"
+              >
+                {forMedia.name || `@${forMedia.username || 'média'}`}
+              </span>
+            </ProfileHoverCard>
+            {people.length > 0 && (
+              <>
+                <span>{t`, avec`}</span>
+                {people.map((person, idx) => {
+                  const pHandle = person.username || person.id.slice(0, 8);
+                  return (
+                    <React.Fragment key={person.id}>
+                      {idx > 0 && <span>,</span>}
+                      <ProfileHoverCard
+                        user={{
+                          id: person.id,
+                          name: person.name,
+                          username: person.username,
+                          logoUrl: person.logoUrl,
+                          isCertified: person.isCertified,
+                          isMedia: person.isMedia,
+                          type: person.isMedia ? 'MEDIA' : 'PERSONAL',
+                        }}
+                        onOpenProfile={onOpenProfile}
+                      >
+                        <span
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenProfile?.(pHandle);
+                          }}
+                          className="font-medium text-foreground/80 hover:underline cursor-pointer"
+                        >
+                          {person.name || `@${pHandle}`}
+                        </span>
+                      </ProfileHoverCard>
+                    </React.Fragment>
+                  );
+                })}
+              </>
+            )}
           </>
         ) : (
           <>
-            <span>
-              {t`avec ${people
-                .slice(0, 2)
-                .map((person) => {
-                  const handle = person.username || person.id.slice(0, 8);
-                  return person.handleOnly ? `@${handle}` : `${person.name || 'Auteur'} @${handle}`;
-                })
-                .join(' · ')}`}
-            </span>
-            {people.length > 2 ? ` +${people.length - 2}` : ''}
+            <span>{t`avec`}</span>
+            {people.slice(0, 2).map((person, idx) => {
+              const pHandle = person.username || person.id.slice(0, 8);
+              return (
+                <React.Fragment key={person.id}>
+                  {idx > 0 && <span>·</span>}
+                  <ProfileHoverCard
+                    user={{
+                      id: person.id,
+                      name: person.name,
+                      username: person.username,
+                      logoUrl: person.logoUrl,
+                      isCertified: person.isCertified,
+                      isMedia: person.isMedia,
+                      type: person.isMedia ? 'MEDIA' : 'PERSONAL',
+                    }}
+                    onOpenProfile={onOpenProfile}
+                  >
+                    <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenProfile?.(pHandle);
+                      }}
+                      className="font-medium text-foreground/80 hover:underline cursor-pointer"
+                    >
+                      {person.handleOnly ? `@${pHandle}` : `${person.name || 'Auteur'} @${pHandle}`}
+                    </span>
+                  </ProfileHoverCard>
+                </React.Fragment>
+              );
+            })}
+            {people.length > 2 && <span>+{people.length - 2}</span>}
           </>
         )}
       </span>
@@ -282,33 +375,37 @@ export function ArticleCard({
         <div className="absolute inset-0 bg-gradient-to-b from-black/5 via-transparent to-black/30" />
 
         <div className="absolute inset-x-3 top-3 flex items-center justify-between gap-3 rounded-[14px] bg-white/90 px-2.5 py-2 text-black backdrop-blur-md dark:bg-black/75 dark:text-white">
-          <button
-            type="button"
-            onClick={openProfile}
-            className="flex min-w-0 items-center gap-2.5 text-left"
-          >
-            <ProfileMark author={primaryAuthor} size={40} />
-            <span className="min-w-0">
-              <span className="flex items-center gap-1.5">
-                <span className="truncate text-[15px] font-semibold tracking-[-0.02em]">
-                  {primaryName}
-                </span>
+          <div className="flex min-w-0 items-center gap-2.5 text-left">
+            <ProfileHoverCard user={primaryAuthor} onOpenProfile={onOpenProfile}>
+              <ProfileMark author={primaryAuthor} size={40} />
+            </ProfileHoverCard>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <ProfileHoverCard user={primaryAuthor} onOpenProfile={onOpenProfile}>
+                  <span
+                    onClick={openProfile}
+                    className="truncate text-[15px] font-semibold tracking-[-0.02em] hover:underline cursor-pointer"
+                  >
+                    {primaryName}
+                  </span>
+                </ProfileHoverCard>
                 {(primaryPerson?.isCertified || article.author.isCertified) && <CertifiedBadge />}
                 <span className="text-[11px] font-normal text-black/60 dark:text-white/60">
                   · {date}
                 </span>
-              </span>
+              </div>
               <SharedContributorLine
                 people={secondaryPeople}
                 forMedia={useAuthorAsPrimary ? mediaContributor : null}
+                onOpenProfile={onOpenProfile}
               />
-            </span>
-          </button>
+            </div>
+          </div>
           {!isPreview && (
             <button
               type="button"
               onClick={openProfile}
-              className="shrink-0 text-[11px] font-medium uppercase tracking-[0.08em]"
+              className="shrink-0 text-[11px] font-medium uppercase tracking-[0.08em] hover:opacity-80 transition-opacity cursor-pointer"
             >
               {t`Voir le profil`}
             </button>

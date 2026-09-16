@@ -61,7 +61,7 @@ export function AccessibilityMenu() {
       </button>
 
       {isOpen && (
-        <div className="absolute top-12 right-0 w-64 p-4 bg-popover border shadow-xl rounded-2xl flex flex-col gap-6 origin-top-right animate-in fade-in zoom-in duration-200">
+        <div className="absolute top-12 right-0 w-64 p-4 bg-popover border shadow-xl rounded-2xl flex flex-col gap-6 origin-top-right animate-in fade-in-0 slide-in-from-top-1 duration-100">
           {/* Font Size */}
           <div className="space-y-3">
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">

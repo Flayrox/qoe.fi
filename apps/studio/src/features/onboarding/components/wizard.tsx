@@ -311,7 +311,7 @@ export function OnboardingWizard({
       <MockDashboard />
       <div className="absolute inset-0 z-10 bg-foreground/[0.02] backdrop-blur-[3.5px]" />
 
-      <div className="relative z-20 w-full max-w-[95%] xl:max-w-6xl mx-auto animate-in fade-in zoom-in duration-500">
+      <div className="relative z-20 w-full max-w-[95%] xl:max-w-6xl mx-auto animate-in fade-in-0 duration-200">
         <BentoPlateau className="min-h-[580px] md:h-[640px]">
           {/* Left Side: Instant Setup */}
           <BentoItem active={true} flexBasisActive="58%" innerClassName="bg-white text-foreground">

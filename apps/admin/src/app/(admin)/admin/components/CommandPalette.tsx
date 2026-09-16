@@ -25,7 +25,7 @@ export function CommandPalette() {
     <div className="fixed inset-0 z-50 bg-white/40 backdrop-blur-md flex items-start justify-center pt-[15vh]">
       <div className="fixed inset-0" onClick={() => setOpen(false)} />
       <Command
-        className="w-full max-w-xl bg-white/90 backdrop-blur-xl rounded-2xl shadow-[0_0_0_1px_rgba(0,0,0,0.08),0_16px_32px_rgba(0,0,0,0.1)] overflow-hidden relative z-10 animate-in fade-in zoom-in-[0.98] duration-200 ease-[0.16,1,0.3,1] antialiased font-sans"
+        className="w-full max-w-xl bg-white/90 backdrop-blur-xl rounded-2xl shadow-[0_0_0_1px_rgba(0,0,0,0.08),0_16px_32px_rgba(0,0,0,0.1)] overflow-hidden relative z-10 animate-in fade-in-0 slide-in-from-bottom-1 duration-150 ease-[0.16,1,0.3,1] antialiased font-sans"
         style={{
           boxShadow: '0 0 0 1px rgba(0,0,0,0.06), 0 16px 32px -8px rgba(0,0,0,0.08)',
         }}

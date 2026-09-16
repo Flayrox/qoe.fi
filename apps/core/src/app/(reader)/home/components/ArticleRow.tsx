@@ -7,7 +7,7 @@ import Image from 'next/image';
 import { BookMarked, Bookmark, ArrowUpRight, Clock } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { getArticleUrl } from '@qoe/config/routes';
-import { SafeAvatar, CertifiedBadge } from '@qoe/ui';
+import { SafeAvatar, CertifiedBadge, ProfileHoverCard } from '@qoe/ui';
 
 export interface ArticleRowProps {
   article: {
@@ -111,9 +111,11 @@ export function ArticleRow({
             )}
           </div>
           <div className="flex items-center gap-2 mt-0.5 text-[10px] text-muted-foreground">
-            <span className="font-medium text-foreground/80 truncate">
-              {article.author.name || `@${article.author.username}`}
-            </span>
+            <ProfileHoverCard user={article.author}>
+              <span className="font-medium text-foreground/80 truncate hover:underline cursor-pointer">
+                {article.author.name || `@${article.author.username}`}
+              </span>
+            </ProfileHoverCard>
             {article.author.isCertified && <CertifiedBadge className="w-2.5 h-2.5" />}
             <span>•</span>
             <span className="flex items-center gap-0.5">

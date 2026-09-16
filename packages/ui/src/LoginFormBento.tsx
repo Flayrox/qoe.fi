@@ -344,7 +344,7 @@ export function LoginFormBento({
 
             {/* Magic Link Success */}
             {magicLinkSent ? (
-              <div className="text-center py-6 space-y-4 animate-in fade-in zoom-in duration-300">
+              <div className="text-center py-6 space-y-4 animate-in fade-in-0 duration-150">
                 <div className="w-16 h-16 bg-success/10 border border-success/30 rounded-full flex items-center justify-center mx-auto text-success text-2xl shadow-[0_0_20px_rgba(16,185,129,0.1)]">
                   ✓
                 </div>
