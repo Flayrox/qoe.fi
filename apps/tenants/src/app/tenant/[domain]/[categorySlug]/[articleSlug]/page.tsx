@@ -420,7 +420,12 @@ export default async function TenantCategoryArticlePage({
               <strong className="text-foreground">{name}</strong>{' '}
               {t`pour recevoir les prochains écrits directement dans votre boîte mail.`}
             </p>
-            <SubscribeForm publicationId={publication.id} isBrutalist={isBrutalist} />
+            <SubscribeForm
+              publicationId={publication.id}
+              isBrutalist={isBrutalist}
+              userEmail={user?.email || null}
+              authorName={name}
+            />
           </div>
         </section>
       </main>

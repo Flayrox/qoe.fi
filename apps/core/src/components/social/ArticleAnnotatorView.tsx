@@ -21,6 +21,8 @@ import {
 } from '@qoe/sdk';
 import { SimilarArticlesSection } from './SimilarArticlesSection';
 import { useArticleReadingTracker } from '@qoe/analytics';
+import { SubscribeForm } from '@qoe/ui';
+import { t } from '@lingui/core/macro';
 
 export interface ArticleAnnotatorViewProps {
   article: {
@@ -299,6 +301,25 @@ export function ArticleAnnotatorView({
           className="prose prose-sm sm:prose-base dark:prose-invert max-w-none leading-relaxed text-foreground/90 selection:bg-highlight/30 cursor-text space-y-4 pt-2"
           dangerouslySetInnerHTML={{ __html: article.content }}
         />
+      )}
+
+      {/* 💌 Inscription Newsletter (1-Clic Substack synchronisé) */}
+      {article.author?.id && (
+        <div className="my-8 p-6 sm:p-8 rounded-2xl bg-card border border-border/50 text-center space-y-4 not-prose shadow-xs">
+          <div className="max-w-md mx-auto space-y-1.5">
+            <h4 className="text-lg font-bold text-foreground">
+              {t`Restez informé des prochains écrits`}
+            </h4>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              {t`Abonnez-vous à la newsletter de ${article.author.name || article.author.username || "l'auteur"} pour recevoir ses publications directement par email.`}
+            </p>
+          </div>
+          <SubscribeForm
+            publicationId={article.author.id}
+            authorName={article.author.name || undefined}
+            userEmail={user?.email || null}
+          />
+        </div>
       )}
 
       {/* 🧠 À lire aussi — recommandations sémantiques (pgvector) */}

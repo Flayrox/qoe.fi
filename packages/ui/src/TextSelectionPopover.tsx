@@ -188,18 +188,10 @@ export function TextSelectionPopover({
         <AnimatePresence mode="wait">
           <motion.div
             key={placement}
-            initial={{ scale: 0.92, opacity: 0, filter: 'blur(4px)' }}
-            animate={{ scale: 1, opacity: 1, filter: 'blur(0px)' }}
-            exit={{ scale: 0.92, opacity: 0, filter: 'blur(4px)' }}
-            transition={
-              shouldReduceMotion
-                ? { duration: 0 }
-                : { type: 'spring', stiffness: 500, damping: 32, mass: 0.6 }
-            }
-            style={{
-              originX: 0.5,
-              originY: placement.startsWith('top') ? 1 : 0,
-            }}
+            initial={{ opacity: 0, y: placement.startsWith('top') ? 3 : -3 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: placement.startsWith('top') ? 3 : -3 }}
+            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.12, ease: 'easeOut' }}
             className="relative"
           >
             {children({
