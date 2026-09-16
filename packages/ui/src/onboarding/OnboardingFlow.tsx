@@ -1,13 +1,13 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import Image from 'next/image';
 import { t } from '@lingui/core/macro';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@qoe/utils';
 import { Logo } from '../Logo';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { SafeAvatar } from '../SafeAvatar';
 import {
   Check,
   ShieldAlert,
@@ -438,20 +438,14 @@ export function OnboardingFlow({
                             )}
                           >
                             <div className="flex items-center gap-2.5 min-w-0">
-                              <div className="w-8 h-8 rounded-full overflow-hidden bg-muted relative shrink-0 border border-border/80">
-                                {creator.logoUrl ? (
-                                  <Image
-                                    src={creator.logoUrl}
-                                    alt={creator.name || t`Creator`}
-                                    fill
-                                    className="object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center font-bold text-xs font-sans">
-                                    {creator.name?.charAt(0) || t`C`}
-                                  </div>
-                                )}
-                              </div>
+                              <SafeAvatar
+                                src={creator.logoUrl}
+                                name={creator.name}
+                                username={creator.slug}
+                                size={32}
+                                shape="circle"
+                                className="border border-border/80 shrink-0"
+                              />
                               <div className="min-w-0">
                                 <p className="text-xs font-semibold text-foreground truncate">
                                   {creator.name}

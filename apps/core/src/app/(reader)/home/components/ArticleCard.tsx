@@ -18,7 +18,7 @@ import { t } from '@lingui/core/macro';
 import { getArticleUrl } from '@qoe/config/routes';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@qoe/ui/ui/hover-card';
 import { Popover, PopoverContent, PopoverTrigger } from '@qoe/ui/ui/popover';
-import { AuthorAvatar } from '@qoe/ui/ui/AuthorAvatar';
+import { SafeAvatar } from '@qoe/ui';
 import { CertifiedBadge } from '@qoe/ui/ui/CertifiedBadge';
 import { ThoughtCard, type ThoughtData } from '@/components/social/ThoughtCard';
 
@@ -71,6 +71,7 @@ export interface ArticleCardProps {
   isBookmarked: boolean;
   isFollowed: boolean;
   isFollowedAuthor?: boolean;
+  disableAuthorOverride?: boolean;
   handleFollowToggle: (author: Author) => void;
   handleBookmarkToggle: (article: Article) => void;
   featured?: boolean;
@@ -90,60 +91,74 @@ function plainText(content: string) {
 
 function BrandAvatar({ author, size = 40 }: { author: Author; size?: number }) {
   const isMedia = author.type === 'MEDIA';
-  if (isMedia) {
-    return (
-      <div
-        className="relative shrink-0 overflow-hidden rounded-[12px] border border-black/5 bg-muted"
-        style={{ width: size, height: size }}
-      >
-        {author.logoUrl ? (
-          <Image src={author.logoUrl} alt="" fill className="object-cover" />
-        ) : (
-          <span className="flex h-full w-full items-center justify-center text-xs font-semibold text-brand">
-            {author.name?.slice(0, 2) || 'QO'}
-          </span>
-        )}
-      </div>
-    );
-  }
-  return <AuthorAvatar user={author} size={size >= 40 ? 'md' : 'sm'} showBadge={false} />;
+  return (
+    <SafeAvatar
+      src={author.logoUrl}
+      name={author.name}
+      username={author.username || author.subdomain}
+      size={size}
+      shape={isMedia ? 'squircle' : 'circle'}
+      type={isMedia ? 'MEDIA' : 'PERSONAL'}
+      className={cn('shrink-0', isMedia ? 'rounded-[12px]' : 'rounded-full')}
+    />
+  );
 }
 
 type Contributor = Journalist & { isMedia?: boolean; handleOnly?: boolean };
 
-function ContributorLine({ people }: { people: Contributor[] }) {
-  if (people.length === 0) return null;
+function ContributorLine({
+  people,
+  forMedia,
+}: {
+  people: Contributor[];
+  forMedia?: Contributor | null;
+}) {
+  if (!forMedia && people.length === 0) return null;
+
+  const allAvatars = forMedia ? [forMedia, ...people] : people;
+  const otherPeopleNames = people
+    .map((p) => p.name || `@${p.username || p.id.slice(0, 8)}`)
+    .join(', ');
 
   return (
-    <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] text-black/60 dark:text-white/60">
+    <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] text-black/60 dark:text-white/60 font-sans">
       <div className="flex shrink-0 items-center -space-x-1">
-        {people.slice(0, 3).map((person) => (
-          <div
+        {allAvatars.slice(0, 3).map((person) => (
+          <SafeAvatar
             key={person.id}
+            src={person.logoUrl}
+            name={person.name}
+            username={person.username}
+            size={16}
+            shape={person.isMedia ? 'squircle' : 'circle'}
+            type={person.isMedia ? 'MEDIA' : 'PERSONAL'}
             className={cn(
-              'relative h-4 w-4 overflow-hidden border border-white/80 bg-muted dark:border-black/60',
+              'border border-white/80 dark:border-black/60 shrink-0',
               person.isMedia ? 'rounded-[4px]' : 'rounded-full'
             )}
-          >
-            {person.logoUrl ? (
-              <Image src={person.logoUrl} alt="" fill className="object-cover" sizes="16px" />
-            ) : (
-              <span className="flex h-full w-full items-center justify-center text-[6px] font-semibold text-primary">
-                {(person.name || 'A').slice(0, 1).toUpperCase()}
-              </span>
-            )}
-          </div>
+          />
         ))}
       </div>
       <span className="truncate">
-        {people
-          .slice(0, 2)
-          .map((person) => {
-            const handle = person.username || person.id.slice(0, 8);
-            return person.handleOnly ? `@${handle}` : `${person.name || 'Auteur'} @${handle}`;
-          })
-          .join(' · ')}
-        {people.length > 2 ? ` +${people.length - 2}` : ''}
+        {forMedia ? (
+          <>
+            <span>{t`Pour ${forMedia.name || '@' + (forMedia.username || 'média')}`}</span>
+            {people.length > 0 && <span>{t`, avec ${otherPeopleNames}`}</span>}
+          </>
+        ) : (
+          <>
+            <span>
+              {t`avec ${people
+                .slice(0, 2)
+                .map((person) => {
+                  const handle = person.username || person.id.slice(0, 8);
+                  return person.handleOnly ? `@${handle}` : `${person.name || 'Auteur'} @${handle}`;
+                })
+                .join(' · ')}`}
+            </span>
+            {people.length > 2 ? ` +${people.length - 2}` : ''}
+          </>
+        )}
       </span>
     </div>
   );
@@ -155,6 +170,7 @@ export function ArticleCard({
   isBookmarked,
   isFollowed,
   isFollowedAuthor = false,
+  disableAuthorOverride = false,
   handleFollowToggle,
   handleBookmarkToggle,
   featured = false,
@@ -201,7 +217,8 @@ export function ArticleCard({
     ...legacyCoAuthors.filter((contributor) => !explicitContributorIds.has(contributor.id)),
   ];
   const isMedia = article.author.type === 'MEDIA';
-  const useAuthorAsPrimary = isMedia && Boolean(journalist?.id && isFollowedAuthor);
+  const useAuthorAsPrimary =
+    !disableAuthorOverride && isMedia && Boolean(journalist?.id && isFollowedAuthor);
   const primaryPerson = useAuthorAsPrimary ? journalist : null;
   const primaryName = primaryPerson?.name || article.author.name || 'Auteur';
   const primaryHandle = primaryPerson?.username || primaryPerson?.id?.slice(0, 8) || authorHandle;
@@ -225,16 +242,14 @@ export function ArticleCard({
   };
   const otherContributors = coAuthors.filter((coAuthor) => coAuthor.id !== journalist?.id);
   const secondaryPeople: Contributor[] = useAuthorAsPrimary
-    ? [mediaContributor, ...otherContributors.map((coAuthor) => ({ ...coAuthor, isMedia: false }))]
+    ? otherContributors.map((coAuthor) => ({ ...coAuthor, isMedia: false }))
     : isMedia
       ? journalist
         ? [
             { ...journalist, isMedia: false },
             ...otherContributors.map((coAuthor) => ({ ...coAuthor, isMedia: false })),
           ]
-        : otherContributors.length > 0
-          ? otherContributors.map((coAuthor) => ({ ...coAuthor, isMedia: false }))
-          : [mediaContributor]
+        : otherContributors.map((coAuthor) => ({ ...coAuthor, isMedia: false }))
       : otherContributors.map((coAuthor) => ({ ...coAuthor, isMedia: false }));
   const fallbackImage = useAuthorAsPrimary ? journalist?.logoUrl : article.author.logoUrl;
   const coverImage = article.imageUrl || fallbackImage;
@@ -343,7 +358,10 @@ export function ArticleCard({
                   </div>
                 </HoverCardContent>
               </HoverCard>
-              <ContributorLine people={secondaryPeople} />
+              <ContributorLine
+                people={secondaryPeople}
+                forMedia={useAuthorAsPrimary ? mediaContributor : null}
+              />
             </div>
           </div>
           {dbUser && dbUser.id !== article.author.id && (

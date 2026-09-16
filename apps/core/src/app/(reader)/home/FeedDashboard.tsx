@@ -566,7 +566,7 @@ export function FeedDashboard({
     );
 
     setActiveArticleSource('feed');
-    const articleTargetUrl = getArticleUrl(articleInput);
+    const articleTargetUrl = getArticleUrl({ ...articleInput, slug });
     window.history.pushState({ articleSlug: slug, scroll }, '', articleTargetUrl);
 
     if (articleInput && articleInput.content && articleInput.title && articleInput.author) {

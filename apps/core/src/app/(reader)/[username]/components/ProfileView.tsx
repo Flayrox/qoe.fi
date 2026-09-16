@@ -547,6 +547,7 @@ export function ProfileView({
                     dbUser={{ id: currentUserId }}
                     isBookmarked={false}
                     isFollowed={isFollowing}
+                    disableAuthorOverride={true}
                     handleFollowToggle={handleFollowToggle}
                     handleBookmarkToggle={() => {}}
                     onOpenArticle={() => {

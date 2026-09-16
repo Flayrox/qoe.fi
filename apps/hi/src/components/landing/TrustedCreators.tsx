@@ -4,6 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { t } from '@lingui/core/macro';
 import { CheckCircle, Users, FileText } from 'lucide-react';
+import { SafeAvatar } from '@qoe/ui';
 
 interface TrustedCreatorsProps {
   config: Record<string, string>;
@@ -107,9 +108,12 @@ export const TrustedCreators = ({ config }: TrustedCreatorsProps) => {
               <div className="relative z-10 space-y-6">
                 {/* Profile Header */}
                 <div className="flex items-center gap-4">
-                  <div className="w-14 h-14 rounded-xl bg-muted border border-border/50 flex items-center justify-center text-xl font-bold text-foreground overflow-hidden">
-                    {creator.name.charAt(0)}
-                  </div>
+                  <SafeAvatar
+                    name={creator.name}
+                    size={56}
+                    shape="squircle"
+                    className="border border-border/50 shrink-0 rounded-xl"
+                  />
                   <div>
                     <h4 className="text-xl text-foreground font-semibold flex items-center gap-1.5">
                       {creator.name}{' '}

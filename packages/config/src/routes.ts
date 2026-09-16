@@ -110,14 +110,17 @@ export interface ArticleResolvable {
     username?: string | null;
     subdomain?: string | null;
     customDomain?: string | null;
+    name?: string | null;
   } | null;
   publication?: {
     slug?: string | null;
     subdomain?: string | null;
     customDomain?: string | null;
+    name?: string | null;
   } | null;
   category?: {
     slug?: string | null;
+    name?: string | null;
   } | null;
 }
 

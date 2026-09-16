@@ -4,8 +4,8 @@ import React, { useState } from 'react';
 import { t } from '@lingui/core/macro';
 import { subscribeToNewsletterAction } from '@qoe/sdk/actions/tenant';
 import { Check, Loader2, Sparkles, ExternalLink } from 'lucide-react';
-import Image from 'next/image';
 import Link from 'next/link';
+import { SafeAvatar } from '@qoe/ui';
 import type { RecommendationItem } from '@/lib/tenant-data';
 
 interface RecommendedSectionProps {
@@ -75,20 +75,14 @@ export function RecommendedSection({ authorName, recommendations }: RecommendedS
               >
                 <div>
                   <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-muted flex-shrink-0 border border-border/50">
-                      {avatar ? (
-                        <Image
-                          src={avatar}
-                          alt={pub.name}
-                          fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center font-bold text-lg text-muted-foreground">
-                          {pub.name.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                    </div>
+                    <SafeAvatar
+                      src={avatar}
+                      name={pub.name}
+                      username={pub.subdomain}
+                      size={48}
+                      shape="squircle"
+                      className="border border-border/50 shrink-0 rounded-xl"
+                    />
 
                     <Link
                       href={targetUrl}

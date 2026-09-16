@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import Image from 'next/image';
 import { ArrowDown, ArrowUp, Search, UserRound, X } from 'lucide-react';
 import { searchArticleContributorsAction } from '@qoe/sdk/actions/articles';
 import { cn } from '@qoe/utils';
+import { SafeAvatar } from '@qoe/ui';
 
 export type ArticleAttributionDraft = {
   userId: string;
@@ -31,18 +31,14 @@ type ContributorResult = Omit<ArticleAttributionDraft, 'role' | 'order' | 'isVis
 
 function Avatar({ person, size = 28 }: { person: ContributorResult; size?: number }) {
   return (
-    <div
-      className="relative shrink-0 overflow-hidden rounded-full bg-muted"
-      style={{ width: size, height: size }}
-    >
-      {person.logoUrl ? (
-        <Image src={person.logoUrl} alt="" fill className="object-cover" sizes={`${size}px`} />
-      ) : (
-        <span className="flex h-full w-full items-center justify-center text-[10px] font-semibold text-primary">
-          {(person.name || person.username || 'A').slice(0, 1).toUpperCase()}
-        </span>
-      )}
-    </div>
+    <SafeAvatar
+      src={person.logoUrl}
+      name={person.name}
+      username={person.username}
+      size={size}
+      shape="circle"
+      className="shrink-0"
+    />
   );
 }
 

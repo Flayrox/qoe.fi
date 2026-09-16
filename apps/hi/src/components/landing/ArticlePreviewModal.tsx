@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { X, Calendar, Clock, Share2, AlertCircle, Bookmark } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 import { sanitizeHtml } from '@/lib/sanitize';
+import { SafeAvatar } from '@qoe/ui';
 
 export interface Article {
   id: string;
@@ -91,9 +92,12 @@ export const ArticlePreviewModal = ({ article, onClose }: ArticlePreviewModalPro
             </h1>
 
             <div className="flex items-center justify-center gap-3 pt-4">
-              <div className="w-9 h-9 rounded-full bg-muted border border-border/60 flex items-center justify-center text-xs font-mono font-bold text-foreground">
-                {article.author.name?.charAt(0)}
-              </div>
+              <SafeAvatar
+                src={article.author.logoUrl}
+                name={article.author.name}
+                size={36}
+                shape="circle"
+              />
               <div className="text-left">
                 <span className="block text-xs font-semibold text-foreground">
                   {article.author.name}

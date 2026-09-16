@@ -19,6 +19,7 @@ import {
 } from '@qoe/sdk/actions/messages';
 import { searchUsersAction } from '@qoe/sdk/actions/feed';
 import type { Conversation, DirectMessage } from '@qoe/sdk';
+import { SafeAvatar } from '@qoe/ui';
 
 type SearchedUser = {
   id: string;
@@ -39,13 +40,6 @@ function handle(c: Conversation): string {
   return c.participant.username ? `@${c.participant.username}` : '';
 }
 
-function initials(name: string): string {
-  const clean = name.trim();
-  if (!clean) return '?';
-  const parts = clean.split(/\s+/);
-  return (parts[0][0] + (parts[1]?.[0] ?? '')).toUpperCase();
-}
-
 function formatTime(iso: string): string {
   const d = new Date(iso);
   const now = new Date();
@@ -60,21 +54,15 @@ function formatTime(iso: string): string {
 
 function Avatar({ conversation, size = 40 }: { conversation: Conversation; size?: number }) {
   const p = conversation.participant;
-  return p.logoUrl ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
+  return (
+    <SafeAvatar
       src={p.logoUrl}
-      alt={displayName(conversation)}
-      className="rounded-full object-cover shrink-0"
-      style={{ width: size, height: size }}
+      name={p.name}
+      username={p.username}
+      size={size}
+      shape="circle"
+      className="shrink-0"
     />
-  ) : (
-    <div
-      className="rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold shrink-0"
-      style={{ width: size, height: size, fontSize: size * 0.38 }}
-    >
-      {initials(p.name || p.username || '?')}
-    </div>
   );
 }
 
@@ -310,14 +298,14 @@ export function MessagesApp() {
                       onClick={() => void startConversation(u)}
                       className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-muted/60 text-left"
                     >
-                      {u.logoUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={u.logoUrl} alt="" className="w-8 h-8 rounded-full object-cover" />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-primary/15 text-primary flex items-center justify-center text-xs font-bold">
-                          {initials(u.name || u.username || '?')}
-                        </div>
-                      )}
+                      <SafeAvatar
+                        src={u.logoUrl}
+                        name={u.name}
+                        username={u.username}
+                        size={32}
+                        shape="circle"
+                        className="shrink-0"
+                      />
                       <div className="min-w-0">
                         <p className="text-sm font-semibold truncate">
                           {u.name || u.username || 'Utilisateur'}
