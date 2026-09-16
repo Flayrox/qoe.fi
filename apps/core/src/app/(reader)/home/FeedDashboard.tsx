@@ -992,15 +992,23 @@ export function FeedDashboard({
                                   isFollowed={isFollowed}
                                   isFollowedAuthor={isFollowedAuthor}
                                   handleFollowToggle={handleFollowToggle}
-                                  handleBookmarkToggle={handleBookmarkToggle}
+                                  handleBookmarkToggle={(art) => {
+                                    void handleBookmarkToggle(art as unknown as Article);
+                                  }}
                                   featured={idx === 0 && activeFeed === 'recommandation'}
                                   discovery={
                                     (article as { isDiscovery?: boolean }).isDiscovery === true
                                   }
                                   onHideArticle={
-                                    dbUser ? (art) => handleHideArticle(art as Article) : undefined
+                                    dbUser
+                                      ? (art) => {
+                                          void handleHideArticle(art as unknown as Article);
+                                        }
+                                      : undefined
                                   }
-                                  onOpenArticle={handleOpenArticle}
+                                  onOpenArticle={(art) => {
+                                    void handleOpenArticle(art as unknown as Partial<Article>);
+                                  }}
                                   onOpenPost={handleOpenPost}
                                   onOpenProfile={(username) => {
                                     window.location.href = routes.feed.profile(username);

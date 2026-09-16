@@ -1430,7 +1430,7 @@ export function Editor({
       {/* Custom UI Modal for Official Author Annotation (No window.prompt!) */}
       {showAuthorAnnotationModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/60 backdrop-blur-xs font-sans">
-          <div className="bg-card border border-border/40 rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl animate-in fade-in-50 zoom-in-95 duration-150">
+          <div className="bg-card border border-border/40 rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl animate-in fade-in-0 slide-in-from-bottom-1 duration-150">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-highlight" />

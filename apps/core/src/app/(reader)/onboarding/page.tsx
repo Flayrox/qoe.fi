@@ -55,7 +55,7 @@ export default async function OnboardingPage() {
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center bg-background px-4 py-12">
-      <div className="w-full max-w-[90%] xl:max-w-6xl mx-auto animate-in fade-in zoom-in duration-500">
+      <div className="w-full max-w-[90%] xl:max-w-6xl mx-auto animate-in fade-in-0 duration-200">
         <OnboardingFlow
           categories={categories}
           suggestedCreators={suggestedCreators}

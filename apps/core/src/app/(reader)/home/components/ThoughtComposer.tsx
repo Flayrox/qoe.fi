@@ -1380,7 +1380,7 @@ export function ThoughtComposer({
                       {/* Universal Typeahead Suggestions Dropdown */}
                       {mentionSuggestions.length > 0 && (
                         <div className="relative font-sans z-[100]">
-                          <div className="absolute top-1 left-0 w-72 max-h-56 overflow-y-auto bg-popover text-popover-foreground border border-border/80 rounded-xl shadow-2xl p-1 font-sans animate-in fade-in-0 zoom-in-95 duration-100">
+                          <div className="absolute top-1 left-0 w-72 max-h-56 overflow-y-auto bg-popover text-popover-foreground border border-border/80 rounded-xl shadow-2xl p-1 font-sans animate-in fade-in-0 slide-in-from-top-1 duration-100">
                             {mentionSuggestions.map((item, idx) => {
                               const isSelected = idx === mentionSelectedIndex;
                               return (

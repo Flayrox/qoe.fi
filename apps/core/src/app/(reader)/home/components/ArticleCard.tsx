@@ -16,9 +16,8 @@ import {
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
 import { getArticleUrl } from '@qoe/config/routes';
-import { HoverCard, HoverCardContent, HoverCardTrigger } from '@qoe/ui/ui/hover-card';
 import { Popover, PopoverContent, PopoverTrigger } from '@qoe/ui/ui/popover';
-import { SafeAvatar } from '@qoe/ui';
+import { SafeAvatar, ProfileHoverCard } from '@qoe/ui';
 import { CertifiedBadge } from '@qoe/ui/ui/CertifiedBadge';
 import { ThoughtCard, type ThoughtData } from '@/components/social/ThoughtCard';
 
@@ -38,38 +37,47 @@ interface Author {
   id: string;
   name: string | null;
   username: string | null;
-  subdomain: string | null;
-  customDomain: string | null;
+  subdomain?: string | null;
+  customDomain?: string | null;
   logoUrl: string | null;
-  heroText: string | null;
+  heroText?: string | null;
   isCertified?: boolean;
-  type?: 'PERSONAL' | 'MEDIA';
+  type?: 'PERSONAL' | 'MEDIA' | string | null;
   journalist?: Journalist | null;
   coAuthors?: Journalist[];
   contributors?: Journalist[];
 }
 
-interface Article {
+export interface Article {
   id: string;
   title: string;
   slug: string;
-  content: string;
-  imageUrl?: string | null;
-  published: boolean;
-  isPremium: boolean;
   readingTime: number;
+  imageUrl?: string | null;
+  isPremium?: boolean;
+  published?: boolean;
   createdAt: Date | string;
+  content?: string | null;
   author: Author;
-  category: { name: string } | null;
+  category?: { name: string } | null;
   tags?: string[];
+  contributors?: Journalist[];
+  likesCount?: number;
+  repliesCount?: number;
+  liked?: boolean;
 }
 
 export interface ArticleCardProps {
   article: Article;
-  idx: number;
-  dbUser: { id?: string | null } | null;
-  isBookmarked: boolean;
-  isFollowed: boolean;
+  idx?: number;
+  dbUser?: {
+    id?: string | null;
+    email?: string | null;
+    name?: string | null;
+    avatarUrl?: string | null;
+  } | null;
+  isBookmarked?: boolean;
+  isFollowed?: boolean;
   isFollowedAuthor?: boolean;
   disableAuthorOverride?: boolean;
   handleFollowToggle: (author: Author) => void;
@@ -77,14 +85,15 @@ export interface ArticleCardProps {
   featured?: boolean;
   discovery?: boolean;
   onHideArticle?: (article: Article) => void;
-  onOpenArticle?: (article: Article) => void;
+  onOpenArticle?: (article: Article | Partial<Article>) => void;
   onOpenProfile?: (username: string) => void;
-  onOpenPost?: (postId: string, authorUsername?: string) => void;
+  onOpenPost?: (id: string) => void;
 }
 
-function plainText(content: string) {
+function plainText(content?: string | null): string {
+  if (!content) return '';
   return content
-    .replace(/<[^>]*>?/gm, '')
+    .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -99,7 +108,7 @@ function BrandAvatar({ author, size = 40 }: { author: Author; size?: number }) {
       size={size}
       shape={isMedia ? 'squircle' : 'circle'}
       type={isMedia ? 'MEDIA' : 'PERSONAL'}
-      className={cn('shrink-0', isMedia ? 'rounded-[12px]' : 'rounded-full')}
+      className={isMedia ? 'rounded-xl' : 'rounded-full'}
     />
   );
 }
@@ -109,54 +118,144 @@ type Contributor = Journalist & { isMedia?: boolean; handleOnly?: boolean };
 function ContributorLine({
   people,
   forMedia,
+  onOpenProfile,
 }: {
   people: Contributor[];
   forMedia?: Contributor | null;
+  onOpenProfile?: (username: string) => void;
 }) {
   if (!forMedia && people.length === 0) return null;
 
   const allAvatars = forMedia ? [forMedia, ...people] : people;
-  const otherPeopleNames = people
-    .map((p) => p.name || `@${p.username || p.id.slice(0, 8)}`)
-    .join(', ');
 
   return (
     <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] text-black/60 dark:text-white/60 font-sans">
       <div className="flex shrink-0 items-center -space-x-1">
         {allAvatars.slice(0, 3).map((person) => (
-          <SafeAvatar
+          <ProfileHoverCard
             key={person.id}
-            src={person.logoUrl}
-            name={person.name}
-            username={person.username}
-            size={16}
-            shape={person.isMedia ? 'squircle' : 'circle'}
-            type={person.isMedia ? 'MEDIA' : 'PERSONAL'}
-            className={cn(
-              'border border-white/80 dark:border-black/60 shrink-0',
-              person.isMedia ? 'rounded-[4px]' : 'rounded-full'
-            )}
-          />
+            user={{
+              id: person.id,
+              name: person.name,
+              username: person.username,
+              logoUrl: person.logoUrl,
+              isCertified: person.isCertified,
+              isMedia: person.isMedia,
+              type: person.isMedia ? 'MEDIA' : 'PERSONAL',
+            }}
+            onOpenProfile={onOpenProfile}
+          >
+            <SafeAvatar
+              src={person.logoUrl}
+              name={person.name}
+              username={person.username}
+              size={16}
+              shape={person.isMedia ? 'squircle' : 'circle'}
+              type={person.isMedia ? 'MEDIA' : 'PERSONAL'}
+              className={cn(
+                'border border-white/80 dark:border-black/60 shrink-0',
+                person.isMedia ? 'rounded-[4px]' : 'rounded-full'
+              )}
+            />
+          </ProfileHoverCard>
         ))}
       </div>
-      <span className="truncate">
+      <span className="truncate flex items-center gap-1 flex-wrap">
         {forMedia ? (
           <>
-            <span>{t`Pour ${forMedia.name || '@' + (forMedia.username || 'média')}`}</span>
-            {people.length > 0 && <span>{t`, avec ${otherPeopleNames}`}</span>}
+            <span>{t`Pour`}</span>
+            <ProfileHoverCard
+              user={{
+                id: forMedia.id,
+                name: forMedia.name,
+                username: forMedia.username,
+                logoUrl: forMedia.logoUrl,
+                isCertified: forMedia.isCertified,
+                isMedia: true,
+                type: 'MEDIA',
+              }}
+              onOpenProfile={onOpenProfile}
+            >
+              <span
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenProfile?.(forMedia.username || forMedia.id);
+                }}
+                className="font-semibold text-foreground/90 hover:underline cursor-pointer"
+              >
+                {forMedia.name || `@${forMedia.username || 'média'}`}
+              </span>
+            </ProfileHoverCard>
+            {people.length > 0 && (
+              <>
+                <span>{t`, avec`}</span>
+                {people.map((person, idx) => {
+                  const pHandle = person.username || person.id.slice(0, 8);
+                  return (
+                    <React.Fragment key={person.id}>
+                      {idx > 0 && <span>,</span>}
+                      <ProfileHoverCard
+                        user={{
+                          id: person.id,
+                          name: person.name,
+                          username: person.username,
+                          logoUrl: person.logoUrl,
+                          isCertified: person.isCertified,
+                          isMedia: person.isMedia,
+                          type: person.isMedia ? 'MEDIA' : 'PERSONAL',
+                        }}
+                        onOpenProfile={onOpenProfile}
+                      >
+                        <span
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenProfile?.(pHandle);
+                          }}
+                          className="font-medium text-foreground/80 hover:underline cursor-pointer"
+                        >
+                          {person.name || `@${pHandle}`}
+                        </span>
+                      </ProfileHoverCard>
+                    </React.Fragment>
+                  );
+                })}
+              </>
+            )}
           </>
         ) : (
           <>
-            <span>
-              {t`avec ${people
-                .slice(0, 2)
-                .map((person) => {
-                  const handle = person.username || person.id.slice(0, 8);
-                  return person.handleOnly ? `@${handle}` : `${person.name || 'Auteur'} @${handle}`;
-                })
-                .join(' · ')}`}
-            </span>
-            {people.length > 2 ? ` +${people.length - 2}` : ''}
+            <span>{t`avec`}</span>
+            {people.slice(0, 2).map((person, idx) => {
+              const pHandle = person.username || person.id.slice(0, 8);
+              return (
+                <React.Fragment key={person.id}>
+                  {idx > 0 && <span>·</span>}
+                  <ProfileHoverCard
+                    user={{
+                      id: person.id,
+                      name: person.name,
+                      username: person.username,
+                      logoUrl: person.logoUrl,
+                      isCertified: person.isCertified,
+                      isMedia: person.isMedia,
+                      type: person.isMedia ? 'MEDIA' : 'PERSONAL',
+                    }}
+                    onOpenProfile={onOpenProfile}
+                  >
+                    <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenProfile?.(pHandle);
+                      }}
+                      className="font-medium text-foreground/80 hover:underline cursor-pointer"
+                    >
+                      {person.handleOnly ? `@${pHandle}` : `${person.name || 'Auteur'} @${pHandle}`}
+                    </span>
+                  </ProfileHoverCard>
+                </React.Fragment>
+              );
+            })}
+            {people.length > 2 && <span>+{people.length - 2}</span>}
           </>
         )}
       </span>
@@ -235,7 +334,7 @@ export function ArticleCard({
   const mediaContributor: Contributor = {
     id: article.author.id,
     name: article.author.name,
-    username: article.author.username || article.author.subdomain,
+    username: article.author.username || article.author.subdomain || null,
     logoUrl: article.author.logoUrl,
     isMedia: true,
     handleOnly: true,
@@ -330,37 +429,50 @@ export function ArticleCard({
                 ✦ {t`Découverte`}
               </span>
             )}
-            <BrandAvatar author={primaryAuthor} size={40} />
+            <ProfileHoverCard
+              user={{
+                id: primaryAuthor.id,
+                name: primaryName,
+                username: primaryHandle,
+                logoUrl: primaryAuthor.logoUrl,
+                isCertified: primaryIsCertified,
+                isMedia: primaryAuthor.type === 'MEDIA',
+                type: primaryAuthor.type,
+              }}
+              onOpenProfile={onOpenProfile}
+            >
+              <BrandAvatar author={primaryAuthor} size={40} />
+            </ProfileHoverCard>
             <div className="min-w-0 leading-tight">
-              <HoverCard>
-                <HoverCardTrigger>
-                  <button
-                    type="button"
+              <div className="flex max-w-full items-center gap-1.5 text-left">
+                <ProfileHoverCard
+                  user={{
+                    id: primaryAuthor.id,
+                    name: primaryName,
+                    username: primaryHandle,
+                    logoUrl: primaryAuthor.logoUrl,
+                    isCertified: primaryIsCertified,
+                    isMedia: primaryAuthor.type === 'MEDIA',
+                    type: primaryAuthor.type,
+                  }}
+                  onOpenProfile={onOpenProfile}
+                >
+                  <span
                     onClick={openProfile}
-                    className="flex max-w-full items-center gap-1.5 text-left"
+                    className="truncate text-[15px] font-semibold tracking-[-0.02em] hover:underline cursor-pointer"
                   >
-                    <span className="truncate text-[15px] font-semibold tracking-[-0.02em]">
-                      {primaryName}
-                    </span>
-                    {primaryIsCertified && <CertifiedBadge />}
-                    <span className="text-[11px] font-normal text-black/55 dark:text-white/55">
-                      · {date}
-                    </span>
-                  </button>
-                </HoverCardTrigger>
-                <HoverCardContent className="w-72 rounded-2xl border border-border/40 bg-card p-4 text-foreground shadow-xl">
-                  <div className="flex gap-3">
-                    <BrandAvatar author={primaryAuthor} size={40} />
-                    <div>
-                      <p className="text-sm font-semibold">{primaryName}</p>
-                      <p className="text-xs text-muted-foreground">@{primaryHandle}</p>
-                    </div>
-                  </div>
-                </HoverCardContent>
-              </HoverCard>
+                    {primaryName}
+                  </span>
+                </ProfileHoverCard>
+                {primaryIsCertified && <CertifiedBadge />}
+                <span className="text-[11px] font-normal text-black/55 dark:text-white/55">
+                  · {date}
+                </span>
+              </div>
               <ContributorLine
                 people={secondaryPeople}
                 forMedia={useAuthorAsPrimary ? mediaContributor : null}
+                onOpenProfile={onOpenProfile}
               />
             </div>
           </div>

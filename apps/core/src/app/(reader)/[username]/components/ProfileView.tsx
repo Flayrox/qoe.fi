@@ -544,7 +544,7 @@ export function ProfileView({
                     key={article.id}
                     article={article}
                     idx={idx}
-                    dbUser={{ id: currentUserId }}
+                    dbUser={currentUserId ? { id: currentUserId } : null}
                     isBookmarked={false}
                     isFollowed={isFollowing}
                     disableAuthorOverride={true}
