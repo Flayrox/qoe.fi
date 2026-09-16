@@ -23,7 +23,7 @@ import {
 import { t } from '@lingui/core/macro';
 import { motion, AnimatePresence } from 'framer-motion';
 import { trackServerEvent } from '@qoe/analytics';
-import { routes } from '@qoe/config/routes';
+import { routes, getArticleUrl } from '@qoe/config/routes';
 import { UserAvatar } from '@qoe/ui/ui/UserAvatar';
 import { toast } from '@qoe/ui/toast';
 import { toggleBookmarkArticleHomeAction } from '@qoe/sdk/actions/feed';
@@ -256,22 +256,6 @@ export function LibraryClient({
     link.click();
     URL.revokeObjectURL(url);
     toast.success(t`Bibliothèque exportée en Markdown (.md)`);
-  };
-
-  const getArticleUrl = (article: {
-    slug: string;
-    author?: { subdomain: string | null; customDomain: string | null };
-    publication?: { subdomain: string | null; customDomain: string | null };
-  }) => {
-    const meta = article.author || article.publication;
-    const isProd =
-      typeof window !== 'undefined'
-        ? window.location.hostname.endsWith('qoe.fi')
-        : process.env.NODE_ENV === 'production';
-    const suffix = isProd ? 'qoe.fi' : 'localhost';
-    const protocol = isProd ? 'https:' : 'http:';
-    const host = meta?.customDomain || (meta?.subdomain ? `${meta.subdomain}.${suffix}` : '');
-    return host ? `${protocol}//${host}/article/${article.slug}` : `/article/${article.slug}`;
   };
 
   const tabs = [
@@ -587,7 +571,7 @@ export function LibraryClient({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               <AnimatePresence mode="popLayout">
                 {filteredBookmarks.map((b) => {
-                  const url = getArticleUrl(b.article);
+                  const url = getArticleUrl(b.article, { preferTenant: true });
 
                   return (
                     <motion.div
@@ -702,7 +686,7 @@ export function LibraryClient({
             <div className="bg-card rounded-2xl border border-border/50 divide-y divide-border/40 overflow-hidden shadow-2xs">
               <AnimatePresence mode="popLayout">
                 {filteredBookmarks.map((b) => {
-                  const url = getArticleUrl(b.article);
+                  const url = getArticleUrl(b.article, { preferTenant: true });
 
                   return (
                     <motion.div
@@ -823,7 +807,7 @@ export function LibraryClient({
                   (h) => {
                     const isCopied = copiedId === h.id;
                     const isEditing = editingHighlightId === h.id;
-                    const url = getArticleUrl(h.article);
+                    const url = getArticleUrl(h.article, { preferTenant: true });
 
                     return (
                       <motion.div

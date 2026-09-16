@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
-import { routes } from '@qoe/config/routes';
+import { getArticleUrl } from '@qoe/config/routes';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@qoe/ui/ui/hover-card';
 import { Popover, PopoverContent, PopoverTrigger } from '@qoe/ui/ui/popover';
 import { AuthorAvatar } from '@qoe/ui/ui/AuthorAvatar';
@@ -181,15 +181,7 @@ export function ArticleCard({
     );
   }
 
-  const ownerSlug =
-    ('publication' in article &&
-      (article as { publication?: { slug?: string; subdomain?: string } }).publication?.slug) ||
-    article.author.username ||
-    article.author.subdomain ||
-    'article';
-  const articleUrl = article.author.subdomain
-    ? routes.tenant.article(article.author.subdomain, article.slug)
-    : routes.feed.article(ownerSlug, article.slug);
+  const articleUrl = getArticleUrl(article, { preferTenant: true });
   const authorHandle = article.author.username || article.author.subdomain || 'qoe.fi';
   const explicitContributors = (article.author.contributors || [])
     .filter(

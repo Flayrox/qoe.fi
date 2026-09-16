@@ -1,8 +1,8 @@
 import { createClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
-import { BookOpen, TrendingUp } from 'lucide-react';
+import { BookOpen } from 'lucide-react';
 import Link from 'next/link';
-import { routes } from '@qoe/config/routes';
+import { getArticleUrl } from '@qoe/config/routes';
 
 // ── Contrat de l'historique de lecture (GET /v1/me/reading-history) ─────────
 interface HistoryArticle {
@@ -75,7 +75,7 @@ export default async function ReadingHistoryPage() {
           {unique.map((s) => (
             <Link
               key={s.id}
-              href={routes.feed.article(s.article.slug)}
+              href={getArticleUrl(s.article)}
               className="flex gap-4 p-4 rounded-xl border border-border/60 hover:bg-muted/30 transition-colors"
             >
               {s.article.imageUrl ? (

@@ -12,7 +12,7 @@ import {
   Repeat,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
-import { routes } from '@qoe/config';
+import { getArticleUrl } from '@qoe/config';
 import type { FeedArticleDTO } from '@qoe/sdk/types';
 import { useRequireAuth } from './auth/AuthModalContext';
 import { CertifiedBadge } from './ui/CertifiedBadge';
@@ -169,9 +169,7 @@ export function ArticleCard({
     month: 'short',
     year: 'numeric',
   });
-  const url = article.author.subdomain
-    ? routes.tenant.article(article.author.subdomain, article.slug)
-    : routes.feed.article(article.slug);
+  const url = getArticleUrl(article, { preferTenant: true });
 
   const openProfile = (event: React.MouseEvent) => {
     event.preventDefault();
@@ -184,6 +182,8 @@ export function ArticleCard({
       event.preventDefault();
       event.stopPropagation();
       onOpenArticle(article);
+    } else {
+      window.location.href = url;
     }
   };
 
