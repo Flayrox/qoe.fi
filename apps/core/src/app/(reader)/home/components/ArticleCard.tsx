@@ -260,6 +260,9 @@ export function ArticleCard({
     }
     if (onOpenArticle) onOpenArticle(article);
     else if (onOpenPost) onOpenPost(article.id);
+    else {
+      window.location.href = articleUrl;
+    }
   };
 
   const openProfile = (event: React.MouseEvent) => {
