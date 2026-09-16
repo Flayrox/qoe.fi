@@ -520,6 +520,7 @@ type Article struct {
 	Title                  string            `json:"title"`
 	Slug                   string            `json:"slug"`
 	Content                string            `json:"content"`
+	DraftContent           pgtype.Text       `json:"draftContent"`
 	ContentSha             pgtype.Text       `json:"contentSha"`
 	ImageUrl               pgtype.Text       `json:"imageUrl"`
 	Published              bool              `json:"published"`

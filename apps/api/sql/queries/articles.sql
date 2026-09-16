@@ -80,7 +80,7 @@ ORDER BY a."createdAt" DESC, a.id DESC
 LIMIT $2 OFFSET $3;
 
 -- name: GetArticleByID :one
-SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibility,
+SELECT a.id, a.title, a.slug, a.content, a."draftContent", a.published, a."isPremium", a.visibility,
        a."readingTime", a."allowPublicAnnotations", a."allowComments", a."scheduledAt",
        a.status, a."publicationId", a."authorId", a."categoryId", a."tierId",
        a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
@@ -212,6 +212,18 @@ UPDATE "Article"
 SET title = $2, content = $3, slug = $4, published = $5, status = $6, "isPremium" = $7,
     "categoryId" = $8, "seoTitle" = $9, "seoDescription" = $10, "readingTime" = $11,
     "scheduledAt" = $12, "updatedAt" = now()
+WHERE id = $1
+RETURNING id;
+
+-- name: UpdateArticleDraft :one
+UPDATE "Article"
+SET "draftContent" = $2, "updatedAt" = now()
+WHERE id = $1
+RETURNING id;
+
+-- name: PublishArticleDraft :one
+UPDATE "Article"
+SET content = COALESCE("draftContent", content), "draftContent" = NULL, "updatedAt" = now()
 WHERE id = $1
 RETURNING id;
 

@@ -98,7 +98,7 @@ func (q *Queries) DeleteArticle(ctx context.Context, id string) error {
 }
 
 const getArticleByID = `-- name: GetArticleByID :one
-SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibility,
+SELECT a.id, a.title, a.slug, a.content, a."draftContent", a.published, a."isPremium", a.visibility,
        a."readingTime", a."allowPublicAnnotations", a."allowComments", a."scheduledAt",
        a.status, a."publicationId", a."authorId", a."categoryId", a."tierId",
        a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
@@ -120,6 +120,7 @@ type GetArticleByIDRow struct {
 	Title                  string            `json:"title"`
 	Slug                   string            `json:"slug"`
 	Content                string            `json:"content"`
+	DraftContent           pgtype.Text       `json:"draftContent"`
 	Published              bool              `json:"published"`
 	IsPremium              bool              `json:"isPremium"`
 	Visibility             ContentVisibility `json:"visibility"`
@@ -153,6 +154,7 @@ func (q *Queries) GetArticleByID(ctx context.Context, id string) (GetArticleByID
 		&i.Title,
 		&i.Slug,
 		&i.Content,
+		&i.DraftContent,
 		&i.Published,
 		&i.IsPremium,
 		&i.Visibility,
@@ -897,6 +899,20 @@ func (q *Queries) ListRecentPublishedArticles(ctx context.Context, arg ListRecen
 	return items, nil
 }
 
+const publishArticleDraft = `-- name: PublishArticleDraft :one
+UPDATE "Article"
+SET content = COALESCE("draftContent", content), "draftContent" = NULL, "updatedAt" = now()
+WHERE id = $1
+RETURNING id
+`
+
+func (q *Queries) PublishArticleDraft(ctx context.Context, id string) (string, error) {
+	row := q.db.QueryRow(ctx, publishArticleDraft, id)
+	var id_2 string
+	err := row.Scan(&id_2)
+	return id_2, err
+}
+
 const setArticleStatus = `-- name: SetArticleStatus :one
 UPDATE "Article"
 SET status = $2, published = $3, "scheduledAt" = $4, "updatedAt" = now()
@@ -955,6 +971,25 @@ func (q *Queries) UpdateArticleContent(ctx context.Context, arg UpdateArticleCon
 		arg.SeoDescription,
 		arg.ReadingTime,
 	)
+	var id string
+	err := row.Scan(&id)
+	return id, err
+}
+
+const updateArticleDraft = `-- name: UpdateArticleDraft :one
+UPDATE "Article"
+SET "draftContent" = $2, "updatedAt" = now()
+WHERE id = $1
+RETURNING id
+`
+
+type UpdateArticleDraftParams struct {
+	ID           string      `json:"id"`
+	DraftContent pgtype.Text `json:"draftContent"`
+}
+
+func (q *Queries) UpdateArticleDraft(ctx context.Context, arg UpdateArticleDraftParams) (string, error) {
+	row := q.db.QueryRow(ctx, updateArticleDraft, arg.ID, arg.DraftContent)
 	var id string
 	err := row.Scan(&id)
 	return id, err

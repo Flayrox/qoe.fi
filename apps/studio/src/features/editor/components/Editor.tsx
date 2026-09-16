@@ -419,7 +419,9 @@ export function Editor({
         content: payload.content,
         imageUrl: s.imageUrl,
         slug: payload.slug || s.slug,
-        published: payload.published ?? s.published,
+        // 🔒 Ne jamais promouvoir automatiquement en direct lors de l'auto-save :
+        // les modifications restent isolées dans le draft de travail.
+        published: false,
         scheduledAt: s.scheduledAt,
         status: s.status,
         isPremium: payload.isPremium ?? s.isPremium,
@@ -669,6 +671,44 @@ export function Editor({
     }
   };
 
+  const handleUpdateLive = async () => {
+    try {
+      setError(null);
+      const htmlContent = editor?.getHTML() || '';
+      let finalSlug = slug;
+      if (!finalSlug) {
+        finalSlug = title
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/(^-|-$)+/g, '');
+        setSlug(finalSlug);
+      }
+
+      await onSave({
+        title,
+        content: htmlContent,
+        imageUrl,
+        slug: finalSlug,
+        published: true, // Promeut les modifications du draft en direct
+        status: 'PUBLISHED',
+        scheduledAt: null,
+        isPremium,
+        categoryId,
+        seoTitle: seoTitle || null,
+        seoDescription: seoDescription || null,
+        allowPublicAnnotations,
+        allowComments,
+        attributions,
+      });
+      setLastSaved(new Date());
+      setHasUnsavedChanges(false);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, t`Échec de la mise à jour.`));
+    }
+  };
+
   // Keyboard shortcut for saving (Cmd+S / Ctrl+S)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -857,36 +897,45 @@ export function Editor({
                 </button>
               )}
             </>
-          ) : (
-            /* Published / Draft Toggle avec modal de distribution */
-            <button
-              onClick={() => {
-                if (!published) {
-                  setIsPublishModalOpen(true);
-                } else {
+          ) : published ? (
+            /* Article en ligne : Mise à jour des modifications en direct + option de dépublication */
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={handleUpdateLive}
+                disabled={isSaving}
+                className={cn(
+                  'h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-semibold transition-all cursor-pointer shadow-xs',
+                  hasUnsavedChanges
+                    ? 'bg-primary text-primary-foreground hover:opacity-90'
+                    : 'bg-muted text-muted-foreground hover:text-foreground border border-border/60'
+                )}
+                title={t`Mettre à jour la version publique en ligne avec vos dernières modifications`}
+              >
+                <Send className="h-3.5 w-3.5" />
+                <span>
+                  {hasUnsavedChanges ? t`Mettre à jour l'article` : t`Publier modifications`}
+                </span>
+              </button>
+              <button
+                onClick={() => {
                   setPublished(false);
                   setStatus('DRAFT');
                   setHasUnsavedChanges(true);
-                }
-              }}
-              className={cn(
-                'h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-medium transition-all cursor-pointer border border-border/40',
-                published
-                  ? 'bg-success/10 border-success/30 text-success font-semibold'
-                  : 'bg-primary text-primary-foreground hover:opacity-90 shadow-xs'
-              )}
+                }}
+                className="h-8 px-2.5 rounded-lg flex items-center gap-1 font-sans text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-border/40 transition-all cursor-pointer"
+                title={t`Remettre cet article en brouillon privé`}
+              >
+                <span>Dépublier</span>
+              </button>
+            </div>
+          ) : (
+            /* Article en brouillon : Bouton standard de publication avec modal */
+            <button
+              onClick={() => setIsPublishModalOpen(true)}
+              className="h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-semibold transition-all cursor-pointer bg-primary text-primary-foreground hover:opacity-90 shadow-xs"
             >
-              {published ? (
-                <>
-                  <Globe className="h-3.5 w-3.5 text-success" />
-                  <span>{t`Publié`}</span>
-                </>
-              ) : (
-                <>
-                  <Send className="h-3.5 w-3.5" />
-                  <span>{t`Publier`}</span>
-                </>
-              )}
+              <Send className="h-3.5 w-3.5" />
+              <span>{t`Publier`}</span>
             </button>
           )}
 
