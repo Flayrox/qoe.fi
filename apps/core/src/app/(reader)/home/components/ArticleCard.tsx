@@ -394,154 +394,19 @@ export function ArticleCard({
   return (
     <article
       className={cn(
-        'group relative overflow-hidden bg-card border border-border/40 hover:border-border/80 transition-colors shadow-xs',
-        'rounded-[22px] p-4 sm:p-5 flex flex-col gap-3.5',
-        featured && 'rounded-[26px] border-primary/25 bg-card/90'
+        'group relative overflow-hidden bg-card shadow-none transition-colors border border-border/30 hover:border-border/60',
+        'rounded-[24px] p-2.5 sm:p-3 flex flex-col',
+        featured && 'rounded-[28px]'
       )}
     >
-      {/* 1. HEADER ÉDITORIAL AÉRÉ */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3 min-w-0">
-          <ProfileHoverCard
-            user={{
-              id: primaryAuthor.id,
-              name: primaryName,
-              username: primaryHandle,
-              logoUrl: primaryAuthor.logoUrl,
-              isCertified: primaryIsCertified,
-              isMedia: primaryAuthor.type === 'MEDIA',
-              type: primaryAuthor.type,
-            }}
-            onOpenProfile={onOpenProfile}
-          >
-            <BrandAvatar author={primaryAuthor} size={42} />
-          </ProfileHoverCard>
-
-          <div className="min-w-0 leading-tight">
-            <div className="flex max-w-full items-center gap-1.5 flex-wrap">
-              <ProfileHoverCard
-                user={{
-                  id: primaryAuthor.id,
-                  name: primaryName,
-                  username: primaryHandle,
-                  logoUrl: primaryAuthor.logoUrl,
-                  isCertified: primaryIsCertified,
-                  isMedia: primaryAuthor.type === 'MEDIA',
-                  type: primaryAuthor.type,
-                }}
-                onOpenProfile={onOpenProfile}
-              >
-                <span
-                  onClick={openProfile}
-                  className="truncate text-[15px] font-semibold text-foreground tracking-[-0.01em] hover:underline cursor-pointer"
-                >
-                  {primaryName}
-                </span>
-              </ProfileHoverCard>
-              {primaryIsCertified && <CertifiedBadge />}
-              <span className="text-xs text-muted-foreground">@{primaryHandle}</span>
-              <span className="text-xs text-muted-foreground/50">·</span>
-              <span className="text-xs text-muted-foreground/80">{date}</span>
-              {discovery && (
-                <span
-                  className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary ml-1 shrink-0"
-                  title={t`Sélection hors de ta bulle, choisie pour élargir tes horizons`}
-                >
-                  ✦ {t`Découverte`}
-                </span>
-              )}
-            </div>
-
-            <ContributorLine
-              people={secondaryPeople}
-              forMedia={useAuthorAsPrimary ? mediaContributor : null}
-              onOpenProfile={onOpenProfile}
-            />
-          </div>
-        </div>
-
-        {/* Header Right: Follow button & Options Menu */}
-        <div className="flex shrink-0 items-center gap-2">
-          {dbUser && dbUser.id !== article.author.id && (
-            <button
-              type="button"
-              onClick={toggleFollow}
-              className={cn(
-                'px-3 py-1 rounded-full text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer',
-                followed
-                  ? 'bg-muted text-foreground hover:bg-muted/80'
-                  : 'bg-primary text-primary-foreground hover:bg-primary/90'
-              )}
-            >
-              {followed ? (
-                <UserCheck className="h-3.5 w-3.5" />
-              ) : (
-                <UserPlus className="h-3.5 w-3.5" />
-              )}
-              <span>{followed ? t`Abonné` : t`Suivre`}</span>
-            </button>
-          )}
-
-          {onHideArticle && (
-            <Popover>
-              <PopoverTrigger
-                type="button"
-                className="text-muted-foreground hover:text-foreground p-1 rounded-full transition-colors cursor-pointer"
-                title={t`Plus d'options`}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }}
-              >
-                <MoreHorizontal className="h-4 w-4" />
-              </PopoverTrigger>
-              <PopoverContent
-                align="end"
-                sideOffset={8}
-                onClick={(e) => e.stopPropagation()}
-                className="w-56 rounded-xl border-border/40 bg-card p-1.5 shadow-xl"
-              >
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (window.confirm(t`Voir moins de contenu comme ça ?`)) {
-                      onHideArticle(article);
-                    }
-                  }}
-                  className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground cursor-pointer"
-                >
-                  <EyeOff className="h-3.5 w-3.5" />
-                  <span>{t`Voir moins de contenu comme ça`}</span>
-                </button>
-              </PopoverContent>
-            </Popover>
-          )}
-        </div>
-      </div>
-
-      {/* 2. TITRE & EXPOSÉ */}
-      <div onClick={openArticle} className="cursor-pointer group/title select-none">
-        <h3 className="line-clamp-2 text-[19px] sm:text-[21px] font-bold leading-snug tracking-[-0.02em] text-foreground group-hover/title:text-primary transition-colors">
-          {article.title}
-        </h3>
-        {excerpt && (
-          <p className="mt-1.5 line-clamp-2 text-[13.5px] sm:text-[14px] leading-relaxed text-muted-foreground">
-            {excerpt}
-          </p>
+      {/* 1. COVER IMAGE AVEC CAPSULE AUTEUR FLOTTANTE */}
+      <div
+        className={cn(
+          'relative overflow-hidden rounded-[17px] bg-muted',
+          featured ? 'h-[250px]' : 'h-[205px]'
         )}
-      </div>
-
-      {/* 3. COVER ARTWORK (Plein cadre, 100% libre et nette) */}
-      {coverImage && (
-        <div
-          onClick={openArticle}
-          className={cn(
-            'relative w-full overflow-hidden rounded-[14px] bg-muted cursor-pointer border border-border/20',
-            featured ? 'h-[240px] sm:h-[280px]' : 'h-[190px] sm:h-[220px]'
-          )}
-        >
+      >
+        {coverImage ? (
           <Image
             src={coverImage}
             alt=""
@@ -550,14 +415,156 @@ export function ArticleCard({
             className="object-cover"
             sizes="(max-width: 768px) 100vw, 720px"
           />
-        </div>
-      )}
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-muted-foreground/35 via-muted to-background" />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/25 pointer-events-none" />
 
-      {/* 4. FOOTER D'ACTIONS & LECTURE */}
-      <div className="flex items-center justify-between gap-3 pt-1 border-t border-border/30 text-xs text-muted-foreground">
+        {/* Capsule flottante en verre dépoli (Auteur, Profil, Follow, Options) */}
+        <div className="absolute inset-x-3 top-3 flex items-center justify-between gap-3 rounded-[14px] bg-white/90 px-2.5 py-2 text-black shadow-none backdrop-blur-md dark:bg-black/75 dark:text-white">
+          <div className="flex min-w-0 items-center gap-2.5 text-left">
+            {discovery && (
+              <span
+                className="flex shrink-0 items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-medium text-primary"
+                title={t`Sélection hors de ta bulle, choisie pour élargir tes horizons`}
+              >
+                ✦ {t`Découverte`}
+              </span>
+            )}
+            <ProfileHoverCard
+              user={{
+                id: primaryAuthor.id,
+                name: primaryName,
+                username: primaryHandle,
+                logoUrl: primaryAuthor.logoUrl,
+                heroText: primaryAuthor.heroText,
+                isCertified: primaryIsCertified,
+                isMedia: primaryAuthor.type === 'MEDIA',
+                type: primaryAuthor.type,
+              }}
+              onOpenProfile={onOpenProfile}
+            >
+              <BrandAvatar author={primaryAuthor} size={40} />
+            </ProfileHoverCard>
+            <div className="min-w-0 leading-tight">
+              <div className="flex max-w-full items-center gap-1.5 text-left">
+                <ProfileHoverCard
+                  user={{
+                    id: primaryAuthor.id,
+                    name: primaryName,
+                    username: primaryHandle,
+                    logoUrl: primaryAuthor.logoUrl,
+                    heroText: primaryAuthor.heroText,
+                    isCertified: primaryIsCertified,
+                    isMedia: primaryAuthor.type === 'MEDIA',
+                    type: primaryAuthor.type,
+                  }}
+                  onOpenProfile={onOpenProfile}
+                >
+                  <span
+                    onClick={openProfile}
+                    className="truncate text-[15px] font-semibold tracking-[-0.02em] hover:underline cursor-pointer text-foreground dark:text-white"
+                  >
+                    {primaryName}
+                  </span>
+                </ProfileHoverCard>
+                {primaryIsCertified && <CertifiedBadge />}
+                <span className="text-[11px] font-normal text-muted-foreground dark:text-white/60">
+                  · {date}
+                </span>
+              </div>
+              <ContributorLine
+                people={secondaryPeople}
+                forMedia={useAuthorAsPrimary ? mediaContributor : null}
+                onOpenProfile={onOpenProfile}
+              />
+            </div>
+          </div>
+
+          {dbUser && dbUser.id !== article.author.id && (
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleFollow}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold transition-colors cursor-pointer',
+                  followed
+                    ? 'bg-muted/80 text-foreground hover:bg-muted'
+                    : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                )}
+              >
+                {followed ? (
+                  <UserCheck className="h-3.5 w-3.5" />
+                ) : (
+                  <UserPlus className="h-3.5 w-3.5" />
+                )}
+                <span>{followed ? t`Abonné` : t`Suivre`}</span>
+              </button>
+
+              {onHideArticle && (
+                <Popover>
+                  <PopoverTrigger
+                    type="button"
+                    className="text-black/60 transition-colors hover:text-black dark:text-white/60 dark:hover:text-white p-1 rounded-full cursor-pointer"
+                    title={t`Plus d'options`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </PopoverTrigger>
+                  <PopoverContent
+                    align="end"
+                    sideOffset={8}
+                    onClick={(e) => e.stopPropagation()}
+                    className="w-56 rounded-xl border-border/40 bg-card p-1.5 shadow-xl"
+                  >
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (window.confirm(t`Voir moins de contenu comme ça ?`)) {
+                          onHideArticle(article);
+                        }
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground cursor-pointer"
+                    >
+                      <EyeOff className="h-3.5 w-3.5" />
+                      <span>{t`Voir moins de contenu comme ça`}</span>
+                    </button>
+                  </PopoverContent>
+                </Popover>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 2. TITRE & EXTRAIT SOUS L'IMAGE */}
+      <a
+        href={articleUrl}
+        target="_blank"
+        rel="noreferrer"
+        onClick={openArticle}
+        className="block px-1.5 pb-1 pt-3 cursor-pointer group/title"
+      >
+        <h3 className="line-clamp-2 text-[21px] font-semibold leading-[1.12] tracking-[-0.03em] text-foreground group-hover/title:text-primary transition-colors">
+          {article.title}
+        </h3>
+        {excerpt && (
+          <p className="mt-1.5 line-clamp-2 text-[13.5px] leading-relaxed text-muted-foreground">
+            {excerpt}
+          </p>
+        )}
+      </a>
+
+      {/* 3. FOOTER D'ACTIONS & LECTURE */}
+      <div className="flex items-center justify-between gap-3 border-t border-border/30 px-1.5 pt-2.5 text-xs text-muted-foreground mt-auto">
         <div className="flex min-w-0 items-center gap-2.5">
           {article.category && (
-            <span className="truncate font-medium text-foreground/85">{article.category.name}</span>
+            <span className="truncate font-medium text-foreground/80">{article.category.name}</span>
           )}
           {article.category && article.readingTime > 0 && <span>·</span>}
           {article.readingTime > 0 && (
@@ -573,12 +580,11 @@ export function ArticleCard({
             </span>
           )}
         </div>
-
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1">
           <button
             type="button"
             onClick={toggleBookmark}
-            className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors cursor-pointer"
+            className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
             title={t`Mettre en signet`}
           >
             {bookmarked ? (
@@ -590,7 +596,7 @@ export function ArticleCard({
           <button
             type="button"
             onClick={openArticle}
-            className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors cursor-pointer"
+            className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
             title={t`Lire l'article`}
           >
             <ArrowUpRight className="h-4 w-4" />
