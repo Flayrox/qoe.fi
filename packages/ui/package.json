@@ -17,7 +17,11 @@
     "./SocialIcon": "./src/SocialIcon.tsx",
     "./TenantHeader": "./src/TenantHeader.tsx",
     "./SubscribeForm": "./src/SubscribeForm.tsx",
-    "./sidebar": "./src/sidebar.tsx"
+    "./sidebar": "./src/sidebar.tsx",
+    "./reader": "./src/reader/index.ts",
+    "./profile": "./src/profile/index.ts",
+    "./cards": "./src/cards/index.ts",
+    "./forms": "./src/forms/index.ts"
   },
   "scripts": {
     "lint": "eslint .",

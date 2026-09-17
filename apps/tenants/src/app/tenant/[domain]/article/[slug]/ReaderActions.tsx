@@ -14,6 +14,7 @@ import { toggleFollowCreatorAction, toggleBookmarkArticleAction } from '@qoe/sdk
 import { cn } from '@qoe/utils';
 import { motion } from 'framer-motion';
 import { useRequireAuth } from '@qoe/ui';
+import { ReadingSettingsSheet, TextToSpeechPlayer } from '@qoe/ui/reader';
 import { t } from '@lingui/core/macro';
 
 interface ReaderActionsProps {
@@ -24,6 +25,7 @@ interface ReaderActionsProps {
   initialBookmarked: boolean;
   initialFollowed: boolean;
   mainAppUrl: string;
+  articleTitle?: string;
 }
 
 export function ReaderActions({
@@ -33,6 +35,7 @@ export function ReaderActions({
   isAuthenticated,
   initialBookmarked,
   initialFollowed,
+  articleTitle,
 }: ReaderActionsProps) {
   const { openAuthModal } = useRequireAuth();
   const [bookmarked, setBookmarked] = useState(initialBookmarked);
@@ -113,6 +116,18 @@ export function ReaderActions({
       >
         <MessageSquare className="w-4 h-4" />
       </button>
+
+      <div className="w-px h-4 bg-border shrink-0" />
+
+      {/* Reading Accessibility & Preferences "Aa" */}
+      <ReadingSettingsSheet className="w-9 h-9 !px-0 !py-0 rounded-xl justify-center border-0 bg-transparent hover:bg-muted text-muted-foreground hover:text-foreground shadow-none" />
+
+      {/* Text-To-Speech Audio Player */}
+      <TextToSpeechPlayer
+        articleTitle={articleTitle || creatorName}
+        articleContentSelector="#article-content"
+        className="h-9 px-2.5 rounded-xl border-0 bg-transparent hover:bg-muted text-muted-foreground hover:text-foreground shadow-none"
+      />
 
       <div className="w-px h-4 bg-border shrink-0" />
 

@@ -24,7 +24,7 @@ import {
 import type { Metadata } from 'next';
 import { JsonLd, buildArticleSchema } from '@qoe/ui';
 import { getLanguage } from '@qoe/i18n/server';
-import { ReadingProgressBar } from '@/components/ReadingProgressBar';
+import { TenantReaderShell } from './TenantReaderShell';
 import { LegalFooterLinks } from '@/components/legal/LegalFooterLinks';
 
 interface TenantArticlePageProps {
@@ -293,12 +293,8 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
   });
 
   return (
-    <div
-      className={`min-h-screen ${themeMode === 'dark' ? 'dark bg-foreground text-background' : 'bg-background text-foreground'} selection:bg-[var(--tenant-accent)] selection:text-white transition-colors duration-300 relative`}
-      style={customStyle}
-    >
+    <TenantReaderShell style={customStyle} themeMode={themeMode}>
       <JsonLd data={jsonLdData} />
-      <ReadingProgressBar />
       {/* Header */}
       <TenantHeader
         name={name}
@@ -453,6 +449,7 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
         initialBookmarked={initialBookmarked}
         initialFollowed={initialFollowed}
         mainAppUrl={mainAppUrl}
+        articleTitle={article.title}
       />
 
       {/* Footer */}
@@ -464,6 +461,6 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
           <p>{footerText || t`© ${new Date().getFullYear()} ${name ?? ''}. Propulsé par qoe.fi`}</p>
         </div>
       </footer>
-    </div>
+    </TenantReaderShell>
   );
 }

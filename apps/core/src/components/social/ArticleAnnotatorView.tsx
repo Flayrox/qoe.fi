@@ -22,6 +22,18 @@ import {
 import { SimilarArticlesSection } from './SimilarArticlesSection';
 import { useArticleReadingTracker } from '@qoe/analytics';
 import { SubscribeForm } from '@qoe/ui';
+import {
+  ReadingPreferencesProvider,
+  useReadingPreferences,
+  ReadingSettingsSheet,
+  ReadingRuler,
+  ReadingProgressBar,
+  TextToSpeechPlayer,
+  getReaderTypographyClasses,
+  getPaperThemeClasses,
+  formatBionicHtml,
+} from '@qoe/ui/reader';
+import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
 
 export interface ArticleAnnotatorViewProps {
@@ -75,7 +87,15 @@ interface AuthUser {
   };
 }
 
-export function ArticleAnnotatorView({
+export function ArticleAnnotatorView(props: ArticleAnnotatorViewProps) {
+  return (
+    <ReadingPreferencesProvider>
+      <ArticleAnnotatorViewInner {...props} />
+    </ReadingPreferencesProvider>
+  );
+}
+
+function ArticleAnnotatorViewInner({
   article,
   initialSource,
   canonicalDocument: canonicalDocumentProp,
@@ -219,9 +239,23 @@ export function ArticleAnnotatorView({
       }
     : null;
 
+  const { preferences } = useReadingPreferences();
+  const typographyClasses = getReaderTypographyClasses(preferences);
+  const paperThemeClasses = getPaperThemeClasses(preferences.paperTheme);
+
+  const displayedContent = React.useMemo(() => {
+    if (!article.content) return '';
+    return preferences.bionicReading ? formatBionicHtml(article.content) : article.content;
+  }, [article.content, preferences.bionicReading]);
+
   if (article.isLoading || !article.content) {
     return (
-      <div className="relative w-full bg-background text-foreground space-y-6 max-w-4xl mx-auto font-sans pb-12 animate-pulse">
+      <div
+        className={cn(
+          'relative w-full space-y-6 max-w-4xl mx-auto font-sans pb-12 animate-pulse transition-colors duration-200',
+          paperThemeClasses
+        )}
+      >
         <div className="space-y-3 border-b border-border/40 pb-5">
           <div className="h-8 bg-muted rounded-xl w-3/4" />
           <div className="h-4 bg-muted rounded-lg w-1/3" />
@@ -238,39 +272,57 @@ export function ArticleAnnotatorView({
   }
 
   return (
-    <div className="relative w-full bg-background text-foreground space-y-6 max-w-4xl mx-auto font-sans pb-12">
+    <div
+      className={cn(
+        'relative w-full space-y-6 max-w-4xl mx-auto font-sans pb-12 transition-colors duration-200',
+        paperThemeClasses
+      )}
+    >
+      <ReadingProgressBar />
+      <ReadingRuler />
+
       {/* Article Header */}
       <div className="space-y-3 border-b border-border/40 pb-5">
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
           {article.title}
         </h1>
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span>
-            Par{' '}
-            <strong className="text-foreground">
-              {article.author?.name || article.author?.username || 'Auteur'}
-            </strong>
-          </span>
-          <span>•</span>
-          <span>{article.readingTime || 5} min de lecture</span>
-          <span>•</span>
-          <time
-            dateTime={
-              article.createdAt
-                ? typeof article.createdAt === 'string'
-                  ? article.createdAt
-                  : article.createdAt instanceof Date
-                    ? article.createdAt.toISOString()
-                    : String(article.createdAt)
-                : new Date().toISOString()
-            }
-          >
-            {new Date(article.createdAt || Date.now()).toLocaleDateString('fr-FR', {
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-            })}
-          </time>
+        <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
+          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+            <span>
+              Par{' '}
+              <strong className="text-foreground">
+                {article.author?.name || article.author?.username || 'Auteur'}
+              </strong>
+            </span>
+            <span>•</span>
+            <span>{article.readingTime || 5} min de lecture</span>
+            <span>•</span>
+            <time
+              dateTime={
+                article.createdAt
+                  ? typeof article.createdAt === 'string'
+                    ? article.createdAt
+                    : article.createdAt instanceof Date
+                      ? article.createdAt.toISOString()
+                      : String(article.createdAt)
+                  : new Date().toISOString()
+              }
+            >
+              {new Date(article.createdAt || Date.now()).toLocaleDateString('fr-FR', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              })}
+            </time>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <TextToSpeechPlayer
+              articleTitle={article.title}
+              articleContentSelector="#article-content"
+            />
+            <ReadingSettingsSheet />
+          </div>
         </div>
       </div>
 
@@ -289,7 +341,10 @@ export function ArticleAnnotatorView({
         containerId="article-content"
         canonicalDocument={canonicalDocument ?? undefined}
         spotlight={spotlight}
-        contentClassName="prose prose-sm sm:prose-base dark:prose-invert max-w-none leading-relaxed text-foreground/90 selection:bg-highlight/30 cursor-text space-y-4 pt-2"
+        contentClassName={cn(
+          'prose prose-sm sm:prose-base dark:prose-invert max-w-none text-foreground/90 selection:bg-highlight/30 cursor-text space-y-4 pt-2',
+          typographyClasses
+        )}
         callbacks={callbacks}
       />
 
@@ -298,8 +353,11 @@ export function ArticleAnnotatorView({
       {!documentMode && (
         <div
           id="article-content"
-          className="prose prose-sm sm:prose-base dark:prose-invert max-w-none leading-relaxed text-foreground/90 selection:bg-highlight/30 cursor-text space-y-4 pt-2"
-          dangerouslySetInnerHTML={{ __html: article.content }}
+          className={cn(
+            'prose prose-sm sm:prose-base dark:prose-invert max-w-none text-foreground/90 selection:bg-highlight/30 cursor-text space-y-4 pt-2',
+            typographyClasses
+          )}
+          dangerouslySetInnerHTML={{ __html: displayedContent }}
         />
       )}
 
