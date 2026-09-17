@@ -1,5 +1,6 @@
 export * from './types';
 export * from './bionic';
+export * from './useBionicReading';
 export * from './ReadingPreferencesContext';
 export * from './ReadingSettingsSheet';
 export * from './ReadingProgressBar';

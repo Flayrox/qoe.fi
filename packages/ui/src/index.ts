@@ -105,6 +105,3 @@ export * from './seo/JsonLd';
 
 // 🧭 Page 404 Immersive & Interactive
 export { NotFoundView } from './NotFoundView';
-
-// 📖 Moteur de Lecture Inclusif & Accessibilité
-export * from './reader';
