@@ -10,6 +10,7 @@ import { cn } from '@qoe/utils';
 export interface ArticleReaderDrawerProps {
   isOpen: boolean;
   article: ArticleAnnotatorViewProps['article'] | null;
+  canonicalDocument?: ArticleAnnotatorViewProps['canonicalDocument'];
   onClose: () => void;
   initialSource?: 'feed' | 'subdomain' | 'public_profile' | 'direct';
   /** Passage à mettre en avant (deep-link citation → article). */
@@ -19,6 +20,7 @@ export interface ArticleReaderDrawerProps {
 export function ArticleReaderDrawer({
   isOpen,
   article,
+  canonicalDocument,
   onClose,
   initialSource,
   spotlight,
@@ -72,9 +74,12 @@ export function ArticleReaderDrawer({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed top-[6px] bottom-0 md:bottom-[6px] left-0 md:left-[262px] right-0 md:right-[6px] z-50 flex flex-col pointer-events-auto select-text">
-          {/* Backdrop Click Area (No darkening overlay, background remains untouched) */}
-          <div onClick={onClose} className="fixed inset-0 cursor-pointer -z-10" />
+        <div className="fixed top-[6px] bottom-0 md:bottom-[6px] left-0 md:left-[262px] right-0 md:right-[6px] z-50 flex flex-col pointer-events-auto select-text selection:bg-foreground selection:text-background">
+          {/* Backdrop Click Area (No darkening overlay, strictly bounded to right stage, sidebar remains 100% uncovered) */}
+          <div
+            onClick={onClose}
+            className="fixed top-0 bottom-0 left-0 md:left-[262px] right-0 cursor-pointer -z-10"
+          />
 
           {/* Reader Panel aligned with sidebar */}
           <motion.div
@@ -82,7 +87,7 @@ export function ArticleReaderDrawer({
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', stiffness: 320, damping: 32 }}
-            className="relative z-10 w-full h-full flex flex-col bg-white dark:bg-black text-black dark:text-white border border-border/40 rounded-t-3xl md:rounded-[18px] shadow-2xl overflow-hidden font-sans"
+            className="relative z-10 w-full h-full flex flex-col bg-white dark:bg-black text-black dark:text-white border border-border/40 rounded-t-3xl md:rounded-[18px] shadow-2xl overflow-hidden font-sans selection:bg-foreground selection:text-background"
           >
             {/* 1. Zenithal Progressive Blur & Theme Gradient Fade (Part du bas normal vers le flou/blanc sans aucun rectangle) */}
             <div className="pointer-events-none absolute top-0 left-0 right-0 h-32 z-20 overflow-hidden">
@@ -217,6 +222,7 @@ export function ArticleReaderDrawer({
               <div className="max-w-6xl mx-auto">
                 <ArticleAnnotatorView
                   article={article}
+                  canonicalDocument={canonicalDocument}
                   onClose={onClose}
                   initialSource={initialSource}
                   spotlight={spotlight}

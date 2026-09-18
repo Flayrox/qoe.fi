@@ -25,6 +25,7 @@
 - **[S] Test réel de la directive `rollBackToEmbedded`** — rejouer le flux E2E OTA sur simulateur en publiant un update volontairement cassé et vérifier que l'app revient au bundle embedded (serveur déjà couvert par un test unitaire ; manque la preuve en réel sur l'app).
 - **[M] Outils d'accessibilité & de lecture sur la page article** (mobile **et** web) — réutiliser `useUserSettings`/`ReadingPreferencesProvider` : taille de police, contraste, réduire les animations, police adaptée. **Vision produits** : ces outils seront aussi configurables directement sur la page d'un article. Plan complet dans `docs/READING_TOOLS_AUDIT.md` (surlignage par sélection, citations d'extraits, annotations, toolbar lecture — API Go déjà prête).
 - **[M] Onboarding mobile** — parité web (`/onboarding`) : setup du profil (nom, bannière, bio), suggestions à suivre. Aujourd'hui : inscription → app directe.
+- **[M] Web : Mode Découverte en arrière-plan du tiroir de lecture (Article Reader)** — Derrière le tiroir latéral de lecture (actuellement le feed), concevoir et intégrer un écran immersif de « Discovery » avec temps de lecture estimé/restant, statistiques d'impact, citations phares et recommandations contextuelles sans quitter l'environnement de lecture.
 
 ---
 

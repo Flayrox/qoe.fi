@@ -38,6 +38,7 @@ import { t } from '@lingui/core/macro';
 import { trackEvent } from '@/lib/analytics';
 import { routes, getArticleUrl } from '@qoe/config/routes';
 import { cn } from '@qoe/utils';
+import type { CanonicalDocument, SpotlightRange } from '@qoe/ui/annotations';
 import type { ThoughtData } from '@qoe/sdk';
 import type { FeedSlice } from '@/lib/feed-types';
 
@@ -195,6 +196,9 @@ interface FeedDashboardProps {
   onboardingCategories?: OnboardingCategory[];
   onboardingSuggestedCreators?: OnboardingCreator[];
   activityData?: number[];
+  initialArticle?: Article | null;
+  initialCanonicalDocument?: CanonicalDocument | null;
+  initialSpotlight?: SpotlightRange | null;
 }
 
 export function FeedDashboard({
@@ -216,20 +220,24 @@ export function FeedDashboard({
   initialBookmarksCount,
   initialHighlightsCount,
   activityData,
+  initialArticle = null,
+  initialCanonicalDocument = null,
+  initialSpotlight = null,
 }: FeedDashboardProps) {
   const [activeFeed, setActiveFeed] = useState<string>('recommandation');
   const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(needsOnboarding);
   const [activePostId, setActivePostId] = useState<string | null>(null);
-  const [activeArticle, setActiveArticle] = useState<Article | null>(null);
+  const [activeArticle, setActiveArticle] = useState<Article | null>(initialArticle);
+  const [activeArticleCanonicalDoc, setActiveArticleCanonicalDoc] = useState<
+    CanonicalDocument | null | undefined
+  >(initialCanonicalDocument);
   // 🔦 Passage cité à mettre en avant dans le drawer (deep-link 6-b).
-  const [activeArticleSpotlight, setActiveArticleSpotlight] = useState<{
-    start: number;
-    end: number;
-    sha: string;
-  } | null>(null);
+  const [activeArticleSpotlight, setActiveArticleSpotlight] = useState<SpotlightRange | null>(
+    initialSpotlight
+  );
   const [activeArticleSource, setActiveArticleSource] = useState<
     'feed' | 'subdomain' | 'public_profile' | 'direct' | undefined
-  >(undefined);
+  >(initialArticle ? 'direct' : undefined);
   const [isComposerModalOpen, setIsComposerModalOpen] = useState(false);
   const [isHotkeyModalOpen, setIsHotkeyModalOpen] = useState(false);
   const [lightboxImages] = useState<{ url: string; alt?: string | null }[]>([]);
@@ -617,7 +625,8 @@ export function FeedDashboard({
     setActiveArticle(null);
     setActiveArticleSpotlight(null);
     setActiveArticleSource(undefined);
-    if (window.location.pathname.includes('/article/')) {
+    setActiveArticleCanonicalDoc(undefined);
+    if (typeof window !== 'undefined' && window.location.pathname !== routes.feed.home()) {
       window.history.pushState(null, '', routes.feed.home());
     }
     setTimeout(() => {
@@ -1031,6 +1040,7 @@ export function FeedDashboard({
       <ArticleReaderDrawer
         isOpen={!!activeArticle}
         article={activeArticle}
+        canonicalDocument={activeArticleCanonicalDoc}
         onClose={handleCloseArticle}
         initialSource={activeArticleSource}
         spotlight={activeArticleSpotlight}
