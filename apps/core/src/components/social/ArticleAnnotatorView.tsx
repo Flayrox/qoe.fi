@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Lock } from 'lucide-react';
+import Image from 'next/image';
+import { Bookmark, BookMarked, Check, Lock, Share2, UserCheck, UserPlus } from 'lucide-react';
 import { createClient } from '@qoe/supabase/client';
 import {
   TextHighlighter,
@@ -19,9 +20,11 @@ import {
   toggleHighlightPrivacyAction,
   deleteHighlightAction,
 } from '@qoe/sdk';
+import { toggleFollowCreatorHomeAction } from '@qoe/sdk/actions/feed';
 import { SimilarArticlesSection } from './SimilarArticlesSection';
 import { useArticleReadingTracker } from '@qoe/analytics';
-import { SubscribeForm } from '@qoe/ui';
+import { SubscribeForm, SafeAvatar, ProfileHoverCard } from '@qoe/ui';
+import { CertifiedBadge } from '@qoe/ui/ui/CertifiedBadge';
 import {
   ReadingPreferencesProvider,
   useReadingPreferences,
@@ -30,7 +33,6 @@ import {
   ReadingProgressBar,
   TextToSpeechPlayer,
   getReaderTypographyClasses,
-  getPaperThemeClasses,
   formatBionicHtml,
 } from '@qoe/ui/reader';
 import { cn } from '@qoe/utils';
@@ -42,6 +44,7 @@ export interface ArticleAnnotatorViewProps {
     title: string;
     slug: string;
     content: string;
+    imageUrl?: string | null;
     readingTime?: number;
     createdAt: string | Date;
     isPremium?: boolean;
@@ -51,13 +54,20 @@ export interface ArticleAnnotatorViewProps {
       name?: string | null;
       username?: string | null;
       logoUrl?: string | null;
+      heroText?: string | null;
       subdomain?: string | null;
       customDomain?: string | null;
+      isCertified?: boolean;
+      type?: 'PERSONAL' | 'MEDIA' | string | null;
+      accentColor?: string | null;
     };
+    category?: { name: string } | null;
+    tags?: string[];
     publication?: {
       slug?: string | null;
       subdomain?: string | null;
       customDomain?: string | null;
+      accentColor?: string | null;
     } | null;
     allowPublicAnnotations?: boolean;
     isLoading?: boolean;
@@ -75,6 +85,7 @@ export interface ArticleAnnotatorViewProps {
    * l'empreinte correspond.
    */
   spotlight?: SpotlightRange | null;
+  onOpenProfile?: (username: string) => void;
 }
 
 interface AuthUser {
@@ -100,12 +111,16 @@ function ArticleAnnotatorViewInner({
   initialSource,
   canonicalDocument: canonicalDocumentProp,
   spotlight,
+  onOpenProfile,
 }: ArticleAnnotatorViewProps) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [highlightsList, setHighlightsList] = useState<AnnotationItem[]>([]);
   const [clientDocument, setClientDocument] = useState<CanonicalDocument | null | undefined>(
     undefined
   );
+  const [bookmarked, setBookmarked] = useState(false);
+  const [followed, setFollowed] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   // Document canonique : la prop serveur prime (SSR peint les marques). Sans
   // prop (drawer du feed), fetch client — jamais pour un article premium
@@ -227,6 +242,65 @@ function ArticleAnnotatorViewInner({
     },
   };
 
+  // Sync bookmark and follow states
+  useEffect(() => {
+    if (!user?.id || !article.id) return;
+    const supabase = createClient();
+    supabase
+      .from('bookmarks')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('article_id', article.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setBookmarked(true);
+      });
+    if (article.author?.id) {
+      supabase
+        .from('follows')
+        .select('id')
+        .eq('follower_id', user.id)
+        .eq('creator_id', article.author.id)
+        .maybeSingle()
+        .then(({ data }) => {
+          if (data) setFollowed(true);
+        });
+    }
+  }, [user?.id, article.id, article.author?.id]);
+
+  const toggleBookmark = async () => {
+    if (!user) return;
+    const next = !bookmarked;
+    setBookmarked(next);
+    const supabase = createClient();
+    if (next) {
+      await supabase.from('bookmarks').insert({ user_id: user.id, article_id: article.id });
+    } else {
+      await supabase.from('bookmarks').delete().eq('user_id', user.id).eq('article_id', article.id);
+    }
+  };
+
+  const toggleFollow = async () => {
+    if (!user || !article.author?.id) return;
+    const next = !followed;
+    setFollowed(next);
+    try {
+      await toggleFollowCreatorHomeAction(article.author.id);
+    } catch {
+      setFollowed(!next);
+    }
+  };
+
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // ignore
+    }
+  };
+
   const initialHighlights = highlightsList.filter((h) => !h.isPublic && !h.isOfficial);
   const publicHighlights = highlightsList.filter((h) => h.isPublic || h.isOfficial);
 
@@ -241,23 +315,27 @@ function ArticleAnnotatorViewInner({
 
   const { preferences } = useReadingPreferences();
   const typographyClasses = getReaderTypographyClasses(preferences);
-  const paperThemeClasses = getPaperThemeClasses(preferences.paperTheme);
 
   const displayedContent = React.useMemo(() => {
     if (!article.content) return '';
     return preferences.bionicReading ? formatBionicHtml(article.content) : article.content;
   }, [article.content, preferences.bionicReading]);
 
+  const authorName = article.author?.name || article.author?.username || 'Auteur';
+  const authorHandle = article.author?.username || article.author?.subdomain || '';
+  const dateObj = new Date(article.createdAt || Date.now());
+  const dateFormatted = dateObj.toLocaleDateString('fr-FR', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+  const dateIso = dateObj.toISOString();
+
   if (article.isLoading || !article.content) {
     return (
-      <div
-        className={cn(
-          'relative w-full space-y-6 max-w-4xl mx-auto font-sans pb-12 animate-pulse transition-colors duration-200',
-          paperThemeClasses
-        )}
-      >
-        <div className="space-y-3 border-b border-border/40 pb-5">
-          <div className="h-8 bg-muted rounded-xl w-3/4" />
+      <div className="relative w-full space-y-6 max-w-4xl mx-auto font-sans pb-12 animate-pulse bg-white dark:bg-black text-black dark:text-white">
+        <div className="space-y-3 border-b border-border/30 pb-5">
+          <div className="h-10 bg-muted rounded-xl w-3/4" />
           <div className="h-4 bg-muted rounded-lg w-1/3" />
         </div>
         <div className="space-y-4 pt-4">
@@ -274,49 +352,148 @@ function ArticleAnnotatorViewInner({
   return (
     <div
       className={cn(
-        'relative w-full space-y-6 max-w-4xl mx-auto font-sans pb-12 transition-colors duration-200',
-        paperThemeClasses
+        'relative w-full space-y-6 max-w-4xl mx-auto font-sans pb-16 transition-colors duration-200 bg-white dark:bg-black text-black dark:text-white',
+        typographyClasses
       )}
     >
       <ReadingProgressBar />
       <ReadingRuler />
 
-      {/* Article Header */}
-      <div className="space-y-3 border-b border-border/40 pb-5">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+      {/* 1. ARTICLE HEADER : TITRE EN GRAND */}
+      <div className="space-y-4 pb-2">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-foreground leading-[1.14]">
           {article.title}
         </h1>
-        <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span>
-              Par{' '}
-              <strong className="text-foreground">
-                {article.author?.name || article.author?.username || 'Auteur'}
-              </strong>
-            </span>
-            <span>•</span>
-            <span>{article.readingTime || 5} min de lecture</span>
-            <span>•</span>
-            <time
-              dateTime={
-                article.createdAt
-                  ? typeof article.createdAt === 'string'
-                    ? article.createdAt
-                    : article.createdAt instanceof Date
-                      ? article.createdAt.toISOString()
-                      : String(article.createdAt)
-                  : new Date().toISOString()
-              }
+
+        {/* 2. IMAGE DE COUVERTURE SOUS LE TITRE */}
+        {article.imageUrl && (
+          <div className="relative w-full h-[220px] sm:h-[340px] md:h-[400px] rounded-2xl overflow-hidden border border-border/30 bg-muted/30">
+            <Image
+              src={article.imageUrl}
+              alt={article.title || ''}
+              fill
+              priority
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, 896px"
+            />
+          </div>
+        )}
+
+        {/* 3. EN-TÊTE AUTEUR ENRICHI & BARRE D'OUTILS DE LECTURE */}
+        <div className="flex flex-wrap items-center justify-between gap-4 py-3 border-b border-border/20">
+          <div className="flex items-center gap-3 min-w-0">
+            <ProfileHoverCard
+              user={{
+                id: article.author?.id || '',
+                name: authorName,
+                username: authorHandle,
+                logoUrl: article.author?.logoUrl,
+                heroText: article.author?.heroText,
+                isCertified: article.author?.isCertified,
+                isMedia: article.author?.type === 'MEDIA',
+                type: article.author?.type,
+              }}
+              onOpenProfile={onOpenProfile}
             >
-              {new Date(article.createdAt || Date.now()).toLocaleDateString('fr-FR', {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric',
-              })}
-            </time>
+              <SafeAvatar
+                src={article.author?.logoUrl}
+                name={authorName}
+                username={authorHandle}
+                size={42}
+                shape={article.author?.type === 'MEDIA' ? 'squircle' : 'circle'}
+                type={article.author?.type === 'MEDIA' ? 'MEDIA' : 'PERSONAL'}
+                className={cn(
+                  'shrink-0 cursor-pointer shadow-xs',
+                  article.author?.type === 'MEDIA' ? 'rounded-xl' : 'rounded-full'
+                )}
+              />
+            </ProfileHoverCard>
+
+            <div className="min-w-0 leading-tight">
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <ProfileHoverCard
+                  user={{
+                    id: article.author?.id || '',
+                    name: authorName,
+                    username: authorHandle,
+                    logoUrl: article.author?.logoUrl,
+                    heroText: article.author?.heroText,
+                    isCertified: article.author?.isCertified,
+                    isMedia: article.author?.type === 'MEDIA',
+                    type: article.author?.type,
+                  }}
+                  onOpenProfile={onOpenProfile}
+                >
+                  <span
+                    onClick={() => onOpenProfile?.(authorHandle)}
+                    className="font-semibold text-[15px] text-foreground hover:underline cursor-pointer truncate"
+                  >
+                    {authorName}
+                  </span>
+                </ProfileHoverCard>
+                {article.author?.isCertified && <CertifiedBadge />}
+                {authorHandle && (
+                  <span className="text-xs text-muted-foreground">@{authorHandle}</span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                {article.category && (
+                  <>
+                    <span className="font-medium text-foreground/80">{article.category.name}</span>
+                    <span>·</span>
+                  </>
+                )}
+                <span>{article.readingTime || 5} min de lecture</span>
+                <span>·</span>
+                <time dateTime={dateIso}>{dateFormatted}</time>
+              </div>
+            </div>
           </div>
 
           <div className="flex items-center gap-2">
+            {user && user.id !== article.author?.id && (
+              <button
+                type="button"
+                onClick={toggleFollow}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors cursor-pointer',
+                  followed
+                    ? 'bg-muted text-foreground hover:bg-muted/80'
+                    : 'bg-foreground text-background dark:bg-white dark:text-black hover:opacity-90'
+                )}
+              >
+                {followed ? (
+                  <UserCheck className="w-3.5 h-3.5" />
+                ) : (
+                  <UserPlus className="w-3.5 h-3.5" />
+                )}
+                <span>{followed ? t`Abonné` : t`Suivre`}</span>
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={toggleBookmark}
+              className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
+              title={bookmarked ? t`Supprimer des signets` : t`Mettre en signet`}
+            >
+              {bookmarked ? (
+                <BookMarked className="w-4 h-4 fill-current text-primary" />
+              ) : (
+                <Bookmark className="w-4 h-4" />
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleShare}
+              className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
+              title={copied ? t`Lien copié !` : t`Partager l'article`}
+            >
+              {copied ? <Check className="w-4 h-4 text-success" /> : <Share2 className="w-4 h-4" />}
+            </button>
+
             <TextToSpeechPlayer
               articleTitle={article.title}
               articleContentSelector="#article-content"
@@ -329,7 +506,7 @@ function ArticleAnnotatorViewInner({
       {/* Shared Genius Text Selection Highlighter Engine */}
       <TextHighlighter
         articleId={article.id}
-        creatorName={article.author?.name || article.author?.username || "L'Auteur"}
+        creatorName={authorName}
         allowPublicAnnotations={article.allowPublicAnnotations ?? true}
         isAuthenticated={!!user}
         initialHighlights={initialHighlights}
@@ -361,22 +538,43 @@ function ArticleAnnotatorViewInner({
         />
       )}
 
-      {/* 💌 Inscription Newsletter (1-Clic Substack synchronisé) */}
+      {/* 💌 Inscription Newsletter (adaptée au tenant de l'artiste uniquement) */}
       {article.author?.id && (
-        <div className="my-8 p-6 sm:p-8 rounded-2xl bg-card border border-border/50 text-center space-y-4 not-prose shadow-xs">
-          <div className="max-w-md mx-auto space-y-1.5">
+        <div className="my-12 p-6 sm:p-8 rounded-2xl bg-muted/20 dark:bg-card/40 border border-border/30 text-center space-y-4 not-prose shadow-none">
+          <div className="max-w-md mx-auto space-y-2">
+            {article.author?.logoUrl && (
+              <div className="mx-auto w-12 h-12 mb-2 flex items-center justify-center">
+                <SafeAvatar
+                  src={article.author.logoUrl}
+                  name={authorName}
+                  username={authorHandle}
+                  size={48}
+                  shape={article.author?.type === 'MEDIA' ? 'squircle' : 'circle'}
+                  type={article.author?.type === 'MEDIA' ? 'MEDIA' : 'PERSONAL'}
+                  className="mx-auto shadow-xs"
+                />
+              </div>
+            )}
             <h4 className="text-lg font-bold text-foreground">
               {t`Restez informé des prochains écrits`}
             </h4>
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              {t`Abonnez-vous à la newsletter de ${article.author.name || article.author.username || "l'auteur"} pour recevoir ses publications directement par email.`}
+            <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+              {t`Abonnez-vous à la newsletter de ${authorName} pour recevoir ses publications directement par email.`}
             </p>
           </div>
           <SubscribeForm
             publicationId={article.author.id}
-            authorName={article.author.name || undefined}
+            authorName={authorName || undefined}
             userEmail={user?.email || null}
+            accentColor={
+              initialSource === 'subdomain'
+                ? article.author.accentColor || article.publication?.accentColor || undefined
+                : undefined
+            }
           />
+          <p className="text-[11px] text-muted-foreground/60 pt-1">
+            {t`Gratuit · 1-clic · Sans spam · Désabonnement facile`}
+          </p>
         </div>
       )}
 

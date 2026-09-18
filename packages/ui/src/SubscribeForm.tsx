@@ -14,6 +14,7 @@ interface SubscribeFormProps {
   recommendations?: RecommendedPublication[];
   userEmail?: string | null;
   className?: string;
+  accentColor?: string;
 }
 
 export function SubscribeForm({
@@ -23,6 +24,7 @@ export function SubscribeForm({
   recommendations = [],
   userEmail,
   className = '',
+  accentColor,
 }: SubscribeFormProps) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
@@ -140,7 +142,8 @@ export function SubscribeForm({
               setStatus('idle');
               setIsOtherEmailMode(true);
             }}
-            className="mt-4 text-xs font-semibold text-[var(--tenant-accent)] hover:underline cursor-pointer"
+            className="mt-4 text-xs font-semibold hover:underline cursor-pointer"
+            style={accentColor ? { color: accentColor } : undefined}
           >
             {t`S'abonner avec une autre adresse`}
           </button>
@@ -160,7 +163,7 @@ export function SubscribeForm({
             className={`flex items-stretch overflow-hidden transition-all ${
               isBrutalist
                 ? 'border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] bg-background'
-                : 'rounded-xl shadow-sm border border-border/60'
+                : 'rounded-xl shadow-xs border border-border/60'
             }`}
           >
             {/* Primary 1-Click Subscribe Action */}
@@ -168,10 +171,12 @@ export function SubscribeForm({
               type="button"
               disabled={status === 'loading'}
               onClick={() => void executeSubscribe(connectedEmail!)}
-              className={`flex-1 h-13 px-5 font-semibold text-[var(--tenant-accent-foreground,hsl(var(--primary-foreground)))] text-base transition-colors flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 ${
-                isBrutalist ? 'uppercase tracking-wider hover:opacity-95' : 'hover:opacity-95'
-              }`}
-              style={{ backgroundColor: 'var(--tenant-accent, hsl(var(--primary)))' }}
+              className={`flex-1 h-13 px-5 font-semibold text-base transition-colors flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 ${
+                accentColor
+                  ? 'text-white hover:opacity-95'
+                  : 'bg-foreground text-background hover:bg-foreground/90 dark:bg-white dark:text-black dark:hover:bg-white/90'
+              } ${isBrutalist ? 'uppercase tracking-wider' : ''}`}
+              style={accentColor ? { backgroundColor: accentColor } : undefined}
               title={t`S'abonner immédiatement avec ${connectedEmail || ''}`}
             >
               {status === 'loading' ? (
@@ -194,8 +199,12 @@ export function SubscribeForm({
               type="button"
               disabled={status === 'loading'}
               onClick={() => setIsDropdownOpen((prev) => !prev)}
-              className="px-3 border-l border-current/20 text-[var(--tenant-accent-foreground,hsl(var(--primary-foreground)))] flex items-center justify-center transition-colors hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer disabled:opacity-50"
-              style={{ backgroundColor: 'var(--tenant-accent, hsl(var(--primary)))' }}
+              className={`px-3 border-l flex items-center justify-center transition-colors cursor-pointer disabled:opacity-50 ${
+                accentColor
+                  ? 'border-white/20 text-white hover:bg-black/10'
+                  : 'border-background/20 dark:border-black/20 bg-foreground text-background hover:bg-foreground/90 dark:bg-white dark:text-black dark:hover:bg-white/90'
+              }`}
+              style={accentColor ? { backgroundColor: accentColor } : undefined}
               title={t`Plus d'options d'inscription`}
               aria-label={t`Options d'inscription`}
             >
@@ -259,18 +268,22 @@ export function SubscribeForm({
               className={`flex-1 h-13 px-4 text-base ${
                 isBrutalist
                   ? 'border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] bg-background text-foreground placeholder:text-muted-foreground'
-                  : 'rounded-xl border border-input bg-background focus:ring-2 focus:ring-[var(--tenant-accent,hsl(var(--primary)))] focus:border-transparent outline-none transition-all'
+                  : 'rounded-xl border border-input bg-background focus:ring-2 focus:ring-foreground/20 focus:border-transparent outline-none transition-all'
               }`}
             />
             <button
               type="submit"
               disabled={status === 'loading'}
-              className={`h-13 px-7 font-semibold text-[var(--tenant-accent-foreground,hsl(var(--primary-foreground)))] text-base transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shrink-0 ${
+              className={`h-13 px-7 font-semibold text-base transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shrink-0 ${
+                accentColor
+                  ? 'text-white hover:opacity-95'
+                  : 'bg-foreground text-background hover:bg-foreground/90 dark:bg-white dark:text-black dark:hover:bg-white/90'
+              } ${
                 isBrutalist
-                  ? 'border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase tracking-wider hover:opacity-95'
-                  : 'rounded-xl hover:opacity-95'
+                  ? 'border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase tracking-wider'
+                  : 'rounded-xl'
               }`}
-              style={{ backgroundColor: 'var(--tenant-accent, hsl(var(--primary)))' }}
+              style={accentColor ? { backgroundColor: accentColor } : undefined}
             >
               {status === 'loading' ? <Loader2 className="w-5 h-5 animate-spin" /> : t`S'abonner`}
             </button>
