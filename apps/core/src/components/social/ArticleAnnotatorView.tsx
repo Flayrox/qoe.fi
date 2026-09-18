@@ -30,7 +30,6 @@ import {
   useReadingPreferences,
   ReadingSettingsSheet,
   ReadingRuler,
-  ReadingProgressBar,
   TextToSpeechPlayer,
   getReaderTypographyClasses,
   formatBionicHtml,
@@ -356,7 +355,6 @@ function ArticleAnnotatorViewInner({
         typographyClasses
       )}
     >
-      <ReadingProgressBar />
       <ReadingRuler />
 
       {/* 1. ARTICLE HEADER : TITRE EN GRAND */}
@@ -519,7 +517,7 @@ function ArticleAnnotatorViewInner({
         canonicalDocument={canonicalDocument ?? undefined}
         spotlight={spotlight}
         contentClassName={cn(
-          'prose prose-sm sm:prose-base dark:prose-invert max-w-none text-foreground/90 selection:bg-highlight/30 cursor-text space-y-4 pt-2',
+          'prose prose-sm sm:prose-base dark:prose-invert max-w-none text-foreground/90 selection:bg-foreground selection:text-background cursor-text pt-2 leading-[1.8] antialiased [text-rendering:optimizeLegibility]',
           typographyClasses
         )}
         callbacks={callbacks}
@@ -531,7 +529,7 @@ function ArticleAnnotatorViewInner({
         <div
           id="article-content"
           className={cn(
-            'prose prose-sm sm:prose-base dark:prose-invert max-w-none text-foreground/90 selection:bg-highlight/30 cursor-text space-y-4 pt-2',
+            'prose prose-sm sm:prose-base dark:prose-invert max-w-none text-foreground/90 selection:bg-foreground selection:text-background cursor-text pt-2 leading-[1.8] antialiased [text-rendering:optimizeLegibility]',
             typographyClasses
           )}
           dangerouslySetInnerHTML={{ __html: displayedContent }}

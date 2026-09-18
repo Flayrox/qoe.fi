@@ -752,9 +752,7 @@ export function TextHighlighter({
               }
               className={cn(
                 'bg-popover/95 text-popover-foreground border border-border/40 backdrop-blur-xl shadow-2xl font-sans',
-                showNoteInput
-                  ? 'rounded-2xl w-80 sm:w-84 p-4 space-y-3'
-                  : 'rounded-full py-1 px-1.5'
+                showNoteInput ? 'rounded-2xl w-80 sm:w-84 p-4 space-y-3' : 'rounded-xl py-1 px-1'
               )}
             >
               <AnimatePresence mode="popLayout" initial={false}>
@@ -773,7 +771,7 @@ export function TextHighlighter({
                       type="button"
                       onClick={() => handleInstantHighlight(selectedText, clearSelection)}
                       disabled={saving}
-                      className="px-3.5 py-1.5 rounded-full text-foreground/90 hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer"
+                      className="px-3.5 py-1.5 rounded-lg text-foreground/90 hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer"
                       title={t`Surligner ce passage`}
                     >
                       {t`Surligner`}
@@ -786,7 +784,7 @@ export function TextHighlighter({
                       type="button"
                       onClick={() => handleDirectCrosspostToFeed(selectedText, clearSelection)}
                       disabled={saving}
-                      className="px-3.5 py-1.5 rounded-full text-foreground/90 hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                      className="px-3.5 py-1.5 rounded-lg text-foreground/90 hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                       title={t`Citer ce passage sur le Feed`}
                     >
                       {saving ? (
@@ -812,7 +810,7 @@ export function TextHighlighter({
                           setShowNoteInput(true);
                         }
                       }}
-                      className="px-3.5 py-1.5 rounded-full text-foreground/90 hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer"
+                      className="px-3.5 py-1.5 rounded-lg text-foreground/90 hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer"
                       title={t`Ajouter une note ou annotation publique`}
                     >
                       {t`Annoter`}
@@ -824,7 +822,7 @@ export function TextHighlighter({
                     <button
                       type="button"
                       onClick={() => handleCopy(selectedText, clearSelection)}
-                      className="px-3.5 py-1.5 rounded-full text-foreground/90 hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer"
+                      className="px-3.5 py-1.5 rounded-lg text-foreground/90 hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer"
                       title={t`Copier l'extrait`}
                     >
                       {copiedSuccess ? (
