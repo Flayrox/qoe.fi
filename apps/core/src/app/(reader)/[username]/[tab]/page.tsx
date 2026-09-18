@@ -5,12 +5,13 @@ import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { buildPublicDescription } from '@qoe/utils';
 import { parseSpotlightParams } from '@qoe/sdk/spotlight';
 import { type CanonicalDocument } from '@qoe/ui/annotations';
-import { ArticleAnnotatorView } from '@/components/social/ArticleAnnotatorView';
 import { JsonLd, buildArticleSchema } from '@qoe/ui';
 import { getLanguage } from '@qoe/i18n/server';
 import type { PublicProfileData } from '@qoe/sdk';
 import type { Metadata } from 'next';
 import { ProfileView } from '../components/ProfileView';
+import { loadHomeFeedData } from '@/lib/home-feed-data';
+import { FeedDashboard } from '../../home/FeedDashboard';
 
 const VALID_TABS = [
   'thoughts',
@@ -217,7 +218,12 @@ export default async function UserProfileTabPage({
 
   // Tranche 1-c : document canonique (rendu par blocs + marques par offsets).
   const canReadFull = !article.isPremium || article.accessGranted === true;
-  const canonicalDocument = canReadFull ? await fetchCanonicalDocument(article.id) : null;
+
+  // Chargement en parallèle du flux d'accueil (feed arrière-plan) et du doc canonique
+  const [feedProps, canonicalDocument] = await Promise.all([
+    loadHomeFeedData(),
+    canReadFull ? fetchCanonicalDocument(article.id) : Promise.resolve(null),
+  ]);
 
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://qoe.fi').replace(/\/$/, '');
   const jsonLdData = buildArticleSchema({
@@ -232,13 +238,33 @@ export default async function UserProfileTabPage({
   });
 
   return (
-    <main className="w-full min-h-screen bg-background">
+    <>
       <JsonLd data={jsonLdData} />
-      <ArticleAnnotatorView
-        article={article}
-        canonicalDocument={canonicalDocument}
-        spotlight={spotlight}
+      <FeedDashboard
+        {...feedProps}
+        initialArticle={{
+          id: article.id,
+          title: article.title,
+          slug: article.slug,
+          content: article.content,
+          readingTime: article.readingTime ?? 3,
+          createdAt: article.createdAt,
+          published: true,
+          isPremium: article.isPremium ?? false,
+          accessGranted: article.accessGranted ?? false,
+          author: {
+            id: article.author?.id || 'author',
+            name: article.author?.name ?? null,
+            username: article.author?.username ?? null,
+            logoUrl: article.author?.logoUrl ?? null,
+            subdomain: article.publication?.subdomain ?? null,
+            customDomain: article.publication?.customDomain ?? null,
+          },
+          category: null,
+        }}
+        initialCanonicalDocument={canonicalDocument}
+        initialSpotlight={spotlight}
       />
-    </main>
+    </>
   );
 }
