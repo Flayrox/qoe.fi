@@ -9,7 +9,6 @@ import type {
   FontFamilyOption,
   FontSizeOption,
   LineHeightOption,
-  PaperThemeOption,
   ReadingWidthOption,
 } from './types';
 
@@ -26,47 +25,10 @@ export function ReadingSettingsSheet({ className = '' }: { className?: string })
 
   const fontSizes: { id: FontSizeOption; label: string; previewClass: string }[] = [
     { id: 'sm', label: 'A', previewClass: 'text-xs' },
-    { id: 'base', label: 'A', previewClass: 'text-sm' },
+    { id: 'base', label: 'A', previewClass: 'text-sm font-medium' },
     { id: 'lg', label: 'A', previewClass: 'text-base font-medium' },
     { id: 'xl', label: 'A', previewClass: 'text-lg font-semibold' },
     { id: '2xl', label: 'A', previewClass: 'text-xl font-bold' },
-  ];
-
-  const paperThemes: {
-    id: PaperThemeOption;
-    label: string;
-    bgClass: string;
-    textClass: string;
-    borderClass: string;
-  }[] = [
-    {
-      id: 'default',
-      label: t`Blanc`,
-      bgClass: 'bg-white',
-      textClass: 'text-black',
-      borderClass: 'border-border',
-    },
-    {
-      id: 'sepia',
-      label: t`Sépia`,
-      bgClass: 'bg-[#FBF0D9]',
-      textClass: 'text-[#3D2E1E]',
-      borderClass: 'border-[#EAD8B8]',
-    },
-    {
-      id: 'slate',
-      label: t`Ardoise`,
-      bgClass: 'bg-[#1E2024]',
-      textClass: 'text-[#E2E4E8]',
-      borderClass: 'border-[#2A2E35]',
-    },
-    {
-      id: 'oled',
-      label: t`OLED`,
-      bgClass: 'bg-black',
-      textClass: 'text-white',
-      borderClass: 'border-border',
-    },
   ];
 
   const lineHeights: { id: LineHeightOption; label: string }[] = [
@@ -140,31 +102,7 @@ export function ReadingSettingsSheet({ className = '' }: { className?: string })
           </div>
         </div>
 
-        {/* 2. Thèmes Papier (Kindle / Apple Books) */}
-        <div className="space-y-1.5">
-          <label className="text-[11px] font-semibold text-muted-foreground">
-            {t`Teinte papier`}
-          </label>
-          <div className="grid grid-cols-4 gap-2">
-            {paperThemes.map((theme) => (
-              <button
-                key={theme.id}
-                type="button"
-                onClick={() => update({ paperTheme: theme.id })}
-                className={`h-9 rounded-xl border flex items-center justify-center text-xs font-semibold transition-all cursor-pointer ${theme.bgClass} ${theme.textClass} ${theme.borderClass} ${
-                  preferences.paperTheme === theme.id
-                    ? 'ring-2 ring-primary ring-offset-2'
-                    : 'hover:opacity-90'
-                }`}
-                title={theme.label}
-              >
-                {theme.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* 3. Polices de caractères */}
+        {/* 2. Polices de caractères */}
         <div className="space-y-1.5">
           <label className="text-[11px] font-semibold text-muted-foreground">
             {t`Typographie`}

@@ -667,14 +667,14 @@ export function TextHighlighter({
           <span>{t`Affichage des annotations :`}</span>
         </div>
 
-        <div className="flex items-center gap-1 p-1 rounded-full bg-muted/50 border border-border/20 text-xs font-sans">
+        <div className="flex items-center gap-1 p-0.5 rounded-full bg-muted/40 border border-border/30 text-xs font-sans">
           {allowPublicAnnotations && (
             <button
               onClick={() => changeFilterMode('all')}
               className={cn(
                 'px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer',
                 filterMode === 'all'
-                  ? 'bg-primary text-primary-foreground shadow-xs font-semibold'
+                  ? 'bg-foreground text-background dark:bg-white dark:text-black shadow-xs font-semibold'
                   : 'text-muted-foreground hover:text-foreground'
               )}
               title={t`Afficher toutes les annotations (publiques, officielles et privées)`}
@@ -688,7 +688,7 @@ export function TextHighlighter({
             className={cn(
               'px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer flex items-center gap-1',
               filterMode === 'official'
-                ? 'bg-highlight text-highlight-foreground shadow-xs font-semibold'
+                ? 'bg-foreground text-background dark:bg-white dark:text-black shadow-xs font-semibold'
                 : 'text-muted-foreground hover:text-foreground'
             )}
             title={t`Afficher uniquement les annotations officielles de l'auteur`}
@@ -701,7 +701,7 @@ export function TextHighlighter({
             className={cn(
               'px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer flex items-center gap-1',
               filterMode === 'none'
-                ? 'bg-muted text-foreground font-semibold'
+                ? 'bg-foreground text-background dark:bg-white dark:text-black shadow-xs font-semibold'
                 : 'text-muted-foreground hover:text-foreground'
             )}
             title={t`Masquer toutes les annotations pour une lecture épurée sans interruption`}

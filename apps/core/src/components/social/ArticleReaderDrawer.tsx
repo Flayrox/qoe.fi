@@ -83,15 +83,15 @@ export function ArticleReaderDrawer({
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', stiffness: 320, damping: 32 }}
-            className="relative z-10 w-full h-[94vh] max-h-[94vh] flex flex-col bg-background text-foreground border-t border-l border-border/50 rounded-t-3xl shadow-2xl overflow-hidden font-sans"
+            className="relative z-10 w-full h-[94vh] max-h-[94vh] flex flex-col bg-white dark:bg-black text-black dark:text-white border-t border-l border-border/40 rounded-t-3xl shadow-2xl overflow-hidden font-sans"
           >
             {/* Top Drag Handle Bar */}
-            <div className="w-full py-2 flex items-center justify-center shrink-0 bg-background cursor-grab active:cursor-grabbing">
+            <div className="w-full py-2 flex items-center justify-center shrink-0 bg-white dark:bg-black cursor-grab active:cursor-grabbing">
               <div className="w-12 h-1.5 bg-muted-foreground/30 rounded-full" />
             </div>
 
             {/* Sticky Drawer Header */}
-            <div className="flex items-center justify-between px-6 py-2.5 border-b border-border/40 shrink-0 bg-background/95 backdrop-blur-md z-20">
+            <div className="flex items-center justify-between px-6 py-2.5 border-b border-border/30 shrink-0 bg-white/95 dark:bg-black/95 backdrop-blur-md z-30">
               <div className="flex items-center gap-3 min-w-0 pr-4">
                 <span className="px-2.5 py-0.5 text-[10px] uppercase font-bold tracking-wider rounded-full bg-primary/10 text-primary border border-primary/20 shrink-0">
                   Lecture & Annotation
@@ -121,7 +121,7 @@ export function ArticleReaderDrawer({
             </div>
 
             {/* 2026 Reading Scroll Progress Line */}
-            <div className="w-full h-1 bg-muted/20 overflow-hidden shrink-0">
+            <div className="w-full h-1 bg-muted/20 overflow-hidden shrink-0 z-20">
               <div
                 className="h-full bg-gradient-to-r from-highlight via-primary to-success transition-all duration-100 ease-out"
                 style={{ width: `${scrollProgress}%` }}
@@ -132,8 +132,11 @@ export function ArticleReaderDrawer({
             <div
               ref={scrollRef}
               onScroll={handleScroll}
-              className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 space-y-6 scroll-smooth"
+              className="relative flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 space-y-6 scroll-smooth bg-white dark:bg-black"
             >
+              {/* Progressive Gaussian Blur & Fade Header Mask (melts text smoothly into white/black) */}
+              <div className="pointer-events-none sticky top-0 left-0 right-0 h-10 z-20 -mb-10 bg-gradient-to-b from-white via-white/85 to-transparent dark:from-black dark:via-black/85 dark:to-transparent backdrop-blur-[3px] [mask-image:linear-gradient(to_bottom,black_35%,transparent_100%)]" />
+
               <div className="max-w-6xl mx-auto">
                 <ArticleAnnotatorView
                   article={article}
