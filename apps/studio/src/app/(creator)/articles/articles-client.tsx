@@ -228,6 +228,10 @@ export function ArticlesClient({
       if (!activeDragRef.current.isDragging && dist > 5) {
         activeDragRef.current.isDragging = true;
         setDraggedId(activeDragRef.current.id);
+        document.body.style.userSelect = 'none';
+        document.body.style.webkitUserSelect = 'none';
+        document.body.style.cursor = 'grabbing';
+        window.getSelection()?.removeAllRanges();
       }
 
       if (activeDragRef.current.isDragging) {
@@ -269,6 +273,11 @@ export function ArticlesClient({
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('pointercancel', onPointerUp);
 
+      document.body.style.userSelect = '';
+      document.body.style.webkitUserSelect = '';
+      document.body.style.cursor = '';
+      window.getSelection()?.removeAllRanges();
+
       const dragInfo = activeDragRef.current;
       activeDragRef.current = null;
 
@@ -301,6 +310,10 @@ export function ArticlesClient({
   };
 
   const handleDragEnd = () => {
+    document.body.style.userSelect = '';
+    document.body.style.webkitUserSelect = '';
+    document.body.style.cursor = '';
+    window.getSelection()?.removeAllRanges();
     activeDragRef.current = null;
     setDraggedId(null);
     setPointerPos(null);
@@ -1122,7 +1135,7 @@ export function ArticlesClient({
             className="grid grid-cols-1 md:grid-cols-3 gap-10 pt-2"
           >
             {/* Left: Categories hierarchy & Drag and Drop zone */}
-            <div className="md:col-span-2 space-y-4">
+            <div className="md:col-span-2 space-y-4 select-none">
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-bold text-foreground font-sans flex items-center gap-2">
@@ -1135,27 +1148,7 @@ export function ArticlesClient({
                 </div>
               </div>
 
-              {/* Live Drag Feedback Banner */}
-              {draggedCat && (
-                <div className="p-3 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-between gap-3 text-xs font-medium text-primary">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Move className="w-4 h-4 shrink-0 animate-pulse text-primary" />
-                    <span className="truncate">
-                      {t`Déplacement de "${draggedCat.name}" en cours`} —{' '}
-                      {t`survolez un dossier cible pour prévisualiser`}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleDragEnd}
-                    className="text-[11px] px-2.5 py-1 bg-background border border-border/60 hover:bg-muted rounded-lg text-foreground cursor-pointer transition-colors shrink-0"
-                  >
-                    {t`Annuler`}
-                  </button>
-                </div>
-              )}
-
-              {/* Badge flottant qui suit le pointeur de souris lors du Drag */}
+              {/* Badge flottant qui suit le pointeur de souris lors du Drag (sans aucun décalage de page) */}
               {draggedCat && pointerPos && (
                 <div
                   style={{
@@ -1165,7 +1158,7 @@ export function ArticlesClient({
                     pointerEvents: 'none',
                     zIndex: 9999,
                   }}
-                  className="bg-primary text-primary-foreground font-sans text-xs font-semibold px-3 py-1.5 rounded-lg shadow-2xl flex items-center gap-2 border border-primary-foreground/20 backdrop-blur-md select-none transition-transform"
+                  className="bg-primary text-primary-foreground font-sans text-xs font-semibold px-3 py-1.5 rounded-lg shadow-2xl flex items-center gap-2 border border-primary-foreground/20 backdrop-blur-md select-none transition-transform pointer-events-none"
                 >
                   <Move className="w-3.5 h-3.5" />
                   <span>{draggedCat.name}</span>
@@ -1178,23 +1171,6 @@ export function ArticlesClient({
                       ↳ {t`Catégorie principale`}
                     </span>
                   ) : null}
-                </div>
-              )}
-
-              {/* Zone de largage pour promouvoir en catégorie racine */}
-              {draggedCat?.parentId && (
-                <div
-                  data-drop-zone="root"
-                  onClick={() => handleDropOnRoot(draggedCat.id)}
-                  className={cn(
-                    'p-3.5 rounded-xl border-2 border-dashed transition-all flex items-center justify-center gap-2 text-xs font-sans font-semibold cursor-pointer',
-                    dragOverRoot
-                      ? 'border-primary bg-primary/15 text-primary scale-[1.01] shadow-md ring-2 ring-primary/30'
-                      : 'border-border/60 bg-muted/20 text-muted-foreground hover:bg-muted/40'
-                  )}
-                >
-                  <ArrowUpRight className="w-4 h-4" />
-                  {t`Déposer ici pour promouvoir en catégorie principale`}
                 </div>
               )}
 
@@ -1601,6 +1577,24 @@ export function ArticlesClient({
                       </div>
                     );
                   })}
+
+                  {/* Zone de largage pour promouvoir en catégorie racine (en bas de liste, zéro décalage en haut) */}
+                  {draggedCat?.parentId && (
+                    <div
+                      data-drop-zone="root"
+                      onClick={() => handleDropOnRoot(draggedCat.id)}
+                      className={cn(
+                        'p-3.5 rounded-xl border-2 border-dashed transition-all flex items-center justify-center gap-2 text-xs font-sans font-semibold cursor-pointer',
+                        dragOverRoot
+                          ? 'border-primary bg-primary/15 text-primary scale-[1.01] shadow-md ring-2 ring-primary/30'
+                          : 'border-border/60 bg-muted/20 text-muted-foreground hover:bg-muted/40'
+                      )}
+                    >
+                      <ArrowUpRight className="w-4 h-4 text-primary" />
+                      {t`Déposer ici pour promouvoir en catégorie principale`}
+                    </div>
+                  )}
+
                   {/* Bouton ou formulaire inline pour créer une catégorie principale */}
                   {isCreatingInlineRoot ? (
                     <form
