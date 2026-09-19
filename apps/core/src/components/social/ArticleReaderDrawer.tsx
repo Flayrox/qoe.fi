@@ -10,6 +10,7 @@ import { cn } from '@qoe/utils';
 import { ReaderToolbarProvider, useReaderToolbar } from './ReaderToolbarContext';
 import { DockedReaderToolbar } from './DockedReaderToolbar';
 import { TextToSpeechProvider } from '@qoe/ui/reader';
+import { ProgressiveBlur } from '@qoe/ui';
 
 export interface ArticleReaderDrawerProps {
   isOpen: boolean;
@@ -133,67 +134,8 @@ function ArticleReaderDrawerContent({
             transition={{ type: 'spring', stiffness: 320, damping: 32 }}
             className="relative z-10 w-full h-full flex flex-col bg-white dark:bg-black text-black dark:text-white border border-border/40 rounded-t-3xl md:rounded-[18px] shadow-2xl overflow-hidden font-sans selection:bg-foreground selection:text-background"
           >
-            {/* 1. Zenithal Progressive Blur & Theme Gradient Fade (Part du bas normal vers le flou/blanc sans aucun rectangle) */}
-            <div className="pointer-events-none absolute top-0 left-0 right-0 h-32 z-20 overflow-hidden">
-              {/* Couche 1 : micro-flou 1px (transition douce en bas) */}
-              <div
-                className="absolute inset-0 backdrop-blur-[1px]"
-                style={{
-                  WebkitMaskImage:
-                    'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.6) 75%, rgba(0,0,0,0) 100%)',
-                  maskImage:
-                    'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.6) 75%, rgba(0,0,0,0) 100%)',
-                }}
-              />
-              {/* Couche 2 : flou léger 2px */}
-              <div
-                className="absolute inset-0 backdrop-blur-[2px]"
-                style={{
-                  WebkitMaskImage:
-                    'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 60%, rgba(0,0,0,0) 85%)',
-                  maskImage:
-                    'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.7) 60%, rgba(0,0,0,0) 85%)',
-                }}
-              />
-              {/* Couche 3 : flou moyen 4px */}
-              <div
-                className="absolute inset-0 backdrop-blur-[4px]"
-                style={{
-                  WebkitMaskImage:
-                    'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.8) 45%, rgba(0,0,0,0) 70%)',
-                  maskImage:
-                    'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.8) 45%, rgba(0,0,0,0) 70%)',
-                }}
-              />
-              {/* Couche 4 : flou prononcé 8px */}
-              <div
-                className="absolute inset-0 backdrop-blur-[8px]"
-                style={{
-                  WebkitMaskImage:
-                    'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.8) 30%, rgba(0,0,0,0) 55%)',
-                  maskImage:
-                    'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.8) 30%, rgba(0,0,0,0) 55%)',
-                }}
-              />
-              {/* Couche 5 : flou maximal 16px en haut */}
-              <div
-                className="absolute inset-0 backdrop-blur-[16px]"
-                style={{
-                  WebkitMaskImage:
-                    'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.9) 15%, rgba(0,0,0,0) 40%)',
-                  maskImage:
-                    'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0.9) 15%, rgba(0,0,0,0) 40%)',
-                }}
-              />
-              {/* Fondu de couleur progressif vers le fond du thème (blanc en clair, noir en sombre) */}
-              <div
-                className="absolute inset-0"
-                style={{
-                  background:
-                    'linear-gradient(to bottom, var(--background) 0%, color-mix(in srgb, var(--background) 92%, transparent) 25%, color-mix(in srgb, var(--background) 65%, transparent) 50%, color-mix(in srgb, var(--background) 25%, transparent) 75%, transparent 100%)',
-                }}
-              />
-            </div>
+            {/* 1. Zenithal Progressive Blur & Theme Gradient Fade */}
+            <ProgressiveBlur direction="top" className="h-32 z-20" />
 
             {/* 2. Floating Header Controls (Drag Handle + Dynamic Title on Scroll + Circular Buttons) */}
             <div className="absolute top-0 left-0 right-0 z-30 pointer-events-none flex flex-col">
