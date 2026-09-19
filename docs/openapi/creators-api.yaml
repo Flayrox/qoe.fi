@@ -297,6 +297,7 @@ paths:
                 name: { type: string }
                 slug: { type: string, description: auto-slugify si vide }
                 description: { type: string, nullable: true }
+                parentId: { type: string, nullable: true, description: ID de la catégorie parente (limite 2 niveaux) }
       responses:
         '201':
           description: Catégorie créée
@@ -327,6 +328,7 @@ paths:
                 name: { type: string }
                 slug: { type: string }
                 description: { type: string, nullable: true }
+                parentId: { type: string, nullable: true, description: ID de la catégorie parente ou null/vide pour détacher }
       responses:
         '200':
           description: Catégorie mise à jour
@@ -951,6 +953,9 @@ components:
           type: string
         description:
           type: [string, 'null']
+        parentId:
+          type: [string, 'null']
+          description: ID de la catégorie parente s'il s'agit d'une sous-catégorie
         articlesCount:
           type: integer
           description: Nombre d'articles publiés dans la catégorie
