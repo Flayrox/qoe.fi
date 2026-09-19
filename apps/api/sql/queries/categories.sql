@@ -18,7 +18,7 @@ RETURNING id, name, slug, description, "publicationId", "parentId";
 
 -- name: UpdateCategory :exec
 UPDATE "Category"
-SET name = $2, slug = $3, description = $4
+SET name = $2, slug = $3, description = $4, "parentId" = $5
 WHERE id = $1;
 
 -- name: DeleteCategory :exec

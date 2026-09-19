@@ -144,6 +144,7 @@ type category struct {
 	Name          string  `json:"name"`
 	Slug          string  `json:"slug"`
 	Description   *string `json:"description"`
+	ParentID      *string `json:"parentId"`
 	ArticlesCount int32   `json:"articlesCount"`
 }
 
@@ -170,11 +171,16 @@ func (h *Handler) categories(w http.ResponseWriter, r *http.Request) {
 		if row.Description.Valid {
 			desc = &row.Description.String
 		}
+		parentID := (*string)(nil)
+		if row.ParentId.Valid {
+			parentID = &row.ParentId.String
+		}
 		out = append(out, category{
 			ID:            row.ID,
 			Name:          row.Name,
 			Slug:          row.Slug,
 			Description:   desc,
+			ParentID:      parentID,
 			ArticlesCount: row.ArticlesCount,
 		})
 	}
@@ -206,6 +212,7 @@ type categoryInput struct {
 	Name          string  `json:"name"`
 	Slug          string  `json:"slug"`
 	Description   *string `json:"description"`
+	ParentID      *string `json:"parentId"`
 }
 
 func (h *Handler) createCategory(w http.ResponseWriter, r *http.Request) {
@@ -239,8 +246,30 @@ func (h *Handler) createCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var parentID pgtype.Text
+	if in.ParentID != nil && *in.ParentID != "" {
+		parent, err := h.q.GetCategoryByID(r.Context(), *in.ParentID)
+		if err != nil {
+			response.BadRequest(w, "Catégorie parente introuvable.")
+			return
+		}
+		if parent.PublicationId != in.PublicationID {
+			response.BadRequest(w, "La catégorie parente n'appartient pas à cette publication.")
+			return
+		}
+		if parent.ParentId.Valid && parent.ParentId.String != "" {
+			response.BadRequest(w, "Une sous-catégorie ne peut pas avoir de sous-catégorie (limite de 2 niveaux).")
+			return
+		}
+		parentID = textVal(in.ParentID)
+	}
+
 	row, err := h.q.CreateCategory(r.Context(), db.CreateCategoryParams{
-		Name: in.Name, Slug: finalSlug, Description: textVal(in.Description), PublicationId: in.PublicationID,
+		Name:          in.Name,
+		Slug:          finalSlug,
+		Description:   textVal(in.Description),
+		PublicationId: in.PublicationID,
+		ParentId:      parentID,
 	})
 	if err != nil {
 		log.Printf("[creator] createCategory: %v", err)
@@ -269,12 +298,16 @@ func (h *Handler) updateCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if in.Name == "" {
+		in.Name = existing.Name
+	}
+
 	finalSlug := in.Slug
 	if finalSlug == "" {
 		finalSlug = slug.Slugify(in.Name)
 	}
 	if finalSlug == "" {
-		finalSlug = "cat-" + slug.ShortID(8)
+		finalSlug = existing.Slug
 	}
 	exists, err := h.q.CheckCategorySlugExists(r.Context(), db.CheckCategorySlugExistsParams{
 		PublicationId: existing.PublicationId, Slug: finalSlug, ID: id,
@@ -284,8 +317,53 @@ func (h *Handler) updateCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	parentID := existing.ParentId
+	if in.ParentID != nil {
+		if *in.ParentID == "" {
+			parentID = pgtype.Text{Valid: false}
+		} else {
+			if *in.ParentID == id {
+				response.BadRequest(w, "Une catégorie ne peut pas être sa propre parente.")
+				return
+			}
+			parent, err := h.q.GetCategoryByID(r.Context(), *in.ParentID)
+			if err != nil {
+				response.BadRequest(w, "Catégorie parente introuvable.")
+				return
+			}
+			if parent.PublicationId != existing.PublicationId {
+				response.BadRequest(w, "La catégorie parente n'appartient pas à cette publication.")
+				return
+			}
+			if parent.ParentId.Valid && parent.ParentId.String != "" {
+				response.BadRequest(w, "Une sous-catégorie ne peut pas avoir de sous-catégorie (limite de 2 niveaux).")
+				return
+			}
+			// Empêcher de convertir une catégorie mère contenant des sous-catégories en sous-catégorie
+			siblings, err := h.q.ListCategoriesByPublication(r.Context(), existing.PublicationId)
+			if err == nil {
+				for _, sib := range siblings {
+					if sib.ParentId.Valid && sib.ParentId.String == id {
+						response.BadRequest(w, "Cette catégorie contient déjà des sous-catégories et ne peut pas devenir une sous-catégorie.")
+						return
+					}
+				}
+			}
+			parentID = textVal(in.ParentID)
+		}
+	}
+
+	desc := textVal(in.Description)
+	if in.Description == nil && existing.Description.Valid {
+		desc = existing.Description
+	}
+
 	if err := h.q.UpdateCategory(r.Context(), db.UpdateCategoryParams{
-		ID: id, Name: in.Name, Slug: finalSlug, Description: textVal(in.Description),
+		ID:          id,
+		Name:        in.Name,
+		Slug:        finalSlug,
+		Description: desc,
+		ParentId:    parentID,
 	}); err != nil {
 		log.Printf("[creator] updateCategory: %v", err)
 		response.Internal(w)

@@ -118,7 +118,7 @@ func (q *Queries) GetCategoryByID(ctx context.Context, id string) (Category, err
 
 const updateCategory = `-- name: UpdateCategory :exec
 UPDATE "Category"
-SET name = $2, slug = $3, description = $4
+SET name = $2, slug = $3, description = $4, "parentId" = $5
 WHERE id = $1
 `
 
@@ -127,6 +127,7 @@ type UpdateCategoryParams struct {
 	Name        string      `json:"name"`
 	Slug        string      `json:"slug"`
 	Description pgtype.Text `json:"description"`
+	ParentId    pgtype.Text `json:"parentId"`
 }
 
 func (q *Queries) UpdateCategory(ctx context.Context, arg UpdateCategoryParams) error {
@@ -135,6 +136,7 @@ func (q *Queries) UpdateCategory(ctx context.Context, arg UpdateCategoryParams) 
 		arg.Name,
 		arg.Slug,
 		arg.Description,
+		arg.ParentId,
 	)
 	return err
 }
