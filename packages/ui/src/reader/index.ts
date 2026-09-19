@@ -6,3 +6,4 @@ export * from './ReadingSettingsSheet';
 export * from './ReadingProgressBar';
 export * from './ReadingRuler';
 export * from './TextToSpeechPlayer';
+export * from './TextToSpeechContext';

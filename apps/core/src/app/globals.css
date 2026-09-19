@@ -23,3 +23,20 @@ html[data-qoe-reduce-motion='true'] *::after {
 html[data-qoe-high-contrast='true'] {
   filter: contrast(1.12);
 }
+
+/* 🎙️ Text-To-Speech Visual Karaoke Active Highlight */
+[data-audio-active='true'],
+.qoe-audio-active-highlight {
+  position: relative;
+  background-color: color-mix(in srgb, var(--primary) 12%, transparent) !important;
+  border-left: 4px solid var(--primary) !important;
+  border-radius: 0.25rem 0.875rem 0.875rem 0.25rem;
+  box-shadow: 0 4px 20px -2px color-mix(in srgb, var(--primary) 18%, transparent) !important;
+  transition:
+    background-color 0.35s ease,
+    border-left-color 0.35s ease,
+    box-shadow 0.35s ease;
+  padding: 0.5rem 0.875rem 0.5rem 1rem !important;
+  margin-left: -1rem;
+  margin-right: -0.5rem;
+}

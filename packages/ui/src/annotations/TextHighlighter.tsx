@@ -1,15 +1,17 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Check, Loader2, X, Plus, Globe, Lock, Quote, Eye, EyeOff } from 'lucide-react';
+import { Check, Loader2, X, Plus, Globe, Lock, Quote, Eye, Volume2 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { TextSelectionPopover } from './TextSelectionPopover';
 import { AnnotationSideDrawer } from './AnnotationSideDrawer';
 import { CanonicalArticleBody } from './CanonicalArticleBody';
+import { AnnotationFilterPill } from './AnnotationFilterPill';
 import type { CanonicalDocument } from './canonical-document';
 import { findQuoteOccurrence } from './quote-anchor';
 import { toast } from '@qoe/ui/toast';
+import { useTextToSpeech } from '../reader/TextToSpeechContext';
 import {
   AnnotationFilterMode,
   AnnotationItem,
@@ -39,6 +41,9 @@ export function TextHighlighter({
   contentClassName,
   callbacks,
   onRequireAuth,
+  filterMode: externalFilterMode,
+  onFilterModeChange,
+  hideFilterBar = false,
 }: TextHighlighterProps) {
   // Mode document canonique : le corps est rendu par CanonicalArticleBody
   // (marques par offsets) ; le moteur impératif hérité ne s'exécute plus.
@@ -52,10 +57,24 @@ export function TextHighlighter({
     subdomain: null,
   };
 
+  const tts = useTextToSpeech();
+
   const [highlights, setHighlights] = useState<HighlightItem[]>(
     initialHighlights as HighlightItem[]
   );
   const [allPublic, setAllPublic] = useState<AnnotationItem[]>(publicHighlights);
+  const [internalFilterMode, setInternalFilterMode] = useState<AnnotationFilterMode>('all');
+  const filterMode = externalFilterMode ?? internalFilterMode;
+
+  const changeFilterMode = (mode: AnnotationFilterMode) => {
+    setInternalFilterMode(mode);
+    onFilterModeChange?.(mode);
+    try {
+      localStorage.setItem('qoe_annotation_filter_mode', mode);
+    } catch {
+      // Ignore localStorage write restriction
+    }
+  };
 
   useEffect(() => {
     setHighlights(initialHighlights as HighlightItem[]);
@@ -64,9 +83,6 @@ export function TextHighlighter({
   useEffect(() => {
     setAllPublic(publicHighlights);
   }, [publicHighlights]);
-
-  // Universal Reader Annotation Filter Mode (persisted across all tenants in localStorage)
-  const [filterMode, setFilterMode] = useState<AnnotationFilterMode>('official');
 
   // Motion accessibility preference
   const shouldReduceMotion = useReducedMotion();
@@ -95,16 +111,14 @@ export function TextHighlighter({
         'qoe_annotation_filter_mode'
       ) as AnnotationFilterMode | null;
       if (savedMode && ['all', 'official', 'none'].includes(savedMode)) {
-        if (!allowPublicAnnotations && savedMode === 'all') {
-          setFilterMode('official');
-        } else {
-          setFilterMode(savedMode);
-        }
+        const nextMode = !allowPublicAnnotations && savedMode === 'all' ? 'official' : savedMode;
+        setInternalFilterMode(nextMode);
+        onFilterModeChange?.(nextMode);
       }
     } catch {
       // Ignore localStorage access restrictions
     }
-  }, [allowPublicAnnotations]);
+  }, [allowPublicAnnotations, onFilterModeChange]);
 
   // Attach interactivity to HTML-embedded <mark data-annotation-note="..."> author marks
   const setupHtmlMarksInDOM = () => {
@@ -162,14 +176,32 @@ export function TextHighlighter({
     }
   }, [highlights, allPublic, filterMode, containerId, documentMode]);
 
-  const changeFilterMode = (mode: AnnotationFilterMode) => {
-    setFilterMode(mode);
-    try {
-      localStorage.setItem('qoe_annotation_filter_mode', mode);
-    } catch {
-      // Ignore localStorage write restriction
-    }
-  };
+  // 🎙️ Click-to-Listen : double-clic sur un paragraphe pour démarrer l'écoute instantanément
+  useEffect(() => {
+    if (!tts || typeof document === 'undefined') return;
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const handleDblClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
+      const paragraphEl = target.closest<HTMLElement>(
+        '[data-audio-paragraph-index], p, h2, h3, blockquote'
+      );
+      if (!paragraphEl) return;
+
+      const idxAttr = paragraphEl.getAttribute('data-audio-paragraph-index');
+      if (idxAttr !== null) {
+        const idx = parseInt(idxAttr, 10);
+        if (!isNaN(idx)) {
+          tts.openAndPlay({ startParagraphIndex: idx });
+        }
+      }
+    };
+
+    container.addEventListener('dblclick', handleDblClick);
+    return () => container.removeEventListener('dblclick', handleDblClick);
+  }, [tts, containerId]);
 
   const clearForm = () => {
     removeTempDraftMark();
@@ -661,56 +693,20 @@ export function TextHighlighter({
   return (
     <>
       {/* 🌍 UNIVERSAL TENANT ANNOTATION READER FILTER BAR */}
-      <div className="my-4 flex items-center justify-between border-b border-border/20 pb-3">
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-          <Eye className="w-3.5 h-3.5 text-muted-foreground" />
-          <span>{t`Affichage des annotations :`}</span>
+      {!hideFilterBar && (
+        <div className="my-4 flex items-center justify-between border-b border-border/20 pb-3">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+            <Eye className="w-3.5 h-3.5 text-muted-foreground" />
+            <span>{t`Affichage des annotations :`}</span>
+          </div>
+
+          <AnnotationFilterPill
+            filterMode={filterMode}
+            onChangeFilterMode={changeFilterMode}
+            allowPublicAnnotations={allowPublicAnnotations}
+          />
         </div>
-
-        <div className="flex items-center gap-1 p-0.5 rounded-full bg-muted/40 border border-border/30 text-xs font-sans">
-          {allowPublicAnnotations && (
-            <button
-              onClick={() => changeFilterMode('all')}
-              className={cn(
-                'px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer',
-                filterMode === 'all'
-                  ? 'bg-foreground text-background dark:bg-white dark:text-black shadow-xs font-semibold'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-              title={t`Afficher toutes les annotations (publiques, officielles et privées)`}
-            >
-              {t`Toutes`}
-            </button>
-          )}
-
-          <button
-            onClick={() => changeFilterMode('official')}
-            className={cn(
-              'px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer flex items-center gap-1',
-              filterMode === 'official'
-                ? 'bg-foreground text-background dark:bg-white dark:text-black shadow-xs font-semibold'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-            title={t`Afficher uniquement les annotations officielles de l'auteur`}
-          >
-            <span>{t`Officielles`}</span>
-          </button>
-
-          <button
-            onClick={() => changeFilterMode('none')}
-            className={cn(
-              'px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer flex items-center gap-1',
-              filterMode === 'none'
-                ? 'bg-foreground text-background dark:bg-white dark:text-black shadow-xs font-semibold'
-                : 'text-muted-foreground hover:text-foreground'
-            )}
-            title={t`Masquer toutes les annotations pour une lecture épurée sans interruption`}
-          >
-            <EyeOff className="w-3 h-3" />
-            <span>{t`Aucune`}</span>
-          </button>
-        </div>
-      </div>
+      )}
 
       {/* 📄 Mode document canonique : corps rendu par blocs, marques par
           offsets (CanonicalArticleBody) — remplace le HTML brut + mutation
@@ -817,6 +813,26 @@ export function TextHighlighter({
                     </button>
 
                     <div className="w-px h-3.5 bg-border/40 shrink-0" />
+
+                    {/* Écouter la sélection */}
+                    {tts && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            clearSelection();
+                            tts.openAndPlay({ customText: selectedText });
+                          }}
+                          className="px-3.5 py-1.5 rounded-lg text-foreground/90 hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer flex items-center gap-1.5"
+                          title={t`Écouter ce passage`}
+                        >
+                          <Volume2 className="w-3.5 h-3.5 text-primary" />
+                          <span>{t`Écouter`}</span>
+                        </button>
+
+                        <div className="w-px h-3.5 bg-border/40 shrink-0" />
+                      </>
+                    )}
 
                     {/* Copy to Clipboard */}
                     <button
