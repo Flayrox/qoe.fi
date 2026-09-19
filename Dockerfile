@@ -67,6 +67,13 @@ RUN pnpm lingui compile
 ENV SKIP_ENV_VALIDATION=true
 RUN --mount=type=cache,target=/app/.turbo NODE_OPTIONS="--max-old-space-size=2048" pnpm turbo build
 
+# 🔧 Répare les sorties standalone : le file tracing de Next ne copie jamais le
+# payload natif de @img/sharp-libvips-* (chargé par dlopen, pas require) → sharp
+# plantait en prod avec ERR_DLOPEN_FAILED « libvips-cpp.so.8.18.3 » (upload
+# d'image + next/image). Le script restaure les paquets @img complets et échoue
+# explicitement si un payload manque encore. Même logique sur les 5 apps Next.
+RUN sh scripts/fix-standalone-native-deps.sh
+
 
 # ═════════════════════════════════════════════════════════════════════
 # 🎯 TARGETS FINALES (4 stages qui héritent du builder)
@@ -90,6 +97,13 @@ RUN addgroup --system --gid 1001 nodejs && \
 COPY --from=builder --chown=nextjs:nodejs /app/apps/tenants/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/tenants/.next/static ./apps/tenants/.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/apps/tenants/public ./apps/tenants/public
+
+# ✅ Garde-fou : sharp (upload d'images) doit réellement se charger dans l'image
+#    finale (libvips natif présent et dlopen-able) — mieux vaut casser le build
+#    que d'expédier une image où chaque upload d'image renvoie une 500.
+RUN if [ -d node_modules/sharp ]; then \
+      cd apps/tenants && node -e "const s=require('sharp'); console.log('✓ sharp', s.versions.sharp, '— libvips', s.versions.vips)"; \
+    fi
 
 USER nextjs
 EXPOSE 3000
@@ -141,6 +155,12 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/core/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/core/.next/static ./apps/core/.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/apps/core/public ./apps/core/public
 
+# ✅ Garde-fou : sharp (upload d'images) doit réellement se charger dans l'image
+#    finale (voir le commentaire du target tenants).
+RUN if [ -d node_modules/sharp ]; then \
+      cd apps/core && node -e "const s=require('sharp'); console.log('✓ sharp', s.versions.sharp, '— libvips', s.versions.vips)"; \
+    fi
+
 USER nextjs
 EXPOSE 3000
 
@@ -165,6 +185,13 @@ RUN addgroup --system --gid 1001 nodejs && \
 COPY --from=builder --chown=nextjs:nodejs /app/apps/studio/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/studio/.next/static ./apps/studio/.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/apps/studio/public ./apps/studio/public
+
+# ✅ Garde-fou : sharp (upload d'images : logo de Média, couvertures, avatars)
+#    doit réellement se charger dans l'image finale — c'est CE build qui était
+#    cassé en prod (ERR_DLOPEN_FAILED libvips-cpp.so.8.18.3).
+RUN if [ -d node_modules/sharp ]; then \
+      cd apps/studio && node -e "const s=require('sharp'); console.log('✓ sharp', s.versions.sharp, '— libvips', s.versions.vips)"; \
+    fi
 
 USER nextjs
 EXPOSE 3000
