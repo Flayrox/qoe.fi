@@ -24,19 +24,61 @@ html[data-qoe-high-contrast='true'] {
   filter: contrast(1.12);
 }
 
-/* 🎙️ Text-To-Speech Visual Karaoke Active Highlight */
+/* 🎙️ Text-To-Speech Visual Active Paragraph — Barre Orange Suiveuse */
 [data-audio-active='true'],
 .qoe-audio-active-highlight {
   position: relative;
-  background-color: color-mix(in srgb, var(--primary) 12%, transparent) !important;
-  border-left: 4px solid var(--primary) !important;
-  border-radius: 0.25rem 0.875rem 0.875rem 0.25rem;
-  box-shadow: 0 4px 20px -2px color-mix(in srgb, var(--primary) 18%, transparent) !important;
+  background-color: rgba(249, 115, 22, 0.08) !important;
+  border-left: 5px solid #f97316 !important;
+  border-radius: 0 0.75rem 0.75rem 0;
+  box-shadow: 0 2px 14px -2px rgba(249, 115, 22, 0.2) !important;
   transition:
-    background-color 0.35s ease,
-    border-left-color 0.35s ease,
-    box-shadow 0.35s ease;
-  padding: 0.5rem 0.875rem 0.5rem 1rem !important;
-  margin-left: -1rem;
+    background-color 0.3s ease,
+    border-left-color 0.3s ease,
+    box-shadow 0.3s ease;
+  padding: 0.5rem 0.875rem 0.5rem 1.125rem !important;
+  margin-left: -1.125rem;
   margin-right: -0.5rem;
+}
+
+:is(.dark) [data-audio-active='true'],
+:is(.dark) .qoe-audio-active-highlight {
+  background-color: rgba(249, 115, 22, 0.12) !important;
+  border-left: 5px solid #fb923c !important;
+  box-shadow: 0 2px 18px -2px rgba(249, 115, 22, 0.28) !important;
+}
+
+/* 🎙️ Bouton TTS Actif & Scrubber Audio */
+.qoe-audio-btn-active {
+  border-color: rgba(249, 115, 22, 0.5) !important;
+  background-color: rgba(249, 115, 22, 0.1) !important;
+  color: #ea580c !important;
+}
+
+:is(.dark) .qoe-audio-btn-active {
+  color: #fb923c !important;
+}
+
+.qoe-audio-dot-ping {
+  background-color: #fb923c;
+}
+
+.qoe-audio-dot {
+  background-color: #f97316;
+}
+
+.qoe-audio-icon {
+  color: #f97316;
+}
+
+:is(.dark) .qoe-audio-icon {
+  color: #fb923c;
+}
+
+.qoe-audio-scrubber-fill {
+  background-color: #f97316;
+}
+
+:is(.dark) .qoe-audio-scrubber-fill {
+  background-color: #fb923c;
 }

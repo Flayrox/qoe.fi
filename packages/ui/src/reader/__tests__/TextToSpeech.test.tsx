@@ -98,4 +98,20 @@ describe('TextToSpeechPlayer', () => {
     expect(cancelMock).toHaveBeenCalled();
     expect(screen.getByRole('button', { name: /Écouter/i })).toBeDefined();
   });
+
+  it('arrête la lecture si on reclique sur le bouton de lecture', async () => {
+    renderComponent();
+    const user = userEvent.setup();
+
+    const listenBtn = screen.getByRole('button', { name: /Écouter/i });
+    await user.click(listenBtn);
+
+    expect(speakMock).toHaveBeenCalled();
+    const stopBtn = screen.getByRole('button', { name: /Arrêter/i });
+    expect(stopBtn).toBeDefined();
+
+    await user.click(stopBtn);
+    expect(cancelMock).toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: /Écouter/i })).toBeDefined();
+  });
 });
