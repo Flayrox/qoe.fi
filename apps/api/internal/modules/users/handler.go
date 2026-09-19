@@ -89,6 +89,15 @@ type profilePatch struct {
 }
 
 // PATCH /v1/me/profile — mise à jour du profil lecteur (profil réglages).
+//
+// ⚠️ Ce endpoint écrit UNIQUEMENT la table "User" (identité du compte). Le bug
+// du 19/09 : le modal d'édition, ouvert depuis le profil public d'un MÉDIA,
+// passait par l'action générique qui appelait aussi PATCH /v1/settings/profile
+// sur la publication active — les valeurs du média ont donc écrasé le profil
+// personnel, et l'username (champ absent du corps → "") a été effacé.
+// Le rôle des medias est couvert par PATCH /v1/media/{id}/settings (RBAC
+// media:manage_settings) ; pour éditer le profil personnel il faut appeler ce
+// PATCH avec un username explicite.
 func (h *Handler) updateProfile(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	if userID == "" {
@@ -99,6 +108,16 @@ func (h *Handler) updateProfile(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
 		response.BadRequest(w, "JSON invalide")
 		return
+	}
+	if patch.Username == nil {
+		// L'username est l'identité publique du compte : il n'est modifiable QUE
+		// s'il est transmis explicitement. Jamais déduit d'un corps partiel.
+		var current string
+		if err := h.svc.CurrentUsername(r.Context(), userID, &current); err != nil {
+			response.Error(w, http.StatusInternalServerError, "Lecture du profil impossible")
+			return
+		}
+		patch.Username = &current
 	}
 	profile, err := h.svc.UpdateProfile(r.Context(), userID,
 		deref(patch.Name), deref(patch.Username), deref(patch.OnboardingText),

@@ -137,6 +137,17 @@ func TestUpdateProfile(t *testing.T) {
 		t.Fatalf("username avec espaces accepté")
 	}
 
+	// 🔒 Non-régression du bug du 19/09 (profil média → compte écrasé) : un PATCH
+	// qui n'apporte PAS d'username ne doit jamais effacer l'username existant.
+	// (Côté handler, l'username absent est rechargé depuis la base.)
+	var kept string
+	if err := svc.CurrentUsername(ctx, userID, &kept); err != nil {
+		t.Fatalf("CurrentUsername: %v", err)
+	}
+	if kept != "nouveau_nom" {
+		t.Fatalf("CurrentUsername = %q, attendu nouveau_nom", kept)
+	}
+
 	// Username déjà pris par un autre utilisateur.
 	if _, err := svc.UpdateProfile(ctx, userID, "X", "otherme", "", "", ""); err == nil {
 		t.Fatalf("username déjà pris accepté")

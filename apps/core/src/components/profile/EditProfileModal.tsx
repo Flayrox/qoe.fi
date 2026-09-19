@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Loader2 } from 'lucide-react';
 import { toast } from '@qoe/ui/toast';
 import { updateProfileAction as updateProfile } from '@qoe/sdk/actions/feed';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 
 import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
@@ -20,6 +21,44 @@ interface UpdatedUser {
   onboardingText?: string | null;
 }
 
+/**
+ * Écrit les réglages d'un profil de MÉDIA via son endpoint dédié
+ * (PATCH /v1/media/{id}/settings, RBAC media:manage_settings côté Go).
+ * Ne touche JAMAIS au compte utilisateur ni à une autre publication.
+ */
+async function updateMediaProfile(
+  mediaId: string,
+  input: {
+    name?: string;
+    heroText?: string;
+    logoUrl?: string;
+    headerImageUrl?: string;
+  }
+): Promise<{ ok: boolean; data?: { user: UpdatedUser } }> {
+  try {
+    await goFetch(`/v1/media/${encodeURIComponent(mediaId)}/settings`, {
+      method: 'PATCH',
+      body: input,
+    });
+    return {
+      ok: true,
+      data: {
+        user: {
+          id: mediaId,
+          name: input.name ?? null,
+          // Pas de username ici : un média n'en a pas, et il ne faut surtout
+          // pas écraser le slug affiché par l'état parent.
+          logoUrl: input.logoUrl ?? null,
+          headerImageUrl: input.headerImageUrl ?? null,
+          heroText: input.heroText ?? null,
+        },
+      },
+    };
+  } catch {
+    return { ok: false };
+  }
+}
+
 interface EditProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -32,6 +71,15 @@ interface EditProfileModalProps {
     heroText: string | null;
     onboardingText?: string | null;
   };
+  /**
+   * 🎯 Ressource réellement éditée. ⚠️ BUG du 19/09 : le modal ne connaissait
+   * qu'une seule action, qui patchait /v1/me/profile (profil PERSONNEL) en plus
+   * de la publication — ouvert depuis le profil d'un Média, il a écrasé le nom
+   * ET l'username du compte utilisateur. Depuis, on n'écrit QUE la ressource
+   * affichée : `publicationId` présent → PATCH /v1/media/{id}/settings (média,
+   * RBAC côté Go) ; sinon → profil du compte + publication personnelle.
+   */
+  publicationId?: string | null;
   onProfileUpdated?: (updatedUser: UpdatedUser) => void;
 }
 
@@ -39,6 +87,7 @@ export function EditProfileModal({
   isOpen,
   onClose,
   user,
+  publicationId,
   onProfileUpdated,
 }: EditProfileModalProps) {
   const [name, setName] = useState(user.name || '');
@@ -55,13 +104,23 @@ export function EditProfileModal({
     setSaving(true);
 
     try {
-      const res = await updateProfile({
-        name,
-        heroText,
-        onboardingText: locationText,
-        logoUrl: logoUrl || undefined,
-        headerImageUrl: headerImageUrl || undefined,
-      });
+      // 🎯 Une seule cible d'écriture, choisie par la ressource affichée.
+      // Un média n'a ni username ni onboardingText : ces champs ne partent que
+      // vers /v1/me/profile (compte personnel).
+      const res = publicationId
+        ? await updateMediaProfile(publicationId, {
+            name,
+            heroText,
+            logoUrl: logoUrl || undefined,
+            headerImageUrl: headerImageUrl || undefined,
+          })
+        : await updateProfile({
+            name,
+            heroText,
+            onboardingText: locationText,
+            logoUrl: logoUrl || undefined,
+            headerImageUrl: headerImageUrl || undefined,
+          });
       if (res.ok && res.data?.user) {
         toast.success(t`Profil mis à jour avec succès !`);
         if (onProfileUpdated) {

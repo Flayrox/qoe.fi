@@ -656,6 +656,10 @@ export function ProfileView({
           isOpen={isEditModalOpen}
           onClose={() => setIsEditModalOpen(false)}
           user={user}
+          // 🎯 Cible d'écriture explicite : sur un profil de MÉDIA, la
+          // publicationId est celle du média — le modal écrira alors
+          // PATCH /v1/media/{id}/settings et JAMAIS le profil personnel.
+          publicationId={initialPublicationId}
           onProfileUpdated={(updatedUser) => {
             setUser((prev: ProfileUser) => ({
               ...prev,

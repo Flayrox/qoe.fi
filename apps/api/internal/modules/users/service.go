@@ -245,6 +245,15 @@ type ReaderProfile struct {
 // underscores are allowed, but never consecutively ("a..b", "a__b", etc.).
 var usernamePattern = identifier.UsernamePattern
 
+// CurrentUsername lit l'username actuel du compte. Utilisé par le PATCH
+// /v1/me/profile pour conserver l'identité publique quand le corps du PATCH
+// n'en contient pas — l'effacer par omission a coûté un @ephe (19/09).
+func (s *Service) CurrentUsername(ctx context.Context, userID string, out *string) error {
+	return s.pool.QueryRow(ctx,
+		`SELECT COALESCE(username, '') FROM "User" WHERE id = $1`,
+		toUUID(userID)).Scan(out)
+}
+
 // Profile retourne le profil lecteur complet (id = sub du JWT Supabase).
 func (s *Service) Profile(ctx context.Context, userID string) (*ReaderProfile, error) {
 	var p ReaderProfile
