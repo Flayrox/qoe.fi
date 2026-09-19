@@ -113,7 +113,7 @@ export interface EditorProps {
   collaborationRoomId?: string;
   collaborationEnabled?: boolean;
   subdomain?: string;
-  categories?: { id: string; name: string }[];
+  categories?: { id: string; name: string; parentId?: string | null }[];
   isSaving?: boolean;
   capabilities?: EditorCapabilities;
   onSave: (data: {
@@ -183,6 +183,20 @@ export function Editor({
   const [isUploading, setIsUploading] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+
+  // Organisation hiérarchique des catégories (Racine -> Sous-catégories)
+  const hierarchicalCategories = useMemo(() => {
+    const roots = categories.filter((c) => !c.parentId);
+    const childrenMap = new Map<string, typeof categories>();
+    for (const cat of categories) {
+      if (cat.parentId) {
+        const list = childrenMap.get(cat.parentId) || [];
+        list.push(cat);
+        childrenMap.set(cat.parentId, list);
+      }
+    }
+    return { roots, childrenMap };
+  }, [categories]);
 
   const [showSettings, setShowSettings] = useState(false);
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
@@ -1298,7 +1312,7 @@ export function Editor({
             <div className="space-y-3">
               <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider font-sans flex items-center gap-2">
                 <FolderOpen className="h-3.5 w-3.5 text-muted-foreground stroke-[1.5]" />
-                Catégorie
+                {t`Catégorie`}
               </h3>
 
               <div className="space-y-2">
@@ -1306,18 +1320,47 @@ export function Editor({
                   value={categoryId || ''}
                   onChange={(e) => {
                     setCategoryId(e.target.value || null);
+                    setHasUnsavedChanges(true);
                   }}
                   className="w-full bg-background border border-border/40 rounded-lg p-2.5 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-sans cursor-pointer"
                 >
                   <option value="">{t`-- Sans catégorie --`}</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </option>
-                  ))}
+                  {hierarchicalCategories.roots.map((root) => {
+                    const children = hierarchicalCategories.childrenMap.get(root.id) || [];
+                    if (children.length === 0) {
+                      return (
+                        <option key={root.id} value={root.id}>
+                          {root.name}
+                        </option>
+                      );
+                    }
+                    return (
+                      <optgroup key={root.id} label={root.name}>
+                        <option value={root.id}>
+                          {root.name} ({t`Général`})
+                        </option>
+                        {children.map((child) => (
+                          <option key={child.id} value={child.id}>
+                            &nbsp;&nbsp;↳ {child.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    );
+                  })}
+                  {/* Catégories orphelines éventuelles */}
+                  {categories
+                    .filter(
+                      (c) =>
+                        c.parentId && !hierarchicalCategories.roots.some((r) => r.id === c.parentId)
+                    )
+                    .map((orphan) => (
+                      <option key={orphan.id} value={orphan.id}>
+                        {orphan.name}
+                      </option>
+                    ))}
                 </select>
                 <p className="text-[11px] text-muted-foreground leading-relaxed font-sans">
-                  Associez cet écrit à un thème pour l'organiser sur votre espace créateur.
+                  {t`Associez cet écrit à un thème ou une sous-catégorie pour l'organiser sur votre espace créateur.`}
                 </p>
               </div>
             </div>

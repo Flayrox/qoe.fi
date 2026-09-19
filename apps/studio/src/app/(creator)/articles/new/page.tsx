@@ -16,7 +16,11 @@ export default async function NewArticlePage() {
 
   return (
     <NewArticleClient
-      categories={categoriesList.map((c) => ({ id: c.id, name: c.name }))}
+      categories={categoriesList.map((c) => ({
+        id: c.id,
+        name: c.name,
+        parentId: c.parentId,
+      }))}
       capabilities={capabilities}
     />
   );

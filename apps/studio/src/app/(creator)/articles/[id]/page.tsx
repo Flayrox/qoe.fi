@@ -36,7 +36,11 @@ export default async function ArticleEditPage({ params }: PageProps) {
     return (
       <EditArticleClient
         article={article}
-        categories={categoriesList.map((c) => ({ id: c.id, name: c.name }))}
+        categories={categoriesList.map((c) => ({
+          id: c.id,
+          name: c.name,
+          parentId: c.parentId,
+        }))}
         capabilities={capabilities}
       />
     );
