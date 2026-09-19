@@ -216,15 +216,16 @@ export function Editor({
   const [annotationToast, setAnnotationToast] = useState<string | null>(null);
   const [isScrolled, setIsScrolled] = useState(false);
   const [slugCopied, setSlugCopied] = useState(false);
+  const [isCoverDragOver, setIsCoverDragOver] = useState(false);
   const lastSavedHashRef = useRef<string>('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Détection du défilement pour la toolbar collante / flottante
+  // Détection du défilement pour la toolbar collante / flottante dès qu'elle atteint le header
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 40);
+      setIsScrolled(window.scrollY > 80);
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
@@ -694,11 +695,14 @@ export function Editor({
     }
   };
 
-  const handleCoverFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const uploadCoverFile = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      setError(t`Le fichier doit être une image valide.`);
+      return;
+    }
     try {
       setIsUploading(true);
+      setError(null);
       const compressedFile = await compressImage(file);
       const url = await uploadImageToRoute(
         compressedFile,
@@ -708,10 +712,17 @@ export function Editor({
       setImageUrl(url);
       setHasUnsavedChanges(true);
     } catch (err: unknown) {
-      setError(getErrorMessage(err, "Une erreur est survenue lors de l'upload de la couverture."));
+      setError(getErrorMessage(err, t`Une erreur est survenue lors de l'upload de la couverture.`));
     } finally {
       setIsUploading(false);
       if (coverFileInputRef.current) coverFileInputRef.current.value = '';
+    }
+  };
+
+  const handleCoverFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      uploadCoverFile(file);
     }
   };
 
@@ -1225,27 +1236,61 @@ export function Editor({
             className="w-full bg-transparent border-0 text-3xl md:text-4xl font-bold tracking-tight text-foreground focus:outline-none placeholder:text-muted-foreground/30 font-sans leading-tight"
           />
 
-          <div className="flex items-center gap-2 text-xs text-muted-foreground font-sans">
-            <span className="text-muted-foreground/60 font-medium">slug :</span>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-sans flex-nowrap">
+            <span className="text-muted-foreground/60 font-medium whitespace-nowrap shrink-0 select-none">
+              slug:
+            </span>
             <input
               type="text"
               value={slug}
               onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-'))}
               placeholder="slug-url"
-              className="bg-transparent border-0 p-0 text-xs font-sans font-medium text-muted-foreground focus:outline-none w-full"
+              className="bg-transparent border-0 p-0 text-xs font-sans font-medium text-muted-foreground focus:outline-none flex-1 min-w-0"
             />
           </div>
         </div>
 
-        {/* Image de couverture principale — Placée directement sous le slug/titre */}
+        {/* Image de couverture principale — Placée directement sous le slug/titre avec glisser-déposer */}
         <div className="space-y-2">
           {imageUrl ? (
-            <div className="group relative w-full aspect-[21/9] sm:aspect-[16/7] overflow-hidden rounded-2xl border border-border/50 bg-muted/20 shadow-sm transition-all">
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsCoverDragOver(true);
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsCoverDragOver(false);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsCoverDragOver(false);
+                const file = e.dataTransfer.files?.[0];
+                if (file) uploadCoverFile(file);
+              }}
+              className={cn(
+                'group relative w-full aspect-[21/9] sm:aspect-[16/7] overflow-hidden rounded-2xl border bg-muted/20 shadow-sm transition-all',
+                isCoverDragOver
+                  ? 'border-primary ring-2 ring-primary/40 scale-[1.005]'
+                  : 'border-border/50'
+              )}
+            >
               <img
                 src={imageUrl}
                 alt={title || t`Couverture de l'article`}
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.01]"
               />
+
+              {/* Overlay lors du glisser-déposer */}
+              {isCoverDragOver && (
+                <div className="absolute inset-0 bg-primary/25 backdrop-blur-xs flex items-center justify-center font-sans text-xs font-bold text-foreground">
+                  {t`Déposez l'image pour remplacer la couverture`}
+                </div>
+              )}
+
               {/* Actions flottantes au survol */}
               <div className="absolute inset-0 bg-background/30 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2">
                 <button
@@ -1271,19 +1316,47 @@ export function Editor({
               </div>
             </div>
           ) : (
-            <div>
+            <div
+              onDragOver={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsCoverDragOver(true);
+              }}
+              onDragLeave={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsCoverDragOver(false);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsCoverDragOver(false);
+                const file = e.dataTransfer.files?.[0];
+                if (file) uploadCoverFile(file);
+              }}
+              className="inline-block"
+            >
               <button
                 type="button"
                 onClick={() => coverFileInputRef.current?.click()}
                 disabled={isUploading}
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-dashed border-border/60 hover:border-primary/50 bg-muted/10 hover:bg-muted/30 text-xs font-medium text-muted-foreground hover:text-foreground transition-all cursor-pointer shadow-2xs group"
+                className={cn(
+                  'inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-dashed text-xs font-medium transition-all cursor-pointer shadow-2xs group',
+                  isCoverDragOver
+                    ? 'border-primary bg-primary/10 text-primary ring-2 ring-primary/30'
+                    : 'border-border/60 hover:border-primary/50 bg-muted/10 hover:bg-muted/30 text-muted-foreground hover:text-foreground'
+                )}
               >
                 {isUploading ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
                 ) : (
                   <ImageIcon className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
                 )}
-                <span>{t`+ Ajouter une image de couverture`}</span>
+                <span>
+                  {isCoverDragOver
+                    ? t`Déposez votre image ici`
+                    : t`+ Ajouter une image de couverture (ou glisser-déposer)`}
+                </span>
               </button>
             </div>
           )}
@@ -1291,10 +1364,10 @@ export function Editor({
 
         {/* Text Editor Core */}
         <div className="space-y-4">
-          {/* Theme-agnostic Floating / Sticky Formatting Toolbar touching screen top */}
+          {/* Theme-agnostic Floating / Sticky Formatting Toolbar — Se cale sous la barre de recherche (top-14) */}
           <div
             className={cn(
-              'sticky top-0 z-30 flex flex-wrap items-center gap-0.5 transition-all duration-200 py-2 px-3.5',
+              'sticky top-14 z-20 flex flex-wrap items-center gap-0.5 transition-all duration-200 py-2 px-3.5',
               isScrolled
                 ? 'bg-background/85 backdrop-blur-xl border-b border-x border-border/60 rounded-b-2xl shadow-xl'
                 : 'bg-background/95 backdrop-blur-md border border-border/40 rounded-xl shadow-xs'
@@ -1518,61 +1591,8 @@ export function Editor({
 
               {/* Corps avec défilement fluide et sections */}
               <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                {/* Section 1 : Couverture */}
+                {/* Section 1 : Taxonomie & Catégorie hiérarchique */}
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider font-sans flex items-center gap-2">
-                      <ImageIcon className="h-3.5 w-3.5 text-primary stroke-[1.5]" />
-                      {t`Image de couverture`}
-                    </h4>
-                    {imageUrl && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setImageUrl(null);
-                          setHasUnsavedChanges(true);
-                        }}
-                        className="text-[11px] text-destructive hover:underline cursor-pointer flex items-center gap-1"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                        {t`Supprimer`}
-                      </button>
-                    )}
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => coverFileInputRef.current?.click()}
-                    disabled={isUploading}
-                    className="group relative flex aspect-[16/8] w-full items-center justify-center overflow-hidden rounded-xl border border-border/50 bg-muted/20 text-xs text-muted-foreground transition-all hover:border-primary/50 hover:bg-muted/40 disabled:opacity-50 cursor-pointer shadow-xs"
-                  >
-                    {imageUrl ? (
-                      <>
-                        <img
-                          src={imageUrl}
-                          alt=""
-                          className="absolute inset-0 h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                        <span className="absolute inset-x-3 bottom-3 rounded-lg bg-background/80 backdrop-blur-md px-2.5 py-1.5 text-[11px] font-medium text-foreground text-center shadow-md">
-                          {t`Changer l'image de couverture`}
-                        </span>
-                      </>
-                    ) : (
-                      <div className="flex flex-col items-center gap-1.5 p-4 text-center">
-                        <ImageIcon className="w-6 h-6 text-muted-foreground/60 group-hover:text-primary transition-colors" />
-                        <span className="font-medium text-foreground text-xs">
-                          {t`Ajouter une couverture (16:9)`}
-                        </span>
-                        <span className="text-[10px] text-muted-foreground">
-                          {t`PNG, JPG ou WebP optimisé`}
-                        </span>
-                      </div>
-                    )}
-                  </button>
-                </div>
-
-                {/* Section 2 : Taxonomie & Catégorie hiérarchique */}
-                <div className="space-y-3 pt-4 border-t border-border/40">
                   <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider font-sans flex items-center gap-2">
                     <FolderOpen className="h-3.5 w-3.5 text-primary stroke-[1.5]" />
                     {t`Thématique & Catégorie`}
