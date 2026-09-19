@@ -18,7 +18,7 @@ locaux).
 | --- | --- | --- | --- | --- |
 | 4.1 | Cartographie de la dette : modules, tailles, dépendances croisées, doublons | `docs/LICORNE_2027/annexe-architecture.md` (nouveau) | carte lisible + liste de doublons nommés | M |
 | 4.2 | Détecter le code mort et les dépendances inutilisées (outillage) | racine + `packages/**` | liste versionnée, puis suppression par lots | M |
-| 4.3 | Supprimer `scripts/tmp-embed-lassez.mjs` et tout script temporaire résiduel | `scripts/**` | `git status` propre, aucun fichier temporaire | S |
+| 4.3 | Trancher sur les scripts temporaires (dont `scripts/tmp-embed-lassez.mjs`, laissé non tracké à dessein le 19/09) et nettoyer le reste | `scripts/**` | `git status` propre, aucun fichier temporaire non justifié | S |
 | 4.4 | Unifier les réponses d'erreur de l'API Go (un seul helper, un seul format) | `apps/api/internal/**` | un seul chemin d'écriture d'erreur, tests de format | L |
 | 4.5 | Unifier les helpers de réponse (listes, pagination, enveloppe) | `apps/api/internal/response/**` | aucune réponse construite à la main hors helper | M |
 | 4.6 | Unifier les middlewares d'authentification (3 modes) en un seul composant documenté | `apps/api/internal/middleware/auth*.go` | matrice de modes testée, un seul point d'entrée | L |
