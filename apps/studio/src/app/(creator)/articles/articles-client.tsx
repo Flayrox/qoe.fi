@@ -155,10 +155,19 @@ export function ArticlesClient({
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
-  // Drag & Drop State (Déplacement à la souris)
+  // Drag & Drop State (Déplacement à la souris et Pointer Events)
   const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [pointerPos, setPointerPos] = useState<{ x: number; y: number } | null>(null);
   const [dragOverParentId, setDragOverParentId] = useState<string | null>(null);
   const [dragOverRoot, setDragOverRoot] = useState(false);
+  const activeDragRef = React.useRef<{
+    id: string;
+    startX: number;
+    startY: number;
+    isDragging: boolean;
+    currentTargetParentId: string | null;
+    isOverRoot: boolean;
+  } | null>(null);
 
   // Inline Category Creation State (Création directe ultra-rapide)
   const [inlineCreatingParentId, setInlineCreatingParentId] = useState<string | null>(null);
@@ -193,15 +202,108 @@ export function ArticlesClient({
     );
   };
 
-  // Drag & Drop handlers
-  const handleDragStart = (e: React.DragEvent, id: string) => {
-    e.dataTransfer.setData('text/plain', id);
-    e.dataTransfer.effectAllowed = 'move';
-    setDraggedId(id);
+  // Pointer-based Drag & Drop handlers (ultra fiable, zéro annulation navigateur sur Mac/Trackpad)
+  const handlePointerDown = (e: React.PointerEvent, id: string) => {
+    // Si l'utilisateur clique sur un élément interactif, ne pas démarrer de drag
+    if ((e.target as HTMLElement).closest('button, input, textarea, select, a')) {
+      return;
+    }
+    if (e.button !== 0) return; // Seulement clic gauche
+
+    activeDragRef.current = {
+      id,
+      startX: e.clientX,
+      startY: e.clientY,
+      isDragging: false,
+      currentTargetParentId: null,
+      isOverRoot: false,
+    };
+
+    const onPointerMove = (moveEvent: PointerEvent) => {
+      if (!activeDragRef.current) return;
+      const dx = moveEvent.clientX - activeDragRef.current.startX;
+      const dy = moveEvent.clientY - activeDragRef.current.startY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (!activeDragRef.current.isDragging && dist > 5) {
+        activeDragRef.current.isDragging = true;
+        setDraggedId(activeDragRef.current.id);
+      }
+
+      if (activeDragRef.current.isDragging) {
+        setPointerPos({ x: moveEvent.clientX, y: moveEvent.clientY });
+
+        const element = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY);
+        if (element) {
+          const rootZone = element.closest('[data-drop-zone="root"]');
+          if (rootZone) {
+            activeDragRef.current.isOverRoot = true;
+            activeDragRef.current.currentTargetParentId = null;
+            setDragOverRoot(true);
+            setDragOverParentId(null);
+            return;
+          }
+
+          const catZone = element.closest('[data-category-drop-id]');
+          if (catZone) {
+            const targetId = catZone.getAttribute('data-category-drop-id');
+            if (targetId && targetId !== activeDragRef.current.id) {
+              activeDragRef.current.currentTargetParentId = targetId;
+              activeDragRef.current.isOverRoot = false;
+              setDragOverParentId(targetId);
+              setDragOverRoot(false);
+              return;
+            }
+          }
+        }
+
+        activeDragRef.current.currentTargetParentId = null;
+        activeDragRef.current.isOverRoot = false;
+        setDragOverParentId(null);
+        setDragOverRoot(false);
+      }
+    };
+
+    const onPointerUp = () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
+
+      const dragInfo = activeDragRef.current;
+      activeDragRef.current = null;
+
+      if (dragInfo && dragInfo.isDragging) {
+        const id = dragInfo.id;
+        const targetParentId = dragInfo.currentTargetParentId;
+        const isRoot = dragInfo.isOverRoot;
+
+        setDraggedId(null);
+        setPointerPos(null);
+        setDragOverParentId(null);
+        setDragOverRoot(false);
+
+        if (targetParentId) {
+          handleDropOnParent(targetParentId, id);
+        } else if (isRoot) {
+          handleDropOnRoot(id);
+        }
+      } else {
+        setDraggedId(null);
+        setPointerPos(null);
+        setDragOverParentId(null);
+        setDragOverRoot(false);
+      }
+    };
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
   };
 
   const handleDragEnd = () => {
+    activeDragRef.current = null;
     setDraggedId(null);
+    setPointerPos(null);
     setDragOverParentId(null);
     setDragOverRoot(false);
   };
@@ -1053,26 +1155,41 @@ export function ArticlesClient({
                 </div>
               )}
 
+              {/* Badge flottant qui suit le pointeur de souris lors du Drag */}
+              {draggedCat && pointerPos && (
+                <div
+                  style={{
+                    position: 'fixed',
+                    left: pointerPos.x + 14,
+                    top: pointerPos.y + 14,
+                    pointerEvents: 'none',
+                    zIndex: 9999,
+                  }}
+                  className="bg-primary text-primary-foreground font-sans text-xs font-semibold px-3 py-1.5 rounded-lg shadow-2xl flex items-center gap-2 border border-primary-foreground/20 backdrop-blur-md select-none transition-transform"
+                >
+                  <Move className="w-3.5 h-3.5" />
+                  <span>{draggedCat.name}</span>
+                  {dragOverParentId ? (
+                    <span className="text-[10px] bg-primary-foreground/20 px-1.5 py-0.5 rounded text-primary-foreground font-normal">
+                      ↳ {categories.find((c) => c.id === dragOverParentId)?.name}
+                    </span>
+                  ) : dragOverRoot ? (
+                    <span className="text-[10px] bg-primary-foreground/20 px-1.5 py-0.5 rounded text-primary-foreground font-normal">
+                      ↳ {t`Catégorie principale`}
+                    </span>
+                  ) : null}
+                </div>
+              )}
+
               {/* Zone de largage pour promouvoir en catégorie racine */}
               {draggedCat?.parentId && (
                 <div
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = 'move';
-                    setDragOverRoot(true);
-                  }}
-                  onDragLeave={(e) => {
-                    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-                    setDragOverRoot(false);
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    handleDropOnRoot();
-                  }}
+                  data-drop-zone="root"
+                  onClick={() => handleDropOnRoot(draggedCat.id)}
                   className={cn(
                     'p-3.5 rounded-xl border-2 border-dashed transition-all flex items-center justify-center gap-2 text-xs font-sans font-semibold cursor-pointer',
                     dragOverRoot
-                      ? 'border-primary bg-primary/10 text-primary scale-[1.01]'
+                      ? 'border-primary bg-primary/15 text-primary scale-[1.01] shadow-md ring-2 ring-primary/30'
                       : 'border-border/60 bg-muted/20 text-muted-foreground hover:bg-muted/40'
                   )}
                 >
@@ -1082,11 +1199,67 @@ export function ArticlesClient({
               )}
 
               {categories.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-center space-y-2 font-sans border border-dashed border-border/60 rounded-xl bg-muted/10">
-                  <Tag className="h-6 w-6 text-muted-foreground/60 stroke-[1.5]" />
-                  <p className="text-xs text-muted-foreground max-w-xs font-sans">
-                    {t`Aucune catégorie créée pour le moment.`}
-                  </p>
+                <div className="flex flex-col items-center justify-center py-14 px-6 text-center space-y-4 font-sans border-2 border-dashed border-border/70 hover:border-primary/40 rounded-2xl bg-muted/5 transition-all">
+                  <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-xs">
+                    <FolderTree className="w-6 h-6" />
+                  </div>
+                  <div className="space-y-1 max-w-sm">
+                    <h4 className="text-sm font-bold text-foreground font-sans">
+                      {t`Aucune catégorie pour le moment`}
+                    </h4>
+                    <p className="text-xs text-muted-foreground font-sans leading-relaxed">
+                      {t`Organisez vos articles avec des thématiques claires et des sous-catégories à 2 niveaux.`}
+                    </p>
+                  </div>
+
+                  {isCreatingInlineRoot ? (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        handleInlineCreateRoot();
+                      }}
+                      className="w-full max-w-md p-2 rounded-xl bg-card border border-primary/50 shadow-md flex items-center gap-2"
+                    >
+                      <FolderOpen className="w-4 h-4 text-primary shrink-0 ml-1.5" />
+                      <input
+                        autoFocus
+                        type="text"
+                        value={inlineRootName}
+                        onChange={(e) => setInlineRootName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') setIsCreatingInlineRoot(false);
+                        }}
+                        placeholder={t`Nom de la catégorie principale... (Entrée)`}
+                        className="flex-1 bg-transparent border-0 text-xs font-sans text-foreground placeholder:text-muted-foreground focus:outline-none"
+                      />
+                      <button
+                        type="submit"
+                        disabled={isCreatingInline || !inlineRootName.trim()}
+                        className="px-3 py-1.5 text-xs font-bold font-sans bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors cursor-pointer shadow-xs"
+                      >
+                        {isCreatingInline ? t`...` : t`Créer`}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsCreatingInlineRoot(false)}
+                        className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </form>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCreatingInlineRoot(true);
+                        setInlineRootName('');
+                      }}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold font-sans transition-all cursor-pointer shadow-xs hover:shadow-sm active:scale-[0.98]"
+                    >
+                      <Plus className="w-4 h-4 stroke-[2.5]" />
+                      <span>{t`Créer votre première catégorie`}</span>
+                    </button>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -1103,23 +1276,7 @@ export function ArticlesClient({
                     return (
                       <div
                         key={root.id}
-                        onDragOver={(e) => {
-                          if (canBeDropTarget) {
-                            e.preventDefault();
-                            e.dataTransfer.dropEffect = 'move';
-                            if (dragOverParentId !== root.id) setDragOverParentId(root.id);
-                          }
-                        }}
-                        onDragLeave={(e) => {
-                          if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-                          if (dragOverParentId === root.id) setDragOverParentId(null);
-                        }}
-                        onDrop={(e) => {
-                          if (canBeDropTarget) {
-                            e.preventDefault();
-                            handleDropOnParent(root.id);
-                          }
-                        }}
+                        data-category-drop-id={root.id}
                         className={cn(
                           'p-3.5 rounded-xl border transition-all duration-200 bg-card',
                           isDropTarget
@@ -1134,11 +1291,13 @@ export function ArticlesClient({
                           <div className="flex items-center gap-2.5 min-w-0 flex-1">
                             {/* Drag Handle */}
                             <div
-                              draggable={!hasChildren(root.id)}
-                              onDragStart={(e) => handleDragStart(e, root.id)}
-                              onDragEnd={handleDragEnd}
+                              onPointerDown={(e) => {
+                                if (!hasChildren(root.id)) {
+                                  handlePointerDown(e, root.id);
+                                }
+                              }}
                               className={cn(
-                                'p-1 text-muted-foreground/50 hover:text-foreground rounded transition-colors',
+                                'p-1 text-muted-foreground/50 hover:text-foreground rounded transition-colors touch-none select-none',
                                 hasChildren(root.id)
                                   ? 'opacity-30 cursor-not-allowed'
                                   : 'cursor-grab active:cursor-grabbing'
@@ -1263,12 +1422,11 @@ export function ArticlesClient({
                           {subCategories.map((sub) => (
                             <div
                               key={sub.id}
-                              draggable={true}
-                              onDragStart={(e) => handleDragStart(e, sub.id)}
-                              onDragEnd={handleDragEnd}
+                              onPointerDown={(e) => handlePointerDown(e, sub.id)}
                               className={cn(
-                                'py-1.5 px-2 rounded-lg flex items-center justify-between gap-3 bg-muted/20 hover:bg-muted/40 transition-colors cursor-grab active:cursor-grabbing border border-transparent hover:border-border/30',
-                                draggedId === sub.id && 'opacity-40 border-dashed border-primary'
+                                'py-1.5 px-2 rounded-lg flex items-center justify-between gap-3 bg-muted/20 hover:bg-muted/40 transition-colors cursor-grab active:cursor-grabbing border border-transparent hover:border-border/30 touch-none select-none',
+                                draggedId === sub.id &&
+                                  'opacity-40 border-dashed border-primary ring-1 ring-primary/40'
                               )}
                             >
                               <div className="flex items-center gap-2 min-w-0">
