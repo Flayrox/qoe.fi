@@ -46,13 +46,17 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: 'cd apps/api && go run ./cmd/server',
+      // Même contrat que `playwright.config.ts` : migrations appliquées par le
+      // serveur lui-même, et DSN explicite identique pour l'API et les fixtures
+      // (aucun `.env` local implicite, aucune base non migrée).
+      command: 'cd apps/api && go run ./cmd/migrate -dir sql/migrations up && go run ./cmd/server',
       url: `${GO_API_URL}/healthz`,
       reuseExistingServer: !process.env.CI,
       timeout: 180_000,
       env: {
         API_PORT: String(GO_API_PORT),
         API_DATABASE_URL: goDatabaseUrl,
+        DATABASE_URL: goDatabaseUrl,
         SUPABASE_AUTH_URL: process.env.SUPABASE_AUTH_URL ?? '',
         SUPABASE_JWT_SECRET: process.env.SUPABASE_JWT_SECRET ?? 'e2e-router-secret',
         REDIS_URL: process.env.REDIS_URL ?? '',

@@ -52,13 +52,18 @@ export default defineConfig({
   // seedée ; tolère Redis absent (rate-limit pass-through en erreur).
   webServer: [
     {
-      command: 'cd apps/api && go run ./cmd/server',
+      // Les migrations sont appliquées par le serveur lui-même avant de
+      // démarrer : en local, `pnpm e2e` ne doit jamais parler à une base non
+      // migrée (erreur `goose_db_version` incompréhensible), et l'API lit
+      // explicitement la même base que les fixtures (aucun `.env` implicite).
+      command: 'cd apps/api && go run ./cmd/migrate -dir sql/migrations up && go run ./cmd/server',
       url: `${GO_API_URL}/healthz`,
       reuseExistingServer: !process.env.CI,
       timeout: 180_000,
       env: {
         API_PORT: String(GO_API_PORT),
         API_DATABASE_URL: goDatabaseUrl,
+        DATABASE_URL: goDatabaseUrl,
         SUPABASE_AUTH_URL: supabaseAuthUrl,
         SUPABASE_JWT_SECRET: supabaseJwtSecret,
         REDIS_URL: process.env.REDIS_URL ?? '',
