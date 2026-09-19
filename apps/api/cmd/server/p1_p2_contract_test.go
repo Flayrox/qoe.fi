@@ -288,7 +288,7 @@ const (
 func seedMediaContract(t *testing.T, ctx context.Context) {
 	t.Helper()
 	if _, err := poolTest.Exec(ctx,
-		`TRUNCATE TABLE "MediaAuditLog", "MediaInvite", "MediaMember", "Media", "MediaAsset", "Publication", "User" CASCADE`); err != nil {
+		`TRUNCATE TABLE "MediaAuditLog", "MediaMember", "Media", "MediaAsset", "Publication", "User" CASCADE`); err != nil {
 		t.Fatalf("media fixture truncate: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,

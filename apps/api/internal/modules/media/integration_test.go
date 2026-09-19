@@ -41,7 +41,7 @@ const (
 func seedMedia(t *testing.T, ctx context.Context) {
 	t.Helper()
 	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE
-		"MediaAuditLog", "MediaInvite", "MediaMember", "Media", "User", "Publication"
+		"MediaAuditLog", "MediaMember", "Media", "User", "Publication"
 		CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
@@ -207,33 +207,62 @@ func TestGetMedia_Forbidden(t *testing.T) {
 	}
 }
 
-func TestInviteMember_NewUser(t *testing.T) {
+func TestInviteMemberByUsername_AddsMemberAndNotifies(t *testing.T) {
 	ctx := context.Background()
 	seedMedia(t, ctx)
 	svc := newTestService()
 
-	out, err := svc.InviteMember(ctx, mediaOwnerID, "media_001", "new.media@test.dev", "writer")
+	out, err := svc.InviteMemberByUsername(ctx, mediaOwnerID, "media_001", "@inviteemedia", "editor")
 	if err != nil {
-		t.Fatalf("InviteMember: %v", err)
+		t.Fatalf("InviteMemberByUsername: %v", err)
 	}
 	if out["alreadyMember"] == true {
-		t.Fatalf("out = %v, attendu alreadyMember=false", out)
+		t.Fatalf("out = %v, attendu un ajout direct", out)
 	}
-	var status string
+
+	// Le collaborateur est membre actif avec le rôle demandé (aucun email requis).
+	var role, status string
 	if err := poolTest.QueryRow(ctx,
-		`SELECT status FROM "MediaInvite" WHERE id = $1`, out["inviteId"]).Scan(&status); err != nil || status != "PENDING" {
-		t.Fatalf("invite = %q (err %v), attendu PENDING", status, err)
+		`SELECT role, status FROM "MediaMember" WHERE "mediaId" = 'media_001' AND "userId" = $1`,
+		mediaInvitee).Scan(&role, &status); err != nil || role != "editor" || status != "active" {
+		t.Fatalf("member = %q/%q (err %v), attendu editor/active", role, status, err)
+	}
+
+	// L'intéressé reçoit une notification MEDIA_INVITE dans la section collaboration.
+	var notifType string
+	if err := poolTest.QueryRow(ctx,
+		`SELECT type FROM "Notification" WHERE "recipientId" = $1 AND "senderId" = $2`,
+		mediaInvitee, mediaOwnerID).Scan(&notifType); err != nil || notifType != "MEDIA_INVITE" {
+		t.Fatalf("notification = %q (err %v), attendu MEDIA_INVITE", notifType, err)
 	}
 }
 
-func TestInviteMember_ExistingMember_UpdatesRole(t *testing.T) {
+func TestInviteMemberByUsername_ErrorsAndRoleUpdate(t *testing.T) {
 	ctx := context.Background()
 	seedMedia(t, ctx)
 	svc := newTestService()
 
-	out, err := svc.InviteMember(ctx, mediaOwnerID, "media_001", "writer.media@test.dev", "editor")
+	// viewer n'a pas media:manage_members.
+	if _, err := svc.InviteMemberByUsername(ctx, mediaViewerID, "media_001", "inviteemedia", "writer"); err != errForbidden {
+		t.Fatalf("InviteMemberByUsername(viewer) = %v, attendu errForbidden", err)
+	}
+	// @username inconnu → refus explicite (jamais de recherche par email).
+	if _, err := svc.InviteMemberByUsername(ctx, mediaOwnerID, "media_001", "inconnu", "writer"); err == nil {
+		t.Fatal("username inconnu accepté")
+	}
+	// Le rôle propriétaire ne peut pas être accordé par invitation.
+	if _, err := svc.InviteMemberByUsername(ctx, mediaOwnerID, "media_001", "inviteemedia", "owner"); err == nil {
+		t.Fatal("rôle owner attribué par invitation")
+	}
+	// S'auto-ajouter → refus.
+	if _, err := svc.InviteMemberByUsername(ctx, mediaOwnerID, "media_001", "ownermedia", "writer"); err == nil {
+		t.Fatal("auto-ajout accepté")
+	}
+
+	// Déjà membre → simple mise à jour du rôle (idempotent).
+	out, err := svc.InviteMemberByUsername(ctx, mediaOwnerID, "media_001", "writermedia", "editor")
 	if err != nil {
-		t.Fatalf("InviteMember: %v", err)
+		t.Fatalf("InviteMemberByUsername(membre): %v", err)
 	}
 	if out["alreadyMember"] != true {
 		t.Fatalf("out = %v, attendu alreadyMember=true", out)
@@ -243,79 +272,6 @@ func TestInviteMember_ExistingMember_UpdatesRole(t *testing.T) {
 		`SELECT role FROM "MediaMember" WHERE "mediaId" = 'media_001' AND "userId" = $1`,
 		mediaWriterID).Scan(&role); err != nil || role != "editor" {
 		t.Fatalf("rôle = %q (err %v), attendu editor", role, err)
-	}
-}
-
-func TestInviteMember_Forbidden(t *testing.T) {
-	ctx := context.Background()
-	seedMedia(t, ctx)
-	svc := newTestService()
-
-	// viewer n'a pas media:manage_members.
-	if _, err := svc.InviteMember(ctx, mediaViewerID, "media_001", "x@test.dev", "writer"); err != errForbidden {
-		t.Fatalf("InviteMember(viewer) = %v, attendu errForbidden", err)
-	}
-}
-
-func TestAcceptInvite(t *testing.T) {
-	ctx := context.Background()
-	seedMedia(t, ctx)
-	svc := newTestService()
-
-	// Invitation créée pour invitee (compte existant, pas membre).
-	out, err := svc.InviteMember(ctx, mediaOwnerID, "media_001", "invitee.media@test.dev", "writer")
-	if err != nil {
-		t.Fatalf("InviteMember: %v", err)
-	}
-	// Il faut le token pour accepter — on le lit en base.
-	var token string
-	if err := poolTest.QueryRow(ctx,
-		`SELECT token FROM "MediaInvite" WHERE id = $1`, out["inviteId"]).Scan(&token); err != nil {
-		t.Fatalf("token: %v", err)
-	}
-
-	mediaID, err := svc.AcceptInvite(ctx, mediaInvitee, token)
-	if err != nil {
-		t.Fatalf("AcceptInvite: %v", err)
-	}
-	if mediaID != "media_001" {
-		t.Fatalf("mediaId = %s, attendu media_001", mediaID)
-	}
-	var role, status string
-	if err := poolTest.QueryRow(ctx,
-		`SELECT role, status FROM "MediaMember" WHERE "mediaId" = 'media_001' AND "userId" = $1`,
-		mediaInvitee).Scan(&role, &status); err != nil || role != "writer" || status != "active" {
-		t.Fatalf("member = %q/%q (err %v), attendu writer/active", role, status, err)
-	}
-	var istatus string
-	if err := poolTest.QueryRow(ctx,
-		`SELECT status FROM "MediaInvite" WHERE id = $1`, out["inviteId"]).Scan(&istatus); err != nil || istatus != "ACCEPTED" {
-		t.Fatalf("invite = %q (err %v), attendu ACCEPTED", istatus, err)
-	}
-
-	// Le même token ne peut plus être réutilisé.
-	if _, err := svc.AcceptInvite(ctx, mediaInvitee, token); err == nil {
-		t.Fatal("token réutilisé accepté, attendu erreur")
-	}
-}
-
-func TestAcceptInvite_WrongEmail(t *testing.T) {
-	ctx := context.Background()
-	seedMedia(t, ctx)
-	svc := newTestService()
-
-	out, err := svc.InviteMember(ctx, mediaOwnerID, "media_001", "invitee.media@test.dev", "writer")
-	if err != nil {
-		t.Fatalf("InviteMember: %v", err)
-	}
-	var token string
-	if err := poolTest.QueryRow(ctx,
-		`SELECT token FROM "MediaInvite" WHERE id = $1`, out["inviteId"]).Scan(&token); err != nil {
-		t.Fatalf("token: %v", err)
-	}
-	// stranger n'est pas le destinataire.
-	if _, err := svc.AcceptInvite(ctx, mediaStranger, token); err == nil || !strings.Contains(err.Error(), "destinée") {
-		t.Fatalf("AcceptInvite(wrong user) = %v, attendu erreur de destinataire", err)
 	}
 }
 

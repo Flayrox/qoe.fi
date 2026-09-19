@@ -24,7 +24,7 @@ interface CollaborationRequest {
   id: string;
   status: string;
   article?: { title: string } | null;
-  inviter?: { name: string | null; email: string } | null;
+  inviter?: { name: string | null; username: string | null } | null;
 }
 
 export default function CreatorAdvancedPage() {
@@ -33,7 +33,7 @@ export default function CreatorAdvancedPage() {
     sent: CollaborationRequest[];
   }>({ received: [], sent: [] });
   const [loading, setLoading] = useState(true);
-  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteUsername, setInviteUsername] = useState('');
   const [inviteArticleId, setInviteArticleId] = useState('');
   const [sendingInvite, setSendingInvite] = useState(false);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
@@ -73,15 +73,15 @@ export default function CreatorAdvancedPage() {
 
   const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inviteEmail || !inviteArticleId) return;
+    if (!inviteUsername || !inviteArticleId) return;
 
     setSendingInvite(true);
-    const res = await sendCollaborationRequestAction(inviteArticleId, inviteEmail);
+    const res = await sendCollaborationRequestAction(inviteArticleId, inviteUsername);
     setSendingInvite(false);
 
     if (res.success) {
       setActionMsg(t`🎉 Invitation de co-rédaction envoyée avec succès !`);
-      setInviteEmail('');
+      setInviteUsername('');
       setInviteArticleId('');
       loadRequests();
     } else {
@@ -178,7 +178,8 @@ export default function CreatorAdvancedPage() {
                       <p className="text-xs text-muted-foreground">
                         De :{' '}
                         <strong className="text-foreground">
-                          {req.inviter?.name || req.inviter?.email}
+                          {req.inviter?.name ||
+                            (req.inviter?.username ? `@${req.inviter.username}` : 'Un créateur')}
                         </strong>
                       </p>
                     </div>
@@ -265,13 +266,15 @@ export default function CreatorAdvancedPage() {
 
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-                Email du co-auteur à inviter
+                Nom d'utilisateur (@) du co-auteur à inviter
               </label>
               <input
-                type="email"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                placeholder="coauteur@example.com"
+                type="text"
+                value={inviteUsername}
+                onChange={(e) => setInviteUsername(e.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+                placeholder="@username"
                 className="w-full p-3 rounded-xl bg-muted/40 border border-border/40 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
               />
             </div>

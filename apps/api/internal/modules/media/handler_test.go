@@ -45,7 +45,6 @@ func TestMediaUnauthorized(t *testing.T) {
 		{http.MethodPatch, "/v1/media/media_001/members/" + mediaWriterID},
 		{http.MethodPatch, "/v1/media/media_001/members/" + mediaWriterID + "/permissions"},
 		{http.MethodDelete, "/v1/media/media_001/members/" + mediaWriterID},
-		{http.MethodPost, "/v1/media/invites/tok/accept"},
 	} {
 		w := doMedia(t, svc, tc.method, tc.path, "", nil)
 		if w.Code != http.StatusUnauthorized {
@@ -138,23 +137,24 @@ func TestMediaSettingsAndMembers(t *testing.T) {
 		t.Fatalf("settings bad json = %d, attendu 400", w2.Code)
 	}
 
-	// Invite → 200, puis l'invité accepte.
+	// Ajout d'un collaborateur par @username → 200, sans aucun email requis ni divulgué.
 	w3 := doMedia(t, svc, http.MethodPost, "/v1/media/media_001/invites", mediaOwnerID, map[string]any{
-		"email": "inv.media@test.dev", "role": "writer",
+		"username": "@inviteemedia", "role": "writer",
 	})
 	if w3.Code != http.StatusOK {
 		t.Fatalf("invite = %d, attendu 200 (body %s)", w3.Code, w3.Body.String())
 	}
-	var inv struct {
-		InviteId string `json:"inviteId"`
+	if !bytes.Contains(w3.Body.Bytes(), []byte(mediaInvitee)) {
+		t.Fatalf("body = %s, attendu l'id du nouveau membre", w3.Body.String())
 	}
-	_ = json.Unmarshal(w3.Body.Bytes(), &inv)
-	// accept avec un token bidon → 404/400 ; avec le vrai token → 200.
-	w4 := doMedia(t, svc, http.MethodPost, "/v1/media/invites/mauvais-token/accept", mediaInvitee, nil)
-	if w4.Code == http.StatusOK {
-		t.Fatal("accept mauvais token ne doit pas réussir")
+	if bytes.Contains(w3.Body.Bytes(), []byte("@test.dev")) {
+		t.Fatalf("fuite d'email dans la réponse : %s", w3.Body.String())
 	}
-
+	// Champs requis.
+	w3b := doMedia(t, svc, http.MethodPost, "/v1/media/media_001/invites", mediaOwnerID, map[string]any{})
+	if w3b.Code != http.StatusBadRequest {
+		t.Fatalf("invite sans username = %d, attendu 400", w3b.Code)
+	}
 	// Rôle + permissions + suppression du writer par l'owner.
 	w5 := doMedia(t, svc, http.MethodPatch, "/v1/media/media_001/members/"+mediaWriterID, mediaOwnerID, map[string]any{"role": "editor"})
 	if w5.Code != http.StatusOK {

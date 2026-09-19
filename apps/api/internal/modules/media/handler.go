@@ -33,7 +33,13 @@ func (h *Handler) Register(r chi.Router) {
 		r.Patch("/{id}/members/{userId}", h.updateMemberRole)
 		r.Patch("/{id}/members/{userId}/permissions", h.updateMemberPermissions)
 		r.Delete("/{id}/members/{userId}", h.removeMember)
-		r.Post("/invites/{token}/accept", h.acceptInvite)
+
+		// Liens d'invitation média (sans email requis)
+		r.Post("/{id}/links", h.createLink)
+		r.Get("/{id}/links", h.listLinks)
+		r.Post("/{id}/links/{linkId}/revoke", h.revokeLink)
+		r.Get("/invites/link/{token}", h.getLinkPreview)
+		r.Post("/invites/link/{token}/join", h.joinLink)
 
 		// Clés API Média (gestion workspace / délégation fine api_keys:manage)
 		r.Get("/{id}/api-keys", h.listApiKeys)
@@ -164,7 +170,8 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, map[string]any{"success": true, "publication": publication})
 }
 
-// POST /v1/media/{id}/invites — invite un rédacteur par email.
+// POST /v1/media/{id}/invites — {username, role?} : ajoute un collaborateur par
+// son @username (100% confidentiel, aucun email requis ni divulgué).
 func (h *Handler) inviteMember(w http.ResponseWriter, r *http.Request) {
 	id := userID(r)
 	if id == "" {
@@ -172,34 +179,19 @@ func (h *Handler) inviteMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var in struct {
-		Email string `json:"email"`
-		Role  string `json:"role"`
+		Username string `json:"username"`
+		Role     string `json:"role"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
-	out, err := h.svc.InviteMember(r.Context(), id, chi.URLParam(r, "id"), in.Email, in.Role)
+	out, err := h.svc.InviteMemberByUsername(r.Context(), id, chi.URLParam(r, "id"), in.Username, in.Role)
 	if err != nil {
 		writeErr(w, err)
 		return
 	}
 	response.OK(w, out)
-}
-
-// POST /v1/media/invites/{token}/accept — accepte une invitation.
-func (h *Handler) acceptInvite(w http.ResponseWriter, r *http.Request) {
-	id := userID(r)
-	if id == "" {
-		response.Unauthorized(w, "Authentification requise")
-		return
-	}
-	mediaID, err := h.svc.AcceptInvite(r.Context(), id, chi.URLParam(r, "token"))
-	if err != nil {
-		writeErr(w, err)
-		return
-	}
-	response.OK(w, map[string]any{"success": true, "mediaId": mediaID})
 }
 
 // PATCH /v1/media/{id}/members/{userId} — change le rôle d'un membre.
@@ -353,4 +345,98 @@ func (h *Handler) revokeApiKey(w http.ResponseWriter, r *http.Request) {
 	}
 	response.OK(w, map[string]bool{"success": true})
 }
+
+// POST /v1/media/{id}/links — {role?, expiresInHours?, maxUses?}.
+func (h *Handler) createLink(w http.ResponseWriter, r *http.Request) {
+	id := userID(r)
+	if id == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	mediaID := chi.URLParam(r, "id")
+	var in struct {
+		Role string `json:"role"`
+		// Pointeurs pour distinguer « absent » (défauts sûrs : 24 h, 1 usage)
+		// de « 0 explicite » (permanent / illimité).
+		ExpiresInHours *int `json:"expiresInHours"`
+		MaxUses        *int `json:"maxUses"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	expiresInHours, maxUses := 24, 1
+	if in.ExpiresInHours != nil {
+		expiresInHours = *in.ExpiresInHours
+	}
+	if in.MaxUses != nil {
+		maxUses = *in.MaxUses
+	}
+	link, err := h.svc.CreateInviteLink(r.Context(), id, mediaID, in.Role, expiresInHours, maxUses)
+	if err != nil {
+		writeErr(w, err)
+		return
+	}
+	response.Created(w, map[string]any{"success": true, "link": link})
+}
+
+// GET /v1/media/{id}/links — liste les liens d'un média.
+func (h *Handler) listLinks(w http.ResponseWriter, r *http.Request) {
+	id := userID(r)
+	if id == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	mediaID := chi.URLParam(r, "id")
+	links, err := h.svc.ListInviteLinks(r.Context(), id, mediaID)
+	if err != nil {
+		writeErr(w, err)
+		return
+	}
+	response.OK(w, map[string]any{"links": links})
+}
+
+// POST /v1/media/{id}/links/{linkId}/revoke — révoque un lien.
+func (h *Handler) revokeLink(w http.ResponseWriter, r *http.Request) {
+	id := userID(r)
+	if id == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	mediaID := chi.URLParam(r, "id")
+	linkID := chi.URLParam(r, "linkId")
+	if err := h.svc.RevokeInviteLink(r.Context(), id, mediaID, linkID); err != nil {
+		writeErr(w, err)
+		return
+	}
+	response.OK(w, map[string]bool{"success": true})
+}
+
+// GET /v1/media/invites/link/{token} — aperçu d'un lien d'invitation.
+func (h *Handler) getLinkPreview(w http.ResponseWriter, r *http.Request) {
+	token := chi.URLParam(r, "token")
+	preview, err := h.svc.GetInviteLinkPreview(r.Context(), token)
+	if err != nil {
+		writeErr(w, err)
+		return
+	}
+	response.OK(w, preview)
+}
+
+// POST /v1/media/invites/link/{token}/join — accepter et rejoindre le média via lien.
+func (h *Handler) joinLink(w http.ResponseWriter, r *http.Request) {
+	id := userID(r)
+	if id == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	token := chi.URLParam(r, "token")
+	res, err := h.svc.JoinViaInviteLink(r.Context(), id, token)
+	if err != nil {
+		writeErr(w, err)
+		return
+	}
+	response.OK(w, res)
+}
+
 
