@@ -1730,7 +1730,114 @@ Voir §3.1 flot PKCE complet + `docs/OAUTH_PROVIDER.md:106`.
 
 ---
 
-## 7. Index des fichiers source
+## 7. Collaboration (articles & Médias) — invitations, liens, rôles
+
+> **Modules :** `apps/api/internal/modules/collaborations` (articles) et `modules/media` (Médias).
+> **Appelé par :** Studio (`goFetch`, JWT) + app mobile — jamais par un service tiers.
+> **Règle de conception :** **aucune invitation par email**. On invite par `@username`
+> (nécessite un compte) ou par **lien révocable**. La table `MediaInvite` a été supprimée
+> par la migration `00025_drop_media_invite.sql` ; les invitations média encore en base
+> avant cette migration n'ont plus de parcours d'acceptation.
+
+### 7.1 Liens d'invitation d'article
+
+| Méthode | Route | Corps / paramètres | Réponse |
+| --- | --- | --- | --- |
+| `POST` | `/v1/collaborations/links` | `{articleId, role?, expiresInHours?, maxUses?}` | `201 {success, link}` |
+| `GET` | `/v1/collaborations/links/article/{articleId}` | — | `{links:[…]}` |
+| `POST` | `/v1/collaborations/links/{linkId}/revoke` | — | `{success:true}` |
+| `GET` | `/v1/collaborations/links/{token}` | — | aperçu `CollaborationLinkPreview` |
+| `GET` | `/v1/collaborations/public-links/{token}` | — | idem, **sans authentification** |
+| `POST` | `/v1/collaborations/links/{token}/join` | — | `{success, articleId, role}` |
+
+**Défauts sûrs (conçus pour ne jamais créer un lien ouvert par omission) :**
+
+| Champ | Absent ou `null` | `0` explicite | Valeurs |
+| --- | --- | --- | --- |
+| `expiresInHours` | **24 h** | lien **permanent** | heures |
+| `maxUses` | **1 utilisation** | utilisations **illimitées** | entiers |
+| `role` | `CONTRIBUTOR` | — | `EDITOR`, `CONTRIBUTOR` |
+
+> Les champs sont lus en **pointeurs** côté Go : c'est ce qui permet de distinguer
+> « non fourni » (défaut sûr) de « 0 » (choix explicite). Un client qui oublie le champ
+> obtient donc un lien à usage unique de 24 h, jamais un lien illimité.
+
+```bash
+# Créer un lien (défauts : 24 h, 1 usage, Contributeur)
+curl -X POST https://api.qoe.fi/v1/collaborations/links \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"articleId":"art_123","role":"EDITOR","expiresInHours":168,"maxUses":5}'
+# -> 201 {"success":true,"link":{"id":"lnk_1","token":"…","role":"EDITOR",
+#         "expiresAt":"2026-09-26T…","maxUses":5,"usedCount":0,"isRevoked":false}}
+
+# Aperçu public (page « rejoindre la co-rédaction »)
+curl https://api.qoe.fi/v1/collaborations/public-links/$TOKEN
+# -> {"articleId":"…","title":"…","slug":"…","author":{…},"role":"EDITOR",
+#     "maxUses":5,"usedCount":1,"isValid":true,"statusText":"…"}
+```
+
+**Statut d'un lien côté client :** `isRevoked` → *Révoqué* ; `expiresAt` dépassé →
+*Expiré* ; `usedCount >= maxUses` (avec `maxUses > 0`) → *Épuisé* ; sinon *Actif*.
+
+**Anti-spam :** maximum **10 liens créés par heure et par utilisateur**.
+
+### 7.2 Invitation directe et gestion des contributeurs (article)
+
+| Méthode | Route | Corps | Effet |
+| --- | --- | --- | --- |
+| `POST` | `/v1/collaborations/invite-by-username` | `{articleId, username}` | crée une demande + notification au destinataire |
+| `POST` | `/v1/collaborations/invite` | `{articleId, inviteeId, role?, order?}` | variante par identifiant interne |
+| `GET` | `/v1/collaborations/` | — | demandes envoyées et reçues |
+| `POST` | `/v1/collaborations/{requestId}/respond` | `{accept:bool}` | accepte / refuse, notifie l'auteur |
+| `DELETE` | `/v1/collaborations/{articleId}/contributors/{contributorId}` | — | retire un contributeur |
+| `POST` | `/v1/collaborations/{articleId}/withdraw` | — | le contributeur se retire lui-même |
+
+### 7.3 Liens et membres d'un Média
+
+| Méthode | Route | Corps | Réponse |
+| --- | --- | --- | --- |
+| `POST` | `/v1/media/{id}/links` | `{role?, expiresInHours?, maxUses?}` | `201 {success, link}` |
+| `GET` | `/v1/media/{id}/links` | — | `{links:[…]}` |
+| `POST` | `/v1/media/{id}/links/{linkId}/revoke` | — | `{success:true}` |
+| `GET` | `/v1/media/invites/link/{token}` | — | aperçu `MediaLinkPreview` (nom, slug, `logoUrl`, `heroText`, `inviter`, `statusText`, `isValid`) |
+| `POST` | `/v1/media/invites/link/{token}/join` | — | `{success, mediaId, role}` |
+| `POST` | `/v1/media/{id}/invites` | `{username, role?}` | ajoute **directement** le membre (rôle effectif) |
+| `PATCH` | `/v1/media/{id}/members/{userId}` | `{role}` | change le rôle |
+| `PATCH` | `/v1/media/{id}/members/{userId}/permissions` | `{permissions:[…]}` | permissions granulaires |
+| `DELETE` | `/v1/media/{id}/members/{userId}` | — | retire le membre |
+
+**Rôles Média (allowlist `validRoles`, parité `MEDIA_ROLES` de `@qoe/auth`) :**
+`owner` · `editor` · `writer` · `viewer` — le rôle d'invitation par défaut est `writer`
+(« Rédacteur ») et `owner` **ne peut pas** être accordé par invitation.
+
+> `POST /v1/media/{id}/invites` **remplace** l'ancien parcours email : l'utilisateur doit
+> exister (résolution par `@username`, insensible à la casse), aucun email n'est stocké ni
+> renvoyé, l'appel est **idempotent** (si la personne est déjà membre, seul son rôle
+> change) et il déclenche une notification `MEDIA_INVITE`.
+
+### 7.4 Effets de bord (notifications)
+
+| Action | Type de notification | Destination dans l'app |
+| --- | --- | --- |
+| Invitation à co-rédiger | `ARTICLE_CONTRIBUTOR_INVITED` | `/advanced` (Studio) |
+| Réponse à une invitation | `ARTICLE_CONTRIBUTOR_ACCEPTED` / `…_DECLINED` | `/advanced` |
+| Retrait d'un contributeur | `ARTICLE_CONTRIBUTOR_REMOVED` | `/advanced` |
+| Ajout à un Média | `MEDIA_INVITE` | `/media` (Studio) |
+| Adhésion à un Média | `MEDIA_MEMBER_JOINED` | `/media` (Studio) |
+
+### 7.5 Erreurs typiques de ce module
+
+| Statut | Cas | Message |
+| --- | --- | --- |
+| `400` | corps incomplet | `articleId et username requis` |
+| `403` | droits insuffisants | `Vous n'êtes pas autorisé à créer des liens pour cet article.`, `Permission insuffisante` |
+| `404` | token inconnu / expiré | `Ressource introuvable` |
+| `422` | rôle ou permissions invalides | `scopes invalides` (`media`) |
+| `429` | anti-spam (10 liens/h) ou rate-limit global | `Trop de requêtes. Réessayez dans un instant.` |
+
+---
+
+## 8. Index des fichiers source
 
 | Domaine                               | Handler                                                                              | Service/SQL                                                             |
 | ------------------------------------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
@@ -1754,7 +1861,7 @@ Voir §3.1 flot PKCE complet + `docs/OAUTH_PROVIDER.md:106`.
 
 ---
 
-## 8. Erreurs & codes
+## 9. Erreurs & codes
 
 | Code | Quand                   | Body                                                                      | Exemple                                                                                                                                                                              |
 | ---- | ----------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -1770,4 +1877,4 @@ Voir §3.1 flot PKCE complet + `docs/OAUTH_PROVIDER.md:106`.
 
 ---
 
-_Généré le 21 août 2026 — vérifié contre `apps/api/cmd/server/main.go:120` + `apps/api/internal/modules/*/handler.go` + `packages/sdk/src/client.ts:38`. Pour l'OpenAPI machine-readable : `docs/openapi/creators-api.yaml` (créateurs) + `docs/openapi/app-api.yaml` (app, nouveau)._
+_Généré le 21 août 2026, complété le 19 septembre 2026 (\u00a7 7 Collaboration — liens d'invitation, `@username`, rôles) — vérifié contre `apps/api/cmd/server/main.go:120` + `apps/api/internal/modules/*/handler.go` + `packages/sdk/src/client.ts:38`. Pour l'OpenAPI machine-readable : `docs/openapi/creators-api.yaml` (créateurs) + `docs/openapi/app-api.yaml` (app, nouveau)._

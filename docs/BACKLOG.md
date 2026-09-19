@@ -6,6 +6,22 @@
 
 ---
 
+## 🦄 Programme en cours — LICORNE 2027 (excellence de l'existant)
+
+> Décision de session (19/09/2026) : **aucune nouvelle fonctionnalité**. On élève tout ce
+> qui existe — zéro bug connu, vérification à 100 % partout, performance, sécurité,
+> accessibilité, observabilité, refonte de la dette — jusqu'à un niveau auditable.
+>
+> - Plan complet (6 portes mesurables, 8 axes, ~123 micro-lots, règles anti-dérive) :
+>   [`LICORNE_2027/README.md`](./LICORNE_2027/README.md)
+> - Audit d'entrée des points d'upload et de la modération :
+>   [`SECURITY_UPLOAD_MODERATION_AUDIT.md`](./SECURITY_UPLOAD_MODERATION_AUDIT.md)
+>
+> Point de départ imposé : réparer la **CI rouge** (E2E légaux tenants, base E2E sans
+> `goose_db_version`) — lots 1.1 à 1.3 — sans quoi rien n'est mesurable.
+
+---
+
 ## 🔴 Ops & infrastructure en attente (actions avant de continuer)
 
 | #   | Action                                                                                               | Bloqué par                                   | Doc de référence                                                 |
