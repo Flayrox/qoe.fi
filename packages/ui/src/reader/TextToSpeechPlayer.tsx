@@ -1,172 +1,144 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect } from 'react';
 import { t } from '@lingui/core/macro';
-import { Play, Pause, SkipBack, SkipForward, Volume2, X, Gauge } from 'lucide-react';
+import {
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
+  Volume2,
+  X,
+  Gauge,
+  RotateCcw,
+  RotateCw,
+  Compass,
+} from 'lucide-react';
+import { toast } from '@qoe/ui/toast';
+import { useTextToSpeech, TextToSpeechProvider } from './TextToSpeechContext';
 import { useReadingPreferences } from './ReadingPreferencesContext';
 
-interface TextToSpeechPlayerProps {
+function formatTime(seconds: number): string {
+  const m = Math.floor(Math.max(0, seconds) / 60);
+  const s = Math.floor(Math.max(0, seconds) % 60);
+  return `${m}:${s < 10 ? '0' : ''}${s}`;
+}
+
+export interface TextToSpeechPlayerProps {
   articleTitle: string;
+  articleCoverUrl?: string | null;
+  authorName?: string | null;
   articleContentSelector?: string;
   lang?: string;
-  onActiveParagraphChange?: (index: number | null) => void;
   className?: string;
 }
 
-export function TextToSpeechPlayer({
+export function TextToSpeechPlayer(props: TextToSpeechPlayerProps) {
+  const tts = useTextToSpeech();
+
+  if (!tts) {
+    return (
+      <TextToSpeechProvider
+        initialMetadata={{
+          title: props.articleTitle,
+          coverUrl: props.articleCoverUrl,
+          authorName: props.authorName,
+          contentSelector: props.articleContentSelector,
+        }}
+      >
+        <TextToSpeechPlayerInner {...props} />
+      </TextToSpeechProvider>
+    );
+  }
+
+  return <TextToSpeechPlayerInner {...props} />;
+}
+
+function TextToSpeechPlayerInner({
   articleTitle,
+  articleCoverUrl,
+  authorName,
   articleContentSelector = '#article-content',
-  lang = 'fr-FR',
-  onActiveParagraphChange,
   className = '',
 }: TextToSpeechPlayerProps) {
-  const { preferences, update } = useReadingPreferences();
-  const [isOpen, setIsOpen] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [paragraphs, setParagraphs] = useState<string[]>([]);
-  const isSupported = typeof window !== 'undefined' && 'speechSynthesis' in window;
+  const tts = useTextToSpeech()!;
+  const { preferences } = useReadingPreferences();
 
-  const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const setMetadata = tts.setMetadata;
 
-  // Extract paragraphs from article DOM
-  const extractParagraphs = useCallback(() => {
-    if (typeof document === 'undefined') return [];
-    const container = document.querySelector(articleContentSelector);
-    if (!container) return [];
-
-    const nodes = container.querySelectorAll('p, h2, h3, blockquote');
-    const texts: string[] = [];
-    nodes.forEach((node) => {
-      const text = (node.textContent || '').trim();
-      if (text.length > 10) {
-        texts.push(text);
-      }
-    });
-    return texts;
-  }, [articleContentSelector]);
-
-  const stopPlayback = useCallback(() => {
-    if (!isSupported) return;
-    window.speechSynthesis.cancel();
-    setIsPlaying(false);
-    onActiveParagraphChange?.(null);
-  }, [isSupported, onActiveParagraphChange]);
-
-  const speakParagraph = useCallback(
-    (index: number, textList: string[]) => {
-      if (!isSupported) return;
-      window.speechSynthesis.cancel();
-
-      if (index >= textList.length) {
-        stopPlayback();
-        return;
-      }
-
-      setCurrentIndex(index);
-      onActiveParagraphChange?.(index);
-
-      const text = textList[index];
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = lang;
-      utterance.rate = preferences.ttsSpeed;
-
-      // Select high-quality voice for the target language if available
-      const voices = window.speechSynthesis.getVoices();
-      const matchingVoice =
-        voices.find(
-          (v) =>
-            v.lang.startsWith(lang.slice(0, 2)) &&
-            (v.name.includes('Natural') || v.name.includes('Premium'))
-        ) || voices.find((v) => v.lang.startsWith(lang.slice(0, 2)));
-
-      if (matchingVoice) {
-        utterance.voice = matchingVoice;
-      }
-
-      utterance.onend = () => {
-        if (index + 1 < textList.length) {
-          speakParagraph(index + 1, textList);
-        } else {
-          stopPlayback();
-        }
-      };
-
-      utterance.onerror = () => {
-        stopPlayback();
-      };
-
-      currentUtteranceRef.current = utterance;
-      window.speechSynthesis.speak(utterance);
-      setIsPlaying(true);
-    },
-    [isSupported, lang, preferences.ttsSpeed, onActiveParagraphChange, stopPlayback]
-  );
-
-  const startPlayback = () => {
-    const extracted = paragraphs.length > 0 ? paragraphs : extractParagraphs();
-    if (extracted.length === 0) return;
-
-    setParagraphs(extracted);
-    setIsOpen(true);
-    speakParagraph(currentIndex, extracted);
-  };
-
-  const togglePlayPause = () => {
-    if (!isSupported) return;
-    if (isPlaying) {
-      window.speechSynthesis.cancel();
-      setIsPlaying(false);
-    } else {
-      const extracted = paragraphs.length > 0 ? paragraphs : extractParagraphs();
-      if (extracted.length > 0) {
-        setParagraphs(extracted);
-        speakParagraph(currentIndex, extracted);
-      }
-    }
-  };
-
-  const handleNext = () => {
-    if (currentIndex + 1 < paragraphs.length) {
-      speakParagraph(currentIndex + 1, paragraphs);
-    }
-  };
-
-  const handlePrev = () => {
-    if (currentIndex > 0) {
-      speakParagraph(currentIndex - 1, paragraphs);
-    }
-  };
-
-  const cycleSpeed = () => {
-    const speeds = [0.75, 1.0, 1.25, 1.5, 2.0];
-    const nextIdx = (speeds.indexOf(preferences.ttsSpeed) + 1) % speeds.length;
-    const nextSpeed = speeds[nextIdx];
-    update({ ttsSpeed: nextSpeed });
-
-    if (isPlaying && paragraphs.length > 0) {
-      speakParagraph(currentIndex, paragraphs);
-    }
-  };
-
-  // Cleanup on unmount
+  // Enregistre les métadonnées de l'article uniquement si elles ont changé
   useEffect(() => {
-    return () => {
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-      }
-    };
-  }, []);
+    if (
+      articleTitle &&
+      (tts.articleTitle !== articleTitle ||
+        tts.articleCoverUrl !== (articleCoverUrl || null) ||
+        tts.authorName !== (authorName || null))
+    ) {
+      setMetadata({
+        title: articleTitle,
+        coverUrl: articleCoverUrl,
+        authorName,
+        contentSelector: articleContentSelector,
+      });
+    }
+  }, [
+    setMetadata,
+    articleTitle,
+    articleCoverUrl,
+    authorName,
+    articleContentSelector,
+    tts.articleTitle,
+    tts.articleCoverUrl,
+    tts.authorName,
+  ]);
 
-  if (!isSupported) return null;
+  const handleStart = () => {
+    if (!tts) {
+      toast.error(t`La synthèse vocale n'est pas initialisée.`);
+      return;
+    }
+    if (!tts.isSupported) {
+      toast.error(t`La synthèse vocale n'est pas supportée sur ce navigateur.`);
+      return;
+    }
+    tts.openAndPlay();
+  };
+
+  if (!tts) return null;
+
+  const {
+    isOpen,
+    isPlaying,
+    currentParagraphIndex,
+    currentParagraphText,
+    paragraphs,
+    playbackRate,
+    elapsedSeconds,
+    remainingSeconds,
+    progressPercent,
+    userScrolledAway,
+    togglePlayPause,
+    prevParagraph,
+    nextParagraph,
+    skipSeconds,
+    jumpToParagraph,
+    cycleSpeed,
+    resumeAutoScroll,
+    closePlayer,
+  } = tts;
+
+  const currentIdx = currentParagraphIndex !== null ? currentParagraphIndex : 0;
+  const totalParas = Math.max(1, paragraphs.length);
+  const activeExcerpt =
+    currentParagraphText || (paragraphs[currentIdx] ? paragraphs[currentIdx] : null);
 
   return (
     <>
-      {/* 1. Trigger Button in Header/Article */}
+      {/* 1. Bouton Déclencheur discret dans le Header ou l'Auteur */}
       {!isOpen && (
         <button
           type="button"
-          onClick={startPlayback}
+          onClick={handleStart}
           className={`flex items-center gap-2 px-3 py-1.5 rounded-full border border-border/60 bg-background/90 hover:bg-muted/80 text-foreground text-xs font-semibold shadow-xs transition-colors cursor-pointer select-none ${className}`}
           title={t`Écouter l'article`}
         >
@@ -175,75 +147,165 @@ export function TextToSpeechPlayer({
         </button>
       )}
 
-      {/* 2. Floating Sleek Audio Bar when Active */}
+      {/* 2. Mini-Lecteur Audio Flottant Immersif avec Scrubber & Karaoké */}
       {isOpen && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[92%] sm:w-auto min-w-[320px] max-w-lg bg-popover/95 text-popover-foreground backdrop-blur-xl border border-border/80 shadow-2xl rounded-2xl p-2.5 flex items-center justify-between gap-3 font-sans animate-in fade-in-0 duration-150">
-          <div className="flex items-center gap-2 min-w-0 pr-1">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[94%] sm:w-auto min-w-[340px] max-w-xl bg-popover/95 text-popover-foreground backdrop-blur-2xl border border-border/60 shadow-2xl rounded-2xl p-3 flex flex-col gap-2 font-sans animate-in fade-in-0 slide-in-from-bottom-4 duration-200">
+          {/* Puce flottante : Reprendre le suivi automatique si l'utilisateur a scrollé ailleurs */}
+          {userScrolledAway && (
             <button
               type="button"
-              onClick={togglePlayPause}
-              className="w-9 h-9 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shadow-xs hover:opacity-90 transition-opacity cursor-pointer shrink-0"
-              title={isPlaying ? t`Mettre en pause` : t`Reprendre la lecture`}
+              onClick={resumeAutoScroll}
+              className="absolute -top-10 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1 rounded-full bg-background/95 text-foreground border border-border/50 shadow-lg text-[11px] font-semibold backdrop-blur-md hover:bg-muted cursor-pointer transition-all animate-in fade-in slide-in-from-bottom-2"
+              title={t`Recentrer le texte sur la lecture en cours`}
             >
-              {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+              <Compass className="w-3.5 h-3.5 text-primary animate-pulse" />
+              <span>{t`Suivre la lecture`}</span>
             </button>
+          )}
 
-            <div className="min-w-0">
-              <p className="text-xs font-semibold truncate text-foreground">{articleTitle}</p>
-              <p className="text-[10px] text-muted-foreground">
-                {t`Paragraphe`} {currentIndex + 1} / {Math.max(1, paragraphs.length)}
-              </p>
+          {/* Ligne 1 : Play/Pause, Titre, Numéro de paragraphe et Contrôles */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0 pr-1">
+              <button
+                type="button"
+                onClick={togglePlayPause}
+                className="w-9 h-9 rounded-xl bg-foreground text-background dark:bg-white dark:text-black flex items-center justify-center shadow-xs hover:opacity-90 transition-all cursor-pointer shrink-0"
+                title={isPlaying ? t`Mettre en pause` : t`Reprendre la lecture`}
+              >
+                {isPlaying ? (
+                  <Pause className="w-4 h-4 fill-current" />
+                ) : (
+                  <Play className="w-4 h-4 ml-0.5 fill-current" />
+                )}
+              </button>
+
+              <div className="min-w-0">
+                <p className="text-xs font-semibold truncate text-foreground">{articleTitle}</p>
+                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <span className="font-medium text-foreground/80">
+                    {t`Paragraphe`} {currentIdx + 1} / {totalParas}
+                  </span>
+                  <span>·</span>
+                  <span>
+                    {formatTime(remainingSeconds)} {t`restant`}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-1 shrink-0">
+              {/* Recul 15s */}
+              <button
+                type="button"
+                onClick={() => skipSeconds(-15)}
+                className="w-7 h-7 rounded-lg hover:bg-muted/70 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                title={t`Reculer de 15 secondes`}
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Paragraphe précédent */}
+              <button
+                type="button"
+                onClick={prevParagraph}
+                disabled={currentIdx === 0}
+                className="w-7 h-7 rounded-lg hover:bg-muted/70 flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-30 cursor-pointer transition-colors"
+                title={t`Paragraphe précédent`}
+              >
+                <SkipBack className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Paragraphe suivant */}
+              <button
+                type="button"
+                onClick={nextParagraph}
+                disabled={currentIdx + 1 >= totalParas}
+                className="w-7 h-7 rounded-lg hover:bg-muted/70 flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-30 cursor-pointer transition-colors"
+                title={t`Paragraphe suivant`}
+              >
+                <SkipForward className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Avance 15s */}
+              <button
+                type="button"
+                onClick={() => skipSeconds(15)}
+                className="w-7 h-7 rounded-lg hover:bg-muted/70 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                title={t`Avancer de 15 secondes`}
+              >
+                <RotateCw className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Vitesse */}
+              <button
+                type="button"
+                onClick={cycleSpeed}
+                className="px-2 h-7 rounded-lg hover:bg-muted/70 flex items-center gap-1 text-[11px] font-bold text-foreground cursor-pointer transition-colors ml-0.5"
+                title={t`Changer la vitesse de lecture`}
+              >
+                <Gauge className="w-3 h-3 text-primary opacity-80" />
+                <span>{playbackRate || preferences.ttsSpeed}x</span>
+              </button>
+
+              <div className="w-px h-4 bg-border/50 mx-0.5" />
+
+              {/* Fermer */}
+              <button
+                type="button"
+                onClick={closePlayer}
+                className="w-7 h-7 rounded-lg hover:bg-muted/70 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
+                title={t`Fermer le lecteur`}
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
           </div>
 
-          <div className="flex items-center gap-1 shrink-0">
-            {/* Previous paragraph */}
-            <button
-              type="button"
-              onClick={handlePrev}
-              disabled={currentIndex === 0}
-              className="w-7 h-7 rounded-lg hover:bg-muted/70 flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-30 cursor-pointer"
-              title={t`Paragraphe précédent`}
-            >
-              <SkipBack className="w-3.5 h-3.5" />
-            </button>
+          {/* Ligne 1.5 : Extrait en direct du paragraphe en cours de lecture avec égaliseur */}
+          {activeExcerpt && (
+            <div className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-muted/40 border border-border/30 text-[11px] text-foreground/90 select-none animate-in fade-in duration-150">
+              <div className="flex items-end gap-0.5 h-3 shrink-0 text-primary">
+                <span className="w-0.5 h-2 bg-primary rounded-full animate-bounce [animation-delay:0ms]" />
+                <span className="w-0.5 h-3 bg-primary rounded-full animate-bounce [animation-delay:150ms]" />
+                <span className="w-0.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:300ms]" />
+              </div>
+              <span className="truncate italic font-medium">« {activeExcerpt} »</span>
+            </div>
+          )}
 
-            {/* Next paragraph */}
-            <button
-              type="button"
-              onClick={handleNext}
-              disabled={currentIndex + 1 >= paragraphs.length}
-              className="w-7 h-7 rounded-lg hover:bg-muted/70 flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-30 cursor-pointer"
-              title={t`Paragraphe suivant`}
-            >
-              <SkipForward className="w-3.5 h-3.5" />
-            </button>
+          {/* Ligne 2 : Scrubber interactif & Temps */}
+          <div className="w-full flex items-center gap-2 pt-0.5 select-none">
+            <span className="text-[10px] tabular-nums font-mono text-muted-foreground shrink-0 w-8">
+              {formatTime(elapsedSeconds)}
+            </span>
 
-            {/* Speed toggle */}
-            <button
-              type="button"
-              onClick={cycleSpeed}
-              className="px-2 h-7 rounded-lg hover:bg-muted/70 flex items-center gap-1 text-[11px] font-bold text-foreground cursor-pointer"
-              title={t`Changer la vitesse de lecture`}
-            >
-              <Gauge className="w-3 h-3 text-primary opacity-80" />
-              <span>{preferences.ttsSpeed}x</span>
-            </button>
-
-            <div className="w-px h-4 bg-border/50 mx-0.5" />
-
-            {/* Close */}
-            <button
-              type="button"
-              onClick={() => {
-                stopPlayback();
-                setIsOpen(false);
+            {/* Scrubber Track */}
+            <div
+              onClick={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const ratio = Math.max(0, Math.min(1, clickX / rect.width));
+                const targetIndex = Math.round(ratio * (totalParas - 1));
+                jumpToParagraph(targetIndex);
               }}
-              className="w-7 h-7 rounded-lg hover:bg-muted/70 flex items-center justify-center text-muted-foreground hover:text-foreground cursor-pointer"
-              title={t`Fermer le lecteur`}
+              className="relative flex-1 h-2 rounded-full bg-muted/60 hover:bg-muted/90 transition-colors cursor-pointer group flex items-center"
+              title={t`Naviguer dans l'article`}
             >
-              <X className="w-4 h-4" />
-            </button>
+              {/* Filled Track */}
+              <div
+                className="h-full bg-foreground dark:bg-white rounded-full transition-all duration-150"
+                style={{ width: `${progressPercent}%` }}
+              />
+              {/* Draggable thumb appearance on hover */}
+              <div
+                className="absolute w-3.5 h-3.5 rounded-full bg-foreground dark:bg-white shadow-md -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+                style={{ left: `${progressPercent}%` }}
+              />
+            </div>
+
+            <span className="text-[10px] tabular-nums font-mono text-muted-foreground shrink-0 w-10 text-right">
+              -{formatTime(remainingSeconds)}
+            </span>
           </div>
         </div>
       )}

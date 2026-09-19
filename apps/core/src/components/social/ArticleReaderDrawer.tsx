@@ -7,6 +7,10 @@ import { ArticleAnnotatorView, type ArticleAnnotatorViewProps } from './ArticleA
 import { getArticleUrl } from '@qoe/config/routes';
 import { cn } from '@qoe/utils';
 
+import { ReaderToolbarProvider, useReaderToolbar } from './ReaderToolbarContext';
+import { DockedReaderToolbar } from './DockedReaderToolbar';
+import { TextToSpeechProvider } from '@qoe/ui/reader';
+
 export interface ArticleReaderDrawerProps {
   isOpen: boolean;
   article: ArticleAnnotatorViewProps['article'] | null;
@@ -17,7 +21,32 @@ export interface ArticleReaderDrawerProps {
   spotlight?: ArticleAnnotatorViewProps['spotlight'];
 }
 
-export function ArticleReaderDrawer({
+export function ArticleReaderDrawer(props: ArticleReaderDrawerProps) {
+  if (!props.isOpen && !props.article) return null;
+
+  const authorName =
+    props.article?.author?.name ||
+    props.article?.author?.username ||
+    props.article?.publication?.slug ||
+    '';
+
+  return (
+    <ReaderToolbarProvider allowPublicAnnotations={props.article?.allowPublicAnnotations ?? true}>
+      <TextToSpeechProvider
+        initialMetadata={{
+          title: props.article?.title || '',
+          coverUrl: props.article?.imageUrl || null,
+          authorName,
+          contentSelector: '#article-content',
+        }}
+      >
+        <ArticleReaderDrawerContent {...props} />
+      </TextToSpeechProvider>
+    </ReaderToolbarProvider>
+  );
+}
+
+function ArticleReaderDrawerContent({
   isOpen,
   article,
   canonicalDocument,
@@ -29,6 +58,11 @@ export function ArticleReaderDrawer({
   const [scrollProgress, setScrollProgress] = React.useState(0);
   const [isScrolled, setIsScrolled] = React.useState(false);
 
+  const toolbar = useReaderToolbar();
+  const setIsDocked = toolbar?.setIsDocked;
+  const authorToolbarRef = toolbar?.authorToolbarRef;
+  const isDocked = toolbar?.isDocked ?? false;
+
   const handleScroll = () => {
     if (scrollRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
@@ -36,6 +70,15 @@ export function ArticleReaderDrawer({
       const totalScroll = scrollHeight - clientHeight;
       if (totalScroll > 0) {
         setScrollProgress(Math.min(100, Math.max(0, (scrollTop / totalScroll) * 100)));
+      }
+
+      if (authorToolbarRef?.current && setIsDocked) {
+        const rect = authorToolbarRef.current.getBoundingClientRect();
+        // La barre flottante du drawer mesure h-11 (44px) + drag handle ~ 60px
+        // Dès que le haut de la barre d'auteur atteint <= 65px, elle est touchée par la barre supérieure
+        setIsDocked(rect.top <= 65);
+      } else if (setIsDocked) {
+        setIsDocked(scrollTop > 240);
       }
     }
   };
@@ -46,13 +89,14 @@ export function ArticleReaderDrawer({
       document.body.style.overflow = 'hidden';
       setScrollProgress(0);
       setIsScrolled(false);
+      setIsDocked?.(false);
     } else {
       document.body.style.overflow = '';
     }
     return () => {
       document.body.style.overflow = '';
     };
-  }, [isOpen]);
+  }, [isOpen, setIsDocked]);
 
   // ESC key listener
   useEffect(() => {
@@ -159,17 +203,20 @@ export function ArticleReaderDrawer({
               </div>
 
               {/* Dynamic Header Row */}
-              <div className="h-11 px-5 sm:px-6 flex items-center justify-between">
+              <div className="h-11 px-3.5 sm:px-6 flex items-center justify-between gap-2">
                 {/* Title & Author Info: Appears only when scrolling down */}
                 <div
                   className={cn(
-                    'flex flex-col min-w-0 pr-4 transition-all duration-300 transform',
+                    'flex flex-col min-w-0 pr-2 transition-all duration-300 transform',
                     isScrolled
                       ? 'opacity-100 translate-y-0'
-                      : 'opacity-0 -translate-y-2 pointer-events-none'
+                      : 'opacity-0 -translate-y-2 pointer-events-none',
+                    isDocked
+                      ? 'max-w-[120px] sm:max-w-xs md:max-w-md'
+                      : 'max-w-xs sm:max-w-md md:max-w-xl'
                   )}
                 >
-                  <h3 className="text-sm font-semibold text-foreground truncate max-w-sm sm:max-w-md md:max-w-xl">
+                  <h3 className="text-sm font-semibold text-foreground truncate">
                     {article.title}
                   </h3>
                   {authorName && (
@@ -177,13 +224,16 @@ export function ArticleReaderDrawer({
                   )}
                 </div>
 
-                {/* Circular Floating Action Buttons (always clickable, frosted glass) */}
-                <div className="flex items-center gap-2 shrink-0 pointer-events-auto ml-auto">
+                {/* Floating Action Buttons + Docked Toolbar */}
+                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 pointer-events-auto ml-auto">
+                  {isDocked && <DockedReaderToolbar articleTitle={article.title} />}
+
                   <a
                     href={externalUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground bg-background/80 hover:bg-muted border border-border/20 shadow-xs backdrop-blur-sm transition-all cursor-pointer"
+                    suppressHydrationWarning
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground bg-background/80 hover:bg-muted border border-border/20 shadow-xs backdrop-blur-sm transition-all cursor-pointer shrink-0"
                     title="Ouvrir dans une nouvelle page"
                   >
                     <ExternalLink className="w-4 h-4" />
@@ -191,7 +241,7 @@ export function ArticleReaderDrawer({
                   <button
                     type="button"
                     onClick={onClose}
-                    className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground bg-background/80 hover:bg-muted border border-border/20 shadow-xs backdrop-blur-sm transition-all outline-none cursor-pointer"
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground bg-background/80 hover:bg-muted border border-border/20 shadow-xs backdrop-blur-sm transition-all outline-none cursor-pointer shrink-0"
                     title="Fermer"
                   >
                     <X className="w-4 h-4" />
