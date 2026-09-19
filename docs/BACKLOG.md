@@ -26,6 +26,7 @@
 - **[M] Outils d'accessibilité & de lecture sur la page article** (mobile **et** web) — réutiliser `useUserSettings`/`ReadingPreferencesProvider` : taille de police, contraste, réduire les animations, police adaptée. **Vision produits** : ces outils seront aussi configurables directement sur la page d'un article. Plan complet dans `docs/READING_TOOLS_AUDIT.md` (surlignage par sélection, citations d'extraits, annotations, toolbar lecture — API Go déjà prête).
 - **[M] Onboarding mobile** — parité web (`/onboarding`) : setup du profil (nom, bannière, bio), suggestions à suivre. Aujourd'hui : inscription → app directe.
 - **[M] Web : Mode Découverte en arrière-plan du tiroir de lecture (Article Reader)** — Derrière le tiroir latéral de lecture (actuellement le feed), concevoir et intégrer un écran immersif de « Discovery » avec temps de lecture estimé/restant, statistiques d'impact, citations phares et recommandations contextuelles sans quitter l'environnement de lecture.
+- **[L] Modernisation Text-To-Speech (TTS) & Écoute Audio (Web & Mobile)** — Système d'écoute interactif bidirectionnel : Click-to-listen (démarrer sur n'importe quel paragraphe/mot), Karaoké visuel avec auto-scroll intelligent au fil de la lecture, Scrubber & mini-player flottant tactile, intégration écran verrouillé / AirPods (MediaSession sur Web, session audio arrière-plan iOS/Android sur Mobile). Spécification complète dans `docs/TTS_MODERNIZATION_SPEC.md`.
 
 ---
 
