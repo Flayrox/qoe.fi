@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Loader2 } from 'lucide-react';
 import { toast } from '@qoe/ui/toast';
 import { updateProfileAction as updateProfile } from '@qoe/sdk/actions/feed';
-import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import { updateMediaProfileAction } from './profile-edit-actions';
 
 import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
@@ -22,7 +22,7 @@ interface UpdatedUser {
 }
 
 /**
- * Écrit les réglages d'un profil de MÉDIA via son endpoint dédié
+ * Écrit les réglages d'un profil de MÉDIA via sa server action dédiée
  * (PATCH /v1/media/{id}/settings, RBAC media:manage_settings côté Go).
  * Ne touche JAMAIS au compte utilisateur ni à une autre publication.
  */
@@ -36,10 +36,7 @@ async function updateMediaProfile(
   }
 ): Promise<{ ok: boolean; data?: { user: UpdatedUser } }> {
   try {
-    await goFetch(`/v1/media/${encodeURIComponent(mediaId)}/settings`, {
-      method: 'PATCH',
-      body: input,
-    });
+    await updateMediaProfileAction(mediaId, input);
     return {
       ok: true,
       data: {
