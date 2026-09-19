@@ -134,7 +134,9 @@ export function ArticleInspectorModal({
                 <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
                   Chemin d'accès
                 </span>
-                <p className="text-xs font-mono text-foreground mt-2 truncate">{detail.url}</p>
+                <p className="text-xs font-sans font-medium text-foreground mt-2 truncate">
+                  {detail.url}
+                </p>
                 <select
                   value={period}
                   onChange={(e) => setPeriod(e.target.value as TimePeriod)}

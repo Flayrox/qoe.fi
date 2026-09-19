@@ -242,7 +242,7 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
               onChange={(e) => set('accentColor', e.target.value)}
               maxLength={7}
               placeholder="#2563eb"
-              className={`${inputClass} max-w-[120px] font-mono`}
+              className={`${inputClass} max-w-[120px] font-sans`}
             />
           </div>
         </div>

@@ -1085,8 +1085,8 @@ export function Editor({
               className="w-full bg-transparent border-0 text-3xl md:text-4xl font-bold tracking-tight text-foreground focus:outline-none placeholder:text-muted-foreground/30 font-sans leading-tight"
             />
 
-            <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
-              <span className="text-muted-foreground/60">slug :</span>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground font-sans">
+              <span className="text-muted-foreground/60 font-medium">slug :</span>
               <input
                 type="text"
                 value={slug}
@@ -1094,7 +1094,7 @@ export function Editor({
                   setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-'))
                 }
                 placeholder="slug-url"
-                className="bg-transparent border-0 p-0 text-xs font-mono text-muted-foreground focus:outline-none w-full"
+                className="bg-transparent border-0 p-0 text-xs font-sans font-medium text-muted-foreground focus:outline-none w-full"
               />
             </div>
           </div>
@@ -1394,7 +1394,7 @@ export function Editor({
 
                 {/* Google Preview */}
                 <div className="p-4 bg-muted/30 rounded-xl border border-border/30 space-y-1 font-sans">
-                  <span className="text-[9px] text-muted-foreground font-mono block uppercase">
+                  <span className="text-[9px] text-muted-foreground font-sans font-semibold tracking-wider block uppercase">
                     Aperçu Google
                   </span>
                   <span className="text-xs font-semibold text-foreground block truncate">

@@ -292,7 +292,7 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
                           </button>
                         </div>
                         <div className="mt-1 flex items-center gap-1.5">
-                          <code className="bg-muted/60 text-muted-foreground px-2 py-0.5 rounded font-mono text-[11px] border border-border/50">
+                          <code className="bg-muted/60 text-muted-foreground px-2 py-0.5 rounded font-sans font-medium text-[11px] border border-border/50">
                             {key.keyPrefix}••••••••••••••••
                           </code>
                         </div>
@@ -598,8 +598,8 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
               </div>
 
               {/* Secret display container */}
-              <div className="bg-muted/50 border border-border rounded-xl p-4 flex items-center justify-between gap-3 font-mono text-xs select-all">
-                <code className="text-foreground break-all font-semibold font-mono text-xs">
+              <div className="bg-muted/50 border border-border rounded-xl p-4 flex items-center justify-between gap-3 font-sans text-xs select-all">
+                <code className="text-foreground break-all font-semibold font-sans text-xs">
                   {secretModalData.secret}
                 </code>
                 <button

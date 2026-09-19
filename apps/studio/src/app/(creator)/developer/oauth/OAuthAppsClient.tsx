@@ -298,7 +298,7 @@ export function OAuthAppsClient({
                 value={homepageUrl}
                 onChange={(e) => setHomepageUrl(e.target.value)}
                 placeholder="https://monapp.com"
-                className="w-full bg-muted/30 border border-border rounded-xl px-3.5 py-2.5 text-xs font-mono text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                className="w-full bg-muted/30 border border-border rounded-xl px-3.5 py-2.5 text-xs font-sans text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
               />
             </div>
           </div>
@@ -323,7 +323,7 @@ export function OAuthAppsClient({
                 value={logoUrl}
                 onChange={(e) => setLogoUrl(e.target.value)}
                 placeholder="https://monapp.com/logo.png"
-                className="w-full bg-muted/30 border border-border rounded-xl px-3.5 py-2.5 text-xs font-mono text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                className="w-full bg-muted/30 border border-border rounded-xl px-3.5 py-2.5 text-xs font-sans text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
               />
             </div>
           </div>
@@ -339,7 +339,7 @@ export function OAuthAppsClient({
               placeholder={
                 'https://monapp.com/api/auth/callback\nhttp://localhost:3000/api/auth/callback'
               }
-              className="w-full bg-muted/30 border border-border rounded-xl px-3.5 py-2.5 text-xs font-mono text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              className="w-full bg-muted/30 border border-border rounded-xl px-3.5 py-2.5 text-xs font-sans text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
             />
           </div>
 
@@ -482,7 +482,7 @@ export function OAuthAppsClient({
 
                     <div className="flex items-center gap-2 text-xs">
                       <span className="text-muted-foreground shrink-0">Client ID :</span>
-                      <code className="bg-muted/60 text-muted-foreground px-2 py-0.5 rounded font-mono text-[11px] border border-border/50 truncate">
+                      <code className="bg-muted/60 text-muted-foreground px-2 py-0.5 rounded font-sans font-medium text-[11px] border border-border/50 truncate">
                         {client.clientId}
                       </code>
                       <button
@@ -502,7 +502,7 @@ export function OAuthAppsClient({
                       {client.redirectUris.map((uri) => (
                         <p
                           key={uri}
-                          className="text-[11px] text-muted-foreground font-mono truncate"
+                          className="text-[11px] text-muted-foreground font-sans truncate"
                         >
                           ↳ {uri}
                         </p>
@@ -573,7 +573,7 @@ export function OAuthAppsClient({
                 <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                   Client ID
                 </span>
-                <code className="block bg-muted/50 border border-border rounded-xl p-3 font-mono text-xs break-all">
+                <code className="block bg-muted/50 border border-border rounded-xl p-3 font-sans text-xs break-all">
                   {revealed.clientId}
                 </code>
               </div>
@@ -582,7 +582,7 @@ export function OAuthAppsClient({
                   Client Secret
                 </span>
                 <div className="flex items-center gap-2 bg-muted/50 border border-border rounded-xl p-3">
-                  <code className="flex-1 font-mono text-xs break-all select-all">
+                  <code className="flex-1 font-sans text-xs break-all select-all">
                     {revealed.clientSecret}
                   </code>
                   <button

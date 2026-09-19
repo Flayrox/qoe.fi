@@ -227,7 +227,7 @@ export function WebhooksClient({
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://api.monsite.com/webhooks/qoe"
-                className="w-full bg-muted/30 border border-border rounded-xl px-3.5 py-2.5 text-xs font-mono text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                className="w-full bg-muted/30 border border-border rounded-xl px-3.5 py-2.5 text-xs font-sans text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
               />
             </div>
           </div>
@@ -289,7 +289,7 @@ export function WebhooksClient({
           {revealedSecret && (
             <div className="flex items-center gap-3 p-3.5 rounded-xl bg-highlight/10 border border-highlight/20 text-xs">
               <span className="text-highlight font-bold shrink-0">Secret HMAC :</span>
-              <code className="font-mono text-foreground truncate flex-1 text-[11px]">
+              <code className="font-sans font-medium text-foreground truncate flex-1 text-[11px]">
                 {revealedSecret}
               </code>
               <button
@@ -397,7 +397,7 @@ export function WebhooksClient({
                       {webhook.active ? 'Actif' : 'En pause'}
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground font-mono truncate">{webhook.url}</p>
+                  <p className="text-xs text-muted-foreground font-sans truncate">{webhook.url}</p>
 
                   <div className="flex flex-wrap gap-1 pt-1">
                     {webhook.events.map((ev) => (
@@ -461,7 +461,7 @@ export function WebhooksClient({
             <DialogTitle className="text-foreground">
               Historique de livraison — {detailWebhook?.name}
             </DialogTitle>
-            <DialogDescription className="text-muted-foreground text-xs font-mono truncate">
+            <DialogDescription className="text-muted-foreground text-xs font-sans truncate">
               {detailWebhook?.url}
             </DialogDescription>
           </DialogHeader>
@@ -485,7 +485,7 @@ export function WebhooksClient({
                         {d.httpStatus && (
                           <span
                             className={cn(
-                              'px-1.5 py-0.5 rounded text-[10px] font-mono font-bold',
+                              'px-1.5 py-0.5 rounded text-[10px] font-sans tabular-nums font-bold',
                               d.httpStatus >= 200 && d.httpStatus < 300
                                 ? 'bg-success/10 text-success'
                                 : 'bg-destructive/10 text-destructive'
@@ -504,7 +504,7 @@ export function WebhooksClient({
                       </span>
                     </div>
                     {d.responseBody && (
-                      <p className="text-[11px] text-muted-foreground font-mono break-all line-clamp-2">
+                      <p className="text-[11px] text-muted-foreground font-sans break-all line-clamp-2">
                         {d.responseBody}
                       </p>
                     )}

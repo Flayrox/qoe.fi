@@ -747,7 +747,7 @@ export function ArticlesClient({
                             {cat.description}
                           </p>
                         )}
-                        <div className="text-[10px] font-mono text-muted-foreground/80">
+                        <div className="text-[11px] font-sans font-medium text-muted-foreground/80">
                           /{cat.slug}
                         </div>
                       </div>
@@ -804,7 +804,7 @@ export function ArticlesClient({
                       }
                       placeholder="Ex: poesie"
                       required
-                      className="w-full bg-background border border-border/40 rounded-lg p-2 text-xs font-mono text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                      className="w-full bg-background border border-border/40 rounded-lg p-2 text-xs font-sans text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                     />
                   </div>
 
