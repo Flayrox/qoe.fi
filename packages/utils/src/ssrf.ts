@@ -183,9 +183,14 @@ export async function validateSafeExternalUrl(rawUrl: string): Promise<SSRFValid
     }
   }
 
-  // 5. Résolution DNS préventive contre le DNS Rebinding
+  // 5. Résolution DNS préventive contre le DNS Rebinding (Node.js runtime uniquement)
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    return { valid: true, url: parsed };
+  }
+
   try {
-    const dns = await import('node:dns');
+    const dnsModule = 'node:dns';
+    const dns = await import(/* webpackIgnore: true */ dnsModule);
     const addresses = await dns.promises.lookup(hostname, { all: true });
     if (!addresses || addresses.length === 0) {
       return { valid: false, error: `Impossible de résoudre le nom d'hôte : ${hostname}` };
