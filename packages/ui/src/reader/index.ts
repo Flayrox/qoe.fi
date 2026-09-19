@@ -8,3 +8,4 @@ export * from './ReadingRuler';
 export * from './TextToSpeechPlayer';
 export * from './TextToSpeechContext';
 export * from './FloatingAudioPlayer';
+export * from './ArticleReaderShell';
