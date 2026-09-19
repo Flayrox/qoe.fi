@@ -229,6 +229,9 @@ export interface TextHighlighterProps {
   contentClassName?: string;
   callbacks?: AnnotationActionCallbacks;
   onRequireAuth?: () => void;
+  filterMode?: AnnotationFilterMode;
+  onFilterModeChange?: (mode: AnnotationFilterMode) => void;
+  hideFilterBar?: boolean;
 }
 
 export interface AnnotationSideDrawerProps {
