@@ -1,4 +1,3 @@
-import { createClient } from '@qoe/supabase/server';
 import { type ActionResult, actionOk, actionErr } from '@qoe/utils';
 import type { User } from '@supabase/supabase-js';
 
@@ -12,6 +11,10 @@ export function safeAction<TInput, TOutput>(
 ): (input: TInput) => Promise<ActionResult<TOutput>> {
   return async (input: TInput): Promise<ActionResult<TOutput>> => {
     try {
+      // Même raison que dans `go-client.ts` : `next/headers` ne doit jamais
+      // entrer dans un graphe d'import statique atteignable depuis un
+      // composant client — le module serveur ne se charge qu'à l'exécution.
+      const { createClient } = await import('@qoe/supabase/server');
       const supabase = await createClient();
       const {
         data: { user },

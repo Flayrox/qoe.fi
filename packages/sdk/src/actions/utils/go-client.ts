@@ -10,8 +10,6 @@
  * =====================================================================
  */
 
-import { createClient } from '@qoe/supabase/server';
-
 export const GO_API_URL: string | null = process.env.QOE_API_URL ?? null;
 
 export function isGoEnabled(): boolean {
@@ -19,6 +17,13 @@ export function isGoEnabled(): boolean {
 }
 
 async function getAccessToken(): Promise<string> {
+  // Import dynamique volontaire : `@qoe/supabase/server` dépend de
+  // `next/headers` (serveur uniquement). Un import statique ici ferait fuir ce
+  // module dans les bundles navigateur dès qu'un composant client importe une
+  // server action (le traceur Turbopack suit les imports statiques) et casserait
+  // `next build`. En dynamique, le module ne charge que sur le serveur, au
+  // moment de l'exécution de l'action — comportement strictement identique.
+  const { createClient } = await import('@qoe/supabase/server');
   const supabase = await createClient();
   const {
     data: { session },
