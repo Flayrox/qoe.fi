@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
@@ -46,6 +46,11 @@ import {
   AlertCircle,
   RotateCcw,
   CalendarClock,
+  SlidersHorizontal,
+  Copy,
+  CopyCheck,
+  Trash2,
+  FileText,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { compressImage } from '@/lib/image-compressor';
@@ -203,10 +208,23 @@ export function Editor({
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [showAuthorAnnotationModal, setShowAuthorAnnotationModal] = useState(false);
   const [authorNoteInput, setAuthorNoteInput] = useState('');
+  const [selectedQuoteForAnnotation, setSelectedQuoteForAnnotation] = useState('');
   const [annotationToast, setAnnotationToast] = useState<string | null>(null);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [slugCopied, setSlugCopied] = useState(false);
+  const lastSavedHashRef = useRef<string>('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverFileInputRef = useRef<HTMLInputElement>(null);
+
+  // Détection du défilement pour la toolbar flottante
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 160);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // ─── Collaboration temps réel (Hocuspocus/Yjs) ────────────────────────
   // Document Yjs partagé + provider WebSocket vers apps/collab-server.
@@ -418,6 +436,84 @@ export function Editor({
     };
   }, [collaborationProvider, editor, collaborationDoc, initialContent]);
 
+  const computePayloadHash = useCallback(
+    (payload: {
+      title: string;
+      content: string;
+      slug?: string;
+      published?: boolean;
+      status?: string;
+      scheduledAt?: string | null;
+      isPremium?: boolean;
+      categoryId?: string | null;
+      seoTitle?: string | null;
+      seoDescription?: string | null;
+      imageUrl?: string | null;
+      allowComments?: boolean;
+      allowPublicAnnotations?: boolean;
+      attributions?: ArticleAttributionDraft[];
+    }) => {
+      return JSON.stringify({
+        t: (payload.title || '').trim(),
+        c: payload.content || '',
+        s: payload.slug || '',
+        pub: Boolean(payload.published),
+        st: payload.status || 'DRAFT',
+        sch: payload.scheduledAt || null,
+        prem: Boolean(payload.isPremium),
+        cat: payload.categoryId || null,
+        stitle: (payload.seoTitle || '').trim(),
+        sdesc: (payload.seoDescription || '').trim(),
+        img: payload.imageUrl || null,
+        comm: Boolean(payload.allowComments),
+        ann: Boolean(payload.allowPublicAnnotations),
+        attr: (payload.attributions || []).map((a) => ({
+          u: a.userId,
+          r: a.role,
+          o: a.order,
+          v: a.isVisible,
+        })),
+      });
+    },
+    []
+  );
+
+  // Initialisation de l'empreinte au premier rendu
+  useEffect(() => {
+    lastSavedHashRef.current = computePayloadHash({
+      title: initialTitle,
+      content: initialContent || '',
+      slug: initialSlug,
+      published: initialPublished,
+      status: initialStatus,
+      scheduledAt: initialScheduledAt ?? null,
+      isPremium: initialIsPremium,
+      categoryId: initialCategoryId,
+      seoTitle: initialSeoTitle,
+      seoDescription: initialSeoDescription,
+      imageUrl: initialImageUrl,
+      allowComments: initialAllowComments,
+      allowPublicAnnotations: initialAllowPublicAnnotations,
+      attributions: initialAttributions,
+    });
+  }, [
+    computePayloadHash,
+    initialTitle,
+    initialContent,
+    initialSlug,
+    initialPublished,
+    initialStatus,
+    initialScheduledAt,
+    initialIsPremium,
+    initialCategoryId,
+    initialSeoTitle,
+    initialSeoDescription,
+    initialImageUrl,
+    initialAllowComments,
+    initialAllowPublicAnnotations,
+    initialAttributions,
+  ]);
+
   const {
     scheduleAutoSave,
     status: autoSaveStatus,
@@ -448,6 +544,22 @@ export function Editor({
       })) as { id?: string } | void;
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
+      lastSavedHashRef.current = computePayloadHash({
+        title: payload.title,
+        content: payload.content,
+        imageUrl: s.imageUrl,
+        slug: payload.slug || s.slug,
+        published: false,
+        scheduledAt: s.scheduledAt,
+        status: s.status,
+        isPremium: payload.isPremium ?? s.isPremium,
+        categoryId: payload.categoryId ?? s.categoryId,
+        seoTitle: payload.seoTitle ?? s.seoTitle,
+        seoDescription: payload.seoDescription ?? s.seoDescription,
+        allowPublicAnnotations: s.allowPublicAnnotations,
+        allowComments: s.allowComments,
+        attributions: s.attributions,
+      });
       // Retourne le vrai id pour que useAutoSaveArticle le réutilise
       // (PATCH au lieu de POST). Pas de placeholder 'new'/'existing' : si la
       // réponse n'a pas d'id, le hook garde l'id précédent.
@@ -478,46 +590,63 @@ export function Editor({
     });
   };
 
-  // Watch for state changes to trigger debounced auto-save
+  // Watch for state changes to trigger debounced auto-save ONLY if genuinely modified
   useEffect(() => {
-    if (
-      title !== initialTitle ||
-      slug !== initialSlug ||
-      categoryId !== initialCategoryId ||
-      seoTitle !== (initialSeoTitle || '') ||
-      seoDescription !== (initialSeoDescription || '') ||
-      imageUrl !== initialImageUrl ||
-      allowPublicAnnotations !== initialAllowPublicAnnotations ||
-      allowComments !== initialAllowComments ||
-      attributions !== initialAttributions
-    ) {
-      setHasUnsavedChanges(true);
-      if (title.trim() && editor) {
-        scheduleAutoSave({
-          title,
-          content: editor.getHTML(),
-          slug,
-          published,
-          isPremium,
-          categoryId,
-          seoTitle,
-          seoDescription,
-        });
-      }
+    if (!editor) return;
+    const currentPayload = {
+      title,
+      content: editor.getHTML(),
+      slug,
+      published,
+      status,
+      scheduledAt,
+      isPremium,
+      categoryId,
+      seoTitle,
+      seoDescription,
+      imageUrl,
+      allowComments,
+      allowPublicAnnotations,
+      attributions,
+    };
+    const currentHash = computePayloadHash(currentPayload);
+
+    // 🔒 SILENCE RADIO : Si le hash correspond à ce qui a déjà été sauvegardé, zéro requête !
+    if (currentHash === lastSavedHashRef.current) {
+      setHasUnsavedChanges(false);
+      return;
+    }
+
+    setHasUnsavedChanges(true);
+    if (title.trim()) {
+      scheduleAutoSave({
+        title,
+        content: currentPayload.content,
+        slug,
+        published,
+        isPremium,
+        categoryId,
+        seoTitle,
+        seoDescription,
+      });
     }
   }, [
+    computePayloadHash,
+    editor,
     title,
     slug,
     categoryId,
     seoTitle,
     seoDescription,
     published,
+    status,
+    scheduledAt,
     isPremium,
     imageUrl,
     allowPublicAnnotations,
     allowComments,
     attributions,
-    initialAttributions,
+    scheduleAutoSave,
   ]);
 
   // Generate slug automatically
@@ -1028,7 +1157,7 @@ export function Editor({
                 title={t`Programmer la publication à une date ultérieure`}
               >
                 <CalendarClock className="h-3.5 w-3.5" />
-                <span>{scheduledAt ? 'Programmé' : 'Programmer'}</span>
+                <span>{scheduledAt ? t`Programmé` : t`Programmer`}</span>
               </button>
             )}
           </div>
@@ -1069,7 +1198,7 @@ export function Editor({
             disabled={isSaving}
             className="h-8 px-4 bg-primary text-primary-foreground font-sans text-xs font-bold rounded-lg flex items-center gap-1.5 hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none cursor-pointer shadow-sm"
           >
-            <span>Enregistrer</span>
+            <span>{t`Enregistrer`}</span>
           </button>
         </div>
       </div>
@@ -1080,379 +1209,559 @@ export function Editor({
         </div>
       )}
 
-      {/* Main Content Area */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-12 items-start">
-        {/* Editor Column */}
-        <div
-          className={cn(
-            'transition-all space-y-8',
-            showSettings ? 'lg:col-span-2' : 'lg:col-span-3'
-          )}
-        >
-          {/* Title Area */}
-          <div className="space-y-3">
+      {/* Main Content Area — Centered Immersive Writing Layout */}
+      <div className="max-w-3xl mx-auto w-full space-y-8">
+        {/* Title Area */}
+        <div className="space-y-3">
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={t`Titre de votre publication...`}
+            className="w-full bg-transparent border-0 text-3xl md:text-4xl font-bold tracking-tight text-foreground focus:outline-none placeholder:text-muted-foreground/30 font-sans leading-tight"
+          />
+
+          <div className="flex items-center gap-2 text-xs text-muted-foreground font-sans">
+            <span className="text-muted-foreground/60 font-medium">slug :</span>
             <input
               type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Titre de votre publication..."
-              className="w-full bg-transparent border-0 text-3xl md:text-4xl font-bold tracking-tight text-foreground focus:outline-none placeholder:text-muted-foreground/30 font-sans leading-tight"
+              value={slug}
+              onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-'))}
+              placeholder="slug-url"
+              className="bg-transparent border-0 p-0 text-xs font-sans font-medium text-muted-foreground focus:outline-none w-full"
             />
-
-            <div className="flex items-center gap-2 text-xs text-muted-foreground font-sans">
-              <span className="text-muted-foreground/60 font-medium">slug :</span>
-              <input
-                type="text"
-                value={slug}
-                onChange={(e) =>
-                  setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-'))
-                }
-                placeholder="slug-url"
-                className="bg-transparent border-0 p-0 text-xs font-sans font-medium text-muted-foreground focus:outline-none w-full"
-              />
-            </div>
-          </div>
-
-          {/* Text Editor Core */}
-          <div className="space-y-4">
-            {/* Theme-agnostic Sticky Formatting Toolbar */}
-            <div className="flex flex-wrap items-center gap-0.5 py-2 px-3 border border-border/40 rounded-xl sticky top-4 bg-background/95 backdrop-blur-md z-20 shadow-sm">
-              <ToolbarButton
-                active={editor.isActive('bold')}
-                onClick={() => editor.chain().focus().toggleBold().run()}
-                icon={<Bold className="h-3.5 w-3.5 stroke-[2]" />}
-                tooltip="Gras"
-              />
-              <ToolbarButton
-                active={editor.isActive('italic')}
-                onClick={() => editor.chain().focus().toggleItalic().run()}
-                icon={<Italic className="h-3.5 w-3.5 stroke-[2]" />}
-                tooltip="Italique"
-              />
-              <ToolbarButton
-                active={editor.isActive('underline')}
-                onClick={() => editor.chain().focus().toggleUnderline().run()}
-                icon={<UnderlineIcon className="h-3.5 w-3.5 stroke-[2]" />}
-                tooltip="Souligné"
-              />
-              <ToolbarButton
-                active={editor.isActive('strike')}
-                onClick={() => editor.chain().focus().toggleStrike().run()}
-                icon={<Strikethrough className="h-3.5 w-3.5 stroke-[2]" />}
-                tooltip="Barré"
-              />
-
-              <div className="h-4 w-[1px] bg-border/40 mx-1.5" />
-
-              <ToolbarButton
-                active={editor.isActive('heading', { level: 1 })}
-                onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-                icon={<Heading1 className="h-3.5 w-3.5 stroke-[2]" />}
-                tooltip="Titre 1"
-              />
-              <ToolbarButton
-                active={editor.isActive('heading', { level: 2 })}
-                onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-                icon={<Heading2 className="h-3.5 w-3.5 stroke-[2]" />}
-                tooltip="Titre 2"
-              />
-              <ToolbarButton
-                active={editor.isActive('heading', { level: 3 })}
-                onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-                icon={<Heading3 className="h-3.5 w-3.5 stroke-[2]" />}
-                tooltip="Titre 3"
-              />
-
-              <div className="h-4 w-[1px] bg-border/40 mx-1.5" />
-
-              <ToolbarButton
-                active={editor.isActive('bulletList')}
-                onClick={() => editor.chain().focus().toggleBulletList().run()}
-                icon={<List className="h-3.5 w-3.5 stroke-[2]" />}
-                tooltip="Liste à puces"
-              />
-              <ToolbarButton
-                active={editor.isActive('orderedList')}
-                onClick={() => editor.chain().focus().toggleOrderedList().run()}
-                icon={<ListOrdered className="h-3.5 w-3.5 stroke-[2]" />}
-                tooltip="Liste numérotée"
-              />
-
-              <div className="h-4 w-[1px] bg-border/40 mx-1.5" />
-
-              <ToolbarButton
-                active={editor.isActive('blockquote')}
-                onClick={() => editor.chain().focus().toggleBlockquote().run()}
-                icon={<Quote className="h-3.5 w-3.5 stroke-[2]" />}
-                tooltip="Citation"
-              />
-              <ToolbarButton
-                active={editor.isActive('codeBlock')}
-                onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-                icon={<Code className="h-3.5 w-3.5 stroke-[2]" />}
-                tooltip="Bloc de Code"
-              />
-
-              <div className="h-4 w-[1px] bg-border/40 mx-1.5" />
-
-              {/* Media Selection */}
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileSelect}
-                accept="image/*"
-                className="hidden"
-                aria-label={t`Insérer image`}
-              />
-              <input
-                type="file"
-                ref={coverFileInputRef}
-                onChange={handleCoverFileSelect}
-                accept="image/*"
-                className="hidden"
-                aria-label="Choisir la couverture de l'article"
-              />
-              <ToolbarButton
-                onClick={() => fileInputRef.current?.click()}
-                icon={
-                  isUploading ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                  ) : (
-                    <ImageIcon className="h-3.5 w-3.5 stroke-[2]" />
-                  )
-                }
-                tooltip="Insérer une Image"
-                disabled={isUploading}
-              />
-
-              <div className="h-4 w-[1px] bg-border/40 mx-1.5" />
-
-              {/* Official Author Annotation Insertion & Edition */}
-              <ToolbarButton
-                active={editor.isActive('annotationMark')}
-                onClick={() => {
-                  if (editor.isActive('annotationMark')) {
-                    const attrs = editor.getAttributes('annotationMark');
-                    setAuthorNoteInput(attrs.note || '');
-                    setShowAuthorAnnotationModal(true);
-                    return;
-                  }
-                  const selection = editor.state.selection;
-                  if (selection.empty) {
-                    setAnnotationToast(t`Sélectionnez d'abord un passage de texte à annoter.`);
-                    setTimeout(() => setAnnotationToast(null), 3000);
-                    return;
-                  }
-                  setAuthorNoteInput('');
-                  setShowAuthorAnnotationModal(true);
-                }}
-                icon={<Eye className="h-3.5 w-3.5 text-highlight stroke-[2]" />}
-                tooltip={
-                  editor.isActive('annotationMark')
-                    ? "Modifier / Supprimer l'Annotation Officielle"
-                    : "Ajouter une Annotation Officielle d'Auteur"
-                }
-              />
-
-              <div className="h-4 w-[1px] bg-border/40 mx-1.5" />
-
-              {/* Paywall Divider Insertion */}
-              <ToolbarButton
-                onClick={() => editor.chain().focus().setPaywallDivider().run()}
-                icon={<Lock className="h-3.5 w-3.5 text-highlight stroke-[2]" />}
-                tooltip="Insérer la limite Paywall (Contenu Premium)"
-              />
-            </div>
-
-            {/* TipTap Main Body */}
-            <div className="py-4">
-              <EditorContent editor={editor} />
-            </div>
           </div>
         </div>
 
-        {/* Options / Settings Sidebar */}
-        {showSettings && (
-          <div className="space-y-8 lg:col-span-1 animate-in fade-in-50 duration-200 lg:sticky lg:top-24 bg-card border border-border/40 rounded-2xl p-6 shadow-none">
-            {/* Article cover */}
-            <div className="space-y-3">
-              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider font-sans flex items-center gap-2">
-                <ImageIcon className="h-3.5 w-3.5 text-muted-foreground stroke-[1.5]" />
-                Image de couverture
-              </h3>
-              <button
-                type="button"
-                onClick={() => coverFileInputRef.current?.click()}
-                disabled={isUploading}
-                className="group relative flex aspect-[16/7] w-full items-center justify-center overflow-hidden rounded-xl border border-border/40 bg-muted/30 text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground disabled:opacity-50"
-              >
-                {imageUrl ? (
-                  <img
-                    src={imageUrl}
-                    alt=""
-                    className="absolute inset-0 h-full w-full object-cover"
-                  />
+        {/* Text Editor Core */}
+        <div className="space-y-4">
+          {/* Theme-agnostic Floating / Sticky Formatting Toolbar */}
+          <div
+            className={cn(
+              'flex flex-wrap items-center gap-0.5 border transition-all duration-300',
+              isScrolled
+                ? 'fixed top-4 left-1/2 -translate-x-1/2 z-40 max-w-2xl w-[94%] sm:w-auto rounded-2xl bg-background/85 backdrop-blur-xl border-border/60 shadow-2xl p-1.5 justify-center'
+                : 'sticky top-4 rounded-xl bg-background/95 backdrop-blur-md border-border/40 py-2 px-3 shadow-xs'
+            )}
+          >
+            <ToolbarButton
+              active={editor.isActive('bold')}
+              onClick={() => editor.chain().focus().toggleBold().run()}
+              icon={<Bold className="h-3.5 w-3.5 stroke-[2]" />}
+              tooltip={t`Gras`}
+            />
+            <ToolbarButton
+              active={editor.isActive('italic')}
+              onClick={() => editor.chain().focus().toggleItalic().run()}
+              icon={<Italic className="h-3.5 w-3.5 stroke-[2]" />}
+              tooltip={t`Italique`}
+            />
+            <ToolbarButton
+              active={editor.isActive('underline')}
+              onClick={() => editor.chain().focus().toggleUnderline().run()}
+              icon={<UnderlineIcon className="h-3.5 w-3.5 stroke-[2]" />}
+              tooltip={t`Souligné`}
+            />
+            <ToolbarButton
+              active={editor.isActive('strike')}
+              onClick={() => editor.chain().focus().toggleStrike().run()}
+              icon={<Strikethrough className="h-3.5 w-3.5 stroke-[2]" />}
+              tooltip={t`Barré`}
+            />
+
+            <div className="h-4 w-[1px] bg-border/40 mx-1.5" />
+
+            <ToolbarButton
+              active={editor.isActive('heading', { level: 1 })}
+              onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+              icon={<Heading1 className="h-3.5 w-3.5 stroke-[2]" />}
+              tooltip={t`Titre 1`}
+            />
+            <ToolbarButton
+              active={editor.isActive('heading', { level: 2 })}
+              onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+              icon={<Heading2 className="h-3.5 w-3.5 stroke-[2]" />}
+              tooltip={t`Titre 2`}
+            />
+            <ToolbarButton
+              active={editor.isActive('heading', { level: 3 })}
+              onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+              icon={<Heading3 className="h-3.5 w-3.5 stroke-[2]" />}
+              tooltip={t`Titre 3`}
+            />
+
+            <div className="h-4 w-[1px] bg-border/40 mx-1.5" />
+
+            <ToolbarButton
+              active={editor.isActive('bulletList')}
+              onClick={() => editor.chain().focus().toggleBulletList().run()}
+              icon={<List className="h-3.5 w-3.5 stroke-[2]" />}
+              tooltip={t`Liste à puces`}
+            />
+            <ToolbarButton
+              active={editor.isActive('orderedList')}
+              onClick={() => editor.chain().focus().toggleOrderedList().run()}
+              icon={<ListOrdered className="h-3.5 w-3.5 stroke-[2]" />}
+              tooltip={t`Liste numérotée`}
+            />
+
+            <div className="h-4 w-[1px] bg-border/40 mx-1.5" />
+
+            <ToolbarButton
+              active={editor.isActive('blockquote')}
+              onClick={() => editor.chain().focus().toggleBlockquote().run()}
+              icon={<Quote className="h-3.5 w-3.5 stroke-[2]" />}
+              tooltip={t`Citation`}
+            />
+            <ToolbarButton
+              active={editor.isActive('codeBlock')}
+              onClick={() => editor.chain().focus().toggleCodeBlock().run()}
+              icon={<Code className="h-3.5 w-3.5 stroke-[2]" />}
+              tooltip={t`Bloc de Code`}
+            />
+
+            <div className="h-4 w-[1px] bg-border/40 mx-1.5" />
+
+            {/* Media Selection */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileSelect}
+              accept="image/*"
+              className="hidden"
+              aria-label={t`Insérer image`}
+            />
+            <input
+              type="file"
+              ref={coverFileInputRef}
+              onChange={handleCoverFileSelect}
+              accept="image/*"
+              className="hidden"
+              aria-label={t`Choisir la couverture de l'article`}
+            />
+            <ToolbarButton
+              onClick={() => fileInputRef.current?.click()}
+              icon={
+                isUploading ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
                 ) : (
-                  <span>Ajouter une image pour la carte du feed</span>
-                )}
-                <span className="absolute inset-x-2 bottom-2 rounded-lg bg-background/80 px-2 py-1 text-[10px] backdrop-blur-sm">
-                  {imageUrl ? 'Remplacer la couverture' : 'Choisir une couverture'}
-                </span>
-              </button>
-              <p className="text-[11px] leading-relaxed text-muted-foreground">
-                Cette image sera utilisée en priorité dans la carte article. Sans image, la photo de
-                profil sera utilisée.
-              </p>
-            </div>
+                  <ImageIcon className="h-3.5 w-3.5 stroke-[2]" />
+                )
+              }
+              tooltip={t`Insérer une Image`}
+              disabled={isUploading}
+            />
 
-            {/* Editorial byline */}
-            <ArticleAttributionEditor value={attributions} onChange={setAttributions} />
+            <div className="h-4 w-[1px] bg-border/40 mx-1.5" />
 
-            {/* Category Selection */}
-            <div className="space-y-3">
-              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider font-sans flex items-center gap-2">
-                <FolderOpen className="h-3.5 w-3.5 text-muted-foreground stroke-[1.5]" />
-                {t`Catégorie`}
-              </h3>
-
-              <div className="space-y-2">
-                <select
-                  value={categoryId || ''}
-                  onChange={(e) => {
-                    setCategoryId(e.target.value || null);
-                    setHasUnsavedChanges(true);
-                  }}
-                  className="w-full bg-background border border-border/40 rounded-lg p-2.5 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-sans cursor-pointer"
-                >
-                  <option value="">{t`-- Sans catégorie --`}</option>
-                  {hierarchicalCategories.roots.map((root) => {
-                    const children = hierarchicalCategories.childrenMap.get(root.id) || [];
-                    if (children.length === 0) {
-                      return (
-                        <option key={root.id} value={root.id}>
-                          {root.name}
-                        </option>
-                      );
-                    }
-                    return (
-                      <optgroup key={root.id} label={root.name}>
-                        <option value={root.id}>
-                          {root.name} ({t`Général`})
-                        </option>
-                        {children.map((child) => (
-                          <option key={child.id} value={child.id}>
-                            &nbsp;&nbsp;↳ {child.name}
-                          </option>
-                        ))}
-                      </optgroup>
+            {/* Official Author Annotation Insertion & Edition */}
+            <ToolbarButton
+              active={editor.isActive('annotationMark')}
+              onClick={() => {
+                if (editor.isActive('annotationMark')) {
+                  const attrs = editor.getAttributes('annotationMark');
+                  setAuthorNoteInput(attrs.note || '');
+                  const selection = editor.state.selection;
+                  let text = editor.state.doc.textBetween(selection.from, selection.to, ' ');
+                  if (!text && editor.state.selection.$from.parent.isTextblock) {
+                    text = editor.state.selection.$from.parent.textBetween(
+                      0,
+                      editor.state.selection.$from.parent.content.size,
+                      ' '
                     );
-                  })}
-                  {/* Catégories orphelines éventuelles */}
-                  {categories
-                    .filter(
-                      (c) =>
-                        c.parentId && !hierarchicalCategories.roots.some((r) => r.id === c.parentId)
-                    )
-                    .map((orphan) => (
-                      <option key={orphan.id} value={orphan.id}>
-                        {orphan.name}
-                      </option>
-                    ))}
-                </select>
-                <p className="text-[11px] text-muted-foreground leading-relaxed font-sans">
-                  {t`Associez cet écrit à un thème ou une sous-catégorie pour l'organiser sur votre espace créateur.`}
-                </p>
-              </div>
-            </div>
+                  }
+                  setSelectedQuoteForAnnotation(text);
+                  setShowAuthorAnnotationModal(true);
+                  return;
+                }
+                const selection = editor.state.selection;
+                if (selection.empty) {
+                  setAnnotationToast(t`Sélectionnez d'abord un passage de texte à annoter.`);
+                  setTimeout(() => setAnnotationToast(null), 3000);
+                  return;
+                }
+                const text = editor.state.doc.textBetween(selection.from, selection.to, ' ');
+                setSelectedQuoteForAnnotation(text);
+                setAuthorNoteInput('');
+                setShowAuthorAnnotationModal(true);
+              }}
+              icon={<Eye className="h-3.5 w-3.5 text-highlight stroke-[2]" />}
+              tooltip={
+                editor.isActive('annotationMark')
+                  ? t`Modifier / Supprimer l'Annotation Officielle`
+                  : t`Ajouter une Annotation Officielle d'Auteur`
+              }
+            />
 
-            {/* Community Interaction Permissions */}
-            <div className="space-y-3 pt-4 border-t border-border/30 font-sans">
-              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                <MessageSquare className="h-3.5 w-3.5 text-muted-foreground stroke-[1.5]" />
-                Interactions Lecteurs
-              </h3>
+            <div className="h-4 w-[1px] bg-border/40 mx-1.5" />
 
-              <div className="space-y-2.5">
-                <label className="flex items-center justify-between gap-3 text-xs text-foreground cursor-pointer select-none">
-                  <span>Annotations publiques</span>
-                  <input
-                    type="checkbox"
-                    checked={allowPublicAnnotations}
-                    onChange={(e) => {
-                      setAllowPublicAnnotations(e.target.checked);
-                      setHasUnsavedChanges(true);
-                    }}
-                    className="w-4 h-4 rounded-md text-primary border-border/40 focus:ring-primary cursor-pointer"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between gap-3 text-xs text-foreground cursor-pointer select-none">
-                  <span>Espace commentaires</span>
-                  <input
-                    type="checkbox"
-                    checked={allowComments}
-                    onChange={(e) => {
-                      setAllowComments(e.target.checked);
-                      setHasUnsavedChanges(true);
-                    }}
-                    className="w-4 h-4 rounded-md text-primary border-border/40 focus:ring-primary cursor-pointer"
-                  />
-                </label>
-              </div>
-            </div>
-
-            {/* SEO Optimization */}
-            <div className="space-y-4 pt-4 border-t border-border/30">
-              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider font-sans flex items-center gap-2">
-                <Search className="h-3.5 w-3.5 text-muted-foreground stroke-[1.5]" />
-                Optimisation SEO
-              </h3>
-
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <label className="text-[10px] text-muted-foreground font-sans uppercase tracking-wider font-semibold">
-                    Titre alternatif
-                  </label>
-                  <input
-                    type="text"
-                    value={seoTitle}
-                    onChange={(e) => setSeoTitle(e.target.value)}
-                    placeholder={title || "Titre d'origine"}
-                    className="w-full bg-background border border-border/40 rounded-lg p-2.5 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary transition-colors font-sans"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[10px] text-muted-foreground font-sans uppercase tracking-wider font-semibold">
-                    Description SEO
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={seoDescription}
-                    onChange={(e) => setSeoDescription(e.target.value)}
-                    placeholder="Une courte accroche pour les moteurs de recherche..."
-                    className="w-full bg-background border border-border/40 rounded-lg p-2.5 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary transition-colors font-sans resize-none"
-                  />
-                </div>
-
-                {/* Google Preview */}
-                <div className="p-4 bg-muted/30 rounded-xl border border-border/30 space-y-1 font-sans">
-                  <span className="text-[9px] text-muted-foreground font-sans font-semibold tracking-wider block uppercase">
-                    Aperçu Google
-                  </span>
-                  <span className="text-xs font-semibold text-foreground block truncate">
-                    {seoTitle || title || "Titre de l'écrit"}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground block line-clamp-2 leading-relaxed">
-                    {seoDescription ||
-                      'Aucune description SEO saisie. Google utilisera le début de votre article.'}
-                  </span>
-                </div>
-              </div>
-            </div>
+            {/* Paywall Divider Insertion */}
+            <ToolbarButton
+              onClick={() => editor.chain().focus().setPaywallDivider().run()}
+              icon={<Lock className="h-3.5 w-3.5 text-highlight stroke-[2]" />}
+              tooltip={t`Insérer la limite Paywall (Contenu Premium)`}
+            />
           </div>
-        )}
+
+          {/* TipTap Main Body */}
+          <div className="py-4">
+            <EditorContent editor={editor} />
+          </div>
+        </div>
       </div>
+
+      {/* Slide-over Drawer des Options — Standard Licorne 2026 */}
+      {showSettings && (
+        <div className="fixed inset-0 z-50 overflow-hidden font-sans">
+          <div
+            className="fixed inset-0 bg-background/50 backdrop-blur-xs transition-opacity duration-200"
+            onClick={() => setShowSettings(false)}
+          />
+
+          <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
+            <aside className="w-screen max-w-md bg-card border-l border-border/50 shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
+              {/* En-tête du volet */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-border/40 shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-xs">
+                    <SlidersHorizontal className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-foreground font-sans">
+                      {t`Paramètres de l'article`}
+                    </h3>
+                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                      <span
+                        className={cn(
+                          'w-1.5 h-1.5 rounded-full',
+                          published
+                            ? 'bg-success'
+                            : scheduledAt
+                              ? 'bg-highlight'
+                              : 'bg-muted-foreground'
+                        )}
+                      />
+                      <span>
+                        {published
+                          ? t`En ligne (Publié)`
+                          : scheduledAt
+                            ? t`Programmé`
+                            : t`Brouillon privé`}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowSettings(false)}
+                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Corps avec défilement fluide et sections */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                {/* Section 1 : Couverture */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider font-sans flex items-center gap-2">
+                      <ImageIcon className="h-3.5 w-3.5 text-primary stroke-[1.5]" />
+                      {t`Image de couverture`}
+                    </h4>
+                    {imageUrl && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImageUrl(null);
+                          setHasUnsavedChanges(true);
+                        }}
+                        className="text-[11px] text-destructive hover:underline cursor-pointer flex items-center gap-1"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        {t`Supprimer`}
+                      </button>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => coverFileInputRef.current?.click()}
+                    disabled={isUploading}
+                    className="group relative flex aspect-[16/8] w-full items-center justify-center overflow-hidden rounded-xl border border-border/50 bg-muted/20 text-xs text-muted-foreground transition-all hover:border-primary/50 hover:bg-muted/40 disabled:opacity-50 cursor-pointer shadow-xs"
+                  >
+                    {imageUrl ? (
+                      <>
+                        <img
+                          src={imageUrl}
+                          alt=""
+                          className="absolute inset-0 h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <span className="absolute inset-x-3 bottom-3 rounded-lg bg-background/80 backdrop-blur-md px-2.5 py-1.5 text-[11px] font-medium text-foreground text-center shadow-md">
+                          {t`Changer l'image de couverture`}
+                        </span>
+                      </>
+                    ) : (
+                      <div className="flex flex-col items-center gap-1.5 p-4 text-center">
+                        <ImageIcon className="w-6 h-6 text-muted-foreground/60 group-hover:text-primary transition-colors" />
+                        <span className="font-medium text-foreground text-xs">
+                          {t`Ajouter une couverture (16:9)`}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {t`PNG, JPG ou WebP optimisé`}
+                        </span>
+                      </div>
+                    )}
+                  </button>
+                </div>
+
+                {/* Section 2 : Taxonomie & Catégorie hiérarchique */}
+                <div className="space-y-3 pt-4 border-t border-border/40">
+                  <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider font-sans flex items-center gap-2">
+                    <FolderOpen className="h-3.5 w-3.5 text-primary stroke-[1.5]" />
+                    {t`Thématique & Catégorie`}
+                  </h4>
+
+                  <select
+                    value={categoryId || ''}
+                    onChange={(e) => {
+                      setCategoryId(e.target.value || null);
+                      setHasUnsavedChanges(true);
+                    }}
+                    className="w-full bg-background border border-border/40 rounded-xl p-2.5 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-sans cursor-pointer shadow-xs"
+                  >
+                    <option value="">{t`-- Sans catégorie (Général) --`}</option>
+                    {hierarchicalCategories.roots.map((root) => {
+                      const children = hierarchicalCategories.childrenMap.get(root.id) || [];
+                      if (children.length === 0) {
+                        return (
+                          <option key={root.id} value={root.id}>
+                            {root.name}
+                          </option>
+                        );
+                      }
+                      return (
+                        <optgroup key={root.id} label={root.name}>
+                          <option value={root.id}>
+                            {root.name} ({t`Général`})
+                          </option>
+                          {children.map((child) => (
+                            <option key={child.id} value={child.id}>
+                              &nbsp;&nbsp;↳ {child.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      );
+                    })}
+                  </select>
+                </div>
+
+                {/* Section 3 : URL & Slug avec Copie Rapide */}
+                <div className="space-y-3 pt-4 border-t border-border/40">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider font-sans flex items-center gap-2">
+                      <Globe className="h-3.5 w-3.5 text-primary stroke-[1.5]" />
+                      {t`Adresse URL de l'écrit`}
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const fullUrl = `https://${subdomain ? `${subdomain}.qoe.fi` : 'qoe.fi'}/article/${slug || ''}`;
+                        navigator.clipboard.writeText(fullUrl);
+                        setSlugCopied(true);
+                        setTimeout(() => setSlugCopied(false), 2000);
+                      }}
+                      className="text-[11px] text-primary hover:underline flex items-center gap-1 cursor-pointer font-medium"
+                    >
+                      {slugCopied ? (
+                        <>
+                          <CopyCheck className="w-3 h-3 text-success" />
+                          <span className="text-success">{t`Copié !`}</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          <span>{t`Copier le lien`}</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="flex items-center bg-background border border-border/40 rounded-xl px-3 py-2 text-xs font-sans text-muted-foreground focus-within:border-primary transition-colors">
+                    <span className="text-muted-foreground/60 select-none">/article/</span>
+                    <input
+                      type="text"
+                      value={slug}
+                      onChange={(e) => {
+                        setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-'));
+                        setHasUnsavedChanges(true);
+                      }}
+                      placeholder="mon-titre-article"
+                      className="flex-1 bg-transparent border-0 p-0 text-xs font-sans font-medium text-foreground focus:outline-none ml-0.5"
+                    />
+                  </div>
+                </div>
+
+                {/* Section 4 : Attributions & Crédits */}
+                <div className="space-y-3 pt-4 border-t border-border/40">
+                  <ArticleAttributionEditor value={attributions} onChange={setAttributions} />
+                </div>
+
+                {/* Section 5 : Référencement & Social (SEO Google Preview) */}
+                <div className="space-y-4 pt-4 border-t border-border/40">
+                  <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider font-sans flex items-center gap-2">
+                    <Search className="h-3.5 w-3.5 text-primary stroke-[1.5]" />
+                    {t`Référencement SEO & Social`}
+                  </h4>
+
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
+                        <label>{t`Titre SEO alternatif`}</label>
+                        <span
+                          className={cn(
+                            (seoTitle || title).length > 60
+                              ? 'text-highlight'
+                              : 'text-muted-foreground'
+                          )}
+                        >
+                          {(seoTitle || title).length}/60
+                        </span>
+                      </div>
+                      <input
+                        type="text"
+                        value={seoTitle}
+                        onChange={(e) => {
+                          setSeoTitle(e.target.value);
+                          setHasUnsavedChanges(true);
+                        }}
+                        placeholder={title || t`Titre de publication`}
+                        className="w-full bg-background border border-border/40 rounded-xl p-2.5 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary transition-colors font-sans"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
+                        <label>{t`Description Meta SEO`}</label>
+                        <span
+                          className={cn(
+                            seoDescription.length > 160 ? 'text-highlight' : 'text-muted-foreground'
+                          )}
+                        >
+                          {seoDescription.length}/160
+                        </span>
+                      </div>
+                      <textarea
+                        rows={3}
+                        value={seoDescription}
+                        onChange={(e) => {
+                          setSeoDescription(e.target.value);
+                          setHasUnsavedChanges(true);
+                        }}
+                        placeholder={t`Une courte accroche percutante pour Google et les partages sociaux...`}
+                        className="w-full bg-background border border-border/40 rounded-xl p-2.5 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary transition-colors font-sans resize-none"
+                      />
+                    </div>
+
+                    {/* Google SERP Live Card Preview */}
+                    <div className="p-3.5 bg-muted/20 rounded-xl border border-border/40 space-y-1 font-sans">
+                      <span className="text-[9px] text-muted-foreground font-semibold tracking-wider block uppercase">
+                        {t`Aperçu du résultat Google`}
+                      </span>
+                      <span className="text-[11px] text-primary block truncate font-medium">
+                        qoe.fi/article/{slug || '...'}
+                      </span>
+                      <span className="text-xs font-semibold text-foreground block truncate hover:underline cursor-pointer">
+                        {seoTitle || title || t`Titre de l'article`}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground block line-clamp-2 leading-relaxed">
+                        {seoDescription ||
+                          t`Aucune description SEO saisie. Google utilisera le premier paragraphe de votre article.`}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 6 : Engagement & Droits de lecture */}
+                <div className="space-y-3 pt-4 border-t border-border/40">
+                  <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider font-sans flex items-center gap-2">
+                    <Lock className="h-3.5 w-3.5 text-primary stroke-[1.5]" />
+                    {t`Accès & Monétisation`}
+                  </h4>
+
+                  <div className="space-y-2.5">
+                    {/* Paywall Toggle */}
+                    <label className="flex items-center justify-between p-3 rounded-xl border border-border/40 bg-muted/15 hover:bg-muted/30 transition-colors cursor-pointer select-none">
+                      <div className="space-y-0.5 pr-2">
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                          <Lock className="w-3.5 h-3.5 text-highlight" />
+                          <span>{t`Article Paywall Premium`}</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground leading-tight">
+                          {t`Réservé aux membres disposant d'un abonnement payant.`}
+                        </p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={isPremium}
+                        onChange={(e) => {
+                          setIsPremium(e.target.checked);
+                          setHasUnsavedChanges(true);
+                        }}
+                        className="w-4 h-4 rounded text-primary border-border/40 focus:ring-primary cursor-pointer shrink-0"
+                      />
+                    </label>
+
+                    {/* Annotations Toggle */}
+                    <label className="flex items-center justify-between p-3 rounded-xl border border-border/40 bg-muted/15 hover:bg-muted/30 transition-colors cursor-pointer select-none">
+                      <div className="space-y-0.5 pr-2">
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                          <Sparkles className="w-3.5 h-3.5 text-primary" />
+                          <span>{t`Annotations publiques`}</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground leading-tight">
+                          {t`Permet aux lecteurs de surligner et d'annoter publiquement vos phrases.`}
+                        </p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={allowPublicAnnotations}
+                        onChange={(e) => {
+                          setAllowPublicAnnotations(e.target.checked);
+                          setHasUnsavedChanges(true);
+                        }}
+                        className="w-4 h-4 rounded text-primary border-border/40 focus:ring-primary cursor-pointer shrink-0"
+                      />
+                    </label>
+
+                    {/* Commentaires Toggle */}
+                    <label className="flex items-center justify-between p-3 rounded-xl border border-border/40 bg-muted/15 hover:bg-muted/30 transition-colors cursor-pointer select-none">
+                      <div className="space-y-0.5 pr-2">
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                          <MessageSquare className="w-3.5 h-3.5 text-primary" />
+                          <span>{t`Espace commentaires`}</span>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground leading-tight">
+                          {t`Ouvre un espace de débat et d'échange sous l'article.`}
+                        </p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={allowComments}
+                        onChange={(e) => {
+                          setAllowComments(e.target.checked);
+                          setHasUnsavedChanges(true);
+                        }}
+                        className="w-4 h-4 rounded text-primary border-border/40 focus:ring-primary cursor-pointer shrink-0"
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </aside>
+          </div>
+        </div>
+      )}
 
       {/* Article Inspector Drawer Modal */}
       {showAnalyticsModal && (
@@ -1472,38 +1781,92 @@ export function Editor({
 
       {/* Custom UI Modal for Official Author Annotation (No window.prompt!) */}
       {showAuthorAnnotationModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/60 backdrop-blur-xs font-sans">
-          <div className="bg-card border border-border/40 rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl animate-in fade-in-0 slide-in-from-bottom-1 duration-150">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-highlight" />
-                <h3 className="text-sm font-bold text-foreground">
-                  Annotation Officielle D'Auteur
-                </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/60 backdrop-blur-sm font-sans animate-in fade-in-0 duration-200">
+          <div className="fixed inset-0" onClick={() => setShowAuthorAnnotationModal(false)} />
+          <div className="relative bg-card border border-border/50 rounded-2xl p-6 max-w-lg w-full space-y-5 shadow-2xl animate-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-highlight/15 border border-highlight/30 flex items-center justify-center text-highlight shrink-0 shadow-xs">
+                  <Sparkles className="w-4 h-4 text-highlight" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-foreground">
+                      {t`Annotation Officielle d'Auteur`}
+                    </h3>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-highlight/20 text-highlight border border-highlight/30">
+                      {t`Certifié`}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    {t`Mise en exergue dans une marge dorée interactive visible par tous vos lecteurs.`}
+                  </p>
+                </div>
               </div>
               <button
+                type="button"
                 onClick={() => setShowAuthorAnnotationModal(false)}
-                className="text-muted-foreground hover:text-foreground cursor-pointer"
+                className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Ajoutez une note d'auteur certifiée qui apparaîtra sous forme de marge dorée
-              interactive pour vos lecteurs.
-            </p>
+            {/* Quoted Passage Preview */}
+            {selectedQuoteForAnnotation && (
+              <div className="space-y-1.5 bg-muted/20 border border-border/40 rounded-xl p-3">
+                <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                  <Quote className="w-3 h-3 text-highlight" />
+                  <span>{t`Passage sélectionné`}</span>
+                </div>
+                <p className="text-xs text-foreground/90 font-sans italic leading-relaxed pl-2.5 border-l-2 border-highlight/60 line-clamp-3">
+                  « {selectedQuoteForAnnotation} »
+                </p>
+              </div>
+            )}
 
-            <textarea
-              autoFocus
-              rows={3}
-              value={authorNoteInput}
-              onChange={(e) => setAuthorNoteInput(e.target.value)}
-              placeholder="Explication, contexte ou commentaire d'auteur..."
-              className="w-full bg-background border border-border/40 rounded-xl p-3 text-xs text-foreground focus:outline-none focus:border-highlight resize-none font-sans"
-            />
+            {/* Textarea with Keyboard Shortcut */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
+                {t`Note ou commentaire d'auteur`}
+              </label>
+              <textarea
+                autoFocus
+                rows={4}
+                value={authorNoteInput}
+                onChange={(e) => setAuthorNoteInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    if (authorNoteInput.trim() && editor) {
+                      editor
+                        .chain()
+                        .focus()
+                        .setAnnotationMark({ note: authorNoteInput.trim() })
+                        .run();
+                      setHasUnsavedChanges(true);
+                      setAuthorNoteInput('');
+                      setShowAuthorAnnotationModal(false);
+                    }
+                  } else if (e.key === 'Escape') {
+                    e.preventDefault();
+                    setShowAuthorAnnotationModal(false);
+                  }
+                }}
+                placeholder={t`Partagez un éclairage, une anecdote, une précision ou une source pour enrichir ce passage...`}
+                className="w-full bg-background border border-border/40 rounded-xl p-3 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-highlight focus:ring-1 focus:ring-highlight/30 resize-none font-sans leading-relaxed transition-all"
+              />
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                <span>{t`Raccourci : ⌘ + Entrée pour enregistrer`}</span>
+                <span>
+                  {authorNoteInput.length} {t`caractères`}
+                </span>
+              </div>
+            </div>
 
-            <div className="flex items-center justify-between gap-2 pt-2">
+            {/* Actions */}
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/40">
               {editor?.isActive('annotationMark') ? (
                 <button
                   type="button"
@@ -1515,9 +1878,10 @@ export function Editor({
                       setShowAuthorAnnotationModal(false);
                     }
                   }}
-                  className="px-3.5 py-1.5 rounded-xl border border-destructive/30 text-destructive hover:bg-destructive/10 text-xs font-semibold cursor-pointer transition-colors"
+                  className="px-3 py-1.5 rounded-xl border border-destructive/30 text-destructive hover:bg-destructive/10 text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5"
                 >
-                  Supprimer l'annotation
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>{t`Supprimer l'annotation`}</span>
                 </button>
               ) : (
                 <div />
@@ -1527,9 +1891,9 @@ export function Editor({
                 <button
                   type="button"
                   onClick={() => setShowAuthorAnnotationModal(false)}
-                  className="px-3.5 py-1.5 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground cursor-pointer"
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer transition-colors"
                 >
-                  Annuler
+                  {t`Annuler`}
                 </button>
                 <button
                   type="button"
@@ -1546,9 +1910,14 @@ export function Editor({
                       setShowAuthorAnnotationModal(false);
                     }
                   }}
-                  className="px-4 py-1.5 rounded-xl bg-highlight text-highlight-foreground font-bold text-xs hover:bg-highlight/90 cursor-pointer disabled:opacity-50 transition-colors"
+                  className="px-4 py-1.5 rounded-xl bg-highlight text-highlight-foreground font-bold text-xs hover:bg-highlight/90 cursor-pointer disabled:opacity-50 transition-all flex items-center gap-1.5 shadow-sm"
                 >
-                  {editor?.isActive('annotationMark') ? t`Mettre à jour` : t`Attacher l'annotation`}
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>
+                    {editor?.isActive('annotationMark')
+                      ? t`Mettre à jour`
+                      : t`Attacher l'annotation`}
+                  </span>
                 </button>
               </div>
             </div>
