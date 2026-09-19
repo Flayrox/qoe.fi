@@ -115,6 +115,7 @@ export interface TenantArticle {
    */
   accessGranted?: boolean;
   isTruncated?: boolean;
+  imageUrl?: string | null;
   readingTime: number;
   allowPublicAnnotations: boolean;
   allowComments: boolean;

@@ -133,14 +133,15 @@ type AuthorInfo struct {
 }
 
 type ArticleDetail struct {
-	ID         string `json:"id"`
-	Title      string `json:"title"`
-	Slug       string `json:"slug"`
-	Content    string `json:"content"`
-	Published  bool   `json:"published"`
-	Status     string `json:"status"`
-	IsPremium  bool   `json:"isPremium"`
-	Visibility string `json:"visibility"`
+	ID         string  `json:"id"`
+	Title      string  `json:"title"`
+	Slug       string  `json:"slug"`
+	Content    string  `json:"content"`
+	ImageURL   *string `json:"imageUrl"`
+	Published  bool    `json:"published"`
+	Status     string  `json:"status"`
+	IsPremium  bool    `json:"isPremium"`
+	Visibility string  `json:"visibility"`
 	// 🔒 Zéro-fuite : le contenu servi ici est DÉJÀ tronqué au paywall pour un
 	// lecteur non autorisé. `accessGranted` doit être lu par les clients pour
 	// ne PAS retronquer (le marqueur de coupure a disparu de la charge utile).
@@ -479,15 +480,17 @@ func scanArticleDetail(row pgx.Row) (*ArticleDetail, error) {
 	var a ArticleDetail
 	var catID, catName, catSlug *string
 	var authorName, authorUsername, authorLogo *string
+	var imageURL *string
 	var createdAt time.Time
 	err := row.Scan(&a.ID, &a.Title, &a.Slug, &a.Content, &a.Published, &a.Status,
 		&a.IsPremium, &a.Visibility, &a.ReadingTime, &a.AllowPublicAnnotations,
-		&a.AllowComments, &createdAt, &a.AuthorID,
+		&a.AllowComments, &createdAt, &a.AuthorID, &imageURL,
 		&catID, &catName, &catSlug, &authorName, &authorUsername, &authorLogo)
 	if err != nil {
 		return nil, err
 	}
 	a.CreatedAt = createdAt.Format(time.RFC3339)
+	a.ImageURL = imageURL
 	if catID != nil {
 		a.Category = &CategoryItem{ID: *catID, Name: *catName, Slug: *catSlug}
 	}
@@ -496,10 +499,10 @@ func scanArticleDetail(row pgx.Row) (*ArticleDetail, error) {
 }
 
 const articleSelect = `
-		SELECT a.id, a.title, a.slug, a.content, a.published, a.status,
-		       a."isPremium", a.visibility, a."readingTime",
-		       a."allowPublicAnnotations", a."allowComments", a."createdAt", a."authorId",
-		       c.id, c.name, c.slug, au.name, au.username, au."logoUrl"
+	SELECT a.id, a.title, a.slug, a.content, a.published, a.status,
+	       a."isPremium", a.visibility, a."readingTime",
+	       a."allowPublicAnnotations", a."allowComments", a."createdAt", a."authorId", a."imageUrl",
+	       c.id, c.name, c.slug, au.name, au.username, au."logoUrl"
 		FROM "Article" a
 		LEFT JOIN "Category" c ON c.id = a."categoryId"
 		LEFT JOIN "User" au ON au.id = a."authorId"`

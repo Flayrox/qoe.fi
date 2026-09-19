@@ -187,6 +187,7 @@ SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibilit
        a."readingTime", a."allowPublicAnnotations", a."allowComments", a."scheduledAt",
        a.status, a."publicationId", a."authorId", a."categoryId", a."tierId",
        a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
+       a."imageUrl"   AS article_image,
        u.id::text     AS author_id,
        u.name         AS author_name,
        u.username     AS author_username,
@@ -194,10 +195,15 @@ SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibilit
        p.name         AS publication_name,
        p.slug         AS publication_slug,
        p.subdomain    AS publication_subdomain,
-       p."customDomain" AS publication_custom_domain
+       p."logoUrl"    AS publication_logo,
+       p."customDomain" AS publication_custom_domain,
+       c.id           AS category_id,
+       c.name         AS category_name,
+       c.slug         AS category_slug
 FROM "Article" a
 JOIN "User" u ON u.id = a."authorId"
 JOIN "Publication" p ON p.id = a."publicationId"
+LEFT JOIN "Category" c ON c.id = a."categoryId"
 WHERE a.slug = $1 AND a."publicationId" = $2
 `
 
@@ -227,6 +233,7 @@ type GetArticleBySlugRow struct {
 	SeoDescription          pgtype.Text       `json:"seoDescription"`
 	CreatedAt               pgtype.Timestamp  `json:"createdAt"`
 	UpdatedAt               pgtype.Timestamp  `json:"updatedAt"`
+	ArticleImage            pgtype.Text       `json:"article_image"`
 	AuthorID                string            `json:"author_id"`
 	AuthorName              pgtype.Text       `json:"author_name"`
 	AuthorUsername          pgtype.Text       `json:"author_username"`
@@ -234,7 +241,11 @@ type GetArticleBySlugRow struct {
 	PublicationName         string            `json:"publication_name"`
 	PublicationSlug         string            `json:"publication_slug"`
 	PublicationSubdomain    pgtype.Text       `json:"publication_subdomain"`
+	PublicationLogo         pgtype.Text       `json:"publication_logo"`
 	PublicationCustomDomain pgtype.Text       `json:"publication_custom_domain"`
+	CategoryID              pgtype.Text       `json:"category_id"`
+	CategoryName            pgtype.Text       `json:"category_name"`
+	CategorySlug            pgtype.Text       `json:"category_slug"`
 }
 
 func (q *Queries) GetArticleBySlug(ctx context.Context, arg GetArticleBySlugParams) (GetArticleBySlugRow, error) {
@@ -261,6 +272,7 @@ func (q *Queries) GetArticleBySlug(ctx context.Context, arg GetArticleBySlugPara
 		&i.SeoDescription,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ArticleImage,
 		&i.AuthorID,
 		&i.AuthorName,
 		&i.AuthorUsername,
@@ -268,7 +280,11 @@ func (q *Queries) GetArticleBySlug(ctx context.Context, arg GetArticleBySlugPara
 		&i.PublicationName,
 		&i.PublicationSlug,
 		&i.PublicationSubdomain,
+		&i.PublicationLogo,
 		&i.PublicationCustomDomain,
+		&i.CategoryID,
+		&i.CategoryName,
+		&i.CategorySlug,
 	)
 	return i, err
 }
@@ -287,10 +303,14 @@ SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibilit
        p.subdomain    AS publication_subdomain,
        p."logoUrl"    AS publication_logo,
        p."customDomain" AS publication_custom_domain,
-       a."imageUrl"   AS article_image
+       a."imageUrl"   AS article_image,
+       c.id           AS category_id,
+       c.name         AS category_name,
+       c.slug         AS category_slug
 FROM "Article" a
 JOIN "User" u ON u.id = a."authorId"
 JOIN "Publication" p ON p.id = a."publicationId"
+LEFT JOIN "Category" c ON c.id = a."categoryId"
 WHERE (a.slug = $1
        OR EXISTS (SELECT 1 FROM "ArticleSlug" s
                   WHERE s.slug = $1 AND s."articleId" = a.id)
@@ -332,6 +352,9 @@ type GetArticleBySlugAnyRow struct {
 	PublicationLogo         pgtype.Text       `json:"publication_logo"`
 	PublicationCustomDomain pgtype.Text       `json:"publication_custom_domain"`
 	ArticleImage            pgtype.Text       `json:"article_image"`
+	CategoryID              pgtype.Text       `json:"category_id"`
+	CategoryName            pgtype.Text       `json:"category_name"`
+	CategorySlug            pgtype.Text       `json:"category_slug"`
 }
 
 // Lecture publique par slug SEUL (premier article publié) — parité avec
@@ -371,6 +394,9 @@ func (q *Queries) GetArticleBySlugAny(ctx context.Context, slug string) (GetArti
 		&i.PublicationLogo,
 		&i.PublicationCustomDomain,
 		&i.ArticleImage,
+		&i.CategoryID,
+		&i.CategoryName,
+		&i.CategorySlug,
 	)
 	return i, err
 }

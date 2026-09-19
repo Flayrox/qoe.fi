@@ -120,6 +120,22 @@ func TestService_GetBySlug_Published(t *testing.T) {
 	if art.Publication == nil || art.Publication.Slug != "journal-test" {
 		t.Fatalf("publication = %+v", art.Publication)
 	}
+	// Même contrat que le slug seul : image + tableaux jamais null.
+	if _, err := poolTest.Exec(ctx,
+		`UPDATE "Article" SET "imageUrl" = 'https://cdn.qoe.fi/test-cover.jpg' WHERE slug = 'premier-article' AND "publicationId" = $1`,
+		fx.PublicationID); err != nil {
+		t.Fatalf("image seed: %v", err)
+	}
+	art, err = svc.GetBySlug(ctx, "premier-article", fx.PublicationID, "", "")
+	if err != nil {
+		t.Fatalf("GetBySlug image: %v", err)
+	}
+	if art.ImageUrl == nil || *art.ImageUrl != "https://cdn.qoe.fi/test-cover.jpg" {
+		t.Fatalf("imageUrl = %+v, attendu la couverture seedée", art.ImageUrl)
+	}
+	if art.Attributions == nil || art.CoAuthors == nil {
+		t.Fatal("attributions/co-auteurs nil, attendu tableaux (même vides)")
+	}
 }
 
 func TestService_GetBySlug_Unknown(t *testing.T) {
@@ -165,6 +181,9 @@ func TestService_GetBySlugAny_Enrichment(t *testing.T) {
 	}
 	if art.Attributions == nil || art.CoAuthors == nil {
 		t.Fatal("attributions/co-auteurs nil, attendu tableaux (même vides)")
+	}
+	if art.Category == nil || art.Category.Slug == "" {
+		t.Fatalf("category = %+v, attendu la catégorie seedée", art.Category)
 	}
 }
 

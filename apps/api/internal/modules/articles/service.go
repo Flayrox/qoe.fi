@@ -245,10 +245,11 @@ func (s *Service) GetBySlugAny(ctx context.Context, slug string) (ArticleRespons
 		Attributions: []AttributionInfo{},
 	}
 	// Enrichissement lecture publique (comme la réponse éditeur) : image de
-	// couverture, certification et attributions — sinon le drawer lecteur
-	// affiche un article sans image ni signature.
-	if img := s.fetchArticleImageUrl(ctx, row.ID); img != nil {
-		resp.ImageUrl = img
+	// couverture, catégorie, certification et attributions — sinon le drawer
+	// lecteur affiche un article sans image ni signature.
+	resp.ImageUrl = textPtr(row.ArticleImage)
+	if row.CategoryID.Valid {
+		resp.Category = &CategoryInfo{ID: row.CategoryID.String, Name: row.CategoryName.String, Slug: row.CategorySlug.String}
 	}
 	if cert := s.fetchUserIsCertified(ctx, row.AuthorID); cert != nil {
 		resp.Author.IsCertified = *cert
@@ -1238,19 +1239,26 @@ func (s *Service) articleResponseFromIDRow(row db.GetArticleByIDRow) ArticleResp
 }
 
 func articleFromSlugRow(row db.GetArticleBySlugRow, cut PaywallCutResult) ArticleResponse {
-	return ArticleResponse{
+	resp := ArticleResponse{
 		ID: row.ID, Title: row.Title, Slug: row.Slug, Content: cut.Content,
 		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),
 		ReadingTime: int(row.ReadingTime), Status: row.Status, ScheduledAt: tsPtr(row.ScheduledAt),
 		PublicationID: row.PublicationId,
 		AuthorID:      row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
 		SeoTitle: textPtr(row.SeoTitle), SeoDescription: textPtr(row.SeoDescription),
+		ImageUrl:    textPtr(row.ArticleImage),
 		CreatedAt:   row.CreatedAt.Time.Format(time.RFC3339),
 		UpdatedAt:   row.UpdatedAt.Time.Format(time.RFC3339),
 		IsTruncated: cut.IsTruncated, AccessGranted: cut.AccessGranted, PaywallMeta: cut.PaywallMeta,
 		Author:      AuthorInfo{ID: row.AuthorID, Name: textPtr(row.AuthorName), Username: textPtr(row.AuthorUsername), LogoURL: textPtr(row.AuthorLogo)},
-		Publication: &PublicationInfo{ID: row.PublicationId, Name: row.PublicationName, Slug: row.PublicationSlug, Subdomain: textPtr(row.PublicationSubdomain), CustomDomain: textPtr(row.PublicationCustomDomain)},
+		Publication: &PublicationInfo{ID: row.PublicationId, Name: row.PublicationName, Slug: row.PublicationSlug, Subdomain: textPtr(row.PublicationSubdomain), LogoURL: textPtr(row.PublicationLogo), CustomDomain: textPtr(row.PublicationCustomDomain)},
+		CoAuthors:   []AuthorInfo{},
+		Attributions: []AttributionInfo{},
 	}
+	if row.CategoryID.Valid {
+		resp.Category = &CategoryInfo{ID: row.CategoryID.String, Name: row.CategoryName.String, Slug: row.CategorySlug.String}
+	}
+	return resp
 }
 
 func articleFromRow(row db.GetArticleByIDRow, cut PaywallCutResult) ArticleResponse {
