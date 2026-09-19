@@ -9,7 +9,7 @@ import { saveArticleAction } from '@qoe/sdk/actions/articles';
 import type { EditorCapabilities } from '@qoe/sdk/actions/articles';
 
 interface NewArticleClientProps {
-  categories: { id: string; name: string }[];
+  categories: { id: string; name: string; parentId?: string | null }[];
   capabilities?: EditorCapabilities;
 }
 

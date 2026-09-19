@@ -52,7 +52,7 @@ interface ArticleData {
 
 interface EditArticleClientProps {
   article: ArticleData;
-  categories: { id: string; name: string }[];
+  categories: { id: string; name: string; parentId?: string | null }[];
   capabilities?: EditorCapabilities;
 }
 
