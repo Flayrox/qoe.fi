@@ -23,6 +23,9 @@ import {
   UserRound,
   X,
   Plus,
+  AtSign,
+  Mail,
+  Pencil,
 } from 'lucide-react';
 import { NotificationSettingsForm } from '@/components/notifications/NotificationSettingsForm';
 import {
@@ -32,7 +35,9 @@ import {
 import SecuritySettings from './SecuritySettings';
 import {
   cancelAccountDeletionAction,
+  changeEmailAction,
   changePasswordAction,
+  changeUsernameAction,
   exportAccountDataAction,
   logoutAccountAction,
   requestAccountDeletionAction,
@@ -124,6 +129,15 @@ export default function AccountSettingsPage({
   // Sécurité / mot de passe.
   const [pw, setPw] = useState({ current: '', next: '', confirm: '' });
   const [pwMessage, setPwMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+  // Changement d'email (réauthentification par mot de passe actuel).
+  const [em, setEm] = useState({ current: '', next: '' });
+  const [emMessage, setEmMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+  // Changement d'username (inline).
+  const [un, setUn] = useState<{ value: string; editing: boolean }>({
+    value: initialData?.user.username ?? '',
+    editing: false,
+  });
+  const [unMessage, setUnMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
   const { update: updateReadingPreferences } = useReadingPreferences();
 
@@ -191,6 +205,10 @@ export default function AccountSettingsPage({
       setPwMessage({ type: 'err', text: t`Les mots de passe ne correspondent pas.` });
       return;
     }
+    if (!pw.current) {
+      setPwMessage({ type: 'err', text: t`Saisissez votre mot de passe actuel pour confirmer.` });
+      return;
+    }
     startTransition(async () => {
       try {
         await changePasswordAction(pw.current, pw.next);
@@ -200,6 +218,47 @@ export default function AccountSettingsPage({
         setPwMessage({
           type: 'err',
           text: error instanceof Error ? error.message : t`Impossible de changer le mot de passe.`,
+        });
+      }
+    });
+  };
+
+  const changeEmail = () => {
+    if (!em.current) {
+      setEmMessage({ type: 'err', text: t`Saisissez votre mot de passe actuel pour confirmer.` });
+      return;
+    }
+    if (em.next.trim().toLowerCase() === data?.user.email?.toLowerCase()) {
+      setEmMessage({ type: 'err', text: t`Cette adresse est déjà la vôtre.` });
+      return;
+    }
+    startTransition(async () => {
+      try {
+        await changeEmailAction(em.current, em.next);
+        setEm({ current: '', next: '' });
+        setEmMessage({
+          type: 'ok',
+          text: t`Vérification envoyée : confirmez votre nouvelle adresse depuis votre boîte mail.`,
+        });
+      } catch (error) {
+        setEmMessage({
+          type: 'err',
+          text: error instanceof Error ? error.message : t`Impossible de changer l’email.`,
+        });
+      }
+    });
+  };
+
+  const changeUsername = () => {
+    startTransition(async () => {
+      try {
+        const res = await changeUsernameAction(un.value);
+        setUn({ value: res.username, editing: false });
+        setUnMessage({ type: 'ok', text: t`Identifiant mis à jour.` });
+      } catch (error) {
+        setUnMessage({
+          type: 'err',
+          text: error instanceof Error ? error.message : t`Identifiant indisponible.`,
         });
       }
     });
@@ -344,13 +403,149 @@ export default function AccountSettingsPage({
             title={t`Compte`}
             description={t`Les informations de base et les accès à votre compte.`}
           >
+            {/* Identifiant (@username) éditable — via /v1/me/username (2–30, unique). */}
+            <div className="rounded-xl border border-border/60 px-4 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                  <AtSign className="h-4 w-4 text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">{t`Identifiant`}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t`Votre nom d'utilisateur unique, visible publiquement.`}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                {un.editing ? (
+                  <>
+                    <div className="flex items-center gap-1 rounded-xl border border-border bg-background px-3 py-2 sm:w-72">
+                      <span className="text-sm text-muted-foreground">@</span>
+                      <input
+                        value={un.value}
+                        maxLength={24}
+                        onChange={(event) =>
+                          setUn({
+                            ...un,
+                            value: event.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, ''),
+                          })
+                        }
+                        className="w-full bg-transparent text-sm outline-none"
+                        placeholder="ephe"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setUn({ value: data.user.username ?? '', editing: false })}
+                        className="shrink-0 text-muted-foreground hover:text-foreground"
+                        aria-label={t`Annuler`}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={isPending || un.value.length < 3 || un.value === data.user.username}
+                      onClick={changeUsername}
+                      className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+                    >
+                      {t`Enregistrer`}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <code className="rounded-lg bg-muted px-2.5 py-1.5 text-sm sm:w-72">
+                      @{data.user.username || '—'}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() => setUn({ value: data.user.username ?? '', editing: true })}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-muted"
+                    >
+                      <Pencil className="h-3 w-3" /> {t`Modifier`}
+                    </button>
+                  </>
+                )}
+              </div>
+              {unMessage && (
+                <p
+                  className={`mt-2 text-xs ${
+                    unMessage.type === 'ok' ? 'text-success' : 'text-destructive'
+                  }`}
+                >
+                  {unMessage.text}
+                </p>
+              )}
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
               <ReadOnlyField label={t`Adresse email`} value={data.user.email} />
               <ReadOnlyField label={t`Type de compte`} value={roleLabel(data.user.role)} />
               <ReadOnlyField label={t`Membre depuis`} value={formatDate(data.user.createdAt)} />
-              <ReadOnlyField label={t`Identifiant`} value={data.user.id.slice(0, 12) + '…'} />
+              <ReadOnlyField
+                label={t`Identifiant technique`}
+                value={data.user.id.slice(0, 12) + '…'}
+              />
             </div>
 
+            {/* Changement d'adresse email — vérification par mot de passe actuel,
+                puis email de confirmation (Supabase GoTrue). */}
+            <div className="rounded-xl border border-border/60 px-4 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                  <Mail className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{t`Changer d'adresse email`}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t`Actuelle :`} {data.user.email}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <label className="block space-y-1.5">
+                  <span className="text-sm font-medium">{t`Mot de passe actuel`}</span>
+                  <input
+                    type="password"
+                    autoComplete="current-password"
+                    value={em.current}
+                    onChange={(event) => setEm({ ...em, current: event.target.value })}
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
+                  />
+                </label>
+                <label className="block space-y-1.5">
+                  <span className="text-sm font-medium">{t`Nouvelle adresse email`}</span>
+                  <input
+                    type="email"
+                    autoComplete="email"
+                    value={em.next}
+                    onChange={(event) => setEm({ ...em, next: event.target.value })}
+                    className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
+                  />
+                </label>
+              </div>
+              {emMessage && (
+                <p
+                  className={`mt-3 text-xs ${
+                    emMessage.type === 'ok' ? 'text-success' : 'text-destructive'
+                  }`}
+                >
+                  {emMessage.text}
+                </p>
+              )}
+              <div className="mt-4 flex justify-end">
+                <button
+                  type="button"
+                  disabled={isPending || !em.next.includes('@')}
+                  onClick={changeEmail}
+                  className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
+                >
+                  {t`Envoyer la vérification`}
+                </button>
+              </div>
+            </div>
+
+            {/* Mot de passe : réauthentification par le mot de passe ACTUEL obligatoire. */}
             <div className="rounded-xl border border-border/60 px-4 py-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
@@ -363,26 +558,62 @@ export default function AccountSettingsPage({
                   </p>
                 </div>
               </div>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="mt-4 grid gap-3">
                 <label className="block space-y-1.5">
-                  <span className="text-sm font-medium">{t`Nouveau mot de passe`}</span>
+                  <span className="text-sm font-medium">{t`Mot de passe actuel`}</span>
                   <input
                     type="password"
-                    value={pw.next}
-                    onChange={(event) => setPw({ ...pw, next: event.target.value })}
+                    autoComplete="current-password"
+                    value={pw.current}
+                    onChange={(event) => setPw({ ...pw, current: event.target.value })}
                     className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
                   />
                 </label>
-                <label className="block space-y-1.5">
-                  <span className="text-sm font-medium">{t`Confirmer le mot de passe`}</span>
-                  <input
-                    type="password"
-                    value={pw.confirm}
-                    onChange={(event) => setPw({ ...pw, confirm: event.target.value })}
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
-                  />
-                </label>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block space-y-1.5">
+                    <span className="text-sm font-medium">{t`Nouveau mot de passe`}</span>
+                    <input
+                      type="password"
+                      autoComplete="new-password"
+                      value={pw.next}
+                      onChange={(event) => setPw({ ...pw, next: event.target.value })}
+                      className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
+                    />
+                  </label>
+                  <label className="block space-y-1.5">
+                    <span className="text-sm font-medium">{t`Confirmer le mot de passe`}</span>
+                    <input
+                      type="password"
+                      autoComplete="new-password"
+                      value={pw.confirm}
+                      onChange={(event) => setPw({ ...pw, confirm: event.target.value })}
+                      className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
+                    />
+                  </label>
+                </div>
               </div>
+              {pw.next.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {[
+                    { ok: pw.next.length >= 10, label: t`10 caractères minimum` },
+                    { ok: /[A-ZÀ-Þ]/.test(pw.next), label: t`Une majuscule` },
+                    { ok: /[a-zß-ÿ]/.test(pw.next), label: t`Une minuscule` },
+                    { ok: /\d/.test(pw.next), label: t`Un chiffre` },
+                  ].map(({ ok, label }) => (
+                    <span
+                      key={label}
+                      className={`rounded-full border px-2 py-0.5 text-[11px] ${
+                        ok
+                          ? 'border-success/30 bg-success/10 text-success'
+                          : 'border-border bg-muted text-muted-foreground'
+                      }`}
+                    >
+                      {ok ? '✓ ' : ''}
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              )}
               {pwMessage && (
                 <p
                   className={`mt-3 text-xs ${
@@ -395,16 +626,13 @@ export default function AccountSettingsPage({
               <div className="mt-4 flex justify-end">
                 <button
                   type="button"
-                  disabled={isPending || pw.next.length < 8}
+                  disabled={isPending || !pw.current || pw.next.length < 8}
                   onClick={changePassword}
                   className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
                 >
                   {t`Changer le mot de passe`}
                 </button>
               </div>
-              <p className="mt-3 text-[11px] text-muted-foreground">
-                {t`Un email de confirmation peut vous être demandé selon la configuration de la plateforme.`}
-              </p>
             </div>
 
             <div className="flex items-center justify-between rounded-xl border border-border/60 px-4 py-3">
