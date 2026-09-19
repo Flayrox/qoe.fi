@@ -318,7 +318,7 @@ export const getCategoriesAction = safeAction<void, CategoryWithCount[]>(async (
   }>(`/v1/categories?publicationId=${publicationId}`);
   return res.data.map((c) => ({
     id: c.id,
-    name: c.name,
+    name: c.name?.trim() || c.slug,
     slug: c.slug,
     description: c.description,
     publicationId,

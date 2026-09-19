@@ -850,11 +850,11 @@ export function ArticlesClient({
                     return (
                       <React.Fragment key={root.id}>
                         <option value={root.id}>
-                          {root.name} ({root._count.articles})
+                          {root.name?.trim() || root.slug} ({root._count.articles})
                         </option>
                         {subs.map((sub) => (
                           <option key={sub.id} value={sub.id}>
-                            &nbsp;&nbsp;↳ {sub.name} ({sub._count.articles})
+                            &nbsp;&nbsp;↳ {sub.name?.trim() || sub.slug} ({sub._count.articles})
                           </option>
                         ))}
                       </React.Fragment>
@@ -991,7 +991,7 @@ export function ArticlesClient({
                           {/* Category Tag */}
                           {art.category && (
                             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground border border-border/30">
-                              {art.category.name}
+                              {art.category.name?.trim() || art.category.slug}
                             </span>
                           )}
 
@@ -1291,7 +1291,7 @@ export function ArticlesClient({
 
                             <div className="min-w-0 flex items-center gap-2 flex-wrap">
                               <h4 className="text-sm font-semibold text-foreground font-sans truncate">
-                                {root.name}
+                                {root.name?.trim() || root.slug}
                               </h4>
                               <span className="text-[11px] text-muted-foreground font-sans font-medium tabular-nums">
                                 ({totalArticles} {totalArticles > 1 ? t`articles` : t`article`})
@@ -1409,7 +1409,7 @@ export function ArticlesClient({
                                 <GripVertical className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
                                 <CornerDownRight className="w-3.5 h-3.5 text-muted-foreground/70 shrink-0" />
                                 <span className="text-xs font-medium text-foreground font-sans truncate">
-                                  {sub.name}
+                                  {sub.name?.trim() || sub.slug}
                                 </span>
                                 <span className="text-[10px] text-muted-foreground font-sans tabular-nums">
                                   ({sub._count.articles}{' '}

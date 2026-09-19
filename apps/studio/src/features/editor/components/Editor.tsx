@@ -118,7 +118,7 @@ export interface EditorProps {
   collaborationRoomId?: string;
   collaborationEnabled?: boolean;
   subdomain?: string;
-  categories?: { id: string; name: string; parentId?: string | null }[];
+  categories?: { id: string; name: string; parentId?: string | null; slug?: string }[];
   isSaving?: boolean;
   capabilities?: EditorCapabilities;
   onSave: (data: {
@@ -189,11 +189,15 @@ export function Editor({
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
-  // Organisation hiérarchique des catégories (Racine -> Sous-catégories)
+  // Organisation hiérarchique des catégories (Racine -> Sous-catégories) avec fallback sur slug si nom vide
   const hierarchicalCategories = useMemo(() => {
-    const roots = categories.filter((c) => !c.parentId);
-    const childrenMap = new Map<string, typeof categories>();
-    for (const cat of categories) {
+    const formatted = categories.map((c) => ({
+      ...c,
+      displayName: c.name?.trim() || c.slug || t`Catégorie sans titre`,
+    }));
+    const roots = formatted.filter((c) => !c.parentId);
+    const childrenMap = new Map<string, typeof formatted>();
+    for (const cat of formatted) {
       if (cat.parentId) {
         const list = childrenMap.get(cat.parentId) || [];
         list.push(cat);
@@ -217,10 +221,10 @@ export function Editor({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverFileInputRef = useRef<HTMLInputElement>(null);
 
-  // Détection du défilement pour la toolbar flottante
+  // Détection du défilement pour la toolbar collante / flottante
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 160);
+      setIsScrolled(window.scrollY > 40);
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
@@ -1233,15 +1237,67 @@ export function Editor({
           </div>
         </div>
 
+        {/* Image de couverture principale — Placée directement sous le slug/titre */}
+        <div className="space-y-2">
+          {imageUrl ? (
+            <div className="group relative w-full aspect-[21/9] sm:aspect-[16/7] overflow-hidden rounded-2xl border border-border/50 bg-muted/20 shadow-sm transition-all">
+              <img
+                src={imageUrl}
+                alt={title || t`Couverture de l'article`}
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.01]"
+              />
+              {/* Actions flottantes au survol */}
+              <div className="absolute inset-0 bg-background/30 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => coverFileInputRef.current?.click()}
+                  disabled={isUploading}
+                  className="px-3.5 py-1.5 rounded-xl bg-background/90 text-foreground font-sans text-xs font-semibold shadow-lg hover:bg-background transition-all flex items-center gap-1.5 cursor-pointer backdrop-blur-md border border-border/40"
+                >
+                  <ImageIcon className="w-3.5 h-3.5 text-primary" />
+                  <span>{t`Changer l'image`}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setImageUrl(null);
+                    setHasUnsavedChanges(true);
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl bg-background/90 text-destructive font-sans text-xs font-semibold shadow-lg hover:bg-destructive/10 hover:text-destructive transition-all flex items-center gap-1.5 cursor-pointer backdrop-blur-md border border-destructive/30"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>{t`Supprimer`}</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <button
+                type="button"
+                onClick={() => coverFileInputRef.current?.click()}
+                disabled={isUploading}
+                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-dashed border-border/60 hover:border-primary/50 bg-muted/10 hover:bg-muted/30 text-xs font-medium text-muted-foreground hover:text-foreground transition-all cursor-pointer shadow-2xs group"
+              >
+                {isUploading ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+                ) : (
+                  <ImageIcon className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                )}
+                <span>{t`+ Ajouter une image de couverture`}</span>
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* Text Editor Core */}
         <div className="space-y-4">
-          {/* Theme-agnostic Floating / Sticky Formatting Toolbar */}
+          {/* Theme-agnostic Floating / Sticky Formatting Toolbar touching screen top */}
           <div
             className={cn(
-              'flex flex-wrap items-center gap-0.5 border transition-all duration-300',
+              'sticky top-0 z-30 flex flex-wrap items-center gap-0.5 transition-all duration-200 py-2 px-3.5',
               isScrolled
-                ? 'fixed top-4 left-1/2 -translate-x-1/2 z-40 max-w-2xl w-[94%] sm:w-auto rounded-2xl bg-background/85 backdrop-blur-xl border-border/60 shadow-2xl p-1.5 justify-center'
-                : 'sticky top-4 rounded-xl bg-background/95 backdrop-blur-md border-border/40 py-2 px-3 shadow-xs'
+                ? 'bg-background/85 backdrop-blur-xl border-b border-x border-border/60 rounded-b-2xl shadow-xl'
+                : 'bg-background/95 backdrop-blur-md border border-border/40 rounded-xl shadow-xs'
             )}
           >
             <ToolbarButton
@@ -1530,24 +1586,41 @@ export function Editor({
                     }}
                     className="w-full bg-background border border-border/40 rounded-xl p-2.5 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-sans cursor-pointer shadow-xs"
                   >
-                    <option value="">{t`-- Sans catégorie (Général) --`}</option>
+                    <option value="" className="bg-popover text-popover-foreground">
+                      {t`-- Sans catégorie (Général) --`}
+                    </option>
                     {hierarchicalCategories.roots.map((root) => {
                       const children = hierarchicalCategories.childrenMap.get(root.id) || [];
                       if (children.length === 0) {
                         return (
-                          <option key={root.id} value={root.id}>
-                            {root.name}
+                          <option
+                            key={root.id}
+                            value={root.id}
+                            className="bg-popover text-popover-foreground py-1"
+                          >
+                            {root.displayName}
                           </option>
                         );
                       }
                       return (
-                        <optgroup key={root.id} label={root.name}>
-                          <option value={root.id}>
-                            {root.name} ({t`Général`})
+                        <optgroup
+                          key={root.id}
+                          label={root.displayName}
+                          className="bg-popover text-popover-foreground font-semibold"
+                        >
+                          <option
+                            value={root.id}
+                            className="bg-popover text-popover-foreground py-1 font-normal"
+                          >
+                            {root.displayName} ({t`Général`})
                           </option>
                           {children.map((child) => (
-                            <option key={child.id} value={child.id}>
-                              &nbsp;&nbsp;↳ {child.name}
+                            <option
+                              key={child.id}
+                              value={child.id}
+                              className="bg-popover text-popover-foreground py-1 font-normal"
+                            >
+                              &nbsp;&nbsp;↳ {child.displayName}
                             </option>
                           ))}
                         </optgroup>

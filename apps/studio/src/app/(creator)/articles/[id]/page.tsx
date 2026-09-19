@@ -38,7 +38,8 @@ export default async function ArticleEditPage({ params }: PageProps) {
         article={article}
         categories={categoriesList.map((c) => ({
           id: c.id,
-          name: c.name,
+          name: c.name?.trim() || c.slug,
+          slug: c.slug,
           parentId: c.parentId,
         }))}
         capabilities={capabilities}
