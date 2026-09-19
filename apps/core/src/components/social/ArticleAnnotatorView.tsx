@@ -36,6 +36,7 @@ import {
 } from '@qoe/ui/reader';
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
+import { useReaderToolbar } from './ReaderToolbarContext';
 
 export interface ArticleAnnotatorViewProps {
   article: {
@@ -112,6 +113,7 @@ function ArticleAnnotatorViewInner({
   spotlight,
   onOpenProfile,
 }: ArticleAnnotatorViewProps) {
+  const toolbar = useReaderToolbar();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [highlightsList, setHighlightsList] = useState<AnnotationItem[]>([]);
   const [clientDocument, setClientDocument] = useState<CanonicalDocument | null | undefined>(
@@ -120,6 +122,9 @@ function ArticleAnnotatorViewInner({
   const [bookmarked, setBookmarked] = useState(false);
   const [followed, setFollowed] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  const activeBookmarked = toolbar ? toolbar.bookmarked : bookmarked;
+  const activeCopied = toolbar ? toolbar.copied : copied;
 
   // Document canonique : la prop serveur prime (SSR peint les marques). Sans
   // prop (drawer du feed), fetch client — jamais pour un article premium
@@ -252,7 +257,10 @@ function ArticleAnnotatorViewInner({
       .eq('article_id', article.id)
       .maybeSingle()
       .then(({ data }) => {
-        if (data) setBookmarked(true);
+        if (data) {
+          setBookmarked(true);
+          toolbar?.setBookmarked(true);
+        }
       });
     if (article.author?.id) {
       supabase
@@ -265,19 +273,26 @@ function ArticleAnnotatorViewInner({
           if (data) setFollowed(true);
         });
     }
-  }, [user?.id, article.id, article.author?.id]);
+  }, [user?.id, article.id, article.author?.id, toolbar]);
 
-  const toggleBookmark = async () => {
+  const toggleBookmark = React.useCallback(async () => {
     if (!user) return;
-    const next = !bookmarked;
+    const next = !activeBookmarked;
     setBookmarked(next);
+    toolbar?.setBookmarked(next);
     const supabase = createClient();
     if (next) {
       await supabase.from('bookmarks').insert({ user_id: user.id, article_id: article.id });
     } else {
       await supabase.from('bookmarks').delete().eq('user_id', user.id).eq('article_id', article.id);
     }
-  };
+  }, [user, activeBookmarked, toolbar, article.id]);
+
+  useEffect(() => {
+    if (toolbar?.registerToggleBookmark) {
+      toolbar.registerToggleBookmark(toggleBookmark);
+    }
+  }, [toolbar, toggleBookmark]);
 
   const toggleFollow = async () => {
     if (!user || !article.author?.id) return;
@@ -290,15 +305,19 @@ function ArticleAnnotatorViewInner({
     }
   };
 
-  const handleShare = async () => {
-    try {
-      await navigator.clipboard.writeText(window.location.href);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // ignore
+  const handleShare = React.useCallback(async () => {
+    if (toolbar?.handleShare) {
+      toolbar.handleShare();
+    } else {
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch {
+        // ignore
+      }
     }
-  };
+  }, [toolbar]);
 
   const initialHighlights = highlightsList.filter((h) => !h.isPublic && !h.isOfficial);
   const publicHighlights = highlightsList.filter((h) => h.isPublic || h.isOfficial);
@@ -449,7 +468,13 @@ function ArticleAnnotatorViewInner({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div
+            ref={toolbar?.authorToolbarRef}
+            className={cn(
+              'flex items-center gap-2 transition-opacity duration-200',
+              toolbar?.isDocked && 'opacity-0 pointer-events-none'
+            )}
+          >
             {user && user.id !== article.author?.id && (
               <button
                 type="button"
@@ -474,9 +499,9 @@ function ArticleAnnotatorViewInner({
               type="button"
               onClick={toggleBookmark}
               className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
-              title={bookmarked ? t`Supprimer des signets` : t`Mettre en signet`}
+              title={activeBookmarked ? t`Supprimer des signets` : t`Mettre en signet`}
             >
-              {bookmarked ? (
+              {activeBookmarked ? (
                 <BookMarked className="w-4 h-4 fill-current text-primary" />
               ) : (
                 <Bookmark className="w-4 h-4" />
@@ -487,13 +512,19 @@ function ArticleAnnotatorViewInner({
               type="button"
               onClick={handleShare}
               className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
-              title={copied ? t`Lien copié !` : t`Partager l'article`}
+              title={activeCopied ? t`Lien copié !` : t`Partager l'article`}
             >
-              {copied ? <Check className="w-4 h-4 text-success" /> : <Share2 className="w-4 h-4" />}
+              {activeCopied ? (
+                <Check className="w-4 h-4 text-success" />
+              ) : (
+                <Share2 className="w-4 h-4" />
+              )}
             </button>
 
             <TextToSpeechPlayer
               articleTitle={article.title}
+              articleCoverUrl={article.imageUrl}
+              authorName={authorName}
               articleContentSelector="#article-content"
             />
             <ReadingSettingsSheet />
@@ -516,6 +547,8 @@ function ArticleAnnotatorViewInner({
         containerId="article-content"
         canonicalDocument={canonicalDocument ?? undefined}
         spotlight={spotlight}
+        filterMode={toolbar?.filterMode}
+        onFilterModeChange={toolbar?.setFilterMode}
         contentClassName={cn(
           'prose prose-sm sm:prose-base dark:prose-invert max-w-none text-foreground/90 selection:bg-foreground selection:text-background cursor-text pt-2 leading-[1.8] antialiased [text-rendering:optimizeLegibility]',
           typographyClasses
