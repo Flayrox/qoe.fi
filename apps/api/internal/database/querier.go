@@ -233,6 +233,9 @@ type Querier interface {
 	GetMediaApiKeyByID(ctx context.Context, arg GetMediaApiKeyByIDParams) (GetMediaApiKeyByIDRow, error)
 	// Dédoublonnage CAS : cherche un asset existant par hash SHA-256.
 	GetMediaAssetBySha256(ctx context.Context, sha256 string) (MediaAsset, error)
+	// Résout un Média depuis l'identifiant de SA publication (le profil public
+	// d'un média expose la publicationId, pas l'id du média).
+	GetMediaByPublicationID(ctx context.Context, publicationid string) (GetMediaByPublicationIDRow, error)
 	// Administration Média (création, membres, invitations, réglages) — migration dashboard → Go.
 	GetMediaMemberByID(ctx context.Context, arg GetMediaMemberByIDParams) (GetMediaMemberByIDRow, error)
 	// RBAC Média (rôles + permissions) — partagé par settings, articles et media.

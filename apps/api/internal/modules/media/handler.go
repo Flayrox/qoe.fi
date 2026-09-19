@@ -41,6 +41,16 @@ func (h *Handler) Register(r chi.Router) {
 		r.Get("/invites/link/{token}", h.getLinkPreview)
 		r.Post("/invites/link/{token}/join", h.joinLink)
 
+		// PATCH /v1/media/by-publication/{publicationId}/settings — équivalent de
+		// /{id}/settings mais adressé par la PUBLICATION du média. Le profil public
+		// d'un média n'expose que la publicationId ; accepter les deux évite que le
+		// front ne confonde jamais les deux identifiants (source du bug du 19/09 :
+		// l'id de publication envoyé comme si c'était l'id du média → 404).
+		r.Patch("/by-publication/{publicationId}/settings", h.updateSettingsByPublication)
+		// GET /v1/media/by-publication/{publicationId} — résout {mediaId} pour que
+		// le front puisse adresser les autres endpoints sans deviner.
+		r.Get("/by-publication/{publicationId}", h.mediaIdByPublication)
+
 		// Clés API Média (gestion workspace / délégation fine api_keys:manage)
 		r.Get("/{id}/api-keys", h.listApiKeys)
 		r.Post("/{id}/api-keys", h.createApiKey)
@@ -107,10 +117,10 @@ func (h *Handler) createMedia(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var in struct {
-		Name     string `json:"name"`
-		Slug     string `json:"slug"`
-		Bio      string `json:"bio"`
-		LogoURL  string `json:"logoUrl"`
+		Name    string `json:"name"`
+		Slug    string `json:"slug"`
+		Bio     string `json:"bio"`
+		LogoURL string `json:"logoUrl"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		response.BadRequest(w, "JSON invalide")
@@ -168,6 +178,46 @@ func (h *Handler) updateSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, map[string]any{"success": true, "publication": publication})
+}
+
+// PATCH /v1/media/by-publication/{publicationId}/settings — voit /{id}/settings.
+func (h *Handler) updateSettingsByPublication(w http.ResponseWriter, r *http.Request) {
+	id := userID(r)
+	if id == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	var body map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	mediaID, err := h.svc.MediaIDByPublication(r.Context(), chi.URLParam(r, "publicationId"))
+	if err != nil {
+		writeErr(w, err)
+		return
+	}
+	publication, err := h.svc.UpdateSettings(r.Context(), id, mediaID, body)
+	if err != nil {
+		writeErr(w, err)
+		return
+	}
+	response.OK(w, map[string]any{"success": true, "publication": publication})
+}
+
+// GET /v1/media/by-publication/{publicationId} — {mediaId}.
+func (h *Handler) mediaIdByPublication(w http.ResponseWriter, r *http.Request) {
+	id := userID(r)
+	if id == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	mediaID, err := h.svc.MediaIDByPublication(r.Context(), chi.URLParam(r, "publicationId"))
+	if err != nil {
+		writeErr(w, err)
+		return
+	}
+	response.OK(w, map[string]string{"mediaId": mediaID})
 }
 
 // POST /v1/media/{id}/invites — {username, role?} : ajoute un collaborateur par
@@ -438,5 +488,3 @@ func (h *Handler) joinLink(w http.ResponseWriter, r *http.Request) {
 	}
 	response.OK(w, res)
 }
-
-

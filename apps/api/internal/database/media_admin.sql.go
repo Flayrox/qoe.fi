@@ -206,6 +206,28 @@ func (q *Queries) GetMediaApiKeyByID(ctx context.Context, arg GetMediaApiKeyByID
 	return i, err
 }
 
+const getMediaByPublicationID = `-- name: GetMediaByPublicationID :one
+SELECT md.id AS media_id,
+       md."publicationId" AS publication_id
+FROM "Media" md
+WHERE md."publicationId" = $1
+LIMIT 1
+`
+
+type GetMediaByPublicationIDRow struct {
+	MediaID       string `json:"media_id"`
+	PublicationID string `json:"publication_id"`
+}
+
+// Résout un Média depuis l'identifiant de SA publication (le profil public
+// d'un média expose la publicationId, pas l'id du média).
+func (q *Queries) GetMediaByPublicationID(ctx context.Context, publicationid string) (GetMediaByPublicationIDRow, error) {
+	row := q.db.QueryRow(ctx, getMediaByPublicationID, publicationid)
+	var i GetMediaByPublicationIDRow
+	err := row.Scan(&i.MediaID, &i.PublicationID)
+	return i, err
+}
+
 const getMediaMemberByID = `-- name: GetMediaMemberByID :one
 
 SELECT id, "mediaId", "userId"::text AS user_id, role, permissions, status, "joinedAt"

@@ -26,5 +26,3 @@ func TestTextPtr(t *testing.T) {
 		t.Fatalf("textPtr(x) = %v", got)
 	}
 }
-
-
