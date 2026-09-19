@@ -430,9 +430,20 @@ auth.qoe.fi {
 cdn.qoe.fi {
     import qoe_cert
     encode zstd gzip
-    # Re-write the URL
-    rewrite * /storage/v1/object/public{path}
-    reverse_proxy supabase-kong:8000
+    # Le CDN sert /storage/v1/object/public/articles-media/… — soit tel quel
+    # (URLs stockées en base, ex. logoUrl des Médias), soit sans le préfixe
+    # storage pour les chemins courts. ⚠️ Ne PAS utiliser `rewrite *` : il
+    # écrase le chemin ENTIER et doublait le préfixe pour les URLs complètes
+    # (Storage cherchait un bucket « storage » → 404 Bucket not found →
+    # `_next/image` répondait « upstream response is invalid »).
+    @storagefull path /storage/v1/*
+    handle @storagefull {
+        reverse_proxy supabase-kong:8000
+    }
+    handle {
+        rewrite * /storage/v1/object/public{path}
+        reverse_proxy supabase-kong:8000
+    }
     log {
         output stdout
         format console
