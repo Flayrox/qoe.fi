@@ -50,7 +50,6 @@ import {
   Copy,
   CopyCheck,
   Trash2,
-  FileText,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { compressImage } from '@/lib/image-compressor';
@@ -214,21 +213,33 @@ export function Editor({
   const [authorNoteInput, setAuthorNoteInput] = useState('');
   const [selectedQuoteForAnnotation, setSelectedQuoteForAnnotation] = useState('');
   const [annotationToast, setAnnotationToast] = useState<string | null>(null);
-  const [isScrolled, setIsScrolled] = useState(false);
+  const [isDocked, setIsDocked] = useState(false);
   const [slugCopied, setSlugCopied] = useState(false);
   const [isCoverDragOver, setIsCoverDragOver] = useState(false);
   const lastSavedHashRef = useRef<string>('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverFileInputRef = useRef<HTMLInputElement>(null);
+  const toolbarSentinelRef = useRef<HTMLDivElement>(null);
 
-  // Détection du défilement pour la toolbar collante / flottante dès qu'elle atteint le header
+  // Détection haute précision de l'amarrage de la barre d'outils au bas du header (56px)
   useEffect(() => {
-    const handleScroll = () => {
-      setIsScrolled(window.scrollY > 80);
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
+    const sentinel = toolbarSentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsDocked(!entry.isIntersecting);
+      },
+      {
+        // HeaderClient a une hauteur de 56px (h-14). rootMargin: -56px déclenche au pixel près
+        rootMargin: '-56px 0px 0px 0px',
+        threshold: 0,
+      }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
   }, []);
 
   // ─── Collaboration temps réel (Hocuspocus/Yjs) ────────────────────────
@@ -1364,13 +1375,19 @@ export function Editor({
 
         {/* Text Editor Core */}
         <div className="space-y-4">
-          {/* Theme-agnostic Floating / Sticky Formatting Toolbar — Se cale sous la barre de recherche (top-14) */}
+          {/* Sentinel invisible pour détection au pixel près de l'amarrage sous HeaderClient (56px) */}
+          <div
+            ref={toolbarSentinelRef}
+            className="h-px w-full pointer-events-none opacity-0 -mb-4"
+          />
+
+          {/* Theme-agnostic Floating / Sticky Formatting Toolbar — Starship Cockpit 2026/2027 */}
           <div
             className={cn(
-              'sticky top-14 z-20 flex flex-wrap items-center gap-0.5 transition-all duration-200 py-2 px-3.5',
-              isScrolled
-                ? 'bg-background/85 backdrop-blur-xl border-b border-x border-border/60 rounded-b-2xl shadow-xl'
-                : 'bg-background/95 backdrop-blur-md border border-border/40 rounded-xl shadow-xs'
+              'sticky top-14 z-20 flex flex-wrap items-center gap-0.5 transition-all duration-300 py-1.5 px-3',
+              isDocked
+                ? 'bg-background/80 backdrop-blur-2xl border-x border-b border-border/80 dark:border-primary/25 rounded-2xl shadow-[0_16px_36px_-6px_rgba(0,0,0,0.18),0_0_15px_rgba(238,75,43,0.06)]'
+                : 'bg-card/60 backdrop-blur-md border border-border/40 rounded-2xl shadow-2xs'
             )}
           >
             <ToolbarButton
@@ -1530,6 +1547,35 @@ export function Editor({
               icon={<Lock className="h-3.5 w-3.5 text-highlight stroke-[2]" />}
               tooltip={t`Insérer la limite Paywall (Contenu Premium)`}
             />
+
+            {/* Starship HUD Telemetry Beacon */}
+            <div
+              className={cn(
+                'ml-auto hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-sans font-medium transition-all duration-300 select-none',
+                isDocked
+                  ? 'bg-primary/10 border border-primary/30 text-primary shadow-[0_0_10px_rgba(238,75,43,0.15)]'
+                  : 'bg-muted/40 border border-border/30 text-muted-foreground/60'
+              )}
+              title={isDocked ? t`Barre amarrée · Mode Focus actif` : t`Éditeur en direct`}
+            >
+              <span className="relative flex h-1.5 w-1.5">
+                <span
+                  className={cn(
+                    'animate-ping absolute inline-flex h-full w-full rounded-full opacity-75',
+                    isDocked ? 'bg-primary' : 'bg-success'
+                  )}
+                />
+                <span
+                  className={cn(
+                    'relative inline-flex rounded-full h-1.5 w-1.5',
+                    isDocked ? 'bg-primary' : 'bg-success'
+                  )}
+                />
+              </span>
+              <span className="tracking-wider uppercase text-[9px] font-bold">
+                {isDocked ? 'Starship · Docked' : 'Cockpit'}
+              </span>
+            </div>
           </div>
 
           {/* TipTap Main Body */}
@@ -2048,11 +2094,11 @@ function ToolbarButton({ active, onClick, icon, tooltip, disabled }: ToolbarButt
       title={tooltip}
       disabled={disabled}
       className={cn(
-        'h-8 w-8 flex items-center justify-center rounded-lg transition-all font-sans text-sm cursor-pointer',
+        'h-8 w-8 flex items-center justify-center rounded-lg transition-all duration-150 font-sans text-sm cursor-pointer active:scale-90 hover:scale-105',
         active
-          ? 'bg-primary/15 text-primary font-semibold'
-          : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
-        disabled && 'opacity-50 cursor-not-allowed'
+          ? 'bg-primary text-primary-foreground shadow-[0_0_12px_rgba(238,75,43,0.35)] font-semibold'
+          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
+        disabled && 'opacity-50 cursor-not-allowed hover:scale-100 active:scale-100'
       )}
     >
       {icon}
