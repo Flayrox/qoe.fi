@@ -1131,26 +1131,34 @@ curl -X DELETE -H "Authorization: Bearer qoe_live_XXX" "http://localhost:8080/v1
 
 ### 2.2 Catégories (`modules/creator/handler.go:65`)
 
-| Méthode | Route                           | Scope   | Body                                                                                   | Réponse                                                             |
-| ------- | ------------------------------- | ------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| GET     | `/v1/categories?publicationId=` | `READ`  | —                                                                                      | `200 {"data":[{"id","name","slug","description","articlesCount"}]}` |
-| POST    | `/v1/categories`                | `WRITE` | `{"publicationId":"…","name":"…","slug":"… (auto slugify si vide)","description":"…"}` | `201 CategoryRow`                                                   |
-| PATCH   | `/v1/categories/{id}`           | `WRITE` | idem                                                                                   | `200 CategoryRow`                                                   |
-| DELETE  | `/v1/categories/{id}`           | `WRITE` | —                                                                                      | `200 {"success":true}`                                              |
+| Méthode | Route                           | Scope   | Body                                                                                                         | Réponse                                                                             |
+| ------- | ------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| GET     | `/v1/categories?publicationId=` | `READ`  | —                                                                                                            | `200 {"data":[{"id","name","slug","description","parentId","articlesCount"}]}`     |
+| POST    | `/v1/categories`                | `WRITE` | `{"publicationId":"…","name":"…","slug":"… (auto slugify si vide)","description":"…","parentId":"…|null"}` | `201 CategoryRow (incluant parentId)`                                               |
+| PATCH   | `/v1/categories/{id}`           | `WRITE` | idem                                                                                                         | `200 CategoryRow (incluant parentId)`                                               |
+| DELETE  | `/v1/categories/{id}`           | `WRITE` | —                                                                                                            | `200 {"success":true}`                                                              |
 
 RBAC `CanMedia PermManageCategories` ou publication perso `GetUserPersonalPublication`.
+Hiérarchie : **2 niveaux maximum** (une sous-catégorie ne peut pas avoir d'enfants).
 
 **Exemples**
 
 ```bash
 curl -H "Authorization: Bearer qoe_live_XXX" "http://localhost:8080/v1/categories?publicationId=PUB_ID"
 
+# Création d'une catégorie principale
 curl -X POST -H "Authorization: Bearer qoe_live_XXX" -H "Content-Type: application/json" \
  -d '{"publicationId":"PUB_ID","name":"Technologie","description":"…"}' http://localhost:8080/v1/categories
-# -> 201 {"id":"…","name":"Technologie","slug":"technologie","publicationId":"…","description":"…"}
+# -> 201 {"id":"CAT_TECH","name":"Technologie","slug":"technologie","publicationId":"PUB_ID","description":"…","parentId":null}
 
+# Création d'une sous-catégorie
+curl -X POST -H "Authorization: Bearer qoe_live_XXX" -H "Content-Type: application/json" \
+ -d '{"publicationId":"PUB_ID","name":"Intelligence Artificielle","parentId":"CAT_TECH"}' http://localhost:8080/v1/categories
+# -> 201 {"id":"…","name":"Intelligence Artificielle","slug":"intelligence-artificielle","publicationId":"PUB_ID","parentId":"CAT_TECH"}
+
+# Modification / réassignation d'une sous-catégorie (ou promotion en catégorie racine avec parentId: null)
 curl -X PATCH -H "Authorization: Bearer qoe_live_XXX" -H "Content-Type: application/json" \
- -d '{"publicationId":"PUB_ID","name":"Tech & IA","slug":"tech-ia"}' http://localhost:8080/v1/categories/CAT_ID
+ -d '{"name":"IA & Machine Learning","parentId":"CAT_TECH"}' http://localhost:8080/v1/categories/CAT_SUB_ID
 
 curl -X DELETE -H "Authorization: Bearer qoe_live_XXX" http://localhost:8080/v1/categories/CAT_ID
 ```
