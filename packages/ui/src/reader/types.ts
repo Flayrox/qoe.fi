@@ -1,4 +1,4 @@
-export type FontFamilyOption = 'font-serif' | 'font-sans' | 'font-mono' | 'font-dyslexic';
+export type FontFamilyOption = 'font-serif' | 'font-sans' | 'font-dyslexic';
 
 export type FontSizeOption = 'sm' | 'base' | 'lg' | 'xl' | '2xl';
 

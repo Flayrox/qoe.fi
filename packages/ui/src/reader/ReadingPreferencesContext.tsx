@@ -236,11 +236,11 @@ export function getReaderTypographyClasses(prefs: ReadingPreferences): string {
     case 'font-sans':
       classes.push('font-sans');
       break;
-    case 'font-mono':
-      classes.push('font-mono');
-      break;
     case 'font-dyslexic':
-      classes.push('font-dyslexic font-mono tracking-wide');
+      classes.push('font-dyslexic font-sans tracking-wide leading-relaxed');
+      break;
+    default:
+      classes.push('font-serif');
       break;
   }
 

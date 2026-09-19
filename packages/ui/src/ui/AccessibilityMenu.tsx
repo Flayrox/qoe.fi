@@ -26,12 +26,12 @@ export function AccessibilityMenu() {
     if (articleBody) {
       // Remove old classes
       articleBody.classList.remove('text-sm', 'text-base', 'text-lg', 'text-xl', 'text-2xl');
-      articleBody.classList.remove('font-serif', 'font-sans', 'font-mono');
+      articleBody.classList.remove('font-serif', 'font-sans', 'font-dyslexic');
 
       // Add new classes
       articleBody.classList.add(fontSize, fontFamily);
 
-      // Apply dyslexia friendly line height if mono or sans is chosen (simulating dyslexia friendly)
+      // Apply dyslexia friendly line height if dyslexic or sans is chosen (simulating dyslexia friendly)
       if (fontFamily !== 'font-serif') {
         articleBody.classList.add('leading-loose');
       } else {
@@ -104,8 +104,8 @@ export function AccessibilityMenu() {
                 Inter (Clean)
               </button>
               <button
-                onClick={() => updatePreference('fontFamily', 'font-mono', setFontFamily)}
-                className={`text-left px-3 py-2 text-sm rounded-md transition-all font-mono ${fontFamily === 'font-mono' ? 'bg-primary/10 text-primary font-semibold' : 'hover:bg-muted'}`}
+                onClick={() => updatePreference('fontFamily', 'font-dyslexic', setFontFamily)}
+                className={`text-left px-3 py-2 text-sm rounded-md transition-all font-sans tracking-wide ${fontFamily === 'font-dyslexic' ? 'bg-primary/10 text-primary font-semibold' : 'hover:bg-muted'}`}
               >
                 Dyslexia Friendly
               </button>

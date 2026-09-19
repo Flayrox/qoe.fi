@@ -19,8 +19,11 @@ export function ReadingSettingsSheet({ className = '' }: { className?: string })
   const fontOptions: { id: FontFamilyOption; label: string; fontClass: string }[] = [
     { id: 'font-serif', label: t`Serif Littéraire`, fontClass: 'font-serif' },
     { id: 'font-sans', label: t`Sans Épuré`, fontClass: 'font-sans' },
-    { id: 'font-dyslexic', label: t`OpenDyslexic`, fontClass: 'font-mono tracking-wide' },
-    { id: 'font-mono', label: t`Monospace`, fontClass: 'font-mono' },
+    {
+      id: 'font-dyslexic',
+      label: t`OpenDyslexic`,
+      fontClass: 'font-sans tracking-wide leading-relaxed',
+    },
   ];
 
   const fontSizes: { id: FontSizeOption; label: string; previewClass: string }[] = [
