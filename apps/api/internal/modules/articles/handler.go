@@ -138,22 +138,30 @@ func (h *Handler) getBySlug(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, article)
 }
 
+type ArticleAttributionInput struct {
+	UserID    string `json:"userId"`
+	Role      string `json:"role"`
+	Order     int32  `json:"order"`
+	IsVisible bool   `json:"isVisible"`
+}
+
 type createInput struct {
-	PublicationID  string  `json:"publicationId"`
-	Title          string  `json:"title"`
-	Slug           string  `json:"slug"`
-	Content        string  `json:"content"`
-	ContentFormat  string  `json:"contentFormat"`
-	IsPremium      bool    `json:"isPremium"`
-	Visibility     string  `json:"visibility"`
-	CategoryID     *string `json:"categoryId"`
-	TierID         *string `json:"tierId"`
-	SeoTitle       *string `json:"seoTitle"`
-	SeoDescription *string `json:"seoDescription"`
-	ReadingTime    int     `json:"readingTime"`
-	Published      bool    `json:"published"`
-	Status         string  `json:"status"`
-	ScheduledAt    string  `json:"scheduledAt"`
+	PublicationID  string                    `json:"publicationId"`
+	Title          string                    `json:"title"`
+	Slug           string                    `json:"slug"`
+	Content        string                    `json:"content"`
+	ContentFormat  string                    `json:"contentFormat"`
+	IsPremium      bool                      `json:"isPremium"`
+	Visibility     string                    `json:"visibility"`
+	CategoryID     *string                   `json:"categoryId"`
+	TierID         *string                   `json:"tierId"`
+	SeoTitle       *string                   `json:"seoTitle"`
+	SeoDescription *string                   `json:"seoDescription"`
+	ReadingTime    int                       `json:"readingTime"`
+	Published      bool                      `json:"published"`
+	Status         string                    `json:"status"`
+	ScheduledAt    string                    `json:"scheduledAt"`
+	Attributions   []ArticleAttributionInput `json:"attributions"`
 }
 
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
@@ -183,7 +191,8 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		IsPremium:     in.IsPremium, Visibility: in.Visibility, CategoryID: in.CategoryID,
 		TierID: in.TierID, SeoTitle: in.SeoTitle, SeoDescription: in.SeoDescription,
 		ReadingTime: in.ReadingTime, Published: in.Published, Status: in.Status,
-		ScheduledAt: scheduledAt,
+		ScheduledAt:  scheduledAt,
+		Attributions: in.Attributions,
 	})
 	if err != nil {
 		response.Forbidden(w, err.Error())
@@ -254,19 +263,20 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 }
 
 type updateInput struct {
-	Title               string  `json:"title"`
-	Content             string  `json:"content"`
-	ContentFormat       string  `json:"contentFormat"`
-	Slug                string  `json:"slug"`
-	IsPremium           bool    `json:"isPremium"`
-	CategoryID          *string `json:"categoryId"`
-	SeoTitle            *string `json:"seoTitle"`
-	SeoDescription      *string `json:"seoDescription"`
-	ReadingTime         int     `json:"readingTime"`
-	Published           bool    `json:"published"`
-	Status              string  `json:"status"`
-	ActivePublicationID string  `json:"activePublicationId"`
-	ScheduledAt         string  `json:"scheduledAt"`
+	Title               string                    `json:"title"`
+	Content             string                    `json:"content"`
+	ContentFormat       string                    `json:"contentFormat"`
+	Slug                string                    `json:"slug"`
+	IsPremium           bool                      `json:"isPremium"`
+	CategoryID          *string                   `json:"categoryId"`
+	SeoTitle            *string                   `json:"seoTitle"`
+	SeoDescription      *string                   `json:"seoDescription"`
+	ReadingTime         int                       `json:"readingTime"`
+	Published           bool                      `json:"published"`
+	Status              string                    `json:"status"`
+	ActivePublicationID string                    `json:"activePublicationId"`
+	ScheduledAt         string                    `json:"scheduledAt"`
+	Attributions        []ArticleAttributionInput `json:"attributions"`
 }
 
 func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
@@ -291,6 +301,7 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 		CategoryID: in.CategoryID, SeoTitle: in.SeoTitle, SeoDescription: in.SeoDescription,
 		ReadingTime: in.ReadingTime, Published: in.Published, Status: in.Status,
 		ActivePublicationID: in.ActivePublicationID, ScheduledAt: scheduledAt,
+		Attributions: in.Attributions,
 	}); err != nil {
 		response.BadRequest(w, err.Error())
 		return
