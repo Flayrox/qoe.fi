@@ -235,7 +235,7 @@ const (
 func seedSecurityUsers(t *testing.T, ctx context.Context) {
 	t.Helper()
 	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE
-		"MediaAsset", "MediaAuditLog", "MediaInvite", "MediaMember", "Media",
+		"MediaAsset", "MediaAuditLog", "MediaMember", "Media",
 		"Article", "Publication", "User" CASCADE`); err != nil {
 		t.Fatalf("truncate sécurité: %v", err)
 	}

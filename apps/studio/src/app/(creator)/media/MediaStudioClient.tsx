@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { t } from '@lingui/core/macro';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -24,7 +24,14 @@ import {
   FileText,
   Clock,
   Key,
+  Link2,
+  Copy,
+  XCircle,
+  Search,
+  X,
 } from 'lucide-react';
+import { SafeAvatar } from '@qoe/ui';
+import { searchArticleContributorsAction } from '@qoe/sdk/actions/articles';
 import { toast } from '@qoe/ui/toast';
 import { cn } from '@qoe/utils';
 import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
@@ -37,9 +44,21 @@ import {
   updateMediaMemberPermissionsAction,
   removeMediaMemberAction,
   updateMediaSettingsAction,
+  createMediaInviteLinkAction,
+  listMediaInviteLinksAction,
+  revokeMediaInviteLinkAction,
+  type MediaInviteLinkDTO,
 } from './actions';
 import { MediaApiKeysTab } from './MediaApiKeysTab';
 import { ALL_MEDIA_PERMISSIONS, MEDIA_ROLES } from '@qoe/auth/media';
+
+type CollaboratorResult = {
+  id: string;
+  name: string | null;
+  username: string | null;
+  logoUrl: string | null;
+  isCertified?: boolean;
+};
 
 interface MediaSummary {
   id: string;
@@ -50,17 +69,6 @@ interface MediaSummary {
   logoUrl: string | null;
   role: string;
   membersCount: number;
-  invitesCount: number;
-}
-
-interface MediaInvite {
-  id: string;
-  email: string;
-  role: string;
-  status: string;
-  createdAt: string;
-  expiresAt: string | null;
-  inviter: { id: string; name: string | null; username: string | null };
 }
 
 interface MediaDetail {
@@ -94,7 +102,6 @@ interface MediaDetail {
     joinedAt: string;
     user: { id: string; name: string | null; username: string | null; logoUrl: string | null };
   }>;
-  invites: MediaInvite[];
 }
 
 const ROLE_META: Record<
@@ -190,9 +197,20 @@ export function MediaStudioClient({
   const [createLogo, setCreateLogo] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
-  const [inviteEmail, setInviteEmail] = useState('');
+  const [memberQuery, setMemberQuery] = useState('');
+  const [memberResults, setMemberResults] = useState<CollaboratorResult[]>([]);
+  const [searchingMembers, setSearchingMembers] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<CollaboratorResult | null>(null);
   const [inviteRole, setInviteRole] = useState('writer');
   const [inviting, setInviting] = useState(false);
+
+  const [inviteLinks, setInviteLinks] = useState<MediaInviteLinkDTO[]>([]);
+  const [loadingLinks, setLoadingLinks] = useState(false);
+  const [linkRole, setLinkRole] = useState('writer');
+  const [linkExpiresIn, setLinkExpiresIn] = useState(24);
+  const [linkMaxUses, setLinkMaxUses] = useState(1);
+  const [creatingLink, setCreatingLink] = useState(false);
+  const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
 
   const canManageMembers = myRole === MEDIA_ROLES.OWNER || myRole === MEDIA_ROLES.EDITOR;
 
@@ -244,19 +262,117 @@ export function MediaStudioClient({
 
   const handleInvite = async () => {
     if (!detail) return;
-    if (!inviteEmail.trim()) {
-      toast.error(t`L'email de l'invité est requis.`);
+    if (!selectedMember?.username) {
+      toast.error(t`Choisissez un créateur dans la liste pour l'ajouter à l'équipe.`);
       return;
     }
+    const username = selectedMember.username;
     setInviting(true);
-    const res = await inviteMediaMemberAction(detail.id, inviteEmail, inviteRole);
+    const res = await inviteMediaMemberAction(detail.id, username, inviteRole);
     setInviting(false);
     if (res.success) {
-      toast.success(res.alreadyMember ? t`Rôle mis à jour.` : t`Invitation envoyée !`);
-      setInviteEmail('');
+      toast.success(
+        res.alreadyMember
+          ? t`Rôle mis à jour.`
+          : t`@${username} a rejoint le Média — une notification lui a été envoyée.`
+      );
+      setSelectedMember(null);
+      setMemberQuery('');
+      setMemberResults([]);
       loadDetail(detail.id);
     } else {
-      toast.error(res.error || t`Échec de l'invitation.`);
+      toast.error(res.error || t`Échec de l'ajout du collaborateur.`);
+    }
+  };
+
+  // Recherche par nom ou @username, en excluant les membres actuels du Média.
+  const memberIds = useMemo(() => (detail?.members ?? []).map((m) => m.user.id), [detail]);
+
+  useEffect(() => {
+    const trimmed = memberQuery.trim();
+    if (trimmed.length < 2 || selectedMember) {
+      setMemberResults([]);
+      setSearchingMembers(false);
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(async () => {
+      setSearchingMembers(true);
+      const res = await searchArticleContributorsAction({ query: trimmed, excludeIds: memberIds });
+      if (cancelled) return;
+      setSearchingMembers(false);
+      setMemberResults(res.ok ? res.data : []);
+    }, 250);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [memberQuery, memberIds, selectedMember]);
+
+  const loadInviteLinks = useCallback(async (mediaId: string) => {
+    setLoadingLinks(true);
+    const res = await listMediaInviteLinksAction(mediaId);
+    setLoadingLinks(false);
+    if (res.success) {
+      setInviteLinks(res.links);
+    } else {
+      toast.error(res.error || t`Impossible de charger les liens d'invitation.`);
+    }
+  }, []);
+
+  const currentMediaId = detail?.id ?? null;
+
+  useEffect(() => {
+    if (tab === 'invites' && currentMediaId && canManageMembers) {
+      loadInviteLinks(currentMediaId);
+    }
+  }, [tab, currentMediaId, canManageMembers, loadInviteLinks]);
+
+  const inviteLinkUrl = (link: MediaInviteLinkDTO) =>
+    `${window.location.origin}/media/join?token=${link.token}`;
+
+  const copyInviteLink = async (link: MediaInviteLinkDTO) => {
+    try {
+      await navigator.clipboard.writeText(inviteLinkUrl(link));
+      setCopiedLinkId(link.id);
+      window.setTimeout(() => setCopiedLinkId(null), 2000);
+      toast.success(t`Lien copié dans le presse-papiers.`);
+    } catch {
+      toast.error(t`Impossible de copier le lien.`);
+    }
+  };
+
+  const linkStatus = (link: MediaInviteLinkDTO) => {
+    if (link.isRevoked) return { label: t`Révoqué`, tone: 'text-destructive bg-destructive/10' };
+    if (link.expiresAt && new Date(link.expiresAt).getTime() < Date.now())
+      return { label: t`Expiré`, tone: 'text-muted-foreground bg-muted' };
+    if (link.maxUses > 0 && link.usedCount >= link.maxUses)
+      return { label: t`Épuisé`, tone: 'text-muted-foreground bg-muted' };
+    return { label: t`Actif`, tone: 'text-success bg-success/10' };
+  };
+
+  const handleCreateInviteLink = async () => {
+    if (!detail) return;
+    setCreatingLink(true);
+    const res = await createMediaInviteLinkAction(detail.id, linkRole, linkExpiresIn, linkMaxUses);
+    setCreatingLink(false);
+    if (res.success) {
+      toast.success(t`Lien d'invitation généré.`);
+      setInviteLinks((prev) => [res.link, ...prev]);
+      void copyInviteLink(res.link);
+    } else {
+      toast.error(res.error || t`Échec de la création du lien.`);
+    }
+  };
+
+  const handleRevokeInviteLink = async (linkId: string) => {
+    if (!detail) return;
+    const res = await revokeMediaInviteLinkAction(detail.id, linkId);
+    if (res.success) {
+      toast.success(t`Lien d'invitation révoqué.`);
+      setInviteLinks((prev) => prev.filter((item) => item.id !== linkId));
+    } else {
+      toast.error(res.error || t`Échec de la révocation du lien.`);
     }
   };
 
@@ -512,11 +628,6 @@ export function MediaStudioClient({
           </span>
           <span className="h-3 w-px bg-border/60" />
           <span className="flex items-baseline gap-1.5">
-            <span className="font-bold tabular-nums">{detail.invites.length}</span>
-            <span className="text-xs text-muted-foreground">invitations en cours</span>
-          </span>
-          <span className="h-3 w-px bg-border/60" />
-          <span className="flex items-baseline gap-1.5">
             <span className="font-bold tabular-nums">{detail.publication._count.articles}</span>
             <span className="text-xs text-muted-foreground">articles</span>
           </span>
@@ -590,9 +701,6 @@ export function MediaStudioClient({
             >
               <tabItem.icon className="w-3.5 h-3.5" strokeWidth={1.5} />
               {tabItem.label()}
-              {tabItem.key === 'invites' && detail.invites.length > 0 && (
-                <span className="text-[10px] font-bold text-primary">{detail.invites.length}</span>
-              )}
             </button>
           );
         })}
@@ -709,84 +817,297 @@ export function MediaStudioClient({
                 e.preventDefault();
                 handleInvite();
               }}
-              className="flex flex-col sm:flex-row gap-3"
+              className="space-y-2"
             >
-              <div className="flex-1 relative">
-                <Mail
-                  className="w-4 h-4 text-muted-foreground absolute left-0 top-1/2 -translate-y-1/2"
-                  strokeWidth={1.5}
-                />
-                <input
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="email@createur.com"
-                  type="email"
-                  className="w-full pl-7 bg-transparent border-b border-border/40 text-sm py-2.5 placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
-                />
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex-1 relative">
+                  {selectedMember ? (
+                    <div className="flex items-center gap-2.5 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2">
+                      <SafeAvatar
+                        src={selectedMember.logoUrl}
+                        name={selectedMember.name}
+                        username={selectedMember.username}
+                        size={28}
+                        shape="circle"
+                        className="shrink-0"
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-foreground">
+                          {selectedMember.name || selectedMember.username}
+                        </span>
+                        <span className="block truncate text-[11px] text-muted-foreground">
+                          @{selectedMember.username}
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedMember(null);
+                          setMemberQuery('');
+                        }}
+                        aria-label={t`Retirer la sélection`}
+                        className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+                      >
+                        <X className="w-4 h-4" strokeWidth={1.5} />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <Search
+                        className="w-4 h-4 text-muted-foreground absolute left-0 top-1/2 -translate-y-1/2"
+                        strokeWidth={1.5}
+                      />
+                      <input
+                        value={memberQuery}
+                        onChange={(e) => setMemberQuery(e.target.value)}
+                        placeholder={t`Rechercher un créateur (nom ou @username)`}
+                        autoComplete="off"
+                        spellCheck={false}
+                        className="w-full pl-7 bg-transparent border-b border-border/40 text-sm py-2.5 placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
+                      />
+                      {searchingMembers && (
+                        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground absolute right-0 top-1/2 -translate-y-1/2" />
+                      )}
+                    </>
+                  )}
+                </div>
+                <select
+                  value={inviteRole}
+                  onChange={(e) => setInviteRole(e.target.value)}
+                  className="px-3 py-2.5 bg-transparent border-b border-border/40 text-sm font-medium cursor-pointer focus:outline-none focus:border-primary transition-colors"
+                >
+                  {Object.keys(ROLE_META)
+                    .filter((r) => r !== MEDIA_ROLES.OWNER)
+                    .map((r) => (
+                      <option key={r} value={r}>
+                        {ROLE_META[r].label()}
+                      </option>
+                    ))}
+                </select>
+                <button
+                  type="submit"
+                  disabled={inviting || !selectedMember}
+                  className="px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                >
+                  {inviting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <UserPlus className="w-4 h-4" strokeWidth={1.5} />
+                  )}
+                  Ajouter
+                </button>
               </div>
-              <select
-                value={inviteRole}
-                onChange={(e) => setInviteRole(e.target.value)}
-                className="px-3 py-2.5 bg-transparent border-b border-border/40 text-sm font-medium cursor-pointer focus:outline-none focus:border-primary transition-colors"
-              >
-                {Object.keys(ROLE_META)
-                  .filter((r) => r !== MEDIA_ROLES.OWNER)
-                  .map((r) => (
-                    <option key={r} value={r}>
-                      {ROLE_META[r].label()}
-                    </option>
+
+              {!selectedMember && memberResults.length > 0 && (
+                <div className="overflow-hidden rounded-xl border border-border/50 bg-card shadow-lg divide-y divide-border/30">
+                  {memberResults.map((person) => (
+                    <button
+                      key={person.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedMember(person);
+                        setMemberQuery('');
+                        setMemberResults([]);
+                      }}
+                      className="flex w-full items-center gap-2.5 p-2.5 text-left hover:bg-muted transition-colors cursor-pointer"
+                    >
+                      <SafeAvatar
+                        src={person.logoUrl}
+                        name={person.name}
+                        username={person.username}
+                        size={28}
+                        shape="circle"
+                        className="shrink-0"
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-foreground">
+                          {person.name || person.username || t`Créateur`}
+                        </span>
+                        <span className="block truncate text-[11px] text-muted-foreground">
+                          @{person.username || person.id.slice(0, 8)}
+                        </span>
+                      </span>
+                      <UserPlus className="w-4 h-4 text-primary shrink-0" strokeWidth={1.5} />
+                    </button>
                   ))}
-              </select>
-              <button
-                type="submit"
-                disabled={inviting}
-                className="px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
-              >
-                {inviting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <UserPlus className="w-4 h-4" strokeWidth={1.5} />
+                </div>
+              )}
+
+              {!selectedMember &&
+                memberQuery.trim().length >= 2 &&
+                !searchingMembers &&
+                memberResults.length === 0 && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Aucun créateur trouvé — les membres actuels du Média sont exclus.
+                  </p>
                 )}
-                Inviter
-              </button>
             </form>
           )}
 
-          {/* Pending invites list */}
-          {detail.invites.length > 0 && (
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
-                Invitations en attente
-              </p>
-              <div className="divide-y divide-border/30">
-                {detail.invites.map((invite) => {
-                  const meta = ROLE_META[invite.role] || ROLE_META.writer;
-                  const Icon = meta.icon;
-                  return (
-                    <div key={invite.id} className="flex items-center gap-3 py-3">
-                      <div className="size-9 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground shrink-0">
-                        <Mail className="w-4 h-4" strokeWidth={1.5} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{invite.email}</p>
-                        <p className="text-[11px] text-muted-foreground flex items-center gap-1">
-                          <Clock className="w-3 h-3" strokeWidth={1.5} />
-                          envoyée le {formatDate(invite.createdAt)} · expire le{' '}
-                          {formatDate(invite.expiresAt)}
-                        </p>
-                      </div>
-                      <span
-                        className={cn(
-                          'flex items-center gap-1 text-[11px] font-medium shrink-0',
-                          meta.color
-                        )}
-                      >
-                        <Icon className="w-3 h-3" strokeWidth={1.5} />
-                        {meta.label()}
-                      </span>
-                    </div>
-                  );
-                })}
+          {/* Liens d'invitation d'équipe (sans email, rôle + durée + max d'utilisations) */}
+          {canManageMembers && (
+            <div className="rounded-2xl border border-border/40 bg-card p-4 space-y-4">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                  <Link2 className="w-3.5 h-3.5" strokeWidth={1.5} /> Liens d'invitation d'équipe
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-1.5 leading-relaxed">
+                  Partagez un lien : le rôle est accordé automatiquement, sans avoir besoin de
+                  connaître une adresse email. Vous pouvez fixer la durée de validité et le nombre
+                  d'utilisations.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className={labelCls}>Rôle accordé</label>
+                  <select
+                    value={linkRole}
+                    onChange={(e) => setLinkRole(e.target.value)}
+                    className="w-full px-3 py-2 bg-transparent border-b border-border/40 text-sm font-medium cursor-pointer focus:outline-none focus:border-primary transition-colors"
+                  >
+                    {Object.keys(ROLE_META)
+                      .filter((r) => r !== MEDIA_ROLES.OWNER)
+                      .map((r) => (
+                        <option key={r} value={r}>
+                          {ROLE_META[r].label()}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Durée de validité</label>
+                  <select
+                    value={linkExpiresIn}
+                    onChange={(e) => setLinkExpiresIn(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-transparent border-b border-border/40 text-sm font-medium cursor-pointer focus:outline-none focus:border-primary transition-colors"
+                  >
+                    <option value={24}>24 heures</option>
+                    <option value={168}>7 jours</option>
+                    <option value={720}>30 jours</option>
+                    <option value={0}>Permanent</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Utilisations max</label>
+                  <select
+                    value={linkMaxUses}
+                    onChange={(e) => setLinkMaxUses(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-transparent border-b border-border/40 text-sm font-medium cursor-pointer focus:outline-none focus:border-primary transition-colors"
+                  >
+                    <option value={1}>1 seule fois</option>
+                    <option value={5}>5 utilisations</option>
+                    <option value={10}>10 utilisations</option>
+                    <option value={0}>Illimité</option>
+                  </select>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleCreateInviteLink}
+                disabled={creatingLink}
+                className="w-full px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+              >
+                {creatingLink ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Link2 className="w-4 h-4" strokeWidth={1.5} />
+                )}
+                Générer le lien d'invitation
+              </button>
+
+              <div className="pt-3 border-t border-border/30">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+                  Liens du Média
+                </p>
+                {loadingLinks ? (
+                  <div className="flex items-center gap-2 py-3 text-xs text-muted-foreground">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Chargement des liens…
+                  </div>
+                ) : inviteLinks.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic py-2">
+                    Aucun lien d'invitation généré pour ce Média.
+                  </p>
+                ) : (
+                  <div className="divide-y divide-border/30">
+                    {inviteLinks.map((link) => {
+                      const status = linkStatus(link);
+                      const meta = ROLE_META[link.role] || ROLE_META.writer;
+                      const Icon = meta.icon;
+                      return (
+                        <div key={link.id} className="flex items-center gap-3 py-3">
+                          <div className="size-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground shrink-0">
+                            <Link2 className="w-4 h-4" strokeWidth={1.5} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={cn(
+                                  'flex items-center gap-1 text-[11px] font-medium',
+                                  meta.color
+                                )}
+                              >
+                                <Icon className="w-3 h-3" strokeWidth={1.5} />
+                                {meta.label()}
+                              </span>
+                              <span
+                                className={cn(
+                                  'rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider',
+                                  status.tone
+                                )}
+                              >
+                                {status.label}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground flex items-center gap-2 mt-1">
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" strokeWidth={1.5} />
+                                {link.expiresAt
+                                  ? `Expire le ${formatDate(link.expiresAt)}`
+                                  : 'Permanent'}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Users className="w-3 h-3" strokeWidth={1.5} />
+                                {link.usedCount} / {link.maxUses > 0 ? link.maxUses : '∞'}
+                              </span>
+                            </p>
+                            <p className="text-[11px] text-muted-foreground truncate">
+                              {inviteLinkUrl(link)}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => copyInviteLink(link)}
+                              className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg transition-colors cursor-pointer"
+                              title={t`Copier le lien`}
+                              aria-label={t`Copier le lien`}
+                            >
+                              {copiedLinkId === link.id ? (
+                                <Check className="w-4 h-4 text-success" strokeWidth={1.5} />
+                              ) : (
+                                <Copy className="w-4 h-4" strokeWidth={1.5} />
+                              )}
+                            </button>
+                            {!link.isRevoked && (
+                              <button
+                                type="button"
+                                onClick={() => handleRevokeInviteLink(link.id)}
+                                className="p-1.5 text-muted-foreground hover:text-destructive rounded-lg transition-colors cursor-pointer"
+                                title={t`Révoquer le lien`}
+                                aria-label={t`Révoquer le lien`}
+                              >
+                                <XCircle className="w-4 h-4" strokeWidth={1.5} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           )}

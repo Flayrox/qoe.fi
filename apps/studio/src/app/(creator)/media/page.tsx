@@ -22,7 +22,6 @@ interface MediaListItem {
   logoUrl: string | null;
   role: string;
   membersCount: number;
-  invitesCount: number;
 }
 
 export default async function MediaPage() {

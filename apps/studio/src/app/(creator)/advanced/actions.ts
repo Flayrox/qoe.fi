@@ -16,19 +16,21 @@ async function getAuthenticatedUser() {
 
 /**
  * 🤝 Envoyer une demande de collaboration/co-rédaction sur un article
- * Go-first : POST /v1/collaborations/invite-by-email.
+ * Go-first : POST /v1/collaborations/invite-by-username
+ * (confidentiel : aucun email requis ni divulgué).
  */
-export async function sendCollaborationRequestAction(articleId: string, inviteeEmail: string) {
+export async function sendCollaborationRequestAction(articleId: string, inviteeUsername: string) {
   try {
-    const inviter = await getAuthenticatedUser();
+    await getAuthenticatedUser();
 
-    if (!inviteeEmail || !inviteeEmail.includes('@')) {
-      return { success: false, error: 'Adresse email invalide' };
+    const username = inviteeUsername.trim().replace(/^@+/, '');
+    if (!username) {
+      return { success: false, error: "Nom d'utilisateur requis" };
     }
 
     const resp = await goFetch<{ success: boolean; request: unknown }>(
-      '/v1/collaborations/invite-by-email',
-      { method: 'POST', body: { articleId, inviteeEmail } }
+      '/v1/collaborations/invite-by-username',
+      { method: 'POST', body: { articleId, username } }
     );
     revalidatePath('/advanced');
     return { success: true, request: resp.request };
@@ -51,7 +53,7 @@ export async function respondToCollaborationRequestAction(
   showOnPublicProfile: boolean = true
 ) {
   try {
-    const user = await getAuthenticatedUser();
+    await getAuthenticatedUser();
 
     await goFetch(`/v1/collaborations/${encodeURIComponent(requestId)}/respond`, {
       method: 'POST',
@@ -80,7 +82,7 @@ export async function sendArticleContributorInvitationAction(data: {
   showOnPublicProfile?: boolean;
 }) {
   try {
-    const inviter = await getAuthenticatedUser();
+    await getAuthenticatedUser();
 
     const resp = await goFetch<{ success: boolean; request: unknown }>(
       '/v1/collaborations/invite',
@@ -107,7 +109,7 @@ export async function sendArticleContributorInvitationAction(data: {
  * Go-first : DELETE /v1/collaborations/{articleId}/contributors/{contributorId}. */
 export async function removeArticleContributorAction(articleId: string, contributorId: string) {
   try {
-    const actor = await getAuthenticatedUser();
+    await getAuthenticatedUser();
 
     await goFetch(
       `/v1/collaborations/${encodeURIComponent(articleId)}/contributors/${encodeURIComponent(contributorId)}`,
@@ -125,7 +127,7 @@ export async function removeArticleContributorAction(articleId: string, contribu
  * Go-first : POST /v1/collaborations/{articleId}/withdraw. */
 export async function withdrawArticleContributorConsentAction(articleId: string) {
   try {
-    const contributor = await getAuthenticatedUser();
+    await getAuthenticatedUser();
 
     await goFetch(`/v1/collaborations/${encodeURIComponent(articleId)}/withdraw`, {
       method: 'POST',
@@ -142,8 +144,8 @@ interface CollaborationRequestListItem {
   articleId: string;
   status: string;
   article?: { id: string; title: string; slug: string } | null;
-  inviter?: { id: string; name: string | null; email: string; username: string | null } | null;
-  invitee?: { id: string; name: string | null; email: string; username: string | null } | null;
+  inviter?: { id: string; name: string | null; username: string | null } | null;
+  invitee?: { id: string; name: string | null; username: string | null } | null;
 }
 
 /**
@@ -152,7 +154,7 @@ interface CollaborationRequestListItem {
  */
 export async function getCollaborationRequestsAction() {
   try {
-    const user = await getAuthenticatedUser();
+    await getAuthenticatedUser();
 
     const resp = await goFetch<{
       received: CollaborationRequestListItem[];

@@ -4,26 +4,9 @@ import { createClient as createServerClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { revalidatePath } from 'next/cache';
 
-/**
- * 🔔 Notifie via le backend Go (dédup + prefs gérés en SQL par
- * InsertMediaInviteNotification / InsertMediaMemberJoinedNotification).
- * Le sender est toujours l'utilisateur authentifié côté Go.
- */
-async function createMediaNotification(opts: {
-  recipientId: string;
-  senderId: string;
-  type: 'MEDIA_INVITE' | 'MEDIA_MEMBER_JOINED';
-  publicationId: string;
-}) {
-  const path =
-    opts.type === 'MEDIA_INVITE'
-      ? '/v1/notifications/media-invite'
-      : '/v1/notifications/media-member-joined';
-  return goFetch<{ success: boolean }>(path, {
-    method: 'POST',
-    body: { recipientId: opts.recipientId, publicationId: opts.publicationId },
-  });
-}
+// 🔔 Les notifications d'invitation média sont émises côté Go
+// (InsertMediaInviteNotification / InsertMediaMemberJoinedNotification),
+// avec dédup et préférences utilisateur gérées en SQL.
 
 async function getAuthUser() {
   const supabase = await createServerClient();
@@ -128,15 +111,6 @@ interface GoMediaDetail {
     joinedAt: string;
     user: { id: string; name: string | null; username: string | null; logoUrl: string | null };
   }>;
-  invites: Array<{
-    id: string;
-    email: string;
-    role: string;
-    status: string;
-    createdAt: string;
-    expiresAt: string | null;
-    inviter: { id: string; name: string | null; username: string | null };
-  }>;
 }
 
 /**
@@ -182,12 +156,13 @@ export async function getMediaPublicationAction(mediaId: string) {
 }
 
 /**
- * ➕ Inviter un rédacteur / co-auteur dans un Média
+ * ➕ Ajouter un collaborateur dans un Média par son @username
+ * (confidentiel : aucun email requis ni divulgué).
  * RBAC : manage_members (vérifié côté Go).
  */
 export async function inviteMediaMemberAction(
   mediaId: string,
-  email: string,
+  username: string,
   role: string = 'writer'
 ) {
   try {
@@ -196,32 +171,13 @@ export async function inviteMediaMemberAction(
     // Go : POST /v1/media/{id}/invites.
     const res = await goFetch<{ success: boolean; alreadyMember?: boolean }>(
       `/v1/media/${encodeURIComponent(mediaId)}/invites`,
-      { method: 'POST', body: { email, role } }
+      { method: 'POST', body: { username, role } }
     );
     revalidatePath('/advanced');
     return { success: true as const, alreadyMember: res.alreadyMember === true };
   } catch (err: unknown) {
     console.error('[Invite Media Member Error]', err);
     return { success: false, error: err instanceof Error ? err.message : "Échec de l'invitation" };
-  }
-}
-
-/**
- * ✅ Accepter une invitation à rejoindre un Média (via token).
- */
-export async function acceptMediaInviteAction(token: string) {
-  try {
-    await getAuthUser();
-
-    // Go : POST /v1/media/invites/{token}/accept.
-    const res = await goFetch<{ success: boolean; mediaId: string }>(
-      `/v1/media/invites/${encodeURIComponent(token)}/accept`,
-      { method: 'POST' }
-    );
-    revalidatePath('/advanced');
-    return { success: true as const, mediaId: res.mediaId };
-  } catch (err: unknown) {
-    return { success: false, error: err instanceof Error ? err.message : "Échec de l'acceptation" };
   }
 }
 
@@ -470,6 +426,146 @@ export async function revokeMediaApiKeyAction(mediaId: string, keyId: string) {
     return {
       success: false as const,
       error: err instanceof Error ? err.message : 'Échec de la révocation de la clé API',
+    };
+  }
+}
+
+// =====================================================================
+// 🔗 Media Invite Links & Invite Revocation (API Go /v1/media)
+// =====================================================================
+
+export interface MediaInviteLinkDTO {
+  id: string;
+  mediaId: string;
+  token: string;
+  role: string;
+  expiresAt: string | null;
+  maxUses: number;
+  usedCount: number;
+  isRevoked: boolean;
+  createdAt: string;
+}
+
+export interface MediaInviteLinkPreview {
+  mediaId: string;
+  name: string;
+  slug: string;
+  logoUrl: string | null;
+  heroText?: string | null;
+  role: string;
+  inviter?: {
+    id: string;
+    name: string | null;
+    username: string | null;
+    logoUrl: string | null;
+  };
+  expiresAt?: string | null;
+  maxUses: number;
+  usedCount: number;
+  isValid: boolean;
+  statusText: string;
+}
+
+/**
+ * 🔗 Générer un lien d'invitation pour le média
+ */
+export async function createMediaInviteLinkAction(
+  mediaId: string,
+  role: string = 'writer',
+  expiresInHours: number = 24,
+  maxUses: number = 1
+) {
+  try {
+    await getAuthUser();
+    const res = await goFetch<{ success: boolean; link: MediaInviteLinkDTO }>(
+      `/v1/media/${encodeURIComponent(mediaId)}/links`,
+      {
+        method: 'POST',
+        body: { role, expiresInHours, maxUses },
+      }
+    );
+    revalidatePath('/media');
+    return { success: true as const, link: res.link };
+  } catch (err: unknown) {
+    return {
+      success: false as const,
+      error: err instanceof Error ? err.message : 'Échec de la création du lien',
+    };
+  }
+}
+
+/**
+ * 📋 Lister les liens d'invitation actifs du média
+ */
+export async function listMediaInviteLinksAction(mediaId: string) {
+  try {
+    await getAuthUser();
+    const res = await goFetch<{ links: MediaInviteLinkDTO[] }>(
+      `/v1/media/${encodeURIComponent(mediaId)}/links`
+    );
+    return { success: true as const, links: res.links ?? [] };
+  } catch (err: unknown) {
+    return {
+      success: false as const,
+      error: err instanceof Error ? err.message : 'Échec de la récupération des liens',
+      links: [] as MediaInviteLinkDTO[],
+    };
+  }
+}
+
+/**
+ * 🚫 Révoquer un lien d'invitation de média
+ */
+export async function revokeMediaInviteLinkAction(mediaId: string, linkId: string) {
+  try {
+    await getAuthUser();
+    await goFetch(
+      `/v1/media/${encodeURIComponent(mediaId)}/links/${encodeURIComponent(linkId)}/revoke`,
+      { method: 'POST' }
+    );
+    revalidatePath('/media');
+    return { success: true as const };
+  } catch (err: unknown) {
+    return {
+      success: false as const,
+      error: err instanceof Error ? err.message : 'Échec de la révocation du lien',
+    };
+  }
+}
+
+/**
+ * 🔍 Consulter la prévisualisation d'un lien d'invitation média (public)
+ */
+export async function getMediaInviteLinkPreviewAction(token: string) {
+  try {
+    const res = await goFetch<MediaInviteLinkPreview>(
+      `/v1/media/invites/link/${encodeURIComponent(token)}`
+    );
+    return { success: true as const, preview: res };
+  } catch (err: unknown) {
+    return {
+      success: false as const,
+      error: err instanceof Error ? err.message : 'Lien introuvable ou expiré',
+    };
+  }
+}
+
+/**
+ * 🚀 Accepter et rejoindre un média via son lien d'invitation
+ */
+export async function joinMediaByLinkAction(token: string) {
+  try {
+    await getAuthUser();
+    const res = await goFetch<{ success: boolean; mediaId: string }>(
+      `/v1/media/invites/link/${encodeURIComponent(token)}/join`,
+      { method: 'POST' }
+    );
+    revalidatePath('/media');
+    return { success: true as const, mediaId: res.mediaId };
+  } catch (err: unknown) {
+    return {
+      success: false as const,
+      error: err instanceof Error ? err.message : 'Impossible de rejoindre le média',
     };
   }
 }

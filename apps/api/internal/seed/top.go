@@ -766,7 +766,7 @@ var WipeTables = []string{
 	"_CoAuthors", "collab_documents",
 	"Article",
 	"Category", "NavigationItem", "SocialLink", "Recommendation", "Tier",
-	"MediaAuditLog", "MediaInvite", "MediaMember", "Media",
+	"MediaAuditLog", "MediaMember", "Media",
 	"ApiKey", "WebhookDelivery", "Webhook", "TranslationAuditLog", "UserSettings",
 	"AccountDeletionRequest", "OAuthConsent", "OAuthToken", "OAuthAuthorizationCode",
 	"OAuthClient", "ModerationReport", "MediaAsset",

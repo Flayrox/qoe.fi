@@ -23,7 +23,7 @@ func SeedMedia(ctx context.Context, pool *pgxpool.Pool) (*MediaFixtures, error) 
 	fx := &MediaFixtures{}
 
 	if _, err := pool.Exec(ctx, `TRUNCATE TABLE
-		"Article", "MediaMember", "MediaInvite", "Media", "User", "Publication"
+		"Article", "MediaMember", "Media", "User", "Publication"
 		CASCADE`); err != nil {
 		return nil, fmt.Errorf("truncate: %w", err)
 	}
