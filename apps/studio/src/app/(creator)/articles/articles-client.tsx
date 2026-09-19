@@ -27,6 +27,8 @@ import {
   ArrowUpRight,
   ChevronDown,
   Layers,
+  X,
+  Move,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import {
@@ -164,6 +166,13 @@ export function ArticlesClient({
   const [dragOverParentId, setDragOverParentId] = useState<string | null>(null);
   const [dragOverRoot, setDragOverRoot] = useState(false);
 
+  // Inline Category Creation State (Création directe ultra-rapide)
+  const [inlineCreatingParentId, setInlineCreatingParentId] = useState<string | null>(null);
+  const [inlineSubName, setInlineSubName] = useState('');
+  const [isCreatingInlineRoot, setIsCreatingInlineRoot] = useState(false);
+  const [inlineRootName, setInlineRootName] = useState('');
+  const [isCreatingInline, setIsCreatingInline] = useState(false);
+
   // Catégories mères et enfants helpers
   const rootCategories = useMemo(() => categories.filter((c) => !c.parentId), [categories]);
   const draggedCat = useMemo(
@@ -261,6 +270,99 @@ export function ArticlesClient({
     } catch (err: unknown) {
       setCategories(previousCategories);
       alert(err instanceof Error ? err.message : t`Échec du détachement de la catégorie.`);
+    }
+  };
+
+  // Handlers pour création inline ultra simple
+  const handleInlineCreateSubCategory = async (parentId: string) => {
+    const name = inlineSubName.trim();
+    if (!name || isCreatingInline) return;
+
+    try {
+      setIsCreatingInline(true);
+      const slug =
+        name
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/-+/g, '-') || `cat-${Date.now()}`;
+
+      const res = await saveCategoryAction({
+        name,
+        slug,
+        parentId,
+      });
+
+      if (!res.ok || !res.data) {
+        throw new Error(res.ok ? t`Échec de création` : res.error.message);
+      }
+
+      const created = res.data;
+      setCategories((prev) => [
+        ...prev,
+        {
+          id: created.id,
+          name: created.name,
+          slug: created.slug,
+          description: null,
+          parentId,
+          _count: { articles: 0 },
+        },
+      ]);
+      setInlineCreatingParentId(null);
+      setInlineSubName('');
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : t`Échec de la création de la sous-catégorie.`);
+    } finally {
+      setIsCreatingInline(false);
+    }
+  };
+
+  const handleInlineCreateRoot = async () => {
+    const name = inlineRootName.trim();
+    if (!name || isCreatingInline) return;
+
+    try {
+      setIsCreatingInline(true);
+      const slug =
+        name
+          .toLowerCase()
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^a-z0-9\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/-+/g, '-') || `cat-${Date.now()}`;
+
+      const res = await saveCategoryAction({
+        name,
+        slug,
+        parentId: null,
+      });
+
+      if (!res.ok || !res.data) {
+        throw new Error(res.ok ? t`Échec de création` : res.error.message);
+      }
+
+      const created = res.data;
+      setCategories((prev) => [
+        ...prev,
+        {
+          id: created.id,
+          name: created.name,
+          slug: created.slug,
+          description: null,
+          parentId: null,
+          _count: { articles: 0 },
+        },
+      ]);
+      setIsCreatingInlineRoot(false);
+      setInlineRootName('');
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : t`Échec de la création de la catégorie.`);
+    } finally {
+      setIsCreatingInline(false);
     }
   };
 
@@ -932,6 +1034,26 @@ export function ArticlesClient({
                 </div>
               </div>
 
+              {/* Live Drag Feedback Banner */}
+              {draggedCat && (
+                <div className="p-3 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-between gap-3 text-xs font-medium text-primary">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Move className="w-4 h-4 shrink-0 animate-pulse text-primary" />
+                    <span className="truncate">
+                      {t`Déplacement de "${draggedCat.name}" en cours`} —{' '}
+                      {t`survolez un dossier cible pour prévisualiser`}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleDragEnd}
+                    className="text-[11px] px-2.5 py-1 bg-background border border-border/60 hover:bg-muted rounded-lg text-foreground cursor-pointer transition-colors shrink-0"
+                  >
+                    {t`Annuler`}
+                  </button>
+                </div>
+              )}
+
               {/* Zone de largage pour promouvoir en catégorie racine */}
               {draggedCat?.parentId && (
                 <div
@@ -1049,6 +1171,17 @@ export function ArticlesClient({
                           {/* Quick Actions */}
                           <div className="flex items-center gap-1 shrink-0">
                             <button
+                              type="button"
+                              onClick={() => {
+                                setInlineCreatingParentId(root.id);
+                                setInlineSubName('');
+                              }}
+                              className="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors cursor-pointer"
+                              title={t`Ajouter une sous-catégorie directement`}
+                            >
+                              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                            </button>
+                            <button
                               onClick={() => handleOpenEdit(root)}
                               className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/60 transition-colors cursor-pointer"
                               title={t`Modifier`}
@@ -1079,84 +1212,192 @@ export function ArticlesClient({
                           </div>
                         )}
 
-                        {/* Nested Sub-Categories */}
-                        {subCategories.length > 0 && (
-                          <div className="mt-3 ml-7 pl-3 border-l-2 border-border/40 space-y-1.5">
-                            {subCategories.map((sub) => (
-                              <div
-                                key={sub.id}
-                                draggable={true}
-                                onDragStart={(e) => handleDragStart(e, sub.id)}
-                                onDragEnd={handleDragEnd}
-                                className={cn(
-                                  'py-1.5 px-2 rounded-lg flex items-center justify-between gap-3 bg-muted/20 hover:bg-muted/40 transition-colors cursor-grab active:cursor-grabbing border border-transparent hover:border-border/30',
-                                  draggedId === sub.id && 'opacity-40 border-dashed border-primary'
-                                )}
-                              >
-                                <div className="flex items-center gap-2 min-w-0">
-                                  <GripVertical className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
-                                  <CornerDownRight className="w-3.5 h-3.5 text-muted-foreground/70 shrink-0" />
-                                  <span className="text-xs font-medium text-foreground font-sans truncate">
-                                    {sub.name}
-                                  </span>
-                                  <span className="text-[10px] text-muted-foreground font-sans tabular-nums">
-                                    ({sub._count.articles}{' '}
-                                    {sub._count.articles > 1 ? t`articles` : t`article`})
-                                  </span>
-                                  <span className="text-[10px] font-sans font-medium text-muted-foreground/70">
-                                    /{sub.slug}
-                                  </span>
-                                </div>
-
-                                <div className="flex items-center gap-1 shrink-0">
-                                  <button
-                                    onClick={async () => {
-                                      try {
-                                        const res = await moveCategoryAction({
-                                          id: sub.id,
-                                          parentId: null,
-                                        });
-                                        if (!res.ok) throw new Error(res.error.message);
-                                        setCategories((prev) =>
-                                          prev.map((c) =>
-                                            c.id === sub.id ? { ...c, parentId: null } : c
-                                          )
-                                        );
-                                      } catch (err: unknown) {
-                                        alert(
-                                          err instanceof Error
-                                            ? err.message
-                                            : t`Échec de la promotion.`
-                                        );
-                                      }
-                                    }}
-                                    className="p-1 text-muted-foreground hover:text-foreground rounded hover:bg-muted transition-colors cursor-pointer"
-                                    title={t`Promouvoir en catégorie principale`}
-                                  >
-                                    <ArrowUpRight className="w-3.5 h-3.5 stroke-[1.5]" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleOpenEdit(sub)}
-                                    className="p-1 text-muted-foreground hover:text-foreground rounded hover:bg-muted transition-colors cursor-pointer"
-                                    title={t`Modifier`}
-                                  >
-                                    <Edit3 className="w-3.5 h-3.5 stroke-[1.5]" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteCategory(sub.id, sub.name)}
-                                    className="p-1 text-muted-foreground hover:text-destructive rounded hover:bg-muted transition-colors cursor-pointer"
-                                    title={t`Supprimer`}
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5 stroke-[1.5]" />
-                                  </button>
-                                </div>
+                        {/* Nested Sub-Categories + Live Ghost Preview + Inline Quick Create */}
+                        <div className="mt-3 ml-7 pl-3 border-l-2 border-border/40 space-y-1.5">
+                          {subCategories.map((sub) => (
+                            <div
+                              key={sub.id}
+                              draggable={true}
+                              onDragStart={(e) => handleDragStart(e, sub.id)}
+                              onDragEnd={handleDragEnd}
+                              className={cn(
+                                'py-1.5 px-2 rounded-lg flex items-center justify-between gap-3 bg-muted/20 hover:bg-muted/40 transition-colors cursor-grab active:cursor-grabbing border border-transparent hover:border-border/30',
+                                draggedId === sub.id && 'opacity-40 border-dashed border-primary'
+                              )}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <GripVertical className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
+                                <CornerDownRight className="w-3.5 h-3.5 text-muted-foreground/70 shrink-0" />
+                                <span className="text-xs font-medium text-foreground font-sans truncate">
+                                  {sub.name}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground font-sans tabular-nums">
+                                  ({sub._count.articles}{' '}
+                                  {sub._count.articles > 1 ? t`articles` : t`article`})
+                                </span>
+                                <span className="text-[10px] font-sans font-medium text-muted-foreground/70">
+                                  /{sub.slug}
+                                </span>
                               </div>
-                            ))}
-                          </div>
-                        )}
+
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      const res = await moveCategoryAction({
+                                        id: sub.id,
+                                        parentId: null,
+                                      });
+                                      if (!res.ok) throw new Error(res.error.message);
+                                      setCategories((prev) =>
+                                        prev.map((c) =>
+                                          c.id === sub.id ? { ...c, parentId: null } : c
+                                        )
+                                      );
+                                    } catch (err: unknown) {
+                                      alert(
+                                        err instanceof Error
+                                          ? err.message
+                                          : t`Échec de la promotion.`
+                                      );
+                                    }
+                                  }}
+                                  className="p-1 text-muted-foreground hover:text-foreground rounded hover:bg-muted transition-colors cursor-pointer"
+                                  title={t`Promouvoir en catégorie principale`}
+                                >
+                                  <ArrowUpRight className="w-3.5 h-3.5 stroke-[1.5]" />
+                                </button>
+                                <button
+                                  onClick={() => handleOpenEdit(sub)}
+                                  className="p-1 text-muted-foreground hover:text-foreground rounded hover:bg-muted transition-colors cursor-pointer"
+                                  title={t`Modifier`}
+                                >
+                                  <Edit3 className="w-3.5 h-3.5 stroke-[1.5]" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteCategory(sub.id, sub.name)}
+                                  className="p-1 text-muted-foreground hover:text-destructive rounded hover:bg-muted transition-colors cursor-pointer"
+                                  title={t`Supprimer`}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5 stroke-[1.5]" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+
+                          {/* Live Insertion Ghost Preview during Drag */}
+                          {isDropTarget && draggedCat && (
+                            <div className="py-2 px-3 rounded-lg border-2 border-dashed border-primary bg-primary/10 flex items-center gap-2 text-xs font-semibold text-primary animate-pulse shadow-sm">
+                              <CornerDownRight className="w-3.5 h-3.5 text-primary shrink-0" />
+                              <span>↳ {draggedCat.name}</span>
+                              <span className="text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded-full ml-auto font-medium">
+                                {t`Aperçu du nouvel emplacement`}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Inline Sub-Category Creation Form */}
+                          {inlineCreatingParentId === root.id ? (
+                            <form
+                              onSubmit={(e) => {
+                                e.preventDefault();
+                                handleInlineCreateSubCategory(root.id);
+                              }}
+                              className="py-1 flex items-center gap-2 pt-1"
+                            >
+                              <CornerDownRight className="w-3.5 h-3.5 text-primary shrink-0" />
+                              <input
+                                autoFocus
+                                type="text"
+                                value={inlineSubName}
+                                onChange={(e) => setInlineSubName(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Escape') setInlineCreatingParentId(null);
+                                }}
+                                placeholder={t`Nom de la sous-catégorie... (Entrée)`}
+                                className="flex-1 bg-background border border-primary/50 focus:border-primary rounded-lg px-2.5 py-1 text-xs text-foreground focus:outline-none transition-all shadow-xs"
+                              />
+                              <button
+                                type="submit"
+                                disabled={isCreatingInline || !inlineSubName.trim()}
+                                className="px-2.5 py-1 text-xs font-bold bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors cursor-pointer"
+                              >
+                                {isCreatingInline ? t`...` : t`Créer`}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setInlineCreatingParentId(null)}
+                                className="p-1 text-muted-foreground hover:text-foreground rounded hover:bg-muted transition-colors cursor-pointer"
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </button>
+                            </form>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setInlineCreatingParentId(root.id);
+                                setInlineSubName('');
+                              }}
+                              className="group flex items-center gap-1.5 text-[11px] text-muted-foreground/75 hover:text-foreground hover:bg-muted/40 px-2 py-1 rounded-md transition-colors cursor-pointer mt-1"
+                            >
+                              <Plus className="w-3 h-3 text-muted-foreground/60 group-hover:text-primary transition-colors" />
+                              <span>{t`Ajouter une sous-catégorie`}</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
+                  {/* Bouton ou formulaire inline pour créer une catégorie principale */}
+                  {isCreatingInlineRoot ? (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        handleInlineCreateRoot();
+                      }}
+                      className="p-3.5 rounded-xl border border-primary/50 bg-card flex items-center gap-2.5 shadow-sm"
+                    >
+                      <FolderOpen className="w-4 h-4 text-primary shrink-0" />
+                      <input
+                        autoFocus
+                        type="text"
+                        value={inlineRootName}
+                        onChange={(e) => setInlineRootName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') setIsCreatingInlineRoot(false);
+                        }}
+                        placeholder={t`Nom de la catégorie principale... (Entrée pour valider)`}
+                        className="flex-1 bg-background border border-primary/40 focus:border-primary rounded-lg px-3 py-1.5 text-xs text-foreground focus:outline-none transition-all"
+                      />
+                      <button
+                        type="submit"
+                        disabled={isCreatingInline || !inlineRootName.trim()}
+                        className="px-3 py-1.5 text-xs font-bold bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors cursor-pointer"
+                      >
+                        {isCreatingInline ? t`...` : t`Créer`}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsCreatingInlineRoot(false)}
+                        className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </form>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCreatingInlineRoot(true);
+                        setInlineRootName('');
+                      }}
+                      className="w-full py-2.5 px-3 rounded-xl border border-dashed border-border/70 hover:border-primary/60 hover:bg-primary/5 text-muted-foreground hover:text-primary transition-all flex items-center justify-center gap-2 text-xs font-semibold cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                      {t`Nouvelle catégorie principale`}
+                    </button>
+                  )}
                 </div>
               )}
             </div>
