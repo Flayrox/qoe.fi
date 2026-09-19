@@ -293,7 +293,16 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
   });
 
   return (
-    <TenantReaderShell style={customStyle} themeMode={themeMode}>
+    <TenantReaderShell
+      style={customStyle}
+      themeMode={themeMode}
+      articleMetadata={{
+        title: article.title,
+        coverUrl: publication.headerImageUrl || article.author?.logoUrl,
+        authorName,
+        contentSelector: '#article-content',
+      }}
+    >
       <JsonLd data={jsonLdData} />
       {/* Header */}
       <TenantHeader

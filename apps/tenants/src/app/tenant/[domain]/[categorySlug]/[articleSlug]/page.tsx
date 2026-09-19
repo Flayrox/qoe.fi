@@ -11,6 +11,7 @@ import { type AnnotationItem, type HighlightItem } from '@qoe/ui/annotations';
 import { LegalFooterLinks } from '@/components/legal/LegalFooterLinks';
 import { TenantArticleHighlighter } from '../../article/[slug]/TenantArticleHighlighter';
 import { TenantArticleReadingTracker } from '../../article/[slug]/TenantArticleReadingTracker';
+import { TenantReaderShell } from '../../article/[slug]/TenantReaderShell';
 import { type CommentItem } from '../../article/[slug]/ArticleCommentsSection';
 import { PaywallCut } from '../../article/[slug]/PaywallCut';
 import { ReaderActions } from '../../article/[slug]/ReaderActions';
@@ -302,9 +303,15 @@ export default async function TenantCategoryArticlePage({
   });
 
   return (
-    <div
-      className={`min-h-screen ${themeMode === 'dark' ? 'dark bg-foreground text-background' : 'bg-background text-foreground'} selection:bg-[var(--tenant-accent)] selection:text-white transition-colors duration-300 relative`}
+    <TenantReaderShell
       style={customStyle}
+      themeMode={themeMode}
+      articleMetadata={{
+        title: article.title,
+        coverUrl: publication.headerImageUrl || article.author?.logoUrl,
+        authorName,
+        contentSelector: '#article-content',
+      }}
     >
       <JsonLd data={jsonLdData} />
       <TenantHeader
@@ -446,6 +453,6 @@ export default async function TenantCategoryArticlePage({
           <p>{footerText || t`© ${new Date().getFullYear()} ${name ?? ''}. Propulsé par qoe.fi`}</p>
         </div>
       </footer>
-    </div>
+    </TenantReaderShell>
   );
 }

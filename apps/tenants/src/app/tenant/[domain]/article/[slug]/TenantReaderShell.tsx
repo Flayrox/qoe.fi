@@ -9,6 +9,7 @@ import {
   getReaderTypographyClasses,
   getPaperThemeClasses,
   useBionicReading,
+  TextToSpeechProvider,
 } from '@qoe/ui/reader';
 import { cn } from '@qoe/utils';
 
@@ -17,6 +18,12 @@ interface TenantReaderShellProps {
   className?: string;
   style?: React.CSSProperties;
   themeMode?: string | null;
+  articleMetadata?: {
+    title: string;
+    coverUrl?: string | null;
+    authorName?: string | null;
+    contentSelector?: string;
+  };
 }
 
 export function TenantReaderShell({
@@ -24,12 +31,26 @@ export function TenantReaderShell({
   className = '',
   style,
   themeMode,
+  articleMetadata,
 }: TenantReaderShellProps) {
   return (
     <ReadingPreferencesProvider>
-      <TenantReaderShellInner className={className} style={style} themeMode={themeMode}>
-        {children}
-      </TenantReaderShellInner>
+      <TextToSpeechProvider
+        initialMetadata={
+          articleMetadata
+            ? {
+                title: articleMetadata.title,
+                coverUrl: articleMetadata.coverUrl,
+                authorName: articleMetadata.authorName,
+                contentSelector: articleMetadata.contentSelector || '#article-content',
+              }
+            : undefined
+        }
+      >
+        <TenantReaderShellInner className={className} style={style} themeMode={themeMode}>
+          {children}
+        </TenantReaderShellInner>
+      </TextToSpeechProvider>
     </ReadingPreferencesProvider>
   );
 }
