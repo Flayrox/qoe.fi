@@ -55,12 +55,10 @@
     # (Seuls les hosts couverts par un bloc de site déclenchent l'émission —
     # un domaine tiers pointé vers le VPS n'obtient rien.)
     # ⚠️ Caddy ≥ 2.9 : `interval` ET `burst` ont été SUPPRIMÉS (vécu 01/09 :
-    # crash-loop au reload). Il ne reste que `ask` (obligatoire) → endpoint
-    # interne :8080 (bloc dédié en bas de fichier, port NON publié). Caddy
-    # répond 200 pour tout : seuls les hosts couverts par un bloc de site
-    # (tous des *.qoe.fi) déclenchent de toute façon l'émission.
+    # crash-loop au reload). Il ne reste que `ask` (obligatoire) → l'API Go
+    # vérifie le domaine en base avant toute émission Let's Encrypt.
     on_demand_tls {
-        ask http://localhost:8080/check
+        ask http://api:8080/internal/tls-ask
     }
 }
 
@@ -248,6 +246,12 @@ api.qoe.fi {
         Strict-Transport-Security "max-age=31536000; includeSubDomains"
         X-Content-Type-Options "nosniff"
         Access-Control-Allow-Origin "*"
+    }
+
+    # /internal/* n'est joignable qu'en direct dans le réseau Docker (Caddy →
+    # api:8080) : depuis Internet, on coupe avant le reverse proxy.
+    handle /internal/* {
+        abort
     }
 
     reverse_proxy api:8080 {
@@ -542,16 +546,14 @@ mail.admin.qoe.fi {
 }
 
 # ───────────────────────────────────────────────────────────────────
-# ✅ ENDPOINT INTERNE « ask » pour l'On-Demand TLS (tenants *.qoe.fi)
+# ✅ AUTORISATION « ask » pour l'On-Demand TLS (tenants *.qoe.fi)
 # ───────────────────────────────────────────────────────────────────
-# Caddy interroge http://localhost:8080/check?domain=<host> AVANT d'émettre
-# un cert on-demand. On répond 200 systématiquement : de toute façon, seuls
-# les hosts couverts par un bloc de site (tous des *.qoe.fi) déclenchent
-# l'émission. Port 8080 NON publié → joignable uniquement depuis le conteneur
-# (aucune exposition réseau).
-:8080 {
-    respond "OK" 200
-}
+# Caddy interroge http://api:8080/internal/tls-ask?domain=<host> AVANT
+# d'émettre un cert on-demand. L'API Go répond 200 uniquement pour
+# updates.qoe.fi et les sous-domaines rattachés à une publication existante
+# (403 sinon) : les typos, scans et sous-domaines inventés ne déclenchent
+# plus d'émission Let's Encrypt. Le port 8080 de l'API n'est pas publié :
+# seul le réseau Docker atteint cette route (api.qoe.fi coupe /internal/*).
 
 # 📊 UMAMI ANALYTICS (self-hosted) : TRACKING public uniquement
 # ─────────────────────────────────────────────────────────────────────
