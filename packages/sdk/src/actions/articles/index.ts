@@ -312,6 +312,7 @@ export const getCategoriesAction = safeAction<void, CategoryWithCount[]>(async (
       name: string;
       slug: string;
       description: string | null;
+      parentId: string | null;
       articlesCount: number;
     }>;
   }>(`/v1/categories?publicationId=${publicationId}`);
@@ -321,7 +322,7 @@ export const getCategoriesAction = safeAction<void, CategoryWithCount[]>(async (
     slug: c.slug,
     description: c.description,
     publicationId,
-    parentId: null,
+    parentId: c.parentId ?? null,
     _count: { articles: c.articlesCount },
   }));
 });
@@ -345,17 +346,23 @@ export const getEditorCapabilitiesAction = safeAction<void, EditorCapabilities>(
 });
 
 export const saveCategoryAction = safeAction<
-  { id?: string; name: string; slug?: string; description?: string | null },
+  {
+    id?: string;
+    name: string;
+    slug?: string;
+    description?: string | null;
+    parentId?: string | null;
+  },
   Category
 >(async (data) => {
-  const { id, name, slug, description = null } = data;
+  const { id, name, slug, description = null, parentId = null } = data;
 
   if (!name.trim()) throw new Error('Le nom de la catégorie est requis.');
 
   if (id) {
     const res = await goFetch<Category>(`/v1/categories/${id}`, {
       method: 'PATCH',
-      body: { name, slug, description },
+      body: { name, slug, description, parentId },
     });
     revalidatePath('/articles');
     return res;
@@ -363,11 +370,23 @@ export const saveCategoryAction = safeAction<
   const publicationId = await getActivePublicationId();
   const res = await goFetch<Category>(`/v1/categories`, {
     method: 'POST',
-    body: { publicationId, name, slug, description },
+    body: { publicationId, name, slug, description, parentId },
   });
   revalidatePath('/articles');
   return res;
 });
+
+export const moveCategoryAction = safeAction<{ id: string; parentId: string | null }, Category>(
+  async (data) => {
+    const { id, parentId } = data;
+    const res = await goFetch<Category>(`/v1/categories/${id}`, {
+      method: 'PATCH',
+      body: { parentId },
+    });
+    revalidatePath('/articles');
+    return res;
+  }
+);
 
 export const deleteCategoryAction = safeAction<string, { success: boolean }>(async (id) => {
   await goFetch(`/v1/categories/${id}`, { method: 'DELETE' });
