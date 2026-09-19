@@ -3,6 +3,7 @@
 import React from 'react';
 import {
   TextHighlighter,
+  createAnnotationCallbacks,
   type AnnotationItem,
   type HighlightItem,
   type CanonicalDocument,
@@ -53,6 +54,20 @@ export function TenantArticleHighlighter({
   canonicalDocument,
   contentClassName,
 }: TenantArticleHighlighterProps) {
+  const callbacks = React.useMemo(
+    () =>
+      createAnnotationCallbacks(articleId, {
+        createHighlightAction,
+        upvoteHighlightAction,
+        createAnnotationCommentAction,
+        toggleHighlightPrivacyAction,
+        updateHighlightNoteAction,
+        deleteHighlightAction,
+        quotePassageToFeedAction,
+      }),
+    [articleId]
+  );
+
   return (
     <TextHighlighter
       articleId={articleId}
@@ -67,44 +82,7 @@ export function TenantArticleHighlighter({
       mainAppUrl={mainAppUrl}
       canonicalDocument={canonicalDocument ?? undefined}
       contentClassName={contentClassName}
-      callbacks={{
-        onHighlightCreate: async (params) =>
-          createHighlightAction({
-            articleId: params.articleId || articleId,
-            text: params.text,
-            note: params.note || undefined,
-            isPublic: params.isPublic,
-          }),
-        onUpvote: async (highlightId: string) => upvoteHighlightAction(highlightId),
-        onComment: async (params) => {
-          const res = await createAnnotationCommentAction({
-            highlightId: params.highlightId,
-            content: params.content,
-          });
-          if (!res.ok) return { ok: false, error: res.error };
-          return { ok: true, data: res.data.comment };
-        },
-        onTogglePrivacy: async (params) =>
-          toggleHighlightPrivacyAction({
-            highlightId: params.highlightId,
-            isPublic: params.isPublic,
-          }),
-        onUpdateNote: async (params) =>
-          updateHighlightNoteAction({
-            highlightId: params.highlightId,
-            note: params.note,
-          }),
-        onDelete: async (highlightId: string) => {
-          const res = await deleteHighlightAction(highlightId);
-          return res.ok ? { ok: true } : { ok: false, error: res.error };
-        },
-        onCrosspost: async (params) =>
-          quotePassageToFeedAction({
-            articleId: params.articleId || articleId,
-            text: params.text,
-            commentary: params.commentary,
-          }),
-      }}
+      callbacks={callbacks}
     />
   );
 }

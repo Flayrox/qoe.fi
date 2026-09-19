@@ -6,6 +6,7 @@ import { Bookmark, BookMarked, Check, Lock, Share2, UserCheck, UserPlus } from '
 import { createClient } from '@qoe/supabase/client';
 import {
   TextHighlighter,
+  createAnnotationCallbacks,
   type AnnotationItem,
   type AnnotationActionCallbacks,
   type CanonicalDocument,
@@ -180,71 +181,50 @@ function ArticleAnnotatorViewInner({
     loadHighlights();
   }, [article.id]);
 
-  // Decoupled Annotation Action Callbacks bound to API client actions
-  const callbacks: AnnotationActionCallbacks = {
-    onHighlightCreate: async ({ articleId, text, note, isPublic, quoteOrdinal }) => {
-      const res = await createHighlightAction({
-        articleId: articleId || article.id,
-        text,
-        note: note || null,
-        isPublic: !!isPublic,
-        ...(quoteOrdinal !== undefined ? { quoteOrdinal } : {}),
-      });
-      if (res.ok && res.data?.highlight) {
-        return { ok: true, data: res.data.highlight };
-      }
-      return res.ok ? { ok: false } : res;
-    },
-    onUpvote: async (highlightId) => {
-      const res = await upvoteHighlightAction({ highlightId });
-      return res;
-    },
-    onComment: async ({ highlightId, content }) => {
-      const res = await createAnnotationCommentAction({ highlightId, content });
-      if (res.ok && res.data?.comment) {
-        return { ok: true, data: res.data.comment };
-      }
-      return res.ok ? { ok: false } : res;
-    },
-    onTogglePrivacy: async ({ highlightId, isPublic }) => {
-      const res = await toggleHighlightPrivacyAction({ highlightId, isPublic });
-      if (res.ok && res.data?.highlight) {
-        return { ok: true, data: res.data.highlight };
-      }
-      return res.ok ? { ok: false } : res;
-    },
-    onDelete: async (highlightId) => {
-      const res = await deleteHighlightAction({ highlightId });
-      if (res.ok) {
-        return { ok: true };
-      }
-      return res;
-    },
-    onCrosspost: async ({ text, commentary }) => {
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(
-          new CustomEvent('open-composer', {
-            detail: {
-              quotedArticle: {
-                id: article.id,
-                title: article.title,
-                slug: article.slug,
-                content: article.content,
-                author: {
-                  ...article.author,
-                  subdomain: article.author.subdomain || article.publication?.subdomain,
-                  customDomain: article.author.customDomain || article.publication?.customDomain,
-                },
-              },
-              quotedExcerpt: text,
-              initialText: commentary || '',
-            },
-          })
-        );
-      }
-      return { ok: true };
-    },
-  };
+  // Standardized Annotation Action Callbacks bound to API client actions
+  const callbacks: AnnotationActionCallbacks = React.useMemo(
+    () =>
+      createAnnotationCallbacks(
+        article.id,
+        {
+          createHighlightAction,
+          upvoteHighlightAction: (id) =>
+            upvoteHighlightAction(typeof id === 'string' ? { highlightId: id } : id),
+          createAnnotationCommentAction,
+          toggleHighlightPrivacyAction,
+          deleteHighlightAction: (id) =>
+            deleteHighlightAction(typeof id === 'string' ? { highlightId: id } : id),
+        },
+        {
+          onCrosspost: async ({ text, commentary }) => {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(
+                new CustomEvent('open-composer', {
+                  detail: {
+                    quotedArticle: {
+                      id: article.id,
+                      title: article.title,
+                      slug: article.slug,
+                      content: article.content,
+                      author: {
+                        ...article.author,
+                        subdomain: article.author.subdomain || article.publication?.subdomain,
+                        customDomain:
+                          article.author.customDomain || article.publication?.customDomain,
+                      },
+                    },
+                    quotedExcerpt: text,
+                    initialText: commentary || '',
+                  },
+                })
+              );
+            }
+            return { ok: true };
+          },
+        }
+      ),
+    [article]
+  );
 
   // Sync bookmark and follow states
   useEffect(() => {
