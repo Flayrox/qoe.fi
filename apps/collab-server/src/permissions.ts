@@ -25,8 +25,15 @@ const CAN_EDIT_SQL = `
     WHERE a.id = $2
       AND (
         a."authorId" = $1
-        OR EXISTS (SELECT 1 FROM "_CoAuthors" ca WHERE ca."A" = a.id AND ca."B" = $1)
         OR mm.id IS NOT NULL
+        OR EXISTS (
+          SELECT 1 FROM "ArticleAttribution" aa
+          WHERE aa."articleId" = a.id AND aa."userId" = $1 AND aa."consentStatus" IN ('PENDING', 'ACCEPTED')
+        )
+        OR EXISTS (
+          SELECT 1 FROM "CollaborationRequest" cr
+          WHERE cr."articleId" = a.id AND cr."inviteeId" = $1 AND cr."status" IN ('PENDING', 'ACCEPTED')
+        )
       )
   ) AS "allowed"
 `;

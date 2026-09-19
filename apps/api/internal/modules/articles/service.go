@@ -115,7 +115,8 @@ type CreateArticleInput struct {
 	Status         string
 	// ScheduledAt programme la publication : futur + demande de publication →
 	// statut SCHEDULED (publié automatiquement par le scheduled publisher).
-	ScheduledAt *time.Time
+	ScheduledAt  *time.Time
+	Attributions []ArticleAttributionInput
 }
 
 // UpdateArticleInput est l'entrée de mise à jour.
@@ -133,7 +134,8 @@ type UpdateArticleInput struct {
 	Status              string
 	ActivePublicationID string
 	// ScheduledAt programme la publication ; nil = conserver l'existant.
-	ScheduledAt *time.Time
+	ScheduledAt  *time.Time
+	Attributions []ArticleAttributionInput
 }
 
 type Service struct {
@@ -351,6 +353,7 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateArticleInp
 	if err != nil {
 		return "", err
 	}
+	s.syncAttributions(ctx, id, userID, in.Attributions)
 	s.queueSearchSync(id, "upsert")
 
 	switch {
@@ -428,15 +431,34 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 		return errNotFound
 	}
 
-	// Gate 1 : auteur direct OU publication active du workspace.
+	// Gate 1 : auteur direct OU publication active du workspace OU co-auteur avec attribution.
 	isAuthor := uuidString(row.AuthorId) == userID
 	if !isAuthor && row.PublicationId != in.ActivePublicationID {
-		return errForbidden
+		var isCoAuthor bool
+		_ = s.pool.QueryRow(ctx, `
+			SELECT EXISTS (
+				SELECT 1 FROM "ArticleAttribution" aa
+				WHERE aa."articleId" = $1 AND aa."userId" = $2 AND aa."consentStatus" IN ('PENDING', 'ACCEPTED')
+			)
+		`, articleID, toUUID(userID)).Scan(&isCoAuthor)
+		if !isCoAuthor {
+			return errForbidden
+		}
 	}
 
 	mc, err := s.resolveMember(ctx, userID, row.PublicationId)
-	if err != nil {
-		return err
+	if err != nil && !isAuthor {
+		// Si l'utilisateur est co-auteur hors média, on autorise l'édition sans appartenance média
+		var isCoAuthor bool
+		_ = s.pool.QueryRow(ctx, `
+			SELECT EXISTS (
+				SELECT 1 FROM "ArticleAttribution" aa
+				WHERE aa."articleId" = $1 AND aa."userId" = $2 AND aa."consentStatus" IN ('PENDING', 'ACCEPTED')
+			)
+		`, articleID, toUUID(userID)).Scan(&isCoAuthor)
+		if !isCoAuthor {
+			return err
+		}
 	}
 
 	// Workflow média : état effectif de publication.
@@ -505,6 +527,7 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 		}); err != nil {
 			return err
 		}
+		s.syncAttributions(ctx, articleID, uuidString(row.AuthorId), in.Attributions)
 		return nil
 	}
 
@@ -527,6 +550,7 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 	}); err != nil {
 		return err
 	}
+	s.syncAttributions(ctx, articleID, uuidString(row.AuthorId), in.Attributions)
 	s.queueSearchSync(articleID, "upsert")
 	s.emitArticleLifecycle(queue.TaskArticleUpdated, row, in.Title, in.Slug)
 
@@ -702,8 +726,24 @@ func (s *Service) GetByID(ctx context.Context, articleID, userID string) (Articl
 		return ArticleResponse{}, errNotFound
 	}
 	if row.AuthorID != userID {
-		if _, err := s.resolveMember(ctx, userID, row.PublicationId); err != nil {
-			return ArticleResponse{}, errForbidden
+		isMember := false
+		if _, err := s.resolveMember(ctx, userID, row.PublicationId); err == nil {
+			isMember = true
+		}
+		if !isMember {
+			var isCollab bool
+			_ = s.pool.QueryRow(ctx, `
+				SELECT EXISTS (
+					SELECT 1 FROM "ArticleAttribution" aa
+					WHERE aa."articleId" = $1 AND aa."userId" = $2 AND aa."consentStatus" IN ('PENDING', 'ACCEPTED')
+					UNION
+					SELECT 1 FROM "CollaborationRequest" cr
+					WHERE cr."articleId" = $1 AND cr."inviteeId" = $2 AND cr.status IN ('PENDING', 'ACCEPTED')
+				)
+			`, articleID, toUUID(userID)).Scan(&isCollab)
+			if !isCollab {
+				return ArticleResponse{}, errForbidden
+			}
 		}
 	}
 	resp := s.articleResponseFromIDRow(row)
@@ -824,7 +864,99 @@ func (s *Service) fetchCoAuthors(ctx context.Context, articleID string) []Author
 		}
 		out = append(out, AuthorInfo{ID: uid, Name: textPtr(name), Username: textPtr(username), LogoURL: textPtr(logoUrl), IsCertified: isCertified})
 	}
+	// Enrichit avec les co-auteurs issus de ArticleAttribution
+	attrRows, err := s.pool.Query(ctx, `
+		SELECT u.id::text, u.name, u.username, u."logoUrl", u."isCertified"
+		FROM "ArticleAttribution" aa
+		JOIN "User" u ON u.id = aa."userId"
+		WHERE aa."articleId"=$1 AND aa.role='CO_AUTHOR' AND aa."consentStatus"='ACCEPTED'`, articleID)
+	if err == nil {
+		defer attrRows.Close()
+		seen := make(map[string]bool)
+		for _, a := range out {
+			seen[a.ID] = true
+		}
+		for attrRows.Next() {
+			var uid string
+			var name, username, logoUrl pgtype.Text
+			var isCertified bool
+			if err := attrRows.Scan(&uid, &name, &username, &logoUrl, &isCertified); err == nil && !seen[uid] {
+				seen[uid] = true
+				out = append(out, AuthorInfo{ID: uid, Name: textPtr(name), Username: textPtr(username), LogoURL: textPtr(logoUrl), IsCertified: isCertified})
+			}
+		}
+	}
 	return out
+}
+
+func (s *Service) syncAttributions(ctx context.Context, articleID, authorID string, attributions []ArticleAttributionInput) {
+	if s.pool == nil {
+		return
+	}
+	// Toujours s'assurer que l'auteur principal a son attribution PRIMARY_AUTHOR ACCEPTED
+	_, _ = s.pool.Exec(ctx, `
+		INSERT INTO "ArticleAttribution" (id, "articleId", "userId", role, "order", "isVisible", "consentStatus", "consentUpdatedAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1, $2, 'PRIMARY_AUTHOR', 0, true, 'ACCEPTED', now(), now())
+		ON CONFLICT ("articleId", "userId") DO UPDATE SET
+		  role = 'PRIMARY_AUTHOR', "order" = 0, "isVisible" = true, "consentStatus" = 'ACCEPTED', "updatedAt" = now()
+	`, articleID, toUUID(authorID))
+
+	if len(attributions) == 0 {
+		return
+	}
+
+	for _, attr := range attributions {
+		if attr.UserID == "" || attr.UserID == authorID {
+			continue
+		}
+		role := attr.Role
+		if role == "" {
+			role = "CO_AUTHOR"
+		}
+		order := attr.Order
+		if order <= 0 {
+			order = 1
+		}
+
+		// Vérifie si une attribution existe déjà
+		var existingConsent pgtype.Text
+		err := s.pool.QueryRow(ctx, `
+			SELECT "consentStatus" FROM "ArticleAttribution"
+			WHERE "articleId" = $1 AND "userId" = $2
+		`, articleID, toUUID(attr.UserID)).Scan(&existingConsent)
+
+		if errors.Is(err, pgx.ErrNoRows) {
+			// Nouveau contributeur : insertion avec statut PENDING
+			_, _ = s.pool.Exec(ctx, `
+				INSERT INTO "ArticleAttribution" (id, "articleId", "userId", role, "order", "isVisible", "consentStatus", "consentUpdatedAt", "updatedAt")
+				VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, 'PENDING', now(), now())
+				ON CONFLICT ("articleId", "userId") DO NOTHING
+			`, articleID, toUUID(attr.UserID), role, order, attr.IsVisible)
+
+			// Création de la demande de collaboration
+			_, _ = s.pool.Exec(ctx, `
+				INSERT INTO "CollaborationRequest" (id, "articleId", "inviterId", "inviteeId", status, "requestedRole", "requestedOrder", "showOnPublicProfile", "createdAt", "updatedAt")
+				VALUES (gen_random_uuid()::text, $1, $2, $3, 'PENDING', $4, $5, $6, now(), now())
+				ON CONFLICT ("articleId", "inviteeId") DO UPDATE SET
+				  status = 'PENDING', "requestedRole" = $4, "requestedOrder" = $5, "showOnPublicProfile" = $6, "updatedAt" = now()
+			`, articleID, toUUID(authorID), toUUID(attr.UserID), role, order, attr.IsVisible)
+
+			// Émission de la notification in-app garantie
+			_ = s.q.InsertArticleContributorNotification(ctx, db.InsertArticleContributorNotificationParams{
+				Column1: toUUID(attr.UserID),
+				Column2: toUUID(authorID),
+				Column3: db.NotificationTypeARTICLECONTRIBUTORINVITED,
+				Column4: articleID,
+			})
+		} else if err == nil {
+			// Contributeur existant : mise à jour du rôle, de l'ordre et de la visibilité
+			_, _ = s.pool.Exec(ctx, `
+				UPDATE "ArticleAttribution"
+				SET role = $3, "order" = $4, "isVisible" = $5, "updatedAt" = now()
+				WHERE "articleId" = $1 AND "userId" = $2
+			`, articleID, toUUID(attr.UserID), role, order, attr.IsVisible)
+		}
+	}
 }
 
 func periodCutoff(period string) *time.Time {
