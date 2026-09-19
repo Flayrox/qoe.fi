@@ -12,6 +12,7 @@ interface UserSettingsDTO {
   profileVisibility: 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE';
   allowMentions: boolean;
   allowCollaborationInvites: boolean;
+  collaborationInvitePermission?: 'EVERYONE' | 'MUTUALS' | 'FOLLOWING' | 'MEDIA_ONLY' | 'NOBODY';
   showSensitiveContent: boolean;
   likeVisibility: 'PUBLIC' | 'PRIVATE';
   autoplayMedia: boolean;
@@ -97,6 +98,7 @@ export type AccountSettingsPatch = Partial<{
   profileVisibility: 'PUBLIC' | 'FOLLOWERS' | 'PRIVATE';
   allowMentions: boolean;
   allowCollaborationInvites: boolean;
+  collaborationInvitePermission?: 'EVERYONE' | 'MUTUALS' | 'FOLLOWING' | 'MEDIA_ONLY' | 'NOBODY';
   showSensitiveContent: boolean;
   likeVisibility: 'PUBLIC' | 'PRIVATE';
   autoplayMedia: boolean;
