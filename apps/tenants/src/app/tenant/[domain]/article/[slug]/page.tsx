@@ -378,6 +378,19 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
           </div>
         </header>
 
+        {article.imageUrl && (
+          <figure className="relative w-full overflow-hidden rounded-2xl border border-border/30">
+            <Image
+              src={article.imageUrl}
+              alt={article.title}
+              width={1200}
+              height={630}
+              priority
+              className="h-auto w-full object-cover"
+            />
+          </figure>
+        )}
+
         {/* Article Body Container with Server-side Zero-Leak PaywallCut —
             remplacé par le rendu par blocs (document canonique) quand
             l'accès complet est acquis. */}

@@ -415,6 +415,18 @@ export default async function TenantCategoryArticlePage({
             </div>
           </div>
         </header>
+        {article.imageUrl && (
+          <figure className="relative w-full overflow-hidden rounded-2xl border border-border/30">
+            <Image
+              src={article.imageUrl}
+              alt={article.title}
+              width={1200}
+              height={630}
+              priority
+              className="h-auto w-full object-cover"
+            />
+          </figure>
+        )}
         {!canonicalDocument && (
           <div
             id="article-content"

@@ -361,8 +361,13 @@ export function ArticleCard({
   // Sur un profil (override désactivé), l'auteur affiché reste la personne :
   // la ligne « Pour <média> » vient de la publication, et on ne répète pas le
   // journaliste déjà affiché en première ligne.
+  // Quand l'auteur EST le média lui-même (même nom), la ligne « Pour »
+  // serait un doublon ridicule : on la masque.
+  const authorLabel = (article.author.name ?? '').trim().toLowerCase();
+  const mediaLabel = (article.publication?.name ?? '').trim().toLowerCase();
+  const isAuthorTheMedia = authorLabel !== '' && authorLabel === mediaLabel;
   const profileMedia: Contributor | null =
-    disableAuthorOverride && isMedia
+    disableAuthorOverride && isMedia && !isAuthorTheMedia
       ? article.publication
         ? {
             id: article.publication.id,
