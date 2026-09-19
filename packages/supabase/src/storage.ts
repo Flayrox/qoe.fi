@@ -71,10 +71,24 @@ export async function uploadImageToRoute(
   if (folder) formData.append('folder', folder);
 
   const res = await fetch(endpoint, { method: 'POST', body: formData });
-  const data = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+
+  // Une réponse non-JSON (502/504 d'un reverse proxy, page d'erreur HTML, image
+  // docker non déployée…) provoquait un message générique impossible à
+  // diagnostiquer : on remonte systématiquement le statut HTTP et le début du
+  // corps pour que l'erreur affichée soit exploitable.
+  const raw = await res.text();
+  let data: { url?: string; error?: string } = {};
+  try {
+    data = JSON.parse(raw) as { url?: string; error?: string };
+  } catch {
+    data = { error: raw.trim().slice(0, 300) };
+  }
 
   if (!res.ok || !data.url) {
-    throw new Error(data.error || "Échec de l'upload de l'image");
+    const detail = data.error ? ` — ${data.error}` : '';
+    throw new Error(
+      `Échec de l'upload de l'image (HTTP ${res.status}${detail ? '' : ' sans détail'})${detail}`
+    );
   }
   return data.url;
 }
