@@ -204,17 +204,19 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
   const targetLink =
     type === 'ARTICLE_CONTRIBUTOR_INVITED'
       ? '/advanced'
-      : type === 'FOLLOW' && notification.publication?.slug
-        ? `/${notification.publication.slug}`
-        : notification.thoughtId
-          ? `/thought/${notification.thoughtId}`
-          : notification.article
-            ? `/article/${notification.article.slug}`
-            : notification.publication
-              ? `/m/${notification.publication.id}`
-              : firstSender?.username
-                ? `/@${firstSender.username}`
-                : '#';
+      : type === 'MEDIA_INVITE'
+        ? '/media'
+        : type === 'FOLLOW' && notification.publication?.slug
+          ? `/${notification.publication.slug}`
+          : notification.thoughtId
+            ? `/thought/${notification.thoughtId}`
+            : notification.article
+              ? `/article/${notification.article.slug}`
+              : notification.publication
+                ? `/m/${notification.publication.id}`
+                : firstSender?.username
+                  ? `/@${firstSender.username}`
+                  : '#';
 
   return (
     <Link
