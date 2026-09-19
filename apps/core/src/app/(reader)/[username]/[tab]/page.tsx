@@ -38,15 +38,25 @@ interface GoArticle {
   title: string;
   slug: string;
   content: string;
+  imageUrl?: string | null;
+  image_url?: string | null;
   readingTime?: number;
   createdAt: string;
   isPremium?: boolean;
   accessGranted?: boolean;
+  category?: {
+    id: string;
+    name: string;
+    slug: string;
+  } | null;
   author: {
     id: string;
     name?: string | null;
     username?: string | null;
     logoUrl?: string | null;
+    heroText?: string | null;
+    isCertified?: boolean;
+    type?: 'PERSONAL' | 'MEDIA';
   };
   publication?: {
     name?: string | null;
@@ -247,6 +257,7 @@ export default async function UserProfileTabPage({
           title: article.title,
           slug: article.slug,
           content: article.content,
+          imageUrl: article.imageUrl || article.image_url || null,
           readingTime: article.readingTime ?? 3,
           createdAt: article.createdAt,
           published: true,
@@ -257,10 +268,13 @@ export default async function UserProfileTabPage({
             name: article.author?.name ?? null,
             username: article.author?.username ?? null,
             logoUrl: article.author?.logoUrl ?? null,
+            heroText: article.author?.heroText ?? null,
+            isCertified: article.author?.isCertified ?? false,
+            type: article.author?.type ?? 'PERSONAL',
             subdomain: article.publication?.subdomain ?? null,
             customDomain: article.publication?.customDomain ?? null,
           },
-          category: null,
+          category: article.category ? { name: article.category.name } : null,
         }}
         initialCanonicalDocument={canonicalDocument}
         initialSpotlight={spotlight}
