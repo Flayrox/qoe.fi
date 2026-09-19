@@ -11,6 +11,7 @@ import { HocuspocusProvider } from '@hocuspocus/provider';
 import * as Y from 'yjs';
 import { PaywallDivider } from '../extensions/PaywallDivider';
 import { AnnotationMark } from '../extensions/AnnotationMark';
+import { TextSelection } from '@tiptap/pm/state';
 import {
   Bold,
   Italic,
@@ -36,9 +37,8 @@ import {
   Settings,
   FolderOpen,
   Search,
-  Eye,
+  Highlighter,
   BarChart3,
-  Sparkles,
   X,
   ExternalLink,
   MessageSquare,
@@ -213,6 +213,10 @@ export function Editor({
   const [authorNoteInput, setAuthorNoteInput] = useState('');
   const [selectedQuoteForAnnotation, setSelectedQuoteForAnnotation] = useState('');
   const [annotationToast, setAnnotationToast] = useState<string | null>(null);
+  const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number } | null>(
+    null
+  );
+  const openAnnotationPopoverRef = useRef<(text?: string, existingNote?: string) => void>(() => {});
   const [isDocked, setIsDocked] = useState(false);
   const [slugCopied, setSlugCopied] = useState(false);
   const [isCoverDragOver, setIsCoverDragOver] = useState(false);
@@ -390,6 +394,47 @@ export function Editor({
         class:
           'prose prose-zinc dark:prose-invert max-w-none focus:outline-none min-h-[500px] text-foreground text-[17px] leading-relaxed placeholder:text-muted-foreground/40 font-sans',
       },
+      handleClick: (view, pos) => {
+        const $pos = view.state.doc.resolve(pos);
+        const markType = view.state.schema.marks.annotationMark;
+        if (!markType) return false;
+
+        let foundMark: { note: string; text: string; from: number; to: number } | null = null;
+        $pos.parent.nodesBetween(0, $pos.parent.content.size, (node, offset) => {
+          const mark = node.marks.find((m) => m.type === markType);
+          if (mark) {
+            const abs = $pos.start() + offset;
+            if (abs <= $pos.pos && abs + node.nodeSize >= $pos.pos) {
+              foundMark = {
+                note: (mark.attrs.note as string) || '',
+                text: node.text || '',
+                from: abs,
+                to: abs + node.nodeSize,
+              };
+            }
+          }
+        });
+
+        if (foundMark) {
+          const { note, text, from, to } = foundMark;
+          view.dispatch(view.state.tr.setSelection(TextSelection.create(view.state.doc, from, to)));
+          openAnnotationPopoverRef.current(text, note);
+          return true;
+        }
+        return false;
+      },
+      handleKeyDown: (view, event) => {
+        if (
+          (event.metaKey || event.ctrlKey) &&
+          event.shiftKey &&
+          (event.key === 'a' || event.key === 'A')
+        ) {
+          event.preventDefault();
+          openAnnotationPopoverRef.current();
+          return true;
+        }
+        return false;
+      },
       handleDrop: (view, event, slice, moved) => {
         if (
           !moved &&
@@ -425,6 +470,72 @@ export function Editor({
       }
     },
   });
+
+  // ─── Gestionnaire d'annotation d'auteur non-bloquant ───────────────────
+  const openAnnotationPopover = useCallback(
+    (text?: string, existingNote?: string) => {
+      if (!editor) return;
+      let quote = text;
+      if (quote === undefined) {
+        const selection = editor.state.selection;
+        quote = editor.state.doc.textBetween(selection.from, selection.to, ' ');
+        if (!quote && selection.$from.parent.isTextblock) {
+          quote = selection.$from.parent.textBetween(0, selection.$from.parent.content.size, ' ');
+        }
+      }
+      setSelectedQuoteForAnnotation(quote || '');
+      setAuthorNoteInput(
+        existingNote !== undefined
+          ? existingNote
+          : editor.getAttributes('annotationMark').note || ''
+      );
+
+      const sel = typeof window !== 'undefined' ? window.getSelection() : null;
+      if (sel && sel.rangeCount > 0) {
+        const rect = sel.getRangeAt(0).getBoundingClientRect();
+        if (rect && (rect.top > 0 || rect.bottom > 0)) {
+          let top = rect.bottom + 10;
+          if (top + 280 > window.innerHeight) {
+            top = Math.max(70, rect.top - 270);
+          }
+          const left = Math.max(
+            20,
+            Math.min(window.innerWidth - 400, rect.left + rect.width / 2 - 190)
+          );
+          setPopoverPosition({ top, left });
+          setShowAuthorAnnotationModal(true);
+          return;
+        }
+      }
+
+      setPopoverPosition({
+        top: 100,
+        left: typeof window !== 'undefined' ? Math.max(20, (window.innerWidth - 380) / 2) : 100,
+      });
+      setShowAuthorAnnotationModal(true);
+    },
+    [editor]
+  );
+
+  useEffect(() => {
+    openAnnotationPopoverRef.current = openAnnotationPopover;
+  }, [openAnnotationPopover]);
+
+  const handleSaveAnnotation = () => {
+    if (!authorNoteInput.trim() || !editor) return;
+    editor.chain().focus().setAnnotationMark({ note: authorNoteInput.trim() }).run();
+    setHasUnsavedChanges(true);
+    setAuthorNoteInput('');
+    setShowAuthorAnnotationModal(false);
+  };
+
+  const handleDeleteAnnotation = () => {
+    if (!editor) return;
+    editor.chain().focus().unsetAnnotationMark().run();
+    setHasUnsavedChanges(true);
+    setAuthorNoteInput('');
+    setShowAuthorAnnotationModal(false);
+  };
 
   // ─── Seed du document partagé ──────────────────────────────────────────
   // Après le PREMIER sync avec le serveur : si le document Yjs est encore
@@ -1506,18 +1617,7 @@ export function Editor({
               onClick={() => {
                 if (editor.isActive('annotationMark')) {
                   const attrs = editor.getAttributes('annotationMark');
-                  setAuthorNoteInput(attrs.note || '');
-                  const selection = editor.state.selection;
-                  let text = editor.state.doc.textBetween(selection.from, selection.to, ' ');
-                  if (!text && editor.state.selection.$from.parent.isTextblock) {
-                    text = editor.state.selection.$from.parent.textBetween(
-                      0,
-                      editor.state.selection.$from.parent.content.size,
-                      ' '
-                    );
-                  }
-                  setSelectedQuoteForAnnotation(text);
-                  setShowAuthorAnnotationModal(true);
+                  openAnnotationPopover(undefined, attrs.note || '');
                   return;
                 }
                 const selection = editor.state.selection;
@@ -1526,16 +1626,13 @@ export function Editor({
                   setTimeout(() => setAnnotationToast(null), 3000);
                   return;
                 }
-                const text = editor.state.doc.textBetween(selection.from, selection.to, ' ');
-                setSelectedQuoteForAnnotation(text);
-                setAuthorNoteInput('');
-                setShowAuthorAnnotationModal(true);
+                openAnnotationPopover();
               }}
-              icon={<Eye className="h-3.5 w-3.5 text-highlight stroke-[2]" />}
+              icon={<Highlighter className="h-3.5 w-3.5 text-highlight stroke-[2]" />}
               tooltip={
                 editor.isActive('annotationMark')
-                  ? t`Modifier / Supprimer l'Annotation Officielle`
-                  : t`Ajouter une Annotation Officielle d'Auteur`
+                  ? t`Modifier / Supprimer la note d'auteur`
+                  : t`Ajouter une note d'auteur (⌘+Shift+A)`
               }
             />
 
@@ -1547,35 +1644,6 @@ export function Editor({
               icon={<Lock className="h-3.5 w-3.5 text-highlight stroke-[2]" />}
               tooltip={t`Insérer la limite Paywall (Contenu Premium)`}
             />
-
-            {/* Starship HUD Telemetry Beacon */}
-            <div
-              className={cn(
-                'ml-auto hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-sans font-medium transition-all duration-300 select-none',
-                isDocked
-                  ? 'bg-primary/10 border border-primary/30 text-primary shadow-[0_0_10px_rgba(238,75,43,0.15)]'
-                  : 'bg-muted/40 border border-border/30 text-muted-foreground/60'
-              )}
-              title={isDocked ? t`Barre amarrée · Mode Focus actif` : t`Éditeur en direct`}
-            >
-              <span className="relative flex h-1.5 w-1.5">
-                <span
-                  className={cn(
-                    'animate-ping absolute inline-flex h-full w-full rounded-full opacity-75',
-                    isDocked ? 'bg-primary' : 'bg-success'
-                  )}
-                />
-                <span
-                  className={cn(
-                    'relative inline-flex rounded-full h-1.5 w-1.5',
-                    isDocked ? 'bg-primary' : 'bg-success'
-                  )}
-                />
-              </span>
-              <span className="tracking-wider uppercase text-[9px] font-bold">
-                {isDocked ? 'Starship · Docked' : 'Cockpit'}
-              </span>
-            </div>
           </div>
 
           {/* TipTap Main Body */}
@@ -1855,7 +1923,7 @@ export function Editor({
                     <label className="flex items-center justify-between p-3 rounded-xl border border-border/40 bg-muted/15 hover:bg-muted/30 transition-colors cursor-pointer select-none">
                       <div className="space-y-0.5 pr-2">
                         <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                          <Sparkles className="w-3.5 h-3.5 text-primary" />
+                          <Highlighter className="w-3.5 h-3.5 text-primary" />
                           <span>{t`Annotations publiques`}</span>
                         </div>
                         <p className="text-[10px] text-muted-foreground leading-tight">
@@ -1918,109 +1986,101 @@ export function Editor({
         </div>
       )}
 
-      {/* Custom UI Modal for Official Author Annotation (No window.prompt!) */}
+      {/* Contextual Non-Blocking Floating Annotation Card — Standard Editorial Licorne 2026/2027 */}
       {showAuthorAnnotationModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/60 backdrop-blur-sm font-sans animate-in fade-in-0 duration-200">
-          <div className="fixed inset-0" onClick={() => setShowAuthorAnnotationModal(false)} />
-          <div className="relative bg-card border border-border/50 rounded-2xl p-6 max-w-lg w-full space-y-5 shadow-2xl animate-in zoom-in-95 duration-150">
+        <>
+          {/* Invisible Backdrop (click outside to dismiss, no darkening/blur) */}
+          <div
+            className="fixed inset-0 z-40 bg-transparent"
+            onClick={() => setShowAuthorAnnotationModal(false)}
+          />
+
+          <div
+            style={
+              popoverPosition
+                ? {
+                    position: 'fixed',
+                    top: `${popoverPosition.top}px`,
+                    left: `${popoverPosition.left}px`,
+                  }
+                : {
+                    position: 'fixed',
+                    top: '96px',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                  }
+            }
+            className="z-50 w-[380px] max-w-[calc(100vw-32px)] bg-card/95 backdrop-blur-xl border border-border/80 rounded-2xl p-4 shadow-[0_20px_50px_rgba(0,0,0,0.18)] animate-in fade-in-0 zoom-in-95 duration-150 font-sans space-y-3"
+          >
             {/* Header */}
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-highlight/15 border border-highlight/30 flex items-center justify-center text-highlight shrink-0 shadow-xs">
-                  <Sparkles className="w-4 h-4 text-highlight" />
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
+                  <Highlighter className="w-3.5 h-3.5" strokeWidth={2} />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-bold text-foreground">
-                      {t`Annotation Officielle d'Auteur`}
-                    </h3>
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-highlight/20 text-highlight border border-highlight/30">
-                      {t`Certifié`}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground mt-0.5">
-                    {t`Mise en exergue dans une marge dorée interactive visible par tous vos lecteurs.`}
+                  <h4 className="text-xs font-bold text-foreground">{t`Note d'auteur`}</h4>
+                  <p className="text-[10px] text-muted-foreground">
+                    {t`Visible par les lecteurs en marge`}
                   </p>
                 </div>
               </div>
+
               <button
                 type="button"
                 onClick={() => setShowAuthorAnnotationModal(false)}
-                className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer"
+                title={t`Fermer`}
               >
-                <X className="w-4 h-4" />
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
 
             {/* Quoted Passage Preview */}
             {selectedQuoteForAnnotation && (
-              <div className="space-y-1.5 bg-muted/20 border border-border/40 rounded-xl p-3">
-                <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                  <Quote className="w-3 h-3 text-highlight" />
-                  <span>{t`Passage sélectionné`}</span>
-                </div>
-                <p className="text-xs text-foreground/90 font-sans italic leading-relaxed pl-2.5 border-l-2 border-highlight/60 line-clamp-3">
+              <div className="bg-muted/30 border border-border/30 rounded-xl px-2.5 py-1.5">
+                <p className="text-[11px] text-muted-foreground italic font-sans line-clamp-2 leading-relaxed">
                   « {selectedQuoteForAnnotation} »
                 </p>
               </div>
             )}
 
-            {/* Textarea with Keyboard Shortcut */}
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block">
-                {t`Note ou commentaire d'auteur`}
-              </label>
+            {/* Textarea */}
+            <div>
               <textarea
                 autoFocus
-                rows={4}
+                rows={3}
                 value={authorNoteInput}
                 onChange={(e) => setAuthorNoteInput(e.target.value)}
                 onKeyDown={(e) => {
                   if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
                     e.preventDefault();
-                    if (authorNoteInput.trim() && editor) {
-                      editor
-                        .chain()
-                        .focus()
-                        .setAnnotationMark({ note: authorNoteInput.trim() })
-                        .run();
-                      setHasUnsavedChanges(true);
-                      setAuthorNoteInput('');
-                      setShowAuthorAnnotationModal(false);
-                    }
+                    handleSaveAnnotation();
                   } else if (e.key === 'Escape') {
                     e.preventDefault();
                     setShowAuthorAnnotationModal(false);
                   }
                 }}
-                placeholder={t`Partagez un éclairage, une anecdote, une précision ou une source pour enrichir ce passage...`}
-                className="w-full bg-background border border-border/40 rounded-xl p-3 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-highlight focus:ring-1 focus:ring-highlight/30 resize-none font-sans leading-relaxed transition-all"
+                placeholder={t`Ajoutez une note, précision ou source...`}
+                className="w-full bg-background border border-border/60 rounded-xl p-2.5 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/30 resize-none font-sans leading-relaxed transition-all"
               />
-              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-                <span>{t`Raccourci : ⌘ + Entrée pour enregistrer`}</span>
-                <span>
-                  {authorNoteInput.length} {t`caractères`}
-                </span>
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground/70 mt-1">
+                <span>{t`⌘ + Entrée pour enregistrer`}</span>
+                <span>{authorNoteInput.length} car.</span>
               </div>
             </div>
 
             {/* Actions */}
-            <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/40">
+            <div className="flex items-center justify-between pt-2 border-t border-border/30">
               {editor?.isActive('annotationMark') ? (
                 <button
                   type="button"
-                  onClick={() => {
-                    if (editor) {
-                      editor.chain().focus().unsetAnnotationMark().run();
-                      setHasUnsavedChanges(true);
-                      setAuthorNoteInput('');
-                      setShowAuthorAnnotationModal(false);
-                    }
-                  }}
-                  className="px-3 py-1.5 rounded-xl border border-destructive/30 text-destructive hover:bg-destructive/10 text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5"
+                  onClick={handleDeleteAnnotation}
+                  className="px-2.5 py-1.5 rounded-lg border border-destructive/30 text-destructive hover:bg-destructive/10 text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5"
+                  title={t`Supprimer l'annotation`}
                 >
                   <Trash2 className="w-3.5 h-3.5" />
-                  <span>{t`Supprimer l'annotation`}</span>
+                  <span>{t`Supprimer`}</span>
                 </button>
               ) : (
                 <div />
@@ -2030,38 +2090,22 @@ export function Editor({
                 <button
                   type="button"
                   onClick={() => setShowAuthorAnnotationModal(false)}
-                  className="px-3.5 py-1.5 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 cursor-pointer transition-colors"
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 cursor-pointer transition-colors"
                 >
                   {t`Annuler`}
                 </button>
                 <button
                   type="button"
                   disabled={!authorNoteInput.trim()}
-                  onClick={() => {
-                    if (authorNoteInput.trim() && editor) {
-                      editor
-                        .chain()
-                        .focus()
-                        .setAnnotationMark({ note: authorNoteInput.trim() })
-                        .run();
-                      setHasUnsavedChanges(true);
-                      setAuthorNoteInput('');
-                      setShowAuthorAnnotationModal(false);
-                    }
-                  }}
-                  className="px-4 py-1.5 rounded-xl bg-highlight text-highlight-foreground font-bold text-xs hover:bg-highlight/90 cursor-pointer disabled:opacity-50 transition-all flex items-center gap-1.5 shadow-sm"
+                  onClick={handleSaveAnnotation}
+                  className="px-3.5 py-1.5 rounded-lg bg-primary text-primary-foreground font-bold text-xs hover:opacity-90 cursor-pointer disabled:opacity-50 transition-all flex items-center gap-1.5 shadow-sm"
                 >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>
-                    {editor?.isActive('annotationMark')
-                      ? t`Mettre à jour`
-                      : t`Attacher l'annotation`}
-                  </span>
+                  <span>{t`Enregistrer`}</span>
                 </button>
               </div>
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* Modal de publication & diffusion multicanale */}
