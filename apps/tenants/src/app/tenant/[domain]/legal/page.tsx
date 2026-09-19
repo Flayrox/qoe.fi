@@ -11,7 +11,8 @@ import {
 } from '@qoe/sdk/actions/legal';
 import { LegalShell, categoryLabel } from '@/components/legal/LegalShell';
 import { PendingConsentBanner } from '@/components/legal/PendingConsentBanner';
-import { CookiePreferencesButton } from '@qoe/ui';
+import { AnalyticsNotice, CookiePreferencesButton } from '@qoe/ui';
+import { COOKIE_POLICY_SLUG } from '@qoe/utils/cookie-consent';
 
 interface PageProps {
   params: Promise<{ domain: string }>;
@@ -63,6 +64,13 @@ export default async function TenantLegalIndex({ params }: PageProps) {
           exercer vos droits. Chaque document est versionné et l&apos;historique reste consultable.
         </p>
       </header>
+
+      <div className="mt-8">
+        <AnalyticsNotice
+          locale={locale}
+          policyHref={`/tenant/${encodeURIComponent(decodedDomain)}/legal/${COOKIE_POLICY_SLUG}`}
+        />
+      </div>
 
       {pending.length > 0 && (
         <PendingConsentBanner
