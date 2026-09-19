@@ -189,7 +189,13 @@ check "updates /healthz"      "curl -sf -o /dev/null https://updates.qoe.fi/heal
 check "qoe.fi (core)"        "curl -sf -o /dev/null https://qoe.fi/home"
 check "hi.qoe.fi"            "curl -sf -o /dev/null https://hi.qoe.fi"
 check "umami tracker public" "curl -sf -o /dev/null https://umami.qoe.fi/script.js"  # dashboard = tailnet-only (umami.admin.qoe.fi)
-check "admin.qoe.fi masqué"  "! curl -s --max-time 8 -o /dev/null https://admin.qoe.fi/"  # tailnet-only : hors tailnet → connexion fermée (abort)
+# ⚠️ `--resolve` force l'IP PUBLIQUE : sans lui, le VPS résout admin.qoe.fi en
+# 100.x (split DNS tailnet) et son trafic entre avec l'IP du pont docker
+# (172.18.0.1, SNAT de tailscaled depuis le 02/09) → il matche le matcher
+# tailnet et le test échouait à tort à chaque déploiement. Le vrai contrôle :
+# injoignable par le chemin public (code 000 = connexion fermée par Caddy),
+# joignable par le tailnet (test suivant).
+check "admin.qoe.fi injoignable hors tailnet" "! curl -s --max-time 8 -o /dev/null --resolve admin.qoe.fi:443:159.195.110.239 https://admin.qoe.fi/"
 check "admin tailnet :3002"  "curl -sf -o /dev/null --max-time 8 http://100.117.195.127:3002/"  # fallback direct (Caddy : admin.qoe.fi tailnet-only)
 check "auth (kong)"          "SR=\$(grep '^SERVICE_ROLE_KEY=' $SUPABASE_DIR/.env | cut -d= -f2-); curl -sk -o /dev/null -w '%{http_code}' https://auth.qoe.fi/auth/v1/health -H \"apikey: \$SR\" | grep -q 200"
 check "config /v1/home/config" "curl -sf https://api.qoe.fi/v1/home/config | grep -q AUTH_METHODS"
