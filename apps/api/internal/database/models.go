@@ -646,6 +646,20 @@ type CollabDocument struct {
 	UpdatedAt    pgtype.Timestamp `json:"updated_at"`
 }
 
+type CollaborationInviteLink struct {
+	ID          string           `json:"id"`
+	ArticleId   string           `json:"articleId"`
+	CreatedById pgtype.UUID      `json:"createdById"`
+	Token       string           `json:"token"`
+	Role        string           `json:"role"`
+	ExpiresAt   pgtype.Timestamp `json:"expiresAt"`
+	MaxUses     int32            `json:"maxUses"`
+	UsedCount   int32            `json:"usedCount"`
+	IsRevoked   bool             `json:"isRevoked"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt   pgtype.Timestamp `json:"updatedAt"`
+}
+
 type CollaborationRequest struct {
 	ID                  string           `json:"id"`
 	ArticleId           string           `json:"articleId"`
@@ -929,17 +943,18 @@ type MediaAuditLog struct {
 	CreatedAt pgtype.Timestamp `json:"createdAt"`
 }
 
-type MediaInvite struct {
-	ID         string           `json:"id"`
-	MediaId    string           `json:"mediaId"`
-	InviterId  pgtype.UUID      `json:"inviterId"`
-	Email      string           `json:"email"`
-	Role       string           `json:"role"`
-	Token      string           `json:"token"`
-	Status     string           `json:"status"`
-	ExpiresAt  pgtype.Timestamp `json:"expiresAt"`
-	AcceptedAt pgtype.Timestamp `json:"acceptedAt"`
-	CreatedAt  pgtype.Timestamp `json:"createdAt"`
+type MediaInviteLink struct {
+	ID          string           `json:"id"`
+	MediaId     string           `json:"mediaId"`
+	CreatedById pgtype.UUID      `json:"createdById"`
+	Token       string           `json:"token"`
+	Role        string           `json:"role"`
+	ExpiresAt   pgtype.Timestamp `json:"expiresAt"`
+	MaxUses     int32            `json:"maxUses"`
+	UsedCount   int32            `json:"usedCount"`
+	IsRevoked   bool             `json:"isRevoked"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt   pgtype.Timestamp `json:"updatedAt"`
 }
 
 type MediaMember struct {
@@ -1379,20 +1394,21 @@ type User struct {
 }
 
 type UserSetting struct {
-	ID                        string           `json:"id"`
-	UserId                    pgtype.UUID      `json:"userId"`
-	ProfileVisibility         string           `json:"profileVisibility"`
-	AllowMentions             bool             `json:"allowMentions"`
-	AllowCollaborationInvites bool             `json:"allowCollaborationInvites"`
-	ShowSensitiveContent      bool             `json:"showSensitiveContent"`
-	LikeVisibility            string           `json:"likeVisibility"`
-	AutoplayMedia             bool             `json:"autoplayMedia"`
-	ReduceMotion              bool             `json:"reduceMotion"`
-	HighContrast              bool             `json:"highContrast"`
-	FontScale                 int32            `json:"fontScale"`
-	DefaultFeed               string           `json:"defaultFeed"`
-	CreatedAt                 pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt                 pgtype.Timestamp `json:"updatedAt"`
+	ID                            string           `json:"id"`
+	UserId                        pgtype.UUID      `json:"userId"`
+	ProfileVisibility             string           `json:"profileVisibility"`
+	AllowMentions                 bool             `json:"allowMentions"`
+	AllowCollaborationInvites     bool             `json:"allowCollaborationInvites"`
+	CollaborationInvitePermission string           `json:"collaborationInvitePermission"`
+	ShowSensitiveContent          bool             `json:"showSensitiveContent"`
+	LikeVisibility                string           `json:"likeVisibility"`
+	AutoplayMedia                 bool             `json:"autoplayMedia"`
+	ReduceMotion                  bool             `json:"reduceMotion"`
+	HighContrast                  bool             `json:"highContrast"`
+	FontScale                     int32            `json:"fontScale"`
+	DefaultFeed                   string           `json:"defaultFeed"`
+	CreatedAt                     pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt                     pgtype.Timestamp `json:"updatedAt"`
 }
 
 type WalletTransaction struct {

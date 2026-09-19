@@ -56,7 +56,6 @@ type Querier interface {
 	CountLegalEligibleUsers(ctx context.Context) (CountLegalEligibleUsersRow, error)
 	CountLegalNotices(ctx context.Context) (int64, error)
 	CountMediaApiKeys(ctx context.Context, id string) (int32, error)
-	CountMediaInvites(ctx context.Context, mediaid string) (int32, error)
 	CountMediaMembers(ctx context.Context, mediaid string) (int32, error)
 	CountModerationReportsByStatus(ctx context.Context) ([]CountModerationReportsByStatusRow, error)
 	CountNewsletterDeliveriesByIssue(ctx context.Context, issueid string) (CountNewsletterDeliveriesByIssueRow, error)
@@ -90,7 +89,6 @@ type Querier interface {
 	CreateMedia(ctx context.Context, publicationid string) (string, error)
 	// Nouvel asset orphelin (DRAFT_ORPHAN, purgé dans 3 jours si non attaché).
 	CreateMediaAsset(ctx context.Context, arg CreateMediaAssetParams) (MediaAsset, error)
-	CreateMediaInvite(ctx context.Context, arg CreateMediaInviteParams) (string, error)
 	CreateMediaMember(ctx context.Context, arg CreateMediaMemberParams) error
 	CreateMediaPublication(ctx context.Context, arg CreateMediaPublicationParams) (string, error)
 	CreateModerationReport(ctx context.Context, arg CreateModerationReportParams) (string, error)
@@ -235,7 +233,6 @@ type Querier interface {
 	GetMediaApiKeyByID(ctx context.Context, arg GetMediaApiKeyByIDParams) (GetMediaApiKeyByIDRow, error)
 	// Dédoublonnage CAS : cherche un asset existant par hash SHA-256.
 	GetMediaAssetBySha256(ctx context.Context, sha256 string) (MediaAsset, error)
-	GetMediaInviteByToken(ctx context.Context, token string) (GetMediaInviteByTokenRow, error)
 	// Administration Média (création, membres, invitations, réglages) — migration dashboard → Go.
 	GetMediaMemberByID(ctx context.Context, arg GetMediaMemberByIDParams) (GetMediaMemberByIDRow, error)
 	// RBAC Média (rôles + permissions) — partagé par settings, articles et media.
@@ -527,7 +524,6 @@ type Querier interface {
 	// Clés API Média (gestion par le média, délégation api_keys:manage)
 	// ============================================================================
 	ListMediaApiKeys(ctx context.Context, id string) ([]ListMediaApiKeysRow, error)
-	ListMediaInvites(ctx context.Context, mediaid string) ([]ListMediaInvitesRow, error)
 	ListMediaMembers(ctx context.Context, mediaid string) ([]ListMediaMembersRow, error)
 	// Nouveaux messages STRICTEMENT postérieurs à `after` (polling), ordre
 	// ascendant prêt à être ajouté en fin de liste.
@@ -667,7 +663,6 @@ type Querier interface {
 	UpdateLegalDocumentVersion(ctx context.Context, arg UpdateLegalDocumentVersionParams) (LegalDocumentVersion, error)
 	UpdateMediaApiKeyName(ctx context.Context, arg UpdateMediaApiKeyNameParams) (int64, error)
 	UpdateMediaApiKeySecret(ctx context.Context, arg UpdateMediaApiKeySecretParams) (int64, error)
-	UpdateMediaInviteStatus(ctx context.Context, arg UpdateMediaInviteStatusParams) error
 	UpdateMediaMemberPermissions(ctx context.Context, arg UpdateMediaMemberPermissionsParams) error
 	UpdateMediaMemberRole(ctx context.Context, arg UpdateMediaMemberRoleParams) error
 	UpdateModerationReportResolution(ctx context.Context, arg UpdateModerationReportResolutionParams) (UpdateModerationReportResolutionRow, error)

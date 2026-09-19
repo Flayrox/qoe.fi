@@ -49,17 +49,6 @@ func (q *Queries) CountMediaApiKeys(ctx context.Context, id string) (int32, erro
 	return column_1, err
 }
 
-const countMediaInvites = `-- name: CountMediaInvites :one
-SELECT COUNT(*)::int AS count FROM "MediaInvite" WHERE "mediaId" = $1
-`
-
-func (q *Queries) CountMediaInvites(ctx context.Context, mediaid string) (int32, error) {
-	row := q.db.QueryRow(ctx, countMediaInvites, mediaid)
-	var count int32
-	err := row.Scan(&count)
-	return count, err
-}
-
 const countMediaMembers = `-- name: CountMediaMembers :one
 SELECT COUNT(*)::int AS count FROM "MediaMember" WHERE "mediaId" = $1
 `
@@ -79,35 +68,6 @@ RETURNING id
 
 func (q *Queries) CreateMedia(ctx context.Context, publicationid string) (string, error) {
 	row := q.db.QueryRow(ctx, createMedia, publicationid)
-	var id string
-	err := row.Scan(&id)
-	return id, err
-}
-
-const createMediaInvite = `-- name: CreateMediaInvite :one
-INSERT INTO "MediaInvite" (id, "mediaId", "inviterId", email, role, token, "expiresAt")
-VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6)
-RETURNING id
-`
-
-type CreateMediaInviteParams struct {
-	MediaId   string           `json:"mediaId"`
-	InviterId pgtype.UUID      `json:"inviterId"`
-	Email     string           `json:"email"`
-	Role      string           `json:"role"`
-	Token     string           `json:"token"`
-	ExpiresAt pgtype.Timestamp `json:"expiresAt"`
-}
-
-func (q *Queries) CreateMediaInvite(ctx context.Context, arg CreateMediaInviteParams) (string, error) {
-	row := q.db.QueryRow(ctx, createMediaInvite,
-		arg.MediaId,
-		arg.InviterId,
-		arg.Email,
-		arg.Role,
-		arg.Token,
-		arg.ExpiresAt,
-	)
 	var id string
 	err := row.Scan(&id)
 	return id, err
@@ -242,41 +202,6 @@ func (q *Queries) GetMediaApiKeyByID(ctx context.Context, arg GetMediaApiKeyByID
 		&i.PublicationId,
 		&i.CreatedByUserID,
 		&i.MediaID,
-	)
-	return i, err
-}
-
-const getMediaInviteByToken = `-- name: GetMediaInviteByToken :one
-SELECT id, "mediaId", "inviterId"::text AS inviter_id, email, role, token, status, "expiresAt", "acceptedAt"
-FROM "MediaInvite"
-WHERE token = $1
-`
-
-type GetMediaInviteByTokenRow struct {
-	ID         string           `json:"id"`
-	MediaId    string           `json:"mediaId"`
-	InviterID  string           `json:"inviter_id"`
-	Email      string           `json:"email"`
-	Role       string           `json:"role"`
-	Token      string           `json:"token"`
-	Status     string           `json:"status"`
-	ExpiresAt  pgtype.Timestamp `json:"expiresAt"`
-	AcceptedAt pgtype.Timestamp `json:"acceptedAt"`
-}
-
-func (q *Queries) GetMediaInviteByToken(ctx context.Context, token string) (GetMediaInviteByTokenRow, error) {
-	row := q.db.QueryRow(ctx, getMediaInviteByToken, token)
-	var i GetMediaInviteByTokenRow
-	err := row.Scan(
-		&i.ID,
-		&i.MediaId,
-		&i.InviterID,
-		&i.Email,
-		&i.Role,
-		&i.Token,
-		&i.Status,
-		&i.ExpiresAt,
-		&i.AcceptedAt,
 	)
 	return i, err
 }
@@ -650,57 +575,6 @@ func (q *Queries) ListMediaApiKeys(ctx context.Context, id string) ([]ListMediaA
 	return items, nil
 }
 
-const listMediaInvites = `-- name: ListMediaInvites :many
-SELECT i.id, i.email, i.role, i.status, i."createdAt", i."expiresAt",
-       u.id::text AS inviter_id, u.name AS inviter_name, u.username AS inviter_username
-FROM "MediaInvite" i
-JOIN "User" u ON u.id = i."inviterId"
-WHERE i."mediaId" = $1 AND i.status = 'PENDING'
-ORDER BY i."createdAt" DESC
-`
-
-type ListMediaInvitesRow struct {
-	ID              string           `json:"id"`
-	Email           string           `json:"email"`
-	Role            string           `json:"role"`
-	Status          string           `json:"status"`
-	CreatedAt       pgtype.Timestamp `json:"createdAt"`
-	ExpiresAt       pgtype.Timestamp `json:"expiresAt"`
-	InviterID       string           `json:"inviter_id"`
-	InviterName     pgtype.Text      `json:"inviter_name"`
-	InviterUsername pgtype.Text      `json:"inviter_username"`
-}
-
-func (q *Queries) ListMediaInvites(ctx context.Context, mediaid string) ([]ListMediaInvitesRow, error) {
-	rows, err := q.db.Query(ctx, listMediaInvites, mediaid)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := []ListMediaInvitesRow{}
-	for rows.Next() {
-		var i ListMediaInvitesRow
-		if err := rows.Scan(
-			&i.ID,
-			&i.Email,
-			&i.Role,
-			&i.Status,
-			&i.CreatedAt,
-			&i.ExpiresAt,
-			&i.InviterID,
-			&i.InviterName,
-			&i.InviterUsername,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const listMediaMembers = `-- name: ListMediaMembers :many
 SELECT m.id AS member_id, m."userId"::text AS user_id, m.role, m.permissions, m.status, m."joinedAt",
        u.name, u.username, u."logoUrl"
@@ -798,22 +672,6 @@ func (q *Queries) UpdateMediaApiKeySecret(ctx context.Context, arg UpdateMediaAp
 		return 0, err
 	}
 	return result.RowsAffected(), nil
-}
-
-const updateMediaInviteStatus = `-- name: UpdateMediaInviteStatus :exec
-UPDATE "MediaInvite"
-SET status = $2, "acceptedAt" = now()
-WHERE id = $1
-`
-
-type UpdateMediaInviteStatusParams struct {
-	ID     string `json:"id"`
-	Status string `json:"status"`
-}
-
-func (q *Queries) UpdateMediaInviteStatus(ctx context.Context, arg UpdateMediaInviteStatusParams) error {
-	_, err := q.db.Exec(ctx, updateMediaInviteStatus, arg.ID, arg.Status)
-	return err
 }
 
 const updateMediaMemberPermissions = `-- name: UpdateMediaMemberPermissions :exec
