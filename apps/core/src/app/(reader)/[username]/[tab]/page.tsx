@@ -62,6 +62,7 @@ interface GoArticle {
     name?: string | null;
     slug?: string | null;
     subdomain?: string | null;
+    logoUrl?: string | null;
     customDomain?: string | null;
   } | null;
 }
@@ -275,9 +276,19 @@ export default async function UserProfileTabPage({
             customDomain: article.publication?.customDomain ?? null,
           },
           category: article.category ? { name: article.category.name } : null,
+          publication: article.publication
+            ? {
+                name: article.publication.name,
+                slug: article.publication.slug,
+                subdomain: article.publication.subdomain,
+                logoUrl: article.publication.logoUrl,
+                customDomain: article.publication.customDomain,
+              }
+            : null,
         }}
         initialCanonicalDocument={canonicalDocument}
         initialSpotlight={spotlight}
+        initialReturnUrl={`/${encodeURIComponent(rawUsername)}/articles`}
       />
     </>
   );

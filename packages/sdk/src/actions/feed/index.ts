@@ -1059,6 +1059,7 @@ export interface ProfileResolvePayload {
       title: string;
       slug: string;
       content: string;
+      imageUrl: string | null;
       published: boolean;
       isPremium: boolean;
       visibility: string;
@@ -1074,7 +1075,15 @@ export interface ProfileResolvePayload {
         customDomain: string | null;
         heroText: string | null;
         isCertified: boolean;
+        type: 'PERSONAL' | 'MEDIA';
         authorName: string | null;
+        journalist: {
+          id: string;
+          name: string | null;
+          username: string | null;
+          logoUrl: string | null;
+          isCertified: boolean;
+        } | null;
         contributors: Array<{
           id: string;
           name: string | null;
@@ -1087,6 +1096,14 @@ export interface ProfileResolvePayload {
           consentStatus: string;
         }>;
       };
+      publication: {
+        id: string;
+        name: string;
+        slug: string;
+        subdomain: string | null;
+        logoUrl: string | null;
+        type: string;
+      } | null;
       category: { id: string; name: string; slug: string } | null;
     }>;
     _count: { followers: number; following: number; posts: number; articles: number };
@@ -1171,11 +1188,13 @@ function mapProfileSlice(slice: ApiFeedSlice): ProfilePostPayload {
 function mapProfileArticle(
   a: ApiFeedArticle
 ): ProfileResolvePayload['profileUser']['articles'][number] {
+  const isMediaPublication = a.publication?.type === 'MEDIA';
   return {
     id: a.id,
     title: a.title,
     slug: a.slug,
     content: a.content ?? '',
+    imageUrl: a.imageUrl ?? null,
     published: true,
     isPremium: a.isPremium,
     visibility: a.visibility,
@@ -1191,9 +1210,32 @@ function mapProfileArticle(
       customDomain: null,
       heroText: null,
       isCertified: a.author.isCertified,
+      // Convention ArticleCard : un article rattaché à un média porte le type
+      // MEDIA, avec le journaliste en attributions — c'est ce qui affiche la
+      // ligne « Pour <média> ».
+      type: isMediaPublication ? 'MEDIA' : 'PERSONAL',
       authorName: a.author.name,
+      journalist: isMediaPublication
+        ? {
+            id: a.author.id,
+            name: a.author.name,
+            username: a.author.username,
+            logoUrl: a.author.logoUrl,
+            isCertified: a.author.isCertified,
+          }
+        : null,
       contributors: [],
     } as ProfileResolvePayload['profileUser']['articles'][number]['author'],
+    publication: a.publication
+      ? {
+          id: a.publication.id,
+          name: a.publication.name,
+          slug: a.publication.slug,
+          subdomain: a.publication.subdomain,
+          logoUrl: a.publication.logoUrl,
+          type: a.publication.type,
+        }
+      : null,
     category: a.category
       ? { id: a.category.id, name: a.category.name, slug: a.category.slug }
       : null,

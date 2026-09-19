@@ -153,6 +153,11 @@ func TestPublicationArticles(t *testing.T) {
 		t.Fatalf("seed: %v", err)
 	}
 
+	if _, err := poolTest.Exec(context.Background(),
+		`UPDATE "Article" SET "imageUrl" = 'https://cdn.qoe.fi/test-cover.jpg' WHERE id = $1`, fx.ArticleID); err != nil {
+		t.Fatalf("image seed: %v", err)
+	}
+
 	svc := newTestService()
 	res, err := svc.PublicationArticles(context.Background(), "PUBLICATION-TEST", 20, 0)
 	if err != nil {
@@ -167,6 +172,10 @@ func TestPublicationArticles(t *testing.T) {
 			found = true
 			if a.Title != "Article bookmarké" {
 				t.Fatalf("title = %q", a.Title)
+			}
+			// L'image de couverture doit traverser jusqu'à la carte profil.
+			if a.ImageURL == nil || *a.ImageURL != "https://cdn.qoe.fi/test-cover.jpg" {
+				t.Fatalf("imageUrl = %+v, attendu la couverture seedée", a.ImageURL)
 			}
 			if a.Author.Username == nil || *a.Author.Username != "alice" {
 				t.Fatalf("author = %+v", a.Author)

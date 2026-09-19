@@ -413,6 +413,7 @@ type publishedArticleRow struct {
 	Title                string
 	Slug                 string
 	Content              string
+	Image                pgtype.Text
 	IsPremium            bool
 	Visibility           db.ContentVisibility
 	ReadingTime          int32
@@ -454,6 +455,7 @@ func buildFeedArticle(r *publishedArticleRow) FeedArticle {
 		Title:         r.Title,
 		Slug:          r.Slug,
 		Content:       truncatePaywall(r.Content, r.Visibility, nil),
+		ImageURL:      pgtypeTextPtr(r.Image),
 		IsPremium:     r.IsPremium,
 		Visibility:    string(r.Visibility),
 		ReadingTime:   int(r.ReadingTime),
@@ -518,6 +520,7 @@ func (s *Service) RecentArticles(ctx context.Context, limit, offset int) (Articl
 			Title:                r.Title,
 			Slug:                 r.Slug,
 			Content:              r.Content,
+			Image:                r.ArticleImage,
 			IsPremium:            r.IsPremium,
 			Visibility:           r.Visibility,
 			ReadingTime:          r.ReadingTime,
@@ -579,6 +582,7 @@ func (s *Service) PublicationArticles(ctx context.Context, username string, limi
 			Title:                r.Title,
 			Slug:                 r.Slug,
 			Content:              r.Content,
+			Image:                r.ArticleImage,
 			IsPremium:            r.IsPremium,
 			Visibility:           r.Visibility,
 			ReadingTime:          r.ReadingTime,

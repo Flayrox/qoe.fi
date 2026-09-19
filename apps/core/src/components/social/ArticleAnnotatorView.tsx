@@ -65,8 +65,10 @@ export interface ArticleAnnotatorViewProps {
     category?: { name: string } | null;
     tags?: string[];
     publication?: {
+      name?: string | null;
       slug?: string | null;
       subdomain?: string | null;
+      logoUrl?: string | null;
       customDomain?: string | null;
       accentColor?: string | null;
     } | null;
@@ -439,6 +441,25 @@ function ArticleAnnotatorViewInner({
                   <span className="text-xs text-muted-foreground">@{authorHandle}</span>
                 )}
               </div>
+              {article.publication?.name && (
+                <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <SafeAvatar
+                    src={article.publication.logoUrl ?? null}
+                    name={article.publication.name}
+                    username={article.publication.subdomain}
+                    size={16}
+                    shape="squircle"
+                    type="MEDIA"
+                    className="rounded-[4px] shrink-0"
+                  />
+                  <span>
+                    {t`Pour`}{' '}
+                    <span className="font-semibold text-foreground/90">
+                      {article.publication.name}
+                    </span>
+                  </span>
+                </div>
+              )}
 
               <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                 {article.category && (

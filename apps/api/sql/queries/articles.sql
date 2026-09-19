@@ -5,6 +5,7 @@ SELECT a.id,
        a.title,
        a.slug,
        a.content,
+       a."imageUrl"     AS article_image,
        a."isPremium",
        a.visibility,
        a."readingTime",
@@ -42,6 +43,7 @@ SELECT a.id,
        a.title,
        a.slug,
        a.content,
+       a."imageUrl"     AS article_image,
        a."isPremium",
        a.visibility,
        a."readingTime",
@@ -129,7 +131,9 @@ SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibilit
        p.name         AS publication_name,
        p.slug         AS publication_slug,
        p.subdomain    AS publication_subdomain,
-       p."customDomain" AS publication_custom_domain
+       p."logoUrl"    AS publication_logo,
+       p."customDomain" AS publication_custom_domain,
+       a."imageUrl"   AS article_image
 FROM "Article" a
 JOIN "User" u ON u.id = a."authorId"
 JOIN "Publication" p ON p.id = a."publicationId"
