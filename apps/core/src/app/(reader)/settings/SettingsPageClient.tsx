@@ -459,11 +459,27 @@ export default function AccountSettingsPage({
               checked={settings.allowMentions}
               onChange={(value) => patchSettings({ allowMentions: value })}
             />
-            <ToggleRow
-              label={t`Recevoir les invitations de collaboration`}
-              description={t`Les auteurs peuvent vous proposer d’être cité dans un article.`}
-              checked={settings.allowCollaborationInvites}
-              onChange={(value) => patchSettings({ allowCollaborationInvites: value })}
+            <SelectRow
+              label={t`Qui peut m'inviter à collaborer`}
+              description={t`Contrôlez qui a le droit de vous inviter comme co-auteur sur un article.`}
+              value={
+                settings.collaborationInvitePermission ||
+                (settings.allowCollaborationInvites ? 'EVERYONE' : 'NOBODY')
+              }
+              options={[
+                ['EVERYONE', t`Tout le monde`],
+                ['MUTUALS', t`Amis (abonnements mutuels)`],
+                ['FOLLOWING', t`Personnes que je suis`],
+                ['MEDIA_ONLY', t`Membres de mes médias`],
+                ['NOBODY', t`Personne`],
+              ]}
+              onChange={(value) =>
+                patchSettings({
+                  collaborationInvitePermission:
+                    value as AccountSettingsPatch['collaborationInvitePermission'],
+                  allowCollaborationInvites: value !== 'NOBODY',
+                })
+              }
             />
             <ToggleRow
               label={t`Afficher les contenus sensibles`}

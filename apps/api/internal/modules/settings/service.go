@@ -759,20 +759,21 @@ func textFromAny(v any) (pgtype.Text, error) {
 
 // UserSettings est la ligne userSettings du lecteur (GET/PATCH /v1/settings/preferences).
 type UserSettings struct {
-	ID                        string `json:"id"`
-	UserID                    string `json:"userId"`
-	ProfileVisibility         string `json:"profileVisibility"`
-	AllowMentions             bool   `json:"allowMentions"`
-	AllowCollaborationInvites bool   `json:"allowCollaborationInvites"`
-	ShowSensitiveContent      bool   `json:"showSensitiveContent"`
-	LikeVisibility            string `json:"likeVisibility"`
-	AutoplayMedia             bool   `json:"autoplayMedia"`
-	ReduceMotion              bool   `json:"reduceMotion"`
-	HighContrast              bool   `json:"highContrast"`
-	FontScale                 int32  `json:"fontScale"`
-	DefaultFeed               string `json:"defaultFeed"`
-	CreatedAt                 string `json:"createdAt"`
-	UpdatedAt                 string `json:"updatedAt"`
+	ID                            string `json:"id"`
+	UserID                        string `json:"userId"`
+	ProfileVisibility             string `json:"profileVisibility"`
+	AllowMentions                 bool   `json:"allowMentions"`
+	AllowCollaborationInvites     bool   `json:"allowCollaborationInvites"`
+	CollaborationInvitePermission string `json:"collaborationInvitePermission"`
+	ShowSensitiveContent          bool   `json:"showSensitiveContent"`
+	LikeVisibility                string `json:"likeVisibility"`
+	AutoplayMedia                 bool   `json:"autoplayMedia"`
+	ReduceMotion                  bool   `json:"reduceMotion"`
+	HighContrast                  bool   `json:"highContrast"`
+	FontScale                     int32  `json:"fontScale"`
+	DefaultFeed                   string `json:"defaultFeed"`
+	CreatedAt                     string `json:"createdAt"`
+	UpdatedAt                     string `json:"updatedAt"`
 }
 
 const (
@@ -784,12 +785,17 @@ const (
 func scanUserSettings(row pgx.Row) (UserSettings, error) {
 	var s UserSettings
 	var createdAt, updatedAt pgtype.Timestamp
+	var collabPerm pgtype.Text
 	err := row.Scan(&s.ID, &s.UserID, &s.ProfileVisibility, &s.AllowMentions,
-		&s.AllowCollaborationInvites, &s.ShowSensitiveContent, &s.LikeVisibility,
+		&s.AllowCollaborationInvites, &collabPerm, &s.ShowSensitiveContent, &s.LikeVisibility,
 		&s.AutoplayMedia, &s.ReduceMotion, &s.HighContrast, &s.FontScale, &s.DefaultFeed,
 		&createdAt, &updatedAt)
 	if err != nil {
 		return s, err
+	}
+	s.CollaborationInvitePermission = "EVERYONE"
+	if collabPerm.Valid && collabPerm.String != "" {
+		s.CollaborationInvitePermission = collabPerm.String
 	}
 	s.CreatedAt = createdAt.Time.Format(time.RFC3339)
 	s.UpdatedAt = updatedAt.Time.Format(time.RFC3339)
@@ -801,6 +807,7 @@ func scanUserSettings(row pgx.Row) (UserSettings, error) {
 func (s *Service) GetUserSettings(ctx context.Context, userID string) (UserSettings, error) {
 	row := s.pool.QueryRow(ctx, `
 		SELECT id, "userId", "profileVisibility", "allowMentions", "allowCollaborationInvites",
+		       COALESCE("collaborationInvitePermission", 'EVERYONE'),
 		       "showSensitiveContent", "likeVisibility", "autoplayMedia", "reduceMotion", "highContrast",
 		       "fontScale", "defaultFeed", "createdAt", "updatedAt"
 		FROM "UserSettings" WHERE "userId" = $1`, toUUID(userID))
@@ -812,8 +819,8 @@ func (s *Service) GetUserSettings(ctx context.Context, userID string) (UserSetti
 		return UserSettings{}, err
 	}
 	if _, err := s.pool.Exec(ctx, `
-		INSERT INTO "UserSettings" (id, "userId", "createdAt", "updatedAt")
-		VALUES (gen_random_uuid()::text, $1, now(), now())
+		INSERT INTO "UserSettings" (id, "userId", "collaborationInvitePermission", "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1, 'EVERYONE', now(), now())
 		ON CONFLICT ("userId") DO NOTHING`, toUUID(userID)); err != nil {
 		return UserSettings{}, err
 	}
@@ -831,7 +838,11 @@ func (s *Service) UpdateUserSettings(ctx context.Context, userID string, patch m
 		},
 		"allowMentions":             func(v any) bool { _, ok := v.(bool); return ok },
 		"allowCollaborationInvites": func(v any) bool { _, ok := v.(bool); return ok },
-		"showSensitiveContent":      func(v any) bool { _, ok := v.(bool); return ok },
+		"collaborationInvitePermission": func(v any) bool {
+			str, ok := v.(string)
+			return ok && (str == "EVERYONE" || str == "MUTUALS" || str == "FOLLOWING" || str == "MEDIA_ONLY" || str == "NOBODY")
+		},
+		"showSensitiveContent": func(v any) bool { _, ok := v.(bool); return ok },
 		"likeVisibility": func(v any) bool {
 			str, ok := v.(string)
 			return ok && (str == "PUBLIC" || str == "PRIVATE")
@@ -860,7 +871,7 @@ func (s *Service) UpdateUserSettings(ctx context.Context, userID string, patch m
 			return ok && (str == "FOLLOWING" || str == "DISCOVER")
 		},
 	}
-	cols := []string{"profileVisibility", "allowMentions", "allowCollaborationInvites",
+	cols := []string{"profileVisibility", "allowMentions", "allowCollaborationInvites", "collaborationInvitePermission",
 		"showSensitiveContent", "likeVisibility", "autoplayMedia", "reduceMotion", "highContrast",
 		"fontScale", "defaultFeed"}
 	for key := range patch {

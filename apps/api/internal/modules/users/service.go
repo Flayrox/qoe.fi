@@ -158,7 +158,7 @@ func (s *Service) SearchForContributors(ctx context.Context, query string, exclu
 		LEFT JOIN "Publication" p ON p.id = u."publicationId"
 		WHERE u."isSuspended" = false AND u."isShadowbanned" = false
 		  AND u.id != ALL($2::uuid[])
-		  AND (u.name ILIKE $1 OR u.username ILIKE $1 OR u.email ILIKE $1)
+		  AND (u.name ILIKE $1 OR u.username ILIKE $1)
 		ORDER BY u.name ASC
 		LIMIT 8
 	`, q, excludeUUIDs)
