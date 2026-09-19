@@ -93,6 +93,51 @@ export function EditArticleClient({ article, categories, capabilities }: EditArt
     }
   };
 
+  const initialAttributions = React.useMemo(() => {
+    const existing = (article.attributions ?? []).map((entry) => ({
+      userId: entry.user.id,
+      name: entry.user.name,
+      username: entry.user.username,
+      logoUrl: entry.user.logoUrl,
+      isCertified: entry.user.isCertified,
+      role: entry.role,
+      order: entry.order,
+      isVisible: entry.isVisible,
+      consentStatus: entry.consentStatus,
+    }));
+
+    if (existing.length > 0) return existing;
+
+    const baseAttributions: ArticleAttributionDraft[] = [
+      {
+        userId: article.author.id,
+        name: article.author.name,
+        username: article.author.username,
+        logoUrl: article.author.logoUrl,
+        isCertified: article.author.isCertified,
+        role: 'PRIMARY_AUTHOR',
+        order: 0,
+        isVisible: true,
+      },
+    ];
+
+    const coAuthors = (article.coAuthors ?? [])
+      .filter((coAuthor) => !existing.some((attr) => attr.userId === coAuthor.id))
+      .map((coAuthor, index) => ({
+        userId: coAuthor.id,
+        name: coAuthor.name,
+        username: coAuthor.username,
+        logoUrl: coAuthor.logoUrl,
+        isCertified: coAuthor.isCertified,
+        role: 'CO_AUTHOR',
+        order: 1 + index,
+        isVisible: true,
+        consentStatus: 'ACCEPTED',
+      }));
+
+    return [...baseAttributions, ...coAuthors];
+  }, [article.id, article.attributions, article.author, article.coAuthors]);
+
   return (
     <div className="py-4">
       <Editor
@@ -107,50 +152,7 @@ export function EditArticleClient({ article, categories, capabilities }: EditArt
         initialCategoryId={article.categoryId}
         initialSeoTitle={article.seoTitle || ''}
         initialSeoDescription={article.seoDescription || ''}
-        initialAttributions={[
-          ...((article.attributions?.length ?? 0) > 0
-            ? (article.attributions ?? []).map((entry) => ({
-                userId: entry.user.id,
-                name: entry.user.name,
-                username: entry.user.username,
-                logoUrl: entry.user.logoUrl,
-                isCertified: entry.user.isCertified,
-                role: entry.role,
-                order: entry.order,
-                isVisible: entry.isVisible,
-                consentStatus: entry.consentStatus,
-              }))
-            : [
-                {
-                  userId: article.author.id,
-                  name: article.author.name,
-                  username: article.author.username,
-                  logoUrl: article.author.logoUrl,
-                  isCertified: article.author.isCertified,
-                  role: 'PRIMARY_AUTHOR',
-                  order: 0,
-                  isVisible: true,
-                },
-              ]),
-          ...(article.coAuthors ?? [])
-            .filter(
-              (coAuthor) =>
-                !(article.attributions ?? []).some(
-                  (attribution) => attribution.user.id === coAuthor.id
-                )
-            )
-            .map((coAuthor, index) => ({
-              userId: coAuthor.id,
-              name: coAuthor.name,
-              username: coAuthor.username,
-              logoUrl: coAuthor.logoUrl,
-              isCertified: coAuthor.isCertified,
-              role: 'CO_AUTHOR',
-              order: (article.attributions?.length ?? 0) + index,
-              isVisible: true,
-              consentStatus: 'ACCEPTED',
-            })),
-        ]}
+        initialAttributions={initialAttributions}
         collaborationRoomId={article.id}
         categories={categories}
         isSaving={isSaving}
