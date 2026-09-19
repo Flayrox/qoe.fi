@@ -54,7 +54,12 @@ docs/
 # Les exclure évite d'invalider le cache du layer COPY pour un commit
 # e2e/docs-only (couplé au filtre paths de build-images.yml).
 e2e/
-scripts/
+# ⚠️ `scripts/*` et non `scripts/` : un dossier exclu ne peut pas voir un de ses
+#    fichiers ré-inclus. `scripts/*` exclut chaque entrée (même effet de cache)
+#    tout en autorisant l'exception ci-dessous.
+scripts/*
+# Le stage builder l'exécute pour restaurer les payloads natifs @img (sharp).
+!scripts/fix-standalone-native-deps.sh
 .github/
 docker/
 
