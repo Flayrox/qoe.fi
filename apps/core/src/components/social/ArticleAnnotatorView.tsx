@@ -61,6 +61,13 @@ export interface ArticleAnnotatorViewProps {
       isCertified?: boolean;
       type?: 'PERSONAL' | 'MEDIA' | string | null;
       accentColor?: string | null;
+      journalist?: {
+        id: string;
+        name: string | null;
+        username: string | null;
+        logoUrl: string | null;
+        isCertified?: boolean;
+      } | null;
     };
     category?: { name: string } | null;
     tags?: string[];
@@ -329,14 +336,29 @@ function ArticleAnnotatorViewInner({
 
   const authorName = article.author?.name || article.author?.username || 'Auteur';
   const authorHandle = article.author?.username || article.author?.subdomain || '';
-  // Quand l'auteur EST le média lui-même, la ligne « Pour <média> » serait un
-  // doublon : on la masque.
+  // Quand l'article vient du feed, `author` est la publication (média) et le
+  // vrai rédacteur est dans `journalist` : on affiche le journaliste en
+  // premier, avec la ligne « Pour <média> » — jamais le média seul.
+  const writer = article.author?.type === 'MEDIA' ? (article.author?.journalist ?? null) : null;
+  const shownName = writer?.name || authorName;
+  const shownHandle = writer?.username || authorHandle;
+  const shownAvatar = writer?.logoUrl || article.author?.logoUrl;
+  const shownCertified = writer?.isCertified || article.author?.isCertified;
   const publication = article.publication;
+  const outletForPour = writer
+    ? {
+        name: article.author?.name,
+        logoUrl: article.author?.logoUrl,
+        subdomain: article.author?.subdomain,
+      }
+    : null;
   const publicationLabel = (publication?.name ?? '').trim().toLowerCase();
   const showPublicationLine =
-    publication != null &&
-    publicationLabel !== '' &&
-    publicationLabel !== authorName.trim().toLowerCase();
+    outletForPour != null ||
+    (publication != null &&
+      publicationLabel !== '' &&
+      publicationLabel !== shownName.trim().toLowerCase());
+  const pourTarget = outletForPour ?? publication;
   const dateObj = new Date(article.createdAt || Date.now());
   const dateFormatted = dateObj.toLocaleDateString('fr-FR', {
     day: 'numeric',
@@ -397,27 +419,27 @@ function ArticleAnnotatorViewInner({
           <div className="flex items-center gap-3 min-w-0">
             <ProfileHoverCard
               user={{
-                id: article.author?.id || '',
-                name: authorName,
-                username: authorHandle,
-                logoUrl: article.author?.logoUrl,
+                id: writer?.id || article.author?.id || '',
+                name: shownName,
+                username: shownHandle,
+                logoUrl: shownAvatar,
                 heroText: article.author?.heroText,
-                isCertified: article.author?.isCertified,
-                isMedia: article.author?.type === 'MEDIA',
-                type: article.author?.type,
+                isCertified: shownCertified,
+                isMedia: !writer && article.author?.type === 'MEDIA',
+                type: writer ? 'PERSONAL' : article.author?.type,
               }}
               onOpenProfile={onOpenProfile}
             >
               <SafeAvatar
-                src={article.author?.logoUrl}
-                name={authorName}
-                username={authorHandle}
+                src={shownAvatar}
+                name={shownName}
+                username={shownHandle}
                 size={42}
-                shape={article.author?.type === 'MEDIA' ? 'squircle' : 'circle'}
-                type={article.author?.type === 'MEDIA' ? 'MEDIA' : 'PERSONAL'}
+                shape={!writer && article.author?.type === 'MEDIA' ? 'squircle' : 'circle'}
+                type={!writer && article.author?.type === 'MEDIA' ? 'MEDIA' : 'PERSONAL'}
                 className={cn(
                   'shrink-0 cursor-pointer shadow-xs',
-                  article.author?.type === 'MEDIA' ? 'rounded-xl' : 'rounded-full'
+                  !writer && article.author?.type === 'MEDIA' ? 'rounded-xl' : 'rounded-full'
                 )}
               />
             </ProfileHoverCard>
@@ -426,35 +448,35 @@ function ArticleAnnotatorViewInner({
               <div className="flex items-center gap-1.5 flex-wrap">
                 <ProfileHoverCard
                   user={{
-                    id: article.author?.id || '',
-                    name: authorName,
-                    username: authorHandle,
-                    logoUrl: article.author?.logoUrl,
+                    id: writer?.id || article.author?.id || '',
+                    name: shownName,
+                    username: shownHandle,
+                    logoUrl: shownAvatar,
                     heroText: article.author?.heroText,
-                    isCertified: article.author?.isCertified,
-                    isMedia: article.author?.type === 'MEDIA',
-                    type: article.author?.type,
+                    isCertified: shownCertified,
+                    isMedia: !writer && article.author?.type === 'MEDIA',
+                    type: writer ? 'PERSONAL' : article.author?.type,
                   }}
                   onOpenProfile={onOpenProfile}
                 >
                   <span
-                    onClick={() => onOpenProfile?.(authorHandle)}
+                    onClick={() => onOpenProfile?.(shownHandle)}
                     className="font-semibold text-[15px] text-foreground hover:underline cursor-pointer truncate"
                   >
-                    {authorName}
+                    {shownName}
                   </span>
                 </ProfileHoverCard>
-                {article.author?.isCertified && <CertifiedBadge />}
-                {authorHandle && (
-                  <span className="text-xs text-muted-foreground">@{authorHandle}</span>
+                {shownCertified && <CertifiedBadge />}
+                {shownHandle && (
+                  <span className="text-xs text-muted-foreground">@{shownHandle}</span>
                 )}
               </div>
-              {showPublicationLine && publication && (
+              {showPublicationLine && pourTarget?.name && (
                 <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
                   <SafeAvatar
-                    src={publication.logoUrl ?? null}
-                    name={publication.name}
-                    username={publication.subdomain}
+                    src={pourTarget.logoUrl ?? null}
+                    name={pourTarget.name}
+                    username={pourTarget.subdomain}
                     size={16}
                     shape="squircle"
                     type="MEDIA"
@@ -462,7 +484,7 @@ function ArticleAnnotatorViewInner({
                   />
                   <span>
                     {t`Pour`}{' '}
-                    <span className="font-semibold text-foreground/90">{publication.name}</span>
+                    <span className="font-semibold text-foreground/90">{pourTarget.name}</span>
                   </span>
                 </div>
               )}
