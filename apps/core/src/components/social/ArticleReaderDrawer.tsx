@@ -119,7 +119,10 @@ function ArticleReaderDrawerContent({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed top-[6px] bottom-0 md:bottom-[6px] left-0 md:left-[262px] right-0 md:right-[6px] z-50 flex flex-col pointer-events-auto select-text selection:bg-foreground selection:text-background">
+        <div
+          data-testid="article-drawer"
+          className="fixed top-[6px] bottom-0 md:bottom-[6px] left-0 md:left-[262px] right-0 md:right-[6px] z-50 flex flex-col pointer-events-auto select-text selection:bg-foreground selection:text-background"
+        >
           {/* Backdrop Click Area (No darkening overlay, strictly bounded to right stage, sidebar remains 100% uncovered) */}
           <div
             onClick={onClose}

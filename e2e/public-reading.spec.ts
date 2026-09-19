@@ -81,7 +81,9 @@ test.describe('Parcours lecture (public)', () => {
       timeout: 15_000,
     });
     await expect(page.locator('#article-content')).toBeVisible();
-    await expect(page.getByText('min de lecture')).toBeVisible();
+    // Scopé au drawer : le feed en arrière-plan contient lui aussi des
+    // mentions « min de lecture » (flaky strict-mode sinon).
+    await expect(page.getByTestId('article-drawer').getByText('min de lecture')).toBeVisible();
   });
 
   test("affiche le contenu d'un média certifié dans l'onglet Explorer", async ({ page }) => {
