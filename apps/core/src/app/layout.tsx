@@ -148,30 +148,15 @@ export default async function RootLayout({
       }>('/v1/settings/preferences').catch(() => null)
     : null;
 
-  // 📣 Annonce globale diffusée depuis l'admin (courbure inversée)
-  let globalAnnouncement: {
+  // 📣 Annonce globale diffusée depuis l'admin (courbure inversée).
+  // Lecture Go-first : le layout ne touche plus à PostgREST (RLS 401 en prod).
+  const globalAnnouncement = await goFetch<{
     id: string;
     message: string;
     type?: 'promo' | 'info' | 'warning' | 'critical';
     linkUrl?: string;
     linkText?: string;
-  } | null = null;
-  try {
-    const { data: configRow } = await supabase
-      .from('SystemConfig')
-      .select('value')
-      .eq('key', 'GLOBAL_ANNOUNCEMENT')
-      .maybeSingle();
-
-    if (configRow?.value) {
-      const parsed = JSON.parse(configRow.value);
-      if (parsed?.active && parsed?.message) {
-        globalAnnouncement = parsed;
-      }
-    }
-  } catch {
-    // Fail-safe gracieux
-  }
+  } | null>('/v1/home/announcement').catch(() => null);
 
   const devtoolsActions = {
     getDevtoolsData,

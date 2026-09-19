@@ -56,6 +56,7 @@ func (h *Handler) subscribeLimiter(next http.HandlerFunc) http.Handler {
 func (h *Handler) RegisterPublic(r chi.Router) {
 	r.Route("/v1/home", func(r chi.Router) {
 		r.Get("/config", h.getConfig)
+		r.Get("/announcement", h.getAnnouncement)
 		r.Get("/trends", h.getTrends)
 		r.Get("/promos", h.getPromos)
 		// Widgets lecteur (auth optionnelle — le cas vectoriel utilise le userID) :
@@ -73,6 +74,15 @@ func (h *Handler) getConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, cfg)
+}
+
+func (h *Handler) getAnnouncement(w http.ResponseWriter, r *http.Request) {
+	announcement, err := h.svc.GetGlobalAnnouncement(r.Context())
+	if err != nil {
+		response.Internal(w)
+		return
+	}
+	response.OK(w, announcement)
 }
 
 func (h *Handler) getTrends(w http.ResponseWriter, r *http.Request) {

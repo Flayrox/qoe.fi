@@ -396,16 +396,14 @@ export interface GlobalAnnouncementPayload {
 }
 
 export async function getGlobalAnnouncementAction(): Promise<GlobalAnnouncementPayload | null> {
+  await verifySuperadmin();
   try {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from('SystemConfig')
-      .select('value')
-      .eq('key', 'GLOBAL_ANNOUNCEMENT')
-      .maybeSingle();
-
-    if (error || !data?.value) return null;
-    return JSON.parse(data.value) as GlobalAnnouncementPayload;
+    const items = await goFetch<Array<{ key: string; value: string }>>(
+      '/v1/admin/config?keys=GLOBAL_ANNOUNCEMENT'
+    );
+    const raw = items.find((item) => item.key === 'GLOBAL_ANNOUNCEMENT')?.value;
+    if (!raw) return null;
+    return JSON.parse(raw) as GlobalAnnouncementPayload;
   } catch {
     return null;
   }
@@ -416,23 +414,18 @@ export async function saveGlobalAnnouncementAction(
 ) {
   await verifySuperadmin();
   try {
-    const supabase = await createClient();
     const payload: GlobalAnnouncementPayload = {
       ...announcement,
       updatedAt: new Date().toISOString(),
     };
 
-    const { error } = await supabase.from('SystemConfig').upsert(
+    await upsertConfigsGo([
       {
         key: 'GLOBAL_ANNOUNCEMENT',
         value: JSON.stringify(payload),
         description: 'Bannière de notification globale diffusée en haut décran',
-        updatedAt: new Date().toISOString(),
       },
-      { onConflict: 'key' }
-    );
-
-    if (error) throw error;
+    ]);
     revalidatePath('/admin/notifications');
     revalidatePath('/', 'layout');
     return { success: true, announcement: payload };
