@@ -515,6 +515,7 @@ export interface FeedArticle {
   title: string;
   slug: string;
   content: string;
+  imageUrl?: string | null;
   isPremium: boolean;
   visibility: string;
   readingTime: number;

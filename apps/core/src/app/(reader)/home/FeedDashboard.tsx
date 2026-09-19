@@ -119,6 +119,13 @@ interface Article {
   createdAt: Date | string;
   author: Author;
   category: { name: string } | null;
+  publication?: {
+    name?: string | null;
+    slug?: string | null;
+    subdomain?: string | null;
+    logoUrl?: string | null;
+    customDomain?: string | null;
+  } | null;
   tags?: string[];
   /** Passage cité résolu par le serveur (tranche 6-a) — sert de spotlight
    *  quand la carte de citation ouvre l'article dans le drawer (6-b). */
@@ -199,6 +206,8 @@ interface FeedDashboardProps {
   initialArticle?: Article | null;
   initialCanonicalDocument?: CanonicalDocument | null;
   initialSpotlight?: SpotlightRange | null;
+  /** Route de retour quand l'article initial vient d'un deep-link (ex. profil). */
+  initialReturnUrl?: string | null;
 }
 
 export function FeedDashboard({
@@ -223,6 +232,7 @@ export function FeedDashboard({
   initialArticle = null,
   initialCanonicalDocument = null,
   initialSpotlight = null,
+  initialReturnUrl = null,
 }: FeedDashboardProps) {
   const [activeFeed, setActiveFeed] = useState<string>('recommandation');
   const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(needsOnboarding);
@@ -626,6 +636,12 @@ export function FeedDashboard({
     setActiveArticleSpotlight(null);
     setActiveArticleSource(undefined);
     setActiveArticleCanonicalDoc(undefined);
+    // Deep-link (ex. /assez/<article>) : on revient au profil d'origine par
+    // navigation complète (le fond actuel est le feed, pas le profil).
+    if (initialReturnUrl && window.location.pathname !== initialReturnUrl) {
+      window.location.href = initialReturnUrl;
+      return;
+    }
     if (typeof window !== 'undefined' && window.location.pathname !== routes.feed.home()) {
       window.history.pushState(null, '', routes.feed.home());
     }

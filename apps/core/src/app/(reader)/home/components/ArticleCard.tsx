@@ -58,6 +58,14 @@ export interface Article {
   published?: boolean;
   createdAt: Date | string;
   content?: string | null;
+  publication?: {
+    id: string;
+    name: string;
+    slug?: string | null;
+    subdomain?: string | null;
+    logoUrl?: string | null;
+    type?: string | null;
+  } | null;
   author: Author;
   category?: { name: string; parent?: { name: string } | null } | null;
   tags?: string[];
@@ -350,6 +358,25 @@ export function ArticleCard({
           ]
         : otherContributors.map((coAuthor) => ({ ...coAuthor, isMedia: false }))
       : otherContributors.map((coAuthor) => ({ ...coAuthor, isMedia: false }));
+  // Sur un profil (override désactivé), l'auteur affiché reste la personne :
+  // la ligne « Pour <média> » vient de la publication, et on ne répète pas le
+  // journaliste déjà affiché en première ligne.
+  const profileMedia: Contributor | null =
+    disableAuthorOverride && isMedia
+      ? article.publication
+        ? {
+            id: article.publication.id,
+            name: article.publication.name,
+            username: article.publication.subdomain ?? null,
+            logoUrl: article.publication.logoUrl ?? null,
+            isMedia: true,
+            handleOnly: true,
+          }
+        : mediaContributor
+      : null;
+  const linePeople: Contributor[] = profileMedia
+    ? otherContributors.map((coAuthor) => ({ ...coAuthor, isMedia: false }))
+    : secondaryPeople;
   const fallbackImage = useAuthorAsPrimary ? journalist?.logoUrl : article.author.logoUrl;
   const coverImage = article.imageUrl || fallbackImage;
   const excerpt = plainText(article.content);
@@ -474,8 +501,8 @@ export function ArticleCard({
                 </span>
               </div>
               <ContributorLine
-                people={secondaryPeople}
-                forMedia={useAuthorAsPrimary ? mediaContributor : null}
+                people={linePeople}
+                forMedia={useAuthorAsPrimary ? mediaContributor : profileMedia}
                 onOpenProfile={onOpenProfile}
               />
             </div>

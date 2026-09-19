@@ -133,6 +133,41 @@ func TestService_GetBySlug_Unknown(t *testing.T) {
 	}
 }
 
+// TestService_GetBySlugAny_Enrichment vérifie que la lecture publique par slug
+// seul (drawer lecteur) embarque l'image, le logo de publication et les
+// attributions — sinon la page affiche un article sans couverture ni signature.
+func TestService_GetBySlugAny_Enrichment(t *testing.T) {
+	fx := seed(t)
+	svc := newService()
+	ctx := context.Background()
+
+	if _, err := poolTest.Exec(ctx,
+		`UPDATE "Article" SET "imageUrl" = 'https://cdn.qoe.fi/test-cover.jpg' WHERE slug = 'premier-article' AND "publicationId" = $1`,
+		fx.PublicationID); err != nil {
+		t.Fatalf("image seed: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx,
+		`UPDATE "Publication" SET "logoUrl" = 'https://cdn.qoe.fi/test-logo.jpg' WHERE id = $1`,
+		fx.PublicationID); err != nil {
+		t.Fatalf("logo seed: %v", err)
+	}
+
+	art, err := svc.GetBySlugAny(ctx, "premier-article")
+	if err != nil {
+		t.Fatalf("GetBySlugAny: %v", err)
+	}
+	if art.ImageUrl == nil || *art.ImageUrl != "https://cdn.qoe.fi/test-cover.jpg" {
+		t.Fatalf("imageUrl = %+v, attendu la couverture seedée", art.ImageUrl)
+	}
+	if art.Publication == nil || art.Publication.LogoURL == nil ||
+		*art.Publication.LogoURL != "https://cdn.qoe.fi/test-logo.jpg" {
+		t.Fatalf("publication = %+v, attendu le logo seedé", art.Publication)
+	}
+	if art.Attributions == nil || art.CoAuthors == nil {
+		t.Fatal("attributions/co-auteurs nil, attendu tableaux (même vides)")
+	}
+}
+
 func TestService_GetByID_Author(t *testing.T) {
 	fx := seed(t)
 	svc := newService()

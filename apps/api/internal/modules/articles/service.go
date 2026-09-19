@@ -94,6 +94,7 @@ type PublicationInfo struct {
 	Name         string  `json:"name"`
 	Slug         string  `json:"slug"`
 	Subdomain    *string `json:"subdomain"`
+	LogoURL      *string `json:"logoUrl,omitempty"`
 	CustomDomain *string `json:"customDomain"`
 }
 
@@ -229,7 +230,7 @@ func (s *Service) GetBySlugAny(ctx context.Context, slug string) (ArticleRespons
 
 	// GetArticleBySlugAnyRow a le même shape que GetArticleBySlugRow mais c'est
 	// un type distinct → conversion explicite vers le mapping existant.
-	return ArticleResponse{
+	resp := ArticleResponse{
 		ID: row.ID, Title: row.Title, Slug: row.Slug, Content: cut.Content,
 		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),
 		ReadingTime: int(row.ReadingTime), Status: row.Status, PublicationID: row.PublicationId,
@@ -239,8 +240,28 @@ func (s *Service) GetBySlugAny(ctx context.Context, slug string) (ArticleRespons
 		UpdatedAt:   row.UpdatedAt.Time.Format(time.RFC3339),
 		IsTruncated: cut.IsTruncated, AccessGranted: cut.AccessGranted, PaywallMeta: cut.PaywallMeta,
 		Author:      AuthorInfo{ID: row.AuthorID, Name: textPtr(row.AuthorName), Username: textPtr(row.AuthorUsername), LogoURL: textPtr(row.AuthorLogo)},
-		Publication: &PublicationInfo{ID: row.PublicationId, Name: row.PublicationName, Slug: row.PublicationSlug, Subdomain: textPtr(row.PublicationSubdomain), CustomDomain: textPtr(row.PublicationCustomDomain)},
-	}, nil
+		Publication: &PublicationInfo{ID: row.PublicationId, Name: row.PublicationName, Slug: row.PublicationSlug, Subdomain: textPtr(row.PublicationSubdomain), LogoURL: textPtr(row.PublicationLogo), CustomDomain: textPtr(row.PublicationCustomDomain)},
+		CoAuthors:   []AuthorInfo{},
+		Attributions: []AttributionInfo{},
+	}
+	// Enrichissement lecture publique (comme la réponse éditeur) : image de
+	// couverture, certification et attributions — sinon le drawer lecteur
+	// affiche un article sans image ni signature.
+	if img := s.fetchArticleImageUrl(ctx, row.ID); img != nil {
+		resp.ImageUrl = img
+	}
+	if cert := s.fetchUserIsCertified(ctx, row.AuthorID); cert != nil {
+		resp.Author.IsCertified = *cert
+	}
+	resp.Attributions = s.fetchAttributions(ctx, row.ID)
+	resp.CoAuthors = s.fetchCoAuthors(ctx, row.ID)
+	if resp.Attributions == nil {
+		resp.Attributions = []AttributionInfo{}
+	}
+	if resp.CoAuthors == nil {
+		resp.CoAuthors = []AuthorInfo{}
+	}
+	return resp, nil
 }
 
 // GetBySlug lit un article publié et applique la troncature paywall.

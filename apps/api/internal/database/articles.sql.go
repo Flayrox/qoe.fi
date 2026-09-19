@@ -285,7 +285,9 @@ SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibilit
        p.name         AS publication_name,
        p.slug         AS publication_slug,
        p.subdomain    AS publication_subdomain,
-       p."customDomain" AS publication_custom_domain
+       p."logoUrl"    AS publication_logo,
+       p."customDomain" AS publication_custom_domain,
+       a."imageUrl"   AS article_image
 FROM "Article" a
 JOIN "User" u ON u.id = a."authorId"
 JOIN "Publication" p ON p.id = a."publicationId"
@@ -327,7 +329,9 @@ type GetArticleBySlugAnyRow struct {
 	PublicationName         string            `json:"publication_name"`
 	PublicationSlug         string            `json:"publication_slug"`
 	PublicationSubdomain    pgtype.Text       `json:"publication_subdomain"`
+	PublicationLogo         pgtype.Text       `json:"publication_logo"`
 	PublicationCustomDomain pgtype.Text       `json:"publication_custom_domain"`
+	ArticleImage            pgtype.Text       `json:"article_image"`
 }
 
 // Lecture publique par slug SEUL (premier article publié) — parité avec
@@ -364,7 +368,9 @@ func (q *Queries) GetArticleBySlugAny(ctx context.Context, slug string) (GetArti
 		&i.PublicationName,
 		&i.PublicationSlug,
 		&i.PublicationSubdomain,
+		&i.PublicationLogo,
 		&i.PublicationCustomDomain,
+		&i.ArticleImage,
 	)
 	return i, err
 }
@@ -670,6 +676,7 @@ SELECT a.id,
        a.title,
        a.slug,
        a.content,
+       a."imageUrl"     AS article_image,
        a."isPremium",
        a.visibility,
        a."readingTime",
@@ -719,6 +726,7 @@ type ListPublishedArticlesByPublicationRow struct {
 	Title                string            `json:"title"`
 	Slug                 string            `json:"slug"`
 	Content              string            `json:"content"`
+	ArticleImage         pgtype.Text       `json:"article_image"`
 	IsPremium            bool              `json:"isPremium"`
 	Visibility           ContentVisibility `json:"visibility"`
 	ReadingTime          int32             `json:"readingTime"`
@@ -756,6 +764,7 @@ func (q *Queries) ListPublishedArticlesByPublication(ctx context.Context, arg Li
 			&i.Title,
 			&i.Slug,
 			&i.Content,
+			&i.ArticleImage,
 			&i.IsPremium,
 			&i.Visibility,
 			&i.ReadingTime,
@@ -791,6 +800,7 @@ SELECT a.id,
        a.title,
        a.slug,
        a.content,
+       a."imageUrl"     AS article_image,
        a."isPremium",
        a.visibility,
        a."readingTime",
@@ -832,6 +842,7 @@ type ListRecentPublishedArticlesRow struct {
 	Title                string            `json:"title"`
 	Slug                 string            `json:"slug"`
 	Content              string            `json:"content"`
+	ArticleImage         pgtype.Text       `json:"article_image"`
 	IsPremium            bool              `json:"isPremium"`
 	Visibility           ContentVisibility `json:"visibility"`
 	ReadingTime          int32             `json:"readingTime"`
@@ -869,6 +880,7 @@ func (q *Queries) ListRecentPublishedArticles(ctx context.Context, arg ListRecen
 			&i.Title,
 			&i.Slug,
 			&i.Content,
+			&i.ArticleImage,
 			&i.IsPremium,
 			&i.Visibility,
 			&i.ReadingTime,
