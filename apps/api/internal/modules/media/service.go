@@ -225,25 +225,25 @@ func (s *Service) ListMedia(ctx context.Context, userID string) ([]MediaListItem
 
 // MediaPublication est la publication d'un média (détail studio).
 type MediaPublication struct {
-	ID               string      `json:"id"`
-	Name             string      `json:"name"`
-	Slug             string      `json:"slug"`
-	Subdomain        *string     `json:"subdomain"`
-	CustomDomain     *string     `json:"customDomain"`
-	Bio              *string     `json:"bio"`
-	LogoURL          *string     `json:"logoUrl"`
-	HeroText         *string     `json:"heroText"`
-	HeaderImageURL   *string     `json:"headerImageUrl"`
-	FooterText       *string     `json:"footerText"`
-	AccentColor      *string     `json:"accentColor"`
-	ThemeMode        *string     `json:"themeMode"`
-	LayoutStyle      *string     `json:"layoutStyle"`
-	SeoTitle         *string     `json:"seoTitle"`
-	SeoDescription   *string     `json:"seoDescription"`
-	AllowIndexing    bool        `json:"allowIndexing"`
-	SupportURL       *string     `json:"supportUrl"`
-	FontFamily       *string     `json:"fontFamily"`
-	Count            MediaCount  `json:"_count"`
+	ID             string     `json:"id"`
+	Name           string     `json:"name"`
+	Slug           string     `json:"slug"`
+	Subdomain      *string    `json:"subdomain"`
+	CustomDomain   *string    `json:"customDomain"`
+	Bio            *string    `json:"bio"`
+	LogoURL        *string    `json:"logoUrl"`
+	HeroText       *string    `json:"heroText"`
+	HeaderImageURL *string    `json:"headerImageUrl"`
+	FooterText     *string    `json:"footerText"`
+	AccentColor    *string    `json:"accentColor"`
+	ThemeMode      *string    `json:"themeMode"`
+	LayoutStyle    *string    `json:"layoutStyle"`
+	SeoTitle       *string    `json:"seoTitle"`
+	SeoDescription *string    `json:"seoDescription"`
+	AllowIndexing  bool       `json:"allowIndexing"`
+	SupportURL     *string    `json:"supportUrl"`
+	FontFamily     *string    `json:"fontFamily"`
+	Count          MediaCount `json:"_count"`
 }
 
 // MediaCount est le compteur _count de la publication.
@@ -425,6 +425,20 @@ var mediaStringColumns = map[string]string{
 	"headerImageUrl": "headerImageUrl", "footerText": "footerText", "themeMode": "themeMode",
 	"layoutStyle": "layoutStyle", "seoTitle": "seoTitle", "seoDescription": "seoDescription",
 	"fontFamily": "fontFamily", "supportUrl": "supportUrl",
+}
+
+// MediaIDByPublication résout l'id d'un média depuis l'id de sa publication.
+// Les profils publics n'exposent que la publicationId (profil média) — l'erreur
+// du 19/09 venait de ces deux identifiants confondus par le front.
+func (s *Service) MediaIDByPublication(ctx context.Context, publicationID string) (string, error) {
+	row, err := s.q.GetMediaByPublicationID(ctx, publicationID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return "", errNotFound
+		}
+		return "", err
+	}
+	return row.MediaID, nil
 }
 
 // UpdateSettings applique une mise à jour partielle des réglages du média

@@ -180,3 +180,12 @@ WHERE ak.id = sqlc.arg('key_id') AND m.id = sqlc.arg('media_id') AND ak."publica
 DELETE FROM "ApiKey" ak
 USING "Media" m
 WHERE ak.id = sqlc.arg('key_id') AND m.id = sqlc.arg('media_id') AND ak."publicationId" = m."publicationId";
+
+-- name: GetMediaByPublicationID :one
+-- Résout un Média depuis l'identifiant de SA publication (le profil public
+-- d'un média expose la publicationId, pas l'id du média).
+SELECT md.id AS media_id,
+       md."publicationId" AS publication_id
+FROM "Media" md
+WHERE md."publicationId" = $1
+LIMIT 1;
