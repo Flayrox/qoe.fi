@@ -69,7 +69,8 @@ export async function generateMetadata({ params }: TenantArticlePageProps): Prom
     article.author?.username ||
     publication.name ||
     (isFr ? 'Auteur' : 'Author');
-  const coverImage = publication.headerImageUrl || article.author?.logoUrl || undefined;
+  const coverImage =
+    article.imageUrl || publication.headerImageUrl || article.author?.logoUrl || undefined;
 
   return {
     title,
@@ -288,7 +289,7 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
     authorName,
     authorUsername: article.author?.username,
     authorLogo: article.author?.logoUrl,
-    coverImage: publication.headerImageUrl || article.author?.logoUrl,
+    coverImage: article.imageUrl || publication.headerImageUrl || article.author?.logoUrl,
     baseUrl: `https://${decodedDomain}`,
   });
 
@@ -298,7 +299,7 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
       themeMode={themeMode}
       articleMetadata={{
         title: article.title,
-        coverUrl: publication.headerImageUrl || article.author?.logoUrl,
+        coverUrl: article.imageUrl || publication.headerImageUrl || article.author?.logoUrl,
         authorName,
         contentSelector: '#article-content',
       }}

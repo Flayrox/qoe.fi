@@ -76,7 +76,8 @@ export async function generateMetadata({
     article.author?.username ||
     publication.name ||
     (isFr ? 'Auteur' : 'Author');
-  const coverImage = publication.headerImageUrl || article.author?.logoUrl || undefined;
+  const coverImage =
+    article.imageUrl || publication.headerImageUrl || article.author?.logoUrl || undefined;
 
   return {
     title,
@@ -306,7 +307,7 @@ export default async function TenantCategoryArticlePage({
     authorName: article.author?.name || article.author?.username || displayName,
     authorUsername: article.author?.username,
     authorLogo: article.author?.logoUrl,
-    coverImage: publication.headerImageUrl || article.author?.logoUrl,
+    coverImage: article.imageUrl || publication.headerImageUrl || article.author?.logoUrl,
     baseUrl: `https://${decodedDomain}`,
   });
 
@@ -340,7 +341,7 @@ export default async function TenantCategoryArticlePage({
       themeMode={themeMode}
       articleMetadata={{
         title: article.title,
-        coverUrl: publication.headerImageUrl || article.author?.logoUrl,
+        coverUrl: article.imageUrl || publication.headerImageUrl || article.author?.logoUrl,
         authorName,
         contentSelector: '#article-content',
       }}

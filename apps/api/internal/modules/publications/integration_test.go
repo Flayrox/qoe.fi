@@ -140,12 +140,20 @@ func TestPublicationsArticleBundle(t *testing.T) {
 	ctx := context.Background()
 	readerID := "00000000-0000-0000-0000-0000000000e2"
 
+	if _, err := poolTest.Exec(ctx,
+		`UPDATE "Article" SET "imageUrl" = 'https://cdn.qoe.fi/test-cover.jpg' WHERE id = $1`, articleID); err != nil {
+		t.Fatalf("image seed: %v", err)
+	}
 	bundle, err := svc.Article(ctx, "tenant", "ARTICLE-TENANT", readerID, "tenant.reader@test.dev")
 	if err != nil {
 		t.Fatalf("Article: %v", err)
 	}
 	if bundle.Article.ID != articleID {
 		t.Fatalf("article.ID = %s, attendu %s", bundle.Article.ID, articleID)
+	}
+	// L'image de couverture doit traverser jusqu'à la page article tenant.
+	if bundle.Article.ImageURL == nil || *bundle.Article.ImageURL != "https://cdn.qoe.fi/test-cover.jpg" {
+		t.Fatalf("imageUrl = %+v, attendu la couverture seedée", bundle.Article.ImageURL)
 	}
 	if bundle.Article.Author == nil || bundle.Article.Author.ID != userID {
 		t.Fatalf("author = %+v, attendu id %s", bundle.Article.Author, userID)
