@@ -582,7 +582,7 @@ print(articles)`,
                         value={projectUrl}
                         onChange={(e) => setProjectUrl(e.target.value)}
                         placeholder="https://monportfolio.com ou https://github.com/mon-projet"
-                        className="w-full rounded-xl border border-border px-3.5 py-2.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary placeholder:text-muted-foreground/60 bg-muted/30 transition-all font-mono"
+                        className="w-full rounded-xl border border-border px-3.5 py-2.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary placeholder:text-muted-foreground/60 bg-muted/30 transition-all font-sans"
                       />
                     </div>
 
@@ -910,7 +910,7 @@ print(articles)`,
                             <td className="px-6 py-4">
                               <div className="font-semibold text-foreground">{key.name}</div>
                               <div className="mt-1 flex items-center gap-1.5">
-                                <code className="bg-muted/60 text-muted-foreground px-2 py-0.5 rounded font-mono text-[11px] border border-border/50">
+                                <code className="bg-muted/60 text-muted-foreground px-2 py-0.5 rounded font-sans font-medium text-[11px] border border-border/50">
                                   {key.keyPrefix}••••••••••••••••
                                 </code>
                               </div>
@@ -1072,7 +1072,7 @@ print(articles)`,
               </div>
 
               {/* Code Snippet Box */}
-              <div className="relative bg-muted/40 border border-border/80 rounded-xl p-4 font-mono text-xs overflow-x-auto">
+              <div className="relative bg-muted/40 border border-border/80 rounded-xl p-4 font-sans text-xs overflow-x-auto">
                 <button
                   onClick={() => handleCopy(snippets[snippetTab], true)}
                   className="absolute top-3 right-3 p-1.5 rounded-lg bg-card border border-border hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
@@ -1166,8 +1166,8 @@ print(articles)`,
               </div>
 
               {/* API Key container */}
-              <div className="bg-muted/50 border border-border rounded-xl p-4 flex items-center justify-between gap-3 font-mono text-xs select-all">
-                <code className="text-foreground break-all font-semibold font-mono text-xs">
+              <div className="bg-muted/50 border border-border rounded-xl p-4 flex items-center justify-between gap-3 font-sans text-xs select-all">
+                <code className="text-foreground break-all font-semibold font-sans text-xs">
                   {generatedKey}
                 </code>
                 <button

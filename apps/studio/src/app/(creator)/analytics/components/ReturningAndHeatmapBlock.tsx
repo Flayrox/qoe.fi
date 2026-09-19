@@ -15,7 +15,7 @@ function HourBar({ hour, visits, max }: { hour: number; visits: number; max: num
 
   return (
     <div className="flex items-center gap-2">
-      <span className="w-8 shrink-0 text-right text-[10px] text-muted-foreground font-mono">
+      <span className="w-8 shrink-0 text-right text-[10px] text-muted-foreground font-sans tabular-nums font-medium">
         {label}
       </span>
       <div className="flex-1 h-3 rounded-md bg-muted/40 overflow-hidden">
@@ -27,7 +27,7 @@ function HourBar({ hour, visits, max }: { hour: number; visits: number; max: num
           title={`${label} — ${visits} visites`}
         />
       </div>
-      <span className="w-8 shrink-0 text-left text-[10px] text-muted-foreground font-mono">
+      <span className="w-8 shrink-0 text-left text-[10px] text-muted-foreground font-sans tabular-nums font-medium">
         {visits > 0 ? visits : ''}
       </span>
     </div>
