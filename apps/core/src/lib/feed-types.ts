@@ -147,7 +147,11 @@ export interface FeedArticle {
   publication: FeedPublication;
   coAuthors: FeedAuthor[];
   attributions: FeedAttribution[];
-  category: { name: string } | null;
+  category: {
+    name: string;
+    slug?: string;
+    parent?: { name: string; slug?: string } | null;
+  } | null;
   likes?: { userId: string }[];
   _count?: { likes: number; replies: number; reposts: number };
 }
@@ -190,7 +194,11 @@ export interface FeedArticleDTO {
     coAuthors?: FeedJournalist[];
     contributors?: FeedJournalist[];
   };
-  category: { name: string } | null;
+  category: {
+    name: string;
+    slug?: string;
+    parent?: { name: string; slug?: string } | null;
+  } | null;
   tags?: string[];
   contributors?: FeedJournalist[];
   likesCount?: number;

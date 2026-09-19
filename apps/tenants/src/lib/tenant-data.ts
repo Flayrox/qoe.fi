@@ -37,6 +37,12 @@ export interface TenantCategory {
   id: string;
   name: string;
   slug: string;
+  parentId?: string | null;
+  parent?: {
+    id: string;
+    name: string;
+    slug: string;
+  } | null;
 }
 
 export interface TenantArticleSummary {
