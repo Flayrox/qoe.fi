@@ -1811,7 +1811,11 @@ export function Editor({
 
                 {/* Section 4 : Attributions & Crédits */}
                 <div className="space-y-3 pt-4 border-t border-border/40">
-                  <ArticleAttributionEditor value={attributions} onChange={setAttributions} />
+                  <ArticleAttributionEditor
+                    value={attributions}
+                    onChange={setAttributions}
+                    articleId={collaborationRoomId}
+                  />
                 </div>
 
                 {/* Section 5 : Référencement & Social (SEO Google Preview) */}
