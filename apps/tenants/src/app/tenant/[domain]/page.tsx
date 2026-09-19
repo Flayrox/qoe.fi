@@ -157,11 +157,11 @@ export default async function TenantHomepage({ params }: PageProps) {
         <div
           className={`container mx-auto px-4 lg:px-8 ${headerImageUrl ? 'pt-32 pb-24 md:pt-48 text-white' : 'py-20 md:py-32'} flex flex-col items-center text-center max-w-4xl`}
         >
-          <h2
+          <h1
             className={`text-5xl md:text-7xl tracking-tighter mb-8 leading-[1.1] ${isBrutalist ? 'font-black uppercase' : 'font-bold'}`}
           >
             {heroText || `Welcome to ${name}'s digital space`}
-          </h2>
+          </h1>
           <p
             className={`text-xl md:text-2xl max-w-2xl mx-auto leading-relaxed mb-10 ${headerImageUrl ? 'text-background/80' : 'text-muted-foreground'}`}
           >

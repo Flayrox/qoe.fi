@@ -500,8 +500,8 @@ func TestLegal_Compliance(t *testing.T) {
 	if snapshot.GeneratedAt.IsZero() {
 		t.Fatal("photographie non datée")
 	}
-	if snapshot.EligibleUsers < 3 {
-		t.Fatalf("comptes actifs = %d, attendu au moins 3", snapshot.EligibleUsers)
+	if snapshot.EligibleUsers != 3 {
+		t.Fatalf("comptes actifs = %d, attendu exactement 3", snapshot.EligibleUsers)
 	}
 	// Personne n'a encore accepté : les écarts sont signalés.
 	if snapshot.UsersWithGaps == 0 || snapshot.PendingAcceptances == 0 {
