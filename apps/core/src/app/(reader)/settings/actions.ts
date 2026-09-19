@@ -194,19 +194,60 @@ export async function cancelAccountDeletionAction() {
 
 // Change le mot de passe via Supabase Auth (envoie un email de confirmation).
 export async function changePasswordAction(currentPassword: string, newPassword: string) {
-  if (newPassword.length < 8) {
-    throw new Error('Le nouveau mot de passe doit contenir au moins 8 caractères.');
+  if (newPassword.length < 12) {
+    throw new Error('Le nouveau mot de passe doit contenir au moins 12 caractères.');
   }
-  const supabase = await createClient();
-  const { data, error } = await supabase.auth.updateUser({
-    password: newPassword,
+  if (!/[A-Z]/.test(newPassword) || !/[a-z]/.test(newPassword) || !/\d/.test(newPassword)) {
+    throw new Error('Le mot de passe doit mélanger majuscules, minuscules et chiffres.');
+  }
+  // Go en primaire : vérifie le mot de passe actuel (réauthentification) puis
+  // met à jour via GoTrue admin. Le client Supabase ne peut PAS vérifier
+  // l'ancien mot de passe — c'était la faille du formulaire précédent.
+  await goFetch('/v1/me/password-change', {
+    method: 'POST',
+    body: { currentPassword, newPassword },
   });
-  if (error) {
-    throw new Error(error.message);
-  }
-  void currentPassword; // Supabase n'exige pas l'ancien mot de passe via updateUser.
   revalidatePath('/settings');
   return { success: true };
+}
+
+/**
+ * CHANGE D'EMAIL — POST /v1/me/email-change.
+ * Réauthentification par mot de passe actuel, puis email de vérification
+ * vers la nouvelle adresse (jamais de changement silencieux).
+ */
+export async function changeEmailAction(currentPassword: string, newEmail: string) {
+  const email = newEmail.trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    throw new Error('Adresse email invalide.');
+  }
+  await goFetch('/v1/me/email-change', {
+    method: 'POST',
+    body: { currentPassword, newEmail: email },
+  });
+  revalidatePath('/settings');
+  return { success: true };
+}
+
+/**
+ * CHANGE L'USERNAME — PATCH /v1/me/profile (username explicite).
+ * Le endpoint recharge l'username courant si le corps n'en contient pas :
+ * ici il est TOUJOURS transmis, donc validé (format + unicité + liste
+ * réservée) côté Go.
+ */
+export async function changeUsernameAction(newUsername: string) {
+  const username = newUsername.trim().toLowerCase().replace(/^@/, '');
+  if (username.length < 3 || username.length > 24) {
+    throw new Error('Le nom d’utilisateur doit contenir 3 à 24 caractères.');
+  }
+  // Le Go valide le format, les identifiants réservés et l’unicité.
+  const profile = await goFetch<{ username?: string | null }>('/v1/me/profile', {
+    method: 'PATCH',
+    body: { username },
+  });
+  revalidatePath('/settings');
+  revalidatePath(`/@${profile.username ?? username}`);
+  return { success: true, username: profile.username ?? username };
 }
 
 export async function logoutAccountAction() {
