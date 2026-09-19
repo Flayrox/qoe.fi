@@ -4,7 +4,13 @@ import { createClient } from '@qoe/supabase/server';
 import { getMainAppUrl } from '@qoe/config';
 import Link from 'next/link';
 import Image from 'next/image';
-import { TenantHeader, SubscribeForm, JsonLd, buildArticleSchema } from '@qoe/ui';
+import {
+  TenantHeader,
+  SubscribeForm,
+  JsonLd,
+  buildArticleSchema,
+  buildBreadcrumbSchema,
+} from '@qoe/ui';
 import type { Metadata } from 'next';
 import { getLanguage } from '@qoe/i18n/server';
 import { type AnnotationItem, type HighlightItem } from '@qoe/ui/annotations';
@@ -105,6 +111,8 @@ export default async function TenantCategoryArticlePage({
   params,
 }: TenantCategoryArticlePageProps) {
   const { domain, categorySlug, articleSlug } = await params;
+  const lang = await getLanguage();
+  const isFr = lang === 'fr';
   const decodedDomain = decodeURIComponent(domain).toLowerCase();
   const decodedCategorySlug = decodeURIComponent(categorySlug).toLowerCase();
   const decodedArticleSlug = decodeURIComponent(articleSlug);
@@ -302,6 +310,30 @@ export default async function TenantCategoryArticlePage({
     baseUrl: `https://${decodedDomain}`,
   });
 
+  const baseUrl = `https://${decodedDomain}`;
+  const breadcrumbItems = [{ name: isFr ? 'Accueil' : 'Home', url: baseUrl }];
+
+  if (article.category?.parent) {
+    breadcrumbItems.push({
+      name: article.category.parent.name,
+      url: `${baseUrl}/${encodeURIComponent(article.category.parent.slug)}`,
+    });
+  }
+
+  if (article.category) {
+    breadcrumbItems.push({
+      name: article.category.name,
+      url: `${baseUrl}/${encodeURIComponent(article.category.slug)}`,
+    });
+  }
+
+  breadcrumbItems.push({
+    name: article.title,
+    url: `${baseUrl}/${encodeURIComponent(decodedCategorySlug)}/${encodeURIComponent(article.slug)}`,
+  });
+
+  const breadcrumbJsonLd = buildBreadcrumbSchema(breadcrumbItems);
+
   return (
     <TenantReaderShell
       style={customStyle}
@@ -313,7 +345,7 @@ export default async function TenantCategoryArticlePage({
         contentSelector: '#article-content',
       }}
     >
-      <JsonLd data={jsonLdData} />
+      <JsonLd data={[jsonLdData, breadcrumbJsonLd]} />
       <TenantHeader
         name={name}
         domain={decodedDomain}
@@ -332,12 +364,18 @@ export default async function TenantCategoryArticlePage({
       />
       <main className="container mx-auto px-4 lg:px-8 pt-12 pb-24 max-w-3xl">
         <header className="mb-10 space-y-4">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
             {article.category && (
-              <span
-                className={`px-3 py-1 text-xs font-semibold rounded-full ${isBrutalist ? 'border-2 border-foreground uppercase' : 'bg-[var(--tenant-accent)]/10 text-[var(--tenant-accent)]'}`}
-              >
-                {article.category.name}
+              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-muted text-foreground flex items-center gap-1">
+                {article.category.parent && (
+                  <>
+                    <span className="text-muted-foreground font-normal">
+                      {article.category.parent.name}
+                    </span>
+                    <span className="text-muted-foreground/60 text-[10px]">›</span>
+                  </>
+                )}
+                <span>{article.category.name}</span>
               </span>
             )}
             <span className="text-xs text-muted-foreground font-medium">{t`${readingTimeMinutes} min de lecture`}</span>

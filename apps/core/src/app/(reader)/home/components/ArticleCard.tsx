@@ -59,7 +59,7 @@ export interface Article {
   createdAt: Date | string;
   content?: string | null;
   author: Author;
-  category?: { name: string } | null;
+  category?: { name: string; parent?: { name: string } | null } | null;
   tags?: string[];
   contributors?: Journalist[];
   likesCount?: number;
@@ -564,7 +564,17 @@ export function ArticleCard({
       <div className="flex items-center justify-between gap-3 border-t border-border/30 px-1.5 pt-2.5 text-xs text-muted-foreground mt-auto">
         <div className="flex min-w-0 items-center gap-2.5">
           {article.category && (
-            <span className="truncate font-medium text-foreground/80">{article.category.name}</span>
+            <span className="truncate font-medium text-foreground/80 inline-flex items-center gap-1">
+              {article.category.parent && (
+                <>
+                  <span className="text-muted-foreground/80 font-normal">
+                    {article.category.parent.name}
+                  </span>
+                  <span className="text-muted-foreground/50 text-[10px]">›</span>
+                </>
+              )}
+              <span>{article.category.name}</span>
+            </span>
           )}
           {article.category && article.readingTime > 0 && <span>·</span>}
           {article.readingTime > 0 && (

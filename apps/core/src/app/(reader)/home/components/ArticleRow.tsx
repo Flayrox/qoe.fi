@@ -26,7 +26,7 @@ export interface ArticleRowProps {
       logoUrl: string | null;
       isCertified?: boolean;
     };
-    category?: { name: string } | null;
+    category?: { name: string; parent?: { name: string } | null } | null;
   };
   isBookmarked?: boolean;
   onBookmarkToggle?: (articleId: string) => void;
@@ -125,7 +125,17 @@ export function ArticleRow({
             {article.category?.name && (
               <>
                 <span>•</span>
-                <span className="truncate">{article.category.name}</span>
+                <span className="truncate inline-flex items-center gap-1">
+                  {article.category.parent && (
+                    <>
+                      <span className="text-muted-foreground/80">
+                        {article.category.parent.name}
+                      </span>
+                      <span className="text-muted-foreground/50 text-[9px]">›</span>
+                    </>
+                  )}
+                  <span>{article.category.name}</span>
+                </span>
               </>
             )}
           </div>

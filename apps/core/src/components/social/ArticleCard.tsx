@@ -28,6 +28,7 @@ export interface ArticleCardData {
   category?: {
     name: string;
     slug?: string;
+    parent?: { name: string; slug?: string } | null;
   } | null;
   _count?: {
     bookmarks?: number;
@@ -85,8 +86,14 @@ export function ArticleCard({ article, onOpenReader }: ArticleCardProps) {
       <div className="flex items-center justify-between gap-2 text-xs font-semibold text-muted-foreground">
         <div className="flex items-center gap-2">
           {article.category && (
-            <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 text-[11px]">
-              {article.category.name}
+            <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 text-[11px] inline-flex items-center gap-1">
+              {article.category.parent && (
+                <>
+                  <span className="opacity-75">{article.category.parent.name}</span>
+                  <span className="opacity-50 text-[10px]">›</span>
+                </>
+              )}
+              <span>{article.category.name}</span>
             </span>
           )}
           {badge && (

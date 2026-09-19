@@ -7,6 +7,7 @@ import {
   buildArticleSchema,
   buildPersonSchema,
   buildWebSiteSchema,
+  buildBreadcrumbSchema,
 } from '../JsonLd';
 
 describe('🛡️ SEO JsonLd Component & Builders', () => {
@@ -78,5 +79,30 @@ describe('🛡️ SEO JsonLd Component & Builders', () => {
     expect(schema['@context']).toBe('https://schema.org');
     expect(schema['@type']).toBe('WebSite');
     expect(schema.url).toBe('https://qoe.fi');
+  });
+
+  it('génère un schéma BreadcrumbList conforme', () => {
+    const schema = buildBreadcrumbSchema([
+      { name: 'Accueil', url: 'https://monblog.qoe.fi' },
+      { name: 'Technologie', url: 'https://monblog.qoe.fi/technologie' },
+      { name: 'IA', url: 'https://monblog.qoe.fi/ia' },
+      { name: 'Mon article', url: 'https://monblog.qoe.fi/ia/mon-article' },
+    ]);
+
+    expect(schema['@context']).toBe('https://schema.org');
+    expect(schema['@type']).toBe('BreadcrumbList');
+    expect(schema.itemListElement).toHaveLength(4);
+    expect(schema.itemListElement[0]).toEqual({
+      '@type': 'ListItem',
+      position: 1,
+      name: 'Accueil',
+      item: 'https://monblog.qoe.fi',
+    });
+    expect(schema.itemListElement[2]).toEqual({
+      '@type': 'ListItem',
+      position: 3,
+      name: 'IA',
+      item: 'https://monblog.qoe.fi/ia',
+    });
   });
 });

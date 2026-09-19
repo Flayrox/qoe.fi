@@ -118,3 +118,24 @@ export function buildWebSiteSchema(input: WebSiteSchemaInput) {
     description: input.description,
   };
 }
+
+export interface BreadcrumbItemInput {
+  name: string;
+  url: string;
+}
+
+/**
+ * Construit un schéma Schema.org conforme de type 'BreadcrumbList' pour Google Rich Results.
+ */
+export function buildBreadcrumbSchema(items: BreadcrumbItemInput[]) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: items.map((item, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: item.name,
+      item: item.url,
+    })),
+  };
+}
