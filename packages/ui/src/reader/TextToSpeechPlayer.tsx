@@ -15,6 +15,7 @@ import {
   Compass,
 } from 'lucide-react';
 import { toast } from '@qoe/ui/toast';
+import { cn } from '@qoe/utils';
 import { useTextToSpeech, TextToSpeechProvider } from './TextToSpeechContext';
 import { useReadingPreferences } from './ReadingPreferencesContext';
 
@@ -92,7 +93,7 @@ function TextToSpeechPlayerInner({
     tts.authorName,
   ]);
 
-  const handleStart = () => {
+  const handleToggle = () => {
     if (!tts) {
       toast.error(t`La synthèse vocale n'est pas initialisée.`);
       return;
@@ -101,7 +102,11 @@ function TextToSpeechPlayerInner({
       toast.error(t`La synthèse vocale n'est pas supportée sur ce navigateur.`);
       return;
     }
-    tts.openAndPlay();
+    if (tts.isPlaying || tts.isOpen) {
+      tts.closePlayer();
+    } else {
+      tts.openAndPlay();
+    }
   };
 
   if (!tts) return null;
@@ -110,7 +115,6 @@ function TextToSpeechPlayerInner({
     isOpen,
     isPlaying,
     currentParagraphIndex,
-    currentParagraphText,
     paragraphs,
     playbackRate,
     elapsedSeconds,
@@ -129,23 +133,38 @@ function TextToSpeechPlayerInner({
 
   const currentIdx = currentParagraphIndex !== null ? currentParagraphIndex : 0;
   const totalParas = Math.max(1, paragraphs.length);
-  const activeExcerpt =
-    currentParagraphText || (paragraphs[currentIdx] ? paragraphs[currentIdx] : null);
 
   return (
     <>
-      {/* 1. Bouton Déclencheur discret dans le Header ou l'Auteur */}
-      {!isOpen && (
-        <button
-          type="button"
-          onClick={handleStart}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-full border border-border/60 bg-background/90 hover:bg-muted/80 text-foreground text-xs font-semibold shadow-xs transition-colors cursor-pointer select-none ${className}`}
-          title={t`Écouter l'article`}
-        >
-          <Volume2 className="w-3.5 h-3.5 text-primary" />
-          <span>{t`Écouter`}</span>
-        </button>
-      )}
+      {/* 1. Bouton persistant dans le Header ou l'Auteur (actif si lecture en cours) */}
+      <button
+        type="button"
+        onClick={handleToggle}
+        className={cn(
+          'flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold shadow-xs transition-all cursor-pointer select-none',
+          isPlaying
+            ? 'qoe-audio-btn-active hover:opacity-90'
+            : 'border-border/60 bg-background/90 hover:bg-muted/80 text-foreground',
+          className
+        )}
+        title={isPlaying ? t`Arrêter la lecture audio` : t`Écouter l'article`}
+      >
+        {isPlaying ? (
+          <>
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full qoe-audio-dot-ping opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 qoe-audio-dot" />
+            </span>
+            <Volume2 className="w-3.5 h-3.5 qoe-audio-icon animate-pulse" />
+            <span>{t`Arrêter`}</span>
+          </>
+        ) : (
+          <>
+            <Volume2 className="w-3.5 h-3.5 text-primary" />
+            <span>{t`Écouter`}</span>
+          </>
+        )}
+      </button>
 
       {/* 2. Mini-Lecteur Audio Flottant Immersif avec Scrubber & Karaoké */}
       {isOpen && (
@@ -261,18 +280,6 @@ function TextToSpeechPlayerInner({
             </div>
           </div>
 
-          {/* Ligne 1.5 : Extrait en direct du paragraphe en cours de lecture avec égaliseur */}
-          {activeExcerpt && (
-            <div className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-muted/40 border border-border/30 text-[11px] text-foreground/90 select-none animate-in fade-in duration-150">
-              <div className="flex items-end gap-0.5 h-3 shrink-0 text-primary">
-                <span className="w-0.5 h-2 bg-primary rounded-full animate-bounce [animation-delay:0ms]" />
-                <span className="w-0.5 h-3 bg-primary rounded-full animate-bounce [animation-delay:150ms]" />
-                <span className="w-0.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:300ms]" />
-              </div>
-              <span className="truncate italic font-medium">« {activeExcerpt} »</span>
-            </div>
-          )}
-
           {/* Ligne 2 : Scrubber interactif & Temps */}
           <div className="w-full flex items-center gap-2 pt-0.5 select-none">
             <span className="text-[10px] tabular-nums font-mono text-muted-foreground shrink-0 w-8">
@@ -293,12 +300,12 @@ function TextToSpeechPlayerInner({
             >
               {/* Filled Track */}
               <div
-                className="h-full bg-foreground dark:bg-white rounded-full transition-all duration-150"
+                className="h-full qoe-audio-scrubber-fill rounded-full transition-all duration-150"
                 style={{ width: `${progressPercent}%` }}
               />
               {/* Draggable thumb appearance on hover */}
               <div
-                className="absolute w-3.5 h-3.5 rounded-full bg-foreground dark:bg-white shadow-md -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute w-3.5 h-3.5 rounded-full qoe-audio-scrubber-fill shadow-md -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity"
                 style={{ left: `${progressPercent}%` }}
               />
             </div>
