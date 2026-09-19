@@ -75,7 +75,7 @@ export function UserAvatar({
         size={pixelSize}
         shape={shape}
         type={resolvedType}
-        className="transition-transform duration-200 group-hover/avatar:scale-[1.02] border border-border/40"
+        className="border border-border/40"
       />
 
       {showBadge && isCertified && (
