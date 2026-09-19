@@ -2,9 +2,12 @@ package home
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/hibiken/asynq"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/qoefi/api/internal/database"
@@ -45,6 +48,49 @@ func (s *Service) GetSystemConfig(ctx context.Context) (SystemConfig, error) {
 		}
 	}
 	return m, rows.Err()
+}
+
+// GlobalAnnouncement est le seul réglage système exposé publiquement par la
+// page d'accueil. Le reste de SystemConfig reste réservé à l'administration.
+type GlobalAnnouncement struct {
+	ID       string  `json:"id"`
+	Message  string  `json:"message"`
+	Type     string  `json:"type,omitempty"`
+	LinkURL  *string `json:"linkUrl,omitempty"`
+	LinkText *string `json:"linkText,omitempty"`
+}
+
+// GetGlobalAnnouncement lit l'annonce globale sans passer par PostgREST. Une
+// annonce absente, inactive, incomplète ou malformée vaut absence d'annonce :
+// le bandeau ne doit jamais afficher un brouillon ou un JSON cassé.
+func (s *Service) GetGlobalAnnouncement(ctx context.Context) (*GlobalAnnouncement, error) {
+	var raw string
+	err := s.pool.QueryRow(ctx, `SELECT value FROM "SystemConfig" WHERE key = 'GLOBAL_ANNOUNCEMENT'`).Scan(&raw)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var stored struct {
+		ID       string  `json:"id"`
+		Active   bool    `json:"active"`
+		Message  string  `json:"message"`
+		Type     string  `json:"type"`
+		LinkURL  *string `json:"linkUrl"`
+		LinkText *string `json:"linkText"`
+	}
+	if err := json.Unmarshal([]byte(raw), &stored); err != nil {
+		return nil, nil
+	}
+	if !stored.Active || stored.ID == "" || stored.Message == "" {
+		return nil, nil
+	}
+	return &GlobalAnnouncement{
+		ID: stored.ID, Message: stored.Message, Type: stored.Type,
+		LinkURL: stored.LinkURL, LinkText: stored.LinkText,
+	}, nil
 }
 
 type TrendItem struct {
