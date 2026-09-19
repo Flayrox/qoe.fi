@@ -7,3 +7,4 @@ export * from './ReadingProgressBar';
 export * from './ReadingRuler';
 export * from './TextToSpeechPlayer';
 export * from './TextToSpeechContext';
+export * from './FloatingAudioPlayer';

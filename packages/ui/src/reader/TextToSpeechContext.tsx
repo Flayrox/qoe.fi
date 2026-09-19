@@ -12,6 +12,7 @@ import React, {
 import { useReadingPreferences } from './ReadingPreferencesContext';
 import { toast } from '@qoe/ui/toast';
 import { t } from '@lingui/core/macro';
+import { FloatingAudioPlayer } from './FloatingAudioPlayer';
 
 export interface TextToSpeechMetadata {
   title: string;
@@ -568,6 +569,7 @@ export function TextToSpeechProvider({
       }}
     >
       {children}
+      <FloatingAudioPlayer />
     </TextToSpeechContext.Provider>
   );
 }

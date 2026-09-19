@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { useFloating, inline, flip, shift, offset, autoUpdate } from '@floating-ui/react';
+import { useFloating, inline, flip, shift, offset, autoUpdate, hide } from '@floating-ui/react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { cn } from '@qoe/utils';
 import type { SelectionState, TextSelectionPopoverProps } from './types';
@@ -25,8 +25,10 @@ export function TextSelectionPopover({
 
   const popoverRef = useRef<HTMLDivElement>(null);
   const shouldReduceMotion = useReducedMotion();
+  const isScrollingRef = useRef(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const { refs, floatingStyles, placement } = useFloating({
+  const { refs, floatingStyles, placement, middlewareData } = useFloating({
     open: Boolean(virtualElement),
     placement: 'top',
     middleware: [
@@ -37,6 +39,7 @@ export function TextSelectionPopover({
         padding: 16,
       }),
       shift({ padding: 16 }),
+      hide(),
     ],
     whileElementsMounted: autoUpdate,
   });
@@ -114,6 +117,27 @@ export function TextSelectionPopover({
     placement,
   ]);
 
+  // Track active scroll to prevent premature deselection from browser transient events
+  useEffect(() => {
+    const handleScroll = () => {
+      isScrollingRef.current = true;
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+      scrollTimeoutRef.current = setTimeout(() => {
+        isScrollingRef.current = false;
+      }, 150);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     const handleMouseUp = (e: MouseEvent) => {
       if (popoverRef.current && popoverRef.current.contains(e.target as Node)) {
@@ -129,7 +153,8 @@ export function TextSelectionPopover({
     };
 
     const handleSelectionChange = () => {
-      if (isLocked) return;
+      // Ignore during lock or while user is actively scrolling
+      if (isLocked || isScrollingRef.current) return;
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed) {
         requestAnimationFrame(evaluateSelection);
@@ -149,10 +174,17 @@ export function TextSelectionPopover({
 
   if (!virtualElement || !selectedText || !selectionRange) return null;
 
+  const isHidden = Boolean(middlewareData.hide?.referenceHidden);
+
   return (
     <div
       ref={refs.setFloating}
-      style={floatingStyles as React.CSSProperties}
+      style={{
+        ...(floatingStyles as React.CSSProperties),
+        opacity: isHidden ? 0 : 1,
+        pointerEvents: isHidden ? 'none' : 'auto',
+        transition: 'opacity 0.15s ease-out',
+      }}
       className={cn(
         'z-50 pointer-events-auto select-none font-sans flex items-center justify-center',
         className
@@ -164,14 +196,21 @@ export function TextSelectionPopover({
           e.preventDefault();
         }
       }}
+      onTouchStart={(e) => {
+        if (isLocked) return;
+        const target = e.target as HTMLElement;
+        if (target.tagName !== 'TEXTAREA' && target.tagName !== 'INPUT') {
+          e.preventDefault();
+        }
+      }}
     >
       <div ref={popoverRef} className="flex items-center justify-center">
-        <AnimatePresence mode="wait">
+        <AnimatePresence>
           <motion.div
-            key={placement}
-            initial={{ opacity: 0, y: placement.startsWith('top') ? 3 : -3 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: placement.startsWith('top') ? 3 : -3 }}
+            key="apple-selection-popover"
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.96 }}
             transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.12, ease: 'easeOut' }}
             className="relative"
           >

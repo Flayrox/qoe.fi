@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Check, Loader2, X, Plus, Globe, Lock, Quote, Eye, Volume2 } from 'lucide-react';
 import { cn } from '@qoe/utils';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { TextSelectionPopover } from './TextSelectionPopover';
 import { AnnotationSideDrawer } from './AnnotationSideDrawer';
 import { CanonicalArticleBody } from './CanonicalArticleBody';
@@ -83,9 +83,6 @@ export function TextHighlighter({
   useEffect(() => {
     setAllPublic(publicHighlights);
   }, [publicHighlights]);
-
-  // Motion accessibility preference
-  const shouldReduceMotion = useReducedMotion();
 
   // Note input form state
   const [showNoteInput, setShowNoteInput] = useState(false);
@@ -738,16 +735,9 @@ export function TextHighlighter({
               <div className="w-0 h-0 border-x-[6px] border-x-transparent border-b-[6px] border-b-popover/95 drop-shadow-[0_-1px_1px_rgba(0,0,0,0.08)] mb-[-1px] z-10 pointer-events-none" />
             )}
 
-            <motion.div
-              layout
-              layoutId="apple-callout-surface"
-              transition={
-                shouldReduceMotion
-                  ? { duration: 0 }
-                  : { type: 'spring', stiffness: 500, damping: 32 }
-              }
+            <div
               className={cn(
-                'bg-popover/95 text-popover-foreground border border-border/40 backdrop-blur-xl shadow-2xl font-sans',
+                'bg-popover/95 text-popover-foreground border border-border/40 backdrop-blur-xl shadow-2xl font-sans transition-all duration-150 ease-out',
                 showNoteInput ? 'rounded-2xl w-80 sm:w-84 p-4 space-y-3' : 'rounded-xl py-1 px-1'
               )}
             >
@@ -1015,7 +1005,7 @@ export function TextHighlighter({
                   </motion.form>
                 )}
               </AnimatePresence>
-            </motion.div>
+            </div>
 
             {/* Directional Caret (flèche vers le bas si le menu est au-dessus de la sélection) */}
             {!showNoteInput && placement.startsWith('top') && (
