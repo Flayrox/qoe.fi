@@ -29,6 +29,7 @@ import {
   Layers,
   X,
   Move,
+  FolderInput,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import {
@@ -40,13 +41,6 @@ import {
   moveCategoryAction,
 } from '@qoe/sdk/actions/articles';
 import { t } from '@lingui/core/macro';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@qoe/ui/ui/dialog';
 
 import { ArticleInspectorModal } from '../analytics/components/ArticleInspectorModal';
 
@@ -173,6 +167,9 @@ export function ArticlesClient({
   const [inlineRootName, setInlineRootName] = useState('');
   const [isCreatingInline, setIsCreatingInline] = useState(false);
 
+  // Quick Move Menu State (Déplacement instantané en 1 clic)
+  const [movingCatId, setMovingCatId] = useState<string | null>(null);
+
   // Catégories mères et enfants helpers
   const rootCategories = useMemo(() => categories.filter((c) => !c.parentId), [categories]);
   const draggedCat = useMemo(
@@ -209,18 +206,19 @@ export function ArticlesClient({
     setDragOverRoot(false);
   };
 
-  const handleDropOnParent = async (targetParentId: string) => {
-    if (!draggedId || draggedId === targetParentId) {
+  const handleDropOnParent = async (targetParentId: string, customId?: string) => {
+    const idToMove = customId || draggedId;
+    if (!idToMove || idToMove === targetParentId) {
       handleDragEnd();
       return;
     }
-    const dragged = categories.find((c) => c.id === draggedId);
+    const dragged = categories.find((c) => c.id === idToMove);
     if (!dragged) {
       handleDragEnd();
       return;
     }
 
-    if (hasChildren(draggedId)) {
+    if (hasChildren(idToMove)) {
       alert(
         t`Cette catégorie contient déjà des sous-catégories et ne peut pas devenir une sous-catégorie.`
       );
@@ -236,12 +234,12 @@ export function ArticlesClient({
     const previousCategories = [...categories];
     // Mise à jour optimiste instantanée
     setCategories((prev) =>
-      prev.map((c) => (c.id === draggedId ? { ...c, parentId: targetParentId } : c))
+      prev.map((c) => (c.id === idToMove ? { ...c, parentId: targetParentId } : c))
     );
     handleDragEnd();
 
     try {
-      const res = await moveCategoryAction({ id: draggedId, parentId: targetParentId });
+      const res = await moveCategoryAction({ id: idToMove, parentId: targetParentId });
       if (!res.ok) throw new Error(res.error.message);
     } catch (err: unknown) {
       setCategories(previousCategories);
@@ -249,23 +247,24 @@ export function ArticlesClient({
     }
   };
 
-  const handleDropOnRoot = async () => {
-    if (!draggedId) {
+  const handleDropOnRoot = async (customId?: string) => {
+    const idToMove = customId || draggedId;
+    if (!idToMove) {
       handleDragEnd();
       return;
     }
-    const dragged = categories.find((c) => c.id === draggedId);
+    const dragged = categories.find((c) => c.id === idToMove);
     if (!dragged || !dragged.parentId) {
       handleDragEnd();
       return;
     }
 
     const previousCategories = [...categories];
-    setCategories((prev) => prev.map((c) => (c.id === draggedId ? { ...c, parentId: null } : c)));
+    setCategories((prev) => prev.map((c) => (c.id === idToMove ? { ...c, parentId: null } : c)));
     handleDragEnd();
 
     try {
-      const res = await moveCategoryAction({ id: draggedId, parentId: null });
+      const res = await moveCategoryAction({ id: idToMove, parentId: null });
       if (!res.ok) throw new Error(res.error.message);
     } catch (err: unknown) {
       setCategories(previousCategories);
@@ -1059,9 +1058,13 @@ export function ArticlesClient({
                 <div
                   onDragOver={(e) => {
                     e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
                     setDragOverRoot(true);
                   }}
-                  onDragLeave={() => setDragOverRoot(false)}
+                  onDragLeave={(e) => {
+                    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                    setDragOverRoot(false);
+                  }}
                   onDrop={(e) => {
                     e.preventDefault();
                     handleDropOnRoot();
@@ -1103,11 +1106,13 @@ export function ArticlesClient({
                         onDragOver={(e) => {
                           if (canBeDropTarget) {
                             e.preventDefault();
-                            setDragOverParentId(root.id);
+                            e.dataTransfer.dropEffect = 'move';
+                            if (dragOverParentId !== root.id) setDragOverParentId(root.id);
                           }
                         }}
-                        onDragLeave={() => {
-                          if (isDropTarget) setDragOverParentId(null);
+                        onDragLeave={(e) => {
+                          if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+                          if (dragOverParentId === root.id) setDragOverParentId(null);
                         }}
                         onDrop={(e) => {
                           if (canBeDropTarget) {
@@ -1119,7 +1124,9 @@ export function ArticlesClient({
                           'p-3.5 rounded-xl border transition-all duration-200 bg-card',
                           isDropTarget
                             ? 'border-primary bg-primary/5 ring-2 ring-primary/20 shadow-md'
-                            : 'border-border/40 hover:border-border/80'
+                            : editingCat?.id === root.id
+                              ? 'border-primary/60 ring-1 ring-primary/30'
+                              : 'border-border/40 hover:border-border/80'
                         )}
                       >
                         {/* Root Category Header Row */}
@@ -1170,6 +1177,45 @@ export function ArticlesClient({
 
                           {/* Quick Actions */}
                           <div className="flex items-center gap-1 shrink-0">
+                            {/* Bouton déplacement 1 clic si pas d'enfants */}
+                            {!hasChildren(root.id) && (
+                              <div className="relative">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setMovingCatId(movingCatId === root.id ? null : root.id)
+                                  }
+                                  className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/60 transition-colors cursor-pointer"
+                                  title={t`Déplacer sous une autre catégorie (1 clic)`}
+                                >
+                                  <FolderInput className="w-3.5 h-3.5 stroke-[1.5]" />
+                                </button>
+                                {movingCatId === root.id && (
+                                  <div className="absolute right-0 top-full mt-1.5 z-40 w-52 bg-card border border-border/60 rounded-xl shadow-xl p-1.5 space-y-1 text-xs">
+                                    <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                                      {t`Déplacer sous...`}
+                                    </div>
+                                    {rootCategories
+                                      .filter((r) => r.id !== root.id)
+                                      .map((r) => (
+                                        <button
+                                          key={r.id}
+                                          type="button"
+                                          onClick={async () => {
+                                            setMovingCatId(null);
+                                            await handleDropOnParent(r.id, root.id);
+                                          }}
+                                          className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-muted text-foreground flex items-center gap-2 transition-colors cursor-pointer truncate"
+                                        >
+                                          <FolderOpen className="w-3.5 h-3.5 text-primary shrink-0" />
+                                          <span className="truncate">{r.name}</span>
+                                        </button>
+                                      ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
                             <button
                               type="button"
                               onClick={() => {
@@ -1241,6 +1287,54 @@ export function ArticlesClient({
                               </div>
 
                               <div className="flex items-center gap-1 shrink-0">
+                                {/* Menu rapide Déplacer vers... */}
+                                <div className="relative">
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setMovingCatId(movingCatId === sub.id ? null : sub.id)
+                                    }
+                                    className="p-1 text-muted-foreground hover:text-foreground rounded hover:bg-muted transition-colors cursor-pointer"
+                                    title={t`Déplacer vers... (1 clic)`}
+                                  >
+                                    <FolderInput className="w-3.5 h-3.5 stroke-[1.5]" />
+                                  </button>
+                                  {movingCatId === sub.id && (
+                                    <div className="absolute right-0 top-full mt-1.5 z-40 w-52 bg-card border border-border/60 rounded-xl shadow-xl p-1.5 space-y-1 text-xs">
+                                      <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                                        {t`Déplacer vers...`}
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          setMovingCatId(null);
+                                          await handleDropOnRoot(sub.id);
+                                        }}
+                                        className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-muted text-foreground flex items-center gap-2 transition-colors cursor-pointer"
+                                      >
+                                        <ArrowUpRight className="w-3.5 h-3.5 text-primary shrink-0" />
+                                        <span>{t`Catégorie principale`}</span>
+                                      </button>
+                                      {rootCategories
+                                        .filter((r) => r.id !== sub.parentId)
+                                        .map((r) => (
+                                          <button
+                                            key={r.id}
+                                            type="button"
+                                            onClick={async () => {
+                                              setMovingCatId(null);
+                                              await handleDropOnParent(r.id, sub.id);
+                                            }}
+                                            className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-muted text-foreground flex items-center gap-2 transition-colors cursor-pointer truncate"
+                                          >
+                                            <FolderOpen className="w-3.5 h-3.5 text-primary shrink-0" />
+                                            <span className="truncate">{r.name}</span>
+                                          </button>
+                                        ))}
+                                    </div>
+                                  )}
+                                </div>
+
                                 <button
                                   onClick={async () => {
                                     try {
@@ -1402,211 +1496,155 @@ export function ArticlesClient({
               )}
             </div>
 
-            {/* Right: Create Category Form */}
+            {/* Right Panel: Contextual Category Editor */}
             <div className="md:col-span-1">
-              <div className="bg-card border border-border/40 rounded-xl p-5 space-y-4 shadow-none sticky top-6">
-                <div className="space-y-1">
-                  <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider font-sans">
-                    {t`Nouvelle Catégorie`}
-                  </h3>
-                  <p className="text-muted-foreground text-xs leading-normal font-sans">
-                    {t`Organisez vos écrits en catégories principales et sous-catégories.`}
-                  </p>
-                </div>
-
-                <form onSubmit={handleCreateCategory} className="space-y-4 font-sans">
-                  <div className="space-y-1">
-                    <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans font-semibold">
-                      {t`Nom de la catégorie`}
-                    </label>
-                    <input
-                      type="text"
-                      value={newCatName}
-                      onChange={handleCategoryNameChange}
-                      placeholder={t`Ex: Technologie, IA...`}
-                      required
-                      className="w-full bg-background border border-border/40 rounded-lg p-2 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-sans"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans font-semibold">
-                      {t`Catégorie parente`}
-                    </label>
-                    <select
-                      value={newCatParentId}
-                      onChange={(e) => setNewCatParentId(e.target.value)}
-                      className="w-full bg-background border border-border/40 rounded-lg p-2 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-sans cursor-pointer"
-                    >
-                      <option value="">{t`-- Aucune (catégorie principale) --`}</option>
-                      {rootCategories.map((rc) => (
-                        <option key={rc.id} value={rc.id}>
-                          {rc.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans font-semibold">
-                      {t`Slug URL`}
-                    </label>
-                    <input
-                      type="text"
-                      value={newCatSlug}
-                      onChange={(e) =>
-                        setNewCatSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-'))
-                      }
-                      placeholder="technologie"
-                      required
-                      className="w-full bg-background border border-border/40 rounded-lg p-2 text-xs font-sans text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans font-semibold">
-                      {t`Description`}
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={newCatDesc}
-                      onChange={(e) => setNewCatDesc(e.target.value)}
-                      placeholder={t`Courte description thématique...`}
-                      className="w-full bg-background border border-border/40 rounded-lg p-2 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-sans resize-none"
-                    />
-                  </div>
-
-                  {categoryError && (
-                    <div className="bg-destructive/10 border border-destructive/20 text-destructive p-2.5 rounded-lg text-[11px] flex gap-2 font-sans">
-                      <AlertCircle className="h-4 w-4 shrink-0" />
-                      <span>{categoryError}</span>
+              {editingCat ? (
+                <div className="bg-card border border-border/40 rounded-xl p-5 space-y-4 shadow-none sticky top-6">
+                  <div className="flex items-center justify-between gap-2 border-b border-border/30 pb-3">
+                    <div className="min-w-0">
+                      <h3 className="text-xs font-bold text-foreground uppercase tracking-wider font-sans truncate">
+                        {t`Modifier la catégorie`}
+                      </h3>
+                      <p className="text-muted-foreground text-[11px] truncate font-sans">
+                        {editingCat.name}
+                      </p>
                     </div>
-                  )}
+                    <button
+                      type="button"
+                      onClick={() => setEditingCat(null)}
+                      className="p-1 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors cursor-pointer"
+                      title={t`Fermer`}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
 
-                  <button
-                    type="submit"
-                    disabled={isCreatingCategory || !newCatName.trim()}
-                    className="w-full h-8 flex items-center justify-center gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground font-sans font-bold text-xs rounded-xl transition-all disabled:opacity-50 cursor-pointer shadow-sm"
-                  >
-                    {isCreatingCategory ? t`Création...` : t`Créer la catégorie`}
-                  </button>
-                </form>
-              </div>
+                  <form onSubmit={handleSaveEdit} className="space-y-3.5 font-sans">
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans font-semibold">
+                        {t`Nom de la catégorie`}
+                      </label>
+                      <input
+                        type="text"
+                        value={editCatName}
+                        onChange={(e) => setEditCatName(e.target.value)}
+                        required
+                        className="w-full bg-background border border-border/40 rounded-lg p-2 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-sans"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans font-semibold">
+                        {t`Catégorie parente`}
+                      </label>
+                      <select
+                        value={editCatParentId}
+                        onChange={(e) => setEditCatParentId(e.target.value)}
+                        disabled={hasChildren(editingCat.id)}
+                        className={cn(
+                          'w-full bg-background border border-border/40 rounded-lg p-2 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-sans',
+                          hasChildren(editingCat.id)
+                            ? 'opacity-50 cursor-not-allowed'
+                            : 'cursor-pointer'
+                        )}
+                      >
+                        <option value="">{t`-- Aucune (catégorie principale) --`}</option>
+                        {rootCategories
+                          .filter((rc) => rc.id !== editingCat.id)
+                          .map((rc) => (
+                            <option key={rc.id} value={rc.id}>
+                              {rc.name}
+                            </option>
+                          ))}
+                      </select>
+                      {hasChildren(editingCat.id) && (
+                        <p className="text-[10px] text-muted-foreground/80 italic">
+                          {t`Cette catégorie possède déjà des sous-catégories et doit rester une catégorie principale.`}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans font-semibold">
+                        {t`Slug URL`}
+                      </label>
+                      <input
+                        type="text"
+                        value={editCatSlug}
+                        onChange={(e) =>
+                          setEditCatSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-'))
+                        }
+                        required
+                        className="w-full bg-background border border-border/40 rounded-lg p-2 text-xs font-sans text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans font-semibold">
+                        {t`Description`}
+                      </label>
+                      <textarea
+                        rows={3}
+                        value={editCatDesc}
+                        onChange={(e) => setEditCatDesc(e.target.value)}
+                        placeholder={t`Courte description thématique...`}
+                        className="w-full bg-background border border-border/40 rounded-lg p-2 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-sans resize-none"
+                      />
+                    </div>
+
+                    {editError && (
+                      <div className="bg-destructive/10 border border-destructive/20 text-destructive p-2.5 rounded-lg text-[11px] flex gap-2 font-sans">
+                        <AlertCircle className="h-4 w-4 shrink-0" />
+                        <span>{editError}</span>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-end gap-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditingCat(null)}
+                        className="px-3 py-1.5 rounded-lg text-xs font-sans text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                      >
+                        {t`Annuler`}
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isSavingEdit || !editCatName.trim()}
+                        className="px-4 py-1.5 rounded-lg text-xs font-sans font-bold bg-primary hover:bg-primary/90 text-primary-foreground transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
+                      >
+                        {isSavingEdit ? t`Enregistrement...` : t`Enregistrer`}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              ) : (
+                <div className="bg-card border border-border/40 rounded-xl p-5 space-y-4 shadow-none sticky top-6">
+                  <div className="space-y-1.5">
+                    <h3 className="text-xs font-bold text-foreground uppercase tracking-wider font-sans flex items-center gap-2">
+                      <FolderTree className="w-4 h-4 text-primary" />
+                      {t`Gestion des catégories`}
+                    </h3>
+                    <p className="text-muted-foreground text-xs leading-relaxed font-sans">
+                      {t`Cliquez sur l'icône de crayon d'une catégorie pour la modifier ici sans quitter la page.`}
+                    </p>
+                  </div>
+
+                  <div className="pt-3 border-t border-border/30 space-y-2.5 text-xs text-muted-foreground font-sans">
+                    <div className="flex items-start gap-2">
+                      <GripVertical className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
+                      <span>{t`Glissez et déposez à la souris pour convertir une catégorie en sous-catégorie.`}</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Plus className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
+                      <span>{t`Cliquez sur "+" directement sous un dossier pour ajouter une sous-catégorie instantanément.`}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Category Edit Dialog Modal */}
-      <Dialog open={!!editingCat} onOpenChange={(open) => !open && setEditingCat(null)}>
-        <DialogContent className="max-w-md bg-card text-foreground border-border">
-          <DialogHeader>
-            <DialogTitle className="text-foreground text-sm font-bold font-sans">
-              {t`Modifier la catégorie`}
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground text-xs font-sans">
-              {t`Modifiez les propriétés ou réassignez la catégorie parente.`}
-            </DialogDescription>
-          </DialogHeader>
-
-          {editingCat && (
-            <form onSubmit={handleSaveEdit} className="space-y-3.5 font-sans pt-2">
-              <div className="space-y-1">
-                <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans font-semibold">
-                  {t`Nom de la catégorie`}
-                </label>
-                <input
-                  type="text"
-                  value={editCatName}
-                  onChange={(e) => setEditCatName(e.target.value)}
-                  required
-                  className="w-full bg-background border border-border/40 rounded-lg p-2 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-sans"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans font-semibold">
-                  {t`Catégorie parente`}
-                </label>
-                <select
-                  value={editCatParentId}
-                  onChange={(e) => setEditCatParentId(e.target.value)}
-                  disabled={hasChildren(editingCat.id)}
-                  className={cn(
-                    'w-full bg-background border border-border/40 rounded-lg p-2 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-sans',
-                    hasChildren(editingCat.id) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
-                  )}
-                >
-                  <option value="">{t`-- Aucune (catégorie principale) --`}</option>
-                  {rootCategories
-                    .filter((rc) => rc.id !== editingCat.id)
-                    .map((rc) => (
-                      <option key={rc.id} value={rc.id}>
-                        {rc.name}
-                      </option>
-                    ))}
-                </select>
-                {hasChildren(editingCat.id) && (
-                  <p className="text-[10px] text-muted-foreground/80 italic">
-                    {t`Cette catégorie possède déjà des sous-catégories et doit rester une catégorie principale.`}
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans font-semibold">
-                  {t`Slug URL`}
-                </label>
-                <input
-                  type="text"
-                  value={editCatSlug}
-                  onChange={(e) =>
-                    setEditCatSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-'))
-                  }
-                  required
-                  className="w-full bg-background border border-border/40 rounded-lg p-2 text-xs font-sans text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans font-semibold">
-                  {t`Description`}
-                </label>
-                <textarea
-                  rows={3}
-                  value={editCatDesc}
-                  onChange={(e) => setEditCatDesc(e.target.value)}
-                  className="w-full bg-background border border-border/40 rounded-lg p-2 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-sans resize-none"
-                />
-              </div>
-
-              {editError && (
-                <div className="bg-destructive/10 border border-destructive/20 text-destructive p-2 rounded-lg text-[11px] flex gap-2 font-sans">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
-                  <span>{editError}</span>
-                </div>
-              )}
-
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setEditingCat(null)}
-                  className="px-3 py-1.5 rounded-lg text-xs font-sans text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-                >
-                  {t`Annuler`}
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSavingEdit || !editCatName.trim()}
-                  className="px-4 py-1.5 rounded-lg text-xs font-sans font-bold bg-primary hover:bg-primary/90 text-primary-foreground transition-colors disabled:opacity-50 cursor-pointer"
-                >
-                  {isSavingEdit ? t`Enregistrement...` : t`Enregistrer`}
-                </button>
-              </div>
-            </form>
-          )}
-        </DialogContent>
-      </Dialog>
 
       {/* Article Inspector Drawer Modal — période synchronisée avec la liste, toutes les données envoyées */}
       {inspectingArticle && (
