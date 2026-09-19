@@ -24,6 +24,7 @@ import {
   InvertedCurveBanner,
 } from '@qoe/ui';
 import { QueryProvider } from '@/components/providers/QueryProvider';
+import { StaleServerActionBanner } from '@/components/StaleServerActionBanner';
 import { ReadingPreferencesProvider } from '@/components/providers/ReadingPreferencesProvider';
 import { createClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
@@ -210,6 +211,7 @@ export default async function RootLayout({
                       />
                     )}
                     {children}
+                    <StaleServerActionBanner />
                     <Toaster />
                     {process.env.NODE_ENV === 'development' && (
                       <DevtoolsPanel actions={devtoolsActions} />
