@@ -44,11 +44,18 @@ import {
 interface AnalyticsNoticeProps {
   locale: string;
   policyVersion?: string;
+  /** Lien explicite vers la politique de cookies, utile sur les routes imbriquées. */
+  policyHref?: string;
   /** Ouvre le centre de préférences hébergé par le parent, s'il y en a un. */
   onOpenCenter?: () => void;
 }
 
-export function AnalyticsNotice({ locale, policyVersion, onOpenCenter }: AnalyticsNoticeProps) {
+export function AnalyticsNotice({
+  locale,
+  policyVersion,
+  policyHref,
+  onOpenCenter,
+}: AnalyticsNoticeProps) {
   const router = useRouter();
   const [visible, setVisible] = useState(false);
   const [toast, setToast] = useState('');
@@ -119,7 +126,7 @@ export function AnalyticsNotice({ locale, policyVersion, onOpenCenter }: Analyti
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                 {l(copy.body)}{' '}
                 <Link
-                  href={`/legal/${COOKIE_POLICY_SLUG}`}
+                  href={policyHref ?? `/legal/${COOKIE_POLICY_SLUG}`}
                   className="underline transition-colors hover:text-primary"
                 >
                   {l(copy.learnMore)}

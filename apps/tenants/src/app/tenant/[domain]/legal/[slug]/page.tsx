@@ -21,6 +21,20 @@ interface PageProps {
   params: Promise<{ domain: string; slug: string }>;
 }
 
+// The page already renders `doc.title` as its only h1. Remove a markdown body
+// title only when it textually duplicates that title, so legal documents keep
+// exactly one level-one heading without changing any other markdown semantics.
+function stripDuplicateMarkdownTitle(markdown: string, title: string): string {
+  const source = markdown ?? '';
+  const [first, ...rest] = source.split('\n');
+  const lead = /^\s*#\s+(.*?)\s*#*\s*$/.exec(first ?? '');
+  const leadTitle = (lead?.[1] ?? '').trim().toLowerCase();
+  if (leadTitle !== '' && leadTitle === (title ?? '').trim().toLowerCase()) {
+    return rest.join('\n');
+  }
+  return source;
+}
+
 function formatDate(value?: string): string {
   if (!value) return '';
   const date = new Date(value);
@@ -79,8 +93,9 @@ export default async function TenantLegalDocument({ params }: PageProps) {
   // Rendu : markdown maison (échappe tout le HTML source) puis DOMPurify
   // (défense en profondeur) — le corps est rédigé en base par des admins,
   // jamais rendu brut.
-  const html = sanitizeHtml(markdownToHtml(doc.body ?? ''));
-  const headings = markdownHeadings(doc.body ?? '').filter((heading) => heading.level === 2);
+  const renderedBody = stripDuplicateMarkdownTitle(doc.body ?? '', doc.title);
+  const html = sanitizeHtml(markdownToHtml(renderedBody));
+  const headings = markdownHeadings(renderedBody).filter((heading) => heading.level === 2);
   const docPending = pending.filter((item) => item.slug === doc.slug);
   const archived = versions.filter((version) => version.status !== 'DRAFT');
 
