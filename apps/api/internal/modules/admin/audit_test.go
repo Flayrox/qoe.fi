@@ -58,6 +58,11 @@ func TestAuditLog_TracesPermissionChanges(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("UpsertSystemConfigs: %v", err)
 	}
+	// La base partagée est commune aux packages : ne pas laisser le coupe-circuit
+	// actif pour les tests qui suivent.
+	t.Cleanup(func() {
+		_, _ = poolTest.Exec(context.Background(), `DELETE FROM "SystemConfig" WHERE key = 'API_ACCESS_DISABLED'`)
+	})
 
 	entries, err := svc.ListAuditLogs(ctx, adminAdminID, 50)
 	if err != nil {
