@@ -287,6 +287,38 @@ func (s *Service) Article(ctx context.Context, domain, slug, viewerID, viewerEma
 // Requêtes
 // ---------------------------------------------------------------------------
 
+// reservedTLSSubdomains utilise déjà un certificat statique dédié : inutile
+// (et interdit) de leur émettre un certificat on-demand.
+var reservedTLSSubdomains = map[string]bool{
+	"admin": true, "api": true, "auth": true, "cdn": true,
+	"hi": true, "studio": true, "umami": true,
+}
+
+// AllowTLS dit à Caddy si un certificat on-demand peut être émis. Seuls
+// updates.qoe.fi et les sous-domaines rattachés à une publication existante
+// sont autorisés : les typos, scans et sous-domaines inventés sont refusés
+// avant tout appel à Let's Encrypt.
+func (s *Service) AllowTLS(ctx context.Context, domain string) (bool, error) {
+	clean := strings.ToLower(strings.TrimSpace(domain))
+	if clean == "updates.qoe.fi" {
+		return true, nil
+	}
+	if !strings.HasSuffix(clean, ".qoe.fi") {
+		return false, nil
+	}
+	sub := strings.TrimSuffix(clean, ".qoe.fi")
+	if sub == "" || strings.Contains(sub, ".") || reservedTLSSubdomains[sub] {
+		return false, nil
+	}
+	var exists bool
+	err := s.pool.QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM "Publication" WHERE lower(subdomain) = $1)`, sub).Scan(&exists)
+	if err != nil {
+		return false, err
+	}
+	return exists, nil
+}
+
 func (s *Service) publicationByDomain(ctx context.Context, domain string) (*PublicationDetail, error) {
 	clean := strings.TrimSpace(domain)
 	sub := clean

@@ -26,6 +26,9 @@ func (h *Handler) RegisterPublic(r chi.Router) {
 	r.Get("/v1/publications/by-domain/{domain}", h.byDomain)
 	r.Get("/v1/publications/by-domain/{domain}/article/{slug}", h.article)
 	r.Get("/v1/publications/by-domain/{domain}/recommendations", h.recommendations)
+	// Autorisation interne Caddy on-demand TLS (l'entrée publique api.qoe.fi
+	// bloque /internal/* : seul le réseau Docker atteint cette route).
+	r.Get("/internal/tls-ask", h.tlsAsk)
 }
 
 func (h *Handler) handleErr(w http.ResponseWriter, err error) {
@@ -88,4 +91,21 @@ func (h *Handler) recommendations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, map[string]any{"items": items})
+}
+
+// GET /internal/tls-ask?domain=hote — réponse Caddy on-demand TLS : 200 pour
+// autoriser l'émission, 403 pour la refuser. La DB en panne vaut 500 (fail
+// closed : pas de certificat sans source de vérité).
+func (h *Handler) tlsAsk(w http.ResponseWriter, r *http.Request) {
+	allowed, err := h.svc.AllowTLS(r.Context(), r.URL.Query().Get("domain"))
+	if err != nil {
+		log.Printf("[publications] tls-ask: %v", err)
+		response.Internal(w)
+		return
+	}
+	if !allowed {
+		response.Forbidden(w, "TLS on-demand non autorisé pour ce domaine")
+		return
+	}
+	response.OK(w, map[string]bool{"allowed": true})
 }

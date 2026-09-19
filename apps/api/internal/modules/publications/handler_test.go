@@ -55,6 +55,26 @@ func TestHandlerByDomainNotFound(t *testing.T) {
 	}
 }
 
+// TestHandlerTLSAsk vérifie le garde-fou on-demand TLS : publication connue
+// et updates autorisés, sous-domaine inventé ou réservé refusé.
+func TestHandlerTLSAsk(t *testing.T) {
+	seedPublication(t)
+	h := NewHandler(NewService(poolTest))
+
+	for _, domain := range []string{"tenant.qoe.fi", "TENANT.qoe.fi", "updates.qoe.fi"} {
+		w := doRoute(h, http.MethodGet, "/internal/tls-ask?domain="+domain)
+		if w.Code != http.StatusOK {
+			t.Fatalf("%s: code = %d, attendu 200", domain, w.Code)
+		}
+	}
+	for _, domain := range []string{"fantome.qoe.fi", "studio.qoe.fi", "qoe.fi", "tenant.truc.qoe.fi", ""} {
+		w := doRoute(h, http.MethodGet, "/internal/tls-ask?domain="+domain)
+		if w.Code != http.StatusForbidden {
+			t.Fatalf("%s: code = %d, attendu 403", domain, w.Code)
+		}
+	}
+}
+
 func TestHandlerArticle(t *testing.T) {
 	seedPublication(t)
 	h := NewHandler(NewService(poolTest))
@@ -88,6 +108,10 @@ func TestHandlerInternalError(t *testing.T) {
 	w = doRoute(h, http.MethodGet, "/v1/publications/by-domain/tenant/article/x")
 	if w.Code != http.StatusInternalServerError {
 		t.Fatalf("article: code = %d, attendu 500", w.Code)
+	}
+	w = doRoute(h, http.MethodGet, "/internal/tls-ask?domain=tenant.qoe.fi")
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("tls-ask: code = %d, attendu 500", w.Code)
 	}
 }
 
@@ -163,6 +187,9 @@ func TestServiceErrorBranches(t *testing.T) {
 	}
 	if _, err := svc.isFollowed(ctx, "pub_tenant_test", "u"); err == nil {
 		t.Fatal("isFollowed attendu erreur")
+	}
+	if _, err := svc.AllowTLS(ctx, "tenant.qoe.fi"); err == nil {
+		t.Fatal("AllowTLS attendu erreur")
 	}
 
 	// Le service nominal (pool réel) reste fonctionnel après le seed.
