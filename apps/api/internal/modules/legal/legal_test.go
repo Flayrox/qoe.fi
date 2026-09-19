@@ -43,6 +43,12 @@ func seedUsers(t *testing.T, ctx context.Context) {
 	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE "legal_acceptance", "legal_document_version", "legal_document" CASCADE`); err != nil {
 		t.Fatalf("truncate legal: %v", err)
 	}
+	// En base partagée sérialisée, les packages précédents peuvent laisser des
+	// comptes actifs : ils fausseraient la conformité mondiale. On les suspend
+	// plutôt que les supprimer pour ne pas casser les clés étrangères.
+	if _, err := poolTest.Exec(ctx, `UPDATE "User" SET "isSuspended" = true WHERE id NOT IN ($1, $2, $3)`, legalAdminID, legalReaderID, legalSimpleID); err != nil {
+		t.Fatalf("isoler les utilisateurs: %v", err)
+	}
 	if _, err := poolTest.Exec(ctx, `DELETE FROM "User" WHERE id IN ($1, $2, $3)`, legalAdminID, legalReaderID, legalSimpleID); err != nil {
 		t.Fatalf("clean users: %v", err)
 	}

@@ -79,11 +79,11 @@ export function TenantHeader({
                 className={`object-cover ${isBrutalist ? 'w-12 h-12 md:w-16 md:h-16 border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] group-hover:translate-x-1 group-hover:translate-y-1 group-hover:shadow-none transition-all' : 'w-10 h-10 md:w-14 md:h-14 rounded-xl shadow-md group-hover:opacity-80 transition-opacity'}`}
               />
             )}
-            <h1
+            <p
               className={`text-xl md:text-2xl lg:text-3xl tracking-tight ${isBrutalist ? 'font-black uppercase' : 'font-extrabold'}`}
             >
               {name || domain}
-            </h1>
+            </p>
           </Link>
         </div>
 
