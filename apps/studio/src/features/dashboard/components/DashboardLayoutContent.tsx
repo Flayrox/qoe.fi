@@ -8,7 +8,7 @@ export function DashboardLayoutContent({ children }: { children: React.ReactNode
       <HeaderClient />
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto p-4 md:pl-4 md:pr-6 md:py-6 w-full">{children}</div>
+      <div className="flex-1 p-4 md:pl-4 md:pr-6 md:py-6 w-full">{children}</div>
     </main>
   );
 }
