@@ -447,3 +447,119 @@ export const getSimilarArticlesAction = safeAction<
   },
   { requireAuth: false }
 );
+
+// =====================================================================
+// 🤝 Collaboration Links & Direct Invitations (API Go /v1/collaborations)
+// =====================================================================
+
+export interface CollaborationInviteLinkDTO {
+  id: string;
+  articleId: string;
+  token: string;
+  role: string;
+  expiresAt: string | null;
+  maxUses: number;
+  usedCount: number;
+  isRevoked: boolean;
+  createdAt: string;
+}
+
+export interface CollaborationInviteLinkPreview {
+  articleId: string;
+  title: string;
+  slug?: string;
+  role: string;
+  author: {
+    id: string;
+    name: string | null;
+    username: string | null;
+    logoUrl?: string | null;
+    isCertified?: boolean;
+  };
+  expiresAt?: string | null;
+  maxUses: number;
+  usedCount: number;
+  isValid: boolean;
+  statusText: string;
+}
+
+/**
+ * 🔗 Générer un lien d'invitation à collaborer sur un article
+ */
+export const createCollaborationInviteLinkAction = safeAction<
+  { articleId: string; role?: string; expiresInHours?: number; maxUses?: number },
+  { success: boolean; link: CollaborationInviteLinkDTO }
+>(async ({ articleId, role = 'CONTRIBUTOR', expiresInHours = 24, maxUses = 1 }) => {
+  return goFetch<{ success: boolean; link: CollaborationInviteLinkDTO }>(
+    '/v1/collaborations/links',
+    {
+      method: 'POST',
+      body: { articleId, role, expiresInHours, maxUses },
+    }
+  );
+});
+
+/**
+ * 📋 Lister les liens d'invitation actifs d'un article
+ */
+export const listCollaborationInviteLinksAction = safeAction<
+  string,
+  { links: CollaborationInviteLinkDTO[] }
+>(async (articleId) => {
+  return goFetch<{ links: CollaborationInviteLinkDTO[] }>(
+    `/v1/collaborations/links/article/${encodeURIComponent(articleId)}`
+  );
+});
+
+/**
+ * 🚫 Révoquer un lien d'invitation d'article
+ */
+export const revokeCollaborationInviteLinkAction = safeAction<string, { success: boolean }>(
+  async (linkId) => {
+    return goFetch<{ success: boolean }>(
+      `/v1/collaborations/links/${encodeURIComponent(linkId)}/revoke`,
+      { method: 'POST' }
+    );
+  }
+);
+
+/**
+ * 🔍 Consulter la prévisualisation d'un lien d'invitation d'article
+ */
+export const getCollaborationInviteLinkPreviewAction = safeAction<
+  string,
+  CollaborationInviteLinkPreview
+>(
+  async (token) => {
+    return goFetch<CollaborationInviteLinkPreview>(
+      `/v1/collaborations/links/${encodeURIComponent(token)}`
+    );
+  },
+  { requireAuth: false }
+);
+
+/**
+ * 🚀 Accepter et rejoindre la co-rédaction via un lien d'invitation
+ */
+export const joinCollaborationByLinkAction = safeAction<
+  string,
+  { success: boolean; articleId: string }
+>(async (token) => {
+  return goFetch<{ success: boolean; articleId: string }>(
+    `/v1/collaborations/links/${encodeURIComponent(token)}/join`,
+    { method: 'POST' }
+  );
+});
+
+/**
+ * 👤 Inviter un co-auteur directement par son @username (confidentiel, sans email)
+ */
+export const inviteCollaboratorByUsernameAction = safeAction<
+  { articleId: string; username: string; role?: string },
+  { success: boolean; request: unknown }
+>(async ({ articleId, username, role = 'CO_AUTHOR' }) => {
+  return goFetch<{ success: boolean; request: unknown }>('/v1/collaborations/invite-by-username', {
+    method: 'POST',
+    body: { articleId, username, role },
+  });
+});

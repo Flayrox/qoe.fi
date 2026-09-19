@@ -44,31 +44,34 @@ func TestCollabList(t *testing.T) {
 	}
 }
 
-func TestCollabInviteByEmail(t *testing.T) {
+func TestCollabInviteByUsername(t *testing.T) {
 	ctx := context.Background()
 	seedCollab(t, ctx)
 	svc := newTestService()
 
 	// JSON invalide.
-	w := doCollab(t, svc, http.MethodPost, "/v1/collaborations/invite-by-email", authorID, "{bad")
+	w := doCollab(t, svc, http.MethodPost, "/v1/collaborations/invite-by-username", authorID, "{bad")
 	if w.Code != http.StatusBadRequest {
 		t.Fatalf("code = %d, attendu 400", w.Code)
 	}
 	// Champs requis.
-	w2 := doCollab(t, svc, http.MethodPost, "/v1/collaborations/invite-by-email", authorID, map[string]any{})
+	w2 := doCollab(t, svc, http.MethodPost, "/v1/collaborations/invite-by-username", authorID, map[string]any{})
 	if w2.Code != http.StatusBadRequest {
 		t.Fatalf("code = %d, attendu 400", w2.Code)
 	}
-	// Succès : l'auteur invite par email un user existant.
-	w3 := doCollab(t, svc, http.MethodPost, "/v1/collaborations/invite-by-email", authorID, map[string]any{
-		"articleId": "art_adv_01", "inviteeEmail": "invitee-adv@test.dev",
+	// Succès : l'auteur invite par @username un user existant (aucun email requis).
+	w3 := doCollab(t, svc, http.MethodPost, "/v1/collaborations/invite-by-username", authorID, map[string]any{
+		"articleId": "art_adv_01", "username": "inviteeadv",
 	})
 	if w3.Code != http.StatusCreated {
 		t.Fatalf("code = %d, attendu 201 (body %s)", w3.Code, w3.Body.String())
 	}
+	if bytes.Contains(w3.Body.Bytes(), []byte("@test.dev")) {
+		t.Fatalf("fuite d'email dans la réponse : %s", w3.Body.String())
+	}
 	// L'auteur n'a pas le droit sur l'article du média → ErrorCollab (400).
-	w4 := doCollab(t, svc, http.MethodPost, "/v1/collaborations/invite-by-email", authorID, map[string]any{
-		"articleId": "art_adv_02", "inviteeEmail": "invitee-adv@test.dev",
+	w4 := doCollab(t, svc, http.MethodPost, "/v1/collaborations/invite-by-username", authorID, map[string]any{
+		"articleId": "art_adv_02", "username": "inviteeadv",
 	})
 	if w4.Code != http.StatusBadRequest {
 		t.Fatalf("code = %d, attendu 400 (body %s)", w4.Code, w4.Body.String())
@@ -97,9 +100,9 @@ func TestCollabRespondAndErrors(t *testing.T) {
 	svc := newTestService()
 
 	// Crée une demande via le service pour avoir un requestId.
-	req, err := svc.InviteByEmail(ctx, authorID, "art_adv_01", "invitee-adv@test.dev")
+	req, err := svc.InviteByUsername(ctx, authorID, "art_adv_01", "inviteeadv")
 	if err != nil {
-		t.Fatalf("InviteByEmail: %v", err)
+		t.Fatalf("InviteByUsername: %v", err)
 	}
 	// L'invité accepte.
 	w := doCollab(t, svc, http.MethodPost, "/v1/collaborations/"+req.ID+"/respond", inviteeID, map[string]any{
@@ -137,9 +140,9 @@ func TestCollabRemoveContributor(t *testing.T) {
 	ctx := context.Background()
 	seedCollab(t, ctx)
 	svc := newTestService()
-	req, err := svc.InviteByEmail(ctx, authorID, "art_adv_01", "invitee-adv@test.dev")
+	req, err := svc.InviteByUsername(ctx, authorID, "art_adv_01", "inviteeadv")
 	if err != nil {
-		t.Fatalf("InviteByEmail: %v", err)
+		t.Fatalf("InviteByUsername: %v", err)
 	}
 	if err := svc.Respond(ctx, inviteeID, req.ID, true, true); err != nil {
 		t.Fatalf("Respond: %v", err)

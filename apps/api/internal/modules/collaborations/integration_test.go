@@ -96,15 +96,15 @@ func newTestService() *Service {
 	return NewService(poolTest)
 }
 
-func TestInviteByEmail(t *testing.T) {
+func TestInviteByUsername(t *testing.T) {
 	ctx := context.Background()
 	seedCollab(t, ctx)
 	svc := newTestService()
 
-	// Invitation par email OK → demande PENDING + notification.
-	req, err := svc.InviteByEmail(ctx, authorID, "art_adv_01", "invitee-adv@test.dev")
+	// Invitation par @username OK → demande PENDING + notification.
+	req, err := svc.InviteByUsername(ctx, authorID, "art_adv_01", "@inviteeadv")
 	if err != nil {
-		t.Fatalf("InviteByEmail: %v", err)
+		t.Fatalf("InviteByUsername: %v", err)
 	}
 	if req.Status != "PENDING" || req.InviteeID != inviteeID {
 		t.Fatalf("request = %+v", req)
@@ -119,30 +119,30 @@ func TestInviteByEmail(t *testing.T) {
 		t.Fatalf("notifications = %d, attendu 1", notifCount)
 	}
 
-	// Ré-invitation → upsert (toujours une seule demande), pas de doublon notif.
-	if _, err := svc.InviteByEmail(ctx, authorID, "art_adv_01", "invitee-adv@test.dev"); err != nil {
-		t.Fatalf("re-invite: %v", err)
+	// Anti-spam : ré-invitation bloquée tant qu'une demande est PENDING.
+	if _, err := svc.InviteByUsername(ctx, authorID, "art_adv_01", "inviteeadv"); err == nil {
+		t.Fatalf("ré-invitation PENDING acceptée (déduplication attendue)")
 	}
 	var reqCount int
 	_ = poolTest.QueryRow(ctx, `SELECT COUNT(*) FROM "CollaborationRequest" WHERE "articleId"='art_adv_01'`).Scan(&reqCount)
 	if reqCount != 1 {
-		t.Fatalf("demandes = %d, attendu 1 (upsert)", reqCount)
+		t.Fatalf("demandes = %d, attendu 1 (déduplication)", reqCount)
 	}
 
 	// Non-auteur → refus.
-	if _, err := svc.InviteByEmail(ctx, strangerID, "art_adv_01", "invitee-adv@test.dev"); err == nil {
+	if _, err := svc.InviteByUsername(ctx, strangerID, "art_adv_01", "inviteeadv"); err == nil {
 		t.Fatalf("invitation par non-auteur acceptée")
 	}
-	// Email inconnu → refus.
-	if _, err := svc.InviteByEmail(ctx, authorID, "art_adv_01", "nobody@test.dev"); err == nil {
-		t.Fatalf("email inconnu accepté")
+	// Username inconnu → refus.
+	if _, err := svc.InviteByUsername(ctx, authorID, "art_adv_01", "nobody"); err == nil {
+		t.Fatalf("username inconnu accepté")
 	}
 	// Auto-invitation → refus.
-	if _, err := svc.InviteByEmail(ctx, authorID, "art_adv_01", "author-adv@test.dev"); err == nil {
+	if _, err := svc.InviteByUsername(ctx, authorID, "art_adv_01", "authoradv"); err == nil {
 		t.Fatalf("auto-invitation acceptée")
 	}
 	// Article inconnu → refus.
-	if _, err := svc.InviteByEmail(ctx, authorID, "art_inconnu", "invitee-adv@test.dev"); err == nil {
+	if _, err := svc.InviteByUsername(ctx, authorID, "art_inconnu", "inviteeadv"); err == nil {
 		t.Fatalf("article inconnu accepté")
 	}
 }
@@ -179,7 +179,7 @@ func TestRespondAndList(t *testing.T) {
 	seedCollab(t, ctx)
 	svc := newTestService()
 
-	req, err := svc.InviteByEmail(ctx, authorID, "art_adv_01", "invitee-adv@test.dev")
+	req, err := svc.InviteByUsername(ctx, authorID, "art_adv_01", "inviteeadv")
 	if err != nil {
 		t.Fatalf("invite: %v", err)
 	}
@@ -219,19 +219,19 @@ func TestRespondAndList(t *testing.T) {
 	if len(received) != 1 || received[0].Article.Title != "Article art_adv_01" {
 		t.Fatalf("received = %+v", received)
 	}
-	if received[0].Inviter == nil || received[0].Inviter.Email != "author-adv@test.dev" {
+	if received[0].Inviter == nil || received[0].Inviter.Username == nil || *received[0].Inviter.Username != "authoradv" {
 		t.Fatalf("received inviter = %+v", received[0].Inviter)
 	}
 	_, sent, err = svc.ListRequests(ctx, authorID)
 	if err != nil {
 		t.Fatalf("ListRequests(author): %v", err)
 	}
-	if len(sent) != 1 || sent[0].Invitee.Email != "invitee-adv@test.dev" {
+	if len(sent) != 1 || sent[0].Invitee == nil || sent[0].Invitee.Username == nil || *sent[0].Invitee.Username != "inviteeadv" {
 		t.Fatalf("sent = %+v", sent)
 	}
 
 	// Réponse par un non-destinataire → refus.
-	req2, err := svc.InviteByEmail(ctx, authorID, "art_adv_01", "invitee-adv@test.dev")
+	req2, err := svc.InviteByUsername(ctx, authorID, "art_adv_01", "inviteeadv")
 	if err != nil {
 		t.Fatalf("re-invite 2: %v", err)
 	}
@@ -246,7 +246,7 @@ func TestDeclineRemoveWithdraw(t *testing.T) {
 	svc := newTestService()
 
 	// Refus → attribution DECLINED.
-	req, err := svc.InviteByEmail(ctx, authorID, "art_adv_01", "invitee-adv@test.dev")
+	req, err := svc.InviteByUsername(ctx, authorID, "art_adv_01", "inviteeadv")
 	if err != nil {
 		t.Fatalf("invite: %v", err)
 	}
@@ -264,8 +264,15 @@ func TestDeclineRemoveWithdraw(t *testing.T) {
 		t.Fatalf("request = %s, attendu DECLINED", reqStatus)
 	}
 
+	// Le cooldown anti-spam bloque un renvoi immédiat après un refus :
+	// on antidate le refus pour tester la révocation d'une demande PENDING.
+	if _, err := poolTest.Exec(ctx,
+		`UPDATE "CollaborationRequest" SET "updatedAt" = now() - INTERVAL '48 hours' WHERE id = $1`, req.ID); err != nil {
+		t.Fatalf("antidate decline: %v", err)
+	}
+
 	// Retrait par le propriétaire → REVOKED + demande REVOKED.
-	req2, err := svc.InviteByEmail(ctx, authorID, "art_adv_01", "invitee-adv@test.dev")
+	req2, err := svc.InviteByUsername(ctx, authorID, "art_adv_01", "inviteeadv")
 	if err != nil {
 		t.Fatalf("re-invite: %v", err)
 	}
@@ -290,7 +297,7 @@ func TestDeclineRemoveWithdraw(t *testing.T) {
 	}
 
 	// Retrait de consentement par le contributeur → WITHDRAWN.
-	req3, err := svc.InviteByEmail(ctx, authorID, "art_adv_01", "invitee-adv@test.dev")
+	req3, err := svc.InviteByUsername(ctx, authorID, "art_adv_01", "inviteeadv")
 	if err != nil {
 		t.Fatalf("re-invite 3: %v", err)
 	}
