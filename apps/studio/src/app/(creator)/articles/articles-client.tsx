@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   BookOpen,
@@ -20,6 +20,13 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
+  GripVertical,
+  FolderOpen,
+  FolderTree,
+  CornerDownRight,
+  ArrowUpRight,
+  ChevronDown,
+  Layers,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import {
@@ -28,8 +35,16 @@ import {
   deleteCategoryAction,
   reviewArticleAction,
   getArticlesAction,
+  moveCategoryAction,
 } from '@qoe/sdk/actions/articles';
 import { t } from '@lingui/core/macro';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@qoe/ui/ui/dialog';
 
 import { ArticleInspectorModal } from '../analytics/components/ArticleInspectorModal';
 
@@ -65,6 +80,7 @@ interface CategoryWithCount {
   name: string;
   slug: string;
   description: string | null;
+  parentId: string | null;
   _count: {
     articles: number;
   };
@@ -125,13 +141,36 @@ export function ArticlesClient({
     null
   );
 
-  // Category Form State
+  // Category Form State (Création)
   const [newCatName, setNewCatName] = useState('');
   const [newCatSlug, setNewCatSlug] = useState('');
   const [newCatDesc, setNewCatDesc] = useState('');
+  const [newCatParentId, setNewCatParentId] = useState<string>('');
   const [categoryError, setCategoryError] = useState<string | null>(null);
   const [, setCategorySuccess] = useState(false);
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+
+  // Category Edit State (Modal d'édition)
+  const [editingCat, setEditingCat] = useState<CategoryWithCount | null>(null);
+  const [editCatName, setEditCatName] = useState('');
+  const [editCatSlug, setEditCatSlug] = useState('');
+  const [editCatDesc, setEditCatDesc] = useState('');
+  const [editCatParentId, setEditCatParentId] = useState<string>('');
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  // Drag & Drop State (Déplacement à la souris)
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dragOverParentId, setDragOverParentId] = useState<string | null>(null);
+  const [dragOverRoot, setDragOverRoot] = useState(false);
+
+  // Catégories mères et enfants helpers
+  const rootCategories = useMemo(() => categories.filter((c) => !c.parentId), [categories]);
+  const draggedCat = useMemo(
+    () => categories.find((c) => c.id === draggedId),
+    [categories, draggedId]
+  );
+  const hasChildren = (id: string) => categories.some((c) => c.parentId === id);
 
   // Automatic category slug helper
   const handleCategoryNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -148,6 +187,83 @@ export function ArticlesClient({
     );
   };
 
+  // Drag & Drop handlers
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    e.dataTransfer.setData('text/plain', id);
+    e.dataTransfer.effectAllowed = 'move';
+    setDraggedId(id);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedId(null);
+    setDragOverParentId(null);
+    setDragOverRoot(false);
+  };
+
+  const handleDropOnParent = async (targetParentId: string) => {
+    if (!draggedId || draggedId === targetParentId) {
+      handleDragEnd();
+      return;
+    }
+    const dragged = categories.find((c) => c.id === draggedId);
+    if (!dragged) {
+      handleDragEnd();
+      return;
+    }
+
+    if (hasChildren(draggedId)) {
+      alert(
+        t`Cette catégorie contient déjà des sous-catégories et ne peut pas devenir une sous-catégorie.`
+      );
+      handleDragEnd();
+      return;
+    }
+
+    if (dragged.parentId === targetParentId) {
+      handleDragEnd();
+      return;
+    }
+
+    const previousCategories = [...categories];
+    // Mise à jour optimiste instantanée
+    setCategories((prev) =>
+      prev.map((c) => (c.id === draggedId ? { ...c, parentId: targetParentId } : c))
+    );
+    handleDragEnd();
+
+    try {
+      const res = await moveCategoryAction({ id: draggedId, parentId: targetParentId });
+      if (!res.ok) throw new Error(res.error.message);
+    } catch (err: unknown) {
+      setCategories(previousCategories);
+      alert(err instanceof Error ? err.message : t`Échec du déplacement de la catégorie.`);
+    }
+  };
+
+  const handleDropOnRoot = async () => {
+    if (!draggedId) {
+      handleDragEnd();
+      return;
+    }
+    const dragged = categories.find((c) => c.id === draggedId);
+    if (!dragged || !dragged.parentId) {
+      handleDragEnd();
+      return;
+    }
+
+    const previousCategories = [...categories];
+    setCategories((prev) => prev.map((c) => (c.id === draggedId ? { ...c, parentId: null } : c)));
+    handleDragEnd();
+
+    try {
+      const res = await moveCategoryAction({ id: draggedId, parentId: null });
+      if (!res.ok) throw new Error(res.error.message);
+    } catch (err: unknown) {
+      setCategories(previousCategories);
+      alert(err instanceof Error ? err.message : t`Échec du détachement de la catégorie.`);
+    }
+  };
+
   // Handle category submission
   const handleCreateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -162,6 +278,7 @@ export function ArticlesClient({
         name: newCatName,
         slug: newCatSlug || undefined,
         description: newCatDesc || null,
+        parentId: newCatParentId || null,
       });
 
       if (!res.ok) throw new Error(res.error.message);
@@ -173,6 +290,7 @@ export function ArticlesClient({
         name: created.name,
         slug: created.slug,
         description: created.description,
+        parentId: created.parentId ?? (newCatParentId || null),
         _count: { articles: 0 },
       };
 
@@ -183,28 +301,97 @@ export function ArticlesClient({
       setNewCatName('');
       setNewCatSlug('');
       setNewCatDesc('');
+      setNewCatParentId('');
       setCategorySuccess(true);
       setTimeout(() => setCategorySuccess(false), 3000);
     } catch (err: unknown) {
       const message =
         err instanceof Error
           ? err.message
-          : t`Une erreur est survenue lors de la création du thème.`;
+          : t`Une erreur est survenue lors de la création de la catégorie.`;
       setCategoryError(message);
     } finally {
       setIsCreatingCategory(false);
     }
   };
 
+  // Open edit modal
+  const handleOpenEdit = (cat: CategoryWithCount) => {
+    setEditingCat(cat);
+    setEditCatName(cat.name);
+    setEditCatSlug(cat.slug);
+    setEditCatDesc(cat.description || '');
+    setEditCatParentId(cat.parentId || '');
+    setEditError(null);
+  };
+
+  // Handle category update
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCat || !editCatName.trim()) return;
+
+    if (editCatParentId && hasChildren(editingCat.id)) {
+      setEditError(
+        t`Cette catégorie contient déjà des sous-catégories et ne peut pas devenir une sous-catégorie.`
+      );
+      return;
+    }
+
+    setIsSavingEdit(true);
+    setEditError(null);
+
+    try {
+      const res = await saveCategoryAction({
+        id: editingCat.id,
+        name: editCatName.trim(),
+        slug: editCatSlug.trim() || undefined,
+        description: editCatDesc.trim() || null,
+        parentId: editCatParentId || null,
+      });
+
+      if (!res.ok) throw new Error(res.error.message);
+      if (!res.data) throw new Error(t`Échec de la mise à jour de la catégorie.`);
+
+      const updated = res.data;
+      setCategories((prev) =>
+        prev.map((c) =>
+          c.id === editingCat.id
+            ? {
+                ...c,
+                name: updated.name,
+                slug: updated.slug,
+                description: updated.description,
+                parentId: updated.parentId,
+              }
+            : c
+        )
+      );
+      setEditingCat(null);
+    } catch (err: unknown) {
+      setEditError(err instanceof Error ? err.message : t`Erreur lors de la mise à jour.`);
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
   // Handle category deletion
   const handleDeleteCategory = async (id: string, name: string) => {
-    if (!confirm(`Êtes-vous sûr de vouloir supprimer le thème "${name}" ?`)) {
+    const isParentWithSubs = categories.some((c) => c.parentId === id);
+    const confirmMessage = isParentWithSubs
+      ? t`Êtes-vous sûr de vouloir supprimer la catégorie "${name}" ? Ses sous-catégories seront conservées et promues en catégories principales.`
+      : t`Êtes-vous sûr de vouloir supprimer la catégorie "${name}" ?`;
+
+    if (!confirm(confirmMessage)) {
       return;
     }
 
     try {
       await deleteCategoryAction(id);
-      setCategories((prev) => prev.filter((c) => c.id !== id));
+      setCategories((prev) =>
+        prev
+          .filter((c) => c.id !== id)
+          .map((c) => (c.parentId === id ? { ...c, parentId: null } : c))
+      );
       setArticles((prev) =>
         prev.map((art) =>
           art.categoryId === id ? { ...art, categoryId: null, category: null } : art
@@ -272,6 +459,13 @@ export function ArticlesClient({
     accessFilter !== 'all' ||
     statusFilter !== 'all';
 
+  // Category matching including sub-categories
+  const matchingCategoryIds = useMemo(() => {
+    if (selectedCategory === 'all') return null;
+    const childIds = categories.filter((c) => c.parentId === selectedCategory).map((c) => c.id);
+    return new Set([selectedCategory, ...childIds]);
+  }, [selectedCategory, categories]);
+
   // Precise Filtering & Sorting Logic
   const filteredAndSortedArticles = articles
     .filter((art) => {
@@ -286,8 +480,10 @@ export function ArticlesClient({
       if (statusFilter === 'draft' && (art.published || art.status === 'SUBMITTED')) return false;
       if (statusFilter === 'review' && art.status !== 'SUBMITTED') return false;
 
-      // 3. Category filter
-      if (selectedCategory !== 'all' && art.categoryId !== selectedCategory) return false;
+      // 3. Category filter (matches parent or sub-categories)
+      if (matchingCategoryIds && (!art.categoryId || !matchingCategoryIds.has(art.categoryId))) {
+        return false;
+      }
 
       // 4. Access filter
       if (accessFilter === 'free' && art.isPremium) return false;
@@ -320,9 +516,9 @@ export function ArticlesClient({
       {/* Main Stage Headline */}
       <section className="pt-4 md:pt-2 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <h2 className="text-3xl font-bold tracking-tight text-foreground font-sans">Articles</h2>
+          <h2 className="text-3xl font-bold tracking-tight text-foreground font-sans">{t`Articles`}</h2>
 
-          {/* Tab Switcher: Articles vs Thèmes */}
+          {/* Tab Switcher: Articles vs Catégories */}
           <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-lg border border-border/30 text-xs font-semibold">
             <button
               onClick={() => setActiveMainTab('articles')}
@@ -333,7 +529,7 @@ export function ArticlesClient({
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              Écrits ({articles.length})
+              {t`Écrits`} ({articles.length})
             </button>
             <button
               onClick={() => setActiveMainTab('categories')}
@@ -344,7 +540,7 @@ export function ArticlesClient({
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              Thèmes ({categories.length})
+              {t`Catégories`} ({categories.length})
             </button>
           </div>
         </div>
@@ -365,17 +561,17 @@ export function ArticlesClient({
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70 stroke-[1.5]" />
               <input
                 type="text"
+                placeholder={t`Rechercher un écrit par titre ou slug...`}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder={t`Rechercher un écrit...`}
-                className="w-full bg-card border border-border/40 rounded-full py-2 pl-9.5 pr-4 text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-all font-sans"
+                className="w-full bg-muted/30 border border-border/40 rounded-xl pl-9 pr-3.5 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors font-sans"
               />
             </div>
 
-            {/* Ultra-Clean Hairline Sub-Toolbar (Dub & Apple Music Web Styled) */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-border/30 font-sans text-xs">
-              {/* Left Side: Status Filter Tabs */}
-              <div className="flex items-center gap-5 text-sm font-medium">
+            {/* Restored Clean Filtering Navigation Bar */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-border/30">
+              {/* Left Side: Status Segment Tabs */}
+              <div className="flex items-center gap-6 overflow-x-auto no-scrollbar pt-1">
                 <button
                   onClick={() => setStatusFilter('all')}
                   className={cn(
@@ -385,7 +581,7 @@ export function ArticlesClient({
                       : 'border-transparent text-muted-foreground hover:text-foreground font-medium'
                   )}
                 >
-                  Tous ({articles.length})
+                  {t`Tous`} ({articles.length})
                 </button>
                 <button
                   onClick={() => setStatusFilter('published')}
@@ -396,7 +592,7 @@ export function ArticlesClient({
                       : 'border-transparent text-muted-foreground hover:text-foreground font-medium'
                   )}
                 >
-                  Publiés ({countPublished})
+                  {t`Publiés`} ({countPublished})
                 </button>
                 <button
                   onClick={() => setStatusFilter('draft')}
@@ -407,9 +603,9 @@ export function ArticlesClient({
                       : 'border-transparent text-muted-foreground hover:text-foreground font-medium'
                   )}
                 >
-                  Brouillons ({countDrafts})
+                  {t`Brouillons`} ({countDrafts})
                 </button>
-                {canReview && (
+                {canReview && countReview > 0 && (
                   <button
                     onClick={() => setStatusFilter('review')}
                     className={cn(
@@ -419,25 +615,35 @@ export function ArticlesClient({
                         : 'border-transparent text-muted-foreground hover:text-foreground font-medium'
                     )}
                   >
-                    En revue ({countReview})
+                    {t`En revue`} ({countReview})
                   </button>
                 )}
               </div>
 
               {/* Right Side: Sleek Hairline Select Controls */}
               <div className="flex flex-wrap items-center gap-2">
-                {/* Hairline Category Dropdown */}
+                {/* Hairline Category Dropdown with Hierarchy */}
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
                   className="bg-background border border-border/30 rounded-lg px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground focus:outline-none focus:border-border/60 transition-colors cursor-pointer font-sans"
                 >
-                  <option value="all">{t`Tous les thèmes`}</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name} ({cat._count.articles})
-                    </option>
-                  ))}
+                  <option value="all">{t`Toutes les catégories`}</option>
+                  {rootCategories.map((root) => {
+                    const subs = categories.filter((c) => c.parentId === root.id);
+                    return (
+                      <React.Fragment key={root.id}>
+                        <option value={root.id}>
+                          {root.name} ({root._count.articles})
+                        </option>
+                        {subs.map((sub) => (
+                          <option key={sub.id} value={sub.id}>
+                            &nbsp;&nbsp;↳ {sub.name} ({sub._count.articles})
+                          </option>
+                        ))}
+                      </React.Fragment>
+                    );
+                  })}
                 </select>
 
                 {/* Hairline Access Level Dropdown */}
@@ -651,7 +857,7 @@ export function ArticlesClient({
                                 handleReview(art.id, true, art.title);
                               }}
                               className="p-1.5 text-success hover:bg-success/10 rounded transition-colors cursor-pointer"
-                              title="Approuver et publier"
+                              title={t`Approuver et publier`}
                             >
                               <CheckCircle2 className="w-4 h-4 stroke-[1.5]" />
                             </button>
@@ -661,7 +867,7 @@ export function ArticlesClient({
                                 handleReview(art.id, false, art.title);
                               }}
                               className="p-1.5 text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer"
-                              title="Rejeter (retour en brouillon)"
+                              title={t`Rejeter (retour en brouillon)`}
                             >
                               <XCircle className="w-4 h-4 stroke-[1.5]" />
                             </button>
@@ -673,7 +879,7 @@ export function ArticlesClient({
                             setInspectingArticle({ id: art.id, slug: art.slug });
                           }}
                           className="p-1.5 text-muted-foreground hover:text-primary rounded hover:bg-muted transition-colors cursor-pointer"
-                          title="Analyses de l'article"
+                          title={t`Analyses de l'article`}
                         >
                           <BarChart3 className="w-4 h-4 stroke-[1.5]" />
                         </button>
@@ -692,7 +898,7 @@ export function ArticlesClient({
                             handleDeleteArticle(art.id, art.title);
                           }}
                           className="p-1.5 text-muted-foreground hover:text-destructive rounded hover:bg-muted transition-colors cursor-pointer"
-                          title="Supprimer"
+                          title={t`Supprimer`}
                         >
                           <Trash2 className="w-4 h-4 stroke-[1.5]" />
                         </button>
@@ -704,89 +910,279 @@ export function ArticlesClient({
             )}
           </motion.div>
         ) : (
-          /* Categories / Thèmes View */
+          /* Categories / Taxonomie View */
           <motion.div
             key="categories-view"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-12 pt-2"
+            className="grid grid-cols-1 md:grid-cols-3 gap-10 pt-2"
           >
-            {/* Left: Themes list */}
+            {/* Left: Categories hierarchy & Drag and Drop zone */}
             <div className="md:col-span-2 space-y-4">
-              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider font-sans">
-                Thèmes existants
-              </h3>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-bold text-foreground font-sans flex items-center gap-2">
+                    <FolderTree className="w-4 h-4 text-primary" />
+                    {t`Arborescence des catégories`}
+                  </h3>
+                  <p className="text-xs text-muted-foreground font-sans">
+                    {t`Glissez-déposez à la souris pour convertir une catégorie en sous-catégorie ou réorganiser.`}
+                  </p>
+                </div>
+              </div>
+
+              {/* Zone de largage pour promouvoir en catégorie racine */}
+              {draggedCat?.parentId && (
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOverRoot(true);
+                  }}
+                  onDragLeave={() => setDragOverRoot(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    handleDropOnRoot();
+                  }}
+                  className={cn(
+                    'p-3.5 rounded-xl border-2 border-dashed transition-all flex items-center justify-center gap-2 text-xs font-sans font-semibold cursor-pointer',
+                    dragOverRoot
+                      ? 'border-primary bg-primary/10 text-primary scale-[1.01]'
+                      : 'border-border/60 bg-muted/20 text-muted-foreground hover:bg-muted/40'
+                  )}
+                >
+                  <ArrowUpRight className="w-4 h-4" />
+                  {t`Déposer ici pour promouvoir en catégorie principale`}
+                </div>
+              )}
 
               {categories.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-center space-y-2 font-sans border border-dashed border-border/60 rounded-xl">
+                <div className="flex flex-col items-center justify-center py-16 text-center space-y-2 font-sans border border-dashed border-border/60 rounded-xl bg-muted/10">
                   <Tag className="h-6 w-6 text-muted-foreground/60 stroke-[1.5]" />
                   <p className="text-xs text-muted-foreground max-w-xs font-sans">
-                    Aucun thème créé pour le moment.
+                    {t`Aucune catégorie créée pour le moment.`}
                   </p>
                 </div>
               ) : (
-                <div className="divide-y divide-border/30 border-t border-b border-border/30">
-                  {categories.map((cat) => (
-                    <div
-                      key={cat.id}
-                      className="py-4 flex items-center justify-between gap-6 transition-all hover:bg-muted/30 px-2 rounded-lg"
-                    >
-                      <div className="space-y-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h4 className="text-sm font-semibold text-foreground font-sans">
-                            {cat.name}
-                          </h4>
-                          <span className="text-[11px] text-muted-foreground font-sans font-medium">
-                            ({cat._count.articles}{' '}
-                            {cat._count.articles > 1 ? 'articles' : 'article'})
-                          </span>
+                <div className="space-y-3">
+                  {rootCategories.map((root) => {
+                    const subCategories = categories.filter((c) => c.parentId === root.id);
+                    const totalArticles =
+                      root._count.articles +
+                      subCategories.reduce((acc, s) => acc + s._count.articles, 0);
+
+                    const canBeDropTarget =
+                      draggedId && draggedId !== root.id && !hasChildren(draggedId);
+                    const isDropTarget = dragOverParentId === root.id;
+
+                    return (
+                      <div
+                        key={root.id}
+                        onDragOver={(e) => {
+                          if (canBeDropTarget) {
+                            e.preventDefault();
+                            setDragOverParentId(root.id);
+                          }
+                        }}
+                        onDragLeave={() => {
+                          if (isDropTarget) setDragOverParentId(null);
+                        }}
+                        onDrop={(e) => {
+                          if (canBeDropTarget) {
+                            e.preventDefault();
+                            handleDropOnParent(root.id);
+                          }
+                        }}
+                        className={cn(
+                          'p-3.5 rounded-xl border transition-all duration-200 bg-card',
+                          isDropTarget
+                            ? 'border-primary bg-primary/5 ring-2 ring-primary/20 shadow-md'
+                            : 'border-border/40 hover:border-border/80'
+                        )}
+                      >
+                        {/* Root Category Header Row */}
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                            {/* Drag Handle */}
+                            <div
+                              draggable={!hasChildren(root.id)}
+                              onDragStart={(e) => handleDragStart(e, root.id)}
+                              onDragEnd={handleDragEnd}
+                              className={cn(
+                                'p-1 text-muted-foreground/50 hover:text-foreground rounded transition-colors',
+                                hasChildren(root.id)
+                                  ? 'opacity-30 cursor-not-allowed'
+                                  : 'cursor-grab active:cursor-grabbing'
+                              )}
+                              title={
+                                hasChildren(root.id)
+                                  ? t`Une catégorie mère avec des sous-catégories ne peut pas devenir sous-catégorie.`
+                                  : t`Glisser pour déplacer`
+                              }
+                            >
+                              <GripVertical className="w-4 h-4" />
+                            </div>
+
+                            <FolderOpen className="w-4 h-4 text-primary shrink-0" />
+
+                            <div className="min-w-0 flex items-center gap-2 flex-wrap">
+                              <h4 className="text-sm font-semibold text-foreground font-sans truncate">
+                                {root.name}
+                              </h4>
+                              <span className="text-[11px] text-muted-foreground font-sans font-medium tabular-nums">
+                                ({totalArticles} {totalArticles > 1 ? t`articles` : t`article`})
+                              </span>
+                              {subCategories.length > 0 && (
+                                <span className="text-[10px] bg-muted/60 text-muted-foreground px-1.5 py-0.5 rounded font-sans font-medium">
+                                  {subCategories.length}{' '}
+                                  {subCategories.length > 1
+                                    ? t`sous-catégories`
+                                    : t`sous-catégorie`}
+                                </span>
+                              )}
+                              <span className="text-[11px] font-sans font-medium text-muted-foreground/70">
+                                /{root.slug}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Quick Actions */}
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              onClick={() => handleOpenEdit(root)}
+                              className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/60 transition-colors cursor-pointer"
+                              title={t`Modifier`}
+                            >
+                              <Edit3 className="w-3.5 h-3.5 stroke-[1.5]" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteCategory(root.id, root.name)}
+                              className="p-1.5 text-muted-foreground hover:text-destructive rounded-lg hover:bg-muted/60 transition-colors cursor-pointer"
+                              title={t`Supprimer`}
+                            >
+                              <Trash2 className="w-3.5 h-3.5 stroke-[1.5]" />
+                            </button>
+                          </div>
                         </div>
-                        {cat.description && (
-                          <p className="text-xs text-muted-foreground font-sans leading-relaxed">
-                            {cat.description}
+
+                        {root.description && (
+                          <p className="text-xs text-muted-foreground font-sans leading-relaxed pt-1.5 pl-8">
+                            {root.description}
                           </p>
                         )}
-                        <div className="text-[11px] font-sans font-medium text-muted-foreground/80">
-                          /{cat.slug}
-                        </div>
-                      </div>
 
-                      <button
-                        onClick={() => handleDeleteCategory(cat.id, cat.name)}
-                        className="p-1.5 text-muted-foreground hover:text-destructive rounded hover:bg-muted transition-colors cursor-pointer"
-                        title="Supprimer"
-                      >
-                        <Trash2 className="w-4 h-4 stroke-[1.5]" />
-                      </button>
-                    </div>
-                  ))}
+                        {/* Drop hint when hovered */}
+                        {isDropTarget && (
+                          <div className="mt-2.5 ml-8 py-2 px-3 border border-dashed border-primary rounded-lg bg-primary/10 text-primary text-xs font-sans font-medium flex items-center gap-1.5 animate-pulse">
+                            <CornerDownRight className="w-3.5 h-3.5" />
+                            {t`Déposer ici pour ajouter en sous-catégorie de "${root.name}"`}
+                          </div>
+                        )}
+
+                        {/* Nested Sub-Categories */}
+                        {subCategories.length > 0 && (
+                          <div className="mt-3 ml-7 pl-3 border-l-2 border-border/40 space-y-1.5">
+                            {subCategories.map((sub) => (
+                              <div
+                                key={sub.id}
+                                draggable={true}
+                                onDragStart={(e) => handleDragStart(e, sub.id)}
+                                onDragEnd={handleDragEnd}
+                                className={cn(
+                                  'py-1.5 px-2 rounded-lg flex items-center justify-between gap-3 bg-muted/20 hover:bg-muted/40 transition-colors cursor-grab active:cursor-grabbing border border-transparent hover:border-border/30',
+                                  draggedId === sub.id && 'opacity-40 border-dashed border-primary'
+                                )}
+                              >
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <GripVertical className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
+                                  <CornerDownRight className="w-3.5 h-3.5 text-muted-foreground/70 shrink-0" />
+                                  <span className="text-xs font-medium text-foreground font-sans truncate">
+                                    {sub.name}
+                                  </span>
+                                  <span className="text-[10px] text-muted-foreground font-sans tabular-nums">
+                                    ({sub._count.articles}{' '}
+                                    {sub._count.articles > 1 ? t`articles` : t`article`})
+                                  </span>
+                                  <span className="text-[10px] font-sans font-medium text-muted-foreground/70">
+                                    /{sub.slug}
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button
+                                    onClick={async () => {
+                                      try {
+                                        const res = await moveCategoryAction({
+                                          id: sub.id,
+                                          parentId: null,
+                                        });
+                                        if (!res.ok) throw new Error(res.error.message);
+                                        setCategories((prev) =>
+                                          prev.map((c) =>
+                                            c.id === sub.id ? { ...c, parentId: null } : c
+                                          )
+                                        );
+                                      } catch (err: unknown) {
+                                        alert(
+                                          err instanceof Error
+                                            ? err.message
+                                            : t`Échec de la promotion.`
+                                        );
+                                      }
+                                    }}
+                                    className="p-1 text-muted-foreground hover:text-foreground rounded hover:bg-muted transition-colors cursor-pointer"
+                                    title={t`Promouvoir en catégorie principale`}
+                                  >
+                                    <ArrowUpRight className="w-3.5 h-3.5 stroke-[1.5]" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleOpenEdit(sub)}
+                                    className="p-1 text-muted-foreground hover:text-foreground rounded hover:bg-muted transition-colors cursor-pointer"
+                                    title={t`Modifier`}
+                                  >
+                                    <Edit3 className="w-3.5 h-3.5 stroke-[1.5]" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteCategory(sub.id, sub.name)}
+                                    className="p-1 text-muted-foreground hover:text-destructive rounded hover:bg-muted transition-colors cursor-pointer"
+                                    title={t`Supprimer`}
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5 stroke-[1.5]" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
 
-            {/* Right: Create Theme Form */}
+            {/* Right: Create Category Form */}
             <div className="md:col-span-1">
-              <div className="bg-card border border-border/40 rounded-xl p-5 space-y-4 shadow-none">
+              <div className="bg-card border border-border/40 rounded-xl p-5 space-y-4 shadow-none sticky top-6">
                 <div className="space-y-1">
                   <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider font-sans">
-                    Nouveau Thème
+                    {t`Nouvelle Catégorie`}
                   </h3>
                   <p className="text-muted-foreground text-xs leading-normal font-sans">
-                    Organisez vos écrits par sujets.
+                    {t`Organisez vos écrits en catégories principales et sous-catégories.`}
                   </p>
                 </div>
 
                 <form onSubmit={handleCreateCategory} className="space-y-4 font-sans">
                   <div className="space-y-1">
                     <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans font-semibold">
-                      Nom du thème
+                      {t`Nom de la catégorie`}
                     </label>
                     <input
                       type="text"
                       value={newCatName}
                       onChange={handleCategoryNameChange}
-                      placeholder={t`Ex: Poésie, Tech...`}
+                      placeholder={t`Ex: Technologie, IA...`}
                       required
                       className="w-full bg-background border border-border/40 rounded-lg p-2 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-sans"
                     />
@@ -794,7 +1190,25 @@ export function ArticlesClient({
 
                   <div className="space-y-1">
                     <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans font-semibold">
-                      Slug URL
+                      {t`Catégorie parente`}
+                    </label>
+                    <select
+                      value={newCatParentId}
+                      onChange={(e) => setNewCatParentId(e.target.value)}
+                      className="w-full bg-background border border-border/40 rounded-lg p-2 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-sans cursor-pointer"
+                    >
+                      <option value="">{t`-- Aucune (catégorie principale) --`}</option>
+                      {rootCategories.map((rc) => (
+                        <option key={rc.id} value={rc.id}>
+                          {rc.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans font-semibold">
+                      {t`Slug URL`}
                     </label>
                     <input
                       type="text"
@@ -802,7 +1216,7 @@ export function ArticlesClient({
                       onChange={(e) =>
                         setNewCatSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-'))
                       }
-                      placeholder="Ex: poesie"
+                      placeholder="technologie"
                       required
                       className="w-full bg-background border border-border/40 rounded-lg p-2 text-xs font-sans text-muted-foreground focus:outline-none focus:border-primary transition-colors"
                     />
@@ -810,13 +1224,13 @@ export function ArticlesClient({
 
                   <div className="space-y-1">
                     <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans font-semibold">
-                      Description
+                      {t`Description`}
                     </label>
                     <textarea
                       rows={3}
                       value={newCatDesc}
                       onChange={(e) => setNewCatDesc(e.target.value)}
-                      placeholder="Courte description..."
+                      placeholder={t`Courte description thématique...`}
                       className="w-full bg-background border border-border/40 rounded-lg p-2 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-sans resize-none"
                     />
                   </div>
@@ -833,7 +1247,7 @@ export function ArticlesClient({
                     disabled={isCreatingCategory || !newCatName.trim()}
                     className="w-full h-8 flex items-center justify-center gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground font-sans font-bold text-xs rounded-xl transition-all disabled:opacity-50 cursor-pointer shadow-sm"
                   >
-                    {isCreatingCategory ? t`Création...` : t`Ajouter le thème`}
+                    {isCreatingCategory ? t`Création...` : t`Créer la catégorie`}
                   </button>
                 </form>
               </div>
@@ -841,6 +1255,117 @@ export function ArticlesClient({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Category Edit Dialog Modal */}
+      <Dialog open={!!editingCat} onOpenChange={(open) => !open && setEditingCat(null)}>
+        <DialogContent className="max-w-md bg-card text-foreground border-border">
+          <DialogHeader>
+            <DialogTitle className="text-foreground text-sm font-bold font-sans">
+              {t`Modifier la catégorie`}
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground text-xs font-sans">
+              {t`Modifiez les propriétés ou réassignez la catégorie parente.`}
+            </DialogDescription>
+          </DialogHeader>
+
+          {editingCat && (
+            <form onSubmit={handleSaveEdit} className="space-y-3.5 font-sans pt-2">
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans font-semibold">
+                  {t`Nom de la catégorie`}
+                </label>
+                <input
+                  type="text"
+                  value={editCatName}
+                  onChange={(e) => setEditCatName(e.target.value)}
+                  required
+                  className="w-full bg-background border border-border/40 rounded-lg p-2 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-sans"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans font-semibold">
+                  {t`Catégorie parente`}
+                </label>
+                <select
+                  value={editCatParentId}
+                  onChange={(e) => setEditCatParentId(e.target.value)}
+                  disabled={hasChildren(editingCat.id)}
+                  className={cn(
+                    'w-full bg-background border border-border/40 rounded-lg p-2 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-sans',
+                    hasChildren(editingCat.id) ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+                  )}
+                >
+                  <option value="">{t`-- Aucune (catégorie principale) --`}</option>
+                  {rootCategories
+                    .filter((rc) => rc.id !== editingCat.id)
+                    .map((rc) => (
+                      <option key={rc.id} value={rc.id}>
+                        {rc.name}
+                      </option>
+                    ))}
+                </select>
+                {hasChildren(editingCat.id) && (
+                  <p className="text-[10px] text-muted-foreground/80 italic">
+                    {t`Cette catégorie possède déjà des sous-catégories et doit rester une catégorie principale.`}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans font-semibold">
+                  {t`Slug URL`}
+                </label>
+                <input
+                  type="text"
+                  value={editCatSlug}
+                  onChange={(e) =>
+                    setEditCatSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-'))
+                  }
+                  required
+                  className="w-full bg-background border border-border/40 rounded-lg p-2 text-xs font-sans text-muted-foreground focus:outline-none focus:border-primary transition-colors"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans font-semibold">
+                  {t`Description`}
+                </label>
+                <textarea
+                  rows={3}
+                  value={editCatDesc}
+                  onChange={(e) => setEditCatDesc(e.target.value)}
+                  className="w-full bg-background border border-border/40 rounded-lg p-2 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-sans resize-none"
+                />
+              </div>
+
+              {editError && (
+                <div className="bg-destructive/10 border border-destructive/20 text-destructive p-2 rounded-lg text-[11px] flex gap-2 font-sans">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{editError}</span>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingCat(null)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-sans text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+                >
+                  {t`Annuler`}
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingEdit || !editCatName.trim()}
+                  className="px-4 py-1.5 rounded-lg text-xs font-sans font-bold bg-primary hover:bg-primary/90 text-primary-foreground transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  {isSavingEdit ? t`Enregistrement...` : t`Enregistrer`}
+                </button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Article Inspector Drawer Modal — période synchronisée avec la liste, toutes les données envoyées */}
       {inspectingArticle && (
