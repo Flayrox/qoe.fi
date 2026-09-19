@@ -805,19 +805,33 @@ export const updateProfileAction = safeAction<
     name?: string;
     heroText?: string;
     onboardingText?: string;
-    logoUrl?: string;
-    headerImageUrl?: string;
+    /** null = RETRAIT de l'image (doit traverser jusqu'à Go) ; undefined = inchangé. */
+    logoUrl?: string | null;
+    headerImageUrl?: string | null;
+    /**
+     * Cible de l'écriture créateur. 'active' (défaut, rétro-compatible) =
+     * publication du cookie qoe_active_workspace. 'personal' = publication
+     * PERSONNELLE résolue côté serveur — obligatoire depuis le bug du 19/09 :
+     * ouvert depuis un profil média, le modal patchait le compte (via la
+     * publication active pointant vers le média) et écrasait les deux profils.
+     */
+    scope?: 'active' | 'personal';
   },
   { user: UpdatedProfileUser }
 >(async (input) => {
+  // null est SIGNIFICATIF (retrait d'image) : on ne le transforme jamais en
+  // undefined, sinon le champ est omis du JSON et le retrait ne part jamais.
+  const logoUrl = input.logoUrl === undefined ? undefined : (input.logoUrl ?? null);
+  const headerImageUrl =
+    input.headerImageUrl === undefined ? undefined : (input.headerImageUrl ?? null);
   // Go-only : PATCH /v1/me/profile (champs lecteur) + PATCH /v1/settings/profile
-  // (champs créateur : heroText, headerImageUrl) via la publication active.
+  // (champs créateur : heroText, headerImageUrl) sur la cible choisie.
   const [profile, publication] = await Promise.all([
     goFetch<MeProfileDTO & { isCertified?: boolean }>('/v1/me/profile', {
       method: 'PATCH',
       body: {
         name: input.name ?? undefined,
-        logoUrl: input.logoUrl ?? undefined,
+        logoUrl,
         onboardingText: input.onboardingText ?? undefined,
       },
     }),
@@ -830,6 +844,25 @@ export const updateProfileAction = safeAction<
       ) {
         return null;
       }
+      if (input.scope === 'personal') {
+        // Cible explicite : la publication PERSONNELLE (jamais le cookie).
+        const ws = await goFetch<{
+          personal?: { id?: string; type?: string };
+          medias?: Array<{ id?: string }>;
+        }>('/v1/media/workspaces');
+        const personalId = ws.personal?.id;
+        if (!personalId) return null;
+        return goFetch<Record<string, unknown>>('/v1/settings/profile', {
+          method: 'PATCH',
+          body: {
+            publicationId: personalId,
+            name: input.name ?? undefined,
+            logoUrl,
+            heroText: input.heroText ?? undefined,
+            headerImageUrl,
+          },
+        });
+      }
       const publicationId = await getActivePublicationId();
       if (!publicationId) return null;
       return goFetch<Record<string, unknown>>('/v1/settings/profile', {
@@ -837,9 +870,9 @@ export const updateProfileAction = safeAction<
         body: {
           publicationId,
           name: input.name ?? undefined,
-          logoUrl: input.logoUrl ?? undefined,
+          logoUrl,
           heroText: input.heroText ?? undefined,
-          headerImageUrl: input.headerImageUrl ?? undefined,
+          headerImageUrl,
         },
       });
     })(),

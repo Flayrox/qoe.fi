@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Loader2 } from 'lucide-react';
 import { toast } from '@qoe/ui/toast';
 import { updateProfileAction as updateProfile } from '@qoe/sdk/actions/feed';
-import { updateMediaProfileAction } from './profile-edit-actions';
+import { updateMediaProfileAction, resolveMediaIdByPublication } from './profile-edit-actions';
 
 import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
@@ -31,12 +31,17 @@ async function updateMediaProfile(
   input: {
     name?: string;
     heroText?: string;
-    logoUrl?: string;
-    headerImageUrl?: string;
+    logoUrl?: string | null | undefined;
+    headerImageUrl?: string | null | undefined;
   }
 ): Promise<{ ok: boolean; data?: { user: UpdatedUser } }> {
   try {
-    await updateMediaProfileAction(mediaId, input);
+    await updateMediaProfileAction(mediaId, {
+      name: input.name,
+      heroText: input.heroText,
+      logoUrl: input.logoUrl ?? null,
+      headerImageUrl: input.headerImageUrl ?? null,
+    });
     return {
       ok: true,
       data: {
@@ -45,8 +50,8 @@ async function updateMediaProfile(
           name: input.name ?? null,
           // Pas de username ici : un média n'en a pas, et il ne faut surtout
           // pas écraser le slug affiché par l'état parent.
-          logoUrl: input.logoUrl ?? null,
-          headerImageUrl: input.headerImageUrl ?? null,
+          logoUrl: (input.logoUrl ?? null) as string | null,
+          headerImageUrl: (input.headerImageUrl ?? null) as string | null,
           heroText: input.heroText ?? null,
         },
       },
@@ -55,6 +60,36 @@ async function updateMediaProfile(
     return { ok: false };
   }
 }
+
+/**
+ * Profil personnel : l'action SDK patche /v1/me/profile (compte) ET
+ * /v1/settings/profile ciblant la publication PERSONNELLE (scope 'personal',
+ * résolue côté serveur) — jamais la publication « active » du cookie, qui peut
+ * pointer vers un Média (bug du 19/09 dans l'autre sens : le média se serait
+ * fait écraser par le profil personnel).
+ */
+async function updatePersonalProfile(input: {
+  name?: string;
+  heroText?: string;
+  onboardingText?: string;
+  logoUrl?: string | null | undefined;
+  headerImageUrl?: string | null | undefined;
+}): Promise<{ ok: boolean; data?: { user: UpdatedUser } }> {
+  try {
+    const profile = await updateProfile({ ...input, scope: 'personal' });
+    if (!profile.ok) return { ok: false };
+    return { ok: true, data: { user: profile.data.user } };
+  } catch {
+    return { ok: false };
+  }
+}
+
+/**
+ * Résout ce que représente la publication affichée : l'id du média si c'en est
+ * un (via le endpoint dédié), sinon null → profil personnel. La résolution est
+ * faite par une server action : le client ne devine jamais l'identifiant.
+ */
+const resolveMediaId = (publicationId: string) => resolveMediaIdByPublication(publicationId);
 
 interface EditProfileModalProps {
   isOpen: boolean;
@@ -72,9 +107,9 @@ interface EditProfileModalProps {
    * 🎯 Ressource réellement éditée. ⚠️ BUG du 19/09 : le modal ne connaissait
    * qu'une seule action, qui patchait /v1/me/profile (profil PERSONNEL) en plus
    * de la publication — ouvert depuis le profil d'un Média, il a écrasé le nom
-   * ET l'username du compte utilisateur. Depuis, on n'écrit QUE la ressource
-   * affichée : `publicationId` présent → PATCH /v1/media/{id}/settings (média,
-   * RBAC côté Go) ; sinon → profil du compte + publication personnelle.
+   * ET l'username du compte utilisateur. Depuis, la cible est résolue côté
+   * serveur : si publicationId correspond à un Média → PATCH /v1/media/{id}/
+   * settings (RBAC côté Go) ; sinon → profil du compte + publication perso.
    */
   publicationId?: string | null;
   onProfileUpdated?: (updatedUser: UpdatedUser) => void;
@@ -101,22 +136,27 @@ export function EditProfileModal({
     setSaving(true);
 
     try {
-      // 🎯 Une seule cible d'écriture, choisie par la ressource affichée.
-      // Un média n'a ni username ni onboardingText : ces champs ne partent que
+      // 🎯 Une seule cible d'écriture : on résout ce que représente la
+      // publication affichée (média ou compte personnel) côté serveur. Un
+      // média n'a ni username ni onboardingText : ces champs ne partent que
       // vers /v1/me/profile (compte personnel).
-      const res = publicationId
-        ? await updateMediaProfile(publicationId, {
+      const mediaId = publicationId ? await resolveMediaId(publicationId) : null;
+      // ⚠️ null est SIGNIFICATIF (retrait de photo) : on le transmet tel quel,
+      // jamais `|| undefined` qui le transformerait en champ omis → le retrait
+      // ne partirait jamais côté Go.
+      const res = mediaId
+        ? await updateMediaProfile(mediaId, {
             name,
             heroText,
-            logoUrl: logoUrl || undefined,
-            headerImageUrl: headerImageUrl || undefined,
+            logoUrl,
+            headerImageUrl,
           })
-        : await updateProfile({
+        : await updatePersonalProfile({
             name,
             heroText,
             onboardingText: locationText,
-            logoUrl: logoUrl || undefined,
-            headerImageUrl: headerImageUrl || undefined,
+            logoUrl,
+            headerImageUrl,
           });
       if (res.ok && res.data?.user) {
         toast.success(t`Profil mis à jour avec succès !`);
