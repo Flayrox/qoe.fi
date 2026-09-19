@@ -430,22 +430,6 @@ CREATE TABLE "MediaMember" (
 );
 
 -- CreateTable
-CREATE TABLE "MediaInvite" (
-    "id" TEXT NOT NULL,
-    "mediaId" TEXT NOT NULL,
-    "inviterId" UUID NOT NULL,
-    "email" TEXT NOT NULL,
-    "role" TEXT NOT NULL DEFAULT 'writer',
-    "token" TEXT NOT NULL,
-    "status" TEXT NOT NULL DEFAULT 'PENDING',
-    "expiresAt" TIMESTAMP(3),
-    "acceptedAt" TIMESTAMP(3),
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "MediaInvite_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "MediaAuditLog" (
     "id" TEXT NOT NULL,
     "mediaId" TEXT NOT NULL,
@@ -472,6 +456,40 @@ CREATE TABLE "CollaborationRequest" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "CollaborationRequest_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CollaborationInviteLink" (
+    "id" TEXT NOT NULL,
+    "articleId" TEXT NOT NULL,
+    "createdById" UUID NOT NULL,
+    "token" TEXT NOT NULL,
+    "role" TEXT NOT NULL DEFAULT 'CO_AUTHOR',
+    "expiresAt" TIMESTAMP(3),
+    "maxUses" INTEGER NOT NULL DEFAULT 1,
+    "usedCount" INTEGER NOT NULL DEFAULT 0,
+    "isRevoked" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "CollaborationInviteLink_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "MediaInviteLink" (
+    "id" TEXT NOT NULL,
+    "mediaId" TEXT NOT NULL,
+    "createdById" UUID NOT NULL,
+    "token" TEXT NOT NULL,
+    "role" TEXT NOT NULL DEFAULT 'writer',
+    "expiresAt" TIMESTAMP(3),
+    "maxUses" INTEGER NOT NULL DEFAULT 1,
+    "usedCount" INTEGER NOT NULL DEFAULT 0,
+    "isRevoked" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "MediaInviteLink_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -656,6 +674,7 @@ CREATE TABLE "UserSettings" (
     "profileVisibility" TEXT NOT NULL DEFAULT 'PUBLIC',
     "allowMentions" BOOLEAN NOT NULL DEFAULT true,
     "allowCollaborationInvites" BOOLEAN NOT NULL DEFAULT true,
+    "collaborationInvitePermission" TEXT NOT NULL DEFAULT 'EVERYONE',
     "showSensitiveContent" BOOLEAN NOT NULL DEFAULT true,
     "likeVisibility" TEXT NOT NULL DEFAULT 'PUBLIC',
     "autoplayMedia" BOOLEAN NOT NULL DEFAULT true,
@@ -1135,16 +1154,12 @@ CREATE INDEX "MediaMember_mediaId_idx" ON "MediaMember"("mediaId");
 CREATE UNIQUE INDEX "MediaMember_mediaId_userId_key" ON "MediaMember"("mediaId", "userId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "MediaInvite_token_key" ON "MediaInvite"("token");
 
 -- CreateIndex
-CREATE INDEX "MediaInvite_mediaId_idx" ON "MediaInvite"("mediaId");
 
 -- CreateIndex
-CREATE INDEX "MediaInvite_email_idx" ON "MediaInvite"("email");
 
 -- CreateIndex
-CREATE INDEX "MediaInvite_token_idx" ON "MediaInvite"("token");
 
 -- CreateIndex
 CREATE INDEX "MediaAuditLog_mediaId_createdAt_idx" ON "MediaAuditLog"("mediaId", "createdAt");
@@ -1507,10 +1522,8 @@ ALTER TABLE "MediaMember" ADD CONSTRAINT "MediaMember_mediaId_fkey" FOREIGN KEY 
 ALTER TABLE "MediaMember" ADD CONSTRAINT "MediaMember_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "MediaInvite" ADD CONSTRAINT "MediaInvite_mediaId_fkey" FOREIGN KEY ("mediaId") REFERENCES "Media"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "MediaInvite" ADD CONSTRAINT "MediaInvite_inviterId_fkey" FOREIGN KEY ("inviterId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "MediaAuditLog" ADD CONSTRAINT "MediaAuditLog_mediaId_fkey" FOREIGN KEY ("mediaId") REFERENCES "Media"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -78,29 +78,6 @@ SELECT id::text AS id, email, name, username, "logoUrl", "isCertified"
 FROM "User"
 WHERE email = $1;
 
--- name: CreateMediaInvite :one
-INSERT INTO "MediaInvite" (id, "mediaId", "inviterId", email, role, token, "expiresAt")
-VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6)
-RETURNING id;
-
--- name: GetMediaInviteByToken :one
-SELECT id, "mediaId", "inviterId"::text AS inviter_id, email, role, token, status, "expiresAt", "acceptedAt"
-FROM "MediaInvite"
-WHERE token = $1;
-
--- name: UpdateMediaInviteStatus :exec
-UPDATE "MediaInvite"
-SET status = $2, "acceptedAt" = now()
-WHERE id = $1;
-
--- name: ListMediaInvites :many
-SELECT i.id, i.email, i.role, i.status, i."createdAt", i."expiresAt",
-       u.id::text AS inviter_id, u.name AS inviter_name, u.username AS inviter_username
-FROM "MediaInvite" i
-JOIN "User" u ON u.id = i."inviterId"
-WHERE i."mediaId" = $1 AND i.status = 'PENDING'
-ORDER BY i."createdAt" DESC;
-
 -- name: GetMediaWithPublication :one
 SELECT md.id                 AS media_id,
        md."publicationId"    AS publication_id,
@@ -130,9 +107,6 @@ SELECT COUNT(*)::int AS count FROM "Article" WHERE "publicationId" = $1;
 
 -- name: CountMediaMembers :one
 SELECT COUNT(*)::int AS count FROM "MediaMember" WHERE "mediaId" = $1;
-
--- name: CountMediaInvites :one
-SELECT COUNT(*)::int AS count FROM "MediaInvite" WHERE "mediaId" = $1;
 
 -- name: GetUserIdentity :one
 SELECT name, username, "logoUrl", email
