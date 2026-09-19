@@ -475,6 +475,7 @@ SELECT c.id,
        c.name,
        c.slug,
        c.description,
+       c."parentId",
        (SELECT COUNT(*)::int
         FROM "Article" a
         WHERE a."categoryId" = c.id AND a."published" = true) AS articles_count
@@ -488,6 +489,7 @@ type ListCategoriesByPublicationRow struct {
 	Name          string      `json:"name"`
 	Slug          string      `json:"slug"`
 	Description   pgtype.Text `json:"description"`
+	ParentId      pgtype.Text `json:"parentId"`
 	ArticlesCount int32       `json:"articles_count"`
 }
 
@@ -505,6 +507,7 @@ func (q *Queries) ListCategoriesByPublication(ctx context.Context, publicationid
 			&i.Name,
 			&i.Slug,
 			&i.Description,
+			&i.ParentId,
 			&i.ArticlesCount,
 		); err != nil {
 			return nil, err
