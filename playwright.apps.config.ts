@@ -86,17 +86,19 @@ export default defineConfig({
     {
       name: 'tenants',
       use: { ...devices['Desktop Chrome'], baseURL: TENANTS_URL },
-      testMatch: /tenants.*\.spec\.ts/,
+      testMatch: [/tenants\.spec\.ts/, /tenants-.*\.spec\.ts/],
     },
     {
       name: 'studio',
       use: { ...devices['Desktop Chrome'], baseURL: STUDIO_URL },
-      testMatch: /studio.*\.spec\.ts/,
+      testMatch: [/studio\.spec\.ts/, /studio-.*\.spec\.ts/],
     },
     {
       name: 'admin',
       use: { ...devices['Desktop Chrome'], baseURL: ADMIN_URL },
-      testMatch: /admin\.spec\.ts/,
+      // admin-legal.spec.ts has its own full-stack gate and legal-lifecycle setup;
+      // keep it out of the plain admin smoke project.
+      testMatch: [/admin\.spec\.ts/],
     },
   ],
 });

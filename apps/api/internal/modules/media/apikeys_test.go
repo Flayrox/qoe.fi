@@ -434,6 +434,11 @@ func TestMediaApiKeys_LifecycleAndPlatformGrant(t *testing.T) {
 		ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, "updatedAt" = now()`); err != nil {
 		t.Fatalf("disable api:write: %v", err)
 	}
+	// La base partagée est commune aux packages : restaurer l'état global, sinon
+	// les modules OAuth, settings et webhooks restent désactivés ailleurs.
+	t.Cleanup(func() {
+		_, _ = poolTest.Exec(context.Background(), `DELETE FROM "SystemConfig" WHERE key = 'API_ACCESS_MODULES'`)
+	})
 
 	// La même requête avec la même clé doit maintenant échouer avec 403 Forbidden ("Scope WRITE requis")
 	rr2 := httptest.NewRecorder()
