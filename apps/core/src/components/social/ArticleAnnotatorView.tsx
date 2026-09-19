@@ -319,8 +319,14 @@ function ArticleAnnotatorViewInner({
     }
   }, [toolbar]);
 
-  const initialHighlights = highlightsList.filter((h) => !h.isPublic && !h.isOfficial);
-  const publicHighlights = highlightsList.filter((h) => h.isPublic || h.isOfficial);
+  const initialHighlights = React.useMemo(
+    () => highlightsList.filter((h) => !h.isPublic && !h.isOfficial),
+    [highlightsList]
+  );
+  const publicHighlights = React.useMemo(
+    () => highlightsList.filter((h) => h.isPublic || h.isOfficial),
+    [highlightsList]
+  );
 
   const currentUserProfile = user
     ? {

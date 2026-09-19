@@ -1,7 +1,16 @@
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import { useFloating, inline, flip, shift, offset, autoUpdate, hide } from '@floating-ui/react';
+import {
+  useFloating,
+  inline,
+  flip,
+  shift,
+  offset,
+  autoUpdate,
+  hide,
+  FloatingPortal,
+} from '@floating-ui/react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { cn } from '@qoe/utils';
 import type { SelectionState, TextSelectionPopoverProps } from './types';
@@ -21,6 +30,7 @@ export function TextSelectionPopover({
   const [virtualElement, setVirtualElement] = useState<{
     getBoundingClientRect(): DOMRect;
     getClientRects(): DOMRectList;
+    contextElement?: Element;
   } | null>(null);
 
   const popoverRef = useRef<HTMLDivElement>(null);
@@ -31,6 +41,7 @@ export function TextSelectionPopover({
   const { refs, floatingStyles, placement, middlewareData } = useFloating({
     open: Boolean(virtualElement),
     placement: 'top',
+    strategy: 'fixed',
     middleware: [
       offset(12),
       inline(),
@@ -87,6 +98,11 @@ export function TextSelectionPopover({
       return;
     }
 
+    const contextEl =
+      (commonAncestor as Element | null) ||
+      (containerId ? document.getElementById(containerId) : null) ||
+      document.body;
+
     const virtualRefObj = {
       getBoundingClientRect() {
         return range.getBoundingClientRect();
@@ -94,6 +110,7 @@ export function TextSelectionPopover({
       getClientRects() {
         return range.getClientRects();
       },
+      contextElement: contextEl,
     };
 
     setVirtualElement(virtualRefObj);
@@ -117,7 +134,7 @@ export function TextSelectionPopover({
     placement,
   ]);
 
-  // Track active scroll to prevent premature deselection from browser transient events
+  // Track active scroll (in capture phase) to detect drawer, modal, and window scroll
   useEffect(() => {
     const handleScroll = () => {
       isScrollingRef.current = true;
@@ -129,9 +146,9 @@ export function TextSelectionPopover({
       }, 150);
     };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
+    document.addEventListener('scroll', handleScroll, true);
     return () => {
-      window.removeEventListener('scroll', handleScroll);
+      document.removeEventListener('scroll', handleScroll, true);
       if (scrollTimeoutRef.current) {
         clearTimeout(scrollTimeoutRef.current);
       }
@@ -177,52 +194,49 @@ export function TextSelectionPopover({
   const isHidden = Boolean(middlewareData.hide?.referenceHidden);
 
   return (
-    <div
-      ref={refs.setFloating}
-      style={{
-        ...(floatingStyles as React.CSSProperties),
-        opacity: isHidden ? 0 : 1,
-        pointerEvents: isHidden ? 'none' : 'auto',
-        transition: 'opacity 0.15s ease-out',
-      }}
-      className={cn(
-        'z-50 pointer-events-auto select-none font-sans flex items-center justify-center',
-        className
-      )}
-      onMouseDown={(e) => {
-        if (isLocked) return;
-        const target = e.target as HTMLElement;
-        if (target.tagName !== 'TEXTAREA' && target.tagName !== 'INPUT') {
-          e.preventDefault();
-        }
-      }}
-      onTouchStart={(e) => {
-        if (isLocked) return;
-        const target = e.target as HTMLElement;
-        if (target.tagName !== 'TEXTAREA' && target.tagName !== 'INPUT') {
-          e.preventDefault();
-        }
-      }}
-    >
-      <div ref={popoverRef} className="flex items-center justify-center">
-        <AnimatePresence>
-          <motion.div
-            key="apple-selection-popover"
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.96 }}
-            transition={shouldReduceMotion ? { duration: 0 } : { duration: 0.12, ease: 'easeOut' }}
-            className="relative"
-          >
-            {children({
-              text: selectedText,
-              range: selectionRange,
-              placement,
-              clearSelection,
-            })}
-          </motion.div>
-        </AnimatePresence>
+    <FloatingPortal>
+      <div
+        ref={refs.setFloating}
+        style={{
+          ...(floatingStyles as React.CSSProperties),
+          opacity: isHidden ? 0 : 1,
+          pointerEvents: isHidden ? 'none' : 'auto',
+          transition: 'opacity 0.15s ease-out',
+        }}
+        className={cn(
+          'z-50 pointer-events-auto select-none font-sans flex items-center justify-center',
+          className
+        )}
+        onPointerDown={(e) => {
+          if (isLocked) return;
+          const target = e.target as HTMLElement;
+          if (target.tagName !== 'TEXTAREA' && target.tagName !== 'INPUT') {
+            e.preventDefault();
+          }
+        }}
+      >
+        <div ref={popoverRef} className="flex items-center justify-center">
+          <AnimatePresence>
+            <motion.div
+              key="apple-selection-popover"
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={
+                shouldReduceMotion ? { duration: 0 } : { duration: 0.12, ease: 'easeOut' }
+              }
+              className="relative"
+            >
+              {children({
+                text: selectedText,
+                range: selectionRange,
+                placement,
+                clearSelection,
+              })}
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </div>
-    </div>
+    </FloatingPortal>
   );
 }

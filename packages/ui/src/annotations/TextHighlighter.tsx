@@ -77,11 +77,37 @@ export function TextHighlighter({
   };
 
   useEffect(() => {
-    setHighlights(initialHighlights as HighlightItem[]);
+    setHighlights((prev) => {
+      if (
+        prev.length === initialHighlights.length &&
+        prev.every(
+          (h, i) =>
+            h.id === initialHighlights[i]?.id &&
+            h.note === initialHighlights[i]?.note &&
+            h.isPublic === initialHighlights[i]?.isPublic
+        )
+      ) {
+        return prev;
+      }
+      return initialHighlights as HighlightItem[];
+    });
   }, [initialHighlights]);
 
   useEffect(() => {
-    setAllPublic(publicHighlights);
+    setAllPublic((prev) => {
+      if (
+        prev.length === publicHighlights.length &&
+        prev.every(
+          (p, i) =>
+            p.id === publicHighlights[i]?.id &&
+            p.note === publicHighlights[i]?.note &&
+            p.isPublic === publicHighlights[i]?.isPublic
+        )
+      ) {
+        return prev;
+      }
+      return publicHighlights;
+    });
   }, [publicHighlights]);
 
   // Note input form state
@@ -166,12 +192,23 @@ export function TextHighlighter({
   // Re-apply DOM highlights whenever highlights list, public list, or filterMode changes
   useEffect(() => {
     if (documentMode) return; // rendu déclaratif par CanonicalArticleBody
+    // 🛡️ Do NOT strip and recreate DOM nodes if the user is currently composing a note or saving
+    if (showNoteInput || saving || activeDraftText) return;
     removeAllMarksFromDOM();
     setupHtmlMarksInDOM();
     if (filterMode !== 'none') {
       highlightExisting();
     }
-  }, [highlights, allPublic, filterMode, containerId, documentMode]);
+  }, [
+    highlights,
+    allPublic,
+    filterMode,
+    containerId,
+    documentMode,
+    showNoteInput,
+    saving,
+    activeDraftText,
+  ]);
 
   // 🎙️ Click-to-Listen : double-clic sur un paragraphe pour démarrer l'écoute instantanément
   useEffect(() => {

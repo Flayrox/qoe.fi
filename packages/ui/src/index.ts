@@ -65,11 +65,6 @@ export {
   useOptimisticMutation,
   type UseOptimisticMutationOptions,
 } from './hooks/useOptimisticMutation';
-export {
-  TextSelectionPopover,
-  type SelectionState,
-  type TextSelectionPopoverProps,
-} from './TextSelectionPopover';
 export * from './cmdk';
 export * from './ui/dialog';
 export * from './ui/hover-card';
