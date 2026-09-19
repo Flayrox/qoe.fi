@@ -329,6 +329,14 @@ function ArticleAnnotatorViewInner({
 
   const authorName = article.author?.name || article.author?.username || 'Auteur';
   const authorHandle = article.author?.username || article.author?.subdomain || '';
+  // Quand l'auteur EST le média lui-même, la ligne « Pour <média> » serait un
+  // doublon : on la masque.
+  const publication = article.publication;
+  const publicationLabel = (publication?.name ?? '').trim().toLowerCase();
+  const showPublicationLine =
+    publication != null &&
+    publicationLabel !== '' &&
+    publicationLabel !== authorName.trim().toLowerCase();
   const dateObj = new Date(article.createdAt || Date.now());
   const dateFormatted = dateObj.toLocaleDateString('fr-FR', {
     day: 'numeric',
@@ -441,12 +449,12 @@ function ArticleAnnotatorViewInner({
                   <span className="text-xs text-muted-foreground">@{authorHandle}</span>
                 )}
               </div>
-              {article.publication?.name && (
+              {showPublicationLine && publication && (
                 <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
                   <SafeAvatar
-                    src={article.publication.logoUrl ?? null}
-                    name={article.publication.name}
-                    username={article.publication.subdomain}
+                    src={publication.logoUrl ?? null}
+                    name={publication.name}
+                    username={publication.subdomain}
                     size={16}
                     shape="squircle"
                     type="MEDIA"
@@ -454,9 +462,7 @@ function ArticleAnnotatorViewInner({
                   />
                   <span>
                     {t`Pour`}{' '}
-                    <span className="font-semibold text-foreground/90">
-                      {article.publication.name}
-                    </span>
+                    <span className="font-semibold text-foreground/90">{publication.name}</span>
                   </span>
                 </div>
               )}
@@ -569,7 +575,7 @@ function ArticleAnnotatorViewInner({
         <div
           id="article-content"
           className={cn(
-            'prose prose-sm sm:prose-base dark:prose-invert max-w-none text-foreground/90 selection:bg-foreground selection:text-background cursor-text pt-2 leading-[1.8] antialiased [text-rendering:optimizeLegibility]',
+            'prose prose-zinc dark:prose-invert max-w-none text-base md:text-lg leading-relaxed space-y-6 text-foreground/90 selection:bg-foreground selection:text-background cursor-text pt-2 antialiased [text-rendering:optimizeLegibility]',
             typographyClasses
           )}
           dangerouslySetInnerHTML={{ __html: displayedContent }}
