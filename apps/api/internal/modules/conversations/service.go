@@ -106,6 +106,17 @@ func (s *Service) CreateDirect(ctx context.Context, userID, participantID string
 		return nil, ErrSelfDirect
 	}
 
+	// Anti-spam : limitation du nombre de nouvelles conversations directes initiées (15 max par heure)
+	var recentConvsCount int
+	_ = s.pool.QueryRow(ctx, `
+		SELECT COUNT(*) FROM "ConversationMember" cm
+		JOIN "Conversation" c ON c.id = cm."conversationId"
+		WHERE cm."userId" = $1 AND c."createdAt" > now() - INTERVAL '1 hour'
+	`, toUUID(userID)).Scan(&recentConvsCount)
+	if recentConvsCount >= 15 {
+		return nil, errors.New("Limite de création de conversations atteinte (15 max par heure). Veuillez patienter.")
+	}
+
 	exists, err := s.q.UserExists(ctx, participantID)
 	if err != nil {
 		return nil, err
@@ -255,6 +266,29 @@ func (s *Service) SendMessage(ctx context.Context, userID, convID, content strin
 	}
 	if utf8.RuneCountInString(content) > maxContentRunes {
 		return nil, errors.New("message trop long")
+	}
+
+	// Anti-spam débit : max 30 messages par minute
+	var recentMsgsCount int
+	_ = s.pool.QueryRow(ctx, `
+		SELECT COUNT(*) FROM "DirectMessage"
+		WHERE "senderId" = $1 AND "createdAt" > now() - INTERVAL '1 minute'
+	`, toUUID(userID)).Scan(&recentMsgsCount)
+	if recentMsgsCount >= 30 {
+		return nil, errors.New("Vous envoyez des messages trop rapidement. Veuillez patienter un instant.")
+	}
+
+	// Anti-spam doublon : message identique dans les 5 dernières secondes
+	var hasDuplicate bool
+	_ = s.pool.QueryRow(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM "DirectMessage"
+			WHERE "conversationId" = $1 AND "senderId" = $2 AND "content" = $3
+			  AND "createdAt" > now() - INTERVAL '5 seconds'
+		)
+	`, convID, toUUID(userID), content).Scan(&hasDuplicate)
+	if hasDuplicate {
+		return nil, errors.New("Message identique envoyé récemment.")
 	}
 	row, err := s.q.InsertMessage(ctx, db.InsertMessageParams{
 		ConversationId: convID,
