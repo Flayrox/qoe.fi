@@ -342,7 +342,9 @@ function ArticleAnnotatorViewInner({
   const writer = article.author?.type === 'MEDIA' ? (article.author?.journalist ?? null) : null;
   const shownName = writer?.name || authorName;
   const shownHandle = writer?.username || authorHandle;
-  const shownAvatar = writer?.logoUrl || article.author?.logoUrl;
+  // Le journaliste affiché garde SON avatar (ou ses initiales) : jamais le
+  // logo du média, sinon on croit que la photo d'Ephe est celle de L'Assez.
+  const shownAvatar = writer ? (writer.logoUrl ?? null) : (article.author?.logoUrl ?? null);
   const shownCertified = writer?.isCertified || article.author?.isCertified;
   const publication = article.publication;
   const outletForPour = writer
