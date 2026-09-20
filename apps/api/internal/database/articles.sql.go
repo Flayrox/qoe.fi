@@ -17,7 +17,16 @@ FROM "Article" a
 LEFT JOIN "Category" c ON c.id = a."categoryId"
 WHERE a."publicationId" = $1
   AND ($2::boolean IS NULL OR a.published = $2)
-  AND ($3::text IS NULL OR c.slug = $3)
+  AND (
+    $3::text IS NULL
+    OR c.slug = $3
+    OR c.id = $3
+    OR c."parentId" IN (
+      SELECT parent_cat.id FROM "Category" parent_cat
+      WHERE parent_cat."publicationId" = $1
+        AND (parent_cat.slug = $3 OR parent_cat.id = $3)
+    )
+  )
 `
 
 type CountCreatorArticlesParams struct {
@@ -419,7 +428,7 @@ func (q *Queries) GetArticleIdByPublicationAndSlug(ctx context.Context, arg GetA
 }
 
 const getCreatorArticleBySlug = `-- name: GetCreatorArticleBySlug :one
-SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibility,
+SELECT a.id, a.title, a.slug, a.content, a."imageUrl", a.published, a."isPremium", a.visibility,
        a."readingTime", a.status, a."tierId", a."createdAt", a."updatedAt",
        c.id AS category_id, c.name AS category_name, c.slug AS category_slug,
        c.description AS category_description
@@ -438,6 +447,7 @@ type GetCreatorArticleBySlugRow struct {
 	Title               string            `json:"title"`
 	Slug                string            `json:"slug"`
 	Content             string            `json:"content"`
+	ImageUrl            pgtype.Text       `json:"imageUrl"`
 	Published           bool              `json:"published"`
 	IsPremium           bool              `json:"isPremium"`
 	Visibility          ContentVisibility `json:"visibility"`
@@ -462,6 +472,7 @@ func (q *Queries) GetCreatorArticleBySlug(ctx context.Context, arg GetCreatorArt
 		&i.Title,
 		&i.Slug,
 		&i.Content,
+		&i.ImageUrl,
 		&i.Published,
 		&i.IsPremium,
 		&i.Visibility,
@@ -612,7 +623,7 @@ func (q *Queries) ListArticlesWithCategory(ctx context.Context, arg ListArticles
 }
 
 const listCreatorArticles = `-- name: ListCreatorArticles :many
-SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibility,
+SELECT a.id, a.title, a.slug, a.content, a."imageUrl", a.published, a."isPremium", a.visibility,
        a."readingTime", a.status, a."tierId", a."createdAt", a."updatedAt",
        c.id AS category_id, c.name AS category_name, c.slug AS category_slug,
        c.description AS category_description
@@ -620,7 +631,16 @@ FROM "Article" a
 LEFT JOIN "Category" c ON c.id = a."categoryId"
 WHERE a."publicationId" = $1
   AND ($2::boolean IS NULL OR a.published = $2)
-  AND ($3::text IS NULL OR c.slug = $3)
+  AND (
+    $3::text IS NULL
+    OR c.slug = $3
+    OR c.id = $3
+    OR c."parentId" IN (
+      SELECT parent_cat.id FROM "Category" parent_cat
+      WHERE parent_cat."publicationId" = $1
+        AND (parent_cat.slug = $3 OR parent_cat.id = $3)
+    )
+  )
 ORDER BY a."createdAt" DESC
 LIMIT $5 OFFSET $4
 `
@@ -638,6 +658,7 @@ type ListCreatorArticlesRow struct {
 	Title               string            `json:"title"`
 	Slug                string            `json:"slug"`
 	Content             string            `json:"content"`
+	ImageUrl            pgtype.Text       `json:"imageUrl"`
 	Published           bool              `json:"published"`
 	IsPremium           bool              `json:"isPremium"`
 	Visibility          ContentVisibility `json:"visibility"`
@@ -653,7 +674,7 @@ type ListCreatorArticlesRow struct {
 }
 
 // Liste des articles d'une publication au format contrat créateurs (Hono) :
-// filtres `published` (défaut true) et `category` (slug), catégorie embarquée.
+// filtres `published` (défaut true) et `category` (slug ou UUID ou catégorie parente), catégorie embarquée.
 func (q *Queries) ListCreatorArticles(ctx context.Context, arg ListCreatorArticlesParams) ([]ListCreatorArticlesRow, error) {
 	rows, err := q.db.Query(ctx, listCreatorArticles,
 		arg.PublicationId,
@@ -674,6 +695,7 @@ func (q *Queries) ListCreatorArticles(ctx context.Context, arg ListCreatorArticl
 			&i.Title,
 			&i.Slug,
 			&i.Content,
+			&i.ImageUrl,
 			&i.Published,
 			&i.IsPremium,
 			&i.Visibility,

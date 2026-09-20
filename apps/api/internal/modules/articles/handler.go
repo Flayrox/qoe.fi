@@ -98,6 +98,7 @@ func (h *Handler) getBySlug(w http.ResponseWriter, r *http.Request) {
 				response.Internal(w)
 				return
 			}
+			w.Header().Set("Cache-Control", "public, max-age=60, s-maxage=120, stale-while-revalidate=600")
 			response.OK(w, map[string]any{"data": item})
 			return
 		}
@@ -243,6 +244,7 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 			response.Forbidden(w, err.Error())
 			return
 		}
+		w.Header().Set("Cache-Control", "public, max-age=60, s-maxage=120, stale-while-revalidate=600")
 		response.OK(w, resp)
 		return
 	}

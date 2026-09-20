@@ -184,6 +184,7 @@ func (h *Handler) categories(w http.ResponseWriter, r *http.Request) {
 			ArticlesCount: row.ArticlesCount,
 		})
 	}
+	w.Header().Set("Cache-Control", "public, max-age=300, s-maxage=600, stale-while-revalidate=3600")
 	response.OK(w, map[string]any{"data": out})
 }
 

@@ -159,7 +159,7 @@ LIMIT 1;
 -- name: GetCreatorArticleBySlug :one
 -- Lecture d'un article PUBLIÉ d'une publication au format contrat créateurs
 -- (clé API → publication du créateur), catégorie embarquée.
-SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibility,
+SELECT a.id, a.title, a.slug, a.content, a."imageUrl", a.published, a."isPremium", a.visibility,
        a."readingTime", a.status, a."tierId", a."createdAt", a."updatedAt",
        c.id AS category_id, c.name AS category_name, c.slug AS category_slug,
        c.description AS category_description
@@ -169,8 +169,8 @@ WHERE a.slug = $1 AND a."publicationId" = $2 AND a.published = true;
 
 -- name: ListCreatorArticles :many
 -- Liste des articles d'une publication au format contrat créateurs (Hono) :
--- filtres `published` (défaut true) et `category` (slug), catégorie embarquée.
-SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium", a.visibility,
+-- filtres `published` (défaut true) et `category` (slug ou UUID ou catégorie parente), catégorie embarquée.
+SELECT a.id, a.title, a.slug, a.content, a."imageUrl", a.published, a."isPremium", a.visibility,
        a."readingTime", a.status, a."tierId", a."createdAt", a."updatedAt",
        c.id AS category_id, c.name AS category_name, c.slug AS category_slug,
        c.description AS category_description
@@ -178,7 +178,16 @@ FROM "Article" a
 LEFT JOIN "Category" c ON c.id = a."categoryId"
 WHERE a."publicationId" = sqlc.arg('publicationId')
   AND (sqlc.narg('published')::boolean IS NULL OR a.published = sqlc.narg('published'))
-  AND (sqlc.narg('categorySlug')::text IS NULL OR c.slug = sqlc.narg('categorySlug'))
+  AND (
+    sqlc.narg('categorySlug')::text IS NULL
+    OR c.slug = sqlc.narg('categorySlug')
+    OR c.id = sqlc.narg('categorySlug')
+    OR c."parentId" IN (
+      SELECT parent_cat.id FROM "Category" parent_cat
+      WHERE parent_cat."publicationId" = sqlc.arg('publicationId')
+        AND (parent_cat.slug = sqlc.narg('categorySlug') OR parent_cat.id = sqlc.narg('categorySlug'))
+    )
+  )
 ORDER BY a."createdAt" DESC
 LIMIT sqlc.arg('limit') OFFSET sqlc.arg('offset');
 
@@ -189,7 +198,16 @@ FROM "Article" a
 LEFT JOIN "Category" c ON c.id = a."categoryId"
 WHERE a."publicationId" = sqlc.arg('publicationId')
   AND (sqlc.narg('published')::boolean IS NULL OR a.published = sqlc.narg('published'))
-  AND (sqlc.narg('categorySlug')::text IS NULL OR c.slug = sqlc.narg('categorySlug'));
+  AND (
+    sqlc.narg('categorySlug')::text IS NULL
+    OR c.slug = sqlc.narg('categorySlug')
+    OR c.id = sqlc.narg('categorySlug')
+    OR c."parentId" IN (
+      SELECT parent_cat.id FROM "Category" parent_cat
+      WHERE parent_cat."publicationId" = sqlc.arg('publicationId')
+        AND (parent_cat.slug = sqlc.narg('categorySlug') OR parent_cat.id = sqlc.narg('categorySlug'))
+    )
+  );
 
 -- name: ListArticlesWithCategory :many
 SELECT a.id, a.title, a.slug, a.published, a."isPremium", a.visibility, a."readingTime",
