@@ -227,24 +227,21 @@ export async function processAndSecureImage(
     throw new Error('Type de fichier invalide ou corrompu. Seules les images sont autorisées.');
   }
 
-  // Traitement spécial SVG (désinfection XML pure sans sharp)
+  // Traitement SVG : désinfection XML d'abord (défense en profondeur avant
+  // rastérisation), puis rastérisation WebP via Sharp comme toute autre
+  // image. Aucun SVG n'est jamais stocké ni servi brut : la classe XSS
+  // stocké via `image/svg+xml` est éliminée (le CDN ne sert que du
+  // WebP/JPEG inerte). Les logos vectoriels restent nets (densité 192 DPI,
+  // détail préservé jusqu'à 2048 px).
+  let inputBuffer = rawBuffer;
+  const sharpOptions: { failOn: 'none'; density?: number } = { failOn: 'none' };
   if (magic.mime === 'image/svg+xml') {
-    const cleanSvg = sanitizeSvgBuffer(rawBuffer);
-    const sha256 = crypto.createHash('sha256').update(cleanSvg).digest('hex');
-    return {
-      processedBuffer: cleanSvg,
-      mimeType: 'image/svg+xml',
-      extension: 'svg',
-      width: 800,
-      height: 800,
-      sizeBytes: cleanSvg.length,
-      sha256,
-      blurhash: 'data:image/svg+xml;base64,' + cleanSvg.toString('base64'),
-    };
+    inputBuffer = sanitizeSvgBuffer(rawBuffer);
+    sharpOptions.density = 192;
   }
 
   // 2. Anti-Decompression Bomb (Lecture métadonnées header uniquement)
-  const imageInstance = sharp(rawBuffer, { failOn: 'none' });
+  const imageInstance = sharp(inputBuffer, sharpOptions);
   const metadata = await imageInstance.metadata();
 
   const width = metadata.width || 0;
@@ -261,7 +258,7 @@ export async function processAndSecureImage(
   }
 
   // 3. Transformation, Stripping EXIF & Transcodage WebP
-  let transformer = sharp(rawBuffer, { failOn: 'none' }).rotate(); // Oriente l'image et strippe les EXIFs par défaut
+  let transformer = sharp(inputBuffer, sharpOptions).rotate(); // Oriente l'image et strippe les EXIFs par défaut
 
   if (width > maxWidth) {
     transformer = transformer.resize(maxWidth, null, {

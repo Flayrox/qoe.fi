@@ -34,6 +34,14 @@ var validTargetTypes = map[string]bool{
 // surchargeable via SetQuotaBytes — reflète MEDIA_QUOTA_BYTES).
 const defaultQuotaBytes = int64(512 << 20)
 
+// defaultUploadsPerHour borne les nouveaux uploads par utilisateur et par
+// heure (anti-flood : coût Sharp + modération + storage — reflète
+// MEDIA_UPLOADS_PER_HOUR).
+const defaultUploadsPerHour = int64(100)
+
+// uploadThrottleWindow est la fenêtre glissante du throttle d'uploads.
+const uploadThrottleWindow = time.Hour
+
 // defaultPurgeBatch limite le nombre d'assets purgés par passage du worker.
 const defaultPurgeBatch = 200
 
@@ -42,15 +50,23 @@ type Service struct {
 	q    *db.Queries
 	// quotaBytes borne le volume non purgé par utilisateur (0 = pas de limite).
 	quotaBytes int64
+	// uploadsPerHour borne les nouveaux uploads par heure (0 = pas de limite).
+	uploadsPerHour int64
 }
 
 func NewService(pool *pgxpool.Pool) *Service {
-	return &Service{pool: pool, q: db.New(pool), quotaBytes: defaultQuotaBytes}
+	return &Service{pool: pool, q: db.New(pool), quotaBytes: defaultQuotaBytes, uploadsPerHour: defaultUploadsPerHour}
 }
 
 // SetQuotaBytes surcharge la limite de stockage par utilisateur (0 = illimité).
 func (s *Service) SetQuotaBytes(n int64) *Service {
 	s.quotaBytes = n
+	return s
+}
+
+// SetUploadsPerHour surcharge le throttle d'uploads par heure (0 = illimité).
+func (s *Service) SetUploadsPerHour(n int64) *Service {
+	s.uploadsPerHour = n
 	return s
 }
 
@@ -104,6 +120,22 @@ func (s *Service) RegisterAsset(ctx context.Context, ownerID string, in Register
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return db.MediaAsset{}, err
+	}
+
+	// Throttle anti-flood : les doublons CAS ne créent aucune ligne donc ne
+	// consomment rien — seuls les nouveaux uploads comptent.
+	if s.uploadsPerHour > 0 {
+		recent, uerr := s.q.CountRecentUploads(ctx, db.CountRecentUploadsParams{
+			OwnerId:   ownerID,
+			CreatedAt: pgtype.Timestamp{Time: time.Now().Add(-uploadThrottleWindow), Valid: true},
+		})
+		if uerr != nil {
+			return db.MediaAsset{}, uerr
+		}
+		if recent >= s.uploadsPerHour {
+			return db.MediaAsset{}, fmt.Errorf(
+				"trop d'uploads (%d/heure maximum, réessayez plus tard)", s.uploadsPerHour)
+		}
 	}
 
 	// Quota de stockage par utilisateur (anti-saturation) : le volume non

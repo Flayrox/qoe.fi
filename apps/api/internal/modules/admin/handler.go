@@ -44,6 +44,9 @@ func (h *Handler) Register(r chi.Router) {
 	r.Delete("/v1/admin/widgets/promos/{id}", h.deletePromo)
 	r.Patch("/v1/admin/widgets/promos/{id}", h.togglePromo)
 
+	// Stockage médias (supervision saturation du bucket images)
+	r.Get("/v1/admin/storage/usage", h.storageUsage)
+
 	// Feature flags / config / frontend / traductions
 	r.Get("/v1/admin/config", h.configs)
 	r.Put("/v1/admin/config", h.upsertConfigs)
@@ -99,6 +102,22 @@ func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	data, err := h.svc.GetDashboard(r.Context(), userID)
+	if err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, data)
+}
+
+// GET /v1/admin/storage/usage — supervision du bucket images (superadmin).
+// Query : ?limit=20 (top consommateurs, max 100).
+func (h *Handler) storageUsage(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	data, err := h.svc.GetStorageUsage(r.Context(), userID, limit)
 	if err != nil {
 		h.handleErr(w, err)
 		return

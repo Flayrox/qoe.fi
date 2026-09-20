@@ -85,6 +85,9 @@ type Config struct {
 	// MediaQuotaBytesPerUser borne le volume stocké par utilisateur
 	// (assets non purgés, défaut 512 Mo).
 	MediaQuotaBytesPerUser int64
+	// MediaUploadsPerHour borne les nouveaux uploads par utilisateur et par
+	// heure (anti-flood Sharp + modération, défaut 100).
+	MediaUploadsPerHour int64
 	// MediaLifecycleIntervalMinutes cadence le worker de réconciliation /
 	// purge des assets orphelins (défaut 60).
 	MediaLifecycleIntervalMinutes int
@@ -143,6 +146,7 @@ func Load() *Config {
 		// cadence du worker de purge et grâce avant suppression définitive.
 		MediaCDNBaseURL:               envOr("MEDIA_CDN_BASE_URL", "https://cdn.qoe.fi"),
 		MediaQuotaBytesPerUser:        envInt64("MEDIA_QUOTA_BYTES", 512<<20),
+		MediaUploadsPerHour:          envInt64("MEDIA_UPLOADS_PER_HOUR", 100),
 		MediaLifecycleIntervalMinutes: envInt("MEDIA_LIFECYCLE_INTERVAL_MINUTES", 60),
 		MediaSoftDeleteGraceDays:      envInt("MEDIA_SOFT_DELETE_GRACE_DAYS", 7),
 	}

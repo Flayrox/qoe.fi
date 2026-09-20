@@ -91,6 +91,7 @@ func main() {
 	mediaStore := supastorage.New(cfg.SupabaseURL, cfg.SupabaseServiceRoleKey)
 	mediaAssetsSvc := mediaassets.NewService(pool)
 	mediaAssetsSvc.SetQuotaBytes(cfg.MediaQuotaBytesPerUser)
+	mediaAssetsSvc.SetUploadsPerHour(cfg.MediaUploadsPerHour)
 	mediaInterval := time.Duration(cfg.MediaLifecycleIntervalMinutes) * time.Minute
 	mediaGrace := time.Duration(cfg.MediaSoftDeleteGraceDays) * 24 * time.Hour
 	go workers.RunMediaLifecycle(ctx, pool, mediaAssetsSvc, mediaStore, mediaInterval, mediaGrace)

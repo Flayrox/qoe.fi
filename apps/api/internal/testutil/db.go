@@ -51,6 +51,19 @@ func MustPool(tb testing.TB) *pgxpool.Pool {
 	return p
 }
 
+// TryPool est la variante de Pool qui ne panique jamais : testcontainers
+// lève un panic (pas une erreur) quand Docker est indisponible. Retourne
+// (nil, err) dans ce cas pour que les TestMain skippent les tests DB tout
+// en laissant tourner les tests unitaires purs.
+func TryPool(ctx context.Context) (p *pgxpool.Pool, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			p, err = nil, fmt.Errorf("testcontainers: %v", r)
+		}
+	}()
+	return Pool(ctx)
+}
+
 // ClosePool ferme le pool. Les packages existants utilisent Cleanup ci-dessous.
 func ClosePool() {
 	if pool != nil {

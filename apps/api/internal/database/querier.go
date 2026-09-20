@@ -76,6 +76,9 @@ type Querier interface {
 	CountReadingSessionsByArticleId(ctx context.Context, arg CountReadingSessionsByArticleIdParams) (int32, error)
 	// Variante batch pour provenance globale (tous les articleIds du créateur).
 	CountReadingSessionsByArticleIds(ctx context.Context, arg CountReadingSessionsByArticleIdsParams) ([]int32, error)
+	// Nombre d'uploads d'un utilisateur depuis $2 (throttle anti-flood : borne
+	// le coût Sharp + modération + storage, multi-instance safe).
+	CountRecentUploads(ctx context.Context, arg CountRecentUploadsParams) (int64, error)
 	CountRecommendationsByPublication(ctx context.Context, recommenderid string) (int64, error)
 	CountSubscribersByPublication(ctx context.Context, publicationid string) (int64, error)
 	// Nombre de conversations avec au moins un message non lu (badge tab).

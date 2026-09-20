@@ -16,7 +16,7 @@ func clearEnv(t *testing.T) {
 		"UMAMI_USERNAME", "UMAMI_PASSWORD", "NEXT_PUBLIC_UMAMI_WEBSITE_ID",
 		"UMAMI_DATABASE_URL", "OAUTH_ISSUER", "OAUTH_AUTHORIZE_URL",
 		"OAUTH_SIGNING_KEY", "QOE_DEVTOOLS_DEV_ONLY", "MEDIA_CDN_BASE_URL",
-		"MEDIA_QUOTA_BYTES", "MEDIA_LIFECYCLE_INTERVAL_MINUTES",
+		"MEDIA_QUOTA_BYTES", "MEDIA_UPLOADS_PER_HOUR", "MEDIA_LIFECYCLE_INTERVAL_MINUTES",
 		"MEDIA_SOFT_DELETE_GRACE_DAYS",
 	} {
 		t.Setenv(k, "")
@@ -53,6 +53,9 @@ func TestLoad_Defaults(t *testing.T) {
 	if c.MediaQuotaBytesPerUser != 512<<20 {
 		t.Errorf("MediaQuotaBytesPerUser = %d, attendu 512 Mo", c.MediaQuotaBytesPerUser)
 	}
+	if c.MediaUploadsPerHour != 100 {
+		t.Errorf("MediaUploadsPerHour = %d, attendu 100", c.MediaUploadsPerHour)
+	}
 	if c.MediaLifecycleIntervalMinutes != 60 {
 		t.Errorf("MediaLifecycleIntervalMinutes = %d, attendu 60", c.MediaLifecycleIntervalMinutes)
 	}
@@ -71,6 +74,7 @@ func TestLoad_Overrides(t *testing.T) {
 	t.Setenv("STRIPE_WEBHOOK_SECRET", "sk_test")
 	t.Setenv("MEDIA_CDN_BASE_URL", "https://cdn.example.test")
 	t.Setenv("MEDIA_QUOTA_BYTES", "1048576")
+	t.Setenv("MEDIA_UPLOADS_PER_HOUR", "50")
 	t.Setenv("MEDIA_LIFECYCLE_INTERVAL_MINUTES", "15")
 	t.Setenv("MEDIA_SOFT_DELETE_GRACE_DAYS", "3")
 	c := Load()
@@ -94,6 +98,9 @@ func TestLoad_Overrides(t *testing.T) {
 	}
 	if c.MediaQuotaBytesPerUser != 1048576 {
 		t.Errorf("MediaQuotaBytesPerUser override = %d", c.MediaQuotaBytesPerUser)
+	}
+	if c.MediaUploadsPerHour != 50 {
+		t.Errorf("MediaUploadsPerHour override = %d", c.MediaUploadsPerHour)
 	}
 	if c.MediaLifecycleIntervalMinutes != 15 || c.MediaSoftDeleteGraceDays != 3 {
 		t.Error("override lifecycle médias non appliqué")
