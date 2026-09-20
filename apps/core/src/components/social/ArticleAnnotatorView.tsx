@@ -486,7 +486,28 @@ function ArticleAnnotatorViewInner({
                   />
                   <span>
                     {t`Pour`}{' '}
-                    <span className="font-semibold text-foreground/90">{pourTarget.name}</span>
+                    <ProfileHoverCard
+                      user={{
+                        id: writer?.id || article.author?.id || '',
+                        name: pourTarget.name,
+                        username: pourTarget.subdomain,
+                        logoUrl: pourTarget.logoUrl ?? null,
+                        isCertified: !writer && article.author?.isCertified,
+                        isMedia: true,
+                        type: 'MEDIA',
+                      }}
+                      onOpenProfile={onOpenProfile}
+                    >
+                      <span
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (pourTarget.subdomain) onOpenProfile?.(pourTarget.subdomain);
+                        }}
+                        className="font-semibold text-foreground/90 hover:underline cursor-pointer"
+                      >
+                        {pourTarget.name}
+                      </span>
+                    </ProfileHoverCard>
                   </span>
                 </div>
               )}
