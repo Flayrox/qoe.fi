@@ -36,8 +36,18 @@ export interface OAuthClientInfo {
   homepageUrl: string;
 }
 
+export interface OAuthPublicationInfo {
+  id: string;
+  name: string;
+  slug: string;
+  logoUrl?: string;
+  isMember: boolean;
+  memberRole?: string;
+}
+
 export interface OAuthAuthorizeInfo {
   client: OAuthClientInfo;
+  publication?: OAuthPublicationInfo;
   scopes: OAuthScopeInfo[];
   state: string;
   alreadyConsented: boolean;

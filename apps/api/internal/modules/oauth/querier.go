@@ -20,6 +20,7 @@ type oauthQuerier interface {
 	GetOAuthClientByClientId(ctx context.Context, clientid string) (db.GetOAuthClientByClientIdRow, error)
 	GetOAuthClientByID(ctx context.Context, id string) (db.GetOAuthClientByIDRow, error)
 	GetOAuthConsent(ctx context.Context, arg db.GetOAuthConsentParams) (db.OAuthConsent, error)
+	GetOAuthMediaContext(ctx context.Context, arg db.GetOAuthMediaContextParams) (db.GetOAuthMediaContextRow, error)
 	GetOAuthTokenByAccessHash(ctx context.Context, accesstokenhash string) (db.GetOAuthTokenByAccessHashRow, error)
 	GetOAuthTokenByRefreshHash(ctx context.Context, refreshtokenhash pgtype.Text) (db.GetOAuthTokenByRefreshHashRow, error)
 	GetOAuthUserClaims(ctx context.Context, id string) (db.GetOAuthUserClaimsRow, error)
@@ -29,6 +30,7 @@ type oauthQuerier interface {
 	InsertOAuthClient(ctx context.Context, arg db.InsertOAuthClientParams) error
 	InsertOAuthToken(ctx context.Context, arg db.InsertOAuthTokenParams) error
 	ListOAuthClientsByOwner(ctx context.Context, owneruserid string) ([]db.ListOAuthClientsByOwnerRow, error)
+	ListOAuthClientsByPublication(ctx context.Context, publicationid pgtype.Text) ([]db.ListOAuthClientsByPublicationRow, error)
 	ListOAuthConfig(ctx context.Context) ([]db.ListOAuthConfigRow, error)
 	RevokeOAuthTokenByAccessHash(ctx context.Context, accesstokenhash string) error
 	RevokeOAuthTokenByRefreshHash(ctx context.Context, refreshtokenhash pgtype.Text) error

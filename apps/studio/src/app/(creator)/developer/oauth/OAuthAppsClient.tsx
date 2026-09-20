@@ -16,6 +16,8 @@ import {
   Globe,
   Lock,
   ArrowRight,
+  Building2,
+  User,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { toast } from '@qoe/ui/toast';
@@ -36,6 +38,7 @@ const OAUTH_SCOPES = [
   },
   { name: 'profile', required: false, desc: () => t`Nom, pseudo et photo de profil` },
   { name: 'email', required: false, desc: () => t`Adresse e-mail` },
+  { name: 'media', required: false, desc: () => t`Statut de membre et permissions du média` },
 ] as const;
 
 const STATUS_META: Record<OAuthClientDTO['status'], { label: () => string; className: string }> = {
@@ -59,6 +62,11 @@ interface OAuthAppsClientProps {
   hasOAuthGrant?: boolean;
   clients: OAuthClientDTO[];
   error?: string;
+  workspace?: {
+    type: string;
+    name: string;
+    publicationId?: string;
+  };
 }
 
 export function OAuthAppsClient({
@@ -66,6 +74,7 @@ export function OAuthAppsClient({
   hasOAuthGrant = true,
   clients: initialClients,
   error,
+  workspace,
 }: OAuthAppsClientProps) {
   const router = useRouter();
   const [clients, setClients] = useState<OAuthClientDTO[]>(initialClients);
@@ -105,7 +114,7 @@ export function OAuthAppsClient({
   };
 
   const refresh = async () => {
-    const res = await listOAuthClientsAction();
+    const res = await listOAuthClientsAction(workspace?.publicationId);
     if (res.success) setClients(res.clients);
     router.refresh();
   };
@@ -193,9 +202,28 @@ export function OAuthAppsClient({
       <div className="space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary mb-1.5">
-              <Shield className="w-3.5 h-3.5" />
-              OpenID Connect
+            <div className="flex items-center gap-2 flex-wrap mb-1.5">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
+                <Shield className="w-3.5 h-3.5" />
+                OpenID Connect
+              </div>
+              {workspace && (
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border bg-muted/40 border-border text-foreground">
+                  {workspace.type === 'MEDIA' ? (
+                    <>
+                      <Building2 className="w-3 h-3 text-primary shrink-0" />
+                      <span>
+                        Média : <strong>{workspace.name}</strong>
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <User className="w-3 h-3 text-muted-foreground shrink-0" />
+                      <span>Espace Personnel</span>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
             <h1 className="text-3xl font-bold tracking-tight text-foreground">
               Applications OAuth

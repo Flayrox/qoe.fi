@@ -22,6 +22,14 @@ FROM "OAuthClient"
 WHERE "ownerUserId" = $1
 ORDER BY "createdAt" DESC;
 
+-- name: ListOAuthClientsByPublication :many
+SELECT id, "clientId", "clientSecretHash", name, description, "logoUrl",
+       "homepageUrl", "redirectUris", scopes, "clientType"::text, status::text,
+       "publicationId", "ownerUserId", "createdAt", "updatedAt"
+FROM "OAuthClient"
+WHERE "publicationId" = $1
+ORDER BY "createdAt" DESC;
+
 -- name: CountOAuthClientsByOwner :one
 SELECT COUNT(*) AS count FROM "OAuthClient" WHERE "ownerUserId" = $1;
 
@@ -66,7 +74,8 @@ VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, NULL, NULL, now());
 -- name: GetOAuthTokenByAccessHash :one
 SELECT t.id, t."clientId", t."userId", t."accessTokenHash", t."refreshTokenHash", t.scopes,
        t."accessTokenExpiresAt", t."refreshTokenExpiresAt", t."revokedAt", t."lastUsedAt", t."createdAt",
-       c."clientId" AS "publicClientId"
+       c."clientId" AS "publicClientId",
+       c."publicationId" AS "clientPublicationId"
 FROM "OAuthToken" t
 JOIN "OAuthClient" c ON c.id = t."clientId"
 WHERE t."accessTokenHash" = $1;
@@ -74,10 +83,27 @@ WHERE t."accessTokenHash" = $1;
 -- name: GetOAuthTokenByRefreshHash :one
 SELECT t.id, t."clientId", t."userId", t."accessTokenHash", t."refreshTokenHash", t.scopes,
        t."accessTokenExpiresAt", t."refreshTokenExpiresAt", t."revokedAt", t."lastUsedAt", t."createdAt",
-       c."clientId" AS "publicClientId"
+       c."clientId" AS "publicClientId",
+       c."publicationId" AS "clientPublicationId"
 FROM "OAuthToken" t
 JOIN "OAuthClient" c ON c.id = t."clientId"
 WHERE t."refreshTokenHash" = $1;
+
+-- name: GetOAuthMediaContext :one
+SELECT p.id AS "publicationId",
+       p.name AS "publicationName",
+       p.slug AS "publicationSlug",
+       p."logoUrl" AS "publicationLogoUrl",
+       COALESCE(md.id, '') AS "mediaId",
+       COALESCE(m.id, '') AS "memberId",
+       COALESCE(m.role, '') AS "memberRole",
+       COALESCE(m.permissions, ARRAY[]::text[]) AS "memberPermissions",
+       COALESCE(m.status, '') AS "memberStatus",
+       (m.id IS NOT NULL AND m.status = 'active') AS "isMember"
+FROM "Publication" p
+LEFT JOIN "Media" md ON md."publicationId" = p.id
+LEFT JOIN "MediaMember" m ON m."mediaId" = md.id AND m."userId" = $2
+WHERE p.id = $1;
 
 -- name: RevokeOAuthTokenByRefreshHash :exec
 UPDATE "OAuthToken" SET "revokedAt" = now() WHERE "refreshTokenHash" = $1;

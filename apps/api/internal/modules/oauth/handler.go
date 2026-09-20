@@ -259,7 +259,8 @@ func (h *Handler) listClients(w http.ResponseWriter, r *http.Request) {
 		response.Unauthorized(w, "Authentification requise.")
 		return
 	}
-	clients, err := h.svc.ListClients(r.Context(), userID)
+	pubID := r.URL.Query().Get("publicationId")
+	clients, err := h.svc.ListClients(r.Context(), userID, pubID)
 	if err != nil {
 		writeInternalError(w, err)
 		return

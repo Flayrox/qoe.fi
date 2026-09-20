@@ -1,7 +1,17 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Check, X, Shield, Loader2, AlertTriangle, ExternalLink } from 'lucide-react';
+import {
+  Check,
+  X,
+  Shield,
+  Loader2,
+  AlertTriangle,
+  ExternalLink,
+  Building2,
+  CheckCircle2,
+  AlertCircle,
+} from 'lucide-react';
 import { toast } from '@qoe/ui/toast';
 import {
   decideOAuthAuthorizationAction,
@@ -64,7 +74,7 @@ export function OAuthConsentClient({
     );
   }
 
-  const { client, scopes } = info;
+  const { client, publication, scopes } = info;
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-background px-4 py-12 text-foreground">
@@ -114,6 +124,52 @@ export function OAuthConsentClient({
               )}
             </div>
           </div>
+
+          {/* Média affilié (si présent) */}
+          {publication && (
+            <div
+              className={`p-4 rounded-2xl border flex items-start gap-3.5 transition-all ${
+                publication.isMember
+                  ? 'bg-success/10 border-success/30'
+                  : 'bg-highlight/10 border-highlight/30'
+              }`}
+            >
+              <div
+                className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                  publication.isMember
+                    ? 'bg-success/20 text-success'
+                    : 'bg-highlight/20 text-highlight'
+                }`}
+              >
+                <Building2 className="w-5 h-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-bold leading-tight">{publication.name}</span>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-background/70 border border-border text-muted-foreground">
+                    Média officiel
+                  </span>
+                </div>
+                {publication.isMember ? (
+                  <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1.5 font-medium">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-success shrink-0" />
+                    <span>
+                      Vous êtes connecté en tant que{' '}
+                      <strong className="text-foreground capitalize">
+                        {publication.memberRole || 'membre'}
+                      </strong>{' '}
+                      de ce média.
+                    </span>
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1.5 font-medium">
+                    <AlertCircle className="w-3.5 h-3.5 text-highlight shrink-0" />
+                    <span>Votre compte n&apos;est pas membre de l&apos;équipe de ce média.</span>
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Autorisation demandée */}
           <div className="space-y-1.5">

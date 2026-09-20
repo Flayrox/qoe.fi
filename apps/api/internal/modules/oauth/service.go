@@ -68,6 +68,7 @@ var supportedScopes = map[string]string{
 	"openid":  "Votre identifiant de connexion qoe.fi",
 	"profile": "Votre nom, pseudo et photo de profil",
 	"email":   "Votre adresse e-mail",
+	"media":   "Votre statut de membre et vos permissions au sein du média",
 }
 
 func scopeDescription(name string) string {
@@ -315,22 +316,32 @@ type CreateClientResult struct {
 }
 
 func (s *Service) CreateClientRequest(ctx context.Context, userID string, in CreateClientInput) (*CreateClientResult, error) {
-	// 1) L'accès API doit déjà avoir été approuvé par un admin.
-	status, err := s.q.GetUserApiAccessStatus(ctx, userID)
-	if err != nil {
-		return nil, oauthError("forbidden", "Utilisateur introuvable", 403)
-	}
-	if status != "approved" {
-		return nil, oauthError("forbidden", "Votre demande d'accès API doit être approuvée avant de créer une application OAuth.", 403)
-	}
-	// 1bis) La permission OAuth est modulable : l'admin doit l'avoir accordée
-	// (User.apiGrants) et le module doit être actif sur la plateforme.
-	grants, err := s.q.GetUserApiGrants(ctx, userID)
-	if err != nil {
-		return nil, oauthError("forbidden", "Utilisateur introuvable", 403)
-	}
-	if !apiaccess.HasGrant(grants, apiaccess.ModuleOAuth) {
-		return nil, oauthError("forbidden", "La permission OAuth ne vous a pas été accordée. Contactez un administrateur.", 403)
+	// 1) Si publicationId est renseigné, vérifier que l'utilisateur est membre actif du média.
+	// Sinon, vérifier les grants personnels de l'utilisateur.
+	isMediaClient := strings.TrimSpace(in.PublicationID) != ""
+	if isMediaClient {
+		mCtx, err := s.q.GetOAuthMediaContext(ctx, db.GetOAuthMediaContextParams{
+			ID:     strings.TrimSpace(in.PublicationID),
+			UserId: toUUID(userID),
+		})
+		if err != nil || (!mCtx.IsMember.Bool && mCtx.PublicationId == "") {
+			return nil, oauthError("forbidden", "Vous devez être membre de ce média pour créer une application OAuth.", 403)
+		}
+	} else {
+		status, err := s.q.GetUserApiAccessStatus(ctx, userID)
+		if err != nil {
+			return nil, oauthError("forbidden", "Utilisateur introuvable", 403)
+		}
+		if status != "approved" {
+			return nil, oauthError("forbidden", "Votre demande d'accès API doit être approuvée avant de créer une application OAuth.", 403)
+		}
+		grants, err := s.q.GetUserApiGrants(ctx, userID)
+		if err != nil {
+			return nil, oauthError("forbidden", "Utilisateur introuvable", 403)
+		}
+		if !apiaccess.HasGrant(grants, apiaccess.ModuleOAuth) {
+			return nil, oauthError("forbidden", "La permission OAuth ne vous a pas été accordée. Contactez un administrateur.", 403)
+		}
 	}
 	if !apiaccess.IsEnabled(ctx, s.pool, apiaccess.ModuleOAuth) {
 		return nil, oauthError("forbidden", "Les applications OAuth sont temporairement désactivées sur la plateforme.", 403)
@@ -389,6 +400,11 @@ func (s *Service) CreateClientRequest(ctx context.Context, userID string, in Cre
 		clientTypeEnum = db.OAuthClientTypePUBLIC
 	}
 
+	clientStatus := db.OAuthClientStatusPENDING
+	if isMediaClient {
+		clientStatus = db.OAuthClientStatusAPPROVED
+	}
+
 	if err := s.q.InsertOAuthClient(ctx, db.InsertOAuthClientParams{
 		ClientId:         clientID,
 		ClientSecretHash: secretHash,
@@ -399,7 +415,7 @@ func (s *Service) CreateClientRequest(ctx context.Context, userID string, in Cre
 		RedirectUris:     in.RedirectURIs,
 		Scopes:           scopes,
 		Column9:          clientTypeEnum,
-		Column10:         db.OAuthClientStatusPENDING,
+		Column10:         clientStatus,
 		PublicationId:    textPtr(in.PublicationID),
 		OwnerUserId:      userID,
 	}); err != nil {
@@ -411,38 +427,77 @@ func (s *Service) CreateClientRequest(ctx context.Context, userID string, in Cre
 
 // ClientDTO est la forme publique d'un client (jamais le secret en clair).
 type ClientDTO struct {
-	ID           string   `json:"id"`
-	ClientID     string   `json:"clientId"`
-	Name         string   `json:"name"`
-	Description  string   `json:"description"`
-	LogoURL      string   `json:"logoUrl"`
-	HomepageURL  string   `json:"homepageUrl"`
-	RedirectURIs []string `json:"redirectUris"`
-	Scopes       []string `json:"scopes"`
-	ClientType   string   `json:"clientType"`
-	Status       string   `json:"status"`
-	HasSecret    bool     `json:"hasSecret"`
-	CreatedAt    string   `json:"createdAt"`
+	ID            string   `json:"id"`
+	ClientID      string   `json:"clientId"`
+	Name          string   `json:"name"`
+	Description   string   `json:"description"`
+	LogoURL       string   `json:"logoUrl"`
+	HomepageURL   string   `json:"homepageUrl"`
+	RedirectURIs  []string `json:"redirectUris"`
+	Scopes        []string `json:"scopes"`
+	ClientType    string   `json:"clientType"`
+	Status        string   `json:"status"`
+	PublicationID string   `json:"publicationId,omitempty"`
+	HasSecret     bool     `json:"hasSecret"`
+	CreatedAt     string   `json:"createdAt"`
 }
 
 func rowToClientDTO(r db.ListOAuthClientsByOwnerRow) ClientDTO {
 	return ClientDTO{
-		ID:           r.ID,
-		ClientID:     r.ClientId,
-		Name:         r.Name,
-		Description:  textOrEmpty(r.Description),
-		LogoURL:      textOrEmpty(r.LogoUrl),
-		HomepageURL:  textOrEmpty(r.HomepageUrl),
-		RedirectURIs: r.RedirectUris,
-		Scopes:       r.Scopes,
-		ClientType:   r.ClientType,
-		Status:       r.Status,
-		HasSecret:    r.ClientSecretHash.Valid && r.ClientSecretHash.String != "",
-		CreatedAt:    tsString(r.CreatedAt),
+		ID:            r.ID,
+		ClientID:      r.ClientId,
+		Name:          r.Name,
+		Description:   textOrEmpty(r.Description),
+		LogoURL:       textOrEmpty(r.LogoUrl),
+		HomepageURL:   textOrEmpty(r.HomepageUrl),
+		RedirectURIs:  r.RedirectUris,
+		Scopes:        r.Scopes,
+		ClientType:    r.ClientType,
+		Status:        r.Status,
+		PublicationID: textOrEmpty(r.PublicationId),
+		HasSecret:     r.ClientSecretHash.Valid && r.ClientSecretHash.String != "",
+		CreatedAt:     tsString(r.CreatedAt),
 	}
 }
 
-func (s *Service) ListClients(ctx context.Context, userID string) ([]ClientDTO, error) {
+func publicationRowToClientDTO(r db.ListOAuthClientsByPublicationRow) ClientDTO {
+	return ClientDTO{
+		ID:            r.ID,
+		ClientID:      r.ClientId,
+		Name:          r.Name,
+		Description:   textOrEmpty(r.Description),
+		LogoURL:       textOrEmpty(r.LogoUrl),
+		HomepageURL:   textOrEmpty(r.HomepageUrl),
+		RedirectURIs:  r.RedirectUris,
+		Scopes:        r.Scopes,
+		ClientType:    r.ClientType,
+		Status:        r.Status,
+		PublicationID: textOrEmpty(r.PublicationId),
+		HasSecret:     r.ClientSecretHash.Valid && r.ClientSecretHash.String != "",
+		CreatedAt:     tsString(r.CreatedAt),
+	}
+}
+
+func (s *Service) ListClients(ctx context.Context, userID, publicationID string) ([]ClientDTO, error) {
+	if publicationID != "" {
+		mCtx, err := s.q.GetOAuthMediaContext(ctx, db.GetOAuthMediaContextParams{
+			ID:     publicationID,
+			UserId: toUUID(userID),
+		})
+		if err != nil || (!mCtx.IsMember.Bool && mCtx.PublicationId == "") {
+			return nil, oauthError("forbidden", "Vous n'avez pas accès à ce média.", 403)
+		}
+		rows, err := s.q.ListOAuthClientsByPublication(ctx, textPtr(publicationID))
+		if err != nil {
+			return nil, oauthError("server_error", "Impossible de lister les applications.", 500)
+		}
+		out := make([]ClientDTO, 0, len(rows))
+		for _, r := range rows {
+			out = append(out, publicationRowToClientDTO(r))
+		}
+		return out, nil
+	}
+
 	rows, err := s.q.ListOAuthClientsByOwner(ctx, userID)
 	if err != nil {
 		return nil, oauthError("server_error", "Impossible de lister les applications.", 500)
@@ -564,11 +619,21 @@ type ClientInfo struct {
 	HomepageURL string `json:"homepageUrl"`
 }
 
+type PublicationAuthorizeInfo struct {
+	ID         string `json:"id"`
+	Name       string `json:"name"`
+	Slug       string `json:"slug"`
+	LogoURL    string `json:"logoUrl,omitempty"`
+	IsMember   bool   `json:"isMember"`
+	MemberRole string `json:"memberRole,omitempty"`
+}
+
 type AuthorizeInfo struct {
-	Client           ClientInfo  `json:"client"`
-	Scopes           []ScopeInfo `json:"scopes"`
-	State            string      `json:"state"`
-	AlreadyConsented bool        `json:"alreadyConsented"`
+	Client           ClientInfo                 `json:"client"`
+	Publication      *PublicationAuthorizeInfo `json:"publication,omitempty"`
+	Scopes           []ScopeInfo                `json:"scopes"`
+	State            string                     `json:"state"`
+	AlreadyConsented bool                       `json:"alreadyConsented"`
 }
 
 type AuthorizeResult struct {
@@ -644,6 +709,23 @@ func (s *Service) BeginAuthorization(ctx context.Context, userID string, req *Au
 		already = coversScopes(consent.Scopes, scopes)
 	}
 
+	var pubInfo *PublicationAuthorizeInfo
+	if client.PublicationId.Valid && client.PublicationId.String != "" {
+		if pCtx, err := s.q.GetOAuthMediaContext(ctx, db.GetOAuthMediaContextParams{
+			ID:     client.PublicationId.String,
+			UserId: toUUID(userID),
+		}); err == nil && pCtx.PublicationId != "" {
+			pubInfo = &PublicationAuthorizeInfo{
+				ID:         pCtx.PublicationId,
+				Name:       pCtx.PublicationName,
+				Slug:       pCtx.PublicationSlug,
+				LogoURL:    textOrEmpty(pCtx.PublicationLogoUrl),
+				IsMember:   pCtx.IsMember.Bool,
+				MemberRole: pCtx.MemberRole,
+			}
+		}
+	}
+
 	return &AuthorizeResult{OK: true, Info: &AuthorizeInfo{
 		Client: ClientInfo{
 			ID:          client.ID,
@@ -653,6 +735,7 @@ func (s *Service) BeginAuthorization(ctx context.Context, userID string, req *Au
 			LogoURL:     textOrEmpty(client.LogoUrl),
 			HomepageURL: textOrEmpty(client.HomepageUrl),
 		},
+		Publication:      pubInfo,
 		Scopes:           infos,
 		State:            req.State,
 		AlreadyConsented: already,
@@ -799,7 +882,11 @@ func (s *Service) exchangeCode(ctx context.Context, req *TokenRequest, client db
 	}
 	_ = s.q.ConsumeOAuthAuthorizationCode(ctx, row.ID)
 
-	return s.issueTokens(ctx, client.ID, client.ClientId, row.UserId, row.Scopes, textOrEmpty(row.Nonce), req)
+	pubID := ""
+	if client.PublicationId.Valid {
+		pubID = client.PublicationId.String
+	}
+	return s.issueTokens(ctx, client.ID, client.ClientId, pubID, row.UserId, row.Scopes, textOrEmpty(row.Nonce), req)
 }
 
 func (s *Service) refreshToken(ctx context.Context, req *TokenRequest, client db.GetOAuthClientByClientIdRow) (*TokenResponse, *OAuthError) {
@@ -824,10 +911,14 @@ func (s *Service) refreshToken(ctx context.Context, req *TokenRequest, client db
 	// Rotation : l'ancien refresh token est révoqué.
 	_ = s.q.RevokeOAuthTokenByRefreshHash(ctx, textPtr(sha256hex(req.RefreshToken)))
 
-	return s.issueTokens(ctx, client.ID, client.ClientId, row.UserId, row.Scopes, "", req)
+	pubID := ""
+	if client.PublicationId.Valid {
+		pubID = client.PublicationId.String
+	}
+	return s.issueTokens(ctx, client.ID, client.ClientId, pubID, row.UserId, row.Scopes, "", req)
 }
 
-func (s *Service) issueTokens(ctx context.Context, clientDBID, clientPublicID, userID string, scopes []string, nonce string, req *TokenRequest) (*TokenResponse, *OAuthError) {
+func (s *Service) issueTokens(ctx context.Context, clientDBID, clientPublicID, publicationID, userID string, scopes []string, nonce string, req *TokenRequest) (*TokenResponse, *OAuthError) {
 	settings := s.Settings(ctx)
 	count, err := s.q.CountActiveOAuthTokens(ctx, userID)
 	if err == nil && int(count) >= settings.MaxActiveTokensPerUser {
@@ -859,7 +950,32 @@ func (s *Service) issueTokens(ctx context.Context, clientDBID, clientPublicID, u
 	}
 
 	if hasScope(scopes, "openid") {
-		idToken, err := s.signIDToken(userID, clientPublicID, nonce, access, req.Code, scopes, settings.IDTokenTTL)
+		var mediaClaims map[string]any
+		if publicationID != "" || hasScope(scopes, "media") {
+			targetPub := publicationID
+			if targetPub != "" {
+				if mCtx, err := s.q.GetOAuthMediaContext(ctx, db.GetOAuthMediaContextParams{
+					ID:     targetPub,
+					UserId: toUUID(userID),
+				}); err == nil && mCtx.PublicationId != "" {
+					perms := mCtx.MemberPermissions
+					if perms == nil {
+						perms = []string{}
+					}
+					mediaClaims = map[string]any{
+						"publicationId": mCtx.PublicationId,
+						"mediaId":       mCtx.MediaId,
+						"name":          mCtx.PublicationName,
+						"slug":          mCtx.PublicationSlug,
+						"logoUrl":       textOrEmpty(mCtx.PublicationLogoUrl),
+						"isMember":      mCtx.IsMember.Bool,
+						"role":          mCtx.MemberRole,
+						"permissions":   perms,
+					}
+				}
+			}
+		}
+		idToken, err := s.signIDToken(userID, clientPublicID, nonce, access, req.Code, scopes, mediaClaims, settings.IDTokenTTL)
 		if err != nil {
 			return nil, oauthError(ErrServerError.Error(), "Signature de l'id_token impossible.", 500)
 		}
@@ -869,7 +985,7 @@ func (s *Service) issueTokens(ctx context.Context, clientDBID, clientPublicID, u
 }
 
 // signIDToken émet un id_token ES256 avec sub pairwise.
-func (s *Service) signIDToken(userID, clientID, nonce, accessToken, code string, scopes []string, ttl time.Duration) (string, error) {
+func (s *Service) signIDToken(userID, clientID, nonce, accessToken, code string, scopes []string, mediaClaims map[string]any, ttl time.Duration) (string, error) {
 	now := time.Now()
 	claims := jwt.MapClaims{
 		"iss": s.issuer,
@@ -886,6 +1002,9 @@ func (s *Service) signIDToken(userID, clientID, nonce, accessToken, code string,
 	}
 	if code != "" {
 		claims["c_hash"] = atHash(code)
+	}
+	if len(mediaClaims) > 0 {
+		claims["media"] = mediaClaims
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
 	token.Header["kid"] = s.kid
@@ -993,6 +1112,36 @@ func (s *Service) UserInfo(ctx context.Context, accessToken string) (map[string]
 			out["pronouns"] = user.Pronouns.String
 		}
 	}
+
+	// Enrichissement Média (si client rattaché à un média ou scope 'media' présent)
+	if (row.ClientPublicationId.Valid && row.ClientPublicationId.String != "") || hasScope(row.Scopes, "media") {
+		pubID := ""
+		if row.ClientPublicationId.Valid {
+			pubID = row.ClientPublicationId.String
+		}
+		if pubID != "" {
+			if mCtx, err := s.q.GetOAuthMediaContext(ctx, db.GetOAuthMediaContextParams{
+				ID:     pubID,
+				UserId: toUUID(row.UserId),
+			}); err == nil && mCtx.PublicationId != "" {
+				perms := mCtx.MemberPermissions
+				if perms == nil {
+					perms = []string{}
+				}
+				out["media"] = map[string]any{
+					"publicationId": mCtx.PublicationId,
+					"mediaId":       mCtx.MediaId,
+					"name":          mCtx.PublicationName,
+					"slug":          mCtx.PublicationSlug,
+					"logoUrl":       textOrEmpty(mCtx.PublicationLogoUrl),
+					"isMember":      mCtx.IsMember.Bool,
+					"role":          mCtx.MemberRole,
+					"permissions":   perms,
+				}
+			}
+		}
+	}
+
 	return out, nil
 }
 
@@ -1019,6 +1168,12 @@ func tsString(t pgtype.Timestamp) string {
 		return t.Time.UTC().Format(time.RFC3339)
 	}
 	return ""
+}
+
+func toUUID(id string) pgtype.UUID {
+	var u pgtype.UUID
+	_ = u.Scan(id)
+	return u
 }
 
 func mustHex(n int) string {

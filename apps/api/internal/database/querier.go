@@ -254,6 +254,7 @@ type Querier interface {
 	GetOAuthClientByClientId(ctx context.Context, clientid string) (GetOAuthClientByClientIdRow, error)
 	GetOAuthClientByID(ctx context.Context, id string) (GetOAuthClientByIDRow, error)
 	GetOAuthConsent(ctx context.Context, arg GetOAuthConsentParams) (OAuthConsent, error)
+	GetOAuthMediaContext(ctx context.Context, arg GetOAuthMediaContextParams) (GetOAuthMediaContextRow, error)
 	GetOAuthTokenByAccessHash(ctx context.Context, accesstokenhash string) (GetOAuthTokenByAccessHashRow, error)
 	GetOAuthTokenByRefreshHash(ctx context.Context, refreshtokenhash pgtype.Text) (GetOAuthTokenByRefreshHashRow, error)
 	GetOAuthUserClaims(ctx context.Context, id string) (GetOAuthUserClaimsRow, error)
@@ -545,6 +546,7 @@ type Querier interface {
 	ListNewsletterIssuesByPublication(ctx context.Context, publicationid string) ([]NewsletterIssue, error)
 	ListNotificationDeliveries(ctx context.Context) ([]ListNotificationDeliveriesRow, error)
 	ListOAuthClientsByOwner(ctx context.Context, owneruserid string) ([]ListOAuthClientsByOwnerRow, error)
+	ListOAuthClientsByPublication(ctx context.Context, publicationid pgtype.Text) ([]ListOAuthClientsByPublicationRow, error)
 	ListOAuthConfig(ctx context.Context) ([]ListOAuthConfigRow, error)
 	ListOpenLegalReviews(ctx context.Context) ([]ListOpenLegalReviewsRow, error)
 	// Documents qui exigent une acceptation et que l'utilisateur n'a pas encore

@@ -24,6 +24,7 @@ export interface OAuthClientDTO {
   scopes: string[];
   clientType: 'CONFIDENTIAL' | 'PUBLIC';
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'REVOKED';
+  publicationId?: string;
   hasSecret: boolean;
   createdAt: string;
 }
@@ -40,13 +41,14 @@ async function getAuthenticatedUser() {
   return user;
 }
 
-/** 📋 Liste les applications OAuth de l'utilisateur (GET /v1/oauth/clients). */
-export async function listOAuthClientsAction(): Promise<
-  OAuthActionOk<{ clients: OAuthClientDTO[] }> | OAuthActionErr
-> {
+/** 📋 Liste les applications OAuth de l'utilisateur ou du média (GET /v1/oauth/clients). */
+export async function listOAuthClientsAction(
+  publicationId?: string
+): Promise<OAuthActionOk<{ clients: OAuthClientDTO[] }> | OAuthActionErr> {
   try {
     await getAuthenticatedUser();
-    const res = await goFetch<{ clients: OAuthClientDTO[] }>('/v1/oauth/clients');
+    const query = publicationId ? `?publicationId=${encodeURIComponent(publicationId)}` : '';
+    const res = await goFetch<{ clients: OAuthClientDTO[] }>(`/v1/oauth/clients${query}`);
     return { success: true, clients: res.clients ?? [] };
   } catch (err) {
     return {
