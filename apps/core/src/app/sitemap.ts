@@ -7,9 +7,25 @@
 // =====================================================================
 
 import type { MetadataRoute } from 'next';
-import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 
 export const revalidate = 3600; // Cache de 1 heure
+
+// Le sitemap est PUBLIC et sans session : on appelle l'API Go en fetch
+// direct, SANS goFetch (qui lit les cookies Supabase pour le Bearer —
+// `cookies()` lève DynamicServerError pendant le (pré)rendu de
+// /sitemap.xml, ce qui vidait silencieusement articles et créateurs).
+const GO_API_URL = (process.env.QOE_API_URL || 'http://localhost:8090').replace(/\/$/, '');
+
+async function fetchPublic<T>(path: string): Promise<T | null> {
+  try {
+    const res = await fetch(`${GO_API_URL}${path}`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    return (await res.json()) as T;
+  } catch (err) {
+    console.error(`[sitemap] GET ${path}:`, err);
+    return null;
+  }
+}
 
 interface ApiArticleFeedResult {
   items: Array<{
@@ -58,7 +74,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 2. Articles publiés récents (format canonique SEO /:owner/:slug)
   let articleEntries: MetadataRoute.Sitemap = [];
   try {
-    const res = await goFetch<ApiArticleFeedResult>('/v1/feed/articles?limit=100');
+    const res = await fetchPublic<ApiArticleFeedResult>('/v1/feed/articles?limit=100');
     if (res?.items && Array.isArray(res.items)) {
       articleEntries = res.items
         .filter((art) => Boolean(art.slug))
@@ -84,7 +100,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // 3. Profils de créateurs recommandés / publics
   let creatorEntries: MetadataRoute.Sitemap = [];
   try {
-    const creators = await goFetch<ApiSuggestedCreator[]>('/v1/home/suggested-creators');
+    const creators = await fetchPublic<ApiSuggestedCreator[]>('/v1/home/suggested-creators');
     if (Array.isArray(creators)) {
       creatorEntries = creators
         .filter((c) => Boolean(c.username))
