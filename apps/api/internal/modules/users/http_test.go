@@ -35,6 +35,7 @@ func do(r http.Handler, method, path, userID, body string) *httptest.ResponseRec
 // ─── GET /v1/me ────────────────────────────────────────────────────────
 
 func TestMe_AuthRequiredAndProfile(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -73,6 +74,7 @@ func TestMe_AuthRequiredAndProfile(t *testing.T) {
 // ─── PATCH /v1/me/profile ──────────────────────────────────────────────
 
 func TestHTTP_UpdateProfile(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -107,6 +109,7 @@ func TestHTTP_UpdateProfile(t *testing.T) {
 // ─── GET /v1/users/search ──────────────────────────────────────────────
 
 func TestHTTP_Search(t *testing.T) {
+	requirePool(t)
 	if _, err := testutil.SeedPosts(context.Background(), poolTest); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
@@ -143,6 +146,7 @@ func TestHTTP_Search(t *testing.T) {
 // ─── POST /v1/me/onboarding-complete ──────────────────────────────────
 
 func TestHTTP_OnboardingComplete(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -179,6 +183,7 @@ func TestHTTP_OnboardingComplete(t *testing.T) {
 // ─── GET /v1/me/data-export (RGPD) ────────────────────────────────────
 
 func TestHTTP_DataExport(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -207,6 +212,7 @@ func TestHTTP_DataExport(t *testing.T) {
 // ─── POST /v1/me/muted-words ──────────────────────────────────────────
 
 func TestHTTP_ToggleMuteWord(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -231,6 +237,7 @@ func TestHTTP_ToggleMuteWord(t *testing.T) {
 // ─── GET /v1/me/muted-words (liste) ───────────────────────────────────
 
 func TestHTTP_ListMutedWords(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -274,6 +281,7 @@ func TestHTTP_ListMutedWords(t *testing.T) {
 // ─── Publications & wallet ─────────────────────────────────────────────
 
 func TestHTTP_MyPublicationAndMedia(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -296,6 +304,7 @@ func TestHTTP_MyPublicationAndMedia(t *testing.T) {
 }
 
 func TestHTTP_WalletUnlock_Validation(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)

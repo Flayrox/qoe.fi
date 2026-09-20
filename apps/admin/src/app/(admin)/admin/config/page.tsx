@@ -3,6 +3,7 @@ import {
   getSystemConfigs,
   getAdminFeatureFlags,
   getApiAccessModules,
+  getAllowlist,
 } from '@/lib/admin-data';
 import {
   setSystemConfigAction,
@@ -13,6 +14,7 @@ import { AuthMethodsToggles } from './components/AuthMethodsToggles';
 import { ApiAccessModulesToggles } from './components/ApiAccessModulesToggles';
 import { ApiAccessControlCard } from './components/ApiAccessControlCard';
 import { FeatureFlagsToggles } from './components/FeatureFlagsToggles';
+import { RegistrationsControl } from './components/RegistrationsControl';
 
 function parseDisabledEndpoints(raw?: string): string[] {
   if (!raw) return [];
@@ -70,14 +72,21 @@ export default async function AdminConfig() {
     'web',
     'www',
   ];
-  const [configs, reservedUsernames, reservedSubdomains, featureFlags, apiAccessModules] =
-    await Promise.all([
-      getSystemConfigs(),
-      getReservedIdentifiers('username'),
-      getReservedIdentifiers('subdomain'),
-      getAdminFeatureFlags(),
-      getApiAccessModules(),
-    ]);
+  const [
+    configs,
+    reservedUsernames,
+    reservedSubdomains,
+    featureFlags,
+    apiAccessModules,
+    allowlist,
+  ] = await Promise.all([
+    getSystemConfigs(),
+    getReservedIdentifiers('username'),
+    getReservedIdentifiers('subdomain'),
+    getAdminFeatureFlags(),
+    getApiAccessModules(),
+    getAllowlist(),
+  ]);
   const visibleReservedSubdomains = Array.from(
     new Set([...defaultReservedSubdomains, ...reservedSubdomains])
   );
@@ -137,6 +146,12 @@ export default async function AdminConfig() {
 
       {/* 🚩 Feature Flags pilotables en direct */}
       <FeatureFlagsToggles initialFlags={featureFlags} />
+
+      {/* 🚪 Inscriptions : kill-switch + allowlist d'invitation */}
+      <RegistrationsControl
+        initialOpen={configs.find((c) => c.key === 'ALLOW_NEW_REGISTRATIONS')?.value !== 'false'}
+        initialAllowlist={allowlist}
+      />
 
       {/* Méthodes de connexion — toggles dédiés (Google en test, etc.) */}
       <AuthMethodsToggles initialValue={configs.find((c) => c.key === 'AUTH_METHODS')?.value} />

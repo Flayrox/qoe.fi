@@ -274,6 +274,88 @@ func (s *Service) GetStorageUsage(ctx context.Context, userID string, limit int)
 	return out, nil
 }
 
+// ── Allowlist d'inscription (accès privé) ─────────────────────────────────
+
+// AllowlistEntry est une invitation d'inscription (usage unique).
+type AllowlistEntry struct {
+	Email     string  `json:"email"`
+	Note      *string `json:"note,omitempty"`
+	InvitedBy *string `json:"invitedBy,omitempty"`
+	UsedAt    *string `json:"usedAt,omitempty"`
+	UsedBy    *string `json:"usedBy,omitempty"`
+	CreatedAt string  `json:"createdAt"`
+}
+
+// normalizeAllowlistEmail normalise un email d'allowlist (parité users).
+func normalizeAllowlistEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
+}
+
+// ListAllowlist retourne les invitations (plus récentes d'abord, max 500).
+func (s *Service) ListAllowlist(ctx context.Context, userID string) ([]AllowlistEntry, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return nil, err
+	}
+	rows, err := s.pool.Query(ctx,
+		`SELECT email, note, "invitedBy", "usedAt"::text, "usedBy", "createdAt"::text
+		 FROM "RegistrationAllowlist" ORDER BY "createdAt" DESC LIMIT 500`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []AllowlistEntry{}
+	for rows.Next() {
+		var e AllowlistEntry
+		if serr := rows.Scan(&e.Email, &e.Note, &e.InvitedBy, &e.UsedAt, &e.UsedBy, &e.CreatedAt); serr != nil {
+			return nil, serr
+		}
+		out = append(out, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// AddAllowlist invite un email (upsert : ré-inviter réinitialise une
+// invitation consommée si elle n'a pas servi à créer un compte actif… en
+// pratique : une entrée `used` reste utilisée, seul `note` est mis à jour).
+func (s *Service) AddAllowlist(ctx context.Context, userID, email, note string) (*AllowlistEntry, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return nil, err
+	}
+	normalized := normalizeAllowlistEmail(email)
+	if normalized == "" || !strings.Contains(normalized, "@") {
+		return nil, errors.New("email invalide")
+	}
+	var e AllowlistEntry
+	err := s.pool.QueryRow(ctx,
+		`INSERT INTO "RegistrationAllowlist" (email, note, "invitedBy")
+		 VALUES ($1, NULLIF($2, ''), $3)
+		 ON CONFLICT (email) DO UPDATE SET note = EXCLUDED.note, "invitedBy" = EXCLUDED."invitedBy"
+		 RETURNING email, note, "invitedBy", "usedAt"::text, "usedBy", "createdAt"::text`,
+		normalized, strings.TrimSpace(note), userID).Scan(
+		&e.Email, &e.Note, &e.InvitedBy, &e.UsedAt, &e.UsedBy, &e.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &e, nil
+}
+
+// DeleteAllowlist retire une invitation (un compte déjà créé n'est jamais
+// touché : l'allowlist ne gate que la création).
+func (s *Service) DeleteAllowlist(ctx context.Context, userID, email string) error {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return err
+	}
+	normalized := normalizeAllowlistEmail(email)
+	if normalized == "" {
+		return errors.New("email invalide")
+	}
+	_, err := s.pool.Exec(ctx, `DELETE FROM "RegistrationAllowlist" WHERE email = $1`, normalized)
+	return err
+}
+
 // ── Feature Flags / Config / Frontend / Translations ─────────────────────────
 
 type SystemConfigItem struct {

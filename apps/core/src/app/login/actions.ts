@@ -66,13 +66,38 @@ export async function signup(formData: FormData) {
     );
   }
 
+  // 🚪 Inscriptions ouvertes ou email invité ? Pré-contrôle AVANT
+  // supabase.auth.signUp : sans ça, un email refusé créerait quand même un
+  // compte Auth orphelin (sans ligne User). Le serveur re-vérifie au sync.
+  const normalizedEmail = emailValidation.normalizedEmail || email.trim();
+  try {
+    const goApi = process.env.QOE_API_URL;
+    if (goApi) {
+      const res = await fetch(
+        `${goApi}/v1/auth/registration-status?email=${encodeURIComponent(normalizedEmail)}`,
+        { cache: 'no-store' }
+      );
+      if (res.ok) {
+        const status = (await res.json()) as { open?: boolean; allowed?: boolean };
+        if (!status.open && !status.allowed) {
+          redirect(
+            `/login?error=${encodeURIComponent('Inscriptions sur invitation : cet email n’est pas invité.')}`
+          );
+        }
+      }
+    }
+  } catch {
+    // API injoignable : on laisse passer, le sync tranchera (fail-open
+    // côté inscription, fail-closed côté création — aucun compte fantôme).
+  }
+
   const supabase = await createClient();
 
   const {
     data: { user },
     error,
   } = await supabase.auth.signUp({
-    email: emailValidation.normalizedEmail || email.trim(),
+    email: normalizedEmail,
     password,
     options: {
       data: {

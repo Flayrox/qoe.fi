@@ -94,8 +94,14 @@ export function LoginFormBento({
   // ── Inscriptions fermées (SystemConfig ALLOW_NEW_REGISTRATIONS=false) ──
   // Le superadmin ferme la création de comptes depuis /admin/config : on
   // masque le lien « S'inscrire » et on replie un signup déjà ouvert vers la
-  // connexion. L'API refuse de toute façon la création (403 SyncUserFromAuth).
+  // connexion — sauf email invité (allowlist, vérifié ci-dessous).
+  // L'API refuse de toute façon la création (403 SyncUserFromAuth).
   const [registrationsClosed, setRegistrationsClosed] = useState(false);
+  // Invitation acceptée : l'email est dans l'allowlist → le formulaire
+  // d'inscription reste accessible malgré la fermeture.
+  const [inviteAccepted, setInviteAccepted] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteChecking, setInviteChecking] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -126,9 +132,10 @@ export function LoginFormBento({
   }, []);
 
   // Quand les méthodes chargent (ou que les inscriptions ferment), on repasse
-  // sur un mode encore disponible.
+  // sur un mode encore disponible (sauf invitation acceptée : l'invité garde
+  // son formulaire d'inscription).
   useEffect(() => {
-    if (registrationsClosed && authMode === 'signup') {
+    if (registrationsClosed && !inviteAccepted && authMode === 'signup') {
       setAuthMode(authMethods?.magicLink ? 'magic-link' : 'password');
       return;
     }
@@ -145,13 +152,42 @@ export function LoginFormBento({
       }
       return current;
     });
-  }, [authMethods, registrationsClosed, authMode]);
+  }, [authMethods, registrationsClosed, inviteAccepted, authMode]);
 
   useEffect(() => {
     setAuthMode(initialMode === 'signup' ? 'signup' : 'magic-link');
     setLocalError(null);
     setMagicLinkSent(false);
   }, [initialMode]);
+
+  // ── Invitation en accès privé : l'invité saisit son email, on vérifie
+  // l'allowlist côté API, puis on ouvre le formulaire d'inscription.
+  // Pré-contrôle uniquement : le serveur re-vérifie au sync (403 sinon),
+  // aucun compte Auth orphelin n'est créé pour un email non invité.
+  const checkInvite = async () => {
+    const value = inviteEmail.trim();
+    if (!value) return;
+    setInviteChecking(true);
+    setLocalError(null);
+    try {
+      const res = await fetch(
+        `${URLS.API}/v1/auth/registration-status?email=${encodeURIComponent(value)}`
+      );
+      const data = res.ok ? ((await res.json()) as { open?: boolean; allowed?: boolean }) : null;
+      if (data && (data.open || data.allowed)) {
+        setInviteAccepted(true);
+        setEmail(value);
+        setLocalError(null);
+        setAuthMode('signup');
+      } else {
+        setLocalError(t`Cet email n'est pas invité pour le moment.`);
+      }
+    } catch {
+      setLocalError(t`Vérification impossible, réessayez.`);
+    } finally {
+      setInviteChecking(false);
+    }
+  };
 
   const getContextSubtitle = () => {
     if (actionContext === 'like')
@@ -757,8 +793,8 @@ export function LoginFormBento({
             )}
           </div>
 
-          {/* Footer Switch (masqué quand les inscriptions sont fermées) */}
-          {methods.password && !registrationsClosed && (
+          {/* Footer Switch (masqué quand les inscriptions sont fermées, sauf invité) */}
+          {methods.password && (!registrationsClosed || inviteAccepted) && (
             <div className="w-full flex items-center justify-between pt-4 border-t border-border/40 text-xs">
               <button
                 type="button"
@@ -772,6 +808,38 @@ export function LoginFormBento({
                   ? t`Déjà un compte ? Connexion`
                   : t`Pas encore de compte ? S'inscrire`}
               </button>
+            </div>
+          )}
+
+          {/* Accès privé : un email invité déverrouille le formulaire d'inscription */}
+          {registrationsClosed && !inviteAccepted && (
+            <div className="w-full pt-4 border-t border-border/40 space-y-2.5">
+              <p className="text-[11px] uppercase tracking-wider font-semibold text-muted-foreground">
+                {t`Inscriptions sur invitation — vérifiez votre email`}
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      void checkInvite();
+                    }
+                  }}
+                  placeholder="vous@example.com"
+                  className="flex-1 min-w-0 bg-muted/40 border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+                <button
+                  type="button"
+                  disabled={inviteChecking || !inviteEmail.trim()}
+                  onClick={() => void checkInvite()}
+                  className="shrink-0 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50 cursor-pointer"
+                >
+                  {inviteChecking ? t`Vérification…` : t`Vérifier`}
+                </button>
+              </div>
             </div>
           )}
         </div>

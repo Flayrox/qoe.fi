@@ -45,12 +45,25 @@ export async function GET(request: Request) {
         const goApi = process.env.QOE_API_URL;
         if (goApi) {
           const session = await supabase.auth.getSession();
-          await fetch(`${goApi}/v1/me/sync`, {
+          const res = await fetch(`${goApi}/v1/me/sync`, {
             method: 'POST',
             headers: {
               Authorization: `Bearer ${session.data.session?.access_token ?? ''}`,
             },
           });
+          if (res.status === 403) {
+            // 🚪 Inscriptions fermées / email non invité : pas de ligne User.
+            // Session coupée (anti compte orphelin), retour avec message clair.
+            await supabase.auth.signOut();
+            let msg = 'Inscriptions fermées pour le moment. Demandez une invitation.';
+            try {
+              const body = (await res.json()) as { error?: string };
+              if (body.error) msg = body.error;
+            } catch {
+              // Corps illisible : message par défaut.
+            }
+            return NextResponse.redirect(`${base}/?error=${encodeURIComponent(msg)}`);
+          }
         }
       }
 

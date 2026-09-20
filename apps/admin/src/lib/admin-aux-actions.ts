@@ -192,6 +192,57 @@ export async function setSystemConfigAction(input: {
   }
 }
 
+/** 🚪 Ouvre/ferme les inscriptions (ALLOW_NEW_REGISTRATIONS=false = privé). */
+export async function setRegistrationsOpenAction(open: boolean) {
+  await verifySuperadmin();
+  try {
+    await upsertConfigsGo([
+      {
+        key: 'ALLOW_NEW_REGISTRATIONS',
+        value: open ? 'true' : 'false',
+        description: 'Inscriptions ouvertes (true) ou privées sur invitation (false)',
+      },
+    ]);
+    revalidatePath('/', 'layout');
+    return { success: true };
+  } catch (error: unknown) {
+    console.error(error);
+    return { success: false, error: errorMessage(error, 'Erreur de sauvegarde') };
+  }
+}
+
+/** 📩 Invite un email à s'inscrire (accès privé, usage unique). */
+export async function addAllowlistAction(email: string, note?: string) {
+  await verifySuperadmin();
+  try {
+    if (!email || !email.includes('@')) return { success: false, error: 'Email invalide' };
+    await goFetch('/v1/admin/registrations/allowlist', {
+      method: 'POST',
+      body: { email: email.trim(), note: note?.trim() || null },
+    });
+    revalidatePath('/admin/config');
+    return { success: true };
+  } catch (error: unknown) {
+    console.error(error);
+    return { success: false, error: errorMessage(error, "Erreur lors de l'invitation") };
+  }
+}
+
+/** 📩 Retire une invitation (le compte déjà créé n'est jamais touché). */
+export async function deleteAllowlistAction(email: string) {
+  await verifySuperadmin();
+  try {
+    await goFetch(`/v1/admin/registrations/allowlist/${encodeURIComponent(email)}`, {
+      method: 'DELETE',
+    });
+    revalidatePath('/admin/config');
+    return { success: true };
+  } catch (error: unknown) {
+    console.error(error);
+    return { success: false, error: errorMessage(error, 'Erreur de suppression') };
+  }
+}
+
 export async function updateReservedIdentifiersAction(
   kind: 'username' | 'subdomain',
   values: string[]

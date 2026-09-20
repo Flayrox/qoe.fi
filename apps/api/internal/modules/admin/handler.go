@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -46,6 +47,11 @@ func (h *Handler) Register(r chi.Router) {
 
 	// Stockage médias (supervision saturation du bucket images)
 	r.Get("/v1/admin/storage/usage", h.storageUsage)
+
+	// Allowlist d'inscription (accès privé : inscriptions sur invitation)
+	r.Get("/v1/admin/registrations/allowlist", h.listAllowlist)
+	r.Post("/v1/admin/registrations/allowlist", h.addAllowlist)
+	r.Delete("/v1/admin/registrations/allowlist/{email}", h.deleteAllowlist)
 
 	// Feature flags / config / frontend / traductions
 	r.Get("/v1/admin/config", h.configs)
@@ -123,6 +129,70 @@ func (h *Handler) storageUsage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, data)
+}
+
+// GET /v1/admin/registrations/allowlist — invitations d'inscription.
+func (h *Handler) listAllowlist(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	data, err := h.svc.ListAllowlist(r.Context(), userID)
+	if err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, data)
+}
+
+// POST /v1/admin/registrations/allowlist — invite un email.
+// Body : { email, note? }.
+func (h *Handler) addAllowlist(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	var body struct {
+		Email string `json:"email"`
+		Note  string `json:"note"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	entry, err := h.svc.AddAllowlist(r.Context(), userID, body.Email, body.Note)
+	if err != nil {
+		if err.Error() == "email invalide" {
+			response.BadRequest(w, err.Error())
+			return
+		}
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, entry)
+}
+
+// DELETE /v1/admin/registrations/allowlist/{email} — retire une invitation.
+// Le {email} d'URL est URL-encodé (encodeURIComponent côté front).
+func (h *Handler) deleteAllowlist(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	email, err := url.PathUnescape(chi.URLParam(r, "email"))
+	if err != nil {
+		response.BadRequest(w, "email invalide")
+		return
+	}
+	if err := h.svc.DeleteAllowlist(r.Context(), userID, email); err != nil {
+		if err.Error() == "email invalide" {
+			response.BadRequest(w, err.Error())
+			return
+		}
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, map[string]bool{"success": true})
 }
 
 // GET /v1/admin/users — liste des utilisateurs (réservé superadmin).

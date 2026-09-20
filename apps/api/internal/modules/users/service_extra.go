@@ -19,6 +19,10 @@ import (
 // (SystemConfig ALLOW_NEW_REGISTRATIONS=false) : la ligne User n'est pas créée.
 var ErrRegistrationsClosed = errors.New("les inscriptions sont temporairement fermées")
 
+// ErrEmailNotInvited signale qu'en accès privé (inscriptions fermées), l'email
+// ne figure pas dans l'allowlist d'invitation (ou a déjà été utilisé).
+var ErrEmailNotInvited = errors.New("inscriptions sur invitation : cet email n'est pas invité")
+
 // readConfig lit une valeur SystemConfig (best-effort) — miroir du helper feed.
 func (s *Service) readConfig(ctx context.Context, key string) string {
 	var v string
@@ -26,6 +30,61 @@ func (s *Service) readConfig(ctx context.Context, key string) string {
 		return ""
 	}
 	return v
+}
+
+// normalizeAllowlistEmail normalise un email d'allowlist (comparaisons
+// insensibles à la casse et aux espaces, côté Go comme côté admin).
+func normalizeAllowlistEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
+}
+
+// registrationsOpen lit le kill-switch d'inscriptions (défaut : ouvert).
+func (s *Service) registrationsOpen(ctx context.Context) bool {
+	return !strings.EqualFold(s.readConfig(ctx, "ALLOW_NEW_REGISTRATIONS"), "false")
+}
+
+// checkAllowlist vérifie qu'un email figure dans l'allowlist d'invitation
+// et n'a pas encore été utilisé (usage unique par invitation).
+func (s *Service) checkAllowlist(ctx context.Context, email string) (bool, error) {
+	normalized := normalizeAllowlistEmail(email)
+	if normalized == "" {
+		return false, nil
+	}
+	var ok bool
+	if err := s.pool.QueryRow(ctx,
+		`SELECT EXISTS(SELECT 1 FROM "RegistrationAllowlist" WHERE email = $1 AND "usedAt" IS NULL)`,
+		normalized).Scan(&ok); err != nil {
+		return false, err
+	}
+	return ok, nil
+}
+
+// consumeAllowlist marque une invitation comme utilisée après création du
+// compte (best-effort : un échec ne bloque jamais l'inscription réussie).
+func (s *Service) consumeAllowlist(ctx context.Context, email, userID string) {
+	normalized := normalizeAllowlistEmail(email)
+	if normalized == "" {
+		return
+	}
+	_, _ = s.pool.Exec(ctx,
+		`UPDATE "RegistrationAllowlist" SET "usedAt" = now(), "usedBy" = $2
+		 WHERE email = $1 AND "usedAt" IS NULL`, normalized, userID)
+}
+
+// RegistrationStatus expose l'état des inscriptions pour le front (page
+// login : bannière "fermé" + pré-contrôle avant supabase.auth.signUp, pour
+// ne pas créer de compte Auth orphelin). `allowed` = cet email peut
+// s'inscrire (ouvert à tous OU invité). La réponse ne révèle que
+// l'appartenance à l'allowlist, jamais l'existence d'un compte.
+func (s *Service) RegistrationStatus(ctx context.Context, email string) (open, allowed bool, err error) {
+	if s.registrationsOpen(ctx) {
+		return true, true, nil
+	}
+	allowed, err = s.checkAllowlist(ctx, email)
+	if err != nil {
+		return false, false, err
+	}
+	return false, allowed, nil
 }
 
 // SyncUserFromAuth crée (ou met à jour) la ligne User depuis les claims du
@@ -73,10 +132,22 @@ func (s *Service) syncUserFromAuth(ctx context.Context, userID string, claims ma
 
 	if !exists {
 		// 🚪 Inscriptions fermées ? La clé SystemConfig ALLOW_NEW_REGISTRATIONS
-		// (toggle admin) bloque la création de NOUVELLES lignes User. Les
+		// (toggle admin) bloque la création de NOUVELLES lignes User, sauf
+		// pour les emails invités (allowlist admin, usage unique). Les
 		// comptes existants continuent de fonctionner. Défaut : ouvert.
 		if strings.EqualFold(s.readConfig(ctx, "ALLOW_NEW_REGISTRATIONS"), "false") {
-			return false, false, ErrRegistrationsClosed
+			allowed, aerr := s.checkAllowlist(ctx, email)
+			if aerr != nil {
+				return false, false, aerr
+			}
+			if !allowed {
+				// Distingue "fermé à tous" d'"email non invité" pour des
+				// messages front adaptés (même statut HTTP 403).
+				if email == "" {
+					return false, false, ErrRegistrationsClosed
+				}
+				return false, false, ErrEmailNotInvited
+			}
 		}
 		finalUsername := safeProvisionedUsername(email, username)
 		// Unicité : suffixe aléatoire si le username est pris. La contrainte
@@ -107,6 +178,8 @@ func (s *Service) syncUserFromAuth(ctx context.Context, userID string, claims ma
 			// 🆕 Le compte vient de naître : on ancre ici les acceptations
 			// cochées au formulaire d'inscription (métadonnées du JWT).
 			s.recordSignupConsent(ctx, userID, claims, origin)
+			// Invitation consommée (accès privé) : usage unique.
+			s.consumeAllowlist(ctx, email, userID)
 			// Initialise sa publication personnelle pour que son profil /@username existe toujours
 			_, _ = s.GetOrCreatePersonalPublication(ctx, userID)
 			return true, true, nil

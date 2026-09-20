@@ -40,6 +40,7 @@ func withSignupConsent(svc *Service) (*fakeConsentRecorder, func()) {
 }
 
 func TestSyncUserRecordsSignupConsentOnCreation(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	svc := NewService(poolTest)
 	recorder, restore := withSignupConsent(svc)
@@ -97,6 +98,7 @@ func TestSyncUserRecordsSignupConsentOnCreation(t *testing.T) {
 // La variante avec origine de requête transmet l'IP et l'agent : ce sont des
 // éléments de preuve du consentement.
 func TestSyncUserPassesRequestOrigin(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	svc := NewService(poolTest)
 	recorder, restore := withSignupConsent(svc)
@@ -130,6 +132,7 @@ func TestSyncUserPassesRequestOrigin(t *testing.T) {
 // Sans consentement dans les métadonnées, on n'appelle jamais le dépositaire :
 // une inscription sans case cochée ne doit produire aucune preuve.
 func TestSyncUserWithoutConsentMetadata(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	svc := NewService(poolTest)
 	recorder, restore := withSignupConsent(svc)

@@ -14,6 +14,7 @@ import (
 // ─── Block / Mute (privacy_social.go) ───────────────────────────────────────
 
 func TestBlockedUsers_ToggleAndList(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -73,6 +74,7 @@ func TestBlockedUsers_ToggleAndList(t *testing.T) {
 }
 
 func TestMutedUsers_ToggleAndList(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
