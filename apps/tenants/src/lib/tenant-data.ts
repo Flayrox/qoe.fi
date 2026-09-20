@@ -194,7 +194,7 @@ export async function fetchPublicTenantPublication(
   try {
     const base = (process.env.QOE_API_URL || 'http://localhost:8090').replace(/\/$/, '');
     const res = await fetch(`${base}/v1/publications/by-domain/${encodeURIComponent(domain)}`, {
-      cache: 'no-store',
+      next: { revalidate: 3600 },
     });
     if (!res.ok) return null;
     return (await res.json()) as TenantPublication;
