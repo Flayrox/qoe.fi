@@ -97,14 +97,15 @@ export async function savePromo(
   description: string,
   ctaText: string | null,
   ctaUrl: string | null,
-  isActive: boolean
+  isActive: boolean,
+  imageUrl?: string | null
 ) {
   await verifySuperadmin();
   try {
     if (!title || !description) return { success: false, error: 'Titre et description requis' };
     await goFetch('/v1/admin/widgets/promos', {
       method: 'POST',
-      body: { id, title, description, ctaText, ctaUrl, isActive },
+      body: { id, title, description, ctaText, ctaUrl, imageUrl: imageUrl || null, isActive },
     });
     revalidatePath('/admin/widgets');
     revalidatePath('/home');

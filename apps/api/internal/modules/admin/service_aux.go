@@ -155,6 +155,7 @@ type PromoInput struct {
 	Description string  `json:"description"`
 	CtaText     *string `json:"ctaText"`
 	CtaUrl      *string `json:"ctaUrl"`
+	ImageUrl    *string `json:"imageUrl"`
 	IsActive    *bool   `json:"isActive"`
 }
 
@@ -172,7 +173,8 @@ func (s *Service) SavePromo(ctx context.Context, userID string, in PromoInput) (
 	}
 	res, err := s.q.UpsertPromo(ctx, db.UpsertPromoParams{
 		Column1: id, Title: in.Title, Description: in.Description,
-		CtaText: optText(in.CtaText), CtaUrl: optText(in.CtaUrl), IsActive: isActive,
+		CtaText: optText(in.CtaText), CtaUrl: optText(in.CtaUrl), Column6: strOrEmpty(in.ImageUrl),
+		IsActive: isActive,
 	})
 	if err != nil {
 		return nil, err
@@ -656,4 +658,11 @@ func optText(p *string) pgtype.Text {
 		return pgtype.Text{}
 	}
 	return pgtype.Text{String: *p, Valid: true}
+}
+
+func strOrEmpty(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
 }

@@ -15,6 +15,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { t } from '@lingui/core/macro';
 import { toast } from '@qoe/ui/toast';
+import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
+import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
 import { Check, Loader2, Mail, SendHorizonal } from 'lucide-react';
 import {
   getEmailSettingsAction,
@@ -256,13 +258,15 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
             >{t`Affiché en en-tête (défaut : initiale de la publication).`}</span>
           </div>
           <div className="sm:col-span-2">
-            <input
-              type="url"
-              value={settings.logoUrl || ''}
-              onChange={(e) => set('logoUrl', e.target.value)}
-              maxLength={500}
-              placeholder="https://…/logo.png"
-              className={inputClass}
+            <ImageUploader
+              value={settings.logoUrl || null}
+              onChange={(url) => set('logoUrl', url ?? '')}
+              upload={(file) =>
+                uploadImageToRoute(file, '/api/articles/upload', IMAGE_FOLDERS.avatars)
+              }
+              aspect={1}
+              shape="circle"
+              maxDimension={512}
             />
           </div>
         </div>
