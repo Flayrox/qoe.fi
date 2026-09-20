@@ -29,7 +29,9 @@ const GO_API_URL = (process.env.QOE_API_URL || 'http://localhost:8090').replace(
 
 async function fetchPublic<T>(path: string): Promise<T | null> {
   try {
-    const res = await fetch(`${GO_API_URL}${path}`, { cache: 'no-store' });
+    // next.revalidate (pas no-store) : le prerender de build reste possible
+    // (API injoignable au build → null gracieux), puis régénération horaire.
+    const res = await fetch(`${GO_API_URL}${path}`, { next: { revalidate } });
     if (!res.ok) return null;
     return (await res.json()) as T;
   } catch (err) {
@@ -125,23 +127,20 @@ async function articleShardCount(): Promise<number> {
   }
 }
 
-// Dimensionne l'index : statique + créateurs + un shard par tranche de 1000
-// articles. Next.js génère /sitemap.xml (index) + /sitemap/<id>.xml.
+// Dimensionne l'index : id 0 = pages statiques, id 1 = créateurs,
+// id >= 2 = shards d'articles (shard n → id n+2). Les ids DOIVENT être
+// numériques (exigence Next.js generateSitemaps) : /sitemap.xml (index)
+// + /sitemap/<id>.xml.
 export async function generateSitemaps() {
   const shards = await articleShardCount();
-  return [
-    { id: 'static' },
-    { id: 'creators' },
-    ...Array.from({ length: shards }, (_, i) => ({ id: `articles-${i}` })),
-  ];
+  return [{ id: 0 }, { id: 1 }, ...Array.from({ length: shards }, (_, i) => ({ id: i + 2 }))];
 }
 
-export default async function sitemap({ id }: { id: string }): Promise<MetadataRoute.Sitemap> {
-  if (id === 'creators') return creatorEntries();
-  if (id.startsWith('articles-')) {
-    const n = Number.parseInt(id.slice('articles-'.length), 10);
-    if (!Number.isInteger(n) || n < 0 || n >= MAX_SHARDS) return [];
-    return articleEntries(n * SHARD_SIZE, SHARD_SIZE);
+export default async function sitemap({ id }: { id: number }): Promise<MetadataRoute.Sitemap> {
+  if (id === 1) return creatorEntries();
+  if (Number.isInteger(id) && id >= 2 && id < MAX_SHARDS + 2) {
+    return articleEntries((id - 2) * SHARD_SIZE, SHARD_SIZE);
   }
-  return staticPages();
+  if (id === 0) return staticPages();
+  return [];
 }
