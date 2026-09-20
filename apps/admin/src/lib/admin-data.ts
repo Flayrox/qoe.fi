@@ -188,6 +188,25 @@ export async function getOAuthClients(): Promise<AdminOAuthClient[]> {
   return goFetch<AdminOAuthClient[]>('/v1/admin/oauth/clients');
 }
 
+/** 📩 Allowlist d'inscription (accès privé : emails invités, usage unique). */
+export interface AllowlistEntry {
+  email: string;
+  note: string | null;
+  invitedBy: string | null;
+  usedAt: string | null;
+  usedBy: string | null;
+  createdAt: string;
+}
+
+export async function getAllowlist(): Promise<AllowlistEntry[]> {
+  try {
+    return await goFetch<AllowlistEntry[]>('/v1/admin/registrations/allowlist');
+  } catch {
+    // Table pas encore migrée / API indisponible : page config résiliente.
+    return [];
+  }
+}
+
 /** 🛠️ Demandes d'accès API. */
 export async function getApiApplicants(): Promise<AdminApiApplicant[]> {
   return goFetch<AdminApiApplicant[]>('/v1/admin/api-applicants');

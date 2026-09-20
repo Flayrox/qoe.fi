@@ -45,6 +45,18 @@ CREATE TABLE "SystemConfig" (
 );
 
 -- CreateTable
+CREATE TABLE "RegistrationAllowlist" (
+    "email" TEXT NOT NULL,
+    "note" TEXT,
+    "invitedBy" TEXT,
+    "usedAt" TIMESTAMP(3),
+    "usedBy" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "RegistrationAllowlist_pkey" PRIMARY KEY ("email")
+);
+
+-- CreateTable
 CREATE TABLE "User" (
     "id" UUID NOT NULL,
     "email" TEXT NOT NULL,

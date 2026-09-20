@@ -82,6 +82,7 @@ func seedUsers(t *testing.T) string {
 }
 
 func TestFault_Handlers_PoolErrors(t *testing.T) {
+	requirePool(t)
 	userID := seedUsers(t)
 
 	cases := []struct {
@@ -168,6 +169,7 @@ func TestJsonFriendly(t *testing.T) {
 }
 
 func TestFault_SyncUser(t *testing.T) {
+	requirePool(t)
 	userID := seedUsers(t)
 
 	// Claims JWT + user existant → 200 (mis à jour).

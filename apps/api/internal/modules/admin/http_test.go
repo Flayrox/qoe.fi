@@ -66,6 +66,8 @@ func TestAdminRoutes_AuthMatrix(t *testing.T) {
 		{"PATCH", "/v1/admin/api-applicants/" + adminCreator, `{"status":"approved"}`},
 		{"GET", "/v1/admin/deliveries", ""},
 		{"GET", "/v1/admin/storage/usage", ""},
+		{"GET", "/v1/admin/registrations/allowlist", ""},
+		{"POST", "/v1/admin/registrations/allowlist", `{"email":"x@y.z"}`},
 	}
 	for _, tc := range routes {
 		w := do(r, tc.method, tc.path, adminReaderID, tc.body)

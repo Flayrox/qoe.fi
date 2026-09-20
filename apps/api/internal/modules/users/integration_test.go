@@ -15,14 +15,26 @@ import (
 var poolTest *pgxpool.Pool
 
 func TestMain(m *testing.M) {
-	p, err := testutil.Pool(context.Background())
+	p, err := testutil.TryPool(context.Background())
 	if err != nil {
-		log.Fatalf("testcontainers: %v", err)
+		log.Printf("testcontainers indisponible, tests DB skippés: %v", err)
+		poolTest = nil
+	} else {
+		poolTest = p
 	}
-	poolTest = p
 	code := m.Run()
-	testutil.Cleanup()
+	if poolTest != nil {
+		testutil.Cleanup()
+	}
 	os.Exit(code)
+}
+
+// requirePool skippe les tests DB quand Docker/testcontainers est absent.
+func requirePool(t *testing.T) {
+	t.Helper()
+	if poolTest == nil {
+		t.Skip("DB indisponible (Docker/testcontainers requis)")
+	}
 }
 
 const (
@@ -33,6 +45,7 @@ const (
 
 func seedMe(t *testing.T) {
 	t.Helper()
+	requirePool(t)
 	ctx := context.Background()
 	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE
 		"UserSettings", "AccountDeletionRequest", "Follows", "MutedWord",
@@ -70,6 +83,7 @@ func seedMe(t *testing.T) {
 
 // TestMe vérifie GET /v1/me : identité + compteurs (suivis, mots masqués).
 func TestMe(t *testing.T) {
+	requirePool(t)
 	seedMe(t)
 	svc := NewService(poolTest)
 	ctx := context.Background()
@@ -107,6 +121,7 @@ func TestMe(t *testing.T) {
 // TestUpdateProfile vérifie PATCH /v1/me/profile : mise à jour, validation
 // du username (format + unicité).
 func TestUpdateProfile(t *testing.T) {
+	requirePool(t)
 	seedMe(t)
 	svc := NewService(poolTest)
 	ctx := context.Background()
@@ -165,6 +180,7 @@ func TestUpdateProfile(t *testing.T) {
 // TestBilling vérifie GET /v1/me/billing : portefeuille + transactions
 // récentes (tri DESC, limit 10) + abonnements premium actifs (par email).
 func TestBilling(t *testing.T) {
+	requirePool(t)
 	seedMe(t)
 	ctx := context.Background()
 	// Publications + abonnements du lecteur.
@@ -242,6 +258,7 @@ func TestBilling(t *testing.T) {
 // profil, enregistre les mots masqués et les suivis (dédup inclus), et écrit
 // un embedding (fallback déterministe, le service d'inférence n'existant pas).
 func TestOnboardingComplete(t *testing.T) {
+	requirePool(t)
 	seedMe(t)
 	ctx := context.Background()
 	svc := NewService(poolTest)
@@ -302,6 +319,7 @@ func TestOnboardingComplete(t *testing.T) {
 // TestDataExport vérifie GET /v1/me/data-export : toutes les sections
 // présentes, dates normalisées, valeurs null → nil.
 func TestDataExport(t *testing.T) {
+	requirePool(t)
 	seedMe(t)
 	ctx := context.Background()
 	svc := NewService(poolTest)
@@ -338,6 +356,7 @@ func TestDataExport(t *testing.T) {
 
 // TestProfileNotFound — GET /v1/me sur un user inconnu → pgx.ErrNoRows (404).
 func TestProfileNotFound(t *testing.T) {
+	requirePool(t)
 	seedMe(t)
 	svc := NewService(poolTest)
 	ctx := context.Background()
@@ -350,6 +369,7 @@ func TestProfileNotFound(t *testing.T) {
 // TestMediaPublication vérifie GET /v1/me/media/{mediaId} : résolution de la
 // publication d'un média pour un membre actif, et "" pour un non-membre.
 func TestMediaPublication(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedMe(t)
 	svc := NewService(poolTest)
@@ -405,6 +425,7 @@ func TestMediaPublication(t *testing.T) {
 // existante (re-pointer son id vers le JWT) au lieu de crasher sur
 // l'unicité d'email. Les FKs ON UPDATE CASCADE font suivre le contenu.
 func TestSyncUserAdoptsEmailConflict(t *testing.T) {
+	requirePool(t)
 	seedMe(t) // crée userID (reader.me@test.dev) + follow + muted word
 	ctx := context.Background()
 	svc := NewService(poolTest)
@@ -464,6 +485,7 @@ func TestSyncUserAdoptsEmailConflict(t *testing.T) {
 // remplir depuis les claims au prochain login (dérivé email si pas de username
 // explicite), sans écraser un username déjà renseigné.
 func TestSyncUserFillsEmptyUsername(t *testing.T) {
+	requirePool(t)
 	seedMe(t)
 	ctx := context.Background()
 	svc := NewService(poolTest)

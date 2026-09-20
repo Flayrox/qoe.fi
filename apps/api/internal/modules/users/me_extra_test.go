@@ -7,6 +7,7 @@ import (
 
 // TestGetOrCreatePersonalPublication — création + réutilisation.
 func TestGetOrCreatePersonalPublication(t *testing.T) {
+	requirePool(t)
 	seedMe(t)
 	svc := NewService(poolTest)
 	ctx := context.Background()
@@ -32,6 +33,7 @@ func TestGetOrCreatePersonalPublication(t *testing.T) {
 
 // TestToggleMuteWord — ajout, dédup, retrait, normalisation.
 func TestToggleMuteWord(t *testing.T) {
+	requirePool(t)
 	seedMe(t)
 	svc := NewService(poolTest)
 	ctx := context.Background()
@@ -61,6 +63,7 @@ func TestToggleMuteWord(t *testing.T) {
 
 // TestUnlockArticleWithWallet — débit lecteur + crédit propriétaire.
 func TestUnlockArticleWithWallet(t *testing.T) {
+	requirePool(t)
 	seedMe(t)
 	svc := NewService(poolTest)
 	ctx := context.Background()

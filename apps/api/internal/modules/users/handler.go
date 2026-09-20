@@ -59,6 +59,20 @@ func (h *Handler) Register(r chi.Router) {
 // (/v1/users/{username}) le masquerait (priorité basse des sous-mux chi).
 func (h *Handler) RegisterPublic(r chi.Router) {
 	r.Get("/v1/users/search", h.search)
+	r.Get("/v1/auth/registration-status", h.registrationStatus)
+}
+
+// GET /v1/auth/registration-status — état des inscriptions pour le front
+// (page login : bannière "fermé" + pré-contrôle avant signUp, pour ne pas
+// créer de compte Auth orphelin). Query optionnelle : ?email= (normalisé).
+// Public et sans auth : ne révèle que l'appartenance à l'allowlist.
+func (h *Handler) registrationStatus(w http.ResponseWriter, r *http.Request) {
+	open, allowed, err := h.svc.RegistrationStatus(r.Context(), r.URL.Query().Get("email"))
+	if err != nil {
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]any{"open": open, "allowed": allowed})
 }
 
 // GET /v1/me — profil lecteur complet (remplace getRequestDbUser Prisma).
@@ -542,7 +556,7 @@ func (h *Handler) syncUser(w http.ResponseWriter, r *http.Request) {
 		UserAgent: r.UserAgent(),
 	})
 	if err != nil {
-		if errors.Is(err, ErrRegistrationsClosed) {
+		if errors.Is(err, ErrRegistrationsClosed) || errors.Is(err, ErrEmailNotInvited) {
 			response.Forbidden(w, err.Error())
 			return
 		}

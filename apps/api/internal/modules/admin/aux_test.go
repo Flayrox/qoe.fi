@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"testing"
 )
 
@@ -142,6 +143,79 @@ func TestAdminStorageUsage(t *testing.T) {
 	w2 := do(r, http.MethodGet, "/v1/admin/storage/usage", adminReaderID, "")
 	if w2.Code != http.StatusForbidden {
 		t.Fatalf("reader storage usage = %d, attendu 403", w2.Code)
+	}
+}
+
+// TestAdminAllowlist : CRUD des invitations d'inscription (superadmin).
+func TestAdminAllowlist(t *testing.T) {
+	seedAdmin(t, context.Background())
+	r := newHTTPRouter()
+	if _, err := poolTest.Exec(context.Background(), `DELETE FROM "RegistrationAllowlist"`); err != nil {
+		t.Fatalf("cleanup: %v", err)
+	}
+
+	// Email invalide → 400.
+	w := do(r, http.MethodPost, "/v1/admin/registrations/allowlist", adminAdminID, `{"email":"pas-un-email"}`)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("email invalide = %d, attendu 400 (%s)", w.Code, w.Body.String())
+	}
+
+	// Ajout (normalisé : casse + espaces).
+	w = do(r, http.MethodPost, "/v1/admin/registrations/allowlist", adminAdminID,
+		`{"email":"  Invite@Test.Dev ","note":"beta"}`)
+	if w.Code != http.StatusOK {
+		t.Fatalf("add = %d %s", w.Code, w.Body.String())
+	}
+	var entry struct {
+		Email string  `json:"email"`
+		Note  *string `json:"note"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &entry); err != nil {
+		t.Fatalf("json: %v", err)
+	}
+	if entry.Email != "invite@test.dev" || entry.Note == nil || *entry.Note != "beta" {
+		t.Fatalf("entry = %+v", entry)
+	}
+
+	// Liste : 1 entrée.
+	w = do(r, http.MethodGet, "/v1/admin/registrations/allowlist", adminAdminID, "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("list = %d %s", w.Code, w.Body.String())
+	}
+	var list []struct {
+		Email string `json:"email"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &list); err != nil {
+		t.Fatalf("json list: %v", err)
+	}
+	if len(list) != 1 || list[0].Email != "invite@test.dev" {
+		t.Fatalf("list = %+v", list)
+	}
+
+	// Suppression (email URL-encodé).
+	w = do(r, http.MethodDelete, "/v1/admin/registrations/allowlist/"+url.PathEscape("invite@test.dev"), adminAdminID, "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("delete = %d %s", w.Code, w.Body.String())
+	}
+	w = do(r, http.MethodGet, "/v1/admin/registrations/allowlist", adminAdminID, "")
+	var after []any
+	if err := json.Unmarshal(w.Body.Bytes(), &after); err != nil {
+		t.Fatalf("json after: %v", err)
+	}
+	if len(after) != 0 {
+		t.Fatalf("allowlist non vide après suppression : %+v", after)
+	}
+
+	// Non-superadmin → 403 sur les trois routes.
+	for _, tc := range []struct{ method, path, body string }{
+		{http.MethodGet, "/v1/admin/registrations/allowlist", ""},
+		{http.MethodPost, "/v1/admin/registrations/allowlist", `{"email":"x@y.z"}`},
+		{http.MethodDelete, "/v1/admin/registrations/allowlist/" + url.PathEscape("x@y.z"), ""},
+	} {
+		ww := do(r, tc.method, tc.path, adminReaderID, tc.body)
+		if ww.Code != http.StatusForbidden {
+			t.Fatalf("%s %s reader = %d, attendu 403", tc.method, tc.path, ww.Code)
+		}
 	}
 }
 

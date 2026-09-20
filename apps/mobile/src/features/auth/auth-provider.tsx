@@ -16,7 +16,7 @@ import {
   saveAccount,
   type StoredAccount,
 } from '@/features/auth/accounts-manager';
-import { apiClient } from '@/lib/api';
+import { apiClient, getApiBaseUrl } from '@/lib/api';
 import { queryClient } from '@/lib/query-client';
 import { setAccessToken } from '@/lib/session';
 import { supabase } from '@/lib/supabase';
@@ -125,6 +125,24 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const signUp = useCallback(
     async (email: string, password: string, fullName?: string): Promise<AuthResult> => {
+      // 🚪 Inscriptions ouvertes ou email invité ? Pré-contrôle AVANT
+      // supabase.auth.signUp (anti compte Auth orphelin). Le serveur
+      // re-vérifie au sync ; API injoignable → on laisse passer.
+      try {
+        const res = await fetch(
+          `${getApiBaseUrl()}/v1/auth/registration-status?email=${encodeURIComponent(email.trim())}`
+        );
+        if (res.ok) {
+          const status = (await res.json()) as { open?: boolean; allowed?: boolean };
+          if (!status.open && !status.allowed) {
+            return {
+              error: 'Inscriptions sur invitation : cet email n’est pas invité.',
+            };
+          }
+        }
+      } catch {
+        // Réseau indisponible : le sync tranchera.
+      }
       const { data, error } = await supabase.auth.signUp({
         email,
         password,

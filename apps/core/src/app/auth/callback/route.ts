@@ -60,6 +60,19 @@ export async function GET(request: Request) {
             if (result.needsOnboarding) {
               next = '/onboarding';
             }
+          } else if (res.status === 403) {
+            // 🚪 Inscriptions fermées / email non invité : pas de ligne User.
+            // On coupe la session Auth (sinon compte orphelin + boucle
+            // auto-réparation) et on renvoie vers /login avec un message clair.
+            await supabase.auth.signOut();
+            let msg = 'Inscriptions fermées pour le moment. Demandez une invitation.';
+            try {
+              const body = (await res.json()) as { error?: string };
+              if (body.error) msg = body.error;
+            } catch {
+              // Corps illisible : message par défaut.
+            }
+            return NextResponse.redirect(`${base}/login?error=${encodeURIComponent(msg)}`);
           }
         }
       }
