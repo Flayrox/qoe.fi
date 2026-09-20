@@ -7,6 +7,7 @@ import (
 
 	"github.com/pgvector/pgvector-go"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/testutil"
 )
 
@@ -321,6 +322,27 @@ func TestService_ListCreatorArticles_Service(t *testing.T) {
 				t.Fatal("fuite de contenu payant dans le contrat créateurs")
 			}
 		}
+	}
+}
+
+func TestService_ListCreatorArticles_MediaPrincipal(t *testing.T) {
+	fx := seed(t)
+	svc := newService()
+
+	// Contexte avec Principal Média (sans userID)
+	pubID := fx.PublicationID
+	ctx := context.WithValue(context.Background(), middleware.PrincipalKey, &middleware.Principal{
+		Type:          middleware.PrincipalTypePublication,
+		PublicationID: &pubID,
+	})
+
+	// Appel avec userID = "" (comme lors d'un appel avec clé API Média)
+	resp, err := svc.ListCreatorArticles(ctx, "", fx.PublicationID, 1, 10, "", true)
+	if err != nil {
+		t.Fatalf("ListCreatorArticles via Media Principal: %v", err)
+	}
+	if len(resp.Data) != 3 {
+		t.Fatalf("len = %d, attendu 3", len(resp.Data))
 	}
 }
 

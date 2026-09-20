@@ -22,8 +22,9 @@ import {
   Sparkles,
   RefreshCw,
   Globe,
-  ArrowRight,
   BookOpen,
+  Building2,
+  User,
 } from 'lucide-react';
 import {
   submitApiApplicationAction,
@@ -31,6 +32,11 @@ import {
   revokeApiKeyAction,
   rotateApiKeyAction,
 } from '@qoe/sdk/actions/dashboard';
+import {
+  createMediaApiKeyAction,
+  revokeMediaApiKeyAction,
+  rotateMediaApiKeyAction,
+} from '@/app/(creator)/media/actions';
 import { DeveloperNav } from './developer-nav';
 import { cn } from '@qoe/utils';
 
@@ -132,11 +138,19 @@ interface ApiKeyType {
   lastUsedAt: string | null;
 }
 
+export interface ActiveWorkspaceContext {
+  type: 'PERSONAL' | 'MEDIA';
+  name: string;
+  mediaId?: string;
+  publicationId: string;
+}
+
 interface DeveloperClientProps {
   initialStatus: string;
   initialGrants: string[];
   initialReason: string | null;
   initialKeys: ApiKeyType[];
+  activeWorkspace?: ActiveWorkspaceContext;
 }
 
 type CodeSnippetTab = 'curl' | 'typescript' | 'python';
@@ -146,17 +160,22 @@ export function DeveloperClient({
   initialGrants,
   initialReason,
   initialKeys,
+  activeWorkspace,
 }: DeveloperClientProps) {
-  const [status, setStatus] = useState<string>(initialStatus);
+  const isMediaWorkspace = activeWorkspace?.type === 'MEDIA' && Boolean(activeWorkspace?.mediaId);
+
+  const [status, setStatus] = useState<string>(isMediaWorkspace ? 'approved' : initialStatus);
   const [grants] = useState<string[]>(initialGrants);
   const [reason, setReason] = useState<string>(initialReason || '');
   const [keys, setKeys] = useState<ApiKeyType[]>(initialKeys);
 
-  // Scopes autorisés par les permissions accordées (moindre privilège).
-  const allowedScopes = API_KEY_SCOPES.filter((scope) =>
-    Object.values(GRANT_TO_SCOPE).includes(scope)
-  ).filter((scope) => grants.some((g) => GRANT_TO_SCOPE[g] === scope));
-  const hasApiAccess = allowedScopes.length > 0;
+  // Scopes autorisés : en mode média, tous les scopes (READ/WRITE/ANALYTICS) sont gérés par le RBAC média.
+  const allowedScopes: ApiKeyScope[] = isMediaWorkspace
+    ? [...API_KEY_SCOPES]
+    : API_KEY_SCOPES.filter((scope) => Object.values(GRANT_TO_SCOPE).includes(scope)).filter(
+        (scope) => grants.some((g) => GRANT_TO_SCOPE[g] === scope)
+      );
+  const hasApiAccess = isMediaWorkspace || allowedScopes.length > 0;
 
   // Forms & Loading states
   const [isSubmittingApp, setIsSubmittingApp] = useState(false);
@@ -176,7 +195,6 @@ export function DeveloperClient({
   const [snippetCopied, setSnippetCopied] = useState(false);
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
   const [projectUrl, setProjectUrl] = useState('');
-  const [sdkSnippetCopied, setSdkSnippetCopied] = useState(false);
 
   // Copy to clipboard
   const handleCopy = (text: string, isSnippet = false) => {
@@ -261,25 +279,56 @@ export function DeveloperClient({
 
     setIsGeneratingKey(true);
     try {
-      const res = await generateApiKeyAction({ name: newKeyName, scopes: newKeyScopes });
-      if (res.ok && res.data?.apiKey) {
-        setGeneratedKey(res.data.apiKey);
-        setKeys([
-          {
-            id: `tmp-${Date.now()}`,
-            name: newKeyName.trim(),
-            keyPrefix: 'qoe_live_',
-            scopes: newKeyScopes,
-            createdAt: new Date().toISOString(),
-            lastUsedAt: null,
-          },
-          ...keys,
-        ]);
-        setShowKeyModal(true);
+      if (isMediaWorkspace && activeWorkspace?.mediaId) {
+        const res = await createMediaApiKeyAction(
+          activeWorkspace.mediaId,
+          newKeyName.trim(),
+          newKeyScopes
+        );
+        if (res.success && res.key) {
+          setKeyModalMode('generated');
+          setGeneratedKey(res.key.secret);
+          setKeys([
+            {
+              id: res.key.id,
+              name: res.key.name,
+              keyPrefix: res.key.keyPrefix,
+              scopes: res.key.scopes,
+              createdAt: res.key.createdAt,
+              lastUsedAt: null,
+            },
+            ...keys,
+          ]);
+          setShowKeyModal(true);
 
-        setNewKeyName('');
-        setNewKeyScopes([...allowedScopes]);
-        toast.success(t`Nouvelle clé d'API générée avec succès !`);
+          setNewKeyName('');
+          setNewKeyScopes([...allowedScopes]);
+          toast.success(t`Nouvelle clé d'API Média générée avec succès !`);
+        } else {
+          toast.error(res.error || t`Erreur lors de la génération de la clé.`);
+        }
+      } else {
+        const res = await generateApiKeyAction({ name: newKeyName, scopes: newKeyScopes });
+        if (res.ok && res.data?.apiKey) {
+          setKeyModalMode('generated');
+          setGeneratedKey(res.data.apiKey);
+          setKeys([
+            {
+              id: `tmp-${Date.now()}`,
+              name: newKeyName.trim(),
+              keyPrefix: 'qoe_live_',
+              scopes: newKeyScopes,
+              createdAt: new Date().toISOString(),
+              lastUsedAt: null,
+            },
+            ...keys,
+          ]);
+          setShowKeyModal(true);
+
+          setNewKeyName('');
+          setNewKeyScopes([...allowedScopes]);
+          toast.success(t`Nouvelle clé d'API générée avec succès !`);
+        }
       }
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, t`Erreur lors de la génération de la clé.`));
@@ -298,12 +347,24 @@ export function DeveloperClient({
   const handleRotateKey = async (id: string) => {
     setIsRotatingKeyId(id);
     try {
-      const res = await rotateApiKeyAction(id);
-      if (res.ok && res.data?.apiKey) {
-        setKeyModalMode('rotated');
-        setGeneratedKey(res.data.apiKey);
-        setShowKeyModal(true);
-        toast.success(t`Clé d'API rotatée avec succès.`);
+      if (isMediaWorkspace && activeWorkspace?.mediaId) {
+        const res = await rotateMediaApiKeyAction(activeWorkspace.mediaId, id);
+        if (res.success && res.key) {
+          setKeyModalMode('rotated');
+          setGeneratedKey(res.key.secret);
+          setShowKeyModal(true);
+          toast.success(t`Clé d'API rotatée avec succès.`);
+        } else {
+          toast.error(res.error || t`Erreur lors de la rotation de la clé.`);
+        }
+      } else {
+        const res = await rotateApiKeyAction(id);
+        if (res.ok && res.data?.apiKey) {
+          setKeyModalMode('rotated');
+          setGeneratedKey(res.data.apiKey);
+          setShowKeyModal(true);
+          toast.success(t`Clé d'API rotatée avec succès.`);
+        }
       }
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, t`Erreur lors de la rotation de la clé.`));
@@ -316,11 +377,22 @@ export function DeveloperClient({
   const handleRevokeKey = async (id: string) => {
     setIsRevokingKeyId(id);
     try {
-      const res = await revokeApiKeyAction(id);
-      if (res.ok) {
-        setKeys(keys.filter((k) => k.id !== id));
-        setConfirmDeleteId(null);
-        toast.success(t`Clé d'API révoquée avec succès.`);
+      if (isMediaWorkspace && activeWorkspace?.mediaId) {
+        const res = await revokeMediaApiKeyAction(activeWorkspace.mediaId, id);
+        if (res.success) {
+          setKeys(keys.filter((k) => k.id !== id));
+          setConfirmDeleteId(null);
+          toast.success(t`Clé d'API révoquée avec succès.`);
+        } else {
+          toast.error(res.error || t`Erreur lors de la révocation de la clé.`);
+        }
+      } else {
+        const res = await revokeApiKeyAction(id);
+        if (res.ok) {
+          setKeys(keys.filter((k) => k.id !== id));
+          setConfirmDeleteId(null);
+          toast.success(t`Clé d'API révoquée avec succès.`);
+        }
       }
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, t`Erreur lors de la révocation de la clé.`));
@@ -379,46 +451,66 @@ print(articles)`,
             </p>
           </div>
 
-          {/* Status Badge */}
-          <div className="flex items-center gap-2 self-start md:self-auto bg-card border border-border/80 rounded-full px-3.5 py-1.5 text-xs shadow-xs">
-            <span className="text-muted-foreground">Statut d'accès :</span>
-            {status === 'none' && (
-              <span className="font-medium text-muted-foreground">Non demandé</span>
+          <div className="flex flex-wrap items-center gap-2.5 self-start md:self-auto">
+            {/* Workspace Context Badge */}
+            {activeWorkspace && (
+              <div className="flex items-center gap-2 bg-card border border-border/80 rounded-full px-3.5 py-1.5 text-xs shadow-xs">
+                <span className="text-muted-foreground">Workspace :</span>
+                {isMediaWorkspace ? (
+                  <span className="font-semibold text-primary flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5" />
+                    {activeWorkspace.name}
+                  </span>
+                ) : (
+                  <span className="font-semibold text-foreground flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5" />
+                    Personnel
+                  </span>
+                )}
+              </div>
             )}
-            {status === 'pending' && (
-              <span className="font-semibold text-highlight flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-highlight animate-pulse" />
-                En attente d'approbation
-              </span>
-            )}
-            {status === 'approved' && (
-              <span className="font-semibold text-success flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-success" />
-                Accès Actif
-              </span>
-            )}
-            {status === 'approved' && grants.length > 0 && (
-              <span className="flex flex-wrap items-center gap-1">
-                {grants.map((g) => {
-                  const meta = GRANT_META[g];
-                  if (!meta) return null;
-                  return (
-                    <span
-                      key={g}
-                      className={`text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full border ${meta.badgeClass}`}
-                    >
-                      {meta.label}
-                    </span>
-                  );
-                })}
-              </span>
-            )}
-            {status === 'rejected' && (
-              <span className="font-semibold text-destructive">Rejeté</span>
-            )}
-            {status === 'revoked' && (
-              <span className="font-semibold text-destructive">Accès Révoqué</span>
-            )}
+
+            {/* Status Badge */}
+            <div className="flex items-center gap-2 bg-card border border-border/80 rounded-full px-3.5 py-1.5 text-xs shadow-xs">
+              <span className="text-muted-foreground">Statut d'accès :</span>
+              {status === 'none' && (
+                <span className="font-medium text-muted-foreground">Non demandé</span>
+              )}
+              {status === 'pending' && (
+                <span className="font-semibold text-highlight flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-highlight animate-pulse" />
+                  En attente d'approbation
+                </span>
+              )}
+              {status === 'approved' && (
+                <span className="font-semibold text-success flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-success" />
+                  Accès Actif
+                </span>
+              )}
+              {status === 'approved' && grants.length > 0 && (
+                <span className="flex flex-wrap items-center gap-1">
+                  {grants.map((g) => {
+                    const meta = GRANT_META[g];
+                    if (!meta) return null;
+                    return (
+                      <span
+                        key={g}
+                        className={`text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full border ${meta.badgeClass}`}
+                      >
+                        {meta.label}
+                      </span>
+                    );
+                  })}
+                </span>
+              )}
+              {status === 'rejected' && (
+                <span className="font-semibold text-destructive">Rejeté</span>
+              )}
+              {status === 'revoked' && (
+                <span className="font-semibold text-destructive">Accès Révoqué</span>
+              )}
+            </div>
           </div>
         </div>
 
@@ -782,11 +874,14 @@ print(articles)`,
               <div>
                 <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
                   <Key className="w-4 h-4 text-primary" />
-                  Générer une nouvelle clé d'API
+                  {isMediaWorkspace
+                    ? t`Générer une nouvelle clé d'API Média`
+                    : t`Générer une nouvelle clé d'API`}
                 </h2>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Créez des clés distinctes pour chacun de vos environnements ou applications afin
-                  d'appliquer le principe de moindre privilège.
+                  {isMediaWorkspace
+                    ? t`Créez une clé d'API dédiée au média « ${activeWorkspace?.name} » pour vos scripts et intégrations externes.`
+                    : t`Créez des clés distinctes pour chacun de vos environnements ou applications afin d'appliquer le principe de moindre privilège.`}
                 </p>
               </div>
 
@@ -796,21 +891,25 @@ print(articles)`,
                     type="text"
                     value={newKeyName}
                     onChange={(e) => setNewKeyName(e.target.value)}
-                    placeholder={t`Nom de la clé (ex: Blog Vercel Prod, App Mobile...)`}
+                    placeholder={
+                      isMediaWorkspace
+                        ? t`Nom de la clé (ex: CMS Import, Bot Discord, Next.js...)`
+                        : t`Nom de la clé (ex: Blog Vercel Prod, App Mobile...)`
+                    }
                     className="flex-1 rounded-xl border border-border px-4 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary placeholder:text-muted-foreground/60 bg-muted/30 transition-all text-foreground"
                     required
                   />
                   <button
                     type="submit"
                     disabled={isGeneratingKey || !newKeyName.trim() || newKeyScopes.length === 0}
-                    className="bg-primary hover:bg-primary/90 text-primary-foreground disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed text-xs font-semibold px-5 py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all duration-200 shadow-xs"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed text-xs font-semibold px-5 py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all duration-200 shadow-xs cursor-pointer"
                   >
                     {isGeneratingKey ? (
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
                     ) : (
                       <Plus className="w-3.5 h-3.5" />
                     )}
-                    Générer la clé
+                    {isMediaWorkspace ? t`Générer pour le Média` : t`Générer la clé`}
                   </button>
                 </div>
 
@@ -845,9 +944,9 @@ print(articles)`,
                         })}
                       </div>
                       <p className="text-[11px] text-muted-foreground">
-                        💡 Sélectionnez uniquement les permissions strictement nécessaires — une clé
-                        ne peut pas dépasser les permissions que l'admin vous a accordées (API
-                        entrante lecture / écriture / analytics).
+                        {isMediaWorkspace
+                          ? t`💡 Cette clé d'API est rattachée au Média « ${activeWorkspace?.name} » et donne accès aux ressources du média selon les permissions sélectionnées.`
+                          : t`💡 Sélectionnez uniquement les permissions strictement nécessaires — une clé ne peut pas dépasser les permissions que l'admin vous a accordées (API entrante lecture / écriture / analytics).`}
                       </p>
                     </>
                   ) : (

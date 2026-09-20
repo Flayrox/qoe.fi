@@ -189,6 +189,11 @@ func (h *Handler) categories(w http.ResponseWriter, r *http.Request) {
 
 // authorizeCategories vérifie que l'utilisateur peut gérer les catégories de la publication.
 func (h *Handler) authorizeCategories(ctx context.Context, userID, publicationID string) error {
+	if p, ok := middleware.GetPrincipal(ctx); ok && p.Type == middleware.PrincipalTypePublication {
+		if p.PublicationID != nil && *p.PublicationID == publicationID {
+			return nil
+		}
+	}
 	if personal, err := h.q.GetUserPersonalPublication(ctx, userID); err == nil && personal.String == publicationID {
 		return nil
 	}

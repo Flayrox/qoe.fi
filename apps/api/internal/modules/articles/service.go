@@ -15,6 +15,7 @@ import (
 	"github.com/pgvector/pgvector-go"
 	"github.com/qoefi/api/internal/canon"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/permissions"
 	"github.com/qoefi/api/internal/queue"
 	"github.com/qoefi/api/internal/slug"
@@ -185,6 +186,15 @@ type memberContext struct {
 
 // resolveMember retourne le contexte d'accès de l'utilisateur sur la publication.
 func (s *Service) resolveMember(ctx context.Context, userID, publicationID string) (memberContext, error) {
+	if p, ok := middleware.GetPrincipal(ctx); ok && p.Type == middleware.PrincipalTypePublication {
+		if p.PublicationID != nil && *p.PublicationID == publicationID {
+			return memberContext{
+				role:    "owner",
+				isMedia: true,
+				member:  &permissions.MediaMember{Role: "owner", Status: "active"},
+			}, nil
+		}
+	}
 	if personal, err := s.q.GetUserPersonalPublication(ctx, userID); err == nil && personal.String == publicationID {
 		return memberContext{role: "owner", isMedia: false}, nil
 	}
@@ -301,6 +311,23 @@ func (s *Service) GetBySlug(ctx context.Context, slug, publicationID string, vie
 func (s *Service) Create(ctx context.Context, userID string, in CreateArticleInput) (string, error) {
 	if !IsValidContentFormat(in.ContentFormat) {
 		return "", errInvalidContentFormat
+	}
+	if userID == "" {
+		if p, ok := middleware.GetPrincipal(ctx); ok && p.CreatedByUserID != nil && *p.CreatedByUserID != "" {
+			userID = *p.CreatedByUserID
+		}
+	}
+	if userID == "" {
+		var ownerID string
+		_ = s.pool.QueryRow(ctx, `
+			SELECT mm."userId"::text
+			FROM "MediaMember" mm
+			JOIN "Media" md ON md.id = mm."mediaId"
+			WHERE md."publicationId" = $1 AND mm.role = 'owner' AND mm.status = 'active'
+			LIMIT 1`, in.PublicationID).Scan(&ownerID)
+		if ownerID != "" {
+			userID = ownerID
+		}
 	}
 	mc, err := s.resolveMember(ctx, userID, in.PublicationID)
 	if err != nil {
@@ -453,8 +480,12 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 		return errNotFound
 	}
 
-	// Gate 1 : auteur direct OU publication active du workspace OU co-auteur avec attribution.
-	isAuthor := uuidString(row.AuthorId) == userID
+	// Gate 1 : auteur direct OU clé API média OU publication active du workspace OU co-auteur avec attribution.
+	isMediaPrincipal := false
+	if p, ok := middleware.GetPrincipal(ctx); ok && p.Type == middleware.PrincipalTypePublication && p.PublicationID != nil && *p.PublicationID == row.PublicationId {
+		isMediaPrincipal = true
+	}
+	isAuthor := uuidString(row.AuthorId) == userID || isMediaPrincipal
 	if !isAuthor && row.PublicationId != in.ActivePublicationID {
 		var isCoAuthor bool
 		_ = s.pool.QueryRow(ctx, `
@@ -494,7 +525,7 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 	}
 
 	if mc.isMedia {
-		if !permissions.CanEditMediaArticle(mc.member, uuidString(row.AuthorId), userID) {
+		if !isMediaPrincipal && !permissions.CanEditMediaArticle(mc.member, uuidString(row.AuthorId), userID) {
 			return errForbidden
 		}
 		switch {
@@ -694,7 +725,12 @@ func (s *Service) Delete(ctx context.Context, articleID, userID, activePublicati
 		return errNotFound
 	}
 
-	isAuthor := uuidString(row.AuthorId) == userID
+	isMediaPrincipal := false
+	if p, ok := middleware.GetPrincipal(ctx); ok && p.Type == middleware.PrincipalTypePublication && p.PublicationID != nil && *p.PublicationID == row.PublicationId {
+		isMediaPrincipal = true
+	}
+
+	isAuthor := uuidString(row.AuthorId) == userID || isMediaPrincipal
 	if !isAuthor && row.PublicationId != activePublicationID {
 		return errForbidden
 	}
@@ -703,7 +739,7 @@ func (s *Service) Delete(ctx context.Context, articleID, userID, activePublicati
 	if err != nil {
 		return err
 	}
-	if mc.isMedia {
+	if mc.isMedia && !isMediaPrincipal {
 		if !mc.can(permissions.PermDeleteAny) {
 			if !isAuthor || !mc.can(permissions.PermEditOwn) {
 				return errForbidden
@@ -1183,6 +1219,19 @@ func (s *Service) EditorCapabilities(ctx context.Context, userID, publicationID 
 			"isMedia": false, "canPublish": true, "canSubmit": false,
 			"canReview": false, "role": nil, "workspaceName": pub.Name,
 		}, nil
+	}
+
+	if p, ok := middleware.GetPrincipal(ctx); ok && p.Type == middleware.PrincipalTypePublication {
+		if p.PublicationID != nil && *p.PublicationID == publicationID {
+			return map[string]any{
+				"isMedia":       true,
+				"canPublish":    true,
+				"canSubmit":     false,
+				"canReview":     true,
+				"role":          "owner",
+				"workspaceName": pub.Name,
+			}, nil
+		}
 	}
 
 	row, err := s.q.GetMediaMemberContext(ctx, db.GetMediaMemberContextParams{
