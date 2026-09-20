@@ -17,10 +17,10 @@ func TestMediaOAuth_FullFlow(t *testing.T) {
 	const pubID = "pub_media_test_01"
 	const mediaID = "med_media_test_01"
 	if _, err := poolTest.Exec(ctx, `
-		INSERT INTO "Publication" (id, name, slug, type, "ownerUserId", "createdAt", "updatedAt")
-		VALUES ($1, 'Lassez Mag', 'lassez-mag', 'MEDIA', $2, now(), now())
+		INSERT INTO "Publication" (id, name, slug, type, "createdAt", "updatedAt")
+		VALUES ($1, 'Lassez Mag', 'lassez-mag', 'MEDIA', now(), now())
 		ON CONFLICT (id) DO NOTHING
-	`, pubID, fx.OwnerID); err != nil {
+	`, pubID); err != nil {
 		t.Fatalf("seed publication: %v", err)
 	}
 
