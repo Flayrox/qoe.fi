@@ -72,6 +72,8 @@ type Querier interface {
 	CountPollVotes(ctx context.Context, pollid string) (int32, error)
 	CountPollVotesByIDs(ctx context.Context, dollar_1 []string) ([]CountPollVotesByIDsRow, error)
 	CountPollVotesByPollID(ctx context.Context, pollid string) (int32, error)
+	// Total d'articles indexables (dimensionne les shards du sitemap index).
+	CountPublishedArticles(ctx context.Context) (int64, error)
 	CountPureReposts(ctx context.Context, arg CountPureRepostsParams) (int32, error)
 	CountReadingSessionsByArticleId(ctx context.Context, arg CountReadingSessionsByArticleIdParams) (int32, error)
 	// Variante batch pour provenance globale (tous les articleIds du créateur).
@@ -594,6 +596,12 @@ type Querier interface {
 	ListRecommendationsByPublication(ctx context.Context, recommenderid string) ([]ListRecommendationsByPublicationRow, error)
 	ListRepostsForPost(ctx context.Context, arg ListRepostsForPostParams) ([]ListRepostsForPostRow, error)
 	ListSentCollaborationRequests(ctx context.Context, inviterid pgtype.UUID) ([]ListSentCollaborationRequestsRow, error)
+	// Catalogue SEO slim (index de sitemaps) : slug + owner + date de MAJ,
+	// SANS contenu (contrairement au feed). Mêmes prédicats de visibilité que
+	// ListRecentPublishedArticles (publié, auteur ni shadowban ni suspendu,
+	// programmé passé). Tri stable par date décroissante pour une pagination
+	// par offset déterministe.
+	ListSitemapArticles(ctx context.Context, arg ListSitemapArticlesParams) ([]ListSitemapArticlesRow, error)
 	ListSocialLinksForPublication(ctx context.Context, publicationid string) ([]ListSocialLinksForPublicationRow, error)
 	ListStarterPackItems(ctx context.Context, starterpackid string) ([]ListStarterPackItemsRow, error)
 	ListStarterPacks(ctx context.Context, arg ListStarterPacksParams) ([]ListStarterPacksRow, error)

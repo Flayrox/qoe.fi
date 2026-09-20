@@ -11,6 +11,7 @@ import (
 // borné à [0,1] (10 likes récents / cible 8 → vélocité max pour une pensée ;
 // 5 sessions récentes / cible 20 → 0.25 pour un article).
 func TestVelocityScores(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	if _, err := seedEngine(ctx, poolTest); err != nil {
 		t.Fatalf("seed engine: %v", err)
@@ -75,6 +76,7 @@ func TestVelocityScores(t *testing.T) {
 // page de 10 ; mature (15 signaux ≥ 10) → ratio 0.12 → 1 slot. C'est le
 // comportement « bandit » anti-cold-start des plateformes.
 func TestInjectDiscovery_AdaptiveRatio(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	if _, err := seedEngine(ctx, poolTest); err != nil {
 		t.Fatalf("seed engine: %v", err)
@@ -139,6 +141,7 @@ func TestInjectDiscovery_AdaptiveRatio(t *testing.T) {
 // même compteur cumulatif à 0) — seule la vélocité 48h les départage → la
 // pensée « chaude » (10 likes récents) doit être la pensée retenue du feed.
 func TestEngine_TrendingOutranks(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	if _, err := seedEngine(ctx, poolTest); err != nil {
 		t.Fatalf("seed engine: %v", err)

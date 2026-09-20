@@ -287,3 +287,32 @@ LIMIT 1;
 -- name: DeleteArticle :exec
 DELETE FROM "Article"
 WHERE id = $1;
+
+-- name: ListSitemapArticles :many
+-- Catalogue SEO slim (index de sitemaps) : slug + owner + date de MAJ,
+-- SANS contenu (contrairement au feed). Mêmes prédicats de visibilité que
+-- ListRecentPublishedArticles (publié, auteur ni shadowban ni suspendu,
+-- programmé passé). Tri stable par date décroissante pour une pagination
+-- par offset déterministe.
+SELECT a.slug,
+       COALESCE(p.slug, p.subdomain, u.username, 'article') AS owner,
+       a."updatedAt" AS "updatedAt"
+FROM "Article" a
+JOIN "User" u ON u.id = a."authorId"
+JOIN "Publication" p ON p.id = a."publicationId"
+WHERE a.published = true
+  AND u."isShadowbanned" = false
+  AND u."isSuspended" = false
+  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
+ORDER BY a."createdAt" DESC, a.id DESC
+LIMIT $1 OFFSET $2;
+
+-- name: CountPublishedArticles :one
+-- Total d'articles indexables (dimensionne les shards du sitemap index).
+SELECT COUNT(*)::bigint AS total
+FROM "Article" a
+JOIN "User" u ON u.id = a."authorId"
+WHERE a.published = true
+  AND u."isShadowbanned" = false
+  AND u."isSuspended" = false
+  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now());

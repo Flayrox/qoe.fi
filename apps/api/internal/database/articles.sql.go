@@ -43,6 +43,24 @@ func (q *Queries) CountCreatorArticles(ctx context.Context, arg CountCreatorArti
 	return count, err
 }
 
+const countPublishedArticles = `-- name: CountPublishedArticles :one
+SELECT COUNT(*)::bigint AS total
+FROM "Article" a
+JOIN "User" u ON u.id = a."authorId"
+WHERE a.published = true
+  AND u."isShadowbanned" = false
+  AND u."isSuspended" = false
+  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
+`
+
+// Total d'articles indexables (dimensionne les shards du sitemap index).
+func (q *Queries) CountPublishedArticles(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countPublishedArticles)
+	var total int64
+	err := row.Scan(&total)
+	return total, err
+}
+
 const createArticle = `-- name: CreateArticle :one
 INSERT INTO "Article" (id, title, slug, content, published, "isPremium", visibility,
                        "readingTime", "allowPublicAnnotations", "allowComments", status,
@@ -949,6 +967,57 @@ func (q *Queries) ListRecentPublishedArticles(ctx context.Context, arg ListRecen
 			&i.CategoryName,
 			&i.CategorySlug,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSitemapArticles = `-- name: ListSitemapArticles :many
+SELECT a.slug,
+       COALESCE(p.slug, p.subdomain, u.username, 'article') AS owner,
+       a."updatedAt" AS "updatedAt"
+FROM "Article" a
+JOIN "User" u ON u.id = a."authorId"
+JOIN "Publication" p ON p.id = a."publicationId"
+WHERE a.published = true
+  AND u."isShadowbanned" = false
+  AND u."isSuspended" = false
+  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
+ORDER BY a."createdAt" DESC, a.id DESC
+LIMIT $1 OFFSET $2
+`
+
+type ListSitemapArticlesParams struct {
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+type ListSitemapArticlesRow struct {
+	Slug      string           `json:"slug"`
+	Owner     string           `json:"owner"`
+	UpdatedAt pgtype.Timestamp `json:"updatedAt"`
+}
+
+// Catalogue SEO slim (index de sitemaps) : slug + owner + date de MAJ,
+// SANS contenu (contrairement au feed). Mêmes prédicats de visibilité que
+// ListRecentPublishedArticles (publié, auteur ni shadowban ni suspendu,
+// programmé passé). Tri stable par date décroissante pour une pagination
+// par offset déterministe.
+func (q *Queries) ListSitemapArticles(ctx context.Context, arg ListSitemapArticlesParams) ([]ListSitemapArticlesRow, error) {
+	rows, err := q.db.Query(ctx, listSitemapArticles, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSitemapArticlesRow{}
+	for rows.Next() {
+		var i ListSitemapArticlesRow
+		if err := rows.Scan(&i.Slug, &i.Owner, &i.UpdatedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

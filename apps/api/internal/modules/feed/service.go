@@ -492,6 +492,57 @@ func feedArticleCat(id, name, slug *pgtype.Text) *FeedArticleCat {
 	}
 }
 
+// SitemapArticle est une entrée slim du catalogue SEO (sitemap index) :
+// slug + owner + date de MAJ, sans contenu.
+type SitemapArticle struct {
+	Slug      string `json:"slug"`
+	Owner     string `json:"owner"`
+	UpdatedAt string `json:"updatedAt"`
+}
+
+// SitemapArticlesResult pagine le catalogue (total stable pendant la page).
+type SitemapArticlesResult struct {
+	Items  []SitemapArticle `json:"items"`
+	Total  int64            `json:"total"`
+	Limit  int              `json:"limit"`
+	Offset int              `json:"offset"`
+}
+
+// maxSitemapLimit borne une page du catalogue SEO (shard de sitemap).
+const maxSitemapLimit = 1000
+
+// SitemapArticles retourne le catalogue indexable paginé (endpoint SEO
+// public consommé par l'index de sitemaps : milliers d'articles couverts,
+// là où le feed plafonne à 100 avec le contenu complet).
+func (s *Service) SitemapArticles(ctx context.Context, limit, offset int) (SitemapArticlesResult, error) {
+	if limit <= 0 || limit > maxSitemapLimit {
+		limit = maxSitemapLimit
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	total, err := s.q.CountPublishedArticles(ctx)
+	if err != nil {
+		return SitemapArticlesResult{}, err
+	}
+	rows, err := s.q.ListSitemapArticles(ctx, db.ListSitemapArticlesParams{
+		Limit:  int32(limit),
+		Offset: int32(offset),
+	})
+	if err != nil {
+		return SitemapArticlesResult{}, err
+	}
+	items := make([]SitemapArticle, 0, len(rows))
+	for _, r := range rows {
+		updated := ""
+		if r.UpdatedAt.Valid {
+			updated = r.UpdatedAt.Time.Format("2006-01-02T15:04:05Z07:00")
+		}
+		items = append(items, SitemapArticle{Slug: r.Slug, Owner: r.Owner, UpdatedAt: updated})
+	}
+	return SitemapArticlesResult{Items: items, Total: total, Limit: limit, Offset: offset}, nil
+}
+
 // RecentArticles retourne les articles publiés récents (feed mobile), paginés.
 func (s *Service) RecentArticles(ctx context.Context, limit, offset int) (ArticleFeedResult, error) {
 	if limit <= 0 || limit > 100 {

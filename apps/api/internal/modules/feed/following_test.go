@@ -6,6 +6,7 @@ import (
 )
 
 func TestFollowingFeed_ReturnsFollowedPosts(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	readerID, err := seedEngine(ctx, poolTest)
 	if err != nil {
@@ -43,6 +44,7 @@ func TestFollowingFeed_ReturnsFollowedPosts(t *testing.T) {
 }
 
 func TestFollowingFeed_NoFollowsEmpty(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	if _, err := seedEngine(ctx, poolTest); err != nil {
 		t.Fatalf("seed engine: %v", err)
@@ -58,6 +60,7 @@ func TestFollowingFeed_NoFollowsEmpty(t *testing.T) {
 }
 
 func TestTrending_ReturnsRecentPosts(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	if _, err := seedEngine(ctx, poolTest); err != nil {
 		t.Fatalf("seed engine: %v", err)

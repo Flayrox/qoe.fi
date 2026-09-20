@@ -78,6 +78,7 @@ func faultFeedService(t *testing.T, fail map[string]error) *Service {
 }
 
 func TestFault_FeedReturnsErrors(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	uid := "00000000-0000-0000-0000-000000000010"
 	alice := "00000000-0000-0000-0000-000000000011"

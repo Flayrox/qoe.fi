@@ -45,6 +45,7 @@ func (h *Handler) RegisterPublic(r chi.Router) {
 	r.Get("/v1/users/{username}/posts", h.userPosts)
 	r.Get("/v1/users/{username}/articles", h.userArticles)
 	r.Get("/v1/feed/articles", h.articles)
+	r.Get("/v1/seo/sitemap-articles", h.sitemapArticles)
 }
 
 // homeFeed — bundle de la home lecteur (GET /v1/home/feed, auth optionnelle) :
@@ -182,6 +183,22 @@ func (h *Handler) articles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, items)
+}
+
+// sitemapArticles — catalogue SEO slim paginé (GET /v1/seo/sitemap-articles).
+// Public, sans auth : {items: [{slug, owner, updatedAt}], total, limit,
+// offset}. Consommé par l'index de sitemaps (shards de 1000).
+func (h *Handler) sitemapArticles(w http.ResponseWriter, r *http.Request) {
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+
+	result, err := h.svc.SitemapArticles(r.Context(), limit, offset)
+	if err != nil {
+		log.Printf("[feed] sitemapArticles: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, result)
 }
 
 // personalized — moteur feed Two-Tower mixte (articles + pensées), port Go de
