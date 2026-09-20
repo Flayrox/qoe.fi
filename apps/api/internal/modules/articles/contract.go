@@ -23,6 +23,7 @@ type CreatorItem struct {
 	Title       string           `json:"title"`
 	Slug        string           `json:"slug"`
 	ContentHTML string           `json:"contentHtml"`
+	ImageUrl    *string          `json:"imageUrl"`
 	IsTruncated bool             `json:"isTruncated"`
 	Visibility  string           `json:"visibility"`
 	ReadingTime int              `json:"readingTime"`
@@ -57,6 +58,7 @@ func ToCreatorItem(a ArticleResponse, cat *CreatorCategory) CreatorItem {
 		Title:       a.Title,
 		Slug:        a.Slug,
 		ContentHTML: a.Content,
+		ImageUrl:    a.ImageUrl,
 		IsTruncated: a.IsTruncated,
 		Visibility:  a.Visibility,
 		ReadingTime: a.ReadingTime,

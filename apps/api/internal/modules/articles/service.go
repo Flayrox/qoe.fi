@@ -1370,6 +1370,7 @@ func (s *Service) ListCreatorArticles(ctx context.Context, userID, publicationID
 		ar := ArticleResponse{
 			ID: r.ID, Title: r.Title, Slug: r.Slug,
 			Content:     cut.Content,
+			ImageUrl:    textPtr(r.ImageUrl),
 			IsTruncated: cut.IsTruncated,
 			Visibility:  string(r.Visibility),
 			ReadingTime: int(r.ReadingTime),
@@ -1398,6 +1399,7 @@ func (s *Service) GetCreatorBySlug(ctx context.Context, slug, publicationID stri
 	ar := ArticleResponse{
 		ID: row.ID, Title: row.Title, Slug: row.Slug,
 		Content:     cut.Content,
+		ImageUrl:    textPtr(row.ImageUrl),
 		IsTruncated: cut.IsTruncated,
 		Visibility:  string(row.Visibility),
 		ReadingTime: int(row.ReadingTime),

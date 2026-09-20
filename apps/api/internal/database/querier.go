@@ -480,7 +480,7 @@ type Querier interface {
 	ListCookieConsentForExport(ctx context.Context, arg ListCookieConsentForExportParams) ([]CookieConsentRecord, error)
 	ListCookieConsentRecords(ctx context.Context, arg ListCookieConsentRecordsParams) ([]ListCookieConsentRecordsRow, error)
 	// Liste des articles d'une publication au format contrat créateurs (Hono) :
-	// filtres `published` (défaut true) et `category` (slug), catégorie embarquée.
+	// filtres `published` (défaut true) et `category` (slug ou UUID ou catégorie parente), catégorie embarquée.
 	ListCreatorArticles(ctx context.Context, arg ListCreatorArticlesParams) ([]ListCreatorArticlesRow, error)
 	ListDevtoolsUsers(ctx context.Context) ([]ListDevtoolsUsersRow, error)
 	// Abonnés d'une publication (profil), paginés — avec état follow du viewer.
