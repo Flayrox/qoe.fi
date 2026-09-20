@@ -59,6 +59,11 @@ func (s *Service) SetFlags(f *flags.Service) {
 // authorizeSettings vérifie que l'utilisateur peut administrer la publication :
 // publication personnelle, ou Média avec la permission manage_settings.
 func (s *Service) authorizeSettings(ctx context.Context, userID, publicationID string) error {
+	if p, ok := middleware.GetPrincipal(ctx); ok && p.Type == middleware.PrincipalTypePublication {
+		if p.PublicationID != nil && *p.PublicationID == publicationID {
+			return nil
+		}
+	}
 	if personal, err := s.q.GetUserPersonalPublication(ctx, userID); err == nil && personal.String == publicationID {
 		return nil
 	}
