@@ -46,6 +46,7 @@ func onePostID(t *testing.T) string {
 }
 
 func TestFeedHandlers(t *testing.T) {
+	requirePool(t)
 	if _, err := seedEngine(context.Background(), poolTest); err != nil {
 		t.Fatalf("seed engine: %v", err)
 	}
@@ -79,6 +80,7 @@ func TestFeedHandlers(t *testing.T) {
 }
 
 func TestFeedHandlers_ThreadAndFollowing(t *testing.T) {
+	requirePool(t)
 	if _, err := seedEngine(context.Background(), poolTest); err != nil {
 		t.Fatalf("seed engine: %v", err)
 	}
@@ -102,6 +104,7 @@ func TestFeedHandlers_ThreadAndFollowing(t *testing.T) {
 }
 
 func TestFeedHandler_Hydrate(t *testing.T) {
+	requirePool(t)
 	if _, err := seedEngine(context.Background(), poolTest); err != nil {
 		t.Fatalf("seed engine: %v", err)
 	}
@@ -154,6 +157,7 @@ func repeatItem(n int) string {
 }
 
 func TestFeedHandler_ParseLimitCursor(t *testing.T) {
+	requirePool(t)
 	if _, err := seedEngine(context.Background(), poolTest); err != nil {
 		t.Fatalf("seed engine: %v", err)
 	}

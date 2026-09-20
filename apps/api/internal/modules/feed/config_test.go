@@ -23,6 +23,7 @@ func setCfg(t *testing.T, ctx context.Context, key, value string) {
 // défauts calibrés quand les clés sont absentes, surcharge quand elles sont
 // présentes, repli sur le défaut quand une valeur est invalide.
 func TestLoadEngineConfig_SystemConfigOverrides(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	svc := newTestService()
 	cfg := svc.loadEngineConfig(ctx)
@@ -66,6 +67,7 @@ func TestLoadEngineConfig_SystemConfigOverrides(t *testing.T) {
 // adaptatif, exploration, rerank) introduits pour piloter tout le moteur sans
 // recompiler.
 func TestLoadEngineConfig_NewGroups(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	svc := newTestService()
 	cfg := svc.loadEngineConfig(ctx)
@@ -190,6 +192,7 @@ func TestParseCfgHelpers(t *testing.T) {
 // avec une config 50/50, la fraîcheur noie la personnalisation — le même
 // data, un simple changement de clé, un ordre inversé.
 func TestEngine_ConfigDrivesPool(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE "Post", "Article", "User", "Publication" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
@@ -258,6 +261,7 @@ func TestEngine_ConfigDrivesPool(t *testing.T) {
 // pensées anime) coulent DERRIÈRE dans le pool. Sans signalement, le foot
 // reste devant (la dévaluation est bien la cause, pas un hasard).
 func TestMilieuPenalty_DevaluesTag(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	// Environnement minimal autonome : 1 lecteur + 1 auteur + 6 pensées, pour
 	// que RIEN d'autre n'interfère avec le pool (les pensées fraîches du seed

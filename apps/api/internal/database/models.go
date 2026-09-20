@@ -1277,6 +1277,15 @@ type Recommendation struct {
 	CreatedAt     pgtype.Timestamp `json:"createdAt"`
 }
 
+type RegistrationAllowlist struct {
+	Email     string           `json:"email"`
+	Note      pgtype.Text      `json:"note"`
+	InvitedBy pgtype.Text      `json:"invitedBy"`
+	UsedAt    pgtype.Timestamp `json:"usedAt"`
+	UsedBy    pgtype.Text      `json:"usedBy"`
+	CreatedAt pgtype.Timestamp `json:"createdAt"`
+}
+
 type SocialLink struct {
 	ID            string `json:"id"`
 	Platform      string `json:"platform"`

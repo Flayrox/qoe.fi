@@ -72,6 +72,7 @@ func seedReRank(ctx context.Context) (readerID string, err error) {
 }
 
 func TestPersonalizedFeed_ReRank_ShowMoreShowLess(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	readerID, err := seedReRank(ctx)
 	if err != nil {

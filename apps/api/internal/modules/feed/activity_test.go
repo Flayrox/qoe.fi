@@ -6,6 +6,7 @@ import (
 )
 
 func TestActivityLast7Days(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	readerID, err := seedEngine(ctx, poolTest)
 	if err != nil {

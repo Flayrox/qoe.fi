@@ -6,6 +6,7 @@ import (
 )
 
 func TestInjectDiscovery_InjectsOutOfBubble(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	readerID, err := seedEngine(ctx, poolTest)
 	if err != nil {
@@ -52,6 +53,7 @@ func TestInjectDiscovery_InjectsOutOfBubble(t *testing.T) {
 }
 
 func TestInjectDiscovery_NoBubbleNoop(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	if _, err := seedEngine(ctx, poolTest); err != nil {
 		t.Fatalf("seed engine: %v", err)

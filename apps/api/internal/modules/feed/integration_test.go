@@ -83,14 +83,26 @@ func seedEngine(ctx context.Context, pool *pgxpool.Pool) (readerID string, err e
 var poolTest *pgxpool.Pool
 
 func TestMain(m *testing.M) {
-	p, err := testutil.Pool(context.Background())
+	p, err := testutil.TryPool(context.Background())
 	if err != nil {
-		log.Fatalf("testcontainers: %v", err)
+		log.Printf("testcontainers indisponible, tests DB skippés: %v", err)
+		poolTest = nil
+	} else {
+		poolTest = p
 	}
-	poolTest = p
 	code := m.Run()
-	testutil.Cleanup()
+	if poolTest != nil {
+		testutil.Cleanup()
+	}
 	os.Exit(code)
+}
+
+// requirePool skippe les tests DB quand Docker/testcontainers est absent.
+func requirePool(t *testing.T) {
+	t.Helper()
+	if poolTest == nil {
+		t.Skip("DB indisponible (Docker/testcontainers requis)")
+	}
 }
 
 func newTestService() *Service {
@@ -100,6 +112,7 @@ func newTestService() *Service {
 // TestThread_AncestorChain vérifie que la chaîne d'ancêtres (root → parent)
 // est bien peuplée dans `Parent` quand on charge le thread d'une réponse.
 func TestThread_AncestorChain(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -148,6 +161,7 @@ func TestThread_AncestorChain(t *testing.T) {
 // TestPublicationArticles vérifie que les articles d'une publication (profil)
 // sont listés par slug (insensible à la casse) avec le même shape que le feed.
 func TestPublicationArticles(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -193,6 +207,7 @@ func TestPublicationArticles(t *testing.T) {
 // TestPersonalizedEngine_ColdStart vérifie le moteur mixte sans vecteur
 // utilisateur : retour d'items ARTICLE + THOUGHT, sans erreur.
 func TestPersonalizedEngine_ColdStart(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	if _, err := seedEngine(ctx, poolTest); err != nil {
 		t.Fatalf("seed: %v", err)
@@ -231,6 +246,7 @@ func TestPersonalizedEngine_ColdStart(t *testing.T) {
 // page post-MMR (≈ limit), donc TOUJOURS false → le feed s'arrêtait au premier
 // fetch même avec des milliers d'items en base.
 func TestPersonalizedEngine_Pagination(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	_, err := seedEngine(ctx, poolTest)
 	if err != nil {
@@ -295,6 +311,7 @@ func TestPersonalizedEngine_Pagination(t *testing.T) {
 // TestPersonalizedEngine_Personalized vérifie le chemin ANN personnalisé
 // (vecteur utilisateur + embeddings articles/pensées).
 func TestPersonalizedEngine_Personalized(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	readerID, err := seedEngine(ctx, poolTest)
 	if err != nil {
@@ -324,6 +341,7 @@ func TestPersonalizedEngine_Personalized(t *testing.T) {
 // de la lecture réelle : sessions courtes → affinité pensées élevée, sessions
 // longues → affinité faible, absence de données → neutre 0.5.
 func TestGetThoughtPreference(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	if _, err := seedEngine(ctx, poolTest); err != nil {
 		t.Fatalf("seed: %v", err)
@@ -378,6 +396,7 @@ func TestGetThoughtPreference(t *testing.T) {
 // (ContentFeedback SHOW_MORE / SHOW_LESS) au penchant pensées/articles : un
 // SHOW_MORE sur pensée (ou SHOW_LESS sur article) penche +, l'inverse penche −.
 func TestGetThoughtFeedbackDrift(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	if _, err := seedEngine(ctx, poolTest); err != nil {
 		t.Fatalf("seed: %v", err)
@@ -486,6 +505,7 @@ func almostEqual(a, b float64) bool {
 // préférence de lecture : un utilisateur aux sessions courtes reçoit une part
 // de pensées plus grande qu'un lecteur de long-format, à config identique.
 func TestPersonalizedEngine_AdaptiveMix(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	readerID, err := seedEngine(ctx, poolTest)
 	if err != nil {
@@ -565,6 +585,7 @@ func TestPersonalizedEngine_AdaptiveMix(t *testing.T) {
 // publicationProfileSelect : customDomain/logoUrl/heroText/isCertified) +
 // pensées FeedSlice, dans l'ordre des ids demandés.
 func TestHydrate(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	readerID, err := seedEngine(ctx, poolTest)
 	if err != nil {
@@ -667,6 +688,7 @@ func axisVector(values ...[2]float64) string {
 // (SHOW_MORE) ancre une direction → un candidat proche de l'ancre est boosté
 // (sim élevée), un candidat orthogonal ne l'est pas (absent de la map).
 func TestShowMoreBoost(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	if _, err := seedEngine(ctx, poolTest); err != nil {
 		t.Fatalf("seed: %v", err)
@@ -781,6 +803,7 @@ func seedHomeFeed(ctx context.Context, pool *pgxpool.Pool) (readerID, pubAID, pu
 // TestHomeFeed vérifie le bundle de la home : Suivis = pub suivie, Explorer =
 // pubs certifiées non suivies, créateurs suivis, compteurs et mots masqués.
 func TestHomeFeed(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	readerID, pubAID, pubBID, err := seedHomeFeed(ctx, poolTest)
 	if err != nil {
@@ -864,6 +887,7 @@ func TestHomeFeed(t *testing.T) {
 // TestRecentArticles vérifie que le feed d'articles renvoie l'article publié
 // seedé avec auteur/publication/catégorie dénormalisés.
 func TestRecentArticles(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)

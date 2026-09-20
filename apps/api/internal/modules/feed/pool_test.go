@@ -34,6 +34,7 @@ func halfVec(first, second float64) pgvector.Vector {
 // 0.6625) — la fraîcheur noyait la personnalisation. Avec le pool sim-dominant
 // (65/15/20), le contenu du milieu gagne (0.755 vs 0.71).
 func TestEnginePool_SimDominant(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE "Post", "Article", "User", "Publication" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)

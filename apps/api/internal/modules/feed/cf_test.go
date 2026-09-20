@@ -56,6 +56,7 @@ func seedCoRead(t *testing.T, ctx context.Context) (readerID, neighborID string)
 }
 
 func TestCoReadNeighbors_ReturnsAffinity(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	readerID, _ := seedCoRead(t, ctx)
 	svc := newTestService()
@@ -73,6 +74,7 @@ func TestCoReadNeighbors_ReturnsAffinity(t *testing.T) {
 }
 
 func TestGetCoReadCandidates_ReturnsUnreadArticles(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	readerID, _ := seedCoRead(t, ctx)
 	svc := newTestService()
@@ -87,6 +89,7 @@ func TestGetCoReadCandidates_ReturnsUnreadArticles(t *testing.T) {
 }
 
 func TestGetCoReadThoughtCandidates_ReturnsLikedThought(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	readerID, _ := seedCoRead(t, ctx)
 	svc := newTestService()
@@ -98,6 +101,7 @@ func TestGetCoReadThoughtCandidates_ReturnsLikedThought(t *testing.T) {
 }
 
 func TestCoReadInteractsWithPersonalizedEngine(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	readerID, _ := seedCoRead(t, ctx)
 	svc := newTestService()

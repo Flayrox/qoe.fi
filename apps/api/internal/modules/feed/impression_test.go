@@ -6,6 +6,7 @@ import (
 )
 
 func TestGetImpressionPenalties(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	readerID, err := seedEngine(ctx, poolTest)
 	if err != nil {

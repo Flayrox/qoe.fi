@@ -181,6 +181,7 @@ func userCosines(t *testing.T, userID string) (cosFoot, cosAnime, cosCook float6
 // pensée, rejet d'une autre niche — puis vérification que l'embedding et le
 // « Pour vous » ont évolué.
 func TestJourney_FullReaderJourney_MovesEmbeddingAndFeed(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	readerID, niches := seedJourneyWorld(t)
 	foot, anime := niches["foot"], niches["anime"]
@@ -328,6 +329,7 @@ func readUserVec(t *testing.T, userID string) []float32 {
 }
 
 func TestInteractions_AllTypes_WeightsOrdering(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE
 		"Post", "Article", "User", "Publication", "Follows", "BlockedUser",
