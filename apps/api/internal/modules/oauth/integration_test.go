@@ -56,7 +56,7 @@ func seedApprovedClient(t *testing.T, fx *testutil.OAuthFixtures, redirectURI st
 	if err != nil {
 		t.Fatalf("CreateClientRequest: %v", err)
 	}
-	clients, err := svc.ListClients(ctx, fx.OwnerID)
+	clients, err := svc.ListClients(ctx, fx.OwnerID, "")
 	if err != nil || len(clients) != 1 {
 		t.Fatalf("ListClients: %v (n=%d)", err, len(clients))
 	}
