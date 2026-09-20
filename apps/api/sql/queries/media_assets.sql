@@ -52,3 +52,9 @@ WHERE id = $1;
 -- Volume et nombre d'assets non purgés d'un utilisateur (quota de stockage).
 SELECT COALESCE(SUM("sizeBytes"), 0)::bigint AS "totalBytes", COUNT(*)::bigint AS "assetCount"
 FROM "MediaAsset" WHERE "ownerId" = $1 AND status <> 'PURGED';
+
+-- name: CountRecentUploads :one
+-- Nombre d'uploads d'un utilisateur depuis $2 (throttle anti-flood : borne
+-- le coût Sharp + modération + storage, multi-instance safe).
+SELECT COUNT(*)::bigint AS "recentCount"
+FROM "MediaAsset" WHERE "ownerId" = $1 AND "createdAt" > $2;

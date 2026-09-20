@@ -124,6 +124,37 @@ describe('🛡️ Media Engine — Pipeline Sharp, Stripping EXIF & Dédoublonna
 
     expect(result1.sha256).toBe(result2.sha256);
   });
+
+  it('rejette un SVG contenant du script dès la détection magic bytes', async () => {
+    const maliciousSvg = Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">' +
+        '<rect width="100" height="100" fill="blue"/>' +
+        '<script>alert("xss")</script></svg>',
+      'utf8'
+    );
+    await expect(processAndSecureImage(maliciousSvg, 'image/svg+xml')).rejects.toThrow(
+      'Type de fichier invalide'
+    );
+  });
+
+  it('rastérise un SVG sain en WebP inerte — jamais servi brut', async () => {
+    const cleanSvg = Buffer.from(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">' +
+        '<rect width="100" height="100" fill="blue"/></svg>',
+      'utf8'
+    );
+    const result = await processAndSecureImage(cleanSvg, 'image/svg+xml');
+
+    expect(result.mimeType).toBe('image/webp');
+    expect(result.extension).toBe('webp');
+    expect(result.width).toBeGreaterThan(0);
+    expect(result.sha256.length).toBe(64);
+  });
+
+  it('rejette un SVG sans dimensions exploitables', async () => {
+    const emptySvg = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"></svg>', 'utf8');
+    await expect(processAndSecureImage(emptySvg, 'image/svg+xml')).rejects.toThrow();
+  });
 });
 
 describe('🛡️ Media Engine — Modération Multimodale (Mocking Safety Filter)', () => {

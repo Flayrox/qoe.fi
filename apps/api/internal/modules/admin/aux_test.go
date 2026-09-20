@@ -93,6 +93,58 @@ func TestAdminTrendsPromosConfigs(t *testing.T) {
 	}
 }
 
+// TestAdminStorageUsage : supervision du bucket images (superadmin uniquement).
+func TestAdminStorageUsage(t *testing.T) {
+	seedAdmin(t, context.Background())
+	r := newHTTPRouter()
+
+	// Deux assets : un actif, un purgé (exclu des totaux).
+	if _, err := poolTest.Exec(context.Background(),
+		`INSERT INTO "MediaAsset" (id, sha256, url, "storagePath", bucket, "mimeType", "sizeBytes",
+		                           "ownerId", "targetType", status, "purgeDueAt", "updatedAt")
+		 VALUES ('stor_adm_1', 'sha-stor-1', 'https://cdn.qoe.fi/life/s1.webp', 'articles/life/s1.webp',
+		         'articles-media', 'image/webp', 1000, $1, 'ARTICLE_BODY',
+		         'ATTACHED', NULL, now()),
+		        ('stor_adm_2', 'sha-stor-2', 'https://cdn.qoe.fi/life/s2.webp', 'articles/life/s2.webp',
+		         'articles-media', 'image/webp', 500, $1, 'ARTICLE_BODY',
+		         'PURGED', NULL, now())`, adminCreator); err != nil {
+		t.Fatalf("assets: %v", err)
+	}
+
+	w := do(r, http.MethodGet, "/v1/admin/storage/usage", adminAdminID, "")
+	if w.Code != http.StatusOK {
+		t.Fatalf("storage usage = %d %s", w.Code, w.Body.String())
+	}
+	var out struct {
+		TotalBytes int64            `json:"totalBytes"`
+		AssetCount int64            `json:"assetCount"`
+		ByStatus   map[string]int64 `json:"byStatus"`
+		TopUsers   []struct {
+			OwnerID    string `json:"ownerId"`
+			TotalBytes int64  `json:"totalBytes"`
+		} `json:"topUsers"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+		t.Fatalf("json: %v", err)
+	}
+	if out.TotalBytes != 1000 || out.AssetCount != 1 {
+		t.Fatalf("totaux = (%d, %d), attendu (1000, 1) — le PURGED doit être exclu",
+			out.TotalBytes, out.AssetCount)
+	}
+	if out.ByStatus["ATTACHED"] != 1 || out.ByStatus["PURGED"] != 1 {
+		t.Fatalf("byStatus = %v", out.ByStatus)
+	}
+	if len(out.TopUsers) != 1 || out.TopUsers[0].OwnerID != adminCreator || out.TopUsers[0].TotalBytes != 1000 {
+		t.Fatalf("topUsers = %+v", out.TopUsers)
+	}
+
+	// Non-superadmin → 403.
+	w2 := do(r, http.MethodGet, "/v1/admin/storage/usage", adminReaderID, "")
+	if w2.Code != http.StatusForbidden {
+		t.Fatalf("reader storage usage = %d, attendu 403", w2.Code)
+	}
+}
+
 // TestAdminDeliveries : listing + retry d'une livraison échouée.
 func TestAdminDeliveries(t *testing.T) {
 	seedAdmin(t, context.Background())

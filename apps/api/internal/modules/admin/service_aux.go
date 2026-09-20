@@ -201,6 +201,79 @@ func (s *Service) TogglePromoActive(ctx context.Context, userID, id string, isAc
 	return err
 }
 
+// ── Stockage médias (supervision saturation) ─────────────────────────────
+
+// StorageUserUsage est le volume non purgé d'un utilisateur.
+type StorageUserUsage struct {
+	OwnerID    string `json:"ownerId"`
+	TotalBytes int64  `json:"totalBytes"`
+	AssetCount int64  `json:"assetCount"`
+}
+
+// StorageUsage est la supervision du bucket images pour la console
+// superadmin : totaux, répartition par statut et plus gros consommateurs.
+type StorageUsage struct {
+	TotalBytes int64            `json:"totalBytes"`
+	AssetCount int64            `json:"assetCount"`
+	ByStatus   map[string]int64 `json:"byStatus"`
+	TopUsers   []StorageUserUsage `json:"topUsers"`
+}
+
+// GetStorageUsage agrège le registre MediaAsset (superadmin uniquement).
+func (s *Service) GetStorageUsage(ctx context.Context, userID string, limit int) (*StorageUsage, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return nil, err
+	}
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+	out := &StorageUsage{ByStatus: map[string]int64{}, TopUsers: []StorageUserUsage{}}
+	if err := s.pool.QueryRow(ctx,
+		`SELECT COALESCE(SUM("sizeBytes"),0)::bigint, COUNT(*)::bigint
+		 FROM "MediaAsset" WHERE status <> 'PURGED'`).Scan(&out.TotalBytes, &out.AssetCount); err != nil {
+		return nil, err
+	}
+	rows, err := s.pool.Query(ctx,
+		`SELECT status::text, COUNT(*)::bigint, COALESCE(SUM("sizeBytes"),0)::bigint
+		 FROM "MediaAsset" GROUP BY status`)
+	if err != nil {
+		return nil, err
+	}
+	var status string
+	var count, bytes int64
+	for rows.Next() {
+		if serr := rows.Scan(&status, &count, &bytes); serr != nil {
+			rows.Close()
+			return nil, serr
+		}
+		out.ByStatus[status] = count
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	top, err := s.pool.Query(ctx,
+		`SELECT "ownerId", COALESCE(SUM("sizeBytes"),0)::bigint, COUNT(*)::bigint
+		 FROM "MediaAsset" WHERE status <> 'PURGED'
+		 GROUP BY "ownerId" ORDER BY 2 DESC LIMIT $1`, limit)
+	if err != nil {
+		return nil, err
+	}
+	var u StorageUserUsage
+	for top.Next() {
+		if serr := top.Scan(&u.OwnerID, &u.TotalBytes, &u.AssetCount); serr != nil {
+			top.Close()
+			return nil, serr
+		}
+		out.TopUsers = append(out.TopUsers, u)
+	}
+	top.Close()
+	if err := top.Err(); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ── Feature Flags / Config / Frontend / Translations ─────────────────────────
 
 type SystemConfigItem struct {

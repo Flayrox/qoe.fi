@@ -22,13 +22,17 @@ import (
 var poolTest *pgxpool.Pool
 
 func TestMain(m *testing.M) {
-	p, err := testutil.Pool(context.Background())
+	p, err := testutil.TryPool(context.Background())
 	if err != nil {
-		log.Fatalf("testcontainers: %v", err)
+		log.Printf("testcontainers indisponible, tests DB skippés: %v", err)
+		poolTest = nil
+	} else {
+		poolTest = p
 	}
-	poolTest = p
 	code := m.Run()
-	testutil.Cleanup()
+	if poolTest != nil {
+		testutil.Cleanup()
+	}
 	os.Exit(code)
 }
 
@@ -42,6 +46,9 @@ const (
 // publication + article + subscriber + wallet transaction, reader (user).
 func seedAdmin(t *testing.T, ctx context.Context) {
 	t.Helper()
+	if poolTest == nil {
+		t.Skip("DB indisponible (Docker/testcontainers requis)")
+	}
 	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE
 		"WalletTransaction", "NotificationDelivery", "Notification", "OAuthClient", "SystemConfig",
 		"PartnerPromo", "Trend", "Subscriber", "Like", "Post", "Article", "Category", "Publication", "User"

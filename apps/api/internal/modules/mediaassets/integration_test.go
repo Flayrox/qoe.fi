@@ -5,7 +5,6 @@ package mediaassets
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"testing"
@@ -17,7 +16,7 @@ import (
 var poolTest *pgxpool.Pool
 
 func TestMain(m *testing.M) {
-	p, err := tryPool(context.Background())
+	p, err := testutil.TryPool(context.Background())
 	if err != nil {
 		// Docker/testcontainers indisponible (ex: machine locale) : les tests
 		// d'intégration sont skippés, les tests unitaires purs tournent.
@@ -31,18 +30,6 @@ func TestMain(m *testing.M) {
 		testutil.Cleanup()
 	}
 	os.Exit(code)
-}
-
-// tryPool encapsule testutil.Pool dont l'échec peut être un panic
-// (testcontainers sans Docker) plutôt qu'une erreur retournée.
-func tryPool(ctx context.Context) (p *pgxpool.Pool, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			p, err = nil, fmt.Errorf("testcontainers: %v", r)
-		}
-	}()
-	p, err = testutil.Pool(ctx)
-	return p, err
 }
 
 const assetOwnerID = "00000000-0000-0000-0000-0000000000c1"

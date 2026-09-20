@@ -105,6 +105,7 @@ func run(ctx context.Context) error {
 		SupabaseURL:            cfg.SupabaseURL,
 		MediaCDNBaseURL:         cfg.MediaCDNBaseURL,
 		MediaQuotaBytesPerUser:  cfg.MediaQuotaBytesPerUser,
+		MediaUploadsPerHour:    cfg.MediaUploadsPerHour,
 		APIKeyRateLimit:        cfg.APIKeyRateLimit,
 		FlagsSigningKey:        cfg.FlagsSigningKey,
 		LegalExportSigningKey:  cfg.LegalExportSigningKey,
@@ -175,6 +176,8 @@ type RouterDeps struct {
 	MediaCDNBaseURL string
 	// MediaQuotaBytesPerUser borne le volume stocké par utilisateur.
 	MediaQuotaBytesPerUser int64
+	// MediaUploadsPerHour borne les nouveaux uploads par heure.
+	MediaUploadsPerHour int64
 	// APIKeyRateLimit est le quota de requêtes par minute PAR CLÉ API créateur.
 	APIKeyRateLimit int
 	// FlagsSigningKey signe GET /v1/flags (HMAC-SHA256) pour les widgets tiers.
@@ -201,6 +204,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 	mediaStore := supastorage.New(d.SupabaseURL, d.SupabaseServiceRoleKey)
 	mediaAssetsSvc := mediaassets.NewService(pool)
 	mediaAssetsSvc.SetQuotaBytes(d.MediaQuotaBytesPerUser)
+	mediaAssetsSvc.SetUploadsPerHour(d.MediaUploadsPerHour)
 
 	// Feature flags serveur : une instance partagée (cache TTL 30 s) pour
 	// l'endpoint public, le journal d'audit admin et les gates de services.

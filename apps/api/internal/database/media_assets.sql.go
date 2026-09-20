@@ -46,6 +46,25 @@ func (q *Queries) AttachMediaAssetsByUrls(ctx context.Context, arg AttachMediaAs
 	return items, nil
 }
 
+const countRecentUploads = `-- name: CountRecentUploads :one
+SELECT COUNT(*)::bigint AS "recentCount"
+FROM "MediaAsset" WHERE "ownerId" = $1 AND "createdAt" > $2
+`
+
+type CountRecentUploadsParams struct {
+	OwnerId   string           `json:"ownerId"`
+	CreatedAt pgtype.Timestamp `json:"createdAt"`
+}
+
+// Nombre d'uploads d'un utilisateur depuis $2 (throttle anti-flood : borne
+// le coût Sharp + modération + storage, multi-instance safe).
+func (q *Queries) CountRecentUploads(ctx context.Context, arg CountRecentUploadsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countRecentUploads, arg.OwnerId, arg.CreatedAt)
+	var recentCount int64
+	err := row.Scan(&recentCount)
+	return recentCount, err
+}
+
 const createMediaAsset = `-- name: CreateMediaAsset :one
 INSERT INTO "MediaAsset" (id, sha256, url, "storagePath", bucket, "mimeType", width, height,
                           "sizeBytes", blurhash, "isNsfw", "isSensitive", "safetyScores",

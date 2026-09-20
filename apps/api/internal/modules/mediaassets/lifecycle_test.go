@@ -217,3 +217,32 @@ func TestRegisterQuota(t *testing.T) {
 		t.Fatalf("inconnu doit être ErrNoRows, obtenu %v", err)
 	}
 }
+
+func TestRegisterUploadThrottle(t *testing.T) {
+	ctx := context.Background()
+	seedAssets(t, ctx)
+	svc := newTestService().SetQuotaBytes(0).SetUploadsPerHour(2)
+
+	for _, sha := range []string{"sha-t-1", "sha-t-2"} {
+		if _, err := svc.RegisterAsset(ctx, assetOwnerID,
+			lifecycleInput(sha, "https://cdn.qoe.fi/life/"+sha+".webp", "articles/life/"+sha+".webp", 10)); err != nil {
+			t.Fatalf("register %s: %v", sha, err)
+		}
+	}
+	// 3e upload dans l'heure → refusé.
+	if _, err := svc.RegisterAsset(ctx, assetOwnerID,
+		lifecycleInput("sha-t-3", "https://cdn.qoe.fi/life/t3.webp", "articles/life/t3.webp", 10)); err == nil {
+		t.Fatal("3e upload (limite 2/h) accepté")
+	}
+	// Dédoublonnage CAS : contenu connu → réutilisé sans consommer le throttle.
+	if _, err := svc.RegisterAsset(ctx, assetOwnerID,
+		lifecycleInput("sha-t-1", "https://cdn.qoe.fi/life/sha-t-1.webp", "articles/life/sha-t-1.webp", 10)); err != nil {
+		t.Fatalf("dédup ne doit pas consommer le throttle: %v", err)
+	}
+	// Throttle 0 = illimité.
+	unlimited := newTestService().SetQuotaBytes(0).SetUploadsPerHour(0)
+	if _, err := unlimited.RegisterAsset(ctx, assetOwnerID,
+		lifecycleInput("sha-t-9", "https://cdn.qoe.fi/life/t9.webp", "articles/life/t9.webp", 10)); err != nil {
+		t.Fatalf("throttle 0 doit être illimité: %v", err)
+	}
+}
