@@ -528,6 +528,10 @@ mail.admin.qoe.fi {
     encode zstd gzip
 
     handle @tailnet {
+        # La racine Stalwart rebondit vers /account (portail self-service
+        # dont les assets 500 côté Stalwart 0.16.20) : on envoie vers le
+        # portail d'admin, seul usage de ce sous-domaine.
+        redir / /admin/
         reverse_proxy host.docker.internal:28080 {
             transport http {
                 dial_timeout 10s
