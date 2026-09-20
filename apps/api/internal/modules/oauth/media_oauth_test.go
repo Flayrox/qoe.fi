@@ -16,22 +16,28 @@ func TestMediaOAuth_FullFlow(t *testing.T) {
 	// 1. Seed publication & media
 	const pubID = "pub_media_test_01"
 	const mediaID = "med_media_test_01"
-	_, err := poolTest.Exec(ctx, `
+	if _, err := poolTest.Exec(ctx, `
 		INSERT INTO "Publication" (id, name, slug, type, "ownerUserId", "createdAt", "updatedAt")
 		VALUES ($1, 'Lassez Mag', 'lassez-mag', 'MEDIA', $2, now(), now())
-		ON CONFLICT (id) DO NOTHING;
+		ON CONFLICT (id) DO NOTHING
+	`, pubID, fx.OwnerID); err != nil {
+		t.Fatalf("seed publication: %v", err)
+	}
 
+	if _, err := poolTest.Exec(ctx, `
 		INSERT INTO "Media" (id, "publicationId", "createdAt", "updatedAt")
-		VALUES ($3, $1, now(), now())
-		ON CONFLICT (id) DO NOTHING;
+		VALUES ($1, $2, now(), now())
+		ON CONFLICT (id) DO NOTHING
+	`, mediaID, pubID); err != nil {
+		t.Fatalf("seed media: %v", err)
+	}
 
-		-- fx.OwnerID est membre editor avec articles:write
+	if _, err := poolTest.Exec(ctx, `
 		INSERT INTO "MediaMember" (id, "mediaId", "userId", role, permissions, status, "createdAt", "updatedAt")
-		VALUES ('mem_01', $3, $2, 'editor', ARRAY['articles:write', 'articles:publish'], 'active', now(), now())
-		ON CONFLICT DO NOTHING;
-	`, pubID, fx.OwnerID, mediaID)
-	if err != nil {
-		t.Fatalf("seed publication/media: %v", err)
+		VALUES ('mem_01', $1, $2, 'editor', ARRAY['articles:write', 'articles:publish'], 'active', now(), now())
+		ON CONFLICT DO NOTHING
+	`, mediaID, fx.OwnerID); err != nil {
+		t.Fatalf("seed media member: %v", err)
 	}
 
 	// 2. Création d'un client OAuth rattaché au média
