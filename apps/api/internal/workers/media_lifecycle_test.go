@@ -28,7 +28,7 @@ func seedMediaLifecycle(t *testing.T, ctx context.Context) {
 	}
 	if _, err := poolTest.Exec(ctx,
 		`INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt")
-		 VALUES ('00000000-0000-0000-0000-00000000c1', 'media-life@test.dev', 'medialife', 'Media', 'creator', now(), now())
+		 VALUES ('00000000-0000-0000-0000-0000000000c1', 'media-life@test.dev', 'medialife', 'Media', 'creator', now(), now())
 		 ON CONFLICT (id) DO NOTHING`); err != nil {
 		t.Fatalf("user: %v", err)
 	}
@@ -36,10 +36,10 @@ func seedMediaLifecycle(t *testing.T, ctx context.Context) {
 	if _, err := poolTest.Exec(ctx,
 		`INSERT INTO "MediaAsset" (id, sha256, url, "storagePath", bucket, "mimeType", "sizeBytes",
 		                           "ownerId", "targetType", status, "purgeDueAt", "updatedAt")
-		 VALUES ('00000000-0000-0000-0000-00000000d1', 'sha-life-orphan',
+		 VALUES ('00000000-0000-0000-0000-0000000000d1', 'sha-life-orphan',
 		         'https://cdn.qoe.fi/life/orphan.webp', 'articles/life/orphan.webp',
 		         'articles-media', 'image/webp', 100,
-		         '00000000-0000-0000-0000-00000000c1', 'ARTICLE_BODY',
+		         '00000000-0000-0000-0000-0000000000c1', 'ARTICLE_BODY',
 		         'DRAFT_ORPHAN', now() - interval '1 hour', now())`); err != nil {
 		t.Fatalf("orphan: %v", err)
 	}
@@ -47,10 +47,10 @@ func seedMediaLifecycle(t *testing.T, ctx context.Context) {
 	if _, err := poolTest.Exec(ctx,
 		`INSERT INTO "MediaAsset" (id, sha256, url, "storagePath", bucket, "mimeType", "sizeBytes",
 		                           "ownerId", "targetType", status, "purgeDueAt", "updatedAt")
-		 VALUES ('00000000-0000-0000-0000-00000000d2', 'sha-life-fresh',
+		 VALUES ('00000000-0000-0000-0000-0000000000d2', 'sha-life-fresh',
 		         'https://cdn.qoe.fi/life/fresh.webp', 'articles/life/fresh.webp',
 		         'articles-media', 'image/webp', 100,
-		         '00000000-0000-0000-0000-00000000c1', 'ARTICLE_BODY',
+		         '00000000-0000-0000-0000-0000000000c1', 'ARTICLE_BODY',
 		         'DRAFT_ORPHAN', now() + interval '3 days', now())`); err != nil {
 		t.Fatalf("fresh: %v", err)
 	}
@@ -75,14 +75,14 @@ func TestRunMediaLifecycleOnce_PurgesExpiredOrphan(t *testing.T) {
 
 	var status string
 	if err := poolTest.QueryRow(ctx,
-		`SELECT status::text FROM "MediaAsset" WHERE id = '00000000-0000-0000-0000-00000000d1'`).Scan(&status); err != nil {
+		`SELECT status::text FROM "MediaAsset" WHERE id = '00000000-0000-0000-0000-0000000000d1'`).Scan(&status); err != nil {
 		t.Fatalf("statut orphelin: %v", err)
 	}
 	if status != "PURGED" {
 		t.Fatalf("orphelin = %s, attendu PURGED", status)
 	}
 	if err := poolTest.QueryRow(ctx,
-		`SELECT status::text FROM "MediaAsset" WHERE id = '00000000-0000-0000-0000-00000000d2'`).Scan(&status); err != nil {
+		`SELECT status::text FROM "MediaAsset" WHERE id = '00000000-0000-0000-0000-0000000000d2'`).Scan(&status); err != nil {
 		t.Fatalf("statut frais: %v", err)
 	}
 	if status != "DRAFT_ORPHAN" {

@@ -8,8 +8,9 @@ import (
 
 // TestSyncUserRegistrationsClosed — la clé SystemConfig ALLOW_NEW_REGISTRATIONS
 // (toggle admin) ferme la création de NOUVELLES lignes User : SyncUserFromAuth
-// doit renvoyer ErrRegistrationsClosed sans créer de ligne, puis recréer dès
-// que la clé repasse à true. Les comptes existants ne sont jamais touchés.
+// refuse sans créer de ligne (ErrEmailNotInvited pour un email non invité,
+// ErrRegistrationsClosed sans email), puis recrée dès que la clé repasse à
+// true. Les comptes existants ne sont jamais touchés.
 func TestSyncUserRegistrationsClosed(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
@@ -34,8 +35,8 @@ func TestSyncUserRegistrationsClosed(t *testing.T) {
 
 	claims := map[string]any{"email": "closed@test.dev", "user_metadata": map[string]any{}}
 	created, _, err := svc.SyncUserFromAuth(ctx, freshID, claims)
-	if !errors.Is(err, ErrRegistrationsClosed) {
-		t.Fatalf("err = %v, attendu ErrRegistrationsClosed", err)
+	if !errors.Is(err, ErrEmailNotInvited) {
+		t.Fatalf("err = %v, attendu ErrEmailNotInvited (email non invité)", err)
 	}
 	if created {
 		t.Fatal("created = true, attendu false")
@@ -46,6 +47,12 @@ func TestSyncUserRegistrationsClosed(t *testing.T) {
 	}
 	if n != 0 {
 		t.Fatal("ligne User créée alors que les inscriptions sont fermées")
+	}
+
+	// Sans email : erreur générique de fermeture (pas de fuite d'allowlist).
+	claimsEmpty := map[string]any{"user_metadata": map[string]any{}}
+	if _, _, err := svc.SyncUserFromAuth(ctx, freshID, claimsEmpty); !errors.Is(err, ErrRegistrationsClosed) {
+		t.Fatalf("err = %v, attendu ErrRegistrationsClosed (sans email)", err)
 	}
 
 	// 🔓 Inscriptions rouvertes : la création passe.
