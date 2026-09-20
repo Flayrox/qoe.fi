@@ -15,7 +15,9 @@ func clearEnv(t *testing.T) {
 		"STRIPE_WEBHOOK_SECRET", "UMAMI_API_URL", "UMAMI_API_KEY",
 		"UMAMI_USERNAME", "UMAMI_PASSWORD", "NEXT_PUBLIC_UMAMI_WEBSITE_ID",
 		"UMAMI_DATABASE_URL", "OAUTH_ISSUER", "OAUTH_AUTHORIZE_URL",
-		"OAUTH_SIGNING_KEY", "QOE_DEVTOOLS_DEV_ONLY",
+		"OAUTH_SIGNING_KEY", "QOE_DEVTOOLS_DEV_ONLY", "MEDIA_CDN_BASE_URL",
+		"MEDIA_QUOTA_BYTES", "MEDIA_LIFECYCLE_INTERVAL_MINUTES",
+		"MEDIA_SOFT_DELETE_GRACE_DAYS",
 	} {
 		t.Setenv(k, "")
 	}
@@ -45,6 +47,18 @@ func TestLoad_Defaults(t *testing.T) {
 	if c.DevtoolsDevOnly {
 		t.Error("DevtoolsDevOnly doit être false par défaut")
 	}
+	if c.MediaCDNBaseURL != "https://cdn.qoe.fi" {
+		t.Errorf("MediaCDNBaseURL = %q, attendu défaut CDN", c.MediaCDNBaseURL)
+	}
+	if c.MediaQuotaBytesPerUser != 512<<20 {
+		t.Errorf("MediaQuotaBytesPerUser = %d, attendu 512 Mo", c.MediaQuotaBytesPerUser)
+	}
+	if c.MediaLifecycleIntervalMinutes != 60 {
+		t.Errorf("MediaLifecycleIntervalMinutes = %d, attendu 60", c.MediaLifecycleIntervalMinutes)
+	}
+	if c.MediaSoftDeleteGraceDays != 7 {
+		t.Errorf("MediaSoftDeleteGraceDays = %d, attendu 7", c.MediaSoftDeleteGraceDays)
+	}
 }
 
 func TestLoad_Overrides(t *testing.T) {
@@ -55,6 +69,10 @@ func TestLoad_Overrides(t *testing.T) {
 	t.Setenv("QOE_DEVTOOLS_DEV_ONLY", "true")
 	t.Setenv("OAUTH_SIGNING_KEY", "pem")
 	t.Setenv("STRIPE_WEBHOOK_SECRET", "sk_test")
+	t.Setenv("MEDIA_CDN_BASE_URL", "https://cdn.example.test")
+	t.Setenv("MEDIA_QUOTA_BYTES", "1048576")
+	t.Setenv("MEDIA_LIFECYCLE_INTERVAL_MINUTES", "15")
+	t.Setenv("MEDIA_SOFT_DELETE_GRACE_DAYS", "3")
 	c := Load()
 	if c.Port != "9000" {
 		t.Errorf("Port = %q", c.Port)
@@ -70,6 +88,15 @@ func TestLoad_Overrides(t *testing.T) {
 	}
 	if c.OAuthSigningKey != "pem" || c.StripeWebhookSecret != "sk_test" {
 		t.Error("override OAuthSigningKey/StripeWebhookSecret non appliqué")
+	}
+	if c.MediaCDNBaseURL != "https://cdn.example.test" {
+		t.Errorf("MediaCDNBaseURL override = %q", c.MediaCDNBaseURL)
+	}
+	if c.MediaQuotaBytesPerUser != 1048576 {
+		t.Errorf("MediaQuotaBytesPerUser override = %d", c.MediaQuotaBytesPerUser)
+	}
+	if c.MediaLifecycleIntervalMinutes != 15 || c.MediaSoftDeleteGraceDays != 3 {
+		t.Error("override lifecycle médias non appliqué")
 	}
 }
 

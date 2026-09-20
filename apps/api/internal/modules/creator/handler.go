@@ -35,6 +35,8 @@ type Handler struct {
 	// Upload d'images (injecté via WithMediaUpload) — nil = 503 explicite.
 	mediaStorage *supastorage.Client
 	mediaAssets  *mediaassets.Service
+	// mediaCDNBase réécrit les URLs storage vers le CDN public.
+	mediaCDNBase string
 }
 
 func NewHandler(pool *pgxpool.Pool, umamiCli *umami.Client, defaultWebsiteID string) *Handler {

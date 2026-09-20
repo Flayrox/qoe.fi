@@ -103,6 +103,8 @@ func run(ctx context.Context) error {
 		DefaultUmamiSite:       cfg.DefaultUmamiWebsiteID,
 		UmamiDatabaseURL:       cfg.UmamiDatabaseURL,
 		SupabaseURL:            cfg.SupabaseURL,
+		MediaCDNBaseURL:         cfg.MediaCDNBaseURL,
+		MediaQuotaBytesPerUser:  cfg.MediaQuotaBytesPerUser,
 		APIKeyRateLimit:        cfg.APIKeyRateLimit,
 		FlagsSigningKey:        cfg.FlagsSigningKey,
 		LegalExportSigningKey:  cfg.LegalExportSigningKey,
@@ -169,6 +171,10 @@ type RouterDeps struct {
 	OAuth *oauth.Service
 	// SupabaseURL est l'origine Supabase (auth + storage REST) pour les uploads.
 	SupabaseURL string
+	// MediaCDNBaseURL est l'origine publique des images (rewrite CDN).
+	MediaCDNBaseURL string
+	// MediaQuotaBytesPerUser borne le volume stocké par utilisateur.
+	MediaQuotaBytesPerUser int64
 	// APIKeyRateLimit est le quota de requêtes par minute PAR CLÉ API créateur.
 	APIKeyRateLimit int
 	// FlagsSigningKey signe GET /v1/flags (HMAC-SHA256) pour les widgets tiers.
@@ -194,6 +200,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 	// partagés par les handlers créateur (POST /v1/creator/media).
 	mediaStore := supastorage.New(d.SupabaseURL, d.SupabaseServiceRoleKey)
 	mediaAssetsSvc := mediaassets.NewService(pool)
+	mediaAssetsSvc.SetQuotaBytes(d.MediaQuotaBytesPerUser)
 
 	// Feature flags serveur : une instance partagée (cache TTL 30 s) pour
 	// l'endpoint public, le journal d'audit admin et les gates de services.
@@ -386,7 +393,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 			articlesHandler.RegisterProtected(apiWrite, authmw.RequireAPIScope)
 
 			creatorHandler := creator.NewHandler(pool, umami.NewClient(d.UmamiAPIURL, d.UmamiAPIKey, d.UmamiUser, d.UmamiPass), d.DefaultUmamiSite)
-			creatorHandler.WithMediaUpload(mediaStore, mediaAssetsSvc)
+			creatorHandler.WithMediaUpload(mediaStore, mediaAssetsSvc).WithMediaCDNBase(d.MediaCDNBaseURL)
 			creatorHandler.RegisterProtected(apiWrite, authmw.RequireAPIScope)
 
 			webhooksHandler := webhooks.NewHandler(webhooks.NewService(pool))
@@ -482,7 +489,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 		// Quota dédié PAR CLÉ API (le limiteur global par IP reste en plus).
 		apiKey.Use(authmw.RateLimitAPIKey("apikey", rc, time.Minute, d.APIKeyRateLimit))
 		creatorHandler := creator.NewHandler(pool, umami.NewClient(d.UmamiAPIURL, d.UmamiAPIKey, d.UmamiUser, d.UmamiPass), d.DefaultUmamiSite)
-		creatorHandler.WithMediaUpload(mediaStore, mediaAssetsSvc)
+		creatorHandler.WithMediaUpload(mediaStore, mediaAssetsSvc).WithMediaCDNBase(d.MediaCDNBaseURL)
 		creatorHandler.RegisterAPIKey(apiKey)
 	})
 

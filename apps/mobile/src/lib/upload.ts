@@ -33,16 +33,31 @@ export interface PickedImage {
  * toPublicImageUrl du web, adapté aux variables EXPO_PUBLIC_).
  */
 export function toPublicImageUrl(publicUrl: string): string {
-  if (env.supabaseUrl && publicUrl.startsWith(env.supabaseUrl)) {
-    return publicUrl.replace(env.supabaseUrl, IMAGES_CDN);
+  const base = (env.supabaseUrl || '').replace(/\/+$/, '');
+  if (base && publicUrl.startsWith(base)) {
+    return publicUrl.replace(base, IMAGES_CDN);
   }
   return publicUrl;
 }
 
+/** Extensions autorisées dans les chemins storage (parité web). */
+const ALLOWED_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif']);
+
 export function extFromMime(mimeType: string | null | undefined): string {
-  const ext = (mimeType ?? '').split('/')[1]?.toLowerCase() ?? '';
+  const ext = (mimeType ?? '').split('/')[1]?.split('+')[0]?.toLowerCase() ?? '';
   if (ext === 'jpeg') return 'jpg';
-  return ext || 'jpg';
+  // Mime inconnu ou composé (svg+xml, octet-stream…) → jpg sûr par défaut.
+  if (!ALLOWED_EXTENSIONS.has(ext)) return 'jpg';
+  return ext;
+}
+
+/** Assainit un segment de chemin storage (anti `../`, jamais vide). */
+export function sanitizePathSegment(segment: string, fallback = 'shared'): string {
+  const clean = (segment || '')
+    .replace(/[^a-zA-Z0-9_-]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 64);
+  return clean || fallback;
 }
 
 /**
@@ -66,7 +81,8 @@ export async function uploadProfileImage(
 
   const mimeType = image.mimeType || blob.type || 'image/jpeg';
   const ext = extFromMime(mimeType);
-  const path = `${folder}/${ownerId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const safeOwner = sanitizePathSegment(ownerId);
+  const path = `${folder}/${safeOwner}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
   const { error } = await supabase.storage.from(IMAGES_BUCKET).upload(path, blob, {
     contentType: mimeType,
