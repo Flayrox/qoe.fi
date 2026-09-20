@@ -182,6 +182,28 @@ export async function fetchTenantPublication(domain: string): Promise<TenantPubl
   }
 }
 
+/**
+ * Variante PUBLIQUE de fetchTenantPublication pour /sitemap.xml : fetch
+ * direct sans goFetch (qui lit les cookies Supabase pour le Bearer —
+ * `cookies()` lève DynamicServerError pendant le (pré)rendu du sitemap,
+ * ce qui vidait silencieusement les sitemaps tenants).
+ */
+export async function fetchPublicTenantPublication(
+  domain: string
+): Promise<TenantPublication | null> {
+  try {
+    const base = (process.env.QOE_API_URL || 'http://localhost:8090').replace(/\/$/, '');
+    const res = await fetch(`${base}/v1/publications/by-domain/${encodeURIComponent(domain)}`, {
+      cache: 'no-store',
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as TenantPublication;
+  } catch (err) {
+    console.error('[tenants/sitemap] fetch publication:', err);
+    return null;
+  }
+}
+
 /** Article bundle tenant (article + publication + entitlements + interactions). */
 export async function fetchTenantArticle(
   domain: string,
