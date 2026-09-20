@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { toast } from '@qoe/ui/toast';
+import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
+import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
 import {
   createOAuthClientAction,
   listOAuthClientsAction,
@@ -345,13 +347,17 @@ export function OAuthAppsClient({
             </div>
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-foreground">
-                Logo URL (facultatif)
+                Logo (facultatif)
               </label>
-              <input
-                value={logoUrl}
-                onChange={(e) => setLogoUrl(e.target.value)}
-                placeholder="https://monapp.com/logo.png"
-                className="w-full bg-muted/30 border border-border rounded-xl px-3.5 py-2.5 text-xs font-sans text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+              <ImageUploader
+                value={logoUrl || null}
+                onChange={(url) => setLogoUrl(url ?? '')}
+                upload={(file) =>
+                  uploadImageToRoute(file, '/api/articles/upload', IMAGE_FOLDERS.avatars)
+                }
+                aspect={1}
+                shape="circle"
+                maxDimension={512}
               />
             </div>
           </div>

@@ -892,10 +892,11 @@ func (q *Queries) UpdateTrendCount(ctx context.Context, arg UpdateTrendCountPara
 }
 
 const upsertPromo = `-- name: UpsertPromo :one
-INSERT INTO "PartnerPromo" (id, title, description, "ctaText", "ctaUrl", "isActive", "createdAt", "updatedAt")
-VALUES (COALESCE(NULLIF($1, ''), gen_random_uuid()::text), $2, $3, $4, $5, $6, now(), now())
+INSERT INTO "PartnerPromo" (id, title, description, "ctaText", "ctaUrl", "imageUrl", "isActive", "createdAt", "updatedAt")
+VALUES (COALESCE(NULLIF($1, ''), gen_random_uuid()::text), $2, $3, $4, $5, NULLIF($6::text, ''), $7, now(), now())
 ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, description = EXCLUDED.description,
     "ctaText" = EXCLUDED."ctaText", "ctaUrl" = EXCLUDED."ctaUrl",
+    "imageUrl" = EXCLUDED."imageUrl",
     "isActive" = EXCLUDED."isActive", "updatedAt" = now()
 RETURNING id, title, description, "ctaText", "ctaUrl", "imageUrl", "isActive"
 `
@@ -906,6 +907,7 @@ type UpsertPromoParams struct {
 	Description string      `json:"description"`
 	CtaText     pgtype.Text `json:"ctaText"`
 	CtaUrl      pgtype.Text `json:"ctaUrl"`
+	Column6     string      `json:"column_6"`
 	IsActive    bool        `json:"isActive"`
 }
 
@@ -926,6 +928,7 @@ func (q *Queries) UpsertPromo(ctx context.Context, arg UpsertPromoParams) (Upser
 		arg.Description,
 		arg.CtaText,
 		arg.CtaUrl,
+		arg.Column6,
 		arg.IsActive,
 	)
 	var i UpsertPromoRow

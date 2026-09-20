@@ -86,10 +86,11 @@ DELETE FROM "Trend" WHERE id = $1;
 UPDATE "Trend" SET count = $2, "updatedAt" = now() WHERE id = $1 RETURNING id, hashtag, count;
 
 -- name: UpsertPromo :one
-INSERT INTO "PartnerPromo" (id, title, description, "ctaText", "ctaUrl", "isActive", "createdAt", "updatedAt")
-VALUES (COALESCE(NULLIF($1, ''), gen_random_uuid()::text), $2, $3, $4, $5, $6, now(), now())
+INSERT INTO "PartnerPromo" (id, title, description, "ctaText", "ctaUrl", "imageUrl", "isActive", "createdAt", "updatedAt")
+VALUES (COALESCE(NULLIF($1, ''), gen_random_uuid()::text), $2, $3, $4, $5, NULLIF($6::text, ''), $7, now(), now())
 ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title, description = EXCLUDED.description,
     "ctaText" = EXCLUDED."ctaText", "ctaUrl" = EXCLUDED."ctaUrl",
+    "imageUrl" = EXCLUDED."imageUrl",
     "isActive" = EXCLUDED."isActive", "updatedAt" = now()
 RETURNING id, title, description, "ctaText", "ctaUrl", "imageUrl", "isActive";
 

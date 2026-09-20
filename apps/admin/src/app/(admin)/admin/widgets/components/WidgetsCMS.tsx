@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Star, TrendingUp, Megaphone, Trash2, Search, ToggleLeft, ToggleRight } from 'lucide-react';
+import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
+import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
 import {
   toggleFeaturedArticle,
   addTrend,
@@ -76,6 +78,7 @@ export function WidgetsCMS({
   const [promoDesc, setPromoDesc] = useState('');
   const [promoCtaText, setPromoCtaText] = useState('');
   const [promoCtaUrl, setPromoCtaUrl] = useState('');
+  const [promoImageUrl, setPromoImageUrl] = useState<string | null>(null);
 
   // Filtered articles
   const filteredArticles = featuredArticles.filter(
@@ -146,13 +149,15 @@ export function WidgetsCMS({
       promoDesc,
       promoCtaText || null,
       promoCtaUrl || null,
-      true
+      true,
+      promoImageUrl
     );
     if (res.success) {
       setPromoTitle('');
       setPromoDesc('');
       setPromoCtaText('');
       setPromoCtaUrl('');
+      setPromoImageUrl(null);
       window.location.reload();
     } else {
       alert(res.error);
@@ -500,14 +505,29 @@ export function WidgetsCMS({
                     />
                   </div>
 
-                  <div className="flex items-end">
-                    <button
-                      type="submit"
-                      className="text-sm font-bold text-white bg-[var(--qoe-vermillion)] hover:bg-[var(--qoe-vermillion)]/90 px-5 py-2.5 rounded-lg transition-colors cursor-pointer w-full md:w-auto"
-                    >
-                      Créer le widget publicitaire
-                    </button>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                      Image (facultatif)
+                    </label>
+                    <ImageUploader
+                      value={promoImageUrl}
+                      onChange={setPromoImageUrl}
+                      upload={(file) =>
+                        uploadImageToRoute(file, '/api/articles/upload', IMAGE_FOLDERS.articles)
+                      }
+                      shape="banner"
+                      aspect={16 / 9}
+                    />
                   </div>
+                </div>
+
+                <div className="flex items-end">
+                  <button
+                    type="submit"
+                    className="text-sm font-bold text-white bg-[var(--qoe-vermillion)] hover:bg-[var(--qoe-vermillion)]/90 px-5 py-2.5 rounded-lg transition-colors cursor-pointer w-full md:w-auto"
+                  >
+                    Créer le widget publicitaire
+                  </button>
                 </div>
               </form>
 
@@ -560,6 +580,15 @@ export function WidgetsCMS({
                           </div>
 
                           <h4 className="text-sm font-bold text-foreground">{p.title}</h4>
+                          {p.imageUrl && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={p.imageUrl}
+                              alt={p.title}
+                              className="w-full h-28 object-cover rounded-lg border border-border/50"
+                              loading="lazy"
+                            />
+                          )}
                           <p className="text-xs text-muted-foreground leading-relaxed">
                             {p.description}
                           </p>
