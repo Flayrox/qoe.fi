@@ -26,6 +26,9 @@ export const IMAGE_FOLDERS = {
 
 export type ImageFolder = (typeof IMAGE_FOLDERS)[keyof typeof IMAGE_FOLDERS];
 
+/** Dossiers valides (garde runtime : une valeur hors allowlist retombe sur `articles`). */
+const KNOWN_FOLDERS = new Set<string>(Object.values(IMAGE_FOLDERS));
+
 export interface UploadImageOptions {
   folder?: ImageFolder;
   /** Identifiant propriétaire (userId ou publicationId) pour l'isolation. */
@@ -35,22 +38,52 @@ export interface UploadImageOptions {
 }
 
 /**
+ * Assainit un segment de chemin storage : le nom de fichier fourni par le
+ * client peut contenir n'importe quoi (`../`, unicode, extensions
+ * exotiques…). Ne conserve que `[a-zA-Z0-9._-]`, tronque, jamais vide.
+ */
+export function sanitizePathSegment(segment: string, fallback = 'shared'): string {
+  const clean = (segment || '')
+    .normalize('NFKD')
+    .replace(/[^a-zA-Z0-9_-]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .slice(0, 64);
+  return clean || fallback;
+}
+
+/**
+ * Assainit une extension de fichier : minuscules, alphanumérique, 8 car
+ * max. Tout le reste (vide, `svg+xml`, `exe`, traversal…) → fallback.
+ */
+export function sanitizeExtension(ext: string | undefined | null, fallback = 'png'): string {
+  const clean = (ext || '').trim().toLowerCase();
+  return /^[a-z0-9]{1,8}$/.test(clean) ? clean : fallback;
+}
+
+/**
  * Génère un chemin unique pour un upload :
  * `{folder}/{ownerId}/{timestamp}-{random}.{ext}`
+ *
+ * Le dossier est borné à l'allowlist, l'ownerId et l'extension assainis :
+ * aucun fragment client-provided ne peut traverser (`../`) ni forger
+ * d'extension exécutable.
  */
 export function buildImagePath(file: File, options: UploadImageOptions = {}): string {
   const { folder = IMAGE_FOLDERS.articles, ownerId = 'shared', ext } = options;
+  const safeFolder = KNOWN_FOLDERS.has(folder) ? folder : IMAGE_FOLDERS.articles;
+  const safeOwner = sanitizePathSegment(ownerId);
   const timestamp = Date.now();
   const randomString = Math.random().toString(36).substring(2, 8);
-  const fileExt = ext || file.name.split('.').pop() || 'png';
-  return `${folder}/${ownerId}/${timestamp}-${randomString}.${fileExt}`;
+  const rawExt = ext ?? file.name.split('.').pop();
+  const fileExt = sanitizeExtension(rawExt);
+  return `${safeFolder}/${safeOwner}/${timestamp}-${randomString}.${fileExt}`;
 }
 
 /**
  * Réécrit l'URL publique Supabase vers le CDN public.
  */
 export function toPublicImageUrl(publicUrl: string): string {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/+$/, '');
   if (supabaseUrl && publicUrl.startsWith(supabaseUrl)) {
     return publicUrl.replace(supabaseUrl, IMAGES_CDN);
   }

@@ -78,6 +78,19 @@ type Config struct {
 	// NewsletterRatePerMinute est le rythme d'envoi des emails newsletter /
 	// release d'articles (emails par minute, défaut 30 — SMTP self-hosté safe).
 	NewsletterRatePerMinute int
+	// ── Cycle de vie des médias (MediaAsset) ──────────────────────────
+	// MediaCDNBaseURL est l'origine publique des images (rewrite des URLs
+	// Supabase Storage, ex: https://cdn.qoe.fi).
+	MediaCDNBaseURL string
+	// MediaQuotaBytesPerUser borne le volume stocké par utilisateur
+	// (assets non purgés, défaut 512 Mo).
+	MediaQuotaBytesPerUser int64
+	// MediaLifecycleIntervalMinutes cadence le worker de réconciliation /
+	// purge des assets orphelins (défaut 60).
+	MediaLifecycleIntervalMinutes int
+	// MediaSoftDeleteGraceDays : délai avant purge définitive d'un asset
+	// détaché (remplacé/supprimé côté métier, défaut 7 jours).
+	MediaSoftDeleteGraceDays int
 }
 
 func Load() *Config {
@@ -126,6 +139,12 @@ func Load() *Config {
 		SMTPSecure:                    boolEnv("SMTP_SECURE"),
 		ResendAPIKey:                  envOr("RESEND_API_KEY", ""),
 		NewsletterRatePerMinute:       envInt("NEWSLETTER_RATE_PER_MINUTE", 30),
+		// Cycle de vie des médias : CDN public, quota par utilisateur,
+		// cadence du worker de purge et grâce avant suppression définitive.
+		MediaCDNBaseURL:               envOr("MEDIA_CDN_BASE_URL", "https://cdn.qoe.fi"),
+		MediaQuotaBytesPerUser:        envInt64("MEDIA_QUOTA_BYTES", 512<<20),
+		MediaLifecycleIntervalMinutes: envInt("MEDIA_LIFECYCLE_INTERVAL_MINUTES", 60),
+		MediaSoftDeleteGraceDays:      envInt("MEDIA_SOFT_DELETE_GRACE_DAYS", 7),
 	}
 }
 
@@ -133,6 +152,16 @@ func Load() *Config {
 func envInt(key string, def int) int {
 	if v := os.Getenv(key); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
+			return n
+		}
+	}
+	return def
+}
+
+// envInt64 lit une variable d'environnement entière 64 bits (défaut sinon).
+func envInt64(key string, def int64) int64 {
+	if v := os.Getenv(key); v != "" {
+		if n, err := strconv.ParseInt(v, 10, 64); err == nil {
 			return n
 		}
 	}

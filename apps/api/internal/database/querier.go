@@ -17,6 +17,10 @@ type Querier interface {
 	ArchivePublishedLegalVersions(ctx context.Context, arg ArchivePublishedLegalVersionsParams) error
 	// Vrai si l'un des deux a bloqué l'autre (les deux sens).
 	AreUsersBlocked(ctx context.Context, arg AreUsersBlockedParams) (bool, error)
+	// Marque ATTACHED les assets référencés par les tables métier (couvertures,
+	// avatars, bannières, promos…). Ne touche jamais un asset PURGED (objet déjà
+	// supprimé du storage) : celui-ci sera ré-uploadé via réactivation CAS.
+	AttachMediaAssetsByUrls(ctx context.Context, arg AttachMediaAssetsByUrlsParams) ([]string, error)
 	CheckArticleSlugExists(ctx context.Context, arg CheckArticleSlugExistsParams) (bool, error)
 	CheckCategorySlugExists(ctx context.Context, arg CheckCategorySlugExistsParams) (bool, error)
 	CheckMediaSlugExists(ctx context.Context, slug string) (bool, error)
@@ -573,6 +577,8 @@ type Querier interface {
 	ListPublishedLegalDocuments(ctx context.Context, locale string) ([]ListPublishedLegalDocumentsRow, error)
 	// Historique public (transparence) : versions publiées/archivées, jamais les brouillons.
 	ListPublishedLegalVersions(ctx context.Context, arg ListPublishedLegalVersionsParams) ([]ListPublishedLegalVersionsRow, error)
+	// Orphelins expirés (jamais attachés) + détachés au-delà de la grâce.
+	ListPurgeableMediaAssets(ctx context.Context, limit int32) ([]ListPurgeableMediaAssetsRow, error)
 	ListQueuedArticleReleaseDeliveries(ctx context.Context, arg ListQueuedArticleReleaseDeliveriesParams) ([]ListQueuedArticleReleaseDeliveriesRow, error)
 	ListQuotePostIDs(ctx context.Context, arg ListQuotePostIDsParams) ([]string, error)
 	ListReceivedCollaborationRequests(ctx context.Context, inviteeid pgtype.UUID) ([]ListReceivedCollaborationRequestsRow, error)
@@ -606,8 +612,12 @@ type Querier interface {
 	MarkConversationRead(ctx context.Context, arg MarkConversationReadParams) error
 	MarkLegalNoticeDelivery(ctx context.Context, arg MarkLegalNoticeDeliveryParams) error
 	MarkLegalReviewReminder(ctx context.Context, arg MarkLegalReviewReminderParams) error
+	// Purge définitive : l'objet storage a été supprimé (ou était déjà absent).
+	MarkMediaAssetPurged(ctx context.Context, id string) error
 	MarkNewsletterDelivery(ctx context.Context, arg MarkNewsletterDeliveryParams) error
 	MarkNotificationsRead(ctx context.Context, arg MarkNotificationsReadParams) error
+	// Volume et nombre d'assets non purgés d'un utilisateur (quota de stockage).
+	OwnerMediaUsage(ctx context.Context, ownerid string) (OwnerMediaUsageRow, error)
 	PinPost(ctx context.Context, arg PinPostParams) (bool, error)
 	PublishArticleDraft(ctx context.Context, id string) (string, error)
 	PublishLegalDocumentVersion(ctx context.Context, id string) (LegalDocumentVersion, error)
@@ -641,6 +651,9 @@ type Querier interface {
 	SetPublicationUmamiWebsite(ctx context.Context, arg SetPublicationUmamiWebsiteParams) error
 	SetSubscriberPremiumStatus(ctx context.Context, arg SetSubscriberPremiumStatusParams) error
 	SetUserApiGrants(ctx context.Context, arg SetUserApiGrantsParams) error
+	// Détache les assets ATTACHED qui ne sont plus référencés nulle part
+	// (image remplacée ou ligne métier supprimée) : grâce de $2 avant purge.
+	SoftDeleteDetachedMediaAssets(ctx context.Context, arg SoftDeleteDetachedMediaAssetsParams) ([]SoftDeleteDetachedMediaAssetsRow, error)
 	SoftDeletePost(ctx context.Context, arg SoftDeletePostParams) (string, error)
 	// Ajoute un upvote (idempotent). ⚠️ Le retrait et le comptage sont gérés
 	// séparément dans le service (les CTE PostgreSQL sont matérialisés, un

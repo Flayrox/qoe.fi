@@ -17,7 +17,9 @@ import (
 	"github.com/qoefi/api/internal/flags"
 	"github.com/qoefi/api/internal/modules/imports"
 	"github.com/qoefi/api/internal/modules/legal"
+	"github.com/qoefi/api/internal/modules/mediaassets"
 	"github.com/qoefi/api/internal/queue"
+	"github.com/qoefi/api/internal/supastorage"
 	"github.com/qoefi/api/internal/umami"
 	"github.com/qoefi/api/internal/workers"
 )
@@ -82,6 +84,16 @@ func main() {
 	// Nettoyage TTL des documents de collaboration (Yjs) : purge des
 	// brouillons non touchés depuis 14 jours, toutes les 6 heures.
 	go workers.RunCollabCleanup(ctx, pool, 6*time.Hour, 14*24*time.Hour)
+
+	// Cycle de vie des images (MediaAsset) : réconciliation avec les tables
+	// métier (attache / détache) puis purge des orphelins expirés (objet
+	// storage + ligne DB). Premier passage au démarrage (rattrapage).
+	mediaStore := supastorage.New(cfg.SupabaseURL, cfg.SupabaseServiceRoleKey)
+	mediaAssetsSvc := mediaassets.NewService(pool)
+	mediaAssetsSvc.SetQuotaBytes(cfg.MediaQuotaBytesPerUser)
+	mediaInterval := time.Duration(cfg.MediaLifecycleIntervalMinutes) * time.Minute
+	mediaGrace := time.Duration(cfg.MediaSoftDeleteGraceDays) * 24 * time.Hour
+	go workers.RunMediaLifecycle(ctx, pool, mediaAssetsSvc, mediaStore, mediaInterval, mediaGrace)
 
 	// Publication automatique des articles programmés (SCHEDULED → PUBLISHED) :
 	// bascule + fanout asynq (webhooks, newsletter, embedding, search), toutes

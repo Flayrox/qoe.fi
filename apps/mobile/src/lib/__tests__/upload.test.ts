@@ -27,6 +27,7 @@ vi.mock('../supabase', () => ({
 import {
   toPublicImageUrl,
   extFromMime,
+  sanitizePathSegment,
   uploadProfileImage,
   MAX_UPLOAD_BYTES,
   IMAGES_CDN,
@@ -59,6 +60,15 @@ describe('mobile upload & CDN utilities', () => {
       const input = 'https://test-project.supabase.co/storage/v1/object/public/pic.jpg';
       expect(toPublicImageUrl(input)).toBe(input);
     });
+
+    it('tolerates trailing slash in supabaseUrl', () => {
+      mocks.env.supabaseUrl = 'https://test-project.supabase.co/';
+      const input =
+        'https://test-project.supabase.co/storage/v1/object/public/articles-media/a.webp';
+      expect(toPublicImageUrl(input)).toBe(
+        `${IMAGES_CDN}/storage/v1/object/public/articles-media/a.webp`
+      );
+    });
   });
 
   describe('extFromMime', () => {
@@ -76,6 +86,25 @@ describe('mobile upload & CDN utilities', () => {
       expect(extFromMime(null)).toBe('jpg');
       expect(extFromMime(undefined)).toBe('jpg');
       expect(extFromMime('')).toBe('jpg');
+    });
+
+    it('falls back to jpg for composed or non-image MIME types', () => {
+      expect(extFromMime('image/svg+xml')).toBe('jpg');
+      expect(extFromMime('application/octet-stream')).toBe('jpg');
+      expect(extFromMime('text/html')).toBe('jpg');
+    });
+  });
+
+  describe('sanitizePathSegment', () => {
+    it('keeps healthy segments', () => {
+      expect(sanitizePathSegment('usr_123')).toBe('usr_123');
+    });
+
+    it('neutralizes traversal', () => {
+      const clean = sanitizePathSegment('../../etc');
+      expect(clean).not.toContain('/');
+      expect(clean).not.toContain('..');
+      expect(sanitizePathSegment('')).toBe('shared');
     });
   });
 
@@ -169,6 +198,30 @@ describe('mobile upload & CDN utilities', () => {
       await expect(uploadProfileImage(pickedImage, 'banners', 'usr_456')).rejects.toThrow(
         "Échec de l'upload de l'image : Bucket quota exceeded"
       );
+    });
+
+    it('sanitizes hostile ownerId in storage path', async () => {
+      mocks.upload.mockResolvedValue({ error: null });
+      mocks.getPublicUrl.mockReturnValue({
+        data: {
+          publicUrl:
+            'https://test-project.supabase.co/storage/v1/object/public/articles-media/avatars/x/pic.png',
+        },
+      });
+
+      await uploadProfileImage(
+        { uri: 'file:///local/a.png', mimeType: 'image/png', fileSize: 100 },
+        'avatars',
+        '../../evil'
+      );
+
+      expect(mocks.upload).toHaveBeenCalledWith(
+        expect.stringMatching(/^avatars\/[^/]+\/\d+-[a-z0-9]+\.png$/),
+        expect.any(Blob),
+        expect.anything()
+      );
+      const usedPath: string = mocks.upload.mock.calls[0][0];
+      expect(usedPath).not.toContain('..');
     });
   });
 });

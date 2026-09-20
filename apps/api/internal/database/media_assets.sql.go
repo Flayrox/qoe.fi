@@ -11,6 +11,41 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const attachMediaAssetsByUrls = `-- name: AttachMediaAssetsByUrls :many
+UPDATE "MediaAsset"
+SET status = 'ATTACHED', "attachedToId" = NULLIF($1, ''), "purgeDueAt" = NULL, "deletedAt" = NULL, "updatedAt" = now()
+WHERE url = ANY($2::text[]) AND status IN ('DRAFT_ORPHAN', 'SOFT_DELETED')
+RETURNING id
+`
+
+type AttachMediaAssetsByUrlsParams struct {
+	Column1 interface{} `json:"column_1"`
+	Column2 []string    `json:"column_2"`
+}
+
+// Marque ATTACHED les assets référencés par les tables métier (couvertures,
+// avatars, bannières, promos…). Ne touche jamais un asset PURGED (objet déjà
+// supprimé du storage) : celui-ci sera ré-uploadé via réactivation CAS.
+func (q *Queries) AttachMediaAssetsByUrls(ctx context.Context, arg AttachMediaAssetsByUrlsParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, attachMediaAssetsByUrls, arg.Column1, arg.Column2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		items = append(items, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const createMediaAsset = `-- name: CreateMediaAsset :one
 INSERT INTO "MediaAsset" (id, sha256, url, "storagePath", bucket, "mimeType", width, height,
                           "sizeBytes", blurhash, "isNsfw", "isSensitive", "safetyScores",
@@ -118,6 +153,78 @@ func (q *Queries) GetMediaAssetBySha256(ctx context.Context, sha256 string) (Med
 	return i, err
 }
 
+const listPurgeableMediaAssets = `-- name: ListPurgeableMediaAssets :many
+SELECT id, url, "storagePath", bucket, status FROM "MediaAsset"
+WHERE status IN ('DRAFT_ORPHAN', 'SOFT_DELETED') AND "purgeDueAt" < now()
+ORDER BY "purgeDueAt" ASC
+LIMIT $1
+`
+
+type ListPurgeableMediaAssetsRow struct {
+	ID          string           `json:"id"`
+	Url         string           `json:"url"`
+	StoragePath string           `json:"storagePath"`
+	Bucket      string           `json:"bucket"`
+	Status      MediaAssetStatus `json:"status"`
+}
+
+// Orphelins expirés (jamais attachés) + détachés au-delà de la grâce.
+func (q *Queries) ListPurgeableMediaAssets(ctx context.Context, limit int32) ([]ListPurgeableMediaAssetsRow, error) {
+	rows, err := q.db.Query(ctx, listPurgeableMediaAssets, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListPurgeableMediaAssetsRow{}
+	for rows.Next() {
+		var i ListPurgeableMediaAssetsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Url,
+			&i.StoragePath,
+			&i.Bucket,
+			&i.Status,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const markMediaAssetPurged = `-- name: MarkMediaAssetPurged :exec
+UPDATE "MediaAsset"
+SET status = 'PURGED', "purgeDueAt" = NULL, "deletedAt" = now(), "updatedAt" = now()
+WHERE id = $1
+`
+
+// Purge définitive : l'objet storage a été supprimé (ou était déjà absent).
+func (q *Queries) MarkMediaAssetPurged(ctx context.Context, id string) error {
+	_, err := q.db.Exec(ctx, markMediaAssetPurged, id)
+	return err
+}
+
+const ownerMediaUsage = `-- name: OwnerMediaUsage :one
+SELECT COALESCE(SUM("sizeBytes"), 0)::bigint AS "totalBytes", COUNT(*)::bigint AS "assetCount"
+FROM "MediaAsset" WHERE "ownerId" = $1 AND status <> 'PURGED'
+`
+
+type OwnerMediaUsageRow struct {
+	TotalBytes int64 `json:"totalBytes"`
+	AssetCount int64 `json:"assetCount"`
+}
+
+// Volume et nombre d'assets non purgés d'un utilisateur (quota de stockage).
+func (q *Queries) OwnerMediaUsage(ctx context.Context, ownerid string) (OwnerMediaUsageRow, error) {
+	row := q.db.QueryRow(ctx, ownerMediaUsage, ownerid)
+	var i OwnerMediaUsageRow
+	err := row.Scan(&i.TotalBytes, &i.AssetCount)
+	return i, err
+}
+
 const reactivateMediaAsset = `-- name: ReactivateMediaAsset :one
 UPDATE "MediaAsset"
 SET status = 'DRAFT_ORPHAN', "purgeDueAt" = now() + interval '3 days', "deletedAt" = NULL, "updatedAt" = now()
@@ -154,4 +261,50 @@ func (q *Queries) ReactivateMediaAsset(ctx context.Context, id string) (MediaAss
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const softDeleteDetachedMediaAssets = `-- name: SoftDeleteDetachedMediaAssets :many
+UPDATE "MediaAsset"
+SET status = 'SOFT_DELETED', "purgeDueAt" = $2, "updatedAt" = now()
+WHERE status = 'ATTACHED' AND NOT (url = ANY($1::text[]))
+RETURNING id, url, "storagePath", bucket
+`
+
+type SoftDeleteDetachedMediaAssetsParams struct {
+	Column1    []string         `json:"column_1"`
+	PurgeDueAt pgtype.Timestamp `json:"purgeDueAt"`
+}
+
+type SoftDeleteDetachedMediaAssetsRow struct {
+	ID          string `json:"id"`
+	Url         string `json:"url"`
+	StoragePath string `json:"storagePath"`
+	Bucket      string `json:"bucket"`
+}
+
+// Détache les assets ATTACHED qui ne sont plus référencés nulle part
+// (image remplacée ou ligne métier supprimée) : grâce de $2 avant purge.
+func (q *Queries) SoftDeleteDetachedMediaAssets(ctx context.Context, arg SoftDeleteDetachedMediaAssetsParams) ([]SoftDeleteDetachedMediaAssetsRow, error) {
+	rows, err := q.db.Query(ctx, softDeleteDetachedMediaAssets, arg.Column1, arg.PurgeDueAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []SoftDeleteDetachedMediaAssetsRow{}
+	for rows.Next() {
+		var i SoftDeleteDetachedMediaAssetsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Url,
+			&i.StoragePath,
+			&i.Bucket,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/modules/mediaassets"
 	"github.com/qoefi/api/internal/response"
@@ -35,6 +37,13 @@ var allowedMediaTypes = map[string]string{
 func (h *Handler) WithMediaUpload(storage *supastorage.Client, assets *mediaassets.Service) *Handler {
 	h.mediaStorage = storage
 	h.mediaAssets = assets
+	return h
+}
+
+// WithMediaCDNBase fixe l'origine CDN publique des URLs retournées
+// (ex: https://cdn.qoe.fi). Vide = URL Supabase brute.
+func (h *Handler) WithMediaCDNBase(base string) *Handler {
+	h.mediaCDNBase = base
 	return h
 }
 
@@ -103,18 +112,42 @@ func (h *Handler) apiMediaUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Chemin serveur, jamais client : creator/{userID}/{timestamp}-{hash}.{ext}.
+	// Dédoublonnage CAS AVANT upload : un contenu déjà connu est réutilisé
+	// sans pousser un nouvel objet au storage (anti-saturation du bucket —
+	// le path unique timestampé ci-dessous créerait sinon un doublon).
 	sum := sha256.Sum256(data)
 	hexSum := hex.EncodeToString(sum[:])
+	ctx := r.Context()
+	if existing, err := h.mediaAssets.GetBySha256(ctx, hexSum); err == nil {
+		response.Created(w, map[string]any{
+			"id":          existing.ID,
+			"url":         existing.Url,
+			"sha256":      hexSum,
+			"storagePath": existing.StoragePath,
+			"mimeType":    existing.MimeType,
+			"sizeBytes":   existing.SizeBytes,
+			"targetType":  string(existing.TargetType),
+			"deduped":     true,
+		})
+		return
+	} else if !errors.Is(err, pgx.ErrNoRows) {
+		log.Printf("[creator] media dedup: %v", err)
+		response.Internal(w)
+		return
+	}
+
+	// Chemin serveur, jamais client : creator/{userID}/{timestamp}-{hash}.{ext}.
 	path := fmt.Sprintf("creator/%s/%d-%s.%s", userID, time.Now().UnixMilli(), hexSum[:12], ext)
 
-	ctx := r.Context()
 	url, err := h.mediaStorage.Upload(ctx, "articles-media", path, contentType, bytes.NewReader(data))
 	if err != nil {
 		log.Printf("[creator] media upload: %v", err)
 		response.Error(w, http.StatusBadGateway, "Échec de l'upload vers le stockage")
 		return
 	}
+	// Réécriture CDN : les consommateurs reçoivent l'URL publique canonique,
+	// identique à celle des routes d'upload Next.js.
+	url = h.mediaStorage.PublicURL("articles-media", path, h.mediaCDNBase)
 
 	asset, err := h.mediaAssets.RegisterAsset(ctx, userID, mediaassets.RegisterInput{
 		Sha256:      hexSum,
