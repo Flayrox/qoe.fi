@@ -75,6 +75,7 @@ func (h *Handler) RegisterPublic(r chi.Router) {
 	r.Get("/v1/posts/{id}/reposts", h.reposts)
 	r.Get("/v1/posts/{id}/quotes", h.quotes)
 	r.Get("/v1/posts/{id}/can-reply", h.canReply)
+	r.Get("/v1/seo/sitemap-thoughts", h.sitemapThoughts)
 }
 
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
@@ -400,4 +401,20 @@ func (h *Handler) canReply(w http.ResponseWriter, r *http.Request) {
 		"reason":      res.Reason,
 		"restriction": res.Restriction,
 	})
+}
+
+// sitemapThoughts — catalogue SEO slim paginé (GET /v1/seo/sitemap-thoughts).
+// Public, sans auth : {items: [{id, authorUsername, updatedAt}], total,
+// limit, offset}. Consommé par l'index de sitemaps (shards de 1000).
+func (h *Handler) sitemapThoughts(w http.ResponseWriter, r *http.Request) {
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+
+	result, err := h.svc.SitemapThoughts(r.Context(), limit, offset)
+	if err != nil {
+		log.Printf("[posts] sitemapThoughts: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, result)
 }

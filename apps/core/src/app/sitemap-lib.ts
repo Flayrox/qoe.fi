@@ -1,5 +1,5 @@
 // =====================================================================
-// 🗺️ sitemap-lib — Index de sitemaps shardé (apps/core, qoe.fi)
+// 🗺️ sitemap-lib — Index de sitemaps shardé (apps/core, qoefi)
 // =====================================================================
 // Couverture "catalogue complet" (chaque article publié est listé, même à
 // des milliers, comme les tweets) : l'API Go expose un catalogue SEO slim
@@ -49,6 +49,15 @@ interface SitemapCatalog {
   total: number;
 }
 
+interface SitemapThoughts {
+  items: Array<{ id: string; authorUsername: string; updatedAt?: string }>;
+  total: number;
+}
+
+interface SitemapLegal {
+  items: Array<{ slug: string }>;
+}
+
 interface ApiSuggestedCreator {
   username?: string | null;
 }
@@ -67,6 +76,66 @@ export async function articleShardCount(): Promise<number> {
   }
 }
 
+export async function thoughtShardCount(): Promise<number> {
+  try {
+    const res = await fetchPublic<SitemapThoughts>('/v1/seo/sitemap-thoughts?limit=1&offset=0');
+    const total = res && typeof res.total === 'number' ? res.total : 0;
+    return Math.min(Math.max(Math.ceil(total / SHARD_SIZE), 1), MAX_SHARDS);
+  } catch {
+    return 1;
+  }
+}
+
+export async function legalUrls(): Promise<
+  Array<{ loc: string; lastmod: string; changefreq: string; priority: string }>
+> {
+  const base = siteBaseUrl();
+  const now = new Date().toISOString();
+  const urls = [{ loc: `${base}/legal`, lastmod: now, changefreq: 'monthly', priority: '0.5' }];
+  try {
+    const res = await fetchPublic<SitemapLegal>('/v1/legal');
+    if (res?.items && Array.isArray(res.items)) {
+      for (const doc of res.items) {
+        if (doc.slug) {
+          urls.push({
+            loc: `${base}/legal/${encodeURIComponent(doc.slug)}`,
+            lastmod: now,
+            changefreq: 'monthly',
+            priority: '0.5',
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[sitemap] legal:', err);
+  }
+  return urls;
+}
+
+export async function thoughtUrls(
+  offset: number,
+  limit: number
+): Promise<Array<{ loc: string; lastmod: string; changefreq: string; priority: string }>> {
+  const base = siteBaseUrl();
+  try {
+    const res = await fetchPublic<SitemapThoughts>(
+      `/v1/seo/sitemap-thoughts?limit=${limit}&offset=${offset}`
+    );
+    if (!res?.items || !Array.isArray(res.items)) return [];
+    return res.items
+      .filter((t) => Boolean(t.id) && Boolean(t.authorUsername))
+      .map((t) => ({
+        loc: `${base}/${encodeURIComponent(t.authorUsername)}/thought/${encodeURIComponent(t.id)}`,
+        lastmod: t.updatedAt || new Date().toISOString(),
+        changefreq: 'weekly',
+        priority: '0.6',
+      }));
+  } catch (err) {
+    console.error('[sitemap] thoughts shard:', err);
+    return [];
+  }
+}
+
 export function staticUrls(): Array<{
   loc: string;
   lastmod: string;
@@ -78,7 +147,6 @@ export function staticUrls(): Array<{
   return [
     { loc: `${base}/home`, lastmod: now, changefreq: 'daily', priority: '1.0' },
     { loc: `${base}/search`, lastmod: now, changefreq: 'weekly', priority: '0.7' },
-    { loc: `${base}/starter-packs`, lastmod: now, changefreq: 'weekly', priority: '0.6' },
   ];
 }
 

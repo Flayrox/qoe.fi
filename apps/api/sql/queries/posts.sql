@@ -231,3 +231,40 @@ WHERE "muterId" = $1 AND "mutedId" = $2;
 INSERT INTO "ModerationReport" (id, "reporterId", "targetId", "targetType", "reason", "details", "createdAt", "updatedAt")
 VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, now(), now())
 RETURNING id;
+
+-- name: ListSitemapPosts :many
+-- Catalogue SEO slim des pensées (index de sitemaps) : id + auteur +
+-- date de MAJ, SANS contenu. Règle éditoriale : originaux + réponses +
+-- citations (repost avec commentaire ou article cité) ; reposts purs
+-- exclus (repostId + contenu vide = doublon sans valeur SEO).
+-- Visibilité : public, non brouillon, non supprimé, auteur ni shadowban
+-- ni suspendu, programmé passé. Tri stable pour pagination par offset.
+SELECT p.id,
+       u.username AS author_username,
+       p."updatedAt" AS "updatedAt"
+FROM "Post" p
+JOIN "User" u ON u.id = p."authorId"
+WHERE p."isDraft" = false
+  AND p."deletedAt" IS NULL
+  AND p.visibility = 'public'
+  AND p."contentVisibility" = 'PUBLIC'
+  AND u."isShadowbanned" = false
+  AND u."isSuspended" = false
+  AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
+  AND NOT (p."repostId" IS NOT NULL AND TRIM(p.content) = '')
+ORDER BY p."createdAt" DESC, p.id DESC
+LIMIT $1 OFFSET $2;
+
+-- name: CountSitemapPosts :one
+-- Total de pensées indexables (dimensionne les shards du sitemap index).
+SELECT COUNT(*)::bigint AS total
+FROM "Post" p
+JOIN "User" u ON u.id = p."authorId"
+WHERE p."isDraft" = false
+  AND p."deletedAt" IS NULL
+  AND p.visibility = 'public'
+  AND p."contentVisibility" = 'PUBLIC'
+  AND u."isShadowbanned" = false
+  AND u."isSuspended" = false
+  AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
+  AND NOT (p."repostId" IS NOT NULL AND TRIM(p.content) = '');

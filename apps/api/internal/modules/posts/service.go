@@ -305,6 +305,60 @@ func (s *Service) applyPostVector(ctx context.Context, postID, userID string, it
 	_ = vectorfeed.ApplyInteraction(ctx, s.pool, userID, vec, it)
 }
 
+// SitemapThought est une entrée slim du catalogue SEO (sitemap index) :
+// id + auteur + date de MAJ, sans contenu.
+type SitemapThought struct {
+	ID             string `json:"id"`
+	AuthorUsername string `json:"authorUsername"`
+	UpdatedAt      string `json:"updatedAt"`
+}
+
+// SitemapThoughtsResult pagine le catalogue (total stable pendant la page).
+type SitemapThoughtsResult struct {
+	Items  []SitemapThought `json:"items"`
+	Total  int64            `json:"total"`
+	Limit  int              `json:"limit"`
+	Offset int              `json:"offset"`
+}
+
+// maxSitemapLimit borne une page du catalogue SEO (shard de sitemap).
+const maxSitemapLimit = 1000
+
+// SitemapThoughts retourne les pensées indexables paginées (endpoint SEO
+// public : originaux + réponses + citations, reposts purs exclus).
+func (s *Service) SitemapThoughts(ctx context.Context, limit, offset int) (SitemapThoughtsResult, error) {
+	if limit <= 0 || limit > maxSitemapLimit {
+		limit = maxSitemapLimit
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	total, err := s.q.CountSitemapPosts(ctx)
+	if err != nil {
+		return SitemapThoughtsResult{}, err
+	}
+	rows, err := s.q.ListSitemapPosts(ctx, db.ListSitemapPostsParams{
+		Limit:  int32(limit),
+		Offset: int32(offset),
+	})
+	if err != nil {
+		return SitemapThoughtsResult{}, err
+	}
+	items := make([]SitemapThought, 0, len(rows))
+	for _, r := range rows {
+		updated := ""
+		if r.UpdatedAt.Valid {
+			updated = r.UpdatedAt.Time.Format("2006-01-02T15:04:05Z07:00")
+		}
+		items = append(items, SitemapThought{
+			ID:             r.ID,
+			AuthorUsername: r.AuthorUsername.String,
+			UpdatedAt:      updated,
+		})
+	}
+	return SitemapThoughtsResult{Items: items, Total: total, Limit: limit, Offset: offset}, nil
+}
+
 // ToggleRepost ajoute ou retire un repost pur, avec mise à jour du compteur.
 func (s *Service) ToggleRepost(ctx context.Context, postID, userID string) (bool, error) {
 	canonicalID, err := s.q.GetCanonicalThoughtID(ctx, postID)
