@@ -45,6 +45,28 @@ func (q *Queries) CountPureReposts(ctx context.Context, arg CountPureRepostsPara
 	return count, err
 }
 
+const countSitemapPosts = `-- name: CountSitemapPosts :one
+SELECT COUNT(*)::bigint AS total
+FROM "Post" p
+JOIN "User" u ON u.id = p."authorId"
+WHERE p."isDraft" = false
+  AND p."deletedAt" IS NULL
+  AND p.visibility = 'public'
+  AND p."contentVisibility" = 'PUBLIC'
+  AND u."isShadowbanned" = false
+  AND u."isSuspended" = false
+  AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
+  AND NOT (p."repostId" IS NOT NULL AND TRIM(p.content) = '')
+`
+
+// Total de pensées indexables (dimensionne les shards du sitemap index).
+func (q *Queries) CountSitemapPosts(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countSitemapPosts)
+	var total int64
+	err := row.Scan(&total)
+	return total, err
+}
+
 const createModerationReport = `-- name: CreateModerationReport :one
 INSERT INTO "ModerationReport" (id, "reporterId", "targetId", "targetType", "reason", "details", "createdAt", "updatedAt")
 VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, now(), now())
@@ -713,6 +735,61 @@ func (q *Queries) ListRepostsForPost(ctx context.Context, arg ListRepostsForPost
 			&i.UserCertified,
 			&i.RepostedAt,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSitemapPosts = `-- name: ListSitemapPosts :many
+SELECT p.id,
+       u.username AS author_username,
+       p."updatedAt" AS "updatedAt"
+FROM "Post" p
+JOIN "User" u ON u.id = p."authorId"
+WHERE p."isDraft" = false
+  AND p."deletedAt" IS NULL
+  AND p.visibility = 'public'
+  AND p."contentVisibility" = 'PUBLIC'
+  AND u."isShadowbanned" = false
+  AND u."isSuspended" = false
+  AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
+  AND NOT (p."repostId" IS NOT NULL AND TRIM(p.content) = '')
+ORDER BY p."createdAt" DESC, p.id DESC
+LIMIT $1 OFFSET $2
+`
+
+type ListSitemapPostsParams struct {
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+type ListSitemapPostsRow struct {
+	ID             string           `json:"id"`
+	AuthorUsername pgtype.Text      `json:"author_username"`
+	UpdatedAt      pgtype.Timestamp `json:"updatedAt"`
+}
+
+// Catalogue SEO slim des pensées (index de sitemaps) : id + auteur +
+// date de MAJ, SANS contenu. Règle éditoriale : originaux + réponses +
+// citations (repost avec commentaire ou article cité) ; reposts purs
+// exclus (repostId + contenu vide = doublon sans valeur SEO).
+// Visibilité : public, non brouillon, non supprimé, auteur ni shadowban
+// ni suspendu, programmé passé. Tri stable pour pagination par offset.
+func (q *Queries) ListSitemapPosts(ctx context.Context, arg ListSitemapPostsParams) ([]ListSitemapPostsRow, error) {
+	rows, err := q.db.Query(ctx, listSitemapPosts, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSitemapPostsRow{}
+	for rows.Next() {
+		var i ListSitemapPostsRow
+		if err := rows.Scan(&i.ID, &i.AuthorUsername, &i.UpdatedAt); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
