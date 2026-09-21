@@ -755,7 +755,6 @@ func unaccent(r rune) rune {
 // reset.
 var WipeTables = []string{
 	"PollVote", "PollOption", "Poll",
-	"StarterPackItem", "StarterPack",
 	"NotificationDelivery", "NotificationPreference", "Notification",
 	"AnnotationUpvote", "AnnotationComment", "Highlight",
 	"ArticleComment",
@@ -1926,7 +1925,7 @@ func RunTopUmami(ctx context.Context, umamiPool *pgxpool.Pool, res *TopResult, o
 					VALUES ($1, $2, $3, $4, $5, $6, $7, 1, 'pageview', $8, $1)`,
 					uuid.NewSHA1(uuid.NameSpaceDNS, []byte(fmt.Sprintf("umami-ev-%d-%d-%d", day, s, v))).String(),
 					site.id, sessionID, created.Add(time.Duration(v)*time.Minute), path,
-					prngPick(rng, referrers), "qoe.fi — lecture souveraine", site.domain); err != nil {
+					prngPick(rng, referrers), "qoefi — lecture souveraine", site.domain); err != nil {
 					return fmt.Errorf("umami event: %w", err)
 				}
 				events++

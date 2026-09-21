@@ -262,9 +262,9 @@ apps/mobile/src/
 ### `@qoe/db` — Source de vérité des données
 - **`prisma/schema.prisma`** : schéma unique (modèles User, Publication,
   Article, Thought, Like, Follow, Subscriber, Notification, Highlight,
-  Poll, StarterPack, MediaMember, Wallet…).
+  Poll, MediaMember, Wallet…).
 - `src/repositories/*` : accès typé (posts, articles, follows, bookmarks,
-  notifications, highlights, polls, threadgates, starterPacks, wallet…).
+  notifications, highlights, polls, threadgates, wallet…).
 - `src/client.ts` : singleton Prisma. `src/index.ts` : re-exports.
 - **Relation** : consommé par les server actions (`@qoe/sdk/actions/*`)
   et les workers TS. Le backend Go a son **propre** mapping SQL (sqlc,
@@ -277,7 +277,7 @@ apps/mobile/src/
   `useInfiniteFeed`). ⚠️ N'expose **pas** les server actions.
 - **`actions/*`** : server actions Next (`'use server'`), proxy Go quand
   Go est actif. Organisées par domaine (feed, articles, auth, search,
-  notifications, tenant, admin, dashboard, highlights, starterPacks, polls,
+  notifications, tenant, admin, dashboard, highlights, polls,
   threadgates).
 - **`hooks/*`** : hooks React Query. Deux familles :
   - *Optimistes classiques* (`useOptimisticLike/Repost/Bookmark/Follow`) :

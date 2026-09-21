@@ -1,5 +1,5 @@
 // =====================================================================
-// 🗺️ REGISTRE DE ROUTES TYPE-SAFE — qoe.fi (Silicon Valley Standard)
+// 🗺️ REGISTRE DE ROUTES TYPE-SAFE — qoefi (Silicon Valley Standard)
 // =====================================================================
 // 📖 Permet de construire TOUTES les URLs du monorepo sans aucune
 //    chaîne de caractères hardcodée.
@@ -41,13 +41,10 @@ export const routes = {
       }
       return `/article/${encodeURIComponent(ownerOrSlug)}`;
     },
-    post: (id: string) => `/post/${encodeURIComponent(id)}`,
     thought: (username: string, id: string) =>
       `/${encodeURIComponent(username.replace(/^@/, ''))}/thought/${encodeURIComponent(id)}`,
     notifications: () => '/notifications',
     search: () => '/search',
-    starterPacks: () => '/starter-packs',
-    starterPack: (id: string) => `/starter-packs/${encodeURIComponent(id)}`,
   },
 
   /** 🎨 Creator Studio App (`apps/studio`) */

@@ -16,6 +16,7 @@ import (
 // every protected domain mounted by the production router. The requests stop
 // in middleware, so no fixture data is required for this matrix.
 func TestP0ProtectedRoutesRequireAuthentication(t *testing.T) {
+	requirePool(t)
 	r := testRouter(t)
 
 	tests := []struct {
@@ -39,7 +40,6 @@ func TestP0ProtectedRoutesRequireAuthentication(t *testing.T) {
 		{"media workspaces", http.MethodGet, "/v1/media/workspaces"},
 		{"imports articles", http.MethodPost, "/v1/import/articles"},
 		{"collaborations list", http.MethodGet, "/v1/collaborations/"},
-		{"starter packs create", http.MethodPost, "/v1/starter-packs"},
 		{"media assets register", http.MethodPost, "/v1/media-assets"},
 		{"devtools data", http.MethodGet, "/v1/devtools/data"},
 		{"admin dashboard", http.MethodGet, "/v1/admin/dashboard"},
@@ -66,6 +66,7 @@ func TestP0ProtectedRoutesRequireAuthentication(t *testing.T) {
 }
 
 func TestP0PublicValidationContracts(t *testing.T) {
+	requirePool(t)
 	r := testRouter(t)
 
 	tests := []struct {
@@ -86,7 +87,6 @@ func TestP0PublicValidationContracts(t *testing.T) {
 		{"feed hydrate invalid json", http.MethodPost, "/v1/feed/hydrate", rawJSONBody("not-json"), http.StatusBadRequest},
 		{"article missing publication", http.MethodGet, "/v1/articles/missing?publicationId=missing", nil, http.StatusNotFound},
 		{"publication missing domain", http.MethodGet, "/v1/publications/by-domain/missing-domain", nil, http.StatusNotFound},
-		{"starter pack missing", http.MethodGet, "/v1/starter-packs/missing", nil, http.StatusNotFound},
 	}
 
 	for _, tt := range tests {
@@ -103,6 +103,7 @@ func TestP0PublicValidationContracts(t *testing.T) {
 }
 
 func TestP0SeededPublicArticleContract(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedArticles(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -133,6 +134,7 @@ func TestP0SeededPublicArticleContract(t *testing.T) {
 }
 
 func TestP0SeededTenantPublicationContract(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedSettings(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed settings: %v", err)

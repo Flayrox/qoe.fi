@@ -50,7 +50,6 @@
 
 - **Messagerie directe (DMs)** — le tab Messages mobile est un **stub** (aucun appel API) ; le web n'a rien ; **aucun module conversations dans l'API Go**. Feature complète à construire (backend temps réel — Supabase Realtime déjà en place —, chiffrement annoncé dans le header du stub, UI web + mobile). ⚠️ le client mobile affiche déjà « messagerie privée et discussions chiffrées » en promesse.
 - **Billing mobile** — web a `/billing` ; mobile : rien. Décision produit requise : Apple IAP vs Stripe (le web utilise quoi ? vérifier).
-- **Starter-packs mobile** — web a `/starter-packs` ; mobile : rien. Priorité basse.
 - **Web : sélection de langue** — mobile a `/settings/language` (fr/en persistée) ; le web n'a aucun sélecteur de langue alors que l'i18n est complet (713 clés).
 - **Web : sessions multi-comptes** — mobile a `/settings/accounts` (switch, ajout, retrait) ; pas d'équivalent web.
 - **Hardening OTA** — alertes de rollback automatique (slack/webhook), surveillance du healthz `updates.qoe.fi`, logs serveur structurés (JSON).

@@ -63,11 +63,6 @@ export function AppSidebar({
       badge: !isOnMessagesPage && unreadMessages > 0 ? unreadMessages : undefined,
     },
     {
-      title: t`Starter Packs`,
-      url: routes.feed.starterPacks(),
-      iconName: 'Compass',
-    },
-    {
       title: t`Bibliothèque`,
       url: routes.feed.library(),
       iconName: 'Bookmark',
@@ -97,7 +92,7 @@ export function AppSidebar({
     <Sidebar
       items={menuItems}
       logo={<Logo className="h-5 w-auto" fillColor="#EE4B2B" />}
-      brandName="qoe.fi"
+      brandName="qoefi"
       userName={userName}
       userEmail={userEmail}
       userFallback={userFallback}

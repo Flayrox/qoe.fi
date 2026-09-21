@@ -82,6 +82,8 @@ type Querier interface {
 	// le coût Sharp + modération + storage, multi-instance safe).
 	CountRecentUploads(ctx context.Context, arg CountRecentUploadsParams) (int64, error)
 	CountRecommendationsByPublication(ctx context.Context, recommenderid string) (int64, error)
+	// Total de pensées indexables (dimensionne les shards du sitemap index).
+	CountSitemapPosts(ctx context.Context) (int64, error)
 	CountSubscribersByPublication(ctx context.Context, publicationid string) (int64, error)
 	// Nombre de conversations avec au moins un message non lu (badge tab).
 	// Les messages que l'on a SOI-MÊME envoyés ne comptent jamais comme non-lus ;
@@ -108,7 +110,6 @@ type Querier interface {
 	CreatePersonalPublication(ctx context.Context, arg CreatePersonalPublicationParams) (string, error)
 	CreatePoll(ctx context.Context, arg CreatePollParams) (CreatePollRow, error)
 	CreatePollOption(ctx context.Context, arg CreatePollOptionParams) (string, error)
-	CreateStarterPack(ctx context.Context, arg CreateStarterPackParams) (StarterPack, error)
 	CreateThought(ctx context.Context, arg CreateThoughtParams) (CreateThoughtRow, error)
 	CreateWalletTransaction(ctx context.Context, arg CreateWalletTransactionParams) (string, error)
 	CreateWebhook(ctx context.Context, arg CreateWebhookParams) (CreateWebhookRow, error)
@@ -164,7 +165,6 @@ type Querier interface {
 	FindTrending(ctx context.Context, arg FindTrendingParams) ([]FindTrendingRow, error)
 	FinishArticleImportJob(ctx context.Context, arg FinishArticleImportJobParams) error
 	FinishNewsletterIssue(ctx context.Context, arg FinishNewsletterIssueParams) (string, error)
-	FollowPublications(ctx context.Context, arg FollowPublicationsParams) (int32, error)
 	GetActiveSubscribersByPublication(ctx context.Context, arg GetActiveSubscribersByPublicationParams) ([]GetActiveSubscribersByPublicationRow, error)
 	GetActiveSubscriptionForReply(ctx context.Context, arg GetActiveSubscriptionForReplyParams) (int32, error)
 	GetActiveWebhooksByPublication(ctx context.Context, arg GetActiveWebhooksByPublicationParams) ([]GetActiveWebhooksByPublicationRow, error)
@@ -316,7 +316,6 @@ type Querier interface {
 	GetReplyIDsForThought(ctx context.Context, parentid pgtype.Text) ([]string, error)
 	// Notifications REPLY / MENTION
 	GetReplyPrefs(ctx context.Context, userid pgtype.UUID) (GetReplyPrefsRow, error)
-	GetStarterPackByID(ctx context.Context, id string) (GetStarterPackByIDRow, error)
 	// Contexte complet pour les emails transactionnels (bienvenue) :
 	// locale de l'abonné + personnalisation de la publication.
 	GetSubscriberEmailContext(ctx context.Context, arg GetSubscriberEmailContextParams) (GetSubscriberEmailContextRow, error)
@@ -448,7 +447,6 @@ type Querier interface {
 	InsertReplyNotification(ctx context.Context, arg InsertReplyNotificationParams) error
 	InsertRepostNotification(ctx context.Context, arg InsertRepostNotificationParams) error
 	InsertSocialLink(ctx context.Context, arg InsertSocialLinkParams) error
-	InsertStarterPackItem(ctx context.Context, arg InsertStarterPackItemParams) error
 	InsertWebhookDeliveryResult(ctx context.Context, arg InsertWebhookDeliveryResultParams) error
 	IsActiveMediaMember(ctx context.Context, arg IsActiveMediaMemberParams) (bool, error)
 	// Preuve d'acceptation agrégée par document : combien d'utilisateurs ont
@@ -602,9 +600,14 @@ type Querier interface {
 	// programmé passé). Tri stable par date décroissante pour une pagination
 	// par offset déterministe.
 	ListSitemapArticles(ctx context.Context, arg ListSitemapArticlesParams) ([]ListSitemapArticlesRow, error)
+	// Catalogue SEO slim des pensées (index de sitemaps) : id + auteur +
+	// date de MAJ, SANS contenu. Règle éditoriale : originaux + réponses +
+	// citations (repost avec commentaire ou article cité) ; reposts purs
+	// exclus (repostId + contenu vide = doublon sans valeur SEO).
+	// Visibilité : public, non brouillon, non supprimé, auteur ni shadowban
+	// ni suspendu, programmé passé. Tri stable pour pagination par offset.
+	ListSitemapPosts(ctx context.Context, arg ListSitemapPostsParams) ([]ListSitemapPostsRow, error)
 	ListSocialLinksForPublication(ctx context.Context, publicationid string) ([]ListSocialLinksForPublicationRow, error)
-	ListStarterPackItems(ctx context.Context, starterpackid string) ([]ListStarterPackItemsRow, error)
-	ListStarterPacks(ctx context.Context, arg ListStarterPacksParams) ([]ListStarterPacksRow, error)
 	ListSubscribers(ctx context.Context, publicationid string) ([]ListSubscribersRow, error)
 	ListSubscribersByPublication(ctx context.Context, arg ListSubscribersByPublicationParams) ([]ListSubscribersByPublicationRow, error)
 	// ── Feature Flags / Config / Frontend / Translations ────────────────────────

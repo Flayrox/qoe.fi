@@ -27,7 +27,6 @@
 | **Historique de lecture**                                                                      | `/history` — **`GET /v1/me/reading-history`**                                              | ❌ **absent**                                                                                                                             | ❌ **manque mobile**                                    |
 | **Onboarding**                                                                                 | `/onboarding` complet (setup profil, suggestions)                                          | ❌ **absent** (inscription → app directe)                                                                                                 | ❌ **manque mobile**                                    |
 | **Billing / abonnements**                                                                      | `/billing`                                                                                 | ❌ absent                                                                                                                                 | ❌ **manque mobile** (décision IAP vs Stripe)           |
-| **Starter-packs**                                                                              | `/starter-packs` (+ `[id]`)                                                                | ❌ absent                                                                                                                                 | ❌ manque mobile (basse priorité)                       |
 | **Sessions multi-comptes**                                                                     | ❌ absent                                                                                  | `settings/accounts.tsx` (switch/ajout/retrait)                                                                                            | ❌ **manque web**                                       |
 | **Langue (fr/en)**                                                                             | ❌ aucun sélecteur (i18n pourtant complet : 713 clés)                                      | `settings/language.tsx` persistée                                                                                                         | ❌ **manque web**                                       |
 | **Messages (DMs)**                                                                             | ❌ rien                                                                                    | tab `messages` = **stub** (0 appel API — « messagerie chiffrée » annoncée mais non construite) ; aucun module conversations dans l'API Go | ❌ **manque partout** (feature complète à créer)        |
@@ -59,7 +58,6 @@
 7. **Billing mobile** — décision produit IAP vs Stripe.
 8. **Web : sélecteur de langue** — petit, i18n déjà complet.
 9. **Web : sessions multi-comptes** — portage du pattern mobile.
-10. **Starter-packs mobile** — parité low-cost après P0.
 
 ---
 
