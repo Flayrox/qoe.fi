@@ -22,6 +22,7 @@ func newHTTPRouter() http.Handler {
 }
 
 func TestHomePublicEndpoints(t *testing.T) {
+	requirePool(t)
 	if _, err := testutil.SeedPosts(context.Background(), poolTest); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
@@ -58,6 +59,7 @@ func TestHomePublicEndpoints(t *testing.T) {
 // TestHomeGlobalAnnouncement vérifie que l'annonce globale est servie par
 // l'API Go : active → payload, inactive/malformée → null (pas de 500).
 func TestHomeGlobalAnnouncement(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	if _, err := poolTest.Exec(ctx, `DELETE FROM "SystemConfig" WHERE key = 'GLOBAL_ANNOUNCEMENT'`); err != nil {
 		t.Fatalf("nettoyage annonce: %v", err)

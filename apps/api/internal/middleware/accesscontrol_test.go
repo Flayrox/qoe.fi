@@ -11,6 +11,7 @@ import (
 )
 
 func TestAccessControl_DefaultOpen(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	cleanupAccessControlConfig(t, ctx)
 	defer cleanupAccessControlConfig(t, ctx)
@@ -26,6 +27,7 @@ func TestAccessControl_DefaultOpen(t *testing.T) {
 }
 
 func TestAccessControl_KillSwitch(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	cleanupAccessControlConfig(t, ctx)
 	defer cleanupAccessControlConfig(t, ctx)
@@ -51,6 +53,7 @@ func TestAccessControl_KillSwitch(t *testing.T) {
 }
 
 func TestAccessControl_DisabledEndpoints(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	cleanupAccessControlConfig(t, ctx)
 	defer cleanupAccessControlConfig(t, ctx)
@@ -80,6 +83,7 @@ func TestAccessControl_DisabledEndpoints(t *testing.T) {
 }
 
 func TestEndpointDisabled(t *testing.T) {
+	requirePool(t)
 	prefixes := []string{"/v1/articles", "/v1/webhooks"}
 	cases := []struct {
 		path string

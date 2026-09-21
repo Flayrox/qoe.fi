@@ -41,8 +41,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const isFr = lang === 'fr';
 
   const title = isFr
-    ? 'qoe.fi — L’infrastructure pour les créateurs et médias indépendants'
-    : 'qoe.fi — The Independent Creator & Media Platform';
+    ? 'qoefi — L’infrastructure pour les créateurs et médias indépendants'
+    : 'qoefi — The Independent Creator & Media Platform';
 
   const description = isFr
     ? 'Lancez votre publication, monétisez sans intermédiaire et développez votre lectorat sur une infrastructure européenne ouverte.'
@@ -52,10 +52,10 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: new URL(landingUrl),
     title: {
       default: title,
-      template: '%s | qoe.fi',
+      template: '%s | qoefi',
     },
     description,
-    applicationName: 'qoe.fi',
+    applicationName: 'qoefi',
     alternates: {
       canonical: landingUrl,
       languages: {
@@ -80,7 +80,7 @@ export async function generateMetadata(): Promise<Metadata> {
       locale: isFr ? 'fr_FR' : 'en_US',
       alternateLocale: isFr ? ['en_US'] : ['fr_FR'],
       url: landingUrl,
-      siteName: 'qoe.fi',
+      siteName: 'qoefi',
       title,
       description,
     },

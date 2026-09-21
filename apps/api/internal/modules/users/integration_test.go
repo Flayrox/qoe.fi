@@ -44,6 +44,7 @@ const (
 )
 
 func seedMe(t *testing.T) {
+	requirePool(t)
 	t.Helper()
 	requirePool(t)
 	ctx := context.Background()

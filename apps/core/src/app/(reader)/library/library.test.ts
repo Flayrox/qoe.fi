@@ -288,7 +288,7 @@ describe('Library Helpers (Bibliothèque 2026)', () => {
         },
       };
       const formatted = formatQuoteForClipboard(hWithoutPub);
-      expect(formatted).toContain('Qoe.fi');
+      expect(formatted).toContain('Qoefi');
     });
   });
 
@@ -297,7 +297,7 @@ describe('Library Helpers (Bibliothèque 2026)', () => {
       const fakeDate = new Date('2026-09-09T12:00:00Z');
       const md = generateHighlightsMarkdown(mockHighlights, fakeDate);
 
-      expect(md).toContain('# 📚 Bibliothèque de Surlignages — Qoe.fi');
+      expect(md).toContain('# 📚 Bibliothèque de Surlignages — Qoefi');
       expect(md).toContain('## 📖 Éloge de la Lenteur et de l’Attention');
       expect(md).toContain('*Source : Éditions Minuit*');
       expect(md).toContain(

@@ -321,7 +321,7 @@ export default async function TenantHomepage({ params }: PageProps) {
                 href="https://qoe.fi"
                 className="underline hover:text-[var(--tenant-accent)] transition-colors"
               >
-                qoe.fi
+                qoefi
               </Link>
             </div>
           </div>

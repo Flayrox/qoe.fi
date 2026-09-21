@@ -19,6 +19,7 @@ func (f *fakeUmamiCreator) CreateWebsite(_ context.Context, name, domain string)
 // un websiteId (ne doivent pas être touchées) et d'autres non (à provisionner).
 // prefix rend les IDs uniques par test (les tests partagent le même pool DB).
 func seedPublicationsWithoutUmami(t *testing.T, prefix string) (withoutID1, withoutID2, withID string) {
+	requirePool(t)
 	t.Helper()
 	ctx := context.Background()
 

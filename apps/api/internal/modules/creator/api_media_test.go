@@ -26,6 +26,7 @@ var pngMagic = []byte("\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x
 var jpegMagic = []byte("\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00")
 
 func TestCreatorAPI_MediaUpload(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	fx, err := testutil.SeedPosts(ctx, poolTest)
 	if err != nil {
@@ -152,6 +153,7 @@ func TestCreatorAPI_MediaUpload(t *testing.T) {
 }
 
 func TestCreatorAPI_MediaUpload_Unconfigured(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	fx, err := testutil.SeedPosts(ctx, poolTest)
 	if err != nil {

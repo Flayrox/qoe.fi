@@ -25,11 +25,11 @@ export function ApiStatus() {
 
   let label: string;
   if (isPending) {
-    label = 'API qoe.fi · connexion…';
+    label = 'API qoefi · connexion…';
   } else if (isError) {
-    label = 'API qoe.fi · indisponible';
+    label = 'API qoefi · indisponible';
   } else {
-    label = 'API qoe.fi · connectée';
+    label = 'API qoefi · connectée';
   }
 
   return (

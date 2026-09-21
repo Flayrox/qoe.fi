@@ -30,6 +30,7 @@ func (f *moderationFaultQ) CountModerationReportsByStatus(ctx context.Context) (
 }
 
 func TestModerationSuperadminGuard(t *testing.T) {
+	requirePool(t)
 	seedAdmin(t, context.Background())
 	svc := &Service{pool: poolTest, q: db.New(poolTest)}
 
@@ -47,6 +48,7 @@ func TestModerationSuperadminGuard(t *testing.T) {
 }
 
 func TestResolveReportInvalidAction(t *testing.T) {
+	requirePool(t)
 	seedAdmin(t, context.Background())
 	svc := &Service{pool: poolTest, q: &moderationFaultQ{Queries: db.New(poolTest)}}
 
@@ -57,6 +59,7 @@ func TestResolveReportInvalidAction(t *testing.T) {
 }
 
 func TestModeration500Branches(t *testing.T) {
+	requirePool(t)
 	seedAdmin(t, context.Background())
 	svc := &Service{pool: poolTest, q: &moderationFaultQ{Queries: db.New(poolTest), err: errors.New("boom")}}
 	r := chi.NewRouter()

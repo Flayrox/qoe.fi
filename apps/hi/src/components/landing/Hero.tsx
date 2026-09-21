@@ -371,7 +371,7 @@ function PlateauPreview({ onClose, showChrome, autoClickDot, config, locale }: P
           transition={{ duration: 0.2, delay: 0.05 }}
           className="ml-2 text-[9px] text-muted-foreground select-none"
         >
-          qoe.fi — Plateau
+          qoefi — Plateau
         </motion.span>
       </motion.div>
 
@@ -475,7 +475,7 @@ function PlateauPreview({ onClose, showChrome, autoClickDot, config, locale }: P
             <div className="w-full h-full bg-white rounded-[24px] flex flex-col overflow-hidden">
               <div className="px-5 pt-4 pb-3 border-b border-border shrink-0">
                 <p className="text-[9px] text-[#EE4B2B] font-semibold tracking-widest uppercase">
-                  {t`qoe.fi — Lecture`}
+                  {t`qoefi — Lecture`}
                 </p>
               </div>
               <div className="relative flex-1 overflow-hidden">

@@ -106,7 +106,7 @@ function MockDashboard() {
             q
           </div>
           <span className="font-sans text-sm font-semibold tracking-tight text-foreground">
-            qoe.fi
+            qoefi
           </span>
           <span className="text-[9px] uppercase tracking-wider bg-muted text-muted-foreground font-bold px-1.5 py-0.5 rounded">
             Console
@@ -316,12 +316,12 @@ export function OnboardingWizard({
           {/* Left Side: Instant Setup */}
           <BentoItem active={true} flexBasisActive="58%" innerClassName="bg-white text-foreground">
             <div className="w-full h-full flex flex-col justify-between p-8 md:p-12 relative min-h-[500px]">
-              {/* Top qoe.fi signature */}
+              {/* Top qoefi signature */}
               <div className="flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-2">
                   <span className="w-2.5 h-2.5 rounded-full bg-[#EE4B2B] animate-pulse" />
                   <span className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground">
-                    qoe.fi · Studio Setup
+                    qoefi · Studio Setup
                   </span>
                 </div>
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">

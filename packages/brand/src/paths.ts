@@ -12,7 +12,7 @@ export interface SvgGeometry {
 }
 
 /**
- * 🏷️ Logos officiels de la marque qoe.fi
+ * 🏷️ Logos officiels de la marque qoefi
  */
 export const BRAND_LOGOS = {
   /**
@@ -27,7 +27,7 @@ export const BRAND_LOGOS = {
   },
 
   /**
-   * Logo Typographique complet (wordmark qoe.fi).
+   * Logo Typographique complet (wordmark qoefi).
    * Utilisé dans les headers d'application (Web & Mobile), marketing, splash.
    */
   wordmark: {

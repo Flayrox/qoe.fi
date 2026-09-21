@@ -58,6 +58,7 @@ func (f faultQ) UpdateHighlight(ctx context.Context, arg db.UpdateHighlightParam
 // TestHandler500Branches : chaque route du handler renvoie 500 quand le
 // service échoue sur une erreur générique.
 func TestHandler500Branches(t *testing.T) {
+	requirePool(t)
 	svc := &Service{pool: poolTest, q: faultQ{err: errors.New("boom")}}
 	r := newRouterFor(svc)
 

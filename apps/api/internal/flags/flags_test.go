@@ -18,15 +18,27 @@ import (
 var poolTest *pgxpool.Pool
 
 func TestMain(m *testing.M) {
-	p, err := testutil.Pool(context.Background())
+	p, err := testutil.TryPool(context.Background())
 	if err != nil {
-		log.Fatalf("testcontainers: %v", err)
+		log.Printf("testcontainers indisponible, tests DB skippes: %v", err)
+		poolTest = nil
+	} else {
+		poolTest = p
 	}
-	poolTest = p
 	code := m.Run()
-	testutil.Cleanup()
+	if poolTest != nil {
+		testutil.Cleanup()
+	}
 	os.Exit(code)
 }
+// requirePool skippe les tests DB quand Docker/testcontainers est absent.
+func requirePool(t *testing.T) {
+	t.Helper()
+	if poolTest == nil {
+		t.Skip("DB indisponible (Docker/testcontainers requis)")
+	}
+}
+
 
 func setFlag(t *testing.T, ctx context.Context, key string, enabled bool) {
 	t.Helper()
@@ -48,6 +60,7 @@ func resetFlagsTable(t *testing.T, ctx context.Context) {
 // TestDefaults_TableAbsent vérifie la dégradation gracieuse : aucune ligne
 // (ou table vidée) → les défauts du registre s'appliquent, zéro crash.
 func TestDefaults_TableEmpty(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	resetFlagsTable(t, ctx)
 	defer resetFlagsTable(t, ctx)
@@ -69,6 +82,7 @@ func TestDefaults_TableEmpty(t *testing.T) {
 // TestOverrides_FromTable vérifie que la table feature_flags (pilotée par la
 // console admin / @qoe/flags) surcharge les défauts — l'unification UI + Go.
 func TestOverrides_FromTable(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	resetFlagsTable(t, ctx)
 	defer resetFlagsTable(t, ctx)
@@ -92,6 +106,7 @@ func TestOverrides_FromTable(t *testing.T) {
 // TestCacheTTL vérifie que le cache TTL est respecté : une bascule console est
 // vue après expiration, pas avant.
 func TestCacheTTL(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	resetFlagsTable(t, ctx)
 	defer resetFlagsTable(t, ctx)
@@ -113,6 +128,7 @@ func TestCacheTTL(t *testing.T) {
 
 // TestHandler_GetFlags vérifie GET /v1/flags (public, JSON de tous les flags).
 func TestHandler_GetFlags(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	resetFlagsTable(t, ctx)
 	defer resetFlagsTable(t, ctx)
@@ -145,6 +161,7 @@ func TestHandler_GetFlags(t *testing.T) {
 // header X-Flags-Signature (HMAC sur `ts + "." + body brut`), vérifiable
 // octet-pour-octet par un widget, avec rejet de toute altération/rejeu.
 func TestHandler_GetFlags_Signed(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	resetFlagsTable(t, ctx)
 	defer resetFlagsTable(t, ctx)

@@ -48,6 +48,7 @@ func doH(t *testing.T, r *chi.Mux, method, path, body string) *httptest.Response
 }
 
 func TestHandlerArticles_UpdateReview(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	fx := seed(t)
 	_ = ctx // seed est rejouable
@@ -79,6 +80,7 @@ func TestHandlerArticles_UpdateReview(t *testing.T) {
 }
 
 func TestHandlerArticles_SimilarAndComments(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	fx := seed(t)
 	reader := seedReader(t, ctx)

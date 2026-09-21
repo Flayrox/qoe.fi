@@ -79,7 +79,7 @@ export const Footer = async ({ config, locale }: FooterProps) => {
   // Get copyright from config or use default
   const copyrightText =
     config?.['footer_copyright'] ||
-    `© 2024 QOE.FI. Crafted for the curious minds in the European creator economy.`;
+    `© 2024 QOEFI. Crafted for the curious minds in the European creator economy.`;
 
   // Get sections based on active language
   const customSectionsJson =
@@ -107,7 +107,7 @@ export const Footer = async ({ config, locale }: FooterProps) => {
             href="/"
             className="font-display text-2xl font-medium tracking-tight text-foreground"
           >
-            QOE.FI
+            QOEFI
           </Link>
           <p className="font-body text-xs text-muted-foreground leading-relaxed max-w-[250px] whitespace-pre-wrap">
             {copyrightText}

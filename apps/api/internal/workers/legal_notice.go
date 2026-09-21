@@ -169,7 +169,7 @@ func buildLegalNoticeEmail(ctx context.Context, q *db.Queries, item db.ClaimLega
     récupérables pendant la période de rétention prévue par notre politique de confidentialité.
   </p>
   <p style="margin-top:24px;font-size:12px;color:#a1a1aa;">
-    Cet e-mail est un message de service envoyé par qoe.fi : il informe d&apos;un changement de
+    Cet e-mail est un message de service envoyé par qoefi : il informe d&apos;un changement de
     conditions et ne peut pas être désabonné.
   </p>
 </div>`, greeting, title, version, changeBlock, link)
@@ -178,7 +178,7 @@ func buildLegalNoticeEmail(ctx context.Context, q *db.Queries, item db.ClaimLega
 	msg := EmailMessage{
 		From:    from,
 		To:      item.Email,
-		Subject: fmt.Sprintf("%s : nouvelle version (%s) — qoe.fi", notice.Title, subjectVersion),
+		Subject: fmt.Sprintf("%s : nouvelle version (%s) — qoefi", notice.Title, subjectVersion),
 		HTML:    htmlBody,
 	}
 	return msg, nil

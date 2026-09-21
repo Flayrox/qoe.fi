@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: { params: Promise<{ username:
   const rawUsername = decodeURIComponent(resolvedParams.username).replace(/^@/, '');
 
   if (STATIC_ASSET_REGEX.test(rawUsername) || RESERVED_USERNAMES.has(rawUsername)) {
-    return { title: isFr ? 'Profil introuvable — qoe.fi' : 'Profile not found — qoe.fi' };
+    return { title: isFr ? 'Profil introuvable — qoefi' : 'Profile not found — qoefi' };
   }
 
   try {
@@ -42,11 +42,11 @@ export async function generateMetadata({ params }: { params: Promise<{ username:
     const appUrl = (process.env.NEXT_PUBLIC_APP_URL || 'https://qoe.fi').replace(/\/$/, '');
     const canonicalUrl = `${appUrl}/${encodeURIComponent(profile.slug || rawUsername)}`;
     const defaultDesc = isFr
-      ? `Profil créateur de ${profile.name || `@${profile.slug}`} sur qoe.fi.`
-      : `Creator profile of ${profile.name || `@${profile.slug}`} on qoe.fi.`;
+      ? `Profil créateur de ${profile.name || `@${profile.slug}`} sur qoefi.`
+      : `Creator profile of ${profile.name || `@${profile.slug}`} on qoefi.`;
 
     return {
-      title: `${profile.name || `@${profile.slug}`} (@${profile.slug}) — qoe.fi`,
+      title: `${profile.name || `@${profile.slug}`} (@${profile.slug}) — qoefi`,
       description: profile.heroText || defaultDesc,
       alternates: {
         canonical: canonicalUrl,
@@ -55,8 +55,8 @@ export async function generateMetadata({ params }: { params: Promise<{ username:
         type: 'profile',
         locale: isFr ? 'fr_FR' : 'en_US',
         title: isFr
-          ? `${profile.name || `@${profile.slug}`} sur qoe.fi`
-          : `${profile.name || `@${profile.slug}`} on qoe.fi`,
+          ? `${profile.name || `@${profile.slug}`} sur qoefi`
+          : `${profile.name || `@${profile.slug}`} on qoefi`,
         description: profile.heroText || defaultDesc,
         url: canonicalUrl,
         images: profile.logoUrl ? [{ url: profile.logoUrl }] : [],
@@ -64,14 +64,14 @@ export async function generateMetadata({ params }: { params: Promise<{ username:
       twitter: {
         card: 'summary',
         title: isFr
-          ? `${profile.name || `@${profile.slug}`} sur qoe.fi`
-          : `${profile.name || `@${profile.slug}`} on qoe.fi`,
+          ? `${profile.name || `@${profile.slug}`} sur qoefi`
+          : `${profile.name || `@${profile.slug}`} on qoefi`,
         description: profile.heroText || defaultDesc,
         images: profile.logoUrl ? [profile.logoUrl] : [],
       },
     };
   } catch {
-    return { title: isFr ? 'Profil introuvable — qoe.fi' : 'Profile not found — qoe.fi' };
+    return { title: isFr ? 'Profil introuvable — qoefi' : 'Profile not found — qoefi' };
   }
 }
 

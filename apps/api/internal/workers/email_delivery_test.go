@@ -23,6 +23,7 @@ func (s *stubEmailProvider) Send(_ context.Context, m EmailMessage) error {
 
 // seedEmailDeliveryFixtures pose 2 users, 1 notification et 1 livraison QUEUED.
 func seedEmailDeliveryFixtures(t *testing.T, deliveryID, notifType string) {
+	requirePool(t)
 	t.Helper()
 	ctx := context.Background()
 	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE "NotificationDelivery", "Notification", "User" CASCADE`); err != nil {
@@ -67,7 +68,7 @@ func TestEmailDelivery_DrainSendsAndMarksSent(t *testing.T) {
 	if len(stub.sent) != 1 || stub.sent[0].To != "reader@test.dev" {
 		t.Fatalf("messages envoyés: %+v", stub.sent)
 	}
-	if stub.sent[0].Subject == "" || !strings.Contains(stub.sent[0].Subject, "qoe.fi") {
+	if stub.sent[0].Subject == "" || !strings.Contains(stub.sent[0].Subject, "qoefi") {
 		t.Errorf("sujet inattendu: %q", stub.sent[0].Subject)
 	}
 

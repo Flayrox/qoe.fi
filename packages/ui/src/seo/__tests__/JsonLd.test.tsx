@@ -24,7 +24,7 @@ describe('🛡️ SEO JsonLd Component & Builders', () => {
   });
 
   it('rend un élément script application/ld+json valide', () => {
-    const data = { '@context': 'https://schema.org', '@type': 'WebSite', name: 'qoe.fi' };
+    const data = { '@context': 'https://schema.org', '@type': 'WebSite', name: 'qoefi' };
     const { container } = render(<JsonLd data={data} />);
     const script = container.querySelector('script[type="application/ld+json"]');
     expect(script).toBeTruthy();
@@ -71,7 +71,7 @@ describe('🛡️ SEO JsonLd Component & Builders', () => {
 
   it('génère un schéma WebSite conforme', () => {
     const schema = buildWebSiteSchema({
-      name: 'qoe.fi',
+      name: 'qoefi',
       url: 'https://qoe.fi',
       description: 'Plateforme indépendante de publication et de lecture',
     });

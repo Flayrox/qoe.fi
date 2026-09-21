@@ -23,6 +23,7 @@ import (
 // seedWelcomeFixture crée une publication + un abonné CONFIRMÉ (éventuellement
 // avec réglages email et locale).
 func seedWelcomeFixture(t *testing.T, ctx context.Context, email, locale, emailSettings string) (string, string) {
+	requirePool(t)
 	t.Helper()
 	pool := testutil.MustPool(t)
 

@@ -24,6 +24,7 @@ func faultRouter(fq *faultQ, fp *faultPool) *chi.Mux {
 
 // seedCategory insère une catégorie appartenant à la publication alice.
 func seedCategory(t *testing.T, pubID string) string {
+	requirePool(t)
 	t.Helper()
 	var id string
 	if err := poolTest.QueryRow(context.Background(),
@@ -36,6 +37,7 @@ func seedCategory(t *testing.T, pubID string) string {
 }
 
 func TestFault_Handlers_QueryErrors(t *testing.T) {
+	requirePool(t)
 	alicePubID, aliceUserID, _, bobUserID := seedFollows(t)
 	catID := seedCategory(t, alicePubID)
 
@@ -74,6 +76,7 @@ func TestFault_Handlers_QueryErrors(t *testing.T) {
 }
 
 func TestFault_Handlers_PoolErrors(t *testing.T) {
+	requirePool(t)
 	// userByUsername : publication introuvable (ErrNoRows) puis fallback
 	// pool.QueryRow en erreur → 404 (l'erreur pool n'écrase pas le NoRows).
 	r := faultRouter(

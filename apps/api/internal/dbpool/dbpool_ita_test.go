@@ -11,10 +11,13 @@ import (
 // vérifie que New configure correctement le pool : DSN résolu, taille de pool
 // appliquée, mode PgBouncer-compatible et Ping effectif.
 func TestNew_Success(t *testing.T) {
-	ctx := context.Background()
-
 	// Harnais partagé : monte un conteneur pgvector ephemere.
-	p := testutil.MustPool(t)
+	// TryPool (jamais de panic) : sans Docker, skip propre.
+	p, err := testutil.TryPool(context.Background())
+	if err != nil || p == nil {
+		t.Skip("DB indisponible (Docker/testcontainers requis)")
+	}
+	ctx := context.Background()
 
 	dsn := p.Config().ConnString()
 	if dsn == "" {

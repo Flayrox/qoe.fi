@@ -9,6 +9,7 @@ import (
 // seedReviewReminderFixture prépare une revue en retard, son brouillon et un
 // rappel QUEUED pour le superadmin.
 func seedReviewReminderFixture(t *testing.T, stage, reminderID string) {
+	requirePool(t)
 	t.Helper()
 	ctx := context.Background()
 	if _, err := poolTest.Exec(ctx,

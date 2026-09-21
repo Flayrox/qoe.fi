@@ -581,8 +581,8 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
     let suffix = 'lvh.me';
     if (hostname.endsWith('qoe.test')) {
       suffix = 'qoe.test';
-    } else if (hostname.endsWith('qoe.fi')) {
-      suffix = 'qoe.fi';
+    } else if (hostname.endsWith('qoefi')) {
+      suffix = 'qoefi';
     } else if (hostname.endsWith('lvh.me')) {
       suffix = 'lvh.me';
     }
@@ -658,7 +658,7 @@ export function DevtoolsPanel({ actions }: { actions: DevtoolsActions }) {
           {/* Header */}
           <div className="apple-header">
             <div className="flex items-center gap-2">
-              <span className="apple-header-title">qoe.fi dev</span>
+              <span className="apple-header-title">qoefi dev</span>
               <span className="apple-badge">{screenSize}</span>
             </div>
 

@@ -305,7 +305,7 @@ export function ArticleCard({
   }
 
   const articleUrl = getArticleUrl(article, { preferTenant: true });
-  const authorHandle = article.author.username || article.author.subdomain || 'qoe.fi';
+  const authorHandle = article.author.username || article.author.subdomain || 'qoefi';
   const explicitContributors = (article.author.contributors || [])
     .filter(
       (contributor) =>

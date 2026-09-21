@@ -9,6 +9,7 @@ import (
 // seedLegalNoticeFixtures prépare un document publié, un avis et une livraison
 // QUEUED pour son destinataire.
 func seedLegalNoticeFixtures(t *testing.T, deliveryID string) {
+	requirePool(t)
 	t.Helper()
 	ctx := context.Background()
 	if _, err := poolTest.Exec(ctx,

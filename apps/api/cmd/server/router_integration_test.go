@@ -27,15 +27,27 @@ const routerSecret = "router-test-secret-0123456789"
 var poolTest *pgxpool.Pool
 
 func TestMain(m *testing.M) {
-	p, err := testutil.Pool(context.Background())
+	p, err := testutil.TryPool(context.Background())
 	if err != nil {
-		log.Fatalf("testcontainers: %v", err)
+		log.Printf("testcontainers indisponible, tests DB skippes: %v", err)
+		poolTest = nil
+	} else {
+		poolTest = p
 	}
-	poolTest = p
 	code := m.Run()
-	testutil.Cleanup()
+	if poolTest != nil {
+		testutil.Cleanup()
+	}
 	os.Exit(code)
 }
+// requirePool skippe les tests DB quand Docker/testcontainers est absent.
+func requirePool(t *testing.T) {
+	t.Helper()
+	if poolTest == nil {
+		t.Skip("DB indisponible (Docker/testcontainers requis)")
+	}
+}
+
 
 // testRouter assemble le routeur de PRODUCTION (newRouter) avec la vraie DB.
 func testRouter(t *testing.T) *chi.Mux {
@@ -116,6 +128,7 @@ func doReq(t *testing.T, r http.Handler, method, path, token string, body any) (
 // ─── Smoke : assemblage complet du routeur ────────────────────────────
 
 func TestRouter_Healthz(t *testing.T) {
+	requirePool(t)
 	r := testRouter(t)
 
 	for _, path := range []string{"/healthz", "/health"} {
@@ -130,6 +143,7 @@ func TestRouter_Healthz(t *testing.T) {
 }
 
 func TestRouter_OAuthDiscovery(t *testing.T) {
+	requirePool(t)
 	r := testRouter(t)
 
 	w, body := doReq(t, r, "GET", "/.well-known/openid-configuration", "", nil)
@@ -150,6 +164,7 @@ func TestRouter_OAuthDiscovery(t *testing.T) {
 }
 
 func TestRouter_SearchPublic(t *testing.T) {
+	requirePool(t)
 	r := testRouter(t)
 
 	// /search/articles est public (parité Hono) — Meili absent → 500, mais la
@@ -161,6 +176,7 @@ func TestRouter_SearchPublic(t *testing.T) {
 }
 
 func TestRouter_CreatorRoute_NoAuth_401(t *testing.T) {
+	requirePool(t)
 	r := testRouter(t)
 
 	w, _ := doReq(t, r, "GET", "/v1/articles", "", nil)
@@ -170,6 +186,7 @@ func TestRouter_CreatorRoute_NoAuth_401(t *testing.T) {
 }
 
 func TestRouter_FullCreatorFlow(t *testing.T) {
+	requirePool(t)
 	// Seed : publication + auteur.
 	fx, err := testutil.SeedArticles(context.Background(), poolTest)
 	if err != nil {
@@ -245,6 +262,7 @@ func TestRouter_FullCreatorFlow(t *testing.T) {
 // "User" en base) : POST /v1/me/sync crée la ligne depuis les claims, puis
 // GET /v1/me répond 200 (le profil existe désormais).
 func TestRouter_DemoLogin_SyncThenMe(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	// Nouvel id JWT de démo, sans ligne User en base.
 	demoID := "00000000-0000-0000-0000-0000000000ee"
@@ -289,6 +307,7 @@ func TestRouter_DemoLogin_SyncThenMe(t *testing.T) {
 // absente, puis 200 après avoir été rejoué par le middleware AutoRepairReaderUser
 // (qui recrée la ligne depuis les claims JWT) — sans appel explicite à /v1/me/sync.
 func TestRouter_ReaderEndpointAutoRepair(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	demoID := "00000000-0000-0000-0000-0000000000ef"
 	if _, err := poolTest.Exec(ctx, `DELETE FROM "User" WHERE id::text = $1`, demoID); err != nil {
@@ -319,6 +338,7 @@ func TestRouter_ReaderEndpointAutoRepair(t *testing.T) {
 }
 
 func TestRouter_DevtoolsDevSecretAuth(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	// Préparer un superadmin en base pour le chemin JWT.
 	superID := "12345678-1234-1234-1234-123456789012"
@@ -392,6 +412,7 @@ func TestRouter_DevtoolsDevSecretAuth(t *testing.T) {
 }
 
 func TestRouter_APIKey_CreatorMode(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedArticles(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)

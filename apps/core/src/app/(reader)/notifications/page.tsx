@@ -1,8 +1,8 @@
 import { NotificationList } from '@qoe/ui/notifications';
 
 export const metadata = {
-  title: 'Notifications | qoe.fi',
-  description: 'Consultez vos notifications, réponses, mentions et réactions en direct sur qoe.fi.',
+  title: 'Notifications | qoefi',
+  description: 'Consultez vos notifications, réponses, mentions et réactions en direct sur qoefi.',
 };
 
 export default function NotificationsPage() {

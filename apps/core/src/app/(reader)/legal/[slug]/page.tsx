@@ -39,13 +39,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!doc) return { title: 'Document introuvable' };
 
   return {
-    title: `${doc.title} | qoe.fi`,
+    title: `${doc.title} | qoefi`,
     description: doc.summary,
     alternates: { canonical: `https://qoe.fi/legal/${doc.slug}` },
     robots: { index: true, follow: true },
     openGraph: {
       type: 'article',
-      title: `${doc.title} — qoe.fi`,
+      title: `${doc.title} — qoefi`,
       description: doc.summary,
       url: `https://qoe.fi/legal/${doc.slug}`,
       modifiedTime: doc.updatedAt,
@@ -83,7 +83,7 @@ export default async function LegalDocumentPage({ params }: PageProps) {
     version: doc.version,
     dateModified: doc.updatedAt,
     datePublished: doc.publishedAt,
-    isPartOf: { '@type': 'WebSite', name: 'qoe.fi', url: 'https://qoe.fi' },
+    isPartOf: { '@type': 'WebSite', name: 'qoefi', url: 'https://qoe.fi' },
   };
 
   return (

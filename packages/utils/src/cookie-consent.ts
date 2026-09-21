@@ -20,7 +20,7 @@
 //   - chaque décision est journalisée côté serveur, y compris pour un
 //     visiteur sans compte.
 //
-// Partagé par toutes les apps (site public qoe.fi, blogs des créateurs) :
+// Partagé par toutes les apps (site public qoefi, blogs des créateurs) :
 // une seule politique, un seul format de cookie, donc une seule preuve.
 //
 // Ce module reste PUR (aucun accès navigateur) : il est relu côté serveur par
@@ -161,8 +161,8 @@ export const COOKIE_CATEGORIES: readonly CookieCategoryMeta[] = [
     key: 'marketing',
     label: { fr: 'Publicité et réseaux sociaux', en: 'Advertising and social' },
     description: {
-      fr: 'qoe.fi ne diffuse aujourd’hui aucune publicité comportementale et n’intègre aucun bouton de suivi social : rien n’est déposé dans cette catégorie. Elle est conservée parce qu’un tel traceur exigerait, lui, un consentement préalable — ce qu’un registre sans cette catégorie rendrait invisible.',
-      en: 'qoe.fi currently runs no behavioural advertising and embeds no social tracking button: nothing is set in this category. It is kept because such a tracker would require prior consent — something a registry without this category would hide.',
+      fr: 'qoefi ne diffuse aujourd’hui aucune publicité comportementale et n’intègre aucun bouton de suivi social : rien n’est déposé dans cette catégorie. Elle est conservée parce qu’un tel traceur exigerait, lui, un consentement préalable — ce qu’un registre sans cette catégorie rendrait invisible.',
+      en: 'qoefi currently runs no behavioural advertising and embeds no social tracking button: nothing is set in this category. It is kept because such a tracker would require prior consent — something a registry without this category would hide.',
     },
     locked: false,
     consentRequired: true,
@@ -174,7 +174,7 @@ export const COOKIE_CATEGORIES: readonly CookieCategoryMeta[] = [
 export interface TrackerEntry {
   /** Identifiant technique (cookie, clé de stockage ou script). */
   name: string;
-  /** Qui le dépose : qoe.fi, un sous-traitant, ou un tiers. */
+  /** Qui le dépose : qoefi, un sous-traitant, ou un tiers. */
   provider: string;
   category: CookieCategory;
   purpose: LocalizedText;
@@ -218,7 +218,7 @@ export const TRACKER_REGISTRY: readonly TrackerEntry[] = [
   },
   {
     name: 'qoe_cookie_consent',
-    provider: 'qoe.fi',
+    provider: 'qoefi',
     category: 'necessary',
     firstParty: true,
     consentRequired: false,
@@ -231,7 +231,7 @@ export const TRACKER_REGISTRY: readonly TrackerEntry[] = [
   },
   {
     name: 'qoe.theme / qoe.locale',
-    provider: 'qoe.fi',
+    provider: 'qoefi',
     category: 'functional',
     firstParty: true,
     consentRequired: false,
@@ -279,7 +279,7 @@ export interface CookieConsentChoice {
   analytics: boolean;
   /** Préférences fonctionnelles (langue, confort de lecture…). */
   functional: boolean;
-  /** Publicité : aucune par défaut, la finalité n'existe pas chez qoe.fi. */
+  /** Publicité : aucune par défaut, la finalité n'existe pas chez qoefi. */
   marketing: boolean;
   decidedAt: string;
 }

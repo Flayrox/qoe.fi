@@ -18,6 +18,7 @@ func countNotifications(t *testing.T, recipientID, senderID, kind, thoughtID str
 }
 
 func TestNotifications_MentionAndReply(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	ctx := context.Background()
@@ -41,6 +42,7 @@ func TestNotifications_MentionAndReply(t *testing.T) {
 }
 
 func TestNotifications_SelfLikeNoNotification(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	ctx := context.Background()
@@ -55,6 +57,7 @@ func TestNotifications_SelfLikeNoNotification(t *testing.T) {
 }
 
 func TestNotifications_NoMentionEarlyReturn(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	ctx := context.Background()

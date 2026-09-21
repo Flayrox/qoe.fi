@@ -46,6 +46,7 @@ func getT(t *testing.T, r *chi.Mux, path string) *httptest.ResponseRecorder {
 }
 
 func TestHandler_Track(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	userID, articleID, _, _, err := seedTracking(ctx, poolTest)
 	if err != nil {
@@ -69,6 +70,7 @@ func TestHandler_Track(t *testing.T) {
 }
 
 func TestHandler_TrackAnonymous(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	_, articleID, _, _, err := seedTracking(ctx, poolTest)
 	if err != nil {
@@ -82,6 +84,7 @@ func TestHandler_TrackAnonymous(t *testing.T) {
 }
 
 func TestHandler_FeedImpression(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	userID, _, _, _, err := seedTracking(ctx, poolTest)
 	if err != nil {
@@ -98,6 +101,7 @@ func TestHandler_FeedImpression(t *testing.T) {
 }
 
 func TestHandler_ShowLessMore(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	userID, articleID, postID, _, err := seedTracking(ctx, poolTest)
 	if err != nil {
@@ -136,6 +140,7 @@ func TestHandler_ShowLessMore(t *testing.T) {
 }
 
 func TestHandler_ReadingHistory(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	userID, articleID, _, _, err := seedTracking(ctx, poolTest)
 	if err != nil {

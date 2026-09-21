@@ -38,6 +38,7 @@ func doKeys(r http.Handler, method, path, userID, body string) *httptest.Respons
 }
 
 func TestApiKeyLifecycle(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedOAuth(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed oauth: %v", err)
@@ -122,6 +123,7 @@ func TestApiKeyLifecycle(t *testing.T) {
 // Rotation : même id, nouveau secret ; l'ancienne clé est immédiatement
 // invalide (auth par hash), les autres utilisateurs ne peuvent pas rotater.
 func TestApiKeyRotation(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	fx, err := testutil.SeedOAuth(ctx, poolTest)
 	if err != nil {

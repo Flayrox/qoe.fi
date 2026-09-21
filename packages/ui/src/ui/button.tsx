@@ -1,5 +1,5 @@
 // =====================================================================
-// 🔘 Button — source unique du design system qoe.fi (base-ui)
+// 🔘 Button — source unique du design system qoefi (base-ui)
 // =====================================================================
 // Implémentation unique du bouton, partagée par toutes les apps via :
 //   import { Button } from '@qoe/ui/button';

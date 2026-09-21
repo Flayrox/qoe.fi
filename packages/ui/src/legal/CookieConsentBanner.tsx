@@ -74,7 +74,7 @@ const COPY = {
     thirdParty: 'Tiers',
     exemptBadge: 'Dispensée de consentement',
     exemptIntro:
-      'La mesure d’audience est anonyme et sans cookie : aucune de ces catégories ne vous demande d’accord préalable. Vous gardez toutefois le droit de vous opposer à la mesure d’audience, et ce choix vaut pour toutes les apps qoe.fi.',
+      'La mesure d’audience est anonyme et sans cookie : aucune de ces catégories ne vous demande d’accord préalable. Vous gardez toutefois le droit de vous opposer à la mesure d’audience, et ce choix vaut pour toutes les apps qoefi.',
   },
   en: {
     title: 'Your tracker choices',
@@ -105,7 +105,7 @@ const COPY = {
     thirdParty: 'Third party',
     exemptBadge: 'Exempt from consent',
     exemptIntro:
-      'Audience measurement is anonymous and cookieless: none of these categories asks for prior agreement. You still hold the right to object to audience measurement, and that choice applies across every qoe.fi app.',
+      'Audience measurement is anonymous and cookieless: none of these categories asks for prior agreement. You still hold the right to object to audience measurement, and that choice applies across every qoefi app.',
   },
 } as const;
 

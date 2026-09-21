@@ -1,4 +1,4 @@
-// Package legal — documents juridiques versionnés de qoe.fi.
+// Package legal — documents juridiques versionnés de qoefi.
 // =====================================================================
 // Ce module est la source de vérité de tout le contenu légal de la
 // plateforme (CGU, confidentialité, cookies, CGV, accord créateur, DPA,

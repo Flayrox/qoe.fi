@@ -3,7 +3,7 @@
 // =====================================================================
 // 📖 Règle absolue : le contenu premium ne doit JAMAIS fuiter sur le wire
 //    pour un utilisateur non autorisé, quel que soit le format de marker.
-//    Ce test verrouille la régression : le marker Tiptap de qoe.fi
+//    Ce test verrouille la régression : le marker Tiptap de qoefi
 //    (`data-type="paywall-divider"`) doit être reconnu et tronqué.
 // =====================================================================
 

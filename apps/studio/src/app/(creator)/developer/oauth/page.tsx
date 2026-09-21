@@ -1,7 +1,7 @@
 // =====================================================================
 // 🔐 Applications OAuth — apps/studio/src/app/(creator)/developer/oauth/page.tsx
 // =====================================================================
-// Gestion des applications OAuth 2.1 / OIDC ("Se connecter avec qoe.fi").
+// Gestion des applications OAuth 2.1 / OIDC ("Se connecter avec qoefi").
 // Le statut d'accès API vient du Go (GET /v1/users/me).
 // =====================================================================
 
@@ -13,8 +13,8 @@ import { listOAuthClientsAction } from './actions';
 import { OAuthAppsClient } from './OAuthAppsClient';
 
 export const metadata = {
-  title: 'Applications OAuth | qoe.fi',
-  description: 'Créez des applications OAuth 2.1 / OpenID Connect pour "Se connecter avec qoe.fi".',
+  title: 'Applications OAuth | qoefi',
+  description: 'Créez des applications OAuth 2.1 / OpenID Connect pour "Se connecter avec qoefi".',
 };
 
 export default async function OAuthAppsPage() {

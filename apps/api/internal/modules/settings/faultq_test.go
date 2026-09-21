@@ -202,6 +202,7 @@ func newFaultService(qf map[string]error) (*Service, *faultQ, *faultPool) {
 // ── Branches « return err » du service settings ─────────────────────────
 
 func TestFault_GetPublicationSettings_QueryErrors(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	cases := []string{
 		"GetPublicationForSettings",
@@ -219,6 +220,7 @@ func TestFault_GetPublicationSettings_QueryErrors(t *testing.T) {
 }
 
 func TestFault_UpdateProfile_Errors(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	fx := seed(t)
 
@@ -258,6 +260,7 @@ func TestFault_GetUserSettings_PoolError(t *testing.T) {
 }
 
 func TestFault_UpdateUserSettings_PoolError(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	svc, _, fp := newFaultService(nil)
 	fp.failExec = true
@@ -268,6 +271,7 @@ func TestFault_UpdateUserSettings_PoolError(t *testing.T) {
 }
 
 func TestFault_CheckSubdomain_QueryError(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	svc, _, _ := newFaultService(map[string]error{"CheckSubdomainExists": errBoom})
 	// Le service renvoie (false, raison) — le check DB en erreur doit être
@@ -282,6 +286,7 @@ func TestFault_CheckSubdomain_QueryError(t *testing.T) {
 }
 
 func TestFault_UpdateSubdomain_QueryError(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	fx := seed(t)
 	svc, _, _ := newFaultService(map[string]error{"UpdatePublicationSubdomain": errBoom})
@@ -291,6 +296,7 @@ func TestFault_UpdateSubdomain_QueryError(t *testing.T) {
 }
 
 func TestFault_SaveNavigation_QueryError(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	fx := seed(t)
 	for _, m := range []string{"DeleteNavigationItems", "InsertNavigationItem"} {
@@ -304,6 +310,7 @@ func TestFault_SaveNavigation_QueryError(t *testing.T) {
 }
 
 func TestFault_SaveSocial_QueryError(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	fx := seed(t)
 	for _, m := range []string{"DeleteSocialLinks", "InsertSocialLink"} {
@@ -317,6 +324,7 @@ func TestFault_SaveSocial_QueryError(t *testing.T) {
 }
 
 func TestFault_CompleteOnboarding_QueryError(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	for _, m := range []string{"GetUserApiAccessStatus", "CreatePersonalPublication", "LinkUserPublication", "CompleteOnboardingUser"} {
 		svc, _, _ := newFaultService(map[string]error{m: errBoom})

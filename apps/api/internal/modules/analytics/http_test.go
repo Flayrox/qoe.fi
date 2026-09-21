@@ -34,6 +34,7 @@ func get(t *testing.T, r http.Handler, path, userID string) *httptest.ResponseRe
 }
 
 func TestHTTP_RequiresPublicationID(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -54,6 +55,7 @@ func TestHTTP_RequiresPublicationID(t *testing.T) {
 }
 
 func TestHTTP_Financial_ForbiddenForOutsider(t *testing.T) {
+	requirePool(t)
 	mfx, err := testutil.SeedMedia(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed media: %v", err)
@@ -74,6 +76,7 @@ func TestHTTP_Financial_ForbiddenForOutsider(t *testing.T) {
 }
 
 func TestHTTP_TopContent_OwnerAllowed(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -93,6 +96,7 @@ func TestHTTP_TopContent_OwnerAllowed(t *testing.T) {
 }
 
 func TestHTTP_DashboardAndCreatorShape(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -119,6 +123,7 @@ func TestHTTP_DashboardAndCreatorShape(t *testing.T) {
 // ─── Endpoints restants : audience, provenance, insights, sessions ─────
 
 func TestHTTP_AudienceAndInsights(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -146,6 +151,7 @@ func TestHTTP_AudienceAndInsights(t *testing.T) {
 }
 
 func TestHTTP_UmamiEndpoints_NoConfig(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)

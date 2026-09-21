@@ -39,7 +39,7 @@ describe('ReaderActions', () => {
   it('renders unauthenticated state with signup CTA', () => {
     render(<ReaderActions {...defaultProps} />);
 
-    expect(screen.getByText("S'inscrire sur qoe.fi")).toBeInTheDocument();
+    expect(screen.getByText("S'inscrire sur qoefi")).toBeInTheDocument();
     expect(screen.getByText('Suivre Victor Hugo')).toBeInTheDocument();
     expect(screen.queryByText('Surlignez du texte pour annoter')).not.toBeInTheDocument();
   });
@@ -78,7 +78,7 @@ describe('ReaderActions', () => {
 
     render(<ReaderActions {...defaultProps} isAuthenticated={true} />);
 
-    expect(screen.queryByText("S'inscrire sur qoe.fi")).not.toBeInTheDocument();
+    expect(screen.queryByText("S'inscrire sur qoefi")).not.toBeInTheDocument();
     expect(screen.getByText('Surlignez du texte pour annoter')).toBeInTheDocument();
 
     const bookmarkBtn = screen.getByTitle('Sauvegarder cet écrit');

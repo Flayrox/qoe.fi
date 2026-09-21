@@ -25,7 +25,7 @@ export const FormatPreview = ({ config }: FormatPreviewProps) => {
       content: {
         title: t`Éloge de la lenteur attentionnelle`,
         badge: t`ESSAI RECHERCHE`,
-        preview: t`L'essai sur qoe.fi privilégie la structure monastique : de grands espaces de respiration, une typographie classique Serif hautement lisible, et l'exclusion de tout distraction pour plonger le lecteur dans un état de flow intellectuel.`,
+        preview: t`L'essai sur qoefi privilégie la structure monastique : de grands espaces de respiration, une typographie classique Serif hautement lisible, et l'exclusion de tout distraction pour plonger le lecteur dans un état de flow intellectuel.`,
         meta: t`12 min de lecture • Publié dans Philosophie`,
       },
     },

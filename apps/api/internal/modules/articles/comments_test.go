@@ -11,6 +11,7 @@ func newSvc() *Service {
 
 // seedReader ajoute un second lecteur (pour commenter sans être l'auteur).
 func seedReader(t *testing.T, ctx context.Context) string {
+	requirePool(t)
 	t.Helper()
 	id := "00000000-0000-0000-0000-000000000009"
 	if _, err := poolTest.Exec(ctx,
@@ -23,6 +24,7 @@ func seedReader(t *testing.T, ctx context.Context) string {
 }
 
 func TestComments_CreateListDelete(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	fx := seed(t) // seed() existe dans integration_test.go
 	svc := newSvc()
@@ -77,6 +79,7 @@ func TestComments_CreateListDelete(t *testing.T) {
 }
 
 func TestComments_Disabled(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seed(t)
 	svc := newSvc()
@@ -93,6 +96,7 @@ func TestComments_Disabled(t *testing.T) {
 }
 
 func TestComments_ArticleNotFound(t *testing.T) {
+	requirePool(t)
 	seed(t)
 	svc := newSvc()
 	reader := seedReader(t, context.Background())
@@ -103,6 +107,7 @@ func TestComments_ArticleNotFound(t *testing.T) {
 
 // TestCommentMentionsOwnArticlePasDeNotif couvre l'early-return du notify.
 func TestComment_OwnArticleNoNotification(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	fx := seed(t)
 	svc := newSvc()

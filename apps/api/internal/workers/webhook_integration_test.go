@@ -24,15 +24,27 @@ const testSecret = "test_secret_123"
 var poolTest *pgxpool.Pool
 
 func TestMain(m *testing.M) {
-	p, err := testutil.Pool(context.Background())
+	p, err := testutil.TryPool(context.Background())
 	if err != nil {
-		log.Fatalf("testcontainers: %v", err)
+		log.Printf("testcontainers indisponible, tests DB skippes: %v", err)
+		poolTest = nil
+	} else {
+		poolTest = p
 	}
-	poolTest = p
 	code := m.Run()
-	testutil.Cleanup()
+	if poolTest != nil {
+		testutil.Cleanup()
+	}
 	os.Exit(code)
 }
+// requirePool skippe les tests DB quand Docker/testcontainers est absent.
+func requirePool(t *testing.T) {
+	t.Helper()
+	if poolTest == nil {
+		t.Skip("DB indisponible (Docker/testcontainers requis)")
+	}
+}
+
 
 // sigServer crée un endpoint qui vérifie X-Qoe-Signature + X-Qoe-Event puis
 // répond avec le code donné. Incrémente calls à chaque requête reçue.
@@ -60,6 +72,7 @@ func sigServer(statusCode int, calls *atomic.Int32) *httptest.Server {
 // seedWorker crée une publication + un webhook actif abonné à
 // article.published pointant vers url, avec testSecret.
 func seedWorker(t *testing.T, url string) (publicationID, webhookID string) {
+	requirePool(t)
 	t.Helper()
 	fx, err := testutil.SeedWebhooks(context.Background(), poolTest)
 	if err != nil {

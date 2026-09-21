@@ -10,7 +10,7 @@ import {
 
 const STORAGE_KEY = 'qoe-reading-prefs-v1';
 const COOKIE_NAME = 'qoe_reading_prefs';
-const PARENT_DOMAIN = 'qoe.fi';
+const PARENT_DOMAIN = 'qoefi';
 const CHANGE_EVENT = 'qoe-reading-prefs-changed';
 
 export function getCookieDomain(): string | null {

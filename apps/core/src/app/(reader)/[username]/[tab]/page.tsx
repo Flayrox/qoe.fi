@@ -100,7 +100,7 @@ export async function generateMetadata({
   const rawTab = resolvedParams.tab;
 
   if (STATIC_ASSET_REGEX.test(rawUsername) || RESERVED_USERNAMES.has(rawUsername)) {
-    return { title: 'Introuvable — qoe.fi' };
+    return { title: 'Introuvable — qoefi' };
   }
 
   // Si c'est un onglet de profil classique
@@ -114,16 +114,16 @@ export async function generateMetadata({
           ? profileRaw.data
           : (profileRaw as PublicProfileData);
       return {
-        title: `${profile.name || `@${profile.slug}`} (@${profile.slug}) — qoe.fi`,
-        description: profile.heroText || `Profil créateur de ${profile.name} sur qoe.fi.`,
+        title: `${profile.name || `@${profile.slug}`} (@${profile.slug}) — qoefi`,
+        description: profile.heroText || `Profil créateur de ${profile.name} sur qoefi.`,
         openGraph: {
-          title: `${profile.name || `@${profile.slug}`} sur qoe.fi`,
-          description: profile.heroText || `Suivez ${profile.name} sur qoe.fi.`,
+          title: `${profile.name || `@${profile.slug}`} sur qoefi`,
+          description: profile.heroText || `Suivez ${profile.name} sur qoefi.`,
           images: profile.logoUrl ? [{ url: profile.logoUrl }] : [],
         },
       };
     } catch {
-      return { title: 'Profil introuvable — qoe.fi' };
+      return { title: 'Profil introuvable — qoefi' };
     }
   }
 
@@ -134,7 +134,7 @@ export async function generateMetadata({
 
   if (!article) {
     return {
-      title: isFr ? 'Article introuvable | qoe.fi' : 'Article not found | qoe.fi',
+      title: isFr ? 'Article introuvable | qoefi' : 'Article not found | qoefi',
     };
   }
 
@@ -151,7 +151,7 @@ export async function generateMetadata({
     (article.author?.username ? `@${article.author.username}` : isFr ? 'Auteur' : 'Author');
 
   return {
-    title: `${article.title} | qoe.fi`,
+    title: `${article.title} | qoefi`,
     description: cleanDescription,
     alternates: {
       canonical: canonicalUrl,

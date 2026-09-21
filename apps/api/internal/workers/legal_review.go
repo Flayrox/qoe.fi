@@ -216,7 +216,7 @@ func buildLegalReviewReminderEmail(ctx context.Context, q *db.Queries, item db.C
 	return EmailMessage{
 		From:    from,
 		To:      item.Email,
-		Subject: fmt.Sprintf("[qoe.fi] %s — %s", headline, rawTitle),
+		Subject: fmt.Sprintf("[qoefi] %s — %s", headline, rawTitle),
 		HTML:    body,
 	}, nil
 }

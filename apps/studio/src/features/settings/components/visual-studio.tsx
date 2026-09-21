@@ -415,8 +415,8 @@ export default function VisualStudio({ initialCreator, publicationId }: VisualSt
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
               {isMediaWorkspace
-                ? `Configuration du Média « ${current.name} » et de son équipe sur qoe.fi`
-                : t`Configuration de votre espace d'écriture sur qoe.fi`}
+                ? `Configuration du Média « ${current.name} » et de son équipe sur qoefi`
+                : t`Configuration de votre espace d'écriture sur qoefi`}
             </p>
           </div>
 
@@ -731,10 +731,10 @@ export default function VisualStudio({ initialCreator, publicationId }: VisualSt
                 >
                   <div>
                     <label className="text-xs font-semibold text-foreground block">
-                      Sous-domaine qoe.fi
+                      Sous-domaine qoefi
                     </label>
                     <span className="text-xs text-muted-foreground block mt-0.5">
-                      Votre adresse publique sur qoe.fi.
+                      Votre adresse publique sur qoefi.
                     </span>
                   </div>
                   <div className="sm:col-span-2 space-y-2">

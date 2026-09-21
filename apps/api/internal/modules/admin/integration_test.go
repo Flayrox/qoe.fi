@@ -36,6 +36,14 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
+// requirePool skippe les tests DB quand Docker/testcontainers est absent.
+func requirePool(t *testing.T) {
+	t.Helper()
+	if poolTest == nil {
+		t.Skip("DB indisponible (Docker/testcontainers requis)")
+	}
+}
+
 const (
 	adminAdminID  = "00000000-0000-0000-0000-0000000000a1"
 	adminCreator  = "00000000-0000-0000-0000-0000000000a2"
@@ -45,6 +53,7 @@ const (
 // seedAdmin crée : admin (superadmin), creator (rôle creator) avec
 // publication + article + subscriber + wallet transaction, reader (user).
 func seedAdmin(t *testing.T, ctx context.Context) {
+	requirePool(t)
 	t.Helper()
 	if poolTest == nil {
 		t.Skip("DB indisponible (Docker/testcontainers requis)")
@@ -108,6 +117,7 @@ func newTestService() *Service {
 }
 
 func TestDashboard_Superadmin(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedAdmin(t, ctx)
 	svc := newTestService()
@@ -122,6 +132,7 @@ func TestDashboard_Superadmin(t *testing.T) {
 }
 
 func TestListUsers_Superadmin(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedAdmin(t, ctx)
 	svc := newTestService()
@@ -147,6 +158,7 @@ func TestListUsers_Superadmin(t *testing.T) {
 }
 
 func TestGetUser_Superadmin(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedAdmin(t, ctx)
 	svc := newTestService()
@@ -167,6 +179,7 @@ func TestGetUser_Superadmin(t *testing.T) {
 }
 
 func TestUpdateModeration(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedAdmin(t, ctx)
 	svc := newTestService()
@@ -224,6 +237,7 @@ func TestUpdateModeration(t *testing.T) {
 }
 
 func TestAdmin_Forbidden(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedAdmin(t, ctx)
 	svc := newTestService()
@@ -270,6 +284,7 @@ func TestAdmin_Forbidden(t *testing.T) {
 // ── Pages auxiliaires ────────────────────────────────────────────────────────
 
 func TestWidgets(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedAdmin(t, ctx)
 	svc := newTestService()
@@ -340,6 +355,7 @@ func TestWidgets(t *testing.T) {
 }
 
 func TestSystemConfig(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedAdmin(t, ctx)
 	svc := newTestService()
@@ -398,6 +414,7 @@ func TestSystemConfig(t *testing.T) {
 }
 
 func TestOAuthClients(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedAdmin(t, ctx)
 	svc := newTestService()
@@ -434,6 +451,7 @@ func TestOAuthClients(t *testing.T) {
 }
 
 func TestApiApplicants(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedAdmin(t, ctx)
 	svc := newTestService()
@@ -492,6 +510,7 @@ func TestApiApplicants(t *testing.T) {
 }
 
 func TestApiAccessModules(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedAdmin(t, ctx)
 	svc := newTestService()
@@ -534,6 +553,7 @@ func TestApiAccessModules(t *testing.T) {
 }
 
 func TestDeliveries(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedAdmin(t, ctx)
 	svc := newTestService()

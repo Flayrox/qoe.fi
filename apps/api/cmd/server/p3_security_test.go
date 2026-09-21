@@ -64,6 +64,7 @@ func TestP3MediaAssetUploadValidation(t *testing.T) {
 }
 
 func TestP3MediaAssetDedupeKeepsOriginalOwner(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedSecurityUsers(t, ctx)
 	r := testRouter(t)
@@ -108,6 +109,7 @@ func TestP3MediaAssetDedupeKeepsOriginalOwner(t *testing.T) {
 // ─── Isolation tenant ────────────────────────────────────────────────────────
 
 func TestP3TenantIsolation_ArticleNotLeakedAcrossPublications(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	fx, err := testutil.SeedArticles(ctx, poolTest)
 	if err != nil {
@@ -150,6 +152,7 @@ func TestP3TenantIsolation_ArticleNotLeakedAcrossPublications(t *testing.T) {
 // ─── RBAC : rôles lecteur / créateur / superadmin ───────────────────────────
 
 func TestP3RBAC_ReaderCannotWriteCreatorResources(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedSecurityUsers(t, ctx)
 	r := testRouter(t)
@@ -186,6 +189,7 @@ func TestP3RBAC_ReaderCannotWriteCreatorResources(t *testing.T) {
 }
 
 func TestP3RBAC_NonSuperadminBlockedFromAdminAuxEndpoints(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedSecurityUsers(t, ctx)
 	r := testRouter(t)
@@ -233,6 +237,7 @@ const (
 )
 
 func seedSecurityUsers(t *testing.T, ctx context.Context) {
+	requirePool(t)
 	t.Helper()
 	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE
 		"MediaAsset", "MediaAuditLog", "MediaMember", "Media",

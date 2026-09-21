@@ -105,6 +105,7 @@ func TestWebhook_TenantIsolation_LocalEventDoesNotDispatchForeignWebhooks(t *tes
 // seedMediaFanout crée une publication MEDIA + auteur + 2 lecteurs abonnés
 // (l'un des deux est l'auteur → exclu du fanout) + 1 lecteur sans follow.
 func seedMediaFanout(t *testing.T) (pubID, authorID string) {
+	requirePool(t)
 	t.Helper()
 	// Vide les tables utiles au fanout (IDs fixes, seed rejouable).
 	if _, err := poolTest.Exec(context.Background(), `TRUNCATE TABLE
@@ -203,6 +204,7 @@ func TestNewsletter_MediaFanout_CreatesNotificationsDeduped(t *testing.T) {
 }
 
 func TestNewsletter_PersonalPublication_NoFanoutNotifications(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedWebhooks(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)

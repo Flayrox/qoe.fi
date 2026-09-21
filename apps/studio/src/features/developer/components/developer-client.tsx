@@ -83,7 +83,7 @@ const APPLICATION_PRESETS = [
     subtitle: 'Next.js, Astro, Remix, SvelteKit',
     icon: Globe,
     template:
-      "Je souhaite intégrer l'API qoe.fi à mon site web personnel pour afficher dynamiquement mes derniers articles publiés, tags et informations d'auteur.",
+      "Je souhaite intégrer l'API qoefi à mon site web personnel pour afficher dynamiquement mes derniers articles publiés, tags et informations d'auteur.",
   },
   {
     id: 'automation',
@@ -91,7 +91,7 @@ const APPLICATION_PRESETS = [
     subtitle: 'Zapier, Notion, Make, n8n',
     icon: Sparkles,
     template:
-      "Je souhaite connecter l'API de publication qoe.fi à mes outils d'automatisation (Zapier / Make / Notion) pour synchroniser mes brouillons et articles.",
+      "Je souhaite connecter l'API de publication qoefi à mes outils d'automatisation (Zapier / Make / Notion) pour synchroniser mes brouillons et articles.",
   },
   {
     id: 'ai-agent',
@@ -446,7 +446,7 @@ print(articles)`,
               API Créateur & Intégrations
             </h1>
             <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-              Connectez votre portfolio, automatisez vos publications et intégrez qoe.fi à votre
+              Connectez votre portfolio, automatisez vos publications et intégrez qoefi à votre
               propre infrastructure avec nos SDKs et webhooks.
             </p>
           </div>
@@ -547,7 +547,7 @@ print(articles)`,
                     </span>
                   </div>
                   <h2 className="text-2xl font-bold tracking-tight text-foreground">
-                    Développez et automatisez avec l'API qoe.fi
+                    Développez et automatisez avec l'API qoefi
                   </h2>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     Connectez vos articles, abonnés et métriques de lecture directement à vos sites

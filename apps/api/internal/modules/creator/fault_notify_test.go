@@ -29,6 +29,7 @@ func TestTextVal(t *testing.T) {
 
 // notifyFollow/deleteFollowNotification : erreurs DB internes propagées.
 func TestFault_NotifyFollow(t *testing.T) {
+	requirePool(t)
 	alicePubID, aliceUserID, _, bobUserID := seedFollows(t)
 	ctx := context.Background()
 
@@ -53,6 +54,7 @@ func TestFault_NotifyFollow(t *testing.T) {
 }
 
 func TestFault_DeleteFollowNotification(t *testing.T) {
+	requirePool(t)
 	alicePubID, aliceUserID, _, bobUserID := seedFollows(t)
 	ctx := context.Background()
 
@@ -86,6 +88,7 @@ func TestFault_AuthorizeCategories(t *testing.T) {
 // TestFault_ApiArticleUpdate_CategoryBranch couvre le refus de catégorie
 // inconnue (QueryRow réel → 400) sur un article appartenant au créateur.
 func TestFault_ApiArticleUpdate_CategoryBranch(t *testing.T) {
+	requirePool(t)
 	fx := seedPostsFx(t)
 	h := &Handler{pool: poolTest, q: db.New(poolTest)}
 

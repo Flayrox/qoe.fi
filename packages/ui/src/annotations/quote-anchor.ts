@@ -1,13 +1,13 @@
 // =====================================================================
 // 🎯 quote-anchor.ts — Ancrage d'une citation dans un contenu HTML.
 // =====================================================================
-// Les surlignages qoe.fi n'ont pas d'offsets stockés : leur ancre est le
+// Les surlignages qoefi n'ont pas d'offsets stockés : leur ancre est le
 // TEXTE CITÉ. Quand le même passage apparaît plusieurs fois,
 // `quoteOrdinal` désigne quelle occurrence surligner (0-based), avec
 // repli gracieux sur la première occurrence trouvée si le contenu a été
 // édité entre-temps.
 //
-// Utilisé par le moteur d'annotations de qoe.fi ET exposé aux fronts
+// Utilisé par le moteur d'annotations de qoefi ET exposé aux fronts
 // personnalisés (via @qoe/ui/annotations) pour un rendu identique.
 // =====================================================================
 

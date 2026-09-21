@@ -17,17 +17,30 @@ import (
 var poolTest *pgxpool.Pool
 
 func TestMain(m *testing.M) {
-	p, err := testutil.Pool(context.Background())
+	p, err := testutil.TryPool(context.Background())
 	if err != nil {
-		log.Fatalf("testcontainers: %v", err)
+		log.Printf("testcontainers indisponible, tests DB skippes: %v", err)
+		poolTest = nil
+	} else {
+		poolTest = p
 	}
-	poolTest = p
 	code := m.Run()
-	testutil.Cleanup()
+	if poolTest != nil {
+		testutil.Cleanup()
+	}
 	os.Exit(code)
 }
+// requirePool skippe les tests DB quand Docker/testcontainers est absent.
+func requirePool(t *testing.T) {
+	t.Helper()
+	if poolTest == nil {
+		t.Skip("DB indisponible (Docker/testcontainers requis)")
+	}
+}
+
 
 func seed(t *testing.T) *testutil.Fixtures {
+	requirePool(t)
 	t.Helper()
 	fx, err := testutil.SeedArticles(context.Background(), poolTest)
 	if err != nil {
@@ -40,6 +53,7 @@ func seed(t *testing.T) *testutil.Fixtures {
 func ptrBool(b bool) *bool { return &b }
 
 func TestListCreatorArticles_AllPublished(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	q := db.New(poolTest)
 
@@ -74,6 +88,7 @@ func TestListCreatorArticles_AllPublished(t *testing.T) {
 }
 
 func TestListCreatorArticles_FilterByCategory(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	q := db.New(poolTest)
 
@@ -107,6 +122,7 @@ func TestListCreatorArticles_FilterByCategory(t *testing.T) {
 }
 
 func TestListCreatorArticles_Pagination(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	q := db.New(poolTest)
 
@@ -148,6 +164,7 @@ func TestListCreatorArticles_Pagination(t *testing.T) {
 }
 
 func TestCountCreatorArticles(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	q := db.New(poolTest)
 
@@ -177,6 +194,7 @@ func TestCountCreatorArticles(t *testing.T) {
 }
 
 func TestGetCreatorArticleBySlug_PublishedOnly(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	q := db.New(poolTest)
 
@@ -206,6 +224,7 @@ func TestGetCreatorArticleBySlug_PublishedOnly(t *testing.T) {
 }
 
 func TestListCreatorArticles_NoPaywallLeak(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	q := db.New(poolTest)
 

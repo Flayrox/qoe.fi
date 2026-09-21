@@ -1,8 +1,8 @@
 import AccountSettingsRoute from '../page';
 
 export const metadata = {
-  title: 'Réglages de Notifications | qoe.fi',
-  description: 'Gérez vos préférences de notifications email et push sur qoe.fi.',
+  title: 'Réglages de Notifications | qoefi',
+  description: 'Gérez vos préférences de notifications email et push sur qoefi.',
 };
 
 // La navigation des réglages reste persistante sur toutes les sections :

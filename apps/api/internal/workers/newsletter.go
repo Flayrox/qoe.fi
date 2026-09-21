@@ -491,7 +491,7 @@ func renderEmailLayout(pubName, pubLogoURL, pubURL, preheader, subject, bodyHTML
         <a href="%s" style="color:#71717a;text-decoration:underline;">Se désabonner</a>%s
       </div>
       <div style="margin-top:16px;font-size:11px;color:#a1a1aa;letter-spacing:0.02em;text-transform:uppercase;">
-        Propulsé par <a href="https://qoe.fi" style="color:#71717a;text-decoration:none;font-weight:600;">qoe.fi</a>
+        Propulsé par <a href="https://qoe.fi" style="color:#71717a;text-decoration:none;font-weight:600;">qoefi</a>
       </div>
     </div>
   </div>
@@ -570,7 +570,7 @@ func (n *NewsletterWorker) buildArticleReleaseEmail(info db.GetArticleReleaseInf
 }
 
 // articlePublicURL construit l'URL publique d'un article : domaine custom,
-// sinon sous-domaine qoe.fi, sinon fallback qoe.fi/p/{slug}.
+// sinon sous-domaine qoefi, sinon fallback qoe.fi/p/{slug}.
 func articlePublicURL(subdomain, customDomain pgtype.Text, slug string) string {
 	if customDomain.Valid && customDomain.String != "" {
 		return "https://" + customDomain.String + "/" + url.PathEscape(slug)

@@ -23,6 +23,7 @@ func newHTTPRouter() http.Handler {
 }
 
 func TestGetActive_HTTP(t *testing.T) {
+	requirePool(t)
 	mfx, err := testutil.SeedMedia(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed media: %v", err)

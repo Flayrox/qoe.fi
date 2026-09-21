@@ -25,7 +25,7 @@ export const SYSTEM_DOMAINS = [
   'localhost',
   'qoe.test',
   'lvh.me',
-  'qoe.fi',
+  'qoefi',
   'www.qoe.fi',
   'hi.qoe.fi',
   'api.qoe.fi',
@@ -51,7 +51,7 @@ export function parseTenantHost(hostname: string): TenantInfo {
   const hostWithoutPort = hostname.split(':')[0].toLowerCase();
 
   let subdomain: string | null = null;
-  let baseDomain = 'qoe.fi';
+  let baseDomain = 'qoefi';
 
   if (hostWithoutPort.endsWith('.localhost')) {
     subdomain = hostWithoutPort.replace('.localhost', '');
@@ -64,7 +64,7 @@ export function parseTenantHost(hostname: string): TenantInfo {
     baseDomain = 'lvh.me';
   } else if (hostWithoutPort.endsWith('.qoe.fi')) {
     subdomain = hostWithoutPort.replace('.qoe.fi', '');
-    baseDomain = 'qoe.fi';
+    baseDomain = 'qoefi';
   } else if (!(SYSTEM_DOMAINS as readonly string[]).includes(hostWithoutPort)) {
     // 🌐 Custom Domain resolution (e.g. blog.alice.com)
     subdomain = hostWithoutPort;
@@ -87,7 +87,7 @@ export function parseTenantHost(hostname: string): TenantInfo {
 }
 
 /**
- * 🔗 Calcule l'URL canonique de la plateforme principale (qoe.fi, lvh.me, etc.) selon l'hôte courant.
+ * 🔗 Calcule l'URL canonique de la plateforme principale (qoefi, lvh.me, etc.) selon l'hôte courant.
  */
 export function getMainAppUrl(hostname: string, port = 15402): string {
   const hostWithoutPort = hostname.split(':')[0].toLowerCase();
@@ -112,6 +112,6 @@ export function getAuthCookieDomain(hostname: string): string | undefined {
 
   if (hostWithoutPort.endsWith('lvh.me')) return '.lvh.me';
   if (hostWithoutPort.endsWith('qoe.test')) return '.qoe.test';
-  if (hostWithoutPort.endsWith('qoe.fi')) return '.qoe.fi';
+  if (hostWithoutPort.endsWith('qoefi')) return '.qoe.fi';
   return undefined;
 }

@@ -278,7 +278,7 @@ export function Sidebar({
   items,
   activeUrl: activeUrlProp,
   logo,
-  brandName = 'qoe.fi',
+  brandName = 'qoefi',
   userName,
   userEmail,
   userAvatar,

@@ -225,7 +225,7 @@ export function FeedScreen() {
     <ThemedView style={styles.container}>
       {/* 
         ═════════════════════════════════════════════════════════════════════
-        ✨ HEADER DYNAMIQUE MORPHING INSTAGRAM-STYLE (qoe.fi ↔ Pour vous)
+        ✨ HEADER DYNAMIQUE MORPHING INSTAGRAM-STYLE (qoefi ↔ Pour vous)
         ═════════════════════════════════════════════════════════════════════
       */}
       <DynamicMorphingHeader

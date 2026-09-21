@@ -75,7 +75,7 @@ export function calculateTotalReadingMinutes(bookmarks: LibraryBookmark[]): numb
  * Formate une citation pour le presse-papier avec les métadonnées de source.
  */
 export function formatQuoteForClipboard(h: LibraryHighlight): string {
-  const pubName = h.article.publication.name || 'Qoe.fi';
+  const pubName = h.article.publication.name || 'Qoefi';
   const url = getArticleUrl(h.article, { preferTenant: true });
   const fullUrl = url.startsWith('http') ? url : `https://qoe.fi${url}`;
   return `« ${h.text} »\n— ${pubName}, dans "${h.article.title}"\n${fullUrl}`;
@@ -125,7 +125,7 @@ export function generateHighlightsMarkdown(
     year: 'numeric',
   });
 
-  let md = `# 📚 Bibliothèque de Surlignages — Qoe.fi\n\n`;
+  let md = `# 📚 Bibliothèque de Surlignages — Qoefi\n\n`;
   md += `*Export généré le ${dateStr}*\n\n---\n\n`;
 
   const grouped = new Map<

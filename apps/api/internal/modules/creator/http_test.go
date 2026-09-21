@@ -70,6 +70,7 @@ func TestUserByUsername_PublicProfile(t *testing.T) {
 }
 
 func TestUserByUsername_Unknown(t *testing.T) {
+	requirePool(t)
 	r := newFullRouter()
 	w := authedRequest(r, http.MethodGet, "/v1/users/inconnu-xyz", "", "")
 	if w.Code != http.StatusNotFound {
@@ -100,6 +101,7 @@ func TestUserByUsername_ViewerIsFollowingFlag(t *testing.T) {
 // ─── POST /v1/users/{id}/follow (toggle) ───────────────────────────────
 
 func TestFollowToggle_OnThenOff(t *testing.T) {
+	requirePool(t)
 	alicePubID, _, _, _ := seedFollows(t)
 	r := chi.NewRouter()
 	newTestHandler().RegisterProtected(r, func(string) func(http.Handler) http.Handler {
@@ -161,6 +163,7 @@ func TestFollowToggle_Unauthenticated(t *testing.T) {
 // ─── Catégories : autorisation par propriétaire OU membre média ───────
 
 func TestCategories_OwnerCanCreateAndList(t *testing.T) {
+	requirePool(t)
 	alicePubID, aliceUserID, _, _ := seedFollows(t)
 	r := chi.NewRouter()
 	newTestHandler().RegisterProtected(r, func(string) func(http.Handler) http.Handler {

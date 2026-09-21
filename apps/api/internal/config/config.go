@@ -120,7 +120,7 @@ func Load() *Config {
 		// Connexion read-only à la DB Postgres d'Umami (visiteurs récurrents,
 		// heatmap horaire — métriques absentes de l'API REST).
 		UmamiDatabaseURL: envOr("UMAMI_DATABASE_URL", ""),
-		// OAuth 2.1 / OIDC — fournisseur d'identité qoe.fi.
+		// OAuth 2.1 / OIDC — fournisseur d'identité qoefi.
 		OAuthIssuer:       envOr("OAUTH_ISSUER", "http://localhost:8090"),
 		OAuthAuthorizeURL: envOr("OAUTH_AUTHORIZE_URL", "http://localhost:3010/oauth/authorize"),
 		OAuthSigningKey:   envOr("OAUTH_SIGNING_KEY", ""),

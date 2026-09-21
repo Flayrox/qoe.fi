@@ -26,6 +26,7 @@ func TestUserMe_ExistingUser(t *testing.T) {
 // TestUserMe_AutoProvision couvre le JIT : utilisateur authentifié non encore
 // en base → publication + ligne User auto-provisionnées.
 func TestUserMe_AutoProvision(t *testing.T) {
+	requirePool(t)
 	r := newFullRouter()
 	newID := "fb8a0000-0000-0000-0000-0000000000aa"
 	req := httptest.NewRequest(http.MethodGet, "/v1/users/me", nil)
@@ -51,6 +52,7 @@ func TestUserMe_AutoProvision(t *testing.T) {
 // TestUserMe_AutoProvision_PartialClaims — JIT même sans user_metadata
 // (claims minimaux) : le compte est provisionné avec des défauts.
 func TestUserMe_AutoProvision_PartialClaims(t *testing.T) {
+	requirePool(t)
 	r := newFullRouter()
 	newID := "fb8b0000-0000-0000-0000-0000000000bb"
 	req := httptest.NewRequest(http.MethodGet, "/v1/users/me", nil)
@@ -91,6 +93,7 @@ func TestFollowers_Following_Handlers(t *testing.T) {
 }
 
 func TestCategories_UpdateAndDelete(t *testing.T) {
+	requirePool(t)
 	alicePubID, aliceUserID, _, _ := seedFollows(t)
 	r := chi.NewRouter()
 	newTestHandler().RegisterProtected(r, func(string) func(http.Handler) http.Handler {

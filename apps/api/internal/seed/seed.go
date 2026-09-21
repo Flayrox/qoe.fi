@@ -129,7 +129,7 @@ func Run(ctx context.Context, pool *pgxpool.Pool) error {
 			"<p>L'économie de l'attention récompense le bruit. L'histoire, elle, récompense la constance.</p><p>Les médias qui écrivent pour durer finissent toujours par gagner la confiance de leur lectorat.</p>",
 			false},
 		{"architecture-du-silence-numerique", "L'architecture du silence numérique",
-			"<p>Le silence n'est pas l'absence de contenu : c'est une architecture de lecture.</p><p>qoe.fi est construit autour de cette idée : moins d'interruptions, plus de sens.</p>",
+			"<p>Le silence n'est pas l'absence de contenu : c'est une architecture de lecture.</p><p>qoefi est construit autour de cette idée : moins d'interruptions, plus de sens.</p>",
 			false},
 	}
 	for _, a := range demoArticles {
@@ -206,14 +206,14 @@ func Run(ctx context.Context, pool *pgxpool.Pool) error {
 	}{
 		{"hero_pitch_read", "Une lecture monastique, libérée du bruit.", "Texte d'introduction pour le mode lecture (Je veux lire)"},
 		{"hero_pitch_publish", "Devenez le souverain de votre propre média.", "Texte d'introduction pour le mode publication (Je veux publier)"},
-		{"creators_title", "Ils écrivent sur qoe.fi", "Titre de la section des créateurs de confiance"},
+		{"creators_title", "Ils écrivent sur qoefi", "Titre de la section des créateurs de confiance"},
 		{"creators_tagline", "Des voix libres et indépendantes", "Tagline de la section des créateurs de confiance"},
 		{"format_title", "Cinq Formats de Récits", "Titre de la section de prévisualisation des formats"},
 		{"format_tagline", "Au-delà du simple mur de texte", "Tagline de la section de prévisualisation des formats"},
 		{"featured_title", "Écrits Majeurs", "Titre de la section des publications phares"},
 		{"featured_tagline", "Sélection Écologique et Politique", "Tagline de la section des publications phares"},
 		{"comparison_title", "Souveraineté ou Intermédiation ?", "Titre du tableau comparatif avec Substack"},
-		{"comparison_tagline", "Pourquoi qoe.fi redéfinit l'édition indépendante", "Tagline du tableau comparatif avec Substack"},
+		{"comparison_tagline", "Pourquoi qoefi redéfinit l'édition indépendante", "Tagline du tableau comparatif avec Substack"},
 		{"preview_title", "L'architecture du silence", "Titre de l'aperçu du produit (ProductPreview)"},
 		{"preview_content", "Dans un monde saturé de stimuli, la lecture souveraine n'est pas un acte de consommation, mais une forme de résistance. C'est ici, dans ce Sanctuaire Elfique, que l'esprit retrouve sa trajectoire originelle, loin des algorithmes de capture de l'attention.", "Texte principal de l'aperçu du produit (ProductPreview)"},
 		{"cta_title", "Prêt à habiter votre esprit ?", "Titre de l'appel à l'action final (CTA)"},

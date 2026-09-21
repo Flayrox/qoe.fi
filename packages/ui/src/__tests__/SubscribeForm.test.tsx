@@ -138,6 +138,6 @@ describe('SubscribeForm', () => {
 
     // Le champ de saisie apparaît
     expect(screen.getByPlaceholderText(/Votre adresse email/i)).toBeDefined();
-    expect(screen.getByText(/Revenir à mon compte Qoe.fi/i)).toBeDefined();
+    expect(screen.getByText(/Revenir à mon compte Qoefi/i)).toBeDefined();
   });
 });

@@ -10,6 +10,7 @@ import (
 // article « candidat » que le lecteur n'a jamais lu ; le voisin like une pensée
 // (bob) que le lecteur n'a ni postée ni likée.
 func seedCoRead(t *testing.T, ctx context.Context) (readerID, neighborID string) {
+	requirePool(t)
 	t.Helper()
 	readerID, err := seedEngine(ctx, poolTest)
 	if err != nil {

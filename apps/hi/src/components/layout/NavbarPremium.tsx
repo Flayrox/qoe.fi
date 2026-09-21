@@ -81,7 +81,7 @@ export const NavbarPremium = () => {
           </kbd>
         </button>
 
-        {/* Right: Connexion (absolute URL pointing to qoe.fi SSO) */}
+        {/* Right: Connexion (absolute URL pointing to qoefi SSO) */}
         <a
           href={`${URLS.APP}/login`}
           className={cn(

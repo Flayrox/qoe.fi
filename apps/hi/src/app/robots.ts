@@ -1,7 +1,7 @@
 // =====================================================================
 // 🤖 robots.txt — apps/hi (hi.qoe.fi)
 // =====================================================================
-// Directives de crawl pour la vitrine marketing qoe.fi.
+// Directives de crawl pour la vitrine marketing qoefi.
 // Indexation totale autorisée pour maximiser le référencement.
 // =====================================================================
 

@@ -42,8 +42,8 @@ const displayFont = Geist({ variable: '--font-classical', subsets: ['latin'] });
 const jetbrainsMono = JetBrains_Mono({ variable: '--font-mono', subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'qoe.fi Admin — Platform Console',
-  description: 'Superadmin control console for qoe.fi.',
+  title: 'qoefi Admin — Platform Console',
+  description: 'Superadmin control console for qoefi.',
   robots: {
     index: false,
     follow: false,

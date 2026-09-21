@@ -32,6 +32,7 @@ func doCollab(t *testing.T, svc *Service, method, path, userID string, body any)
 }
 
 func TestCollabList(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedCollab(t, ctx)
 	svc := newTestService()
@@ -45,6 +46,7 @@ func TestCollabList(t *testing.T) {
 }
 
 func TestCollabInviteByUsername(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedCollab(t, ctx)
 	svc := newTestService()
@@ -79,6 +81,7 @@ func TestCollabInviteByUsername(t *testing.T) {
 }
 
 func TestCollabInvite(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedCollab(t, ctx)
 	svc := newTestService()
@@ -95,6 +98,7 @@ func TestCollabInvite(t *testing.T) {
 }
 
 func TestCollabRespondAndErrors(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedCollab(t, ctx)
 	svc := newTestService()
@@ -137,6 +141,7 @@ func TestCollabRespondAndErrors(t *testing.T) {
 }
 
 func TestCollabRemoveContributor(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedCollab(t, ctx)
 	svc := newTestService()

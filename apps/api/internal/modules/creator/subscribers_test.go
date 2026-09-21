@@ -204,6 +204,7 @@ func TestCreatorAPI_PublicationMetadata(t *testing.T) {
 }
 
 func TestCreatorAPI_MediaKey_Highlights(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 
 	// 1. Créer une publication média et un média

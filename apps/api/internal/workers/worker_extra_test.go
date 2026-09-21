@@ -18,6 +18,7 @@ import (
 // ─── Newsletter worker ────────────────────────────────────────────────
 
 func seedNewsletter(t *testing.T) string {
+	requirePool(t)
 	t.Helper()
 	fx, err := testutil.SeedWebhooks(context.Background(), poolTest)
 	if err != nil {
@@ -62,6 +63,7 @@ func TestNewsletter_HandleArticlePublished_ProcessesActiveSubscribers(t *testing
 }
 
 func TestNewsletter_HandleArticlePublished_NoSubscribers(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedWebhooks(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -102,6 +104,7 @@ func TestNewsletter_StripHTML(t *testing.T) {
 
 // seedStripe crée une publication personnelle + owner avec wallet à 0.
 func seedStripe(t *testing.T) (pubID, ownerID string) {
+	requirePool(t)
 	t.Helper()
 	fx, err := testutil.SeedWebhooks(context.Background(), poolTest)
 	if err != nil {
@@ -344,6 +347,7 @@ func searchTask(t *testing.T, action, articleID string) *asynq.Task {
 }
 
 func TestSearch_HandleSync_Upsert(t *testing.T) {
+	requirePool(t)
 	// Seed articles (auteur + publication + catégories).
 	fx, err := testutil.SeedArticles(context.Background(), poolTest)
 	if err != nil {
@@ -393,6 +397,7 @@ func TestSearch_HandleSync_Delete(t *testing.T) {
 }
 
 func TestSearch_HandleSync_UnknownArticle_Deletes(t *testing.T) {
+	requirePool(t)
 	mock := &mockSyncer{}
 	worker := newTestSearchWorker(t, mock)
 	if err := worker.HandleSearchSync(context.Background(), searchTask(t, "upsert", "art_inexistant")); err != nil {
@@ -493,6 +498,7 @@ func TestSearch_Setup_KeepsExistingPrimaryKeyID(t *testing.T) {
 }
 
 func TestSearch_ReindexAll_BackfillsArticles(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedArticles(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -564,6 +570,7 @@ func TestEmbedding_Normalize_TruncatesLongText(t *testing.T) {
 }
 
 func TestEmbedding_HandleArticleEmbedding_UpsertsVector(t *testing.T) {
+	requirePool(t)
 	t.Setenv(envEmbeddingURL, "http://embed.test")
 	fx, err := testutil.SeedArticles(context.Background(), poolTest)
 	if err != nil {
@@ -600,6 +607,7 @@ func TestEmbedding_HandleArticleEmbedding_UpsertsVector(t *testing.T) {
 }
 
 func TestEmbedding_HandlePostEmbedding_UpsertsVector(t *testing.T) {
+	requirePool(t)
 	t.Setenv(envEmbeddingURL, "http://embed.test")
 
 	// Une pensée racine du seed posts (contenu + tags).
@@ -648,6 +656,7 @@ func TestEmbedding_HandlePostEmbedding_MissingID_Errors(t *testing.T) {
 }
 
 func TestEmbedding_HandleArticleEmbedding_WrongDimension_Errors(t *testing.T) {
+	requirePool(t)
 	t.Setenv(envEmbeddingURL, "http://embed.test")
 	fx, err := testutil.SeedArticles(context.Background(), poolTest)
 	if err != nil {
@@ -793,6 +802,7 @@ func TestEmbeddingWorker_EmbeddingDims(t *testing.T) {
 }
 
 func TestEmbedding_HandleArticleEmbedding_NoEnv_Skips(t *testing.T) {
+	requirePool(t)
 	t.Setenv(envEmbeddingURL, "")
 	fx, err := testutil.SeedArticles(context.Background(), poolTest)
 	if err != nil {
@@ -818,6 +828,7 @@ func TestEmbedding_HandleArticleEmbedding_NoEnv_Skips(t *testing.T) {
 // d'embedding active, puis vérifie que l'embedding du user est bien persisté
 // sur User.embedding (recommandations « créateurs similaires »).
 func TestEmbedding_HandleUserEmbedding_UpsertsVector(t *testing.T) {
+	requirePool(t)
 	t.Setenv(envEmbeddingURL, "http://embed.test")
 
 	userID := "11111111-1111-1111-1111-111111111111"
@@ -861,6 +872,7 @@ func TestEmbedding_HandleUserEmbedding_UpsertsVector(t *testing.T) {
 // TestEmbedding_HandleUserEmbedding_WrongDimension_Errors couvre la branche
 // erreur où l'inférence renvoie une dimension inférieure au MRL attendu.
 func TestEmbedding_HandleUserEmbedding_WrongDimension_Errors(t *testing.T) {
+	requirePool(t)
 	t.Setenv(envEmbeddingURL, "http://embed.test")
 
 	dimUserID := "22222222-2222-2222-2222-222222222222"
@@ -896,6 +908,7 @@ func TestEmbedding_HandleUserEmbedding_WrongDimension_Errors(t *testing.T) {
 // feed le sert par fraîcheur/engagement) et aucune erreur — surtout pas
 // d'embedding calculé depuis la bio.
 func TestEmbedding_HandleUserEmbedding_NoContent_ColdStart(t *testing.T) {
+	requirePool(t)
 	t.Setenv(envEmbeddingURL, "http://embed.test")
 
 	coldUserID := "33333333-3333-3333-3333-333333333333"

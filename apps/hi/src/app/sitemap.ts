@@ -1,7 +1,7 @@
 // =====================================================================
 // 🗺️ sitemap.ts — apps/hi (hi.qoe.fi)
 // =====================================================================
-// Déclare la sitemap de la vitrine marketing qoe.fi.
+// Déclare la sitemap de la vitrine marketing qoefi.
 // =====================================================================
 
 import type { MetadataRoute } from 'next';

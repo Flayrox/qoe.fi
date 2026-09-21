@@ -152,7 +152,7 @@ export default function SecuritySettingsRoute() {
     setMessage(null);
     const { data, error } = await supabase.auth.mfa.enroll({
       factorType: 'totp',
-      friendlyName: 'qoe.fi',
+      friendlyName: 'qoefi',
     });
     setBusy(false);
     if (error) {

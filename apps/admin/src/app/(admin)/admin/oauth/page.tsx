@@ -39,7 +39,7 @@ export default async function AdminOAuthAppsPage() {
         </div>
         <h1 className="text-3xl font-bold tracking-tight text-foreground">Applications OAuth</h1>
         <p className="text-muted-foreground mt-2 text-sm max-w-2xl leading-relaxed">
-          Auditez et activez les applications « Se connecter avec qoe.fi » créées par les
+          Auditez et activez les applications « Se connecter avec qoefi » créées par les
           développeurs du réseau.
         </p>
       </div>

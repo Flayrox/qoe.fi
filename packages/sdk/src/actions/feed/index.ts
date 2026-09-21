@@ -621,7 +621,7 @@ export const unfurlUrlAction = safeAction<string, UnfurlResult>(
       }
 
       const isInternalHost =
-        parsedUrl.hostname.endsWith('qoe.fi') ||
+        parsedUrl.hostname.endsWith('qoefi') ||
         parsedUrl.hostname === 'localhost' ||
         parsedUrl.hostname.endsWith('.localhost') ||
         parsedUrl.hostname === '127.0.0.1';

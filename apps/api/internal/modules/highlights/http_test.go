@@ -35,6 +35,7 @@ func doReq(r http.Handler, method, path, userID, body string) *httptest.Response
 }
 
 func TestHTTP_ListPublicAndCreateFlow(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -83,6 +84,7 @@ func TestHTTP_ListPublicAndCreateFlow(t *testing.T) {
 }
 
 func TestHTTP_UpdateDeleteToggleUpvote(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -124,6 +126,7 @@ func TestHTTP_UpdateDeleteToggleUpvote(t *testing.T) {
 }
 
 func TestHTTP_CommentsRoutes(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)

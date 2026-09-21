@@ -48,6 +48,7 @@ func TestHandlerByDomainBadRequest(t *testing.T) {
 }
 
 func TestHandlerByDomainNotFound(t *testing.T) {
+	requirePool(t)
 	h := NewHandler(NewService(poolTest))
 	w := doRoute(h, http.MethodGet, "/v1/publications/by-domain/introuvable")
 	if w.Code != http.StatusNotFound {

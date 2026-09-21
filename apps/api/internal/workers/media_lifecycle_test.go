@@ -22,6 +22,7 @@ func (f *fakeMediaDeleter) Delete(_ context.Context, bucket, path string) error 
 }
 
 func seedMediaLifecycle(t *testing.T, ctx context.Context) {
+	requirePool(t)
 	t.Helper()
 	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE "MediaAsset" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
@@ -91,6 +92,7 @@ func TestRunMediaLifecycleOnce_PurgesExpiredOrphan(t *testing.T) {
 }
 
 func TestRunMediaLifecycle_Cancelled(t *testing.T) {
+	requirePool(t)
 	// Contexte annulé : le passage initial s'exécute (erreur loggée, pas de
 	// panic) puis la boucle sort immédiatement.
 	ctx, cancel := context.WithCancel(context.Background())

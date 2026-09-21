@@ -15,15 +15,27 @@ import (
 var poolTest *pgxpool.Pool
 
 func TestMain(m *testing.M) {
-	p, err := testutil.Pool(context.Background())
+	p, err := testutil.TryPool(context.Background())
 	if err != nil {
-		log.Fatalf("testcontainers: %v", err)
+		log.Printf("testcontainers indisponible, tests DB skippes: %v", err)
+		poolTest = nil
+	} else {
+		poolTest = p
 	}
-	poolTest = p
 	code := m.Run()
-	testutil.Cleanup()
+	if poolTest != nil {
+		testutil.Cleanup()
+	}
 	os.Exit(code)
 }
+// requirePool skippe les tests DB quand Docker/testcontainers est absent.
+func requirePool(t *testing.T) {
+	t.Helper()
+	if poolTest == nil {
+		t.Skip("DB indisponible (Docker/testcontainers requis)")
+	}
+}
+
 
 const (
 	ownerID  = "00000000-0000-0000-0000-0000000000b1"
@@ -32,6 +44,7 @@ const (
 )
 
 func seedNewsletterEnv(t *testing.T, ctx context.Context) {
+	requirePool(t)
 	t.Helper()
 	if _, err := poolTest.Exec(ctx, `TRUNCATE "NewsletterIssue", "NewsletterDelivery", "Subscriber", "User", "Publication" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)

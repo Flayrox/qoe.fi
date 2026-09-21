@@ -8,6 +8,7 @@ import (
 
 // TestListDrafts — brouillons créés via CreateFull(isDraft) sont listés.
 func TestListDrafts(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	ctx := context.Background()
@@ -52,6 +53,7 @@ func TestListDrafts(t *testing.T) {
 
 // TestToggleHideReply — l'auteur masque/restaure une réponse.
 func TestToggleHideReply(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	ctx := context.Background()

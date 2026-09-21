@@ -12,7 +12,7 @@ import { listWebhooksAction } from './actions';
 import { WebhooksClient } from './WebhooksClient';
 
 export const metadata = {
-  title: 'Webhooks | qoe.fi',
+  title: 'Webhooks | qoefi',
   description: 'Recevez les événements de votre publication en temps réel.',
 };
 

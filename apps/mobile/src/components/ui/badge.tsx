@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════════
 // 🏅 apps/mobile — badge.tsx
-// Badges officiels de certification & confiance qoe.fi (délégués à @qoe/brand/native).
+// Badges officiels de certification & confiance qoefi (délégués à @qoe/brand/native).
 // ═══════════════════════════════════════════════════════════════════
 
 export {

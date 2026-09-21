@@ -7,6 +7,7 @@ import (
 
 // TestSearchThoughts — recherche ILIKE sur contenu + tags, hors brouillons.
 func TestSearchThoughts(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE "Post", "User" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)

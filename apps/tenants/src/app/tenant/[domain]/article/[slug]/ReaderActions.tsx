@@ -153,16 +153,16 @@ export function ReaderActions({
         )}
       </button>
 
-      {/* S'inscrire sur qoe.fi CTA when not authenticated */}
+      {/* S'inscrire sur qoefi CTA when not authenticated */}
       {!isAuthenticated && (
         <>
           <div className="w-px h-4 bg-border shrink-0" />
           <button
             onClick={() => openAuthModal({ mode: 'signup' })}
             className="px-3.5 py-2 rounded-xl text-xs font-bold bg-primary text-primary-foreground hover:opacity-90 transition-all flex items-center cursor-pointer shadow-sm shrink-0"
-            title={t`Créer un compte sur qoe.fi`}
+            title={t`Créer un compte sur qoefi`}
           >
-            <span className="whitespace-nowrap">{t`S'inscrire sur qoe.fi`}</span>
+            <span className="whitespace-nowrap">{t`S'inscrire sur qoefi`}</span>
           </button>
         </>
       )}

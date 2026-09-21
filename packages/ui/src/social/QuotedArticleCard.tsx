@@ -53,7 +53,7 @@ export function QuotedArticleCard({
     article.author?.subdomain ||
     article.publication?.subdomain ||
     article.publication?.customDomain;
-  const subdomain = articleDomain ? articleDomain.replace(/^https?:\/\//, '') : 'qoe.fi';
+  const subdomain = articleDomain ? articleDomain.replace(/^https?:\/\//, '') : 'qoefi';
 
   // 1) Contexte serveur (texte canonique, passages résolus par le backend) —
   //    chemin privilégié : zéro strip HTML, zéro indexOf.

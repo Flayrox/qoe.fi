@@ -32,9 +32,18 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
+// requirePool skippe les tests DB quand Docker/testcontainers est absent.
+func requirePool(t *testing.T) {
+	t.Helper()
+	if poolTest == nil {
+		t.Skip("DB indisponible (Docker/testcontainers requis)")
+	}
+}
+
 const assetOwnerID = "00000000-0000-0000-0000-0000000000c1"
 
 func seedAssets(t *testing.T, ctx context.Context) {
+	requirePool(t)
 	t.Helper()
 	if poolTest == nil {
 		t.Skip("DB indisponible (Docker/testcontainers requis)")

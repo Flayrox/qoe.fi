@@ -14,7 +14,7 @@ import {
 import { cn } from '@qoe/utils';
 
 // =====================================================================
-// 🔔 Toast — notifications qoe.fi (inspiration bento)
+// 🔔 Toast — notifications qoefi (inspiration bento)
 // =====================================================================
 // Remplace la stack shadcn/sonner : mêmes appels (toast.success/error/…),
 // rendu 100 % custom, empilé en bas à droite. Rendre <Toaster /> une seule

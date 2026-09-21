@@ -14,6 +14,7 @@ import (
 // montage du routeur, ListenAndServe, puis arrêt propre quand ctx est annulé
 // (simule SIGINT/SIGTERM sans vraies signaux).
 func TestRunGracefulShutdown(t *testing.T) {
+	requirePool(t)
 	// Port libre garanti : on écoute puis on ferme pour réserver l'adresse.
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

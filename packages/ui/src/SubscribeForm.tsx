@@ -152,7 +152,7 @@ export function SubscribeForm({
     );
   }
 
-  // 1-Click Substack Mode for connected Qoe.fi user
+  // 1-Click Substack Mode for connected Qoefi user
   const isOneClickMode = Boolean(connectedEmail && !isOtherEmailMode);
 
   return (
@@ -232,7 +232,7 @@ export function SubscribeForm({
                 className="w-full flex items-center justify-between px-3 py-2 text-xs font-medium rounded-lg hover:bg-muted/70 transition-colors text-foreground cursor-pointer"
               >
                 <div className="flex flex-col min-w-0 pr-2">
-                  <span className="font-semibold">{t`Utiliser mon compte Qoe.fi`}</span>
+                  <span className="font-semibold">{t`Utiliser mon compte Qoefi`}</span>
                   <span className="text-muted-foreground truncate">{connectedEmail}</span>
                 </div>
                 <Check className="w-3.5 h-3.5 text-primary shrink-0" />
@@ -295,7 +295,7 @@ export function SubscribeForm({
               onClick={() => setIsOtherEmailMode(false)}
               className="self-center text-xs text-muted-foreground hover:text-foreground transition-colors mt-1 cursor-pointer"
             >
-              {t`Revenir à mon compte Qoe.fi (${connectedEmail})`}
+              {t`Revenir à mon compte Qoefi (${connectedEmail})`}
             </button>
           )}
         </form>

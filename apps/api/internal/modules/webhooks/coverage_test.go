@@ -9,6 +9,7 @@ import (
 )
 
 func seedWH(t *testing.T) *testutil.WebhookFixtures {
+	requirePool(t)
 	t.Helper()
 	fx, err := testutil.SeedWebhooks(context.Background(), poolTest)
 	if err != nil {

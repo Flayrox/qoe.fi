@@ -58,7 +58,7 @@ export const CreatorHub = ({ config }: CreatorHubProps) => {
         t`API REST + webhooks pour sync CMS existants`,
         t`Import d'archives (RSS, JSON, CSV)`,
         t`Multi-auteurs et rôles éditoriaux`,
-        t`Mise en avant croisée inter-médias sur qoe.fi`,
+        t`Mise en avant croisée inter-médias sur qoefi`,
         t`Certification officielle (badge vérifié)`,
         t`Dashboard éditorial centralisé`,
       ],

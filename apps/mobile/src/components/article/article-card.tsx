@@ -30,9 +30,9 @@ function stripHtml(html: string): string {
 export function ArticleCard({ article }: { article: FeedArticle }) {
   const theme = useTheme();
 
-  const publicationName = article.publication?.name || 'qoe.fi';
+  const publicationName = article.publication?.name || 'qoefi';
   const authorName = article.author?.name || publicationName;
-  const handle = article.author?.username || article.publication?.slug || 'qoe.fi';
+  const handle = article.author?.username || article.publication?.slug || 'qoefi';
   const coverImage = article.publication?.logoUrl || article.author?.logoUrl || null;
   const excerpt = stripHtml(article.content || '').slice(0, 140);
   const date = new Date(article.createdAt).toLocaleDateString('fr-FR', {

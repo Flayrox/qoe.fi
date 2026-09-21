@@ -29,7 +29,7 @@ export interface SocialIconProps extends React.SVGProps<SVGSVGElement> {
 }
 
 /**
- * 🏷️ LogoSymbol — Glyphe officiel « Q » de qoe.fi (lettre Q emblématique).
+ * 🏷️ LogoSymbol — Glyphe officiel « Q » de qoefi (lettre Q emblématique).
  * Utilisé pour les favicons, logomarks, avatars système et headers compacts.
  */
 export function LogoSymbol({ className = 'w-auto h-7', fillColor, ...props }: LogoProps) {
@@ -40,7 +40,7 @@ export function LogoSymbol({ className = 'w-auto h-7', fillColor, ...props }: Lo
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
-      aria-label="qoe.fi"
+      aria-label="qoefi"
       {...props}
     >
       <path d={path} fill={fillColor || defaultColor} />
@@ -54,7 +54,7 @@ export function LogoSymbol({ className = 'w-auto h-7', fillColor, ...props }: Lo
 export const Logo = LogoSymbol;
 
 /**
- * 🏷️ LogoWordmark — Logotype complet typographique « qoe.fi ».
+ * 🏷️ LogoWordmark — Logotype complet typographique « qoefi ».
  * Utilisé pour les headers desktop, marketing, splash et écrans d'accueil.
  */
 export function LogoWordmark({ className = 'w-auto h-7', fillColor, ...props }: LogoProps) {
@@ -65,7 +65,7 @@ export function LogoWordmark({ className = 'w-auto h-7', fillColor, ...props }: 
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
-      aria-label="qoe.fi"
+      aria-label="qoefi"
       {...props}
     >
       <path d={path} fill={fillColor || defaultColor} fillRule="evenodd" />

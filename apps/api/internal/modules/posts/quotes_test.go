@@ -93,6 +93,7 @@ func TestQuoteRefsFrom_SkipsEmpty(t *testing.T) {
 // TestQuotedArticlesFor_ContextPerPost : deux posts citent le MÊME article
 // avec des passages différents — chacun doit recevoir SON contexte.
 func TestQuotedArticlesFor_ContextPerPost(t *testing.T) {
+	requirePool(t)
 	svc := newTestService()
 	ctx := context.Background()
 	fx := seedPosts(t)
@@ -163,6 +164,7 @@ func TestQuotedArticlesFor_ContextPerPost(t *testing.T) {
 // TestQuotedArticlesFor_UnknownArticle : article absent → entrée sans contexte
 // mais pas d'erreur (le post reste affichable).
 func TestQuotedArticlesFor_UnknownArticle(t *testing.T) {
+	requirePool(t)
 	svc := newTestService()
 	ctx := context.Background()
 
