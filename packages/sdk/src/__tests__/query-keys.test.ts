@@ -10,7 +10,6 @@ import {
   annotationKeys,
   notificationKeys,
   searchKeys,
-  starterPackKeys,
   pollKeys,
   threadgateKeys,
 } from '../query-keys';
@@ -79,9 +78,7 @@ describe('query-keys — familles de cache TanStack', () => {
     expect(searchKeys.trending()).toEqual(['search', 'trending']);
   });
 
-  it('starterPackKeys / pollKeys / threadgateKeys', () => {
-    expect(starterPackKeys.list()).toEqual(['starterPacks', 'list']);
-    expect(starterPackKeys.detail('sp1')).toEqual(['starterPacks', 'detail', 'sp1']);
+  it('pollKeys / threadgateKeys', () => {
     expect(pollKeys.detail('t9')).toEqual(['polls', 'detail', 't9']);
     expect(threadgateKeys.canReply('t9')).toEqual(['threadgates', 'canReply', 't9']);
   });

@@ -46,7 +46,6 @@ import (
 	"github.com/qoefi/api/internal/modules/publications"
 	"github.com/qoefi/api/internal/modules/search"
 	"github.com/qoefi/api/internal/modules/settings"
-	"github.com/qoefi/api/internal/modules/starterpacks"
 	"github.com/qoefi/api/internal/modules/tracking"
 	"github.com/qoefi/api/internal/modules/users"
 	"github.com/qoefi/api/internal/modules/webhooks"
@@ -275,12 +274,6 @@ func newRouter(d RouterDeps) *chi.Mux {
 	// Auth JWT Supabase (instance partagée : Middleware obligatoire + OptionalAuth).
 	auth := authmw.NewAuth(d.JWTSecret, d.SupabaseAuthURL)
 
-	// Starter packs : lecture publique (auth optionnelle) + création/follow (protégé).
-	starterPacksHandler := starterpacks.NewHandler(starterpacks.NewService(pool))
-	r.With(auth.OptionalAuth).Group(func(pub chi.Router) {
-		starterPacksHandler.RegisterPublic(pub)
-	})
-
 	// Articles : lecture publique (auth optionnelle, paywall) hors groupe protégé.
 	articlesHandler := articles.NewHandler(articles.NewService(pool, rc, asynqClient))
 	r.With(auth.OptionalAuth).Group(func(pub chi.Router) {
@@ -430,8 +423,6 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 		collaborationsHandler := collaborations.NewHandler(collaborations.NewService(pool))
 		collaborationsHandler.Register(protected)
-
-		starterPacksHandler.RegisterProtected(protected)
 
 		adminSvc := admin.NewService(pool)
 		adminSvc.SetFlags(flagsSvc)

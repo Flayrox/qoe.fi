@@ -25,8 +25,7 @@ export function BroadcastAnnouncementConsole({
 }: BroadcastAnnouncementConsoleProps) {
   const [active, setActive] = useState(initialAnnouncement?.active ?? false);
   const [message, setMessage] = useState(
-    initialAnnouncement?.message ??
-      'Bienvenue sur Qoe.fi ! Découvrez nos dernières fonctionnalités.'
+    initialAnnouncement?.message ?? 'Bienvenue sur Qoefi ! Découvrez nos dernières fonctionnalités.'
   );
   const [type, setType] = useState<AnnouncementType>(initialAnnouncement?.type ?? 'promo');
   const [linkUrl, setLinkUrl] = useState(initialAnnouncement?.linkUrl ?? '');
@@ -175,7 +174,7 @@ export function BroadcastAnnouncementConsole({
               type="text"
               value={linkUrl}
               onChange={(e) => setLinkUrl(e.target.value)}
-              placeholder="Ex: /starter-packs ou https://..."
+              placeholder="Ex: /billing ou https://..."
               className="w-full rounded-xl border border-border bg-muted/20 px-3.5 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-[#EE4B2B] focus:outline-none transition-all"
             />
           </div>

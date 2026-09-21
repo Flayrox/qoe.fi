@@ -1294,23 +1294,6 @@ type SocialLink struct {
 	PublicationId string `json:"publicationId"`
 }
 
-type StarterPack struct {
-	ID            string           `json:"id"`
-	Title         string           `json:"title"`
-	Description   pgtype.Text      `json:"description"`
-	Icon          pgtype.Text      `json:"icon"`
-	PublicationId string           `json:"publicationId"`
-	CreatedAt     pgtype.Timestamp `json:"createdAt"`
-	UpdatedAt     pgtype.Timestamp `json:"updatedAt"`
-}
-
-type StarterPackItem struct {
-	ID            string           `json:"id"`
-	StarterPackId string           `json:"starterPackId"`
-	UserId        pgtype.UUID      `json:"userId"`
-	CreatedAt     pgtype.Timestamp `json:"createdAt"`
-}
-
 type Subscriber struct {
 	ID                   string             `json:"id"`
 	Email                string             `json:"email"`

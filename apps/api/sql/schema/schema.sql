@@ -775,29 +775,6 @@ CREATE TABLE "MediaAttachment" (
 );
 
 -- CreateTable
-CREATE TABLE "StarterPack" (
-    "id" TEXT NOT NULL,
-    "title" TEXT NOT NULL,
-    "description" TEXT,
-    "icon" TEXT DEFAULT '🚀',
-    "publicationId" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-
-    CONSTRAINT "StarterPack_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "StarterPackItem" (
-    "id" TEXT NOT NULL,
-    "starterPackId" TEXT NOT NULL,
-    "userId" UUID NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "StarterPackItem_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "Poll" (
     "id" TEXT NOT NULL,
     "thoughtId" TEXT NOT NULL,
@@ -1303,18 +1280,6 @@ CREATE UNIQUE INDEX "NotificationPreference_userId_key" ON "NotificationPreferen
 CREATE INDEX "MediaAttachment_thoughtId_order_idx" ON "MediaAttachment"("thoughtId", "order");
 
 -- CreateIndex
-CREATE INDEX "StarterPack_publicationId_idx" ON "StarterPack"("publicationId");
-
--- CreateIndex
-CREATE INDEX "StarterPackItem_starterPackId_idx" ON "StarterPackItem"("starterPackId");
-
--- CreateIndex
-CREATE INDEX "StarterPackItem_userId_idx" ON "StarterPackItem"("userId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "StarterPackItem_starterPackId_userId_key" ON "StarterPackItem"("starterPackId", "userId");
-
--- CreateIndex
 CREATE UNIQUE INDEX "Poll_thoughtId_key" ON "Poll"("thoughtId");
 
 -- CreateIndex
@@ -1634,15 +1599,6 @@ ALTER TABLE "NotificationPreference" ADD CONSTRAINT "NotificationPreference_user
 
 -- AddForeignKey
 ALTER TABLE "MediaAttachment" ADD CONSTRAINT "MediaAttachment_thoughtId_fkey" FOREIGN KEY ("thoughtId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "StarterPack" ADD CONSTRAINT "StarterPack_publicationId_fkey" FOREIGN KEY ("publicationId") REFERENCES "Publication"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "StarterPackItem" ADD CONSTRAINT "StarterPackItem_starterPackId_fkey" FOREIGN KEY ("starterPackId") REFERENCES "StarterPack"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "StarterPackItem" ADD CONSTRAINT "StarterPackItem_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Poll" ADD CONSTRAINT "Poll_thoughtId_fkey" FOREIGN KEY ("thoughtId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;

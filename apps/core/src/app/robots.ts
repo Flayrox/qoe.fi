@@ -1,5 +1,5 @@
 // =====================================================================
-// 🤖 robots.ts — apps/core (qoe.fi)
+// 🤖 robots.ts — apps/core (qoefi)
 // =====================================================================
 // Déclare les directives de crawl pour les moteurs de recherche.
 // Autorise les contenus publics (articles, profils, feed d'accueil)
@@ -15,7 +15,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: '*',
-        allow: ['/', '/home', '/search', '/starter-packs'],
+        allow: ['/', '/home', '/search', '/legal'],
         disallow: [
           '/api/',
           '/auth/',
