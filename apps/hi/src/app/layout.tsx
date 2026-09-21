@@ -9,6 +9,7 @@ import { getStaticTranslations, getLanguage, initI18n } from '@qoe/i18n/server';
 import { cn } from '@qoe/utils';
 import { AnalyticsScript } from '@qoe/analytics/client';
 import { DevtoolsPanel, ThemeProvider, ThemeSeedScript } from '@qoe/ui';
+import { JsonLd } from '@qoe/ui';
 import {
   getDevtoolsData,
   getEmbeddingDiagnosticAction,
@@ -135,7 +136,20 @@ export default async function RootLayout({
       className={cn('scroll-smooth', 'font-sans', geist.variable)}
       suppressHydrationWarning
     >
-      <head />
+      <head>
+        {/* Marque + organisation : associe "qoefi" (et l'ancien nom) au
+            domaine pour le Knowledge Graph et la désambiguïsation. */}
+        <JsonLd
+          data={{
+            '@context': 'https://schema.org',
+            '@type': 'Organization',
+            name: 'qoefi',
+            alternateName: 'qoe.fi',
+            url: landingUrl,
+            logo: `${landingUrl}/icon.svg`,
+          }}
+        />
+      </head>
       <body
         className={`${inter.variable} ${displayFont.variable} ${jetbrainsMono.variable} antialiased selection:bg-primary selection:text-primary-foreground`}
         suppressHydrationWarning
