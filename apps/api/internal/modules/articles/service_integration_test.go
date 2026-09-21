@@ -19,6 +19,7 @@ func newService() *Service {
 // ─── CRUD créateur (publication personnelle) ──────────────────────────
 
 func TestService_Create_PersonalOwner(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	svc := newService()
 	ctx := context.Background()
@@ -101,6 +102,7 @@ func TestService_List_ForbiddenForViewer(t *testing.T) {
 }
 
 func TestService_GetBySlug_Published(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	svc := newService()
 	ctx := context.Background()
@@ -154,6 +156,7 @@ func TestService_GetBySlug_Unknown(t *testing.T) {
 // seul (drawer lecteur) embarque l'image, le logo de publication et les
 // attributions — sinon la page affiche un article sans couverture ni signature.
 func TestService_GetBySlugAny_Enrichment(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	svc := newService()
 	ctx := context.Background()
@@ -215,6 +218,7 @@ func TestService_GetByID_Author(t *testing.T) {
 }
 
 func TestService_Update_Owner(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	svc := newService()
 	ctx := context.Background()
@@ -255,6 +259,7 @@ func TestService_Update_NotFound(t *testing.T) {
 }
 
 func TestService_SetStatus_PublishDraft(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	svc := newService()
 	ctx := context.Background()
@@ -276,6 +281,7 @@ func TestService_SetStatus_PublishDraft(t *testing.T) {
 }
 
 func TestService_Delete_Owner(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	svc := newService()
 	ctx := context.Background()
@@ -359,6 +365,7 @@ func TestService_GetCreatorBySlug_DraftNotFound(t *testing.T) {
 }
 
 func TestService_GetCreatorBySlug_Published(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	svc := newService()
 	ctx := context.Background()
@@ -378,6 +385,7 @@ func TestService_GetCreatorBySlug_Published(t *testing.T) {
 // ─── RBAC média (workflow de revue) ───────────────────────────────────
 
 func seedMedia(t *testing.T) *testutil.MediaFixtures {
+	requirePool(t)
 	t.Helper()
 	fx, err := testutil.SeedMedia(context.Background(), poolTest)
 	if err != nil {
@@ -403,6 +411,7 @@ func TestService_Create_AsViewer_Forbidden(t *testing.T) {
 }
 
 func TestService_Create_AsWriter_Submit(t *testing.T) {
+	requirePool(t)
 	fx := seedMedia(t)
 	svc := newService()
 	ctx := context.Background()
@@ -443,6 +452,7 @@ func TestService_Create_AsWriter_Submit(t *testing.T) {
 }
 
 func TestService_Review_EditorApproves(t *testing.T) {
+	requirePool(t)
 	fx := seedMedia(t)
 	svc := newService()
 	ctx := context.Background()
@@ -475,6 +485,7 @@ func TestService_Review_EditorApproves(t *testing.T) {
 }
 
 func TestService_Review_RejectBackToDraft(t *testing.T) {
+	requirePool(t)
 	fx := seedMedia(t)
 	svc := newService()
 	ctx := context.Background()
@@ -541,6 +552,7 @@ func TestService_SimilarArticles_NoEmbedding_Empty(t *testing.T) {
 }
 
 func TestService_SimilarArticles_RanksBySimilarity(t *testing.T) {
+	requirePool(t)
 	_ = seed(t)
 	svc := newService()
 	ctx := context.Background()

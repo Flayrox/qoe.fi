@@ -23,6 +23,7 @@ func cleanConsentTables(t *testing.T, ctx context.Context) {
 }
 
 func seededService(t *testing.T) *Service {
+	requirePool(t)
 	t.Helper()
 	ctx := context.Background()
 	seedUsers(t, ctx)

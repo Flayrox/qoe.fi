@@ -135,11 +135,11 @@ func buildNotificationEmail(ctx context.Context, pool *pgxpool.Pool, recipient, 
 	}
 
 	label := notificationTypeLabel(nType)
-	subject := senderName + " " + label + " — qoe.fi"
+	subject := senderName + " " + label + " — qoefi"
 	html := `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;padding:32px;color:#18181b;">
   <h2 style="margin:0 0 12px;">` + senderName + ` ` + label + `</h2>
-  <p style="color:#3f3f46;font-size:14px;line-height:1.6;">Vous avez une nouvelle notification sur <strong>qoe.fi</strong>. Connectez-vous pour la consulter.</p>
-  <p style="margin-top:24px;font-size:12px;color:#a1a1aa;">Cet e-mail automatique vous est envoyé par qoe.fi pour la protection de votre compte.</p>
+  <p style="color:#3f3f46;font-size:14px;line-height:1.6;">Vous avez une nouvelle notification sur <strong>qoefi</strong>. Connectez-vous pour la consulter.</p>
+  <p style="margin-top:24px;font-size:12px;color:#a1a1aa;">Cet e-mail automatique vous est envoyé par qoefi pour la protection de votre compte.</p>
 </div>`
 	return EmailMessage{From: from, To: recipient, Subject: subject, HTML: html}, nil
 }

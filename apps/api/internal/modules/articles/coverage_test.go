@@ -83,6 +83,7 @@ func TestTextVal_Empty(t *testing.T) {
 }
 
 func TestEmitArticleLifecycle_WithClient(t *testing.T) {
+	requirePool(t)
 	s := miniredis.RunT(t)
 	c := asynq.NewClient(asynq.RedisClientOpt{Addr: s.Addr()})
 	t.Cleanup(func() { _ = c.Close() })
@@ -110,6 +111,7 @@ func queueTask(kind string) string {
 // ─── Enrichissement GetByID (attributions, co-auteurs) ───────────────
 
 func TestGetByID_Enrichment(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	fx := seed(t)
 	svc := newService()
@@ -148,6 +150,7 @@ func TestGetByID_Enrichment(t *testing.T) {
 // ─── Compteurs de lecture / commentaires ─────────────────────────────
 
 func TestList_CommentsAndViewsBatch(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	fx := seed(t)
 	svc := newService()
@@ -184,6 +187,7 @@ func TestList_CommentsAndViewsBatch(t *testing.T) {
 // ─── Entitlements abonné (paywall) ───────────────────────────────────
 
 func TestGetBySlug_SubscriberEntitled(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	fx := seed(t)
 	svc := newService()
@@ -216,6 +220,7 @@ func TestGetBySlug_SubscriberEntitled(t *testing.T) {
 }
 
 func TestGetBySlug_NonSubscriberTruncated(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	fx := seed(t)
 	svc := newService()
@@ -233,6 +238,7 @@ func TestGetBySlug_NonSubscriberTruncated(t *testing.T) {
 // ─── RBAC média : branches Update / Delete / Review manquantes ───────
 
 func TestService_Update_MediaWorkflow(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	fx := seedMedia(t)
 	svc := newService()
@@ -361,6 +367,7 @@ func TestService_Review_DeniedForViewer(t *testing.T) {
 // ─── GetByID handler : 403 non-membre ────────────────────────────────
 
 func TestHandler_GetByID_ForbiddenForOutsider(t *testing.T) {
+	requirePool(t)
 	seed(t)
 	r := newTestRouter()
 	token := testJWT("00000000-0000-0000-0000-000000000099")

@@ -3,8 +3,8 @@ import { SearchFeed } from '@/components/social/SearchFeed';
 import { TrendingWidget } from '@/components/social/TrendingWidget';
 
 export const metadata = {
-  title: 'Recherche & Tendances | qoe.fi',
-  description: 'Explorez les pensées, les auteurs certifiés et les sujets tendances sur qoe.fi.',
+  title: 'Recherche & Tendances | qoefi',
+  description: 'Explorez les pensées, les auteurs certifiés et les sujets tendances sur qoefi.',
 };
 
 interface SearchPageProps {

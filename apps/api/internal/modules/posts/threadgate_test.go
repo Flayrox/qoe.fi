@@ -8,6 +8,7 @@ import (
 // seedGatePost crée une pensée avec la restriction de réponse donnée,
 // retourne son id.
 func seedGatePost(t *testing.T, authorID, restriction, content string) string {
+	requirePool(t)
 	t.Helper()
 	ctx := context.Background()
 	var id string
@@ -24,6 +25,7 @@ func seedGatePost(t *testing.T, authorID, restriction, content string) string {
 }
 
 func TestCanReply_Everyone(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	id := seedGatePost(t, fx.AuthorID, "everyone", "post public")
@@ -37,6 +39,7 @@ func TestCanReply_Everyone(t *testing.T) {
 }
 
 func TestCanReply_Author(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	id := seedGatePost(t, fx.AuthorID, "subscribers", "réservé")
@@ -50,6 +53,7 @@ func TestCanReply_Author(t *testing.T) {
 }
 
 func TestCanReply_Subscribers_Denied(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	id := seedGatePost(t, fx.AuthorID, "subscribers", "réservé abonnés")
@@ -66,6 +70,7 @@ func TestCanReply_Subscribers_Denied(t *testing.T) {
 }
 
 func TestCanReply_Following_DeniedAndAllowed(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	ctx := context.Background()
@@ -107,6 +112,7 @@ func TestCanReply_Following_DeniedAndAllowed(t *testing.T) {
 }
 
 func TestCanReply_Mentioned(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	ctx := context.Background()
@@ -138,6 +144,7 @@ func TestCanReply_Mentioned(t *testing.T) {
 }
 
 func TestCanReply_NotFound(t *testing.T) {
+	requirePool(t)
 	seedPosts(t)
 	svc := newTestService()
 	res, err := svc.CanReply(context.Background(), "post_inexistant", "00000000-0000-0000-0000-000000000003")

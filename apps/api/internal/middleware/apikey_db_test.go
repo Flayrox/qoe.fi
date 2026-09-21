@@ -18,20 +18,33 @@ import (
 var apiKeyPool *pgxpool.Pool
 
 func TestMain(m *testing.M) {
-	p, err := testutil.Pool(context.Background())
+	p, err := testutil.TryPool(context.Background())
 	if err != nil {
-		log.Fatalf("testcontainers: %v", err)
+		log.Printf("testcontainers indisponible, tests DB skippés: %v", err)
+		apiKeyPool = nil
+	} else {
+		apiKeyPool = p
 	}
-	apiKeyPool = p
 	code := m.Run()
-	testutil.Cleanup()
+	if apiKeyPool != nil {
+		testutil.Cleanup()
+	}
 	os.Exit(code)
+}
+
+// requirePool skippe les tests DB quand Docker/testcontainers est absent.
+func requirePool(t *testing.T) {
+	t.Helper()
+	if apiKeyPool == nil {
+		t.Skip("DB indisponible (Docker/testcontainers requis)")
+	}
 }
 
 // seedApiKey crée un créateur avec sa publication PERSONAL + une clé API
 // `qoe_live_<token>` dont le hash correspond à celui que calcule l'auth.
 // Retourne le userID et le publicationID pour les assertions.
 func seedApiKey(t *testing.T, ctx context.Context, token string) (userID, pubID string) {
+	requirePool(t)
 	t.Helper()
 	if _, err := apiKeyPool.Exec(ctx, `TRUNCATE TABLE "ApiKey", "User", "Publication" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)

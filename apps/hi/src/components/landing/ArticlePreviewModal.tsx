@@ -125,7 +125,7 @@ export const ArticlePreviewModal = ({ article, onClose }: ArticlePreviewModalPro
               <div className="font-sans text-sm space-y-2">
                 <h4 className="font-bold text-primary">{t`Note de la rédaction`}</h4>
                 <p className="text-muted-foreground leading-relaxed">
-                  {t`Cet article est libre de toute influence corporative ou étatique. qoe.fi est entièrement financé par ses lecteurs, nous permettant de produire un travail intègre et indépendant.`}
+                  {t`Cet article est libre de toute influence corporative ou étatique. qoefi est entièrement financé par ses lecteurs, nous permettant de produire un travail intègre et indépendant.`}
                 </p>
               </div>
             </div>

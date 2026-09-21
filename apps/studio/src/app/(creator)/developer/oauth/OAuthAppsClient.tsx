@@ -231,7 +231,7 @@ export function OAuthAppsClient({
               Applications OAuth
             </h1>
             <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-              Proposez « Se connecter avec qoe.fi » à vos utilisateurs via OAuth 2.1 / OpenID
+              Proposez « Se connecter avec qoefi » à vos utilisateurs via OAuth 2.1 / OpenID
               Connect, avec PKCE, signatures ES256 et consentement explicite.
             </p>
           </div>
@@ -272,7 +272,7 @@ export function OAuthAppsClient({
             {status?.toLowerCase() !== 'approved'
               ? status?.toLowerCase() === 'pending'
                 ? "Votre demande d'accès développeur est en cours d'examen par notre équipe. Une fois approuvée, vous pourrez créer des applications OAuth 2.1 et OIDC."
-                : 'Les applications OAuth permettent à des services tiers de se connecter via « Se connecter avec qoe.fi ». Activez votre accès développeur pour commencer.'
+                : 'Les applications OAuth permettent à des services tiers de se connecter via « Se connecter avec qoefi ». Activez votre accès développeur pour commencer.'
               : "Votre compte dispose d'un accès API actif, mais la permission spécifique « OAuth » ne vous a pas encore été accordée par un administrateur."}
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
@@ -465,7 +465,7 @@ export function OAuthAppsClient({
           <h3 className="text-lg font-bold text-foreground">Aucune application OAuth</h3>
           <p className="text-xs text-muted-foreground mt-1 mb-6 max-w-sm mx-auto leading-relaxed">
             Créez une application pour permettre à vos utilisateurs de se connecter avec leur compte
-            qoe.fi.
+            qoefi.
           </p>
           <button
             onClick={() => setShowCreate(true)}

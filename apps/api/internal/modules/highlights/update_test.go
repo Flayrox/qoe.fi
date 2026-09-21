@@ -9,6 +9,7 @@ import (
 
 // TestUpdateHighlight — bascule de visibilité + note, ownership vérifié.
 func TestUpdateHighlight(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)

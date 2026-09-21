@@ -134,7 +134,7 @@ export function SearchFeed({ initialQuery = '' }: { initialQuery?: string }) {
             <Sparkles className="w-6 h-6" />
           </div>
           <p className="font-bold text-base text-foreground">
-            Découvrez des conversations sur qoe.fi
+            Découvrez des conversations sur qoefi
           </p>
           <p className="text-xs text-muted-foreground max-w-sm mx-auto">
             Saisissez un mot-clé, un hashtag comme{' '}

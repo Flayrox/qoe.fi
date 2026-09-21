@@ -53,7 +53,7 @@ export const AskQoeBar = () => {
           <div className="flex items-center gap-3 pl-4 py-2">
             <Sparkles className="w-4 h-4 text-primary animate-pulse" />
             <span className="text-xs text-muted-foreground font-sans">
-              {t`Demandez à qoe.fi ou cherchez... (⌘K)`}
+              {t`Demandez à qoefi ou cherchez... (⌘K)`}
             </span>
           </div>
 
@@ -197,7 +197,7 @@ export const AskQoeBar = () => {
                     <span>⏎ {t`Valider`}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <span>Ask qoe.fi</span>
+                    <span>Ask qoefi</span>
                     <CornerDownLeft className="w-3 h-3" />
                   </div>
                 </div>

@@ -16,18 +16,32 @@ import (
 var poolTest *pgxpool.Pool
 
 func TestMain(m *testing.M) {
-	p, err := testutil.Pool(context.Background())
+	p, err := testutil.TryPool(context.Background())
 	if err != nil {
-		log.Fatalf("testcontainers: %v", err)
+		log.Printf("testcontainers indisponible, tests DB skippés: %v", err)
+		poolTest = nil
+	} else {
+		poolTest = p
 	}
-	poolTest = p
 	code := m.Run()
-	testutil.Cleanup()
+	if poolTest != nil {
+		testutil.Cleanup()
+	}
 	os.Exit(code)
 }
 
-func seedPosts(t *testing.T) *testutil.PostFixtures {
+// requirePool skippe les tests DB quand Docker/testcontainers est absent.
+func requirePool(t *testing.T) {
 	t.Helper()
+	if poolTest == nil {
+		t.Skip("DB indisponible (Docker/testcontainers requis)")
+	}
+}
+
+func seedPosts(t *testing.T) *testutil.PostFixtures {
+	requirePool(t)
+	t.Helper()
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed posts: %v", err)
@@ -44,6 +58,7 @@ func newTestService() *Service {
 // ─── Création ──────────────────────────────────────────────────────────
 
 func TestCreateThought_Basic(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	ctx := context.Background()
@@ -73,6 +88,7 @@ func TestCreateThought_Basic(t *testing.T) {
 }
 
 func TestCreateThought_EmptyContent_Error(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	ctx := context.Background()
@@ -86,6 +102,7 @@ func TestCreateThought_EmptyContent_Error(t *testing.T) {
 // ─── Likes ─────────────────────────────────────────────────────────────
 
 func TestToggleLike_AddThenRemove(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	ctx := context.Background()
@@ -137,6 +154,7 @@ func TestToggleLike_AddThenRemove(t *testing.T) {
 }
 
 func TestToggleLike_NoSelfNotification(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	ctx := context.Background()
@@ -157,6 +175,7 @@ func TestToggleLike_NoSelfNotification(t *testing.T) {
 // ─── Reposts ───────────────────────────────────────────────────────────
 
 func TestToggleRepost_AddThenRemove(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	ctx := context.Background()
@@ -208,6 +227,7 @@ func TestToggleRepost_AddThenRemove(t *testing.T) {
 // ─── Réponses ──────────────────────────────────────────────────────────
 
 func TestReply_CreatesThreadAndIncrementsCount(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	ctx := context.Background()
@@ -251,6 +271,7 @@ func TestReply_CreatesThreadAndIncrementsCount(t *testing.T) {
 // ─── Sondages ──────────────────────────────────────────────────────────
 
 func TestVotePoll_AddThenChange(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	ctx := context.Background()
@@ -320,6 +341,7 @@ func TestVotePoll_AddThenChange(t *testing.T) {
 // ─── Listes d'engagement (likes/reposts/quotes) ───────────────────────────
 
 func TestLikes_Paginated(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	ctx := context.Background()
@@ -354,6 +376,7 @@ func TestLikes_Paginated(t *testing.T) {
 }
 
 func TestLikes_PrivateVisibility_HidesActorButPreservesCount(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	ctx := context.Background()
@@ -399,6 +422,7 @@ func TestLikes_PrivateVisibility_HidesActorButPreservesCount(t *testing.T) {
 }
 
 func TestReposts_Paginated(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	ctx := context.Background()
@@ -420,6 +444,7 @@ func TestReposts_Paginated(t *testing.T) {
 }
 
 func TestQuotes_OnlyPostsWithText(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	ctx := context.Background()
@@ -452,6 +477,7 @@ func TestQuotes_OnlyPostsWithText(t *testing.T) {
 // ─── Block / Mute / Report ────────────────────────────────────────────
 
 func TestToggleBlock_AddThenRemove(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	ctx := context.Background()
@@ -494,6 +520,7 @@ func TestToggleBlock_AddThenRemove(t *testing.T) {
 }
 
 func TestToggleMute_AddThenRemove(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	ctx := context.Background()
@@ -527,6 +554,7 @@ func TestToggleMute_AddThenRemove(t *testing.T) {
 }
 
 func TestReport_CreatesModerationReport(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	ctx := context.Background()
@@ -550,6 +578,7 @@ func TestReport_CreatesModerationReport(t *testing.T) {
 // ─── Bookmarks ─────────────────────────────────────────────────────────
 
 func TestToggleBookmark_AddThenRemove(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	ctx := context.Background()
@@ -596,6 +625,7 @@ func TestToggleBookmark_AddThenRemove(t *testing.T) {
 // dont l'embedding existe déplace le vecteur de l'utilisateur vers lui
 // (package vectorfeed — base de la personnalisation « Pour vous »).
 func TestToggleLike_UpdatesUserVector(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	ctx := context.Background()
@@ -649,6 +679,7 @@ func TestToggleLike_UpdatesUserVector(t *testing.T) {
 // sauvegarder un article (intention forte, α=0.16 BOOKMARK) déplace le vecteur
 // de l'utilisateur vers l'embedding de l'article.
 func TestToggleBookmark_UpdatesUserVector(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	ctx := context.Background()

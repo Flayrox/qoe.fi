@@ -1,4 +1,4 @@
-// Package oauth — fournisseur d'identité OAuth 2.1 / OpenID Connect (qoe.fi).
+// Package oauth — fournisseur d'identité OAuth 2.1 / OpenID Connect (qoefi).
 //
 // L'API Go est l'autorité : elle détient les clients, les codes, les tokens
 // et le consentement. La page de consentement (apps/core) et la gestion des
@@ -65,7 +65,7 @@ func oauthError(code, description string, status int) *OAuthError {
 // Scopes supportés (identité OIDC)
 // ─────────────────────────────────────────────────────────────────────
 var supportedScopes = map[string]string{
-	"openid":  "Votre identifiant de connexion qoe.fi",
+	"openid":  "Votre identifiant de connexion qoefi",
 	"profile": "Votre nom, pseudo et photo de profil",
 	"email":   "Votre adresse e-mail",
 	"media":   "Votre statut de membre et vos permissions au sein du média",

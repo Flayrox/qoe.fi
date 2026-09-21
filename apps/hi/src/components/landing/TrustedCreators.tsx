@@ -11,7 +11,7 @@ interface TrustedCreatorsProps {
 }
 
 export const TrustedCreators = ({ config }: TrustedCreatorsProps) => {
-  const title = config['creators_title'] || t`Ils écrivent sur qoe.fi`;
+  const title = config['creators_title'] || t`Ils écrivent sur qoefi`;
   const tagline = config['creators_tagline'] || t`Des voix libres et indépendantes`;
 
   const mediaLogos = [

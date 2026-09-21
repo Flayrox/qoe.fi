@@ -69,6 +69,7 @@ type journeyNiche struct {
 // publication, 6 articles et 6 pensées embeddés chacune, plus un lecteur dont
 // le vecteur part de « anime + cuisine » (aucun foot au départ).
 func seedJourneyWorld(t *testing.T) (readerID string, niches map[string]*journeyNiche) {
+	requirePool(t)
 	t.Helper()
 	ctx := context.Background()
 	if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE
@@ -307,6 +308,7 @@ func TestJourney_FullReaderJourney_MovesEmbeddingAndFeed(t *testing.T) {
 // lui-même plus qu'un clic ; « voir moins » éloigne plus que le bounce).
 
 func seedVectorUser(t *testing.T, userID, vec string) {
+	requirePool(t)
 	t.Helper()
 	if _, err := poolTest.Exec(context.Background(),
 		`INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt", embedding)

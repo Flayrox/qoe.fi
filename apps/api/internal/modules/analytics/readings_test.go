@@ -11,6 +11,7 @@ import (
 // seedReadingData : sessions de lecture variées (sources, hostnames, referrers,
 // récentes et anciennes) + users avec démographie déclarée.
 func seedReadingData(t *testing.T, ctx context.Context) {
+	requirePool(t)
 	t.Helper()
 	seedProductMetrics(t, ctx)
 
@@ -37,11 +38,11 @@ func seedReadingData(t *testing.T, ctx context.Context) {
 		id, source, host, referrer string
 		daysAgo                    int
 	}{
-		{"rs_1", "feed", "qoe.fi", "simone", 1},
-		{"rs_2", "feed", "qoe.fi", "simone", 2},
+		{"rs_1", "feed", "qoefi", "simone", 1},
+		{"rs_2", "feed", "qoefi", "simone", 2},
 		{"rs_3", "search", "google.com", "pierre", 3},
 		{"rs_4", "direct", "", "", 4},
-		{"rs_old", "feed", "qoe.fi", "", 40}, // hors période 30j
+		{"rs_old", "feed", "qoefi", "", 40}, // hors période 30j
 	}
 	for _, s := range sessions {
 		if _, err := poolTest.Exec(ctx,
@@ -55,6 +56,7 @@ func seedReadingData(t *testing.T, ctx context.Context) {
 }
 
 func TestArticleReadingStats_Full(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedReadingData(t, ctx)
 	svc := newTestService()
@@ -71,7 +73,7 @@ func TestArticleReadingStats_Full(t *testing.T) {
 	if len(stats.Timeseries) == 0 {
 		t.Fatal("timeseries vide")
 	}
-	// Par hostname : qoe.fi (2) + google.com (1) ; direct n'a pas de hostname.
+	// Par hostname : qoefi (2) + google.com (1) ; direct n'a pas de hostname.
 	if len(stats.ByHostname) != 2 {
 		t.Fatalf("byHostname = %+v, attendu 2 buckets", stats.ByHostname)
 	}
@@ -100,6 +102,7 @@ func TestArticleReadingStats_Full(t *testing.T) {
 }
 
 func TestCreatorReadingStats_And_Provenance(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedReadingData(t, ctx)
 	svc := newTestService()
@@ -123,6 +126,7 @@ func TestCreatorReadingStats_And_Provenance(t *testing.T) {
 }
 
 func TestAudienceInsights_Demographics(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedReadingData(t, ctx)
 	svc := newTestService()

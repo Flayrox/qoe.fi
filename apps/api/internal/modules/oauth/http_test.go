@@ -71,6 +71,7 @@ func TestDiscoveryAndJWKS(t *testing.T) {
 // ─── Userinfo ──────────────────────────────────────────────────────────
 
 func TestUserinfo_RequiresBearer(t *testing.T) {
+	requirePool(t)
 	r := newRouter()
 
 	if w := do(r, http.MethodGet, "/v1/oauth/userinfo", "", ""); w.Code != http.StatusUnauthorized {
@@ -88,6 +89,7 @@ func TestUserinfo_RequiresBearer(t *testing.T) {
 // ─── Gestion des clients (créateur approuvé uniquement) ────────────────
 
 func TestClients_ApprovedOwnerOnly(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedOAuth(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed oauth: %v", err)
@@ -178,6 +180,7 @@ func TestIntrospect_Revoke_BadRequestWithoutToken(t *testing.T) {
 // ─── Flux authorization_code + PKCE de bout en bout ────────────────────
 
 func TestAuthorizeCodeFlow_HTTPHandlers(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedOAuth(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed oauth: %v", err)

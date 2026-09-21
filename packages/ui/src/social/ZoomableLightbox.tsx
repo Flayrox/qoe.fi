@@ -357,7 +357,7 @@ export function ZoomableLightbox({
           >
             <SafeImage
               src={currentImage.url}
-              alt={currentImage.alt || t`Aperçu média qoe.fi`}
+              alt={currentImage.alt || t`Aperçu média qoefi`}
               width={currentImage.width || 1920}
               height={currentImage.height || 1080}
               unoptimized

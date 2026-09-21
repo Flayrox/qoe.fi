@@ -125,7 +125,7 @@ export function AudienceInsightsBlock({ insights }: AudienceInsightsBlockProps) 
           <div className="flex items-center gap-2 mb-4">
             <Globe className="h-4 w-4 text-foreground/70 stroke-[1.5]" />
             <span className="text-sm font-semibold text-foreground">
-              Plateforme qoe.fi{' '}
+              Plateforme qoefi{' '}
               <span className="text-[11px] font-normal text-muted-foreground">
                 ({platformTotal.toLocaleString()} profils)
               </span>

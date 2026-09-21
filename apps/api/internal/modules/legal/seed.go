@@ -51,7 +51,7 @@ type SeedResult struct {
 	Missing  []string `json:"missing,omitempty"`
 }
 
-// seedManifest est le plan éditorial légal de qoe.fi, en français et en
+// seedManifest est le plan éditorial légal de qoefi, en français et en
 // anglais. L'ordre (SortOrder) est celui d'affichage public.
 func seedManifest() []seedDoc {
 	return []seedDoc{

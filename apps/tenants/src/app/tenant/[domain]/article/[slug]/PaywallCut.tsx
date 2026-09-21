@@ -255,7 +255,7 @@ function PaywallOverlay({
                 }
                 className="underline font-semibold hover:text-[var(--tenant-accent)] cursor-pointer bg-transparent border-0 p-0 text-foreground"
               >
-                {t`Se connecter avec qoe.fi`}
+                {t`Se connecter avec qoefi`}
               </button>
             </div>
           )}

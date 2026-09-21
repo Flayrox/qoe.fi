@@ -13,7 +13,7 @@ import { I18nClientProvider } from '@qoe/i18n/provider';
 import { getStaticTranslations, getLanguage, initI18n } from '@qoe/i18n/server';
 import { TooltipProvider } from '@qoe/ui/ui/tooltip';
 import { Toaster } from '@qoe/ui/toast';
-import { CookieConsentBanner } from '@qoe/ui';
+import { CookieConsentBanner, JsonLd, buildWebSiteSchema } from '@qoe/ui';
 import { AnalyticsGate } from '@/components/AnalyticsGate';
 import { cn } from '@qoe/utils';
 import {
@@ -60,8 +60,8 @@ export async function generateMetadata(): Promise<Metadata> {
   const isFr = lang === 'fr';
 
   const title = isFr
-    ? 'qoe.fi — Plateforme de publication & réseau de créateurs'
-    : 'qoe.fi — Independent Publishing & Reader Network';
+    ? 'qoefi — Plateforme de publication & réseau de créateurs'
+    : 'qoefi — Independent Publishing & Reader Network';
 
   const description = isFr
     ? 'Plateforme européenne pour créateurs, médias et lecteurs indépendants. Écrits de fond, pensées, newsletters et abonnements directs.'
@@ -71,13 +71,13 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: new URL(appUrl),
     title: {
       default: title,
-      template: '%s | qoe.fi',
+      template: '%s | qoefi',
     },
     description,
-    applicationName: 'qoe.fi',
-    authors: [{ name: 'qoe.fi', url: 'https://qoe.fi' }],
-    creator: 'qoe.fi',
-    publisher: 'qoe.fi',
+    applicationName: 'qoefi',
+    authors: [{ name: 'qoefi', url: 'https://qoe.fi' }],
+    creator: 'qoefi',
+    publisher: 'qoefi',
     alternates: {
       canonical: appUrl,
       languages: {
@@ -102,7 +102,7 @@ export async function generateMetadata(): Promise<Metadata> {
       locale: isFr ? 'fr_FR' : 'en_US',
       alternateLocale: isFr ? ['en_US'] : ['fr_FR'],
       url: appUrl,
-      siteName: 'qoe.fi',
+      siteName: 'qoefi',
       title,
       description,
     },
@@ -176,6 +176,10 @@ export default async function RootLayout({
     logoutAction,
   };
 
+  const brandDescription =
+    locale === 'fr'
+      ? 'Plateforme européenne pour créateurs, médias et lecteurs indépendants.'
+      : 'European platform for independent writers, media publications, and readers.';
   return (
     <html
       lang={locale}
@@ -184,7 +188,18 @@ export default async function RootLayout({
       data-qoe-high-contrast={accountSettings?.highContrast ? 'true' : 'false'}
       suppressHydrationWarning
     >
-      <head />
+      <head>
+        {/* Marque : nom "qoefi" + ancien nom en alternateName pour que les
+            requêtes "qoefi" comme "qoe.fi" résolvent vers ce site. */}
+        <JsonLd
+          data={buildWebSiteSchema({
+            name: 'qoefi',
+            alternateName: 'qoe.fi',
+            url: appUrl,
+            description: brandDescription,
+          })}
+        />
+      </head>
       <body
         className={`${inter.variable} ${displayFont.variable} ${jetbrainsMono.variable} antialiased selection:bg-primary selection:text-primary-foreground`}
         style={{ fontSize: `${accountSettings?.fontScale ?? 100}%` }}

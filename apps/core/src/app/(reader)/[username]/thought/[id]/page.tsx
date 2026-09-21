@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: ThoughtPageProps): Promise<Me
   const post = res.ok ? res.data?.post : null;
   if (!post) {
     return {
-      title: 'Pensée introuvable — qoe.fi',
+      title: 'Pensée introuvable — qoefi',
     };
   }
 
@@ -36,16 +36,16 @@ export async function generateMetadata({ params }: ThoughtPageProps): Promise<Me
     targetPost.content.length > 80 ? `${targetPost.content.slice(0, 80)}...` : targetPost.content;
 
   return {
-    title: `${authorName} sur qoe.fi : "${shortContent}"`,
+    title: `${authorName} sur qoefi : "${shortContent}"`,
     description: targetPost.content,
     openGraph: {
-      title: `${authorName} sur qoe.fi`,
+      title: `${authorName} sur qoefi`,
       description: targetPost.content,
       images: targetPost.imageUrl ? [{ url: targetPost.imageUrl }] : undefined,
     },
     twitter: {
       card: targetPost.imageUrl ? 'summary_large_image' : 'summary',
-      title: `${authorName} sur qoe.fi`,
+      title: `${authorName} sur qoefi`,
       description: targetPost.content,
       images: targetPost.imageUrl ? [targetPost.imageUrl] : undefined,
     },

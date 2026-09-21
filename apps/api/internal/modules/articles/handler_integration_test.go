@@ -98,6 +98,7 @@ func doJSON(t *testing.T, r *chi.Mux, method, path, token string, body any) (*ht
 // ─── Lecture publique (paywall) ───────────────────────────────────────
 
 func TestHandler_GetBySlug_Public_WithPaywall(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 
@@ -124,6 +125,7 @@ func TestHandler_GetBySlug_Public_WithPaywall(t *testing.T) {
 // donc l'article premium est tronqué côté serveur — le passage réservé ne
 // franchit JAMAIS la frontière HTTP.
 func TestHandler_GetBySlug_Public_SlugOnly_ZeroLeak(t *testing.T) {
+	requirePool(t)
 	seed(t)
 	r := newTestRouter()
 
@@ -151,6 +153,7 @@ func TestHandler_GetBySlug_Public_SlugOnly_ZeroLeak(t *testing.T) {
 }
 
 func TestHandler_GetBySlug_Public_UnknownArticle(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 
@@ -163,6 +166,7 @@ func TestHandler_GetBySlug_Public_UnknownArticle(t *testing.T) {
 // ─── Mode créateur (clé API) ──────────────────────────────────────────
 
 func TestHandler_GetBySlug_CreatorMode_APIKey(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	key := insertAPIKey(t, fx.AuthorID, []string{middleware.ScopeRead})
@@ -187,6 +191,7 @@ func TestHandler_GetBySlug_CreatorMode_APIKey(t *testing.T) {
 }
 
 func TestHandler_GetBySlug_CreatorMode_ScopeDenied(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	// Clé sans scope READ → 403 sur la lecture.
@@ -199,6 +204,7 @@ func TestHandler_GetBySlug_CreatorMode_ScopeDenied(t *testing.T) {
 }
 
 func TestHandler_GetBySlug_InvalidAPIKey(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 
@@ -212,6 +218,7 @@ func TestHandler_GetBySlug_InvalidAPIKey(t *testing.T) {
 // ─── CRUD protégé (JWT) ───────────────────────────────────────────────
 
 func TestHandler_List_WithJWT(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	token := testJWT(fx.AuthorID)

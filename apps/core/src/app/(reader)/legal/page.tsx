@@ -20,10 +20,10 @@ export async function generateMetadata(): Promise<Metadata> {
   const lang = await getLanguage();
   const isFr = !lang.startsWith('en');
   return {
-    title: isFr ? 'Informations légales | qoe.fi' : 'Legal information | qoe.fi',
+    title: isFr ? 'Informations légales | qoefi' : 'Legal information | qoefi',
     description: isFr
-      ? 'Conditions générales, confidentialité, cookies et informations légales de la plateforme qoe.fi.'
-      : 'Terms of service, privacy, cookies and legal information for the qoe.fi platform.',
+      ? 'Conditions générales, confidentialité, cookies et informations légales de la plateforme qoefi.'
+      : 'Terms of service, privacy, cookies and legal information for the qoefi platform.',
     alternates: { canonical: 'https://qoe.fi/legal' },
     robots: { index: true, follow: true },
   };
@@ -52,8 +52,8 @@ export default async function LegalIndexPage() {
         </h1>
         <p className="mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground">
           {isFr
-            ? 'Toutes les règles du service, en clair : ce que qoe.fi s’engage à faire, ce que vous acceptez, comment vos données sont traitées et comment exercer vos droits. Chaque document est versionné et l’historique reste consultable.'
-            : 'Every rule of the service, in plain language: what qoe.fi commits to, what you accept, how your data is processed and how to exercise your rights. Each document is versioned and its history stays available.'}
+            ? 'Toutes les règles du service, en clair : ce que qoefi s’engage à faire, ce que vous acceptez, comment vos données sont traitées et comment exercer vos droits. Chaque document est versionné et l’historique reste consultable.'
+            : 'Every rule of the service, in plain language: what qoefi commits to, what you accept, how your data is processed and how to exercise your rights. Each document is versioned and its history stays available.'}
         </p>
       </header>
 

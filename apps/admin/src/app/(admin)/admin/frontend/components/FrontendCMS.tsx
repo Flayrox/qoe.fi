@@ -86,7 +86,7 @@ const PRESETS = {
         'API REST + webhooks pour sync CMS existants',
         "Import d'archives (RSS, JSON, CSV)",
         'Multi-auteurs et rôles éditoriaux',
-        'Mise en avant croisée inter-médias sur qoe.fi',
+        'Mise en avant croisée inter-médias sur qoefi',
         'Certification officielle (badge vérifié)',
         'Dashboard éditorial centralisé',
       ],
@@ -136,7 +136,7 @@ const PRESETS = {
         'REST API + webhooks to sync existing CMSs',
         'Archive import (RSS, JSON, CSV)',
         'Multi-author and editorial roles',
-        'Cross-promotion between creators on qoe.fi',
+        'Cross-promotion between creators on qoefi',
         'Official certification (verified badge)',
         'Centralized editorial dashboard',
       ],
@@ -1151,7 +1151,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                       <textarea
                         value={formValues['GLOBAL_BANNER_TEXT'] || ''}
                         onChange={(e) => updateValue('GLOBAL_BANNER_TEXT', e.target.value)}
-                        placeholder={t`qoe.fi est en ligne ! Rejoignez-nous.`}
+                        placeholder={t`qoefi est en ligne ! Rejoignez-nous.`}
                         className="w-full bg-transparent border-b border-border px-0 py-2 text-base font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 resize-none transition-colors outline-none"
                         rows={2}
                       />
@@ -1465,7 +1465,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                       <textarea
                         value={formValues['footer_copyright'] || ''}
                         onChange={(e) => updateValue('footer_copyright', e.target.value)}
-                        placeholder={t`© 2024 QOE.FI. Crafted for the curious minds in the European creator economy.`}
+                        placeholder={t`© 2024 QOEFI. Crafted for the curious minds in the European creator economy.`}
                         className="w-full bg-transparent border-b border-border px-0 py-2 text-sm font-medium text-foreground placeholder:text-muted-foreground focus:border-foreground focus:ring-0 transition-colors outline-none"
                         rows={2}
                       />

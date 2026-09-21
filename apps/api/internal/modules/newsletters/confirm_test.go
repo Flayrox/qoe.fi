@@ -17,6 +17,7 @@ import (
 )
 
 func seedPendingSubscriber(t *testing.T, ctx context.Context, email, token string) {
+	requirePool(t)
 	t.Helper()
 	// ID déterministe dérivé de l'email : plusieurs emails par test sans collision.
 	if _, err := poolTest.Exec(ctx, `

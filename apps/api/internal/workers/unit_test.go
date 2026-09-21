@@ -34,6 +34,7 @@ func TestIntVal(t *testing.T) {
 // en passant un contexte déjà annulé : le « run once » s'exécute puis la boucle
 // sort immédiatement (select sur ctx.Done).
 func TestRunLoops_Cancelled(t *testing.T) {
+	requirePool(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 

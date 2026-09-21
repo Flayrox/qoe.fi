@@ -33,6 +33,7 @@ func countAuditEntries(t *testing.T, ctx context.Context) int {
 }
 
 func TestAuditLog_TracesPermissionChanges(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedAdmin(t, ctx)
 	setAuditFlag(t, ctx, true)
@@ -132,6 +133,7 @@ func TestAuditLog_TracesPermissionChanges(t *testing.T) {
 }
 
 func TestAuditLog_DisabledFlagNoWrites(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedAdmin(t, ctx)
 	setAuditFlag(t, ctx, false)
@@ -169,6 +171,7 @@ func TestAuditLog_DisabledFlagNoWrites(t *testing.T) {
 }
 
 func TestAuditLog_ForbiddenForNonSuperadmin(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedAdmin(t, ctx)
 	svc := NewService(poolTest)

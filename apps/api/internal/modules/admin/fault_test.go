@@ -41,6 +41,7 @@ func (f *adminFaultQ) ListNotificationDeliveries(ctx context.Context) ([]db.List
 
 // TestAdmin500Branches : chaque route renvoie 500 quand le service échoue.
 func TestAdmin500Branches(t *testing.T) {
+	requirePool(t)
 	seedAdmin(t, context.Background())
 	svc := &Service{pool: poolTest, q: &adminFaultQ{Queries: db.New(poolTest), err: errors.New("boom")}}
 	h := NewHandler(svc)

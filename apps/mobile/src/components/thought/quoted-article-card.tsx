@@ -24,7 +24,7 @@ export function QuotedArticleCard({ article }: { article: NormalizedQuotedArticl
   if (!article) return null;
 
   const domain = article.publication?.subdomain || article.publication?.customDomain;
-  const displayDomain = (domain || article.publication?.slug || 'qoe.fi').replace(
+  const displayDomain = (domain || article.publication?.slug || 'qoefi').replace(
     /^https?:\/\//,
     ''
   );

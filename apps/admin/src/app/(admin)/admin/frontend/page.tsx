@@ -70,7 +70,7 @@ export default async function AdminFrontend() {
           CMS Landing Page & Footer
         </h1>
         <p className="text-muted-foreground mt-2 text-sm">
-          Pilotez l'intégralité du contenu public et du footer de qoe.fi.
+          Pilotez l'intégralité du contenu public et du footer de qoefi.
         </p>
       </div>
 

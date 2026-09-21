@@ -105,6 +105,7 @@ func doJSONArray(t *testing.T, r *chi.Mux, method, path, token string) (*httptes
 // ─── Liste ────────────────────────────────────────────────────────────
 
 func TestHandler_List_OwnerJWT(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedWebhooks(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -127,6 +128,7 @@ func TestHandler_List_OwnerJWT(t *testing.T) {
 }
 
 func TestHandler_List_NoPublicationID(t *testing.T) {
+	requirePool(t)
 	if _, err := testutil.SeedWebhooks(context.Background(), poolTest); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
@@ -140,6 +142,7 @@ func TestHandler_List_NoPublicationID(t *testing.T) {
 }
 
 func TestHandler_List_NoAuth(t *testing.T) {
+	requirePool(t)
 	if _, err := testutil.SeedWebhooks(context.Background(), poolTest); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
@@ -152,6 +155,7 @@ func TestHandler_List_NoAuth(t *testing.T) {
 }
 
 func TestHandler_List_ViewerCanRead(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedWebhooks(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -173,6 +177,7 @@ func TestHandler_List_ViewerCanRead(t *testing.T) {
 // ─── Création ─────────────────────────────────────────────────────────
 
 func TestHandler_Create_OwnerJWT(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedWebhooks(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -205,6 +210,7 @@ func TestHandler_Create_OwnerJWT(t *testing.T) {
 }
 
 func TestHandler_Create_InvalidURL(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedWebhooks(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -224,6 +230,7 @@ func TestHandler_Create_InvalidURL(t *testing.T) {
 }
 
 func TestHandler_Create_NoEvents(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedWebhooks(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -243,6 +250,7 @@ func TestHandler_Create_NoEvents(t *testing.T) {
 }
 
 func TestHandler_Create_EditorAllowed(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedWebhooks(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -262,6 +270,7 @@ func TestHandler_Create_EditorAllowed(t *testing.T) {
 }
 
 func TestHandler_Create_ViewerForbidden(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedWebhooks(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -281,6 +290,7 @@ func TestHandler_Create_ViewerForbidden(t *testing.T) {
 }
 
 func TestHandler_Create_APIKey_ScopeDenied(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedWebhooks(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -302,6 +312,7 @@ func TestHandler_Create_APIKey_ScopeDenied(t *testing.T) {
 // ─── Actions (toggle, delete, deliveries) ─────────────────────────────
 
 func TestHandler_Toggle_OwnerJWT(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedWebhooks(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -320,6 +331,7 @@ func TestHandler_Toggle_OwnerJWT(t *testing.T) {
 }
 
 func TestHandler_Toggle_NotFound(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedWebhooks(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -334,6 +346,7 @@ func TestHandler_Toggle_NotFound(t *testing.T) {
 }
 
 func TestHandler_Delete_OwnerJWT(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedWebhooks(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -359,6 +372,7 @@ func TestHandler_Delete_OwnerJWT(t *testing.T) {
 }
 
 func TestHandler_ListDeliveries_OwnerJWT(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedWebhooks(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -391,6 +405,7 @@ func TestHandler_ListDeliveries_OwnerJWT(t *testing.T) {
 // ─── Test ping (webhook.test) ─────────────────────────────────────────
 
 func TestHandler_Test_Ping_ReceivesSignedRequest(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedWebhooks(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -459,6 +474,7 @@ func TestHandler_Test_Ping_ReceivesSignedRequest(t *testing.T) {
 }
 
 func TestHandler_Test_NotFound(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedWebhooks(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)

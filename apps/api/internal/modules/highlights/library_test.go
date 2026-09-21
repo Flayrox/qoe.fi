@@ -38,6 +38,7 @@ func TestParseLimitOffset(t *testing.T) {
 }
 
 func TestLibraryHandlers(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)

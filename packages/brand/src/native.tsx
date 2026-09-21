@@ -54,7 +54,7 @@ export function LogoSymbol({ size = 28, width, height, color, style }: NativeBra
 export const Logo = LogoSymbol;
 
 /**
- * 🏷️ LogoWordmark (Native) — Logo typographique complet « qoe.fi ».
+ * 🏷️ LogoWordmark (Native) — Logo typographique complet « qoefi ».
  * Remplace avantageusement les imports de fichiers SVG bruts dans le mobile header.
  */
 export function LogoWordmark({
@@ -78,7 +78,7 @@ export function LogoWordmark({
 }
 
 /**
- * 🏅 CertifiedBadge (Native) — Croix / Coche de certification officielle qoe.fi.
+ * 🏅 CertifiedBadge (Native) — Croix / Coche de certification officielle qoefi.
  * Fini les emojis ou les symboles iOS bleus : identité visuelle unifiée !
  */
 export function CertifiedBadge({ size = 14, style }: NativeCertifiedBadgeProps) {

@@ -101,7 +101,7 @@ var Registry = []Module{
 	{
 		Key:         ModuleOAuth,
 		Label:       "OAuth / OIDC",
-		Description: "Créer des applications OAuth (fournisseur d'identité qoe.fi) pour vos utilisateurs.",
+		Description: "Créer des applications OAuth (fournisseur d'identité qoefi) pour vos utilisateurs.",
 		Category:    CategoryOAuth,
 	},
 }

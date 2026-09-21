@@ -1,4 +1,4 @@
-// Package oauth — endpoints OAuth 2.1 / OpenID Connect (fournisseur d'identité qoe.fi).
+// Package oauth — endpoints OAuth 2.1 / OpenID Connect (fournisseur d'identité qoefi).
 package oauth
 
 import (
@@ -235,13 +235,13 @@ func (h *Handler) userinfo(w http.ResponseWriter, r *http.Request) {
 		token = r.FormValue("access_token")
 	}
 	if token == "" {
-		w.Header().Set("WWW-Authenticate", `Bearer realm="qoe.fi OAuth", error="invalid_request"`)
+		w.Header().Set("WWW-Authenticate", `Bearer realm="qoefi OAuth", error="invalid_request"`)
 		writeOAuthError(w, oauthError("invalid_request", "Access token manquant.", http.StatusUnauthorized))
 		return
 	}
 	out, oerr := h.svc.UserInfo(r.Context(), token)
 	if oerr != nil {
-		w.Header().Set("WWW-Authenticate", `Bearer realm="qoe.fi OAuth", error="invalid_token"`)
+		w.Header().Set("WWW-Authenticate", `Bearer realm="qoefi OAuth", error="invalid_token"`)
 		writeOAuthError(w, oerr)
 		return
 	}
@@ -338,7 +338,7 @@ func writeOAuthError(w http.ResponseWriter, oerr *OAuthError) {
 		status = http.StatusBadRequest
 	}
 	if oerr.Code == ErrInvalidClient.Error() {
-		w.Header().Set("WWW-Authenticate", `Basic realm="qoe.fi OAuth"`)
+		w.Header().Set("WWW-Authenticate", `Basic realm="qoefi OAuth"`)
 	}
 	w.Header().Set("Cache-Control", "no-store")
 	response.JSON(w, status, map[string]any{

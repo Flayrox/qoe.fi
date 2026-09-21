@@ -69,7 +69,7 @@ export function SimilarArticlesSection({ articleId }: SimilarArticlesSectionProp
                 </h3>
                 <div className="flex items-center gap-2 text-[11px] text-muted-foreground font-medium">
                   <span className="truncate">
-                    {item.publicationName || item.authorName || 'qoe.fi'}
+                    {item.publicationName || item.authorName || 'qoefi'}
                   </span>
                   <span>•</span>
                   <span className="flex items-center gap-1">

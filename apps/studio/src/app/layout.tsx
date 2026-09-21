@@ -42,8 +42,8 @@ const inter = Inter({ variable: '--font-body', subsets: ['latin'] });
 const displayFont = Geist({ variable: '--font-classical', subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'qoe.fi Studio — Creator Dashboard',
-  description: 'Creator management console for qoe.fi.',
+  title: 'qoefi Studio — Creator Dashboard',
+  description: 'Creator management console for qoefi.',
   robots: {
     index: false,
     follow: false,

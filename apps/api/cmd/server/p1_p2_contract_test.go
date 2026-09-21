@@ -52,6 +52,7 @@ func TestP1AuthenticatedReaderContracts(t *testing.T) {
 }
 
 func TestP1CreatorPublicationIsolation(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	fx, err := testutil.SeedArticles(ctx, poolTest)
 	if err != nil {
@@ -175,6 +176,7 @@ func TestP1MediaWorkspaceAndAssetContracts(t *testing.T) {
 }
 
 func TestP1ApiKeyScopesAndOwnershipContracts(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	fx, err := testutil.SeedArticles(ctx, poolTest)
 	if err != nil {
@@ -205,6 +207,7 @@ func TestP1ApiKeyScopesAndOwnershipContracts(t *testing.T) {
 }
 
 func TestP2CorsAndSecurityContracts(t *testing.T) {
+	requirePool(t)
 	r := testRouter(t)
 
 	w, _ := doReq(t, r, http.MethodOptions, "/v1/me", "", nil)
@@ -231,6 +234,7 @@ func TestP2CorsAndSecurityContracts(t *testing.T) {
 }
 
 func TestP2NewsletterSubscriptionConcurrentIdempotence(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	const pubID = "pub_concurrent_newsletter"
 	if _, err := poolTest.Exec(ctx,
@@ -286,6 +290,7 @@ const (
 )
 
 func seedMediaContract(t *testing.T, ctx context.Context) {
+	requirePool(t)
 	t.Helper()
 	if _, err := poolTest.Exec(ctx,
 		`TRUNCATE TABLE "MediaAuditLog", "MediaMember", "Media", "MediaAsset", "Publication", "User" CASCADE`); err != nil {
@@ -318,6 +323,7 @@ func seedMediaContract(t *testing.T, ctx context.Context) {
 }
 
 func seedReaderContract(t *testing.T, ctx context.Context) {
+	requirePool(t)
 	t.Helper()
 	if _, err := poolTest.Exec(ctx,
 		`TRUNCATE TABLE "UserSettings", "WalletTransaction", "Subscriber", "Follows", "MutedWord", "Publication", "User" CASCADE`); err != nil {
@@ -331,6 +337,7 @@ func seedReaderContract(t *testing.T, ctx context.Context) {
 }
 
 func seedAdminContract(t *testing.T, ctx context.Context) {
+	requirePool(t)
 	t.Helper()
 	if _, err := poolTest.Exec(ctx,
 		`TRUNCATE TABLE "WalletTransaction", "Article", "Publication", "User" CASCADE`); err != nil {

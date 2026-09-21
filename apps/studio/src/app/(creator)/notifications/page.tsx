@@ -8,8 +8,8 @@
 import { NotificationList } from '@qoe/ui/notifications';
 
 export const metadata = {
-  title: 'Notifications | qoe.fi',
-  description: 'Vos notifications créateur et média sur qoe.fi.',
+  title: 'Notifications | qoefi',
+  description: 'Vos notifications créateur et média sur qoefi.',
 };
 
 export default function DashboardNotificationsPage() {

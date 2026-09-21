@@ -96,6 +96,7 @@ func TestAdminTrendsPromosConfigs(t *testing.T) {
 
 // TestAdminStorageUsage : supervision du bucket images (superadmin uniquement).
 func TestAdminStorageUsage(t *testing.T) {
+	requirePool(t)
 	seedAdmin(t, context.Background())
 	r := newHTTPRouter()
 
@@ -148,6 +149,7 @@ func TestAdminStorageUsage(t *testing.T) {
 
 // TestAdminAllowlist : CRUD des invitations d'inscription (superadmin).
 func TestAdminAllowlist(t *testing.T) {
+	requirePool(t)
 	seedAdmin(t, context.Background())
 	r := newHTTPRouter()
 	if _, err := poolTest.Exec(context.Background(), `DELETE FROM "RegistrationAllowlist"`); err != nil {
@@ -221,6 +223,7 @@ func TestAdminAllowlist(t *testing.T) {
 
 // TestAdminDeliveries : listing + retry d'une livraison échouée.
 func TestAdminDeliveries(t *testing.T) {
+	requirePool(t)
 	seedAdmin(t, context.Background())
 	r := newHTTPRouter()
 

@@ -14,6 +14,7 @@ import (
 // ─── Slugs par auteur : variant personnel, conflit, résolution double ──
 
 func TestCreatorAPI_PerAuthorSlugs(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 
 	if _, err := poolTest.Exec(ctx,
@@ -204,6 +205,7 @@ func TestCreatorAPI_PerAuthorSlugs(t *testing.T) {
 // ─── Filtres CMS par catégorie/tag/status et validation des slugs ───
 
 func TestCreatorAPI_CMSFiltersAndValidation(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	if _, err := poolTest.Exec(ctx,
 		`TRUNCATE TABLE "ArticleSlugHistory", "ArticleSlug", "Article", "Category", "_CoAuthors", "Publication", "User" CASCADE`); err != nil {

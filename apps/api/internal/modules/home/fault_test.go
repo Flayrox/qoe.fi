@@ -58,6 +58,7 @@ func faultRouter(fp *faultPool) *chi.Mux {
 }
 
 func seedHome(t *testing.T) {
+	requirePool(t)
 	t.Helper()
 	if _, err := testutil.SeedPosts(context.Background(), poolTest); err != nil {
 		t.Fatalf("seed: %v", err)

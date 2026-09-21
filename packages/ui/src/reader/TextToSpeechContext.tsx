@@ -485,7 +485,7 @@ export function TextToSpeechProvider({
     if (isOpen && metadata.title) {
       navigator.mediaSession.metadata = new MediaMetadata({
         title: metadata.title,
-        artist: metadata.authorName || 'Qoe.fi',
+        artist: metadata.authorName || 'Qoefi',
         album: 'Qoe Audio Reader',
         artwork: metadata.coverUrl
           ? [{ src: metadata.coverUrl, sizes: '512x512', type: 'image/jpeg' }]

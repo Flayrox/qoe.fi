@@ -287,8 +287,8 @@ func TestOriginAllowed_ExactAndWildcard(t *testing.T) {
 	if originAllowed("", nil, []string{"https://qoe.fi"}) {
 		t.Error("origin vide avec liste → refusé")
 	}
-	// Wildcard mais middle vide (ex. *.qoe.fi match qoe.fi) → refusé.
-	if originAllowed("qoe.fi", nil, []string{"*.qoe.fi"}) {
+	// Wildcard mais middle vide (ex. *.qoe.fi match qoefi) → refusé.
+	if originAllowed("qoefi", nil, []string{"*.qoe.fi"}) {
 		t.Error("middle vide → refusé")
 	}
 }

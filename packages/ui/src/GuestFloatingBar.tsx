@@ -45,7 +45,7 @@ export function GuestFloatingBar({ onOpenAuth, labels }: GuestFloatingBarProps) 
         )}
       >
         <UserPlus className="w-3.5 h-3.5" />
-        <span>{labels?.signupBtn || t`Rejoindre qoe.fi`}</span>
+        <span>{labels?.signupBtn || t`Rejoindre qoefi`}</span>
       </button>
 
       <div className="w-px h-5 bg-border/60" />

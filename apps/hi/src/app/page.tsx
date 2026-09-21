@@ -1,5 +1,5 @@
 // =====================================================================
-// 🏝️ /start — Landing marketing qoe.fi (version simplifiée pour typecheck)
+// 🏝️ /start — Landing marketing qoefi (version simplifiée pour typecheck)
 // =====================================================================
 
 import { Hero } from '@/components/landing/Hero';

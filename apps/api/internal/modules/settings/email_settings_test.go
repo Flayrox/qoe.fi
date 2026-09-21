@@ -18,6 +18,7 @@ import (
 )
 
 func TestHandler_EmailSettings_GetDefaults(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
@@ -40,6 +41,7 @@ func TestHandler_EmailSettings_GetDefaults(t *testing.T) {
 }
 
 func TestHandler_EmailSettings_PatchValidatesAndPersists(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
@@ -106,6 +108,7 @@ func TestHandler_EmailSettings_PatchValidatesAndPersists(t *testing.T) {
 }
 
 func TestHandler_EmailSettings_AuthAndErrors(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 
@@ -150,6 +153,7 @@ func TestHandler_EmailSettings_AuthAndErrors(t *testing.T) {
 // réglages stockés, locale/template bornés, auth + autorisation.
 
 func TestHandler_EmailSettings_PreviewConfirmFR(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
@@ -179,6 +183,7 @@ func TestHandler_EmailSettings_PreviewConfirmFR(t *testing.T) {
 }
 
 func TestHandler_EmailSettings_PreviewWelcomeEN(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
@@ -200,6 +205,7 @@ func TestHandler_EmailSettings_PreviewWelcomeEN(t *testing.T) {
 }
 
 func TestHandler_EmailSettings_PreviewDraftOverridesStored(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
@@ -239,6 +245,7 @@ func TestHandler_EmailSettings_PreviewDraftOverridesStored(t *testing.T) {
 }
 
 func TestHandler_EmailSettings_PreviewAuthAndBounds(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
@@ -284,6 +291,7 @@ func (f *fakeProvider) Send(_ context.Context, m workers.EmailMessage) error {
 }
 
 func TestHandler_EmailTest_SendsToCreator(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	fake := &fakeProvider{}
 	r := newTestRouter(func(svc *Service) { svc.SetEmailTestSender(fake, "noreply@qoe.fi") })
@@ -316,6 +324,7 @@ func TestHandler_EmailTest_SendsToCreator(t *testing.T) {
 }
 
 func TestHandler_EmailTest_DraftSettingsApplied(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	fake := &fakeProvider{}
 	r := newTestRouter(func(svc *Service) { svc.SetEmailTestSender(fake, "noreply@qoe.fi") })
@@ -338,6 +347,7 @@ func TestHandler_EmailTest_DraftSettingsApplied(t *testing.T) {
 }
 
 func TestHandler_EmailTest_NoProvider503(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
@@ -353,6 +363,7 @@ func TestHandler_EmailTest_NoProvider503(t *testing.T) {
 }
 
 func TestHandler_EmailTest_UnauthorizedAndForbidden(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 

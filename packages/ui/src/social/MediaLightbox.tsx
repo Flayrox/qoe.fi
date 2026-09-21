@@ -152,7 +152,7 @@ export function MediaLightbox({ isOpen, images, initialIndex = 0, onClose }: Med
             exit={{ scale: 0.95, opacity: 0 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             src={currentImage.url}
-            alt={currentImage.alt || t`Aperçu média qoe.fi`}
+            alt={currentImage.alt || t`Aperçu média qoefi`}
             className="max-w-full max-h-[80vh] object-contain rounded-xl shadow-2xl"
           />
 

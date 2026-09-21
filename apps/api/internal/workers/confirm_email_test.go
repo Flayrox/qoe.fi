@@ -27,6 +27,7 @@ import (
 // seedConfirmFixture crée une publication + un abonné PENDING (receiveArticles
 // false, token posé) et renvoie (pubID, email, token).
 func seedConfirmFixture(t *testing.T, ctx context.Context) (string, string, string) {
+	requirePool(t)
 	t.Helper()
 	pool := testutil.MustPool(t)
 

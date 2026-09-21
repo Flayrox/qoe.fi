@@ -33,6 +33,7 @@ func (f *fakeProvider) Send(_ context.Context, msg EmailMessage) error {
 // (abonnés isActive + receiveArticles), envoie via l'EmailProvider, et clôt
 // l'issue avec les compteurs exacts. Un abonné inactif/opt-out ne reçoit rien.
 func TestNewsletterSend_Fanout(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	for _, table := range []string{
 		`"NewsletterDelivery"`, `"NewsletterIssue"`, `"Subscriber"`, `"Publication"`,
@@ -121,6 +122,7 @@ func TestNewsletterSend_Fanout(t *testing.T) {
 // email, l'issue repasse en DRAFT (pas d'état bloqué — les livraisons déjà
 // SENT restent marquées, seule la reprise des QUEUED est possible au ré-envoi).
 func TestNewsletterSend_KillSwitch(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	for _, table := range []string{`"NewsletterDelivery"`, `"NewsletterIssue"`, `"Subscriber"`, `"Publication"`} {
 		if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE `+table+` CASCADE`); err != nil {
@@ -194,6 +196,7 @@ func TestNewsletterSend_KillSwitch(t *testing.T) {
 // avec les compteurs exacts. (Sans client asynq branché, la re-enqueue du lot
 // suivant est simulée par des appels successifs au handler.)
 func TestNewsletterSend_Batches(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	for _, table := range []string{`"NewsletterDelivery"`, `"NewsletterIssue"`, `"Subscriber"`, `"Publication"`} {
 		if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE `+table+` CASCADE`); err != nil {
@@ -280,6 +283,7 @@ func TestNewsletterSend_Batches(t *testing.T) {
 // extrait / lien public, et la dédup article/email évite tout double envoi
 // (republish).
 func TestArticleRelease_Fanout(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	for _, table := range []string{
 		`"ArticleReleaseDelivery"`, `"Subscriber"`, `"Publication"`, `"Article"`,
@@ -352,6 +356,7 @@ func TestArticleRelease_Fanout(t *testing.T) {
 // TestArticleRelease_Premium — un article premium n'embarque jamais de contenu
 // (pas de fuite de paywall par email) : teaser + CTA seulement.
 func TestArticleRelease_Premium(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	for _, table := range []string{
 		`"ArticleReleaseDelivery"`, `"Subscriber"`, `"Publication"`, `"Article"`,
@@ -405,6 +410,7 @@ func TestArticleRelease_Premium(t *testing.T) {
 // TestArticleRelease_KillSwitch — flag off : aucune livraison matérialisée,
 // aucun email.
 func TestArticleRelease_KillSwitch(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	for _, table := range []string{
 		`"ArticleReleaseDelivery"`, `"Subscriber"`, `"Publication"`, `"Article"`,
@@ -465,6 +471,7 @@ func TestArticleRelease_KillSwitch(t *testing.T) {
 // TestNewsletterSend_Failure — échec SMTP : issue marquée FAILED, la livraison
 // porte l'erreur, et le retry ne ré-envoie pas (status != SENDING → no-op).
 func TestNewsletterSend_Failure(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	for _, table := range []string{`"NewsletterDelivery"`, `"NewsletterIssue"`, `"Subscriber"`, `"Publication"`} {
 		if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE `+table+` CASCADE`); err != nil {

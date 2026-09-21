@@ -34,6 +34,7 @@ func doReq(r http.Handler, method, path, userID, body string) *httptest.Response
 }
 
 func TestHTTP_ListUnreadAndMarkRead(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -75,6 +76,7 @@ func TestHTTP_ListUnreadAndMarkRead(t *testing.T) {
 }
 
 func TestHTTP_Preferences(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -102,6 +104,7 @@ func TestHTTP_Preferences(t *testing.T) {
 }
 
 func TestHTTP_MediaNotifications(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)

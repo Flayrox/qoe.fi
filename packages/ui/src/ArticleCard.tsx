@@ -232,7 +232,7 @@ export function ArticleCard({
   const [repostsCount, setRepostsCount] = useState(0);
 
   const isThought = !article.title;
-  const authorHandle = article.author.username || article.author.subdomain || 'qoe.fi';
+  const authorHandle = article.author.username || article.author.subdomain || 'qoefi';
   const explicitContributors = (article.author.contributors || [])
     .filter(
       (contributor) =>

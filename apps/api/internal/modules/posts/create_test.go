@@ -7,6 +7,7 @@ import (
 
 // TestCreate_WithParent exerce le créateur legacy avec un parent (canonical id → root).
 func TestCreate_WithParent(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	ctx := context.Background()
@@ -42,6 +43,7 @@ func TestCreate_WithParent(t *testing.T) {
 
 // TestCreate_PureRepost crée un repost pur (repostId sans contenu).
 func TestCreate_PureRepost(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	ctx := context.Background()
@@ -58,6 +60,7 @@ func TestCreate_PureRepost(t *testing.T) {
 
 // TestCreate_WithAttachments puis Get exerce l'assemblage des pièces jointes.
 func TestCreate_WithAttachments(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	ctx := context.Background()
@@ -92,6 +95,7 @@ func TestCreate_WithAttachments(t *testing.T) {
 
 // TestGet_AncestorChain couvre la boucle d'ancêtres (root → parent) de Get.
 func TestGet_AncestorChain(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	ctx := context.Background()
@@ -125,6 +129,7 @@ func TestGet_AncestorChain(t *testing.T) {
 }
 
 func TestCreate_EmptyContentNoRepost_Error(t *testing.T) {
+	requirePool(t)
 	fx := seedPosts(t)
 	svc := newTestService()
 	if _, err := svc.Create(context.Background(), fx.AuthorID, "", nil, nil, nil); err == nil {

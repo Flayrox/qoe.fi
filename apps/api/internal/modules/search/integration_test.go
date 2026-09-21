@@ -18,15 +18,27 @@ import (
 var poolTest *pgxpool.Pool
 
 func TestMain(m *testing.M) {
-	p, err := testutil.Pool(context.Background())
+	p, err := testutil.TryPool(context.Background())
 	if err != nil {
-		log.Fatalf("testcontainers: %v", err)
+		log.Printf("testcontainers indisponible, tests DB skippes: %v", err)
+		poolTest = nil
+	} else {
+		poolTest = p
 	}
-	poolTest = p
 	code := m.Run()
-	testutil.Cleanup()
+	if poolTest != nil {
+		testutil.Cleanup()
+	}
 	os.Exit(code)
 }
+// requirePool skippe les tests DB quand Docker/testcontainers est absent.
+func requirePool(t *testing.T) {
+	t.Helper()
+	if poolTest == nil {
+		t.Skip("DB indisponible (Docker/testcontainers requis)")
+	}
+}
+
 
 // stubEmbedder implémente embedClient : retourne un vecteur fixe.
 type stubEmbedder struct {
@@ -56,6 +68,7 @@ func vec512(signatureIndex int, fill float32) []float32 {
 //   - recette-pates (publié)    : signature 2
 //   - brouillon (non publié)    : embedding NULL (jamais indexé)
 func seedSearchArticles(t *testing.T) *testutil.Fixtures {
+	requirePool(t)
 	t.Helper()
 	fx, err := testutil.SeedArticles(context.Background(), poolTest)
 	if err != nil {

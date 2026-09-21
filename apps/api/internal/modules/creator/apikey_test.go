@@ -50,6 +50,7 @@ func newAPIRouter() http.Handler {
 }
 
 func TestCreatorAPI_FullScopeKeyAllowed(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -98,6 +99,7 @@ func TestCreatorAPI_FullScopeKeyAllowed(t *testing.T) {
 }
 
 func TestCreatorAPI_ScopeEnforcement(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -120,6 +122,7 @@ func TestCreatorAPI_ScopeEnforcement(t *testing.T) {
 }
 
 func TestCreatorAPI_RejectsBadCredentials(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -175,6 +178,7 @@ func TestRequireAPIScope_JWTPassesWithoutScopes(t *testing.T) {
 // ─── GET /v1/creator/highlights — surlignages publics multi-auteurs ────
 
 func TestCreatorAPI_Highlights(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 
 	// Fixture dédiée : publication créateur + 2 articles (dont un
@@ -333,6 +337,7 @@ func TestCreatorAPI_Highlights(t *testing.T) {
 }
 
 func TestCreatorAPI_Highlights_CoAuthorSeesOwnArticles(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	r := newAPIRouter()
 
@@ -388,6 +393,7 @@ func TestCreatorAPI_Highlights_CoAuthorSeesOwnArticles(t *testing.T) {
 // ─── API v2 : /me, /articles, /articles/{slug}, highlights filtrés ─────
 
 func TestCreatorAPI_Content(t *testing.T) {
+	requirePool(t)
 	r := newAPIRouter()
 	key := insertAPIKey(t, "00000000-0000-0000-0000-000000000c01", "contenu", authmw.AllScopes)
 
@@ -479,6 +485,7 @@ func TestCreatorAPI_Content(t *testing.T) {
 // ─── Markdown : contentMarkdown généré depuis le HTML stocké ──────────
 
 func TestCreatorAPI_ArticleMarkdown(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 
 	// Fixture autonome (ce test peut tourner seul) : publication + auteur.
@@ -535,6 +542,7 @@ func TestCreatorAPI_ArticleMarkdown(t *testing.T) {
 // ─── Annotations officielles de l'auteur + commentaires (isAuthor) ─────
 
 func TestCreatorAPI_OfficialAnnotationsAndComments(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 
 	// Fixture autonome : publication, auteur, lecteur, article,
@@ -659,6 +667,7 @@ func TestCreatorAPI_OfficialAnnotationsAndComments(t *testing.T) {
 // ─── CMS : catégories, filtres et tri des articles ─────────────────────
 
 func TestCreatorAPI_CMSTaxonomyAndFilters(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 
 	// Fixture autonome : publication, catégorie Politique + Culture,
@@ -812,6 +821,7 @@ func TestCreatorAPI_CMSTaxonomyAndFilters(t *testing.T) {
 // ─── Cycle de vie CMS : create → draft → patch → publish → search → delete
 
 func TestCreatorAPI_CMSLifecycle(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 
 	if _, err := poolTest.Exec(ctx,

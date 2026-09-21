@@ -212,9 +212,9 @@ export const settingsTree: SettingsNode = {
         {
           id: 'domain-subdomain',
           titleKey: 'dashboard.settings.domain_subdomain',
-          label: () => t`Sous-domaine qoe.fi`,
+          label: () => t`Sous-domaine qoefi`,
           hash: '#subdomain',
-          keywordsKey: ['sous-domaine', 'subdomain', 'url', 'lien', 'qoe.fi'],
+          keywordsKey: ['sous-domaine', 'subdomain', 'url', 'lien', 'qoefi'],
         },
         {
           id: 'domain-custom',

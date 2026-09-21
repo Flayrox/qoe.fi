@@ -187,7 +187,7 @@ func (h *Handler) mfaEnroll(w http.ResponseWriter, r *http.Request) {
 		response.Unauthorized(w, "Authentification requise")
 		return
 	}
-	data, err := h.svc.MFARequest(r.Context(), userID, r.Header.Get("Authorization"), "POST", "/auth/v1/factors", map[string]any{"factor_type": "totp", "friendly_name": "qoe.fi"})
+	data, err := h.svc.MFARequest(r.Context(), userID, r.Header.Get("Authorization"), "POST", "/auth/v1/factors", map[string]any{"factor_type": "totp", "friendly_name": "qoefi"})
 	if err != nil {
 		response.Error(w, http.StatusBadRequest, err.Error())
 		return

@@ -56,6 +56,7 @@ func TestUnaccent(t *testing.T) {
 }
 
 func TestEmbedTop(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 
 	// Serveur d'inférence factice : renvoie un vecteur 512d.
@@ -142,6 +143,7 @@ func TestEmbedTop(t *testing.T) {
 // (READ_PARTIAL/COMPLETE/SKIM) reçoit un vecteur issu de ce qu'il lit ; un
 // compte 100% bounces reste en cold start (comme l'EMA prod).
 func TestEmbedTop_UsersFromReading(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vec := make([]float64, 512)
@@ -194,6 +196,7 @@ func TestVectorLiteralInDB(t *testing.T) {
 // TestRunTopUmami génère 30 jours de sessions/events sur le schéma Umami
 // minimal créé dans le pool de test.
 func TestRunTopUmami(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	ddl := []string{
 		`CREATE TABLE IF NOT EXISTS website (

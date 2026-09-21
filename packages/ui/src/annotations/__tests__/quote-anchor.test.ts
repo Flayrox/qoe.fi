@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { findQuoteOccurrence } from '../quote-anchor';
 
-// Le surlignage qoe.fi n'a pas d'offsets stockés : l'ancre est le texte
+// Le surlignage qoefi n'a pas d'offsets stockés : l'ancre est le texte
 // cité + son ordinal d'occurrence. Ces tests garantissent que la bonne
 // occurrence est visée, avec repli sur la première si nécessaire.
 

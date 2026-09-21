@@ -35,7 +35,7 @@ describe('ProvenanceBlock', () => {
     expect(screen.getByText('Provenance des vues')).toBeInTheDocument();
 
     // Source labels
-    expect(screen.getByText('Feed qoe.fi')).toBeInTheDocument();
+    expect(screen.getByText('Feed qoefi')).toBeInTheDocument();
     expect(screen.getByText('Tenants (sous-domaines)')).toBeInTheDocument();
 
     // Counts

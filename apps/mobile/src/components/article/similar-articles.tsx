@@ -48,7 +48,7 @@ export function SimilarArticles({ articleId }: { articleId: string }) {
       </View>
 
       {items.map((item) => {
-        const publication = item.publicationName || item.authorName || 'qoe.fi';
+        const publication = item.publicationName || item.authorName || 'qoefi';
         return (
           <Pressable
             key={item.id}

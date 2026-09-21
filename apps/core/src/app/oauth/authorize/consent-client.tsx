@@ -79,13 +79,13 @@ export function OAuthConsentClient({
   return (
     <main className="min-h-screen flex items-center justify-center bg-background px-4 py-12 text-foreground">
       <div className="w-full max-w-lg bg-card border border-border rounded-3xl shadow-2xl overflow-hidden">
-        {/* En-tête qoe.fi */}
+        {/* En-tête qoefi */}
         <div className="px-8 py-6 border-b border-border/80 flex items-center gap-3 bg-muted/20">
           <div className="w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shrink-0">
             <Shield className="w-5 h-5" />
           </div>
           <div>
-            <p className="text-sm font-bold">qoe.fi</p>
+            <p className="text-sm font-bold">qoefi</p>
             <p className="text-xs text-muted-foreground">Connexion sécurisée · OpenID Connect</p>
           </div>
         </div>

@@ -38,6 +38,7 @@ func TestStripHTMLTags(t *testing.T) {
 }
 
 func TestAuthorSlugs(t *testing.T) {
+	requirePool(t)
 	fx := seedPostsFx(t)
 	h := &Handler{pool: poolTest, q: db.New(poolTest)}
 
@@ -58,6 +59,7 @@ func TestAuthorSlugs(t *testing.T) {
 }
 
 func seedPostsFx(t *testing.T) *testutil.PostFixtures {
+	requirePool(t)
 	t.Helper()
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
@@ -67,6 +69,7 @@ func seedPostsFx(t *testing.T) *testutil.PostFixtures {
 }
 
 func TestFault_ApiArticleCreate(t *testing.T) {
+	requirePool(t)
 	fx := seedPostsFx(t)
 	_, _, fp := newFaultHandler(nil)
 	h := &Handler{pool: fp, q: db.New(poolTest)}
@@ -93,6 +96,7 @@ func TestFault_ApiArticleCreate(t *testing.T) {
 }
 
 func TestFault_ApiMe_PoolError(t *testing.T) {
+	requirePool(t)
 	fx := seedPostsFx(t)
 	_, _, fp := newFaultHandler(nil)
 	fp.failQueryRow = true
@@ -107,6 +111,7 @@ func TestFault_ApiMe_PoolError(t *testing.T) {
 }
 
 func TestFault_ApiArticleUpdate_PoolError(t *testing.T) {
+	requirePool(t)
 	fx := seedPostsFx(t)
 	_, _, fp := newFaultHandler(nil)
 	fp.failExec = true
@@ -127,6 +132,7 @@ func TestFault_ApiArticleUpdate_PoolError(t *testing.T) {
 }
 
 func TestFault_ApiHighlights_PoolError(t *testing.T) {
+	requirePool(t)
 	fx := seedPostsFx(t)
 	_, _, fp := newFaultHandler(nil)
 	fp.failQuery = true
@@ -141,6 +147,7 @@ func TestFault_ApiHighlights_PoolError(t *testing.T) {
 }
 
 func TestFault_ApiHighlightComments_PoolError(t *testing.T) {
+	requirePool(t)
 	seedPostsFx(t)
 	_, _, fp := newFaultHandler(nil)
 	fp.failQuery = true

@@ -9,7 +9,7 @@ interface ProvenanceBlockProps {
 }
 
 const SOURCE_LABELS: Record<string, string> = {
-  feed: 'Feed qoe.fi',
+  feed: 'Feed qoefi',
   subdomain: 'Tenants (sous-domaines)',
   public_profile: 'Profils publics',
   direct: 'Accès direct / externe',

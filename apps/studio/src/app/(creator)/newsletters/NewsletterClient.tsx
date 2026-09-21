@@ -267,7 +267,7 @@ export function NewsletterClient({ initialIssues }: NewsletterClientProps) {
                   className="w-full px-3 py-2.5 bg-muted/40 border border-border/30 rounded-lg text-xs font-sans text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary resize-y"
                 />
                 <p className="text-[11px] text-muted-foreground">
-                  HTML simple (titres, paragraphes, images, liens). Enveloppé dans un gabarit qoe.fi
+                  HTML simple (titres, paragraphes, images, liens). Enveloppé dans un gabarit qoefi
                   avec lien de désabonnement automatique.
                 </p>
               </div>

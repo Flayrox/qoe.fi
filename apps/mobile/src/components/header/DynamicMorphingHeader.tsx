@@ -81,7 +81,7 @@ export function DynamicMorphingHeader({
     };
   });
 
-  // ─── Style Animé pour le Logo « qoe.fi » (Transition douce linéaire/cubique) ───
+  // ─── Style Animé pour le Logo « qoefi » (Transition douce linéaire/cubique) ───
   const logoAnimatedStyle = useAnimatedStyle(() => {
     const scrollProgress = interpolate(scrollY.value, [0, 35], [0, 1], 'clamp');
     const effectiveProgress = Math.max(scrollProgress, autoMorph.value);
@@ -153,9 +153,9 @@ export function DynamicMorphingHeader({
         {/* ─── Spacer Gauche (53px) pour équilibrer parfaitement le bouton Messages à droite ─── */}
         <View style={styles.sideSpacer} />
 
-        {/* ─── Section Centrale : Morphing Logo qoe.fi ↔ Sélecteur « Pour vous ⌵ » ─── */}
+        {/* ─── Section Centrale : Morphing Logo qoefi ↔ Sélecteur « Pour vous ⌵ » ─── */}
         <View style={styles.centerSection}>
-          {/* Logo qoe.fi centré au repos */}
+          {/* Logo qoefi centré au repos */}
           <Animated.View style={[styles.absoluteCenter, logoAnimatedStyle]}>
             <Pressable onPress={handleLogoPress} hitSlop={10}>
               <QoeLogo height={28} color={isDark ? '#FFFFFF' : '#000000'} />

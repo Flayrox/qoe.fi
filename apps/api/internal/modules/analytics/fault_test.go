@@ -116,6 +116,7 @@ const analyticsPub = "pub_analytics_001"
 // TestFinancial_Success : MRR/ARR/volume + conversion avec 1 premium (500cts/mois,
 // LTV 1500) + 2 free.
 func TestFinancial_Success(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedProductMetrics(t, ctx)
 	// Premium : Tier (500cts/mois) + abonné lié (LTV 1500).
@@ -156,6 +157,7 @@ func TestFinancial_Success(t *testing.T) {
 }
 
 func TestFault_Financial_QueryErrors(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedProductMetrics(t, ctx)
 
@@ -174,6 +176,7 @@ func TestFault_Financial_QueryErrors(t *testing.T) {
 }
 
 func TestFault_TopContent_QueryErrors(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedProductMetrics(t, ctx)
 
@@ -188,6 +191,7 @@ func TestFault_TopContent_QueryErrors(t *testing.T) {
 // umami : pool en faute → ReturningVisitors/VisitsByHour renvoient l'erreur
 // (le handler répond 500).
 func TestFault_Umami_PoolError(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedProductMetrics(t, ctx)
 
@@ -205,6 +209,7 @@ func TestFault_Umami_PoolError(t *testing.T) {
 }
 
 func TestHTTP_Umami_Returning_PoolError(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedProductMetrics(t, ctx)
 	// La publication doit avoir un umamiWebsiteId pour atteindre le pool.
@@ -237,6 +242,7 @@ func contextWithUser(r *http.Request, userID string) context.Context {
 
 // financial / top-content : erreur queryer (hors forbidden) → 500.
 func TestFault_Handlers_FinancialTopContent(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedProductMetrics(t, ctx)
 
@@ -291,6 +297,7 @@ func TestHTTP_AllRoutes_Outsider_Forbidden(t *testing.T) {
 
 // umamiHours : pool en faute → 500 via le handler (comme umamiReturning).
 func TestHTTP_Umami_Hours_PoolError(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedProductMetrics(t, ctx)
 	if _, err := poolTest.Exec(ctx,
@@ -312,6 +319,7 @@ func TestHTTP_Umami_Hours_PoolError(t *testing.T) {
 // productMetrics handler (0%) : owner → 200, étranger → 403.
 // Handlers restants : branches 500 via pool en faute (lectures DB directes).
 func TestFault_Handlers_InternalErrors(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedProductMetrics(t, ctx)
 
@@ -339,6 +347,7 @@ func TestFault_Handlers_InternalErrors(t *testing.T) {
 }
 
 func TestHTTP_ProductMetrics(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedProductMetrics(t, ctx)
 
@@ -359,6 +368,7 @@ func TestHTTP_ProductMetrics(t *testing.T) {
 
 // Faults sur le pool du service (lectures ReadingSession / provenance / insights).
 func TestFault_Service_PoolErrors(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	seedProductMetrics(t, ctx)
 

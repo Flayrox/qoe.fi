@@ -107,6 +107,7 @@ func TestAdminDashboard_Superadmin(t *testing.T) {
 // ─── Liste & modération utilisateurs ──────────────────────────────────
 
 func TestAdminUsers_ListDetailModerate(t *testing.T) {
+	requirePool(t)
 	seedAdmin(t, context.Background())
 	r := newHTTPRouter()
 

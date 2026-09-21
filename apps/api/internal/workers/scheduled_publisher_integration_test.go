@@ -12,6 +12,7 @@ import (
 // 3 articles : un SCHEDULED dû (scheduledAt passé), un SCHEDULED futur, un
 // DRAFT sans scheduledAt. Retourne les IDs.
 func seedScheduledArticles(t *testing.T) (dueID, futureID, draftID string) {
+	requirePool(t)
 	t.Helper()
 	fx, err := testutil.SeedWebhooks(context.Background(), poolTest)
 	if err != nil {

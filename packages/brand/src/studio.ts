@@ -13,7 +13,7 @@ export interface StudioMetricDefinition {
 }
 
 /**
- * Registre des métriques & entités du Studio Créateur qoe.fi
+ * Registre des métriques & entités du Studio Créateur qoefi
  */
 export const STUDIO_ENTITIES: Record<string, StudioMetricDefinition> = {
   // ─── Analytics ───

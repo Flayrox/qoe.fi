@@ -31,6 +31,7 @@ func faultRouterFromQ(qf map[string]error) *chi.Mux {
 }
 
 func TestFault_Handlers_InternalErrors(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	tok := testJWT(fx.OwnerID)
 

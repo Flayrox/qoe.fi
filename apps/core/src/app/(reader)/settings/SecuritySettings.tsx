@@ -44,7 +44,7 @@ export default function SecuritySettings() {
     setError(null);
     const { data, error: enrollError } = await supabase.auth.mfa.enroll({
       factorType: 'totp',
-      friendlyName: 'qoe.fi',
+      friendlyName: 'qoefi',
     });
     setBusy(false);
     if (enrollError) {

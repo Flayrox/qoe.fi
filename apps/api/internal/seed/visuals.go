@@ -68,7 +68,7 @@ func visualGroupFor(kind string) string {
 func visualFor(index int, kind string) visualAsset {
 	assets := visualGroups[visualGroupFor(kind)]
 	if len(assets) == 0 {
-		return visualAsset{URL: "", Kind: kind, Alt: "Visuel qoe.fi"}
+		return visualAsset{URL: "", Kind: kind, Alt: "Visuel qoefi"}
 	}
 	// Une identité reçoit un choix stable dans tout le catalogue avatar. Pour
 	// les couvertures, le kind sert seulement de préférence : il n'y a pas assez

@@ -31,7 +31,7 @@ export function AdminSidebar() {
           href="/"
           className="flex items-center gap-2 text-white hover:opacity-80 transition-opacity"
         >
-          <span className="font-bold text-xl tracking-tight">qoe.fi</span>
+          <span className="font-bold text-xl tracking-tight">qoefi</span>
         </Link>
       </div>
 

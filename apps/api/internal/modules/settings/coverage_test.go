@@ -11,6 +11,7 @@ import (
 // routeur chi réel + service réel : publication, préférences, suppression
 // de compte, subdomain, api-application.
 func TestHandlers_ZeroCoverage_Routes(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	tok := testJWT(fx.OwnerID)
@@ -50,6 +51,7 @@ func TestHandlers_ZeroCoverage_Routes(t *testing.T) {
 }
 
 func TestHandlers_UpdatePreferences_BadJSON(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	tok := testJWT(fx.OwnerID)
@@ -85,6 +87,7 @@ func TestTextFromAny(t *testing.T) {
 }
 
 func TestHandlers_UpdateProfile_BadField(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	tok := testJWT(fx.OwnerID)
@@ -102,6 +105,7 @@ func TestHandlers_UpdateProfile_BadField(t *testing.T) {
 }
 
 func TestHandlers_GetPublication_Forbidden(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	// Le viewer n'est pas membre de la publication personnelle de l'owner → 403.
@@ -113,6 +117,7 @@ func TestHandlers_GetPublication_Forbidden(t *testing.T) {
 }
 
 func TestHandlers_NoAuth_Unauthorized(t *testing.T) {
+	requirePool(t)
 	seed(t)
 	r := newTestRouter()
 

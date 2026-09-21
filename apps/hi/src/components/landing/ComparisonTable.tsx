@@ -19,7 +19,7 @@ interface ComparisonTableProps {
 export const ComparisonTable = ({ config }: ComparisonTableProps) => {
   const title = config['comparison_title'] || t`Souveraineté ou Intermédiation ?`;
   const tagline =
-    config['comparison_tagline'] || t`Pourquoi qoe.fi redéfinit l'édition indépendante`;
+    config['comparison_tagline'] || t`Pourquoi qoefi redéfinit l'édition indépendante`;
 
   // Load custom rows from config if present, or use premium defaults
   let rows: ComparisonRow[] = [];
@@ -104,7 +104,7 @@ export const ComparisonTable = ({ config }: ComparisonTableProps) => {
             <div className="col-span-4 text-center">{t`Substack`}</div>
             <div className="col-span-4 text-center text-foreground flex items-center justify-center gap-1.5 bg-primary/5 border-x border-border/20 py-2 rounded-t-xl -my-8">
               <Sparkles className="w-3 h-3 text-primary" />
-              <span>{t`qoe.fi (Souverain)`}</span>
+              <span>{t`qoefi (Souverain)`}</span>
             </div>
           </div>
 
@@ -137,7 +137,7 @@ export const ComparisonTable = ({ config }: ComparisonTableProps) => {
                   <span className="leading-relaxed">{row.substack}</span>
                 </div>
 
-                {/* qoe.fi Column */}
+                {/* qoefi Column */}
                 <div className="col-span-1 md:col-span-4 md:text-center flex items-start md:justify-center gap-3 text-foreground text-sm font-sans font-medium md:px-4 md:border-x md:border-border/10 md:-my-6 md:py-6 bg-primary/[0.02]">
                   <span className="md:hidden font-sans text-[10px] uppercase font-semibold tracking-wider text-primary mt-1">
                     {t`qoe.fi:`}
@@ -159,7 +159,7 @@ export const ComparisonTable = ({ config }: ComparisonTableProps) => {
           <p className="text-xs text-muted-foreground leading-relaxed flex items-center justify-center gap-2">
             <HelpCircle className="w-4 h-4 text-primary flex-shrink-0" />
             <span>
-              {t`qoe.fi est conçu pour les créateurs qui refusent le compromis de la centralisation algorithmique et de l'intermédiation financière.`}
+              {t`qoefi est conçu pour les créateurs qui refusent le compromis de la centralisation algorithmique et de l'intermédiation financière.`}
             </span>
           </p>
         </motion.div>

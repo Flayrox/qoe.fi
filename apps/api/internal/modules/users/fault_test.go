@@ -73,6 +73,7 @@ func authed(r http.Handler, method, path, userID, body string) *httptest.Respons
 }
 
 func seedUsers(t *testing.T) string {
+	requirePool(t)
 	t.Helper()
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {

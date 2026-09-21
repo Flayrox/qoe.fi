@@ -13,7 +13,7 @@ export interface DefaultAvatar {
 }
 
 /**
- * 🎨 Liste canonique des 10 avatars génériques de qoe.fi.
+ * 🎨 Liste canonique des 10 avatars génériques de qoefi.
  * Source de vérité partagée entre Web, Mobile et Seed Backend Go.
  */
 export const DEFAULT_AVATARS: readonly DefaultAvatar[] = [
@@ -109,7 +109,7 @@ export function getDefaultAvatar(idOrIndex: number | string): DefaultAvatar {
 }
 
 /**
- * Détermine si une URL correspond à l'un des avatars par défaut de qoe.fi.
+ * Détermine si une URL correspond à l'un des avatars par défaut de qoefi.
  */
 export function isDefaultAvatarUrl(url?: string | null): boolean {
   if (!url) return false;

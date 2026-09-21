@@ -13,15 +13,27 @@ import (
 var poolTest *pgxpool.Pool
 
 func TestMain(m *testing.M) {
-	p, err := testutil.Pool(context.Background())
+	p, err := testutil.TryPool(context.Background())
 	if err != nil {
-		log.Fatalf("testcontainers: %v", err)
+		log.Printf("testcontainers indisponible, tests DB skippes: %v", err)
+		poolTest = nil
+	} else {
+		poolTest = p
 	}
-	poolTest = p
 	code := m.Run()
-	testutil.Cleanup()
+	if poolTest != nil {
+		testutil.Cleanup()
+	}
 	os.Exit(code)
 }
+// requirePool skippe les tests DB quand Docker/testcontainers est absent.
+func requirePool(t *testing.T) {
+	t.Helper()
+	if poolTest == nil {
+		t.Skip("DB indisponible (Docker/testcontainers requis)")
+	}
+}
+
 
 // insertNotification helper : insertion brute pour préparer les états.
 func insertNotification(t *testing.T, recipientID, senderID, ntype, thoughtID string, isRead bool) {
@@ -41,6 +53,7 @@ func insertNotification(t *testing.T, recipientID, senderID, ntype, thoughtID st
 // ─── Liste & groupement ────────────────────────────────────────────────
 
 func TestListEmpty(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -60,6 +73,7 @@ func TestListEmpty(t *testing.T) {
 }
 
 func TestListGroupsSameTargetWithin48h(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -116,6 +130,7 @@ func TestListGroupsSameTargetWithin48h(t *testing.T) {
 }
 
 func TestListTypeFilters(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -166,6 +181,7 @@ func TestListTypeFilters(t *testing.T) {
 }
 
 func TestListPaginationHasMoreAndCursor(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -198,6 +214,7 @@ func TestListPaginationHasMoreAndCursor(t *testing.T) {
 // ─── Non-lues & lecture ────────────────────────────────────────────────
 
 func TestUnreadCountAndMarkRead(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -251,6 +268,7 @@ func TestUnreadCountAndMarkRead(t *testing.T) {
 // ─── Préférences ───────────────────────────────────────────────────────
 
 func TestPreferencesDefaultsThenPartialUpdate(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)
@@ -292,6 +310,7 @@ func TestPreferencesDefaultsThenPartialUpdate(t *testing.T) {
 // ─── Notifications média ───────────────────────────────────────────────
 
 func TestInsertMediaInviteAndMemberJoined(t *testing.T) {
+	requirePool(t)
 	fx, err := testutil.SeedPosts(context.Background(), poolTest)
 	if err != nil {
 		t.Fatalf("seed: %v", err)

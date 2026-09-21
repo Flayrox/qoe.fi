@@ -165,7 +165,7 @@ export function LegalShell({
               href="https://qoe.fi"
               className="underline transition-colors hover:text-[var(--tenant-accent)]"
             >
-              qoe.fi
+              qoefi
             </Link>
           </p>
         </div>

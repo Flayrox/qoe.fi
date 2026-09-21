@@ -84,6 +84,7 @@ func seed(t *testing.T) *testutil.SettingsFixtures {
 // ─── Sous-domaine (public) ────────────────────────────────────────────
 
 func TestHandler_CheckSubdomain_Available(t *testing.T) {
+	requirePool(t)
 	seed(t)
 	r := newTestRouter()
 
@@ -97,6 +98,7 @@ func TestHandler_CheckSubdomain_Available(t *testing.T) {
 }
 
 func TestHandler_CheckSubdomain_Reserved(t *testing.T) {
+	requirePool(t)
 	seed(t)
 	r := newTestRouter()
 
@@ -110,6 +112,7 @@ func TestHandler_CheckSubdomain_Reserved(t *testing.T) {
 }
 
 func TestHandler_CheckSubdomain_Taken(t *testing.T) {
+	requirePool(t)
 	seed(t)
 	r := newTestRouter()
 
@@ -126,6 +129,7 @@ func TestHandler_CheckSubdomain_Taken(t *testing.T) {
 // ─── Profil ───────────────────────────────────────────────────────────
 
 func TestHandler_UpdateProfile_Owner(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
@@ -152,6 +156,7 @@ func TestHandler_UpdateProfile_Owner(t *testing.T) {
 }
 
 func TestHandler_UpdateProfile_NoPublication(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
@@ -163,6 +168,7 @@ func TestHandler_UpdateProfile_NoPublication(t *testing.T) {
 }
 
 func TestHandler_UpdateProfile_ViewerForbidden(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	token := testJWT(fx.ViewerID)
@@ -178,6 +184,7 @@ func TestHandler_UpdateProfile_ViewerForbidden(t *testing.T) {
 }
 
 func TestHandler_UpdateProfile_EditorOverride(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	token := testJWT(fx.EditorID)
@@ -193,6 +200,7 @@ func TestHandler_UpdateProfile_EditorOverride(t *testing.T) {
 }
 
 func TestHandler_UpdateProfile_NoAuth(t *testing.T) {
+	requirePool(t)
 	seed(t)
 	r := newTestRouter()
 
@@ -205,6 +213,7 @@ func TestHandler_UpdateProfile_NoAuth(t *testing.T) {
 // ─── Sous-domaine (protégé) ───────────────────────────────────────────
 
 func TestHandler_UpdateSubdomain_Owner(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
@@ -222,6 +231,7 @@ func TestHandler_UpdateSubdomain_Owner(t *testing.T) {
 }
 
 func TestHandler_UpdateSubdomain_Taken(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
@@ -238,6 +248,7 @@ func TestHandler_UpdateSubdomain_Taken(t *testing.T) {
 // ─── Navigation / Social ──────────────────────────────────────────────
 
 func TestHandler_SaveNavigation_Owner(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
@@ -258,6 +269,7 @@ func TestHandler_SaveNavigation_Owner(t *testing.T) {
 }
 
 func TestHandler_SaveSocial_Owner(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
@@ -277,12 +289,13 @@ func TestHandler_SaveSocial_Owner(t *testing.T) {
 // ─── Clés API ─────────────────────────────────────────────────────────
 
 func TestHandler_SubmitApiApplication(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
 
 	w, _ := doJSON(t, r, "POST", "/v1/settings/api-application", token, map[string]any{
-		"reason": "Je veux intégrer qoe.fi comme CMS pour mon média.",
+		"reason": "Je veux intégrer qoefi comme CMS pour mon média.",
 	})
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
@@ -290,6 +303,7 @@ func TestHandler_SubmitApiApplication(t *testing.T) {
 }
 
 func TestHandler_SubmitApiApplication_TooShort(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
@@ -301,6 +315,7 @@ func TestHandler_SubmitApiApplication_TooShort(t *testing.T) {
 }
 
 func TestHandler_GenerateApiKey_Owner(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
@@ -319,6 +334,7 @@ func TestHandler_GenerateApiKey_Owner(t *testing.T) {
 }
 
 func TestHandler_GenerateApiKey_NotApproved(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	token := testJWT(fx.ViewerID)
@@ -331,6 +347,7 @@ func TestHandler_GenerateApiKey_NotApproved(t *testing.T) {
 }
 
 func TestHandler_ListApiKeys_Owner(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
@@ -376,6 +393,7 @@ func TestHandler_ListApiKeys_Owner(t *testing.T) {
 }
 
 func TestHandler_ListApiKeys_NoAuth(t *testing.T) {
+	requirePool(t)
 	seed(t)
 	r := newTestRouter()
 
@@ -386,6 +404,7 @@ func TestHandler_ListApiKeys_NoAuth(t *testing.T) {
 }
 
 func TestHandler_RevokeApiKey_Owner(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
@@ -420,6 +439,7 @@ func TestHandler_RevokeApiKey_Owner(t *testing.T) {
 // ─── Onboarding ───────────────────────────────────────────────────────
 
 func TestHandler_CompleteOnboarding(t *testing.T) {
+	requirePool(t)
 	fx := seed(t)
 	r := newTestRouter()
 	token := testJWT(fx.ViewerID)

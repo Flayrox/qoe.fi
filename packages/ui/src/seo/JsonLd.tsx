@@ -65,7 +65,7 @@ export function buildArticleSchema(input: ArticleSchemaInput) {
     },
     publisher: {
       '@type': 'Organization',
-      name: 'qoe.fi',
+      name: 'qoefi',
       url: 'https://qoe.fi',
     },
   };
@@ -104,6 +104,8 @@ export interface WebSiteSchemaInput {
   name: string;
   url: string;
   description?: string;
+  /** Nom alternatif (ex: ancien nom de marque) pour associer les requêtes. */
+  alternateName?: string;
 }
 
 /**
@@ -114,6 +116,7 @@ export function buildWebSiteSchema(input: WebSiteSchemaInput) {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
     name: input.name,
+    alternateName: input.alternateName || undefined,
     url: input.url,
     description: input.description,
   };

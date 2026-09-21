@@ -18,6 +18,7 @@ import (
 // la lecture), officiel, et un privé qui ne doit JAMAIS sortir.
 // Retourne le slug de l'article et les offsets attendus.
 func seedAnnotationsFixture(t *testing.T) (slug string, doc *canon.Document) {
+	requirePool(t)
 	t.Helper()
 	ctx := context.Background()
 
@@ -239,6 +240,7 @@ func TestCreatorAPI_AnnotationsExport(t *testing.T) {
 }
 
 func TestCreatorAPI_AnnotationsExport_MissingPassage(t *testing.T) {
+	requirePool(t)
 	ctx := context.Background()
 	slug, _ := seedAnnotationsFixture(t)
 	creatorID := "00000000-0000-0000-0000-00000000a001"
@@ -281,6 +283,7 @@ func TestCreatorAPI_AnnotationsExport_MissingPassage(t *testing.T) {
 }
 
 func TestCreatorAPI_AnnotationsExport_NotFoundOrUnowned(t *testing.T) {
+	requirePool(t)
 	seedAnnotationsFixture(t)
 
 	// Un AUTRE créateur (n'auteur, ni co-auteur, ni publication) ne doit pas

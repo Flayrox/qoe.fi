@@ -23,7 +23,7 @@ func Recovery(next http.Handler) http.Handler {
 	})
 }
 
-// CORS autorise les origines configurées (défaut : localhost dev + qoe.fi).
+// CORS autorise les origines configurées (défaut : localhost dev + qoefi).
 func CORS(allowedOrigins []string) func(http.Handler) http.Handler {
 	originSet := map[string]bool{}
 	for _, o := range allowedOrigins {
