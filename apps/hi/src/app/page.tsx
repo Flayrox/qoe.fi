@@ -32,7 +32,6 @@ const getCachedSystemConfig = unstable_cache(
   }
 );
 
-import { NavbarPremium } from '@/components/layout/NavbarPremium';
 import { Footer } from '@/components/layout/Footer';
 
 export const dynamic = 'force-dynamic';
@@ -47,8 +46,6 @@ export default async function StartLanding() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <NavbarPremium />
-
       <Hero config={config} />
 
       <Marquee />
