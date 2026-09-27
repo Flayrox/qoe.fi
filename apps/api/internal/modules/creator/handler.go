@@ -634,6 +634,7 @@ func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 	var followingCount int32
 	var ownerUserID string
 	var pronouns *string
+	displaySlug := row.Slug
 	if ownerID, err := h.q.GetPublicationOwner(r.Context(), row.ID); err == nil {
 		ownerUserID = ownerID
 		if n, err := h.q.CountFollowing(r.Context(), toUUID(ownerID)); err == nil {
@@ -642,13 +643,19 @@ func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 		if p, err := h.q.GetUserPronouns(r.Context(), ownerID); err == nil && p.Valid {
 			pronouns = &p.String
 		}
+		if row.Type == db.PublicationTypePERSONAL {
+			var uUsername pgtype.Text
+			if err := h.pool.QueryRow(r.Context(), `SELECT username FROM "User" WHERE id = $1`, toUUID(ownerID)).Scan(&uUsername); err == nil && uUsername.Valid && uUsername.String != "" {
+				displaySlug = uUsername.String
+			}
+		}
 	}
 
 	response.OK(w, map[string]any{"data": map[string]any{
 		"id":             row.ID,
 		"ownerUserId":    ownerUserID,
 		"name":           row.Name,
-		"slug":           row.Slug,
+		"slug":           displaySlug,
 		"subdomain":      textPtr(row.Subdomain),
 		"customDomain":   textPtr(row.CustomDomain),
 		"heroText":       textPtr(row.HeroText),

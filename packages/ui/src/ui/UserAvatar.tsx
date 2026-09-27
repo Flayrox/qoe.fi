@@ -69,6 +69,7 @@ export function UserAvatar({
       )}
     >
       <SafeAvatar
+        id={user?.id}
         src={logoUrl}
         name={name}
         username={user?.username}

@@ -253,7 +253,25 @@ export default function AccountSettingsPage({
     startTransition(async () => {
       try {
         const res = await changeUsernameAction(un.value);
+        if (!res.success) {
+          setUnMessage({
+            type: 'err',
+            text: (res as { error?: string }).error || t`Identifiant indisponible.`,
+          });
+          return;
+        }
         setUn({ value: res.username, editing: false });
+        setData((prev) =>
+          prev
+            ? {
+                ...prev,
+                user: {
+                  ...prev.user,
+                  username: res.username,
+                },
+              }
+            : prev
+        );
         setUnMessage({ type: 'ok', text: t`Identifiant mis à jour.` });
       } catch (error) {
         setUnMessage({

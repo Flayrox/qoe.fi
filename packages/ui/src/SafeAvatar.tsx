@@ -10,6 +10,7 @@ export type AvatarShape = 'circle' | 'squircle';
 export type AvatarAccountType = 'PERSONAL' | 'MEDIA';
 
 export interface SafeAvatarProps {
+  id?: string | null;
   src?: string | null;
   alt?: string | null;
   name?: string | null;
@@ -39,6 +40,7 @@ function getShapeClass(shape: AvatarShape, size: number): string {
  * - Fallback vectoriel ultra-premium style Discord / Twitter
  */
 export function SafeAvatar({
+  id,
   src,
   alt,
   name,
@@ -58,8 +60,8 @@ export function SafeAvatar({
   const resolvedShape: AvatarShape = shape || (isMedia ? 'squircle' : 'circle');
   const shapeClass = getShapeClass(resolvedShape, size);
 
-  // Thème déterministe basé sur l'identifiant / username
-  const seed = username || name || alt || 'qoe-user';
+  // Thème déterministe basé en priorité sur l'identifiant immuable (id / UUID)
+  const seed = id || username || name || alt || 'qoe-user';
   const theme = getAvatarTheme(seed, isMedia ? 'MEDIA' : 'PERSONAL');
 
   // Nettoyage de l'URL source

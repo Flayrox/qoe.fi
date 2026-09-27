@@ -339,14 +339,18 @@ func (s *Service) GetOrCreatePersonalPublication(ctx context.Context, userID str
 	if err != nil {
 		return "", err
 	}
-	base := name.String
-	if base == "" {
-		base = username.String
+	displayName := name.String
+	if displayName == "" {
+		displayName = username.String
 	}
-	if base == "" {
-		base = "creator"
+	if displayName == "" {
+		displayName = "Lecteur"
 	}
-	pubSlug := slug.Slugify(base)
+
+	pubSlug := username.String
+	if pubSlug == "" {
+		pubSlug = slug.Slugify(displayName)
+	}
 	if pubSlug == "" {
 		pubSlug = "creator"
 	}
@@ -363,7 +367,7 @@ func (s *Service) GetOrCreatePersonalPublication(ctx context.Context, userID str
 		                           "logoUrl", "isCertified", "updatedAt")
 		 VALUES (gen_random_uuid()::text, 'PERSONAL', $1, $2, NULL, NULL, 'default',
 		         NULLIF($3, ''), false, now())
-		 RETURNING id`, base, pubSlug, logoURL.String).Scan(&createdID)
+		 RETURNING id`, displayName, pubSlug, logoURL.String).Scan(&createdID)
 	if err != nil {
 		return "", err
 	}

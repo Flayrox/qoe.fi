@@ -279,61 +279,167 @@ func (s *Service) Profile(ctx context.Context, userID string) (*ReaderProfile, e
 	return &p, nil
 }
 
-// UpdateProfile met à jour le profil lecteur (name, username, onboardingText,
-// logoUrl, pronouns) — validation identique à updateAccountProfileAction.
-func (s *Service) UpdateProfile(ctx context.Context, userID, name, username, onboardingText, logoURL, pronouns string) (*ReaderProfile, error) {
-	name = strings.TrimSpace(name)
-	if len(name) > 120 {
-		name = name[:120]
-	}
-	username = identifier.NormalizeUsername(username)
-	onboardingText = strings.TrimSpace(onboardingText)
-	if len(onboardingText) > 500 {
-		onboardingText = onboardingText[:500]
-	}
-	logoURL = strings.TrimSpace(logoURL)
-	if len(logoURL) > 2000 {
-		logoURL = logoURL[:2000]
-	}
-	pronouns = strings.TrimSpace(pronouns)
-	if len(pronouns) > 50 {
-		pronouns = pronouns[:50]
+// ProfilePatchParams contient les champs optionnels à mettre à jour sur User (nil = inchangé).
+type ProfilePatchParams struct {
+	Name           *string
+	Username       *string
+	OnboardingText *string
+	LogoURL        *string
+	Pronouns       *string
+}
+
+// UpdateProfilePatch applique une mise à jour partielle sur le profil User et synchronise
+// automatiquement sa Publication personnelle (slug, name, logoUrl) sans écraser les champs non fournis.
+func (s *Service) UpdateProfilePatch(ctx context.Context, userID string, patch ProfilePatchParams) (*ReaderProfile, error) {
+	sets := make([]string, 0, 6)
+	args := make([]any, 0, 7)
+
+	if patch.Username != nil {
+		un := identifier.NormalizeUsername(*patch.Username)
+		if un != "" && (len(un) < 3 || len(un) > 24 || !usernamePattern.MatchString(un)) {
+			return nil, errors.New("Le nom d'utilisateur doit contenir 3 à 24 caractères : lettres minuscules, chiffres, _ ou ., sans séparateurs consécutifs.")
+		}
+		if un != "" {
+			reserved, err := isReservedIdentifier(ctx, s.pool, "username", un)
+			if err != nil {
+				return nil, err
+			}
+			if reserved {
+				return nil, errors.New("Ce nom d'utilisateur est réservé.")
+			}
+			var exists bool
+			if err := s.pool.QueryRow(ctx,
+				`SELECT EXISTS(SELECT 1 FROM "User" WHERE lower(username) = lower($1) AND id <> $2)`,
+				un, toUUID(userID)).Scan(&exists); err != nil {
+				return nil, err
+			}
+			if exists {
+				return nil, errors.New("Ce nom d'utilisateur est déjà utilisé.")
+			}
+			var mediaExists bool
+			if err := s.pool.QueryRow(ctx,
+				`SELECT EXISTS(SELECT 1 FROM "Publication" WHERE lower(slug) = lower($1) AND type <> 'PERSONAL')`,
+				un).Scan(&mediaExists); err == nil && mediaExists {
+				return nil, errors.New("Ce nom d'utilisateur est déjà utilisé.")
+			}
+		}
+		args = append(args, optText(un))
+		sets = append(sets, fmt.Sprintf("username = $%d", len(args)))
 	}
 
-	if username != "" && (len(username) < 3 || len(username) > 24 || !usernamePattern.MatchString(username)) {
-		return nil, errors.New("Le nom d'utilisateur doit contenir 3 à 24 caractères : lettres minuscules, chiffres, _ ou ., sans séparateurs consécutifs.")
-	}
-	if username != "" {
-		reserved, err := isReservedIdentifier(ctx, s.pool, "username", username)
-		if err != nil {
-			return nil, err
+	if patch.Name != nil {
+		name := strings.TrimSpace(*patch.Name)
+		if len(name) > 120 {
+			name = name[:120]
 		}
-		if reserved {
-			return nil, errors.New("Ce nom d'utilisateur est réservé.")
-		}
-		var exists bool
-		if err := s.pool.QueryRow(ctx,
-			`SELECT EXISTS(SELECT 1 FROM "User" WHERE lower(username) = lower($1) AND id <> $2)`,
-			username, toUUID(userID)).Scan(&exists); err != nil {
-			return nil, err
-		}
-		if exists {
-			return nil, errors.New("Ce nom d'utilisateur est déjà utilisé.")
-		}
+		args = append(args, optText(name))
+		sets = append(sets, fmt.Sprintf("name = $%d", len(args)))
 	}
 
-	if _, err := s.pool.Exec(ctx, `
-		UPDATE "User"
-		SET name = $1, username = $2, "onboardingText" = $3, "logoUrl" = $4, pronouns = $5, "updatedAt" = now()
-		WHERE id = $6`,
-		optText(name), optText(username), optText(onboardingText), optText(logoURL), optText(pronouns),
-		toUUID(userID)); err != nil {
+	if patch.OnboardingText != nil {
+		txt := strings.TrimSpace(*patch.OnboardingText)
+		if len(txt) > 500 {
+			txt = txt[:500]
+		}
+		args = append(args, optText(txt))
+		sets = append(sets, fmt.Sprintf(`"onboardingText" = $%d`, len(args)))
+	}
+
+	if patch.LogoURL != nil {
+		logo := strings.TrimSpace(*patch.LogoURL)
+		if len(logo) > 2000 {
+			logo = logo[:2000]
+		}
+		args = append(args, optText(logo))
+		sets = append(sets, fmt.Sprintf(`"logoUrl" = $%d`, len(args)))
+	}
+
+	if patch.Pronouns != nil {
+		pro := strings.TrimSpace(*patch.Pronouns)
+		if len(pro) > 50 {
+			pro = pro[:50]
+		}
+		args = append(args, optText(pro))
+		sets = append(sets, fmt.Sprintf("pronouns = $%d", len(args)))
+	}
+
+	if len(sets) == 0 {
+		return s.Profile(ctx, userID)
+	}
+
+	sets = append(sets, `"updatedAt" = now()`)
+	args = append(args, toUUID(userID))
+	query := fmt.Sprintf(`UPDATE "User" SET %s WHERE id = $%d`, strings.Join(sets, ", "), len(args))
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, query, args...); err != nil {
 		if isUniqueViolation(err) {
 			return nil, errors.New("Ce nom d'utilisateur est déjà utilisé.")
 		}
 		return nil, err
 	}
+
+	// Synchronise la publication personnelle liée (slug, name, logoUrl)
+	pubSets := make([]string, 0, 4)
+	pubArgs := make([]any, 0, 5)
+	if patch.Username != nil && *patch.Username != "" {
+		un := identifier.NormalizeUsername(*patch.Username)
+		pubArgs = append(pubArgs, un)
+		pubSets = append(pubSets, fmt.Sprintf("slug = $%d", len(pubArgs)))
+	}
+	if patch.Name != nil && *patch.Name != "" {
+		name := strings.TrimSpace(*patch.Name)
+		if len(name) > 120 {
+			name = name[:120]
+		}
+		pubArgs = append(pubArgs, name)
+		pubSets = append(pubSets, fmt.Sprintf("name = $%d", len(pubArgs)))
+	}
+	if patch.LogoURL != nil {
+		logo := strings.TrimSpace(*patch.LogoURL)
+		if len(logo) > 2000 {
+			logo = logo[:2000]
+		}
+		pubArgs = append(pubArgs, optText(logo))
+		pubSets = append(pubSets, fmt.Sprintf(`"logoUrl" = $%d`, len(pubArgs)))
+	}
+
+	if len(pubSets) > 0 {
+		pubSets = append(pubSets, `"updatedAt" = now()`)
+		pubArgs = append(pubArgs, toUUID(userID))
+		pubQuery := fmt.Sprintf(`
+			UPDATE "Publication" p
+			SET %s
+			FROM "User" u
+			WHERE u."publicationId" = p.id
+			  AND u.id = $%d
+			  AND p.type = 'PERSONAL'`, strings.Join(pubSets, ", "), len(pubArgs))
+		if _, err := tx.Exec(ctx, pubQuery, pubArgs...); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+
 	return s.Profile(ctx, userID)
+}
+
+// UpdateProfile met à jour le profil lecteur (compatibilité).
+func (s *Service) UpdateProfile(ctx context.Context, userID, name, username, onboardingText, logoURL, pronouns string) (*ReaderProfile, error) {
+	return s.UpdateProfilePatch(ctx, userID, ProfilePatchParams{
+		Name:           &name,
+		Username:       &username,
+		OnboardingText: &onboardingText,
+		LogoURL:        &logoURL,
+		Pronouns:       &pronouns,
+	})
 }
 
 // isReservedIdentifier reads the admin-managed denylist from SystemConfig.
