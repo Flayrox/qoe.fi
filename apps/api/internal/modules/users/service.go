@@ -613,24 +613,22 @@ func (s *Service) OnboardingComplete(ctx context.Context, userID string, in Onbo
 		pronouns = pronouns[:50]
 	}
 
-	// 1. Marque l'onboarding terminé + biographie + démographie.
+	// 1. Marque l'onboarding terminé + démographie.
 	if gender != "" || ageRange != "" || pronouns != "" {
 		if _, err := s.pool.Exec(ctx, `
 			UPDATE "User"
 			SET "hasCompletedOnboarding" = true,
-			    "onboardingText" = COALESCE(NULLIF($1, ''), "onboardingText"),
-			    gender = $2, "ageRange" = $3, pronouns = $4, "demographicsUpdatedAt" = now(),
+			    gender = $1, "ageRange" = $2, pronouns = $3, "demographicsUpdatedAt" = now(),
 			    "updatedAt" = now()
-			WHERE id = $5`, optText(in.OnboardingText), optText(gender), optText(ageRange), optText(pronouns), toUUID(userID)); err != nil {
+			WHERE id = $4`, optText(gender), optText(ageRange), optText(pronouns), toUUID(userID)); err != nil {
 			return err
 		}
 	} else {
 		if _, err := s.pool.Exec(ctx, `
 			UPDATE "User"
 			SET "hasCompletedOnboarding" = true,
-			    "onboardingText" = COALESCE(NULLIF($1, ''), "onboardingText"),
 			    "updatedAt" = now()
-			WHERE id = $2`, optText(in.OnboardingText), toUUID(userID)); err != nil {
+			WHERE id = $1`, toUUID(userID)); err != nil {
 			return err
 		}
 	}

@@ -121,7 +121,6 @@ func (s *Service) syncUserFromAuth(ctx context.Context, userID string, claims ma
 
 	var role, existingOnboarding string
 	var exists bool
-	var usernameTaken pgtype.Text
 	err = s.pool.QueryRow(ctx,
 		`SELECT role, "hasCompletedOnboarding"::text FROM "User" WHERE id = $1`, userID).Scan(&role, &existingOnboarding)
 	if err == nil {
@@ -150,13 +149,16 @@ func (s *Service) syncUserFromAuth(ctx context.Context, userID string, claims ma
 			}
 		}
 		finalUsername := safeProvisionedUsername(email, username)
-		// Unicité : suffixe aléatoire si le username est pris. La contrainte
-		// unique reste l'autorité finale en cas de course concurrente.
+		var usernameTaken bool
 		err = s.pool.QueryRow(ctx,
-			`SELECT username FROM "User" WHERE lower(username) = lower($1)`, finalUsername).Scan(&usernameTaken)
-		if err == nil {
+			`SELECT EXISTS(
+				SELECT 1 FROM "User" WHERE lower(username) = lower($1)
+				UNION
+				SELECT 1 FROM "Publication" WHERE lower(slug) = lower($1) AND type <> 'PERSONAL'
+			)`, finalUsername).Scan(&usernameTaken)
+		if err == nil && usernameTaken {
 			finalUsername = uniqueProvisionedUsername(ctx, s.pool, finalUsername)
-		} else if !errors.Is(err, pgx.ErrNoRows) {
+		} else if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return false, false, err
 		}
 		displayName := name
@@ -286,6 +288,11 @@ func safeProvisionedUsername(email, username string) string {
 }
 
 func uniqueProvisionedUsername(ctx context.Context, pool pooler, base string) string {
+	queryExists := `SELECT EXISTS(
+		SELECT 1 FROM "User" WHERE lower(username) = lower($1)
+		UNION
+		SELECT 1 FROM "Publication" WHERE lower(slug) = lower($1) AND type <> 'PERSONAL'
+	)`
 	for i := 1; i <= 30; i++ {
 		candidate := fmt.Sprintf("%s%d", base, i)
 		if len(candidate) > 24 {
@@ -293,7 +300,7 @@ func uniqueProvisionedUsername(ctx context.Context, pool pooler, base string) st
 			candidate = strings.TrimRight(candidate, "._")
 		}
 		var exists bool
-		if err := pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM "User" WHERE lower(username) = lower($1))`, candidate).Scan(&exists); err == nil && !exists {
+		if err := pool.QueryRow(ctx, queryExists, candidate).Scan(&exists); err == nil && !exists {
 			return candidate
 		}
 	}
@@ -304,7 +311,7 @@ func uniqueProvisionedUsername(ctx context.Context, pool pooler, base string) st
 			candidate = strings.TrimRight(candidate, "._")
 		}
 		var exists bool
-		if err := pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM "User" WHERE lower(username) = lower($1))`, candidate).Scan(&exists); err == nil && !exists {
+		if err := pool.QueryRow(ctx, queryExists, candidate).Scan(&exists); err == nil && !exists {
 			return candidate
 		}
 	}
@@ -353,6 +360,12 @@ func (s *Service) GetOrCreatePersonalPublication(ctx context.Context, userID str
 	}
 	if pubSlug == "" {
 		pubSlug = "creator"
+	}
+
+	var slugConflict bool
+	_ = s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM "Publication" WHERE lower(slug) = lower($1))`, pubSlug).Scan(&slugConflict)
+	if slugConflict {
+		pubSlug = uniqueProvisionedUsername(ctx, s.pool, pubSlug)
 	}
 
 	tx, err := s.pool.Begin(ctx)
