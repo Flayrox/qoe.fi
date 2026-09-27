@@ -245,9 +245,11 @@ export async function changeUsernameAction(newUsername: string) {
     method: 'PATCH',
     body: { username },
   });
+  const finalUsername = profile.username ?? username;
   revalidatePath('/settings');
-  revalidatePath(`/@${profile.username ?? username}`);
-  return { success: true, username: profile.username ?? username };
+  revalidatePath(`/${finalUsername}`);
+  revalidatePath('/[username]', 'page');
+  return { success: true, username: finalUsername };
 }
 
 export async function logoutAccountAction() {

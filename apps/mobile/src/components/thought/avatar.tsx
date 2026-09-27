@@ -58,7 +58,7 @@ export function Avatar({
   const resolvedShape: AvatarShape = shape || (isMedia ? 'squircle' : 'circle');
   const radius = resolvedShape === 'circle' ? px / 2 : Math.round(px * 0.24);
 
-  const seed = user?.username || user?.name || 'qoe-user';
+  const seed = user?.id || user?.username || user?.name || 'qoe-user';
   const theme = getAvatarTheme(seed, isMedia ? 'MEDIA' : 'PERSONAL');
 
   const bgColor = isDark ? theme.darkBg : theme.lightBg;

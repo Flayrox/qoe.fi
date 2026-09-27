@@ -123,19 +123,13 @@ func (h *Handler) updateProfile(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
-	if patch.Username == nil {
-		// L'username est l'identité publique du compte : il n'est modifiable QUE
-		// s'il est transmis explicitement. Jamais déduit d'un corps partiel.
-		var current string
-		if err := h.svc.CurrentUsername(r.Context(), userID, &current); err != nil {
-			response.Error(w, http.StatusInternalServerError, "Lecture du profil impossible")
-			return
-		}
-		patch.Username = &current
-	}
-	profile, err := h.svc.UpdateProfile(r.Context(), userID,
-		deref(patch.Name), deref(patch.Username), deref(patch.OnboardingText),
-		deref(patch.LogoURL), deref(patch.Pronouns))
+	profile, err := h.svc.UpdateProfilePatch(r.Context(), userID, ProfilePatchParams{
+		Name:           patch.Name,
+		Username:       patch.Username,
+		OnboardingText: patch.OnboardingText,
+		LogoURL:        patch.LogoURL,
+		Pronouns:       patch.Pronouns,
+	})
 	if err != nil {
 		response.Error(w, http.StatusBadRequest, err.Error())
 		return

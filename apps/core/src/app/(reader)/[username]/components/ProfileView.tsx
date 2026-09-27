@@ -275,6 +275,7 @@ export function ProfileView({
                 <AuthorAvatar
                   user={{
                     ...user,
+                    id: user.ownerUserId || user.id,
                     type: user.type,
                   }}
                   size="2xl"
