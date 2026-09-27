@@ -8,6 +8,7 @@ import {
   useAnimationFrame,
   useScroll,
   useTransform,
+  useMotionTemplate,
   useMotionValue,
   useMotionValueEvent,
   useReducedMotion,
@@ -326,6 +327,9 @@ const ramp = (v: number, a: number, b: number) => {
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const span = (v: number, a: number, b: number) => Math.min(1, Math.max(0, (v - a) / (b - a)));
 const ease = (x: number) => x * x * x * (x * (x * 6 - 15) + 10);
+// Atterrissage doux : décélération progressive quand le plateau devient
+// petit (évite le côté linéaire/robotique du smoothstep brut en fin de course).
+const easeOutQuart = (x: number) => 1 - Math.pow(1 - x, 4);
 const glide = (v: number, a: number, b: number) => ease(span(v, a, b));
 
 // ─── Plateau preview panel ───────────────────────────────────────────────────
@@ -396,9 +400,15 @@ function PlateauPreview({
   // Fondu rapide de la carte inactive dès le début du scroll
   const inactiveFade = useTransform(morph, (v) => 1 - ramp(v, 0.01, 0.12));
 
-  // Réduction et élévation du plateau vers le dock
-  const shrink = useTransform(morph, (v) => (isWide ? ramp(v, 0.06, 0.94) : 0));
-  const boxScale = useTransform(shrink, (v) => lerp(1, endScale, v));
+  // Réduction du plateau vers le dock — easing avec atterrissage doux :
+  // le shrink part vite puis décélère quand le plateau devient petit.
+  const shrink = useTransform(morph, (v) => (isWide ? easeOutQuart(ramp(v, 0.06, 0.94)) : 0));
+  // Micro-overshoot « genie » : la taille creuse légèrement (~6 %) en toute
+  // fin de course puis revient pile à endScale — le handoff reste exact.
+  const boxScale = useTransform(
+    shrink,
+    (s) => lerp(1, endScale, s) * (1 - 0.06 * Math.sin(Math.PI * span(s, 0.8, 1)))
+  );
   const boxY = useTransform(shrink, (v) => travelY * v);
 
   // Coins extérieurs du plateau qui s'ouvrent vers ceux du symbole
@@ -773,6 +783,15 @@ export const Hero = ({ config }: HeroProps) => {
   // topPark + morphTravel === travelY).
   const morphTravel = travelY - topPark;
 
+  // ── Fond vivant : parallaxe + iris circulaire pilotés par le scroll ──
+  // Masque radial (elliptique) : le fondu remonte en cercle sur les côtés
+  // pendant que le centre tient plus longtemps. L'iris se resserre avec le
+  // scroll — le dégradé respire au lieu d'être figé.
+  const bgY = useTransform(scrollYProgress, [0, 0.5], [0, reduceMotion ? 0 : -120]);
+  const irisW = useTransform(scrollYProgress, [0, 0.5], [125, reduceMotion ? 125 : 72]);
+  const irisH = useTransform(scrollYProgress, [0, 0.5], [80, reduceMotion ? 80 : 52]);
+  const bgMask = useMotionTemplate`radial-gradient(ellipse ${irisW}% ${irisH}% at 50% 38%, black 0%, black 55%, rgba(0,0,0,0.5) 78%, transparent 100%)`;
+
   const boxOpacitySwap = useTransform(scrollYProgress, (v) => (v >= 0.995 ? 0 : 1));
   const dockOpacitySwap = useTransform(scrollYProgress, (v) => (v >= 0.995 ? 1 : 0));
   const boxOpacityFade = useTransform(scrollYProgress, [0.94, 1], [1, 0]);
@@ -840,19 +859,25 @@ export const Hero = ({ config }: HeroProps) => {
       >
         {!closed && (
           <>
-            {/* Fond Sahara : ancré en haut de la section (h-screen), il défile
-                vers le haut avec la page au lieu de rester figé pendant le
-                sticky. Le plateau, lui, reste sticky pour sa morphose. */}
-            <div
+            {/* Fond Sahara 4:3 : assez haute pour ne jamais être étirée
+                (object-cover = recadrage uniquement, aucune déformation).
+                Le bloc dépasse sous le fold : le fondu n'est jamais coupé.
+                Iris circulaire + dérive parallaxe pilotés par le scroll. */}
+            <motion.div
               aria-hidden
-              className="absolute top-0 h-screen inset-x-0 z-0 pointer-events-none select-none overflow-hidden"
+              className="absolute top-0 h-[112vh] inset-x-0 z-0 pointer-events-none select-none overflow-hidden will-change-transform"
+              style={{ y: bgY, maskImage: bgMask, WebkitMaskImage: bgMask }}
             >
-              <img src="/sahara.jpeg" alt="" className="w-full h-full object-cover object-center" />
+              <img
+                src="/sahara-4-3.jpeg"
+                alt=""
+                className="w-full h-full object-cover object-[50%_70%]"
+              />
               {/* Voile orange subtil pour incorporer l'image à la charte */}
               <div className="absolute inset-0 bg-[#F97316]/20 mix-blend-multiply" />
               {/* Léger dégradé neutre + orange pour la lisibilité */}
               <div className="absolute inset-0 bg-gradient-to-t from-black/25 via-[#F97316]/10 to-transparent" />
-            </div>
+            </motion.div>
             <div className="sticky top-0 h-screen w-full flex flex-col items-center justify-center overflow-hidden">
               <AnimatePresence>
                 <motion.div
