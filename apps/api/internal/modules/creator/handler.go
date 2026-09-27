@@ -634,6 +634,7 @@ func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 	var followingCount int32
 	var ownerUserID string
 	var pronouns *string
+	var onboardingText *string
 	displaySlug := row.Slug
 	if ownerID, err := h.q.GetPublicationOwner(r.Context(), row.ID); err == nil {
 		ownerUserID = ownerID
@@ -643,10 +644,14 @@ func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 		if p, err := h.q.GetUserPronouns(r.Context(), ownerID); err == nil && p.Valid {
 			pronouns = &p.String
 		}
-		if row.Type == db.PublicationTypePERSONAL {
-			var uUsername pgtype.Text
-			if err := h.pool.QueryRow(r.Context(), `SELECT username FROM "User" WHERE id = $1`, toUUID(ownerID)).Scan(&uUsername); err == nil && uUsername.Valid && uUsername.String != "" {
+		var uUsername, uOnboarding pgtype.Text
+		if err := h.pool.QueryRow(r.Context(), `SELECT username, "onboardingText" FROM "User" WHERE id = $1`, toUUID(ownerID)).Scan(&uUsername, &uOnboarding); err == nil {
+			if row.Type == db.PublicationTypePERSONAL && uUsername.Valid && uUsername.String != "" {
 				displaySlug = uUsername.String
+			}
+			if uOnboarding.Valid && strings.TrimSpace(uOnboarding.String) != "" {
+				loc := strings.TrimSpace(uOnboarding.String)
+				onboardingText = &loc
 			}
 		}
 	}
@@ -659,6 +664,7 @@ func (h *Handler) userByUsername(w http.ResponseWriter, r *http.Request) {
 		"subdomain":      textPtr(row.Subdomain),
 		"customDomain":   textPtr(row.CustomDomain),
 		"heroText":       textPtr(row.HeroText),
+		"onboardingText": onboardingText,
 		"logoUrl":        textPtr(row.LogoUrl),
 		"headerImageUrl": textPtr(row.HeaderImageUrl),
 		"isCertified":    row.IsCertified,
@@ -698,11 +704,19 @@ func (h *Handler) userFollowers(w http.ResponseWriter, r *http.Request) {
 	pub, err := h.q.GetPublicationBySlugOrSubdomain(r.Context(), username)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			response.NotFound(w, "User not found")
+			var userPubID pgtype.Text
+			if errUser := h.pool.QueryRow(r.Context(), `SELECT "publicationId" FROM "User" WHERE id::text = $1 OR lower(username) = lower($1)`, username).Scan(&userPubID); errUser == nil && userPubID.Valid && userPubID.String != "" {
+				pub, err = h.q.GetPublicationBySlugOrSubdomain(r.Context(), userPubID.String)
+			}
+		}
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				response.NotFound(w, "User not found")
+				return
+			}
+			response.Internal(w)
 			return
 		}
-		response.Internal(w)
-		return
 	}
 
 	rows, err := h.q.ListFollowersByPublication(r.Context(), db.ListFollowersByPublicationParams{
@@ -752,11 +766,19 @@ func (h *Handler) userFollowing(w http.ResponseWriter, r *http.Request) {
 	pub, err := h.q.GetPublicationBySlugOrSubdomain(r.Context(), username)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			response.NotFound(w, "User not found")
+			var userPubID pgtype.Text
+			if errUser := h.pool.QueryRow(r.Context(), `SELECT "publicationId" FROM "User" WHERE id::text = $1 OR lower(username) = lower($1)`, username).Scan(&userPubID); errUser == nil && userPubID.Valid && userPubID.String != "" {
+				pub, err = h.q.GetPublicationBySlugOrSubdomain(r.Context(), userPubID.String)
+			}
+		}
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				response.NotFound(w, "User not found")
+				return
+			}
+			response.Internal(w)
 			return
 		}
-		response.Internal(w)
-		return
 	}
 	ownerID, err := h.q.GetPublicationOwner(r.Context(), pub.ID)
 	if err != nil {
@@ -832,10 +854,15 @@ func (h *Handler) followToggle(w http.ResponseWriter, r *http.Request) {
 	targetID := chi.URLParam(r, "id")
 	ctx := r.Context()
 
-	// Résout targetID vers l'ID de publication si un slug/username est passé
+	// Résout targetID vers l'ID de publication si un slug, username ou User.id est passé
 	pubID := targetID
 	if pub, err := h.q.GetPublicationBySlugOrSubdomain(ctx, targetID); err == nil {
 		pubID = pub.ID
+	} else {
+		var userPubID pgtype.Text
+		if errUser := h.pool.QueryRow(ctx, `SELECT "publicationId" FROM "User" WHERE id::text = $1 OR lower(username) = lower($1)`, targetID).Scan(&userPubID); errUser == nil && userPubID.Valid && userPubID.String != "" {
+			pubID = userPubID.String
+		}
 	}
 
 	if ownerID, err := h.q.GetPublicationOwner(ctx, pubID); err == nil && ownerID == userID {

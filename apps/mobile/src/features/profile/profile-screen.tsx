@@ -378,6 +378,15 @@ export function ProfileScreen({
                   </ThemedText>
                 ) : null}
 
+                {profile.onboardingText ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                    <Ionicons name="location-outline" size={13} color={theme.textSecondary} />
+                    <ThemedText type="small" style={{ color: theme.textSecondary, marginLeft: 4 }}>
+                      {profile.onboardingText}
+                    </ThemedText>
+                  </View>
+                ) : null}
+
                 {/* Stats — abonnés/abonnements cliquables (parité Bluesky) */}
                 <View style={styles.statsRow}>
                   <Pressable

@@ -284,6 +284,7 @@ export interface PublicProfileData {
   subdomain: string | null;
   customDomain: string | null;
   heroText: string | null;
+  onboardingText?: string | null;
   logoUrl: string | null;
   headerImageUrl: string | null;
   isCertified: boolean;
