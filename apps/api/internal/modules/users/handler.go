@@ -3,6 +3,7 @@ package users
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -118,11 +119,34 @@ func (h *Handler) updateProfile(w http.ResponseWriter, r *http.Request) {
 		response.Unauthorized(w, "Authentification requise")
 		return
 	}
-	var patch profilePatch
-	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		response.BadRequest(w, "Corps invalide")
+		return
+	}
+	var raw map[string]any
+	if err := json.Unmarshal(bodyBytes, &raw); err != nil {
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
+	var patch profilePatch
+	if err := json.Unmarshal(bodyBytes, &patch); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	// Si un champ optionnel est explicitement envoyé avec `null`, on lui affecte
+	// une chaîne vide pour que UpdateProfilePatch le passe à optText("") -> SQL NULL.
+	emptyStr := ""
+	if val, ok := raw["logoUrl"]; ok && val == nil {
+		patch.LogoURL = &emptyStr
+	}
+	if val, ok := raw["onboardingText"]; ok && val == nil {
+		patch.OnboardingText = &emptyStr
+	}
+	if val, ok := raw["pronouns"]; ok && val == nil {
+		patch.Pronouns = &emptyStr
+	}
+
 	profile, err := h.svc.UpdateProfilePatch(r.Context(), userID, ProfilePatchParams{
 		Name:           patch.Name,
 		Username:       patch.Username,

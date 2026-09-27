@@ -134,9 +134,9 @@ export default function EditProfileRoute() {
       const profileRes = await apiClient.updateMyProfile({
         name: name.trim(),
         username: username.trim().toLowerCase().replace(/^@/, ''),
-        onboardingText: location.trim(),
-        logoUrl: logoUrl ?? undefined,
-        pronouns: pronouns.trim(),
+        onboardingText: location.trim() || null,
+        logoUrl: logoUrl,
+        pronouns: pronouns.trim() || null,
       });
       if (!profileRes.ok) throw new Error(profileRes.error);
 

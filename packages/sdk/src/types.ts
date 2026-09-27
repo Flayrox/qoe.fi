@@ -575,9 +575,9 @@ export interface ReaderProfileData {
 export interface MyProfileUpdateInput {
   name?: string;
   username?: string;
-  onboardingText?: string;
-  logoUrl?: string;
-  pronouns?: string;
+  onboardingText?: string | null;
+  logoUrl?: string | null;
+  pronouns?: string | null;
 }
 
 /** Corps de PATCH /v1/settings/profile (champs créateur, sans publicationId). */
