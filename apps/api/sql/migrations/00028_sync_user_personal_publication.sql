@@ -1,4 +1,5 @@
 -- +goose Up
+-- +goose StatementBegin
 -- 🛡️ Synchronisation bidirectionnelle stricte entre User et sa Publication personnelle.
 -- Résout le bug où Publication.slug reste sur l'ancien identifiant lors d'un changement de pseudo.
 
@@ -72,9 +73,12 @@ CREATE TRIGGER trg_sync_personal_publication_to_user
 AFTER UPDATE OF slug, name, "logoUrl" ON "Publication"
 FOR EACH ROW
 EXECUTE FUNCTION sync_personal_publication_to_user();
+-- +goose StatementEnd
 
 -- +goose Down
+-- +goose StatementBegin
 DROP TRIGGER IF EXISTS trg_sync_personal_publication_to_user ON "Publication";
 DROP FUNCTION IF EXISTS sync_personal_publication_to_user();
 DROP TRIGGER IF EXISTS trg_sync_user_to_personal_publication ON "User";
 DROP FUNCTION IF EXISTS sync_user_to_personal_publication();
+-- +goose StatementEnd
