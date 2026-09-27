@@ -268,6 +268,7 @@ export function EditProfileModal({
               <input
                 type="text"
                 value={locationText}
+                maxLength={30}
                 onChange={(e) => setLocationText(e.target.value)}
                 placeholder={t`Paris, France`}
                 className="w-full text-xs border border-border/50 focus:border-foreground bg-muted/30 focus:bg-card text-foreground rounded-lg p-2.5 outline-none transition-all"

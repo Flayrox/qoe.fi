@@ -87,7 +87,11 @@ func (s *Service) ChangeEmail(ctx context.Context, userID, currentPassword, newE
 		return err
 	}
 	_, err := s.pool.Exec(ctx, `UPDATE "User" SET email = $1, "updatedAt" = now() WHERE id = $2`, newEmail, toUUID(userID))
-	return err
+	if err != nil {
+		return err
+	}
+	_, _ = s.pool.Exec(ctx, `UPDATE "Subscriber" SET email = $1, "updatedAt" = now() WHERE "userId" = $2`, newEmail, toUUID(userID))
+	return nil
 }
 
 func (s *Service) ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error {
@@ -338,8 +342,9 @@ func (s *Service) UpdateProfilePatch(ctx context.Context, userID string, patch P
 
 	if patch.OnboardingText != nil {
 		txt := strings.TrimSpace(*patch.OnboardingText)
-		if len(txt) > 500 {
-			txt = txt[:500]
+		runes := []rune(txt)
+		if len(runes) > 30 {
+			txt = string(runes[:30])
 		}
 		args = append(args, optText(txt))
 		sets = append(sets, fmt.Sprintf(`"onboardingText" = $%d`, len(args)))

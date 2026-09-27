@@ -318,6 +318,7 @@ export default function EditProfileRoute() {
               <TextInput
                 style={inputStyle}
                 value={location}
+                maxLength={30}
                 onChangeText={setLocation}
                 placeholder={t('profile.edit_location_placeholder', 'Paris, France')}
                 placeholderTextColor={theme.textSecondary}
