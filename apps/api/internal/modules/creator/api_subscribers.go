@@ -292,6 +292,43 @@ func (h *Handler) apiPublicationMetadata(w http.ResponseWriter, r *http.Request)
 	})
 }
 
+// ─── GET /v1/publications/{slugOrId}/profile (Public with CORS) ───
+
+// publicPublicationProfile renvoie le profil public minimal d'une publication
+// (nom + logo) pour les intégrations externes (fiche 02) : le site tiers
+// affiche « Confirmer l'abonnement à [publication] » sans clé API et sans
+// recevoir autre chose. Réponse 404 neutre si inconnue (ne révèle rien).
+func (h *Handler) publicPublicationProfile(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+	slugOrID := chi.URLParam(r, "slugOrId")
+	if slugOrID == "" {
+		response.BadRequest(w, "Identifiant ou slug de publication requis")
+		return
+	}
+	profile, err := h.q.GetPublicationPublicProfile(r.Context(), slugOrID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			response.NotFound(w, "Publication introuvable")
+			return
+		}
+		log.Printf("[public profile] %s: %v", slugOrID, err)
+		response.Internal(w)
+		return
+	}
+	var logo *string
+	if profile.LogoUrl.Valid && profile.LogoUrl.String != "" {
+		logo = &profile.LogoUrl.String
+	}
+	response.OK(w, map[string]any{
+		"id":      profile.ID,
+		"name":    profile.Name,
+		"logoUrl": logo,
+	})
+}
+
 // ─── POST /v1/publications/{slugOrId}/subscribe (Public with CORS) ───
 
 func (h *Handler) publicSubscribeOptions(w http.ResponseWriter, r *http.Request) {

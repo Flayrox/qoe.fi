@@ -47,6 +47,11 @@ func (h *Handler) SetSendRateLimit(rc *redis.Client, window time.Duration, max i
 // par le flag `authz-enforce` (observation par défaut).
 func (h *Handler) Register(r chi.Router) {
 	r.Get("/v1/newsletters", h.list)
+	// Abonnement du compte connecté, sans ressaisir d'adresse (fiche 01 §2).
+	// JWT Supabase exigé : une clé API n'a pas d'adresse vérifiée et ne peut
+	// pas s'abonner « comme » un compte (vérifié via les claims, absents pour
+	// les clés qui posent un Principal à la place).
+	r.Post("/v1/me/subscriptions", h.subscribeSelf)
 	r.Post("/v1/newsletters", h.create)
 	r.Patch("/v1/newsletters/{id}", h.update)
 	r.Delete("/v1/newsletters/{id}", h.delete)
@@ -93,6 +98,37 @@ func (h *Handler) handleErr(w http.ResponseWriter, err error) {
 		log.Printf("[newsletters] %v", err)
 		response.Internal(w)
 	}
+}
+
+// POST /v1/me/subscriptions — abonne le compte connecté à une publication,
+// sans ressaisir d'adresse (fiche 01 §2). Corps : { email, publicationId }.
+// L'adresse demandée doit être exactement celle du compte ; si elle est
+// confirmée côté fournisseur, activation directe, sinon parcours invité.
+// Réponse neutre : { success, active } — `active: false` signifie « vérifiez
+// votre boîte mail », sans révéler l'existence d'un compte.
+func (h *Handler) subscribeSelf(w http.ResponseWriter, r *http.Request) {
+	uid, ok := h.userID(w, r)
+	if !ok {
+		return
+	}
+	if middleware.Claims(r.Context()) == nil {
+		response.Unauthorized(w, "Session de compte requise")
+		return
+	}
+	var in struct {
+		Email         string `json:"email"`
+		PublicationID string `json:"publicationId"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	res, err := h.svc.SubscribeSelf(r.Context(), uid, in.Email, in.PublicationID)
+	if err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, map[string]any{"success": true, "active": res.Active})
 }
 
 // GET /v1/newsletters?publicationId= — liste des newsletters du créateur.

@@ -64,7 +64,7 @@ describe('SubscribeForm', () => {
     await user.click(submitBtn);
 
     await waitFor(() => {
-      expect(screen.getByText(/Vous êtes sur la liste !/i)).toBeDefined();
+      expect(screen.getByText(/Plus qu'une étape !/i)).toBeDefined();
     });
   });
 
@@ -122,7 +122,7 @@ describe('SubscribeForm', () => {
         email: 'abonne@qoefi.com',
         publicationId: 'pub_test_1',
       });
-      expect(screen.getByText(/Vous êtes sur la liste !/i)).toBeDefined();
+      expect(screen.getByText(/Plus qu'une étape !/i)).toBeDefined();
     });
   });
 

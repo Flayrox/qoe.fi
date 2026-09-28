@@ -212,6 +212,24 @@ func accountEmailConfirmed(user map[string]any) bool {
 	return strings.TrimSpace(confirmed) != ""
 }
 
+// GetEmailVerification renvoie l'adresse actuelle du compte et si elle est
+// confirmée côté fournisseur d'identité. Utilisé par les parcours qui
+// dispensent de confirmation e-mail quand l'adresse est déjà vérifiée
+// (abonnement connecté fiche 01, migration d'abonnements) : on ne fait jamais
+// confiance à une adresse déclarée par le client, seulement à celle lue ici.
+func (s *Service) GetEmailVerification(ctx context.Context, userID string) (string, bool, error) {
+	account, err := s.gotrue.getUser(ctx, userID)
+	if err != nil {
+		return "", false, err
+	}
+	email, _ := account["email"].(string)
+	email = strings.ToLower(strings.TrimSpace(email))
+	if email == "" || !strings.Contains(email, "@") {
+		return "", false, errors.New("Adresse du compte illisible.")
+	}
+	return email, accountEmailConfirmed(account), nil
+}
+
 func (s *Service) ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error {
 	if s.gotrue == nil {
 		s.gotrue = newGoTrueClient(os.Getenv("SUPABASE_AUTH_URL"), os.Getenv("SUPABASE_SERVICE_ROLE_KEY"))

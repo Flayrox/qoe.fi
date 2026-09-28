@@ -154,6 +154,10 @@ func (h *Handler) RegisterPublic(r chi.Router) {
 	// par e-mails de confirmation (fiche 01 §5).
 	r.Options("/v1/publications/{slugOrId}/subscribe", h.publicSubscribeOptions)
 	r.Post("/v1/publications/{slugOrId}/subscribe", h.publicSubscribeLimiter(h.publicSubscribe).ServeHTTP)
+	// Profil public minimal (nom + logo, rien de sensible) : le site tiers et
+	// la page qoe.fi affichent « Confirmer l'abonnement à [publication] »
+	// sans clé API. Lecture seule indexée, pas de PII.
+	r.Get("/v1/publications/{slugOrId}/profile", h.publicPublicationProfile)
 }
 
 // RegisterProtected — routes créateur authentifiées JWT (ou clé API via

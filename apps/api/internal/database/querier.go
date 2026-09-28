@@ -11,6 +11,14 @@ import (
 )
 
 type Querier interface {
+	// Activation directe réservée au parcours connecté à adresse vérifiée
+	// (fiche 01 §2 : adresse confirmée côté fournisseur + action explicite +
+	// session). C'est le SEUL cas, avec le paiement, où `confirmedAt` est posé
+	// sans clic sur un lien — et la preuve préexiste dans les deux cas.
+	// Rattache aussi l'abonnement au compte (userId) : pas de doublon possible
+	// (unicité email+publication), pas de réactivation silencieuse ici puisque
+	// l'adresse est vérifiée et l'action explicite.
+	ActivateVerifiedSubscriber(ctx context.Context, arg ActivateVerifiedSubscriberParams) error
 	AddRecommendation(ctx context.Context, arg AddRecommendationParams) (Recommendation, error)
 	AdminDashboardCounts(ctx context.Context) (AdminDashboardCountsRow, error)
 	ArchiveLegalDocumentVersion(ctx context.Context, id string) (LegalDocumentVersion, error)
@@ -307,6 +315,11 @@ type Querier interface {
 	GetPublicationForSettings(ctx context.Context, id string) (GetPublicationForSettingsRow, error)
 	GetPublicationMetadataByID(ctx context.Context, id string) (GetPublicationMetadataByIDRow, error)
 	GetPublicationOwner(ctx context.Context, id string) (string, error)
+	// Profil public minimal d'une publication pour les intégrations externes
+	// (fiche 02) : nom + logo uniquement. Rien de sensible, aucune adresse,
+	// aucun compteur — le site tiers n'a pas besoin d'en savoir plus pour
+	// afficher « Confirmer l'abonnement à [publication] ».
+	GetPublicationPublicProfile(ctx context.Context, id string) (GetPublicationPublicProfileRow, error)
 	GetPublicationTypeByID(ctx context.Context, id string) (GetPublicationTypeByIDRow, error)
 	GetPublicationUmamiWebsiteId(ctx context.Context, id string) (pgtype.Text, error)
 	// Contenu complet d'un document publié (markdown).
@@ -675,6 +688,13 @@ type Querier interface {
 	// (image remplacée ou ligne métier supprimée) : grâce de $2 avant purge.
 	SoftDeleteDetachedMediaAssets(ctx context.Context, arg SoftDeleteDetachedMediaAssetsParams) ([]SoftDeleteDetachedMediaAssetsRow, error)
 	SoftDeletePost(ctx context.Context, arg SoftDeletePostParams) (string, error)
+	// Demande d'abonnement en attente (parcours invité et connecté non vérifié,
+	// fiche 01) : crée un abonné NON destinataire (receiveArticles = false,
+	// confirmedAt NULL) porteur d'un jeton à usage unique. Sur conflit avec un
+	// abonné déjà actif et confirmé : état et token inchangés (rien à renvoyer).
+	// Sur conflit avec un désabonné : nouveau token, jamais de réactivation — seul
+	// son propre clic réactive (ConfirmSubscriberByToken).
+	SubscribePending(ctx context.Context, arg SubscribePendingParams) error
 	// Ajoute un upvote (idempotent). ⚠️ Le retrait et le comptage sont gérés
 	// séparément dans le service (les CTE PostgreSQL sont matérialisés, un
 	// COUNT dans le même statement ne verrait pas l'insertion).

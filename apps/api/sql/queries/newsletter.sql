@@ -341,6 +341,77 @@ WHERE email = $1
   AND "confirmationToken" = $3
 RETURNING id;
 
+-- name: SubscribePending :exec
+-- Demande d'abonnement en attente (parcours invité et connecté non vérifié,
+-- fiche 01) : crée un abonné NON destinataire (receiveArticles = false,
+-- confirmedAt NULL) porteur d'un jeton à usage unique. Sur conflit avec un
+-- abonné déjà actif et confirmé : état et token inchangés (rien à renvoyer).
+-- Sur conflit avec un désabonné : nouveau token, jamais de réactivation — seul
+-- son propre clic réactive (ConfirmSubscriberByToken).
+INSERT INTO "Subscriber" (
+    id, email, "publicationId", status, "isActive", "receiveArticles",
+    "confirmationToken", "createdAt", "updatedAt"
+)
+VALUES (
+    gen_random_uuid()::text,
+    LOWER(TRIM(sqlc.arg(email)::text)),
+    sqlc.arg(publication_id)::text,
+    'ACTIVE',
+    true,
+    false,
+    sqlc.arg(token)::text,
+    now(),
+    now()
+)
+ON CONFLICT ("email", "publicationId") DO UPDATE SET
+    "isActive" = true,
+    "confirmationToken" = CASE
+        WHEN "Subscriber"."confirmedAt" IS NOT NULL
+         AND "Subscriber"."receiveArticles" = true THEN NULL
+        ELSE EXCLUDED."confirmationToken" END,
+    "updatedAt" = now();
+
+-- name: ActivateVerifiedSubscriber :exec
+-- Activation directe réservée au parcours connecté à adresse vérifiée
+-- (fiche 01 §2 : adresse confirmée côté fournisseur + action explicite +
+-- session). C'est le SEUL cas, avec le paiement, où `confirmedAt` est posé
+-- sans clic sur un lien — et la preuve préexiste dans les deux cas.
+-- Rattache aussi l'abonnement au compte (userId) : pas de doublon possible
+-- (unicité email+publication), pas de réactivation silencieuse ici puisque
+-- l'adresse est vérifiée et l'action explicite.
+INSERT INTO "Subscriber" (
+    id, email, "publicationId", status, "isActive", "receiveArticles",
+    "confirmedAt", "userId", "createdAt", "updatedAt"
+)
+VALUES (
+    gen_random_uuid()::text,
+    LOWER(TRIM(sqlc.arg(email)::text)),
+    sqlc.arg(publication_id)::text,
+    'ACTIVE',
+    true,
+    true,
+    now(),
+    sqlc.arg(user_id)::uuid,
+    now(),
+    now()
+)
+ON CONFLICT ("email", "publicationId") DO UPDATE SET
+    "isActive" = true,
+    "receiveArticles" = true,
+    "confirmedAt" = COALESCE("Subscriber"."confirmedAt", now()),
+    "userId" = COALESCE("Subscriber"."userId", EXCLUDED."userId"),
+    "updatedAt" = now();
+
+-- name: GetPublicationPublicProfile :one
+-- Profil public minimal d'une publication pour les intégrations externes
+-- (fiche 02) : nom + logo uniquement. Rien de sensible, aucune adresse,
+-- aucun compteur — le site tiers n'a pas besoin d'en savoir plus pour
+-- afficher « Confirmer l'abonnement à [publication] ».
+SELECT id, name, "logoUrl"
+FROM "Publication"
+WHERE id = $1 OR slug = $1
+LIMIT 1;
+
 -- name: AttachSubscriberToAccount :exec
 -- Rattache un abonnement confirmé au compte qui utilise cette adresse
 -- (fiche 01 §4). Conditions strictes : le userId n'est posé que s'il est

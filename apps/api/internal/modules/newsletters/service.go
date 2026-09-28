@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/hibiken/asynq"
@@ -27,6 +28,9 @@ var (
 type Service struct {
 	q  newsletterQuerier
 	ac *asynq.Client
+	// emailVerifier lit l'adresse et sa confirmation côté fournisseur
+	// (branché par le serveur ; nil = parcours connectés désactivés).
+	emailVerifier emailVerifier
 	// onReconfirmConfirmed constate une confirmation individuelle auprès du
 	// suivi des vagues de reconfirmation (compteurs). Branché par le serveur ;
 	// nil en test. On ne fabrique rien ici : `confirmedAt` a déjà été franchi
@@ -40,6 +44,16 @@ type Service struct {
 func (s *Service) SetReconfirmConfirmedHook(fn func(ctx context.Context, publicationID, email string) error) {
 	s.onReconfirmConfirmed = fn
 }
+
+// emailVerifier est la surface minimale du module users lue par les parcours
+// connectés : adresse du compte et confirmation côté fournisseur. Interface
+// (et non import direct) pour rester mockable en test.
+type emailVerifier interface {
+	GetEmailVerification(ctx context.Context, userID string) (string, bool, error)
+}
+
+// SetEmailVerifier branche la vérification d'adresse du compte (module users).
+func (s *Service) SetEmailVerifier(v emailVerifier) { s.emailVerifier = v }
 
 func NewService(q newsletterQuerier, ac *asynq.Client) *Service {
 	return &Service{q: q, ac: ac}
@@ -310,6 +324,93 @@ func (s *Service) ConfirmSubscriber(ctx context.Context, publicationID, email, t
 		if err := s.onReconfirmConfirmed(ctx, publicationID, email); err != nil {
 			log.Printf("[newsletters] reconfirm impute %s/%s: %v", publicationID, email, err)
 		}
+	}
+	return nil
+}
+
+// SelfSubscribeResult distingue les deux issues du parcours connecté.
+type SelfSubscribeResult struct {
+	// Active est vrai quand l'abonnement est effectif immédiatement (adresse
+	// vérifiée) ; faux quand un e-mail de confirmation vient de partir.
+	Active bool `json:"active"`
+}
+
+// SubscribeSelf abonne le compte connecté à une publication, sans ressaisir
+// d'adresse (fiche 01 §2 : qoe.fi sait déjà qu'il contrôle son adresse).
+// Règles : l'adresse demandée doit être exactement celle du compte (sinon
+// 403 — saisir l'adresse d'un compte ne prouve pas qu'on en est titulaire) ;
+// si elle est confirmée côté fournisseur, activation directe (légitime :
+// adresse vérifiée + action explicite + session) ; sinon, parcours invité
+// (pending + e-mail de confirmation). La réponse ne distingue pas les cas
+// au-delà du flag `active`, et ne révèle jamais l'existence d'un compte.
+func (s *Service) SubscribeSelf(ctx context.Context, userID, email, publicationID string) (SelfSubscribeResult, error) {
+	if s.emailVerifier == nil {
+		return SelfSubscribeResult{}, errors.New("parcours connecté indisponible")
+	}
+	if strings.TrimSpace(publicationID) == "" {
+		return SelfSubscribeResult{}, errors.New("publicationId requis")
+	}
+	want := strings.ToLower(strings.TrimSpace(email))
+	if want == "" || !strings.Contains(want, "@") {
+		return SelfSubscribeResult{}, errors.New("adresse email invalide")
+	}
+	accountEmail, confirmed, err := s.emailVerifier.GetEmailVerification(ctx, userID)
+	if err != nil {
+		return SelfSubscribeResult{}, err
+	}
+	if want != accountEmail {
+		return SelfSubscribeResult{}, errForbidden
+	}
+	if !confirmed {
+		return SelfSubscribeResult{}, s.subscribePending(ctx, accountEmail, publicationID)
+	}
+	return SelfSubscribeResult{Active: true}, s.subscribeActive(ctx, userID, accountEmail, publicationID)
+}
+
+// subscribePending enregistre une demande en attente et enfile la confirmation
+// (même contrat que les voies publiques : jamais d'activation sans clic).
+func (s *Service) subscribePending(ctx context.Context, email, publicationID string) error {
+	token, err := NewConfirmationToken()
+	if err != nil {
+		return err
+	}
+	if err := s.q.SubscribePending(ctx, db.SubscribePendingParams{
+		Email:         email,
+		PublicationID: publicationID,
+		Token:         token,
+	}); err != nil {
+		return err
+	}
+	if err := queue.PublishSubscriberConfirm(s.ac, queue.SubscriberConfirmPayload{
+		Email:         email,
+		PublicationID: publicationID,
+	}); err != nil {
+		log.Printf("[newsletters] subscriber.confirm enqueue: %v", err)
+	}
+	return nil
+}
+
+// subscribeActive active directement un abonnement pour une adresse vérifiée
+// (compte connecté + adresse confirmée côté fournisseur). Seul cas où
+// `confirmedAt` est posé sans clic sur un lien : la preuve (adresse vérifiée)
+// préexiste et l'action est explicite. Rattache aussi l'abonnement au compte.
+func (s *Service) subscribeActive(ctx context.Context, userID, email, publicationID string) error {
+	uid := pgtype.UUID{}
+	if err := uid.Scan(userID); err != nil {
+		return err
+	}
+	if err := s.q.ActivateVerifiedSubscriber(ctx, db.ActivateVerifiedSubscriberParams{
+		Email:         email,
+		PublicationID: publicationID,
+		UserID:        uid,
+	}); err != nil {
+		return err
+	}
+	if err := queue.PublishSubscriberWelcome(s.ac, queue.SubscriberWelcomePayload{
+		Email:         email,
+		PublicationID: publicationID,
+	}); err != nil {
+		log.Printf("[newsletters] subscriber.welcome enqueue: %v", err)
 	}
 	return nil
 }
