@@ -24,6 +24,7 @@ import {
   updateNewsletterAction,
   type NewsletterIssue,
 } from './actions';
+import { notifyActionFailure } from '@/lib/authz-feedback';
 
 interface NewsletterClientProps {
   initialIssues: NewsletterIssue[];
@@ -94,7 +95,7 @@ export function NewsletterClient({ initialIssues }: NewsletterClientProps) {
       toast.success('Brouillon supprimé');
       await refresh();
     } else {
-      toast.error(res.error || 'Suppression impossible');
+      notifyActionFailure(res, 'Suppression impossible');
     }
   };
 
@@ -112,7 +113,7 @@ export function NewsletterClient({ initialIssues }: NewsletterClientProps) {
       toast.success(t`Envoi lancé — les abonnés recevront l'email sous quelques minutes.`);
       await refresh();
     } else {
-      toast.error(res.error || 'Envoi impossible');
+      notifyActionFailure(res, 'Envoi impossible');
     }
   };
 

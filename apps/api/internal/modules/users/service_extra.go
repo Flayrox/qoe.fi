@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -531,4 +532,98 @@ func (s *Service) UnlockArticleWithWallet(ctx context.Context, readerID, publica
 func isEmailConflict(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "User_email_key"
+}
+
+// ── Téléphone vérifié : friction anti-abus, jamais MFA forte (fiche 05) ──────
+//
+// Ce bloc ne fait qu'enregistrer et lire une preuve de possession d'un numéro
+// fournie par le fournisseur d'authentification. Il ne délivre aucun droit :
+// les capacités qui dépendent du numéro passent par le registre d'actions de
+// internal/authz (prérequis `phone_verified` distinct de la MFA forte).
+
+// ErrPhoneNumberTaken signale qu'un autre compte a déjà déclaré ce numéro.
+var ErrPhoneNumberTaken = errors.New("ce numéro est déjà associé à un autre compte")
+
+// PhoneVerification décrit l'état du numéro d'un compte. Le numéro n'est
+// destiné qu'aux parcours de sécurité du titulaire : il ne doit pas être
+// exposé aux créateurs, aux membres d'un média ni dans les interfaces
+// publiques.
+//
+// Ne pas confondre avec l'assurance de la session : `VerifiedAt` non nul ne
+// signifie pas « session fortement authentifiée ».
+type PhoneVerification struct {
+	Number     string     `json:"number"`
+	VerifiedAt *time.Time `json:"verifiedAt,omitempty"`
+}
+
+// PhoneStatus lit l'état de vérification du numéro d'un compte.
+func (s *Service) PhoneStatus(ctx context.Context, userID string) (PhoneVerification, error) {
+	var out PhoneVerification
+	var number pgtype.Text
+	var verifiedAt pgtype.Timestamp
+	err := s.pool.QueryRow(ctx,
+		`SELECT "phoneNumber", "phoneVerifiedAt" FROM "User" WHERE id = $1`,
+		toUUID(userID)).Scan(&number, &verifiedAt)
+	if err != nil {
+		return out, err
+	}
+	if number.Valid {
+		out.Number = number.String
+	}
+	if verifiedAt.Valid {
+		t := verifiedAt.Time.UTC()
+		out.VerifiedAt = &t
+	}
+	return out, nil
+}
+
+// PhoneVerified indique si le compte dispose d'un numéro vérifié. C'est le
+// prérequis anti-abus utilisé par internal/authz — il ne dit rien de la MFA
+// forte, qui reste évaluée sur la session.
+func (s *Service) PhoneVerified(ctx context.Context, userID string) (bool, error) {
+	var verified bool
+	err := s.pool.QueryRow(ctx,
+		`SELECT "phoneVerifiedAt" IS NOT NULL FROM "User" WHERE id = $1`,
+		toUUID(userID)).Scan(&verified)
+	if err != nil {
+		return false, err
+	}
+	return verified, nil
+}
+
+// MarkPhoneVerified enregistre un numéro dont la possession vient d'être
+// prouvée par le fournisseur. Ne jamais appeler cette méthode depuis une route
+// qui se contente d'un numéro simplement déclaré par le client.
+func (s *Service) MarkPhoneVerified(ctx context.Context, userID, number string, at time.Time) error {
+	number = strings.TrimSpace(number)
+	if number == "" {
+		return errors.New("numéro de téléphone vide")
+	}
+	if at.IsZero() {
+		at = time.Now().UTC()
+	}
+	_, err := s.pool.Exec(ctx,
+		`UPDATE "User" SET "phoneNumber" = $2, "phoneVerifiedAt" = $3, "updatedAt" = now() WHERE id = $1`,
+		toUUID(userID), number, at.UTC())
+	if err != nil && isPhoneNumberConflict(err) {
+		return ErrPhoneNumberTaken
+	}
+	return err
+}
+
+// ClearPhoneVerification retire le numéro (changement de numéro, suppression de
+// compte) : les capacités qui en dépendent redeviennent indisponibles
+// immédiatement, sans attendre l'expiration d'une session.
+func (s *Service) ClearPhoneVerification(ctx context.Context, userID string) error {
+	_, err := s.pool.Exec(ctx,
+		`UPDATE "User" SET "phoneNumber" = NULL, "phoneVerifiedAt" = NULL, "updatedAt" = now() WHERE id = $1`,
+		toUUID(userID))
+	return err
+}
+
+// isPhoneNumberConflict détecte la violation d'unicité sur User.phoneNumber
+// (SQLSTATE 23505, contrainte User_phoneNumber_key).
+func isPhoneNumberConflict(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "23505" && pgErr.ConstraintName == "User_phoneNumber_key"
 }

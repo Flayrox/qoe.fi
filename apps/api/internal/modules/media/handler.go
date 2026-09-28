@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/qoefi/api/internal/authz"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/permissions"
 	"github.com/qoefi/api/internal/response"
@@ -22,42 +23,69 @@ func NewHandler(svc *Service) *Handler {
 }
 
 // Register monte les routes média (auth JWT requise).
+//
+// Les écritures sensibles traversent le garde d'autorisation (internal/authz)
+// en plus des vérifications métier du service : niveau de preuve exigé (N1
+// pour l'administration d'un média, N2 pour les clés API), permission média
+// résolue sur le média visé et prérequis de compte. Le mode d'application est
+// piloté par le flag `authz-enforce` (observation par défaut) via
+// middleware.SetAuthzModeResolver.
 func (h *Handler) Register(r chi.Router) {
 	r.Route("/v1/media", func(r chi.Router) {
 		r.Get("/workspaces", h.listWorkspaces)
 		r.Get("/", h.listMedia)
-		r.Post("/", h.createMedia)
+		// Créer un média : le média n'existe pas encore, aucune permission média
+		// n'est résoluble — seul le niveau de preuve (N1) s'applique.
+		r.With(middleware.RequireAction(authz.ActionMediaCreate)).Post("/", h.createMedia)
 		r.Get("/{id}", h.getMedia)
-		r.Patch("/{id}/settings", h.updateSettings)
-		r.Post("/{id}/invites", h.inviteMember)
-		r.Patch("/{id}/members/{userId}", h.updateMemberRole)
-		r.Patch("/{id}/members/{userId}/permissions", h.updateMemberPermissions)
-		r.Delete("/{id}/members/{userId}", h.removeMember)
+
+		// Réglages : l'adressage par média et par publication sont deux chemins
+		// vers la même opération — les garder tous les deux ferme un
+		// contournement si un seul était protégé.
+		r.With(mediaGuard(authz.ActionMediaSettingsWrite)).Patch("/{id}/settings", h.updateSettings)
+		r.With(middleware.RequireAction(authz.ActionMediaSettingsWrite,
+			middleware.WithAuthzResource(middleware.AuthzResourcePublication, "publicationId"))).
+			Patch("/by-publication/{publicationId}/settings", h.updateSettingsByPublication)
+
+		// Membres, rôles et invitations média : N1 + media:manage_members.
+		manageMembers := mediaGuard(authz.ActionMediaMembersWrite)
+		r.With(manageMembers).Post("/{id}/invites", h.inviteMember)
+		r.With(manageMembers).Patch("/{id}/members/{userId}", h.updateMemberRole)
+		r.With(manageMembers).Patch("/{id}/members/{userId}/permissions", h.updateMemberPermissions)
+		r.With(manageMembers).Delete("/{id}/members/{userId}", h.removeMember)
 
 		// Liens d'invitation média (sans email requis)
-		r.Post("/{id}/links", h.createLink)
+		r.With(manageMembers).Post("/{id}/links", h.createLink)
 		r.Get("/{id}/links", h.listLinks)
-		r.Post("/{id}/links/{linkId}/revoke", h.revokeLink)
+		r.With(manageMembers).Post("/{id}/links/{linkId}/revoke", h.revokeLink)
 		r.Get("/invites/link/{token}", h.getLinkPreview)
-		r.Post("/invites/link/{token}/join", h.joinLink)
+		// Accepter une invitation active un rôle : la MFA forte est exigée au
+		// moment de l'acceptation, pas seulement à l'émission du lien. Le lien
+		// est l'autorisation ; aucun média n'est désigné dans l'URL.
+		r.With(middleware.RequireAction(authz.ActionInvitationAccept)).
+			Post("/invites/link/{token}/join", h.joinLink)
 
-		// PATCH /v1/media/by-publication/{publicationId}/settings — équivalent de
-		// /{id}/settings mais adressé par la PUBLICATION du média. Le profil public
-		// d'un média n'expose que la publicationId ; accepter les deux évite que le
-		// front ne confonde jamais les deux identifiants (source du bug du 19/09 :
-		// l'id de publication envoyé comme si c'était l'id du média → 404).
-		r.Patch("/by-publication/{publicationId}/settings", h.updateSettingsByPublication)
 		// GET /v1/media/by-publication/{publicationId} — résout {mediaId} pour que
 		// le front puisse adresser les autres endpoints sans deviner.
 		r.Get("/by-publication/{publicationId}", h.mediaIdByPublication)
 
-		// Clés API Média (gestion workspace / délégation fine api_keys:manage)
+		// Clés API Média (gestion workspace / délégation fine api_keys:manage) :
+		// N2 — le gestionnaire humain prouve sa session, le bot ne rejoue pas un
+		// TOTP à chaque appel.
 		r.Get("/{id}/api-keys", h.listApiKeys)
-		r.Post("/{id}/api-keys", h.createApiKey)
-		r.Patch("/{id}/api-keys/{keyId}", h.updateApiKey)
-		r.Post("/{id}/api-keys/{keyId}/rotate", h.rotateApiKey)
-		r.Delete("/{id}/api-keys/{keyId}", h.revokeApiKey)
+		r.With(mediaGuard(authz.ActionApiKeyCreate)).Post("/{id}/api-keys", h.createApiKey)
+		r.With(mediaGuard(authz.ActionApiKeyScopeChange)).Patch("/{id}/api-keys/{keyId}", h.updateApiKey)
+		r.With(mediaGuard(authz.ActionApiKeyRotate)).Post("/{id}/api-keys/{keyId}/rotate", h.rotateApiKey)
+		r.With(mediaGuard(authz.ActionApiKeyRevoke)).Delete("/{id}/api-keys/{keyId}", h.revokeApiKey)
 	})
+}
+
+// mediaGuard protège une route média en désignant le média visé par le
+// paramètre d'URL {id} : le resolver lit la permission sur CE média, jamais
+// sur un autre média de l'acteur.
+func mediaGuard(action authz.Action) func(http.Handler) http.Handler {
+	return middleware.RequireAction(action,
+		middleware.WithAuthzResource(middleware.AuthzResourceMedia, "id"))
 }
 
 func userID(r *http.Request) string {

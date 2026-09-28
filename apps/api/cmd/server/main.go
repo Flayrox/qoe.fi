@@ -209,6 +209,18 @@ func newRouter(d RouterDeps) *chi.Mux {
 	// l'endpoint public, le journal d'audit admin et les gates de services.
 	flagsSvc := flags.NewService(pool)
 
+	// Garde d'autorisation (internal/authz) : le resolver lit en base les
+	// preuves que le JWT ne porte pas (droit sur le média visé, statut du
+	// compte, téléphone vérifié). Le mode est piloté par le flag
+	// `authz-enforce` — par défaut en OBSERVATION : les refus sont journalisés
+	// mais la requête passe, le temps de calibrer avant d'imposer le refus.
+	// Basculer le flag dans la console admin suffit à activer l'enforcement,
+	// sans redéploiement.
+	authmw.SetAuthzResolver(authmw.NewDBInputsResolver(pool))
+	authmw.SetAuthzModeResolver(func(ctx context.Context) bool {
+		return flagsSvc.IsOn(ctx, flags.AuthzEnforce)
+	})
+
 	r := chi.NewRouter()
 	r.Use(middleware.RealIP)
 	r.Use(middleware.Recoverer)

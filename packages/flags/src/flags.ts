@@ -27,6 +27,11 @@ export const FLAGS = {
   'admin-audit-log': false,
   // ⚙️ Workers — coupe-feu sur l'envoi des newsletters (kill switch)
   'workers-newsletter-dispatch': true,
+  // 🔐 Autorisation — bascule le garde d'autorisation (internal/authz) du mode
+  // observation (défaut) au mode refus. À activer une fois la MFA forte
+  // disponible et les propriétaires de médias existants accompagnés : en
+  // observation, les refus sont seulement journalisés.
+  'authz-enforce': false,
 } as const satisfies Record<string, boolean>;
 
 export type FlagKey = keyof typeof FLAGS;

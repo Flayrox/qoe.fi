@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/qoefi/api/internal/authz"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
 )
@@ -43,9 +44,13 @@ func (h *Handler) RegisterProtected(r chi.Router) {
 		r.Put("/social", h.saveSocial)
 		r.Post("/api-application", h.submitApiApplication)
 		r.Get("/api-keys", h.listApiKeys)
-		r.Post("/api-keys", h.generateApiKey)
-		r.Post("/api-keys/{id}/rotate", h.rotateApiKey)
-		r.Delete("/api-keys/{id}", h.revokeApiKey)
+		// Clés API personnelles : créer, faire tourner ou révoquer un secret
+		// exige une preuve forte récente (N2). Le mode d'application est piloté
+		// par le flag `authz-enforce` (observation par défaut).
+		manageKeys := middleware.RequireAction(authz.ActionPersonalApiKeyManage)
+		r.With(manageKeys).Post("/api-keys", h.generateApiKey)
+		r.With(manageKeys).Post("/api-keys/{id}/rotate", h.rotateApiKey)
+		r.With(manageKeys).Delete("/api-keys/{id}", h.revokeApiKey)
 		r.Post("/onboarding", h.completeOnboarding)
 	})
 	// Demande de suppression de compte (lecteur).

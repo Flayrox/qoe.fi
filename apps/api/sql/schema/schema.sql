@@ -83,6 +83,8 @@ CREATE TABLE "User" (
     "languageCode" TEXT,
     "demographicsUpdatedAt" TIMESTAMP(3),
     "pronouns" TEXT,
+    "phoneNumber" TEXT,
+    "phoneVerifiedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "embedding" vector(512),
@@ -985,6 +987,9 @@ CREATE UNIQUE INDEX "User_username_key" ON "User"("username");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "User_publicationId_key" ON "User"("publicationId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_phoneNumber_key" ON "User"("phoneNumber") WHERE "phoneNumber" IS NOT NULL;
 
 -- CreateIndex
 CREATE INDEX "Recommendation_recommenderId_idx" ON "Recommendation"("recommenderId");

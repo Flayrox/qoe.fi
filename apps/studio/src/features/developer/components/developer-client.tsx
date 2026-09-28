@@ -39,6 +39,7 @@ import {
 } from '@/app/(creator)/media/actions';
 import { DeveloperNav } from './developer-nav';
 import { cn } from '@qoe/utils';
+import { notifyActionFailure } from '@/lib/authz-feedback';
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error) return error.message;
@@ -305,7 +306,7 @@ export function DeveloperClient({
           setNewKeyScopes([...allowedScopes]);
           toast.success(t`Nouvelle clé d'API Média générée avec succès !`);
         } else {
-          toast.error(res.error || t`Erreur lors de la génération de la clé.`);
+          notifyActionFailure(res, t`Erreur lors de la génération de la clé.`);
         }
       } else {
         const res = await generateApiKeyAction({ name: newKeyName, scopes: newKeyScopes });
@@ -328,6 +329,10 @@ export function DeveloperClient({
           setNewKeyName('');
           setNewKeyScopes([...allowedScopes]);
           toast.success(t`Nouvelle clé d'API générée avec succès !`);
+        } else {
+          // Refus explicable côté Go (garde d'autorisation) : on guide au lieu
+          // d'échouer en silence.
+          notifyActionFailure(res, t`Erreur lors de la génération de la clé.`);
         }
       }
     } catch (err: unknown) {
@@ -355,7 +360,7 @@ export function DeveloperClient({
           setShowKeyModal(true);
           toast.success(t`Clé d'API rotatée avec succès.`);
         } else {
-          toast.error(res.error || t`Erreur lors de la rotation de la clé.`);
+          notifyActionFailure(res, t`Erreur lors de la rotation de la clé.`);
         }
       } else {
         const res = await rotateApiKeyAction(id);
@@ -364,6 +369,8 @@ export function DeveloperClient({
           setGeneratedKey(res.data.apiKey);
           setShowKeyModal(true);
           toast.success(t`Clé d'API rotatée avec succès.`);
+        } else {
+          notifyActionFailure(res, t`Erreur lors de la rotation de la clé.`);
         }
       }
     } catch (err: unknown) {
@@ -384,7 +391,7 @@ export function DeveloperClient({
           setConfirmDeleteId(null);
           toast.success(t`Clé d'API révoquée avec succès.`);
         } else {
-          toast.error(res.error || t`Erreur lors de la révocation de la clé.`);
+          notifyActionFailure(res, t`Erreur lors de la révocation de la clé.`);
         }
       } else {
         const res = await revokeApiKeyAction(id);
@@ -392,6 +399,8 @@ export function DeveloperClient({
           setKeys(keys.filter((k) => k.id !== id));
           setConfirmDeleteId(null);
           toast.success(t`Clé d'API révoquée avec succès.`);
+        } else {
+          notifyActionFailure(res, t`Erreur lors de la révocation de la clé.`);
         }
       }
     } catch (err: unknown) {

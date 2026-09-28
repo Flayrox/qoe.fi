@@ -1380,6 +1380,8 @@ type User struct {
 	LanguageCode           pgtype.Text      `json:"languageCode"`
 	DemographicsUpdatedAt  pgtype.Timestamp `json:"demographicsUpdatedAt"`
 	Pronouns               pgtype.Text      `json:"pronouns"`
+	PhoneNumber            pgtype.Text      `json:"phoneNumber"`
+	PhoneVerifiedAt        pgtype.Timestamp `json:"phoneVerifiedAt"`
 	CreatedAt              pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt              pgtype.Timestamp `json:"updatedAt"`
 	Embedding              pgvector.Vector  `json:"embedding"`

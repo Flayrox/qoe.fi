@@ -26,6 +26,10 @@ const (
 	LandingPricingSection = "landing-pricing-section"
 	AdminAuditLog         = "admin-audit-log"
 	WorkersNewsletter     = "workers-newsletter-dispatch"
+	// AuthzEnforce bascule le garde d'autorisation (internal/authz) du mode
+	// observation au mode refus. Défaut : observation — le refus ne s'active
+	// qu'une fois la MFA forte disponible et les comptes existants accompagnés.
+	AuthzEnforce = "authz-enforce"
 )
 
 // defaults est le registre des défauts (miroir exact de @qoe/flags) : utilisé
@@ -37,6 +41,7 @@ var defaults = map[string]bool{
 	LandingPricingSection: false,
 	AdminAuditLog:         false,
 	WorkersNewsletter:     true,
+	AuthzEnforce:          false,
 }
 
 // cacheTTL borne la fraîcheur d'un flag : une bascule console est appliquée

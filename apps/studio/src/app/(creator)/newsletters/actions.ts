@@ -5,6 +5,20 @@ import { revalidatePath } from 'next/cache';
 import { getActiveWorkspace } from '@/lib/active-workspace';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 
+/**
+ * Échec d'action : conserve le code du garde d'autorisation Go
+ * (`needs_step_up` sur l'envoi d'une campagne, par ex.) pour que le client
+ * puisse proposer le parcours utile au lieu d'un message muet.
+ */
+function failure(err: unknown, fallback: string): { success: false; error: string; code?: string } {
+  const code = (err as { code?: string } | null)?.code;
+  return {
+    success: false as const,
+    error: err instanceof Error ? err.message : fallback,
+    ...(code ? { code } : {}),
+  };
+}
+
 async function getContext() {
   const supabase = await createClient();
   const {
@@ -38,10 +52,7 @@ export async function listNewslettersAction() {
     );
     return { success: true as const, items: res.items ?? [] };
   } catch (err) {
-    return {
-      success: false as const,
-      error: err instanceof Error ? err.message : 'Erreur serveur',
-    };
+    return failure(err, 'Erreur serveur');
   }
 }
 
@@ -63,10 +74,7 @@ export async function createNewsletterAction(input: {
     revalidatePath('/newsletters');
     return { success: true as const };
   } catch (err) {
-    return {
-      success: false as const,
-      error: err instanceof Error ? err.message : 'Erreur serveur',
-    };
+    return failure(err, 'Erreur serveur');
   }
 }
 
@@ -87,10 +95,7 @@ export async function updateNewsletterAction(
     revalidatePath('/newsletters');
     return { success: true as const };
   } catch (err) {
-    return {
-      success: false as const,
-      error: err instanceof Error ? err.message : 'Erreur serveur',
-    };
+    return failure(err, 'Erreur serveur');
   }
 }
 
@@ -101,10 +106,7 @@ export async function deleteNewsletterAction(id: string) {
     revalidatePath('/newsletters');
     return { success: true as const };
   } catch (err) {
-    return {
-      success: false as const,
-      error: err instanceof Error ? err.message : 'Erreur serveur',
-    };
+    return failure(err, 'Erreur serveur');
   }
 }
 
@@ -115,9 +117,6 @@ export async function sendNewsletterAction(id: string) {
     revalidatePath('/newsletters');
     return { success: true as const };
   } catch (err) {
-    return {
-      success: false as const,
-      error: err instanceof Error ? err.message : 'Erreur serveur',
-    };
+    return failure(err, 'Erreur serveur');
   }
 }
