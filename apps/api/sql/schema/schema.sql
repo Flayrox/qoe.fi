@@ -2434,3 +2434,77 @@ CREATE TABLE "MessageTypePolicy" (
         'none', 'deliverability', 'editorial'
     ))
 );
+
+-- CreateTable
+CREATE TABLE "StaffCampaign" (
+    "id"            TEXT NOT NULL,
+    "type"          TEXT NOT NULL,
+    "subject"       TEXT NOT NULL,
+    "bodyHtml"      TEXT NOT NULL,
+    "bodyText"      TEXT,
+    "subjectEn"     TEXT,
+    "bodyHtmlEn"    TEXT,
+    "bodyTextEn"    TEXT,
+    "audienceType"  TEXT NOT NULL,
+    "audiencePublicationId" TEXT,
+    "audienceSnapshot" JSONB NOT NULL DEFAULT '{}'::jsonb,
+    "status"        TEXT NOT NULL DEFAULT 'draft',
+    "draftedBy"     UUID,
+    "approvedBy"    UUID,
+    "approvedAt"    TIMESTAMP(3),
+    "scheduledAt"   TIMESTAMP(3),
+    "sentCount"     INTEGER NOT NULL DEFAULT 0,
+    "failedCount"   INTEGER NOT NULL DEFAULT 0,
+    "skippedCount"  INTEGER NOT NULL DEFAULT 0,
+    "completedAt"   TIMESTAMP(3),
+    "createdAt"     TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt"     TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "StaffCampaign_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "StaffCampaign_type_check" CHECK ("type" IN (
+        'legal.version_notice', 'staff.direct', 'product.announcement'
+    )),
+    CONSTRAINT "StaffCampaign_audience_check" CHECK ("audienceType" IN (
+        'all_active_users', 'publication_subscribers'
+    )),
+    CONSTRAINT "StaffCampaign_status_check" CHECK ("status" IN (
+        'draft', 'pending_review', 'approved', 'sending', 'paused',
+        'completed', 'cancelled'
+    )),
+    CONSTRAINT "StaffCampaign_scope_publication_check" CHECK (
+        ("audienceType" = 'publication_subscribers' AND "audiencePublicationId" IS NOT NULL) OR
+        ("audienceType" = 'all_active_users' AND "audiencePublicationId" IS NULL)
+    ),
+    CONSTRAINT "StaffCampaign_approver_check" CHECK (
+        "approvedBy" IS NULL OR "draftedBy" IS NULL OR "approvedBy" <> "draftedBy"
+    )
+);
+
+-- CreateIndex
+CREATE INDEX "StaffCampaign_status_idx"
+    ON "StaffCampaign"("status", "createdAt" DESC);
+
+-- CreateTable
+CREATE TABLE "StaffCampaignDelivery" (
+    "id"         TEXT NOT NULL,
+    "campaignId" TEXT NOT NULL,
+    "email"      TEXT NOT NULL,
+    "status"     TEXT NOT NULL DEFAULT 'queued',
+    "error"      TEXT,
+    "sentAt"     TIMESTAMP(3),
+    "createdAt"  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt"  TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "StaffCampaignDelivery_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "StaffCampaignDelivery_status_check" CHECK ("status" IN (
+        'queued', 'sent', 'failed', 'skipped', 'suppressed'
+    ))
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "StaffCampaignDelivery_campaign_email_key"
+    ON "StaffCampaignDelivery"("campaignId", "email");
+
+-- CreateIndex
+CREATE INDEX "StaffCampaignDelivery_campaign_status_idx"
+    ON "StaffCampaignDelivery"("campaignId", "status", "email");

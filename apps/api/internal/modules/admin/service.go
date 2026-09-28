@@ -7,6 +7,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -18,13 +19,23 @@ var errForbidden = errors.New("réservé au superadmin")
 
 // Service porte les opérations de la console admin.
 type Service struct {
-	pool *pgxpool.Pool
-	q    adminQuerier
+	pool  *pgxpool.Pool
+	q     adminQuerier
+	asynq *asynq.Client
 
 	// flags lit la table feature_flags partagée : le flag admin-audit-log
 	// active/désactive le journal d'audit sans redéploiement.
 	flags *flags.Service
 }
+
+// SetAsynqClient branche le client asynq (enfilement des tranches de
+// campagnes staff). Nil = les campagnes restent en `sending` sans avancer,
+// reprises à la main — dégradation sûre, jamais d'envoi fantôme.
+func (s *Service) SetAsynqClient(c *asynq.Client) { s.asynq = c }
+
+// asynqClient expose le client au code du module (nil possible : les publishes
+// du package queue sont nil-safe et journalisent).
+func (s *Service) asynqClient() *asynq.Client { return s.asynq }
 
 func NewService(pool *pgxpool.Pool) *Service {
 	return &Service{pool: pool, q: db.New(pool)}

@@ -451,6 +451,9 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 		adminSvc := admin.NewService(pool)
 		adminSvc.SetFlags(flagsSvc)
+		// Tranches des campagnes staff : sans client, StartCampaign laisse la
+		// campagne en `sending` sans avancer (reprise manuelle).
+		adminSvc.SetAsynqClient(asynqClient)
 		adminHandler := admin.NewHandler(adminSvc)
 		// Revue staff des imports d'abonnés : même service que le dépôt, exposé
 		// derrière le garde superadmin de la console.

@@ -27,6 +27,9 @@ const (
 	// budget atomique) : jamais mélangée aux campagnes créateur normales ni
 	// aux reconfirmations — les quotas d'une liste fraîche restent séparés.
 	TaskSubscriberImportSend = "subscriber.import_send"
+	// TaskStaffCampaign porte une tranche d'une campagne administrative
+	// (file `default` : volumes faibles supervisés, pas de quotas à séparer).
+	TaskStaffCampaign = "staff.campaign"
 )
 
 // BulkImportPayload est le payload de TaskBulkImport (import bulk asynchrone).
@@ -96,6 +99,13 @@ type SubscriberImportReconfirmPayload struct {
 // avec un délai si la vague continue et que le budget le permet.
 type SubscriberImportSendPayload struct {
 	WaveID string `json:"waveId"`
+}
+
+// StaffCampaignPayload est le payload de TaskStaffCampaign : traiter une
+// tranche d'une campagne administrative, puis ré-enfiler la suite avec un
+// délai s'il reste des livraisons.
+type StaffCampaignPayload struct {
+	CampaignID string `json:"campaignId"`
 }
 
 // EmbeddingPayload est un job de génération d'embedding (article, user ou post).

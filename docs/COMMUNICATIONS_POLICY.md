@@ -57,6 +57,38 @@ encadré : mise en pause + événement tracé, reprise manuelle staff).
   (token intact, nouveau lien possible). Vagues : pause, jamais de clôture
   abusive — une vague en pause n'est pas une vague terminée.
 
+## Centre de campagnes administratives (construit, migrations 00035–00036)
+
+Avant lui, aucun moyen d'envoyer un message officiel ciblé — et surtout
+aucune barrière contre un `sendAnyEmail(to, html)`. Ce centre est cette
+barrière : catégories fermées (`legal.version_notice`, `staff.direct`,
+`product.announcement`), audience générée côté serveur (jamais de CSV libre :
+`all_active_users` ou abonnés actifs confirmés non supprimés d'une
+publication), rédacteur ≠ approbateur (deux superadmins distincts, vérifié en
+base), audience figée à l'approbation (snapshot critères + compteurs),
+tranches de 100 avec délai sur file `default`, arrêt possible à tout moment
+(pause, annulation avec motif, kill global).
+
+- Variables sur liste blanche (`publication_name`, `unsubscribe_url`),
+  substituées avec échappement ; toute autre forme `{{...}}` rejetée.
+- Anglais obligatoire pour le légal (pas d'envoi si la traduction requise
+  manque) ; FR par défaut documenté, EN si connue — pas de langue inventée.
+- Désinscription en un clic réelle quand il y a une publication ; sans
+  publication, pas d'en-tête mensonger (mention des préférences du compte).
+- Opposition revérifiée à la matérialisation ET au claim ; `confirmedAt`
+  jamais écrit par ce chemin.
+- Note de réconciliation : la 00035 appliquée en base venait d'une version
+  sans traductions ni compteur d'écartées ; la 00036 additive et idempotente
+  apporte exactement ce delta (colonnes EN, `skippedCount`, contraintes).
+  On ne réécrit jamais une migration appliquée.
+
+| Méthode | Chemin | Accès |
+|---|---|---|
+| `GET/POST` | `/v1/admin/campaigns` | superadmin — liste / crée (brouillon) |
+| `GET/PATCH` | `/v1/admin/campaigns/{id}` | superadmin — dossier / modifie (brouillon seul) |
+| `POST` | `.../{id}/submit`, `.../approve`, `.../start` | superadmin — revue, approbation (second), envoi |
+| `POST` | `.../{id}/pause`, `.../cancel` | superadmin — arrêt |
+
 ## Reste du chantier fiche 04 (ordre de la fiche §17)
 
 1. Fiabilité : outbox transactionnelle + idempotence, files prioritaires,

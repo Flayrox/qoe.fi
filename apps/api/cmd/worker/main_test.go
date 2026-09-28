@@ -10,6 +10,7 @@ import (
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/qoefi/api/internal/cache"
+	"github.com/qoefi/api/internal/modules/admin"
 	"github.com/qoefi/api/internal/modules/imports"
 	"github.com/qoefi/api/internal/queue"
 	"github.com/qoefi/api/internal/testutil"
@@ -43,16 +44,17 @@ func requirePool(t *testing.T) {
 
 func testDeps() workerDeps {
 	return workerDeps{
-		webhook:    workers.NewWebhookWorker(poolTest),
-		newsletter: workers.NewNewsletterWorker(poolTest),
-		confirm:    workers.NewConfirmEmailWorker(poolTest),
-		welcome:    workers.NewWelcomeEmailWorker(poolTest),
-		stripe:     workers.NewStripeWorker(poolTest, cache.Client("redis://127.0.0.1:1")),
-		search:     workers.NewSearchWorker(poolTest),
-		embedding:  workers.NewEmbeddingWorker(poolTest),
-		bulkImport: workers.NewBulkImportWorker(imports.NewService(poolTest, nil)),
-		reconfirm:  workers.NewImportReconfirmWorker(imports.NewService(poolTest, nil)),
-		importSend: workers.NewImportSendWorker(imports.NewService(poolTest, nil)),
+		webhook:       workers.NewWebhookWorker(poolTest),
+		newsletter:    workers.NewNewsletterWorker(poolTest),
+		confirm:       workers.NewConfirmEmailWorker(poolTest),
+		welcome:       workers.NewWelcomeEmailWorker(poolTest),
+		stripe:        workers.NewStripeWorker(poolTest, cache.Client("redis://127.0.0.1:1")),
+		search:        workers.NewSearchWorker(poolTest),
+		embedding:     workers.NewEmbeddingWorker(poolTest),
+		bulkImport:    workers.NewBulkImportWorker(imports.NewService(poolTest, nil)),
+		reconfirm:     workers.NewImportReconfirmWorker(imports.NewService(poolTest, nil)),
+		importSend:    workers.NewImportSendWorker(imports.NewService(poolTest, nil)),
+		staffCampaign: workers.NewStaffCampaignWorker(poolTest, admin.NewService(poolTest)),
 	}
 }
 
@@ -78,6 +80,7 @@ func TestBuildHandlers(t *testing.T) {
 		queue.TaskBulkImport,
 		queue.TaskSubscriberImportReconfirm,
 		queue.TaskSubscriberImportSend,
+		queue.TaskStaffCampaign,
 	}
 	if len(handlers) != len(expected) {
 		t.Fatalf("handlers = %d, attendu %d", len(handlers), len(expected))
@@ -124,6 +127,7 @@ func TestWorkerMuxDispatch(t *testing.T) {
 		queue.TaskBulkImport:                []byte(`{}`),
 		queue.TaskSubscriberImportReconfirm: []byte(`{}`),
 		queue.TaskSubscriberImportSend:      []byte(`{}`),
+		queue.TaskStaffCampaign:             []byte(`{}`),
 	}
 	for typ, payload := range payloads {
 		task := asynq.NewTask(typ, payload)

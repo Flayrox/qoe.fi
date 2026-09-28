@@ -82,6 +82,7 @@ func (h *Handler) Register(r chi.Router) {
 	r.Post("/v1/admin/deliveries/{id}/retry", h.retryDelivery)
 
 	h.registerSubscriberImports(r)
+	h.registerStaffCampaigns(r)
 }
 
 func (h *Handler) requireSuperadmin(w http.ResponseWriter, r *http.Request) (string, bool) {
