@@ -745,6 +745,24 @@ type Querier interface {
 	// Double opt-in : Stripe/paiement confirme d'office l'email (relation facturée
 	// authentifiée) — receiveArticles reste actif sans confirmation email.
 	UpsertSubscriberPayment(ctx context.Context, arg UpsertSubscriberPaymentParams) (string, error)
+	// Inscription en attente de confirmation (double opt-in) : crée un abonné
+	// NON destinataire (receiveArticles = false, confirmedAt NULL) porteur d'un
+	// jeton à usage unique, et ne réactive jamais silencieusement un désabonné.
+	//
+	// Pourquoi : UpsertSubscriber ci-dessus active immédiatement (confirmedAt =
+	// now()), donc toute route qui l'appelle avec une adresse arbitraire — clé API
+	// créateur, formulaire public — fabrique des destinataires sans preuve. Ces
+	// routes doivent passer par ici : l'abonné ne devient destinataire qu'au clic
+	// sur le lien (ConfirmSubscriberByToken), jamais à l'inscription.
+	//
+	// Sur conflit :
+	//   * déjà actif ET confirmé : état et token inchangés (pas de confirmation à
+	//     renvoyer, le handler le détecte via les flags retournés) ;
+	//   * sinon : isActive remis à true (seul, il ne rend jamais destinataire :
+	//     il faut aussi receiveArticles ET confirmedAt) + token frais. Un
+	//     désabonné n'est donc réactivé que par son propre clic, jamais par une
+	//     nouvelle saisie.
+	UpsertSubscriberPending(ctx context.Context, arg UpsertSubscriberPendingParams) (UpsertSubscriberPendingRow, error)
 	UpsertSystemConfig(ctx context.Context, arg UpsertSystemConfigParams) (SystemConfig, error)
 	UpsertTrend(ctx context.Context, arg UpsertTrendParams) (UpsertTrendRow, error)
 	// Écrit le vecteur d'un utilisateur/publication (profil).
