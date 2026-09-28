@@ -11,6 +11,49 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const activateVerifiedSubscriber = `-- name: ActivateVerifiedSubscriber :exec
+INSERT INTO "Subscriber" (
+    id, email, "publicationId", status, "isActive", "receiveArticles",
+    "confirmedAt", "userId", "createdAt", "updatedAt"
+)
+VALUES (
+    gen_random_uuid()::text,
+    LOWER(TRIM($1::text)),
+    $2::text,
+    'ACTIVE',
+    true,
+    true,
+    now(),
+    $3::uuid,
+    now(),
+    now()
+)
+ON CONFLICT ("email", "publicationId") DO UPDATE SET
+    "isActive" = true,
+    "receiveArticles" = true,
+    "confirmedAt" = COALESCE("Subscriber"."confirmedAt", now()),
+    "userId" = COALESCE("Subscriber"."userId", EXCLUDED."userId"),
+    "updatedAt" = now()
+`
+
+type ActivateVerifiedSubscriberParams struct {
+	Email         string      `json:"email"`
+	PublicationID string      `json:"publication_id"`
+	UserID        pgtype.UUID `json:"user_id"`
+}
+
+// Activation directe réservée au parcours connecté à adresse vérifiée
+// (fiche 01 §2 : adresse confirmée côté fournisseur + action explicite +
+// session). C'est le SEUL cas, avec le paiement, où `confirmedAt` est posé
+// sans clic sur un lien — et la preuve préexiste dans les deux cas.
+// Rattache aussi l'abonnement au compte (userId) : pas de doublon possible
+// (unicité email+publication), pas de réactivation silencieuse ici puisque
+// l'adresse est vérifiée et l'action explicite.
+func (q *Queries) ActivateVerifiedSubscriber(ctx context.Context, arg ActivateVerifiedSubscriberParams) error {
+	_, err := q.db.Exec(ctx, activateVerifiedSubscriber, arg.Email, arg.PublicationID, arg.UserID)
+	return err
+}
+
 const attachSubscriberToAccount = `-- name: AttachSubscriberToAccount :exec
 UPDATE "Subscriber" s
 SET "userId" = u.id,
@@ -486,6 +529,30 @@ func (q *Queries) GetPublicationMetadataByID(ctx context.Context, id string) (Ge
 	return i, err
 }
 
+const getPublicationPublicProfile = `-- name: GetPublicationPublicProfile :one
+SELECT id, name, "logoUrl"
+FROM "Publication"
+WHERE id = $1 OR slug = $1
+LIMIT 1
+`
+
+type GetPublicationPublicProfileRow struct {
+	ID      string      `json:"id"`
+	Name    string      `json:"name"`
+	LogoUrl pgtype.Text `json:"logoUrl"`
+}
+
+// Profil public minimal d'une publication pour les intégrations externes
+// (fiche 02) : nom + logo uniquement. Rien de sensible, aucune adresse,
+// aucun compteur — le site tiers n'a pas besoin d'en savoir plus pour
+// afficher « Confirmer l'abonnement à [publication] ».
+func (q *Queries) GetPublicationPublicProfile(ctx context.Context, id string) (GetPublicationPublicProfileRow, error) {
+	row := q.db.QueryRow(ctx, getPublicationPublicProfile, id)
+	var i GetPublicationPublicProfileRow
+	err := row.Scan(&i.ID, &i.Name, &i.LogoUrl)
+	return i, err
+}
+
 const getSubscriberEmailContext = `-- name: GetSubscriberEmailContext :one
 SELECT s.email, s.locale, s."confirmedAt",
        p.name AS publication_name, p.subdomain, p."customDomain", p."accentColor",
@@ -892,6 +959,48 @@ func (q *Queries) SetNewsletterIssueSending(ctx context.Context, id string) (str
 	var id_2 string
 	err := row.Scan(&id_2)
 	return id_2, err
+}
+
+const subscribePending = `-- name: SubscribePending :exec
+INSERT INTO "Subscriber" (
+    id, email, "publicationId", status, "isActive", "receiveArticles",
+    "confirmationToken", "createdAt", "updatedAt"
+)
+VALUES (
+    gen_random_uuid()::text,
+    LOWER(TRIM($1::text)),
+    $2::text,
+    'ACTIVE',
+    true,
+    false,
+    $3::text,
+    now(),
+    now()
+)
+ON CONFLICT ("email", "publicationId") DO UPDATE SET
+    "isActive" = true,
+    "confirmationToken" = CASE
+        WHEN "Subscriber"."confirmedAt" IS NOT NULL
+         AND "Subscriber"."receiveArticles" = true THEN NULL
+        ELSE EXCLUDED."confirmationToken" END,
+    "updatedAt" = now()
+`
+
+type SubscribePendingParams struct {
+	Email         string `json:"email"`
+	PublicationID string `json:"publication_id"`
+	Token         string `json:"token"`
+}
+
+// Demande d'abonnement en attente (parcours invité et connecté non vérifié,
+// fiche 01) : crée un abonné NON destinataire (receiveArticles = false,
+// confirmedAt NULL) porteur d'un jeton à usage unique. Sur conflit avec un
+// abonné déjà actif et confirmé : état et token inchangés (rien à renvoyer).
+// Sur conflit avec un désabonné : nouveau token, jamais de réactivation — seul
+// son propre clic réactive (ConfirmSubscriberByToken).
+func (q *Queries) SubscribePending(ctx context.Context, arg SubscribePendingParams) error {
+	_, err := q.db.Exec(ctx, subscribePending, arg.Email, arg.PublicationID, arg.Token)
+	return err
 }
 
 const unsubscribeNewsletterSubscriber = `-- name: UnsubscribeNewsletterSubscriber :exec

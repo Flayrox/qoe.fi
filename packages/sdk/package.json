@@ -20,7 +20,8 @@
     "./actions/tenant": "./src/actions/tenant/index.ts",
     "./actions/legal": "./src/actions/legal/index.ts",
     "./actions/utils/go-client": "./src/actions/utils/go-client.ts",
-    "./actions/utils/authz": "./src/actions/utils/authz.ts"
+    "./actions/utils/authz": "./src/actions/utils/authz.ts",
+    "./embed": "./src/embed/index.ts"
   },
   "scripts": {
     "test": "vitest run",

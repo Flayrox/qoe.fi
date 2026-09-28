@@ -387,3 +387,49 @@ func TestCreatorAPI_Subscribers_DoubleOptIn(t *testing.T) {
 		t.Fatalf("active subscriber must stay untouched: receive=%v confirmed=%v token=%v", recv, conf, tok)
 	}
 }
+
+// TestCreatorAPI_PublicProfile expose nom + logo uniquement : aucune adresse,
+// aucun compteur, aucun statut. 404 neutre si inconnue.
+func TestCreatorAPI_PublicProfile(t *testing.T) {
+	alicePubID, _, _, _ := seedFollows(t)
+	r := newSubscribersTestRouter()
+
+	// Par slug.
+	req := httptest.NewRequest(http.MethodGet, "/v1/publications/alice/profile", nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var bySlug map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &bySlug); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if bySlug["id"] != alicePubID || bySlug["name"] != "Alice" {
+		t.Fatalf("unexpected profile: %v", bySlug)
+	}
+	for _, forbidden := range []string{"email", "subscribers", "confirmedAt", "token", "userId"} {
+		if _, ok := bySlug[forbidden]; ok {
+			t.Fatalf("le profil public expose %q", forbidden)
+		}
+	}
+	if _, ok := bySlug["logoUrl"]; !ok {
+		t.Fatal("clé logoUrl absente (null attendu si pas de logo)")
+	}
+
+	// Par identifiant : même réponse.
+	reqID := httptest.NewRequest(http.MethodGet, "/v1/publications/"+alicePubID+"/profile", nil)
+	recID := httptest.NewRecorder()
+	r.ServeHTTP(recID, reqID)
+	if recID.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK by id, got %d", recID.Code)
+	}
+
+	// Inconnue : 404 neutre (ne révèle rien).
+	req404 := httptest.NewRequest(http.MethodGet, "/v1/publications/nonexistent-xyz/profile", nil)
+	rec404 := httptest.NewRecorder()
+	r.ServeHTTP(rec404, req404)
+	if rec404.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", rec404.Code)
+	}
+}

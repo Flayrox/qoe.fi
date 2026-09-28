@@ -93,8 +93,10 @@ export function SubscribeForm({
 
     if (res.ok) {
       setStatus('success');
+      // Double opt-in (fiche 01) : l'abonnement n'est actif qu'après le clic
+      // sur le lien envoyé — ne jamais promettre une réception immédiate.
       setMessage(
-        t`Vous recevrez désormais les prochains écrits directement dans votre boîte mail.`
+        t`Vérifiez votre boîte mail : un lien de confirmation vient de partir. L'abonnement ne sera actif qu'après votre clic.`
       );
       if (recommendations && recommendations.length > 0) {
         setShowModal(true);
@@ -134,7 +136,7 @@ export function SubscribeForm({
           <div className="w-10 h-10 rounded-full bg-success/20 text-success flex items-center justify-center mx-auto mb-3">
             <Check className="w-5 h-5 stroke-[2.5]" />
           </div>
-          <h4 className="text-lg font-bold text-success mb-1">{t`Vous êtes sur la liste !`}</h4>
+          <h4 className="text-lg font-bold text-success mb-1">{t`Plus qu'une étape !`}</h4>
           <p className="text-sm text-muted-foreground">{message}</p>
           <button
             type="button"
