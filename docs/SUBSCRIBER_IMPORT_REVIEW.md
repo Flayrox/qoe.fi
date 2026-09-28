@@ -140,9 +140,49 @@ contre la vague) ; vague en pause si le lot est suspendu/rejeté ; purge efface
 les jetons des non-confirmés sans créer d'opposition (ne pas répondre ≠
 refuser).
 
-Reste à construire : l'exception d'envoi encadré (quotas atomiques,
-surveillance des rejets et plaintes, suspension automatique), puis le
-rattachement au chantier support et recours.
+## Envoi encadré `approved_direct` (construit, migration 00033)
+
+Un lot `approved_direct` autorise une campagne initiale plafonnée, sans clic
+individuel — l'opération la plus dangereuse du plan, qui n'existe que parce que
+la quarantaine, la décision immuable et la reconfirmation existent déjà.
+
+- **Budget atomique** (`ImportSendBudget`, un seul par lot) : le plafond est
+  consommé par `UPDATE ... WHERE consumed + n <= cap` en une seule requête.
+  Deux workers concurrents ne dépassent jamais, même en course.
+- **Vagues plafonnées** (`ImportSendWave`, une seule active par lot) : snapshot
+  du segment `eligible_direct`, tranches de 100 avec 60 s entre tranches, file
+  asynq dédiée `import_send`. Rejeu idempotent (contrainte unique par vague et
+  email, `FOR UPDATE SKIP LOCKED`).
+- **`confirmedAt` jamais écrit par ce chemin** : l'approbation est une preuve
+  séparée (lot + décision). Le lien « confirmer » de l'e-mail reste la seule
+  voie vers `confirmedAt`, via le chemin normal — et chaque envoi crée
+  l'abonné inactif porteur d'un jeton frais pour que ce clic fonctionne.
+- **Éligibilité revérifiée à l'envoi** : opposition, état de l'abonné (jamais
+  d'écrasement d'un contact devenu connu), lot non suspendu, budget restant.
+- **Suspension automatique** sur seuils (rejets durs, plaintes, échecs,
+  échantillon minimum) : vague en pause, lot suspendu, décision système tracée,
+  reprise staff explicite uniquement. Les retours async (DSN/plaintes, fiche 04)
+  brancheront les mêmes compteurs plus tard — en attendant, les rejets durs
+  SMTP synchrones alimentent déjà la suspension.
+- **Quotas séparés** : tables, compteurs et file propres aux listes fraîches —
+  jamais mélangés aux campagnes créateur normales (`NewsletterDelivery`).
+- **Arrêt d'urgence** : le flag `workers-newsletter-dispatch` coupe tout, et
+  chaque tranche revérifie le statut du lot (un lot suspendu met sa vague en
+  pause au lieu d'envoyer).
+- L'e-mail est un message de présentation standard et versionné (bilingue FR/EN
+  dans le même corps — la langue du destinataire est inconnue, l'inventer
+  serait malhonnête), qui dit pourquoi la personne le reçoit, propose de
+  confirmer, et offre une désinscription évidente.
+
+| Méthode | Chemin | Accès |
+|---|---|---|
+| `POST` | `/v1/admin/import/subscribers/{id}/send-wave` | superadmin — ouvre une vague (idempotent) |
+| `GET` | `/v1/admin/import/subscribers/{id}/send-waves` | superadmin — suivi, budget, compteurs |
+| `POST` | `/v1/admin/import/subscribers/{id}/send-waves/{waveId}/cancel` | superadmin — annule (les `queued` sont écartés, jamais repris) |
+
+Reste à construire : l'UI admin correspondante (`apps/admin` n'a aujourd'hui
+aucune page d'import — les routes API ci-dessus sont prêtes), puis le
+rattachement du dispositif au chantier support et recours.
 
 ## Vérifications
 

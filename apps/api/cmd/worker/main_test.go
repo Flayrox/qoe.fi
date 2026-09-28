@@ -32,6 +32,7 @@ func TestMain(m *testing.M) {
 	}
 	os.Exit(code)
 }
+
 // requirePool skippe les tests DB quand Docker/testcontainers est absent.
 func requirePool(t *testing.T) {
 	t.Helper()
@@ -39,7 +40,6 @@ func requirePool(t *testing.T) {
 		t.Skip("DB indisponible (Docker/testcontainers requis)")
 	}
 }
-
 
 func testDeps() workerDeps {
 	return workerDeps{
@@ -52,6 +52,7 @@ func testDeps() workerDeps {
 		embedding:  workers.NewEmbeddingWorker(poolTest),
 		bulkImport: workers.NewBulkImportWorker(imports.NewService(poolTest, nil)),
 		reconfirm:  workers.NewImportReconfirmWorker(imports.NewService(poolTest, nil)),
+		importSend: workers.NewImportSendWorker(imports.NewService(poolTest, nil)),
 	}
 }
 
@@ -76,6 +77,7 @@ func TestBuildHandlers(t *testing.T) {
 		queue.TaskNewsletterArticleRel,
 		queue.TaskBulkImport,
 		queue.TaskSubscriberImportReconfirm,
+		queue.TaskSubscriberImportSend,
 	}
 	if len(handlers) != len(expected) {
 		t.Fatalf("handlers = %d, attendu %d", len(handlers), len(expected))
@@ -107,20 +109,21 @@ func TestWorkerMuxDispatch(t *testing.T) {
 	// Chaque tâche connue atteint un handler réel : payload vide → erreur
 	// métier (décodage/payload) et non « non gérée ».
 	payloads := map[string][]byte{
-		queue.TaskArticlePublished:     []byte(`{}`),
-		queue.TaskArticleUpdated:       []byte(`{}`),
-		queue.TaskArticleDeleted:       []byte(`{}`),
-		queue.TaskSubscriberCreated:    []byte(`{}`),
-		queue.TaskSubscriberConfirm:    []byte(`{}`),
-		queue.TaskPostLiked:            []byte(`{}`),
-		queue.TaskStripeEvent:          []byte(`{}`),
-		queue.TaskSearchSync:           []byte(`{}`),
-		queue.TaskArticleEmbedding:     []byte(`{}`),
-		queue.TaskUserEmbedding:        []byte(`{}`),
-		queue.TaskPostEmbedding:        []byte(`{}`),
-		queue.TaskNewsletterArticleRel: []byte(`{}`),
-		queue.TaskBulkImport:           []byte(`{}`),
+		queue.TaskArticlePublished:          []byte(`{}`),
+		queue.TaskArticleUpdated:            []byte(`{}`),
+		queue.TaskArticleDeleted:            []byte(`{}`),
+		queue.TaskSubscriberCreated:         []byte(`{}`),
+		queue.TaskSubscriberConfirm:         []byte(`{}`),
+		queue.TaskPostLiked:                 []byte(`{}`),
+		queue.TaskStripeEvent:               []byte(`{}`),
+		queue.TaskSearchSync:                []byte(`{}`),
+		queue.TaskArticleEmbedding:          []byte(`{}`),
+		queue.TaskUserEmbedding:             []byte(`{}`),
+		queue.TaskPostEmbedding:             []byte(`{}`),
+		queue.TaskNewsletterArticleRel:      []byte(`{}`),
+		queue.TaskBulkImport:                []byte(`{}`),
 		queue.TaskSubscriberImportReconfirm: []byte(`{}`),
+		queue.TaskSubscriberImportSend:      []byte(`{}`),
 	}
 	for typ, payload := range payloads {
 		task := asynq.NewTask(typ, payload)

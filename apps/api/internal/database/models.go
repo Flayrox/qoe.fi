@@ -766,6 +766,54 @@ type Highlight struct {
 	CreatedAt      pgtype.Timestamp `json:"createdAt"`
 }
 
+type ImportSendBudget struct {
+	ID            string           `json:"id"`
+	BatchId       string           `json:"batchId"`
+	PublicationId string           `json:"publicationId"`
+	DecisionId    string           `json:"decisionId"`
+	Cap           int32            `json:"cap"`
+	Consumed      int32            `json:"consumed"`
+	Version       int32            `json:"version"`
+	CreatedAt     pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt     pgtype.Timestamp `json:"updatedAt"`
+}
+
+type ImportSendDelivery struct {
+	ID            string           `json:"id"`
+	WaveId        string           `json:"waveId"`
+	BatchId       string           `json:"batchId"`
+	PublicationId string           `json:"publicationId"`
+	Email         string           `json:"email"`
+	Status        string           `json:"status"`
+	Error         pgtype.Text      `json:"error"`
+	SentAt        pgtype.Timestamp `json:"sentAt"`
+	CreatedAt     pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt     pgtype.Timestamp `json:"updatedAt"`
+}
+
+type ImportSendWave struct {
+	ID                string           `json:"id"`
+	BatchId           string           `json:"batchId"`
+	PublicationId     string           `json:"publicationId"`
+	DecisionId        string           `json:"decisionId"`
+	BudgetId          string           `json:"budgetId"`
+	Status            string           `json:"status"`
+	Cursor            pgtype.Text      `json:"cursor"`
+	SentCount         int32            `json:"sentCount"`
+	SkippedCount      int32            `json:"skippedCount"`
+	FailedCount       int32            `json:"failedCount"`
+	HardBounceCount   int32            `json:"hardBounceCount"`
+	ComplaintCount    int32            `json:"complaintCount"`
+	UnsubscribeCount  int32            `json:"unsubscribeCount"`
+	MaxHardBounceRate float32          `json:"maxHardBounceRate"`
+	MaxComplaints     int32            `json:"maxComplaints"`
+	MaxFailedRate     float32          `json:"maxFailedRate"`
+	MinSample         int32            `json:"minSample"`
+	CompletedAt       pgtype.Timestamp `json:"completedAt"`
+	CreatedAt         pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt         pgtype.Timestamp `json:"updatedAt"`
+}
+
 type LegalAcceptance struct {
 	ID         string           `json:"id"`
 	UserID     pgtype.UUID      `json:"user_id"`

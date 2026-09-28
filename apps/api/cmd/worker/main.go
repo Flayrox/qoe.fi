@@ -58,6 +58,10 @@ func main() {
 	// compteurs), file dédiée `reconfirm`, tranches plafonnées.
 	reconfirmWorker := workers.NewImportReconfirmWorker(importsSvc)
 	reconfirmWorker.SetAsynqClient(asynqClient)
+	// Envoi encadré : même service, file dédiée `import_send`, budget
+	// atomique. Compteurs et quotas séparés des campagnes normales.
+	importSendWorker := workers.NewImportSendWorker(importsSvc)
+	importSendWorker.SetAsynqClient(asynqClient)
 
 	mux := asynq.NewServeMux()
 	handlers := buildHandlers(workerDeps{
@@ -70,6 +74,7 @@ func main() {
 		embedding:  embeddingWorker,
 		bulkImport: bulkImportWorker,
 		reconfirm:  reconfirmWorker,
+		importSend: importSendWorker,
 	})
 	for taskType, fn := range handlers {
 		mux.HandleFunc(taskType, fn)
@@ -130,6 +135,7 @@ func main() {
 	newsletterWorker.SetEmailProvider(emailProvider, cfg.EmailFrom)
 	confirmWorker.SetEmailProvider(emailProvider, cfg.EmailFrom)
 	welcomeWorker.SetEmailProvider(emailProvider, cfg.EmailFrom)
+	importSendWorker.SetEmailProvider(emailProvider, cfg.EmailFrom)
 	if emailProvider != nil {
 		go workers.RunEmailDeliveryLoop(ctx, pool, emailProvider, cfg.EmailFrom, 30*time.Second, 50)
 		// 📣 Avis légaux : prévenir les personnes dont le consentement doit être
@@ -180,6 +186,7 @@ type workerDeps struct {
 	embedding  *workers.EmbeddingWorker
 	bulkImport *workers.BulkImportWorker
 	reconfirm  *workers.ImportReconfirmWorker
+	importSend *workers.ImportSendWorker
 }
 
 // buildHandlers exprime le mapping tâche asynq → handler worker sous forme de
@@ -214,5 +221,6 @@ func buildHandlers(d workerDeps) map[string]asynq.HandlerFunc {
 		queue.TaskPostEmbedding:             d.embedding.HandlePostEmbedding,
 		queue.TaskBulkImport:                d.bulkImport.HandleBulkImport,
 		queue.TaskSubscriberImportReconfirm: d.reconfirm.HandleImportReconfirmWave,
+		queue.TaskSubscriberImportSend:      d.importSend.HandleImportSendWave,
 	}
 }
