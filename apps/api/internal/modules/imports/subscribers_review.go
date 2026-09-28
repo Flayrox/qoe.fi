@@ -132,17 +132,18 @@ type SubscriberImportSignals struct {
 
 // SubscriberImportReviewDTO est le dossier complet présenté au staff.
 type SubscriberImportReviewDTO struct {
-	Batch        SubscriberImportBatchDTO      `json:"batch"`
-	Declarations map[string]any                `json:"declarations"`
-	ProofRefs    []string                      `json:"proofRefs"`
-	SourceDetail string                        `json:"sourceDetail,omitempty"`
-	OptInMethod  string                        `json:"optInMethod,omitempty"`
-	Stats        SubscriberImportStats         `json:"stats"`
-	Rows         []SubscriberImportRowDTO      `json:"rows"`
-	RowCounts    map[string]int                `json:"rowCounts"`
-	Decisions    []SubscriberImportDecisionDTO `json:"decisions"`
-	Events       []SubscriberImportEventDTO    `json:"events"`
-	Signals      SubscriberImportSignals       `json:"signals"`
+	Batch          SubscriberImportBatchDTO      `json:"batch"`
+	Declarations   map[string]any                `json:"declarations"`
+	ProofRefs      []string                      `json:"proofRefs"`
+	SourceDetail   string                        `json:"sourceDetail,omitempty"`
+	OptInMethod    string                        `json:"optInMethod,omitempty"`
+	Stats          SubscriberImportStats         `json:"stats"`
+	Rows           []SubscriberImportRowDTO      `json:"rows"`
+	RowCounts      map[string]int                `json:"rowCounts"`
+	Decisions      []SubscriberImportDecisionDTO `json:"decisions"`
+	Events         []SubscriberImportEventDTO    `json:"events"`
+	Signals        SubscriberImportSignals       `json:"signals"`
+	ReconfirmWaves []ReconfirmWaveDTO            `json:"reconfirmWaves"`
 }
 
 // ReviewSubscriberImport construit le dossier de revue d'un lot.
@@ -223,6 +224,10 @@ func (s *Service) buildReview(ctx context.Context, batchID string, redactInterna
 		// Les signaux sont un confort de revue : leur absence ne doit pas
 		// empêcher le staff de traiter un dossier.
 		log.Printf("[imports] signals lot %s: %v", batchID, err)
+	}
+	if out.ReconfirmWaves, err = s.ListReconfirmWaves(ctx, batchID); err != nil {
+		log.Printf("[imports] vagues lot %s: %v", batchID, err)
+		out.ReconfirmWaves = []ReconfirmWaveDTO{}
 	}
 	return out, nil
 }

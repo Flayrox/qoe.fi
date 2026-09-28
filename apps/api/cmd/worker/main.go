@@ -52,7 +52,12 @@ func main() {
 	searchWorker := workers.NewSearchWorker(pool)
 	searchWorker.Setup(ctx)
 	embeddingWorker := workers.NewEmbeddingWorker(pool)
-	bulkImportWorker := workers.NewBulkImportWorker(imports.NewService(pool, asynqClient))
+	importsSvc := imports.NewService(pool, asynqClient)
+	bulkImportWorker := workers.NewBulkImportWorker(importsSvc)
+	// Vagues de reconfirmation : même service que le dépôt (cohérence des
+	// compteurs), file dédiée `reconfirm`, tranches plafonnées.
+	reconfirmWorker := workers.NewImportReconfirmWorker(importsSvc)
+	reconfirmWorker.SetAsynqClient(asynqClient)
 
 	mux := asynq.NewServeMux()
 	handlers := buildHandlers(workerDeps{
@@ -64,6 +69,7 @@ func main() {
 		search:     searchWorker,
 		embedding:  embeddingWorker,
 		bulkImport: bulkImportWorker,
+		reconfirm:  reconfirmWorker,
 	})
 	for taskType, fn := range handlers {
 		mux.HandleFunc(taskType, fn)
@@ -173,6 +179,7 @@ type workerDeps struct {
 	search     *workers.SearchWorker
 	embedding  *workers.EmbeddingWorker
 	bulkImport *workers.BulkImportWorker
+	reconfirm  *workers.ImportReconfirmWorker
 }
 
 // buildHandlers exprime le mapping tâche asynq → handler worker sous forme de
@@ -195,16 +202,17 @@ func buildHandlers(d workerDeps) map[string]asynq.HandlerFunc {
 		queue.TaskSubscriberCreated: func(ctx context.Context, t *asynq.Task) error {
 			return d.webhook.HandleProcesses(ctx, t, queue.TaskSubscriberCreated)
 		},
-		queue.TaskSubscriberConfirm:    d.confirm.HandleSubscriberConfirm,
-		queue.TaskSubscriberWelcome:    d.welcome.HandleSubscriberWelcome,
-		queue.TaskPostLiked:            d.newsletter.HandlePostLiked,
-		queue.TaskNewsletterSend:       d.newsletter.HandleNewsletterSend,
-		queue.TaskNewsletterArticleRel: d.newsletter.HandleArticleRelease,
-		queue.TaskStripeEvent:          d.stripe.HandleStripeEvent,
-		queue.TaskSearchSync:           d.search.HandleSearchSync,
-		queue.TaskArticleEmbedding:     d.embedding.HandleArticleEmbedding,
-		queue.TaskUserEmbedding:        d.embedding.HandleUserEmbedding,
-		queue.TaskPostEmbedding:        d.embedding.HandlePostEmbedding,
-		queue.TaskBulkImport:           d.bulkImport.HandleBulkImport,
+		queue.TaskSubscriberConfirm:         d.confirm.HandleSubscriberConfirm,
+		queue.TaskSubscriberWelcome:         d.welcome.HandleSubscriberWelcome,
+		queue.TaskPostLiked:                 d.newsletter.HandlePostLiked,
+		queue.TaskNewsletterSend:            d.newsletter.HandleNewsletterSend,
+		queue.TaskNewsletterArticleRel:      d.newsletter.HandleArticleRelease,
+		queue.TaskStripeEvent:               d.stripe.HandleStripeEvent,
+		queue.TaskSearchSync:                d.search.HandleSearchSync,
+		queue.TaskArticleEmbedding:          d.embedding.HandleArticleEmbedding,
+		queue.TaskUserEmbedding:             d.embedding.HandleUserEmbedding,
+		queue.TaskPostEmbedding:             d.embedding.HandlePostEmbedding,
+		queue.TaskBulkImport:                d.bulkImport.HandleBulkImport,
+		queue.TaskSubscriberImportReconfirm: d.reconfirm.HandleImportReconfirmWave,
 	}
 }

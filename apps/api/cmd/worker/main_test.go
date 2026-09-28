@@ -51,6 +51,7 @@ func testDeps() workerDeps {
 		search:     workers.NewSearchWorker(poolTest),
 		embedding:  workers.NewEmbeddingWorker(poolTest),
 		bulkImport: workers.NewBulkImportWorker(imports.NewService(poolTest, nil)),
+		reconfirm:  workers.NewImportReconfirmWorker(imports.NewService(poolTest, nil)),
 	}
 }
 
@@ -74,6 +75,7 @@ func TestBuildHandlers(t *testing.T) {
 		queue.TaskNewsletterSend,
 		queue.TaskNewsletterArticleRel,
 		queue.TaskBulkImport,
+		queue.TaskSubscriberImportReconfirm,
 	}
 	if len(handlers) != len(expected) {
 		t.Fatalf("handlers = %d, attendu %d", len(handlers), len(expected))
@@ -118,6 +120,7 @@ func TestWorkerMuxDispatch(t *testing.T) {
 		queue.TaskPostEmbedding:        []byte(`{}`),
 		queue.TaskNewsletterArticleRel: []byte(`{}`),
 		queue.TaskBulkImport:           []byte(`{}`),
+		queue.TaskSubscriberImportReconfirm: []byte(`{}`),
 	}
 	for typ, payload := range payloads {
 		task := asynq.NewTask(typ, payload)

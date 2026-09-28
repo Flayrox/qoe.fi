@@ -1375,6 +1375,41 @@ type SubscriberImportEvent struct {
 	CreatedAt pgtype.Timestamp `json:"createdAt"`
 }
 
+type SubscriberImportReconfirmRequest struct {
+	ID            string           `json:"id"`
+	WaveId        string           `json:"waveId"`
+	BatchId       string           `json:"batchId"`
+	PublicationId string           `json:"publicationId"`
+	RowId         pgtype.Text      `json:"rowId"`
+	Email         string           `json:"email"`
+	TokenHash     string           `json:"tokenHash"`
+	Status        string           `json:"status"`
+	Attempts      int32            `json:"attempts"`
+	SentAt        pgtype.Timestamp `json:"sentAt"`
+	ConfirmedAt   pgtype.Timestamp `json:"confirmedAt"`
+	ExpiresAt     pgtype.Timestamp `json:"expiresAt"`
+	CreatedAt     pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt     pgtype.Timestamp `json:"updatedAt"`
+}
+
+type SubscriberImportReconfirmWave struct {
+	ID             string           `json:"id"`
+	BatchId        string           `json:"batchId"`
+	PublicationId  string           `json:"publicationId"`
+	DecisionId     string           `json:"decisionId"`
+	Status         string           `json:"status"`
+	WaveSize       int32            `json:"waveSize"`
+	Cursor         pgtype.Text      `json:"cursor"`
+	SentCount      int32            `json:"sentCount"`
+	ConfirmedCount int32            `json:"confirmedCount"`
+	ExpiredCount   int32            `json:"expiredCount"`
+	SkippedCount   int32            `json:"skippedCount"`
+	ExpiresAt      pgtype.Timestamp `json:"expiresAt"`
+	CompletedAt    pgtype.Timestamp `json:"completedAt"`
+	CreatedAt      pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt      pgtype.Timestamp `json:"updatedAt"`
+}
+
 type SubscriberImportRow struct {
 	ID           string           `json:"id"`
 	BatchId      string           `json:"batchId"`

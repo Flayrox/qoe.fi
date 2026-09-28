@@ -25,6 +25,18 @@ var (
 type Service struct {
 	q  newsletterQuerier
 	ac *asynq.Client
+	// onReconfirmConfirmed constate une confirmation individuelle auprès du
+	// suivi des vagues de reconfirmation (compteurs). Branché par le serveur ;
+	// nil en test. On ne fabrique rien ici : `confirmedAt` a déjà été franchi
+	// par le chemin normal juste au-dessus.
+	onReconfirmConfirmed func(ctx context.Context, publicationID, email string) error
+}
+
+// SetReconfirmConfirmedHook branche le constat de confirmation (module
+// imports). Même pattern que les autres injections : pas de cycle d'import,
+// appel best-effort qui n'invalide jamais une confirmation.
+func (s *Service) SetReconfirmConfirmedHook(fn func(ctx context.Context, publicationID, email string) error) {
+	s.onReconfirmConfirmed = fn
 }
 
 func NewService(q newsletterQuerier, ac *asynq.Client) *Service {
@@ -263,6 +275,14 @@ func (s *Service) ConfirmSubscriber(ctx context.Context, publicationID, email, t
 		PublicationID: publicationID,
 	}); err != nil {
 		log.Printf("[newsletters] subscriber.welcome enqueue: %v", err)
+	}
+	// Si ce clic solde une demande de reconfirmation d'import, on l'impute à
+	// la vague (compteurs). Best-effort également : un échec ici ne change
+	// rien à la confirmation, déjà actée et définitive.
+	if s.onReconfirmConfirmed != nil {
+		if err := s.onReconfirmConfirmed(ctx, publicationID, email); err != nil {
+			log.Printf("[newsletters] reconfirm impute %s/%s: %v", publicationID, email, err)
+		}
 	}
 	return nil
 }

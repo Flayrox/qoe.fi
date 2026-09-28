@@ -29,9 +29,10 @@ func NewServer(redisURL string, concurrency int) *asynq.Server {
 	return asynq.NewServer(opt, asynq.Config{
 		Concurrency: concurrency,
 		Queues: map[string]int{
-			"critical": 6,
-			"default":  3,
-			"low":      1,
+			"critical":  6,
+			"default":   3,
+			"reconfirm": 2,
+			"low":       1,
 		},
 	})
 }
@@ -255,6 +256,31 @@ func PublishSubscriberConfirm(c *asynq.Client, p SubscriberConfirmPayload) error
 	}
 	task := asynq.NewTask(TaskSubscriberConfirm, payload, asynq.MaxRetry(3), asynq.Timeout(30*time.Second))
 	_, err = c.Enqueue(task, asynq.Queue("default"))
+	return err
+}
+
+// NewImportReconfirmWaveTask construit la tâche asynq subscriber.import_reconfirm.
+func NewImportReconfirmWaveTask(p SubscriberImportReconfirmPayload) (*asynq.Task, error) {
+	payload, err := json.Marshal(p)
+	if err != nil {
+		return nil, err
+	}
+	return asynq.NewTask(TaskSubscriberImportReconfirm, payload, asynq.MaxRetry(5), asynq.Timeout(5*time.Second*60)), nil
+}
+
+// PublishImportReconfirmWave enfile une tranche de vague sur la file dédiée
+// `reconfirm` (jamais `default` : les reconfirmations ne doivent ni affamer ni
+// être affamées par les envois bulk). `delay` espace les tranches d'une même
+// vague — c'est le plafonnement côté file, en plus du plafond de taille.
+func PublishImportReconfirmWave(c *asynq.Client, p SubscriberImportReconfirmPayload, delay time.Duration) error {
+	if c == nil {
+		return nil
+	}
+	task, err := NewImportReconfirmWaveTask(p)
+	if err != nil {
+		return err
+	}
+	_, err = c.Enqueue(task, asynq.Queue("reconfirm"), asynq.ProcessIn(delay))
 	return err
 }
 

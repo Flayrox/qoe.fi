@@ -18,6 +18,10 @@ const (
 	TaskBulkImport           = "article.bulk_import"
 	TaskSubscriberConfirm    = "subscriber.confirm"
 	TaskSubscriberWelcome    = "subscriber.welcome"
+	// TaskSubscriberImportReconfirm porte une tranche d'envoi de demandes de
+	// reconfirmation pour un lot d'import approuvé (file dédiée `reconfirm`,
+	// vagues plafonnées) : jamais mélangée aux envois bulk/newsletter.
+	TaskSubscriberImportReconfirm = "subscriber.import_reconfirm"
 )
 
 // BulkImportPayload est le payload de TaskBulkImport (import bulk asynchrone).
@@ -73,6 +77,13 @@ type SubscriberConfirmPayload struct {
 type SubscriberWelcomePayload struct {
 	Email         string `json:"email"`
 	PublicationID string `json:"publicationId"`
+}
+
+// SubscriberImportReconfirmPayload est le payload de
+// TaskSubscriberImportReconfirm : traiter une tranche de la vague (chunk
+// plafonné), puis ré-enfiler la suite avec un délai si la vague continue.
+type SubscriberImportReconfirmPayload struct {
+	WaveID string `json:"waveId"`
 }
 
 // EmbeddingPayload est un job de génération d'embedding (article, user ou post).
