@@ -26,6 +26,7 @@ import {
   type MediaApiKeyInfo,
   type MediaApiKeyCreatedInfo,
 } from './actions';
+import { notifyActionFailure } from '@/lib/authz-feedback';
 
 const MEDIA_SCOPES = ['READ', 'WRITE', 'ANALYTICS'] as const;
 type MediaScope = (typeof MEDIA_SCOPES)[number];
@@ -87,7 +88,7 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
     if (res.success) {
       setKeys(res.keys);
     } else {
-      toast.error(res.error || t`Impossible de charger les clés API`);
+      notifyActionFailure(res, t`Impossible de charger les clés API`);
     }
   }, [mediaId]);
 
@@ -140,7 +141,7 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
       });
       fetchKeys();
     } else {
-      toast.error(res.error || t`Erreur lors de la création de la clé API`);
+      notifyActionFailure(res, t`Erreur lors de la création de la clé API`);
     }
   };
 
@@ -157,7 +158,7 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
       setRenameData(null);
       fetchKeys();
     } else {
-      toast.error(res.error || t`Erreur de renommage`);
+      notifyActionFailure(res, t`Erreur de renommage`);
     }
   };
 
@@ -182,7 +183,7 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
       });
       fetchKeys();
     } else {
-      toast.error(res.error || t`Erreur lors de la rotation de la clé`);
+      notifyActionFailure(res, t`Erreur lors de la rotation de la clé`);
     }
   };
 
@@ -196,7 +197,7 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
       toast.success(t`Clé API révoquée avec succès.`);
       fetchKeys();
     } else {
-      toast.error(res.error || t`Erreur lors de la révocation de la clé`);
+      notifyActionFailure(res, t`Erreur lors de la révocation de la clé`);
     }
   };
 

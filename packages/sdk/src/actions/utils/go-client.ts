@@ -34,6 +34,9 @@ async function getAccessToken(): Promise<string> {
 /**
  * Appelle le backend Go avec le Bearer token Supabase de la session courante.
  * Lève une erreur si la réponse n'est pas 2xx.
+ *
+ * Un `403` du garde d'autorisation transporte son `code` sur l'erreur levée
+ * (voir `./authz` pour les helpers côté client).
  */
 export async function goFetch<T = Record<string, unknown>>(
   path: string,
@@ -58,14 +61,32 @@ export async function goFetch<T = Record<string, unknown>>(
     cache: 'no-store',
   });
 
-  const body = (await res.json().catch(() => ({}))) as T & { error?: string };
+  const body = (await res.json().catch(() => ({}))) as T & {
+    error?: string;
+    code?: string;
+    action?: string;
+    level?: string;
+  };
   if (!res.ok) {
     // On attache le statut HTTP pour que les appelants distinguent un 404
     // attendu (ressource inexistante) d'une vraie erreur serveur.
     const err = new Error(body.error || `Go API ${res.status}`) as Error & {
       status?: number;
+      code?: string;
+      action?: string;
+      level?: string;
     };
     err.status = res.status;
+    // Refus du garde d'autorisation (apps/api/internal/authz) : le motif est
+    // transporté jusqu'au client. `safeAction` propage déjà `e.code` dans
+    // `ActionResult.error.code`, donc les actions n'ont rien à faire de plus.
+    // Le corps fait foi ; les en-têtes servent de repli si un proxy a réécrit
+    // le JSON.
+    const authzCode = body.code || res.headers.get('x-qoe-authz-code') || undefined;
+    if (authzCode) err.code = authzCode;
+    if (body.action) err.action = body.action;
+    const authzLevel = body.level || res.headers.get('x-qoe-authz-level') || undefined;
+    if (authzLevel) err.level = authzLevel;
     throw err;
   }
   return body;

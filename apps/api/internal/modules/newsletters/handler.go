@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
+	"github.com/qoefi/api/internal/authz"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
 	"github.com/qoefi/api/internal/workers"
@@ -39,17 +40,25 @@ func (h *Handler) SetSendRateLimit(rc *redis.Client, window time.Duration, max i
 }
 
 // Register monte les routes dans le groupe protégé (JWT/API key créateur).
+//
+// L'envoi d'une campagne traverse le garde d'autorisation : N2 (step-up) et
+// permission média résolue par la chaîne édition → publication → média, sans
+// jamais faire confiance au seul identifiant fourni. Mode d'application piloté
+// par le flag `authz-enforce` (observation par défaut).
 func (h *Handler) Register(r chi.Router) {
 	r.Get("/v1/newsletters", h.list)
 	r.Post("/v1/newsletters", h.create)
 	r.Patch("/v1/newsletters/{id}", h.update)
 	r.Delete("/v1/newsletters/{id}", h.delete)
+
+	guard := middleware.RequireAction(authz.ActionBulkCampaignSend,
+		middleware.WithAuthzResource(middleware.AuthzResourceNewsletter, "id"))
 	if h.rc != nil {
-		r.With(middleware.RateLimit("newsletter-send", h.rc, h.window, h.max, true)).
+		r.With(middleware.RateLimit("newsletter-send", h.rc, h.window, h.max, true), guard).
 			Post("/v1/newsletters/{id}/send", h.send)
 		return
 	}
-	r.Post("/v1/newsletters/{id}/send", h.send)
+	r.With(guard).Post("/v1/newsletters/{id}/send", h.send)
 }
 
 // RegisterPublic monte le désabonnement (GET pour lien web et POST pour RFC 8058 one-click)

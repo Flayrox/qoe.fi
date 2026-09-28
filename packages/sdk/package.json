@@ -19,7 +19,8 @@
     "./actions/admin": "./src/actions/admin/index.ts",
     "./actions/tenant": "./src/actions/tenant/index.ts",
     "./actions/legal": "./src/actions/legal/index.ts",
-    "./actions/utils/go-client": "./src/actions/utils/go-client.ts"
+    "./actions/utils/go-client": "./src/actions/utils/go-client.ts",
+    "./actions/utils/authz": "./src/actions/utils/authz.ts"
   },
   "scripts": {
     "test": "vitest run",

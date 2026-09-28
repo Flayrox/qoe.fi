@@ -34,6 +34,7 @@ import { SafeAvatar } from '@qoe/ui';
 import { searchArticleContributorsAction } from '@qoe/sdk/actions/articles';
 import { toast } from '@qoe/ui/toast';
 import { cn } from '@qoe/utils';
+import { notifyActionFailure } from '@/lib/authz-feedback';
 import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
 import {
@@ -256,7 +257,7 @@ export function MediaStudioClient({
       router.push('/media');
       router.refresh();
     } else {
-      toast.error(res.error || t`Impossible de créer le Média.`);
+      notifyActionFailure(res, t`Impossible de créer le Média.`);
     }
   };
 
@@ -281,7 +282,7 @@ export function MediaStudioClient({
       setMemberResults([]);
       loadDetail(detail.id);
     } else {
-      toast.error(res.error || t`Échec de l'ajout du collaborateur.`);
+      notifyActionFailure(res, t`Échec de l'ajout du collaborateur.`);
     }
   };
 
@@ -361,7 +362,7 @@ export function MediaStudioClient({
       setInviteLinks((prev) => [res.link, ...prev]);
       void copyInviteLink(res.link);
     } else {
-      toast.error(res.error || t`Échec de la création du lien.`);
+      notifyActionFailure(res, t`Échec de la création du lien.`);
     }
   };
 
@@ -372,7 +373,7 @@ export function MediaStudioClient({
       toast.success(t`Lien d'invitation révoqué.`);
       setInviteLinks((prev) => prev.filter((item) => item.id !== linkId));
     } else {
-      toast.error(res.error || t`Échec de la révocation du lien.`);
+      notifyActionFailure(res, t`Échec de la révocation du lien.`);
     }
   };
 
@@ -383,7 +384,7 @@ export function MediaStudioClient({
       toast.success(t`Rôle mis à jour.`);
       loadDetail(detail.id);
     } else {
-      toast.error(res.error || 'Erreur');
+      notifyActionFailure(res, 'Erreur');
     }
   };
 
@@ -416,7 +417,7 @@ export function MediaStudioClient({
       toast.success(t`Membre retiré.`);
       loadDetail(detail.id);
     } else {
-      toast.error(res.error || 'Erreur');
+      notifyActionFailure(res, 'Erreur');
     }
   };
 
@@ -1263,7 +1264,7 @@ function MediaSettingsForm({
       toast.success(t`Réglages du Média enregistrés !`);
       onSaved();
     } else {
-      toast.error(res.error || 'Erreur');
+      notifyActionFailure(res, 'Erreur');
     }
   };
 

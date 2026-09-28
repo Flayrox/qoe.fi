@@ -18,6 +18,24 @@ async function getAuthUser() {
 }
 
 /**
+ * Échec d'action pour les routes média.
+ *
+ * Le garde d'autorisation Go (apps/api/internal/authz) refuse une écriture
+ * sensible en expliquant pourquoi — `needs_step_up`, `deny_weak_auth`,
+ * `deny_no_resource_permission`… Ce code est conservé dans l'échec renvoyé au
+ * client pour qu'il puisse proposer le parcours utile (vérifier un facteur)
+ * au lieu d'un simple message d'erreur.
+ */
+function failure(err: unknown, fallback: string): { success: false; error: string; code?: string } {
+  const code = (err as { code?: string } | null)?.code;
+  return {
+    success: false as const,
+    error: err instanceof Error ? err.message : fallback,
+    ...(code ? { code } : {}),
+  };
+}
+
+/**
  * 🏢 Créer un nouveau Profil Média / Journal collectif
  * Crée la Publication (type MEDIA) + le Media + le membre owner (POST /v1/media).
  */
@@ -38,10 +56,7 @@ export async function createMediaAction(
     return { success: true as const, media };
   } catch (err: unknown) {
     console.error('[Create Media Error]', err);
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : 'Impossible de créer le profil Média',
-    };
+    return failure(err, 'Impossible de créer le profil Média');
   }
 }
 
@@ -177,7 +192,7 @@ export async function inviteMediaMemberAction(
     return { success: true as const, alreadyMember: res.alreadyMember === true };
   } catch (err: unknown) {
     console.error('[Invite Media Member Error]', err);
-    return { success: false, error: err instanceof Error ? err.message : "Échec de l'invitation" };
+    return failure(err, "Échec de l'invitation");
   }
 }
 
@@ -204,10 +219,7 @@ export async function updateMediaMemberRoleAction(
     revalidatePath('/advanced');
     return { success: true as const };
   } catch (err: unknown) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : 'Échec du changement de rôle',
-    };
+    return failure(err, 'Échec du changement de rôle');
   }
 }
 
@@ -231,10 +243,7 @@ export async function updateMediaMemberPermissionsAction(
     revalidatePath('/advanced');
     return { success: true as const };
   } catch (err: unknown) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : 'Échec de la mise à jour des permissions',
-    };
+    return failure(err, 'Échec de la mise à jour des permissions');
   }
 }
 
@@ -254,7 +263,7 @@ export async function removeMediaMemberAction(mediaId: string, memberUserId: str
     revalidatePath('/advanced');
     return { success: true as const };
   } catch (err: unknown) {
-    return { success: false, error: err instanceof Error ? err.message : 'Échec du retrait' };
+    return failure(err, 'Échec du retrait');
   }
 }
 
@@ -294,10 +303,7 @@ export async function updateMediaSettingsAction(
     revalidatePath('/settings');
     return { success: true as const, publication: res.publication };
   } catch (err: unknown) {
-    return {
-      success: false,
-      error: err instanceof Error ? err.message : 'Échec de la mise à jour',
-    };
+    return failure(err, 'Échec de la mise à jour');
   }
 }
 
@@ -353,10 +359,7 @@ export async function createMediaApiKeyAction(mediaId: string, name: string, sco
     revalidatePath('/media');
     return { success: true as const, key: res };
   } catch (err: unknown) {
-    return {
-      success: false as const,
-      error: err instanceof Error ? err.message : 'Échec de la création de la clé API',
-    };
+    return failure(err, 'Échec de la création de la clé API');
   }
 }
 
@@ -377,10 +380,7 @@ export async function updateMediaApiKeyAction(mediaId: string, keyId: string, na
     revalidatePath('/media');
     return { success: true as const };
   } catch (err: unknown) {
-    return {
-      success: false as const,
-      error: err instanceof Error ? err.message : 'Échec du renommage de la clé API',
-    };
+    return failure(err, 'Échec du renommage de la clé API');
   }
 }
 
@@ -400,10 +400,7 @@ export async function rotateMediaApiKeyAction(mediaId: string, keyId: string) {
     revalidatePath('/media');
     return { success: true as const, key: res };
   } catch (err: unknown) {
-    return {
-      success: false as const,
-      error: err instanceof Error ? err.message : 'Échec de la rotation de la clé API',
-    };
+    return failure(err, 'Échec de la rotation de la clé API');
   }
 }
 
@@ -423,10 +420,7 @@ export async function revokeMediaApiKeyAction(mediaId: string, keyId: string) {
     revalidatePath('/media');
     return { success: true as const };
   } catch (err: unknown) {
-    return {
-      success: false as const,
-      error: err instanceof Error ? err.message : 'Échec de la révocation de la clé API',
-    };
+    return failure(err, 'Échec de la révocation de la clé API');
   }
 }
 
@@ -487,10 +481,7 @@ export async function createMediaInviteLinkAction(
     revalidatePath('/media');
     return { success: true as const, link: res.link };
   } catch (err: unknown) {
-    return {
-      success: false as const,
-      error: err instanceof Error ? err.message : 'Échec de la création du lien',
-    };
+    return failure(err, 'Échec de la création du lien');
   }
 }
 
@@ -526,10 +517,7 @@ export async function revokeMediaInviteLinkAction(mediaId: string, linkId: strin
     revalidatePath('/media');
     return { success: true as const };
   } catch (err: unknown) {
-    return {
-      success: false as const,
-      error: err instanceof Error ? err.message : 'Échec de la révocation du lien',
-    };
+    return failure(err, 'Échec de la révocation du lien');
   }
 }
 
@@ -563,9 +551,6 @@ export async function joinMediaByLinkAction(token: string) {
     revalidatePath('/media');
     return { success: true as const, mediaId: res.mediaId };
   } catch (err: unknown) {
-    return {
-      success: false as const,
-      error: err instanceof Error ? err.message : 'Impossible de rejoindre le média',
-    };
+    return failure(err, 'Impossible de rejoindre le média');
   }
 }
