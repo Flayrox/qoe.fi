@@ -15,6 +15,7 @@ import (
 	"github.com/qoefi/api/internal/config"
 	"github.com/qoefi/api/internal/dbpool"
 	"github.com/qoefi/api/internal/flags"
+	"github.com/qoefi/api/internal/modules/admin"
 	"github.com/qoefi/api/internal/modules/imports"
 	"github.com/qoefi/api/internal/modules/legal"
 	"github.com/qoefi/api/internal/modules/mediaassets"
@@ -62,19 +63,25 @@ func main() {
 	// atomique. Compteurs et quotas séparés des campagnes normales.
 	importSendWorker := workers.NewImportSendWorker(importsSvc)
 	importSendWorker.SetAsynqClient(asynqClient)
+	// Campagnes staff : service admin (superadmin-only), file `default`
+	// (volumes faibles supervisés, pas de quotas à séparer).
+	adminSvc := admin.NewService(pool)
+	staffCampaignWorker := workers.NewStaffCampaignWorker(pool, adminSvc)
+	staffCampaignWorker.SetAsynqClient(asynqClient)
 
 	mux := asynq.NewServeMux()
 	handlers := buildHandlers(workerDeps{
-		webhook:    webhookWorker,
-		newsletter: newsletterWorker,
-		confirm:    confirmWorker,
-		welcome:    welcomeWorker,
-		stripe:     stripeWorker,
-		search:     searchWorker,
-		embedding:  embeddingWorker,
-		bulkImport: bulkImportWorker,
-		reconfirm:  reconfirmWorker,
-		importSend: importSendWorker,
+		webhook:       webhookWorker,
+		newsletter:    newsletterWorker,
+		confirm:       confirmWorker,
+		welcome:       welcomeWorker,
+		stripe:        stripeWorker,
+		search:        searchWorker,
+		embedding:     embeddingWorker,
+		bulkImport:    bulkImportWorker,
+		reconfirm:     reconfirmWorker,
+		importSend:    importSendWorker,
+		staffCampaign: staffCampaignWorker,
 	})
 	for taskType, fn := range handlers {
 		mux.HandleFunc(taskType, fn)
@@ -177,16 +184,17 @@ func main() {
 // workerDeps porte les workers concrets utilisés par le mux asynq (injectés
 // en test pour vérifier le câblage tâche → handler).
 type workerDeps struct {
-	webhook    *workers.WebhookWorker
-	newsletter *workers.NewsletterWorker
-	confirm    *workers.ConfirmEmailWorker
-	welcome    *workers.WelcomeEmailWorker
-	stripe     *workers.StripeWorker
-	search     *workers.SearchWorker
-	embedding  *workers.EmbeddingWorker
-	bulkImport *workers.BulkImportWorker
-	reconfirm  *workers.ImportReconfirmWorker
-	importSend *workers.ImportSendWorker
+	webhook       *workers.WebhookWorker
+	newsletter    *workers.NewsletterWorker
+	confirm       *workers.ConfirmEmailWorker
+	welcome       *workers.WelcomeEmailWorker
+	stripe        *workers.StripeWorker
+	search        *workers.SearchWorker
+	embedding     *workers.EmbeddingWorker
+	bulkImport    *workers.BulkImportWorker
+	reconfirm     *workers.ImportReconfirmWorker
+	staffCampaign *workers.StaffCampaignWorker
+	importSend    *workers.ImportSendWorker
 }
 
 // buildHandlers exprime le mapping tâche asynq → handler worker sous forme de
@@ -222,5 +230,6 @@ func buildHandlers(d workerDeps) map[string]asynq.HandlerFunc {
 		queue.TaskBulkImport:                d.bulkImport.HandleBulkImport,
 		queue.TaskSubscriberImportReconfirm: d.reconfirm.HandleImportReconfirmWave,
 		queue.TaskSubscriberImportSend:      d.importSend.HandleImportSendWave,
+		queue.TaskStaffCampaign:             d.staffCampaign.HandleStaffCampaign,
 	}
 }

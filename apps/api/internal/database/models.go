@@ -1365,6 +1365,42 @@ type SocialLink struct {
 	PublicationId string `json:"publicationId"`
 }
 
+type StaffCampaign struct {
+	ID                    string           `json:"id"`
+	Type                  string           `json:"type"`
+	Subject               string           `json:"subject"`
+	BodyHtml              string           `json:"bodyHtml"`
+	BodyText              pgtype.Text      `json:"bodyText"`
+	SubjectEn             pgtype.Text      `json:"subjectEn"`
+	BodyHtmlEn            pgtype.Text      `json:"bodyHtmlEn"`
+	BodyTextEn            pgtype.Text      `json:"bodyTextEn"`
+	AudienceType          string           `json:"audienceType"`
+	AudiencePublicationId pgtype.Text      `json:"audiencePublicationId"`
+	AudienceSnapshot      []byte           `json:"audienceSnapshot"`
+	Status                string           `json:"status"`
+	DraftedBy             pgtype.UUID      `json:"draftedBy"`
+	ApprovedBy            pgtype.UUID      `json:"approvedBy"`
+	ApprovedAt            pgtype.Timestamp `json:"approvedAt"`
+	ScheduledAt           pgtype.Timestamp `json:"scheduledAt"`
+	SentCount             int32            `json:"sentCount"`
+	FailedCount           int32            `json:"failedCount"`
+	SkippedCount          int32            `json:"skippedCount"`
+	CompletedAt           pgtype.Timestamp `json:"completedAt"`
+	CreatedAt             pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt             pgtype.Timestamp `json:"updatedAt"`
+}
+
+type StaffCampaignDelivery struct {
+	ID         string           `json:"id"`
+	CampaignId string           `json:"campaignId"`
+	Email      string           `json:"email"`
+	Status     string           `json:"status"`
+	Error      pgtype.Text      `json:"error"`
+	SentAt     pgtype.Timestamp `json:"sentAt"`
+	CreatedAt  pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt  pgtype.Timestamp `json:"updatedAt"`
+}
+
 type Subscriber struct {
 	ID                   string             `json:"id"`
 	Email                string             `json:"email"`

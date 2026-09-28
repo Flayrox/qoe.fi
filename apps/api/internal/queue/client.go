@@ -311,6 +311,34 @@ func PublishImportSendWave(c *asynq.Client, p SubscriberImportSendPayload, delay
 	return err
 }
 
+// NewStaffCampaignTask construit la tâche asynq staff.campaign.
+func NewStaffCampaignTask(p StaffCampaignPayload) (*asynq.Task, error) {
+	payload, err := json.Marshal(p)
+	if err != nil {
+		return nil, err
+	}
+	return asynq.NewTask(TaskStaffCampaign, payload, asynq.MaxRetry(5), asynq.Timeout(5*time.Second*60)), nil
+}
+
+// PublishStaffCampaign enfile une tranche de campagne administrative (file
+// `default`, avec délai pour étaler les tranches).
+func PublishStaffCampaign(c *asynq.Client, p StaffCampaignPayload) error {
+	return PublishStaffCampaignDelayed(c, p, 0)
+}
+
+// PublishStaffCampaignDelayed enfile avec un délai (tranches suivantes).
+func PublishStaffCampaignDelayed(c *asynq.Client, p StaffCampaignPayload, delay time.Duration) error {
+	if c == nil {
+		return nil
+	}
+	task, err := NewStaffCampaignTask(p)
+	if err != nil {
+		return err
+	}
+	_, err = c.Enqueue(task, asynq.Queue("default"), asynq.ProcessIn(delay))
+	return err
+}
+
 // PublishSubscriberWelcome enqueue l'envoi de l'email de bienvenue après
 // confirmation du double opt-in (tâche asynq TaskSubscriberWelcome).
 func PublishSubscriberWelcome(c *asynq.Client, p SubscriberWelcomePayload) error {
