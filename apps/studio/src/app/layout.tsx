@@ -17,6 +17,7 @@ import { cn } from '@qoe/utils';
 import { CookieConsentBanner, DevtoolsPanel, ThemeProvider, ThemeSeedScript } from '@qoe/ui';
 import { AnalyticsGate } from '@/components/AnalyticsGate';
 import { QueryProvider } from '@/components/providers/QueryProvider';
+import { StepUpGate } from '@/features/security/step-up';
 import { getDevtoolsData } from '@/features/devtools/actions';
 import {
   getEmbeddingDiagnosticAction,
@@ -103,6 +104,9 @@ export default async function RootLayout({
               <TooltipProvider>
                 {children}
                 <Toaster />
+                {/* Vérification de facteur fort (step-up) : monté une fois,
+                    appelable via requestStepUp depuis les actions sensibles. */}
+                <StepUpGate />
                 {process.env.NODE_ENV === 'development' && (
                   <DevtoolsPanel actions={devtoolsActions} />
                 )}

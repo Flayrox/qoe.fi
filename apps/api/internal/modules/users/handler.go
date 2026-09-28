@@ -205,7 +205,19 @@ func (h *Handler) mfaEnroll(w http.ResponseWriter, r *http.Request) {
 		response.Unauthorized(w, "Authentification requise")
 		return
 	}
-	data, err := h.svc.MFARequest(r.Context(), userID, r.Header.Get("Authorization"), "POST", "/auth/v1/factors", map[string]any{"factor_type": "totp", "friendly_name": "qoefi"})
+	authorization := r.Header.Get("Authorization")
+	// Le corps est facultatif : les clients existants envoient `{}`.
+	var in struct {
+		FriendlyName string `json:"friendly_name"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&in)
+	friendlyName := strings.TrimSpace(in.FriendlyName)
+	if friendlyName == "" {
+		// GoTrue refuse un nom déjà pris : une inscription interrompue ne doit
+		// pas condamner définitivement la configuration de la MFA.
+		friendlyName = h.svc.NextFactorName(r.Context(), userID, authorization)
+	}
+	data, err := h.svc.MFARequest(r.Context(), userID, authorization, "POST", "/auth/v1/factors", map[string]any{"factor_type": "totp", "friendly_name": friendlyName})
 	if err != nil {
 		response.Error(w, http.StatusBadRequest, err.Error())
 		return

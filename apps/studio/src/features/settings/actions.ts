@@ -34,11 +34,42 @@ export async function getAccountSecurityConsentAction() {
   }>('/v1/settings/consent');
 }
 
-export async function enrollAccountSecurityMfaAction() {
-  return goFetch<Record<string, unknown>>('/v1/me/mfa/totp/enroll', {
+/**
+ * Crée un facteur TOTP. GoTrue renvoie `{ id, totp: { qr_code, secret, uri } }`.
+ *
+ * La **vérification** du facteur ne passe volontairement pas par ici : GoTrue
+ * n'élève la session qu'en émettant un nouveau jeton pour le client courant, il
+ * faut donc que l'échange `challenge`/`verify` vienne du navigateur (voir
+ * `features/settings/components/mfa-panel.tsx`). Sinon l'utilisateur
+ * enregistrerait un facteur sans jamais obtenir de session forte.
+ */
+export async function enrollAccountSecurityMfaAction(friendlyName?: string) {
+  return goFetch<MfaEnrollResponse>('/v1/me/mfa/totp/enroll', {
     method: 'POST',
+    body: friendlyName ? { friendly_name: friendlyName } : {},
+  });
+}
+
+/** Retire un facteur (y compris un facteur créé mais jamais vérifié). */
+export async function unenrollAccountSecurityMfaAction(factorId: string) {
+  return goFetch<{ success: boolean }>(`/v1/me/mfa/totp/${encodeURIComponent(factorId)}`, {
+    method: 'DELETE',
     body: {},
   });
+}
+
+export interface MfaFactorInfo {
+  id: string;
+  friendly_name?: string | null;
+  factor_type?: string;
+  status?: string;
+  created_at?: string;
+}
+
+export interface MfaEnrollResponse {
+  id?: string;
+  friendly_name?: string;
+  totp?: { qr_code?: string; secret?: string; uri?: string } | null;
 }
 
 export async function changeAccountSecurityEmailAction(newEmail: string, currentPassword: string) {

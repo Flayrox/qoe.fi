@@ -163,14 +163,68 @@ contrôle.
   n'existe pas encore. Les monter maintenant créerait des actions impossibles à
   satisfaire une fois le refus activé.
 
-## Tests
+## Côté front — un refus doit avoir une issue
 
-Les décisions sont couvertes sans base de données :
+Un `403` muet est un cul-de-sac : l'utilisateur ne sait ni pourquoi il est
+bloqué, ni quoi faire. Le refus est donc **exploitable de bout en bout**.
+
+`goFetch` remonte `code` / `action` / `level` sur l'erreur, que `safeAction`
+propage déjà dans `ActionResult.error.code` : toutes les actions du SDK en
+bénéficient sans modification.
+
+| Brique | Rôle |
+|---|---|
+| `@qoe/sdk/actions/utils/authz` | Codes, `isStepUpCode`, `authzGuidance` (titre + explication par code), `authzSecurityHref`. Isomorphe (aucune dépendance serveur). |
+| `studio/src/lib/authz-feedback.ts` | `notifyActionFailure` affiche le motif réel — plus de « accès refusé » générique. `attemptWithStepUp` vérifie un facteur puis **rejoue l'action automatiquement**, une seule fois. |
+| `studio/src/features/security/step-up.tsx` | Dialogue de vérification (TOTP) monté une fois dans le layout racine, pilotable par `requestStepUp()`. |
+| `studio/src/features/security/totp-enrollment.tsx` | Enrôlement TOTP partagé : réglages **et** dialogue de refus. |
+| `studio/src/features/settings/components/mfa-panel.tsx` | Gestion des facteurs dans Compte & sécurité (ajouter, confirmer, retirer). |
+
+### Le parcours
+
+1. L'action échoue avec `needs_step_up` (ou `deny_weak_auth`, `deny_stale_proof`).
+2. `attemptWithStepUp` ouvre le dialogue, qui demande un code TOTP.
+3. La vérification se fait **dans le navigateur** : c'est le seul moyen pour que
+   la session courante reçoive un jeton `aal2` avec un `amr` horodaté — donc ce
+   que lit le garde Go. Une vérification côté serveur validerait le facteur mais
+   laisserait la session en `aal1`, donc toujours refusée.
+4. L'action est rejouée. Aucun autre refus n'est rejoué : vérifier un facteur ne
+   change rien à un manque de droits (`deny_no_resource_permission`).
+
+Si le compte n'a **aucun** facteur, le dialogue propose de l'enrôler sur place
+plutôt que de renvoyer l'utilisateur vers une autre page : sinon il refermait le
+dialogue et devait relancer son action lui-même, ce qui revenait à un cul-de-sac.
+
+### Piège corrigé : `totp` ≠ tous les facteurs
+
+`supabase.auth.mfa.listFactors()` ne place dans `data.totp` / `data.phone` que
+les facteurs **vérifiés**. Un facteur créé puis abandonné n'apparaît que dans
+`data.all` — c'est le cas qui laissait un compte bloqué sans explication. La
+détection « facteur non vérifié » lit donc `data.all`.
+
+### Piège corrigé : nom de facteur déjà pris
+
+GoTrue refuse deux facteurs portant le même `friendly_name`
+(`mfa_factor_name_conflict`). Comme l'inscription utilisait un nom fixe, un
+premier essai interrompu (onglet fermé avant la saisie du code) rendait la
+configuration de la MFA **définitivement impossible** — donc plus aucune action
+sensible déblocable. `users.NextFactorName` numérote maintenant le nom
+(`qoefi`, `qoefi 2`, …). Les erreurs du fournisseur d'identité remontent aussi
+leur message réel (`msg`) au lieu d'un simple « statut 422 ».
+
+## Tests
 
 ```bash
 cd apps/api
-go test ./internal/authz/ ./internal/middleware/
+go test ./internal/authz/ ./internal/middleware/ ./internal/modules/users/
+
+cd apps/studio
+pnpm vitest run src/lib/__tests__/authz-feedback.test.ts
 ```
+
+Côté Go, les décisions sont couvertes sans base de données. Côté Studio, les
+tests vérifient notamment qu'un refus de preuve est rejoué **une seule fois**,
+qu'un refus de droits ne l'est jamais, et que le motif réel est affiché.
 
 Les tests d'intégration (testcontainers) ne couvrent pas encore la migration
 `00030_account_phone_verification.sql` : Docker doit être disponible.
