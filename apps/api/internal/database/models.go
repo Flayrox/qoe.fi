@@ -1042,6 +1042,19 @@ type Message struct {
 	CreatedAt      pgtype.Timestamp `json:"createdAt"`
 }
 
+type MessageTypePolicy struct {
+	Key           string           `json:"key"`
+	Family        string           `json:"family"`
+	Owner         string           `json:"owner"`
+	BaseRule      string           `json:"baseRule"`
+	Priority      int32            `json:"priority"`
+	Tracking      string           `json:"tracking"`
+	StaffApproval bool             `json:"staffApproval"`
+	Description   string           `json:"description"`
+	CreatedAt     pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt     pgtype.Timestamp `json:"updatedAt"`
+}
+
 type ModerationReport struct {
 	ID             string           `json:"id"`
 	ReporterId     pgtype.UUID      `json:"reporterId"`

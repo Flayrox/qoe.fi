@@ -352,3 +352,58 @@ func TestSendWave_SuspensionAutomatiqueSurRejets(t *testing.T) {
 		t.Fatal("suspension sous des seuils sains : faux positif")
 	}
 }
+
+// Une opposition survenue entre le snapshot du segment et la tranche (ex. :
+// la personne se désinscrit d'une autre newsletter entre-temps et rejoint la
+// suppression globale) ne part jamais : la livraison est écartée avec motif,
+// et le budget ne réserve rien pour elle.
+func TestSendWave_SuppressionEntreSnapshotEtClaim(t *testing.T) {
+	requirePool(t)
+	ctx := context.Background()
+	seedImport(t, ctx)
+	svc := newTestService()
+
+	batchID := "batch_send_suppr"
+	emails := []string{"ok1@test.dev", "stop@test.dev"}
+	seedSendBatch(t, ctx, batchID, importPubPerso, importOwnerID, emails)
+	wave, err := svc.StartSendWave(ctx, importOwnerID, batchID, 0)
+	if err != nil {
+		t.Fatalf("StartSendWave: %v", err)
+	}
+
+	// Opposition globale après le snapshot, avant le claim.
+	if _, err := poolTest.Exec(ctx, `
+		INSERT INTO "EmailSuppression" ("id", "email", "scope", "reason")
+		VALUES (gen_random_uuid()::text, 'stop@test.dev', 'global', 'complaint')
+		ON CONFLICT DO NOTHING`); err != nil {
+		t.Fatalf("seed suppression: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = poolTest.Exec(ctx, `DELETE FROM "EmailSuppression" WHERE email = 'stop@test.dev'`)
+	})
+
+	claims, err := svc.ClaimSendChunk(ctx, wave.ID, 10)
+	if err != nil {
+		t.Fatalf("ClaimSendChunk: %v", err)
+	}
+	if len(claims) != 1 || claims[0].Email != "ok1@test.dev" {
+		t.Fatalf("réclamées = %v, attendu [ok1@test.dev] seule", claims)
+	}
+	var status string
+	if err := poolTest.QueryRow(ctx, `
+		SELECT "status" FROM "ImportSendDelivery" WHERE "waveId" = $1 AND "email" = 'stop@test.dev'`,
+		wave.ID).Scan(&status); err != nil {
+		t.Fatalf("statut écartée: %v", err)
+	}
+	if status != "suppressed" {
+		t.Fatalf("statut = %q, attendu suppressed (avec motif, pas silencieuse)", status)
+	}
+	var consumed int
+	if err := poolTest.QueryRow(ctx, `
+		SELECT "consumed" FROM "ImportSendBudget" WHERE "batchId" = $1`, batchID).Scan(&consumed); err != nil {
+		t.Fatalf("budget: %v", err)
+	}
+	if consumed != 1 {
+		t.Fatalf("consommé = %d, attendu 1 (l'écartée ne réserve rien)", consumed)
+	}
+}

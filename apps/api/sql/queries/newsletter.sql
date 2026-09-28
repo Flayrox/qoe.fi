@@ -67,6 +67,15 @@ WHERE s."publicationId" = $2
   AND s."isActive" = true
   AND s."receiveArticles" = true
   AND s."confirmedAt" IS NOT NULL  -- double opt-in : jamais de bulk vers un email non confirmé
+  -- Opposition durable (fiche 04 §3.5) : une adresse en suppression globale
+  -- ou pour cette publication n'est jamais matérialisée, même si sa ligne
+  -- Subscriber est restée active (course entre désinscription et envoi).
+  AND NOT EXISTS (
+      SELECT 1 FROM "EmailSuppression" x
+      WHERE x.email = s.email
+        AND (x."scope" = 'global'
+             OR (x."scope" = 'publication' AND x."publicationId" = s."publicationId"))
+  )
 ON CONFLICT ("issueId", email) DO NOTHING;
 
 -- name: ListNewsletterDeliveriesByIssue :many
