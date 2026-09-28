@@ -340,3 +340,18 @@ WHERE email = $1
   AND "publicationId" = $2
   AND "confirmationToken" = $3
 RETURNING id;
+
+-- name: AttachSubscriberToAccount :exec
+-- Rattache un abonnement confirmé au compte qui utilise cette adresse
+-- (fiche 01 §4). Conditions strictes : le userId n'est posé que s'il est
+-- encore NULL (jamais d'écrasement), et seul l'identifiant est copié — ni les
+-- statuts, ni les dates, ni quoi que ce soit qui réactiverait un choix passé.
+-- `User.email` est unique (User_email_key) : au plus un compte récupère.
+UPDATE "Subscriber" s
+SET "userId" = u.id,
+    "updatedAt" = now()
+FROM "User" u
+WHERE s.email = $1
+  AND s."publicationId" = $2
+  AND s."userId" IS NULL
+  AND LOWER(u.email) = LOWER(s.email);

@@ -21,6 +21,12 @@ type Querier interface {
 	// avatars, bannières, promos…). Ne touche jamais un asset PURGED (objet déjà
 	// supprimé du storage) : celui-ci sera ré-uploadé via réactivation CAS.
 	AttachMediaAssetsByUrls(ctx context.Context, arg AttachMediaAssetsByUrlsParams) ([]string, error)
+	// Rattache un abonnement confirmé au compte qui utilise cette adresse
+	// (fiche 01 §4). Conditions strictes : le userId n'est posé que s'il est
+	// encore NULL (jamais d'écrasement), et seul l'identifiant est copié — ni les
+	// statuts, ni les dates, ni quoi que ce soit qui réactiverait un choix passé.
+	// `User.email` est unique (User_email_key) : au plus un compte récupère.
+	AttachSubscriberToAccount(ctx context.Context, arg AttachSubscriberToAccountParams) error
 	CheckArticleSlugExists(ctx context.Context, arg CheckArticleSlugExistsParams) (bool, error)
 	CheckCategorySlugExists(ctx context.Context, arg CheckCategorySlugExistsParams) (bool, error)
 	CheckMediaSlugExists(ctx context.Context, slug string) (bool, error)

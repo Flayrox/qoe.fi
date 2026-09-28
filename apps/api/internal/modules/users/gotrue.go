@@ -113,6 +113,13 @@ func identityErrorMessage(status int, out map[string]any) string {
 	return fmt.Sprintf("fournisseur d'identité: %s", message)
 }
 
+// getUser lit un utilisateur via l'API admin GoTrue (service role) : adresse
+// actuelle et `email_confirmed_at`. Utilisé pour ne migrer des abonnements
+// vers une nouvelle adresse qu'une fois celle-ci confirmée (fiche 01 §4).
+func (c *goTrueClient) getUser(ctx context.Context, userID string) (map[string]any, error) {
+	return c.request(ctx, userID, http.MethodGet, "/auth/v1/admin/users/"+userID, nil)
+}
+
 func (c *goTrueClient) verifyPassword(ctx context.Context, email, password string) error {
 	if c.baseURL == "" || c.secret == "" {
 		return errors.New("fournisseur d'identité non configuré")

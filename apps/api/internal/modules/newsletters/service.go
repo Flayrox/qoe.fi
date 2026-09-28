@@ -3,6 +3,8 @@ package newsletters
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"log"
 	"time"
@@ -248,6 +250,19 @@ func (s *Service) Unsubscribe(ctx context.Context, publicationID, email string) 
 	})
 }
 
+// NewConfirmationToken tire un jeton opaque de confirmation (256 bits, hex).
+// Générateur unique du domaine : inscriptions publiques, clé API et
+// reconfirmations d'import utilisent le même format — le lien vérifie
+// (email, publication, token) + signature HMAC, et le token est consommé à
+// usage unique (ConfirmSubscriberByToken le met à NULL).
+func NewConfirmationToken() (string, error) {
+	var raw [32]byte
+	if _, err := rand.Read(raw[:]); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(raw[:]), nil
+}
+
 // ConfirmSubscriber consomme un token de confirmation double opt-in : active
 // receiveArticles, horodate confirmedAt et efface le token (usage unique).
 // Retourne errConfirmInvalid si le token ne correspond pas (lien expiré,
@@ -266,6 +281,18 @@ func (s *Service) ConfirmSubscriber(ctx context.Context, publicationID, email, t
 	}
 	if err != nil {
 		return err
+	}
+	// Rattachement au compte (fiche 01 §4) : si un compte qoe.fi utilise cette
+	// adresse comme identifiant, l'abonnement confirmé y apparaît — sans créer
+	// de doublon d'envoi (l'affichage n'est pas un nouvel abonnement) et sans
+	// jamais réactiver quoi que ce soit (on ne touche qu'à userId, sur une
+	// ligne qu'on vient d'activer par ce même clic). Un compte ne récupère
+	// ainsi que les abonnements de SA propre adresse vérifiée d'inscription.
+	if err := s.q.AttachSubscriberToAccount(ctx, db.AttachSubscriberToAccountParams{
+		Email:         email,
+		PublicationId: publicationID,
+	}); err != nil {
+		log.Printf("[newsletters] rattachement %s: %v", email, err)
 	}
 	// Confirmation effective → email de bienvenue (localisé, personnalisé,
 	// coupable par le créateur côté worker). Best-effort : une panne Redis

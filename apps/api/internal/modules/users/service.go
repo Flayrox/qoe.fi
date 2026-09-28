@@ -149,8 +149,67 @@ func (s *Service) ChangeEmail(ctx context.Context, userID, currentPassword, newE
 	if err != nil {
 		return err
 	}
-	_, _ = s.pool.Exec(ctx, `UPDATE "Subscriber" SET email = $1, "updatedAt" = now() WHERE "userId" = $2`, newEmail, toUUID(userID))
+	// Les abonnements NE SUIVENT PAS ici (fiche 01 §4) : basculer les envois
+	// vers une adresse non vérifiée exposerait les newsletters à une adresse
+	// que personne n'a prouvée. La migration passe par
+	// POST /v1/me/email-migrate-subscriptions, qui vérifie d'abord auprès du
+	// fournisseur d'identité que la nouvelle adresse est confirmée. Sans cet
+	// appel, les envois continuent vers l'ancienne adresse vérifiée — jamais
+	// vers la nouvelle non vérifiée.
 	return nil
+}
+
+// MigrateSubscriptionsToVerifiedEmail migre la réception des newsletters du
+// compte vers son adresse actuelle, après vérification de celle-ci (fiche 01
+// §4). Règles : l'adresse du compte doit être confirmée côté fournisseur
+// d'identité ; seuls les abonnements actifs migrent ; jamais de doublon (si
+// un abonnement existe déjà pour la nouvelle adresse, l'ancien reste) ;
+// jamais de réactivation (les désabonnés restent désabonnés). Idempotent :
+// rejouer ne change rien une fois migré.
+func (s *Service) MigrateSubscriptionsToVerifiedEmail(ctx context.Context, userID string) (int, error) {
+	account, err := s.gotrue.getUser(ctx, userID)
+	if err != nil {
+		return 0, err
+	}
+	newEmail, _ := account["email"].(string)
+	newEmail = strings.ToLower(strings.TrimSpace(newEmail))
+	if newEmail == "" || !strings.Contains(newEmail, "@") {
+		return 0, errors.New("Adresse du compte illisible.")
+	}
+	if !accountEmailConfirmed(account) {
+		return 0, errors.New("Confirmez d'abord votre nouvelle adresse, puis relancez la migration.")
+	}
+	var migrated int64
+	// Seuls les actifs migrent ; la clause NOT EXISTS évite tout doublon si
+	// la nouvelle adresse a déjà son propre abonnement à la publication.
+	err = s.pool.QueryRow(ctx, `
+		WITH moved AS (
+		  UPDATE "Subscriber" s
+		  SET email = $2, "updatedAt" = now()
+		  WHERE s."userId" = $1
+		    AND s."isActive" = true
+		    AND s."receiveArticles" = true
+		    AND NOT EXISTS (
+		      SELECT 1 FROM "Subscriber" d
+		      WHERE d."publicationId" = s."publicationId" AND d.email = $2
+		    )
+		  RETURNING id
+		) SELECT COUNT(*) FROM moved`, toUUID(userID), newEmail).Scan(&migrated)
+	if err != nil {
+		return 0, err
+	}
+	return int(migrated), nil
+}
+
+// accountEmailConfirmed lit la confirmation d'adresse dans un objet
+// utilisateur GoTrue (champ `email_confirmed_at`, parfois sous
+// `confirmation_sent_at` seul quand jamais confirmé).
+func accountEmailConfirmed(user map[string]any) bool {
+	if user == nil {
+		return false
+	}
+	confirmed, _ := user["email_confirmed_at"].(string)
+	return strings.TrimSpace(confirmed) != ""
 }
 
 func (s *Service) ChangePassword(ctx context.Context, userID, currentPassword, newPassword string) error {
