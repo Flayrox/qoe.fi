@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { href: '/admin', label: 'Overview' },
   { href: '/admin/users', label: 'Users & Modération' },
   { href: '/admin/reports', label: 'Signalements' },
+  { href: '/admin/imports', label: "Imports d'abonnés" },
   { href: '/admin/api', label: "Demandes d'API" },
   { href: '/admin/oauth', label: 'Applications OAuth' },
   { href: '/admin/config', label: 'Feature Flags' },

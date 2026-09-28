@@ -194,14 +194,17 @@ type SubscriberImportStats struct {
 
 // SubscriberImportBatchDTO est la vue API d'un lot.
 type SubscriberImportBatchDTO struct {
-	ID            string                `json:"id"`
-	PublicationID string                `json:"publicationId"`
-	Status        string                `json:"status"`
-	Source        string                `json:"source"`
-	SourceDetail  string                `json:"sourceDetail,omitempty"`
-	FileVersion   int                   `json:"fileVersion"`
-	RowCount      int                   `json:"rowCount"`
-	Stats         SubscriberImportStats `json:"stats"`
+	ID            string `json:"id"`
+	PublicationID string `json:"publicationId"`
+	Status        string `json:"status"`
+	Source        string `json:"source"`
+	SourceDetail  string `json:"sourceDetail,omitempty"`
+	FileVersion   int    `json:"fileVersion"`
+	// Empreinte SHA256 du fichier (hash, pas le contenu) : le staff en a
+	// besoin pour désigner la version exacte visée par sa décision.
+	FileFingerprint string                `json:"fileFingerprint,omitempty"`
+	RowCount        int                   `json:"rowCount"`
+	Stats           SubscriberImportStats `json:"stats"`
 	// Dernière décision : ce que le demandeur voit de la revue.
 	Decision     string `json:"decision,omitempty"`
 	PublicReason string `json:"publicReason,omitempty"`
@@ -742,7 +745,7 @@ func (s *Service) GetSubscriberImport(ctx context.Context, userID, batchID strin
 func (s *Service) ListSubscriberImports(ctx context.Context, userID string) ([]SubscriberImportBatchDTO, error) {
 	rows, err := s.pool.Query(ctx, `
 		SELECT b."id", b."publicationId", b."status", b."source", COALESCE(b."sourceDetail", ''),
-		       b."fileVersion", b."rowCount", b."stats",
+		       b."fileVersion", b."fileFingerprint", b."rowCount", b."stats",
 		       COALESCE(d."decision", ''), COALESCE(d."publicReason", ''),
 		       b."submittedAt", b."reviewDueAt", b."suspendedAt", b."createdAt", b."updatedAt"
 		FROM "SubscriberImportBatch" b
@@ -788,7 +791,7 @@ func (s *Service) getBatch(ctx context.Context, batchID string, requester pgtype
 
 const batchSelect = `
 	SELECT b."id", b."publicationId", b."status", b."source", COALESCE(b."sourceDetail", ''),
-	       b."fileVersion", b."rowCount", b."stats",
+	       b."fileVersion", b."fileFingerprint", b."rowCount", b."stats",
 	       COALESCE(d."decision", ''), COALESCE(d."publicReason", ''),
 	       b."submittedAt", b."reviewDueAt", b."suspendedAt", b."createdAt", b."updatedAt"
 	FROM "SubscriberImportBatch" b
@@ -811,7 +814,7 @@ func scanBatches(rows pgx.Rows) ([]SubscriberImportBatchDTO, error) {
 		)
 		if err := rows.Scan(
 			&dto.ID, &dto.PublicationID, &dto.Status, &dto.Source, &dto.SourceDetail,
-			&dto.FileVersion, &dto.RowCount, &statsRaw,
+			&dto.FileVersion, &dto.FileFingerprint, &dto.RowCount, &statsRaw,
 			&dto.Decision, &dto.PublicReason,
 			&submitted, &reviewDue, &suspended, &created, &updated,
 		); err != nil {
