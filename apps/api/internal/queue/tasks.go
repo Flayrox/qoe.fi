@@ -22,6 +22,11 @@ const (
 	// reconfirmation pour un lot d'import approuvé (file dédiée `reconfirm`,
 	// vagues plafonnées) : jamais mélangée aux envois bulk/newsletter.
 	TaskSubscriberImportReconfirm = "subscriber.import_reconfirm"
+	// TaskSubscriberImportSend porte une tranche d'envoi encadré
+	// (approved_direct) pour un lot d'import (file dédiée `import_send`,
+	// budget atomique) : jamais mélangée aux campagnes créateur normales ni
+	// aux reconfirmations — les quotas d'une liste fraîche restent séparés.
+	TaskSubscriberImportSend = "subscriber.import_send"
 )
 
 // BulkImportPayload est le payload de TaskBulkImport (import bulk asynchrone).
@@ -83,6 +88,13 @@ type SubscriberWelcomePayload struct {
 // TaskSubscriberImportReconfirm : traiter une tranche de la vague (chunk
 // plafonné), puis ré-enfiler la suite avec un délai si la vague continue.
 type SubscriberImportReconfirmPayload struct {
+	WaveID string `json:"waveId"`
+}
+
+// SubscriberImportSendPayload est le payload de TaskSubscriberImportSend :
+// traiter une tranche de la vague d'envoi encadré, puis ré-enfiler la suite
+// avec un délai si la vague continue et que le budget le permet.
+type SubscriberImportSendPayload struct {
 	WaveID string `json:"waveId"`
 }
 

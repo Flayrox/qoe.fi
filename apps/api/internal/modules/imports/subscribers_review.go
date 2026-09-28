@@ -144,6 +144,7 @@ type SubscriberImportReviewDTO struct {
 	Events         []SubscriberImportEventDTO    `json:"events"`
 	Signals        SubscriberImportSignals       `json:"signals"`
 	ReconfirmWaves []ReconfirmWaveDTO            `json:"reconfirmWaves"`
+	SendWaves      []SendWaveDTO                 `json:"sendWaves"`
 }
 
 // ReviewSubscriberImport construit le dossier de revue d'un lot.
@@ -228,6 +229,13 @@ func (s *Service) buildReview(ctx context.Context, batchID string, redactInterna
 	if out.ReconfirmWaves, err = s.ListReconfirmWaves(ctx, batchID); err != nil {
 		log.Printf("[imports] vagues lot %s: %v", batchID, err)
 		out.ReconfirmWaves = []ReconfirmWaveDTO{}
+	}
+	// Vagues d'envoi encadré : sans adresses individuelles, juste l'état, le
+	// budget et les compteurs — le demandeur voit l'avancement de son lot, le
+	// staff voit en plus les décisions et le journal ci-dessus.
+	if out.SendWaves, err = s.ListSendWaves(ctx, batchID); err != nil {
+		log.Printf("[imports] vagues d'envoi lot %s: %v", batchID, err)
+		out.SendWaves = []SendWaveDTO{}
 	}
 	return out, nil
 }

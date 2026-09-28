@@ -29,10 +29,11 @@ func NewServer(redisURL string, concurrency int) *asynq.Server {
 	return asynq.NewServer(opt, asynq.Config{
 		Concurrency: concurrency,
 		Queues: map[string]int{
-			"critical":  6,
-			"default":   3,
-			"reconfirm": 2,
-			"low":       1,
+			"critical":    6,
+			"default":     3,
+			"reconfirm":   2,
+			"import_send": 1,
+			"low":         1,
 		},
 	})
 }
@@ -281,6 +282,32 @@ func PublishImportReconfirmWave(c *asynq.Client, p SubscriberImportReconfirmPayl
 		return err
 	}
 	_, err = c.Enqueue(task, asynq.Queue("reconfirm"), asynq.ProcessIn(delay))
+	return err
+}
+
+// NewImportSendWaveTask construit la tâche asynq subscriber.import_send.
+func NewImportSendWaveTask(p SubscriberImportSendPayload) (*asynq.Task, error) {
+	payload, err := json.Marshal(p)
+	if err != nil {
+		return nil, err
+	}
+	return asynq.NewTask(TaskSubscriberImportSend, payload, asynq.MaxRetry(5), asynq.Timeout(5*time.Second*60)), nil
+}
+
+// PublishImportSendWave enfile une tranche de vague d'envoi encadré sur la
+// file dédiée `import_send` (jamais `default` : les envois d'une liste fraîche
+// ne partagent ni le rythme ni les quotas des campagnes normales).
+// `delay` espace les tranches d'une même vague — plafonnement côté file, en
+// plus du budget atomique et de la taille de tranche.
+func PublishImportSendWave(c *asynq.Client, p SubscriberImportSendPayload, delay time.Duration) error {
+	if c == nil {
+		return nil
+	}
+	task, err := NewImportSendWaveTask(p)
+	if err != nil {
+		return err
+	}
+	_, err = c.Enqueue(task, asynq.Queue("import_send"), asynq.ProcessIn(delay))
 	return err
 }
 

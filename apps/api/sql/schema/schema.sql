@@ -2323,3 +2323,89 @@ CREATE INDEX "SubscriberImportReconfirmRequest_wave_status_idx"
 CREATE INDEX "SubscriberImportReconfirmRequest_expiry_idx"
     ON "SubscriberImportReconfirmRequest"("expiresAt")
     WHERE "status" IN ('pending', 'sent');
+
+-- CreateTable
+CREATE TABLE "ImportSendBudget" (
+    "id"            TEXT NOT NULL,
+    "batchId"       TEXT NOT NULL,
+    "publicationId" TEXT NOT NULL,
+    "decisionId"    TEXT NOT NULL,
+    "cap"           INTEGER NOT NULL,
+    "consumed"      INTEGER NOT NULL DEFAULT 0,
+    "version"       INTEGER NOT NULL DEFAULT 0,
+    "createdAt"     TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt"     TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ImportSendBudget_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "ImportSendBudget_cap_check" CHECK ("cap" > 0),
+    CONSTRAINT "ImportSendBudget_consumed_check" CHECK ("consumed" >= 0 AND "consumed" <= "cap")
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ImportSendBudget_batch_key"
+    ON "ImportSendBudget"("batchId");
+
+-- CreateTable
+CREATE TABLE "ImportSendWave" (
+    "id"            TEXT NOT NULL,
+    "batchId"       TEXT NOT NULL,
+    "publicationId" TEXT NOT NULL,
+    "decisionId"    TEXT NOT NULL,
+    "budgetId"      TEXT NOT NULL,
+    "status"        TEXT NOT NULL DEFAULT 'queued',
+    "cursor"        TEXT,
+    "sentCount"     INTEGER NOT NULL DEFAULT 0,
+    "skippedCount"  INTEGER NOT NULL DEFAULT 0,
+    "failedCount"   INTEGER NOT NULL DEFAULT 0,
+    "hardBounceCount"   INTEGER NOT NULL DEFAULT 0,
+    "complaintCount"    INTEGER NOT NULL DEFAULT 0,
+    "unsubscribeCount"  INTEGER NOT NULL DEFAULT 0,
+    "maxHardBounceRate" REAL NOT NULL DEFAULT 0.10,
+    "maxComplaints"     INTEGER NOT NULL DEFAULT 5,
+    "maxFailedRate"     REAL NOT NULL DEFAULT 0.20,
+    "minSample"         INTEGER NOT NULL DEFAULT 50,
+    "completedAt"   TIMESTAMP(3),
+    "createdAt"     TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt"     TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ImportSendWave_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "ImportSendWave_status_check" CHECK ("status" IN (
+        'queued', 'sending', 'paused', 'completed', 'cancelled'
+    ))
+);
+
+-- CreateIndex
+CREATE INDEX "ImportSendWave_batch_idx"
+    ON "ImportSendWave"("batchId", "createdAt" DESC);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ImportSendWave_active_key"
+    ON "ImportSendWave"("batchId")
+    WHERE "status" IN ('queued', 'sending', 'paused');
+
+-- CreateTable
+CREATE TABLE "ImportSendDelivery" (
+    "id"            TEXT NOT NULL,
+    "waveId"        TEXT NOT NULL,
+    "batchId"       TEXT NOT NULL,
+    "publicationId" TEXT NOT NULL,
+    "email"         TEXT NOT NULL,
+    "status"        TEXT NOT NULL DEFAULT 'queued',
+    "error"         TEXT,
+    "sentAt"        TIMESTAMP(3),
+    "createdAt"     TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt"     TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ImportSendDelivery_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "ImportSendDelivery_status_check" CHECK ("status" IN (
+        'queued', 'sent', 'failed', 'skipped', 'suppressed'
+    ))
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ImportSendDelivery_wave_email_key"
+    ON "ImportSendDelivery"("waveId", "email");
+
+-- CreateIndex
+CREATE INDEX "ImportSendDelivery_wave_status_idx"
+    ON "ImportSendDelivery"("waveId", "status", "email");
