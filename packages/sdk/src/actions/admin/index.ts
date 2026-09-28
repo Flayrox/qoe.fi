@@ -185,3 +185,100 @@ export const saveApiAccessModulesAction = safeAction<{ enabled: string[] }, { su
     return { success: true };
   }
 );
+
+/** 👥 Marque un lot d'import « en examen » (idempotent). */
+export const claimImportAction = safeAction<string, { success: boolean }>(async (batchId) => {
+  // Le backend Go vérifie le rôle superadmin (403 sinon).
+  await goFetch(`/v1/admin/import/subscribers/${encodeURIComponent(batchId)}/claim`, {
+    method: 'POST',
+    body: {},
+  });
+  revalidatePath(`/admin/imports/${encodeURIComponent(batchId)}`);
+  revalidatePath('/admin/imports');
+  return { success: true };
+});
+
+export interface DecideImportInput {
+  batchId: string;
+  decision:
+    | 'needs_info'
+    | 'rejected'
+    | 'approved_reconfirm'
+    | 'approved_direct'
+    | 'suspended'
+    | 'cancelled'
+    | 'resumed';
+  internalReason?: string;
+  publicReason?: string;
+  fileVersion?: number;
+  fileFingerprint?: string;
+  limits?: Record<string, unknown>;
+  expiresAt?: string;
+  excludeEmails?: string[];
+}
+
+/** 👥 Enregistre une décision staff sur un lot (immuable côté Go : un changement ajoute une décision). */
+export const decideImportAction = safeAction<DecideImportInput, { success: boolean }>(
+  async ({ batchId, ...body }) => {
+    // Le backend Go vérifie le rôle superadmin, la transition d'état et la
+    // fraîcheur du fichier (409 sinon).
+    await goFetch(`/v1/admin/import/subscribers/${encodeURIComponent(batchId)}/decide`, {
+      method: 'POST',
+      body,
+    });
+    revalidatePath(`/admin/imports/${encodeURIComponent(batchId)}`);
+    revalidatePath('/admin/imports');
+    return { success: true };
+  }
+);
+
+/** ✉️ Ouvre une vague de reconfirmation (idempotent : renvoie la vague active). */
+export const startReconfirmWaveAction = safeAction<
+  { batchId: string; waveSize?: number },
+  { success: boolean }
+>(async ({ batchId, waveSize }) => {
+  await goFetch(`/v1/admin/import/subscribers/${encodeURIComponent(batchId)}/reconfirm`, {
+    method: 'POST',
+    body: { waveSize: waveSize ?? 0 },
+  });
+  revalidatePath(`/admin/imports/${encodeURIComponent(batchId)}`);
+  return { success: true };
+});
+
+/** 🧹 Purge les demandes de reconfirmation échues (rejouable, efface les jetons morts). */
+export const purgeReconfirmAction = safeAction<string, { success: boolean; expired: number }>(
+  async (batchId) => {
+    const res = await goFetch<{ expired: number }>(
+      `/v1/admin/import/subscribers/${encodeURIComponent(batchId)}/reconfirm/purge`,
+      { method: 'POST', body: {} }
+    );
+    revalidatePath(`/admin/imports/${encodeURIComponent(batchId)}`);
+    return { success: true, expired: res.expired ?? 0 };
+  }
+);
+
+/** 📨 Ouvre une vague d'envoi encadré (idempotent : renvoie la vague active). */
+export const startSendWaveAction = safeAction<
+  { batchId: string; cap?: number },
+  { success: boolean }
+>(async ({ batchId, cap }) => {
+  await goFetch(`/v1/admin/import/subscribers/${encodeURIComponent(batchId)}/send-wave`, {
+    method: 'POST',
+    body: { cap: cap ?? 0 },
+  });
+  revalidatePath(`/admin/imports/${encodeURIComponent(batchId)}`);
+  return { success: true };
+});
+
+/** 🛑 Annule une vague d'envoi (les queued sont écartés, jamais repris). */
+export const cancelSendWaveAction = safeAction<
+  { batchId: string; waveId: string },
+  { success: boolean }
+>(async ({ batchId, waveId }) => {
+  await goFetch(
+    `/v1/admin/import/subscribers/${encodeURIComponent(batchId)}/send-waves/${encodeURIComponent(waveId)}/cancel`,
+    { method: 'POST', body: {} }
+  );
+  revalidatePath(`/admin/imports/${encodeURIComponent(batchId)}`);
+  return { success: true };
+});

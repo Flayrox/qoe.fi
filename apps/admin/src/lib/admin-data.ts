@@ -599,3 +599,105 @@ export async function getAdminFeatureFlags(): Promise<FeatureFlagItem[]> {
     target_roles: ['all'],
   }));
 }
+
+/** 👥 File de revue des imports d'abonnés (lots ouverts, plus anciens d'abord). */
+export interface ImportBatchItem {
+  id: string;
+  publicationId: string;
+  status: string;
+  source: string;
+  sourceDetail?: string;
+  fileVersion: number;
+  fileFingerprint?: string;
+  rowCount: number;
+  stats: Record<string, number>;
+  decision?: string;
+  publicReason?: string;
+  submittedAt?: string;
+  reviewDueAt?: string;
+  suspendedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function getImportQueue(): Promise<{ batches: ImportBatchItem[] }> {
+  return goFetch<{ batches: ImportBatchItem[] }>('/v1/admin/import/subscribers');
+}
+
+export interface ImportReviewRow {
+  email: string;
+  status: string;
+  reason?: string;
+}
+
+export interface ImportReviewDecision {
+  id: string;
+  decision: string;
+  actorKind: string;
+  internalReason?: string;
+  publicReason?: string;
+  limits?: Record<string, unknown>;
+  fileVersion: number;
+  expiresAt?: string;
+  createdAt: string;
+}
+
+export interface ImportReviewEvent {
+  type: string;
+  actorKind: string;
+  detail?: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface ImportReconfirmWave {
+  id: string;
+  batchId: string;
+  status: string;
+  waveSize: number;
+  sentCount: number;
+  confirmedCount: number;
+  expiredCount: number;
+  skippedCount: number;
+  expiresAt?: string;
+  completedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ImportSendWave {
+  id: string;
+  batchId: string;
+  status: string;
+  budgetCap: number;
+  budgetConsumed: number;
+  sentCount: number;
+  skippedCount: number;
+  failedCount: number;
+  hardBounceCount: number;
+  complaintCount: number;
+  unsubscribeCount: number;
+  completedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ImportReview {
+  batch: ImportBatchItem;
+  declarations: Record<string, unknown>;
+  proofRefs: string[];
+  sourceDetail?: string;
+  optInMethod?: string;
+  stats: Record<string, number>;
+  rows: ImportReviewRow[];
+  rowCounts: Record<string, number>;
+  decisions: ImportReviewDecision[];
+  events: ImportReviewEvent[];
+  signals: Record<string, unknown>;
+  reconfirmWaves: ImportReconfirmWave[];
+  sendWaves: ImportSendWave[];
+}
+
+/** 👥 Dossier complet d'un lot d'import (staff : motifs internes inclus). */
+export async function getImportReview(id: string): Promise<ImportReview> {
+  return goFetch<ImportReview>(`/v1/admin/import/subscribers/${encodeURIComponent(id)}`);
+}

@@ -180,9 +180,18 @@ la quarantaine, la décision immuable et la reconfirmation existent déjà.
 | `GET` | `/v1/admin/import/subscribers/{id}/send-waves` | superadmin — suivi, budget, compteurs |
 | `POST` | `/v1/admin/import/subscribers/{id}/send-waves/{waveId}/cancel` | superadmin — annule (les `queued` sont écartés, jamais repris) |
 
-Reste à construire : l'UI admin correspondante (`apps/admin` n'a aujourd'hui
-aucune page d'import — les routes API ci-dessus sont prêtes), puis le
-rattachement du dispositif au chantier support et recours.
+Console staff (`apps/admin/imports`, superadmin uniquement) : file des lots en
+attente, dossier complet (bilan de quarantaine, provenance et signaux,
+historique des décisions avec motifs internes, journal), formulaire de décision
+(version + empreinte pré-remplies, motifs séparés, plafonds, exclusions),
+ouverture de vagues de reconfirmation et d'envoi, purge des demandes échues,
+annulation de vague. Les lectures passent par `admin-data.ts`, les écritures
+par des server actions SDK (`safeAction`, `revalidatePath`) — jamais d'appel
+direct au backend depuis les composants.
+
+Reste à construire : le rattachement du dispositif au chantier support et
+recours (les décisions ont déjà identifiant, motifs séparés, auteur et
+chronologie — les points d'ancrage prévus par la fiche 03 §11).
 
 ## Vérifications
 
