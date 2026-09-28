@@ -118,11 +118,31 @@ enregistrées **sans effet d'envoi** : le modèle d'éligibilité reste
 qu'il n'a pas confirmé lui-même, et **aucune décision staff ne peut fabriquer
 cette confirmation**.
 
-Restent à construire, dans cet ordre : la branche de reconfirmation individuelle
-(vagues plafonnées, file dédiée, jeton à usage unique par publication), puis
-l'exception d'envoi encadré (quotas atomiques, surveillance des rejets et
-plaintes, suspension automatique), et enfin le rattachement du dispositif au
-chantier support et recours.
+## Branche de reconfirmation individuelle (migration 00032, construite)
+
+Un lot `approved_reconfirm` ne rend aucun contact destinataire : chaque adresse
+doit confirmer elle-même via le lien existant (`/v1/newsletters/confirm`).
+
+| Brique | Rôle |
+|---|---|
+| `SubscriberImportReconfirmWave` | Vague plafonnée (taille bornée, une seule active par lot). |
+| `SubscriberImportReconfirmRequest` | Une adresse, une empreinte de jeton unique, un état (`pending` → `sent` → `confirmed`, ou `expired`/`skipped`). |
+| File asynq dédiée `reconfirm` | Les reconfirmations ne partagent ni la file ni le rythme du bulk/newsletter ; tranches de 100 avec 60 s entre tranches. |
+| `POST /v1/admin/import/subscribers/{id}/reconfirm` | Ouvre une vague (idempotent : renvoie la vague active au lieu de doubler). |
+| `GET .../reconfirm`, `POST .../reconfirm/purge` | Suivi et purge des demandes échues. |
+
+Garanties : jeton 256 bits à usage unique rattaché à (publication, email) —
+le lien vérifie déjà ce triplet et consomme le jeton ; activation uniquement au
+clic (la vague crée des abonnés **inactifs**, seul `ConfirmSubscriber` franchit
+`confirmedAt`, imputé ensuite aux compteurs de vague) ; opposition et état de
+l'abonné **revérifiés au moment de l'envoi** (une plainte entre-temps gagne
+contre la vague) ; vague en pause si le lot est suspendu/rejeté ; purge efface
+les jetons des non-confirmés sans créer d'opposition (ne pas répondre ≠
+refuser).
+
+Reste à construire : l'exception d'envoi encadré (quotas atomiques,
+surveillance des rejets et plaintes, suspension automatique), puis le
+rattachement au chantier support et recours.
 
 ## Vérifications
 

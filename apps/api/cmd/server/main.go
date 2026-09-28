@@ -292,9 +292,17 @@ func newRouter(d RouterDeps) *chi.Mux {
 		articlesHandler.RegisterPublic(pub)
 	})
 
+	// Imports d'abonnés : construit tôt car la confirmation publique (clic sur
+	// le lien de reconfirmation) doit imputer les compteurs de vagues.
+	importsSvc := imports.NewService(pool, asynqClient)
+
 	// Newsletters : désabonnement one-click public (lien présent dans chaque
 	// email — sans auth, RFC 8058). Les routes créateur sont dans le groupe protégé.
-	newslettersHandler := newsletters.NewHandler(newsletters.NewService(db.New(pool), asynqClient))
+	newslettersSvc := newsletters.NewService(db.New(pool), asynqClient)
+	// Un clic qui solde une demande de reconfirmation est imputé à la vague
+	// (compteurs). Best-effort : n'invalide jamais la confirmation.
+	newslettersSvc.SetReconfirmConfirmedHook(importsSvc.MarkReconfirmConfirmed)
+	newslettersHandler := newsletters.NewHandler(newslettersSvc)
 	// Anti-spam « brouillon/publier » : 10 déclenchements d'envoi par heure max
 	// (le worker rate-limit ensuite le rythme des emails eux-mêmes).
 	newslettersHandler.SetSendRateLimit(rc, time.Hour, 10)
@@ -427,7 +435,6 @@ func newRouter(d RouterDeps) *chi.Mux {
 		mediaHandler := media.NewHandler(mediaSvc)
 		mediaHandler.Register(protected)
 
-		importsSvc := imports.NewService(pool, asynqClient)
 		importsHandler := imports.NewHandler(importsSvc)
 		importsHandler.Register(protected)
 

@@ -32,6 +32,11 @@ func (h *Handler) registerSubscriberImports(r chi.Router) {
 	r.Get("/v1/admin/import/subscribers/{id}", h.subscriberImportReview)
 	r.Post("/v1/admin/import/subscribers/{id}/claim", h.subscriberImportClaim)
 	r.Post("/v1/admin/import/subscribers/{id}/decide", h.subscriberImportDecide)
+	// Branche de reconfirmation : ouvrir une vague, suivre les vagues, purger
+	// les demandes échues. Mêmes gardes superadmin, même service.
+	r.Post("/v1/admin/import/subscribers/{id}/reconfirm", h.subscriberImportReconfirm)
+	r.Get("/v1/admin/import/subscribers/{id}/reconfirm", h.subscriberImportReconfirmStatus)
+	r.Post("/v1/admin/import/subscribers/{id}/reconfirm/purge", h.subscriberImportReconfirmPurge)
 }
 
 // GET /v1/admin/import/subscribers — file de revue, plus anciens dépôts d'abord.
@@ -120,4 +125,70 @@ func (h *Handler) subscriberImportDecide(w http.ResponseWriter, r *http.Request)
 		log.Printf("[admin] subscriberImportDecide: %v", err)
 		response.BadRequest(w, err.Error())
 	}
+}
+
+// POST /v1/admin/import/subscribers/{id}/reconfirm — ouvre une vague de
+// reconfirmation (lot `approved_reconfirm`). Corps optionnel : { waveSize }.
+// Idempotent par lot : une vague active existante est renvoyée au lieu d'en
+// créer une seconde qui doublerait les envois.
+func (h *Handler) subscriberImportReconfirm(w http.ResponseWriter, r *http.Request) {
+	staffID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	var in struct {
+		WaveSize int `json:"waveSize"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	wave, err := h.subscriberImports.StartReconfirmWave(r.Context(), staffID, chi.URLParam(r, "id"), in.WaveSize)
+	switch {
+	case err == nil:
+		response.Created(w, wave)
+	case errors.Is(err, imports.ErrNotFound):
+		response.NotFound(w, "Import introuvable")
+	case errors.Is(err, imports.ErrReconfirmNotApproved):
+		response.Error(w, http.StatusConflict, "Le lot n'est pas approuvé en reconfirmation.")
+	case errors.Is(err, imports.ErrReconfirmExpired):
+		response.Error(w, http.StatusGone, "L'approbation de reconfirmation a expiré.")
+	case errors.Is(err, imports.ErrReconfirmNothingPending):
+		response.Error(w, http.StatusConflict, "Aucune adresse à reconfirmer dans ce lot.")
+	default:
+		log.Printf("[admin] subscriberImportReconfirm: %v", err)
+		response.BadRequest(w, err.Error())
+	}
+}
+
+// GET /v1/admin/import/subscribers/{id}/reconfirm — vagues du lot, la plus
+// récente d'abord (suivi d'envoi, confirmations, expirations).
+func (h *Handler) subscriberImportReconfirmStatus(w http.ResponseWriter, r *http.Request) {
+	if _, ok := h.requireSuperadmin(w, r); !ok {
+		return
+	}
+	waves, err := h.subscriberImports.ListReconfirmWaves(r.Context(), chi.URLParam(r, "id"))
+	if err != nil {
+		log.Printf("[admin] subscriberImportReconfirmStatus: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]any{"waves": waves})
+}
+
+// POST /v1/admin/import/subscribers/{id}/reconfirm/purge — périme les demandes
+// échues et efface les jetons des abonnés restés non confirmés. Rejouable sans
+// effet. La non-confirmation n'est pas une opposition : aucune suppression.
+func (h *Handler) subscriberImportReconfirmPurge(w http.ResponseWriter, r *http.Request) {
+	staffID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	expired, err := h.subscriberImports.PurgeExpiredReconfirms(r.Context(), staffID, chi.URLParam(r, "id"))
+	if err != nil {
+		log.Printf("[admin] subscriberImportReconfirmPurge: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]any{"expired": expired})
 }

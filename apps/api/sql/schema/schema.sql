@@ -2249,3 +2249,77 @@ CREATE UNIQUE INDEX "EmailSuppression_global_key"
 -- CreateIndex
 CREATE UNIQUE INDEX "EmailSuppression_publication_key"
     ON "EmailSuppression"(email, "publicationId") WHERE "scope" = 'publication';
+
+-- CreateTable
+CREATE TABLE "SubscriberImportReconfirmWave" (
+    "id"            TEXT NOT NULL,
+    "batchId"       TEXT NOT NULL,
+    "publicationId" TEXT NOT NULL,
+    "decisionId"    TEXT NOT NULL,
+    "status"        TEXT NOT NULL DEFAULT 'queued',
+    "waveSize"      INTEGER NOT NULL,
+    "cursor"        TEXT,
+    "sentCount"     INTEGER NOT NULL DEFAULT 0,
+    "confirmedCount" INTEGER NOT NULL DEFAULT 0,
+    "expiredCount"  INTEGER NOT NULL DEFAULT 0,
+    "skippedCount"  INTEGER NOT NULL DEFAULT 0,
+    "expiresAt"     TIMESTAMP(3),
+    "completedAt"   TIMESTAMP(3),
+    "createdAt"     TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt"     TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "SubscriberImportReconfirmWave_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "SubscriberImportReconfirmWave_status_check" CHECK ("status" IN (
+        'queued', 'sending', 'paused', 'completed', 'cancelled'
+    )),
+    CONSTRAINT "SubscriberImportReconfirmWave_size_check" CHECK ("waveSize" > 0)
+);
+
+-- CreateIndex
+CREATE INDEX "SubscriberImportReconfirmWave_batch_idx"
+    ON "SubscriberImportReconfirmWave"("batchId", "createdAt" DESC);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SubscriberImportReconfirmWave_active_key"
+    ON "SubscriberImportReconfirmWave"("batchId")
+    WHERE "status" IN ('queued', 'sending', 'paused');
+
+-- CreateTable
+CREATE TABLE "SubscriberImportReconfirmRequest" (
+    "id"            TEXT NOT NULL,
+    "waveId"        TEXT NOT NULL,
+    "batchId"       TEXT NOT NULL,
+    "publicationId" TEXT NOT NULL,
+    "rowId"         TEXT,
+    "email"         TEXT NOT NULL,
+    "tokenHash"     TEXT NOT NULL,
+    "status"        TEXT NOT NULL DEFAULT 'pending',
+    "attempts"      INTEGER NOT NULL DEFAULT 0,
+    "sentAt"        TIMESTAMP(3),
+    "confirmedAt"   TIMESTAMP(3),
+    "expiresAt"     TIMESTAMP(3),
+    "createdAt"     TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt"     TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "SubscriberImportReconfirmRequest_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "SubscriberImportReconfirmRequest_status_check" CHECK ("status" IN (
+        'pending', 'sent', 'confirmed', 'expired', 'skipped'
+    ))
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SubscriberImportReconfirmRequest_token_key"
+    ON "SubscriberImportReconfirmRequest"("tokenHash");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SubscriberImportReconfirmRequest_wave_email_key"
+    ON "SubscriberImportReconfirmRequest"("waveId", "email");
+
+-- CreateIndex
+CREATE INDEX "SubscriberImportReconfirmRequest_wave_status_idx"
+    ON "SubscriberImportReconfirmRequest"("waveId", "status", "email");
+
+-- CreateIndex
+CREATE INDEX "SubscriberImportReconfirmRequest_expiry_idx"
+    ON "SubscriberImportReconfirmRequest"("expiresAt")
+    WHERE "status" IN ('pending', 'sent');
