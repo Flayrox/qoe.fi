@@ -24,7 +24,7 @@ import {
   updateNewsletterAction,
   type NewsletterIssue,
 } from './actions';
-import { notifyActionFailure } from '@/lib/authz-feedback';
+import { attemptWithStepUp } from '@/lib/authz-feedback';
 
 interface NewsletterClientProps {
   initialIssues: NewsletterIssue[];
@@ -73,12 +73,15 @@ export function NewsletterClient({ initialIssues }: NewsletterClientProps) {
 
   const save = async () => {
     setBusy(true);
-    const res = editing
-      ? await updateNewsletterAction(editing.id, { subject, previewText, html })
-      : await createNewsletterAction({ subject, previewText, html });
+    const res = await attemptWithStepUp(
+      () =>
+        editing
+          ? updateNewsletterAction(editing.id, { subject, previewText, html })
+          : createNewsletterAction({ subject, previewText, html }),
+      { fallback: 'Erreur lors de la sauvegarde' }
+    );
     setBusy(false);
     if (!res.success) {
-      toast.error(res.error || 'Erreur lors de la sauvegarde');
       return;
     }
     toast.success(editing ? 'Brouillon mis à jour' : 'Brouillon créé');
@@ -89,13 +92,13 @@ export function NewsletterClient({ initialIssues }: NewsletterClientProps) {
   const remove = async (id: string) => {
     if (!confirm('Supprimer ce brouillon ?')) return;
     setBusyId(id);
-    const res = await deleteNewsletterAction(id);
+    const res = await attemptWithStepUp(() => deleteNewsletterAction(id), {
+      fallback: 'Suppression impossible',
+    });
     setBusyId(null);
     if (res.success) {
       toast.success('Brouillon supprimé');
       await refresh();
-    } else {
-      notifyActionFailure(res, 'Suppression impossible');
     }
   };
 
@@ -107,13 +110,15 @@ export function NewsletterClient({ initialIssues }: NewsletterClientProps) {
     )
       return;
     setBusyId(issue.id);
-    const res = await sendNewsletterAction(issue.id);
+    // Envoi de campagne : action N2. Si le refus demande une preuve forte, on
+    // ouvre la vérification puis on rejoue l'envoi sans quitter la page.
+    const res = await attemptWithStepUp(() => sendNewsletterAction(issue.id), {
+      fallback: 'Envoi impossible',
+    });
     setBusyId(null);
     if (res.success) {
       toast.success(t`Envoi lancé — les abonnés recevront l'email sous quelques minutes.`);
       await refresh();
-    } else {
-      notifyActionFailure(res, 'Envoi impossible');
     }
   };
 

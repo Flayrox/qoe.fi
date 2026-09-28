@@ -39,7 +39,7 @@ import {
 } from '@/app/(creator)/media/actions';
 import { DeveloperNav } from './developer-nav';
 import { cn } from '@qoe/utils';
-import { notifyActionFailure } from '@/lib/authz-feedback';
+import { attemptWithStepUp } from '@/lib/authz-feedback';
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error) return error.message;
@@ -280,11 +280,12 @@ export function DeveloperClient({
 
     setIsGeneratingKey(true);
     try {
-      if (isMediaWorkspace && activeWorkspace?.mediaId) {
-        const res = await createMediaApiKeyAction(
-          activeWorkspace.mediaId,
-          newKeyName.trim(),
-          newKeyScopes
+      const mediaId = activeWorkspace?.mediaId;
+      if (isMediaWorkspace && mediaId) {
+        // `attemptWithStepUp` rejoue l'action après une vérification de facteur.
+        const res = await attemptWithStepUp(
+          () => createMediaApiKeyAction(mediaId, newKeyName.trim(), newKeyScopes),
+          { fallback: t`Erreur lors de la génération de la clé.` }
         );
         if (res.success && res.key) {
           setKeyModalMode('generated');
@@ -305,11 +306,12 @@ export function DeveloperClient({
           setNewKeyName('');
           setNewKeyScopes([...allowedScopes]);
           toast.success(t`Nouvelle clé d'API Média générée avec succès !`);
-        } else {
-          notifyActionFailure(res, t`Erreur lors de la génération de la clé.`);
         }
       } else {
-        const res = await generateApiKeyAction({ name: newKeyName, scopes: newKeyScopes });
+        const res = await attemptWithStepUp(
+          () => generateApiKeyAction({ name: newKeyName, scopes: newKeyScopes }),
+          { fallback: t`Erreur lors de la génération de la clé.` }
+        );
         if (res.ok && res.data?.apiKey) {
           setKeyModalMode('generated');
           setGeneratedKey(res.data.apiKey);
@@ -329,10 +331,6 @@ export function DeveloperClient({
           setNewKeyName('');
           setNewKeyScopes([...allowedScopes]);
           toast.success(t`Nouvelle clé d'API générée avec succès !`);
-        } else {
-          // Refus explicable côté Go (garde d'autorisation) : on guide au lieu
-          // d'échouer en silence.
-          notifyActionFailure(res, t`Erreur lors de la génération de la clé.`);
         }
       }
     } catch (err: unknown) {
@@ -352,25 +350,26 @@ export function DeveloperClient({
   const handleRotateKey = async (id: string) => {
     setIsRotatingKeyId(id);
     try {
-      if (isMediaWorkspace && activeWorkspace?.mediaId) {
-        const res = await rotateMediaApiKeyAction(activeWorkspace.mediaId, id);
+      const mediaId = activeWorkspace?.mediaId;
+      if (isMediaWorkspace && mediaId) {
+        const res = await attemptWithStepUp(() => rotateMediaApiKeyAction(mediaId, id), {
+          fallback: t`Erreur lors de la rotation de la clé.`,
+        });
         if (res.success && res.key) {
           setKeyModalMode('rotated');
           setGeneratedKey(res.key.secret);
           setShowKeyModal(true);
           toast.success(t`Clé d'API rotatée avec succès.`);
-        } else {
-          notifyActionFailure(res, t`Erreur lors de la rotation de la clé.`);
         }
       } else {
-        const res = await rotateApiKeyAction(id);
+        const res = await attemptWithStepUp(() => rotateApiKeyAction(id), {
+          fallback: t`Erreur lors de la rotation de la clé.`,
+        });
         if (res.ok && res.data?.apiKey) {
           setKeyModalMode('rotated');
           setGeneratedKey(res.data.apiKey);
           setShowKeyModal(true);
           toast.success(t`Clé d'API rotatée avec succès.`);
-        } else {
-          notifyActionFailure(res, t`Erreur lors de la rotation de la clé.`);
         }
       }
     } catch (err: unknown) {
@@ -384,23 +383,24 @@ export function DeveloperClient({
   const handleRevokeKey = async (id: string) => {
     setIsRevokingKeyId(id);
     try {
-      if (isMediaWorkspace && activeWorkspace?.mediaId) {
-        const res = await revokeMediaApiKeyAction(activeWorkspace.mediaId, id);
+      const mediaId = activeWorkspace?.mediaId;
+      if (isMediaWorkspace && mediaId) {
+        const res = await attemptWithStepUp(() => revokeMediaApiKeyAction(mediaId, id), {
+          fallback: t`Erreur lors de la révocation de la clé.`,
+        });
         if (res.success) {
           setKeys(keys.filter((k) => k.id !== id));
           setConfirmDeleteId(null);
           toast.success(t`Clé d'API révoquée avec succès.`);
-        } else {
-          notifyActionFailure(res, t`Erreur lors de la révocation de la clé.`);
         }
       } else {
-        const res = await revokeApiKeyAction(id);
+        const res = await attemptWithStepUp(() => revokeApiKeyAction(id), {
+          fallback: t`Erreur lors de la révocation de la clé.`,
+        });
         if (res.ok) {
           setKeys(keys.filter((k) => k.id !== id));
           setConfirmDeleteId(null);
           toast.success(t`Clé d'API révoquée avec succès.`);
-        } else {
-          notifyActionFailure(res, t`Erreur lors de la révocation de la clé.`);
         }
       }
     } catch (err: unknown) {

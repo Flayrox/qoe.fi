@@ -47,6 +47,65 @@ func (s *Service) MFA(ctx context.Context, userID, authorization string) (map[st
 func (s *Service) MFARequest(ctx context.Context, userID, authorization, method, path string, payload map[string]any) (map[string]any, error) {
 	return s.gotrueRequest(ctx, userID, authorization, method, path, payload)
 }
+
+// defaultFactorName est le nom lisible du premier facteur TOTP.
+const defaultFactorName = "qoefi"
+
+// NextFactorName choisit un `friendly_name` libre pour un nouveau facteur TOTP.
+//
+// GoTrue refuse deux facteurs du même nom sur un même compte (`422`
+// `mfa_factor_name_conflict`). Une inscription interrompue — l'utilisateur
+// ferme l'onglet avant de saisir son code — laisse derrière elle un facteur
+// non vérifié, et toute nouvelle tentative échouait alors définitivement :
+// impossible de configurer la MFA, donc impossible de débloquer une action
+// sensible. Ici on numérote simplement le nom jusqu'à en trouver un libre.
+func (s *Service) NextFactorName(ctx context.Context, userID, authorization string) string {
+	return s.nextFactorName(ctx, userID, authorization, defaultFactorName, s.MFA)
+}
+
+// nextFactory permet de tester la numérotation sans appeler GoTrue.
+func (s *Service) nextFactorName(
+	ctx context.Context,
+	userID, authorization, base string,
+	list func(context.Context, string, string) (map[string]any, error),
+) string {
+	used := map[string]bool{}
+	if data, err := list(ctx, userID, authorization); err == nil {
+		collect := func(value any) {
+			items, ok := value.([]any)
+			if !ok {
+				return
+			}
+			for _, item := range items {
+				factor, ok := item.(map[string]any)
+				if !ok {
+					continue
+				}
+				if name, ok := factor["friendly_name"].(string); ok && name != "" {
+					used[name] = true
+				}
+			}
+		}
+		collect(data["all"])
+		collect(data["totp"])
+		collect(data["phone"])
+	} else {
+		// Liste indisponible : on garde un nom stable plutôt que d'inventer un
+		// suffixe aléatoire qui s'accumulerait à chaque tentative.
+		return base
+	}
+
+	if !used[base] {
+		return base
+	}
+	for i := 2; i < 1000; i++ {
+		candidate := fmt.Sprintf("%s %d", base, i)
+		if !used[candidate] {
+			return candidate
+		}
+	}
+	return fmt.Sprintf("%s %d", base, time.Now().Unix())
+}
 func (s *Service) MFADelete(ctx context.Context, userID, authorization, path string) error {
 	_, err := s.gotrueRequest(ctx, userID, authorization, http.MethodDelete, path, nil)
 	return err

@@ -34,7 +34,7 @@ import { SafeAvatar } from '@qoe/ui';
 import { searchArticleContributorsAction } from '@qoe/sdk/actions/articles';
 import { toast } from '@qoe/ui/toast';
 import { cn } from '@qoe/utils';
-import { notifyActionFailure } from '@/lib/authz-feedback';
+import { attemptWithStepUp } from '@/lib/authz-feedback';
 import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
 import {
@@ -242,11 +242,10 @@ export function MediaStudioClient({
       return;
     }
     setCreating(true);
-    const res = await createMediaAction(
-      createName,
-      createSlug,
-      createBio || undefined,
-      createLogo || undefined
+    const res = await attemptWithStepUp(
+      () =>
+        createMediaAction(createName, createSlug, createBio || undefined, createLogo || undefined),
+      { fallback: t`Impossible de créer le Média.` }
     );
     setCreating(false);
     if (res.success) {
@@ -256,8 +255,6 @@ export function MediaStudioClient({
       )}; path=/; max-age=2592000`;
       router.push('/media');
       router.refresh();
-    } else {
-      notifyActionFailure(res, t`Impossible de créer le Média.`);
     }
   };
 
@@ -269,7 +266,10 @@ export function MediaStudioClient({
     }
     const username = selectedMember.username;
     setInviting(true);
-    const res = await inviteMediaMemberAction(detail.id, username, inviteRole);
+    const res = await attemptWithStepUp(
+      () => inviteMediaMemberAction(detail.id, username, inviteRole),
+      { fallback: t`Échec de l'ajout du collaborateur.` }
+    );
     setInviting(false);
     if (res.success) {
       toast.success(
@@ -281,8 +281,6 @@ export function MediaStudioClient({
       setMemberQuery('');
       setMemberResults([]);
       loadDetail(detail.id);
-    } else {
-      notifyActionFailure(res, t`Échec de l'ajout du collaborateur.`);
     }
   };
 
@@ -355,36 +353,38 @@ export function MediaStudioClient({
   const handleCreateInviteLink = async () => {
     if (!detail) return;
     setCreatingLink(true);
-    const res = await createMediaInviteLinkAction(detail.id, linkRole, linkExpiresIn, linkMaxUses);
+    const res = await attemptWithStepUp(
+      () => createMediaInviteLinkAction(detail.id, linkRole, linkExpiresIn, linkMaxUses),
+      { fallback: t`Échec de la création du lien.` }
+    );
     setCreatingLink(false);
     if (res.success) {
       toast.success(t`Lien d'invitation généré.`);
       setInviteLinks((prev) => [res.link, ...prev]);
       void copyInviteLink(res.link);
-    } else {
-      notifyActionFailure(res, t`Échec de la création du lien.`);
     }
   };
 
   const handleRevokeInviteLink = async (linkId: string) => {
     if (!detail) return;
-    const res = await revokeMediaInviteLinkAction(detail.id, linkId);
+    const res = await attemptWithStepUp(() => revokeMediaInviteLinkAction(detail.id, linkId), {
+      fallback: t`Échec de la révocation du lien.`,
+    });
     if (res.success) {
       toast.success(t`Lien d'invitation révoqué.`);
       setInviteLinks((prev) => prev.filter((item) => item.id !== linkId));
-    } else {
-      notifyActionFailure(res, t`Échec de la révocation du lien.`);
     }
   };
 
   const handleRoleChange = async (memberUserId: string, role: string) => {
     if (!detail) return;
-    const res = await updateMediaMemberRoleAction(detail.id, memberUserId, role);
+    const res = await attemptWithStepUp(
+      () => updateMediaMemberRoleAction(detail.id, memberUserId, role),
+      { fallback: t`Échec de la mise à jour du rôle.` }
+    );
     if (res.success) {
       toast.success(t`Rôle mis à jour.`);
       loadDetail(detail.id);
-    } else {
-      notifyActionFailure(res, 'Erreur');
     }
   };
 
@@ -398,10 +398,9 @@ export function MediaStudioClient({
     );
     if (perms.has(permission)) perms.delete(permission);
     else perms.add(permission);
-    const res = await updateMediaMemberPermissionsAction(
-      detail.id,
-      memberUserId,
-      Array.from(perms)
+    const res = await attemptWithStepUp(
+      () => updateMediaMemberPermissionsAction(detail.id, memberUserId, Array.from(perms)),
+      { fallback: t`Échec de la mise à jour des permissions.` }
     );
     if (res.success) {
       toast.success(t`Permissions mises à jour.`);
@@ -412,12 +411,12 @@ export function MediaStudioClient({
   const handleRemoveMember = async (memberUserId: string, memberName: string) => {
     if (!detail) return;
     if (!window.confirm(`Retirer ${memberName} du Média ?`)) return;
-    const res = await removeMediaMemberAction(detail.id, memberUserId);
+    const res = await attemptWithStepUp(() => removeMediaMemberAction(detail.id, memberUserId), {
+      fallback: t`Échec du retrait du membre.`,
+    });
     if (res.success) {
       toast.success(t`Membre retiré.`);
       loadDetail(detail.id);
-    } else {
-      notifyActionFailure(res, 'Erreur');
     }
   };
 
@@ -1241,30 +1240,32 @@ function MediaSettingsForm({
 
   const handleSave = async () => {
     setSaving(true);
-    const res = await updateMediaSettingsAction(mediaId, {
-      name: form.name,
-      bio: form.bio ?? null,
-      logoUrl: form.logoUrl ?? null,
-      subdomain: form.subdomain ?? null,
-      customDomain: form.customDomain ?? null,
-      heroText: form.heroText ?? null,
-      headerImageUrl: form.headerImageUrl ?? null,
-      footerText: form.footerText ?? null,
-      accentColor: form.accentColor ?? null,
-      themeMode: form.themeMode ?? null,
-      layoutStyle: form.layoutStyle ?? null,
-      seoTitle: form.seoTitle ?? null,
-      seoDescription: form.seoDescription ?? null,
-      allowIndexing: form.allowIndexing,
-      fontFamily: form.fontFamily ?? null,
-      supportUrl: form.supportUrl ?? null,
-    });
+    const res = await attemptWithStepUp(
+      () =>
+        updateMediaSettingsAction(mediaId, {
+          name: form.name,
+          bio: form.bio ?? null,
+          logoUrl: form.logoUrl ?? null,
+          subdomain: form.subdomain ?? null,
+          customDomain: form.customDomain ?? null,
+          heroText: form.heroText ?? null,
+          headerImageUrl: form.headerImageUrl ?? null,
+          footerText: form.footerText ?? null,
+          accentColor: form.accentColor ?? null,
+          themeMode: form.themeMode ?? null,
+          layoutStyle: form.layoutStyle ?? null,
+          seoTitle: form.seoTitle ?? null,
+          seoDescription: form.seoDescription ?? null,
+          allowIndexing: form.allowIndexing,
+          fontFamily: form.fontFamily ?? null,
+          supportUrl: form.supportUrl ?? null,
+        }),
+      { fallback: t`Échec de l'enregistrement des réglages du Média.` }
+    );
     setSaving(false);
     if (res.success) {
       toast.success(t`Réglages du Média enregistrés !`);
       onSaved();
-    } else {
-      notifyActionFailure(res, 'Erreur');
     }
   };
 

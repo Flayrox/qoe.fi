@@ -7,17 +7,16 @@ import { URLS } from '@qoe/config';
 import {
   changeAccountSecurityEmailAction,
   changeAccountSecurityPasswordAction,
-  enrollAccountSecurityMfaAction,
   exportAccountSecurityDataAction,
   getAccountSecurityConsentAction,
   getAccountSecurityIdentityAction,
-  getAccountSecurityMfaAction,
   getAccountSecuritySessionsAction,
   requestAccountSecurityDeletionAction,
   revokeAllAccountSessionsAction,
   revokeOtherAccountSessionsAction,
   updateAccountConsentAction,
 } from '../actions';
+import { MfaPanel } from './mfa-panel';
 
 export interface AccountSecurityProfile {
   email: string;
@@ -33,7 +32,6 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
   const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [currentPassword, setCurrentPassword] = useState('');
-  const [mfaFactors, setMfaFactors] = useState<Record<string, unknown> | null>(null);
   const [mfaBusy, setMfaBusy] = useState(false);
   const [sessions, setSessions] = useState<
     Array<{ id: string; clientId: string; current: boolean }>
@@ -49,9 +47,6 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
     getAccountSecurityIdentityAction()
       .then((result) => setIdentity((current) => ({ ...current, email: result.email })))
       .catch(() => undefined);
-    getAccountSecurityMfaAction()
-      .then(setMfaFactors)
-      .catch(() => undefined);
     getAccountSecuritySessionsAction()
       .then((r) => setSessions(r.sessions))
       .catch(() => undefined);
@@ -59,19 +54,6 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
       .then(setConsent)
       .catch(() => undefined);
   }, []);
-
-  async function enrollMfa() {
-    setMfaBusy(true);
-    try {
-      const result = await enrollAccountSecurityMfaAction();
-      setMfaFactors(result);
-      toast.success('Scannez le QR code avec votre application d’authentification.');
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'MFA indisponible.');
-    } finally {
-      setMfaBusy(false);
-    }
-  }
 
   async function exportData() {
     setBusy(true);
@@ -208,13 +190,6 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
             Changer le mot de passe
           </button>
           <button
-            disabled={mfaBusy}
-            onClick={enrollMfa}
-            className="rounded-lg border px-3 py-2 text-left text-sm disabled:opacity-50"
-          >
-            {mfaFactors ? 'MFA configurée — gérer le facteur' : 'Activer la MFA'}
-          </button>
-          <button
             onClick={async () => {
               setMfaBusy(true);
               try {
@@ -252,6 +227,8 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
           </button>
         </div>
       </div>
+
+      <MfaPanel />
 
       <div className="rounded-xl border border-border/50 bg-card p-5 space-y-3">
         <h3 className="font-semibold">Consentements</h3>

@@ -26,7 +26,7 @@ import {
   type MediaApiKeyInfo,
   type MediaApiKeyCreatedInfo,
 } from './actions';
-import { notifyActionFailure } from '@/lib/authz-feedback';
+import { attemptWithStepUp, notifyActionFailure } from '@/lib/authz-feedback';
 
 const MEDIA_SCOPES = ['READ', 'WRITE', 'ANALYTICS'] as const;
 type MediaScope = (typeof MEDIA_SCOPES)[number];
@@ -127,7 +127,10 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
     }
 
     setIsCreating(true);
-    const res = await createMediaApiKeyAction(mediaId, newKeyName.trim(), newKeyScopes);
+    const res = await attemptWithStepUp(
+      () => createMediaApiKeyAction(mediaId, newKeyName.trim(), newKeyScopes),
+      { fallback: t`Erreur lors de la création de la clé API` }
+    );
     setIsCreating(false);
 
     if (res.success && res.key) {
@@ -140,8 +143,6 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
         keyName: res.key.name,
       });
       fetchKeys();
-    } else {
-      notifyActionFailure(res, t`Erreur lors de la création de la clé API`);
     }
   };
 
@@ -150,15 +151,16 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
     if (!renameData || !renameData.name.trim()) return;
 
     setIsRenaming(true);
-    const res = await updateMediaApiKeyAction(mediaId, renameData.id, renameData.name.trim());
+    const res = await attemptWithStepUp(
+      () => updateMediaApiKeyAction(mediaId, renameData.id, renameData.name.trim()),
+      { fallback: t`Erreur de renommage` }
+    );
     setIsRenaming(false);
 
     if (res.success) {
       toast.success(t`Nom de la clé mis à jour.`);
       setRenameData(null);
       fetchKeys();
-    } else {
-      notifyActionFailure(res, t`Erreur de renommage`);
     }
   };
 
@@ -172,7 +174,9 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
     }
 
     setRotatingKeyId(key.id);
-    const res = await rotateMediaApiKeyAction(mediaId, key.id);
+    const res = await attemptWithStepUp(() => rotateMediaApiKeyAction(mediaId, key.id), {
+      fallback: t`Erreur lors de la rotation de la clé`,
+    });
     setRotatingKeyId(null);
 
     if (res.success && res.key) {
@@ -182,22 +186,20 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
         keyName: key.name,
       });
       fetchKeys();
-    } else {
-      notifyActionFailure(res, t`Erreur lors de la rotation de la clé`);
     }
   };
 
   const handleRevoke = async (keyId: string) => {
     setRevokingKeyId(keyId);
-    const res = await revokeMediaApiKeyAction(mediaId, keyId);
+    const res = await attemptWithStepUp(() => revokeMediaApiKeyAction(mediaId, keyId), {
+      fallback: t`Erreur lors de la révocation de la clé`,
+    });
     setRevokingKeyId(null);
     setConfirmRevokeId(null);
 
     if (res.success) {
       toast.success(t`Clé API révoquée avec succès.`);
       fetchKeys();
-    } else {
-      notifyActionFailure(res, t`Erreur lors de la révocation de la clé`);
     }
   };
 

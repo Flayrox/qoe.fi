@@ -21,6 +21,7 @@ import {
   authzSecurityHref,
   isStepUpCode,
 } from '@qoe/sdk/actions/utils/authz';
+import { requestStepUp } from '@/features/security/step-up';
 
 /** Extrait un message lisible d'une erreur, d'un `ActionResult` ou d'un échec maison. */
 export function readMessage(source: unknown): string | null {
@@ -73,4 +74,54 @@ export function notifyActionFailure(failure: unknown, fallback: string): void {
   }
 
   toast.error(message ?? fallback);
+}
+
+/** Une action a-t-elle échoué ? Couvre `ActionResult` et les échecs maison. */
+function isFailure(result: unknown, custom?: (result: unknown) => boolean): boolean {
+  if (custom) return custom(result);
+  if (!result || typeof result !== 'object') return false;
+  const value = result as { ok?: unknown; success?: unknown };
+  if (typeof value.ok === 'boolean') return value.ok === false;
+  if (typeof value.success === 'boolean') return value.success === false;
+  return false;
+}
+
+/**
+ * Exécute une action sensible et, si le refus demande un step-up, propose la
+ * vérification d'un facteur fort puis **rejoue automatiquement** l'action une
+ * fois la session élevée.
+ *
+ * C'est le complément de `notifyActionFailure` : plus besoin de quitter sa
+ * page, de retrouver les réglages de sécurité et de relancer l'action à la
+ * main. Le jeton obtenu côté navigateur porte `aal2` et un `amr` horodaté, ce
+ * que le garde Go accepte pour une action récente (N2).
+ *
+ * Toute autre erreur (droits manquants, session expirée, erreur métier) est
+ * affichée sans rejeu.
+ */
+export async function attemptWithStepUp<T>(
+  run: () => Promise<T>,
+  options: { fallback: string; failed?: (result: unknown) => boolean; reason?: string }
+): Promise<T> {
+  const first = await run();
+  if (!isFailure(first, options.failed)) return first;
+
+  const code = authzCodeOf(first);
+  if (!isStepUpCode(code)) {
+    notifyActionFailure(first, options.fallback);
+    return first;
+  }
+
+  const verified = await requestStepUp(options.reason ?? authzGuidance(code)?.description);
+  if (!verified) {
+    // Annulé ou aucun facteur : on explique pourquoi l'action reste bloquée.
+    notifyActionFailure(first, options.fallback);
+    return first;
+  }
+
+  const retried = await run();
+  if (isFailure(retried, options.failed)) {
+    notifyActionFailure(retried, options.fallback);
+  }
+  return retried;
 }

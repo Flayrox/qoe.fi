@@ -55,7 +55,7 @@ func (c *goTrueClient) request(ctx context.Context, userID, method, path string,
 	var out map[string]any
 	_ = json.NewDecoder(res.Body).Decode(&out)
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		return nil, fmt.Errorf("fournisseur d'identité: statut %d", res.StatusCode)
+		return nil, errors.New(identityErrorMessage(res.StatusCode, out))
 	}
 	return out, nil
 }
@@ -90,9 +90,27 @@ func (c *goTrueClient) requestWithAuthorization(ctx context.Context, userID, aut
 	var out map[string]any
 	_ = json.NewDecoder(res.Body).Decode(&out)
 	if res.StatusCode < 200 || res.StatusCode >= 300 {
-		return nil, fmt.Errorf("fournisseur d'identité: statut %d", res.StatusCode)
+		return nil, errors.New(identityErrorMessage(res.StatusCode, out))
 	}
 	return out, nil
+}
+
+// identityErrorMessage extrait le message exploitable d'une réponse d'erreur du
+// fournisseur d'identité. Sans cela, l'utilisateur ne voyait qu'un code de
+// statut (par exemple « statut 422 ») au lieu de la raison réelle — nom de
+// facteur déjà pris, code expiré, facteur déjà vérifié…
+func identityErrorMessage(status int, out map[string]any) string {
+	message := ""
+	for _, key := range []string{"msg", "message", "error_description", "error"} {
+		if value, ok := out[key].(string); ok && strings.TrimSpace(value) != "" {
+			message = strings.TrimSpace(value)
+			break
+		}
+	}
+	if message == "" {
+		return fmt.Sprintf("fournisseur d'identité: statut %d", status)
+	}
+	return fmt.Sprintf("fournisseur d'identité: %s", message)
 }
 
 func (c *goTrueClient) verifyPassword(ctx context.Context, email, password string) error {
