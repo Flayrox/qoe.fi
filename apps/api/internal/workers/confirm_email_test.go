@@ -262,3 +262,53 @@ func TestBulkFanout_NeverMailsUnconfirmedSubscribers(t *testing.T) {
 		}
 	}
 }
+
+// TestConfirmEmailWorker_KillSwitchStopsSend — l'arrêt d'urgence global coupe
+// l'envoi mais ne détruit pas la demande : le token reste en base, le
+// destinataire peut redemander un lien (qui invalidera celui-ci). La tâche
+// est consommée sans erreur (pas de retry qui spammerait au redémarrage).
+func TestConfirmEmailWorker_KillSwitchStopsSend(t *testing.T) {
+	ctx := context.Background()
+	pubID, email, _ := seedConfirmFixture(t, ctx)
+	const token = "tok-kill-switch"
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Subscriber" (id, email, "publicationId", "isActive", "receiveArticles", "confirmationToken", "createdAt", "updatedAt")
+		 VALUES (gen_random_uuid()::text, $1, $2, true, false, $3, now(), now())
+		 ON CONFLICT ("email", "publicationId") DO UPDATE SET "confirmationToken" = EXCLUDED."confirmationToken"`,
+		email, pubID, token); err != nil {
+		t.Fatalf("seed pending: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO feature_flags (key, is_enabled, description, target_roles)
+		 VALUES ('workers-email-kill', true, 'test', '{all}')
+		 ON CONFLICT (key) DO UPDATE SET is_enabled = EXCLUDED.is_enabled`); err != nil {
+		t.Fatalf("set kill: %v", err)
+	}
+	defer poolTest.Exec(ctx, `DELETE FROM feature_flags WHERE key = 'workers-email-kill'`)
+
+	fake := &fakeProvider{}
+	w := NewConfirmEmailWorker(poolTest)
+	w.SetEmailProvider(fake, "noreply@qoe.fi")
+
+	payload, err := json.Marshal(queue.SubscriberConfirmPayload{Email: email, PublicationID: pubID})
+	if err != nil {
+		t.Fatalf("payload: %v", err)
+	}
+	if err := w.HandleSubscriberConfirm(ctx, asynq.NewTask(queue.TaskSubscriberConfirm, payload)); err != nil {
+		t.Fatalf("HandleSubscriberConfirm (kill): %v", err)
+	}
+	if len(fake.sent) != 0 {
+		t.Fatalf("arrêt d'urgence a envoyé %d emails, attendu 0", len(fake.sent))
+	}
+	// Demande intacte : token toujours présent, toujours en attente.
+	var tok *string
+	var receive bool
+	if err := poolTest.QueryRow(ctx,
+		`SELECT "confirmationToken", "receiveArticles" FROM "Subscriber" WHERE email = $1 AND "publicationId" = $2`,
+		email, pubID).Scan(&tok, &receive); err != nil {
+		t.Fatalf("read subscriber: %v", err)
+	}
+	if tok == nil || *tok != token || receive {
+		t.Fatal("la demande aurait dû survivre intacte à l'arrêt d'urgence")
+	}
+}

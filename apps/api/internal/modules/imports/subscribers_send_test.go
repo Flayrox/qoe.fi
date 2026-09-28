@@ -407,3 +407,67 @@ func TestSendWave_SuppressionEntreSnapshotEtClaim(t *testing.T) {
 		t.Fatalf("consommé = %d, attendu 1 (l'écartée ne réserve rien)", consumed)
 	}
 }
+
+// TestSendWave_KillSwitchPauses — l'arrêt d'urgence global met la vague en
+// pause avec événement tracé, sans rien envoyer et sans consommer de budget.
+// Reprise manuelle staff ensuite (pas de reprise automatique au redémarrage).
+func TestSendWave_KillSwitchPauses(t *testing.T) {
+	requirePool(t)
+	ctx := context.Background()
+	seedImport(t, ctx)
+	svc := newTestService()
+
+	emails := []string{"k1@test.dev", "k2@test.dev"}
+	seedSendBatch(t, ctx, "batch_send_kill", importPubPerso, importOwnerID, emails)
+	wave, err := svc.StartSendWave(ctx, importOwnerID, "batch_send_kill", 10)
+	if err != nil {
+		t.Fatalf("StartSendWave: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO feature_flags (key, is_enabled, description, target_roles)
+		 VALUES ('workers-email-kill', true, 'test', '{all}')
+		 ON CONFLICT (key) DO UPDATE SET is_enabled = EXCLUDED.is_enabled`); err != nil {
+		t.Fatalf("set kill: %v", err)
+	}
+	defer poolTest.Exec(ctx, `DELETE FROM feature_flags WHERE key = 'workers-email-kill'`)
+
+	paused, err := svc.PauseSendWaveForKill(ctx, wave.ID)
+	if err != nil {
+		t.Fatalf("PauseSendWaveForKill: %v", err)
+	}
+	if !paused {
+		t.Fatal("vague non mise en pause malgré l'arrêt d'urgence")
+	}
+	var status string
+	if err := poolTest.QueryRow(ctx,
+		`SELECT "status" FROM "ImportSendWave" WHERE "id" = $1`, wave.ID).Scan(&status); err != nil {
+		t.Fatalf("statut vague: %v", err)
+	}
+	if status != "paused" {
+		t.Fatalf("statut vague = %q, attendu paused", status)
+	}
+	var consumed int
+	if err := poolTest.QueryRow(ctx,
+		`SELECT "consumed" FROM "ImportSendBudget" WHERE "batchId" = 'batch_send_kill'`).Scan(&consumed); err != nil {
+		t.Fatalf("budget: %v", err)
+	}
+	if consumed != 0 {
+		t.Fatalf("budget consommé = %d pendant l'arrêt d'urgence, attendu 0", consumed)
+	}
+	var events int
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COUNT(*) FROM "SubscriberImportEvent" WHERE "batchId" = 'batch_send_kill' AND "type" = 'paused' AND "actorKind" = 'system'`).Scan(&events); err != nil {
+		t.Fatalf("événements: %v", err)
+	}
+	// Sans kill, pas de pause : la méthode est un no-op transparent.
+	if _, err := poolTest.Exec(ctx, `DELETE FROM feature_flags WHERE key = 'workers-email-kill'`); err != nil {
+		t.Fatalf("clear kill: %v", err)
+	}
+	paused, err = svc.PauseSendWaveForKill(ctx, wave.ID)
+	if err != nil {
+		t.Fatalf("PauseSendWaveForKill (sans kill): %v", err)
+	}
+	if paused {
+		t.Fatal("pause sans arrêt d'urgence actif : la méthode doit être transparente")
+	}
+}

@@ -19,6 +19,7 @@ import (
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/comms"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/flags"
 	"github.com/qoefi/api/internal/queue"
@@ -195,6 +196,13 @@ func (n *NewsletterWorker) HandleArticlePublished(ctx context.Context, t *asynq.
 		log.Printf("[newsletter] release %s : envoi coupé (flag workers-newsletter-dispatch OFF)", p.ArticleID)
 		return nil
 	}
+	// Arrêt d'urgence global : distinct du coupe-feu campagnes (log séparé
+	// pour savoir lequel a coupé). Pas de matérialisation ici : au redémarrage
+	// manuel, le prochain événement repart proprement.
+	if comms.EmailKillEngaged(ctx, n.pool) {
+		log.Printf("[newsletter] release %s : arrêt d'urgence global (workers-email-kill), rien d'enfilé", p.ArticleID)
+		return nil
+	}
 	if n.ac != nil {
 		_ = queue.PublishArticleRelease(n.ac, queue.ArticleReleasePayload{ArticleID: p.ArticleID}, 0)
 	} else {
@@ -215,6 +223,10 @@ func (n *NewsletterWorker) HandleArticleRelease(ctx context.Context, t *asynq.Ta
 
 	if !n.dispatchEnabled(ctx) {
 		log.Printf("[newsletter] release %s : envoi coupé (flag workers-newsletter-dispatch OFF)", p.ArticleID)
+		return nil
+	}
+	if comms.EmailKillEngaged(ctx, n.pool) {
+		log.Printf("[newsletter] release %s : arrêt d'urgence global (workers-email-kill)", p.ArticleID)
 		return nil
 	}
 	if n.provider == nil {
@@ -305,6 +317,15 @@ func (n *NewsletterWorker) HandleNewsletterSend(ctx context.Context, t *asynq.Ta
 			return err
 		}
 		log.Printf("[newsletter] issue %s : envoi coupé (flag workers-newsletter-dispatch OFF), retour DRAFT", issueWithPub.ID)
+		return nil
+	}
+	// Arrêt d'urgence global : même repli que le coupe-feu campagnes (retour
+	// DRAFT, livraisons SENT conservées) pour une reprise propre et manuelle.
+	if comms.EmailKillEngaged(ctx, n.pool) {
+		if err := n.q.ResetNewsletterIssueToDraft(ctx, issueWithPub.ID); err != nil {
+			return err
+		}
+		log.Printf("[newsletter] issue %s : arrêt d'urgence global (workers-email-kill), retour DRAFT", issueWithPub.ID)
 		return nil
 	}
 

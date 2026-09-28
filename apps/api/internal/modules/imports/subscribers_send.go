@@ -36,6 +36,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/qoefi/api/internal/comms"
 	"github.com/qoefi/api/internal/queue"
 )
 
@@ -805,6 +806,40 @@ func (s *Service) CancelSendWave(ctx context.Context, staffID, waveID string) er
 		return err
 	}
 	return tx.Commit(ctx)
+}
+
+// PauseSendWaveForKill met une vague en pause quand l'arrêt d'urgence global
+// est actif. Retourne true si la vague a été (ou était déjà) mise en pause —
+// le worker s'arrête alors sans envoyer ni ré-enfiler. La reprise est
+// manuelle staff (l'ouverture rouvre une paused existante). Les livraisons en
+// attente restent en attente, le budget consommé reste consommé (un essai
+// réservé est un coût, même non envoyé — voir ClaimSendChunk).
+func (s *Service) PauseSendWaveForKill(ctx context.Context, waveID string) (bool, error) {
+	if !comms.EmailKillEngaged(ctx, s.pool) {
+		return false, nil
+	}
+	tag, err := s.pool.Exec(ctx, `
+		UPDATE "ImportSendWave"
+		SET "status" = 'paused', "updatedAt" = now()
+		WHERE "id" = $1 AND "status" IN ('queued', 'sending')`, waveID)
+	if err != nil {
+		return false, err
+	}
+	if tag.RowsAffected() == 0 {
+		return true, nil
+	}
+	var batchID string
+	if err := s.pool.QueryRow(ctx, `
+		SELECT "batchId" FROM "ImportSendWave" WHERE "id" = $1`, waveID).Scan(&batchID); err != nil {
+		return false, err
+	}
+	if err := s.recordEvent(ctx, batchID, "paused", "", "system", map[string]any{
+		"reason": "workers-email-kill", "waveId": waveID,
+	}); err != nil {
+		log.Printf("[imports] event pause vague d'envoi %s: %v", waveID, err)
+	}
+	log.Printf("[imports] vague d'envoi %s en pause (arrêt d'urgence global)", waveID)
+	return true, nil
 }
 
 // activeSendWave renvoie la vague d'envoi vivante d'un lot, ou un DTO vide.

@@ -533,3 +533,70 @@ func TestNewsletterSend_Failure(t *testing.T) {
 		t.Fatalf("retry a envoyé %d emails, attendu 0 (issue déjà traitée)", len(fake.sent))
 	}
 }
+
+// TestNewsletterSend_EmailKillSwitch — l'arrêt d'urgence global
+// (workers-email-kill) coupe les campagnes comme le coupe-feu dédié, avec le
+// même repli (retour DRAFT, livraisons SENT conservées). Contrairement au
+// coupe-feu campagnes, il coupe aussi confirm/welcome/reconfirm/import-send
+// (testés dans leurs modules) — mais jamais l'auth, qui ne passe par aucun
+// worker.
+func TestNewsletterSend_EmailKillSwitch(t *testing.T) {
+	requirePool(t)
+	ctx := context.Background()
+	for _, table := range []string{`"NewsletterDelivery"`, `"NewsletterIssue"`, `"Subscriber"`, `"Publication"`} {
+		if _, err := poolTest.Exec(ctx, `TRUNCATE TABLE `+table+` CASCADE`); err != nil {
+			t.Fatalf("truncate %s: %v", table, err)
+		}
+	}
+	if _, err := poolTest.Exec(ctx, `DELETE FROM feature_flags WHERE key = 'workers-email-kill'`); err != nil {
+		t.Fatalf("clear flag: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Publication" (id, name, slug, "updatedAt") VALUES ('pub_nl_ekill', 'EKill Pub', 'ekill-pub', now())`); err != nil {
+		t.Fatalf("publication: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Subscriber" (id, email, "updatedAt", "publicationId")
+		 VALUES ('sub_nl_ek1', 'ekill@test.dev', now(), 'pub_nl_ekill')`); err != nil {
+		t.Fatalf("subscriber: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "NewsletterIssue" (id, "publicationId", subject, html, status, "updatedAt")
+		 VALUES ('issue_nl_ek1', 'pub_nl_ekill', 'EKill', '<p>x</p>', 'SENDING', now())`); err != nil {
+		t.Fatalf("issue: %v", err)
+	}
+	// Arrêt d'urgence activé (comme depuis la console admin).
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO feature_flags (key, is_enabled, description, target_roles)
+		 VALUES ('workers-email-kill', true, 'test', '{all}')
+		 ON CONFLICT (key) DO UPDATE SET is_enabled = EXCLUDED.is_enabled`); err != nil {
+		t.Fatalf("set kill: %v", err)
+	}
+	defer poolTest.Exec(ctx, `DELETE FROM feature_flags WHERE key = 'workers-email-kill'`)
+
+	w := NewNewsletterWorker(poolTest)
+	w.SetFlags(flags.NewService(poolTest))
+	fake := &fakeProvider{}
+	w.SetEmailProvider(fake, "noreply@qoe.fi")
+
+	task, err := queue.NewNewsletterSendTask(queue.NewsletterSendPayload{IssueID: "issue_nl_ek1"})
+	if err != nil {
+		t.Fatalf("task: %v", err)
+	}
+	if err := w.HandleNewsletterSend(ctx, task); err != nil {
+		t.Fatalf("HandleNewsletterSend (kill): %v", err)
+	}
+
+	if len(fake.sent) != 0 {
+		t.Fatalf("arrêt d'urgence a envoyé %d emails, attendu 0", len(fake.sent))
+	}
+	var status string
+	if err := poolTest.QueryRow(ctx,
+		`SELECT status FROM "NewsletterIssue" WHERE id = 'issue_nl_ek1'`,
+	).Scan(&status); err != nil {
+		t.Fatalf("statut issue: %v", err)
+	}
+	if status != "DRAFT" {
+		t.Fatalf("statut issue = %q, attendu DRAFT (reprise propre et manuelle)", status)
+	}
+}

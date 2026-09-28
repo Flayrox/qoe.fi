@@ -37,6 +37,26 @@ motif, sans réservation budget). La reconfirmation la revérifiait déjà à
 l'envoi. Une erreur de lecture n'autorise jamais : la tranche échoue et
 retente avec backoff plutôt que d'envoyer vers une opposition non vérifiée.
 
+## Arrêt d'urgence global (`workers-email-kill`)
+
+En plus du coupe-feu campagnes (`workers-newsletter-dispatch`), un arrêt
+global coupe **tous** les envois d'e-mails portés par des workers :
+newsletters (avec le même repli que le coupe-feu : retour DRAFT, SENT
+conservés), confirmations, bienvenues et vagues (reconfirmation et envoi
+encadré : mise en pause + événement tracé, reprise manuelle staff).
+
+- Sémantique inversée et documentée aux deux endroits (Go + TS) : `true` =
+  tout stopper, `false` (défaut) = envois autorisés.
+- Les codes d'authentification ne passent par aucun worker (GoTrue direct) :
+  ils ne sont jamais concernés — une suspension newsletter n'interrompt pas
+  la récupération de compte, et un arrêt global non plus.
+- Défaut sûr : sans pool, table absente ou erreur de lecture, les envois
+  restent autorisés (même défaut que le coupe-feu existant ; quand la base
+  est injoignable, les workers ne peuvent de toute façon rien envoyer).
+- Confirmations/bienvenues : tâche consommée sans envoi, demande conservée
+  (token intact, nouveau lien possible). Vagues : pause, jamais de clôture
+  abusive — une vague en pause n'est pas une vague terminée.
+
 ## Reste du chantier fiche 04 (ordre de la fiche §17)
 
 1. Fiabilité : outbox transactionnelle + idempotence, files prioritaires,

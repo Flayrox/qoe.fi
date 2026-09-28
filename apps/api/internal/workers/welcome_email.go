@@ -25,6 +25,7 @@ import (
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/qoefi/api/internal/comms"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/queue"
 )
@@ -52,6 +53,13 @@ func (w *WelcomeEmailWorker) HandleSubscriberWelcome(ctx context.Context, t *asy
 	}
 	if w.provider == nil {
 		log.Printf("[welcome] aucun fournisseur email configuré (EMAIL_PROVIDER), email %s ignoré", p.Email)
+		return nil
+	}
+	// Arrêt d'urgence global (workers-email-kill) : la tâche est consommée
+	// sans envoi. L'abonnement reste confirmé ; seule la bienvenue est
+	// perdue — acceptable pour un message non critique, et journalisé.
+	if comms.EmailKillEngaged(ctx, w.pool) {
+		log.Printf("[welcome] arrêt d'urgence actif, email %s non envoyé", p.Email)
 		return nil
 	}
 
