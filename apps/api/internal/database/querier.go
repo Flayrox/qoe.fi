@@ -538,6 +538,7 @@ type Querier interface {
 	// suspendu ou sans email est exclu : l'email ne part pas dans le vide.
 	ListLegalNoticeRecipients(ctx context.Context, arg ListLegalNoticeRecipientsParams) ([]ListLegalNoticeRecipientsRow, error)
 	ListLegalNoticesAdmin(ctx context.Context, limitCount int32) ([]ListLegalNoticesAdminRow, error)
+	ListLegalRefusalsByUser(ctx context.Context, userID pgtype.UUID) ([]ListLegalRefusalsByUserRow, error)
 	ListLegalReviewsAdmin(ctx context.Context, limitCount int32) ([]ListLegalReviewsAdminRow, error)
 	ListLegalSuperadmins(ctx context.Context) ([]ListLegalSuperadminsRow, error)
 	// ═══════════════════════════════════════════════════════════════════
@@ -751,6 +752,11 @@ type Querier interface {
 	// La preuve est immuable : un re-clic renvoie la première acceptation sans
 	// la réécrire (sinon une source par défaut écraserait la preuve d'origine).
 	UpsertLegalAcceptance(ctx context.Context, arg UpsertLegalAcceptanceParams) (LegalAcceptance, error)
+	// Refus explicite d'une version (fiche 04 §11) : idempotent, ne touche jamais
+	// aux acceptations (refuser n'est pas « désaccepter ») et n'en crée aucune.
+	// Un refus postérieur à une acceptation est conservé à côté : l'historique
+	// montre les deux, dans l'ordre, sans réécriture.
+	UpsertLegalRefusal(ctx context.Context, arg UpsertLegalRefusalParams) (string, error)
 	// ─── Revues périodiques ──────────────────────────────────────────────
 	// Ouvre (ou retrouve) la revue d'une échéance. `DO UPDATE` sans effet permet
 	// de récupérer la ligne existante : une même échéance n'ouvre qu'une revue,

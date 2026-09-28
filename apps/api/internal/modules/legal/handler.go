@@ -39,6 +39,10 @@ func (h *Handler) RegisterProtected(r chi.Router) {
 	r.Post("/v1/legal/{slug}/accept", h.accept)
 	// Acceptation par lot : fin d'onboarding, portail multi-documents.
 	r.Post("/v1/legal/accept-batch", h.acceptBatch)
+	// Refus explicite par lot (fiche 04 §11) : le silence n'est ni un
+	// consentement ni un refus. Refuser n'efface rien et ne bloque ni
+	// l'export ni la suppression de compte.
+	r.Post("/v1/legal/decline-batch", h.declineBatch)
 	r.Get("/v1/me/legal-acceptances", h.myAcceptances)
 	r.Get("/v1/me/legal-pending", h.myPending)
 }
@@ -194,6 +198,35 @@ func (h *Handler) acceptBatch(w http.ResponseWriter, r *http.Request) {
 	items, err := h.svc.AcceptBatch(r.Context(), userID, AcceptBatchInput{
 		Locale: body.Locale, Source: body.Source, Method: body.Method, Slugs: body.Slugs,
 		IP: clientIP(r), UserAgent: r.UserAgent(),
+	})
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	response.Created(w, map[string]any{"items": items, "count": len(items)})
+}
+
+// POST /v1/legal/decline-batch — refuse explicitement plusieurs documents.
+// Authentification requise. Idempotent, audité comme les acceptations.
+func (h *Handler) declineBatch(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middleware.UserID(r.Context())
+	if !ok || userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	var body struct {
+		Locale string   `json:"locale"`
+		Source string   `json:"source"`
+		Slugs  []string `json:"slugs"`
+	}
+	if r.Body != nil {
+		_ = json.NewDecoder(r.Body).Decode(&body)
+	}
+	if strings.TrimSpace(body.Locale) == "" {
+		body.Locale = localeOf(r)
+	}
+	items, err := h.svc.DeclineBatch(r.Context(), userID, BatchDeclineInput{
+		Locale: body.Locale, Source: body.Source, Slugs: body.Slugs,
 	})
 	if err != nil {
 		h.fail(w, err)
