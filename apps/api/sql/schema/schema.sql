@@ -2095,3 +2095,157 @@ CREATE TABLE "legal_consent_export" (
 -- CreateIndex
 CREATE INDEX "legal_consent_export_created_idx"
     ON "legal_consent_export" ("generated_at" DESC);
+
+-- CreateTable
+CREATE TABLE "SubscriberImportBatch" (
+    "id"              TEXT NOT NULL,
+    "publicationId"   TEXT NOT NULL,
+    "mediaId"         TEXT,
+    "requesterId"     UUID NOT NULL,
+    "status"          TEXT NOT NULL DEFAULT 'draft',
+    "source"          TEXT NOT NULL DEFAULT 'other',
+    "sourceDetail"    TEXT,
+    "collectionPeriod" TEXT,
+    "lastSendAt"      TIMESTAMP(3),
+    "optInMethod"     TEXT,
+    "declarations"    JSONB NOT NULL DEFAULT '{}'::jsonb,
+    "proofRefs"       JSONB NOT NULL DEFAULT '[]'::jsonb,
+    "fileFingerprint" TEXT NOT NULL,
+    "fileVersion"     INTEGER NOT NULL DEFAULT 1,
+    "rowCount"        INTEGER NOT NULL DEFAULT 0,
+    "stats"           JSONB NOT NULL DEFAULT '{}'::jsonb,
+    "reviewDueAt"     TIMESTAMP(3),
+    "suspendedAt"     TIMESTAMP(3),
+    "submittedAt"     TIMESTAMP(3),
+    "createdAt"       TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt"       TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "SubscriberImportBatch_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "SubscriberImportBatch_status_check" CHECK ("status" IN (
+        'draft', 'submitted', 'reviewing', 'needs_info', 'rejected',
+        'approved_reconfirm', 'approved_direct', 'running', 'completed',
+        'suspended', 'cancelled'
+    )),
+    CONSTRAINT "SubscriberImportBatch_source_check" CHECK ("source" IN (
+        'substack', 'ghost', 'beehiiv', 'mailchimp', 'cms_export', 'csv_manual', 'other'
+    ))
+);
+
+-- CreateIndex
+CREATE INDEX "SubscriberImportBatch_publication_idx"
+    ON "SubscriberImportBatch"("publicationId", "createdAt" DESC);
+
+-- CreateIndex
+CREATE INDEX "SubscriberImportBatch_open_review_idx"
+    ON "SubscriberImportBatch"("submittedAt" ASC)
+    WHERE "status" IN ('submitted', 'reviewing', 'needs_info');
+
+-- CreateIndex
+CREATE INDEX "SubscriberImportBatch_requester_idx"
+    ON "SubscriberImportBatch"("requesterId", "createdAt" DESC);
+
+-- CreateTable
+CREATE TABLE "SubscriberImportRow" (
+    "id"           TEXT NOT NULL,
+    "batchId"      TEXT NOT NULL,
+    "email"        TEXT NOT NULL,
+    "status"       TEXT NOT NULL,
+    "reason"       TEXT,
+    "subscriberId" TEXT,
+    "excludedBy"   TEXT,
+    "createdAt"    TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt"    TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "SubscriberImportRow_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "SubscriberImportRow_status_check" CHECK ("status" IN (
+        'invalid', 'duplicate', 'suppressed', 'already_subscribed',
+        'pending_confirmation', 'eligible_direct', 'excluded', 'active'
+    ))
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SubscriberImportRow_batch_email_key"
+    ON "SubscriberImportRow"("batchId", "email");
+
+-- CreateIndex
+CREATE INDEX "SubscriberImportRow_batch_status_idx"
+    ON "SubscriberImportRow"("batchId", "status");
+
+-- CreateIndex
+CREATE INDEX "SubscriberImportRow_email_idx"
+    ON "SubscriberImportRow"(email);
+
+-- CreateTable
+CREATE TABLE "SubscriberImportDecision" (
+    "id"              TEXT NOT NULL,
+    "batchId"         TEXT NOT NULL,
+    "decision"        TEXT NOT NULL,
+    "actorId"         UUID,
+    "actorKind"       TEXT NOT NULL DEFAULT 'staff',
+    "internalReason"  TEXT,
+    "publicReason"    TEXT,
+    "limits"          JSONB NOT NULL DEFAULT '{}'::jsonb,
+    "fileVersion"     INTEGER NOT NULL,
+    "fileFingerprint" TEXT NOT NULL,
+    "expiresAt"       TIMESTAMP(3),
+    "createdAt"       TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "SubscriberImportDecision_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "SubscriberImportDecision_decision_check" CHECK ("decision" IN (
+        'needs_info', 'rejected', 'approved_reconfirm', 'approved_direct',
+        'suspended', 'resumed', 'cancelled'
+    )),
+    CONSTRAINT "SubscriberImportDecision_actor_kind_check" CHECK ("actorKind" IN ('staff', 'system'))
+);
+
+-- CreateIndex
+CREATE INDEX "SubscriberImportDecision_batch_idx"
+    ON "SubscriberImportDecision"("batchId", "createdAt" DESC);
+
+-- CreateTable
+CREATE TABLE "SubscriberImportEvent" (
+    "id"        TEXT NOT NULL,
+    "batchId"   TEXT NOT NULL,
+    "type"      TEXT NOT NULL,
+    "actorId"   UUID,
+    "actorKind" TEXT NOT NULL DEFAULT 'requester',
+    "detail"    JSONB NOT NULL DEFAULT '{}'::jsonb,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "SubscriberImportEvent_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "SubscriberImportEvent_actor_kind_check" CHECK ("actorKind" IN ('requester', 'staff', 'system'))
+);
+
+-- CreateIndex
+CREATE INDEX "SubscriberImportEvent_batch_idx"
+    ON "SubscriberImportEvent"("batchId", "createdAt" ASC);
+
+-- CreateTable
+CREATE TABLE "EmailSuppression" (
+    "id"            TEXT NOT NULL,
+    "email"         TEXT NOT NULL,
+    "scope"         TEXT NOT NULL,
+    "publicationId" TEXT,
+    "reason"        TEXT NOT NULL,
+    "source"        TEXT,
+    "createdAt"     TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "EmailSuppression_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "EmailSuppression_scope_check" CHECK ("scope" IN ('global', 'publication')),
+    CONSTRAINT "EmailSuppression_reason_check" CHECK ("reason" IN (
+        'unsubscribe', 'hard_bounce', 'complaint', 'staff_exclusion',
+        'import_exclusion', 'manual'
+    )),
+    CONSTRAINT "EmailSuppression_scope_publication_check" CHECK (
+        ("scope" = 'global' AND "publicationId" IS NULL) OR
+        ("scope" = 'publication' AND "publicationId" IS NOT NULL)
+    )
+);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "EmailSuppression_global_key"
+    ON "EmailSuppression"(email) WHERE "scope" = 'global';
+
+-- CreateIndex
+CREATE UNIQUE INDEX "EmailSuppression_publication_key"
+    ON "EmailSuppression"(email, "publicationId") WHERE "scope" = 'publication';

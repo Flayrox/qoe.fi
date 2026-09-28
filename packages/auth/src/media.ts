@@ -39,7 +39,8 @@ export type MediaPermission =
   | 'media:view_analytics'
   | 'media:create_articles'
   | 'media:edit_own' // éditer ses propres articles
-  | 'api_keys:manage'; // créer, voir métadonnées, rotater et révoquer les clés du média
+  | 'api_keys:manage' // créer, voir métadonnées, rotater et révoquer les clés du média
+  | 'subscribers:import_request'; // déposer une liste d'abonnés pour revue staff (jamais un envoi)
 
 export const ALL_MEDIA_PERMISSIONS: MediaPermission[] = [
   'media:manage_members',
@@ -55,6 +56,10 @@ export const ALL_MEDIA_PERMISSIONS: MediaPermission[] = [
   'media:create_articles',
   'media:edit_own',
   'api_keys:manage',
+  // Volontairement absente des rôles editor/writer/viewer : publier ou gérer
+  // les clés d'API ne doit pas suffire à faire entrer des adresses dans le
+  // périmètre d'envoi d'une publication. Accordable par override explicite.
+  'subscribers:import_request',
 ];
 
 /**

@@ -158,9 +158,64 @@ export async function importRssFeedAction(rssUrl: string) {
 }
 
 /**
- * 👥 Importer des abonnés depuis un fichier CSV (Substack, Ghost, Beehiiv).
+ * 👥 Déposer une liste d'abonnés (Substack, Ghost, Beehiiv) pour revue.
+ *
+ * ⚠️ Ce que cette fonction ne fait plus : elle bouclait sur les adresses du CSV
+ * et appelait `POST /v1/home/subscribe` pour chacune. Cet endpoint crée un
+ * abonné avec `confirmedAt = now()` et `receiveArticles = true` : déposer un
+ * fichier suffisait donc à rendre des milliers d'adresses immédiatement
+ * destinataires de la prochaine campagne, avec une confirmation que personne
+ * n'avait effectuée.
+ *
+ * Désormais le fichier part en **quarantaine** : aucun contact n'est créé,
+ * aucun email n'est envoyé, aucune adresse n'est rattachée à la publication.
+ * Le lot est examiné par le staff, qui décide du mode de traitement.
  */
-export async function importSubscribersCsvAction(csvContent: string) {
+export interface SubscriberImportDeclarations {
+  /** Aucune adresse achetée ni louée. */
+  noPurchased: boolean;
+  /** Aucune adresse collectée sur le Web (scraping). */
+  noScraped: boolean;
+  /** Aucun contact désabonné, et la liste de suppression est identifiée. */
+  noUnsubscribed: boolean;
+  suppressionListIdentified: boolean;
+  /** Finalité annoncée aux personnes lors de la collecte. */
+  consentPurpose: string;
+}
+
+export interface SubscriberImportOptions {
+  source?: string;
+  sourceDetail?: string;
+  collectionPeriod?: string;
+  optInMethod?: string;
+  lastSendAt?: string;
+  declarations: SubscriberImportDeclarations;
+}
+
+export interface SubscriberImportStats {
+  received: number;
+  valid: number;
+  invalid: number;
+  duplicates: number;
+  suppressed: number;
+  alreadySubscribed: number;
+  pendingConfirmation: number;
+  excluded: number;
+  truncated: boolean;
+}
+
+export interface SubscriberImportResult {
+  success: boolean;
+  error?: string;
+  batchId?: string;
+  status?: string;
+  stats?: SubscriberImportStats;
+}
+
+export async function importSubscribersCsvAction(
+  csvContent: string,
+  options: SubscriberImportOptions
+): Promise<SubscriberImportResult> {
   try {
     const creator = await getAuthenticatedCreator();
     const publicationId = await getActivePublicationId(creator.id);
@@ -168,65 +223,48 @@ export async function importSubscribersCsvAction(csvContent: string) {
     if (!csvContent || !csvContent.trim()) {
       return { success: false, error: 'Fichier CSV vide' };
     }
-
-    const lines = csvContent
-      .split(/\r?\n/)
-      .map((l) => l.trim())
-      .filter(Boolean);
-    if (lines.length === 0) {
-      return { success: false, error: 'Aucune ligne détectée dans le fichier' };
+    const declarations = options?.declarations;
+    if (
+      !declarations ||
+      !declarations.noPurchased ||
+      !declarations.noScraped ||
+      !declarations.noUnsubscribed ||
+      !declarations.suppressionListIdentified ||
+      !declarations.consentPurpose?.trim()
+    ) {
+      return {
+        success: false,
+        error:
+          'Complétez les déclarations de provenance : origine licite de la liste, absence d’adresses achetées ou collectées sur le Web, absence de désabonnés et finalité annoncée.',
+      };
     }
 
-    // Determine email column index if header exists
-    let emailColIdx = 0;
-    const header = lines[0]
-      .toLowerCase()
-      .split(/[,;\t]/)
-      .map((h) => h.trim().replace(/^["']|["']$/g, ''));
-    const foundIdx = header.findIndex(
-      (col) => col === 'email' || col === 'email address' || col === 'adresse email'
-    );
-    if (foundIdx !== -1) {
-      emailColIdx = foundIdx;
-    }
+    // Le parsing, la validation et la déduplication d'adresses se font côté
+    // serveur Go : le navigateur ne doit pas décider de ce qui est importable,
+    // et le service ne fait confiance ni à l'extension ni au type MIME.
+    const batch = await goFetch<{
+      id: string;
+      status: string;
+      stats: SubscriberImportStats;
+    }>(`/v1/import/publications/${encodeURIComponent(publicationId)}/subscribers`, {
+      method: 'POST',
+      body: {
+        source: options.source ?? 'csv_manual',
+        sourceDetail: options.sourceDetail,
+        collectionPeriod: options.collectionPeriod,
+        optInMethod: options.optInMethod,
+        lastSendAt: options.lastSendAt,
+        declarations,
+        content: csvContent,
+      },
+    });
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const emailsToImport = new Set<string>();
-
-    const startIndex = foundIdx !== -1 ? 1 : 0;
-    for (let i = startIndex; i < lines.length; i++) {
-      const parts = lines[i].split(/[,;\t]/).map((p) => p.trim().replace(/^["']|["']$/g, ''));
-      const candidate = parts[emailColIdx] || parts.find((p) => emailRegex.test(p));
-      if (candidate && emailRegex.test(candidate.toLowerCase())) {
-        emailsToImport.add(candidate.toLowerCase());
-      }
-    }
-
-    if (emailsToImport.size === 0) {
-      return { success: false, error: 'Aucune adresse email valide trouvée dans le fichier CSV' };
-    }
-
-    // Batch register subscribers via Go API
-    let imported = 0;
-    for (const email of emailsToImport) {
-      try {
-        await goFetch('/v1/home/subscribe', {
-          method: 'POST',
-          body: { email, publicationId },
-        });
-        imported++;
-      } catch {
-        // Continue with next email
-      }
-    }
-
-    revalidatePath('/audience');
-    return { success: true, count: imported };
+    return { success: true, batchId: batch.id, status: batch.status, stats: batch.stats };
   } catch (err: unknown) {
     console.error('[CSV Import Error]', err);
     return {
       success: false,
-      error: err instanceof Error ? err.message : "Échec de l'importation des abonnés",
+      error: err instanceof Error ? err.message : "Échec du dépôt de la liste d'abonnés",
     };
   }
 }
