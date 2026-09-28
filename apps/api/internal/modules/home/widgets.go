@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/qoefi/api/internal/modules/newsletters"
 	"github.com/qoefi/api/internal/queue"
 )
 
@@ -402,15 +403,15 @@ func (s *Service) GetSemanticTrends(ctx context.Context, limit int) ([]SemanticT
 // SubscribeToNewsletter inscrit un email à la newsletter d'une publication
 // (upsert idempotent) — port Go de subscribeToNewsletterAction.
 //
-// Double opt-in (RGPD/CNIL + délivrabilité) : l'inscription publique crée un
-// abonné SANS receiveArticles, porteur d'un confirmationToken, puis enfile
-// l'envoi de l'email de confirmation (tâche asynq subscriber.confirm). Le lien
-// signé envoyé par email confirme l'abonnement (Service.ConfirmSubscriber).
-// Une adresse DÉJÀ confirmée qui se réinscrit est réactivée directement —
-// elle a déjà prouvé la possession de sa boîte (et une réinscription après
-// désabonnement RFC 8058 retrouve receiveArticles=true, comme annoncé sur la
-// page de désinscription). L'uid de la ligne créée est dérivé de xmax (0 pour
-// un INSERT frais, cf. la communauté pgx) : pas de round-trip supplémentaire.
+// Double opt-in (RGPD/CNIL, fiche 01) : l'inscription publique crée un abonné
+// SANS receiveArticles, porteur d'un confirmationToken, puis enfile l'envoi de
+// l'email de confirmation (tâche asynq subscriber.confirm). Le lien signé
+// envoyé par email confirme l'abonnement (Service.ConfirmSubscriber du module
+// newsletters). Une adresse DÉJÀ confirmée qui se réinscrit ne change rien —
+// elle a déjà prouvé la possession de sa boîte, inutile de lui renvoyer une
+// confirmation. Une réinscription après désabonnement RFC 8058 NE réactive
+// PAS : seul le clic sur le nouveau lien le fait (fiche 01 : aucune
+// réactivation silencieuse).
 func (s *Service) SubscribeToNewsletter(ctx context.Context, email, publicationID, locale string) (bool, error) {
 	var exists bool
 	err := s.pool.QueryRow(ctx,
@@ -422,24 +423,33 @@ func (s *Service) SubscribeToNewsletter(ctx context.Context, email, publicationI
 		return false, errors.New("publication introuvable")
 	}
 
+	token, err := newsletters.NewConfirmationToken()
+	if err != nil {
+		return false, err
+	}
 	var subscriberID string
 	var inserted bool
-	var confirmed pgtype.Timestamp
+	var receiveArticles bool
+	var confirmed bool
 	err = s.pool.QueryRow(ctx, `
-		INSERT INTO "Subscriber" (id, email, "publicationId", locale, "isActive", "receiveArticles", "confirmedAt", "createdAt", "updatedAt")
-		VALUES (gen_random_uuid()::text, $1, $2, $3, true, true, now(), now(), now())
+		INSERT INTO "Subscriber" (id, email, "publicationId", locale, "isActive", "receiveArticles", "confirmationToken", "createdAt", "updatedAt")
+		VALUES (gen_random_uuid()::text, $1, $2, $3, true, false, $4, now(), now())
 		ON CONFLICT ("email", "publicationId") DO UPDATE SET
 		  "isActive" = true,
-		  "receiveArticles" = true,
-		  "confirmedAt" = COALESCE("Subscriber"."confirmedAt", now()),
+		  "locale" = EXCLUDED."locale",
+		  "confirmationToken" = CASE
+		      WHEN "Subscriber"."confirmedAt" IS NOT NULL
+		       AND "Subscriber"."receiveArticles" = true THEN NULL
+		      ELSE EXCLUDED."confirmationToken" END,
 		  "updatedAt" = now()
-		RETURNING id, (xmax = 0) AS inserted, "confirmedAt"`,
-		email, publicationID, locale).Scan(&subscriberID, &inserted, &confirmed)
+		RETURNING id, (xmax = 0) AS inserted, "receiveArticles",
+		          ("confirmedAt" IS NOT NULL) AS confirmed`,
+		email, publicationID, locale, token).Scan(&subscriberID, &inserted, &receiveArticles, &confirmed)
 	if err != nil {
 		return false, err
 	}
 
-	// Création effective (pas une réactivation) → événement webhook. Best-
+	// Création effective d'un abonné en attente → événement webhook. Best-
 	// effort : une panne Redis n'empêche JAMAIS l'inscription de réussir.
 	if inserted && s.events != nil {
 		if err := queue.PublishSubscriberCreated(s.events, queue.SubscriberCreatedPayload{
@@ -449,12 +459,16 @@ func (s *Service) SubscribeToNewsletter(ctx context.Context, email, publicationI
 		}); err != nil {
 			log.Printf("[home] subscriber.created enqueue: %v", err)
 		}
-		// Simple opt-in : activation directe et email de bienvenue immédiat.
-		if err := queue.PublishSubscriberWelcome(s.events, queue.SubscriberWelcomePayload{
+	}
+	// Confirmation à envoyer sauf si déjà actif et confirmé (rien à prouver).
+	// C'est le worker confirm_email qui lit le token en base et envoie le
+	// lien signé ; ici on ne fait qu'enfiler la demande.
+	if !(receiveArticles && confirmed) && s.events != nil {
+		if err := queue.PublishSubscriberConfirm(s.events, queue.SubscriberConfirmPayload{
 			Email:         email,
 			PublicationID: publicationID,
 		}); err != nil {
-			log.Printf("[home] subscriber.welcome enqueue: %v", err)
+			log.Printf("[home] subscriber.confirm enqueue: %v", err)
 		}
 	}
 	return true, nil

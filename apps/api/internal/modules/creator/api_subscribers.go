@@ -1,8 +1,6 @@
 package creator
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"log"
@@ -14,22 +12,18 @@ import (
 	"github.com/jackc/pgx/v5"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/middleware"
+	"github.com/qoefi/api/internal/modules/newsletters"
 	"github.com/qoefi/api/internal/queue"
 	"github.com/qoefi/api/internal/response"
 )
 
 var emailFormatRegex = regexp.MustCompile(`^[^\s@]+@[^\s@]+\.[^\s@]+$`)
 
-// newSubscriberConfirmToken tire un jeton opaque de confirmation (256 bits,
-// hex). Même format que les jetons de reconfirmation d'import : le lien
-// vérifie (email, publication, token) + signature HMAC, et le token est
-// consommé à usage unique (ConfirmSubscriberByToken le met à NULL).
+// newSubscriberConfirmToken délègue au générateur unique du domaine
+// (newsletters.NewConfirmationToken) : un seul format de jeton pour les
+// inscriptions publiques, la clé API et les reconfirmations d'import.
 func newSubscriberConfirmToken() (string, error) {
-	var raw [32]byte
-	if _, err := rand.Read(raw[:]); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(raw[:]), nil
+	return newsletters.NewConfirmationToken()
 }
 
 // registerPendingSubscriber inscrit une adresse en attente de confirmation

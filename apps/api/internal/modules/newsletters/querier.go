@@ -8,6 +8,7 @@ import (
 
 // newsletterQuerier : surface sqlc du module newsletters (mockable en test).
 type newsletterQuerier interface {
+	AttachSubscriberToAccount(ctx context.Context, arg db.AttachSubscriberToAccountParams) error
 	ConfirmSubscriberByToken(ctx context.Context, arg db.ConfirmSubscriberByTokenParams) (string, error)
 	CreateNewsletterIssue(ctx context.Context, arg db.CreateNewsletterIssueParams) (db.NewsletterIssue, error)
 	DeleteNewsletterIssueDraft(ctx context.Context, id string) error

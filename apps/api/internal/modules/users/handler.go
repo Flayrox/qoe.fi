@@ -33,6 +33,11 @@ func (h *Handler) Register(r chi.Router) {
 	r.Post("/v1/me/mfa/totp/verify", h.mfaVerify)
 	r.Delete("/v1/me/mfa/totp/{factorId}", h.mfaUnenroll)
 	r.Post("/v1/me/email-change", h.changeEmail)
+	// Migration de la réception des newsletters vers l'adresse vérifiée du
+	// compte (fiche 01 §4). À appeler après le clic sur le lien de
+	// confirmation GoTrue : le backend revérifie côté fournisseur avant de
+	// déplacer le moindre envoi.
+	r.Post("/v1/me/email-migrate-subscriptions", h.migrateSubscriptions)
 	r.Post("/v1/me/password-change", h.changePassword)
 	r.Get("/v1/me/sessions", h.sessions)
 	r.Delete("/v1/me/sessions/{id}", h.revokeSession)
@@ -334,6 +339,22 @@ func (h *Handler) changeEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, map[string]bool{"success": true, "verificationRequired": true})
+}
+
+// migrateSubscriptions déplace la réception des newsletters vers l'adresse
+// actuelle du compte, après vérification de celle-ci (fiche 01 §4).
+func (h *Handler) migrateSubscriptions(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	migrated, err := h.svc.MigrateSubscriptionsToVerifiedEmail(r.Context(), userID)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	response.OK(w, map[string]any{"success": true, "migrated": migrated})
 }
 
 func (h *Handler) changePassword(w http.ResponseWriter, r *http.Request) {

@@ -11,6 +11,32 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const attachSubscriberToAccount = `-- name: AttachSubscriberToAccount :exec
+UPDATE "Subscriber" s
+SET "userId" = u.id,
+    "updatedAt" = now()
+FROM "User" u
+WHERE s.email = $1
+  AND s."publicationId" = $2
+  AND s."userId" IS NULL
+  AND LOWER(u.email) = LOWER(s.email)
+`
+
+type AttachSubscriberToAccountParams struct {
+	Email         string `json:"email"`
+	PublicationId string `json:"publicationId"`
+}
+
+// Rattache un abonnement confirmé au compte qui utilise cette adresse
+// (fiche 01 §4). Conditions strictes : le userId n'est posé que s'il est
+// encore NULL (jamais d'écrasement), et seul l'identifiant est copié — ni les
+// statuts, ni les dates, ni quoi que ce soit qui réactiverait un choix passé.
+// `User.email` est unique (User_email_key) : au plus un compte récupère.
+func (q *Queries) AttachSubscriberToAccount(ctx context.Context, arg AttachSubscriberToAccountParams) error {
+	_, err := q.db.Exec(ctx, attachSubscriberToAccount, arg.Email, arg.PublicationId)
+	return err
+}
+
 const confirmSubscriberByToken = `-- name: ConfirmSubscriberByToken :one
 UPDATE "Subscriber"
 SET "receiveArticles" = true,
