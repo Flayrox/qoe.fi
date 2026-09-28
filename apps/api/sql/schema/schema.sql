@@ -2508,3 +2508,24 @@ CREATE UNIQUE INDEX "StaffCampaignDelivery_campaign_email_key"
 -- CreateIndex
 CREATE INDEX "StaffCampaignDelivery_campaign_status_idx"
     ON "StaffCampaignDelivery"("campaignId", "status", "email");
+
+-- CreateTable
+CREATE TABLE "legal_refusal" (
+    "id"          TEXT NOT NULL,
+    "user_id"     UUID NOT NULL,
+    "document_id" TEXT NOT NULL,
+    "version_id"  TEXT NOT NULL,
+    "version"     TEXT NOT NULL,
+    "locale"      TEXT NOT NULL DEFAULT 'fr',
+    "source"      TEXT NOT NULL DEFAULT 'web',
+    "created_at"  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "legal_refusal_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "legal_refusal_unique" UNIQUE ("user_id", "version_id")
+);
+
+-- CreateIndex
+CREATE INDEX "legal_refusal_user_idx" ON "legal_refusal" ("user_id", "created_at" DESC);
+
+-- CreateIndex
+CREATE INDEX "legal_refusal_document_idx" ON "legal_refusal" ("document_id", "created_at" DESC);

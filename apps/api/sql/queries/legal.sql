@@ -55,6 +55,30 @@ ORDER BY d.sort_order ASC;
 SELECT * FROM legal_acceptance
 WHERE user_id = sqlc.arg(user_id)::uuid AND version_id = sqlc.arg(version_id);
 
+-- name: UpsertLegalRefusal :one
+-- Refus explicite d'une version (fiche 04 §11) : idempotent, ne touche jamais
+-- aux acceptations (refuser n'est pas « désaccepter ») et n'en crée aucune.
+-- Un refus postérieur à une acceptation est conservé à côté : l'historique
+-- montre les deux, dans l'ordre, sans réécriture.
+INSERT INTO legal_refusal (id, user_id, document_id, version_id, version, locale, source)
+VALUES (
+    gen_random_uuid()::text,
+    sqlc.arg(user_id)::uuid,
+    sqlc.arg(document_id)::text,
+    sqlc.arg(version_id)::text,
+    sqlc.arg(version)::text,
+    sqlc.arg(locale)::text,
+    sqlc.arg(source)::text
+)
+ON CONFLICT (user_id, version_id) DO NOTHING
+RETURNING id;
+
+-- name: ListLegalRefusalsByUser :many
+SELECT r.version_id, r.created_at
+FROM legal_refusal r
+WHERE r.user_id = sqlc.arg(user_id)::uuid
+ORDER BY r.created_at DESC;
+
 -- name: UpsertLegalAcceptance :one
 -- Idempotent : un re-clic ne crée pas de doublon, il rafraîchit la preuve.
 INSERT INTO legal_acceptance (user_id, document_id, version_id, version, locale, ip, user_agent, source, method)

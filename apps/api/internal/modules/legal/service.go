@@ -144,6 +144,15 @@ type PendingAcceptance struct {
 	Version     string     `json:"version"`
 	Title       string     `json:"title"`
 	EffectiveAt *time.Time `json:"effectiveAt,omitempty"`
+	// PastEffective distingue `pending_after_effective_date` (date d'effet
+	// passée sans acceptation) d'une simple attente : jamais une valeur
+	// générique « accepted » créée par un cron — le silence n'est pas un
+	// consentement (fiche 04 §11).
+	PastEffective bool `json:"pastEffective"`
+	// DeclinedAt renseigne un refus explicite antérieur (nullable) : refuser
+	// n'est ni accepter ni disparaître de la liste — c'est un état visible
+	// qui ouvre l'export et la suppression sans accepter.
+	DeclinedAt *time.Time `json:"declinedAt,omitempty"`
 }
 
 // Acceptance est la preuve de consentement enregistrée.
@@ -425,7 +434,8 @@ func (s *Service) ListVersions(ctx context.Context, slug, locale string) ([]Vers
 	return out, nil
 }
 
-// PendingAcceptances liste les documents à (re)consentir pour un utilisateur.
+// PendingAcceptances liste les documents à (re)consentir pour un utilisateur,
+// enrichis de l'état post-date-d'effet et d'un éventuel refus explicite.
 func (s *Service) PendingAcceptances(ctx context.Context, userID, locale string) ([]PendingAcceptance, error) {
 	rows, err := s.q.ListPendingLegalAcceptances(ctx, db.ListPendingLegalAcceptancesParams{
 		Locale: NormalizeLocale(locale), UserID: toUUID(userID),
@@ -433,12 +443,27 @@ func (s *Service) PendingAcceptances(ctx context.Context, userID, locale string)
 	if err != nil {
 		return nil, err
 	}
+	refusals, err := s.q.ListLegalRefusalsByUser(ctx, toUUID(userID))
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now()
 	out := make([]PendingAcceptance, 0, len(rows))
 	for _, r := range rows {
+		effective := tsTime(r.EffectiveAt)
+		past := effective != nil && !effective.After(now)
+		var declined *time.Time
+		for _, refusal := range refusals {
+			if refusal.VersionID == r.VersionID {
+				at := refusal.CreatedAt.Time
+				declined = &at
+				break
+			}
+		}
 		out = append(out, PendingAcceptance{
 			ID: r.ID, Slug: r.Slug, Category: r.Category, Audience: r.Audience,
 			VersionID: r.VersionID, Version: r.Version, Title: r.Title,
-			EffectiveAt: tsTime(r.EffectiveAt),
+			EffectiveAt: effective, PastEffective: past, DeclinedAt: declined,
 		})
 	}
 	return out, nil

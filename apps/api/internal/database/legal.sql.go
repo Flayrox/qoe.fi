@@ -1201,6 +1201,38 @@ func (q *Queries) ListLegalNoticesAdmin(ctx context.Context, limitCount int32) (
 	return items, nil
 }
 
+const listLegalRefusalsByUser = `-- name: ListLegalRefusalsByUser :many
+SELECT r.version_id, r.created_at
+FROM legal_refusal r
+WHERE r.user_id = $1::uuid
+ORDER BY r.created_at DESC
+`
+
+type ListLegalRefusalsByUserRow struct {
+	VersionID string           `json:"version_id"`
+	CreatedAt pgtype.Timestamp `json:"created_at"`
+}
+
+func (q *Queries) ListLegalRefusalsByUser(ctx context.Context, userID pgtype.UUID) ([]ListLegalRefusalsByUserRow, error) {
+	rows, err := q.db.Query(ctx, listLegalRefusalsByUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListLegalRefusalsByUserRow{}
+	for rows.Next() {
+		var i ListLegalRefusalsByUserRow
+		if err := rows.Scan(&i.VersionID, &i.CreatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPendingLegalAcceptances = `-- name: ListPendingLegalAcceptances :many
 SELECT d.id, d.slug, d.category, d.audience, v.id AS version_id, v.version,
        v.title, v.effective_at
@@ -1677,4 +1709,46 @@ func (q *Queries) UpsertLegalAcceptance(ctx context.Context, arg UpsertLegalAcce
 		&i.Method,
 	)
 	return i, err
+}
+
+const upsertLegalRefusal = `-- name: UpsertLegalRefusal :one
+INSERT INTO legal_refusal (id, user_id, document_id, version_id, version, locale, source)
+VALUES (
+    gen_random_uuid()::text,
+    $1::uuid,
+    $2::text,
+    $3::text,
+    $4::text,
+    $5::text,
+    $6::text
+)
+ON CONFLICT (user_id, version_id) DO NOTHING
+RETURNING id
+`
+
+type UpsertLegalRefusalParams struct {
+	UserID     pgtype.UUID `json:"user_id"`
+	DocumentID string      `json:"document_id"`
+	VersionID  string      `json:"version_id"`
+	Version    string      `json:"version"`
+	Locale     string      `json:"locale"`
+	Source     string      `json:"source"`
+}
+
+// Refus explicite d'une version (fiche 04 §11) : idempotent, ne touche jamais
+// aux acceptations (refuser n'est pas « désaccepter ») et n'en crée aucune.
+// Un refus postérieur à une acceptation est conservé à côté : l'historique
+// montre les deux, dans l'ordre, sans réécriture.
+func (q *Queries) UpsertLegalRefusal(ctx context.Context, arg UpsertLegalRefusalParams) (string, error) {
+	row := q.db.QueryRow(ctx, upsertLegalRefusal,
+		arg.UserID,
+		arg.DocumentID,
+		arg.VersionID,
+		arg.Version,
+		arg.Locale,
+		arg.Source,
+	)
+	var id string
+	err := row.Scan(&id)
+	return id, err
 }

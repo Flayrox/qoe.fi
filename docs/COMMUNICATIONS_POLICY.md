@@ -89,6 +89,21 @@ tranches de 100 avec délai sur file `default`, arrêt possible à tout moment
 | `POST` | `.../{id}/submit`, `.../approve`, `.../start` | superadmin — revue, approbation (second), envoi |
 | `POST` | `.../{id}/pause`, `.../cancel` | superadmin — arrêt |
 
+## Avis légaux : refus explicite (migration 00037)
+
+Exiger une acceptation sans permettre un refus, c'est un consentement forcé :
+le silence n'est ni un consentement ni un refus. `POST /v1/legal/decline-batch`
+enregistre le refus d'une version publiée dans `legal_refusal` (qui, quelle
+version, quand), idempotent, audité comme les acceptations — sans toucher aux
+acceptations (refuser n'est pas « désaccepter ») et sans rien bloquer : export
+de données et suppression de compte restent accessibles sans accepter.
+
+`GET /v1/me/legal-pending` distingue désormais l'attente simple, le
+dépassement de date d'effet sans acceptation (`pastEffective`, jamais une
+valeur « accepted » créée par un cron) et le refus antérieur (`declinedAt`) :
+un document refusé reste « sans acceptation » (pas de contournement) mais le
+refus est visible (pas de relance aveugle).
+
 ## Reste du chantier fiche 04 (ordre de la fiche §17)
 
 1. Fiabilité : outbox transactionnelle + idempotence, files prioritaires,

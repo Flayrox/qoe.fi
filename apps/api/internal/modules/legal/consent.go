@@ -210,6 +210,65 @@ func (s *Service) AcceptBatch(ctx context.Context, userID string, in BatchAccept
 	return out, nil
 }
 
+// BatchDeclineInput est le refus explicite d'une ou plusieurs versions
+// publiées (fiche 04 §11). Le silence n'est ni un consentement ni un refus :
+// seul cet appel crée un refus tracé.
+type BatchDeclineInput struct {
+	Slugs  []string `json:"slugs"`
+	Locale string   `json:"locale"`
+	Source string   `json:"source"`
+}
+
+// Decline enregistre le refus explicite d'une version publiée, sans toucher
+// aux acceptations (refuser n'est pas « désaccepter ») et sans rien bloquer :
+// export de données et suppression de compte restent accessibles sans accepter
+// les nouvelles conditions. Idempotent (même version refusée deux fois = une
+// seule ligne). Chaque refus est audité comme chaque acceptation.
+func (s *Service) DeclineBatch(ctx context.Context, userID string, in BatchDeclineInput) ([]string, error) {
+	if userID == "" {
+		return nil, errForbidden
+	}
+	if len(in.Slugs) == 0 {
+		return nil, errInvalid
+	}
+	source := strings.TrimSpace(in.Source)
+	if source == "" {
+		source = "web"
+	}
+
+	out := make([]string, 0, len(in.Slugs))
+	seen := make(map[string]bool, len(in.Slugs))
+	for _, raw := range in.Slugs {
+		slug := strings.TrimSpace(raw)
+		if slug == "" || seen[slug] {
+			continue
+		}
+		seen[slug] = true
+
+		doc, err := s.GetPublished(ctx, slug, in.Locale)
+		if err != nil {
+			// Un slug inconnu n'annule pas les autres refus : on renvoie ce
+			// qui a pu être prouvé.
+			continue
+		}
+		if _, err := s.q.UpsertLegalRefusal(ctx, db.UpsertLegalRefusalParams{
+			UserID:     toUUID(userID),
+			DocumentID: doc.ID,
+			VersionID:  doc.VersionID,
+			Version:    doc.Version,
+			Locale:     doc.Locale,
+			Source:     source,
+		}); err != nil {
+			return out, err
+		}
+		s.audit(ctx, userID, "legal.decline", doc.ID, map[string]any{
+			"slug": doc.Slug, "version": doc.Version, "locale": doc.Locale, "source": source,
+		})
+		out = append(out, slug)
+	}
+	return out, nil
+}
+
 // ─── Consentement traceurs (journal serveur) ─────────────────────────
 
 // CookieConsentInput est un choix de traceurs rapporté par le navigateur.

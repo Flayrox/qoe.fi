@@ -908,6 +908,17 @@ type LegalNoticeDelivery struct {
 	UpdatedAt   pgtype.Timestamp `json:"updated_at"`
 }
 
+type LegalRefusal struct {
+	ID         string           `json:"id"`
+	UserID     pgtype.UUID      `json:"user_id"`
+	DocumentID string           `json:"document_id"`
+	VersionID  string           `json:"version_id"`
+	Version    string           `json:"version"`
+	Locale     string           `json:"locale"`
+	Source     string           `json:"source"`
+	CreatedAt  pgtype.Timestamp `json:"created_at"`
+}
+
 type LegalReview struct {
 	ID             string           `json:"id"`
 	DocumentID     string           `json:"document_id"`
