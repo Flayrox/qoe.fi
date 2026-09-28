@@ -102,8 +102,8 @@ func run(ctx context.Context) error {
 		DefaultUmamiSite:       cfg.DefaultUmamiWebsiteID,
 		UmamiDatabaseURL:       cfg.UmamiDatabaseURL,
 		SupabaseURL:            cfg.SupabaseURL,
-		MediaCDNBaseURL:         cfg.MediaCDNBaseURL,
-		MediaQuotaBytesPerUser:  cfg.MediaQuotaBytesPerUser,
+		MediaCDNBaseURL:        cfg.MediaCDNBaseURL,
+		MediaQuotaBytesPerUser: cfg.MediaQuotaBytesPerUser,
 		MediaUploadsPerHour:    cfg.MediaUploadsPerHour,
 		APIKeyRateLimit:        cfg.APIKeyRateLimit,
 		FlagsSigningKey:        cfg.FlagsSigningKey,
@@ -427,7 +427,8 @@ func newRouter(d RouterDeps) *chi.Mux {
 		mediaHandler := media.NewHandler(mediaSvc)
 		mediaHandler.Register(protected)
 
-		importsHandler := imports.NewHandler(imports.NewService(pool, asynqClient))
+		importsSvc := imports.NewService(pool, asynqClient)
+		importsHandler := imports.NewHandler(importsSvc)
 		importsHandler.Register(protected)
 
 		mediaAssetsHandler := mediaassets.NewHandler(mediaassets.NewService(pool))
@@ -439,6 +440,9 @@ func newRouter(d RouterDeps) *chi.Mux {
 		adminSvc := admin.NewService(pool)
 		adminSvc.SetFlags(flagsSvc)
 		adminHandler := admin.NewHandler(adminSvc)
+		// Revue staff des imports d'abonnés : même service que le dépôt, exposé
+		// derrière le garde superadmin de la console.
+		adminHandler.SetSubscriberImports(importsSvc)
 		adminHandler.Register(protected)
 
 		// Édition du contenu légal (superadmin, revérifié dans le service).

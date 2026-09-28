@@ -714,6 +714,16 @@ type CookieConsentRecord struct {
 	CreatedAt     pgtype.Timestamp `json:"created_at"`
 }
 
+type EmailSuppression struct {
+	ID            string           `json:"id"`
+	Email         string           `json:"email"`
+	Scope         string           `json:"scope"`
+	PublicationId pgtype.Text      `json:"publicationId"`
+	Reason        string           `json:"reason"`
+	Source        pgtype.Text      `json:"source"`
+	CreatedAt     pgtype.Timestamp `json:"createdAt"`
+}
+
 type FeatureFlag struct {
 	Key         string           `json:"key"`
 	IsEnabled   bool             `json:"is_enabled"`
@@ -1314,6 +1324,67 @@ type Subscriber struct {
 	PublicationId        string             `json:"publicationId"`
 	UserId               pgtype.UUID        `json:"userId"`
 	TierId               pgtype.Text        `json:"tierId"`
+}
+
+type SubscriberImportBatch struct {
+	ID               string           `json:"id"`
+	PublicationId    string           `json:"publicationId"`
+	MediaId          pgtype.Text      `json:"mediaId"`
+	RequesterId      pgtype.UUID      `json:"requesterId"`
+	Status           string           `json:"status"`
+	Source           string           `json:"source"`
+	SourceDetail     pgtype.Text      `json:"sourceDetail"`
+	CollectionPeriod pgtype.Text      `json:"collectionPeriod"`
+	LastSendAt       pgtype.Timestamp `json:"lastSendAt"`
+	OptInMethod      pgtype.Text      `json:"optInMethod"`
+	Declarations     []byte           `json:"declarations"`
+	ProofRefs        []byte           `json:"proofRefs"`
+	FileFingerprint  string           `json:"fileFingerprint"`
+	FileVersion      int32            `json:"fileVersion"`
+	RowCount         int32            `json:"rowCount"`
+	Stats            []byte           `json:"stats"`
+	ReviewDueAt      pgtype.Timestamp `json:"reviewDueAt"`
+	SuspendedAt      pgtype.Timestamp `json:"suspendedAt"`
+	SubmittedAt      pgtype.Timestamp `json:"submittedAt"`
+	CreatedAt        pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt        pgtype.Timestamp `json:"updatedAt"`
+}
+
+type SubscriberImportDecision struct {
+	ID              string           `json:"id"`
+	BatchId         string           `json:"batchId"`
+	Decision        string           `json:"decision"`
+	ActorId         pgtype.UUID      `json:"actorId"`
+	ActorKind       string           `json:"actorKind"`
+	InternalReason  pgtype.Text      `json:"internalReason"`
+	PublicReason    pgtype.Text      `json:"publicReason"`
+	Limits          []byte           `json:"limits"`
+	FileVersion     int32            `json:"fileVersion"`
+	FileFingerprint string           `json:"fileFingerprint"`
+	ExpiresAt       pgtype.Timestamp `json:"expiresAt"`
+	CreatedAt       pgtype.Timestamp `json:"createdAt"`
+}
+
+type SubscriberImportEvent struct {
+	ID        string           `json:"id"`
+	BatchId   string           `json:"batchId"`
+	Type      string           `json:"type"`
+	ActorId   pgtype.UUID      `json:"actorId"`
+	ActorKind string           `json:"actorKind"`
+	Detail    []byte           `json:"detail"`
+	CreatedAt pgtype.Timestamp `json:"createdAt"`
+}
+
+type SubscriberImportRow struct {
+	ID           string           `json:"id"`
+	BatchId      string           `json:"batchId"`
+	Email        string           `json:"email"`
+	Status       string           `json:"status"`
+	Reason       pgtype.Text      `json:"reason"`
+	SubscriberId pgtype.Text      `json:"subscriberId"`
+	ExcludedBy   pgtype.Text      `json:"excludedBy"`
+	CreatedAt    pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt    pgtype.Timestamp `json:"updatedAt"`
 }
 
 type SystemConfig struct {

@@ -12,12 +12,16 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/qoefi/api/internal/middleware"
+	"github.com/qoefi/api/internal/modules/imports"
 	"github.com/qoefi/api/internal/response"
 )
 
 // Handler expose la console superadmin.
 type Handler struct {
 	svc *Service
+	// subscriberImports est branché par SetSubscriberImports : sans lui, les
+	// routes de revue des imports d'abonnés ne sont pas enregistrées.
+	subscriberImports *imports.Service
 }
 
 func NewHandler(svc *Service) *Handler {
@@ -76,6 +80,8 @@ func (h *Handler) Register(r chi.Router) {
 	// Notifications & livraisons
 	r.Get("/v1/admin/deliveries", h.deliveries)
 	r.Post("/v1/admin/deliveries/{id}/retry", h.retryDelivery)
+
+	h.registerSubscriberImports(r)
 }
 
 func (h *Handler) requireSuperadmin(w http.ResponseWriter, r *http.Request) (string, bool) {

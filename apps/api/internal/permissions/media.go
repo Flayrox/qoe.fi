@@ -28,12 +28,20 @@ const (
 	PermCreateArticles   = "media:create_articles"
 	PermEditOwn          = "media:edit_own"
 	PermManageApiKeys    = "api_keys:manage"
+	// PermImportSubscribers autorise à **déposer** une liste d'abonnés pour
+	// revue. Volontairement absente des rôles editor/writer/viewer : publier ou
+	// gérer les clés d'API ne doit pas suffire implicitement à faire entrer des
+	// milliers d'adresses dans le périmètre d'envoi d'une publication (fiche 03
+	// §2). Seul le propriétaire l'a par défaut ; elle peut être accordée ou
+	// retirée explicitement par override sur un membre.
+	PermImportSubscribers = "subscribers:import_request"
 )
 
 var allMediaPermissions = []string{
 	PermManageMembers, PermManageSettings, PermManageBilling, PermManageCategories,
 	PermManageNewsletter, PermPublishAny, PermEditAny, PermDeleteAny, PermReview,
 	PermViewAnalytics, PermCreateArticles, PermEditOwn, PermManageApiKeys,
+	PermImportSubscribers,
 }
 
 // rolePermissions définit les permissions de base par rôle.

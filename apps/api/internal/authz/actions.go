@@ -150,11 +150,15 @@ var registry = map[Action]Rule{
 		Note:            "domaine expéditeur créateur : identité d'envoi et DNS",
 	},
 	ActionImportRequest: {
-		Level:           Level2,
-		Freshness:       StepUpMaxAge,
-		RequirePhone:    true,
-		MediaPermission: permissions.PermManageNewsletter,
-		Note:            "prérequis email_verified && phone_verified, puis revue staff",
+		Level:        Level2,
+		Freshness:    StepUpMaxAge,
+		RequirePhone: true,
+		// Permission dédiée, et non `manage_newsletter` : faire entrer des
+		// milliers d'adresses dans le périmètre d'envoi d'une publication ne
+		// doit pas découler du droit d'envoyer une campagne ou de publier. Seul
+		// le propriétaire l'a par défaut ; elle s'accorde par override explicite.
+		MediaPermission: permissions.PermImportSubscribers,
+		Note:            "prérequis email_verified && phone_verified, puis revue staff — le dépôt n'envoie rien",
 	},
 	ActionBulkCampaignSend: {
 		Level:           Level2,
