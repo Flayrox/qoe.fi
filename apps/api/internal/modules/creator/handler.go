@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -25,6 +26,7 @@ import (
 	"github.com/qoefi/api/internal/slug"
 	"github.com/qoefi/api/internal/supastorage"
 	"github.com/qoefi/api/internal/umami"
+	"github.com/redis/go-redis/v9"
 )
 
 type Handler struct {
@@ -37,6 +39,34 @@ type Handler struct {
 	mediaAssets  *mediaassets.Service
 	// mediaCDNBase réécrit les URLs storage vers le CDN public.
 	mediaCDNBase string
+	// asynq enfile les confirmations double opt-in (nil = envoi désactivé,
+	// l'inscription reste enregistrée en attente).
+	asynq *asynq.Client
+	// subRC/window/max : rate-limit Redis de l'inscription publique (fiche 01
+	// §5 — la confirmation n'empêche pas à elle seule le harcèlement par
+	// e-mails de confirmation). nil = pas de limite (tests).
+	subRC     *redis.Client
+	subWindow time.Duration
+	subMax    int
+}
+
+// SetAsynqClient branche le client asynq (envoi des confirmations).
+func (h *Handler) SetAsynqClient(c *asynq.Client) { h.asynq = c }
+
+// SetPublicSubscribeRateLimit branche le rate-limit de POST
+// /v1/publications/{slugOrId}/subscribe (fenêtre, max). Même pattern que
+// home.SetSubscribeRateLimit.
+func (h *Handler) SetPublicSubscribeRateLimit(rc *redis.Client, window time.Duration, max int) {
+	h.subRC, h.subWindow, h.subMax = rc, window, max
+}
+
+// publicSubscribeLimiter enveloppe l'inscription publique du limiteur branché
+// (no-op sinon, comme home.subscribeLimiter).
+func (h *Handler) publicSubscribeLimiter(next http.HandlerFunc) http.Handler {
+	if h.subRC == nil {
+		return next
+	}
+	return middleware.RateLimit("creator-public-subscribe", h.subRC, h.subWindow, h.subMax, false)(next)
 }
 
 func NewHandler(pool *pgxpool.Pool, umamiCli *umami.Client, defaultWebsiteID string) *Handler {
@@ -119,9 +149,11 @@ func (h *Handler) RegisterPublic(r chi.Router) {
 	r.Get("/v1/users/{username}", h.userByUsername)
 	r.Get("/v1/users/{username}/followers", h.userFollowers)
 	r.Get("/v1/users/{username}/following", h.userFollowing)
-	// Inscription publique à la newsletter d'une publication (CORS activé pour intégration externe)
+	// Inscription publique à la newsletter d'une publication (CORS activé pour intégration externe).
+	// Rate-limitée : la confirmation n'empêche pas à elle seule le harcèlement
+	// par e-mails de confirmation (fiche 01 §5).
 	r.Options("/v1/publications/{slugOrId}/subscribe", h.publicSubscribeOptions)
-	r.Post("/v1/publications/{slugOrId}/subscribe", h.publicSubscribe)
+	r.Post("/v1/publications/{slugOrId}/subscribe", h.publicSubscribeLimiter(h.publicSubscribe).ServeHTTP)
 }
 
 // RegisterProtected — routes créateur authentifiées JWT (ou clé API via

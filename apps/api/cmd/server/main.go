@@ -370,6 +370,8 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 	// Profils créateurs / publications publics (/v1/users/{username}, /followers, /following)
 	creatorHandler := creator.NewHandler(pool, umami.NewClient(d.UmamiAPIURL, d.UmamiAPIKey, d.UmamiUser, d.UmamiPass), d.DefaultUmamiSite)
+	creatorHandler.SetAsynqClient(asynqClient)
+	creatorHandler.SetPublicSubscribeRateLimit(rc, time.Minute, 10)
 	r.With(auth.OptionalAuth).Group(func(pub chi.Router) {
 		creatorHandler.RegisterPublic(pub)
 	})
@@ -508,12 +510,15 @@ func newRouter(d RouterDeps) *chi.Mux {
 		apiKey.Use(authmw.RateLimitAPIKey("apikey", rc, time.Minute, d.APIKeyRateLimit))
 		creatorHandler := creator.NewHandler(pool, umami.NewClient(d.UmamiAPIURL, d.UmamiAPIKey, d.UmamiUser, d.UmamiPass), d.DefaultUmamiSite)
 		creatorHandler.WithMediaUpload(mediaStore, mediaAssetsSvc).WithMediaCDNBase(d.MediaCDNBaseURL)
+		creatorHandler.SetAsynqClient(asynqClient)
 		creatorHandler.RegisterAPIKey(apiKey)
 	})
 
 	// Profils publics (résolution publication par slug/subdomain). Auth
 	// optionnelle : si le viewer est connecté, on renseigne `isFollowing`.
 	creatorPublic := creator.NewHandler(pool, umami.NewClient(d.UmamiAPIURL, d.UmamiAPIKey, d.UmamiUser, d.UmamiPass), d.DefaultUmamiSite)
+	creatorPublic.SetAsynqClient(asynqClient)
+	creatorPublic.SetPublicSubscribeRateLimit(rc, time.Minute, 10)
 	r.With(auth.OptionalAuth).Group(func(pub chi.Router) {
 		creatorPublic.RegisterPublic(pub)
 	})

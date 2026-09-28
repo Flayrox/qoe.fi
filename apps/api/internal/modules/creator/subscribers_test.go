@@ -69,6 +69,24 @@ func TestCreatorAPI_Subscribers_Lifecycle(t *testing.T) {
 	if created.Email != "reader1@example.com" || !created.IsActive {
 		t.Fatalf("unexpected subscriber: %+v", created)
 	}
+	// Double opt-in (fiche 01) : l'inscription via clé API n'active pas —
+	// l'adresse doit confirmer avant de devenir destinataire.
+	if created.ReceiveArticles {
+		t.Fatalf("subscriber must be pending (receiveArticles=false), got: %+v", created)
+	}
+	var confirmedAt any
+	var token *string
+	if err := poolTest.QueryRow(context.Background(),
+		`SELECT "confirmedAt", "confirmationToken" FROM "Subscriber" WHERE id = $1`,
+		created.ID).Scan(&confirmedAt, &token); err != nil {
+		t.Fatalf("subscriber row: %v", err)
+	}
+	if confirmedAt != nil {
+		t.Fatalf("confirmedAt must stay NULL before click, got %v", confirmedAt)
+	}
+	if token == nil || *token == "" {
+		t.Fatal("a pending subscriber must carry a confirmation token")
+	}
 
 	// 2. Erreur sur email invalide
 	badReq := httptest.NewRequest(http.MethodPost, "/v1/creator/subscribers", bytes.NewReader([]byte(`{"email":"pas-un-email"}`)))
@@ -281,5 +299,91 @@ func TestCreatorAPI_MediaKey_Highlights(t *testing.T) {
 	}
 	if len(hlResp.Items) != 1 || hlResp.Items[0].ID != highlightID {
 		t.Fatalf("expected highlight %s, got: %+v", highlightID, hlResp.Items)
+	}
+}
+
+// TestCreatorAPI_Subscribers_DoubleOptIn verrouille la fiche 01 : aucune
+// entrée (clé API ou formulaire public) ne crée un abonné actif sans preuve.
+// L'abonné naît en attente (receiveArticles=false, confirmedAt NULL, token
+// présent) ; seul son propre clic l'active. Une réinscription d'un désabonné
+// ne le réactive jamais silencieusement.
+func TestCreatorAPI_Subscribers_DoubleOptIn(t *testing.T) {
+	alicePubID, aliceUserID, _, _ := seedFollows(t)
+	r := newSubscribersTestRouter()
+	key := insertAPIKey(t, aliceUserID, "doi-test", authmw.AllScopes)
+	ctx := context.Background()
+
+	postJSON := func(url, email, auth string) *httptest.ResponseRecorder {
+		body, _ := json.Marshal(map[string]string{"email": email})
+		req := httptest.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+		if auth != "" {
+			req.Header.Set("Authorization", "Bearer "+auth)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		return rec
+	}
+	subState := func(email string) (receiveArticles bool, confirmed bool, token *string) {
+		t.Helper()
+		var confirmedAt any
+		if err := poolTest.QueryRow(ctx,
+			`SELECT "receiveArticles", "confirmedAt", "confirmationToken" FROM "Subscriber" WHERE email = $1 AND "publicationId" = $2`,
+			email, alicePubID).Scan(&receiveArticles, &confirmedAt, &token); err != nil {
+			t.Fatalf("subscriber row %s: %v", email, err)
+		}
+		confirmed = confirmedAt != nil
+		return receiveArticles, confirmed, token
+	}
+
+	// 1. Clé API : 201 mais en attente, jamais destinataire.
+	rec := postJSON("/v1/creator/subscribers", "doi1@example.com", key)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if recv, conf, tok := subState("doi1@example.com"); recv || conf || tok == nil || *tok == "" {
+		t.Fatalf("must be pending with token, got receive=%v confirmed=%v token=%v", recv, conf, tok)
+	}
+
+	// 2. Route publique : 200 neutre, en attente aussi (fiche 01 : réponse qui
+	// ne révèle ni compte ni statut, activation uniquement au clic).
+	pubRec := postJSON("/v1/publications/alice/subscribe", "doi2@example.com", "")
+	if pubRec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", pubRec.Code, pubRec.Body.String())
+	}
+	if recv, conf, tok := subState("doi2@example.com"); recv || conf || tok == nil || *tok == "" {
+		t.Fatalf("public subscribe must be pending with token, got receive=%v confirmed=%v token=%v", recv, conf, tok)
+	}
+
+	// 3. Réinscription d'un désabonné via clé API : PAS de réactivation
+	// silencieuse — nouveau token, toujours en attente.
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Subscriber" (id, email, "publicationId", status, "isActive", "receiveArticles", "confirmedAt", "createdAt", "updatedAt")
+		 VALUES (gen_random_uuid()::text, 'doi3@example.com', $1, 'ACTIVE', false, false, now(), now(), now())`,
+		alicePubID); err != nil {
+		t.Fatalf("seed unsubscribed: %v", err)
+	}
+	rec3 := postJSON("/v1/creator/subscribers", "doi3@example.com", key)
+	if rec3.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", rec3.Code, rec3.Body.String())
+	}
+	if recv, conf, tok := subState("doi3@example.com"); recv || conf || tok == nil || *tok == "" {
+		t.Fatalf("resubscribe must NOT reactivate: receive=%v confirmed=%v token=%v", recv, conf, tok)
+	}
+
+	// 4. Abonné déjà actif et confirmé : pas de nouveau token, pas de
+	// confirmation à renvoyer.
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Subscriber" (id, email, "publicationId", status, "isActive", "receiveArticles", "confirmedAt", "createdAt", "updatedAt")
+		 VALUES (gen_random_uuid()::text, 'doi4@example.com', $1, 'ACTIVE', true, true, now(), now(), now())`,
+		alicePubID); err != nil {
+		t.Fatalf("seed active: %v", err)
+	}
+	rec4 := postJSON("/v1/creator/subscribers", "doi4@example.com", key)
+	if rec4.Code != http.StatusCreated {
+		t.Fatalf("expected 201, got %d: %s", rec4.Code, rec4.Body.String())
+	}
+	if recv, conf, tok := subState("doi4@example.com"); !recv || !conf || tok != nil {
+		t.Fatalf("active subscriber must stay untouched: receive=%v confirmed=%v token=%v", recv, conf, tok)
 	}
 }

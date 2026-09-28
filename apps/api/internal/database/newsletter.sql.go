@@ -992,6 +992,88 @@ func (q *Queries) UpsertSubscriber(ctx context.Context, arg UpsertSubscriberPara
 	return i, err
 }
 
+const upsertSubscriberPending = `-- name: UpsertSubscriberPending :one
+INSERT INTO "Subscriber" (
+    id, email, "publicationId", status, "isActive", "receiveArticles",
+    "confirmationToken", "createdAt", "updatedAt"
+)
+VALUES (
+    gen_random_uuid()::text,
+    LOWER(TRIM($1::text)),
+    $2::text,
+    'ACTIVE',
+    true,
+    false,
+    $3::text,
+    now(),
+    now()
+)
+ON CONFLICT ("email", "publicationId") DO UPDATE SET
+    "isActive" = true,
+    "confirmationToken" = CASE
+        WHEN "Subscriber"."confirmedAt" IS NOT NULL
+         AND "Subscriber"."receiveArticles" = true THEN NULL
+        ELSE EXCLUDED."confirmationToken" END,
+    "updatedAt" = now()
+RETURNING id, email, status, "isActive", "isPremium", "receiveArticles",
+    ("confirmedAt" IS NOT NULL) AS confirmed,
+    "createdAt", "updatedAt", "publicationId"
+`
+
+type UpsertSubscriberPendingParams struct {
+	Email         string `json:"email"`
+	PublicationID string `json:"publication_id"`
+	Token         string `json:"token"`
+}
+
+type UpsertSubscriberPendingRow struct {
+	ID              string             `json:"id"`
+	Email           string             `json:"email"`
+	Status          SubscriptionStatus `json:"status"`
+	IsActive        bool               `json:"isActive"`
+	IsPremium       bool               `json:"isPremium"`
+	ReceiveArticles bool               `json:"receiveArticles"`
+	Confirmed       interface{}        `json:"confirmed"`
+	CreatedAt       pgtype.Timestamp   `json:"createdAt"`
+	UpdatedAt       pgtype.Timestamp   `json:"updatedAt"`
+	PublicationId   string             `json:"publicationId"`
+}
+
+// Inscription en attente de confirmation (double opt-in) : crée un abonné
+// NON destinataire (receiveArticles = false, confirmedAt NULL) porteur d'un
+// jeton à usage unique, et ne réactive jamais silencieusement un désabonné.
+//
+// Pourquoi : UpsertSubscriber ci-dessus active immédiatement (confirmedAt =
+// now()), donc toute route qui l'appelle avec une adresse arbitraire — clé API
+// créateur, formulaire public — fabrique des destinataires sans preuve. Ces
+// routes doivent passer par ici : l'abonné ne devient destinataire qu'au clic
+// sur le lien (ConfirmSubscriberByToken), jamais à l'inscription.
+//
+// Sur conflit :
+//   - déjà actif ET confirmé : état et token inchangés (pas de confirmation à
+//     renvoyer, le handler le détecte via les flags retournés) ;
+//   - sinon : isActive remis à true (seul, il ne rend jamais destinataire :
+//     il faut aussi receiveArticles ET confirmedAt) + token frais. Un
+//     désabonné n'est donc réactivé que par son propre clic, jamais par une
+//     nouvelle saisie.
+func (q *Queries) UpsertSubscriberPending(ctx context.Context, arg UpsertSubscriberPendingParams) (UpsertSubscriberPendingRow, error) {
+	row := q.db.QueryRow(ctx, upsertSubscriberPending, arg.Email, arg.PublicationID, arg.Token)
+	var i UpsertSubscriberPendingRow
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Status,
+		&i.IsActive,
+		&i.IsPremium,
+		&i.ReceiveArticles,
+		&i.Confirmed,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.PublicationId,
+	)
+	return i, err
+}
+
 const userOwnsPublication = `-- name: UserOwnsPublication :one
 SELECT (
     EXISTS (SELECT 1 FROM "User" WHERE "User".id = $1 AND "User"."publicationId" = $2)

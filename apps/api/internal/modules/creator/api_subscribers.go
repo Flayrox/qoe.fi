@@ -1,6 +1,8 @@
 package creator
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"log"
@@ -12,22 +14,72 @@ import (
 	"github.com/jackc/pgx/v5"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/middleware"
+	"github.com/qoefi/api/internal/queue"
 	"github.com/qoefi/api/internal/response"
 )
 
 var emailFormatRegex = regexp.MustCompile(`^[^\s@]+@[^\s@]+\.[^\s@]+$`)
 
+// newSubscriberConfirmToken tire un jeton opaque de confirmation (256 bits,
+// hex). Même format que les jetons de reconfirmation d'import : le lien
+// vérifie (email, publication, token) + signature HMAC, et le token est
+// consommé à usage unique (ConfirmSubscriberByToken le met à NULL).
+func newSubscriberConfirmToken() (string, error) {
+	var raw [32]byte
+	if _, err := rand.Read(raw[:]); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(raw[:]), nil
+}
+
+// registerPendingSubscriber inscrit une adresse en attente de confirmation
+// (double opt-in) au lieu de l'activer : crée un abonné NON destinataire
+// (receiveArticles = false, confirmedAt NULL) porteur d'un jeton, puis enfile
+// l'e-mail de confirmation via le chemin existant (worker confirm_email).
+// Ne réactive jamais silencieusement un désabonné : seul son propre clic le
+// réactive (ConfirmSubscriberByToken). Retourne l'abonné et s'il faut lui
+// envoyer une confirmation (faux s'il est déjà actif et confirmé).
+func (h *Handler) registerPendingSubscriber(r *http.Request, pubID, email string) (db.UpsertSubscriberPendingRow, bool, error) {
+	token, err := newSubscriberConfirmToken()
+	if err != nil {
+		return db.UpsertSubscriberPendingRow{}, false, err
+	}
+	sub, err := h.q.UpsertSubscriberPending(r.Context(), db.UpsertSubscriberPendingParams{
+		Email:         email,
+		PublicationID: pubID,
+		Token:         token,
+	})
+	if err != nil {
+		return db.UpsertSubscriberPendingRow{}, false, err
+	}
+	// sqlc type l'expression ("confirmedAt" IS NOT NULL) en interface{} :
+	// on l'interprète prudemment (défaut = envoyer la confirmation).
+	confirmed, _ := sub.Confirmed.(bool)
+	needsConfirm := !(sub.IsActive && sub.ReceiveArticles && confirmed)
+	if needsConfirm {
+		// Best-effort, comme ailleurs : une panne Redis n'invalide jamais une
+		// inscription déjà enregistrée en attente.
+		if err := queue.PublishSubscriberConfirm(h.asynq, queue.SubscriberConfirmPayload{
+			Email:         email,
+			PublicationID: pubID,
+		}); err != nil {
+			log.Printf("[creator] confirm enqueue %s: %v", email, err)
+		}
+	}
+	return sub, needsConfirm, nil
+}
+
 // ─── GET /v1/creator/subscribers ─────────────────────────────────────
 
 type apiSubscriberItem struct {
-	ID              string  `json:"id"`
-	Email           string  `json:"email"`
-	Status          string  `json:"status"`
-	IsActive        bool    `json:"isActive"`
-	IsPremium       bool    `json:"isPremium"`
-	ReceiveArticles bool    `json:"receiveArticles"`
-	CreatedAt       string  `json:"createdAt"`
-	UpdatedAt       string  `json:"updatedAt"`
+	ID              string `json:"id"`
+	Email           string `json:"email"`
+	Status          string `json:"status"`
+	IsActive        bool   `json:"isActive"`
+	IsPremium       bool   `json:"isPremium"`
+	ReceiveArticles bool   `json:"receiveArticles"`
+	CreatedAt       string `json:"createdAt"`
+	UpdatedAt       string `json:"updatedAt"`
 }
 
 type apiSubscribersPage struct {
@@ -142,10 +194,11 @@ func (h *Handler) apiSubscriberCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sub, err := h.q.UpsertSubscriber(r.Context(), db.UpsertSubscriberParams{
-		Email:         cleanEmail,
-		PublicationID: pubID,
-	})
+	// Double opt-in : une clé API ne prouve pas le consentement du
+	// destinataire. L'adresse est enregistrée en attente et reçoit une demande
+	// de confirmation ; elle ne devient destinataire qu'à son propre clic
+	// (fiche 01 : aucune entrée ne crée un abonné actif sans preuve).
+	sub, _, err := h.registerPendingSubscriber(r, pubID, cleanEmail)
 	if err != nil {
 		log.Printf("[creator] upsert subscriber: %v", err)
 		response.Internal(w)
@@ -290,11 +343,11 @@ func (h *Handler) publicSubscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.q.UpsertSubscriber(r.Context(), db.UpsertSubscriberParams{
-		Email:         cleanEmail,
-		PublicationID: pubID,
-	})
-	if err != nil {
+	// Double opt-in (fiche 01) : la réponse reste neutre — elle ne révèle ni
+	// l'existence d'un compte ni le statut de l'adresse — et l'abonnement ne
+	// devient actif qu'au clic sur le lien envoyé. Une réinscription d'un
+	// désabonné ne le réactive pas : seul son propre clic le fait.
+	if _, _, err = h.registerPendingSubscriber(r, pubID, cleanEmail); err != nil {
 		log.Printf("[public subscribe] upsert subscriber: %v", err)
 		response.Internal(w)
 		return

@@ -192,6 +192,50 @@ SET "isActive" = true,
     "updatedAt" = now()
 RETURNING id, email, status, "isActive", "isPremium", "receiveArticles", "createdAt", "updatedAt", "publicationId";
 
+-- name: UpsertSubscriberPending :one
+-- Inscription en attente de confirmation (double opt-in) : crée un abonné
+-- NON destinataire (receiveArticles = false, confirmedAt NULL) porteur d'un
+-- jeton à usage unique, et ne réactive jamais silencieusement un désabonné.
+--
+-- Pourquoi : UpsertSubscriber ci-dessus active immédiatement (confirmedAt =
+-- now()), donc toute route qui l'appelle avec une adresse arbitraire — clé API
+-- créateur, formulaire public — fabrique des destinataires sans preuve. Ces
+-- routes doivent passer par ici : l'abonné ne devient destinataire qu'au clic
+-- sur le lien (ConfirmSubscriberByToken), jamais à l'inscription.
+--
+-- Sur conflit :
+--   * déjà actif ET confirmé : état et token inchangés (pas de confirmation à
+--     renvoyer, le handler le détecte via les flags retournés) ;
+--   * sinon : isActive remis à true (seul, il ne rend jamais destinataire :
+--     il faut aussi receiveArticles ET confirmedAt) + token frais. Un
+--     désabonné n'est donc réactivé que par son propre clic, jamais par une
+--     nouvelle saisie.
+INSERT INTO "Subscriber" (
+    id, email, "publicationId", status, "isActive", "receiveArticles",
+    "confirmationToken", "createdAt", "updatedAt"
+)
+VALUES (
+    gen_random_uuid()::text,
+    LOWER(TRIM(sqlc.arg(email)::text)),
+    sqlc.arg(publication_id)::text,
+    'ACTIVE',
+    true,
+    false,
+    sqlc.arg(token)::text,
+    now(),
+    now()
+)
+ON CONFLICT ("email", "publicationId") DO UPDATE SET
+    "isActive" = true,
+    "confirmationToken" = CASE
+        WHEN "Subscriber"."confirmedAt" IS NOT NULL
+         AND "Subscriber"."receiveArticles" = true THEN NULL
+        ELSE EXCLUDED."confirmationToken" END,
+    "updatedAt" = now()
+RETURNING id, email, status, "isActive", "isPremium", "receiveArticles",
+    ("confirmedAt" IS NOT NULL) AS confirmed,
+    "createdAt", "updatedAt", "publicationId";
+
 -- name: ListSubscribersByPublication :many
 SELECT id, email, status, "isActive", "isPremium", "receiveArticles", "createdAt", "updatedAt"
 FROM "Subscriber"
