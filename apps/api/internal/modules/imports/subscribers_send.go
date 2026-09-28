@@ -418,12 +418,9 @@ func (s *Service) ClaimSendChunk(ctx context.Context, waveID string, limit int) 
 	if err != nil {
 		return nil, err
 	}
-	type claimed struct {
-		id, email string
-	}
-	claimedRows := []claimed{}
+	claimedRows := []claimedSendRow{}
 	for rows.Next() {
-		var c claimed
+		var c claimedSendRow
 		if err := rows.Scan(&c.id, &c.email); err != nil {
 			rows.Close()
 			return nil, err
@@ -435,6 +432,22 @@ func (s *Service) ClaimSendChunk(ctx context.Context, waveID string, limit int) 
 		return nil, err
 	}
 	if len(claimedRows) == 0 {
+		return nil, nil
+	}
+
+	// Opposition revérifiée au moment du claim (fiche 04 §3.5) : une
+	// désinscription, plainte ou exclusion survenue entre le snapshot du
+	// segment et cette tranche ne doit jamais partir. Les adresses concernées
+	// sont écartées avec motif et comptées comme ignorées — la tranche ne les
+	// réserve même pas au budget.
+	claimedRows, err = s.excludeSuppressedClaim(ctx, tx, waveID, publicationID, claimedRows)
+	if err != nil {
+		return nil, err
+	}
+	if len(claimedRows) == 0 {
+		if err := tx.Commit(ctx); err != nil {
+			return nil, err
+		}
 		return nil, nil
 	}
 
@@ -497,6 +510,80 @@ func (s *Service) ClaimSendChunk(ctx context.Context, waveID string, limit int) 
 		return nil, err
 	}
 	return out, nil
+}
+
+// claimedSendRow est une livraison réclamée en attente de filtrage.
+type claimedSendRow struct {
+	id, email string
+}
+
+// excludeSuppressedClaim écarte de la tranche les adresses passées en
+// opposition depuis le snapshot (désinscription, plainte, exclusion staff) :
+// statut `suppressed` avec motif, compteur d'ignorées avancé. Ne renvoie que
+// les adresses encore envoyables. Une erreur de lecture est propagée : la
+// transaction est annulée et la tâche retentée avec backoff asynq — on ne
+// tranche jamais une opposition qu'on n'a pas pu lire.
+func (s *Service) excludeSuppressedClaim(
+	ctx context.Context, tx pgx.Tx, waveID, publicationID string, rows []claimedSendRow,
+) ([]claimedSendRow, error) {
+	if len(rows) == 0 {
+		return rows, nil
+	}
+	emails := make([]string, 0, len(rows))
+	for _, r := range rows {
+		emails = append(emails, r.email)
+	}
+	suppressed := map[string]bool{}
+	srows, err := tx.Query(ctx, `
+		SELECT e.email FROM unnest($2::text[]) AS e(email)
+		WHERE EXISTS(
+		    SELECT 1 FROM "EmailSuppression" x
+		    WHERE x.email = e.email
+		      AND (x."scope" = 'global'
+		           OR (x."scope" = 'publication' AND x."publicationId" = $1))
+		)`, publicationID, emails)
+	if err != nil {
+		return nil, err
+	}
+	for srows.Next() {
+		var email string
+		if err := srows.Scan(&email); err != nil {
+			srows.Close()
+			return nil, err
+		}
+		suppressed[email] = true
+	}
+	srows.Close()
+	if err := srows.Err(); err != nil {
+		return nil, err
+	}
+	if len(suppressed) == 0 {
+		return rows, nil
+	}
+	kept := make([]claimedSendRow, 0, len(rows))
+	skipped := make([]string, 0, len(suppressed))
+	for _, r := range rows {
+		if suppressed[r.email] {
+			skipped = append(skipped, r.id)
+		} else {
+			kept = append(kept, r)
+		}
+	}
+	if len(skipped) > 0 {
+		if _, err := tx.Exec(ctx, `
+			UPDATE "ImportSendDelivery"
+			SET "status" = 'suppressed', "error" = 'opposition survenue avant envoi', "updatedAt" = now()
+			WHERE "id" = ANY($1::text[]) AND "status" = 'queued'`, skipped); err != nil {
+			return nil, err
+		}
+		if _, err := tx.Exec(ctx, `
+			UPDATE "ImportSendWave"
+			SET "skippedCount" = "skippedCount" + $2, "updatedAt" = now()
+			WHERE "id" = $1`, waveID, len(skipped)); err != nil {
+			return nil, err
+		}
+	}
+	return kept, nil
 }
 
 // MarkSendResult enregistre l'issue d'un envoi et avance les compteurs.

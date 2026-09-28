@@ -198,6 +198,45 @@ func TestBulkFanout_NeverMailsUnconfirmedSubscribers(t *testing.T) {
 			gotConfirmed = true
 		}
 	}
+
+	// Une adresse confirmée mais en opposition (globale ou pour cette
+	// publication) ne doit jamais être matérialisée — même si sa ligne
+	// Subscriber est restée active (course désinscription/envoi).
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO "Subscriber" (id, email, "publicationId", "isActive", "receiveArticles", "confirmedAt", "createdAt", "updatedAt")
+		VALUES
+		  ('sub_confirm_sup_g', 'suppressed-global@test.dev', 'pub_confirm', true, true, now(), now(), now()),
+		  ('sub_confirm_sup_p', 'suppressed-pub@test.dev', 'pub_confirm', true, true, now(), now(), now())
+		ON CONFLICT ("email", "publicationId") DO UPDATE SET
+		  "isActive" = true, "receiveArticles" = true, "confirmedAt" = COALESCE("Subscriber"."confirmedAt", now())`); err != nil {
+		t.Fatalf("seed opposés: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO "EmailSuppression" ("id", "email", "scope", "publicationId", "reason")
+		VALUES
+		  (gen_random_uuid()::text, 'suppressed-global@test.dev', 'global', NULL, 'complaint'),
+		  (gen_random_uuid()::text, 'suppressed-pub@test.dev', 'publication', 'pub_confirm', 'unsubscribe')
+		ON CONFLICT DO NOTHING`); err != nil {
+		t.Fatalf("seed suppressions: %v", err)
+	}
+	t.Cleanup(func() {
+		_, _ = pool.Exec(ctx, `DELETE FROM "EmailSuppression" WHERE email IN ('suppressed-global@test.dev', 'suppressed-pub@test.dev')`)
+		_, _ = pool.Exec(ctx, `DELETE FROM "Subscriber" WHERE email IN ('suppressed-global@test.dev', 'suppressed-pub@test.dev') AND "publicationId" = 'pub_confirm'`)
+	})
+	if err := q.InsertNewsletterDeliveries(ctx, db.InsertNewsletterDeliveriesParams{
+		IssueId: "issue_confirm_t", PublicationId: "pub_confirm",
+	}); err != nil {
+		t.Fatalf("InsertNewsletterDeliveries (2e passe): %v", err)
+	}
+	rowsSuppr, err := q.ListNewsletterDeliveriesByIssue(ctx, db.ListNewsletterDeliveriesByIssueParams{IssueId: "issue_confirm_t", Limit: 100})
+	if err != nil {
+		t.Fatalf("ListNewsletterDeliveriesByIssue (2e passe): %v", err)
+	}
+	for _, r := range rowsSuppr {
+		if r.Email == "suppressed-global@test.dev" || r.Email == "suppressed-pub@test.dev" {
+			t.Fatalf("fuite opposition : %q est dans le fanout bulk malgré sa suppression", r.Email)
+		}
+	}
 	if !gotConfirmed {
 		t.Fatal("l'abonné confirmé (contrôle positif) est absent du fanout")
 	}

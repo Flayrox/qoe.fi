@@ -2409,3 +2409,28 @@ CREATE UNIQUE INDEX "ImportSendDelivery_wave_email_key"
 -- CreateIndex
 CREATE INDEX "ImportSendDelivery_wave_status_idx"
     ON "ImportSendDelivery"("waveId", "status", "email");
+
+-- CreateTable
+CREATE TABLE "MessageTypePolicy" (
+    "key"             TEXT NOT NULL,
+    "family"          TEXT NOT NULL,
+    "owner"           TEXT NOT NULL,
+    "baseRule"        TEXT NOT NULL,
+    "priority"        INTEGER NOT NULL DEFAULT 100,
+    "tracking"        TEXT NOT NULL DEFAULT 'none',
+    "staffApproval"   BOOLEAN NOT NULL DEFAULT false,
+    "description"     TEXT NOT NULL DEFAULT '',
+    "createdAt"       TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt"       TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "MessageTypePolicy_pkey" PRIMARY KEY ("key"),
+    CONSTRAINT "MessageTypePolicy_family_check" CHECK ("family" IN (
+        'security', 'service', 'legal', 'newsletter', 'product', 'event', 'staff'
+    )),
+    CONSTRAINT "MessageTypePolicy_base_rule_check" CHECK ("baseRule" IN (
+        'always', 'opt_in', 'opt_out', 'approval'
+    )),
+    CONSTRAINT "MessageTypePolicy_tracking_check" CHECK ("tracking" IN (
+        'none', 'deliverability', 'editorial'
+    ))
+);
