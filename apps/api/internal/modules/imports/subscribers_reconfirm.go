@@ -39,6 +39,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/qoefi/api/internal/comms"
 	"github.com/qoefi/api/internal/queue"
 )
 
@@ -472,6 +473,25 @@ func (s *Service) ProcessReconfirmWave(ctx context.Context, waveID string) (bool
 		return true, nil
 	}
 	if waveStatus == "paused" {
+		return true, nil
+	}
+	// Arrêt d'urgence global (workers-email-kill) : la vague passe en pause
+	// avec événement, sans rien envoyer. Reprise manuelle staff (l'endpoint
+	// de démarrage rouvre une paused existante au lieu d'en créer une
+	// seconde). Les demandes restent en attente, tokens intacts.
+	if comms.EmailKillEngaged(ctx, s.pool) {
+		if _, err := s.pool.Exec(ctx, `
+			UPDATE "SubscriberImportReconfirmWave"
+			SET "status" = 'paused', "updatedAt" = now()
+			WHERE "id" = $1 AND "status" IN ('queued', 'sending')`, waveID); err != nil {
+			return false, err
+		}
+		if err := s.recordEvent(ctx, batchID, "paused", "", "system", map[string]any{
+			"reason": "workers-email-kill",
+		}); err != nil {
+			log.Printf("[imports] event pause vague %s: %v", waveID, err)
+		}
+		log.Printf("[imports] vague %s en pause (arrêt d'urgence global)", waveID)
 		return true, nil
 	}
 	if _, err := s.pool.Exec(ctx, `

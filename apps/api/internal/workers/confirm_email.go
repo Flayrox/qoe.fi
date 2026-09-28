@@ -34,6 +34,7 @@ import (
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/qoefi/api/internal/comms"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/queue"
 )
@@ -118,6 +119,13 @@ func (w *ConfirmEmailWorker) HandleSubscriberConfirm(ctx context.Context, t *asy
 	}
 	if w.provider == nil {
 		log.Printf("[confirm] aucun fournisseur email configuré (EMAIL_PROVIDER), email %s ignoré", p.Email)
+		return nil
+	}
+	// Arrêt d'urgence global (workers-email-kill) : la tâche est consommée
+	// sans envoi. La demande reste en attente en base (token intact) : le
+	// destinataire peut redemander un lien, qui invalidera celui-ci.
+	if comms.EmailKillEngaged(ctx, w.pool) {
+		log.Printf("[confirm] arrêt d'urgence actif, email %s non envoyé (demande conservée)", p.Email)
 		return nil
 	}
 

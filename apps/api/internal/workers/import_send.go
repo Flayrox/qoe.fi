@@ -58,6 +58,13 @@ func (w *ImportSendWorker) HandleImportSendWave(ctx context.Context, t *asynq.Ta
 		log.Printf("[import-send] vague %s : aucun fournisseur email configuré (EMAIL_PROVIDER), tranche ignorée", p.WaveID)
 		return nil
 	}
+	// Arrêt d'urgence global : la vague passe en pause (événement tracé), la
+	// tranche n'est ni réclamée ni ré-enfilée. Reprise manuelle staff.
+	if paused, err := w.svc.PauseSendWaveForKill(ctx, p.WaveID); err != nil {
+		return err
+	} else if paused {
+		return nil
+	}
 
 	claims, err := w.svc.ClaimSendChunk(ctx, p.WaveID, imports.SendChunkSize())
 	if err != nil {

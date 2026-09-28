@@ -32,6 +32,12 @@ export const FLAGS = {
   // disponible et les propriétaires de médias existants accompagnés : en
   // observation, les refus sont seulement journalisés.
   'authz-enforce': false,
+  // 🛑 Workers — ARRÊT D'URGENCE global des envois d'e-mails. Sémantique
+  // INVERSÉE : true = TOUT STOPPER (newsletters, confirmations, bienvenues,
+  // reconfirmations, envois encadrés), false (défaut) = envois autorisés.
+  // Les codes d'authentification ne passent par aucun worker et ne sont
+  // jamais concernés.
+  'workers-email-kill': false,
 } as const satisfies Record<string, boolean>;
 
 export type FlagKey = keyof typeof FLAGS;

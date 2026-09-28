@@ -96,6 +96,14 @@ func TestEvaluate_BudgetExhaustedDefers(t *testing.T) {
 	}
 }
 
+func TestEmailKillEngaged_NilPoolDefaultsOpen(t *testing.T) {
+	// Sans pool (tests purs, worker mal câblé) : défaut sûr documenté —
+	// envois autorisés, jamais de blocage silencieux.
+	if EmailKillEngaged(t.Context(), nil) {
+		t.Fatal("pool nil devrait donner false (défaut sûr)")
+	}
+}
+
 func TestRequiresSuppressionCheck(t *testing.T) {
 	for _, family := range []string{"newsletter", "product", "event", "staff"} {
 		if !(MessageTypePolicy{Family: family}.RequiresSuppressionCheck()) {

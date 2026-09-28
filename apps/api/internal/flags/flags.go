@@ -30,6 +30,13 @@ const (
 	// observation au mode refus. Défaut : observation — le refus ne s'active
 	// qu'une fois la MFA forte disponible et les comptes existants accompagnés.
 	AuthzEnforce = "authz-enforce"
+	// WorkersEmailKill est l'arrêt d'urgence global des envois d'e-mails
+	// (fiche 04 §6, §13). ATTENTION, sémantique inversée par rapport aux
+	// autres flags : true = TOUT STOPPER (newsletters, confirmations,
+	// bienvenues, reconfirmations, envois encadrés), false (défaut) = envois
+	// autorisés. Les e-mails d'authentification (codes, récupération) ne
+	// passent par aucun worker et ne sont jamais concernés.
+	WorkersEmailKill = "workers-email-kill"
 )
 
 // defaults est le registre des défauts (miroir exact de @qoe/flags) : utilisé
@@ -42,6 +49,7 @@ var defaults = map[string]bool{
 	AdminAuditLog:         false,
 	WorkersNewsletter:     true,
 	AuthzEnforce:          false,
+	WorkersEmailKill:      false,
 }
 
 // cacheTTL borne la fraîcheur d'un flag : une bascule console est appliquée

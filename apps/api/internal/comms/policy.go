@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/flags"
 )
 
 // Decision est un verdict du moteur : quoi faire d'un envoi envisagé.
@@ -166,6 +167,23 @@ type MessageTypePolicy struct {
 	Priority      int
 	Tracking      string
 	StaffApproval bool
+}
+
+// EmailKillEngaged lit l'arrêt d'urgence global des envois
+// (`workers-email-kill`, fiche 04 §6, §13). True = TOUT STOPPER sauf l'auth
+// (codes et récupération, qui ne passent par aucun worker).
+//
+// Défaut sûr : pool nil, table absente ou erreur de lecture → false (envois
+// autorisés). C'est le même défaut que le coupe-feu newsletters existant, et
+// c'est cohérent : quand la base est injoignable, les workers ne peuvent de
+// toute façon rien envoyer (ils lisent leurs files en base) ; un défaut
+// bloquant empêcherait surtout les reprises. L'activation du kill est
+// toujours explicite et journalisée à chaque point d'arrêt.
+func EmailKillEngaged(ctx context.Context, pool *pgxpool.Pool) bool {
+	if pool == nil {
+		return false
+	}
+	return flags.NewService(pool).IsOn(ctx, flags.WorkersEmailKill)
 }
 
 // SuppressionState est l'opposition connue pour un couple (email, publication).

@@ -321,3 +321,59 @@ func TestReconfirmWave_PlafondDeTaille(t *testing.T) {
 		t.Fatal("des demandes vivraient plus de ~30 jours : un lien éternel est interdit")
 	}
 }
+
+// TestReconfirmWave_KillSwitchPauses — l'arrêt d'urgence global met la vague
+// en pause avec événement tracé, sans rien envoyer. Les demandes restent en
+// attente, tokens intacts ; reprise manuelle staff ensuite.
+func TestReconfirmWave_KillSwitchPauses(t *testing.T) {
+	requirePool(t)
+	ctx := context.Background()
+	seedImport(t, ctx)
+	svc := newTestService()
+
+	emails := []string{"rk1@test.dev", "rk2@test.dev"}
+	seedReconfirmBatch(t, ctx, svc, "batch_reconfirm_kill", importPubPerso, importOwnerID, emails)
+	wave, err := svc.StartReconfirmWave(ctx, importOwnerID, "batch_reconfirm_kill", 10)
+	if err != nil {
+		t.Fatalf("StartReconfirmWave: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO feature_flags (key, is_enabled, description, target_roles)
+		 VALUES ('workers-email-kill', true, 'test', '{all}')
+		 ON CONFLICT (key) DO UPDATE SET is_enabled = EXCLUDED.is_enabled`); err != nil {
+		t.Fatalf("set kill: %v", err)
+	}
+	defer poolTest.Exec(ctx, `DELETE FROM feature_flags WHERE key = 'workers-email-kill'`)
+
+	done, err := svc.ProcessReconfirmWave(ctx, wave.ID)
+	if err != nil {
+		t.Fatalf("ProcessReconfirmWave (kill): %v", err)
+	}
+	if !done {
+		t.Fatal("la vague en pause doit rendre la main (rien à re-enfiler)")
+	}
+	var status string
+	if err := poolTest.QueryRow(ctx,
+		`SELECT "status" FROM "SubscriberImportReconfirmWave" WHERE "id" = $1`, wave.ID).Scan(&status); err != nil {
+		t.Fatalf("statut vague: %v", err)
+	}
+	if status != "paused" {
+		t.Fatalf("statut vague = %q, attendu paused", status)
+	}
+	var sent int
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COUNT(*) FROM "SubscriberImportReconfirmRequest" WHERE "waveId" = $1 AND "status" = 'sent'`, wave.ID).Scan(&sent); err != nil {
+		t.Fatalf("comptage sent: %v", err)
+	}
+	if sent != 0 {
+		t.Fatal("des demandes sont parties malgré l'arrêt d'urgence")
+	}
+	var events int
+	if err := poolTest.QueryRow(ctx,
+		`SELECT COUNT(*) FROM "SubscriberImportEvent" WHERE "batchId" = 'batch_reconfirm_kill' AND "type" = 'paused' AND "actorKind" = 'system'`).Scan(&events); err != nil {
+		t.Fatalf("événements: %v", err)
+	}
+	if events == 0 {
+		t.Fatal("aucun événement de pause tracé : l'arrêt doit laisser une trace")
+	}
+}
