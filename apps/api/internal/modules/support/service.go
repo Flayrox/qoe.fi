@@ -30,6 +30,11 @@ func (s *Service) ListTickets(ctx context.Context, userID string, limit, offset 
 	return internalsupport.ListUserTickets(ctx, s.pool, userID, limit, offset)
 }
 
+// OpenPublicTicket : dépôt vitrine (connecté → au compte, sinon invité).
+func (s *Service) OpenPublicTicket(ctx context.Context, userID, name, email, kind, subject, message string) (internalsupport.Ticket, error) {
+	return internalsupport.OpenPublicTicket(ctx, s.pool, userID, name, email, kind, subject, message, time.Now())
+}
+
 // GetTicket : un dossier de l'utilisateur (pas ceux d'autrui : 404).
 func (s *Service) GetTicket(ctx context.Context, userID, id string) (internalsupport.Ticket, error) {
 	t, err := internalsupport.GetTicket(ctx, s.pool, id)
