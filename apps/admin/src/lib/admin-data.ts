@@ -340,6 +340,60 @@ export async function getAdminAbuseIncidents(): Promise<{
   }
 }
 
+/** 🎫 Support général (tranche 6) : dossier + messages. */
+export interface SupportMessage {
+  id: string;
+  authorId: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface SupportTicketItem {
+  id: string;
+  kind: string;
+  subject: string;
+  openedBy: string;
+  status: 'open' | 'under_review' | 'closed';
+  assignee: string | null;
+  relatedType: string;
+  relatedId: string;
+  closedBy: string | null;
+  closedAt: string | null;
+  createdAt: string;
+  messages?: SupportMessage[];
+}
+
+export async function getAdminSupportTickets(): Promise<{
+  items: SupportTicketItem[];
+  total: number;
+}> {
+  try {
+    return await goFetch<{ items: SupportTicketItem[]; total: number }>(
+      '/v1/admin/support/tickets?limit=50'
+    );
+  } catch {
+    return { items: [], total: 0 };
+  }
+}
+
+export interface SupportMetrics {
+  open: number;
+  under_review: number;
+  openByKind: Record<string, number>;
+  unassignedOpen: number;
+  oldestOpenAgeHours: number;
+  avgCloseHours30d: number;
+  closed30d: number;
+}
+
+export async function getAdminSupportMetrics(): Promise<SupportMetrics | null> {
+  try {
+    return await goFetch<SupportMetrics>('/v1/admin/support/metrics');
+  } catch {
+    return null;
+  }
+}
+
 /** 📊 Métriques de santé anti-abus (fiche 06 §11). */
 export interface AbuseMetrics {
   since: string;

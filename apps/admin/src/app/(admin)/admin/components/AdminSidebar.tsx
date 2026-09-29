@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { href: '/admin/abuse', label: 'Revue anti-abus' },
   { href: '/admin/appeals', label: 'Recours' },
   { href: '/admin/incidents', label: 'Incidents' },
+  { href: '/admin/support', label: 'Support' },
   { href: '/admin/imports', label: "Imports d'abonnés" },
   { href: '/admin/api', label: "Demandes d'API" },
   { href: '/admin/oauth', label: 'Applications OAuth' },
