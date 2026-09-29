@@ -17,15 +17,17 @@ import (
 	"github.com/qoefi/api/internal/abuse"
 	goai "github.com/qoefi/api/internal/ai"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/flags"
 	"github.com/qoefi/api/internal/modules/articles"
 	"github.com/qoefi/api/internal/subscriptions"
 )
 
 // Service porte les opérations IA (provider injecté, nil = désactivé).
 type Service struct {
-	pool *pgxpool.Pool
-	q    *db.Queries
-	ac   goai.Provider
+	pool  *pgxpool.Pool
+	q     *db.Queries
+	ac    goai.Provider
+	flags *flags.Service
 }
 
 // NewService construit le service (provider nil = 503 explicite).
@@ -34,6 +36,11 @@ func NewService(pool *pgxpool.Pool, ac goai.Provider) *Service {
 		ac = goai.NewProvider()
 	}
 	return &Service{pool: pool, q: db.New(pool), ac: ac}
+}
+
+// SetFlags injecte le service de feature flags.
+func (s *Service) SetFlags(f *flags.Service) {
+	s.flags = f
 }
 
 // toUUID convertit un identifiant texte (local — même forme que les
@@ -74,6 +81,9 @@ var ErrAIGlobalQuota = errors.New("capacité IA du moment saturée, réessayez p
 // ErrPlusRequired : IA réservée aux Plus (et Pro via inclusion).
 var ErrPlusRequired = errors.New("IA réservée aux abonnés Plus")
 
+// ErrAIDisabled : fonctionnalité IA désactivée par feature flag serveur.
+var ErrAIDisabled = errors.New("l'assistant IA de lecture est temporairement désactivé")
+
 // Usage décrit le quota (transparence fiche : l'utilisateur sait où il en est).
 type Usage struct {
 	Limit     int  `json:"limit"`
@@ -81,9 +91,12 @@ type Usage struct {
 	Plus      bool `json:"plus"`
 }
 
-// checkGate vérifie, dans l'ordre : compte, Plus, quotas (user puis global).
+// checkGate vérifie, dans l'ordre : flag, compte, Plus, quotas (user puis global).
 // Retourne l'usage (pour la réponse) ou l'erreur à mapper.
 func (s *Service) checkGate(ctx context.Context, userID string) (Usage, error) {
+	if s.flags != nil && !s.flags.IsOn(ctx, flags.ReaderAISummary) {
+		return Usage{Limit: MonthlyCapPerUser}, ErrAIDisabled
+	}
 	// userID vide d'abord (sans toucher la base — le seul cas testable pur ;
 	// les pointeurs nil wrappés dans une interface ne sont PAS détectés par
 	// `pool == nil`, donc on ne s'appuie jamais dessus ici).

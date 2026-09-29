@@ -486,3 +486,85 @@ export async function saveGlobalAnnouncementAction(
     return { success: false, error: errorMessage(error, 'Sauvegarde de l annonce impossible.') };
   }
 }
+
+// ── In-App Placements (Licorne 2027) ─────────────────────────────────────────
+
+export interface AdminPlacementPayload {
+  id?: string;
+  slot: string;
+  format: 'notch_banner' | 'card' | 'callout' | 'modal';
+  type: 'promo' | 'info' | 'warning' | 'critical';
+  title: string;
+  body: string;
+  ctaLabel?: string;
+  ctaUrl?: string;
+  targetAudience: 'all' | 'free_only' | 'plus_only' | 'pro_only';
+  priority: number;
+  isActive: boolean;
+  dismissible: boolean;
+  startsAt?: string;
+  endsAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export async function listPlacementsAdminAction(): Promise<AdminPlacementPayload[]> {
+  await verifySuperadmin();
+  try {
+    const res = await goFetch<{ placements: AdminPlacementPayload[] }>('/v1/admin/placements');
+    return res.placements || [];
+  } catch (err) {
+    console.error('listPlacementsAdminAction error:', err);
+    return [];
+  }
+}
+
+export async function createPlacementAdminAction(data: AdminPlacementPayload) {
+  await verifySuperadmin();
+  try {
+    const created = await goFetch<AdminPlacementPayload>('/v1/admin/placements', {
+      method: 'POST',
+      body: data,
+    });
+    revalidatePath('/admin/notifications');
+    revalidatePath('/', 'layout');
+    return { success: true, placement: created };
+  } catch (error: unknown) {
+    console.error('createPlacementAdminAction error:', error);
+    return { success: false, error: errorMessage(error, 'Création du placement impossible') };
+  }
+}
+
+export async function updatePlacementAdminAction(id: string, data: Partial<AdminPlacementPayload>) {
+  await verifySuperadmin();
+  try {
+    const updated = await goFetch<AdminPlacementPayload>(
+      `/v1/admin/placements/${encodeURIComponent(id)}`,
+      {
+        method: 'PUT',
+        body: data,
+      }
+    );
+    revalidatePath('/admin/notifications');
+    revalidatePath('/', 'layout');
+    return { success: true, placement: updated };
+  } catch (error: unknown) {
+    console.error('updatePlacementAdminAction error:', error);
+    return { success: false, error: errorMessage(error, 'Mise à jour impossible') };
+  }
+}
+
+export async function deletePlacementAdminAction(id: string) {
+  await verifySuperadmin();
+  try {
+    await goFetch(`/v1/admin/placements/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+    });
+    revalidatePath('/admin/notifications');
+    revalidatePath('/', 'layout');
+    return { success: true };
+  } catch (error: unknown) {
+    console.error('deletePlacementAdminAction error:', error);
+    return { success: false, error: errorMessage(error, 'Suppression impossible') };
+  }
+}

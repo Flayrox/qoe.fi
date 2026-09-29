@@ -50,21 +50,40 @@ const (
 	// ne sont pas concernés (on ne coupe jamais le suivi en cours).
 	// false (défaut) = dépôts autorisés (rate-limit + budget usuels).
 	SupportPublicKill = "support.public-kill"
+
+	// SubscriptionCheckoutEnabled pilote l'activation du checkout CB direct.
+	SubscriptionCheckoutEnabled = "subscription-checkout-enabled"
+	// ReaderPlusBanner pilote l'affichage dynamique de la bannière Plus.
+	ReaderPlusBanner = "reader-plus-banner"
+	// ReaderAISummary pilote l'assistant IA de lecture.
+	ReaderAISummary = "reader-ai-summary"
+	// ReaderTTSPlayback pilote la lecture audio TTS.
+	ReaderTTSPlayback = "reader-tts-playback"
+	// ReaderOfflinePack pilote le téléchargement des packs hors-ligne.
+	ReaderOfflinePack = "reader-offline-pack"
+	// ReaderEbooksUpload pilote l'import d'EPUB personnels.
+	ReaderEbooksUpload = "reader-ebooks-upload"
 )
 
 // defaults est le registre des défauts (miroir exact de @qoe/flags) : utilisé
 // quand la table est absente, la clé inconnue, ou la DB injoignable.
 var defaults = map[string]bool{
-	FeedRecommendations:   true,
-	WebNewsletterBanner:   false,
-	DashboardAITitle:      false,
-	LandingPricingSection: false,
-	AdminAuditLog:         false,
-	WorkersNewsletter:     true,
-	AuthzEnforce:          false,
-	WorkersEmailKill:      false,
-	AbuseSignupKill:       false,
-	SupportPublicKill:     false,
+	FeedRecommendations:         true,
+	WebNewsletterBanner:         false,
+	DashboardAITitle:            false,
+	LandingPricingSection:       false,
+	AdminAuditLog:               false,
+	WorkersNewsletter:           true,
+	AuthzEnforce:                false,
+	WorkersEmailKill:            false,
+	AbuseSignupKill:             false,
+	SupportPublicKill:           false,
+	SubscriptionCheckoutEnabled: false,
+	ReaderPlusBanner:           true,
+	ReaderAISummary:            true,
+	ReaderTTSPlayback:          true,
+	ReaderOfflinePack:          true,
+	ReaderEbooksUpload:         true,
 }
 
 // cacheTTL borne la fraîcheur d'un flag : une bascule console est appliquée

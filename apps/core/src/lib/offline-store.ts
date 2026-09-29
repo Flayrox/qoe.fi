@@ -171,3 +171,208 @@ export function browserOfflineStorage(): OfflineStorage | null {
     return null;
   }
 }
+
+// =====================================================================
+// 🚀 Moteur IndexedDB Asynchrone Haute Capacité (Licorne 2027)
+// =====================================================================
+// Débloque la limite des 5MB de localStorage : permet de stocker des dizaines
+// de livres illustrés et épisodes audio en IndexedDB sans bloquer l'UI.
+// =====================================================================
+
+const IDB_NAME = 'qoefi_offline_db';
+const IDB_VERSION = 1;
+const IDB_STORE = 'packs';
+
+interface IDBPackRecord<T> {
+  id: string;
+  version: number;
+  kind: string;
+  savedAt: string;
+  payload: T;
+}
+
+export function openIDB(): Promise<IDBDatabase | null> {
+  if (typeof window === 'undefined' || !window.indexedDB) {
+    return Promise.resolve(null);
+  }
+  return new Promise((resolve) => {
+    try {
+      const req = window.indexedDB.open(IDB_NAME, IDB_VERSION);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(IDB_STORE)) {
+          const store = db.createObjectStore(IDB_STORE, { keyPath: 'id' });
+          store.createIndex('savedAt', 'savedAt', { unique: false });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+/**
+ * Lit un pack de façon asynchrone (IndexedDB en priorité, repli localStorage).
+ */
+export async function readOfflinePackAsync<T>(id: string): Promise<OfflinePack<T> | null> {
+  const db = await openIDB();
+  if (db) {
+    const item = await new Promise<IDBPackRecord<T> | null>((resolve) => {
+      try {
+        const tx = db.transaction(IDB_STORE, 'readonly');
+        const store = tx.objectStore(IDB_STORE);
+        const req = store.get(id);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => resolve(null);
+      } catch {
+        resolve(null);
+      }
+    });
+    if (item) {
+      return {
+        version: item.version,
+        kind: item.kind,
+        savedAt: item.savedAt,
+        payload: item.payload,
+      };
+    }
+  }
+
+  // Repli sur le stockage synchrone (ex: packs legacy dans localStorage)
+  const local = browserOfflineStorage();
+  if (local) {
+    return readOfflinePack<T>(local, id);
+  }
+  return null;
+}
+
+/**
+ * Vérifie l'existence d'un pack de façon asynchrone.
+ */
+export async function hasOfflinePackAsync(id: string): Promise<boolean> {
+  const pack = await readOfflinePackAsync(id);
+  return pack !== null;
+}
+
+/**
+ * Enregistre un pack de façon asynchrone (IndexedDB pour capacité illimitée sans blocage UI,
+ * repli localStorage si IDB indisponible).
+ */
+export async function saveOfflinePackAsync<T>(
+  id: string,
+  pack: { version: number; kind: string; payload: T },
+  now: Date = new Date()
+): Promise<boolean> {
+  const db = await openIDB();
+  if (db) {
+    try {
+      const record: IDBPackRecord<T> = {
+        id,
+        version: pack.version,
+        kind: pack.kind,
+        savedAt: now.toISOString(),
+        payload: pack.payload,
+      };
+
+      const success = await new Promise<boolean>((resolve) => {
+        try {
+          const tx = db.transaction(IDB_STORE, 'readwrite');
+          const store = tx.objectStore(IDB_STORE);
+          const putReq = store.put(record);
+          putReq.onsuccess = () => resolve(true);
+          putReq.onerror = () => resolve(false);
+        } catch {
+          resolve(false);
+        }
+      });
+
+      if (success) {
+        // Nettoie aussi l'éventuelle ancienne copie dans localStorage pour libérer les 5MB
+        const local = browserOfflineStorage();
+        if (local) removeOfflinePack(local, id);
+        return true;
+      }
+    } catch {
+      // Continue vers le fallback localStorage
+    }
+  }
+
+  // Repli localStorage
+  const local = browserOfflineStorage();
+  if (local) {
+    return saveOfflinePack(local, id, pack, now);
+  }
+  return false;
+}
+
+/**
+ * Supprime un pack d'IndexedDB et de localStorage.
+ */
+export async function removeOfflinePackAsync(id: string): Promise<void> {
+  const db = await openIDB();
+  if (db) {
+    await new Promise<void>((resolve) => {
+      try {
+        const tx = db.transaction(IDB_STORE, 'readwrite');
+        const store = tx.objectStore(IDB_STORE);
+        const delReq = store.delete(id);
+        delReq.onsuccess = () => resolve();
+        delReq.onerror = () => resolve();
+      } catch {
+        resolve();
+      }
+    });
+  }
+  const local = browserOfflineStorage();
+  if (local) {
+    removeOfflinePack(local, id);
+  }
+}
+
+/**
+ * Liste l'ensemble des packs hors-ligne disponibles.
+ */
+export async function listOfflinePacksAsync(): Promise<OfflinePackInfo[]> {
+  const db = await openIDB();
+  const results: OfflinePackInfo[] = [];
+  const seenIds = new Set<string>();
+
+  if (db) {
+    const idbItems = await new Promise<IDBPackRecord<unknown>[]>((resolve) => {
+      try {
+        const tx = db.transaction(IDB_STORE, 'readonly');
+        const store = tx.objectStore(IDB_STORE);
+        const req = store.getAll();
+        req.onsuccess = () => resolve(req.result || []);
+        req.onerror = () => resolve([]);
+      } catch {
+        resolve([]);
+      }
+    });
+
+    for (const item of idbItems) {
+      seenIds.add(item.id);
+      results.push({
+        id: item.id,
+        kind: item.kind,
+        version: item.version,
+        savedAt: item.savedAt,
+      });
+    }
+  }
+
+  // Fusion avec localStorage pour les éléments non encore migrés
+  const local = browserOfflineStorage();
+  if (local) {
+    for (const info of listOfflinePacks(local)) {
+      if (!seenIds.has(info.id)) {
+        seenIds.add(info.id);
+        results.push(info);
+      }
+    }
+  }
+
+  return results.sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+}

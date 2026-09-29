@@ -46,6 +46,7 @@ import (
 	"github.com/qoefi/api/internal/modules/newsletters"
 	"github.com/qoefi/api/internal/modules/notifications"
 	"github.com/qoefi/api/internal/modules/oauth"
+	"github.com/qoefi/api/internal/modules/placements"
 	"github.com/qoefi/api/internal/modules/posts"
 	"github.com/qoefi/api/internal/modules/publications"
 	"github.com/qoefi/api/internal/modules/search"
@@ -325,8 +326,9 @@ func newRouter(d RouterDeps) *chi.Mux {
 	ebooksHandler := ebooks.NewHandler(ebooks.NewService(pool))
 	// IA de lecture (fiche Plus P1) : résumé + explication, provider
 	// pluggable (nil = 503 explicite), quotas mensuels. Routes sur le
-	// groupe protégé plus bas.
-	aiHandler := aimod.NewHandler(aimod.NewService(pool, nil))
+	aiSvc := aimod.NewService(pool, nil)
+	aiSvc.SetFlags(flagsSvc)
+	aiHandler := aimod.NewHandler(aiSvc)
 	// Support général (tranche 6) : dossiers hors recours (compte, contenu,
 	// API, import, livraison, signalement, autre). Mêmes garanties que les
 	// recours : accessible restreint, ouverture sans effet, un dossier
@@ -368,8 +370,14 @@ func newRouter(d RouterDeps) *chi.Mux {
 	homeSvc.SetEventEmitter(asynqClient)
 	homeHandler := home.NewHandler(homeSvc)
 	homeHandler.SetSubscribeRateLimit(rc, time.Minute, 10)
+
+	// Placements in-app & bannières contextuelles (moteur souverain 2027)
+	placementsSvc := placements.NewService(pool)
+	placementsHandler := placements.NewHandler(placementsSvc)
+
 	r.With(auth.OptionalAuth).Group(func(pub chi.Router) {
 		homeHandler.RegisterPublic(pub)
+		placementsHandler.RegisterPublic(pub)
 	})
 
 	// Settings créateur : sous-domaine (public) + profil/onboarding/clés API (protégé).
@@ -494,6 +502,9 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 		// Édition du contenu légal (superadmin, revérifié dans le service).
 		legalHandler.RegisterAdmin(protected)
+
+		// Gestion des placements et bannières in-app (superadmin)
+		placementsHandler.RegisterAdmin(protected)
 
 		newslettersHandler.Register(protected)
 

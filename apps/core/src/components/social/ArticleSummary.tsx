@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { summarizeArticleAction } from '@qoe/sdk';
+import { useFlag } from '@qoe/flags';
 
 // =====================================================================
 // ✨ Résumé IA d'article (fiche Plus P1)
@@ -16,6 +17,7 @@ import { summarizeArticleAction } from '@qoe/sdk';
 // =====================================================================
 
 export function ArticleSummary({ articleId }: { articleId: string }) {
+  const isAiEnabled = useFlag('reader-ai-summary');
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
@@ -42,6 +44,8 @@ export function ArticleSummary({ articleId }: { articleId: string }) {
           setError('Résumé IA réservé aux abonnés Plus (bientôt).');
         } else if (code === 'AI_QUOTA_EXCEEDED') {
           setError('Quota IA du mois épuisé — il revient le mois prochain.');
+        } else if (code === 'AI_DISABLED') {
+          setError("L'assistant IA de lecture est momentanément désactivé.");
         } else if (code === 'AI_UNAVAILABLE') {
           setError('IA momentanément indisponible — réessayez plus tard.');
         } else if (code === 'AI_BUSY') {
@@ -56,6 +60,10 @@ export function ArticleSummary({ articleId }: { articleId: string }) {
       setLoading(false);
     }
   };
+
+  if (!isAiEnabled) {
+    return null;
+  }
 
   return (
     <div className="rounded-xl border border-border/40 bg-muted/30 px-4 py-3">

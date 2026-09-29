@@ -46,6 +46,19 @@ export const FLAGS = {
   // Sémantique inversée : true = 503 explicite avant toute écriture,
   // dossiers existants et console intouchés. Miroir de SupportPublicKill (Go).
   'support.public-kill': false,
+  // 💳 Monétisation — activation du checkout direct par carte bancaire.
+  // false (défaut en intérim Stripe) = mode waitlist / contact support.
+  'subscription-checkout-enabled': false,
+  // 📢 Lecteur — affichage du bandeau dynamique de découverte Qoefi Plus.
+  'reader-plus-banner': true,
+  // 🤖 Lecteur — assistant IA de lecture (synthèse d'articles et explications).
+  'reader-ai-summary': true,
+  // 🎧 Lecteur — lecture audio haute fidélité par synthèse vocale (TTS).
+  'reader-tts-playback': true,
+  // 📦 Lecteur — téléchargement des packs hors-ligne d'articles et de livres.
+  'reader-offline-pack': true,
+  // 📚 Lecteur — import de livres EPUB personnels dans la bibliothèque.
+  'reader-ebooks-upload': true,
 } as const satisfies Record<string, boolean>;
 
 export type FlagKey = keyof typeof FLAGS;

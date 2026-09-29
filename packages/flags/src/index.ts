@@ -16,3 +16,4 @@
 export * from './flags';
 export { FlagsProvider, GrowthBookProvider } from './provider';
 export { useFlag, useFlagIsOn, useFlags, useGrowthBook } from './hooks';
+export { FeatureGate, type FeatureGateProps } from './gate';

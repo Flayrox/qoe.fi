@@ -17,6 +17,7 @@ import { toast } from '@qoe/ui/toast';
 import { routes } from '@qoe/config/routes';
 import { cn } from '@qoe/utils';
 import { SafeAvatar } from '@qoe/ui';
+import { DynamicBannerSlot } from '@/components/banners/DynamicBannerSlot';
 
 import {
   type BillingTransaction,
@@ -188,6 +189,9 @@ export function BillingClient({ billing, userEmail, userName }: BillingClientPro
           </div>
         </div>
       </div>
+
+      {/* ─── Bannière Abonnement Plateforme (Dynamic In-App Messaging Slot) ─── */}
+      <DynamicBannerSlot slot="reader.billing.hero" />
 
       {/* ─── Section Abonnements Premium ─── */}
       <div className="space-y-4">

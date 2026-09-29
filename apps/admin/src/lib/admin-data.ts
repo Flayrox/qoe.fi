@@ -821,7 +821,18 @@ export async function getAdminFeatureFlags(): Promise<FeatureFlagItem[]> {
       .order('key', { ascending: true });
 
     if (!error && data && data.length > 0) {
-      return data as FeatureFlagItem[];
+      const knownKeys = new Set(data.map((d: { key: string }) => d.key));
+      const missingFromDb = Object.entries(FLAGS)
+        .filter(([key]) => !knownKeys.has(key))
+        .map(([key, is_enabled]) => ({
+          key,
+          is_enabled,
+          description: null,
+          target_roles: ['all'],
+        }));
+      return [...(data as FeatureFlagItem[]), ...missingFromDb].sort((a, b) =>
+        a.key.localeCompare(b.key)
+      );
     }
   } catch {
     // Dégradation gracieuse

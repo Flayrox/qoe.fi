@@ -99,12 +99,6 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	}
 	item, err := h.svc.Create(r.Context(), articleID, userID, in.Text, in.Note, in.IsPublic, ordinal)
 	if err != nil {
-		// Quota gratuit atteint : 403 + code stable (le front branche sur
-		// code HIGHLIGHT_QUOTA_EXCEEDED, jamais sur le libellé — i18n).
-		if errors.Is(err, ErrHighlightQuota) {
-			response.ErrorCode(w, http.StatusForbidden, "HIGHLIGHT_QUOTA_EXCEEDED", err.Error())
-			return
-		}
 		log.Printf("[highlights] create: %v", err)
 		response.Internal(w)
 		return

@@ -1,13 +1,15 @@
 import { Activity, AlertTriangle, CheckCircle2, Clock3, Mail } from 'lucide-react';
 import { getAdminDeliveries } from '@/lib/admin-data';
-import { getGlobalAnnouncementAction } from '@/lib/admin-aux-actions';
+import { getGlobalAnnouncementAction, listPlacementsAdminAction } from '@/lib/admin-aux-actions';
 import { DeliveryTable, type DeliveryRow } from './DeliveryTable';
 import { BroadcastAnnouncementConsole } from './BroadcastAnnouncementConsole';
+import { PlacementsManager } from './PlacementsManager';
 
 export default async function AdminNotificationsPage() {
-  const [deliveriesData, announcement] = await Promise.all([
+  const [deliveriesData, announcement, placements] = await Promise.all([
     getAdminDeliveries(),
     getGlobalAnnouncementAction(),
+    listPlacementsAdminAction(),
   ]);
   const { counts, total: totalCount, deliveries } = deliveriesData;
 
@@ -70,6 +72,9 @@ export default async function AdminNotificationsPage() {
 
       {/* 📣 Console de diffusion d'annonces avec courbure inversée */}
       <BroadcastAnnouncementConsole initialAnnouncement={announcement} />
+
+      {/* 🦄 Moteur de Placements In-App & Bannières Contextuelles (Licorne 2027) */}
+      <PlacementsManager initialPlacements={placements} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((card) => {

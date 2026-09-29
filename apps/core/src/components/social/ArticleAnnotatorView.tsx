@@ -41,6 +41,7 @@ import {
 } from '@qoe/ui/reader';
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
+import { useFlag } from '@qoe/flags';
 import { useReaderToolbar } from './ReaderToolbarContext';
 
 export interface ArticleAnnotatorViewProps {
@@ -138,6 +139,7 @@ function ArticleAnnotatorViewInner({
   const [copied, setCopied] = useState(false);
   // Gate Plus du TTS (fiche P1) : partagé avec la toolbar dockée via le
   // même hook (1 seul appel /v1/me/entitlements par session).
+  const isTtsEnabled = useFlag('reader-tts-playback');
   const ttsPlus = usePlus();
   const ttsLocked = ttsPlus === false;
   const ttsUpsell = () => toast.info(t`Écoute audio réservée aux abonnés Plus (bientôt).`);
@@ -604,14 +606,16 @@ function ArticleAnnotatorViewInner({
               )}
             </button>
 
-            <TextToSpeechPlayer
-              articleTitle={article.title}
-              articleCoverUrl={article.imageUrl}
-              authorName={authorName}
-              articleContentSelector="#article-content"
-              locked={ttsLocked}
-              onLockedClick={ttsUpsell}
-            />
+            {isTtsEnabled && (
+              <TextToSpeechPlayer
+                articleTitle={article.title}
+                articleCoverUrl={article.imageUrl}
+                authorName={authorName}
+                articleContentSelector="#article-content"
+                locked={ttsLocked}
+                onLockedClick={ttsUpsell}
+              />
+            )}
             <ReadingSettingsSheet
               plusThemesLocked={ttsLocked}
               onLockedThemeClick={() =>

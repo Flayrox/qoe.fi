@@ -51,6 +51,8 @@ func (h *Handler) mapErr(w http.ResponseWriter, err error) {
 		response.ErrorCode(w, http.StatusTooManyRequests, "AI_QUOTA_EXCEEDED", err.Error())
 	case errors.Is(err, ErrAIGlobalQuota):
 		response.ErrorCode(w, http.StatusTooManyRequests, "AI_BUSY", err.Error())
+	case errors.Is(err, ErrAIDisabled):
+		response.ErrorCode(w, http.StatusServiceUnavailable, "AI_DISABLED", err.Error())
 	case errors.Is(err, goai.ErrNoProvider):
 		response.ErrorCode(w, http.StatusServiceUnavailable, "AI_UNAVAILABLE", err.Error())
 	default:

@@ -110,7 +110,7 @@ export function LibraryClient({
   initialBookmarks,
   initialHighlights,
   initialTab = 'bookmarks',
-  highlightQuota,
+  highlightQuota: _highlightQuota,
 }: LibraryClientProps) {
   const [activeTab, setActiveTab] = useState<LibraryTab>(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
@@ -309,22 +309,6 @@ export function LibraryClient({
           <p className="text-xs text-muted-foreground mt-0.5">
             {t`Vos lectures sauvegardées, citations et réflexions personnelles.`}
           </p>
-          {/* Quota surlignages (fiche Plus) : 50 gratuits, illimités en Plus.
-            Informatif ici (le refus explicite a lieu à la création). */}
-          {activeTab === 'highlights' && highlightQuota && (
-            <p className="text-[11px] text-muted-foreground mt-1">
-              {highlightQuota.plus || highlightQuota.limit < 0 ? (
-                <>{t`Surlignages illimités (Plus)`} ✓</>
-              ) : (
-                <>
-                  {t`${highlightQuota.count} / ${highlightQuota.limit} surlignages gratuits`}
-                  {highlightQuota.count >= highlightQuota.limit
-                    ? t` — quota atteint, Plus = illimités (bientôt)`
-                    : t` — Plus = illimités (bientôt)`}
-                </>
-              )}
-            </p>
-          )}
         </div>
 
         <div className="flex items-center gap-2 self-start sm:self-auto">
