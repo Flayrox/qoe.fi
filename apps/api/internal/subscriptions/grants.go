@@ -129,6 +129,30 @@ func HasPro(ctx context.Context, pool HasDB, publicationID string, now time.Time
 	return HasEntitlement(ctx, pool, SubjectPublication, publicationID, PlanPro, now)
 }
 
+// HasPlus : l'utilisateur a-t-il les avantages lecteur Plus ? Deux voies
+// (décision produit : Pro INCLUT Plus) :
+//   - octroi direct : grant (user, plus) effectif ;
+//   - via le studio : l'utilisateur possède une publication (User.
+//     publicationId) sous octroi (publication, pro) effectif.
+//
+// Une seule requête (EXISTS + sous-requête owner). Pool nil : false.
+func HasPlus(ctx context.Context, pool HasDB, userID string, now time.Time) bool {
+	if pool == nil {
+		return false
+	}
+	now = abuse.UtcMs(now)
+	var ok bool
+	err := pool.QueryRow(ctx, `
+		SELECT EXISTS(
+			SELECT 1 FROM "SubscriptionGrant" g
+			WHERE ((g."subjectType" = 'user' AND g."subjectId" = $1 AND g."plan" = 'plus')
+			    OR (g."subjectType" = 'publication' AND g."plan" = 'pro'
+			        AND g."subjectId" = (SELECT u."publicationId" FROM "User" u WHERE u.id = $1::uuid)))
+			  AND g."startsAt" <= $2 AND (g."endsAt" IS NULL OR g."endsAt" > $2)
+		)`, userID, now).Scan(&ok)
+	return err == nil && ok
+}
+
 // GrantPlan octroie un palier (staff) : sujet + plan validés, fin > début
 // (NULL = sans fin), début futur = programmé. Note tracée (pourquoi).
 func GrantPlan(ctx context.Context, pool DB, subjectType, subjectID, plan string, startsAt time.Time, endsAt *time.Time, grantedBy, note string, now time.Time) (Grant, error) {
