@@ -89,6 +89,28 @@ func (s *Service) UpdateAbuseIncident(ctx context.Context, userID, id, status, s
 	return abuse.UpdateIncident(ctx, s.pool, id, userID, status, scope, impact, measure, time.Now())
 }
 
+// Abuse appeals (tranche 6, superadmin uniquement) : file des recours et
+// décisions. overturned lève la mesure (verdict allow), upheld la confirme
+// (verdict humain qui reprend le résultat) — les deux portent appealRef.
+
+// ListAbuseAppeals renvoie les recours (ouverts d'abord).
+func (s *Service) ListAbuseAppeals(ctx context.Context, userID, status string, limit, offset int) ([]abuse.Appeal, int, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return nil, 0, err
+	}
+	return abuse.ListAllAppeals(ctx, s.pool, status, limit, offset)
+}
+
+// DecideAbuseAppeal tranche un recours : prise en main (under_review) ou
+// clôture (decided + outcome). Seule overturned lève la mesure — l'ouverture
+// n'a jamais rien levé (verrouillé par test).
+func (s *Service) DecideAbuseAppeal(ctx context.Context, userID, id, status, outcome, staffNote, reply string) (abuse.Appeal, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return abuse.Appeal{}, err
+	}
+	return abuse.DecideAppeal(ctx, s.pool, id, userID, status, outcome, staffNote, reply, time.Now())
+}
+
 // ResolveAbuseDecision clôt un dossier par un verdict humain tracé
 // (superadmin uniquement). `result` ∈ {allow, limit_distribution,
 // pause_sending, suspend} — le reste est refusé (abuse.ErrInvalidHumanResult).

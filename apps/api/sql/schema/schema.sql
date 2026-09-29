@@ -217,6 +217,42 @@ CREATE TABLE "AntiAbuseIncident" (
 );
 
 -- CreateTable
+CREATE TABLE "Appeal" (
+    "id" TEXT NOT NULL,
+    "subjectType" TEXT NOT NULL,
+    "subjectId" TEXT NOT NULL,
+    "decisionId" TEXT,
+    "openedBy" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'open',
+    "outcome" TEXT,
+    "staffNote" TEXT NOT NULL DEFAULT '',
+    "decidedBy" TEXT,
+    "decidedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Appeal_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "Appeal_status_check" CHECK ("status" IN ('open', 'under_review', 'decided')),
+    CONSTRAINT "Appeal_outcome_check" CHECK ("outcome" IS NULL OR "outcome" IN ('upheld', 'overturned')),
+    CONSTRAINT "Appeal_decided_check" CHECK (
+        ("status" = 'decided' AND "outcome" IS NOT NULL AND "decidedBy" IS NOT NULL AND "decidedAt" IS NOT NULL)
+        OR ("status" <> 'decided')
+    )
+);
+
+-- CreateTable
+CREATE TABLE "AppealMessage" (
+    "id" TEXT NOT NULL,
+    "appealId" TEXT NOT NULL REFERENCES "Appeal"("id") ON DELETE CASCADE,
+    "authorId" TEXT NOT NULL,
+    "body" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "AppealMessage_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "AppealMessage_body_check" CHECK (char_length("body") BETWEEN 1 AND 5000)
+);
+
+-- CreateTable
 CREATE TABLE "BlockedUser" (
     "id" TEXT NOT NULL,
     "creatorId" UUID NOT NULL,
