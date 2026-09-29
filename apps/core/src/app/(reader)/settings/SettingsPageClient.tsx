@@ -14,6 +14,7 @@ import {
   Download,
   FileText,
   KeyRound,
+  LifeBuoy,
   Lock,
   LogOut,
   ShieldCheck,
@@ -665,6 +666,36 @@ export default function AccountSettingsPage({
                   <LogOut className="h-3.5 w-3.5" /> {t`Se déconnecter`}
                 </button>
               </form>
+            </div>
+
+            {/* Aide : support général + recours (tranche 6) — les pages
+             * existent, elles doivent être trouvables depuis les réglages. */}
+            <div className="rounded-xl border border-border/60 px-4 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                  <LifeBuoy className="h-4 w-4 text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">{t`Aide & recours`}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t`Un problème, une mesure à contester : ouvrez un dossier, le staff répond.`}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+                <a
+                  href="/support"
+                  className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-center hover:bg-muted"
+                >
+                  {t`Contacter le support`}
+                </a>
+                <a
+                  href="/recours"
+                  className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-center hover:bg-muted"
+                >
+                  {t`Mes recours`}
+                </a>
+              </div>
             </div>
           </SettingsPanel>
         )}

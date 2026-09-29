@@ -115,6 +115,52 @@ func TestHTTP_Confirm_TokenSingleUse(t *testing.T) {
 	}
 }
 
+func TestHTTP_Confirm_ErrorPages(t *testing.T) {
+	ctx := context.Background()
+	seedNewsletterEnv(t, ctx)
+	const email = "errpage@test.dev"
+	const token = "tok-errpage"
+	seedPendingSubscriber(t, ctx, email, token)
+	r := newHTTPRouter(t, false)
+
+	// Signature falsifiée en GET → 403 en PAGE HTML (jamais de JSON brut
+	// dans un navigateur), SANS bouton de renvoi (params non fiables).
+	w := nlReq(r, http.MethodGet, "/v1/newsletters/confirm?pub="+pubID+"&email="+email+"&token="+token+"&sig=deadbeef", "", "")
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("403 attendu, obtenu %d", w.Code)
+	}
+	if ct := w.Header().Get("Content-Type"); ct != "text/html; charset=utf-8" {
+		t.Fatalf("page HTML attendue, obtenu %q", ct)
+	}
+	if strings.Contains(w.Body.String(), "resend") {
+		t.Fatal("403 (sig invalide) : aucun bouton de renvoi (params non fiables)")
+	}
+
+	// Replay en GET → 409 en PAGE HTML AVEC renvoi (sig valide : params fiables).
+	sig := workers.SignConfirm(pubID, email)
+	url := "/v1/newsletters/confirm?pub=" + pubID + "&email=" + email + "&token=" + token + "&sig=" + sig
+	if w := nlReq(r, http.MethodGet, url, "", ""); w.Code != http.StatusOK {
+		t.Fatalf("1re confirmation = %d, attendu 200", w.Code)
+	}
+	w = nlReq(r, http.MethodGet, url, "", "")
+	if w.Code != http.StatusConflict {
+		t.Fatalf("replay = %d, attendu 409", w.Code)
+	}
+	body := w.Body.String()
+	if !strings.Contains(body, "resend") || !strings.Contains(body, "/v1/home/subscribe") {
+		t.Fatal("409 : bouton de renvoi vers /v1/home/subscribe attendu")
+	}
+	if strings.Contains(body, token) {
+		t.Fatal("409 : le token ne doit jamais être réémis dans la page")
+	}
+
+	// Mêmes échecs en POST → JSON (clients API, pas de page).
+	w = nlReq(r, http.MethodPost, "/v1/newsletters/confirm?pub="+pubID+"&email="+email+"&token="+token+"&sig=deadbeef", "", "")
+	if w.Code != http.StatusForbidden || strings.Contains(w.Header().Get("Content-Type"), "text/html") {
+		t.Fatalf("POST 403 JSON attendu, obtenu %d %q", w.Code, w.Header().Get("Content-Type"))
+	}
+}
+
 func TestSubscribe_PublicSignupStaysPending(t *testing.T) {
 	ctx := context.Background()
 	seedNewsletterEnv(t, ctx)

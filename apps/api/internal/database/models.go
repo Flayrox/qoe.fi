@@ -468,6 +468,19 @@ func (ns NullSubscriptionStatus) Value() (driver.Value, error) {
 	return string(ns.SubscriptionStatus), nil
 }
 
+type AbuseSignal struct {
+	ID          string           `json:"id"`
+	Type        string           `json:"type"`
+	SubjectType string           `json:"subjectType"`
+	SubjectId   string           `json:"subjectId"`
+	Source      string           `json:"source"`
+	Confidence  int16            `json:"confidence"`
+	RuleVersion string           `json:"ruleVersion"`
+	ObservedAt  pgtype.Timestamp `json:"observedAt"`
+	ExpiresAt   pgtype.Timestamp `json:"expiresAt"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
+}
+
 type AccountDeletionRequest struct {
 	ID          string           `json:"id"`
 	UserId      pgtype.UUID      `json:"userId"`
@@ -502,6 +515,21 @@ type AnnotationUpvote struct {
 	UserId      pgtype.UUID      `json:"userId"`
 }
 
+type AntiAbuseIncident struct {
+	ID         string           `json:"id"`
+	Title      string           `json:"title"`
+	Kind       string           `json:"kind"`
+	Status     string           `json:"status"`
+	Scope      string           `json:"scope"`
+	Impact     string           `json:"impact"`
+	Measures   string           `json:"measures"`
+	OpenedBy   string           `json:"openedBy"`
+	ResolvedBy pgtype.Text      `json:"resolvedBy"`
+	ResolvedAt pgtype.Timestamp `json:"resolvedAt"`
+	CreatedAt  pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt  pgtype.Timestamp `json:"updatedAt"`
+}
+
 type ApiKey struct {
 	ID              string           `json:"id"`
 	Name            string           `json:"name"`
@@ -513,6 +541,29 @@ type ApiKey struct {
 	UserId          pgtype.UUID      `json:"userId"`
 	PublicationId   pgtype.Text      `json:"publicationId"`
 	CreatedByUserId pgtype.UUID      `json:"createdByUserId"`
+}
+
+type Appeal struct {
+	ID          string           `json:"id"`
+	SubjectType string           `json:"subjectType"`
+	SubjectId   string           `json:"subjectId"`
+	DecisionId  pgtype.Text      `json:"decisionId"`
+	OpenedBy    string           `json:"openedBy"`
+	Status      string           `json:"status"`
+	Outcome     pgtype.Text      `json:"outcome"`
+	StaffNote   string           `json:"staffNote"`
+	DecidedBy   pgtype.Text      `json:"decidedBy"`
+	DecidedAt   pgtype.Timestamp `json:"decidedAt"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt   pgtype.Timestamp `json:"updatedAt"`
+}
+
+type AppealMessage struct {
+	ID        string           `json:"id"`
+	AppealId  string           `json:"appealId"`
+	AuthorId  string           `json:"authorId"`
+	Body      string           `json:"body"`
+	CreatedAt pgtype.Timestamp `json:"createdAt"`
 }
 
 type Article struct {
@@ -624,6 +675,18 @@ type Bookmark struct {
 	ReaderId  pgtype.UUID      `json:"readerId"`
 	ArticleId string           `json:"articleId"`
 	CreatedAt pgtype.Timestamp `json:"createdAt"`
+}
+
+type CapabilityBudget struct {
+	ID        string           `json:"id"`
+	ScopeType string           `json:"scopeType"`
+	ScopeId   string           `json:"scopeId"`
+	Action    string           `json:"action"`
+	Window    pgtype.Timestamp `json:"window"`
+	Cap       int32            `json:"cap"`
+	Consumed  int32            `json:"consumed"`
+	CreatedAt pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt pgtype.Timestamp `json:"updatedAt"`
 }
 
 type Category struct {
@@ -1368,6 +1431,22 @@ type RegistrationAllowlist struct {
 	CreatedAt pgtype.Timestamp `json:"createdAt"`
 }
 
+type RiskDecision struct {
+	ID          string           `json:"id"`
+	Policy      string           `json:"policy"`
+	Version     string           `json:"version"`
+	SubjectType string           `json:"subjectType"`
+	SubjectId   string           `json:"subjectId"`
+	Result      string           `json:"result"`
+	ReasonCodes []string         `json:"reasonCodes"`
+	DecidedBy   string           `json:"decidedBy"`
+	DeciderId   pgtype.Text      `json:"deciderId"`
+	Note        pgtype.Text      `json:"note"`
+	ExpiresAt   pgtype.Timestamp `json:"expiresAt"`
+	AppealRef   pgtype.Text      `json:"appealRef"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
+}
+
 type SocialLink struct {
 	ID            string `json:"id"`
 	Platform      string `json:"platform"`
@@ -1528,6 +1607,30 @@ type SubscriberImportRow struct {
 	ExcludedBy   pgtype.Text      `json:"excludedBy"`
 	CreatedAt    pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt    pgtype.Timestamp `json:"updatedAt"`
+}
+
+type SupportMessage struct {
+	ID        string           `json:"id"`
+	TicketId  string           `json:"ticketId"`
+	AuthorId  string           `json:"authorId"`
+	Body      string           `json:"body"`
+	CreatedAt pgtype.Timestamp `json:"createdAt"`
+}
+
+type SupportTicket struct {
+	ID          string           `json:"id"`
+	Kind        string           `json:"kind"`
+	Subject     string           `json:"subject"`
+	OpenedBy    string           `json:"openedBy"`
+	Status      string           `json:"status"`
+	Assignee    pgtype.Text      `json:"assignee"`
+	RelatedType string           `json:"relatedType"`
+	RelatedId   string           `json:"relatedId"`
+	StaffNote   string           `json:"staffNote"`
+	ClosedBy    pgtype.Text      `json:"closedBy"`
+	ClosedAt    pgtype.Timestamp `json:"closedAt"`
+	CreatedAt   pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt   pgtype.Timestamp `json:"updatedAt"`
 }
 
 type SystemConfig struct {

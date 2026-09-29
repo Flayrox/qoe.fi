@@ -956,7 +956,13 @@ export function FeedDashboard({
                           <div className="bg-muted/40 border border-border/40 rounded-xl px-4 py-3 flex items-start gap-2.5 text-muted-foreground">
                             <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
                             <p className="text-xs leading-relaxed">
-                              {t`Certains contenus de vos abonnements sont temporairement masqués (mesure de modération) : ${hiddenSummary}.`}
+                              {t`Certains contenus de vos abonnements sont temporairement masqués (mesure de modération) : ${hiddenSummary}.`}{' '}
+                              <a
+                                href="/support"
+                                className="underline underline-offset-2 font-semibold"
+                              >
+                                {t`Besoin d'aide ?`}
+                              </a>
                             </p>
                           </div>
                         )}

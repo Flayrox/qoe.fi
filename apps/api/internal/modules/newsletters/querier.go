@@ -11,6 +11,7 @@ type newsletterQuerier interface {
 	ActivateVerifiedSubscriber(ctx context.Context, arg db.ActivateVerifiedSubscriberParams) error
 	AttachSubscriberToAccount(ctx context.Context, arg db.AttachSubscriberToAccountParams) error
 	ConfirmSubscriberByToken(ctx context.Context, arg db.ConfirmSubscriberByTokenParams) (string, error)
+	GetSubscriberLocale(ctx context.Context, arg db.GetSubscriberLocaleParams) (string, error)
 	SubscribePending(ctx context.Context, arg db.SubscribePendingParams) error
 	CreateNewsletterIssue(ctx context.Context, arg db.CreateNewsletterIssueParams) (db.NewsletterIssue, error)
 	DeleteNewsletterIssueDraft(ctx context.Context, id string) error

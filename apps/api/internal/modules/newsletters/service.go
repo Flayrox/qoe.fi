@@ -290,6 +290,20 @@ func NewConfirmationToken() (string, error) {
 // receiveArticles, horodate confirmedAt et efface le token (usage unique).
 // Retourne errConfirmInvalid si le token ne correspond pas (lien expiré,
 // déjà consommé ou falsifié) — la sig HMAC a déjà été vérifiée côté handler.
+// ConfirmLocaleRaw lit la langue brute de l'abonné ("" si ligne absente).
+// Le handler normalise via workers.NormalizeEmailLocale (QOE_EMAIL_LOCALES)
+// — le service ne dépend pas de workers (pas de cycle d'import).
+func (s *Service) ConfirmLocaleRaw(ctx context.Context, publicationID, email string) string {
+	locale, err := s.q.GetSubscriberLocale(ctx, db.GetSubscriberLocaleParams{
+		Email:         email,
+		PublicationId: publicationID,
+	})
+	if err != nil {
+		return ""
+	}
+	return locale
+}
+
 func (s *Service) ConfirmSubscriber(ctx context.Context, publicationID, email, token string) error {
 	if publicationID == "" || email == "" || token == "" {
 		return errConfirmInvalid

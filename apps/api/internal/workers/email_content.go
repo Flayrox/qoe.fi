@@ -471,6 +471,11 @@ func RenderTransactionEmail(in ShellInput) (htmlPart, textPart string) {
 	if in.UnsubURL != "" {
 		unsubHTML = `<br><a href="` + html.EscapeString(in.UnsubURL) + `" style="color:#a1a1aa;text-decoration:underline;">` + html.EscapeString(in.UnsubLabel) + `</a>`
 	}
+	// Aide plateforme (tranche 6) : chaque email transactionnel pointe vers
+	// le support — un destinataire perdu (lien expiré, question) sait où
+	// aller sans chercher. Localisé comme le reste de la coquille.
+	helpHTML := `<br><a href="https://qoe.fi/support" style="color:#a1a1aa;text-decoration:underline;">` +
+		html.EscapeString(T(in.Locale, "Besoin d'aide ? Contactez le support", "Need help? Contact support")) + `</a>`
 	footerNoteHTML := ""
 	if in.FooterNote != "" {
 		footerNoteHTML = `<br>` + html.EscapeString(in.FooterNote)
@@ -490,7 +495,7 @@ func RenderTransactionEmail(in ShellInput) (htmlPart, textPart string) {
 <tr><td style="padding:16px 36px 32px;">
 <div style="border-top:1px solid #f4f4f5;padding-top:20px;font-size:11px;line-height:1.7;color:#a1a1aa;text-align:center;font-family:` + emailFontStack + `;">
 ` + html.EscapeString(in.ConsentLine) + `<br>` + footerNoteHTML + `
-` + pubLinkHTML + unsubHTML + `
+` + pubLinkHTML + unsubHTML + helpHTML + `
 </div>
 </td></tr>
 </table>
@@ -540,5 +545,7 @@ func renderTransactionText(in ShellInput) string {
 		b.WriteString(in.UnsubURL)
 		b.WriteString("\n")
 	}
+	b.WriteString(T(in.Locale, "Besoin d'aide ? Contactez le support", "Need help? Contact support"))
+	b.WriteString(" : https://qoe.fi/support\n")
 	return strings.TrimRight(b.String(), "\n")
 }
