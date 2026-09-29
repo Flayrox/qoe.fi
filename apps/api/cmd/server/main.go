@@ -323,6 +323,10 @@ func newRouter(d RouterDeps) *chi.Mux {
 	// recours : accessible restreint, ouverture sans effet, un dossier
 	// ouvert par motif.
 	supportHandler := support.NewHandler(support.NewService(pool))
+	// Formulaire public (vitrine) : 5 dépôts/heure max (Redis), puis budget
+	// 3/jour/adresse (atomique). Première barrière volatile, seconde durable.
+	supportHandler.SetPublicRateLimit(rc, time.Hour, 5)
+	supportHandler.RegisterPublic(r)
 
 	// Feed & Posts : lecture publique (auth optionnelle : threads, trending, posts, profil, engagement).
 	feedHandler := feed.NewHandler(feed.NewService(pool, rc))

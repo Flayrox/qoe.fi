@@ -13,11 +13,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/qoefi/api/internal/abuse"
 )
 
 // Kinds (vocabulaire fermé, CHECK en base).
@@ -67,6 +69,21 @@ func Kinds() []string {
 func Statuses() []string {
 	return []string{StatusOpen, StatusUnderReview, StatusClosed}
 }
+
+// ActionSupportPublic est l'action budgétée du formulaire public (vitrine) :
+// 3 dossiers/jour par adresse — au-delà, 429 explicite (pas de furtivité :
+// c'est une urgence assumée comme le coupe-feu, pas de l'anti-abus silencieux).
+const ActionSupportPublic = "support.public"
+
+// PublicCapPerEmailDay : 3 dossiers publics par adresse et par jour. Un
+// besoin réel tient dans un fil (messages illimités dans le dossier ouvert) ;
+// au-delà, c'est du spam ou une boucle cassée.
+const PublicCapPerEmailDay = 3
+
+// ErrPublicBudgetExhausted : plafond public atteint → 429 + Retry-After.
+var ErrPublicBudgetExhausted = errors.New("trop de demandes aujourd'hui, réessayez demain")
+
+var emailFormat = regexp.MustCompile(`^[^\s@]+@[^\s@]+\.[^\s@]+$`)
 
 // ValidKind dit si le kind appartient au vocabulaire fermé.
 func ValidKind(kind string) bool {
@@ -175,6 +192,56 @@ func OpenTicket(ctx context.Context, pool DB, kind, subject, openedBy, message, 
 }
 
 const ticketColumns = `"id", "kind", "subject", "openedBy", "status", "assignee", "relatedType", "relatedId", "staffNote", "closedBy", "closedAt", "createdAt"`
+
+// GuestPrefix marque un dossier ouvert sans compte (formulaire public de la
+// vitrine) : openedBy = "guest:<email normalisé>". Le rattachement au compte
+// (si l'e-mail correspond à un utilisateur) se fait à la connexion — en
+// attendant, le dossier est suivi par le staff via l'e-mail (résidu acté :
+// pas de boucle de notification, le staff répond et l'utilisateur revient
+// avec sa référence).
+const GuestPrefix = "guest:"
+
+// GuestOpener normalise l'identité invitée (e-mail minuscule, rogné).
+func GuestOpener(email string) string {
+	return GuestPrefix + strings.ToLower(strings.TrimSpace(email))
+}
+
+// OpenPublicTicket ouvre un dossier depuis le formulaire public (vitrine,
+// SANS compte obligatoire) :
+//   - connecté (userID non vide) → dossier au compte (openedBy = userID) ;
+//   - sinon → dossier invité (openedBy = guest:<email>, e-mail valide exigé).
+//
+// Budget : 3/jour par adresse (429 au-delà). L'ouverture NE CHANGE RIEN,
+// comme les autres voies. Le name (optionnel, ≤100) est préfixé au message
+// (traçabilité de l'interlocuteur — jamais un champ libre requêtable).
+func OpenPublicTicket(ctx context.Context, pool DB, userID, name, email, kind, subject, message string, now time.Time) (Ticket, error) {
+	if pool == nil {
+		return Ticket{}, errors.New("base indisponible")
+	}
+	email = strings.ToLower(strings.TrimSpace(email))
+	if !emailFormat.MatchString(email) {
+		return Ticket{}, fmt.Errorf("%w : adresse e-mail invalide", ErrInvalidTicket)
+	}
+	if n := strings.TrimSpace(name); n != "" {
+		if len([]rune(n)) > 100 {
+			return Ticket{}, fmt.Errorf("%w : nom trop long (100 max)", ErrInvalidTicket)
+		}
+		message = n + " — " + message
+	}
+	now = now.UTC()
+	ok, err := abuse.ConsumeBudget(ctx, pool, "email_day", email, ActionSupportPublic, abuse.DailyWindow(now), 1, PublicCapPerEmailDay)
+	if err != nil {
+		return Ticket{}, err
+	}
+	if !ok {
+		return Ticket{}, ErrPublicBudgetExhausted
+	}
+	openedBy := userID
+	if openedBy == "" {
+		openedBy = GuestOpener(email)
+	}
+	return OpenTicket(ctx, pool, kind, subject, openedBy, message, "", "", now)
+}
 
 // GetTicket relit un dossier avec ses messages (ordre chronologique).
 func GetTicket(ctx context.Context, pool DB, id string) (Ticket, error) {

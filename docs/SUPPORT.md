@@ -31,6 +31,14 @@
 #
 # ROUTES :
 #   - Lecteur /v1/support/tickets (+/{id}, +/{id}/messages) — page /support.
+#   - Public /v1/support/public/tickets (vitrine, SANS compte) — page
+#     hi.qoe.fi/support : connecté (JWT présent) → dossier AU COMPTE ;
+#     sinon invité (guest:<email>, e-mail valide exigé, nom préfixé au
+#     message). Budget 3/j/adresse (429 + Retry-After 86400, explicite) +
+#     rate-limit Redis 5/h. Doublon (même adresse+motif) = 409. Réponse
+#     avec la référence (UUID à conserver — pas de boucle de notification).
+#     Le rattachement au compte à la connexion (même e-mail) attend la
+#     boucle d'auth unifiée (résidu).
 #   - Staff /v1/admin/support/tickets (+/{id}, +/{id}/assign [POST],
 #     +/{id} [PATCH], /metrics) — console /admin/support (file, dossier,
 #     prise en main, note + réponse, clôture, charge : compteurs,

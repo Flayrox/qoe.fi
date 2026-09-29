@@ -96,6 +96,64 @@ func TestTicket_NilPool(t *testing.T) {
 	}
 }
 
+func TestOpenPublicTicket_Validation(t *testing.T) {
+	requirePool(t)
+	ctx := context.Background()
+	now := time.Now()
+	if _, err := OpenPublicTicket(ctx, poolTest, "", "", "pas-un-email", "other", "sujet assez long", "msg", now); !errors.Is(err, ErrInvalidTicket) {
+		t.Fatalf("e-mail invalide : attendu ErrInvalidTicket, obtenu %v", err)
+	}
+	if _, err := OpenPublicTicket(ctx, poolTest, "", "", "a@b.cd", "bogus", "sujet assez long", "msg", now); !errors.Is(err, ErrInvalidTicket) {
+		t.Fatalf("kind inconnu : attendu ErrInvalidTicket, obtenu %v", err)
+	}
+}
+
+func TestOpenPublicTicket_GuestAndAccount(t *testing.T) {
+	requirePool(t)
+	ctx := context.Background()
+	now := time.Now()
+	tag := fmt.Sprintf("pub-%d", now.UnixNano())
+	guestEmail := tag + "@example.com"
+	user := "user-" + tag
+
+	// Invité : dossier préfixé guest:<email>.
+	g, err := OpenPublicTicket(ctx, poolTest, "", "Jean", guestEmail, "account_lost", "Compte perdu "+tag, "je ne peux plus me connecter", now)
+	if err != nil {
+		t.Fatalf("invité : %v", err)
+	}
+	if g.OpenedBy != GuestOpener(guestEmail) {
+		t.Fatalf("invité : openedBy %q attendu guest:<email>", g.OpenedBy)
+	}
+	if len(g.Messages) != 1 || g.Messages[0].Body != "Jean — je ne peux plus me connecter" {
+		t.Fatalf("nom préfixé au message attendu, obtenu %+v", g.Messages)
+	}
+	// Connecté : dossier AU COMPTE (l'e-mail ne sert qu'au budget).
+	a, err := OpenPublicTicket(ctx, poolTest, user, "", "autre@example.com", "other", "Question "+tag, "bonjour", now)
+	if err != nil {
+		t.Fatalf("compte : %v", err)
+	}
+	if a.OpenedBy != user {
+		t.Fatalf("compte : openedBy %q attendu %q", a.OpenedBy, user)
+	}
+	// Budget : 3/j/adresse — kinds distincts (l'unicité par kind frapperait
+	// sinon avant le budget). Le 4e est refusé, explicitement.
+	for _, kind := range []string{"other", "delivery"} {
+		if _, err := OpenPublicTicket(ctx, poolTest, "", "", guestEmail, kind, "Sujet "+kind+" "+tag, "msg", now); err != nil {
+			t.Fatalf("budget (kind %s) : %v", kind, err)
+		}
+	}
+	if _, err := OpenPublicTicket(ctx, poolTest, "", "", guestEmail, "api_access", "Sujet4 "+tag, "msg", now); !errors.Is(err, ErrPublicBudgetExhausted) {
+		t.Fatalf("4e : attendu ErrPublicBudgetExhausted, obtenu %v", err)
+	}
+
+	// Nettoyage (dossiers + budgets du tag).
+	for _, opener := range []string{GuestOpener(guestEmail), user} {
+		poolTest.Exec(ctx, `DELETE FROM "SupportMessage" WHERE "ticketId" IN (SELECT "id" FROM "SupportTicket" WHERE "openedBy" = $1)`, opener)
+		poolTest.Exec(ctx, `DELETE FROM "SupportTicket" WHERE "openedBy" = $1`, opener)
+	}
+	poolTest.Exec(ctx, `DELETE FROM "CapabilityBudget" WHERE "scopeId" IN ($1, $2)`, guestEmail, "autre@example.com")
+}
+
 func TestTicket_FullCycle(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()

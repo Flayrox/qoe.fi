@@ -74,6 +74,40 @@ func TestConsumeBudget_NilPool_OpenDegradation(t *testing.T) {
 	}
 }
 
+// Le premier appel du jour d'un périmètre DOIT être accordé (régression
+// du CTE : même snapshot → l'UPDATE ne voyait pas la ligne créée → premier
+// appel refusé. Le test de course le masquait (19 autres se partageaient le
+// cap). Attrapé par le smoke dev du 29/09/2026.
+func TestConsumeBudget_FirstCallGranted(t *testing.T) {
+	requirePool(t)
+	ctx := context.Background()
+	scope := scopeUnique(t)
+	window := DailyWindow(time.Now())
+
+	ok, err := ConsumeBudget(ctx, poolTest, "test_scope", scope, ActionConfirmRequest, window, 1, 3)
+	if err != nil || !ok {
+		t.Fatalf("1er appel : attendu accord, obtenu (%v, %v)", ok, err)
+	}
+	var consumed int
+	if err := poolTest.QueryRow(ctx,
+		`SELECT "consumed" FROM "CapabilityBudget" WHERE "scopeId" = $1`, scope).Scan(&consumed); err != nil || consumed != 1 {
+		t.Fatalf("compteur à 1 attendu, obtenu %d (%v)", consumed, err)
+	}
+}
+
+func TestConsumeBudget_OverCapRefusedEvenAtCreation(t *testing.T) {
+	requirePool(t)
+	ctx := context.Background()
+	scope := scopeUnique(t)
+	window := DailyWindow(time.Now())
+
+	// n > cap : refusé même à la création (jamais de compteur au-delà).
+	ok, err := ConsumeBudget(ctx, poolTest, "test_scope", scope, ActionConfirmRequest, window, 6, 5)
+	if err != nil || ok {
+		t.Fatalf("n > cap : attendu refus sans erreur, obtenu (%v, %v)", ok, err)
+	}
+}
+
 func TestConsumeBudget_GrantsUpToCap(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()

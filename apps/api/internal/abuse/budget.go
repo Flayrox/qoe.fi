@@ -62,23 +62,27 @@ func ConsumeBudget(ctx context.Context, pool BudgetDB, scopeType, scopeID, actio
 		return true, nil // sans base, pas de budget : dégradation ouverte documentée (tests purs)
 	}
 	window = window.UTC() // TIMESTAMP sans fuseau : la fenêtre est UTC (DailyWindow déjà, robustesse si appel direct).
-	// Création paresseuse (idempotente) + consommation atomique conditionnée
-	// au plafond, en UNE requête (CTE — lot 3 : 1 aller-retour au lieu de 2 ;
-	// le chemin confirmation en fait 2 budgets, soit 2 roundtrips économisés
-	// par inscription). La clause UPDATE seule décide : une course à la
-	// création ne crée qu'une ligne (contrainte unique) et la consommation
-	// reste atomique — mêmes garanties, moitié d'allers-retours.
+	// Création paresseuse + consommation atomique conditionnée, en UNE
+	// requête (UPSERT — lot 3 : 1 aller-retour au lieu de 2). Surtout : PAS
+	// de CTE (WITH … + UPDATE séparé) — toutes les branches d'un CTE voient
+	// le MÊME snapshot, donc l'UPDATE ne voit jamais la ligne que l'INSERT
+	// vient de créer : le premier appel du jour de chaque périmètre échouait
+	// silencieusement (attrapé par le smoke dev du 29/09, pas par le test de
+	// course qui le masquait). L'UPSERT ci-dessous est correct au 1er appel :
+	//   - création : consumed = n (si n <= cap, sinon 0 ligne) ;
+	//   - conflit : consumed += n (si <= cap de la ligne, sinon 0 ligne) ;
+	//   - 0 ligne → ErrNoRows → plafond (pas une erreur).
+	// Mieux qu'avant sur un point : n > cap est refusé même à la création
+	// (avant : consumed=n > cap persisté).
 	var granted bool
 	err := pool.QueryRow(ctx, `
-		WITH ins AS (
-			INSERT INTO "CapabilityBudget" ("id", "scopeType", "scopeId", "action", "window", "cap", "consumed", "createdAt", "updatedAt")
-			VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, 0, now(), now())
-			ON CONFLICT ("scopeType", "scopeId", "action", "window") DO NOTHING
-		)
-		UPDATE "CapabilityBudget"
-		SET "consumed" = "consumed" + $6, "updatedAt" = now()
-		WHERE "scopeType" = $1 AND "scopeId" = $2 AND "action" = $3 AND "window" = $4
-		  AND "consumed" + $6 <= "cap"
+		INSERT INTO "CapabilityBudget" ("id", "scopeType", "scopeId", "action", "window", "cap", "consumed", "createdAt", "updatedAt")
+		SELECT gen_random_uuid()::text, $1, $2, $3, $4, $5::integer, $6::integer, now(), now()
+		WHERE $6::integer <= $5::integer
+		ON CONFLICT ("scopeType", "scopeId", "action", "window") DO UPDATE
+		SET "consumed" = "CapabilityBudget"."consumed" + EXCLUDED."consumed",
+		    "updatedAt" = now()
+		WHERE "CapabilityBudget"."consumed" + EXCLUDED."consumed" <= "CapabilityBudget"."cap"
 		RETURNING true`,
 		scopeType, scopeID, action, window, cap, n).Scan(&granted)
 	if err != nil {

@@ -34,6 +34,7 @@ const DEFAULT_SECTIONS_FR: FooterSection[] = [
     links: [
       { label: 'Studio Créateur', href: URLS.DASHBOARD },
       { label: 'Espace Lecteur', href: URLS.APP },
+      { label: 'Support / Nous contacter', href: '/support' },
       { label: 'Docs API', href: `${URLS.API}/health`, isExternal: true },
     ],
   },
@@ -61,6 +62,7 @@ const DEFAULT_SECTIONS_EN: FooterSection[] = [
     links: [
       { label: 'Creator Studio', href: URLS.DASHBOARD },
       { label: 'Reader Experience', href: URLS.APP },
+      { label: 'Support / Contact us', href: '/support' },
       { label: 'API Docs', href: `${URLS.API}/health`, isExternal: true },
     ],
   },

@@ -8,16 +8,40 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
 	internalsupport "github.com/qoefi/api/internal/support"
+	"github.com/redis/go-redis/v9"
 )
 
 // Handler expose les routes support.
 type Handler struct {
 	svc *Service
+	// publicLimiter (optionnel) : rate-limit Redis du formulaire public
+	// (vitrine, sans compte — première barrière, le budget est la seconde).
+	rc     *redis.Client
+	window time.Duration
+	max    int
+}
+
+// SetPublicRateLimit branche le rate-limit du formulaire public (no-op si
+// Redis absent — le budget atomique reste la barrière).
+func (h *Handler) SetPublicRateLimit(rc *redis.Client, window time.Duration, max int) {
+	h.rc = rc
+	h.window = window
+	h.max = max
+}
+
+// publicLimiter enveloppe le dépôt public du limiteur branché (même
+// pattern que home.subscribeLimiter : .ServeHTTP à l'enregistrement).
+func (h *Handler) publicLimiter(next http.HandlerFunc) http.Handler {
+	if h.rc == nil || h.max <= 0 {
+		return next
+	}
+	return middleware.RateLimit("support-public", h.rc, h.window, h.max, false)(next)
 }
 
 // NewHandler construit le handler.
@@ -38,6 +62,45 @@ func (h *Handler) RegisterProtected(r chi.Router) {
 	r.Post("/v1/support/tickets", h.open)
 	r.Get("/v1/support/tickets/{id}", h.detail)
 	r.Post("/v1/support/tickets/{id}/messages", h.addMessage)
+}
+
+// RegisterPublic enregistre le dépôt public (vitrine, SANS compte obligatoire
+// — le cas « compte perdu »). Auth optionnelle : si un JWT est présent,
+// le dossier est ouvert AU COMPTE (openedBy = userID) ; sinon en invité
+// (guest:<email>). Réponse avec la référence (UUID non devinable) à conserver.
+func (h *Handler) RegisterPublic(r chi.Router) {
+	r.Post("/v1/support/public/tickets", h.publicLimiter(h.openPublic).ServeHTTP)
+}
+
+// POST /v1/support/public/tickets — dépôt public.
+// Body : { name?, email, kind, subject, message }. 409 si un dossier est
+// déjà ouvert (même adresse+motif — écrire dedans après connexion ou
+// nouveau motif), 429 si plafond journalier atteint.
+func (h *Handler) openPublic(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Name    string `json:"name"`
+		Email   string `json:"email"`
+		Kind    string `json:"kind"`
+		Subject string `json:"subject"`
+		Message string `json:"message"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	uid, _ := middleware.UserID(r.Context()) // absent = invité (pas une erreur)
+	t, err := h.svc.OpenPublicTicket(r.Context(), uid, in.Name, in.Email, in.Kind, in.Subject, in.Message)
+	if err != nil {
+		switch {
+		case errors.Is(err, internalsupport.ErrPublicBudgetExhausted):
+			w.Header().Set("Retry-After", "86400")
+			response.Error(w, http.StatusTooManyRequests, err.Error())
+		default:
+			h.mapErr(w, err)
+		}
+		return
+	}
+	response.OK(w, map[string]any{"success": true, "id": t.ID})
 }
 
 func (h *Handler) mapErr(w http.ResponseWriter, err error) {
