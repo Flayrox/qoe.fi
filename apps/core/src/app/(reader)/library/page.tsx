@@ -58,10 +58,15 @@ export default async function LibraryPage({
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const initialTab = resolveLibraryTab(resolvedSearchParams?.tab);
 
-  // Récupération conjointe en parallèle des signets et surlignages (Go backend-of-record)
-  const [rawBookmarks, rawHighlights] = await Promise.all([
+  // Récupération conjointe en parallèle des signets, surlignages et quota
+  // (Go backend-of-record). Le quota (X/50, Plus = illimité) pilote le
+  // compteur et l'upsell — jamais de surprise au 51e surlignage.
+  const [rawBookmarks, rawHighlights, quota] = await Promise.all([
     goFetch<BookmarkItem[]>('/v1/bookmarks?limit=100').catch(() => [] as BookmarkItem[]),
     goFetch<MyHighlightItem[]>('/v1/me/highlights?limit=100').catch(() => [] as MyHighlightItem[]),
+    goFetch<{ count: number; limit: number; plus: boolean }>('/v1/me/highlights/count').catch(
+      () => ({ count: 0, limit: 50, plus: false })
+    ),
   ]);
 
   const serializedBookmarks = (rawBookmarks || []).map((b) => ({
@@ -111,6 +116,7 @@ export default async function LibraryPage({
       bookmarks={serializedBookmarks}
       highlights={serializedHighlights}
       initialTab={initialTab}
+      highlightQuota={quota}
     />
   );
 }

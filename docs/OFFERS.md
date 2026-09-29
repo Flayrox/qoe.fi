@@ -26,10 +26,15 @@
 # GRATUIT (tout existe) : lire publics, podcasts streaming, suivre,
 # commenter/discuter, bibliothèque + favoris de base, clair/sombre,
 # réglages essentiels, recommandations, feed.
-# PLUS / SOUTIEN (❌, phases fiche) :
-#   P1 : hors-ligne (articles, podcasts, collections), TTS + file d'écoute,
-#     surlignages/notes illimités + recherche dedans, IA utile (résumé,
-#     explique) à quota, badge discret.
+# PLUS / SOUTIEN (partiel — vagues livrées, voir ci-dessous) :
+#   P1 :
+#   - ✅ Surlignages : 50 gratuits (quota souple), illimités en Plus
+#     (HasPlus = octroi plus OU publication Pro possédée — Pro INCLUT
+#     Plus). 403 + code HIGHLIGHT_QUOTA_EXCEEDED (jamais de libellé
+#     matché), compteur exact /v1/me/highlights/count {count, limit, plus},
+#     upsell informatif (pas de vente de vent : pas de checkout).
+#   - ❌ hors-ligne (articles, podcasts, collections), TTS + file d'écoute,
+#     notes/recherche dedans, IA utile (résumé, explique) à quota, badge.
 #   P2 : collections intelligentes, digests, RSS/newsletters import,
 #     extension navigateur, thèmes/polices avancés, exports Markdown.
 #   P3 : recherche sémantique perso, flashcards/répétition espacée, API

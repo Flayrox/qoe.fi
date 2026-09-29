@@ -99,6 +99,12 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	}
 	item, err := h.svc.Create(r.Context(), articleID, userID, in.Text, in.Note, in.IsPublic, ordinal)
 	if err != nil {
+		// Quota gratuit atteint : 403 + code stable (le front branche sur
+		// code HIGHLIGHT_QUOTA_EXCEEDED, jamais sur le libellé — i18n).
+		if errors.Is(err, ErrHighlightQuota) {
+			response.ErrorCode(w, http.StatusForbidden, "HIGHLIGHT_QUOTA_EXCEEDED", err.Error())
+			return
+		}
 		log.Printf("[highlights] create: %v", err)
 		response.Internal(w)
 		return
@@ -258,13 +264,11 @@ func (h *Handler) myHighlights(w http.ResponseWriter, r *http.Request) {
 // GET /v1/me/highlights/count — nombre de mes surlignages (badge bibliothèque).
 func (h *Handler) myHighlightsCount(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
-	rows, err := h.svc.MyHighlights(r.Context(), userID, 1000, 0)
-	if err != nil {
-		log.Printf("[highlights] count: %v", err)
-		response.Internal(w)
-		return
-	}
-	response.OK(w, map[string]int{"count": len(rows)})
+	// Compteur EXACT en SQL (fini le hack len(MyHighlights(1000)) faux
+	// au-delà de 1000) + plafond + statut Plus : un seul appel pour
+	// l'UI (compteur « X/50 » et upsell). `limit: -1` = illimité.
+	used, limit, plus := h.svc.HighlightQuota(r.Context(), userID)
+	response.OK(w, map[string]any{"count": used, "limit": limit, "plus": plus})
 }
 
 func parseLimitOffset(r *http.Request) (limit int, offset int) {

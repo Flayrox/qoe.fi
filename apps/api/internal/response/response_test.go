@@ -56,6 +56,16 @@ func TestError(t *testing.T) {
 	}
 }
 
+func TestErrorCode(t *testing.T) {
+	status, body := exec(func(w http.ResponseWriter, v any) { ErrorCode(w, 403, "HIGHLIGHT_QUOTA_EXCEEDED", "quota") }, nil)
+	if status != 403 {
+		t.Fatalf("status = %d", status)
+	}
+	if body["error"] != "quota" || body["code"] != "HIGHLIGHT_QUOTA_EXCEEDED" {
+		t.Fatalf("body = %v", body)
+	}
+}
+
 func TestConvenienceErrors(t *testing.T) {
 	cases := []struct {
 		name string

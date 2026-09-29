@@ -71,6 +71,52 @@ func TestHasEntitlement_NilPool_Denies(t *testing.T) {
 	}
 }
 
+func TestHasPlus_DirectAndViaStudio(t *testing.T) {
+	requirePool(t)
+	ctx := context.Background()
+	now := time.Now()
+	user := fmt.Sprintf("plus-user-%d", now.UnixNano())
+	staff := "staff-plus-1"
+	pub := "plus-pub-" + user
+	cleanup := func() {
+		poolTest.Exec(ctx, `DELETE FROM "SubscriptionGrant" WHERE "subjectId" = $1 OR "subjectId" = $2`, user, pub)
+		poolTest.Exec(ctx, `DELETE FROM "User" WHERE "publicationId" = $1`, pub)
+		poolTest.Exec(ctx, `DELETE FROM "Publication" WHERE id = $1`, pub)
+	}
+	cleanup()
+	defer cleanup()
+
+	if HasPlus(ctx, poolTest, user, now) {
+		t.Fatal("sans droit : HasPlus faux attendu")
+	}
+	// Octroi direct Plus.
+	if _, err := GrantPlan(ctx, poolTest, SubjectUser, user, PlanPlus, now, nil, staff, "test", now); err != nil {
+		t.Fatalf("octroi plus : %v", err)
+	}
+	if !HasPlus(ctx, poolTest, user, now) {
+		t.Fatal("octroi direct : HasPlus vrai attendu")
+	}
+	poolTest.Exec(ctx, `DELETE FROM "SubscriptionGrant" WHERE "subjectId" = $1`, user)
+
+	// Via le studio : publication Pro possédée → Plus (Pro INCLUT Plus).
+	if _, err := poolTest.Exec(ctx, `INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt") VALUES ($1, 'PERSONAL', 'P', 'p', now(), now())`, pub); err != nil {
+		t.Fatalf("pub : %v", err)
+	}
+	var uid string
+	if err := poolTest.QueryRow(ctx, `INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt") VALUES (gen_random_uuid(), $1, 'u', 'U', 'creator', $2, now(), now()) RETURNING id::text`, user+"@t.dev", pub).Scan(&uid); err != nil {
+		t.Fatalf("user : %v", err)
+	}
+	if HasPlus(ctx, poolTest, uid, now) {
+		t.Fatal("publication non-Pro : faux attendu")
+	}
+	if _, err := GrantPlan(ctx, poolTest, SubjectPublication, pub, PlanPro, now, nil, staff, "test", now); err != nil {
+		t.Fatalf("octroi pro pub : %v", err)
+	}
+	if !HasPlus(ctx, poolTest, uid, now) {
+		t.Fatal("publication Pro possédée : HasPlus vrai attendu (Pro INCLUT Plus)")
+	}
+}
+
 func TestGrant_Cycle(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()

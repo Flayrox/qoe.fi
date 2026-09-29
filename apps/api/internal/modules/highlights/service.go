@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/qoefi/api/internal/canon"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/subscriptions"
 	"github.com/qoefi/api/internal/vectorfeed"
 )
 
@@ -202,9 +203,39 @@ func (s *Service) resolveAnchor(ctx context.Context, articleID, text string, quo
 }
 
 // Create crée un surlignage pour un lecteur sur un article.
+// FreeHighlightQuota : surlignages gratuits par compte (fiche Plus :
+// « quelques surlignages gratuits », illimités en Plus). Quota SOUPLE :
+// le contrôle est un COUNT puis INSERT non atomique — en course, quelques
+// unités peuvent passer au-delà (aucun coût facturé au surlignage, seule
+// l'expérience est bornée). Documenté, pas contourné en silence.
+const FreeHighlightQuota = 50
+
+// ErrHighlightQuota : quota gratuit atteint → 403 (le front affiche
+// l'upsell Plus — seul 403 possible sur cette route, sans ambiguïté).
+var ErrHighlightQuota = errors.New("quota gratuit de 50 surlignages atteint — Plus = illimités")
+
+// HighlightQuota renvoie (utilisés, plafond, plus) : plafond = -1 si
+// illimité (Plus). Un seul appel pour l'UI (compteur + upsell).
+func (s *Service) HighlightQuota(ctx context.Context, readerID string) (used, limit int, plus bool) {
+	plus = subscriptions.HasPlus(ctx, s.pool, readerID, time.Now())
+	var n int64
+	if err := s.pool.QueryRow(ctx, `SELECT COUNT(*) FROM "Highlight" WHERE "readerId" = $1::uuid`, readerID).Scan(&n); err != nil {
+		return 0, FreeHighlightQuota, plus
+	}
+	if plus {
+		return int(n), -1, true
+	}
+	return int(n), FreeHighlightQuota, false
+}
+
 func (s *Service) Create(ctx context.Context, articleID, readerID, text string, note *string, isPublic bool, quoteOrdinal int) (Highlight, error) {
 	if quoteOrdinal < 0 {
 		quoteOrdinal = 0
+	}
+	// Freemium (fiche Plus) : au-delà du quota gratuit, seuls les Plus
+	// créent (erreur explicite → upsell, jamais silencieuse).
+	if used, limit, plus := s.HighlightQuota(ctx, readerID); !plus && used >= limit {
+		return Highlight{}, ErrHighlightQuota
 	}
 	start, end, sha := s.resolveAnchor(ctx, articleID, text, quoteOrdinal)
 	id, err := s.q.CreateHighlight(ctx, db.CreateHighlightParams{
