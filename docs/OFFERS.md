@@ -43,8 +43,16 @@
 #     file d'écoute /v1/me/listen-later (ajout gratuit mais contenu
 #     vérifié, idempotent, ordonnée, retrait idempotent).
 #     403 + codes stables (OFFLINE_PACK_REQUIRES_PLUS, NOT_DOWNLOADABLE…).
-#   - ❌ TTS + file lue (player), notes/recherche dedans, IA utile
-#     (résumé, explique) à quota, podcasts offline, badge.
+#   - ✅ IA utile (résumé fidèle d'article + explication d'extrait) :
+#     provider pluggable (OpenAI-compatible, nil = 503 explicite — même
+#     doctrine que les e-mails), quotas 50/mois/user + plafond global
+#     10 000/j (anti-facture), 429 explicites, remboursement sur échec
+#     (on ne facture jamais un échec), paywall respecté comme la lecture,
+#     /v1/ai/usage (transparence avant usage). UI : bouton résumé replié
+#     + action Expliquer dans le popover, TOUJOURS présenté comme IA avec
+#     lien au texte, états 403/429/503 actionnables. Sans clé : 503 honnête.
+#   - ❌ TTS + file lue (player), notes/recherche dedans, podcasts offline,
+#     badge, thèmes premium, EPUB.
 #   P2 : collections intelligentes, digests, RSS/newsletters import,
 #     extension navigateur, thèmes/polices avancés, exports Markdown.
 #   P3 : recherche sémantique perso, flashcards/répétition espacée, API

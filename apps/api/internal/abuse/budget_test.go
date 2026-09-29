@@ -108,6 +108,32 @@ func TestConsumeBudget_OverCapRefusedEvenAtCreation(t *testing.T) {
 	}
 }
 
+// On ne facture jamais un échec : le remboursement ramène le compteur
+// (plancher zéro), sans ligne = no-op silencieux.
+func TestRefundBudget(t *testing.T) {
+	requirePool(t)
+	ctx := context.Background()
+	scope := scopeUnique(t)
+	window := DailyWindow(time.Now())
+
+	RefundBudget(ctx, poolTest, "test_scope", scope, ActionConfirmRequest, window, 1)
+	ok, err := ConsumeBudget(ctx, poolTest, "test_scope", scope, ActionConfirmRequest, window, 1, 3)
+	if err != nil || !ok {
+		t.Fatalf("remboursement sans ligne : no-op attendu, obtenu (%v, %v)", ok, err)
+	}
+	RefundBudget(ctx, poolTest, "test_scope", scope, ActionConfirmRequest, window, 5)
+	var consumed int
+	if err := poolTest.QueryRow(ctx,
+		`SELECT "consumed" FROM "CapabilityBudget" WHERE "scopeId" = $1`, scope).Scan(&consumed); err != nil || consumed != 0 {
+		t.Fatalf("plancher zéro attendu, obtenu %d (%v)", consumed, err)
+	}
+	// Le compteur est réutilisable après remboursement.
+	ok, err = ConsumeBudget(ctx, poolTest, "test_scope", scope, ActionConfirmRequest, window, 3, 3)
+	if err != nil || !ok {
+		t.Fatalf("après remboursement : accord attendu, obtenu (%v, %v)", ok, err)
+	}
+}
+
 func TestConsumeBudget_GrantsUpToCap(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()

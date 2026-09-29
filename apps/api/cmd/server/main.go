@@ -32,6 +32,7 @@ import (
 	"github.com/qoefi/api/internal/modules/creator"
 	"github.com/qoefi/api/internal/modules/devtools"
 	"github.com/qoefi/api/internal/modules/events"
+	aimod "github.com/qoefi/api/internal/modules/ai"
 	"github.com/qoefi/api/internal/modules/appeals"
 	"github.com/qoefi/api/internal/modules/support"
 	"github.com/qoefi/api/internal/modules/feed"
@@ -318,6 +319,10 @@ func newRouter(d RouterDeps) *chi.Mux {
 	// suspendus — contester reste possible). Routes enregistrées sur le
 	// groupe protégé plus bas.
 	appealsHandler := appeals.NewHandler(appeals.NewService(pool))
+	// IA de lecture (fiche Plus P1) : résumé + explication, provider
+	// pluggable (nil = 503 explicite), quotas mensuels. Routes sur le
+	// groupe protégé plus bas.
+	aiHandler := aimod.NewHandler(aimod.NewService(pool, nil))
 	// Support général (tranche 6) : dossiers hors recours (compte, contenu,
 	// API, import, livraison, signalement, autre). Mêmes garanties que les
 	// recours : accessible restreint, ouverture sans effet, un dossier
@@ -499,6 +504,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 			feedHandler.RegisterProtected(reader)
 			appealsHandler.RegisterProtected(reader)
 			supportHandler.RegisterProtected(reader)
+			aiHandler.RegisterProtected(reader)
 			usersHandler.Register(reader)
 			trackingHandler.RegisterReader(reader)
 
