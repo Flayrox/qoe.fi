@@ -11,6 +11,29 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const activateMediaMember = `-- name: ActivateMediaMember :execrows
+UPDATE "MediaMember"
+SET status = 'active', "updatedAt" = now()
+WHERE "mediaId" = $1 AND "userId" = $2 AND status = 'invited'
+`
+
+type ActivateMediaMemberParams struct {
+	MediaId string      `json:"mediaId"`
+	UserId  pgtype.UUID `json:"userId"`
+}
+
+// Accepte une invitation en attente (fiche 05 §6) : ne passe en `active`
+// qu'une ligne encore `invited`. Zéro ligne affectée = pas d'invitation (ou
+// déjà active, ou révoquée entre-temps) : l'appelant distingue via le statut
+// lu avant. Jamais d'activation implicite par un autre chemin.
+func (q *Queries) ActivateMediaMember(ctx context.Context, arg ActivateMediaMemberParams) (int64, error) {
+	result, err := q.db.Exec(ctx, activateMediaMember, arg.MediaId, arg.UserId)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const checkMediaSlugExists = `-- name: CheckMediaSlugExists :one
 SELECT EXISTS(
     SELECT 1 FROM "Publication" WHERE slug = $1 OR subdomain = $1

@@ -35,6 +35,7 @@ const (
 var (
 	errForbidden     = errors.New("accès refusé")
 	errNotFound      = errors.New("introuvable")
+	errAlreadyMember = errors.New("déjà membre actif de ce média")
 	ErrInvalidScopes = errors.New("scopes invalides")
 )
 
@@ -575,13 +576,16 @@ func (s *Service) InviteMemberByUsername(ctx context.Context, userID, mediaID, u
 		return map[string]any{"success": true, "alreadyMember": true, "userId": targetID}, nil
 	}
 
-	// Ajout direct du membre (statut active) — plus aucune invitation par email.
+	// Invitation en attente (fiche 05 §6) : le rôle ne devient effectif qu'après
+	// acceptation explicite de l'invité avec MFA vérifiée (AcceptInvite, garde
+	// N1). Avant cela, CanMedia refuse tout droit : un propriétaire ne peut
+	// pas doter un compte sans MFA de droits effectifs immédiats.
 	if err := s.q.UpsertMediaMember(ctx, db.UpsertMediaMemberParams{
-		MediaId: mediaID, UserId: toUUID(targetID), Role: role, Status: "active",
+		MediaId: mediaID, UserId: toUUID(targetID), Role: role, Status: "invited",
 	}); err != nil {
 		return nil, err
 	}
-	s.audit(ctx, mediaID, userID, "member.invited", map[string]any{"username": username, "role": role})
+	s.audit(ctx, mediaID, userID, "member.invited_pending", map[string]any{"username": username, "role": role})
 	auditlog.Write(ctx, s.q, s.flags, userID, "media.member.invited", "user", targetID,
 		map[string]any{"role": role, "mediaId": mediaID})
 
@@ -594,7 +598,81 @@ func (s *Service) InviteMemberByUsername(ctx context.Context, userID, mediaID, u
 		RecipientID: toUUID(targetID), SenderID: toUUID(userID), PublicationID: pub,
 	})
 
-	return map[string]any{"success": true, "userId": targetID, "role": role}, nil
+	return map[string]any{"success": true, "userId": targetID, "role": role, "pending": true}, nil
+}
+
+// PendingInvite est une invitation en attente vue par l'invité : de quoi
+// décider en connaissance de cause, sans données superflues (pas d'email des
+// autres membres, pas de permissions internes détaillées).
+type PendingInvite struct {
+	MediaID     string `json:"mediaId"`
+	MediaName   string `json:"mediaName"`
+	Role        string `json:"role"`
+	InvitedAt   string `json:"invitedAt"`
+	InviterName string `json:"inviterName,omitempty"`
+}
+
+// ListPendingInvites liste les invitations en attente du compte : c'est ici,
+// et non dans un e-mail, que l'invité les découvre et les accepte (fiche 05
+// §6). Lecture seule, sans garde MFA (lister n'active rien). Seules les
+// données nécessaires à la décision : média, rôle proposé, date.
+func (s *Service) ListPendingInvites(ctx context.Context, userID string) ([]PendingInvite, error) {
+	rows, err := s.pool.Query(ctx, `
+		SELECT m."mediaId", COALESCE(p."name", m."mediaId"), m."role", m."updatedAt"
+		FROM "MediaMember" m
+		JOIN "Media" md ON md.id = m."mediaId"
+		LEFT JOIN "Publication" p ON p.id = md."publicationId"
+		WHERE m."userId" = $1 AND m."status" = 'invited'
+		ORDER BY m."updatedAt" DESC`, toUUID(userID))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := []PendingInvite{}
+	for rows.Next() {
+		var (
+			inv       PendingInvite
+			updatedAt time.Time
+		)
+		if err := rows.Scan(&inv.MediaID, &inv.MediaName, &inv.Role, &updatedAt); err != nil {
+			return nil, err
+		}
+		inv.InvitedAt = updatedAt.Format(time.RFC3339)
+		out = append(out, inv)
+	}
+	return out, rows.Err()
+}
+
+// AcceptInvite active une invitation en attente (fiche 05 §6). La route est
+// gardée N1 (invitation_accept) : l'activation exige une session fortement
+// vérifiée, pas seulement l'existence de l'invitation. Zéro ligne activée =
+// pas d'invitation (404), déjà actif (409), ou révoquée entre-temps (404) —
+// jamais d'activation implicite.
+func (s *Service) AcceptInvite(ctx context.Context, userID, mediaID string) (map[string]any, error) {
+	m, err := s.member(ctx, mediaID, userID)
+	if err != nil || m == nil {
+		return nil, errNotFound
+	}
+	if m.Status == "active" {
+		return nil, errAlreadyMember
+	}
+	if m.Status != "invited" {
+		return nil, errNotFound
+	}
+	n, err := s.q.ActivateMediaMember(ctx, db.ActivateMediaMemberParams{
+		MediaId: mediaID, UserId: toUUID(userID),
+	})
+	if err != nil {
+		return nil, err
+	}
+	if n == 0 {
+		// Course : révoquée entre la lecture et l'activation.
+		return nil, errNotFound
+	}
+	s.audit(ctx, mediaID, userID, "member.invitation_accepted", map[string]any{"role": m.Role})
+	auditlog.Write(ctx, s.q, s.flags, userID, "media.member.invitation_accepted", "user", userID,
+		map[string]any{"role": m.Role, "mediaId": mediaID})
+	return map[string]any{"success": true, "role": m.Role}, nil
 }
 
 // MediaInviteLinkDTO représente un lien d'invitation à un média.

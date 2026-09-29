@@ -12,8 +12,8 @@ func TestCanMedia_NilAndStatus(t *testing.T) {
 	if !CanMedia(&MediaMember{Role: "owner", Status: "active"}, PermCreateArticles) {
 		t.Fatal("status actif doit autoriser")
 	}
-	if !CanMedia(&MediaMember{Role: "owner", Status: "invited"}, PermCreateArticles) {
-		t.Fatal("status invité doit autoriser (parité auth.ts)")
+	if CanMedia(&MediaMember{Role: "owner", Status: "invited"}, PermCreateArticles) {
+		t.Fatal("status invité doit refuser : une invitation en attente n'exerce aucun droit (fiche 05 §6, parité auth.ts)")
 	}
 }
 

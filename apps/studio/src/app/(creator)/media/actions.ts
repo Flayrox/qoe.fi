@@ -196,6 +196,53 @@ export async function inviteMediaMemberAction(
   }
 }
 
+export interface PendingMediaInvite {
+  mediaId: string;
+  mediaName: string;
+  role: string;
+  invitedAt: string;
+  inviterName?: string;
+}
+
+/**
+ * 📥 Lister mes invitations média en attente (fiche 05 §6).
+ * Lecture seule : c'est ici que l'invité découvre ses invitations.
+ */
+export async function listPendingMediaInvitesAction() {
+  try {
+    await getAuthUser();
+    const res = await goFetch<{ items: PendingMediaInvite[] }>('/v1/media/invites/pending');
+    return { success: true as const, items: res.items ?? [] };
+  } catch (err: unknown) {
+    console.error('[Pending Media Invites Error]', err);
+    return {
+      success: false as const,
+      items: [] as PendingMediaInvite[],
+      error: err instanceof Error ? err.message : 'Échec du chargement',
+    };
+  }
+}
+
+/**
+ * ✅ Accepter mon invitation à un média (fiche 05 §6).
+ * Le backend exige une session fortement vérifiée (garde N1) : sans MFA, le
+ * refus propose le parcours de vérification au lieu d'un 403 muet.
+ */
+export async function acceptMediaInviteAction(mediaId: string) {
+  try {
+    await getAuthUser();
+    const res = await goFetch<{ success: boolean; role: string }>(
+      `/v1/media/${encodeURIComponent(mediaId)}/join`,
+      { method: 'POST', body: {} }
+    );
+    revalidatePath('/media');
+    return { success: true as const, role: res.role };
+  } catch (err: unknown) {
+    console.error('[Accept Media Invite Error]', err);
+    return failure(err, "Échec de l'acceptation");
+  }
+}
+
 /**
  * 🔁 Changer le rôle d'un membre.
  * RBAC : manage_members (vérifié côté Go).

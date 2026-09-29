@@ -59,6 +59,15 @@ UPDATE "MediaMember"
 SET role = $3, permissions = ARRAY[]::text[], "updatedAt" = now()
 WHERE "mediaId" = $1 AND "userId" = $2;
 
+-- name: ActivateMediaMember :execrows
+-- Accepte une invitation en attente (fiche 05 §6) : ne passe en `active`
+-- qu'une ligne encore `invited`. Zéro ligne affectée = pas d'invitation (ou
+-- déjà active, ou révoquée entre-temps) : l'appelant distingue via le statut
+-- lu avant. Jamais d'activation implicite par un autre chemin.
+UPDATE "MediaMember"
+SET status = 'active', "updatedAt" = now()
+WHERE "mediaId" = $1 AND "userId" = $2 AND status = 'invited';
+
 -- name: UpdateMediaMemberPermissions :exec
 UPDATE "MediaMember"
 SET permissions = $3, "updatedAt" = now()

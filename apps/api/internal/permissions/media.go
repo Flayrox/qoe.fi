@@ -59,7 +59,11 @@ func CanMedia(m *MediaMember, permission string) bool {
 	if m == nil {
 		return false
 	}
-	if m.Status != "" && m.Status != "active" && m.Status != "invited" {
+	// Seul un membre actif exerce des droits (fiche 05 §6) : une invitation en
+	// attente (`invited`) ne publie ni ne gère l'équipe — elle doit d'abord
+	// être acceptée avec MFA vérifiée. Le statut vide reste autorisé pour
+	// compatibilité des appelants qui ne résolvent pas le statut.
+	if m.Status != "" && m.Status != "active" {
 		return false
 	}
 
