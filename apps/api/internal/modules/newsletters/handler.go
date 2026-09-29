@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
+	"github.com/qoefi/api/internal/abuse"
 	"github.com/qoefi/api/internal/authz"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
@@ -92,6 +93,9 @@ func (h *Handler) handleErr(w http.ResponseWriter, err error) {
 		response.NotFound(w, "Newsletter introuvable.")
 	case errors.Is(err, errNotDraft):
 		response.BadRequest(w, err.Error())
+	case errors.Is(err, abuse.ErrSignupSuspended):
+		w.Header().Set("Retry-After", "300")
+		response.Error(w, http.StatusServiceUnavailable, err.Error())
 	case errors.Is(err, pgx.ErrNoRows):
 		response.NotFound(w, "Newsletter introuvable.")
 	default:

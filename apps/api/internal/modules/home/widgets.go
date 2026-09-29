@@ -414,6 +414,12 @@ func (s *Service) GetSemanticTrends(ctx context.Context, limit int) ([]SemanticT
 // PAS : seul le clic sur le nouveau lien le fait (fiche 01 : aucune
 // réactivation silencieuse).
 func (s *Service) SubscribeToNewsletter(ctx context.Context, email, publicationID, locale string) (bool, error) {
+	// Coupe-feu inscriptions (fiche 06 §10) : engagé → refus AVANT toute
+	// lecture/écriture. Les confirmations de clics en cours ne passent pas
+	// par ici et aboutissent normalement.
+	if abuse.SignupKillEngaged(ctx, s.pool) {
+		return false, abuse.ErrSignupSuspended
+	}
 	var exists bool
 	err := s.pool.QueryRow(ctx,
 		`SELECT EXISTS(SELECT 1 FROM "Publication" WHERE id = $1)`, publicationID).Scan(&exists)

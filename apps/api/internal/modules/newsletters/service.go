@@ -379,6 +379,11 @@ func (s *Service) SubscribeSelf(ctx context.Context, userID, email, publicationI
 // subscribePending enregistre une demande en attente et enfile la confirmation
 // (même contrat que les voies publiques : jamais d'activation sans clic).
 func (s *Service) subscribePending(ctx context.Context, email, publicationID string) error {
+	// Coupe-feu inscriptions (fiche 06 §10), troisième voie (connectée).
+	// budgetPool est nil en test → désengagé (dégradation ouverte).
+	if abuse.SignupKillEngaged(ctx, s.budgetPool) {
+		return abuse.ErrSignupSuspended
+	}
 	token, err := NewConfirmationToken()
 	if err != nil {
 		return err

@@ -37,6 +37,12 @@ func newSubscriberConfirmToken() (string, error) {
 // envoyer une confirmation (faux s'il est déjà actif et confirmé).
 func (h *Handler) registerPendingSubscriber(r *http.Request, pubID, email string) (db.UpsertSubscriberPendingRow, bool, error) {
 	ctx := r.Context()
+	// Coupe-feu inscriptions (fiche 06 §10) : couvre d'un coup la clé API et
+	// le formulaire public (les deux passent par ici), avant tout jeton et
+	// toute écriture.
+	if abuse.SignupKillEngaged(ctx, h.pool) {
+		return db.UpsertSubscriberPendingRow{}, false, abuse.ErrSignupSuspended
+	}
 	token, err := newSubscriberConfirmToken()
 	if err != nil {
 		return db.UpsertSubscriberPendingRow{}, false, err
@@ -203,6 +209,13 @@ func (h *Handler) apiSubscriberCreate(w http.ResponseWriter, r *http.Request) {
 	// (fiche 01 : aucune entrée ne crée un abonné actif sans preuve).
 	sub, _, err := h.registerPendingSubscriber(r, pubID, cleanEmail)
 	if err != nil {
+		// Coupe-feu engagé : 503 explicite (clé API comme formulaire —
+		// une clé compromise n'arroser personne pendant l'incident).
+		if errors.Is(err, abuse.ErrSignupSuspended) {
+			w.Header().Set("Retry-After", "300")
+			response.Error(w, http.StatusServiceUnavailable, err.Error())
+			return
+		}
 		log.Printf("[creator] upsert subscriber: %v", err)
 		response.Internal(w)
 		return
@@ -388,6 +401,11 @@ func (h *Handler) publicSubscribe(w http.ResponseWriter, r *http.Request) {
 	// devient actif qu'au clic sur le lien envoyé. Une réinscription d'un
 	// désabonné ne le réactive pas : seul son propre clic le fait.
 	if _, _, err = h.registerPendingSubscriber(r, pubID, cleanEmail); err != nil {
+		if errors.Is(err, abuse.ErrSignupSuspended) {
+			w.Header().Set("Retry-After", "300")
+			response.Error(w, http.StatusServiceUnavailable, err.Error())
+			return
+		}
 		log.Printf("[public subscribe] upsert subscriber: %v", err)
 		response.Internal(w)
 		return
