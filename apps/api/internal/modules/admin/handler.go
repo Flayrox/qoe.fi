@@ -55,6 +55,9 @@ func (h *Handler) Register(r chi.Router) {
 	// humaine tracée). Superadmin, lecture puis PATCH par sujet.
 	r.Get("/v1/admin/abuse/decisions", h.abuseDecisions)
 	r.Patch("/v1/admin/abuse/decisions", h.resolveAbuseDecision)
+	// Métriques anti-abus (les deux erreurs : abus manqué vs légitimes
+	// bloqués). Query : ?days=30 (1-90).
+	r.Get("/v1/admin/abuse/metrics", h.abuseMetrics)
 
 	// Widgets & tendances
 	r.Get("/v1/admin/widgets", h.widgets)
@@ -348,6 +351,21 @@ func (h *Handler) resolveAbuseDecision(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, map[string]any{"id": id})
+}
+
+// GET /v1/admin/abuse/metrics — santé anti-abus (fiche 06 §11).
+func (h *Handler) abuseMetrics(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	days, _ := strconv.Atoi(r.URL.Query().Get("days"))
+	m, err := h.svc.AbuseMetrics(r.Context(), userID, days)
+	if err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, m)
 }
 
 // PATCH /v1/admin/users/{userID} — modération (réservé superadmin).

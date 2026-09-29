@@ -63,6 +63,15 @@
 #     suppression silencieuse du suivi, à corriger par une UX (auteur suivi
 #     restreint visible avec son échéance), pas par un filtre.
 #
+# MÉTRIQUES (GET /v1/admin/abuse/metrics?days=30, superadmin — fiche §11) :
+#   - Verdicts auto par résultat et par raison (quel déclencheur parle ?),
+#     revues humaines (classements vs escalades), taux de classement
+#     (LE faux positif : allow après revue / revues, -1 si aucune revue),
+#     profondeur de la file ouverte, top 10 sujets chauds (signaux récents
+#     + dernier verdict — prioriser selon le risque réel, pas le bruit).
+#   - Lecture seule, fenêtre 1-90 j. Les chiffres de succès ne sont jamais
+#     « nombre de comptes bannis ».
+#
 # EXPLOITATION : seuils côté serveur uniquement (jamais exposés — fiche §10 :
 # ne pas aider l'attaquant à calibrer). Dossiers expirés (72 h) = plus une
 # urgence. Signaux expirés purgés par expiresAt (pas de fichier perpétuel).
