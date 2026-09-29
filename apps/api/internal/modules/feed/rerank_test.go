@@ -52,7 +52,10 @@ func seedReRank(ctx context.Context) (readerID string, err error) {
 	}
 
 	// Articles à axes orthogonaux, tout le reste égal => à égalité sans boost.
-	arts := []struct{ id, title, author string; ax float64 }{
+	arts := []struct {
+		id, title, author string
+		ax                float64
+	}{
 		{"rr_foot", "Le mercato déchaîne les supporters (foot)", "00000000-0000-0000-0000-000000000031", 0},
 		{"rr_anime", "La saison anime fait vibrer les fans (cosplay)", "00000000-0000-0000-0000-000000000032", 1},
 		{"rr_neutral", "Un reportage d'actualité générale neutre", "00000000-0000-0000-0000-000000000033", 2},

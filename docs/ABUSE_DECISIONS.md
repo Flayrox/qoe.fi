@@ -59,9 +59,10 @@
 #     publication:<id>) : hors discover/recommended, PRÉSENT en following.
 #   - Refus dur (suspend humain ou isSuspended) : hors TOUT, suivi inclus.
 #   - Seuls les verdicts humains excluent (jamais l'automate seul).
-#   - RÉSIDU : le following exclut encore les isShadowbanned sans le dire —
-#     suppression silencieuse du suivi, à corriger par une UX (auteur suivi
-#     restreint visible avec son échéance), pas par un filtre.
+#   - TRANSPARENCE DU SUIVI (HomeFeed.followingHidden, toujours un tableau) :
+#     les auteurs suivis masqués sont nommés (authorId, reason restricted |
+#     suspended, until RFC3339 ou null). Le back ne tait plus rien ; reste
+#     au front d'afficher « contenus de X masqués jusqu'au ... ».
 #
 # MÉTRIQUES (GET /v1/admin/abuse/metrics?days=30, superadmin — fiche §11) :
 #   - Verdicts auto par résultat et par raison (quel déclencheur parle ?),
