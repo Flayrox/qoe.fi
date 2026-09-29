@@ -50,7 +50,10 @@ import {
   Copy,
   CopyCheck,
   Trash2,
+  Download,
 } from 'lucide-react';
+import { toast } from '@qoe/ui/toast';
+import { setArticleAllowDownloadAction } from '@qoe/sdk/actions/articles';
 import { cn } from '@qoe/utils';
 import { compressImage } from '@/lib/image-compressor';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
@@ -113,6 +116,7 @@ export interface EditorProps {
   initialSeoDescription?: string | null;
   initialAllowPublicAnnotations?: boolean;
   initialAllowComments?: boolean;
+  initialAllowDownload?: boolean;
   initialAttributions?: ArticleAttributionDraft[];
   collaborationRoomId?: string;
   collaborationEnabled?: boolean;
@@ -153,6 +157,7 @@ export function Editor({
   initialSeoDescription = '',
   initialAllowPublicAnnotations = true,
   initialAllowComments = true,
+  initialAllowDownload = true,
   initialAttributions = [],
   collaborationRoomId,
   collaborationEnabled = true,
@@ -181,6 +186,8 @@ export function Editor({
     initialAllowPublicAnnotations
   );
   const [allowComments, setAllowComments] = useState(initialAllowComments);
+  const [allowDownload, setAllowDownload] = useState(initialAllowDownload);
+  const [downloadSaving, setDownloadSaving] = useState(false);
   const [attributions, setAttributions] = useState<ArticleAttributionDraft[]>(initialAttributions);
 
   const [error, setError] = useState<string | null>(null);
@@ -1966,6 +1973,50 @@ export function Editor({
                         className="w-4 h-4 rounded text-primary border-border/40 focus:ring-primary cursor-pointer shrink-0"
                       />
                     </label>
+
+                    {/* Téléchargement hors-ligne (fiche Plus P1) : l'auteur
+                     * choisit — interrupteur immédiat (hors autosave),
+                     * même garde qu'édition côté Go. Sans article
+                     * existant (création), le défaut publication s'applique. */}
+                    {collaborationRoomId && (
+                      <label className="flex items-center justify-between p-3 rounded-xl border border-border/40 bg-muted/15 hover:bg-muted/30 transition-colors cursor-pointer select-none">
+                        <div className="space-y-0.5 pr-2">
+                          <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                            <Download className="w-3.5 h-3.5 text-primary" />
+                            <span>{t`Téléchargement hors-ligne`}</span>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground leading-tight">
+                            {t`Autorise les lecteurs Plus à mettre cet article hors-ligne et dans leur file d'écoute.`}
+                          </p>
+                        </div>
+                        <input
+                          type="checkbox"
+                          checked={allowDownload}
+                          disabled={downloadSaving}
+                          onChange={(e) => {
+                            const next = e.target.checked;
+                            setDownloadSaving(true);
+                            void setArticleAllowDownloadAction({
+                              articleId: collaborationRoomId,
+                              allowDownload: next,
+                            }).then((res) => {
+                              setDownloadSaving(false);
+                              if (res.ok) {
+                                setAllowDownload(res.data.allowDownload);
+                                toast.success(
+                                  next ? t`Téléchargement autorisé` : t`Téléchargement refusé`
+                                );
+                              } else {
+                                toast.error(
+                                  typeof res.error === 'string' ? res.error : t`Action impossible`
+                                );
+                              }
+                            });
+                          }}
+                          className="w-4 h-4 rounded text-primary border-border/40 focus:ring-primary cursor-pointer shrink-0 disabled:opacity-40"
+                        />
+                      </label>
+                    )}
                   </div>
                 </div>
               </div>

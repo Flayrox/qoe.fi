@@ -11,6 +11,28 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const addListenLater = `-- name: AddListenLater :one
+INSERT INTO "ListenLater" (id, "userId", "articleId", "position")
+SELECT gen_random_uuid()::text, $1::uuid, $2, COALESCE(MAX("position"), -1) + 1
+FROM "ListenLater" WHERE "userId" = $1::uuid
+ON CONFLICT ("userId", "articleId") DO NOTHING
+RETURNING id
+`
+
+type AddListenLaterParams struct {
+	UserID    pgtype.UUID `json:"user_id"`
+	ArticleID string      `json:"article_id"`
+}
+
+// Ajout idempotent à la file (même article deux fois = no-op, retourne
+// l'existant). position = max+1 (fin de file).
+func (q *Queries) AddListenLater(ctx context.Context, arg AddListenLaterParams) (string, error) {
+	row := q.db.QueryRow(ctx, addListenLater, arg.UserID, arg.ArticleID)
+	var id string
+	err := row.Scan(&id)
+	return id, err
+}
+
 const countCreatorArticles = `-- name: CountCreatorArticles :one
 SELECT COUNT(*)
 FROM "Article" a
@@ -63,9 +85,9 @@ func (q *Queries) CountPublishedArticles(ctx context.Context) (int64, error) {
 
 const createArticle = `-- name: CreateArticle :one
 INSERT INTO "Article" (id, title, slug, content, published, "isPremium", visibility,
-                       "readingTime", "allowPublicAnnotations", "allowComments", status,
+                       "readingTime", "allowPublicAnnotations", "allowComments", "allowDownload", status,
                        "publicationId", "authorId", "categoryId", "tierId", "seoTitle", "seoDescription", "scheduledAt", "updatedAt")
-VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, now())
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, now())
 RETURNING id
 `
 
@@ -79,6 +101,7 @@ type CreateArticleParams struct {
 	ReadingTime            int32             `json:"readingTime"`
 	AllowPublicAnnotations bool              `json:"allowPublicAnnotations"`
 	AllowComments          bool              `json:"allowComments"`
+	AllowDownload          bool              `json:"allowDownload"`
 	Status                 string            `json:"status"`
 	PublicationId          string            `json:"publicationId"`
 	AuthorId               pgtype.UUID       `json:"authorId"`
@@ -100,6 +123,7 @@ func (q *Queries) CreateArticle(ctx context.Context, arg CreateArticleParams) (s
 		arg.ReadingTime,
 		arg.AllowPublicAnnotations,
 		arg.AllowComments,
+		arg.AllowDownload,
 		arg.Status,
 		arg.PublicationId,
 		arg.AuthorId,
@@ -126,7 +150,7 @@ func (q *Queries) DeleteArticle(ctx context.Context, id string) error {
 
 const getArticleByID = `-- name: GetArticleByID :one
 SELECT a.id, a.title, a.slug, a.content, a."draftContent", a.published, a."isPremium", a.visibility,
-       a."readingTime", a."allowPublicAnnotations", a."allowComments", a."scheduledAt",
+       a."readingTime", a."allowPublicAnnotations", a."allowComments", a."allowDownload", a."scheduledAt",
        a.status, a."publicationId", a."authorId", a."categoryId", a."tierId",
        a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
        u.id::text     AS author_id,
@@ -154,6 +178,7 @@ type GetArticleByIDRow struct {
 	ReadingTime            int32             `json:"readingTime"`
 	AllowPublicAnnotations bool              `json:"allowPublicAnnotations"`
 	AllowComments          bool              `json:"allowComments"`
+	AllowDownload          bool              `json:"allowDownload"`
 	ScheduledAt            pgtype.Timestamp  `json:"scheduledAt"`
 	Status                 string            `json:"status"`
 	PublicationId          string            `json:"publicationId"`
@@ -188,6 +213,7 @@ func (q *Queries) GetArticleByID(ctx context.Context, id string) (GetArticleByID
 		&i.ReadingTime,
 		&i.AllowPublicAnnotations,
 		&i.AllowComments,
+		&i.AllowDownload,
 		&i.ScheduledAt,
 		&i.Status,
 		&i.PublicationId,
@@ -443,6 +469,61 @@ func (q *Queries) GetArticleIdByPublicationAndSlug(ctx context.Context, arg GetA
 	var id string
 	err := row.Scan(&id)
 	return id, err
+}
+
+const getArticleOfflinePack = `-- name: GetArticleOfflinePack :one
+SELECT a.id, a.title, a.slug, a.content, a."readingTime", a."isPremium",
+       a."allowDownload", a.published, a."publicationId", a.visibility, a."tierId", a."createdAt",
+       p.name AS publication_name,
+       u.name AS author_name
+FROM "Article" a
+JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "User" u ON u.id = a."authorId"
+WHERE a.id = $1
+`
+
+type GetArticleOfflinePackRow struct {
+	ID              string            `json:"id"`
+	Title           string            `json:"title"`
+	Slug            string            `json:"slug"`
+	Content         string            `json:"content"`
+	ReadingTime     int32             `json:"readingTime"`
+	IsPremium       bool              `json:"isPremium"`
+	AllowDownload   bool              `json:"allowDownload"`
+	Published       bool              `json:"published"`
+	PublicationId   string            `json:"publicationId"`
+	Visibility      ContentVisibility `json:"visibility"`
+	TierId          pgtype.Text       `json:"tierId"`
+	CreatedAt       pgtype.Timestamp  `json:"createdAt"`
+	PublicationName string            `json:"publication_name"`
+	AuthorName      pgtype.Text       `json:"author_name"`
+}
+
+// Pack hors-ligne (fiche Plus P1) : contenu + droits + publication, en une
+// lecture. Le service vérifie PLUS (HasPlus), la publication (published) et
+// le droit auteur (allowDownload) — jamais de contenu interdit dans le pack.
+// Le contenu est coupé au paywall par le service (même SliceContentAtPaywall
+// que la lecture : le hors-ligne ne contourne jamais le paywall contenu).
+func (q *Queries) GetArticleOfflinePack(ctx context.Context, id string) (GetArticleOfflinePackRow, error) {
+	row := q.db.QueryRow(ctx, getArticleOfflinePack, id)
+	var i GetArticleOfflinePackRow
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Slug,
+		&i.Content,
+		&i.ReadingTime,
+		&i.IsPremium,
+		&i.AllowDownload,
+		&i.Published,
+		&i.PublicationId,
+		&i.Visibility,
+		&i.TierId,
+		&i.CreatedAt,
+		&i.PublicationName,
+		&i.AuthorName,
+	)
+	return i, err
 }
 
 const getCreatorArticleBySlug = `-- name: GetCreatorArticleBySlug :one
@@ -726,6 +807,46 @@ func (q *Queries) ListCreatorArticles(ctx context.Context, arg ListCreatorArticl
 			&i.CategoryName,
 			&i.CategorySlug,
 			&i.CategoryDescription,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listListenLater = `-- name: ListListenLater :many
+SELECT l.id, l."articleId", l."position", l."createdAt"
+FROM "ListenLater" l
+WHERE l."userId" = $1::uuid
+ORDER BY l."position", l."createdAt"
+`
+
+type ListListenLaterRow struct {
+	ID        string           `json:"id"`
+	ArticleId string           `json:"articleId"`
+	Position  int32            `json:"position"`
+	CreatedAt pgtype.Timestamp `json:"createdAt"`
+}
+
+// File ordonnée (position, puis ancienneté). Le service joint les métadonnées.
+func (q *Queries) ListListenLater(ctx context.Context, userID pgtype.UUID) ([]ListListenLaterRow, error) {
+	rows, err := q.db.Query(ctx, listListenLater, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListListenLaterRow{}
+	for rows.Next() {
+		var i ListListenLaterRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.ArticleId,
+			&i.Position,
+			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -1040,6 +1161,51 @@ func (q *Queries) PublishArticleDraft(ctx context.Context, id string) (string, e
 	var id_2 string
 	err := row.Scan(&id_2)
 	return id_2, err
+}
+
+const removeListenLater = `-- name: RemoveListenLater :execrows
+DELETE FROM "ListenLater" WHERE "userId" = $1::uuid AND "articleId" = $2
+`
+
+type RemoveListenLaterParams struct {
+	UserID    pgtype.UUID `json:"user_id"`
+	ArticleID string      `json:"article_id"`
+}
+
+func (q *Queries) RemoveListenLater(ctx context.Context, arg RemoveListenLaterParams) (int64, error) {
+	result, err := q.db.Exec(ctx, removeListenLater, arg.UserID, arg.ArticleID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setArticleAllowDownload = `-- name: SetArticleAllowDownload :one
+UPDATE "Article"
+SET "allowDownload" = $2, "updatedAt" = now()
+WHERE id = $1
+RETURNING id, "allowDownload"
+`
+
+type SetArticleAllowDownloadParams struct {
+	ID            string `json:"id"`
+	AllowDownload bool   `json:"allowDownload"`
+}
+
+type SetArticleAllowDownloadRow struct {
+	ID            string `json:"id"`
+	AllowDownload bool   `json:"allowDownload"`
+}
+
+// Droit de téléchargement d'un article (l'auteur choisit — hors-ligne et
+// file d'écoute vérifient). La garde (auteur/média/co-auteur) est
+// applicative (Service.authorizeEdit, partagée avec Update) : ici, simple
+// bascule. Retourne id + nouvelle valeur.
+func (q *Queries) SetArticleAllowDownload(ctx context.Context, arg SetArticleAllowDownloadParams) (SetArticleAllowDownloadRow, error) {
+	row := q.db.QueryRow(ctx, setArticleAllowDownload, arg.ID, arg.AllowDownload)
+	var i SetArticleAllowDownloadRow
+	err := row.Scan(&i.ID, &i.AllowDownload)
+	return i, err
 }
 
 const setArticleStatus = `-- name: SetArticleStatus :one

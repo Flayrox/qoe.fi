@@ -316,6 +316,18 @@ CREATE TABLE "SupportArticle" (
 );
 
 -- CreateTable
+CREATE TABLE "ListenLater" (
+    "id" TEXT NOT NULL,
+    "userId" UUID NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+    "articleId" TEXT NOT NULL REFERENCES "Article"(id) ON DELETE CASCADE,
+    "position" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ListenLater_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "ListenLater_unique" UNIQUE ("userId", "articleId")
+);
+
+-- CreateTable
 CREATE TABLE "BlockedUser" (
     "id" TEXT NOT NULL,
     "creatorId" UUID NOT NULL,
@@ -498,6 +510,7 @@ CREATE TABLE "Article" (
     "isEditorPick" BOOLEAN NOT NULL DEFAULT false,
     "allowPublicAnnotations" BOOLEAN NOT NULL DEFAULT true,
     "allowComments" BOOLEAN NOT NULL DEFAULT true,
+    "allowDownload" BOOLEAN NOT NULL DEFAULT true,
     "scheduledAt" TIMESTAMP(3),
     "status" TEXT NOT NULL DEFAULT 'DRAFT',
     "publicationId" TEXT NOT NULL,
@@ -593,6 +606,7 @@ CREATE TABLE "Publication" (
     "allowIndexing" BOOLEAN NOT NULL DEFAULT true,
     "allowPublicAnnotations" BOOLEAN NOT NULL DEFAULT true,
     "allowComments" BOOLEAN NOT NULL DEFAULT true,
+    "allowDownloadDefault" BOOLEAN NOT NULL DEFAULT true,
     "seoTitle" TEXT,
     "seoDescription" TEXT,
     "supportUrl" TEXT,

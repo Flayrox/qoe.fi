@@ -41,7 +41,21 @@ export interface Article {
   publicationId: string;
   createdAt: string;
   updatedAt: string;
+  /** Droit de téléchargement (hors-ligne/file d'écoute) — l'auteur choisit. */
+  allowDownload?: boolean;
 }
+
+/** 📥 Bascule le droit de téléchargement (hors-ligne + file d'écoute).
+ * Même garde qu'édition côté Go (auteur/média/co-auteur). Effet immédiat. */
+export const setArticleAllowDownloadAction = safeAction<
+  { articleId: string; allowDownload: boolean },
+  { id: string; allowDownload: boolean }
+>(async ({ articleId, allowDownload }) => {
+  return goFetch<{ id: string; allowDownload: boolean }>(
+    `/v1/articles/${encodeURIComponent(articleId)}/download`,
+    { method: 'PATCH', body: { allowDownload } }
+  );
+});
 
 /** 🗂️ Catégorie (shape API Go /v1/categories). */
 export interface Category {

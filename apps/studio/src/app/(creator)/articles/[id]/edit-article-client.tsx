@@ -25,6 +25,7 @@ interface ArticleData {
   status?: string;
   scheduledAt?: string | null;
   isPremium: boolean;
+  allowDownload?: boolean;
   categoryId: string | null;
   seoTitle: string | null;
   seoDescription: string | null;
@@ -149,6 +150,7 @@ export function EditArticleClient({ article, categories, capabilities }: EditArt
         initialStatus={article.status}
         initialScheduledAt={article.scheduledAt ?? null}
         initialIsPremium={article.isPremium}
+        initialAllowDownload={article.allowDownload ?? true}
         initialCategoryId={article.categoryId}
         initialSeoTitle={article.seoTitle || ''}
         initialSeoDescription={article.seoDescription || ''}

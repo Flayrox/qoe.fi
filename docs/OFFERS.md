@@ -33,8 +33,18 @@
 #     Plus). 403 + code HIGHLIGHT_QUOTA_EXCEEDED (jamais de libellé
 #     matché), compteur exact /v1/me/highlights/count {count, limit, plus},
 #     upsell informatif (pas de vente de vent : pas de checkout).
-#   - ❌ hors-ligne (articles, podcasts, collections), TTS + file d'écoute,
-#     notes/recherche dedans, IA utile (résumé, explique) à quota, badge.
+#   - ✅ Droits auteur téléchargement (Article.allowDownload, défaut
+#     Publication.allowDownloadDefault — opt-out, true par défaut) :
+#     l'auteur choisit, toggle studio immédiat (hors autosave), défaut
+#     réglable (PATCH settings, pas d'UI dédiée — même statut que les
+#     autres défauts). Garde partagée avec l'édition (authorizeEdit).
+#   - ✅ Pack hors-ligne GET /v1/articles/{id}/offline-pack (Plus + publié
+#     + droit auteur + paywall respecté comme à l'écran, versionné v1) et
+#     file d'écoute /v1/me/listen-later (ajout gratuit mais contenu
+#     vérifié, idempotent, ordonnée, retrait idempotent).
+#     403 + codes stables (OFFLINE_PACK_REQUIRES_PLUS, NOT_DOWNLOADABLE…).
+#   - ❌ TTS + file lue (player), notes/recherche dedans, IA utile
+#     (résumé, explique) à quota, podcasts offline, badge.
 #   P2 : collections intelligentes, digests, RSS/newsletters import,
 #     extension navigateur, thèmes/polices avancés, exports Markdown.
 #   P3 : recherche sémantique perso, flashcards/répétition espacée, API

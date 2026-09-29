@@ -42,6 +42,9 @@ func (h *Handler) RegisterProtected(r chi.Router) {
 		r.Post("/subdomain", h.updateSubdomain)
 		r.Put("/navigation", h.saveNavigation)
 		r.Put("/social", h.saveSocial)
+		// Défaut de téléchargement des nouveaux articles (hors-ligne/file
+		// d'écoute — l'auteur ajuste ensuite par article).
+		r.Patch("/publication/download-default", h.setDownloadDefault)
 		r.Post("/api-application", h.submitApiApplication)
 		r.Get("/api-keys", h.listApiKeys)
 		// Clés API personnelles : créer, faire tourner ou révoquer un secret
@@ -295,6 +298,37 @@ func (h *Handler) saveNavigation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, map[string]bool{"success": true})
+}
+
+// PATCH /v1/settings/publication/download-default — défaut de téléchargement
+// des NOUVEAUX articles (hors-ligne/file d'écoute). Body : { publicationId,
+// allowDownloadDefault }. L'auteur ajuste ensuite par article.
+func (h *Handler) setDownloadDefault(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	var in struct {
+		PublicationID       string `json:"publicationId"`
+		AllowDownloadDefault *bool  `json:"allowDownloadDefault"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil ||
+		in.PublicationID == "" || in.AllowDownloadDefault == nil {
+		response.BadRequest(w, "JSON invalide (publicationId et allowDownloadDefault requis)")
+		return
+	}
+	val, err := h.svc.SetDownloadDefault(r.Context(), userID, in.PublicationID, *in.AllowDownloadDefault)
+	if err != nil {
+		if errors.Is(err, errForbidden) {
+			response.Forbidden(w, "Accès réservé.")
+			return
+		}
+		if errors.Is(err, errNotFound) {
+			response.NotFound(w, "Publication introuvable.")
+			return
+		}
+		log.Printf("[settings] download-default: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]any{"allowDownloadDefault": val})
 }
 
 // PUT /v1/settings/social — remplace les liens sociaux.

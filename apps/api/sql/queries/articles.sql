@@ -83,7 +83,7 @@ LIMIT $2 OFFSET $3;
 
 -- name: GetArticleByID :one
 SELECT a.id, a.title, a.slug, a.content, a."draftContent", a.published, a."isPremium", a.visibility,
-       a."readingTime", a."allowPublicAnnotations", a."allowComments", a."scheduledAt",
+       a."readingTime", a."allowPublicAnnotations", a."allowComments", a."allowDownload", a."scheduledAt",
        a.status, a."publicationId", a."authorId", a."categoryId", a."tierId",
        a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
        u.id::text     AS author_id,
@@ -227,9 +227,9 @@ SELECT id FROM "Article" WHERE "publicationId" = $1 AND slug = $2 LIMIT 1;
 
 -- name: CreateArticle :one
 INSERT INTO "Article" (id, title, slug, content, published, "isPremium", visibility,
-                       "readingTime", "allowPublicAnnotations", "allowComments", status,
+                       "readingTime", "allowPublicAnnotations", "allowComments", "allowDownload", status,
                        "publicationId", "authorId", "categoryId", "tierId", "seoTitle", "seoDescription", "scheduledAt", "updatedAt")
-VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, now())
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, now())
 RETURNING id;
 
 -- name: UpdateArticleContent :one
@@ -316,3 +316,47 @@ WHERE a.published = true
   AND u."isShadowbanned" = false
   AND u."isSuspended" = false
   AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now());
+
+-- name: SetArticleAllowDownload :one
+-- Droit de téléchargement d'un article (l'auteur choisit — hors-ligne et
+-- file d'écoute vérifient). La garde (auteur/média/co-auteur) est
+-- applicative (Service.authorizeEdit, partagée avec Update) : ici, simple
+-- bascule. Retourne id + nouvelle valeur.
+UPDATE "Article"
+SET "allowDownload" = $2, "updatedAt" = now()
+WHERE id = $1
+RETURNING id, "allowDownload";
+
+-- name: GetArticleOfflinePack :one
+-- Pack hors-ligne (fiche Plus P1) : contenu + droits + publication, en une
+-- lecture. Le service vérifie PLUS (HasPlus), la publication (published) et
+-- le droit auteur (allowDownload) — jamais de contenu interdit dans le pack.
+-- Le contenu est coupé au paywall par le service (même SliceContentAtPaywall
+-- que la lecture : le hors-ligne ne contourne jamais le paywall contenu).
+SELECT a.id, a.title, a.slug, a.content, a."readingTime", a."isPremium",
+       a."allowDownload", a.published, a."publicationId", a.visibility, a."tierId", a."createdAt",
+       p.name AS publication_name,
+       u.name AS author_name
+FROM "Article" a
+JOIN "Publication" p ON p.id = a."publicationId"
+JOIN "User" u ON u.id = a."authorId"
+WHERE a.id = $1;
+
+-- name: AddListenLater :one
+-- Ajout idempotent à la file (même article deux fois = no-op, retourne
+-- l'existant). position = max+1 (fin de file).
+INSERT INTO "ListenLater" (id, "userId", "articleId", "position")
+SELECT gen_random_uuid()::text, sqlc.arg('user_id')::uuid, sqlc.arg('article_id'), COALESCE(MAX("position"), -1) + 1
+FROM "ListenLater" WHERE "userId" = sqlc.arg('user_id')::uuid
+ON CONFLICT ("userId", "articleId") DO NOTHING
+RETURNING id;
+
+-- name: ListListenLater :many
+-- File ordonnée (position, puis ancienneté). Le service joint les métadonnées.
+SELECT l.id, l."articleId", l."position", l."createdAt"
+FROM "ListenLater" l
+WHERE l."userId" = sqlc.arg('user_id')::uuid
+ORDER BY l."position", l."createdAt";
+
+-- name: RemoveListenLater :execrows
+DELETE FROM "ListenLater" WHERE "userId" = sqlc.arg('user_id')::uuid AND "articleId" = sqlc.arg('article_id');

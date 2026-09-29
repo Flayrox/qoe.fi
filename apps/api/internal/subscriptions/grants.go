@@ -67,6 +67,13 @@ type Grant struct {
 	Effective bool `json:"effective"`
 }
 
+// isEffective centralise le calcul d'effectivité (même règle que
+// HasEntitlement : début toléré +1s, fin stricte). UNE fonction pour les
+// scans et les requêtes — jamais deux définitions qui divergent.
+func isEffective(startsAt time.Time, endsAt *time.Time, now time.Time) bool {
+	return !startsAt.After(now.Add(abuse.FutureTolerance)) && (endsAt == nil || endsAt.After(now))
+}
+
 // DB est la surface SQL du store (même forme que les autres stores).
 type DB interface {
 	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
@@ -91,7 +98,7 @@ func scanGrant(row pgx.Row, now time.Time) (Grant, error) {
 		g.EndsAt = &s
 	}
 	g.CreatedAt = createdAt.UTC().Format(time.RFC3339)
-	g.Effective = !startsAt.After(now) && (endsAt == nil || endsAt.After(now))
+	g.Effective = isEffective(startsAt, endsAt, now)
 	return g, nil
 }
 
@@ -107,18 +114,25 @@ type HasDB interface {
 // miroirs) : un octroi avec startsAt <= now < endsAt (NULL = sans fin).
 // Pool nil : false (pas de droits sans base — défaut sûr, inverse des
 // budgets où l'absence autorisait : ici l'absence INTERDIT).
+// Tolérance +1s sur le DÉBUT (abuse.FutureTolerance) : l'émetteur (API) et
+// la base (VPS) n'ont pas la même horloge à la milliseconde près — un octroi
+// créé « maintenant » (startsAt = now() DB, postérieur au now Go de ~200ms
+// en dev Mac→VPS, mesuré le 29/09) serait sinon inactif à sa propre seconde.
+// Un droit 1s en avance n'est ni une sanction ni une faille (les tokens ont
+// des leeways bien plus larges). La FIN reste stricte (pas de dépassement).
 func HasEntitlement(ctx context.Context, pool HasDB, subjectType, subjectID, plan string, now time.Time) bool {
 	if pool == nil {
 		return false
 	}
 	now = abuse.UtcMs(now)
+	since := now.Add(abuse.FutureTolerance)
 	var ok bool
 	err := pool.QueryRow(ctx, `
 		SELECT EXISTS(
 			SELECT 1 FROM "SubscriptionGrant"
 			WHERE "subjectType" = $1 AND "subjectId" = $2 AND "plan" = $3
-			  AND "startsAt" <= $4 AND ("endsAt" IS NULL OR "endsAt" > $4)
-		)`, subjectType, subjectID, plan, now).Scan(&ok)
+			  AND "startsAt" <= $2 AND ("endsAt" IS NULL OR "endsAt" > $3)
+		)`, subjectType, subjectID, plan, since, now).Scan(&ok)
 	return err == nil && ok
 }
 
@@ -141,6 +155,9 @@ func HasPlus(ctx context.Context, pool HasDB, userID string, now time.Time) bool
 		return false
 	}
 	now = abuse.UtcMs(now)
+	// Même tolérance +1s sur le début que HasEntitlement (horloges
+	// émetteur/base) ; fin stricte.
+	since := now.Add(abuse.FutureTolerance)
 	var ok bool
 	err := pool.QueryRow(ctx, `
 		SELECT EXISTS(
@@ -148,8 +165,8 @@ func HasPlus(ctx context.Context, pool HasDB, userID string, now time.Time) bool
 			WHERE ((g."subjectType" = 'user' AND g."subjectId" = $1 AND g."plan" = 'plus')
 			    OR (g."subjectType" = 'publication' AND g."plan" = 'pro'
 			        AND g."subjectId" = (SELECT u."publicationId" FROM "User" u WHERE u.id = $1::uuid)))
-			  AND g."startsAt" <= $2 AND (g."endsAt" IS NULL OR g."endsAt" > $2)
-		)`, userID, now).Scan(&ok)
+			  AND g."startsAt" <= $2 AND (g."endsAt" IS NULL OR g."endsAt" > $3)
+		)`, userID, since, now).Scan(&ok)
 	return err == nil && ok
 }
 
@@ -197,7 +214,7 @@ func GrantPlan(ctx context.Context, pool DB, subjectType, subjectID, plan string
 		g.EndsAt = &s
 	}
 	g.CreatedAt = created.UTC().Format(time.RFC3339)
-	g.Effective = !starts.After(now) && (ends == nil || ends.After(now))
+	g.Effective = isEffective(starts, ends, now)
 	return g, nil
 }
 
@@ -332,7 +349,7 @@ func ListRecentGrants(ctx context.Context, pool DB, plan string, effectiveOnly b
 			g.EndsAt = &s
 		}
 		g.CreatedAt = createdAt.UTC().Format(time.RFC3339)
-		g.Effective = !startsAt.After(now) && (endsAt == nil || endsAt.After(now))
+		g.Effective = isEffective(startsAt, endsAt, now)
 		total = n
 		items = append(items, g)
 	}
@@ -355,6 +372,6 @@ func scanGrantRow(rows pgx.Rows, now time.Time) (Grant, error) {
 		g.EndsAt = &s
 	}
 	g.CreatedAt = createdAt.UTC().Format(time.RFC3339)
-	g.Effective = !startsAt.After(now) && (endsAt == nil || endsAt.After(now))
+	g.Effective = isEffective(startsAt, endsAt, now)
 	return g, nil
 }

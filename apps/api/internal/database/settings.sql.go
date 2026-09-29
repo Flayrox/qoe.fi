@@ -667,6 +667,27 @@ func (q *Queries) SetApiApplication(ctx context.Context, arg SetApiApplicationPa
 	return err
 }
 
+const setPublicationDownloadDefault = `-- name: SetPublicationDownloadDefault :one
+UPDATE "Publication"
+SET "allowDownloadDefault" = $2, "updatedAt" = now()
+WHERE id = $1
+RETURNING "allowDownloadDefault"
+`
+
+type SetPublicationDownloadDefaultParams struct {
+	ID                   string `json:"id"`
+	AllowDownloadDefault bool   `json:"allowDownloadDefault"`
+}
+
+// Défaut de téléchargement des NOUVEAUX articles (l'auteur ajuste ensuite
+// par article). Réservé au propriétaire/membre via authorizeSettings.
+func (q *Queries) SetPublicationDownloadDefault(ctx context.Context, arg SetPublicationDownloadDefaultParams) (bool, error) {
+	row := q.db.QueryRow(ctx, setPublicationDownloadDefault, arg.ID, arg.AllowDownloadDefault)
+	var allowDownloadDefault bool
+	err := row.Scan(&allowDownloadDefault)
+	return allowDownloadDefault, err
+}
+
 const updateApiKeySecret = `-- name: UpdateApiKeySecret :execrows
 UPDATE "ApiKey"
 SET "keyHash" = $2, "keyPrefix" = $3

@@ -24,6 +24,9 @@ type Querier interface {
 	// (unicité email+publication), pas de réactivation silencieuse ici puisque
 	// l'adresse est vérifiée et l'action explicite.
 	ActivateVerifiedSubscriber(ctx context.Context, arg ActivateVerifiedSubscriberParams) error
+	// Ajout idempotent à la file (même article deux fois = no-op, retourne
+	// l'existant). position = max+1 (fin de file).
+	AddListenLater(ctx context.Context, arg AddListenLaterParams) (string, error)
 	AddRecommendation(ctx context.Context, arg AddRecommendationParams) (Recommendation, error)
 	AdminDashboardCounts(ctx context.Context) (AdminDashboardCountsRow, error)
 	ArchiveLegalDocumentVersion(ctx context.Context, id string) (LegalDocumentVersion, error)
@@ -213,6 +216,12 @@ type Querier interface {
 	GetArticleIdByPublicationAndSlug(ctx context.Context, arg GetArticleIdByPublicationAndSlugParams) (string, error)
 	GetArticleImportJob(ctx context.Context, arg GetArticleImportJobParams) (GetArticleImportJobRow, error)
 	GetArticleImportJobByID(ctx context.Context, id string) (GetArticleImportJobByIDRow, error)
+	// Pack hors-ligne (fiche Plus P1) : contenu + droits + publication, en une
+	// lecture. Le service vérifie PLUS (HasPlus), la publication (published) et
+	// le droit auteur (allowDownload) — jamais de contenu interdit dans le pack.
+	// Le contenu est coupé au paywall par le service (même SliceContentAtPaywall
+	// que la lecture : le hors-ligne ne contourne jamais le paywall contenu).
+	GetArticleOfflinePack(ctx context.Context, id string) (GetArticleOfflinePackRow, error)
 	GetArticleReleaseInfo(ctx context.Context, id string) (GetArticleReleaseInfoRow, error)
 	GetAttachmentsByIDs(ctx context.Context, dollar_1 []string) ([]GetAttachmentsByIDsRow, error)
 	GetAudienceSummary(ctx context.Context, publicationid string) (GetAudienceSummaryRow, error)
@@ -560,6 +569,8 @@ type Querier interface {
 	// contrôler l'intégrité sans dépendre de notre base.
 	ListLegalVersionsForExport(ctx context.Context, slug pgtype.Text) ([]ListLegalVersionsForExportRow, error)
 	ListLikesForPost(ctx context.Context, arg ListLikesForPostParams) ([]ListLikesForPostRow, error)
+	// File ordonnée (position, puis ancienneté). Le service joint les métadonnées.
+	ListListenLater(ctx context.Context, userID pgtype.UUID) ([]ListListenLaterRow, error)
 	// ============================================================================
 	// Clés API Média (gestion par le média, délégation api_keys:manage)
 	// ============================================================================
@@ -666,6 +677,7 @@ type Querier interface {
 	PublishLegalDocumentVersion(ctx context.Context, id string) (LegalDocumentVersion, error)
 	// Réactive un asset purgé/supprimé (nouvelle fenêtre de 3 jours).
 	ReactivateMediaAsset(ctx context.Context, id string) (MediaAsset, error)
+	RemoveListenLater(ctx context.Context, arg RemoveListenLaterParams) (int64, error)
 	RemoveRecommendation(ctx context.Context, arg RemoveRecommendationParams) error
 	ResetNewsletterIssueToDraft(ctx context.Context, id string) error
 	ResolvePublicationIDBySlugOrID(ctx context.Context, id string) (string, error)
@@ -682,6 +694,11 @@ type Querier interface {
 	SearchSemanticArticles(ctx context.Context, arg SearchSemanticArticlesParams) ([]SearchSemanticArticlesRow, error)
 	SearchThoughts(ctx context.Context, arg SearchThoughtsParams) ([]SearchThoughtsRow, error)
 	SetApiApplication(ctx context.Context, arg SetApiApplicationParams) error
+	// Droit de téléchargement d'un article (l'auteur choisit — hors-ligne et
+	// file d'écoute vérifient). La garde (auteur/média/co-auteur) est
+	// applicative (Service.authorizeEdit, partagée avec Update) : ici, simple
+	// bascule. Retourne id + nouvelle valeur.
+	SetArticleAllowDownload(ctx context.Context, arg SetArticleAllowDownloadParams) (SetArticleAllowDownloadRow, error)
 	SetArticleEditorPick(ctx context.Context, arg SetArticleEditorPickParams) (SetArticleEditorPickRow, error)
 	SetArticleStatus(ctx context.Context, arg SetArticleStatusParams) (string, error)
 	// L'identifiant et le numéro de séquence ne sont connus qu'après insertion :
@@ -691,6 +708,9 @@ type Querier interface {
 	SetLegalConsentExportSignature(ctx context.Context, arg SetLegalConsentExportSignatureParams) (LegalConsentExport, error)
 	SetLegalReviewDraft(ctx context.Context, arg SetLegalReviewDraftParams) (LegalReview, error)
 	SetNewsletterIssueSending(ctx context.Context, id string) (string, error)
+	// Défaut de téléchargement des NOUVEAUX articles (l'auteur ajuste ensuite
+	// par article). Réservé au propriétaire/membre via authorizeSettings.
+	SetPublicationDownloadDefault(ctx context.Context, arg SetPublicationDownloadDefaultParams) (bool, error)
 	SetPublicationUmamiWebsite(ctx context.Context, arg SetPublicationUmamiWebsiteParams) error
 	SetSubscriberPremiumStatus(ctx context.Context, arg SetSubscriberPremiumStatusParams) error
 	SetUserApiGrants(ctx context.Context, arg SetUserApiGrantsParams) error
