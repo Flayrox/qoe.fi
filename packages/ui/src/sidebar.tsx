@@ -29,6 +29,7 @@ import {
   Webhook,
   Compass,
   CircleUserRound,
+  Crown,
   X,
 } from 'lucide-react';
 import { t } from '@lingui/core/macro';
@@ -56,6 +57,7 @@ const iconRegistry: Record<
   Webhook,
   Compass,
   CircleUserRound,
+  Crown,
 };
 
 /* ─────────────────────────────────────────────

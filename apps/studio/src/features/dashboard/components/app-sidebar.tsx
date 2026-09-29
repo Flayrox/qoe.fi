@@ -166,6 +166,11 @@ export async function AppSidebar() {
       iconName: 'Settings',
     },
     {
+      title: t`Offre Pro`,
+      url: '/offre',
+      iconName: 'Crown',
+    },
+    {
       title: t`Importation (Substack)`,
       url: '/import',
       iconName: 'Upload',
