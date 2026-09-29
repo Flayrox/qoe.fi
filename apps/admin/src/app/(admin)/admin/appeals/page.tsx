@@ -10,6 +10,7 @@
 import React from 'react';
 import { Scale } from 'lucide-react';
 import { getAdminAbuseAppeals } from '@/lib/admin-data';
+import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
 import { AppealsQueue } from './components/appeals-queue';
 
 export default async function AdminAppealsPage() {
@@ -18,25 +19,18 @@ export default async function AdminAppealsPage() {
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-10">
-      <div>
-        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#EE4B2B] mb-2">
-          <Scale className="w-4 h-4" />
-          Administration Console
-        </div>
-        <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Recours</h1>
-          {openCount > 0 && (
-            <span className="bg-highlight/15 text-highlight border border-highlight/40 px-2.5 py-1 rounded-full text-xs font-bold">
-              {openCount} à traiter
-            </span>
-          )}
-        </div>
-        <p className="text-muted-foreground mt-2 text-sm max-w-2xl leading-relaxed">
-          Les contestations des mesures visant un compte (y compris suspendu). Prendre en main,
-          répondre, puis trancher : confirmer (la mesure était justifiée) ou infirmer (faux positif
-          avéré — la mesure tombe).
-        </p>
-      </div>
+      <QueuePageHeader
+        icon={<Scale className="w-4 h-4" />}
+        title="Recours"
+        badge={openCount > 0 ? `${openCount} à traiter` : null}
+        description={
+          <>
+            Les contestations des mesures visant un compte (y compris suspendu). Prendre en main,
+            répondre, puis trancher : confirmer (la mesure était justifiée) ou infirmer (faux
+            positif avéré — la mesure tombe).
+          </>
+        }
+      />
 
       <AppealsQueue initialItems={data.items} />
     </div>

@@ -2,9 +2,11 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from '@qoe/ui/toast';
-import { Loader2, ShieldAlert, ShieldCheck, Check, Ban, EyeOff, PauseCircle } from 'lucide-react';
+import { Loader2, ShieldAlert, Check, Ban, EyeOff, PauseCircle } from 'lucide-react';
 import { resolveAbuseDecisionAction } from '@qoe/sdk/actions/admin';
+import { QueueEmpty } from '@/components/queue/QueueEmpty';
+import { StatusPill } from '@/components/queue/StatusPill';
+import { useStaffAction } from '@/components/queue/useStaffAction';
 import type { AbuseDecisionItem } from '@/lib/admin-data';
 
 interface AbuseQueueProps {
@@ -45,50 +47,40 @@ const CLOSE_ACTIONS = [
 
 export function AbuseQueue({ initialItems }: AbuseQueueProps) {
   const [items, setItems] = useState<AbuseDecisionItem[]>(initialItems);
-  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const { loadingId, run } = useStaffAction<string>();
   const [noteId, setNoteId] = useState<string | null>(null);
   const [note, setNote] = useState('');
 
-  const run = async (item: AbuseDecisionItem, result: string) => {
-    setLoadingId(item.id);
-    try {
-      const res = await resolveAbuseDecisionAction({
-        subjectType: item.subjectType,
-        subjectId: item.subjectId,
-        result,
-        note,
-      });
-      if (res.ok) {
-        // Dossier clos : il sort de la file (le verdict humain est le
-        // dernier — la file ne liste que les verdicts non-allow ouverts).
-        setItems((prev) => prev.filter((it) => it.id !== item.id));
-        toast.success(
-          result === 'allow' ? 'Dossier classé sans suite' : `Escalade tracée (${result})`
-        );
-        setNoteId(null);
-        setNote('');
-      } else {
-        const msg =
-          typeof res.error === 'string' ? res.error : (res.error?.message ?? 'Action impossible');
-        toast.error(msg);
+  const close = async (item: AbuseDecisionItem, result: string) => {
+    const res = await run(
+      item.id,
+      () =>
+        resolveAbuseDecisionAction({
+          subjectType: item.subjectType,
+          subjectId: item.subjectId,
+          result,
+          note,
+        }),
+      {
+        ok: result === 'allow' ? 'Dossier classé sans suite' : `Escalade tracée (${result})`,
       }
-    } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : 'Action impossible');
-    } finally {
-      setLoadingId(null);
+    );
+    if (res) {
+      // Dossier clos : il sort de la file (le verdict humain est le
+      // dernier — la file ne liste que les verdicts non-allow ouverts).
+      setItems((prev) => prev.filter((it) => it.id !== item.id));
+      setNoteId(null);
+      setNote('');
     }
   };
 
   return (
     <div className="space-y-6 text-foreground font-sans">
       {items.length === 0 ? (
-        <div className="bg-white border border-border rounded-3xl p-16 text-center text-muted-foreground space-y-3 shadow-sm">
-          <ShieldCheck className="w-10 h-10 text-muted-foreground mx-auto" />
-          <p className="text-sm font-semibold">Aucun dossier ouvert 🎉</p>
-          <p className="text-xs">
-            Les rafales, essaims et raids détectés par le noyau apparaîtront ici pour revue.
-          </p>
-        </div>
+        <QueueEmpty
+          title="Aucun dossier ouvert 🎉"
+          hint="Les rafales, essaims et raids détectés par le noyau apparaîtront ici pour revue."
+        />
       ) : (
         <div className="space-y-3">
           <AnimatePresence mode="popLayout">
@@ -107,21 +99,14 @@ export function AbuseQueue({ initialItems }: AbuseQueueProps) {
                   <div className="flex flex-col lg:flex-row gap-4 lg:items-start justify-between">
                     <div className="flex-1 min-w-0 space-y-2">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-highlight/15 text-highlight border border-highlight/40">
-                          {meta.label}
-                        </span>
+                        <StatusPill tone="hot">{meta.label}</StatusPill>
                         <code className="text-[11px] text-muted-foreground font-mono truncate max-w-full">
                           {item.subjectType}:{item.subjectId}
                         </code>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
                         {item.reasonCodes.map((r) => (
-                          <span
-                            key={r}
-                            className="text-[11px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground"
-                          >
-                            {REASON_LABELS[r] ?? r}
-                          </span>
+                          <StatusPill key={r}>{REASON_LABELS[r] ?? r}</StatusPill>
                         ))}
                       </div>
                       <p className="text-[11px] text-muted-foreground">
@@ -139,7 +124,7 @@ export function AbuseQueue({ initialItems }: AbuseQueueProps) {
                           disabled={loading}
                           onClick={() => {
                             if (noteId === `${item.id}:${a.id}`) {
-                              void run(item, a.id);
+                              void close(item, a.id);
                             } else {
                               setNoteId(`${item.id}:${a.id}`);
                             }
@@ -166,7 +151,7 @@ export function AbuseQueue({ initialItems }: AbuseQueueProps) {
                       />
                       <button
                         disabled={loading}
-                        onClick={() => void run(item, noteId.split(':')[1])}
+                        onClick={() => void close(item, noteId.split(':')[1])}
                         className="text-xs font-bold px-4 py-2 rounded-xl bg-[#EE4B2B] text-white cursor-pointer disabled:opacity-50"
                       >
                         Confirmer

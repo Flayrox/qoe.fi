@@ -2,8 +2,9 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from '@qoe/ui/toast';
-import { Loader2, LifeBuoy, ShieldCheck, Inbox } from 'lucide-react';
+import { Loader2, ShieldCheck, Inbox } from 'lucide-react';
+import { QueueEmpty } from '@/components/queue/QueueEmpty';
+import { useStaffAction } from '@/components/queue/useStaffAction';
 import {
   assignSupportTicketAction,
   updateSupportTicketAction,
@@ -35,7 +36,7 @@ const STATUS_META: Record<string, { label: string; tone: string }> = {
 
 export function SupportQueue({ initialItems, metrics }: SupportQueueProps) {
   const [items, setItems] = useState<SupportTicketItem[]>(initialItems);
-  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const { loadingId, run: staffRun } = useStaffAction<string>();
   const [openId, setOpenId] = useState<string | null>(null);
   const [detail, setDetail] = useState<SupportTicketItem | null>(null);
   const [note, setNote] = useState('');
@@ -62,45 +63,36 @@ export function SupportQueue({ initialItems, metrics }: SupportQueueProps) {
   };
 
   const assign = async (item: SupportTicketItem) => {
-    setLoadingId(item.id);
-    try {
-      const res = await assignSupportTicketAction({ ticketId: item.id });
-      if (res.ok) {
-        toast.success('Dossier pris en main');
-        await refreshDetail(item.id);
-        setItems((prev) =>
-          prev.map((it) => (it.id === item.id ? { ...it, status: 'under_review' as const } : it))
-        );
-      } else {
-        toast.error(typeof res.error === 'string' ? res.error : 'Action impossible');
-      }
-    } finally {
-      setLoadingId(null);
+    const res = await staffRun(item.id, () => assignSupportTicketAction({ ticketId: item.id }), {
+      ok: 'Dossier pris en main',
+    });
+    if (res) {
+      await refreshDetail(item.id);
+      setItems((prev) =>
+        prev.map((it) => (it.id === item.id ? { ...it, status: 'under_review' as const } : it))
+      );
     }
   };
 
   const close = async (item: SupportTicketItem) => {
-    setLoadingId(item.id);
-    try {
-      const res = await updateSupportTicketAction({
-        ticketId: item.id,
-        status: 'closed',
-        staffNote: note,
-        reply,
-      });
-      if (res.ok) {
-        toast.success('Dossier clos');
-        setNote('');
-        setReply('');
-        await refreshDetail(item.id);
-        setItems((prev) =>
-          prev.map((it) => (it.id === item.id ? { ...it, status: 'closed' as const } : it))
-        );
-      } else {
-        toast.error(typeof res.error === 'string' ? res.error : 'Clôture impossible');
-      }
-    } finally {
-      setLoadingId(null);
+    const res = await staffRun(
+      item.id,
+      () =>
+        updateSupportTicketAction({
+          ticketId: item.id,
+          status: 'closed',
+          staffNote: note,
+          reply,
+        }),
+      { ok: 'Dossier clos' }
+    );
+    if (res) {
+      setNote('');
+      setReply('');
+      await refreshDetail(item.id);
+      setItems((prev) =>
+        prev.map((it) => (it.id === item.id ? { ...it, status: 'closed' as const } : it))
+      );
     }
   };
 
@@ -256,11 +248,10 @@ export function SupportQueue({ initialItems, metrics }: SupportQueueProps) {
       )}
 
       {items.length === 0 ? (
-        <div className="bg-white border border-border rounded-3xl p-16 text-center text-muted-foreground space-y-3 shadow-sm">
-          <LifeBuoy className="w-10 h-10 text-muted-foreground mx-auto" />
-          <p className="text-sm font-semibold">Aucun dossier 🎉</p>
-          <p className="text-xs">Les demandes d&apos;aide des utilisateurs apparaîtront ici.</p>
-        </div>
+        <QueueEmpty
+          title="Aucun dossier 🎉"
+          hint="Les demandes d'aide des utilisateurs apparaîtront ici."
+        />
       ) : (
         <>
           <div className="space-y-3">

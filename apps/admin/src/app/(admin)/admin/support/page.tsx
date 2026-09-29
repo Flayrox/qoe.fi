@@ -10,6 +10,7 @@
 import React from 'react';
 import { LifeBuoy } from 'lucide-react';
 import { getAdminSupportTickets, getAdminSupportMetrics } from '@/lib/admin-data';
+import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
 import { SupportQueue } from './components/support-queue';
 
 export default async function AdminSupportPage() {
@@ -21,24 +22,17 @@ export default async function AdminSupportPage() {
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-10">
-      <div>
-        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#EE4B2B] mb-2">
-          <LifeBuoy className="w-4 h-4" />
-          Administration Console
-        </div>
-        <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Support</h1>
-          {openCount > 0 && (
-            <span className="bg-highlight/15 text-highlight border border-highlight/40 px-2.5 py-1 rounded-full text-xs font-bold">
-              {openCount} à traiter
-            </span>
-          )}
-        </div>
-        <p className="text-muted-foreground mt-2 text-sm max-w-2xl leading-relaxed">
-          Les dossiers des utilisateurs : prendre en main, répondre, clore en traçant. Un dossier
-          ouvert par motif — le reste s&apos;écrit dedans.
-        </p>
-      </div>
+      <QueuePageHeader
+        icon={<LifeBuoy className="w-4 h-4" />}
+        title="Support"
+        badge={openCount > 0 ? `${openCount} à traiter` : null}
+        description={
+          <>
+            Les dossiers des utilisateurs : prendre en main, répondre, clore en traçant. Un dossier
+            ouvert par motif — le reste s&apos;écrit dedans.
+          </>
+        }
+      />
 
       <SupportQueue initialItems={tickets.items} metrics={metrics} />
     </div>
