@@ -46,6 +46,20 @@ var ErrNoIncident = errors.New("incident introuvable")
 // statut interdite (le message précise, sans jargon interne).
 var ErrInvalidIncident = errors.New("incident invalide")
 
+// IncidentKinds retourne le vocabulaire fermé des kinds (CHECK en base,
+// source du générateur TS).
+func IncidentKinds() []string {
+	return []string{
+		IncidentAccountFarm, IncidentReportRaid, IncidentSignupFlood,
+		IncidentAPIAbuse, IncidentImpersonation, IncidentSpamWave, IncidentOther,
+	}
+}
+
+// IncidentStatuses retourne le vocabulaire fermé des statuts.
+func IncidentStatuses() []string {
+	return []string{IncidentOpen, IncidentContained, IncidentResolved, IncidentReopened}
+}
+
 // ValidIncidentKind dit si le kind appartient au vocabulaire fermé.
 func ValidIncidentKind(kind string) bool {
 	switch kind {

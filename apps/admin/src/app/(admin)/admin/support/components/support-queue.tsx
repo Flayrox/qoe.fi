@@ -10,6 +10,7 @@ import {
   updateSupportTicketAction,
   getSupportTicketAction,
 } from '@qoe/sdk/actions/admin';
+import type { SupportKind } from '@qoe/sdk';
 import type { SupportTicketItem, SupportMetrics } from '@/lib/admin-data';
 
 interface SupportQueueProps {
@@ -17,7 +18,7 @@ interface SupportQueueProps {
   metrics: SupportMetrics | null;
 }
 
-const KIND_LABELS: Record<string, string> = {
+const KIND_LABELS: Record<SupportKind, string> = {
   account_restricted: 'Compte restreint',
   account_lost: 'Compte perdu / MFA',
   content_moderation: 'Contenu modéré',

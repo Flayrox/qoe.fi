@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, ShieldAlert, Check, Ban, EyeOff, PauseCircle } from 'lucide-react';
 import { resolveAbuseDecisionAction } from '@qoe/sdk/actions/admin';
+import type { AbuseReasonCode } from '@qoe/sdk';
 import { QueueEmpty } from '@/components/queue/QueueEmpty';
 import { StatusPill } from '@/components/queue/StatusPill';
 import { useStaffAction } from '@/components/queue/useStaffAction';
@@ -13,7 +14,7 @@ interface AbuseQueueProps {
   initialItems: AbuseDecisionItem[];
 }
 
-const REASON_LABELS: Record<string, string> = {
+const REASON_LABELS: Record<AbuseReasonCode, string> = {
   'burst.signup.publication': 'Rafale d\u2019inscriptions sur une publication',
   'swarm.report.target': 'Essaim de signalements contre une cible',
   'swarm.report.reporter': 'Raid de signalement (volume du plaignant)',

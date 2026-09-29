@@ -11,6 +11,7 @@
 
 import { goFetch } from './utils/go-client';
 import { safeAction } from './utils/safe-action';
+import type { AbuseAppealStatus, AbuseAppealOutcome } from '../abuse-codes.generated';
 
 export interface AppealMessageDTO {
   id: string;
@@ -25,8 +26,8 @@ export interface AppealDTO {
   subjectId: string;
   decisionId: string | null;
   openedBy: string;
-  status: 'open' | 'under_review' | 'decided';
-  outcome: 'upheld' | 'overturned' | null;
+  status: AbuseAppealStatus;
+  outcome: AbuseAppealOutcome | null;
   staffNote: string;
   decidedBy: string | null;
   decidedAt: string | null;

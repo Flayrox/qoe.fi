@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, Flame, Plus, TrendingUp } from 'lucide-react';
 import { openAbuseIncidentAction, updateAbuseIncidentAction } from '@qoe/sdk/actions/admin';
+import type { AbuseIncidentKind } from '@qoe/sdk';
 import { QueueEmpty } from '@/components/queue/QueueEmpty';
 import { useStaffAction } from '@/components/queue/useStaffAction';
 import type { AbuseIncidentItem, AbuseMetrics } from '@/lib/admin-data';
@@ -13,7 +14,7 @@ interface IncidentsQueueProps {
   metrics: AbuseMetrics | null;
 }
 
-const KIND_LABELS: Record<string, string> = {
+const KIND_LABELS: Record<AbuseIncidentKind, string> = {
   account_farm: 'Ferme de comptes',
   report_raid: 'Raid de signalement',
   signup_flood: 'Vague d\u2019inscriptions',

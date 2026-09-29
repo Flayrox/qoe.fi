@@ -273,6 +273,38 @@ const (
 // delà, les faits bruts n'apprennent plus rien (même régime que signup).
 const LikeSignalRetention = 24 * time.Hour
 
+// Vocabulaires fermés (lot 4) : source unique pour le générateur TS
+// (cmd/abuse-codes → packages/sdk/src/abuse-codes.generated.ts). Ajouter
+// une valeur ici + régénérer : les maps TS typées cassent à la compilation
+// tant qu'elles ne couvrent pas le nouveau code — jamais de dérive
+// silencieuse Go↔TS.
+
+// Decisions retourne le vocabulaire fermé des verdicts (CHECK en base).
+func Decisions() []string {
+	return []string{
+		string(DecisionAllow), string(DecisionSlow), string(DecisionChallenge),
+		string(DecisionNeedsReview), string(DecisionLimitDistribution),
+		string(DecisionPauseSending), string(DecisionSuspend),
+	}
+}
+
+// ReasonCodes retourne tous les codes de raison des politiques (toutes
+// versions — l'historique reste typé). Les codes humains (human:<…>) sont
+// un pattern, pas une énumération (suffixe variable : résultat ou outcome).
+func ReasonCodes() []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, p := range []Policy{PolicyV1, PolicyV2} {
+		for _, r := range p.Rules {
+			if !seen[r.Reason] {
+				seen[r.Reason] = true
+				out = append(out, r.Reason)
+			}
+		}
+	}
+	return out
+}
+
 // Types de signaux et portées de sujet (codes stables, persistés en base).
 const (
 	// SignalSignupAttempt : une inscription (quelque voie que ce soit) a été

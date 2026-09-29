@@ -139,6 +139,15 @@
 # ENUM fermé sans valeur générique — brancher exige ALTER TYPE + régén sqlc
 # + prefs + rendu front. Lot à part, pas un ajout furtif.
 #
+# VOCABULAIRE PARTAGÉ Go↔TS (lot 4) : les vocabulaires fermés (décisions,
+# raisons, kinds/statuts incidents, recours, support) sont déclarés en Go
+# (abuse.Decisions/ReasonCodes/… + support.Kinds/Statuses) et GÉNÉRÉS vers
+# packages/sdk/src/abuse-codes.generated.ts (go run ./cmd/abuse-codes
+# depuis apps/api). Les maps de libellés se typent Record<Union> : tout
+# écart casse tsc ; les tests TestGeneratedTS_* cassent si on ajoute un
+# code sans régénérer. Dérive silencieuse interdite dans les deux sens.
+# Les codes humains (human:<…>) sont un pattern, pas une énumération.
+#
 # DÉCISIONS ASSUMÉES (ce que la fiche propose et qu'on ne fait PAS tel quel) :
 #   - TrustStatus (table de capacités vérifiées) : REFUSÉ comme table —
 #     l'état dérive des verdicts humains RiskDecision (éligibilité), pas

@@ -10,6 +10,7 @@
 
 import { goFetch } from './utils/go-client';
 import { safeAction } from './utils/safe-action';
+import type { SupportKind, SupportStatus } from '../abuse-codes.generated';
 
 export interface SupportMessageDTO {
   id: string;
@@ -20,10 +21,10 @@ export interface SupportMessageDTO {
 
 export interface SupportTicketDTO {
   id: string;
-  kind: string;
+  kind: SupportKind;
   subject: string;
   openedBy: string;
-  status: 'open' | 'under_review' | 'closed';
+  status: SupportStatus;
   assignee: string | null;
   relatedType: string;
   relatedId: string;
@@ -33,16 +34,23 @@ export interface SupportTicketDTO {
   messages?: SupportMessageDTO[];
 }
 
-export const SUPPORT_KINDS = [
-  { id: 'account_restricted', label: 'Compte restreint' },
-  { id: 'account_lost', label: 'Compte perdu / MFA' },
-  { id: 'content_moderation', label: 'Contenu modéré' },
-  { id: 'api_access', label: 'Accès API' },
-  { id: 'import_issue', label: 'Import' },
-  { id: 'delivery', label: 'Livraison e-mails' },
-  { id: 'report_issue', label: 'Signalement' },
-  { id: 'other', label: 'Autre' },
-] as const;
+// Libellés par kind (lot 4) : Record typé — un kind Go sans libellé casse
+// tsc, une faute de frappe aussi.
+export const SUPPORT_KINDS_LABELS: Record<SupportKind, string> = {
+  account_restricted: 'Compte restreint',
+  account_lost: 'Compte perdu / MFA',
+  content_moderation: 'Contenu modéré',
+  api_access: 'Accès API',
+  import_issue: 'Import',
+  delivery: 'Livraison e-mails',
+  report_issue: 'Signalement',
+  other: 'Autre',
+};
+
+export const SUPPORT_KINDS = (Object.keys(SUPPORT_KINDS_LABELS) as SupportKind[]).map((id) => ({
+  id,
+  label: SUPPORT_KINDS_LABELS[id],
+}));
 
 /** Mes dossiers (les miens uniquement). */
 export const listMySupportTicketsAction = safeAction<
