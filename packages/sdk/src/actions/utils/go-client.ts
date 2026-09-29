@@ -93,6 +93,74 @@ export async function goFetch<T = Record<string, unknown>>(
 }
 
 /**
+ * Appelle le backend Go en **multipart** (upload de fichier) avec le Bearer
+ * token de la session courante. Le `Content-Type` n'est volontairement PAS
+ * posé : `fetch` génère le boundary lui-même (le fixer casserait le parse
+ * côté Go). Mêmes garanties que `goFetch` (statut, `code` transporté).
+ */
+export async function goFetchUpload<T = Record<string, unknown>>(
+  path: string,
+  form: FormData
+): Promise<T> {
+  if (!GO_API_URL) {
+    throw new Error('QOE_API_URL non configuré');
+  }
+  const token = await getAccessToken();
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${GO_API_URL}${path}`, {
+    method: 'POST',
+    headers,
+    body: form,
+    cache: 'no-store',
+  });
+
+  const body = (await res.json().catch(() => ({}))) as T & { error?: string; code?: string };
+  if (!res.ok) {
+    const err = new Error(body.error || `Go API ${res.status}`) as Error & {
+      status?: number;
+      code?: string;
+    };
+    err.status = res.status;
+    if (body.code) err.code = body.code;
+    throw err;
+  }
+  return body;
+}
+
+/**
+ * Appelle le backend Go et rend les octets BRUTS (couvertures, pièces
+ * binaires) — jamais de JSON.parse sur un JPEG. Ne lève pas sur un statut
+ * non-2xx : l'appelant relaie le statut tel quel.
+ */
+export async function goFetchBinary(path: string): Promise<{
+  status: number;
+  ok: boolean;
+  contentType: string;
+  bytes: ArrayBuffer;
+}> {
+  if (!GO_API_URL) {
+    throw new Error('QOE_API_URL non configuré');
+  }
+  const token = await getAccessToken();
+  const headers: Record<string, string> = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(`${GO_API_URL}${path}`, { headers, cache: 'no-store' });
+  return {
+    status: res.status,
+    ok: res.ok,
+    contentType: res.headers.get('content-type') ?? 'application/octet-stream',
+    bytes: await res.arrayBuffer(),
+  };
+}
+
+/**
  * Appelle le backend Go et rend la réponse **brute**, en texte, sans la
  * désérialiser ni lever d'exception sur un statut non-2xx.
  *

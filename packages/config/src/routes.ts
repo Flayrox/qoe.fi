@@ -23,6 +23,9 @@ export const routes = {
     library: (tab?: 'bookmarks' | 'highlights' | 'annotations') =>
       tab ? `/library?tab=${tab}` : '/library',
     highlights: () => '/library?tab=highlights',
+    /** EPUBs personnels (fiche Plus P1) : ma bibliothèque de livres. */
+    ebooks: () => '/library/ebooks',
+    ebook: (id: string) => `/library/ebooks/${encodeURIComponent(id)}`,
     billing: () => '/billing',
     settings: () => '/settings',
     onboarding: () => '/onboarding',

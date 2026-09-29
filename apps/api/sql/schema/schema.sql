@@ -328,6 +328,30 @@ CREATE TABLE "ListenLater" (
 );
 
 -- CreateTable
+CREATE TABLE "Ebook" (
+    "id" TEXT NOT NULL,
+    "ownerId" UUID NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+    "title" TEXT NOT NULL,
+    "author" TEXT NOT NULL DEFAULT '',
+    "language" TEXT NOT NULL DEFAULT '',
+    "chapters" JSONB NOT NULL DEFAULT '[]'::jsonb,
+    "chapterCount" INTEGER NOT NULL DEFAULT 0,
+    "cover" BYTEA,
+    "coverMime" TEXT,
+    "fileSha" TEXT NOT NULL,
+    "sizeBytes" INTEGER NOT NULL DEFAULT 0,
+    "progressChapter" INTEGER NOT NULL DEFAULT 0,
+    "progressPct" SMALLINT NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Ebook_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "Ebook_title_check" CHECK (char_length("title") BETWEEN 1 AND 300),
+    CONSTRAINT "Ebook_progress_check" CHECK ("progressChapter" >= 0 AND "progressPct" BETWEEN 0 AND 100),
+    CONSTRAINT "Ebook_owner_file_unique" UNIQUE ("ownerId", "fileSha")
+);
+
+-- CreateTable
 CREATE TABLE "BlockedUser" (
     "id" TEXT NOT NULL,
     "creatorId" UUID NOT NULL,
