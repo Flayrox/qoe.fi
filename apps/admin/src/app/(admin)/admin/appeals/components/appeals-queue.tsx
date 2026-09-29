@@ -2,8 +2,9 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from '@qoe/ui/toast';
-import { Loader2, Scale, ShieldCheck, Check, X, MessageSquare } from 'lucide-react';
+import { Loader2, ShieldCheck, Check, X, MessageSquare } from 'lucide-react';
+import { QueueEmpty } from '@/components/queue/QueueEmpty';
+import { useStaffAction } from '@/components/queue/useStaffAction';
 import { decideAbuseAppealAction, getAbuseAppealAction } from '@qoe/sdk/actions/admin';
 import type { AbuseAppealItem } from '@/lib/admin-data';
 
@@ -19,7 +20,7 @@ const STATUS_META: Record<string, { label: string; tone: string }> = {
 
 export function AppealsQueue({ initialItems }: AppealsQueueProps) {
   const [items, setItems] = useState<AbuseAppealItem[]>(initialItems);
-  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const { loadingId, run: staffRun } = useStaffAction<string>();
   const [openId, setOpenId] = useState<string | null>(null);
   const [detail, setDetail] = useState<AbuseAppealItem | null>(null);
   const [note, setNote] = useState('');
@@ -46,48 +47,42 @@ export function AppealsQueue({ initialItems }: AppealsQueueProps) {
   };
 
   const run = async (item: AbuseAppealItem, status: string, outcome?: string) => {
-    setLoadingId(item.id);
-    try {
-      const res = await decideAbuseAppealAction({
-        appealId: item.id,
-        status,
-        outcome,
-        staffNote: note,
-        reply,
-      });
-      if (res.ok) {
-        toast.success(
+    const res = await staffRun(
+      item.id,
+      () =>
+        decideAbuseAppealAction({
+          appealId: item.id,
+          status,
+          outcome,
+          staffNote: note,
+          reply,
+        }),
+      {
+        ok:
           status === 'under_review'
             ? 'Dossier pris en main'
             : outcome === 'overturned'
               ? 'Mesure levée (faux positif avéré)'
-              : 'Mesure confirmée'
-        );
-        setNote('');
-        setReply('');
-        await refreshDetail(item.id);
-        // La liste reflète le nouveau statut (les tranchés restent visibles,
-        // filtrés par statut — pas de disparition brutale comme la revue).
-        setItems((prev) =>
-          prev.map((it) =>
-            it.id === item.id
-              ? {
-                  ...it,
-                  status: (status === 'decided' ? 'decided' : status) as AbuseAppealItem['status'],
-                  outcome: (outcome ?? null) as AbuseAppealItem['outcome'],
-                }
-              : it
-          )
-        );
-      } else {
-        const msg =
-          typeof res.error === 'string' ? res.error : (res.error?.message ?? 'Action impossible');
-        toast.error(msg);
+              : 'Mesure confirmée',
       }
-    } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : 'Action impossible');
-    } finally {
-      setLoadingId(null);
+    );
+    if (res) {
+      setNote('');
+      setReply('');
+      await refreshDetail(item.id);
+      // La liste reflète le nouveau statut (les tranchés restent visibles,
+      // filtrés par statut — pas de disparition brutale comme la revue).
+      setItems((prev) =>
+        prev.map((it) =>
+          it.id === item.id
+            ? {
+                ...it,
+                status: (status === 'decided' ? 'decided' : status) as AbuseAppealItem['status'],
+                outcome: (outcome ?? null) as AbuseAppealItem['outcome'],
+              }
+            : it
+        )
+      );
     }
   };
 
@@ -228,13 +223,10 @@ export function AppealsQueue({ initialItems }: AppealsQueueProps) {
   return (
     <div className="space-y-6 text-foreground font-sans">
       {items.length === 0 ? (
-        <div className="bg-white border border-border rounded-3xl p-16 text-center text-muted-foreground space-y-3 shadow-sm">
-          <Scale className="w-10 h-10 text-muted-foreground mx-auto" />
-          <p className="text-sm font-semibold">Aucun recours 🎉</p>
-          <p className="text-xs">
-            Les contestations des mesures visant un compte apparaîtront ici.
-          </p>
-        </div>
+        <QueueEmpty
+          title="Aucun recours 🎉"
+          hint="Les contestations des mesures visant un compte apparaîtront ici."
+        />
       ) : (
         <>
           <div className="space-y-3">

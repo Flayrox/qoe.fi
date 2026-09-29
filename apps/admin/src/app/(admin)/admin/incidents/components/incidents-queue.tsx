@@ -2,9 +2,10 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from '@qoe/ui/toast';
-import { Loader2, Flame, ShieldCheck, Plus, TrendingUp } from 'lucide-react';
+import { Loader2, Flame, Plus, TrendingUp } from 'lucide-react';
 import { openAbuseIncidentAction, updateAbuseIncidentAction } from '@qoe/sdk/actions/admin';
+import { QueueEmpty } from '@/components/queue/QueueEmpty';
+import { useStaffAction } from '@/components/queue/useStaffAction';
 import type { AbuseIncidentItem, AbuseMetrics } from '@/lib/admin-data';
 
 interface IncidentsQueueProps {
@@ -47,7 +48,7 @@ const NEXT_STATUS: Record<string, { to: string; label: string }[]> = {
 
 export function IncidentsQueue({ initialItems, metrics }: IncidentsQueueProps) {
   const [items, setItems] = useState<AbuseIncidentItem[]>(initialItems);
-  const [loadingId, setLoadingId] = useState<string | null>(null);
+  const { loadingId, run: staffRun } = useStaffAction<string>();
   const [openId, setOpenId] = useState<string | null>(null);
   const [measure, setMeasure] = useState('');
   const [showNew, setShowNew] = useState(false);
@@ -59,45 +60,46 @@ export function IncidentsQueue({ initialItems, metrics }: IncidentsQueueProps) {
   const refresh = () => window.location.reload();
 
   const create = async () => {
-    setLoadingId('new');
-    try {
-      const res = await openAbuseIncidentAction({ title, kind, scope, impact });
-      if (res.ok) {
-        toast.success('Incident ouvert');
-        setShowNew(false);
-        setTitle('');
-        setScope('');
-        setImpact('');
-        refresh();
-      } else {
-        toast.error(typeof res.error === 'string' ? res.error : 'Ouverture impossible');
-      }
-    } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : 'Ouverture impossible');
-    } finally {
-      setLoadingId(null);
+    const res = await staffRun(
+      'new',
+      () => openAbuseIncidentAction({ title, kind, scope, impact }),
+      { ok: 'Incident ouvert' }
+    );
+    if (res) {
+      setShowNew(false);
+      setTitle('');
+      setScope('');
+      setImpact('');
+      refresh();
+    }
+  };
+
+  const consign = async (item: AbuseIncidentItem) => {
+    const res = await staffRun(
+      item.id,
+      () => updateAbuseIncidentAction({ incidentId: item.id, measure }),
+      { ok: 'Mesure consignée' }
+    );
+    if (res) {
+      setMeasure('');
+      window.location.reload();
     }
   };
 
   const advance = async (item: AbuseIncidentItem, to: string) => {
-    setLoadingId(item.id);
-    try {
-      const res = await updateAbuseIncidentAction({
-        incidentId: item.id,
-        status: to,
-        measure,
-      });
-      if (res.ok) {
-        toast.success('Dossier mis à jour');
-        setMeasure('');
-        refresh();
-      } else {
-        toast.error(typeof res.error === 'string' ? res.error : 'Action impossible');
-      }
-    } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : 'Action impossible');
-    } finally {
-      setLoadingId(null);
+    const res = await staffRun(
+      item.id,
+      () =>
+        updateAbuseIncidentAction({
+          incidentId: item.id,
+          status: to,
+          measure,
+        }),
+      { ok: 'Dossier mis à jour' }
+    );
+    if (res) {
+      setMeasure('');
+      refresh();
     }
   };
 
@@ -202,13 +204,10 @@ export function IncidentsQueue({ initialItems, metrics }: IncidentsQueueProps) {
       </div>
 
       {items.length === 0 && !showNew ? (
-        <div className="bg-white border border-border rounded-3xl p-16 text-center text-muted-foreground space-y-3 shadow-sm">
-          <ShieldCheck className="w-10 h-10 text-muted-foreground mx-auto" />
-          <p className="text-sm font-semibold">Aucun incident 🎉</p>
-          <p className="text-xs">
-            Les attaques confirmées se tiennent ici : portée, mesures, suivi.
-          </p>
-        </div>
+        <QueueEmpty
+          title="Aucun incident 🎉"
+          hint="Les attaques confirmées se tiennent ici : portée, mesures, suivi."
+        />
       ) : (
         <div className="space-y-3">
           <AnimatePresence mode="popLayout">
@@ -285,26 +284,7 @@ export function IncidentsQueue({ initialItems, metrics }: IncidentsQueueProps) {
                         />
                         <button
                           disabled={loading || !measure.trim()}
-                          onClick={() =>
-                            void (async () => {
-                              setLoadingId(item.id);
-                              try {
-                                const res = await updateAbuseIncidentAction({
-                                  incidentId: item.id,
-                                  measure,
-                                });
-                                if (res.ok) {
-                                  toast.success('Mesure consignée');
-                                  setMeasure('');
-                                  window.location.reload();
-                                } else {
-                                  toast.error('Consignation impossible');
-                                }
-                              } finally {
-                                setLoadingId(null);
-                              }
-                            })()
-                          }
+                          onClick={() => void consign(item)}
                           className="text-xs font-bold px-4 py-2 rounded-xl bg-[#EE4B2B] text-white cursor-pointer disabled:opacity-50"
                         >
                           Consigner
