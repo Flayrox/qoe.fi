@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/qoefi/api/internal/abuse"
 	"github.com/qoefi/api/internal/modules/posts"
 )
 
@@ -103,7 +104,10 @@ func (s *Service) HomeFeed(ctx context.Context, userID string) (HomeFeedResult, 
 	wg.Add(7)
 	go func() { defer wg.Done(); s.loadGroup(ctx, &following, pubIDs, followedUserIDs, userID, "following") }()
 	go func() { defer wg.Done(); s.loadGroup(ctx, &discover, pubIDs, followedUserIDs, userID, "discover") }()
-	go func() { defer wg.Done(); s.loadGroup(ctx, &recommended, pubIDs, followedUserIDs, userID, "recommended") }()
+	go func() {
+		defer wg.Done()
+		s.loadGroup(ctx, &recommended, pubIDs, followedUserIDs, userID, "recommended")
+	}()
 	go func() { defer wg.Done(); bookmarks, _ = s.fetchBookmarks(ctx, userID) }()
 	go func() { defer wg.Done(); highlightsCount, _ = s.countHighlights(ctx, userID) }()
 	go func() { defer wg.Done(); res.ActivityData = s.activityLast7Days(ctx, userID) }()
@@ -188,11 +192,17 @@ func (s *Service) loadGroup(ctx context.Context, group *HomeFeedGroup, pubIDs, f
 	var artArgs []any
 	switch tab {
 	case "following":
+		// RÉSIDU DOCUMENTÉ (fiche 06 §9) : les auteurs `isShadowbanned` sont
+		// exclus du flux SUIVI sans que le lecteur le sache — suppression
+		// silencieuse du suivi. Seul le refus dur (suspend humain) est
+		// branché ici ; corriger le silence exige une UX (« auteur suivi
+		// restreint jusqu'au ... »), pas un filtre de plus.
 		artQuery = `
 			SELECT a.id FROM "Article" a JOIN "User" u ON u.id = a."authorId"
 			WHERE a."publicationId" = ANY($1::text[]) AND a.published = true
 			  AND u."isShadowbanned" = false AND u."isSuspended" = false
 			  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
+			` + abuse.FollowingExclusionArticle("u", "a") + `
 			ORDER BY a."createdAt" DESC, a.id DESC LIMIT 20`
 		artArgs = []any{pubIDs}
 	case "discover":
@@ -204,6 +214,7 @@ func (s *Service) loadGroup(ctx context.Context, group *HomeFeedGroup, pubIDs, f
 			  AND u."isShadowbanned" = false AND u."isSuspended" = false
 			  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
 			  AND NOT (a."publicationId" = ANY($1::text[]))
+			` + abuse.DiscoveryExclusionArticle("u", "a") + `
 			ORDER BY a."createdAt" DESC, a.id DESC LIMIT 20`
 		artArgs = []any{pubIDs}
 	default: // recommended
@@ -211,6 +222,7 @@ func (s *Service) loadGroup(ctx context.Context, group *HomeFeedGroup, pubIDs, f
 			SELECT a.id FROM "Article" a JOIN "User" u ON u.id = a."authorId"
 			WHERE a.published = true AND u."isShadowbanned" = false AND u."isSuspended" = false
 			  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
+			` + abuse.DiscoveryExclusionArticle("u", "a") + `
 			ORDER BY a."isEditorPick" DESC, a."createdAt" DESC, a.id DESC LIMIT 20`
 	}
 	artIDs, err := s.queryIDs(ctx, artQuery, artArgs...)
@@ -238,6 +250,7 @@ func (s *Service) loadGroup(ctx context.Context, group *HomeFeedGroup, pubIDs, f
 			  AND u."isShadowbanned" = false AND u."isSuspended" = false
 			  AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
 			  AND (p."authorId" = $1 OR (p."authorId" = ANY($2::uuid[]) AND p.visibility IN ('public','followers')))
+			` + abuse.FollowingExclusionThought("u", "p") + `
 			ORDER BY p."createdAt" DESC, p.id DESC LIMIT 20`
 		thArgs = []any{toUUID(userID), toUUIDSlice(followedUserIDs)}
 	case "discover":
@@ -248,6 +261,7 @@ func (s *Service) loadGroup(ctx context.Context, group *HomeFeedGroup, pubIDs, f
 			  AND u.role = 'creator' AND u."isCertified" = true
 			  AND u."isShadowbanned" = false AND u."isSuspended" = false
 			  AND NOT (p."authorId" = ANY($1::uuid[]))
+			` + abuse.DiscoveryExclusionThought("u", "p") + `
 			ORDER BY p."createdAt" DESC, p.id DESC LIMIT 20`
 		excluded := append(append([]string{}, followedUserIDs...), userID)
 		thArgs = []any{toUUIDSlice(excluded)}
@@ -258,6 +272,7 @@ func (s *Service) loadGroup(ctx context.Context, group *HomeFeedGroup, pubIDs, f
 			  AND u."isShadowbanned" = false AND u."isSuspended" = false
 			  AND (p."scheduledAt" IS NULL OR p."scheduledAt" <= now())
 			  AND p.visibility = 'public'
+			` + abuse.DiscoveryExclusionThought("u", "p") + `
 			ORDER BY p."createdAt" DESC, p.id DESC LIMIT 20`
 	}
 	thIDs, err := s.queryIDs(ctx, thQuery, thArgs...)

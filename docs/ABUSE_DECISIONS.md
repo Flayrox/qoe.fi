@@ -41,6 +41,15 @@
 #   - Rappel : le verdict n'est qu'une trace — l'acte (suspension,
 #     limitation...) passe par les chemins de modération existants.
 #
+# ÉLIGIBILITÉ (package abuse/eligibility.go, branché dans home_feed.go) :
+#   - Limitation humaine (limit_distribution, sujet user:<id> ou
+#     publication:<id>) : hors discover/recommended, PRÉSENT en following.
+#   - Refus dur (suspend humain ou isSuspended) : hors TOUT, suivi inclus.
+#   - Seuls les verdicts humains excluent (jamais l'automate seul).
+#   - RÉSIDU : le following exclut encore les isShadowbanned sans le dire —
+#     suppression silencieuse du suivi, à corriger par une UX (auteur suivi
+#     restreint visible avec son échéance), pas par un filtre.
+#
 # EXPLOITATION : seuils côté serveur uniquement (jamais exposés — fiche §10 :
 # ne pas aider l'attaquant à calibrer). Dossiers expirés (72 h) = plus une
 # urgence. Signaux expirés purgés par expiresAt (pas de fichier perpétuel).
