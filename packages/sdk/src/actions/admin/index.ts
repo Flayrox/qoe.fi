@@ -156,6 +156,37 @@ export const resolveAbuseDecisionAction = safeAction<
   return { success: true, id: res.id };
 });
 
+/** 🛡️ Ouvre un dossier d'incident (attaque confirmée, jugée par le staff). */
+export const openAbuseIncidentAction = safeAction<
+  { title: string; kind: string; scope?: string; impact?: string },
+  { success: boolean }
+>(async ({ title, kind, scope, impact }) => {
+  await goFetch('/v1/admin/abuse/incidents', {
+    method: 'POST',
+    body: { title, kind, scope: scope ?? '', impact: impact ?? '' },
+  });
+  revalidatePath('/admin/incidents');
+  return { success: true };
+});
+
+/** 🛡️ Fait avancer un dossier (statut validé, mesure ajoutée horodatée). */
+export const updateAbuseIncidentAction = safeAction<
+  { incidentId: string; status?: string; scope?: string; impact?: string; measure?: string },
+  { success: boolean }
+>(async ({ incidentId, status, scope, impact, measure }) => {
+  await goFetch(`/v1/admin/abuse/incidents/${encodeURIComponent(incidentId)}`, {
+    method: 'PATCH',
+    body: {
+      status: status ?? '',
+      scope: scope ?? '',
+      impact: impact ?? '',
+      measure: measure ?? '',
+    },
+  });
+  revalidatePath('/admin/incidents');
+  return { success: true };
+});
+
 /** ⚖️ Détail d'un recours (dossier + messages). */
 export const getAbuseAppealAction = safeAction<{ appealId: string }, { appeal: unknown }>(
   async ({ appealId }) => {
