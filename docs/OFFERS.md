@@ -56,13 +56,16 @@
 #     lue côté player = lot suivant (le TTS lit déjà les files MediaSession).
 #   - ✅ Thèmes premium (Nuit chaude, Papier — cadenassés, sélecteur ajouté
 #     au panneau qui n'en avait pas) ; gratuits intacts (accessibilité).
-#   - ❌ notes/recherche dedans, podcasts offline, badge.
+#   - ❌ notes dedans, podcasts offline, badge.
 #   - ✅ EPUB personnels (« Mes livres ») : import .epub (20 Mo, borné),
 #     parseur allowlist maison (titres/paragraphes/citations/emphases ;
 #     scripts, styles, iframes, images et handlers JAMAIS stockés — XSS
 #     impossible par construction, pas par filtrage), couverture privée,
-#     chapitres lus un par un, progression synchronisée multi-appareils
-#     (last-write-wins assumé). 5 gratuits puis quotas : illimités en Plus,
+#     chapitres lus un par un, recherche DANS le livre instantanée (locale,
+#     insensible aux accents, extraits centrés), progression synchronisée
+#     multi-appareils (last-write-wins assumé). Parseur fuzzé (invariant :
+#     rien hors allowlist ne peut sortir). 5 gratuits puis quotas :
+#     illimités en Plus,
 #     403 EBOOK_QUOTA_EXCEEDED (les livres existants restent lisibles),
 #     409 EBOOK_DUPLICATE (dédup par empreinte), aucune route publique par
 #     id — un livre d'autrui ressemble à un inexistant.
