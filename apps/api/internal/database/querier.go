@@ -691,10 +691,6 @@ type Querier interface {
 	SetLegalConsentExportSignature(ctx context.Context, arg SetLegalConsentExportSignatureParams) (LegalConsentExport, error)
 	SetLegalReviewDraft(ctx context.Context, arg SetLegalReviewDraftParams) (LegalReview, error)
 	SetNewsletterIssueSending(ctx context.Context, id string) (string, error)
-	// Bascule du palier email Pro (freemium, intérim en attendant Stripe) :
-	// true = personnalisation complète (sujets, corps, couleurs…), false =
-	// identité + défauts localisés. Réservé superadmin (vérifié côté service).
-	SetPublicationEmailPro(ctx context.Context, arg SetPublicationEmailProParams) (bool, error)
 	SetPublicationUmamiWebsite(ctx context.Context, arg SetPublicationUmamiWebsiteParams) error
 	SetSubscriberPremiumStatus(ctx context.Context, arg SetSubscriberPremiumStatusParams) error
 	SetUserApiGrants(ctx context.Context, arg SetUserApiGrantsParams) error

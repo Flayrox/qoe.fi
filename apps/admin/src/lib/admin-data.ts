@@ -432,6 +432,33 @@ export async function getAdminSupportArticles(): Promise<{
   }
 }
 
+/** 💎 Octrois d'abonnements (intérim Stripe) : staff uniquement. */
+export interface SubscriptionGrantItem {
+  id: string;
+  subjectType: 'user' | 'publication';
+  subjectId: string;
+  plan: 'pro' | 'plus';
+  startsAt: string;
+  endsAt: string | null;
+  grantedBy: string;
+  note: string;
+  createdAt: string;
+  effective: boolean;
+}
+
+export async function getAdminSubscriptionGrants(): Promise<{
+  items: SubscriptionGrantItem[];
+  total: number;
+}> {
+  try {
+    return await goFetch<{ items: SubscriptionGrantItem[]; total: number }>(
+      '/v1/admin/subscriptions/grants?limit=50'
+    );
+  } catch {
+    return { items: [], total: 0 };
+  }
+}
+
 /** 📊 Métriques de santé anti-abus (fiche 06 §11). */
 export interface AbuseMetrics {
   since: string;
