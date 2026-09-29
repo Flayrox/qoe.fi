@@ -9,10 +9,22 @@ import type {
   FontFamilyOption,
   FontSizeOption,
   LineHeightOption,
+  PaperThemeOption,
   ReadingWidthOption,
 } from './types';
+import { isPremiumPaperTheme } from './types';
+import { Lock } from 'lucide-react';
 
-export function ReadingSettingsSheet({ className = '' }: { className?: string }) {
+export function ReadingSettingsSheet({
+  className = '',
+  plusThemesLocked = false,
+  onLockedThemeClick,
+}: {
+  className?: string;
+  /** Gate Plus (fiche P1) : thèmes premium verrouillés (moteur neutre). */
+  plusThemesLocked?: boolean;
+  onLockedThemeClick?: () => void;
+}) {
   const { preferences, update, reset } = useReadingPreferences();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -230,6 +242,57 @@ export function ReadingSettingsSheet({ className = '' }: { className?: string })
               ))}
             </div>
           </div>
+        </div>
+
+        {/* 6. Papier (fiche Plus P1) : default/sepia/slate/oled gratuits
+         * (accessibilité), warm/paper premium cadenassés sans Plus. */}
+        <div className="space-y-1.5 border-t border-border/40 pt-3">
+          <label className="text-[10px] font-semibold text-muted-foreground flex items-center gap-1">
+            <BookOpen className="w-3 h-3" />
+            {t`Papier`}
+          </label>
+          <div className="grid grid-cols-3 gap-1.5">
+            {(
+              [
+                { id: 'default', label: t`Défaut`, swatch: 'bg-background border-border/60' },
+                { id: 'sepia', label: t`Sépia`, swatch: 'bg-[#FBF0D9] border-[#EAD8B8]' },
+                { id: 'slate', label: t`Ardoise`, swatch: 'bg-[#1E2024] border-[#2A2E35]' },
+                { id: 'oled', label: t`Noir`, swatch: 'bg-black border-[#1C1C1C]' },
+                { id: 'warm', label: t`Nuit chaude`, swatch: 'bg-[#1A1410] border-[#2E2519]' },
+                { id: 'paper', label: t`Papier`, swatch: 'bg-[#F7F3EA] border-[#E0D6BE]' },
+              ] as { id: PaperThemeOption; label: string; swatch: string }[]
+            ).map((p) => {
+              const premium = isPremiumPaperTheme(p.id);
+              const locked = premium && plusThemesLocked;
+              const active = preferences.paperTheme === p.id;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  title={locked ? t`Papier premium — réservé aux abonnés Plus` : p.label}
+                  onClick={() => {
+                    if (locked) {
+                      onLockedThemeClick?.();
+                      return;
+                    }
+                    update({ paperTheme: p.id });
+                  }}
+                  className={`flex flex-col items-center gap-1 px-2 py-2 rounded-xl border transition-all cursor-pointer ${
+                    active ? 'border-primary bg-primary/10' : 'border-border/40 hover:bg-muted/60'
+                  }`}
+                >
+                  <span className={`w-6 h-6 rounded-full border ${p.swatch}`} />
+                  <span className="text-[10px] font-medium flex items-center gap-1">
+                    {p.label}
+                    {locked && <Lock className="w-2.5 h-2.5 text-muted-foreground" />}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[10px] text-muted-foreground">
+            {t`Nuit chaude et Papier sont réservés aux abonnés Plus (bientôt).`}
+          </p>
         </div>
       </PopoverContent>
     </Popover>

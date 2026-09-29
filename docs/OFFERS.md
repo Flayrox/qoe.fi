@@ -51,8 +51,12 @@
 #     /v1/ai/usage (transparence avant usage). UI : bouton résumé replié
 #     + action Expliquer dans le popover, TOUJOURS présenté comme IA avec
 #     lien au texte, états 403/429/503 actionnables. Sans clé : 503 honnête.
-#   - ❌ TTS + file lue (player), notes/recherche dedans, podcasts offline,
-#     badge, thèmes premium, EPUB.
+#   - ✅ TTS gaté (bouton existant + cadenas + upsell via /v1/me/entitlements,
+#     hook usePlus 1 appel/session, neutre en chargement) ; file d'écoute
+#     lue côté player = lot suivant (le TTS lit déjà les files MediaSession).
+#   - ✅ Thèmes premium (Nuit chaude, Papier — cadenassés, sélecteur ajouté
+#     au panneau qui n'en avait pas) ; gratuits intacts (accessibilité).
+#   - ❌ notes/recherche dedans, podcasts offline, badge, EPUB.
 #   P2 : collections intelligentes, digests, RSS/newsletters import,
 #     extension navigateur, thèmes/polices avancés, exports Markdown.
 #   P3 : recherche sémantique perso, flashcards/répétition espacée, API

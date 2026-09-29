@@ -6,7 +6,15 @@ export type LineHeightOption = 'compact' | 'normal' | 'relaxed';
 
 export type ReadingWidthOption = 'narrow' | 'normal' | 'wide';
 
-export type PaperThemeOption = 'default' | 'sepia' | 'slate' | 'oled';
+export type PaperThemeOption = 'default' | 'sepia' | 'slate' | 'oled' | 'warm' | 'paper';
+
+// Thèmes premium (fiche Plus P1) : source unique du gate (front + logique).
+// Gratuits : default, sepia, slate, oled (l'accessibilité n'est pas un luxe).
+export const PREMIUM_PAPER_THEMES: readonly PaperThemeOption[] = ['warm', 'paper'];
+
+export function isPremiumPaperTheme(t: PaperThemeOption): boolean {
+  return (PREMIUM_PAPER_THEMES as readonly string[]).includes(t);
+}
 
 export interface ReadingPreferences {
   fontFamily: FontFamilyOption;

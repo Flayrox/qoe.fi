@@ -303,6 +303,12 @@ export function getPaperThemeClasses(theme: ReadingPreferences['paperTheme']): s
       return 'bg-[#1E2024] text-[#E2E4E8] selection:bg-[#343840] border-[#2A2E35]';
     case 'oled':
       return 'bg-[#000000] text-[#FFFFFF] selection:bg-[#2A2A2A] border-[#1C1C1C]';
+    // Premium (fiche Plus P1) : nuit chaude (brun-noir chaud, lecture nocturne
+    // douce) et papier crème (blanc cassé chaud, contraste papier).
+    case 'warm':
+      return 'bg-[#1A1410] text-[#E8DCC8] selection:bg-[#3A2E20] border-[#2E2519]';
+    case 'paper':
+      return 'bg-[#F7F3EA] text-[#2A2620] selection:bg-[#E4DCC8] border-[#E0D6BE]';
     case 'default':
     default:
       return 'bg-background text-foreground';

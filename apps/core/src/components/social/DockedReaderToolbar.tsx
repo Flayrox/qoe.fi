@@ -62,8 +62,13 @@ export function DockedReaderToolbar({ articleTitle, className = '' }: DockedRead
           onLockedClick={upsell}
         />
 
-        {/* 4. Typographie & Accessibilité */}
-        <ReadingSettingsSheet />
+        {/* 4. Typographie & Accessibilité (papiers premium cadenassés sans Plus) */}
+        <ReadingSettingsSheet
+          plusThemesLocked={locked}
+          onLockedThemeClick={() =>
+            toast.info(t`Papiers Nuit chaude et Papier réservés aux abonnés Plus (bientôt).`)
+          }
+        />
       </div>
 
       {/* 📱 MOBILE (< md) : TTS direct + Menu 3 petits points Popover */}
