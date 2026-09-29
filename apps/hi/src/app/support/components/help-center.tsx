@@ -66,7 +66,7 @@ export function HelpCenter({ appUrl, managed }: { appUrl: string; managed: Manag
             mes dossiers support
           </a>{' '}
           ·{' '}
-          <a href={`${appUrl}/recours`} className="underline underline-offset-2 font-semibold">
+          <a href={`${appUrl}/appeals`} className="underline underline-offset-2 font-semibold">
             mes recours
           </a>
           . / Log in to follow your cases.

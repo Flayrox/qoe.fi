@@ -44,6 +44,12 @@
 #     prise en main, note + réponse, clôture, charge : compteurs,
 #     ancienneté, délai moyen 30 j).
 #
+# ARTICLES D'AIDE (table SupportArticle, migration 00044) : créés
+# brouillons en console, publiés sans redéploiement ; même slug qu'une
+# entrée statique = la version console la remplace. Slugs kebab-case
+# ANGLAIS (« lost-account », pas « compte-perdu » — convention produit :
+# l'app démarre en FR mais slugs et routes sont en anglais).
+#
 # RÉSIDUS ASSUMÉS (lots à part, pas des oublis) :
 #   - Pièces jointes : messages texte seuls (pas d'infra d'upload
 #     contrôlée — pas d'upload sauvage en attendant).

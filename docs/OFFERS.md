@@ -1,11 +1,17 @@
 # =====================================================================
 # 💎 Offres Qoefi — matrice produit (source de vérité)
 # =====================================================================
-# Deux abonnements, deux publics (décision produit) :
+# Deux abonnements, deux publics (décision produit TRANCHÉE) :
 #   - PRO = auteurs/médias (personnalisation, domaines, outils pro).
 #   - PLUS (« Soutien ») = lecteurs (bibliothèque, hors-ligne, audio, IA).
-# Question ouverte (trancher avant Stripe) : Pro inclut-il les avantages
-# Plus, ou deux abonnements séparés ?
+#   - PRO INCLUT PLUS : un journaliste qui prend Pro pour le studio
+#     bénéficie aussi de l'app lecteur, sans surcoût (zéro frais
+#     supplémentaire — c'est le truc : un seul abonnement à comprendre).
+#
+# Convention d'URL (décision produit) : l'app démarre en FR mais les slugs
+# et routes sont en ANGLAIS (/appeals pas /recours, /pricing pas /offre,
+# slugs d'articles kebab-case anglais). Anciennes routes FR = 301 permanent
+# (bookmarks et liens en vol préservés, jamais de 404 sèche).
 #
 # Principe (fiche Plus) : ce qui crée le réseau reste GRATUIT (lire,
 # publier, suivre, commenter, collections de base, dark mode, réglages

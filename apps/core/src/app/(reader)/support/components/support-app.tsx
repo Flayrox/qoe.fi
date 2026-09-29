@@ -111,7 +111,7 @@ export function SupportApp({ initialItems }: SupportAppProps) {
           </a>{' '}
           (réponses immédiates) — sinon ouvrez un dossier, un par motif, le reste s&apos;écrit
           dedans. Pour contester une mesure anti-abus,{' '}
-          <a href="/recours" className="underline underline-offset-2 font-semibold">
+          <a href="/appeals" className="underline underline-offset-2 font-semibold">
             voyez vos recours
           </a>
           .

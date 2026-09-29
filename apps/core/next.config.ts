@@ -40,6 +40,11 @@ const nextConfig: NextConfig = {
   // déclencher des `require is not defined` intermittents à froid sous
   // Turbopack (ex. Sentry, dotenv). Chargés par le runtime Node au besoin.
   serverExternalPackages: ['@sentry/nextjs', '@sentry/node', 'dotenv'],
+  // Slugs EN (l'app démarre en FR mais les routes sont anglaises) :
+  // /recours → /appeals (301 — bookmarks et liens en vol préservés).
+  async redirects() {
+    return [{ source: '/recours', destination: '/appeals', permanent: true }];
+  },
   images: {
     dangerouslyAllowSVG: true,
     dangerouslyAllowLocalIP: true, // 🧪 Allow 127.0.0.1:54321 (Supabase local) — SSRF guard Next 16

@@ -115,7 +115,7 @@ export function ArticlesManager({ initialItems }: ArticlesManagerProps) {
             <input
               value={slug}
               onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-              placeholder="slug-kebab-case (ex. compte-perdu)…"
+              placeholder="slug-kebab-case en anglais (ex. lost-account)…"
               maxLength={80}
               className={inputCls}
             />

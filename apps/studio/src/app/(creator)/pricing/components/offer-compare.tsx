@@ -100,7 +100,9 @@ export function OfferCompare({ supportUrl }: { supportUrl: string }) {
             <span className="text-sm font-normal text-muted-foreground">lancement prochain</span>
           </p>
           <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-            Votre identité jusque dans la boîte mail — et vous financez une plateforme indépendante.
+            Votre identité jusque dans la boîte mail —{' '}
+            <strong>plus tous les avantages lecteur Plus inclus, sans surcoût</strong> — et vous
+            financez une plateforme indépendante.
           </p>
           <a
             href={supportUrl}

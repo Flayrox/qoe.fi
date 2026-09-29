@@ -55,6 +55,11 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: '**.r2.dev' },
     ],
   },
+  // Slugs EN (l'app démarre en FR mais les routes sont anglaises) :
+  // /offre → /pricing (301 — bookmarks et liens en vol préservés).
+  async redirects() {
+    return [{ source: '/offre', destination: '/pricing', permanent: true }];
+  },
 };
 
 export default withSentryConfig(nextConfig, {

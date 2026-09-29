@@ -167,7 +167,7 @@ export async function AppSidebar() {
     },
     {
       title: t`Offre Pro`,
-      url: '/offre',
+      url: '/pricing',
       iconName: 'Crown',
     },
     {

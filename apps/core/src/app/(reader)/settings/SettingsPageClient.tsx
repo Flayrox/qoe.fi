@@ -690,7 +690,7 @@ export default function AccountSettingsPage({
                   {t`Contacter le support`}
                 </a>
                 <a
-                  href="/recours"
+                  href="/appeals"
                   className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-center hover:bg-muted"
                 >
                   {t`Mes recours`}
