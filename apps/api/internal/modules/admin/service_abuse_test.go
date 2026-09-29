@@ -51,6 +51,21 @@ func TestAbuseGuards_ForbiddenForStranger(t *testing.T) {
 	if _, err := svc.DecideAbuseAppeal(ctx, stranger, "x", "", "", "", ""); !errors.Is(err, errForbidden) {
 		t.Errorf("DecideAbuseAppeal = %v, attendu errForbidden", err)
 	}
+	if _, _, err := svc.ListSupportTickets(ctx, stranger, "", 10, 0); !errors.Is(err, errForbidden) {
+		t.Errorf("ListSupportTickets = %v, attendu errForbidden", err)
+	}
+	if _, err := svc.GetSupportTicket(ctx, stranger, "x"); !errors.Is(err, errForbidden) {
+		t.Errorf("GetSupportTicket = %v, attendu errForbidden", err)
+	}
+	if _, err := svc.AssignSupportTicket(ctx, stranger, "x"); !errors.Is(err, errForbidden) {
+		t.Errorf("AssignSupportTicket = %v, attendu errForbidden", err)
+	}
+	if _, err := svc.UpdateSupportTicket(ctx, stranger, "x", "", "", ""); !errors.Is(err, errForbidden) {
+		t.Errorf("UpdateSupportTicket = %v, attendu errForbidden", err)
+	}
+	if _, err := svc.SupportMetrics(ctx, stranger); !errors.Is(err, errForbidden) {
+		t.Errorf("SupportMetrics = %v, attendu errForbidden", err)
+	}
 }
 
 func TestAbuseWiring_SuperadminPassthrough(t *testing.T) {

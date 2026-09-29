@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/qoefi/api/internal/abuse"
+	"github.com/qoefi/api/internal/support"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/modules/imports"
 	"github.com/qoefi/api/internal/modules/users"
@@ -66,6 +67,13 @@ func (h *Handler) Register(r chi.Router) {
 	r.Get("/v1/admin/abuse/appeals", h.abuseAppeals)
 	r.Get("/v1/admin/abuse/appeals/{id}", h.abuseAppealDetail)
 	r.Patch("/v1/admin/abuse/appeals/{id}", h.decideAbuseAppeal)
+	// Support général (tranche 6) : file + détail + assignation + avancement
+	// + charge. La clôture ne lève ni suspension ni permission.
+	r.Get("/v1/admin/support/tickets", h.supportTickets)
+	r.Get("/v1/admin/support/tickets/{id}", h.supportTicketDetail)
+	r.Post("/v1/admin/support/tickets/{id}/assign", h.assignSupportTicket)
+	r.Patch("/v1/admin/support/tickets/{id}", h.updateSupportTicket)
+	r.Get("/v1/admin/support/metrics", h.supportMetrics)
 
 	// Widgets & tendances
 	r.Get("/v1/admin/widgets", h.widgets)
@@ -529,6 +537,113 @@ func (h *Handler) decideAbuseAppeal(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, a)
+}
+
+// GET /v1/admin/support/tickets — file (ouverts d'abord).
+// Query : ?status=open|under_review|closed&limit=50&offset=0
+func (h *Handler) supportTickets(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	items, total, err := h.svc.ListSupportTickets(r.Context(), userID, r.URL.Query().Get("status"), limit, offset)
+	if err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, map[string]any{"items": items, "total": total})
+}
+
+// GET /v1/admin/support/tickets/{id} — un dossier avec ses messages.
+func (h *Handler) supportTicketDetail(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	t, err := h.svc.GetSupportTicket(r.Context(), userID, chi.URLParam(r, "id"))
+	if err != nil {
+		if errors.Is(err, support.ErrTicketNotFound) {
+			response.NotFound(w, "Dossier introuvable.")
+			return
+		}
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, t)
+}
+
+// POST /v1/admin/support/tickets/{id}/assign — prise en main (passe en
+// under_review). L'assignation à soi-même est tracée, pas refusée.
+func (h *Handler) assignSupportTicket(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	t, err := h.svc.AssignSupportTicket(r.Context(), userID, chi.URLParam(r, "id"))
+	if err != nil {
+		if errors.Is(err, support.ErrTicketNotFound) {
+			response.NotFound(w, "Dossier introuvable.")
+			return
+		}
+		if errors.Is(err, support.ErrTicketClosed) {
+			response.Error(w, http.StatusGone, err.Error())
+			return
+		}
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, t)
+}
+
+// PATCH /v1/admin/support/tickets/{id} — avancement / clôture.
+// Body : { "status": "under_review|closed", "staffNote": "...", "reply": "..." }.
+// Clore son propre dossier = 400 (conflit d'intérêts) ; clore ne lève ni
+// suspension ni permission (les actes passent par les chemins existants).
+func (h *Handler) updateSupportTicket(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	var in struct {
+		Status    string `json:"status"`
+		StaffNote string `json:"staffNote"`
+		Reply     string `json:"reply"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	t, err := h.svc.UpdateSupportTicket(r.Context(), userID, chi.URLParam(r, "id"), in.Status, in.StaffNote, in.Reply)
+	if err != nil {
+		switch {
+		case errors.Is(err, support.ErrTicketNotFound):
+			response.NotFound(w, "Dossier introuvable.")
+		case errors.Is(err, support.ErrTicketClosed):
+			response.Error(w, http.StatusGone, err.Error())
+		case errors.Is(err, support.ErrInvalidTicket):
+			response.BadRequest(w, err.Error())
+		default:
+			h.handleErr(w, err)
+		}
+		return
+	}
+	response.OK(w, t)
+}
+
+// GET /v1/admin/support/metrics — charge (compteurs, ancienneté, délais).
+func (h *Handler) supportMetrics(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	m, err := h.svc.SupportMetrics(r.Context(), userID)
+	if err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, m)
 }
 
 // PATCH /v1/admin/users/{userID} — modération (réservé superadmin).

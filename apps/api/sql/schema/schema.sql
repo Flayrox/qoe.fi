@@ -253,6 +253,47 @@ CREATE TABLE "AppealMessage" (
 );
 
 -- CreateTable
+CREATE TABLE "SupportTicket" (
+    "id" TEXT NOT NULL,
+    "kind" TEXT NOT NULL,
+    "subject" TEXT NOT NULL,
+    "openedBy" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'open',
+    "assignee" TEXT,
+    "relatedType" TEXT NOT NULL DEFAULT '',
+    "relatedId" TEXT NOT NULL DEFAULT '',
+    "staffNote" TEXT NOT NULL DEFAULT '',
+    "closedBy" TEXT,
+    "closedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "SupportTicket_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "SupportTicket_kind_check" CHECK ("kind" IN (
+        'account_restricted', 'account_lost', 'content_moderation',
+        'api_access', 'import_issue', 'delivery', 'report_issue', 'other'
+    )),
+    CONSTRAINT "SupportTicket_status_check" CHECK ("status" IN ('open', 'under_review', 'closed')),
+    CONSTRAINT "SupportTicket_subject_check" CHECK (char_length("subject") BETWEEN 5 AND 200),
+    CONSTRAINT "SupportTicket_closed_check" CHECK (
+        ("status" = 'closed' AND "closedBy" IS NOT NULL AND "closedAt" IS NOT NULL)
+        OR ("status" <> 'closed')
+    )
+);
+
+-- CreateTable
+CREATE TABLE "SupportMessage" (
+    "id" TEXT NOT NULL,
+    "ticketId" TEXT NOT NULL REFERENCES "SupportTicket"("id") ON DELETE CASCADE,
+    "authorId" TEXT NOT NULL,
+    "body" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "SupportMessage_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "SupportMessage_body_check" CHECK (char_length("body") BETWEEN 1 AND 5000)
+);
+
+-- CreateTable
 CREATE TABLE "BlockedUser" (
     "id" TEXT NOT NULL,
     "creatorId" UUID NOT NULL,

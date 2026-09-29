@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/qoefi/api/internal/abuse"
+	"github.com/qoefi/api/internal/support"
 )
 
 // AbuseDecision est un dossier ouvert sérialisable pour la console staff.
@@ -117,6 +118,52 @@ func (s *Service) DecideAbuseAppeal(ctx context.Context, userID, id, status, out
 		return abuse.Appeal{}, err
 	}
 	return abuse.DecideAppeal(ctx, s.pool, id, userID, status, outcome, staffNote, reply, time.Now())
+}
+
+// Support général (tranche 6, superadmin uniquement) : file, détail,
+// assignation, avancement, clôture, charge. L'ouverture n'a jamais rien
+// changé ; la clôture ne lève ni suspension ni permission (les actes
+// passent par les chemins existants). Conflit d'intérêts refusé : on ne
+// clôt jamais son propre dossier.
+
+// ListSupportTickets renvoie les dossiers (ouverts d'abord).
+func (s *Service) ListSupportTickets(ctx context.Context, userID, status string, limit, offset int) ([]support.Ticket, int, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return nil, 0, err
+	}
+	return support.ListAllTickets(ctx, s.pool, status, limit, offset)
+}
+
+// GetSupportTicket relit un dossier avec ses messages.
+func (s *Service) GetSupportTicket(ctx context.Context, userID, id string) (support.Ticket, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return support.Ticket{}, err
+	}
+	return support.GetTicket(ctx, s.pool, id)
+}
+
+// AssignSupportTicket assigne (prise en main, passe en under_review).
+func (s *Service) AssignSupportTicket(ctx context.Context, userID, id string) (support.Ticket, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return support.Ticket{}, err
+	}
+	return support.AssignTicket(ctx, s.pool, id, userID, time.Now())
+}
+
+// UpdateSupportTicket fait avancer (statut validé, note ajoutée, réponse).
+func (s *Service) UpdateSupportTicket(ctx context.Context, userID, id, status, staffNote, reply string) (support.Ticket, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return support.Ticket{}, err
+	}
+	return support.UpdateTicket(ctx, s.pool, id, userID, status, staffNote, reply, time.Now())
+}
+
+// SupportMetrics expose la charge (tableau de bord staff).
+func (s *Service) SupportMetrics(ctx context.Context, userID string) (support.Metrics, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return support.Metrics{}, err
+	}
+	return support.ComputeMetrics(ctx, s.pool, time.Now())
 }
 
 // ResolveAbuseDecision clôt un dossier par un verdict humain tracé
