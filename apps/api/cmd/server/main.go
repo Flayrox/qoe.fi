@@ -34,6 +34,7 @@ import (
 	"github.com/qoefi/api/internal/modules/events"
 	aimod "github.com/qoefi/api/internal/modules/ai"
 	"github.com/qoefi/api/internal/modules/appeals"
+	"github.com/qoefi/api/internal/modules/ebooks"
 	"github.com/qoefi/api/internal/modules/support"
 	"github.com/qoefi/api/internal/modules/feed"
 	"github.com/qoefi/api/internal/modules/highlights"
@@ -319,6 +320,9 @@ func newRouter(d RouterDeps) *chi.Mux {
 	// suspendus — contester reste possible). Routes enregistrées sur le
 	// groupe protégé plus bas.
 	appealsHandler := appeals.NewHandler(appeals.NewService(pool))
+	// EPUBs personnels (fiche Plus P1) : bibliothèque strictement
+	// personnelle (upload, liste, lecture, couverture, progression).
+	ebooksHandler := ebooks.NewHandler(ebooks.NewService(pool))
 	// IA de lecture (fiche Plus P1) : résumé + explication, provider
 	// pluggable (nil = 503 explicite), quotas mensuels. Routes sur le
 	// groupe protégé plus bas.
@@ -503,6 +507,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 		})).Group(func(reader chi.Router) {
 			feedHandler.RegisterProtected(reader)
 			appealsHandler.RegisterProtected(reader)
+			ebooksHandler.RegisterProtected(reader)
 			supportHandler.RegisterProtected(reader)
 			aiHandler.RegisterProtected(reader)
 			usersHandler.Register(reader)

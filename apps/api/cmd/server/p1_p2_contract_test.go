@@ -365,4 +365,43 @@ func insertContractAPIKey(t *testing.T, userID string, scopes []string) string {
 	return raw
 }
 
+// TestP1EbooksContracts : les EPUBs personnels (fiche Plus P1) sont
+// STRICTEMENT authentifiés — aucune route publique par id — et la
+// bibliothèque d'un compte sans livre répond une liste vide (jamais null),
+// pour que le front itère sans garde.
+func TestP1EbooksContracts(t *testing.T) {
+	ctx := context.Background()
+	seedReaderContract(t, ctx)
+	r := testRouter(t)
+	token := routerJWT(readerContractID)
+
+	// Sans jeton : refusé (pas de route publique, pas de fuite d'existence).
+	if w, _ := doReq(t, r, http.MethodGet, "/v1/me/ebooks", "", nil); w.Code != http.StatusUnauthorized {
+		t.Fatalf("GET /v1/me/ebooks sans jeton = %d, attendu 401", w.Code)
+	}
+
+	// Bibliothèque vide : 200 + items vides (jamais null).
+	w, body := doReq(t, r, http.MethodGet, "/v1/me/ebooks", token, nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET /v1/me/ebooks = %d, body=%s", w.Code, w.Body.String())
+	}
+	if items, ok := body["items"].([]any); !ok || len(items) != 0 {
+		t.Fatalf("items = %v, attendu [] (vide, jamais null)", body["items"])
+	}
+
+	// Livre inexistant : 404 partout (jamais 403 — inexistant et pas-à-vous
+	// se ressemblent, donc aucune fuite sur le contenu d'autrui).
+	missing := "00000000-0000-0000-0000-0000000000ff"
+	if w, _ := doReq(t, r, http.MethodGet, "/v1/me/ebooks/"+missing, token, nil); w.Code != http.StatusNotFound {
+		t.Fatalf("GET détail inexistant = %d, attendu 404", w.Code)
+	}
+	if w, _ := doReq(t, r, http.MethodPatch, "/v1/me/ebooks/"+missing+"/progress", token,
+		map[string]any{"chapter": 1, "pct": 10}); w.Code != http.StatusNotFound {
+		t.Fatalf("PATCH progression inexistant = %d, attendu 404", w.Code)
+	}
+	if w, _ := doReq(t, r, http.MethodDelete, "/v1/me/ebooks/"+missing, token, nil); w.Code != http.StatusNotFound {
+		t.Fatalf("DELETE inexistant = %d, attendu 404", w.Code)
+	}
+}
+
 var _ = json.Valid

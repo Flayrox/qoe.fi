@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useState, useMemo, useTransition } from 'react';
+import Link from 'next/link';
 import {
   Bookmark,
   BookmarkCheck,
+  BookOpen,
   Highlighter,
   Clock,
   ExternalLink,
@@ -325,18 +327,29 @@ export function LibraryClient({
           )}
         </div>
 
-        {/* Action Export Markdown */}
-        {highlights.length > 0 && (
-          <button
-            type="button"
-            onClick={handleExportMarkdown}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-muted/60 hover:bg-muted text-foreground border border-border/50 transition-colors shadow-2xs cursor-pointer self-start sm:self-auto"
-            title={t`Exporter au format Markdown (Notion, Obsidian, Bear)`}
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          {/* Mes livres (EPUBs personnels — fiche Plus P1) */}
+          <Link
+            href={routes.feed.ebooks()}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-muted/60 hover:bg-muted text-foreground border border-border/50 transition-colors shadow-2xs cursor-pointer"
+            title={t`Mes livres (EPUBs importés)`}
           >
-            <Download className="w-3.5 h-3.5 text-primary" />
-            <span>{t`Exporter (.md)`}</span>
-          </button>
-        )}
+            <BookOpen className="w-3.5 h-3.5 text-primary" />
+            <span>{t`Mes livres`}</span>
+          </Link>
+          {/* Action Export Markdown */}
+          {highlights.length > 0 && (
+            <button
+              type="button"
+              onClick={handleExportMarkdown}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-muted/60 hover:bg-muted text-foreground border border-border/50 transition-colors shadow-2xs cursor-pointer self-start sm:self-auto"
+              title={t`Exporter au format Markdown (Notion, Obsidian, Bear)`}
+            >
+              <Download className="w-3.5 h-3.5 text-primary" />
+              <span>{t`Exporter (.md)`}</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* ─── Hero Knowledge Strip (Inspiré de Readwise / Matter) ─── */}
