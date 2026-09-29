@@ -91,6 +91,20 @@
 #   - Clôture signée (resolvedBy/resolvedAt) ; réouverture qui efface la
 #     signature mais garde l'historique.
 #
+# DÉCISIONS ASSUMÉES (ce que la fiche propose et qu'on ne fait PAS tel quel) :
+#   - TrustStatus (table de capacités vérifiées) : REFUSÉ comme table —
+#     l'état dérive des verdicts humains RiskDecision (éligibilité), pas
+#     d'un booléen « trusted » dupliqué qui divergerait. Même besoin,
+#     zéro divergence possible.
+#   - ModerationCase unifié (preuves, chronologie) : couvert à l'échelle
+#     actuelle par les trois registres (ModerationReport, RiskDecision,
+#     AntiAbuseIncident) — un dossier unifié se justifiera au volume, pas
+#     avant (pas de sur-construction).
+#   - SMS (§12) : pas de fournisseur → rien à brancher. Le jour venu, les
+#     codes relèveront de CapabilityBudget (même mécanisme que les
+#     confirmations : plafond par (numéro, capacité, jour), réponse neutre).
+#     En attendant, phone_verified reste faux et le refus est honnête.
+#
 # EXPLOITATION : seuils côté serveur uniquement (jamais exposés — fiche §10 :
 # ne pas aider l'attaquant à calibrer). Dossiers expirés (72 h) = plus une
 # urgence. Signaux expirés purgés par expiresAt (pas de fichier perpétuel).
