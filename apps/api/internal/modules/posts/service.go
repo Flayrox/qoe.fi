@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/abuse"
 	"github.com/qoefi/api/internal/cache"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/vectorfeed"
@@ -795,7 +796,19 @@ func (s *Service) Report(ctx context.Context, userID, targetID, targetType, reas
 		Reason:     reason,
 		Details:    detailsVal,
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	// Observation anti-abus (fiche 06 §8-§9, mode observation fiche §11) :
+	// chaque signalement est un fait de confiance basse (une alerte n'est
+	// pas une preuve). Un essaim contre la même cible (10/h) déclenche une
+	// revue priorisée — JAMAIS une sanction automatique. Best-effort.
+	now := time.Now()
+	subjectID := targetType + ":" + targetID
+	abuse.RecordSignal(ctx, s.pool, abuse.SignalReportFiled, abuse.SubjectReportTarget, subjectID,
+		"api:posts.report", abuse.ConfidenceUserReport, abuse.ReportSignalRetention, now)
+	abuse.EvaluateSubject(ctx, s.pool, abuse.SignalReportFiled, abuse.SubjectReportTarget, subjectID, now)
+	return nil
 }
 
 // Delete supprime (soft delete) une pensée de l'auteur.

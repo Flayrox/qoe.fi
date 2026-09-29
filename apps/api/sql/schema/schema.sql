@@ -150,6 +150,46 @@ CREATE TABLE "CapabilityBudget" (
 );
 
 -- CreateTable
+CREATE TABLE "AbuseSignal" (
+    "id" TEXT NOT NULL,
+    "type" TEXT NOT NULL,
+    "subjectType" TEXT NOT NULL,
+    "subjectId" TEXT NOT NULL,
+    "source" TEXT NOT NULL,
+    "confidence" SMALLINT NOT NULL DEFAULT 50,
+    "ruleVersion" TEXT NOT NULL DEFAULT 'v1',
+    "observedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "AbuseSignal_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "AbuseSignal_confidence_check" CHECK ("confidence" BETWEEN 0 AND 100)
+);
+
+-- CreateTable
+CREATE TABLE "RiskDecision" (
+    "id" TEXT NOT NULL,
+    "policy" TEXT NOT NULL,
+    "version" TEXT NOT NULL,
+    "subjectType" TEXT NOT NULL,
+    "subjectId" TEXT NOT NULL,
+    "result" TEXT NOT NULL,
+    "reasonCodes" TEXT[] NOT NULL DEFAULT '{}',
+    "decidedBy" TEXT NOT NULL DEFAULT 'auto',
+    "deciderId" TEXT,
+    "expiresAt" TIMESTAMP(3),
+    "appealRef" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "RiskDecision_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "RiskDecision_result_check" CHECK ("result" IN (
+        'allow', 'slow', 'challenge', 'needs_review',
+        'limit_distribution', 'pause_sending', 'suspend'
+    )),
+    CONSTRAINT "RiskDecision_decidedby_check" CHECK ("decidedBy" IN ('auto', 'human'))
+);
+
+-- CreateTable
 CREATE TABLE "BlockedUser" (
     "id" TEXT NOT NULL,
     "creatorId" UUID NOT NULL,
