@@ -166,6 +166,42 @@ func (s *Service) SupportMetrics(ctx context.Context, userID string) (support.Me
 	return support.ComputeMetrics(ctx, s.pool, time.Now())
 }
 
+// Articles d'aide (tranche 6, superadmin uniquement) : publier, corriger,
+// ordonner SANS déploiement. Même slug qu'une entrée statique = la version
+// console la remplace (override — le statique reste le repli).
+
+// ListSupportArticles renvoie tout (brouillons inclus).
+func (s *Service) ListSupportArticles(ctx context.Context, userID string, limit, offset int) ([]support.Article, int, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return nil, 0, err
+	}
+	return support.ListAllArticles(ctx, s.pool, limit, offset)
+}
+
+// GetSupportArticle relit un article (brouillon inclus — prévisualisation).
+func (s *Service) GetSupportArticle(ctx context.Context, userID, id string) (support.Article, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return support.Article{}, err
+	}
+	return support.GetArticle(ctx, s.pool, id)
+}
+
+// CreateSupportArticle crée un brouillon (publier est un acte séparé).
+func (s *Service) CreateSupportArticle(ctx context.Context, userID, slug, titleFr, titleEn, bodyFr, bodyEn string, position int) (support.Article, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return support.Article{}, err
+	}
+	return support.CreateArticle(ctx, s.pool, slug, titleFr, titleEn, bodyFr, bodyEn, position, time.Now())
+}
+
+// UpdateSupportArticle modifie (contenu, position, published).
+func (s *Service) UpdateSupportArticle(ctx context.Context, userID, id, titleFr, titleEn, bodyFr, bodyEn string, position *int, published *bool) (support.Article, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return support.Article{}, err
+	}
+	return support.UpdateArticle(ctx, s.pool, id, titleFr, titleEn, bodyFr, bodyEn, position, published, time.Now())
+}
+
 // ResolveAbuseDecision clôt un dossier par un verdict humain tracé
 // (superadmin uniquement). `result` ∈ {allow, limit_distribution,
 // pause_sending, suspend} — le reste est refusé (abuse.ErrInvalidHumanResult).

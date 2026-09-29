@@ -35,6 +35,11 @@ func (s *Service) OpenPublicTicket(ctx context.Context, userID, name, email, kin
 	return internalsupport.OpenPublicTicket(ctx, s.pool, userID, name, email, kind, subject, message, time.Now())
 }
 
+// ListArticles : les articles d'aide publiés (vitrine — sans auth).
+func (s *Service) ListArticles(ctx context.Context) ([]internalsupport.Article, error) {
+	return internalsupport.ListPublishedArticles(ctx, s.pool)
+}
+
 // GetTicket : un dossier de l'utilisateur (pas ceux d'autrui : 404).
 func (s *Service) GetTicket(ctx context.Context, userID, id string) (internalsupport.Ticket, error) {
 	t, err := internalsupport.GetTicket(ctx, s.pool, id)

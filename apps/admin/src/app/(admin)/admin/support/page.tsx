@@ -29,7 +29,14 @@ export default async function AdminSupportPage() {
         description={
           <>
             Les dossiers des utilisateurs : prendre en main, répondre, clore en traçant. Un dossier
-            ouvert par motif — le reste s&apos;écrit dedans.
+            ouvert par motif — le reste s&apos;écrit dedans.{' '}
+            <a
+              href="/admin/support/articles"
+              className="underline underline-offset-2 font-semibold"
+            >
+              Gérer les articles d&apos;aide
+            </a>
+            .
           </>
         }
       />

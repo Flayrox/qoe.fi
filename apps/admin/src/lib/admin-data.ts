@@ -405,6 +405,33 @@ export async function getAdminSupportMetrics(): Promise<SupportMetrics | null> {
   }
 }
 
+/** 📝 Articles d'aide gérables (tranche 6). */
+export interface SupportArticleItem {
+  id: string;
+  slug: string;
+  titleFr: string;
+  titleEn: string;
+  bodyFr: string;
+  bodyEn: string;
+  position: number;
+  published: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function getAdminSupportArticles(): Promise<{
+  items: SupportArticleItem[];
+  total: number;
+}> {
+  try {
+    return await goFetch<{ items: SupportArticleItem[]; total: number }>(
+      '/v1/admin/support/articles?limit=100'
+    );
+  } catch {
+    return { items: [], total: 0 };
+  }
+}
+
 /** 📊 Métriques de santé anti-abus (fiche 06 §11). */
 export interface AbuseMetrics {
   since: string;

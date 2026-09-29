@@ -13,11 +13,12 @@ import { SupportForm } from './support-form';
 // les dossiers résolus — pas avant le volume).
 // =====================================================================
 
-import { filterFaq } from './help-faq';
+import { filterFaq, mergeFaq, type ManagedArticle } from './help-faq';
 
-export function HelpCenter({ appUrl }: { appUrl: string }) {
+export function HelpCenter({ appUrl, managed }: { appUrl: string; managed: ManagedArticle[] }) {
   const [query, setQuery] = useState('');
-  const results = useMemo(() => filterFaq(query), [query]);
+  const entries = useMemo(() => mergeFaq(managed), [managed]);
+  const results = useMemo(() => filterFaq(entries, query), [entries, query]);
 
   return (
     <div className="space-y-10">
