@@ -40,6 +40,45 @@ func TestResolveDecision_NilPool_Error(t *testing.T) {
 	}
 }
 
+// Purge de rétention : les signaux expirés et les fenêtres de budget mortes
+// partent, les verdicts (actes traçables) et les signaux valides restent.
+func TestPurgeExpiredAbuseData(t *testing.T) {
+	requirePool(t)
+	ctx := context.Background()
+	now := time.Now()
+
+	scope := fmt.Sprintf("purge-%d", now.UnixNano())
+	RecordSignal(ctx, poolTest, "test.purge", "test", scope+"-expired", "test", 50, -time.Hour, now)
+	RecordSignal(ctx, poolTest, "test.purge", "test", scope+"-fresh", "test", 50, time.Hour, now)
+	if _, err := ConsumeBudget(ctx, poolTest, "test", scope+"-old", ActionConfirmRequest, now.Add(-8*24*time.Hour), 1, 5); err != nil {
+		t.Fatalf("budget vieux : %v", err)
+	}
+	if _, err := ConsumeBudget(ctx, poolTest, "test", scope+"-cur", ActionConfirmRequest, DailyWindow(now), 1, 5); err != nil {
+		t.Fatalf("budget courant : %v", err)
+	}
+
+	sig, bud, err := PurgeExpiredAbuseData(ctx, poolTest, now)
+	if err != nil {
+		t.Fatalf("purge : %v", err)
+	}
+	if sig != 1 || bud != 1 {
+		t.Fatalf("purge : attendu (1 signal, 1 budget), obtenu (%d, %d)", sig, bud)
+	}
+	var n int
+	if err := poolTest.QueryRow(ctx, `SELECT COUNT(*) FROM "AbuseSignal" WHERE "type" = 'test.purge' AND "subjectId" = $1`, scope+"-fresh").Scan(&n); err != nil || n != 1 {
+		t.Fatalf("signal valide conservé : count=%d err=%v", n, err)
+	}
+	if _, err := ConsumeBudget(ctx, poolTest, "test", scope+"-cur", ActionConfirmRequest, DailyWindow(now), 1, 5); err != nil {
+		t.Fatalf("budget courant réutilisable : %v", err)
+	}
+	// Le budget courant a survécu avec sa consommation (1/5) : la purge ne
+	// remet jamais un compteur à zéro en douce.
+	ok, err := ConsumeBudget(ctx, poolTest, "test", scope+"-cur", ActionConfirmRequest, DailyWindow(now), 4, 5)
+	if err != nil || !ok {
+		t.Fatalf("budget courant à 1/5 + 4 attendu accord, obtenu (%v, %v)", ok, err)
+	}
+}
+
 func TestReview_OpenResolveClose(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
