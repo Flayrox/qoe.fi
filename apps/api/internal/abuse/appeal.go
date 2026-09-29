@@ -261,7 +261,7 @@ func AddUserMessage(ctx context.Context, pool SignalDB, appealID, userID, body s
 // uniquement — pas de lecture des recours d'autrui), plus récents d'abord.
 func ListUserAppeals(ctx context.Context, pool SignalDB, userID string, limit, offset int) ([]Appeal, int, error) {
 	if pool == nil {
-		return nil, 0, nil
+		return []Appeal{}, 0, nil
 	}
 	if limit <= 0 || limit > 100 {
 		limit = 20
@@ -278,7 +278,7 @@ func ListUserAppeals(ctx context.Context, pool SignalDB, userID string, limit, o
 		return nil, 0, err
 	}
 	defer rows.Close()
-	var items []Appeal
+	items := []Appeal{}
 	total := 0
 	for rows.Next() {
 		var a Appeal

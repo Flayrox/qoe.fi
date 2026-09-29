@@ -359,7 +359,7 @@ func AddUserMessage(ctx context.Context, pool DB, ticketID, userID, body string,
 
 // scanTicketList scanne une ligne de liste (+ total window).
 func scanTicketList(rows pgx.Rows) ([]Ticket, int, error) {
-	var items []Ticket
+	items := []Ticket{}
 	total := 0
 	for rows.Next() {
 		var t Ticket
@@ -385,7 +385,7 @@ func scanTicketList(rows pgx.Rows) ([]Ticket, int, error) {
 // ListUserTickets : les dossiers de l'utilisateur (les siens uniquement).
 func ListUserTickets(ctx context.Context, pool DB, userID string, limit, offset int) ([]Ticket, int, error) {
 	if pool == nil {
-		return nil, 0, nil
+		return []Ticket{}, 0, nil
 	}
 	if limit <= 0 || limit > 100 {
 		limit = 20
@@ -409,7 +409,7 @@ func ListUserTickets(ctx context.Context, pool DB, userID string, limit, offset 
 // aligner les colonnes.
 func ListAllTickets(ctx context.Context, pool DB, status string, limit, offset int) ([]Ticket, int, error) {
 	if pool == nil {
-		return nil, 0, nil
+		return []Ticket{}, 0, nil
 	}
 	if limit <= 0 || limit > 200 {
 		limit = 50

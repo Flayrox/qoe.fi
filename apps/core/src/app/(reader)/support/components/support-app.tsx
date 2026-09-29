@@ -29,7 +29,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export function SupportApp({ initialItems }: SupportAppProps) {
-  const [items, setItems] = useState<SupportTicketDTO[]>(initialItems);
+  const [items, setItems] = useState<SupportTicketDTO[]>(initialItems ?? []);
   const [openId, setOpenId] = useState<string | null>(null);
   const [detail, setDetail] = useState<SupportTicketDTO | null>(null);
   const [loading, setLoading] = useState(false);
@@ -39,7 +39,7 @@ export function SupportApp({ initialItems }: SupportAppProps) {
 
   const refreshList = async () => {
     const res = await listMySupportTicketsAction({ limit: 20 });
-    if (res.ok) setItems(res.data.items);
+    if (res.ok) setItems(res.data?.items ?? []);
   };
 
   const openDetail = async (id: string) => {
@@ -157,14 +157,14 @@ export function SupportApp({ initialItems }: SupportAppProps) {
       </div>
 
       <div className="space-y-3">
-        {items.length === 0 ? (
+        {(items ?? []).length === 0 ? (
           <div className="border border-border/40 rounded-xl p-10 text-center text-muted-foreground space-y-2">
             <ShieldCheck className="w-7 h-7 mx-auto opacity-60" />
             <p className="text-sm font-semibold">Aucun dossier</p>
             <p className="text-xs">Vos demandes d&apos;aide apparaîtront ici, avec les réponses.</p>
           </div>
         ) : (
-          items.map((t) => {
+          (items ?? []).map((t) => {
             const expanded = openId === t.id;
             const shown = expanded && detail?.id === t.id ? detail : t;
             return (

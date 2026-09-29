@@ -31,7 +31,7 @@ export default async function RecoursPage() {
   }
 
   const res = await listMyAppealsAction({ limit: 20 });
-  const initialItems = res.ok ? res.data.items : [];
+  const initialItems = res.ok && Array.isArray(res.data?.items) ? res.data.items : [];
 
   return <AppealsApp userId={user.id} initialItems={initialItems} />;
 }

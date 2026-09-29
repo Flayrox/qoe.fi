@@ -24,7 +24,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export function AppealsApp({ userId, initialItems }: AppealsAppProps) {
-  const [items, setItems] = useState<AppealDTO[]>(initialItems);
+  const [items, setItems] = useState<AppealDTO[]>(initialItems ?? []);
   const [openId, setOpenId] = useState<string | null>(null);
   const [detail, setDetail] = useState<AppealDTO | null>(null);
   const [loading, setLoading] = useState(false);
@@ -32,7 +32,7 @@ export function AppealsApp({ userId, initialItems }: AppealsAppProps) {
 
   const refreshList = async () => {
     const res = await listMyAppealsAction({ limit: 20 });
-    if (res.ok) setItems(res.data.items);
+    if (res.ok) setItems(res.data?.items ?? []);
   };
 
   const openDetail = async (id: string) => {
@@ -122,7 +122,7 @@ export function AppealsApp({ userId, initialItems }: AppealsAppProps) {
       </div>
 
       <div className="space-y-3">
-        {items.length === 0 ? (
+        {(items ?? []).length === 0 ? (
           <div className="border border-border/40 rounded-xl p-10 text-center text-muted-foreground space-y-2">
             <ShieldCheck className="w-7 h-7 mx-auto opacity-60" />
             <p className="text-sm font-semibold">Aucun recours</p>
@@ -131,7 +131,7 @@ export function AppealsApp({ userId, initialItems }: AppealsAppProps) {
             </p>
           </div>
         ) : (
-          items.map((a) => {
+          (items ?? []).map((a) => {
             const expanded = openId === a.id;
             const shown = expanded && detail?.id === a.id ? detail : a;
             return (

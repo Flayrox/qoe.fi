@@ -277,9 +277,10 @@ export async function getAdminAbuseDecisions(): Promise<{
   total: number;
 }> {
   try {
-    return await goFetch<{ items: AbuseDecisionItem[]; total: number }>(
+    const res = await goFetch<{ items: AbuseDecisionItem[]; total: number }>(
       '/v1/admin/abuse/decisions?limit=50'
     );
+    return { items: res.items ?? [], total: res.total ?? 0 };
   } catch {
     // Table pas encore migrée / API indisponible : page résiliente.
     return { items: [], total: 0 };
@@ -314,9 +315,10 @@ export async function getAdminAbuseAppeals(): Promise<{
   total: number;
 }> {
   try {
-    return await goFetch<{ items: AbuseAppealItem[]; total: number }>(
+    const res = await goFetch<{ items: AbuseAppealItem[]; total: number }>(
       '/v1/admin/abuse/appeals?limit=50'
     );
+    return { items: res.items ?? [], total: res.total ?? 0 };
   } catch {
     return { items: [], total: 0 };
   }
@@ -343,9 +345,10 @@ export async function getAdminAbuseIncidents(): Promise<{
   total: number;
 }> {
   try {
-    return await goFetch<{ items: AbuseIncidentItem[]; total: number }>(
+    const res = await goFetch<{ items: AbuseIncidentItem[]; total: number }>(
       '/v1/admin/abuse/incidents?limit=50'
     );
+    return { items: res.items ?? [], total: res.total ?? 0 };
   } catch {
     return { items: [], total: 0 };
   }
@@ -379,9 +382,10 @@ export async function getAdminSupportTickets(): Promise<{
   total: number;
 }> {
   try {
-    return await goFetch<{ items: SupportTicketItem[]; total: number }>(
+    const res = await goFetch<{ items: SupportTicketItem[]; total: number }>(
       '/v1/admin/support/tickets?limit=50'
     );
+    return { items: res.items ?? [], total: res.total ?? 0 };
   } catch {
     return { items: [], total: 0 };
   }
