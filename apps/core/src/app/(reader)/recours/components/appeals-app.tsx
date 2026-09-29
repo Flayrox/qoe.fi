@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { toast } from '@qoe/ui/toast';
-import { Loader2, Scale, ShieldCheck, Send } from 'lucide-react';
+import { Loader2, Scale, ShieldCheck } from 'lucide-react';
 import {
   openAppealAction,
   addAppealMessageAction,
@@ -10,6 +10,7 @@ import {
   listMyAppealsAction,
   type AppealDTO,
 } from '@qoe/sdk';
+import { DossierThread } from '@/components/dossiers/DossierThread';
 
 interface AppealsAppProps {
   userId: string;
@@ -28,7 +29,6 @@ export function AppealsApp({ userId, initialItems }: AppealsAppProps) {
   const [detail, setDetail] = useState<AppealDTO | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
-  const [body, setBody] = useState('');
 
   const refreshList = async () => {
     const res = await listMyAppealsAction({ limit: 20 });
@@ -67,18 +67,17 @@ export function AppealsApp({ userId, initialItems }: AppealsAppProps) {
     }
   };
 
-  const submitMessage = async (id: string) => {
-    if (body.trim().length < 1) return;
+  const submitMessage = async (id: string, text: string): Promise<boolean> => {
     setLoading(true);
     try {
-      const res = await addAppealMessageAction({ appealId: id, body: body.trim() });
+      const res = await addAppealMessageAction({ appealId: id, body: text });
       if (res.ok) {
-        setBody('');
         const d = await getMyAppealAction(id);
         if (d.ok) setDetail(d.data.appeal);
-      } else {
-        toast.error(typeof res.error === 'string' ? res.error : 'Envoi impossible.');
+        return true;
       }
+      toast.error(typeof res.error === 'string' ? res.error : 'Envoi impossible.');
+      return false;
     } finally {
       setLoading(false);
     }
@@ -150,45 +149,15 @@ export function AppealsApp({ userId, initialItems }: AppealsAppProps) {
                   {expanded ? 'Refermer' : 'Voir le dossier'}
                 </button>
                 {expanded && (
-                  <div className="space-y-2 pt-2">
-                    {(shown.messages ?? []).map((m) => (
-                      <div
-                        key={m.id}
-                        className={`text-xs rounded-xl px-3 py-2 ${
-                          m.authorId === userId
-                            ? 'bg-muted/60'
-                            : 'bg-highlight/10 border border-highlight/30'
-                        }`}
-                      >
-                        <p className="whitespace-pre-wrap">{m.body}</p>
-                        <p className="text-[10px] text-muted-foreground mt-1">
-                          {m.authorId === userId ? 'Vous' : 'Staff'} ·{' '}
-                          {new Date(m.createdAt).toLocaleString()}
-                        </p>
-                      </div>
-                    ))}
-                    {a.status !== 'decided' ? (
-                      <div className="flex gap-2">
-                        <input
-                          value={body}
-                          onChange={(e) => setBody(e.target.value)}
-                          placeholder="Écrire au dossier…"
-                          className="flex-1 text-xs px-3 py-2 rounded-xl border border-border outline-none"
-                        />
-                        <button
-                          disabled={loading || body.trim().length < 1}
-                          onClick={() => void submitMessage(a.id)}
-                          className="text-xs font-bold px-3 py-2 rounded-xl bg-foreground text-background cursor-pointer disabled:opacity-50"
-                        >
-                          <Send className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ) : (
-                      <p className="text-[11px] text-muted-foreground">
-                        Dossier clos — déposez un nouveau recours si besoin.
-                      </p>
-                    )}
-                  </div>
+                  <DossierThread
+                    messages={shown.messages ?? []}
+                    viewerId={userId}
+                    canWrite={a.status !== 'decided'}
+                    closedHint="Dossier clos — déposez un nouveau recours si besoin."
+                    placeholder="Écrire au dossier…"
+                    sending={loading}
+                    onSend={(text) => submitMessage(a.id, text)}
+                  />
                 )}
               </div>
             );

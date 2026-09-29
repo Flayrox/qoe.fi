@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import { toast } from '@qoe/ui/toast';
-import { Loader2, LifeBuoy, ShieldCheck, Send } from 'lucide-react';
+import { Loader2, LifeBuoy, ShieldCheck } from 'lucide-react';
+import { DossierThread } from '@/components/dossiers/DossierThread';
 import {
   openSupportTicketAction,
   addSupportMessageAction,
@@ -30,7 +31,6 @@ export function SupportApp({ initialItems }: SupportAppProps) {
   const [kind, setKind] = useState<string>('other');
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
-  const [body, setBody] = useState('');
 
   const refreshList = async () => {
     const res = await listMySupportTicketsAction({ limit: 20 });
@@ -74,18 +74,17 @@ export function SupportApp({ initialItems }: SupportAppProps) {
     }
   };
 
-  const submitMessage = async (id: string) => {
-    if (body.trim().length < 1) return;
+  const submitMessage = async (id: string, text: string): Promise<boolean> => {
     setLoading(true);
     try {
-      const res = await addSupportMessageAction({ ticketId: id, body: body.trim() });
+      const res = await addSupportMessageAction({ ticketId: id, body: text });
       if (res.ok) {
-        setBody('');
         const d = await getMySupportTicketAction(id);
         if (d.ok) setDetail(d.data.ticket);
-      } else {
-        toast.error(typeof res.error === 'string' ? res.error : 'Envoi impossible.');
+        return true;
       }
+      toast.error(typeof res.error === 'string' ? res.error : 'Envoi impossible.');
+      return false;
     } finally {
       setLoading(false);
     }
@@ -173,45 +172,15 @@ export function SupportApp({ initialItems }: SupportAppProps) {
                   {expanded ? 'Refermer' : 'Voir le dossier'}
                 </button>
                 {expanded && (
-                  <div className="space-y-2 pt-2">
-                    {(shown.messages ?? []).map((m) => (
-                      <div
-                        key={m.id}
-                        className={`text-xs rounded-xl px-3 py-2 ${
-                          m.authorId === t.openedBy
-                            ? 'bg-muted/60'
-                            : 'bg-highlight/10 border border-highlight/30'
-                        }`}
-                      >
-                        <p className="whitespace-pre-wrap">{m.body}</p>
-                        <p className="text-[10px] text-muted-foreground mt-1">
-                          {m.authorId === t.openedBy ? 'Vous' : 'Staff'} ·{' '}
-                          {new Date(m.createdAt).toLocaleString()}
-                        </p>
-                      </div>
-                    ))}
-                    {t.status !== 'closed' ? (
-                      <div className="flex gap-2">
-                        <input
-                          value={body}
-                          onChange={(e) => setBody(e.target.value)}
-                          placeholder="Écrire au dossier…"
-                          className="flex-1 text-xs px-3 py-2 rounded-xl border border-border outline-none"
-                        />
-                        <button
-                          disabled={loading || body.trim().length < 1}
-                          onClick={() => void submitMessage(t.id)}
-                          className="text-xs font-bold px-3 py-2 rounded-xl bg-foreground text-background cursor-pointer disabled:opacity-50"
-                        >
-                          <Send className="w-3 h-3" />
-                        </button>
-                      </div>
-                    ) : (
-                      <p className="text-[11px] text-muted-foreground">
-                        Dossier clos — ouvrez-en un nouveau si besoin.
-                      </p>
-                    )}
-                  </div>
+                  <DossierThread
+                    messages={shown.messages ?? []}
+                    viewerId={t.openedBy}
+                    canWrite={t.status !== 'closed'}
+                    closedHint="Dossier clos — ouvrez-en un nouveau si besoin."
+                    placeholder="Écrire au dossier…"
+                    sending={loading}
+                    onSend={(text) => submitMessage(t.id, text)}
+                  />
                 )}
               </div>
             );
