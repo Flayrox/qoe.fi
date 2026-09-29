@@ -156,6 +156,29 @@ export const resolveAbuseDecisionAction = safeAction<
   return { success: true, id: res.id };
 });
 
+/** ⚖️ Détail d'un recours (dossier + messages). */
+export const getAbuseAppealAction = safeAction<{ appealId: string }, { appeal: unknown }>(
+  async ({ appealId }) => {
+    const appeal = await goFetch(`/v1/admin/abuse/appeals/${encodeURIComponent(appealId)}`);
+    return { appeal };
+  }
+);
+
+/** ⚖️ Prise en main (under_review) ou clôture (decided + outcome) d'un
+ * recours. Seule overturned lève la mesure — l'ouverture n'a jamais rien
+ * levé. Le backend Go vérifie le rôle superadmin (403 sinon). */
+export const decideAbuseAppealAction = safeAction<
+  { appealId: string; status: string; outcome?: string; staffNote?: string; reply?: string },
+  { success: boolean }
+>(async ({ appealId, status, outcome, staffNote, reply }) => {
+  await goFetch(`/v1/admin/abuse/appeals/${encodeURIComponent(appealId)}`, {
+    method: 'PATCH',
+    body: { status, outcome: outcome ?? '', staffNote: staffNote ?? '', reply: reply ?? '' },
+  });
+  revalidatePath('/admin/appeals');
+  return { success: true };
+});
+
 export const updateCreatorApiAccessAction = safeAction<
   {
     userId: string;

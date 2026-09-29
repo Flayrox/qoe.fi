@@ -62,8 +62,9 @@ func (h *Handler) Register(r chi.Router) {
 	r.Get("/v1/admin/abuse/incidents", h.abuseIncidents)
 	r.Post("/v1/admin/abuse/incidents", h.openAbuseIncident)
 	r.Patch("/v1/admin/abuse/incidents/{id}", h.updateAbuseIncident)
-	// Recours (tranche 6) : file + décisions. Seule overturned lève.
+	// Recours (tranche 6) : file + détail + décisions. Seule overturned lève.
 	r.Get("/v1/admin/abuse/appeals", h.abuseAppeals)
+	r.Get("/v1/admin/abuse/appeals/{id}", h.abuseAppealDetail)
 	r.Patch("/v1/admin/abuse/appeals/{id}", h.decideAbuseAppeal)
 
 	// Widgets & tendances
@@ -471,6 +472,24 @@ func (h *Handler) abuseAppeals(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, map[string]any{"items": items, "total": total})
+}
+
+// GET /v1/admin/abuse/appeals/{id} — un recours avec ses messages.
+func (h *Handler) abuseAppealDetail(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	a, err := h.svc.GetAbuseAppeal(r.Context(), userID, chi.URLParam(r, "id"))
+	if err != nil {
+		if errors.Is(err, abuse.ErrAppealNotFound) {
+			response.NotFound(w, "Recours introuvable.")
+			return
+		}
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, a)
 }
 
 // PATCH /v1/admin/abuse/appeals/{id} — tranche un recours.

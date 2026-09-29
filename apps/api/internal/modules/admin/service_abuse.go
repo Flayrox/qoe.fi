@@ -101,6 +101,14 @@ func (s *Service) ListAbuseAppeals(ctx context.Context, userID, status string, l
 	return abuse.ListAllAppeals(ctx, s.pool, status, limit, offset)
 }
 
+// GetAbuseAppeal relit un recours avec ses messages (console staff).
+func (s *Service) GetAbuseAppeal(ctx context.Context, userID, id string) (abuse.Appeal, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return abuse.Appeal{}, err
+	}
+	return abuse.GetAppeal(ctx, s.pool, id)
+}
+
 // DecideAbuseAppeal tranche un recours : prise en main (under_review) ou
 // clôture (decided + outcome). Seule overturned lève la mesure — l'ouverture
 // n'a jamais rien levé (verrouillé par test).
