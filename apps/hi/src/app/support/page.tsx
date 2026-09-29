@@ -1,18 +1,18 @@
 // =====================================================================
-// 🎫 /support — formulaire public (vitrine, sans compte requis)
+// 🎫 /support — centre d'aide (vitrine, sans compte requis)
 // =====================================================================
-// Le cas « compte perdu » : quelqu'un qui ne peut plus se connecter doit
-// quand même pouvoir demander de l'aide. Connecté sur hi → dossier au
-// compte ; sinon dossier invité lié à l'e-mail (référence à conserver).
-// Anti-spam : rate-limit + budget 3/j/adresse côté API (429/409 explicites).
+// Points déjà traités (recherche + FAQ bilingue), liens vers les dossiers
+// connectés, puis formulaire public (invité ou au compte si connecté sur
+// hi). Le cas « compte perdu » : sans compte, on peut quand même demander.
 // =====================================================================
 
-import { SupportForm } from './components/support-form';
+import { URLS } from '@qoe/config';
+import { HelpCenter } from './components/help-center';
 
 export const metadata = {
-  title: 'Support / Nous contacter | qoefi',
+  title: "Centre d'aide / Help center | qoefi",
   description:
-    'Un problème de compte, de contenu ou de livraison ? Ouvrez un dossier — avec ou sans compte.',
+    'Réponses immédiates (compte, confirmation, désabonnement…) puis formulaire de contact — avec ou sans compte.',
 };
 
 export default function SupportPage() {
@@ -21,15 +21,14 @@ export default function SupportPage() {
       <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
         Aide / Help
       </p>
-      <h1 className="text-3xl font-bold tracking-tight">Support — Nous contacter</h1>
+      <h1 className="text-3xl font-bold tracking-tight">Centre d&apos;aide</h1>
       <p className="text-sm text-muted-foreground mt-3 leading-relaxed">
-        Un problème de compte (y compris perdu), de contenu, d&apos;API, d&apos;import ou de
-        livraison ? Décrivez-le ici — <strong>sans créer de compte</strong>. Si vous êtes connecté,
-        le dossier est ouvert directement sur votre compte. Sinon, il est lié à votre e-mail :
-        conservez la référence affichée après l&apos;envoi.
+        La plupart des demandes ont une réponse immédiate ci-dessous. Sinon, ouvrez un dossier en
+        bas de page — <strong>sans créer de compte</strong>
+        si besoin. Most requests are answered below; otherwise open a case.
       </p>
       <div className="mt-8">
-        <SupportForm />
+        <HelpCenter appUrl={URLS.APP} />
       </div>
     </main>
   );
