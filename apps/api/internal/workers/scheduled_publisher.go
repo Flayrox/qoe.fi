@@ -41,6 +41,29 @@ func PublishScheduledArticlePayload(a ScheduledArticle) queue.ArticlePublishedPa
 	}
 }
 
+// releaseExpiredShadowbans lève les shadowbans dont l'échéance est passée
+// (fiche 06 §6 : aucune mesure punitive invisible sans fin). Idempotent et
+// borné : ne touche que les lignes échues, efface motif et échéances pour ne
+// laisser aucun résidu punitif. Appelé à chaque cycle du publisher planifié
+// (toutes les minutes) : la levée intervient au pire une minute après
+// l'échéance, sans worker dédié ni cron supplémentaire.
+func releaseExpiredShadowbans(ctx context.Context, pool *pgxpool.Pool) (int64, error) {
+	tag, err := pool.Exec(ctx, `
+		UPDATE "User"
+		SET "isShadowbanned" = false,
+		    "shadowbanReason" = NULL,
+		    "shadowbanUntil" = NULL,
+		    "shadowbanReviewAt" = NULL,
+		    "updatedAt" = now()
+		WHERE "isShadowbanned" = true
+		  AND "shadowbanUntil" IS NOT NULL
+		  AND "shadowbanUntil" <= now()`)
+	if err != nil {
+		return 0, fmt.Errorf("levée shadowbans: %w", err)
+	}
+	return tag.RowsAffected(), nil
+}
+
 // runScheduledPublisherOnce exécute un cycle complet : sélectionne les articles
 // SCHEDULED dont scheduledAt est passé, les bascule à PUBLISHED, puis enqueue
 // le fanout asynq (article.published → webhooks + newsletter, embedding
@@ -120,6 +143,11 @@ func RunScheduledPublisher(ctx context.Context, pool *pgxpool.Pool, ac *asynq.Cl
 	run := func() {
 		ctxTimeout, cancel := context.WithTimeout(ctx, 2*time.Minute)
 		defer cancel()
+		if released, err := releaseExpiredShadowbans(ctxTimeout, pool); err != nil {
+			log.Printf("scheduled publisher: levée shadowbans: %v", err)
+		} else if released > 0 {
+			log.Printf("scheduled publisher: %d shadowban(s) expiré(s) levé(s)", released)
+		}
 		n, err := runScheduledPublisherOnce(ctxTimeout, pool, ac)
 		if err != nil {
 			log.Printf("scheduled publisher: %v", err)

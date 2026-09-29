@@ -5,6 +5,7 @@ package admin
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/hibiken/asynq"
@@ -101,6 +102,37 @@ type ModerationInput struct {
 	IsSuspended          *bool   `json:"isSuspended"`
 	SuspendReason        *string `json:"suspendReason"`
 	PublicationCertified *bool   `json:"publicationCertified"`
+	// Mise en shadowban (fiche 06 §6) : mesure punitive invisible par nature,
+	// donc motif ET échéance obligatoires — un shadowban sans fin ni motif
+	// est refusé. La levée est automatique à l'échéance (job planifié).
+	ShadowbanReason   *string `json:"shadowbanReason"`
+	ShadowbanUntil    *string `json:"shadowbanUntil"`
+	ShadowbanReviewAt *string `json:"shadowbanReviewAt"`
+}
+
+// strOrNil déréférence prudemment un champ optionnel de ModerationInput.
+func strOrNil(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
+// parseShadowbanTime lit une échéance RFC3339 (ou date simple AAAA-MM-JJ).
+// Chaîne vide → temps zéro sans erreur (champ facultatif) ; format invalide
+// → erreur (on ne devine jamais une fin de sanction).
+func parseShadowbanTime(raw *string) (time.Time, error) {
+	v := strings.TrimSpace(strOrNil(raw))
+	if v == "" {
+		return time.Time{}, nil
+	}
+	if t, err := time.Parse(time.RFC3339, v); err == nil {
+		return t, nil
+	}
+	if t, err := time.Parse("2006-01-02", v); err == nil {
+		return t, nil
+	}
+	return time.Time{}, errors.New("échéance illisible (RFC3339 ou AAAA-MM-JJ attendu)")
 }
 
 func (s *Service) checkSuperadmin(ctx context.Context, userID string) error {
@@ -229,6 +261,31 @@ func (s *Service) UpdateModeration(ctx context.Context, userID, targetID string,
 	if in.IsShadowbanned != nil {
 		isShadowbanned = *in.IsShadowbanned
 	}
+	// Shadowban motivé et borné (fiche 06 §6) : activer l'invisibilité sans
+	// motif ni fin est refusé — c'est exactement l'opacité punitive interdite.
+	// Couper l'invisibilité efface motif et échéances (pas de résidu punitif).
+	shadowbanReason := cur.ShadowbanReason
+	shadowbanUntil := cur.ShadowbanUntil
+	shadowbanReviewAt := cur.ShadowbanReviewAt
+	if in.IsShadowbanned != nil && *in.IsShadowbanned && !cur.IsShadowbanned {
+		if strings.TrimSpace(strOrNil(in.ShadowbanReason)) == "" {
+			return nil, errors.New("un shadowban exige un motif (mesure punitive invisible)")
+		}
+		until, err := parseShadowbanTime(in.ShadowbanUntil)
+		if err != nil || until.IsZero() || !until.After(time.Now()) {
+			return nil, errors.New("un shadowban exige une échéance future (levée automatique)")
+		}
+		shadowbanReason = pgtype.Text{String: strings.TrimSpace(strOrNil(in.ShadowbanReason)), Valid: true}
+		shadowbanUntil = pgtype.Timestamp{Time: until, Valid: true}
+		if reviewAt, err := parseShadowbanTime(in.ShadowbanReviewAt); err == nil && !reviewAt.IsZero() {
+			shadowbanReviewAt = pgtype.Timestamp{Time: reviewAt, Valid: true}
+		}
+	}
+	if in.IsShadowbanned != nil && !*in.IsShadowbanned {
+		shadowbanReason = pgtype.Text{}
+		shadowbanUntil = pgtype.Timestamp{}
+		shadowbanReviewAt = pgtype.Timestamp{}
+	}
 	isSuspended := cur.IsSuspended
 	if in.IsSuspended != nil {
 		isSuspended = *in.IsSuspended
@@ -243,11 +300,14 @@ func (s *Service) UpdateModeration(ctx context.Context, userID, targetID string,
 	}
 
 	res, err := s.q.UpdateAdminUserModeration(ctx, db.UpdateAdminUserModerationParams{
-		ID:             targetID,
-		IsCertified:    isCertified,
-		IsShadowbanned: isShadowbanned,
-		IsSuspended:    isSuspended,
-		SuspendReason:  suspendReason,
+		ID:                targetID,
+		IsCertified:       isCertified,
+		IsShadowbanned:    isShadowbanned,
+		IsSuspended:       isSuspended,
+		SuspendReason:     suspendReason,
+		ShadowbanReason:   shadowbanReason,
+		ShadowbanUntil:    shadowbanUntil,
+		ShadowbanReviewAt: shadowbanReviewAt,
 	})
 	if err != nil {
 		return nil, err
@@ -266,6 +326,7 @@ func (s *Service) UpdateModeration(ctx context.Context, userID, targetID string,
 	s.logAudit(ctx, userID, "moderation.update", "user", targetID, map[string]any{
 		"isCertified": isCertified, "isShadowbanned": isShadowbanned,
 		"isSuspended": isSuspended, "suspendReason": suspendReason.String,
+		"shadowbanReason": shadowbanReason.String, "shadowbanUntil": shadowbanUntil.Time,
 	})
 
 	return &AdminUser{

@@ -13,6 +13,7 @@ import (
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/qoefi/api/internal/abuse"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/queue"
 )
@@ -36,6 +37,8 @@ type Service struct {
 	// nil en test. On ne fabrique rien ici : `confirmedAt` a déjà été franchi
 	// par le chemin normal juste au-dessus.
 	onReconfirmConfirmed func(ctx context.Context, publicationID, email string) error
+	// budgetPool (optionnel) : plafonne les e-mails de confirmation.
+	budgetPool abuse.BudgetDB
 }
 
 // SetReconfirmConfirmedHook branche le constat de confirmation (module
@@ -54,6 +57,12 @@ type emailVerifier interface {
 
 // SetEmailVerifier branche la vérification d'adresse du compte (module users).
 func (s *Service) SetEmailVerifier(v emailVerifier) { s.emailVerifier = v }
+
+// budgetPool sert les budgets anti-abus (fiche 06 P0 : confirmations
+// plafonnées). Branché par le serveur ; nil = dégradation ouverte (tests,
+// environnements sans base directe). abuse n'importe aucun module métier :
+// pas de cycle d'import.
+func (s *Service) SetBudgetPool(p abuse.BudgetDB) { s.budgetPool = p }
 
 func NewService(q newsletterQuerier, ac *asynq.Client) *Service {
 	return &Service{q: q, ac: ac}
@@ -380,6 +389,13 @@ func (s *Service) subscribePending(ctx context.Context, email, publicationID str
 		Token:         token,
 	}); err != nil {
 		return err
+	}
+	// Budget anti-abus (fiche 06 P0) : comme les deux autres voies, la demande
+	// reste enregistrée en attente mais aucun e-mail ne part au-delà du
+	// plafond — sans le dire (réponse neutre).
+	if !abuse.ConfirmAllowed(ctx, s.budgetPool, email, publicationID, time.Now()) {
+		log.Printf("[newsletters] confirmation non envoyée (budget épuisé) %s", email)
+		return nil
 	}
 	if err := queue.PublishSubscriberConfirm(s.ac, queue.SubscriberConfirmPayload{
 		Email:         email,

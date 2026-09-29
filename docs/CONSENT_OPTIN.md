@@ -49,6 +49,20 @@
 # (l'adresse doit avoir cliqué le lien), plus d'inscription possible d'un
 # tiers à son insu. Le unsubscribe RFC 8058 reste le droit de retrait.
 
+# BUDGETS ANTI-HARCÈLEMENT (fiche 06 P0, migration 00038, package abuse) :
+#   - Les e-mails de confirmation sont plafonnés en base, pas seulement par
+#     le rate-limit Redis (volatil : un redémarrage ou une autre route le
+#     contournait) : 3/jour par (adresse, publication), 2000/jour par
+#     publication. Consommation atomique (UPDATE conditionnel) : même en
+#     course, deux voies concurrentes ne dépassent jamais.
+#   - Les trois voies d'inscription y sont soumises : publique
+#     (/v1/home/subscribe), clé API créateur, parcours connecté. Au-delà du
+#     plafond, la demande reste enregistrée en attente mais aucun e-mail ne
+#     part — réponse neutre, sans révéler la limite (pas de fuite permettant
+#     de calibrer une attaque).
+#   - Plafond atteint ≠ erreur : les tests l'exigent
+#     (TestConsumeBudget_GrantsUpToCap, TestConsumeBudget_ConcurrentNeverExceeds).
+
 # =====================================================================
 # 🌍 Emails d'abonnés localisés et personnalisables (migration 00022)
 # =====================================================================

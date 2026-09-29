@@ -302,6 +302,9 @@ func newRouter(d RouterDeps) *chi.Mux {
 	// Un clic qui solde une demande de reconfirmation est imputé à la vague
 	// (compteurs). Best-effort : n'invalide jamais la confirmation.
 	newslettersSvc.SetReconfirmConfirmedHook(importsSvc.MarkReconfirmConfirmed)
+	// Budgets anti-abus (fiche 06 P0) : plafonne les e-mails de confirmation
+	// sur la troisième voie d'inscription (connectée). Nil en test.
+	newslettersSvc.SetBudgetPool(pool)
 	newslettersHandler := newsletters.NewHandler(newslettersSvc)
 	// Anti-spam « brouillon/publier » : 10 déclenchements d'envoi par heure max
 	// (le worker rate-limit ensuite le rythme des emails eux-mêmes).

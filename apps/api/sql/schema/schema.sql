@@ -65,6 +65,9 @@ CREATE TABLE "User" (
     "role" TEXT NOT NULL DEFAULT 'user',
     "isCertified" BOOLEAN NOT NULL DEFAULT false,
     "isShadowbanned" BOOLEAN NOT NULL DEFAULT false,
+    "shadowbanReason" TEXT,
+    "shadowbanUntil" TIMESTAMP(3),
+    "shadowbanReviewAt" TIMESTAMP(3),
     "isSuspended" BOOLEAN NOT NULL DEFAULT false,
     "suspendReason" TEXT,
     "forceStandardTheme" BOOLEAN NOT NULL DEFAULT false,
@@ -127,6 +130,23 @@ CREATE TABLE "MutedWord" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "MutedWord_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CapabilityBudget" (
+    "id" TEXT NOT NULL,
+    "scopeType" TEXT NOT NULL,
+    "scopeId" TEXT NOT NULL,
+    "action" TEXT NOT NULL,
+    "window" TIMESTAMP(3) NOT NULL,
+    "cap" INTEGER NOT NULL,
+    "consumed" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "CapabilityBudget_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "CapabilityBudget_cap_check" CHECK ("cap" > 0),
+    CONSTRAINT "CapabilityBudget_consumed_check" CHECK ("consumed" >= 0)
 );
 
 -- CreateTable
