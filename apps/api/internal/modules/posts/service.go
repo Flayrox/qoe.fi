@@ -286,6 +286,19 @@ func (s *Service) ToggleLike(ctx context.Context, postID, userID string) (bool, 
 		return false, err
 	}
 
+	// Observation anti-abus (tranche 5 : engagement inauthentique, politique
+	// v2) : seuls les AJOUTS comptent (retirer n'amplifie rien). Deux
+	// compteurs indépendants, best-effort : essaim sur la pensée (50/10min)
+	// et volume du liker (100/h) → revue priorisée, jamais de sanction.
+	now := time.Now()
+	likeSubject := "post:" + postID
+	abuse.RecordSignal(ctx, s.pool, abuse.SignalLikeCast, abuse.SubjectLikeTarget, likeSubject,
+		"api:posts.like", abuse.ConfidenceObserved, abuse.LikeSignalRetention, now)
+	abuse.EvaluateSubject(ctx, s.pool, abuse.SignalLikeCast, abuse.SubjectLikeTarget, likeSubject, now)
+	abuse.RecordSignal(ctx, s.pool, abuse.SignalLikeVolume, abuse.SubjectUser, userID,
+		"api:posts.like", abuse.ConfidenceObserved, abuse.LikeSignalRetention, now)
+	abuse.EvaluateSubject(ctx, s.pool, abuse.SignalLikeVolume, abuse.SubjectUser, userID, now)
+
 	// 🧠 EMA vectorielle : aimer une pensée rapproche le profil de son thème
 	// (fire-and-forget — ne bloque jamais le like).
 	s.applyPostVector(ctx, postID, userID, vectorfeed.InteractionLike)

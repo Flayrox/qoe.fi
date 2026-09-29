@@ -209,6 +209,64 @@ func TestPolicyV1_ReportVolumeBelowThresholdIsAllow(t *testing.T) {
 	}
 }
 
+// Politique v2 : les règles v1 sont reprises à l'identique (rejouabilité
+// historique) + l'engagement inauthentique. 49 likes = succès, 50 = revue.
+func TestPolicyV2_InheritsV1(t *testing.T) {
+	if len(PolicyV2.Rules) != len(PolicyV1.Rules)+2 {
+		t.Fatalf("v2 = v1 + 2 règles likes, obtenu %d règles", len(PolicyV2.Rules))
+	}
+	for i, r := range PolicyV1.Rules {
+		if PolicyV2.Rules[i] != r {
+			t.Fatalf("règle v1 %d modifiée en v2 (les politiques ne s'éditent pas)", i)
+		}
+	}
+	if PolicyV2.Version == PolicyV1.Version {
+		t.Fatal("nouvelle politique = nouvelle version")
+	}
+}
+
+func TestPolicyV2_LikeSwarmNeedsReview(t *testing.T) {
+	now := time.Now()
+	var facts []Fact
+	for i := 0; i < 50; i++ {
+		facts = append(facts, Fact{
+			Type:        SignalLikeCast,
+			SubjectType: SubjectLikeTarget,
+			SubjectID:   "post:viral",
+			ObservedAt:  now.Add(-time.Duration(i) * 10 * time.Second),
+		})
+	}
+	out := PolicyV2.Evaluate(SubjectLikeTarget, "post:viral", facts, now)
+	if out.Decision != DecisionNeedsReview {
+		t.Fatalf("essaim de likes : attendu needs_review, obtenu %s", out.Decision)
+	}
+	// 49 = en dessous du seuil : succès, pas revue.
+	out = PolicyV2.Evaluate(SubjectLikeTarget, "post:viral", facts[:49], now)
+	if out.Decision != DecisionAllow {
+		t.Fatalf("49 likes : attendu allow, obtenu %s", out.Decision)
+	}
+}
+
+func TestPolicyV2_LikeVolumeNeedsReview(t *testing.T) {
+	now := time.Now()
+	var facts []Fact
+	for i := 0; i < 100; i++ {
+		facts = append(facts, Fact{
+			Type:        SignalLikeVolume,
+			SubjectType: SubjectUser,
+			SubjectID:   "liker-farm",
+			ObservedAt:  now.Add(-time.Duration(i) * 30 * time.Second),
+		})
+	}
+	out := PolicyV2.Evaluate(SubjectUser, "liker-farm", facts, now)
+	if out.Decision != DecisionNeedsReview {
+		t.Fatalf("volume de likes : attendu needs_review, obtenu %s", out.Decision)
+	}
+	if len(out.Reasons) != 1 || out.Reasons[0] != "swarm.like.liker" {
+		t.Fatalf("raison attendue [swarm.like.liker], obtenu %v", out.Reasons)
+	}
+}
+
 func TestSeverity_UnknownNeverWins(t *testing.T) {
 	if Severity(Decision("nuke")) >= Severity(DecisionAllow) {
 		t.Fatal("une décision inconnue ne doit jamais gagner contre allow")

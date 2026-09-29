@@ -210,6 +210,69 @@ func ValidHumanResult(d Decision) bool {
 	}
 }
 
+// PolicyV2 ajoute la détection d'engagement inauthentique (tranche 5 :
+// contrôles contre les likes coordonnés) aux règles v1, inchangées (les
+// verdicts historiques restent rejouables en v1 — c'est le sens du
+// versionnement : on n'édite jamais une politique, on en publie une).
+//
+// Seuils likes (conservateurs — un like est un acte faible et courant) :
+//   - like-swarm : 50 likes en 10 min sur LA MÊME pensée. Une viralité
+//     légitime peut l'atteindre (d'où needs_review et jamais de sanction),
+//     mais à l'échelle d'une petite structure c'est le gabarit d'une ferme
+//     d'engagement ; en dessous, c'est le succès.
+//   - like-volume : 100 likes en 1 h par le MÊME liker (toutes cibles).
+//     Scroller vite est humain, liker 100 contenus/heure ne l'est
+//     raisonnablement pas — et si c'est un gros lecteur, la revue le
+//     classe (faux positif mesuré, pas puni).
+var PolicyV2 = Policy{
+	Name:    "abuse-core",
+	Version: "v2",
+	Rules: []BurstRule{
+		PolicyV1.Rules[0],
+		PolicyV1.Rules[1],
+		PolicyV1.Rules[2],
+		{
+			Name:         "like-swarm",
+			SignalType:   SignalLikeCast,
+			SubjectScope: SubjectLikeTarget,
+			Window:       10 * time.Minute,
+			Threshold:    50,
+			Result:       DecisionNeedsReview,
+			Reason:       "swarm.like.target",
+		},
+		{
+			Name:         "like-volume",
+			SignalType:   SignalLikeVolume,
+			SubjectScope: SubjectUser,
+			Window:       time.Hour,
+			Threshold:    100,
+			Result:       DecisionNeedsReview,
+			Reason:       "swarm.like.liker",
+		},
+	},
+}
+
+// CurrentPolicy est la politique appliquée par le noyau (persistance +
+// évaluation). V1 reste testée et rejouable pour l'audit historique.
+var CurrentPolicy = PolicyV2
+
+const (
+	// SignalLikeCast : un like a été AJOUTÉ sur une pensée (les retraits ne
+	// comptent pas — retirer n'amplifie rien). Fait constaté.
+	SignalLikeCast = "like.cast"
+	// SignalLikeVolume : le MÊME utilisateur a liké (sujet = le liker).
+	// Détecte les fermes d'engagement côté acteur.
+	SignalLikeVolume = "like.volume"
+
+	// SubjectLikeTarget : l'essaim vise une pensée likée. Le sujet réel
+	// (post:<id>) est dans SubjectID.
+	SubjectLikeTarget = "like_target"
+)
+
+// LikeSignalRetention : 24 h — une ferme d'engagement frappe vite ; au
+// delà, les faits bruts n'apprennent plus rien (même régime que signup).
+const LikeSignalRetention = 24 * time.Hour
+
 // Types de signaux et portées de sujet (codes stables, persistés en base).
 const (
 	// SignalSignupAttempt : une inscription (quelque voie que ce soit) a été
