@@ -116,3 +116,74 @@ func TestRequiresSuppressionCheck(t *testing.T) {
 		}
 	}
 }
+
+func TestResolveLocale_OrderAndProvenance(t *testing.T) {
+	supported := []string{"fr", "en"}
+	// Le choix explicite gagne, même si tout le reste est renseigné.
+	got := ResolveLocale(supported, "fr",
+		LocaleSource{Kind: LocalePlatform, Value: "fr"},
+		LocaleSource{Kind: LocaleSubscription, Value: "en"},
+		LocaleSource{Kind: LocaleExplicit, Value: "en"},
+	)
+	if got.Locale != "en" || got.From != LocaleExplicit {
+		t.Fatalf("explicite = %+v", got)
+	}
+	// Sans choix explicite : l'abonnement gagne sur le défaut plateforme.
+	got = ResolveLocale(supported, "fr",
+		LocaleSource{Kind: LocalePlatform, Value: "fr"},
+		LocaleSource{Kind: LocaleSubscription, Value: "en"},
+	)
+	if got.Locale != "en" || got.From != LocaleSubscription {
+		t.Fatalf("abonnement = %+v", got)
+	}
+}
+
+func TestResolveLocale_UnsupportedFallsThrough(t *testing.T) {
+	// Une locale non supportée ne bloque jamais : on descend la chaîne.
+	got := ResolveLocale([]string{"fr", "en"}, "fr",
+		LocaleSource{Kind: LocaleExplicit, Value: "es"},
+		LocaleSource{Kind: LocaleSubscription, Value: "en"},
+	)
+	if got.Locale != "en" || got.From != LocaleSubscription {
+		t.Fatalf("repli = %+v", got)
+	}
+	// Rien d'exploitable : défaut plateforme, provenance annoncée.
+	got = ResolveLocale([]string{"fr"}, "fr",
+		LocaleSource{Kind: LocaleSession, Value: "!!"},
+	)
+	if got.Locale != "fr" || got.From != LocalePlatform {
+		t.Fatalf("défaut = %+v", got)
+	}
+}
+
+func TestResolveLocale_NormalizesTags(t *testing.T) {
+	for in, want := range map[string]string{
+		"fr-FR": "fr", "en_US": "en", "EN": "en", " fr ": "fr",
+	} {
+		got := ResolveLocale([]string{"fr", "en"}, "fr",
+			LocaleSource{Kind: LocaleSubscription, Value: in})
+		if got.Locale != want {
+			t.Fatalf("tag %q = %q, attendu %q", in, got.Locale, want)
+		}
+	}
+	// Accept-Language brut avec qualité : on prend la base du premier segment.
+	got := ResolveLocale([]string{"fr", "en"}, "fr",
+		LocaleSource{Kind: LocaleSession, Value: "en-US,en;q=0.9,fr;q=0.8"})
+	if got.Locale != "en" || got.From != LocaleSession {
+		t.Fatalf("accept-language = %+v", got)
+	}
+}
+
+func TestResolveLocale_NeverEmpty(t *testing.T) {
+	// Même avec des entrées vides ou absurdes, on rend toujours une locale.
+	for _, sources := range [][]LocaleSource{
+		{},
+		{{Kind: LocaleExplicit, Value: ""}},
+		{{Kind: LocaleSession, Value: "123"}},
+	} {
+		got := ResolveLocale(nil, "", sources...)
+		if got.Locale == "" {
+			t.Fatalf("locale vide pour %+v", sources)
+		}
+	}
+}
