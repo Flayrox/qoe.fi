@@ -4,6 +4,11 @@ import React, { useState } from 'react';
 import { toast } from '@qoe/ui/toast';
 import { Loader2, LifeBuoy, ShieldCheck } from 'lucide-react';
 import { DossierThread } from '@/components/dossiers/DossierThread';
+import { URLS } from '@qoe/config';
+
+// Centre d'aide public (vitrine) : réponses immédiates avant d'ouvrir un
+// dossier. URLS.LANDING = hi.qoe.fi (env-aware : dev/staging/prod).
+const helpCenterUrl = `${URLS.LANDING}/support`;
 import {
   openSupportTicketAction,
   addSupportMessageAction,
@@ -99,8 +104,13 @@ export function SupportApp({ initialItems }: SupportAppProps) {
         </div>
         <h1 className="text-2xl font-bold tracking-tight">Support</h1>
         <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-          Un problème de compte, de contenu, d&apos;API, d&apos;import ou de livraison ? Ouvrez un
-          dossier — un par motif, le reste s&apos;écrit dedans. Pour contester une mesure anti-abus,{' '}
+          Un problème de compte, de contenu, d&apos;API, d&apos;import ou de livraison ?
+          D&apos;abord, le{' '}
+          <a href={helpCenterUrl} className="underline underline-offset-2 font-semibold">
+            centre d&apos;aide
+          </a>{' '}
+          (réponses immédiates) — sinon ouvrez un dossier, un par motif, le reste s&apos;écrit
+          dedans. Pour contester une mesure anti-abus,{' '}
           <a href="/recours" className="underline underline-offset-2 font-semibold">
             voyez vos recours
           </a>
