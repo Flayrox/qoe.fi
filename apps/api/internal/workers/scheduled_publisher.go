@@ -10,6 +10,7 @@ import (
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/qoefi/api/internal/abuse"
 	"github.com/qoefi/api/internal/anchors"
 	"github.com/qoefi/api/internal/queue"
 )
@@ -147,6 +148,14 @@ func RunScheduledPublisher(ctx context.Context, pool *pgxpool.Pool, ac *asynq.Cl
 			log.Printf("scheduled publisher: levée shadowbans: %v", err)
 		} else if released > 0 {
 			log.Printf("scheduled publisher: %d shadowban(s) expiré(s) levé(s)", released)
+		}
+		// Ménage anti-abus (fiche 06 §9) : signaux expirés + fenêtres de
+		// budget mortes. Idempotent, rejoué au tick suivant en cas d'échec —
+		// ne bloque jamais les publications programmées (erreurs loggées).
+		if sig, bud, err := abuse.PurgeExpiredAbuseData(ctxTimeout, pool, time.Now()); err != nil {
+			log.Printf("scheduled publisher: purge anti-abus: %v", err)
+		} else if sig+bud > 0 {
+			log.Printf("scheduled publisher: purge anti-abus (%d signal/signaux, %d budget(s))", sig, bud)
 		}
 		n, err := runScheduledPublisherOnce(ctxTimeout, pool, ac)
 		if err != nil {

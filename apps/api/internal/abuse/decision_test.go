@@ -170,6 +170,45 @@ func TestMatch_FutureTolerance(t *testing.T) {
 	}
 }
 
+// Volume du reporter (fiche 06 §10) : 10 signalements/h par le MÊME
+// reporter (toutes cibles) → revue DU REPORTER. 9 signalements ou 10
+// signalements de 10 reporters différents → allow.
+func TestPolicyV1_ReportVolumeNeedsReview(t *testing.T) {
+	now := time.Now()
+	var facts []Fact
+	for i := 0; i < 10; i++ {
+		facts = append(facts, Fact{
+			Type:        SignalReportVolume,
+			SubjectType: SubjectUser,
+			SubjectID:   "reporter-raid",
+			ObservedAt:  now.Add(-time.Duration(i) * 5 * time.Minute),
+		})
+	}
+	out := PolicyV1.Evaluate(SubjectUser, "reporter-raid", facts, now)
+	if out.Decision != DecisionNeedsReview {
+		t.Fatalf("raid de signalement : attendu needs_review, obtenu %s", out.Decision)
+	}
+	if len(out.Reasons) != 1 || out.Reasons[0] != "swarm.report.reporter" {
+		t.Fatalf("raison attendue [swarm.report.reporter], obtenu %v", out.Reasons)
+	}
+}
+
+func TestPolicyV1_ReportVolumeBelowThresholdIsAllow(t *testing.T) {
+	now := time.Now()
+	var facts []Fact
+	for i := 0; i < 9; i++ {
+		facts = append(facts, Fact{
+			Type:        SignalReportVolume,
+			SubjectType: SubjectUser,
+			SubjectID:   "reporter-actif",
+			ObservedAt:  now.Add(-time.Duration(i) * 5 * time.Minute),
+		})
+	}
+	if out := PolicyV1.Evaluate(SubjectUser, "reporter-actif", facts, now); out.Decision != DecisionAllow {
+		t.Fatalf("9 signalements : attendu allow, obtenu %s", out.Decision)
+	}
+}
+
 func TestSeverity_UnknownNeverWins(t *testing.T) {
 	if Severity(Decision("nuke")) >= Severity(DecisionAllow) {
 		t.Fatal("une décision inconnue ne doit jamais gagner contre allow")

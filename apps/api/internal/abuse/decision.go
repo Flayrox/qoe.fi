@@ -157,6 +157,10 @@ func (p Policy) Evaluate(subjectType, subjectID string, facts []Fact, now time.T
 //     le gabarit d'un raid coordonné (scénario fiche 06 §11 : « 100
 //     signalements synchronisés ») ; en dessous, c'est le fonctionnement
 //     normal de la modération communautaire.
+//   - report-volume : 10 signalements en 1 heure par LE MÊME reporter (toutes
+//     cibles), c'est le gabarit d'un raid de signalement (fiche 06 §10) —
+//     l'arme est le volume du plaignant, pas la culpabilité des cibles. Le
+//     dossier s'ouvre sur le reporter, jamais sur ses cibles.
 var PolicyV1 = Policy{
 	Name:    "abuse-core",
 	Version: "v1",
@@ -178,6 +182,15 @@ var PolicyV1 = Policy{
 			Threshold:    10,
 			Result:       DecisionNeedsReview,
 			Reason:       "swarm.report.target",
+		},
+		{
+			Name:         "report-volume",
+			SignalType:   SignalReportVolume,
+			SubjectScope: SubjectUser,
+			Window:       time.Hour,
+			Threshold:    10,
+			Result:       DecisionNeedsReview,
+			Reason:       "swarm.report.reporter",
 		},
 	},
 }
@@ -205,11 +218,19 @@ const (
 	// SignalReportFiled : un utilisateur a signalé une cible. Alerte, pas
 	// preuve : confiance basse par construction (fiche 06 §8).
 	SignalReportFiled = "report.filed"
+	// SignalReportVolume : le MÊME utilisateur a signalé (sujet = le
+	// reporter, pas la cible). Détecte les raids de signalement (fiche 06
+	// §10) : arroser N cibles en 1 h n'est pas un usage normal — un lecteur
+	// ordinaire signale rarement plus de 2-3 contenus par heure. Fait
+	// constaté par nos soins (compte exact de nos propres lignes).
+	SignalReportVolume = "report.volume"
 
 	// SubjectPublication : la rafale vise une publication (son audience).
 	SubjectPublication = "publication"
-	// SubjectReportTarget : l'essaim vise une cible signalée. Le sujet
-	// réel (article:xxx, user:yyy...) est dans SubjectID.
+	// SubjectReportTarget : l'essaim vise une cible signalée. Le sujet réel
+	// est dans SubjectID sous la forme reçue du signalement (<type>:<id>,
+	// ex article:xxx). Convention générale : partout ailleurs, SubjectID
+	// est l'identifiant BRUT et SubjectType dit de quoi il s'agit.
 	SubjectReportTarget = "report_target"
 )
 

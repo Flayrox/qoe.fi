@@ -30,6 +30,19 @@
 #     normalisation UTC (TIMESTAMP sans fuseau), tolérance arrondi ms (1 s),
 #     départage même milliseconde (l'humain prime).
 #
+# RAIDS DE SIGNALEMENT (règle report-volume, branchée dans posts.Report) :
+#   - 10 signalements/h par le MÊME reporter (toutes cibles) → needs_review
+#     sur le reporter (raison swarm.report.reporter). Le dossier s'ouvre sur
+#     lui seul : ses cibles (1 alerte chacune) n'ont aucun dossier.
+#   - L'essaim contre la cible (report-swarm) et le volume du reporter sont
+#     deux compteurs indépendants, évalués au même moment, best-effort.
+#
+# RÉTENTION (abuse.PurgeExpiredAbuseData, tick du worker planifié) :
+#   - Signaux expirés (expiresAt dépassé) + fenêtres de budget > 7 j :
+#     supprimés. Idempotent, rejoué au tick suivant en cas d'échec.
+#   - Les verdicts (RiskDecision) ne sont JAMAIS purgés : actes traçables,
+#     leur sort relève de l'archivage juridique, pas du ménage.
+#
 # REVUE STAFF (GET|PATCH /v1/admin/abuse/decisions, superadmin) :
 #   - Liste = dernier verdict non `allow` et non expiré par sujet, avec
 #     nombre de faits récents en contexte (pas preuve).

@@ -799,15 +799,26 @@ func (s *Service) Report(ctx context.Context, userID, targetID, targetType, reas
 	if err != nil {
 		return err
 	}
-	// Observation anti-abus (fiche 06 §8-§9, mode observation fiche §11) :
+	// Observation anti-abus (fiche 06 §8-§10, mode observation fiche §11) :
 	// chaque signalement est un fait de confiance basse (une alerte n'est
-	// pas une preuve). Un essaim contre la même cible (10/h) déclenche une
-	// revue priorisée — JAMAIS une sanction automatique. Best-effort.
+	// pas une preuve). Deux compteurs indépendants, best-effort :
+	//   - essaim contre la cible (10/h) → revue de LA CIBLE (jamais une
+	//     sanction automatique) ;
+	//   - volume du reporter (10/h, toutes cibles) → revue DU REPORTER
+	//     (raid de signalement : l'arme est le volume du plaignant, pas la
+	//     culpabilité des cibles — le dossier s'ouvre sur lui seul).
 	now := time.Now()
 	subjectID := targetType + ":" + targetID
 	abuse.RecordSignal(ctx, s.pool, abuse.SignalReportFiled, abuse.SubjectReportTarget, subjectID,
 		"api:posts.report", abuse.ConfidenceUserReport, abuse.ReportSignalRetention, now)
 	abuse.EvaluateSubject(ctx, s.pool, abuse.SignalReportFiled, abuse.SubjectReportTarget, subjectID, now)
+	// Convention (partout dans abuse) : subjectId = identifiant BRUT (id
+	// utilisateur, article:xxx...), subjectType dit de quoi il s'agit. Le
+	// même utilisateur suspect (dossier volume) et diffusé (éligibilité)
+	// reste corrélable par le support.
+	abuse.RecordSignal(ctx, s.pool, abuse.SignalReportVolume, abuse.SubjectUser, userID,
+		"api:posts.report", abuse.ConfidenceObserved, abuse.ReportSignalRetention, now)
+	abuse.EvaluateSubject(ctx, s.pool, abuse.SignalReportVolume, abuse.SubjectUser, userID, now)
 	return nil
 }
 
