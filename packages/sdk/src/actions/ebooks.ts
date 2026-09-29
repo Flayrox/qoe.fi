@@ -27,6 +27,8 @@ export interface EbookSummary {
   hasCover: boolean;
   progressChapter: number;
   progressPct: number;
+  /** Index du premier paragraphe visible du chapitre courant (reprise). */
+  progressParagraph: number;
   createdAt: string;
 }
 
@@ -50,15 +52,29 @@ export const getEbookAction = safeAction<{ id: string }, EbookDetail>(async ({ i
   return goFetch<EbookDetail>(`/v1/me/ebooks/${encodeURIComponent(id)}`);
 });
 
-/** Progression synchronisée (multi-appareils, last-write-wins assumé). */
+/**
+ * Progression synchronisée (multi-appareils, last-write-wins assumé) :
+ * chapitre, pourcentage, et index du premier paragraphe visible — c'est lui
+ * qui permet de rouvrir un livre exactement où on l'a laissé.
+ */
 export const setEbookProgressAction = safeAction<
-  { id: string; chapter: number; pct: number },
+  { id: string; chapter: number; pct: number; paragraph?: number },
   { success: boolean }
->(async ({ id, chapter, pct }) => {
+>(async ({ id, chapter, pct, paragraph }) => {
   return goFetch<{ success: boolean }>(`/v1/me/ebooks/${encodeURIComponent(id)}/progress`, {
     method: 'PATCH',
-    body: { chapter, pct },
+    body: { chapter, pct, paragraph: paragraph ?? 0 },
   });
+});
+
+/** Le livre prêt à emporter (Plus) — enveloppe versionnée, à garder chez soi. */
+export const getEbookOfflinePackAction = safeAction<
+  { id: string },
+  { version: number; generatedAt: string; book: EbookDetail }
+>(async ({ id }) => {
+  return goFetch<{ version: number; generatedAt: string; book: EbookDetail }>(
+    `/v1/me/ebooks/${encodeURIComponent(id)}/offline-pack`
+  );
 }); /** Supprimer un livre (le brut n'a jamais été stocké — rien d'autre à purger). */
 export const deleteEbookAction = safeAction<{ id: string }, { deleted: boolean }>(
   async ({ id }) => {
@@ -79,6 +95,28 @@ export interface EbookNote {
   createdAt: string;
   updatedAt: string;
 }
+
+/**
+ * Une note replacée dans son livre (vue transversale « toutes mes notes »).
+ * `truncated` est renvoyé par le serveur quand la borne de scan a coupé.
+ */
+export interface EbookNoteRef extends EbookNote {
+  ebookId: string;
+  ebookTitle: string;
+  ebookAuthor: string;
+}
+
+/** Toutes mes notes, tous livres confondus (filtrables, plus récentes d'abord). */
+export const listAllEbookNotesAction = safeAction<
+  { q?: string },
+  { items: EbookNoteRef[]; total: number; truncated: boolean }
+>(async ({ q } = {}) => {
+  const qs = q && q.trim() ? `?q=${encodeURIComponent(q.trim())}` : '';
+  const res = await goFetch<{ items: EbookNoteRef[]; total: number; truncated: boolean }>(
+    `/v1/me/ebook-notes${qs}`
+  );
+  return { items: res.items ?? [], total: res.total ?? 0, truncated: res.truncated === true };
+});
 
 /** Mes notes sur un livre (ordre de lecture). */
 export const listEbookNotesAction = safeAction<{ ebookId: string }, { items: EbookNote[] }>(

@@ -415,6 +415,28 @@ func TestP1EbooksContracts(t *testing.T) {
 	if w, _ := doReq(t, r, http.MethodGet, "/v1/me/ebooks/"+missing+"/notes", token, nil); w.Code != http.StatusNotFound {
 		t.Fatalf("GET notes sur livre inexistant = %d, attendu 404", w.Code)
 	}
+
+	// Vue transversale des notes : authentifiée, vide mais jamais nulle.
+	if w, _ := doReq(t, r, http.MethodGet, "/v1/me/ebook-notes", "", nil); w.Code != http.StatusUnauthorized {
+		t.Fatalf("GET /v1/me/ebook-notes sans jeton = %d, attendu 401", w.Code)
+	}
+	w, body = doReq(t, r, http.MethodGet, "/v1/me/ebook-notes", token, nil)
+	if w.Code != http.StatusOK {
+		t.Fatalf("GET /v1/me/ebook-notes = %d, body=%s", w.Code, w.Body.String())
+	}
+	if items, ok := body["items"].([]any); !ok || len(items) != 0 {
+		t.Fatalf("notes items = %v, attendu []", body["items"])
+	}
+	if body["truncated"] != false {
+		t.Fatalf("truncated = %v, attendu false", body["truncated"])
+	}
+
+	// Pack hors-ligne : le DROIT se dit avant l'existence (403 + code, même
+	// sur un identifiant inconnu) — un compte gratuit n'apprend rien de plus.
+	w, body = doReq(t, r, http.MethodGet, "/v1/me/ebooks/"+missing+"/offline-pack", token, nil)
+	if w.Code != http.StatusForbidden || body["code"] != "EBOOK_OFFLINE_REQUIRES_PLUS" {
+		t.Fatalf("pack hors-ligne sans Plus = %d code=%v, attendu 403 EBOOK_OFFLINE_REQUIRES_PLUS", w.Code, body["code"])
+	}
 }
 
 var _ = json.Valid

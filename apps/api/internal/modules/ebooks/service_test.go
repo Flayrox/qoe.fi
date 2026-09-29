@@ -109,12 +109,20 @@ func TestUpload_QuotaDedupIsolation(t *testing.T) {
 	if err := svc.Delete(ctx, uid2, b.ID); !errors.Is(err, ErrEbookNotFound) {
 		t.Fatalf("delete autrui : attendu ErrEbookNotFound, obtenu %v", err)
 	}
-	// Progression bornée + lecture.
-	if err := svc.SetProgress(ctx, uid, b.ID, 0, 42); err != nil {
+	// Progression bornée + reprise au paragraphe visible + lecture.
+	if err := svc.SetProgress(ctx, uid, b.ID, 0, 42, 7); err != nil {
+		t.Fatalf("progress : %v", err)
+	}
+	// Valeurs négatives ramenées à 0 (jamais rejetées : l'interface ne doit
+	// pas se battre avec un clamp).
+	if err := svc.SetProgress(ctx, uid, b.ID, -3, 999, -1); err != nil {
+		t.Fatalf("progress négatif : %v", err)
+	}
+	if err := svc.SetProgress(ctx, uid, b.ID, 0, 42, 7); err != nil {
 		t.Fatalf("progress : %v", err)
 	}
 	d, err := svc.Get(ctx, uid, b.ID)
-	if err != nil || d.ProgressPct != 42 || len(d.Chapters) != 1 {
+	if err != nil || d.ProgressPct != 42 || d.ProgressParagraph != 7 || len(d.Chapters) != 1 {
 		t.Fatalf("détail : %+v (%v)", d, err)
 	}
 	// Suppression : le détail disparaît.

@@ -41,9 +41,11 @@ func (h *Handler) RegisterProtected(r chi.Router) {
 	r.Get("/v1/me/ebooks", h.list)
 	r.Get("/v1/me/ebooks/{id}", h.detail)
 	r.Get("/v1/me/ebooks/{id}/cover", h.cover)
+	r.Get("/v1/me/ebooks/{id}/offline-pack", h.offlinePack)
 	r.Patch("/v1/me/ebooks/{id}/progress", h.progress)
 	r.Delete("/v1/me/ebooks/{id}", h.remove)
 	// Notes de lecture (table dédiée — jamais publiques, jamais votées).
+	r.Get("/v1/me/ebook-notes", h.allNotes)
 	r.Get("/v1/me/ebooks/{id}/notes", h.listNotes)
 	r.Post("/v1/me/ebooks/{id}/notes", h.addNote)
 	r.Patch("/v1/me/ebooks/{id}/notes/{noteId}", h.updateNote)
@@ -58,6 +60,10 @@ func (h *Handler) mapErr(w http.ResponseWriter, err error) {
 		response.Error(w, http.StatusConflict, err.Error())
 	case errors.Is(err, ErrEbookQuota):
 		response.ErrorCode(w, http.StatusForbidden, "EBOOK_QUOTA_EXCEEDED", err.Error())
+	case errors.Is(err, ErrEbookOfflinePlusRequired):
+		response.ErrorCode(w, http.StatusForbidden, "EBOOK_OFFLINE_REQUIRES_PLUS", err.Error())
+	case errors.Is(err, ErrEbookOfflineUnavailable):
+		response.ErrorCode(w, http.StatusForbidden, "EBOOK_OFFLINE_UNAVAILABLE", err.Error())
 	case errors.Is(err, ErrEpubInvalid):
 		response.BadRequest(w, err.Error())
 	case errors.Is(err, ErrNoteNotFound):
@@ -158,18 +164,52 @@ func (h *Handler) progress(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var in struct {
-		Chapter int `json:"chapter"`
-		Pct     int `json:"pct"`
+		Chapter   int `json:"chapter"`
+		Pct       int `json:"pct"`
+		Paragraph int `json:"paragraph"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
-	if err := h.svc.SetProgress(r.Context(), uid, chi.URLParam(r, "id"), in.Chapter, in.Pct); err != nil {
+	if err := h.svc.SetProgress(r.Context(), uid, chi.URLParam(r, "id"), in.Chapter, in.Pct, in.Paragraph); err != nil {
 		h.mapErr(w, err)
 		return
 	}
 	response.OK(w, map[string]bool{"success": true})
+}
+
+// GET /v1/me/ebooks/{id}/offline-pack — le livre prêt à emporter (Plus),
+// enveloppe versionnée : le client l'écrit chez lui et le relit sans réseau.
+func (h *Handler) offlinePack(w http.ResponseWriter, r *http.Request) {
+	uid, ok := h.userID(w, r)
+	if !ok {
+		return
+	}
+	pack, err := h.svc.OfflinePack(r.Context(), uid, chi.URLParam(r, "id"))
+	if err != nil {
+		h.mapErr(w, err)
+		return
+	}
+	response.OK(w, pack)
+}
+
+// GET /v1/me/ebook-notes?q= — toutes mes notes, tous livres confondus
+// (transversal, filtrable ; `truncated` quand la borne de scan coupe).
+func (h *Handler) allNotes(w http.ResponseWriter, r *http.Request) {
+	uid, ok := h.userID(w, r)
+	if !ok {
+		return
+	}
+	items, truncated, err := h.svc.AllNotes(r.Context(), uid, r.URL.Query().Get("q"))
+	if err != nil {
+		h.mapErr(w, err)
+		return
+	}
+	if items == nil {
+		items = []NoteRef{}
+	}
+	response.OK(w, map[string]any{"items": items, "total": len(items), "truncated": truncated})
 }
 
 // GET /v1/me/ebooks/{id}/notes — mes notes sur ce livre (ordre de lecture).

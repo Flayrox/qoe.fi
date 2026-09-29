@@ -36,6 +36,18 @@ var ErrEbookDuplicate = errors.New("cet EPUB est déjà dans votre bibliothèque
 // ressemblent — un EPUB d'autrui ressemble à un inexistant).
 var ErrEbookNotFound = errors.New("livre introuvable")
 
+// ErrEbookOfflinePlusRequired : le hors-ligne est un droit Plus (403 +
+// code, comme le pack d'article — même doctrine, mêmes codes lisibles).
+var ErrEbookOfflinePlusRequired = errors.New("le hors-ligne est réservé aux abonnés Plus")
+
+// ErrEbookOfflineUnavailable : livre vide (aucun chapitre stockable).
+var ErrEbookOfflineUnavailable = errors.New("ce livre ne peut pas être emporté hors-ligne")
+
+// OfflinePackVersion : la forme du pack est versionnée — le client garde une
+// enveloppe stable même si le livre change ou disparaît ensuite (elle est
+// SA copie, elle n'a plus à demander la permission à chaque ouverture).
+const OfflinePackVersion = 1
+
 // Service porte les opérations EPUB (SQL direct — pas de sqlc ici : les
 // requêtes sont petites et lisibles en ligne, comme les checks du module
 // articles).
@@ -58,7 +70,12 @@ type Ebook struct {
 	HasCover     bool   `json:"hasCover"`
 	Progress     int    `json:"progressChapter"`
 	ProgressPct  int    `json:"progressPct"`
-	CreatedAt    string `json:"createdAt"`
+	// ProgressParagraph : index du premier paragraphe VISIBLE du chapitre.
+	// Granularité assumée : paragraphe et non caractère — un offset de
+	// caractères survivrait mal au re-rendu (et donnerait une fausse
+	// précision) alors qu'un index d'élément rendu est stable.
+	ProgressParagraph int    `json:"progressParagraph"`
+	CreatedAt         string `json:"createdAt"`
 }
 
 // EbookDetail est un livre avec ses chapitres (lecture).
@@ -128,7 +145,7 @@ func (s *Service) List(ctx context.Context, userID string, limit, offset int) ([
 	}
 	rows, err := s.pool.Query(ctx, `
 		SELECT "id", "title", "author", "language", "chapterCount",
-		       ("cover" IS NOT NULL), "progressChapter", "progressPct", "createdAt"
+		       ("cover" IS NOT NULL), "progressChapter", "progressPct", "progressParagraph", "createdAt"
 		FROM "Ebook" WHERE "ownerId" = $1::uuid
 		ORDER BY "createdAt" DESC LIMIT $2 OFFSET $3`, userID, limit, offset)
 	if err != nil {
@@ -140,7 +157,7 @@ func (s *Service) List(ctx context.Context, userID string, limit, offset int) ([
 		var e Ebook
 		var createdAt time.Time
 		if err := rows.Scan(&e.ID, &e.Title, &e.Author, &e.Language, &e.ChapterCount,
-			&e.HasCover, &e.Progress, &e.ProgressPct, &createdAt); err != nil {
+			&e.HasCover, &e.Progress, &e.ProgressPct, &e.ProgressParagraph, &createdAt); err != nil {
 			return nil, err
 		}
 		e.CreatedAt = createdAt.UTC().Format(time.RFC3339)
@@ -157,11 +174,11 @@ func (s *Service) Get(ctx context.Context, userID, id string) (EbookDetail, erro
 	var createdAt time.Time
 	err := s.pool.QueryRow(ctx, `
 		SELECT "id", "title", "author", "language", "chapterCount",
-		       ("cover" IS NOT NULL), "progressChapter", "progressPct", "createdAt", "chapters"
+		       ("cover" IS NOT NULL), "progressChapter", "progressPct", "progressParagraph", "createdAt", "chapters"
 		FROM "Ebook" WHERE "id" = $1 AND "ownerId" = $2::uuid`,
 		id, userID).Scan(
 		&d.ID, &d.Title, &d.Author, &d.Language, &d.ChapterCount,
-		&d.HasCover, &d.Progress, &d.ProgressPct, &createdAt, &chaptersJSON)
+		&d.HasCover, &d.Progress, &d.ProgressPct, &d.ProgressParagraph, &createdAt, &chaptersJSON)
 	if err != nil {
 		return EbookDetail{}, ErrEbookNotFound
 	}
@@ -189,11 +206,12 @@ func (s *Service) Cover(ctx context.Context, userID, id string) ([]byte, string,
 	return data, mime, nil
 }
 
-// SetProgress enregistre la progression (chapitre + % — bornés par CHECK,
-// clampés ici aussi pour un refus propre avant la base). Base de la synchro
-// multi-appareils P1 : le client pousse, le serveur garde (last-write-wins
-// assumé et documenté — pas de fusion vectorielle à cette échelle).
-func (s *Service) SetProgress(ctx context.Context, userID, id string, chapter, pct int) error {
+// SetProgress enregistre la progression (chapitre + % + paragraphe visible —
+// bornés par CHECK, clampés ici aussi pour un refus propre avant la base).
+// Base de la synchro multi-appareils P1 : le client pousse, le serveur garde
+// (last-write-wins assumé et documenté — pas de fusion vectorielle à cette
+// échelle).
+func (s *Service) SetProgress(ctx context.Context, userID, id string, chapter, pct, paragraph int) error {
 	if chapter < 0 {
 		chapter = 0
 	}
@@ -203,9 +221,12 @@ func (s *Service) SetProgress(ctx context.Context, userID, id string, chapter, p
 	if pct > 100 {
 		pct = 100
 	}
+	if paragraph < 0 {
+		paragraph = 0
+	}
 	tag, err := s.pool.Exec(ctx, `
-		UPDATE "Ebook" SET "progressChapter" = $3, "progressPct" = $4, "updatedAt" = now()
-		WHERE "id" = $1 AND "ownerId" = $2::uuid`, id, userID, chapter, pct)
+		UPDATE "Ebook" SET "progressChapter" = $3, "progressPct" = $4, "progressParagraph" = $5, "updatedAt" = now()
+		WHERE "id" = $1 AND "ownerId" = $2::uuid`, id, userID, chapter, pct, paragraph)
 	if err != nil {
 		return err
 	}
@@ -215,8 +236,37 @@ func (s *Service) SetProgress(ctx context.Context, userID, id string, chapter, p
 	return nil
 }
 
-// Delete supprime (livre + file de progression avec — CASCADE ? Non : pas
-// de FK Ebook ailleurs. Le brut n'a jamais été stocké, rien d'autre à purger).
+// OfflinePack : le livre prêt à emporter (chapitres + métadonnées), dans une
+// enveloppe versionnée. Réservé à Plus (403), strictement personnel (404).
+// Différence assumée avec le pack d'article : pas de « droit auteur » ici —
+// c'est TON fichier, tu l'as importé ; le seul droit en jeu est l'abonnement.
+func (s *Service) OfflinePack(ctx context.Context, userID, id string) (OfflinePack, error) {
+	if !subscriptions.HasPlus(ctx, s.pool, userID, time.Now()) {
+		return OfflinePack{}, ErrEbookOfflinePlusRequired
+	}
+	book, err := s.Get(ctx, userID, id)
+	if err != nil {
+		return OfflinePack{}, err
+	}
+	if len(book.Chapters) == 0 {
+		return OfflinePack{}, ErrEbookOfflineUnavailable
+	}
+	return OfflinePack{
+		Version:     OfflinePackVersion,
+		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
+		Book:        book,
+	}, nil
+}
+
+// OfflinePack est l'enveloppe téléchargée par le client (versionnée).
+type OfflinePack struct {
+	Version     int         `json:"version"`
+	GeneratedAt string      `json:"generatedAt"`
+	Book        EbookDetail `json:"book"`
+}
+
+// Delete supprime (livre + notes en cascade par FK ; le brut n'a jamais été
+// stocké, rien d'autre à purger).
 func (s *Service) Delete(ctx context.Context, userID, id string) error {
 	tag, err := s.pool.Exec(ctx,
 		`DELETE FROM "Ebook" WHERE "id" = $1 AND "ownerId" = $2::uuid`, id, userID)

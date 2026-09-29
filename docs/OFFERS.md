@@ -56,12 +56,31 @@
 #     lue côté player = lot suivant (le TTS lit déjà les files MediaSession).
 #   - ✅ Thèmes premium (Nuit chaude, Papier — cadenassés, sélecteur ajouté
 #     au panneau qui n'en avait pas) ; gratuits intacts (accessibilité).
+#   - ✅ Reprise « au paragraphe près » : la progression garde le premier
+#     paragraphe VISIBLE (granularité assumée — un offset de caractères
+#     donnerait une fausse précision et dériverait au moindre changement de
+#     rendu). Rouvrir un livre de 300 pages retombe où on s'était arrêté,
+#     l'écoute vocale fait autorité pendant qu'elle lit.
+#   - ✅ Écouter un livre : le lecteur d'EPUB réutilise le moteur TTS des
+#     articles (mêmes commandes, même lecteur flottant), gaté Plus comme
+#     les autres usages coûteux ; changement de chapitre = arrêt de
+#     l'écoute (un livre ne se lit pas tout seul).
+#   - ✅ Emporter hors-ligne (Plus) : GET /v1/me/ebooks/{id}/offline-pack
+#     (enveloppe versionnée) + magasin client générique (packs, éviction du
+#     plus ancien, quota plein dit honnêtement). Pas de « droit auteur »
+#     ici : c'est VOTRE fichier, le seul droit en jeu est l'abonnement.
+#     Le magasin est déjà prêt pour d'autres charges (épisodes audio).
 #   - ✅ Notes de lecture DANS un EPUB : passage sélectionné et/ou mot à soi,
 #     ancrés à un chapitre, en table DÉDIÉE (les surlignages d'articles
 #     gardent la leur — public/votés — aucun mélange). Jamais publiques,
 #     jamais votées, cascade avec le livre ; extrait tronqué à 1000, note
 #     écrite refusée au-delà de 4000 (jamais coupée), les deux vides = 400.
-#   - ❌ podcasts offline, badge.
+#   - ✅ Toutes mes notes (/library/ebooks/notes) : vue transversale, filtre
+#     insensible aux accents, export Markdown groupé par livre et chapitre.
+#   - ❌ podcasts offline, badge. NOTE HONNÊTE : le mot « podcast » n'existe
+#     NULLE PART dans le code (aucun modèle audio, ni table ni champ) — le
+#     hors-ligne est donc prêt côté magasin, mais la brique podcast
+#     elle-même reste à modéliser avant d'être gatée.
 #   - ✅ EPUB personnels (« Mes livres ») : import .epub (20 Mo, borné),
 #     parseur allowlist maison (titres/paragraphes/citations/emphases ;
 #     scripts, styles, iframes, images et handlers JAMAIS stockés — XSS
