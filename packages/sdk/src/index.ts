@@ -24,6 +24,7 @@ export * from './actions/polls';
 export * from './actions/threadgates';
 export * from './actions/highlights';
 export * from './actions/ai';
+export * from './actions/entitlements';
 export * from './actions/appeals';
 export * from './actions/support';
 export * from './abuse-codes.generated';
