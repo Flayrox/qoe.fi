@@ -89,35 +89,15 @@ func emailFallbackLocale() string {
 	return EmailLocales()[0]
 }
 
-// T choisit le libellé selon la locale de l'abonné parmi les paires
-// fr/en passées en arguments variadiques T(locale, fr, en). Le chemin
-// extensible (toutes langues déclarées) est le dictionnaire L() : cette
-// fonction reste pour la compat des appels existants et retombe sur la
-// 2e langue pour toute locale ≠ fr.
+// T choisit le libellé selon la locale de l'abonné (fr/en) : les DÉFAUTS
+// plateforme restent localisés (gratuit — accessibilité, pas premium).
+// Seule la personnalisation créateur a perdu ses variantes par langue
+// (freemium) — T, lui, ne change pas.
 func T(locale, fr, en string) string {
 	if locale == "en" {
 		return en
 	}
 	return fr
-}
-
-// L résout un libellé d'un dictionnaire de traductions pour la locale de
-// l'abonné : traduction exacte > langue de repli (1re de QOE_EMAIL_LOCALES)
-// > premier libellé disponible. C'est LA porte d'entrée des défauts
-// multi-langues : ajouter une langue = ajouter une entrée au dictionnaire.
-func L(locale string, dict map[string]string) string {
-	if v, ok := dict[locale]; ok && v != "" {
-		return v
-	}
-	if v, ok := dict[emailFallbackLocale()]; ok && v != "" {
-		return v
-	}
-	for _, v := range dict {
-		if v != "" {
-			return v
-		}
-	}
-	return ""
 }
 
 // ── Réglages par publication (Publication.emailSettings) ─────────────
@@ -134,21 +114,32 @@ const (
 // EmailPrefs est la personnalisation email d'une publication (JSONB
 // emailSettings). Tout est optionnel : absent = défauts plateforme
 // localisés.
+// Répartition free/pro (décision produit, freemium) :
+//   - GRATUIT : LogoURL (identité), WelcomeEnabled (fonctionnel), et les
+//     langues d'envoi (QOE_EMAIL_LOCALES, global — les DÉFAUTS plateforme
+//     restent localisés, c'est l'accessibilité pas du premium).
+//   - PRO : tout ce qui change le rendu et les mots — FromName, ReplyTo,
+//     AccentColor, Subjects, Preheaders, FooterNote, WelcomeBody.
+//   - Les variantes PAR LANGUE n'existent plus (ni free ni pro : trop
+//     coûteux à maintenir, décision assumée) : le custom pro est UNIQUE et
+//     s'applique tel quel quelle que soit la langue de l'abonné. Les clés
+//     historiques (welcomeBodyFr/En, welcomeBodies, confirm.fr…) ne sont
+//     plus lues (données conservées en JSON, jamais effacées).
 type EmailPrefs struct {
-	FromName       string            `json:"fromName,omitempty"`       // nom d'expéditeur affiché
-	ReplyTo        string            `json:"replyTo,omitempty"`        // adresse de réponse
-	AccentColor    string            `json:"accentColor,omitempty"`    // couleur des boutons (#rgb/#rrggbb)
-	LogoURL        string            `json:"logoUrl,omitempty"`        // logo en en-tête (http(s))
-	Subjects       map[string]string `json:"subjects,omitempty"`       // sujet par template
-	Preheaders     map[string]string `json:"preheaders,omitempty"`     // texte d'aperçu par template
-	FooterNote     string            `json:"footerNote,omitempty"`     // note créateur en pied de page
-	WelcomeEnabled *bool             `json:"welcomeEnabled,omitempty"` // nil = activé
-	WelcomeBodyFR  string            `json:"welcomeBodyFr,omitempty"`  // corps du bienvenue (fr) — clé historique, voir WelcomeBodies
-	WelcomeBodyEN  string            `json:"welcomeBodyEn,omitempty"`  // corps du bienvenue (en) — clé historique
-	// WelcomeBodies : corps du bienvenue par langue (« fr », « en », « es »…)
-	// — voie extensible : toute langue de QOE_EMAIL_LOCALES est acceptée.
-	// Les clés historiques welcomeBodyFr/En restent lues (rétrocompatibilité).
-	WelcomeBodies map[string]string `json:"welcomeBodies,omitempty"`
+	FromName    string `json:"fromName,omitempty"`    // PRO : nom d'expéditeur affiché
+	ReplyTo     string `json:"replyTo,omitempty"`     // PRO : adresse de réponse
+	AccentColor string `json:"accentColor,omitempty"` // PRO : boutons (#rgb/#rrggbb)
+	LogoURL     string `json:"logoUrl,omitempty"`     // logo en en-tête (http(s))
+	// Subjects : sujet par template (« confirm », « welcome ») — PRO, UNIQUE
+	// (les clés « confirm.fr »… ne sont plus lues).
+	Subjects map[string]string `json:"subjects,omitempty"`
+	// Preheaders : aperçu par template — PRO, UNIQUE (même règle).
+	Preheaders map[string]string `json:"preheaders,omitempty"`
+	FooterNote string            `json:"footerNote,omitempty"` // PRO : note créateur
+	// WelcomeBody : corps du bienvenue — PRO, UNIQUE (remplace welcomeBodyFr/
+	// En et welcomeBodies, qui ne sont plus lus).
+	WelcomeBody    string `json:"welcomeBody,omitempty"`
+	WelcomeEnabled *bool  `json:"welcomeEnabled,omitempty"` // nil = activé
 }
 
 var (
@@ -218,45 +209,38 @@ func safeAccent(raw string) string {
 	return ""
 }
 
-func clampLocaleMap(m map[string]string, max int) map[string]string {
+// clampSimpleMap ne retient que les clés simples par template (« confirm »,
+// « welcome ») : les variantes par langue (« confirm.fr »…) ne sont plus
+// lues (freemium : fini la personnalisation par langue). Les vieilles clés
+// tombent silencieusement (données conservées en JSON, jamais effacées).
+func clampSimpleMap(m map[string]string, max int) map[string]string {
 	if m == nil {
 		return nil
 	}
-	out := make(map[string]string, 6)
-	// Clés par template (« confirm ») et par template+locale (« confirm.fr »,
-	// « confirm.es »…) pour TOUTES les langues déclarées : l'override
-	// localisé prime sur l'override générique (voir resolvers).
+	out := make(map[string]string, 2)
 	for _, tpl := range []string{EmailTemplateConfirm, EmailTemplateWelcome} {
 		if v := clampString(m[tpl], max); v != "" {
 			out[tpl] = v
 		}
-		for _, l := range EmailLocales() {
-			if v := clampString(m[tpl+"."+l], max); v != "" {
-				out[tpl+"."+l] = v
-			}
-		}
+	}
+	if len(out) == 0 {
+		return nil
 	}
 	return out
 }
 
-// subjectFor résout un sujet par template avec priorité locale :
-// Subjects[template.locale] > Subjects[template] > défaut localisé.
+// subjectFor résout un sujet : Subjects[template] (PRO, unique) > défaut
+// localisé. Plus de priorité locale (freemium : fini le par-langue).
 func subjectFor(prefs EmailPrefs, template, locale, defFR, defEN string) string {
-	if s := prefs.Subjects[template+"."+locale]; s != "" {
-		return s
-	}
 	if s := prefs.Subjects[template]; s != "" {
 		return s
 	}
 	return T(locale, defFR, defEN)
 }
 
-// preheaderFor résout un texte d'aperçu par template avec priorité locale :
-// Preheaders[template.locale] > Preheaders[template] > défaut localisé.
+// preheaderFor résout un aperçu : Preheaders[template] (PRO, unique) >
+// défaut localisé. Même règle.
 func preheaderFor(prefs EmailPrefs, template, locale, defFR, defEN string) string {
-	if s := prefs.Preheaders[template+"."+locale]; s != "" {
-		return s
-	}
 	if s := prefs.Preheaders[template]; s != "" {
 		return s
 	}
@@ -273,33 +257,29 @@ func ParseEmailPrefs(raw []byte) EmailPrefs {
 	p.FromName = clampString(p.FromName, maxEmailFromNameLen)
 	p.ReplyTo = safeEmailReplyTo(p.ReplyTo)
 	p.FooterNote = clampString(p.FooterNote, maxEmailFooterNoteLen)
-	p.WelcomeBodyFR = clampString(p.WelcomeBodyFR, maxEmailBodyLen)
-	p.WelcomeBodyEN = clampString(p.WelcomeBodyEN, maxEmailBodyLen)
-	// welcomeBodies : toutes langues déclarées bornées + import des clés
-	// historiques welcomeBodyFr/En si la nouvelle carte est absente.
-	if p.WelcomeBodies != nil {
-		clean := make(map[string]string, len(p.WelcomeBodies))
-		for _, l := range EmailLocales() {
-			if v := clampString(p.WelcomeBodies[l], maxEmailBodyLen); v != "" {
-				clean[l] = v
-			}
-		}
-		p.WelcomeBodies = clean
-	} else {
-		if p.WelcomeBodyFR != "" || p.WelcomeBodyEN != "" {
-			p.WelcomeBodies = map[string]string{}
-			if p.WelcomeBodyFR != "" {
-				p.WelcomeBodies["fr"] = p.WelcomeBodyFR
-			}
-			if p.WelcomeBodyEN != "" {
-				p.WelcomeBodies["en"] = p.WelcomeBodyEN
-			}
-		}
-	}
+	p.WelcomeBody = clampString(p.WelcomeBody, maxEmailBodyLen)
 	p.AccentColor = safeAccent(p.AccentColor)
 	p.LogoURL = safeEmailURL(p.LogoURL)
-	p.Subjects = clampLocaleMap(p.Subjects, maxEmailSubjectLen)
-	p.Preheaders = clampLocaleMap(p.Preheaders, maxEmailPreheaderLen)
+	p.Subjects = clampSimpleMap(p.Subjects, maxEmailSubjectLen)
+	p.Preheaders = clampSimpleMap(p.Preheaders, maxEmailPreheaderLen)
+	return p
+}
+
+// ApplyTier applique le palier : pro=false vide TOUS les champs pro (le
+// stocké d'une publication gratuite ne contient jamais d'override —
+// première barrière, posée à la sauvegarde ; la seconde est au rendu, où
+// les workers refiltrent avec le emailPro lu en base). Idempotent.
+func ApplyTier(p EmailPrefs, pro bool) EmailPrefs {
+	if pro {
+		return p
+	}
+	p.FromName = ""
+	p.ReplyTo = ""
+	p.AccentColor = ""
+	p.Subjects = nil
+	p.Preheaders = nil
+	p.FooterNote = ""
+	p.WelcomeBody = ""
 	return p
 }
 
@@ -386,21 +366,16 @@ func WelcomePreheader(prefs EmailPrefs, locale, pubName string) string {
 		"Your subscription is confirmed — welcome!")
 }
 
-// WelcomeBody resolves the welcome body: creator override (locale
-// matching, via welcomeBodies or the legacy welcomeBodyFr/En keys) else
-// localized default. Shared by the welcome worker and the studio preview
-// endpoint.
+// WelcomeBody résout le corps du bienvenue : override créateur UNIQUE
+// (PRO — tel quel quelle que soit la langue) sinon défaut localisé.
+// Partagé par le worker et la prévisualisation studio.
 func WelcomeBody(prefs EmailPrefs, locale, pubName string) string {
-	body := L(locale, prefs.WelcomeBodies)
-	if body == "" {
-		body = T(locale, prefs.WelcomeBodyFR, prefs.WelcomeBodyEN)
+	if prefs.WelcomeBody != "" {
+		return prefs.WelcomeBody
 	}
-	if body == "" {
-		body = T(locale,
-			"Votre inscription à la newsletter de "+pubName+" est confirmée. À très vite !",
-			"Your subscription to "+pubName+" is confirmed. See you soon!")
-	}
-	return body
+	return T(locale,
+		"Votre inscription à la newsletter de "+pubName+" est confirmée. À très vite !",
+		"Your subscription to "+pubName+" is confirmed. See you soon!")
 }
 
 // ── Coquille d'email transactionnel (HTML + texte) ───────────────────

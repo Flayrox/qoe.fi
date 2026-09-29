@@ -191,3 +191,12 @@ LIMIT 50;
 UPDATE "NotificationDelivery"
 SET status = 'QUEUED', "availableAt" = now(), "lastError" = NULL, "updatedAt" = now()
 WHERE id = $1 AND status IN ('FAILED', 'DISABLED');
+
+-- name: SetPublicationEmailPro :one
+-- Bascule du palier email Pro (freemium, intérim en attendant Stripe) :
+-- true = personnalisation complète (sujets, corps, couleurs…), false =
+-- identité + défauts localisés. Réservé superadmin (vérifié côté service).
+UPDATE "Publication"
+SET "emailPro" = $2, "updatedAt" = now()
+WHERE id = $1
+RETURNING "emailPro";

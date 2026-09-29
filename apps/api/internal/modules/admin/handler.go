@@ -59,6 +59,8 @@ func (h *Handler) Register(r chi.Router) {
 	// Métriques anti-abus (les deux erreurs : abus manqué vs légitimes
 	// bloqués). Query : ?days=30 (1-90).
 	r.Get("/v1/admin/abuse/metrics", h.abuseMetrics)
+	// Palier email Pro (freemium, intérim Stripe) : bascule superadmin.
+	r.Patch("/v1/admin/publications/{id}", h.setPublicationEmailPro)
 	// Registre d'incidents (attaques confirmées, dossier tenu par le staff).
 	r.Get("/v1/admin/abuse/incidents", h.abuseIncidents)
 	r.Post("/v1/admin/abuse/incidents", h.openAbuseIncident)
@@ -750,6 +752,33 @@ func (h *Handler) updateSupportArticle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, a)
+}
+
+// PATCH /v1/admin/publications/{id} — palier email Pro (réservé superadmin).
+// Body : { "emailPro": true|false }. Effet immédiat (lu en base à chaque
+// rendu, sans cache). Retourne { emailPro }.
+func (h *Handler) setPublicationEmailPro(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	var in struct {
+		EmailPro *bool `json:"emailPro"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.EmailPro == nil {
+		response.BadRequest(w, "JSON invalide (emailPro requis)")
+		return
+	}
+	pro, err := h.svc.SetPublicationEmailPro(r.Context(), userID, chi.URLParam(r, "id"), *in.EmailPro)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			response.NotFound(w, "Publication introuvable.")
+			return
+		}
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, map[string]any{"emailPro": pro})
 }
 
 // PATCH /v1/admin/users/{userID} — modération (réservé superadmin).

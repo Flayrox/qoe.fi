@@ -65,9 +65,9 @@ func (s *Service) SendTestEmail(ctx context.Context, userID, publicationID, loca
 		return nil, err
 	}
 
-	prefs := workers.ParseEmailPrefs(row.EmailSettings)
+	prefs := workers.ApplyTier(workers.ParseEmailPrefs(row.EmailSettings), row.EmailPro)
 	if len(draft) > 0 {
-		prefs = workers.ParseEmailPrefs(draft)
+		prefs = workers.ApplyTier(workers.ParseEmailPrefs(draft), row.EmailPro)
 	}
 	loc := workers.NormalizeEmailLocale(locale)
 	tpl := template

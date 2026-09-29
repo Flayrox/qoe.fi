@@ -66,6 +66,9 @@ func TestAbuseGuards_ForbiddenForStranger(t *testing.T) {
 	if _, err := svc.SupportMetrics(ctx, stranger); !errors.Is(err, errForbidden) {
 		t.Errorf("SupportMetrics = %v, attendu errForbidden", err)
 	}
+	if _, err := svc.SetPublicationEmailPro(ctx, stranger, "pub_adm_001", true); !errors.Is(err, errForbidden) {
+		t.Errorf("SetPublicationEmailPro = %v, attendu errForbidden", err)
+	}
 }
 
 func TestAbuseWiring_SuperadminPassthrough(t *testing.T) {

@@ -17,6 +17,7 @@ type adminQuerier interface {
 	ListAdminUsers(ctx context.Context) ([]db.ListAdminUsersRow, error)
 	UpdateAdminUserModeration(ctx context.Context, arg db.UpdateAdminUserModerationParams) (db.UpdateAdminUserModerationRow, error)
 	UpdatePublicationCertified(ctx context.Context, arg db.UpdatePublicationCertifiedParams) (db.UpdatePublicationCertifiedRow, error)
+	SetPublicationEmailPro(ctx context.Context, arg db.SetPublicationEmailProParams) (bool, error)
 	ClearArticleEditorPicks(ctx context.Context) error
 	CountModerationReportsByStatus(ctx context.Context) ([]db.CountModerationReportsByStatusRow, error)
 	GetArticleAuthor(ctx context.Context, id string) (string, error)
