@@ -66,6 +66,14 @@ func (h *Handler) RegisterProtected(r chi.Router, requireScope func(string) func
 	r.With(requireScope(middleware.ScopeRead)).Get("/v1/articles/by-id/{id}", h.getByID)
 	r.With(requireScope(middleware.ScopeRead)).Get("/v1/articles/capabilities", h.capabilities)
 	r.With(requireScope(middleware.ScopeWrite)).Patch("/v1/articles/{id}", h.update)
+	// Droit de téléchargement (hors-ligne/file d'écoute) : l'auteur choisit.
+	r.With(requireScope(middleware.ScopeWrite)).Patch("/v1/articles/{id}/download", h.setAllowDownload)
+	// Hors-ligne (fiche Plus P1) : pack à mettre en cache + file d'écoute.
+	// Auth requise dans tous les cas (pas de hors-ligne anonyme).
+	r.With(requireScope(middleware.ScopeRead)).Get("/v1/articles/{id}/offline-pack", h.offlinePack)
+	r.With(requireScope(middleware.ScopeRead)).Get("/v1/me/listen-later", h.listListenLater)
+	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/me/listen-later", h.addListenLater)
+	r.With(requireScope(middleware.ScopeWrite)).Delete("/v1/me/listen-later/{articleId}", h.removeListenLater)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/publish", h.publish)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/schedule", h.schedule)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/review", h.review)
@@ -352,6 +360,125 @@ func (h *Handler) schedule(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, map[string]any{"scheduled": scheduledAt != nil, "scheduledAt": in.ScheduledAt})
+}
+
+// PATCH /v1/articles/{id}/download — droit de téléchargement (hors-ligne,
+// file d'écoute). Body : { "allowDownload": bool }. Même garde que
+// l'édition (auteur/média/co-auteur) : 404 si inexistant ou interdit (pas
+// de fuite d'existence — un interdit ressemble à un inexistant).
+func (h *Handler) setAllowDownload(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	id := chi.URLParam(r, "id")
+	var in struct {
+		AllowDownload *bool `json:"allowDownload"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.AllowDownload == nil {
+		response.BadRequest(w, "JSON invalide (allowDownload requis)")
+		return
+	}
+	allow, err := h.svc.SetAllowDownload(r.Context(), id, userID, *in.AllowDownload)
+	if err != nil {
+		// Inexistant ou interdit : même 404 (pas de fuite d'existence) ;
+		// le reste (panne) remonte en 500, jamais masqué en 404.
+		if errors.Is(err, errNotFound) || errors.Is(err, errForbidden) {
+			response.NotFound(w, "Article introuvable.")
+			return
+		}
+		log.Printf("[articles] download toggle %s: %v", id, err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]any{"id": id, "allowDownload": allow})
+}
+
+// GET /v1/articles/{id}/offline-pack — pack à mettre en cache (Plus).
+// 403 + code OFFLINE_PACK_REQUIRES_PLUS (pas Plus), OFFLINE_NOT_DOWNLOADABLE
+// (droit auteur), OFFLINE_NOT_PUBLISHED. Le contenu respecte le paywall
+// (coupé comme à l'écran si non abonné).
+func (h *Handler) offlinePack(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	id := chi.URLParam(r, "id")
+	var email string
+	if claims := middleware.Claims(r.Context()); claims != nil {
+		email, _ = claims["email"].(string)
+	}
+	pack, err := h.svc.OfflinePack(r.Context(), id, userID, email)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrOfflinePlusRequired):
+			response.ErrorCode(w, http.StatusForbidden, "OFFLINE_PACK_REQUIRES_PLUS", err.Error())
+			return
+		case errors.Is(err, ErrOfflineNotDownloadable):
+			response.ErrorCode(w, http.StatusForbidden, "OFFLINE_NOT_DOWNLOADABLE", err.Error())
+			return
+		case errors.Is(err, ErrOfflineForbidden):
+			response.ErrorCode(w, http.StatusForbidden, "OFFLINE_NOT_AVAILABLE", err.Error())
+			return
+		}
+		if errors.Is(err, errNotFound) {
+			response.NotFound(w, "Article introuvable.")
+			return
+		}
+		log.Printf("[articles] offline pack %s: %v", id, err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, pack)
+}
+
+// GET /v1/me/listen-later — file d'écoute ordonnée.
+func (h *Handler) listListenLater(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	items, err := h.svc.ListListenLater(r.Context(), userID)
+	if err != nil {
+		log.Printf("[articles] listen-later list: %v", err)
+		response.Internal(w)
+		return
+	}
+	if items == nil {
+		items = []ListenItem{}
+	}
+	response.OK(w, map[string]any{"items": items})
+}
+
+// POST /v1/me/listen-later { articleId } — ajout en fin de file (idempotent).
+// Vérifie le droit de téléchargement (jamais de contenu interdit dans la
+// file) mais PAS le palier (ajouter à sa file est gratuit).
+func (h *Handler) addListenLater(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	var in struct {
+		ArticleID string `json:"articleId"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.ArticleID == "" {
+		response.BadRequest(w, "JSON invalide (articleId requis)")
+		return
+	}
+	id, err := h.svc.AddListenLater(r.Context(), userID, in.ArticleID)
+	if err != nil {
+		if errors.Is(err, ErrOfflineForbidden) {
+			response.ErrorCode(w, http.StatusForbidden, "OFFLINE_NOT_DOWNLOADABLE", err.Error())
+			return
+		}
+		if errors.Is(err, errNotFound) {
+			response.NotFound(w, "Article introuvable.")
+			return
+		}
+		log.Printf("[articles] listen-later add: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]any{"id": id})
+}
+
+// DELETE /v1/me/listen-later/{articleId} — retrait (idempotent).
+func (h *Handler) removeListenLater(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if err := h.svc.RemoveListenLater(r.Context(), userID, chi.URLParam(r, "articleId")); err != nil {
+		log.Printf("[articles] listen-later remove: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]bool{"removed": true})
 }
 
 func (h *Handler) delete(w http.ResponseWriter, r *http.Request) {

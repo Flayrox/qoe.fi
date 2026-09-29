@@ -583,6 +583,7 @@ type Article struct {
 	IsEditorPick           bool              `json:"isEditorPick"`
 	AllowPublicAnnotations bool              `json:"allowPublicAnnotations"`
 	AllowComments          bool              `json:"allowComments"`
+	AllowDownload          bool              `json:"allowDownload"`
 	ScheduledAt            pgtype.Timestamp  `json:"scheduledAt"`
 	Status                 string            `json:"status"`
 	PublicationId          string            `json:"publicationId"`
@@ -1029,6 +1030,14 @@ type Like struct {
 	CreatedAt pgtype.Timestamp `json:"createdAt"`
 }
 
+type ListenLater struct {
+	ID        string           `json:"id"`
+	UserId    pgtype.UUID      `json:"userId"`
+	ArticleId string           `json:"articleId"`
+	Position  int32            `json:"position"`
+	CreatedAt pgtype.Timestamp `json:"createdAt"`
+}
+
 type MediaAsset struct {
 	ID           string               `json:"id"`
 	Sha256       string               `json:"sha256"`
@@ -1391,6 +1400,7 @@ type Publication struct {
 	AllowIndexing          bool             `json:"allowIndexing"`
 	AllowPublicAnnotations bool             `json:"allowPublicAnnotations"`
 	AllowComments          bool             `json:"allowComments"`
+	AllowDownloadDefault   bool             `json:"allowDownloadDefault"`
 	SeoTitle               pgtype.Text      `json:"seoTitle"`
 	SeoDescription         pgtype.Text      `json:"seoDescription"`
 	SupportUrl             pgtype.Text      `json:"supportUrl"`

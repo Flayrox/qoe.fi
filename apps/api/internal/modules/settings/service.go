@@ -488,6 +488,19 @@ func (s *Service) SaveSocial(ctx context.Context, userID, publicationID string, 
 	return nil
 }
 
+// SetDownloadDefault règle le défaut de téléchargement des NOUVEAUX articles
+// (appliqué à la création — l'auteur ajuste ensuite par article). Retourne
+// la valeur stockée.
+func (s *Service) SetDownloadDefault(ctx context.Context, userID, publicationID string, allow bool) (bool, error) {
+	if err := s.authorizeSettings(ctx, userID, publicationID); err != nil {
+		return false, err
+	}
+	return s.q.SetPublicationDownloadDefault(ctx, db.SetPublicationDownloadDefaultParams{
+		ID:                   publicationID,
+		AllowDownloadDefault: allow,
+	})
+}
+
 // SubmitApiApplication enregistre une demande d'accès API (pending).
 func (s *Service) SubmitApiApplication(ctx context.Context, userID, reason string) error {
 	return s.q.SetApiApplication(ctx, db.SetApiApplicationParams{

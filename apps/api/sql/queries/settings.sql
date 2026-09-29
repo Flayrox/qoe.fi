@@ -175,3 +175,11 @@ SELECT p.name AS publication_name,
        p."emailSettings"
 FROM "Publication" p
 WHERE p.id = $1;
+
+-- name: SetPublicationDownloadDefault :one
+-- Défaut de téléchargement des NOUVEAUX articles (l'auteur ajuste ensuite
+-- par article). Réservé au propriétaire/membre via authorizeSettings.
+UPDATE "Publication"
+SET "allowDownloadDefault" = $2, "updatedAt" = now()
+WHERE id = $1
+RETURNING "allowDownloadDefault";

@@ -19,6 +19,7 @@ import (
 	"github.com/qoefi/api/internal/permissions"
 	"github.com/qoefi/api/internal/queue"
 	"github.com/qoefi/api/internal/slug"
+	"github.com/qoefi/api/internal/subscriptions"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -30,38 +31,39 @@ var (
 
 // ArticleResponse est la forme API d'un article (contenu éventuellement tronqué).
 type ArticleResponse struct {
-	ID             string            `json:"id"`
-	Title          string            `json:"title"`
-	Slug           string            `json:"slug"`
+	ID                    string            `json:"id"`
+	Title                 string            `json:"title"`
+	Slug                  string            `json:"slug"`
 	Content               string            `json:"content"`
 	DraftContent          *string           `json:"draftContent,omitempty"`
 	HasUnpublishedChanges bool              `json:"hasUnpublishedChanges"`
 	Published             bool              `json:"published"`
-	IsPremium      bool              `json:"isPremium"`
-	Visibility     string            `json:"visibility"`
-	ReadingTime    int               `json:"readingTime"`
-	Status         string            `json:"status"`
-	ScheduledAt    *string           `json:"scheduledAt"`
-	PublicationID  string            `json:"publicationId"`
-	AuthorID       string            `json:"authorId"`
-	CategoryID     *string           `json:"categoryId"`
-	TierID         *string           `json:"tierId"`
-	SeoTitle       *string           `json:"seoTitle"`
-	SeoDescription *string           `json:"seoDescription"`
-	ImageUrl       *string           `json:"imageUrl"`
-	CreatedAt      string            `json:"createdAt"`
-	UpdatedAt      string            `json:"updatedAt"`
-	IsTruncated    bool              `json:"isTruncated"`
-	AccessGranted  bool              `json:"accessGranted"`
-	PaywallMeta    *PaywallMeta      `json:"paywallMeta"`
-	Author         AuthorInfo        `json:"author"`
-	Publication    *PublicationInfo  `json:"publication"`
-	Category       *CategoryInfo     `json:"category"`
-	CoAuthors      []AuthorInfo      `json:"coAuthors"`
-	Attributions   []AttributionInfo `json:"attributions"`
-	Views          int               `json:"views"`
-	ViewsUnique    int               `json:"viewsUnique"`
-	CommentsCount  int               `json:"commentsCount"`
+	IsPremium             bool              `json:"isPremium"`
+	Visibility            string            `json:"visibility"`
+	ReadingTime           int               `json:"readingTime"`
+	Status                string            `json:"status"`
+	ScheduledAt           *string           `json:"scheduledAt"`
+	PublicationID         string            `json:"publicationId"`
+	AuthorID              string            `json:"authorId"`
+	CategoryID            *string           `json:"categoryId"`
+	TierID                *string           `json:"tierId"`
+	SeoTitle              *string           `json:"seoTitle"`
+	SeoDescription        *string           `json:"seoDescription"`
+	ImageUrl              *string           `json:"imageUrl"`
+	CreatedAt             string            `json:"createdAt"`
+	UpdatedAt             string            `json:"updatedAt"`
+	IsTruncated           bool              `json:"isTruncated"`
+	AccessGranted         bool              `json:"accessGranted"`
+	AllowDownload         bool              `json:"allowDownload"`
+	PaywallMeta           *PaywallMeta      `json:"paywallMeta"`
+	Author                AuthorInfo        `json:"author"`
+	Publication           *PublicationInfo  `json:"publication"`
+	Category              *CategoryInfo     `json:"category"`
+	CoAuthors             []AuthorInfo      `json:"coAuthors"`
+	Attributions          []AttributionInfo `json:"attributions"`
+	Views                 int               `json:"views"`
+	ViewsUnique           int               `json:"viewsUnique"`
+	CommentsCount         int               `json:"commentsCount"`
 }
 
 // AttributionInfo est une attribution d'article pour l'éditeur (co-auteur).
@@ -249,9 +251,9 @@ func (s *Service) GetBySlugAny(ctx context.Context, slug string) (ArticleRespons
 		CreatedAt:   row.CreatedAt.Time.Format(time.RFC3339),
 		UpdatedAt:   row.UpdatedAt.Time.Format(time.RFC3339),
 		IsTruncated: cut.IsTruncated, AccessGranted: cut.AccessGranted, PaywallMeta: cut.PaywallMeta,
-		Author:      AuthorInfo{ID: row.AuthorID, Name: textPtr(row.AuthorName), Username: textPtr(row.AuthorUsername), LogoURL: textPtr(row.AuthorLogo)},
-		Publication: &PublicationInfo{ID: row.PublicationId, Name: row.PublicationName, Slug: row.PublicationSlug, Subdomain: textPtr(row.PublicationSubdomain), LogoURL: textPtr(row.PublicationLogo), CustomDomain: textPtr(row.PublicationCustomDomain)},
-		CoAuthors:   []AuthorInfo{},
+		Author:       AuthorInfo{ID: row.AuthorID, Name: textPtr(row.AuthorName), Username: textPtr(row.AuthorUsername), LogoURL: textPtr(row.AuthorLogo)},
+		Publication:  &PublicationInfo{ID: row.PublicationId, Name: row.PublicationName, Slug: row.PublicationSlug, Subdomain: textPtr(row.PublicationSubdomain), LogoURL: textPtr(row.PublicationLogo), CustomDomain: textPtr(row.PublicationCustomDomain)},
+		CoAuthors:    []AuthorInfo{},
 		Attributions: []AttributionInfo{},
 	}
 	// Enrichissement lecture publique (comme la réponse éditeur) : image de
@@ -380,6 +382,13 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateArticleInp
 
 	finalSlug := s.uniqueSlug(ctx, in.PublicationID, "", in.Slug)
 
+	// Droit de téléchargement initial = défaut de la publication (opt-out :
+	// true par défaut — comportement actuel préservé, l'auteur restreint
+	// ensuite par article s'il le veut).
+	allowDownload := true
+	_ = s.pool.QueryRow(ctx,
+		`SELECT COALESCE("allowDownloadDefault", true) FROM "Publication" WHERE id = $1`,
+		in.PublicationID).Scan(&allowDownload)
 	id, err := s.q.CreateArticle(ctx, db.CreateArticleParams{
 		Title:                  in.Title,
 		Slug:                   finalSlug,
@@ -390,6 +399,7 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateArticleInp
 		ReadingTime:            int32(in.ReadingTime),
 		AllowPublicAnnotations: true,
 		AllowComments:          true,
+		AllowDownload:          allowDownload,
 		Status:                 status,
 		PublicationId:          in.PublicationID,
 		AuthorId:               toUUID(userID),
@@ -471,13 +481,188 @@ func (s *Service) List(ctx context.Context, userID, publicationID string, limit,
 }
 
 // Update met à jour un article avec RBAC + workflow média (miroir saveArticleAction).
-func (s *Service) Update(ctx context.Context, articleID, userID string, in UpdateArticleInput) error {
-	if !IsValidContentFormat(in.ContentFormat) {
-		return errInvalidContentFormat
+// SetAllowDownload bascule le droit de téléchargement d'un article
+// (hors-ligne et file d'écoute vérifient). Même garde qu'Update
+// (authorizeEdit) : seul qui peut éditer peut restreindre.
+func (s *Service) SetAllowDownload(ctx context.Context, articleID, userID string, allow bool) (bool, error) {
+	if _, _, err := s.authorizeEdit(ctx, articleID, userID, ""); err != nil {
+		return false, err
 	}
-	row, err := s.q.GetArticleByID(ctx, articleID)
+	row, err := s.q.SetArticleAllowDownload(ctx, db.SetArticleAllowDownloadParams{
+		ID:            articleID,
+		AllowDownload: allow,
+	})
 	if err != nil {
-		return errNotFound
+		return false, err
+	}
+	return row.AllowDownload, nil
+}
+
+// ErrOfflineForbidden : pack ou file refusés. Toujours WRAPPÉE dans une
+// sentinelle précise (le handler mappe en 403 + code stable — le front
+// branche sur code, jamais sur libellé).
+var ErrOfflineForbidden = errors.New("hors-ligne indisponible")
+
+// Causes précises (wrappent ErrOfflineForbidden — errors.Is reste vrai) :
+var (
+	// ErrOfflinePlusRequired : pas de Plus (ni octroi ni studio).
+	ErrOfflinePlusRequired = fmt.Errorf("%w : Plus requis", ErrOfflineForbidden)
+	// ErrOfflineNotDownloadable : droit auteur refusé.
+	ErrOfflineNotDownloadable = fmt.Errorf("%w : téléchargement refusé par l'auteur", ErrOfflineForbidden)
+	// ErrOfflineNotPublished : brouillon (jamais de brouillon hors-ligne).
+	ErrOfflineNotPublished = fmt.Errorf("%w : non publié", ErrOfflineForbidden)
+)
+
+// OfflinePack est un article prêt à mettre en cache (hors-ligne/TTS) :
+// contenu coupé au paywall comme la lecture (jamais de contournement),
+// droits constatés. Versionnée (v1) pour les évolutions de format.
+type OfflinePack struct {
+	Version       string `json:"version"`
+	ID            string `json:"id"`
+	Title         string `json:"title"`
+	Slug          string `json:"slug"`
+	Content       string `json:"content"`
+	ReadingTime   int    `json:"readingTime"`
+	AuthorName    string `json:"authorName"`
+	PublicationID string `json:"publicationId"`
+	Publication   string `json:"publication"`
+	PublishedAt   string `json:"publishedAt"`
+	Downloadable  bool   `json:"downloadable"`
+}
+
+// OfflinePack assemble le pack (auth + Plus + publié + droit auteur +
+// paywall). Authentifié requis (userID non vide) — le hors-ligne anonyme
+// n'existe pas (pas de cache sans compte à qui le rattacher).
+func (s *Service) OfflinePack(ctx context.Context, articleID, userID, viewerEmail string) (OfflinePack, error) {
+	if userID == "" {
+		return OfflinePack{}, fmt.Errorf("%w : compte requis", ErrOfflineForbidden)
+	}
+	if !subscriptions.HasPlus(ctx, s.pool, userID, time.Now()) {
+		return OfflinePack{}, ErrOfflinePlusRequired
+	}
+	row, err := s.q.GetArticleOfflinePack(ctx, articleID)
+	if err != nil {
+		return OfflinePack{}, errNotFound
+	}
+	if !row.Published {
+		return OfflinePack{}, ErrOfflineNotPublished
+	}
+	if !row.AllowDownload {
+		return OfflinePack{}, ErrOfflineNotDownloadable
+	}
+	// Paywall contenu : mêmes entitlements que la lecture (le hors-ligne ne
+	// contourne jamais — un premium non acheté sort coupé, comme à l'écran).
+	ent := UserEntitlements{}
+	sub, err := s.q.GetSubscriberEntitlement(ctx, db.GetSubscriberEntitlementParams{
+		PublicationId: row.PublicationId, UserId: toUUID(userID), Email: viewerEmail,
+	})
+	if err == nil {
+		ent.IsMember = sub.IsActive
+		ent.IsPaidSubscriber = sub.IsPremium && sub.IsActive
+		if sub.TierId.Valid {
+			t := sub.TierId.String
+			ent.TierID = &t
+		}
+	}
+	cut := SliceContentAtPaywall(row.Content, ent, string(row.Visibility), textPtr(row.TierId))
+	content := cut.Content
+	var publishedAt string
+	if row.CreatedAt.Valid {
+		publishedAt = row.CreatedAt.Time.UTC().Format(time.RFC3339)
+	}
+	return OfflinePack{
+		Version: "v1", ID: row.ID, Title: row.Title, Slug: row.Slug, Content: content,
+		ReadingTime: int(row.ReadingTime), AuthorName: row.AuthorName.String,
+		PublicationID: row.PublicationId, Publication: row.PublicationName,
+		PublishedAt: publishedAt, Downloadable: true,
+	}, nil
+}
+
+// ListenItem est une entrée de file d'écoute (métadonnées pour le player).
+type ListenItem struct {
+	ID        string `json:"id"`
+	ArticleID string `json:"articleId"`
+	Title     string `json:"title"`
+	Position  int    `json:"position"`
+	CreatedAt string `json:"createdAt"`
+}
+
+// AddListenLater ajoute un article en fin de file (idempotent : deux fois =
+// no-op). Vérifie le droit de téléchargement (la file sert le hors-ligne
+// et le TTS — jamais de contenu interdit dedans) mais PAS le palier Plus
+// (ajouter à sa file est gratuit — c'est le TÉLÉCHARGEMENT qui est Plus).
+func (s *Service) AddListenLater(ctx context.Context, userID, articleID string) (string, error) {
+	if userID == "" {
+		return "", errForbidden
+	}
+	row, err := s.q.GetArticleOfflinePack(ctx, articleID)
+	if err != nil {
+		return "", errNotFound
+	}
+	if !row.Published || !row.AllowDownload {
+		return "", ErrOfflineNotDownloadable
+	}
+	id, err := s.q.AddListenLater(ctx, db.AddListenLaterParams{
+		UserID: toUUID(userID), ArticleID: articleID,
+	})
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			// Conflit (déjà en file) : no-op, retourne l'existant.
+			var existing string
+			if err2 := s.pool.QueryRow(ctx,
+				`SELECT id FROM "ListenLater" WHERE "userId" = $1 AND "articleId" = $2`,
+				toUUID(userID), articleID).Scan(&existing); err2 != nil {
+				return "", err
+			}
+			return existing, nil
+		}
+		return "", err
+	}
+	return id, nil
+}
+
+// ListListenLater renvoie la file ordonnée (avec titres pour le player).
+func (s *Service) ListListenLater(ctx context.Context, userID string) ([]ListenItem, error) {
+	rows, err := s.q.ListListenLater(ctx, toUUID(userID))
+	if err != nil {
+		return nil, err
+	}
+	items := make([]ListenItem, 0, len(rows))
+	for _, r := range rows {
+		var title string
+		var createdAt pgtype.Timestamp
+		_ = s.pool.QueryRow(ctx,
+			`SELECT title, "createdAt" FROM "Article" WHERE id = $1`, r.ArticleId).Scan(&title, &createdAt)
+		at := ""
+		if createdAt.Valid {
+			at = createdAt.Time.UTC().Format(time.RFC3339)
+		}
+		items = append(items, ListenItem{
+			ID: r.ID, ArticleID: r.ArticleId, Title: title,
+			Position: int(r.Position), CreatedAt: at,
+		})
+	}
+	return items, nil
+}
+
+// RemoveListenLater retire un article de la file (inexistant = no-op, pas
+// d'erreur — idempotent comme l'ajout).
+func (s *Service) RemoveListenLater(ctx context.Context, userID, articleID string) error {
+	_, err := s.q.RemoveListenLater(ctx, db.RemoveListenLaterParams{
+		UserID: toUUID(userID), ArticleID: articleID,
+	})
+	return err
+}
+
+// authorizeEdit applique la garde d'édition (auteur direct, principal média,
+// co-auteur, permissions) — UNE implémentation pour Update ET les toggles
+// (download…) : jamais deux gardes qui divergent en silence. activePublicationID
+// = in.ActivePublicationID côté Update (vide côté toggles : l'appartenance
+// média suffit alors, comme avant pour l'auteur direct).
+func (s *Service) authorizeEdit(ctx context.Context, articleID, userID, activePublicationID string) (row db.GetArticleByIDRow, mc memberContext, err error) {
+	row, err = s.q.GetArticleByID(ctx, articleID)
+	if err != nil {
+		return row, mc, errNotFound
 	}
 
 	// Gate 1 : auteur direct OU clé API média OU publication active du workspace OU co-auteur avec attribution.
@@ -486,7 +671,7 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 		isMediaPrincipal = true
 	}
 	isAuthor := uuidString(row.AuthorId) == userID || isMediaPrincipal
-	if !isAuthor && row.PublicationId != in.ActivePublicationID {
+	if !isAuthor && row.PublicationId != activePublicationID {
 		var isCoAuthor bool
 		_ = s.pool.QueryRow(ctx, `
 			SELECT EXISTS (
@@ -495,11 +680,11 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 			)
 		`, articleID, toUUID(userID)).Scan(&isCoAuthor)
 		if !isCoAuthor {
-			return errForbidden
+			return row, mc, errForbidden
 		}
 	}
 
-	mc, err := s.resolveMember(ctx, userID, row.PublicationId)
+	mc, err = s.resolveMember(ctx, userID, row.PublicationId)
 	if err != nil && !isAuthor {
 		// Si l'utilisateur est co-auteur hors média, on autorise l'édition sans appartenance média
 		var isCoAuthor bool
@@ -510,8 +695,25 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 			)
 		`, articleID, toUUID(userID)).Scan(&isCoAuthor)
 		if !isCoAuthor {
-			return err
+			return row, mc, err
 		}
+	}
+
+	if mc.isMedia {
+		if !isMediaPrincipal && !permissions.CanEditMediaArticle(mc.member, uuidString(row.AuthorId), userID) {
+			return row, mc, errForbidden
+		}
+	}
+	return row, mc, nil
+}
+
+func (s *Service) Update(ctx context.Context, articleID, userID string, in UpdateArticleInput) error {
+	if !IsValidContentFormat(in.ContentFormat) {
+		return errInvalidContentFormat
+	}
+	row, mc, err := s.authorizeEdit(ctx, articleID, userID, in.ActivePublicationID)
+	if err != nil {
+		return err
 	}
 
 	// Workflow média : état effectif de publication.
@@ -525,9 +727,6 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 	}
 
 	if mc.isMedia {
-		if !isMediaPrincipal && !permissions.CanEditMediaArticle(mc.member, uuidString(row.AuthorId), userID) {
-			return errForbidden
-		}
 		switch {
 		case effectiveStatus == "SUBMITTED":
 			if row.Published {
@@ -1273,6 +1472,7 @@ func (s *Service) articleResponseFromIDRow(row db.GetArticleByIDRow) ArticleResp
 		ID: row.ID, Title: row.Title, Slug: row.Slug, Content: content,
 		DraftContent: draftContent, HasUnpublishedChanges: hasUnpublishedChanges,
 		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),
+		AllowDownload: row.AllowDownload,
 		ReadingTime: int(row.ReadingTime), Status: row.Status, ScheduledAt: tsPtr(row.ScheduledAt),
 		PublicationID: row.PublicationId,
 		AuthorID:      row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
@@ -1299,9 +1499,9 @@ func articleFromSlugRow(row db.GetArticleBySlugRow, cut PaywallCutResult) Articl
 		CreatedAt:   row.CreatedAt.Time.Format(time.RFC3339),
 		UpdatedAt:   row.UpdatedAt.Time.Format(time.RFC3339),
 		IsTruncated: cut.IsTruncated, AccessGranted: cut.AccessGranted, PaywallMeta: cut.PaywallMeta,
-		Author:      AuthorInfo{ID: row.AuthorID, Name: textPtr(row.AuthorName), Username: textPtr(row.AuthorUsername), LogoURL: textPtr(row.AuthorLogo)},
-		Publication: &PublicationInfo{ID: row.PublicationId, Name: row.PublicationName, Slug: row.PublicationSlug, Subdomain: textPtr(row.PublicationSubdomain), LogoURL: textPtr(row.PublicationLogo), CustomDomain: textPtr(row.PublicationCustomDomain)},
-		CoAuthors:   []AuthorInfo{},
+		Author:       AuthorInfo{ID: row.AuthorID, Name: textPtr(row.AuthorName), Username: textPtr(row.AuthorUsername), LogoURL: textPtr(row.AuthorLogo)},
+		Publication:  &PublicationInfo{ID: row.PublicationId, Name: row.PublicationName, Slug: row.PublicationSlug, Subdomain: textPtr(row.PublicationSubdomain), LogoURL: textPtr(row.PublicationLogo), CustomDomain: textPtr(row.PublicationCustomDomain)},
+		CoAuthors:    []AuthorInfo{},
 		Attributions: []AttributionInfo{},
 	}
 	if row.CategoryID.Valid {
