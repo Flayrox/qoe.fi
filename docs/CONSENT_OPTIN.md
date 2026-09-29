@@ -63,6 +63,19 @@
 #   - Plafond atteint ≠ erreur : les tests l'exigent
 #     (TestConsumeBudget_GrantsUpToCap, TestConsumeBudget_ConcurrentNeverExceeds).
 
+# FREEMIUM (décision produit, migration 00045, Publication.emailPro) :
+#   - GRATUIT : nom + logo, langues d'envoi, activation du bienvenue.
+#     Les DÉFAUTS plateforme restent localisés (accessibilité, pas premium).
+#   - PRO : nom d'expéditeur, reply-to, accent, sujets, aperçus, note de
+#     pied, corps du bienvenue — en version UNIQUE (fini les variantes par
+#     langue, ni free ni pro ; données historiques conservées, plus lues).
+#   - Double barrière : sanitize à la sauvegarde (le stocké d'une gratuite
+#     ne contient jamais d'override) + enforcement au rendu (confirm,
+#     welcome, preview, test — palier lu en base, jamais du JSON forgeable).
+#     Bascule staff : PATCH /v1/admin/publications/{id} {emailPro} (effet
+#     immédiat, sans cache). emailPro est l'INTÉRIM en attendant Stripe
+#     (webhook → SET emailPro).
+#
 # =====================================================================
 # 🌍 Emails d'abonnés localisés et personnalisables (migration 00022)
 # =====================================================================
