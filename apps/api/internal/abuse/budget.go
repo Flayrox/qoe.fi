@@ -61,6 +61,7 @@ func ConsumeBudget(ctx context.Context, pool BudgetDB, scopeType, scopeID, actio
 	if pool == nil {
 		return true, nil // sans base, pas de budget : dégradation ouverte documentée (tests purs)
 	}
+	window = window.UTC() // TIMESTAMP sans fuseau : la fenêtre est UTC (DailyWindow déjà, robustesse si appel direct).
 	// Création paresseuse (idempotente), puis consommation atomique
 	// conditionnée au plafond : deux requêtes séparées (pgx n'exécute pas de
 	// multi-statements dans QueryRow), mais la seconde seule décide — une
