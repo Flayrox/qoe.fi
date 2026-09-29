@@ -159,6 +159,22 @@ func (s *Service) ChangeEmail(ctx context.Context, userID, currentPassword, newE
 	return nil
 }
 
+// RevokeUserSessions révoque TOUTES les sessions d'un compte côté fournisseur
+// (y compris les sessions élevées et les step-up) : l'utilisateur est
+// déconnecté partout et doit se réauthentifier. Opération réservée au staff
+// (route admin) pour compromission suspectée ou récupération après perte de
+// facteurs — jamais automatique, jamais par SMS seul, toujours journalisée
+// côté appelant. Il n'existe pas de révocation « seulement les sessions
+// élevées » côté GoTrue : le périmètre large est assumé et documenté à
+// l'utilisateur concerné.
+func (s *Service) RevokeUserSessions(ctx context.Context, userID string) error {
+	if strings.TrimSpace(userID) == "" {
+		return errors.New("identifiant requis")
+	}
+	_, err := s.gotrue.request(ctx, userID, http.MethodDelete, "/auth/v1/admin/users/"+userID+"/sessions", nil)
+	return err
+}
+
 // MigrateSubscriptionsToVerifiedEmail migre la réception des newsletters du
 // compte vers son adresse actuelle, après vérification de celle-ci (fiche 01
 // §4). Règles : l'adresse du compte doit être confirmée côté fournisseur
