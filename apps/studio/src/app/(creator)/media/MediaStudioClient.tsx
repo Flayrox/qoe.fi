@@ -35,6 +35,7 @@ import { searchArticleContributorsAction } from '@qoe/sdk/actions/articles';
 import { toast } from '@qoe/ui/toast';
 import { cn } from '@qoe/utils';
 import { attemptWithStepUp } from '@/lib/authz-feedback';
+import { PendingInvites } from './PendingInvites';
 import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
 import {
@@ -275,7 +276,7 @@ export function MediaStudioClient({
       toast.success(
         res.alreadyMember
           ? t`Rôle mis à jour.`
-          : t`@${username} a rejoint le Média — une notification lui a été envoyée.`
+          : t`@${username} est invité — il devra accepter avec une session vérifiée avant d'avoir des droits.`
       );
       setSelectedMember(null);
       setMemberQuery('');
@@ -552,6 +553,9 @@ export function MediaStudioClient({
   if (!detail) {
     return (
       <div className="py-24 text-center">
+        <div className="mx-auto max-w-md mb-8">
+          <PendingInvites />
+        </div>
         <div className="size-14 rounded-xl bg-card border border-border/40 text-primary flex items-center justify-center mx-auto mb-5">
           <Building2 className="w-6 h-6" strokeWidth={1.5} />
         </div>
@@ -578,6 +582,9 @@ export function MediaStudioClient({
 
   return (
     <div className="mx-auto max-w-5xl px-4 md:px-6 py-6 text-foreground font-sans">
+      <div className="mb-6">
+        <PendingInvites />
+      </div>
       {/* ── Hero ── */}
       <div className="mb-8">
         {detail.publication.headerImageUrl && (

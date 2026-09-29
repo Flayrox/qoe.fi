@@ -11,6 +11,11 @@ import (
 )
 
 type Querier interface {
+	// Accepte une invitation en attente (fiche 05 §6) : ne passe en `active`
+	// qu'une ligne encore `invited`. Zéro ligne affectée = pas d'invitation (ou
+	// déjà active, ou révoquée entre-temps) : l'appelant distingue via le statut
+	// lu avant. Jamais d'activation implicite par un autre chemin.
+	ActivateMediaMember(ctx context.Context, arg ActivateMediaMemberParams) (int64, error)
 	// Activation directe réservée au parcours connecté à adresse vérifiée
 	// (fiche 01 §2 : adresse confirmée côté fournisseur + action explicite +
 	// session). C'est le SEUL cas, avec le paiement, où `confirmedAt` est posé

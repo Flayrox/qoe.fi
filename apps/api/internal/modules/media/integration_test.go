@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/permissions"
 	"github.com/qoefi/api/internal/testutil"
 )
 
@@ -30,6 +31,7 @@ func TestMain(m *testing.M) {
 	}
 	os.Exit(code)
 }
+
 // requirePool skippe les tests DB quand Docker/testcontainers est absent.
 func requirePool(t *testing.T) {
 	t.Helper()
@@ -37,7 +39,6 @@ func requirePool(t *testing.T) {
 		t.Skip("DB indisponible (Docker/testcontainers requis)")
 	}
 }
-
 
 const (
 	mediaOwnerID  = "00000000-0000-0000-0000-0000000000a1"
@@ -233,12 +234,15 @@ func TestInviteMemberByUsername_AddsMemberAndNotifies(t *testing.T) {
 		t.Fatalf("out = %v, attendu un ajout direct", out)
 	}
 
-	// Le collaborateur est membre actif avec le rôle demandé (aucun email requis).
+	// Le collaborateur est invité en attente avec le rôle demandé (aucun email
+	// requis) : aucun droit effectif avant son acceptation avec MFA (fiche 05
+	// §6). Donner `active` ici permettrait à un propriétaire de doter un
+	// compte sans MFA de droits immédiats.
 	var role, status string
 	if err := poolTest.QueryRow(ctx,
 		`SELECT role, status FROM "MediaMember" WHERE "mediaId" = 'media_001' AND "userId" = $1`,
-		mediaInvitee).Scan(&role, &status); err != nil || role != "editor" || status != "active" {
-		t.Fatalf("member = %q/%q (err %v), attendu editor/active", role, status, err)
+		mediaInvitee).Scan(&role, &status); err != nil || role != "editor" || status != "invited" {
+		t.Fatalf("member = %q/%q (err %v), attendu editor/invited", role, status, err)
 	}
 
 	// L'intéressé reçoit une notification MEDIA_INVITE dans la section collaboration.
@@ -370,5 +374,73 @@ func TestUpdateSettings(t *testing.T) {
 		`SELECT name, "heroText", "allowIndexing" FROM "Publication" WHERE id = 'pub_media_001'`,
 	).Scan(&name, &hero, &idx); err != nil || name != "Média Renommé" || hero != "Nouveau héros" || idx {
 		t.Fatalf("publication = %q/%q/%v (err %v)", name, hero, idx, err)
+	}
+}
+
+// Fiche 05 §6 : invitation → acceptation avec MFA → rôle actif. Avant
+// l'acceptation, l'invité n'exerce aucun droit ; une invitation révoquée
+// entre-temps ne peut plus être activée ; une acceptation rejouée ne fait
+// rien de plus (idempotence vers 409, pas d'erreur 500).
+func TestInviteAccept_FullFlow(t *testing.T) {
+	ctx := context.Background()
+	seedMedia(t, ctx)
+	svc := newTestService()
+
+	if _, err := svc.InviteMemberByUsername(ctx, mediaOwnerID, "media_001", "@inviteemedia", "editor"); err != nil {
+		t.Fatalf("InviteMemberByUsername: %v", err)
+	}
+
+	// Avant acceptation : aucun droit effectif, même avec le bon rôle.
+	m, err := svc.member(ctx, "media_001", mediaInvitee)
+	if err != nil || m == nil {
+		t.Fatalf("member: %v", err)
+	}
+	if permissions.CanMedia(&permissions.MediaMember{Role: m.Role, Permissions: m.Permissions, Status: m.Status}, permissions.PermPublishAny) {
+		t.Fatal("un invité en attente exerce des droits : CanMedia doit refuser le statut invited")
+	}
+
+	// Acceptation : devient actif avec le rôle invité.
+	out, err := svc.AcceptInvite(ctx, mediaInvitee, "media_001")
+	if err != nil {
+		t.Fatalf("AcceptInvite: %v", err)
+	}
+	if out["role"] != "editor" {
+		t.Fatalf("rôle accepté = %v, attendu editor", out["role"])
+	}
+	m, err = svc.member(ctx, "media_001", mediaInvitee)
+	if err != nil || m == nil || m.Status != "active" {
+		t.Fatalf("member après acceptation : %+v, %v", m, err)
+	}
+	if !permissions.CanMedia(&permissions.MediaMember{Role: m.Role, Permissions: m.Permissions, Status: m.Status}, permissions.PermPublishAny) {
+		t.Fatal("membre actif sans droits effectifs après acceptation")
+	}
+
+	// Rejouer l'acceptation : 409, pas d'erreur interne ni de double activation.
+	if _, err := svc.AcceptInvite(ctx, mediaInvitee, "media_001"); err != errAlreadyMember {
+		t.Fatalf("re-accept = %v, attendu errAlreadyMember", err)
+	}
+
+	// Sans invitation (jamais invité) : 404, pas d'activation implicite.
+	if _, err := svc.AcceptInvite(ctx, mediaStranger, "media_001"); err != errNotFound {
+		t.Fatalf("accept sans invitation = %v, attendu errNotFound", err)
+	}
+}
+
+// Invitation révoquée entre-temps : l'acceptation tardive, même avec MFA,
+// ne réactive rien (fiche 05 §6).
+func TestInviteAccept_RevokedBetween(t *testing.T) {
+	ctx := context.Background()
+	seedMedia(t, ctx)
+	svc := newTestService()
+
+	if _, err := svc.InviteMemberByUsername(ctx, mediaOwnerID, "media_001", "@inviteemedia", "writer"); err != nil {
+		t.Fatalf("InviteMemberByUsername: %v", err)
+	}
+	// Révocation par le propriétaire avant acceptation.
+	if err := svc.RemoveMember(ctx, mediaOwnerID, "media_001", mediaInvitee); err != nil {
+		t.Fatalf("RemoveMember: %v", err)
+	}
+	if _, err := svc.AcceptInvite(ctx, mediaInvitee, "media_001"); err != errNotFound {
+		t.Fatalf("accept après révocation = %v, attendu errNotFound", err)
 	}
 }

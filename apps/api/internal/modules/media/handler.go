@@ -50,6 +50,16 @@ func (h *Handler) Register(r chi.Router) {
 		// Membres, rôles et invitations média : N1 + media:manage_members.
 		manageMembers := mediaGuard(authz.ActionMediaMembersWrite)
 		r.With(manageMembers).Post("/{id}/invites", h.inviteMember)
+		// Accepter son invitation : la MFA forte est exigée au moment de
+		// l'activation (garde invitation_accept, N1, sans permission média —
+		// l'autorisation vient de la ligne `invited` elle-même). Avant cela,
+		// l'invité ne peut ni publier ni gérer l'équipe.
+		r.With(middleware.RequireAction(authz.ActionInvitationAccept)).
+			Post("/{id}/join", h.joinInvite)
+		// Lister ses invitations en attente : lecture seule, JWT uniquement,
+		// sans garde MFA (lister n'active rien). C'est ici que l'invité
+		// découvre ses invitations et les accepte.
+		r.Get("/invites/pending", h.listPendingInvites)
 		r.With(manageMembers).Patch("/{id}/members/{userId}", h.updateMemberRole)
 		r.With(manageMembers).Patch("/{id}/members/{userId}/permissions", h.updateMemberPermissions)
 		r.With(manageMembers).Delete("/{id}/members/{userId}", h.removeMember)
@@ -101,6 +111,8 @@ func writeErr(w http.ResponseWriter, err error) {
 		response.Forbidden(w, "Permission insuffisante")
 	case errors.Is(err, errNotFound):
 		response.NotFound(w, "Ressource introuvable")
+	case errors.Is(err, errAlreadyMember):
+		response.Error(w, http.StatusConflict, "Déjà membre actif de ce média")
 	default:
 		log.Printf("[media] %v", err)
 		response.Error(w, http.StatusBadRequest, err.Error())
@@ -265,6 +277,45 @@ func (h *Handler) inviteMember(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out, err := h.svc.InviteMemberByUsername(r.Context(), id, chi.URLParam(r, "id"), in.Username, in.Role)
+	if err != nil {
+		writeErr(w, err)
+		return
+	}
+	response.OK(w, out)
+}
+
+// GET /v1/media/invites/pending — invitations en attente du compte.
+// Lecture seule, JWT uniquement (pas de clé API : une clé n'a pas d'invitations
+// personnelles), sans garde MFA : lister n'active rien.
+func (h *Handler) listPendingInvites(w http.ResponseWriter, r *http.Request) {
+	id := userID(r)
+	if id == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	if middleware.Claims(r.Context()) == nil {
+		response.Unauthorized(w, "Session de compte requise")
+		return
+	}
+	out, err := h.svc.ListPendingInvites(r.Context(), id)
+	if err != nil {
+		writeErr(w, err)
+		return
+	}
+	response.OK(w, map[string]any{"items": out})
+}
+
+// POST /v1/media/{id}/join — activer sa propre invitation en attente.
+// Gardée N1 (invitation_accept) : pas d'activation sans session fortement
+// vérifiée. 404 si pas d'invitation (ou révoquée entre-temps), 409 si déjà
+// actif.
+func (h *Handler) joinInvite(w http.ResponseWriter, r *http.Request) {
+	id := userID(r)
+	if id == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	out, err := h.svc.AcceptInvite(r.Context(), id, chi.URLParam(r, "id"))
 	if err != nil {
 		writeErr(w, err)
 		return

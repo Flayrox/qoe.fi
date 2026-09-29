@@ -100,7 +100,9 @@ export function canMedia(
   permission: MediaPermission
 ): boolean {
   if (!member) return false;
-  if (member.status && member.status !== 'active' && member.status !== 'invited') return false;
+  // Seul un membre actif exerce des droits (fiche 05 §6, parité Go) : une
+  // invitation en attente (`invited`) doit d'abord être acceptée avec MFA.
+  if (member.status && member.status !== 'active') return false;
 
   const role = member.role as MediaRole;
   const base = MEDIA_ROLE_PERMISSIONS[role] ?? [];
