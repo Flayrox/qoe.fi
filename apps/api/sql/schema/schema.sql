@@ -342,12 +342,14 @@ CREATE TABLE "Ebook" (
     "sizeBytes" INTEGER NOT NULL DEFAULT 0,
     "progressChapter" INTEGER NOT NULL DEFAULT 0,
     "progressPct" SMALLINT NOT NULL DEFAULT 0,
+    "progressParagraph" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Ebook_pkey" PRIMARY KEY ("id"),
     CONSTRAINT "Ebook_title_check" CHECK (char_length("title") BETWEEN 1 AND 300),
     CONSTRAINT "Ebook_progress_check" CHECK ("progressChapter" >= 0 AND "progressPct" BETWEEN 0 AND 100),
+    CONSTRAINT "Ebook_paragraph_check" CHECK ("progressParagraph" >= 0),
     CONSTRAINT "Ebook_owner_file_unique" UNIQUE ("ownerId", "fileSha")
 );
 

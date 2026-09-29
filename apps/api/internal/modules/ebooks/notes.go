@@ -13,8 +13,10 @@ import (
 	"errors"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/jackc/pgx/v5"
+	"golang.org/x/text/unicode/norm"
 )
 
 const (
@@ -188,6 +190,94 @@ func (s *Service) UpdateNote(ctx context.Context, userID, ebookID, noteID, note 
 	n.CreatedAt = created.UTC().Format(time.RFC3339)
 	n.UpdatedAt = updated.UTC().Format(time.RFC3339)
 	return n, nil
+}
+
+// NoteRef est une note replacée dans son livre (vue « toutes mes notes »).
+// Champs à plat (pas d'embedding de Note) : `Note` porterait le même nom que
+// le texte de la note, et un JSON imbriqué compliquerait le client pour rien.
+type NoteRef struct {
+	ID           string `json:"id"`
+	ChapterIndex int    `json:"chapterIndex"`
+	ChapterTitle string `json:"chapterTitle"`
+	Excerpt      string `json:"excerpt"`
+	Note         string `json:"note"`
+	CreatedAt    string `json:"createdAt"`
+	UpdatedAt    string `json:"updatedAt"`
+	EbookID      string `json:"ebookId"`
+	EbookTitle   string `json:"ebookTitle"`
+	EbookAuthor  string `json:"ebookAuthor"`
+}
+
+// MaxNotesScan : nombre de notes relues pour la vue transversale. Le filtre
+// texte est fait en Go (insensible à la casse ET aux accents) plutôt qu'en
+// SQL, parce que l'extension `unaccent` n'est pas garantie sur toutes les
+// bases — un ORM ne doit pas décider de ce qui est installé. On borne donc
+// le scan, et on le DIT au client quand la borne est atteinte.
+const MaxNotesScan = 500
+
+// foldText : minuscules + diacritiques retirés (miroir du helper TS de
+// recherche dans un livre — même promesse des deux côtés).
+func foldText(s string) string {
+	s = norm.NFD.String(strings.ToLower(s))
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		if unicode.Is(unicode.Mn, r) {
+			continue // marque diacritique
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
+// AllNotes : toutes mes notes, tous livres confondus, les plus récentes
+// d'abord. `q` filtre sur le passage, la note, le chapitre, le livre et
+// l'auteur. `truncated` dit honnêtement si la borne de scan a coupé la
+// liste (jamais de silence sur une limite).
+func (s *Service) AllNotes(ctx context.Context, userID, q string) ([]NoteRef, bool, error) {
+	if userID == "" {
+		return nil, false, ErrEbookNotFound
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT n."id", n."chapterIndex", n."chapterTitle", n."excerpt", n."note", n."createdAt", n."updatedAt",
+		       n."ebookId", e."title", e."author"
+		FROM "EbookNote" n JOIN "Ebook" e ON e."id" = n."ebookId"
+		WHERE n."ownerId" = $1::uuid
+		ORDER BY n."createdAt" DESC
+		LIMIT $2`, userID, MaxNotesScan)
+	if err != nil {
+		return nil, false, err
+	}
+	defer rows.Close()
+
+	needle := foldText(strings.TrimSpace(q))
+	items := []NoteRef{}
+	scanned := 0
+	for rows.Next() {
+		var n NoteRef
+		var created, updated time.Time
+		if err := rows.Scan(&n.ID, &n.ChapterIndex, &n.ChapterTitle, &n.Excerpt, &n.Note,
+			&created, &updated, &n.EbookID, &n.EbookTitle, &n.EbookAuthor); err != nil {
+			return nil, false, err
+		}
+
+		n.CreatedAt = created.UTC().Format(time.RFC3339)
+		n.UpdatedAt = updated.UTC().Format(time.RFC3339)
+		scanned++
+		if needle != "" {
+			hay := foldText(strings.Join([]string{
+				n.Excerpt, n.Note, n.ChapterTitle, n.EbookTitle, n.EbookAuthor,
+			}, "\n"))
+			if !strings.Contains(hay, needle) {
+				continue
+			}
+		}
+		items = append(items, n)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, false, err
+	}
+	return items, scanned >= MaxNotesScan, nil
 }
 
 // DeleteNote supprime une note (pas à vous = introuvable).

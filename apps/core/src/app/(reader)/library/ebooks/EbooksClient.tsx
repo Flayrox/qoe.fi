@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useTransition } from 'react';
 import Link from 'next/link';
-import { BookOpen, Upload, Trash2, Loader2, ArrowLeft, Lock } from 'lucide-react';
+import { BookOpen, Upload, Trash2, Loader2, ArrowLeft, Lock, NotebookPen } from 'lucide-react';
 import { deleteEbookAction, type EbookSummary } from '@qoe/sdk';
 import { toast } from '@qoe/ui/toast';
 import { cn } from '@qoe/utils';
@@ -118,19 +118,29 @@ export function EbooksClient({ initialEbooks, plus }: EbooksClientProps) {
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={onPick}
-          disabled={uploading}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity shadow-2xs cursor-pointer disabled:opacity-60 self-start sm:self-auto"
-        >
-          {uploading ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          ) : (
-            <Upload className="w-3.5 h-3.5" />
-          )}
-          <span>{uploading ? 'Import en cours…' : 'Importer un EPUB'}</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <Link
+            href="/library/ebooks/notes"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-muted/60 hover:bg-muted text-foreground border border-border/50 transition-colors shadow-2xs cursor-pointer"
+            title="Toutes mes notes de lecture, tous livres confondus"
+          >
+            <NotebookPen className="w-3.5 h-3.5 text-primary" />
+            <span>Mes notes</span>
+          </Link>
+          <button
+            type="button"
+            onClick={onPick}
+            disabled={uploading}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity shadow-2xs cursor-pointer disabled:opacity-60"
+          >
+            {uploading ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Upload className="w-3.5 h-3.5" />
+            )}
+            <span>{uploading ? 'Import en cours…' : 'Importer un EPUB'}</span>
+          </button>
+        </div>
         <input
           ref={inputRef}
           type="file"

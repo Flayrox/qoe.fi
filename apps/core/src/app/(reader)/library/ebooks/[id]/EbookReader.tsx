@@ -7,16 +7,39 @@ import {
   ChevronLeft,
   ChevronRight,
   Check,
+  Download,
+  Headphones,
   Loader2,
+  Lock,
+  NotebookPen,
   Search,
   StickyNote,
   X,
 } from 'lucide-react';
-import { setEbookProgressAction, type EbookDetail, type EbookNote } from '@qoe/sdk';
+import {
+  getEbookOfflinePackAction,
+  setEbookProgressAction,
+  type EbookDetail,
+  type EbookNote,
+} from '@qoe/sdk';
+import { TextToSpeechProvider, useTextToSpeech } from '@qoe/ui/reader';
+import { toast } from '@qoe/ui/toast';
 import { cn } from '@qoe/utils';
+import {
+  browserOfflineStorage,
+  hasOfflinePack,
+  removeOfflinePack,
+  saveOfflinePack,
+} from '@/lib/offline-store';
 import { clampChapter, clampPct } from '../ebooks-helpers';
 import { searchEbookChapters, type EbookSearchHit } from '../ebook-search';
 import { EbookNotes } from './EbookNotes';
+
+/** Sélecteur du conteneur de chapitre : la synthèse vocale y lit ses paragraphes. */
+const CHAPTER_SELECTOR = '#ebook-chapter';
+
+/** Paragraphes reconnus (indexation locale ET lecture vocale). */
+const PARAGRAPH_SELECTOR = 'p, h2, h3, blockquote, li';
 
 // =====================================================================
 // 📖 Lecteur EPUB — un chapitre à la fois, progression synchronisée
@@ -43,16 +66,48 @@ function Snippet({ hit }: { hit: EbookSearchHit }) {
   );
 }
 
-export function EbookReader({
-  book,
-  initialNotes = [],
-}: {
+export interface EbookReaderProps {
   book: EbookDetail;
   initialNotes?: EbookNote[];
-}) {
+  /** Plus : débloque l'écoute (TTS) et l'emport hors-ligne. */
+  plus?: boolean;
+  /** Chapitre demandé explicitement (clic depuis « mes notes »). */
+  initialChapter?: number;
+}
+
+/**
+ * Enveloppe : la synthèse vocale du lecteur est fournie ici, avec le
+ * chapitre comme source de paragraphes — le lecteur de livres réutilise
+ * donc EXACTEMENT le moteur TTS des articles (mêmes commandes, même
+ * lecteur flottant, même gating Plus).
+ */
+export function EbookReader(props: EbookReaderProps) {
+  return (
+    <TextToSpeechProvider
+      initialMetadata={{
+        title: props.book.title,
+        coverUrl: null,
+        authorName: props.book.author || null,
+        contentSelector: CHAPTER_SELECTOR,
+      }}
+    >
+      <EbookReaderInner {...props} />
+    </TextToSpeechProvider>
+  );
+}
+
+function EbookReaderInner({
+  book,
+  initialNotes = [],
+  plus = false,
+  initialChapter,
+}: EbookReaderProps) {
   const chapters = book.chapters ?? [];
   const [index, setIndex] = useState(() =>
-    clampChapter(book.progressChapter, chapters.length || 1)
+    clampChapter(
+      initialChapter !== undefined ? initialChapter : book.progressChapter,
+      chapters.length || 1
+    )
   );
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [searchOpen, setSearchOpen] = useState(false);
@@ -61,6 +116,20 @@ export function EbookReader({
   const [notesOpen, setNotesOpen] = useState(false);
   const [selection, setSelection] = useState<string | null>(null);
   const [draftExcerpt, setDraftExcerpt] = useState<string | null>(null);
+  // Reprise « au paragraphe près » : index du premier paragraphe visible.
+  const [paragraph, setParagraph] = useState(() => Math.max(0, book.progressParagraph ?? 0));
+  const [offline, setOffline] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const articleRef = useRef<HTMLDivElement>(null);
+  const paragraphRef = useRef(paragraph);
+  paragraphRef.current = paragraph;
+  const mountedRef = useRef(false);
+  const tts = useTextToSpeech();
+  // Le livre est-il déjà emporté ? On ne le sait qu'après montage (localStorage).
+  useEffect(() => {
+    const storage = browserOfflineStorage();
+    if (storage) setOffline(hasOfflinePack(storage, book.id));
+  }, [book.id]);
   // Les chapitres sont déjà dans le client : la recherche est locale (aucun
   // aller-retour par frappe) et bornée (40 extraits max).
   const hits = useMemo(() => searchEbookChapters(chapters, query), [chapters, query]);
@@ -72,9 +141,9 @@ export function EbookReader({
   const pct = chapters.length > 0 ? clampPct(Math.round(((index + 1) / chapters.length) * 100)) : 0;
 
   const save = useCallback(
-    async (chapter: number) => {
+    async (chapter: number, para: number) => {
       setState('saving');
-      const res = await setEbookProgressAction({ id: book.id, chapter, pct });
+      const res = await setEbookProgressAction({ id: book.id, chapter, pct, paragraph: para });
       setState(res.ok ? 'saved' : 'error');
     },
     [book.id, pct]
@@ -85,11 +154,50 @@ export function EbookReader({
   useEffect(() => {
     if (index === openedAt.current) return;
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => void save(index), 900);
+    timer.current = setTimeout(() => void save(index, paragraphRef.current), 900);
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
   }, [index, save]);
+
+  // Le paragraphe visible est suivi au scroll (throttlé) : c'est lui qui
+  // permet de rouvrir le livre exactement où on l'a laissé. L'écoute vocale
+  // fait autorité quand elle tourne (c'est elle qui « lit »).
+  useEffect(() => {
+    const container = articleRef.current;
+    if (!container) return;
+    let frame: number | null = null;
+    const onScroll = () => {
+      if (frame !== null) return;
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        const nodes = container.querySelectorAll(PARAGRAPH_SELECTOR);
+        let first = 0;
+        for (let i = 0; i < nodes.length; i++) {
+          if (nodes[i].getBoundingClientRect().top <= 140) first = i;
+          else break;
+        }
+        setParagraph(first);
+      });
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      if (frame !== null) cancelAnimationFrame(frame);
+    };
+  }, [index]);
+
+  // Reprise à l'ouverture : on se replace sur le paragraphe mémorisé, une
+  // seule fois (jamais pendant qu'on lit — sinon la page se battrait avec
+  // l'utilisateur). Un chapitre demandé explicitement repart du début.
+  useEffect(() => {
+    if (initialChapter !== undefined || paragraph <= 0) return;
+    const nodes = articleRef.current?.querySelectorAll(PARAGRAPH_SELECTOR);
+    const target = nodes?.[paragraph] as HTMLElement | undefined;
+    target?.scrollIntoView({ block: 'start' });
+    // Volontairement au montage uniquement : on se replace UNE fois, jamais
+    // pendant la lecture (sinon la page se battrait avec l'utilisateur).
+  }, []);
 
   // Sortie de page (onglet fermé, navigation) : on pousse le dernier
   // chapitre lu — jamais perdu, même sans attendre le debounce.
@@ -97,7 +205,7 @@ export function EbookReader({
     const flush = () => {
       if (latestIndex.current === openedAt.current) return;
       if (timer.current) clearTimeout(timer.current);
-      void save(latestIndex.current);
+      void save(latestIndex.current, paragraphRef.current);
     };
     window.addEventListener('pagehide', flush);
     return () => window.removeEventListener('pagehide', flush);
@@ -112,8 +220,70 @@ export function EbookReader({
     return () => window.removeEventListener('keydown', onKey);
   }, [chapters.length]);
 
+  // Changer de chapitre arrête l'écoute : le moteur TTS lit le chapitre
+  // affiché, pas la suite d'un autre (un livre ne se lit pas tout seul).
+  // Au premier rendu on ne fait RIEN : c'est là qu'on restaure la position.
+  useEffect(() => {
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      return;
+    }
+    tts?.stopPlayback();
+    setParagraph(0);
+    window.scrollTo({ top: 0 });
+  }, [index]);
+
+  // Pendant l'écoute, la progression suit la voix (le paragraphe lu est la
+  // vérité, même si l'utilisateur ne touche plus au scroll).
+  useEffect(() => {
+    if (tts?.currentParagraphIndex != null && tts.isPlaying) {
+      setParagraph(tts.currentParagraphIndex);
+    }
+  }, [tts?.currentParagraphIndex, tts?.isPlaying]);
+
   const chapter = chapters[index];
   const chapterNotes = notes.filter((n) => n.chapterIndex === index);
+  const listen = () => {
+    if (!plus) {
+      toast.message('L’écoute est réservée aux abonnés Plus (bientôt disponible).');
+      return;
+    }
+    tts?.openAndPlay();
+  };
+
+  const takeOffline = async () => {
+    const storage = browserOfflineStorage();
+    if (!storage) {
+      toast.error('Ce navigateur ne permet pas de garder des livres hors-ligne.');
+      return;
+    }
+    if (!plus) {
+      toast.message('L’emport hors-ligne est réservé aux abonnés Plus (bientôt disponible).');
+      return;
+    }
+    if (offline) {
+      removeOfflinePack(storage, book.id);
+      setOffline(false);
+      toast.success('Livre retiré du hors-ligne.');
+      return;
+    }
+    setBusy(true);
+    const res = await getEbookOfflinePackAction({ id: book.id });
+    setBusy(false);
+    if (!res.ok) {
+      toast.error(res.error.message || 'Emport impossible pour le moment.');
+      return;
+    }
+    const saved = saveOfflinePack(storage, book.id, {
+      version: res.data.version,
+      kind: 'ebook',
+      payload: res.data.book,
+    });
+    setOffline(saved);
+    toast[saved ? 'success' : 'error'](
+      saved ? 'Livre emporté (lisible sans réseau).' : 'Stockage plein : livre non emporté.'
+    );
+  };
 
   // Sélection de texte → on propose de la garder (jamais d'action imposée :
   // le bouton est flottant, la sélection reste utilisable normalement).
@@ -160,7 +330,7 @@ export function EbookReader({
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0 mt-1">
+          <div className="flex items-center gap-2.5 shrink-0 mt-1">
             <span className="text-[10px] font-medium text-muted-foreground flex items-center gap-1">
               {state === 'saving' && (
                 <>
@@ -176,6 +346,50 @@ export function EbookReader({
                 <span className="text-destructive">Hors ligne — non enregistré</span>
               )}
             </span>
+            <Link
+              href="/library/ebooks/notes"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              title="Toutes mes notes de lecture"
+            >
+              <NotebookPen className="w-4 h-4" />
+            </Link>
+            <button
+              type="button"
+              onClick={listen}
+              className={cn(
+                'flex items-center gap-1 transition-colors cursor-pointer',
+                tts?.isPlaying ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+              )}
+              title={
+                plus ? 'Écouter ce chapitre (synthèse vocale)' : 'Écoute réservée aux abonnés Plus'
+              }
+            >
+              <Headphones className="w-4 h-4" />
+              {!plus && <Lock className="w-2.5 h-2.5" />}
+            </button>
+            <button
+              type="button"
+              onClick={() => void takeOffline()}
+              disabled={busy}
+              className={cn(
+                'flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50',
+                offline ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+              )}
+              title={
+                offline
+                  ? 'Retirer du hors-ligne'
+                  : plus
+                    ? 'Emporter ce livre (lisible sans réseau)'
+                    : 'Le hors-ligne est réservé aux abonnés Plus'
+              }
+            >
+              {busy ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
+              {!plus && <Lock className="w-2.5 h-2.5" />}
+            </button>
             <button
               type="button"
               onClick={() => setNotesOpen((v) => !v)}
@@ -269,8 +483,9 @@ export function EbookReader({
         />
       )}
 
-      {/* ─── Chapitre : HTML strict du parseur (sûr par construction) ─── */}
-      <div onMouseUp={captureSelection}>
+      {/* ─── Chapitre : HTML strict du parseur (sûr par construction).
+            Le conteneur porte l'id que lit la synthèse vocale. ─── */}
+      <div id={CHAPTER_SELECTOR.slice(1)} ref={articleRef} onMouseUp={captureSelection}>
         <article
           className="prose prose-zinc dark:prose-invert max-w-none text-base md:text-lg leading-relaxed text-foreground/90 antialiased"
           dangerouslySetInnerHTML={{ __html: chapter.html }}
