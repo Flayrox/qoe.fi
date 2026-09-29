@@ -32,7 +32,9 @@ import (
 )
 
 // GetEmailSettings renvoie l'identité par défaut de la publication
-// (pré-remplissage du formulaire) et les réglages email assainis.
+// (pré-remplissage du formulaire), les réglages assainis AU PALIER
+// (les overrides pro d'une publication gratuite sont déjà retirés ici —
+/// le studio verrouille en plus côté UI) et le palier lui-même.
 func (s *Service) GetEmailSettings(ctx context.Context, userID, publicationID string) (map[string]any, error) {
 	if err := s.authorizeSettings(ctx, userID, publicationID); err != nil {
 		return nil, errForbidden
@@ -44,10 +46,11 @@ func (s *Service) GetEmailSettings(ctx context.Context, userID, publicationID st
 		}
 		return nil, err
 	}
-	clean := workers.ParseEmailPrefs(row.EmailSettings)
+	clean := workers.ApplyTier(workers.ParseEmailPrefs(row.EmailSettings), row.EmailPro)
 	out := map[string]any{
 		"publicationName": row.Name,
 		"emailSettings":   clean,
+		"emailPro":        row.EmailPro,
 		// Langues d'emails disponibles (QOE_EMAIL_LOCALES, défaut fr,en) :
 		// le panneau studio génère ses onglets de langue depuis cette liste —
 		// ajouter une langue côté serveur suffit, zéro front à déployer.
@@ -64,12 +67,22 @@ func (s *Service) GetEmailSettings(ctx context.Context, userID, publicationID st
 
 // UpdateEmailSettings valide et enregistre les réglages email d'une
 // publication (PATCH partiel : les champs absents retombent sur les
-// défauts plateforme localisés).
+// défauts plateforme localisés). Freemium : les overrides pro d'une
+// publication gratuite sont RETIRÉS avant stockage (première barrière —
+// le rendu refiltre avec le palier lu en base). Les clés par langue
+// (welcomeBodies, confirm.fr…) tombent toujours (plus lues nulle part).
 func (s *Service) UpdateEmailSettings(ctx context.Context, userID, publicationID string, raw json.RawMessage) (map[string]any, error) {
 	if err := s.authorizeSettings(ctx, userID, publicationID); err != nil {
 		return nil, errForbidden
 	}
-	clean := workers.ParseEmailPrefs(raw)
+	defaults, err := s.q.GetPublicationEmailDefaults(ctx, publicationID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, errNotFound
+		}
+		return nil, err
+	}
+	clean := workers.ApplyTier(workers.ParseEmailPrefs(raw), defaults.EmailPro)
 	b, err := json.Marshal(clean)
 	if err != nil {
 		return nil, err
@@ -100,11 +113,12 @@ func (s *Service) PreviewEmailSettings(ctx context.Context, userID, publicationI
 		return nil, err
 	}
 
-	// Réglages : brouillon du panneau (déjà assaini par ParseEmailPrefs)
-	// sinon ceux stockés. Locale bornée fr/en, template borné confirm/welcome.
-	prefs := workers.ParseEmailPrefs(row.EmailSettings)
+	// Réglages : brouillon du panneau sinon ceux stockés — TOUJOURS filtrés
+	// au palier (un brouillon pro sur une publication gratuite s'aperçoit en
+	// défauts : l'aperçu est fidèle à 100 %, y compris au gating).
+	prefs := workers.ApplyTier(workers.ParseEmailPrefs(row.EmailSettings), row.EmailPro)
 	if len(draft) > 0 {
-		prefs = workers.ParseEmailPrefs(draft)
+		prefs = workers.ApplyTier(workers.ParseEmailPrefs(draft), row.EmailPro)
 	}
 	loc := workers.NormalizeEmailLocale(locale)
 	tpl := template

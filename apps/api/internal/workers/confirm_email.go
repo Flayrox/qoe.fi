@@ -142,7 +142,10 @@ func (w *ConfirmEmailWorker) HandleSubscriberConfirm(ctx context.Context, t *asy
 	}
 
 	locale := NormalizeEmailLocale(info.Locale)
-	prefs := ParseEmailPrefs(info.EmailSettings)
+	// Freemium (décision produit) : les overrides pro d'une publication
+	// gratuite sont ignorés ici (seconde barrière — la première est à la
+	// sauvegarde). EmailPro lu en base, jamais du JSON (forgeable).
+	prefs := ApplyTier(ParseEmailPrefs(info.EmailSettings), info.EmailPro)
 	pubURL := publicationPublicURL(info.Subdomain, info.CustomDomain)
 	link := buildConfirmURL(confirmEmailBaseURL(), p.PublicationID, p.Email, info.ConfirmationToken.String)
 

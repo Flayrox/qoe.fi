@@ -329,7 +329,7 @@ WHERE s.email = $1
 SELECT s.email, s."publicationId", s.locale,
        s."confirmationToken",
        p.name AS publication_name, p.subdomain, p."customDomain", p."accentColor",
-       p."logoUrl", p."emailSettings"
+       p."logoUrl", p."emailSettings", p."emailPro"
 FROM "Subscriber" s
 JOIN "Publication" p ON p.id = s."publicationId"
 WHERE s.email = $1
@@ -341,7 +341,7 @@ WHERE s.email = $1
 -- locale de l'abonné + personnalisation de la publication.
 SELECT s.email, s.locale, s."confirmedAt",
        p.name AS publication_name, p.subdomain, p."customDomain", p."accentColor",
-       p."logoUrl", p."emailSettings"
+       p."logoUrl", p."emailSettings", p."emailPro"
 FROM "Subscriber" s
 JOIN "Publication" p ON p.id = s."publicationId"
 WHERE s.email = $1

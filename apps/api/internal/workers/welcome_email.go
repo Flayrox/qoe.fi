@@ -81,7 +81,10 @@ func (w *WelcomeEmailWorker) HandleSubscriberWelcome(ctx context.Context, t *asy
 	}
 
 	locale := NormalizeEmailLocale(info.Locale)
-	prefs := ParseEmailPrefs(info.EmailSettings)
+	// Freemium (décision produit) : les overrides pro d'une publication
+	// gratuite sont ignorés ici (seconde barrière — la première est à la
+	// sauvegarde). EmailPro lu en base, jamais du JSON (forgeable).
+	prefs := ApplyTier(ParseEmailPrefs(info.EmailSettings), info.EmailPro)
 	if prefs.WelcomeEnabled != nil && !*prefs.WelcomeEnabled {
 		log.Printf("[welcome] bienvenue désactivé par le créateur pour %s", p.PublicationID)
 		return nil

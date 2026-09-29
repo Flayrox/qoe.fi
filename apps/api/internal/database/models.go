@@ -1395,6 +1395,7 @@ type Publication struct {
 	SeoDescription         pgtype.Text      `json:"seoDescription"`
 	SupportUrl             pgtype.Text      `json:"supportUrl"`
 	EmailSettings          []byte           `json:"emailSettings"`
+	EmailPro               bool             `json:"emailPro"`
 	StripeAccountId        pgtype.Text      `json:"stripeAccountId"`
 	CreatedAt              pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt              pgtype.Timestamp `json:"updatedAt"`
@@ -1607,6 +1608,19 @@ type SubscriberImportRow struct {
 	ExcludedBy   pgtype.Text      `json:"excludedBy"`
 	CreatedAt    pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt    pgtype.Timestamp `json:"updatedAt"`
+}
+
+type SupportArticle struct {
+	ID        string           `json:"id"`
+	Slug      string           `json:"slug"`
+	TitleFr   string           `json:"titleFr"`
+	TitleEn   string           `json:"titleEn"`
+	BodyFr    string           `json:"bodyFr"`
+	BodyEn    string           `json:"bodyEn"`
+	Position  int32            `json:"position"`
+	Published bool             `json:"published"`
+	CreatedAt pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt pgtype.Timestamp `json:"updatedAt"`
 }
 
 type SupportMessage struct {

@@ -392,7 +392,7 @@ const getPendingConfirmation = `-- name: GetPendingConfirmation :one
 SELECT s.email, s."publicationId", s.locale,
        s."confirmationToken",
        p.name AS publication_name, p.subdomain, p."customDomain", p."accentColor",
-       p."logoUrl", p."emailSettings"
+       p."logoUrl", p."emailSettings", p."emailPro"
 FROM "Subscriber" s
 JOIN "Publication" p ON p.id = s."publicationId"
 WHERE s.email = $1
@@ -416,6 +416,7 @@ type GetPendingConfirmationRow struct {
 	AccentColor       pgtype.Text `json:"accentColor"`
 	LogoUrl           pgtype.Text `json:"logoUrl"`
 	EmailSettings     []byte      `json:"emailSettings"`
+	EmailPro          bool        `json:"emailPro"`
 }
 
 func (q *Queries) GetPendingConfirmation(ctx context.Context, arg GetPendingConfirmationParams) (GetPendingConfirmationRow, error) {
@@ -432,6 +433,7 @@ func (q *Queries) GetPendingConfirmation(ctx context.Context, arg GetPendingConf
 		&i.AccentColor,
 		&i.LogoUrl,
 		&i.EmailSettings,
+		&i.EmailPro,
 	)
 	return i, err
 }
@@ -552,7 +554,7 @@ func (q *Queries) GetPublicationPublicProfile(ctx context.Context, id string) (G
 const getSubscriberEmailContext = `-- name: GetSubscriberEmailContext :one
 SELECT s.email, s.locale, s."confirmedAt",
        p.name AS publication_name, p.subdomain, p."customDomain", p."accentColor",
-       p."logoUrl", p."emailSettings"
+       p."logoUrl", p."emailSettings", p."emailPro"
 FROM "Subscriber" s
 JOIN "Publication" p ON p.id = s."publicationId"
 WHERE s.email = $1
@@ -574,6 +576,7 @@ type GetSubscriberEmailContextRow struct {
 	AccentColor     pgtype.Text      `json:"accentColor"`
 	LogoUrl         pgtype.Text      `json:"logoUrl"`
 	EmailSettings   []byte           `json:"emailSettings"`
+	EmailPro        bool             `json:"emailPro"`
 }
 
 // Contexte complet pour les emails transactionnels (bienvenue) :
@@ -591,6 +594,7 @@ func (q *Queries) GetSubscriberEmailContext(ctx context.Context, arg GetSubscrib
 		&i.AccentColor,
 		&i.LogoUrl,
 		&i.EmailSettings,
+		&i.EmailPro,
 	)
 	return i, err
 }

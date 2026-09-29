@@ -54,8 +54,19 @@ func TestParseEmailPrefs_SanitizesEverything(t *testing.T) {
 		"preheaders": {"confirm": "Un clic suffit"},
 		"footerNote": "Publié avec amour à Lyon.",
 		"welcomeEnabled": false,
-		"welcomeBodyFr": "Ravi de vous compter parmi nous !"
+		"welcomeBody": "Ravi de vous compter parmi nous !",
+		"welcomeBodyFr": "IGNORE (clé historique)",
+		"welcomeBodies": {"fr": "IGNORE"}
 	}`)
+	// Clés par langue : jamais lues (freemium) — même si présentes.
+	rawLang := []byte(`{"subjects": {"confirm.fr": "IGNORE", "confirm": "Confirmez !"}, "preheaders": {"welcome.en": "IGNORE"}}`)
+	plang := ParseEmailPrefs(rawLang)
+	if _, kept := plang.Subjects["confirm.fr"]; kept {
+		t.Error("les clés par langue (confirm.fr) ne sont plus lues")
+	}
+	if _, kept := plang.Preheaders["welcome.en"]; kept {
+		t.Error("les clés par langue (welcome.en) ne sont plus lues")
+	}
 	p := ParseEmailPrefs(raw)
 	if p.FromName != "Léa de La Gazette" {
 		t.Errorf("FromName = %q (trim attendu)", p.FromName)
@@ -78,8 +89,8 @@ func TestParseEmailPrefs_SanitizesEverything(t *testing.T) {
 	if p.WelcomeEnabled == nil || *p.WelcomeEnabled != false {
 		t.Error("welcomeEnabled=false doit être conservé")
 	}
-	if p.WelcomeBodyFR != "Ravi de vous compter parmi nous !" {
-		t.Errorf("WelcomeBodyFR = %q", p.WelcomeBodyFR)
+	if p.WelcomeBody != "Ravi de vous compter parmi nous !" {
+		t.Errorf("WelcomeBody = %q", p.WelcomeBody)
 	}
 
 	// welcomeEnabled absent → nil → activé par défaut.
@@ -112,10 +123,11 @@ func TestParseEmailPrefs_SanitizesEverything(t *testing.T) {
 }
 
 func TestResolveCustomization_LocalePicksBody(t *testing.T) {
+	// Corps UNIQUE (pro) : tel quel dans les deux langues (freemium : fini
+	// le par-langue). Défauts localisés sinon.
 	prefs := EmailPrefs{
-		WelcomeBodyFR: "Bienvenue !",
-		WelcomeBodyEN: "Welcome!",
-		Subjects:      map[string]string{"welcome": "Sujet personnalisé"},
+		WelcomeBody: "Bienvenue !",
+		Subjects:    map[string]string{"welcome": "Sujet personnalisé"},
 	}
 	fr := ResolveCustomization(prefs, "fr")
 	if fr.WelcomeBody != "Bienvenue !" {
@@ -128,11 +140,37 @@ func TestResolveCustomization_LocalePicksBody(t *testing.T) {
 		t.Error("sans override, le défaut localisé (fr) doit sortir")
 	}
 	en := ResolveCustomization(prefs, "en")
-	if en.WelcomeBody != "Welcome!" {
-		t.Errorf("corps en = %q", en.WelcomeBody)
+	if en.WelcomeBody != "Bienvenue !" {
+		t.Errorf("corps unique appliqué en en = %q", en.WelcomeBody)
 	}
 	if en.Subject("confirm", "défaut FR", "default EN") != "default EN" {
 		t.Error("sans override, le défaut localisé (en) doit sortir")
+	}
+}
+
+func TestApplyTier_FreeStripsPro(t *testing.T) {
+	full := EmailPrefs{
+		FromName: "Léa", ReplyTo: "a@b.cd", AccentColor: "#123456",
+		LogoURL: "https://x.fr/l.png",
+		Subjects: map[string]string{"confirm": "S"}, Preheaders: map[string]string{"confirm": "P"},
+		FooterNote: "N", WelcomeBody: "B",
+	}
+	free := ApplyTier(full, false)
+	if free.FromName != "" || free.ReplyTo != "" || free.AccentColor != "" ||
+		len(free.Subjects) != 0 || len(free.Preheaders) != 0 ||
+		free.FooterNote != "" || free.WelcomeBody != "" {
+		t.Errorf("gratuit : overrides pro vidés attendus, obtenu %+v", free)
+	}
+	if free.LogoURL == "" {
+		t.Error("gratuit : le logo (identité) reste")
+	}
+	pro := ApplyTier(full, true)
+	if pro.FromName != "Léa" || pro.Subjects["confirm"] != "S" || pro.WelcomeBody != "B" {
+		t.Errorf("pro : intacts attendus, obtenu %+v", pro)
+	}
+	// Idempotent (double application sans effet).
+	if twice := ApplyTier(ApplyTier(full, false), false); twice.FromName != "" {
+		t.Error("ApplyTier doit être idempotent")
 	}
 }
 
@@ -260,32 +298,25 @@ func TestEmailLocales_DefaultAndEnv(t *testing.T) {
 	}
 }
 
-func TestEmailLocales_PerLocaleOverrides(t *testing.T) {
+// Les overrides par langue N'EXISTENT PLUS (freemium) : les clés
+// « confirm.fr » et les corps par langue sont ignorés — le sujet unique
+// gagne, sinon le défaut localisé plateforme (gratuit).
+func TestEmailLocales_NoPerLocaleOverrides(t *testing.T) {
 	t.Setenv("QOE_EMAIL_LOCALES", "fr,en,es")
 	prefs := EmailPrefs{
 		Subjects: map[string]string{
-			"confirm.fr": "Sujet français",
-			"confirm.en": "English subject",
-			"confirm.es": "Asunto español",
+			"confirm.fr": "IGNORE",
+			"confirm":    "Sujet unique",
 		},
+		WelcomeBody: "Corps unique",
 	}
-	if got := ConfirmSubject(prefs, "es", "Lab"); got != "Asunto español" {
-		t.Errorf("sujet es = %q, attendu « Asunto español »", got)
+	if got := ConfirmSubject(prefs, "es", "Lab"); got != "Sujet unique" {
+		t.Errorf("sujet unique attendu, obtenu %q", got)
 	}
-	if got := ConfirmSubject(prefs, "en", "Lab"); got != "English subject" {
-		t.Errorf("sujet en = %q", got)
+	if got := WelcomeBody(prefs, "es", "Lab"); got != "Corps unique" {
+		t.Errorf("corps unique attendu, obtenu %q", got)
 	}
-}
-
-func TestEmailLocales_WelcomeBodiesAnyLanguage(t *testing.T) {
-	t.Setenv("QOE_EMAIL_LOCALES", "fr,en,es")
-	prefs := EmailPrefs{
-		WelcomeBodies: map[string]string{"es": "¡Bienvenido al laboratorio!"},
-	}
-	if got := WelcomeBody(prefs, "es", "Lab"); got != "¡Bienvenido al laboratorio!" {
-		t.Errorf("corps es = %q", got)
-	}
-	// Pas d'override es → repli sur le défaut (1re langue = fr).
+	// Sans override : défaut localisé (es inconnu des défauts → fr, 1re langue).
 	if got := WelcomeBody(EmailPrefs{}, "es", "Lab"); got == "" {
 		t.Error("repli attendu, jamais vide")
 	}

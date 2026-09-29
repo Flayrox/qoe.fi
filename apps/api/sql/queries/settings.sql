@@ -145,7 +145,7 @@ WHERE id = sqlc.arg(publication_id);
 -- name: GetPublicationEmailDefaults :one
 -- Identité par défaut de la publication (pré-remplissage du formulaire
 -- email du studio) + réglages email stockés.
-SELECT p.name, p."accentColor", p."logoUrl", p."emailSettings"
+SELECT p.name, p."accentColor", p."logoUrl", p."emailSettings", p."emailPro"
 FROM "Publication" p
 WHERE p.id = $1;
 
@@ -159,7 +159,8 @@ SELECT p.name AS publication_name,
        p."customDomain" AS custom_domain,
        p."accentColor" AS accent_color,
        p."logoUrl" AS logo_url,
-       p."emailSettings"
+       p."emailSettings",
+       p."emailPro"
 FROM "Publication" p
 WHERE p.id = $1;
 
@@ -172,6 +173,7 @@ SELECT p.name AS publication_name,
        p."customDomain" AS custom_domain,
        p."accentColor" AS accent_color,
        p."logoUrl" AS logo_url,
-       p."emailSettings"
+       p."emailSettings",
+       p."emailPro"
 FROM "Publication" p
 WHERE p.id = $1;
