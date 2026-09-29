@@ -7,6 +7,7 @@ import { t } from '@lingui/core/macro';
 import { TextToSpeechPlayer, ReadingSettingsSheet } from '@qoe/ui/reader';
 import { Popover, PopoverContent, PopoverTrigger } from '@qoe/ui';
 import { toast } from '@qoe/ui/toast';
+import { useFlag } from '@qoe/flags';
 import { usePlus } from '@/lib/use-plus';
 import { useReaderToolbar } from './ReaderToolbarContext';
 
@@ -17,6 +18,7 @@ export interface DockedReaderToolbarProps {
 
 export function DockedReaderToolbar({ articleTitle, className = '' }: DockedReaderToolbarProps) {
   const toolbar = useReaderToolbar();
+  const isTtsEnabled = useFlag('reader-tts-playback');
   // Gate Plus (fiche P1) : null = chargement (neutre, pas de flash d'upsell).
   const plus = usePlus();
   const locked = plus === false;
@@ -55,12 +57,14 @@ export function DockedReaderToolbar({ articleTitle, className = '' }: DockedRead
         </button>
 
         {/* 3. Écouter (TTS, Plus — verrouillé sinon, upsell informatif) */}
-        <TextToSpeechPlayer
-          articleTitle={articleTitle}
-          articleContentSelector="#article-content"
-          locked={locked}
-          onLockedClick={upsell}
-        />
+        {isTtsEnabled && (
+          <TextToSpeechPlayer
+            articleTitle={articleTitle}
+            articleContentSelector="#article-content"
+            locked={locked}
+            onLockedClick={upsell}
+          />
+        )}
 
         {/* 4. Typographie & Accessibilité (papiers premium cadenassés sans Plus) */}
         <ReadingSettingsSheet
@@ -74,7 +78,12 @@ export function DockedReaderToolbar({ articleTitle, className = '' }: DockedRead
       {/* 📱 MOBILE (< md) : TTS direct + Menu 3 petits points Popover */}
       <div className="flex md:hidden items-center gap-1">
         {/* TTS direct compact */}
-        <TextToSpeechPlayer articleTitle={articleTitle} articleContentSelector="#article-content" />
+        {isTtsEnabled && (
+          <TextToSpeechPlayer
+            articleTitle={articleTitle}
+            articleContentSelector="#article-content"
+          />
+        )}
 
         {/* Menu 3 petits points pour les options supplémentaires */}
         <Popover>

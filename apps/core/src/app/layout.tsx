@@ -28,6 +28,8 @@ import { StaleServerActionBanner } from '@/components/StaleServerActionBanner';
 import { ReadingPreferencesProvider } from '@/components/providers/ReadingPreferencesProvider';
 import { createClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import { InAppPlacement } from '@/components/placements/InAppPlacement';
+import type { InAppPlacementDTO } from '@/app/actions/placements';
 import {
   getDevtoolsData,
   getEmbeddingDiagnosticAction,
@@ -149,15 +151,21 @@ export default async function RootLayout({
       }>('/v1/settings/preferences').catch(() => null)
     : null;
 
-  // 📣 Annonce globale diffusée depuis l'admin (courbure inversée).
-  // Lecture Go-first : le layout ne touche plus à PostgREST (RLS 401 en prod).
-  const globalAnnouncement = await goFetch<{
-    id: string;
-    message: string;
-    type?: 'promo' | 'info' | 'warning' | 'critical';
-    linkUrl?: string;
-    linkText?: string;
-  } | null>('/v1/home/announcement').catch(() => null);
+  // 🦄 Moteur souverain In-App Placements (Licorne 2027) : slot global.notch
+  const notchPlacement = await goFetch<InAppPlacementDTO | null>(
+    '/v1/placements?slot=global.notch'
+  ).catch(() => null);
+
+  // 📣 Annonce globale de repli si aucun placement dédié n'est configuré
+  const globalAnnouncement = !notchPlacement
+    ? await goFetch<{
+        id: string;
+        message: string;
+        type?: 'promo' | 'info' | 'warning' | 'critical';
+        linkUrl?: string;
+        linkText?: string;
+      } | null>('/v1/home/announcement').catch(() => null)
+    : null;
 
   const devtoolsActions = {
     getDevtoolsData,
@@ -216,7 +224,9 @@ export default async function RootLayout({
               <ReadingPreferencesProvider initial={accountSettings}>
                 <GlobalAuthModalProvider isAuthenticated={!!currentUser}>
                   <TooltipProvider>
-                    {globalAnnouncement && (
+                    {notchPlacement ? (
+                      <InAppPlacement slot="global.notch" initialPlacement={notchPlacement} />
+                    ) : globalAnnouncement ? (
                       <InvertedCurveBanner
                         id={globalAnnouncement.id}
                         message={globalAnnouncement.message}
@@ -224,7 +234,7 @@ export default async function RootLayout({
                         linkUrl={globalAnnouncement.linkUrl}
                         linkText={globalAnnouncement.linkText}
                       />
-                    )}
+                    ) : null}
                     {children}
                     <StaleServerActionBanner />
                     <Toaster />

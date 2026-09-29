@@ -73,6 +73,11 @@ export function AppSidebar({
       iconName: 'Wallet',
     },
     {
+      title: t`Abonnement Plus`,
+      url: routes.feed.pricing(),
+      iconName: 'Crown',
+    },
+    {
       title: t`Mon profil`,
       url: profileHref,
       iconName: 'CircleUserRound',

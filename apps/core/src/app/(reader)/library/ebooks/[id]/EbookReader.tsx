@@ -27,9 +27,9 @@ import { toast } from '@qoe/ui/toast';
 import { cn } from '@qoe/utils';
 import {
   browserOfflineStorage,
-  hasOfflinePack,
-  removeOfflinePack,
-  saveOfflinePack,
+  hasOfflinePackAsync,
+  removeOfflinePackAsync,
+  saveOfflinePackAsync,
 } from '@/lib/offline-store';
 import { clampChapter, clampPct } from '../ebooks-helpers';
 import { searchEbookChapters, type EbookSearchHit } from '../ebook-search';
@@ -125,10 +125,15 @@ function EbookReaderInner({
   paragraphRef.current = paragraph;
   const mountedRef = useRef(false);
   const tts = useTextToSpeech();
-  // Le livre est-il déjà emporté ? On ne le sait qu'après montage (localStorage).
+  // Le livre est-il déjà emporté ? Résolu de manière asynchrone (IndexedDB + fallback).
   useEffect(() => {
-    const storage = browserOfflineStorage();
-    if (storage) setOffline(hasOfflinePack(storage, book.id));
+    let mounted = true;
+    hasOfflinePackAsync(book.id).then((isSaved) => {
+      if (mounted) setOffline(isSaved);
+    });
+    return () => {
+      mounted = false;
+    };
   }, [book.id]);
   // Les chapitres sont déjà dans le client : la recherche est locale (aucun
   // aller-retour par frappe) et bornée (40 extraits max).
@@ -252,8 +257,7 @@ function EbookReaderInner({
   };
 
   const takeOffline = async () => {
-    const storage = browserOfflineStorage();
-    if (!storage) {
+    if (typeof window === 'undefined' || (!window.indexedDB && !browserOfflineStorage())) {
       toast.error('Ce navigateur ne permet pas de garder des livres hors-ligne.');
       return;
     }
@@ -262,7 +266,7 @@ function EbookReaderInner({
       return;
     }
     if (offline) {
-      removeOfflinePack(storage, book.id);
+      await removeOfflinePackAsync(book.id);
       setOffline(false);
       toast.success('Livre retiré du hors-ligne.');
       return;
@@ -274,7 +278,7 @@ function EbookReaderInner({
       toast.error(res.error.message || 'Emport impossible pour le moment.');
       return;
     }
-    const saved = saveOfflinePack(storage, book.id, {
+    const saved = await saveOfflinePackAsync(book.id, {
       version: res.data.version,
       kind: 'ebook',
       payload: res.data.book,

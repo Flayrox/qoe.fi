@@ -118,4 +118,23 @@ describe('offline-store', () => {
   it('expose une clé préfixée (noms stables, pas de collision)', () => {
     expect(offlinePackKey('abc')).toBe(`${OFFLINE_PREFIX}abc`);
   });
+
+  it('gère les appels asynchrones avec repli gracieux sans environnement DOM/IDB', async () => {
+    const {
+      hasOfflinePackAsync,
+      readOfflinePackAsync,
+      saveOfflinePackAsync,
+      removeOfflinePackAsync,
+      listOfflinePacksAsync,
+    } = await import('./offline-store');
+
+    // Hors navigateur / sans storage, les méthodes asynchrones se replient élégamment sans planter
+    expect(await hasOfflinePackAsync('test-book')).toBe(false);
+    expect(await readOfflinePackAsync('test-book')).toBeNull();
+    expect(await listOfflinePacksAsync()).toEqual([]);
+
+    // Enregistrement gracieux : renvoie false si aucun stockage n'est accessible
+    expect(await saveOfflinePackAsync('test-book', pack('Test'))).toBe(false);
+    await expect(removeOfflinePackAsync('test-book')).resolves.toBeUndefined();
+  });
 });

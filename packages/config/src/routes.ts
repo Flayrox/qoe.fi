@@ -27,6 +27,7 @@ export const routes = {
     ebooks: () => '/library/ebooks',
     ebook: (id: string) => `/library/ebooks/${encodeURIComponent(id)}`,
     billing: () => '/billing',
+    pricing: () => '/pricing',
     settings: () => '/settings',
     onboarding: () => '/onboarding',
     profile: (

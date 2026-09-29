@@ -28,11 +28,8 @@
 # réglages essentiels, recommandations, feed.
 # PLUS / SOUTIEN (partiel — vagues livrées, voir ci-dessous) :
 #   P1 :
-#   - ✅ Surlignages : 50 gratuits (quota souple), illimités en Plus
-#     (HasPlus = octroi plus OU publication Pro possédée — Pro INCLUT
-#     Plus). 403 + code HIGHLIGHT_QUOTA_EXCEEDED (jamais de libellé
-#     matché), compteur exact /v1/me/highlights/count {count, limit, plus},
-#     upsell informatif (pas de vente de vent : pas de checkout).
+#   - ✅ Surlignages : illimités pour tous (gratuit & Plus). Pas de quota,
+#     sauvegarde et synchronisation transparentes.
 #   - ✅ Droits auteur téléchargement (Article.allowDownload, défaut
 #     Publication.allowDownloadDefault — opt-out, true par défaut) :
 #     l'auteur choisit, toggle studio immédiat (hors autosave), défaut

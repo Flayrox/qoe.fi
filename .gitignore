@@ -113,6 +113,7 @@ mcp-config.json
 
 # ─── Excluded experimental / work directories ─────────────
 jules_2/
+workin/
 # ─── Playwright E2E artifacts ──────────────────────────────
 test-results/
 playwright-report/

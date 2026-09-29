@@ -673,13 +673,6 @@ export function TextHighlighter({
         }, 800);
       } else if (res && !res.ok && res.error?.code === 'PUBLIC_ANNOTATIONS_DISABLED') {
         setErrorMessage(t`Le créateur a désactivé les annotations publiques sur cet écrit.`);
-      } else if (res && !res.ok && res.error?.code === 'HIGHLIGHT_QUOTA_EXCEEDED') {
-        // Freemium (fiche Plus) : 50 surlignages gratuits, illimités en Plus.
-        // Pas de vente de vent : Plus n'a pas de checkout — message
-        // informatif, pas de faux bouton d'achat.
-        setErrorMessage(
-          t`Quota gratuit atteint (50 surlignages) — Plus = illimités. Plus arrive bientôt, vos surlignages existants sont conservés.`
-        );
       }
     } catch (e) {
       console.error(e);
