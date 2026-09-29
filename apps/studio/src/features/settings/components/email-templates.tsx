@@ -49,23 +49,31 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   // Langues disponibles : fournies par l'API (QOE_EMAIL_LOCALES côté Go).
-  // Ajouter une langue = un seul changement côté backend, le panneau suit.
+  // Elles pilotent la PRÉVISUALISATION (rendu par langue) — plus aucun
+  // champ n'est saisi par langue (freemium : fini le par-langue).
   const [locales, setLocales] = useState<string[]>(['fr', 'en']);
   const [lang, setLang] = useState('fr');
   const [template, setTemplate] = useState<'confirm' | 'welcome'>('confirm');
+  // Palier email (freemium) : sans Pro, les champs de personnalisation sont
+  // verrouillés (le serveur ignore de toute façon leurs valeurs — le
+  // verrou UI n'est que de l'ergonomie, jamais la sécurité).
+  const [isPro, setIsPro] = useState(false);
   const [preview, setPreview] = useState<PreviewState>(null);
   const [previewing, setPreviewing] = useState(false);
   const [showText, setShowText] = useState(false);
   const [sendingTest, setSendingTest] = useState(false);
   const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Chargement initial : réglages stockés (assainis côté API) + langues.
+  // Chargement initial : réglages stockés (assainis AU PALIER côté API —
+  // une publication gratuite ne reçoit jamais ses anciens overrides) +
+  // langues + palier.
   useEffect(() => {
     let alive = true;
     getEmailSettingsAction(publicationId)
       .then((res) => {
         if (!alive) return;
         setSettings(res.emailSettings ?? {});
+        setIsPro(res.emailPro === true);
         if (res.locales?.length) {
           setLocales(res.locales);
           if (!res.locales.includes(lang)) setLang(res.locales[0]);
@@ -114,23 +122,12 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
     setSettings((prev) => ({ ...prev, [key]: value }));
     setSaved(false);
   };
-  const setMap = (
-    key: 'subjects' | 'preheaders',
-    tpl: 'confirm' | 'welcome',
-    locale: string,
-    value: string
-  ) => {
+  // Setters UNIQUES (freemium : fini le par-langue) — sujets, aperçus et
+  // corps ont une seule version, appliquée telle quelle à toutes les langues.
+  const setMap = (key: 'subjects' | 'preheaders', tpl: 'confirm' | 'welcome', value: string) => {
     setSettings((prev) => ({
       ...prev,
-      [key]: { ...prev[key], [`${tpl}.${locale}`]: value },
-    }));
-    setSaved(false);
-  };
-
-  const setWelcomeBody = (locale: string, value: string) => {
-    setSettings((prev) => ({
-      ...prev,
-      welcomeBodies: { ...prev.welcomeBodies, [locale]: value },
+      [key]: { ...prev[key], [tpl]: value },
     }));
     setSaved(false);
   };
@@ -173,15 +170,35 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
   }
 
   const welcomeOn = settings.welcomeEnabled !== false;
+  // Verrou Pro : les champs de personnalisation sont désactivés sans palier
+  // (le serveur ignore de toute façon leurs valeurs — ergonomie, pas sécurité).
+  const locked = !isPro;
+  const proBadge = (
+    <span className="ml-2 inline-block rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
+      Pro
+    </span>
+  );
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_460px] gap-8 items-start">
       {/* ══════════════════ COLONNE RÉGLAGES ══════════════════ */}
       <div className="divide-y divide-border/30">
-        {/* Expéditeur */}
+        {locked && (
+          <div className="py-4 rounded-xl border border-primary/30 bg-primary/5 px-4 mb-2">
+            <p className="text-xs font-semibold">
+              {t`Personnalisation Pro`} {proBadge}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {t`Nom d'expéditeur, couleurs, sujets et textes personnalisés sont réservés aux publications Pro. Gratuit : nom, logo, langues d'envoi et e-mails soignés par défaut.`}
+            </p>
+          </div>
+        )}
+        {/* Expéditeur (Pro) */}
         <div className={rowClass}>
           <div>
-            <label className={labelClass}>{t`Nom de l'expéditeur`}</label>
+            <label className={labelClass}>
+              {t`Nom de l'expéditeur`} {locked && proBadge}
+            </label>
             <span className={hintClass}>{t`Affiché comme « De » dans la boîte de réception.`}</span>
           </div>
           <div className="sm:col-span-2">
@@ -190,16 +207,19 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
               value={settings.fromName || ''}
               onChange={(e) => set('fromName', e.target.value)}
               maxLength={60}
+              disabled={locked}
               placeholder={t`Ex. La Gazette du Net`}
-              className={inputClass}
+              className={`${inputClass} disabled:opacity-40`}
             />
           </div>
         </div>
 
-        {/* Reply-To */}
+        {/* Reply-To (Pro) */}
         <div className={rowClass}>
           <div>
-            <label className={labelClass}>{t`Adresse de réponse`}</label>
+            <label className={labelClass}>
+              {t`Adresse de réponse`} {locked && proBadge}
+            </label>
             <span className={hintClass}>{t`Les réponses des lecteurs arrivent ici.`}</span>
           </div>
           <div className="sm:col-span-2">
@@ -208,16 +228,19 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
               value={settings.replyTo || ''}
               onChange={(e) => set('replyTo', e.target.value)}
               maxLength={254}
+              disabled={locked}
               placeholder="contact@exemple.fr"
-              className={inputClass}
+              className={`${inputClass} disabled:opacity-40`}
             />
           </div>
         </div>
 
-        {/* Couleur d'accent des boutons */}
+        {/* Couleur d'accent des boutons (Pro) */}
         <div className={rowClass}>
           <div>
-            <label className={labelClass}>{t`Couleur des boutons`}</label>
+            <label className={labelClass}>
+              {t`Couleur des boutons`} {locked && proBadge}
+            </label>
             <span className={hintClass}>{t`Teinte du bouton principal des emails.`}</span>
           </div>
           <div className="sm:col-span-2 space-y-2">
@@ -228,9 +251,10 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
                   <button
                     key={c}
                     type="button"
+                    disabled={locked}
                     onClick={() => set('accentColor', c)}
                     aria-label={c}
-                    className={`w-7 h-7 rounded-full border-2 cursor-pointer transition-all ${
+                    className={`w-7 h-7 rounded-full border-2 cursor-pointer transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
                       active ? 'border-foreground scale-110' : 'border-transparent'
                     }`}
                     style={{ backgroundColor: c }}
@@ -243,8 +267,9 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
               value={settings.accentColor || ''}
               onChange={(e) => set('accentColor', e.target.value)}
               maxLength={7}
+              disabled={locked}
               placeholder="#2563eb"
-              className={`${inputClass} max-w-[120px] font-sans`}
+              className={`${inputClass} max-w-[120px] font-sans disabled:opacity-40`}
             />
           </div>
         </div>
@@ -271,67 +296,55 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
           </div>
         </div>
 
-        {/* Sujets + aperçus par langue */}
+        {/* Sujets + aperçus UNIQUES (Pro — fini le par-langue : une version,
+         * appliquée telle quelle à toutes les langues, défauts localisés sinon) */}
         {(['confirm', 'welcome'] as const).map((tpl) => (
           <div key={tpl} className={rowClass}>
             <div>
               <label className={labelClass}>
-                {tpl === 'confirm' ? t`Sujet de la confirmation` : t`Sujet du bienvenue`}
+                {tpl === 'confirm' ? t`Sujet de la confirmation` : t`Sujet du bienvenue`}{' '}
+                {locked && proBadge}
               </label>
               <span
                 className={hintClass}
-              >{t`Texte d'aperçu = phrase visible dans la boîte de réception.`}</span>
+              >{t`Unique pour toutes les langues. Texte d'aperçu = phrase visible dans la boîte de réception.`}</span>
             </div>
             <div className="sm:col-span-2 space-y-2">
-              {locales.map((l) => (
-                <div key={l} className="flex items-center gap-2">
-                  <span className="w-8 text-[10px] font-bold uppercase text-muted-foreground">
-                    {l}
-                  </span>
-                  <input
-                    type="text"
-                    value={settings.subjects?.[`${tpl}.${l}`] ?? ''}
-                    onChange={(e) => setMap('subjects', tpl, l, e.target.value)}
-                    maxLength={120}
-                    placeholder={
-                      l === 'fr'
-                        ? tpl === 'confirm'
-                          ? t`Confirmez votre abonnement — (nom)`
-                          : t`Bienvenue chez (nom)`
-                        : tpl === 'confirm'
-                          ? 'Confirm your subscription — (name)'
-                          : 'Welcome to (name)'
-                    }
-                    className={inputClass}
-                  />
-                </div>
-              ))}
-              {locales.map((l) => (
-                <div key={`pre-${l}`} className="flex items-center gap-2">
-                  <span className="w-8 text-[10px] font-bold uppercase text-muted-foreground opacity-50">
-                    {l}
-                  </span>
-                  <input
-                    type="text"
-                    value={settings.preheaders?.[`${tpl}.${l}`] ?? ''}
-                    onChange={(e) => setMap('preheaders', tpl, l, e.target.value)}
-                    maxLength={140}
-                    placeholder={t`Texte d'aperçu (${l})`}
-                    className={inputClass}
-                  />
-                </div>
-              ))}
+              <input
+                type="text"
+                value={settings.subjects?.[tpl] ?? ''}
+                onChange={(e) => setMap('subjects', tpl, e.target.value)}
+                maxLength={120}
+                disabled={locked}
+                placeholder={
+                  tpl === 'confirm'
+                    ? t`Confirmez votre abonnement — (nom)`
+                    : t`Bienvenue chez (nom)`
+                }
+                className={`${inputClass} disabled:opacity-40`}
+              />
+              <input
+                type="text"
+                value={settings.preheaders?.[tpl] ?? ''}
+                onChange={(e) => setMap('preheaders', tpl, e.target.value)}
+                maxLength={140}
+                disabled={locked}
+                placeholder={t`Texte d'aperçu`}
+                className={`${inputClass} disabled:opacity-40`}
+              />
             </div>
           </div>
         ))}
 
-        {/* Corps du bienvenue (fr/en) + activation */}
+        {/* Corps du bienvenue UNIQUE (Pro) + activation (gratuite) */}
         <div className={rowClass}>
           <div>
-            <label className={labelClass}>{t`Corps de l'email de bienvenue`}</label>
+            <label className={labelClass}>
+              {t`Corps de l'email de bienvenue`} {locked && proBadge}
+            </label>
             <span
               className={hintClass}
-            >{t`Texte brut — les liens sont ajoutés automatiquement.`}</span>
+            >{t`Texte brut, une seule version pour toutes les langues.`}</span>
             <div className="mt-3 space-y-1">
               <label className="flex items-center gap-2 text-xs cursor-pointer">
                 <input
@@ -345,35 +358,24 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
             </div>
           </div>
           <div className="sm:col-span-2 space-y-2">
-            {locales.map((l) => (
-              <div key={l} className="flex items-start gap-2">
-                <span className="w-8 pt-2 text-[10px] font-bold uppercase text-muted-foreground">
-                  {l}
-                </span>
-                <textarea
-                  value={settings.welcomeBodies?.[l] ?? ''}
-                  onChange={(e) => setWelcomeBody(l, e.target.value)}
-                  maxLength={2000}
-                  rows={3}
-                  disabled={!welcomeOn}
-                  placeholder={
-                    l === 'fr'
-                      ? t`Votre inscription est confirmée. À très vite !`
-                      : l === 'en'
-                        ? 'Your subscription is confirmed. See you soon!'
-                        : ''
-                  }
-                  className={`${inputClass} resize-none disabled:opacity-40`}
-                />
-              </div>
-            ))}
+            <textarea
+              value={settings.welcomeBody ?? ''}
+              onChange={(e) => set('welcomeBody', e.target.value)}
+              maxLength={2000}
+              rows={3}
+              disabled={!welcomeOn || locked}
+              placeholder={t`Votre inscription est confirmée. À très vite !`}
+              className={`${inputClass} resize-none disabled:opacity-40`}
+            />
           </div>
         </div>
 
-        {/* Note de pied de page */}
+        {/* Note de pied de page (Pro) */}
         <div className={rowClass}>
           <div>
-            <label className={labelClass}>{t`Note de pied de page`}</label>
+            <label className={labelClass}>
+              {t`Note de pied de page`} {locked && proBadge}
+            </label>
             <span className={hintClass}>{t`Mention libre sous le texte de consentement.`}</span>
           </div>
           <div className="sm:col-span-2">
@@ -382,8 +384,9 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
               value={settings.footerNote || ''}
               onChange={(e) => set('footerNote', e.target.value)}
               maxLength={200}
+              disabled={locked}
               placeholder={t`Ex. Propulsé avec amour depuis Lyon`}
-              className={inputClass}
+              className={`${inputClass} disabled:opacity-40`}
             />
           </div>
         </div>
