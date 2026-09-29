@@ -11,6 +11,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
+	"github.com/qoefi/api/internal/abuse"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/modules/imports"
 	"github.com/qoefi/api/internal/modules/users"
@@ -49,6 +50,11 @@ func (h *Handler) Register(r chi.Router) {
 	// File de modération (signalements)
 	r.Get("/v1/admin/reports", h.reports)
 	r.Patch("/v1/admin/reports/{id}", h.resolveReport)
+
+	// File de revue anti-abus (verdicts automatiques non triviaux → clôture
+	// humaine tracée). Superadmin, lecture puis PATCH par sujet.
+	r.Get("/v1/admin/abuse/decisions", h.abuseDecisions)
+	r.Patch("/v1/admin/abuse/decisions", h.resolveAbuseDecision)
 
 	// Widgets & tendances
 	r.Get("/v1/admin/widgets", h.widgets)
@@ -284,6 +290,64 @@ func (h *Handler) resolveReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, data)
+}
+
+// GET /v1/admin/abuse/decisions — dossiers ouverts du noyau anti-abus.
+// Query : ?limit=50&offset=0. Chaque dossier = dernier verdict non trivial
+// d'un sujet (non expiré), avec le nombre de faits récents en contexte.
+func (h *Handler) abuseDecisions(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	items, total, err := h.svc.ListAbuseDecisions(r.Context(), userID, limit, offset)
+	if err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, map[string]any{"items": items, "total": total})
+}
+
+// PATCH /v1/admin/abuse/decisions — clôture humaine d'un dossier.
+// Body : { "subjectType": "report_target", "subjectId": "article:xxx",
+// "result": "allow|limit_distribution|pause_sending|suspend", "note": "..." }.
+// `allow` = classé sans suite (faux positif mesuré) ; le reste = escalade
+// dont l'acte passe par les chemins de modération existants.
+func (h *Handler) resolveAbuseDecision(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	var in struct {
+		SubjectType string `json:"subjectType"`
+		SubjectID   string `json:"subjectId"`
+		Result      string `json:"result"`
+		Note        string `json:"note"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil ||
+		in.SubjectType == "" || in.SubjectID == "" || in.Result == "" {
+		response.BadRequest(w, "JSON invalide (subjectType, subjectId et result requis)")
+		return
+	}
+	id, err := h.svc.ResolveAbuseDecision(r.Context(), userID, in.SubjectType, in.SubjectID, in.Result, in.Note)
+	if err != nil {
+		// abuse ne dépend d'aucun module : correspondance directe, sans
+		// couche d'erreurs intermédiaire qui masquerait les cas.
+		switch {
+		case errors.Is(err, errForbidden):
+			response.Forbidden(w, "Accès réservé au superadmin.")
+		case errors.Is(err, abuse.ErrNoOpenDecision):
+			response.NotFound(w, "Aucune décision ouverte pour ce sujet.")
+		case errors.Is(err, abuse.ErrInvalidHumanResult):
+			response.BadRequest(w, err.Error())
+		default:
+			h.handleErr(w, err)
+		}
+		return
+	}
+	response.OK(w, map[string]any{"id": id})
 }
 
 // PATCH /v1/admin/users/{userID} — modération (réservé superadmin).

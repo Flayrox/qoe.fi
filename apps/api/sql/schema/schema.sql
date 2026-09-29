@@ -177,6 +177,7 @@ CREATE TABLE "RiskDecision" (
     "reasonCodes" TEXT[] NOT NULL DEFAULT '{}',
     "decidedBy" TEXT NOT NULL DEFAULT 'auto',
     "deciderId" TEXT,
+    "note" TEXT,
     "expiresAt" TIMESTAMP(3),
     "appealRef" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

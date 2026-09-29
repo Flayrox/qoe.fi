@@ -82,6 +82,14 @@ type BurstRule struct {
 	Reason string
 }
 
+// FutureTolerance accepte les faits jusqu'à 1 s dans le futur : TIMESTAMP(3)
+// ARRONDIR à la milliseconde, donc un fait enregistré « maintenant » peut
+// être relu ~1 ms après son instant de référence — sans tolérance, le fait
+// le plus récent d'une rafale sortirait de sa propre fenêtre (régression
+// attrapée par le smoke dev du 29/09/2026 : 10 signaux → allow). Au-delà
+// d'1 s, c'est une anomalie d'horloge, pas un arrondi : exclu.
+const FutureTolerance = time.Second
+
 // Match dit si le fait relève de la règle pour CE sujet (type + portée +
 // identité du sujet + récence). L'identité est vérifiée ici même si
 // l'appelant a déjà filtré : un essaim contre la cible A ne doit jamais
@@ -92,8 +100,8 @@ func (r BurstRule) Match(f Fact, subjectType, subjectID string, now time.Time) b
 		f.SubjectType == r.SubjectScope &&
 		f.SubjectType == subjectType &&
 		f.SubjectID == subjectID &&
-		!f.ObservedAt.After(now) &&
-		now.Sub(f.ObservedAt) <= r.Window
+		!f.ObservedAt.After(now.Add(FutureTolerance)) &&
+		now.Sub(f.ObservedAt) <= r.Window+FutureTolerance
 }
 
 // Policy est un ensemble versionné de règles : la version est persistée avec
@@ -172,6 +180,21 @@ var PolicyV1 = Policy{
 			Reason:       "swarm.report.target",
 		},
 	},
+}
+
+// ValidHumanResult dit si un verdict humain clôt une revue : soit `allow`
+// (classé sans suite — le faux positif mesuré de la fiche 06 §11), soit une
+// escalade réelle (limitation, pause d'envois, suspension — appliquée par les
+// chemins de modération existants, ici seulement tracée). `slow`,
+// `challenge` et `needs_review` ne clôturent rien (ce sont des états
+// transitoires, pas des verdicts) et sont refusés.
+func ValidHumanResult(d Decision) bool {
+	switch d {
+	case DecisionAllow, DecisionLimitDistribution, DecisionPauseSending, DecisionSuspend:
+		return true
+	default:
+		return false
+	}
 }
 
 // Types de signaux et portées de sujet (codes stables, persistés en base).

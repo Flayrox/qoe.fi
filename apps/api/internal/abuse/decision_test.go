@@ -153,6 +153,23 @@ func TestPolicyV1_MostSevereWinsReasonsAccumulate(t *testing.T) {
 	}
 }
 
+// TIMESTAMP(3) arrondit à la milliseconde : un fait enregistré « maintenant »
+// peut être relu ~1 ms dans le futur. Sans tolérance, le fait le plus récent
+// d'une rafale sort de sa propre fenêtre (10 signaux → allow). Au-delà d'1 s,
+// anomalie d'horloge : exclu.
+func TestMatch_FutureTolerance(t *testing.T) {
+	now := time.Now()
+	rule := PolicyV1.Rules[0] // signup-burst
+	rounding := Fact{Type: SignalSignupAttempt, SubjectType: SubjectPublication, SubjectID: "p", ObservedAt: now.Add(500 * time.Millisecond)}
+	if !rule.Match(rounding, SubjectPublication, "p", now) {
+		t.Fatal("fait +500 ms (arrondi) : doit compter")
+	}
+	skew := Fact{Type: SignalSignupAttempt, SubjectType: SubjectPublication, SubjectID: "p", ObservedAt: now.Add(2 * time.Second)}
+	if rule.Match(skew, SubjectPublication, "p", now) {
+		t.Fatal("fait +2 s (anomalie) : doit être exclu")
+	}
+}
+
 func TestSeverity_UnknownNeverWins(t *testing.T) {
 	if Severity(Decision("nuke")) >= Severity(DecisionAllow) {
 		t.Fatal("une décision inconnue ne doit jamais gagner contre allow")
