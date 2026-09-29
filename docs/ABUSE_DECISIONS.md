@@ -114,6 +114,11 @@
 #   - Décision ↔ recours liés (appealRef sur le verdict humain). Les
 #     contenus attendront le support complet (pièces, SLA, réviseur).
 #
+# RÉSIDU : NOTIFICATIONS (pas de notification « réponse à votre recours » —
+# l'utilisateur revient voir /recours) : le type NotificationType est un
+# ENUM fermé sans valeur générique — brancher exige ALTER TYPE + régén sqlc
+# + prefs + rendu front. Lot à part, pas un ajout furtif.
+#
 # DÉCISIONS ASSUMÉES (ce que la fiche propose et qu'on ne fait PAS tel quel) :
 #   - TrustStatus (table de capacités vérifiées) : REFUSÉ comme table —
 #     l'état dérive des verdicts humains RiskDecision (éligibilité), pas
