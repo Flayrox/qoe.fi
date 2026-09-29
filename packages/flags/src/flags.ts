@@ -38,6 +38,10 @@ export const FLAGS = {
   // Les codes d'authentification ne passent par aucun worker et ne sont
   // jamais concernés.
   'workers-email-kill': false,
+  // 🛑 Inscriptions — ARRÊT D'URGENCE des nouvelles inscriptions (3 voies).
+  // Sémantique inversée : true = 503 explicite avant toute écriture, les
+  // confirmations en cours aboutissent. Miroir de AbuseSignupKill (Go).
+  'abuse.signup-kill': false,
 } as const satisfies Record<string, boolean>;
 
 export type FlagKey = keyof typeof FLAGS;

@@ -72,6 +72,14 @@
 #   - Lecture seule, fenêtre 1-90 j. Les chiffres de succès ne sont jamais
 #     « nombre de comptes bannis ».
 #
+# COUPE-FEU INSCRIPTIONS (flag abuse.signup-kill, fiche 06 §10) :
+#   - Engagé → les 3 voies (publique, clé API, connectée) refusent en 503
+#     explicite + Retry-After, AVANT toute écriture. Les confirmations de
+#     clics en cours aboutissent (on ne punit pas les légitimes en attente).
+#   - Lecture directe de feature_flags (effet immédiat, pas de cache TTL) ;
+#     clé absente ou DB en panne → autorisé + 1 log (dégradation ouverte).
+#   - Miroir TS @qoe/flags ; parité Go/TS verrouillée par test.
+#
 # EXPLOITATION : seuils côté serveur uniquement (jamais exposés — fiche §10 :
 # ne pas aider l'attaquant à calibrer). Dossiers expirés (72 h) = plus une
 # urgence. Signaux expirés purgés par expiresAt (pas de fichier perpétuel).

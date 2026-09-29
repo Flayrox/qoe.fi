@@ -2,6 +2,7 @@ package home
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"regexp"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/qoefi/api/internal/abuse"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
 	"github.com/redis/go-redis/v9"
@@ -160,6 +162,12 @@ func (h *Handler) subscribe(w http.ResponseWriter, r *http.Request) {
 	// à fr/en (défaut fr) — pilote la langue des emails transactionnels.
 	locale := normalizeSubscribeLocale(r)
 	if _, err := h.svc.SubscribeToNewsletter(r.Context(), body.Email, body.PublicationID, locale); err != nil {
+		// Coupe-feu engagé → 503 explicite (urgence assumée, Retry-After
+		// indicatif), pas de furtivité ni de 500 trompeur.
+		if errors.Is(err, abuse.ErrSignupSuspended) {
+			response.Error(w, http.StatusServiceUnavailable, "Inscriptions temporairement suspendues (maintenance anti-abus). Réessayez plus tard.")
+			return
+		}
 		log.Printf("[home] subscribe: %v", err)
 		response.Internal(w)
 		return

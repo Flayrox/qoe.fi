@@ -37,6 +37,13 @@ const (
 	// autorisés. Les e-mails d'authentification (codes, récupération) ne
 	// passent par aucun worker et ne sont jamais concernés.
 	WorkersEmailKill = "workers-email-kill"
+	// AbuseSignupKill est l'arrêt d'urgence des NOUVELLES inscriptions
+	// (fiche 06 §10 : bouton d'arrêt par type de capacité). true = les trois
+	// voies (publique, clé API, connectée) refusent en 503 explicite AVANT
+	// toute écriture ; les confirmations de clics en cours aboutissent
+	// normalement (on ne punit pas les légitimes en attente). false
+	// (défaut) = inscriptions autorisées (budgets + rate-limits usuels).
+	AbuseSignupKill = "abuse.signup-kill"
 )
 
 // defaults est le registre des défauts (miroir exact de @qoe/flags) : utilisé
@@ -50,6 +57,7 @@ var defaults = map[string]bool{
 	WorkersNewsletter:     true,
 	AuthzEnforce:          false,
 	WorkersEmailKill:      false,
+	AbuseSignupKill:       false,
 }
 
 // cacheTTL borne la fraîcheur d'un flag : une bascule console est appliquée
