@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Check, Loader2, X, Plus, Globe, Lock, Quote, Eye, Volume2 } from 'lucide-react';
+import { Check, Loader2, X, Plus, Globe, Lock, Quote, Eye, Volume2, Sparkles } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { AnimatePresence, motion } from 'framer-motion';
 import { TextSelectionPopover } from './TextSelectionPopover';
@@ -119,6 +119,9 @@ export function TextHighlighter({
   const [savedSuccess, setSavedSuccess] = useState(false);
   const [copiedSuccess, setCopiedSuccess] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // IA Expliquer (fiche Plus P1) : explication en cours + texte reçu.
+  const [explaining, setExplaining] = useState(false);
+  const [explanation, setExplanation] = useState<string | null>(null);
 
   // Drawer state for clicked highlight
   const [selectedAnnotationForDrawer, setSelectedAnnotationForDrawer] =
@@ -731,6 +734,40 @@ export function TextHighlighter({
     }
   };
 
+  // IA Expliquer (fiche Plus P1) : appelle onExplain (branché par le parent
+  // avec l'action IA + Plus) et affiche le texte reçu — TOUJOURS présenté
+  // comme IA (jamais confondu avec l'éditorial). Les codes d'erreur du
+  // backend deviennent des messages actionnables (quota, Plus, panne).
+  const handleExplain = async (selectedText: string) => {
+    if (!callbacks?.onExplain || explaining) return;
+    setExplaining(true);
+    setExplanation(null);
+    setErrorMessage(null);
+    try {
+      const res = await callbacks.onExplain({ text: selectedText });
+      if (res?.ok && res.data && typeof res.data.explanation === 'string') {
+        setExplanation(res.data.explanation);
+      } else {
+        const code = res?.error?.code;
+        if (code === 'AI_QUOTA_EXCEEDED') {
+          setErrorMessage(t`Quota IA du mois épuisé — il revient le mois prochain.`);
+        } else if (code === 'AI_PLUS_REQUIRED') {
+          setErrorMessage(t`Explication IA réservée aux abonnés Plus (bientôt).`);
+        } else if (code === 'AI_UNAVAILABLE') {
+          setErrorMessage(t`IA momentanément indisponible — réessayez plus tard.`);
+        } else if (code === 'AI_BUSY') {
+          setErrorMessage(t`Trop de demandes en ce moment — réessayez dans quelques minutes.`);
+        } else {
+          setErrorMessage(t`Explication impossible pour le moment.`);
+        }
+      }
+    } catch {
+      setErrorMessage(t`Explication impossible pour le moment.`);
+    } finally {
+      setExplaining(false);
+    }
+  };
+
   return (
     <>
       {/* 🌍 UNIVERSAL TENANT ANNOTATION READER FILTER BAR */}
@@ -771,292 +808,336 @@ export function TextHighlighter({
         minSelectionLength={1}
         isLocked={showNoteInput || saving}
       >
-        {({ text: selectedText, range, placement, clearSelection }) => (
-          /* 🍏 APPLE CALLOUT MENU (Inspiré du callout menu natif d'Apple) */
-          <div className="relative flex flex-col items-center">
-            {/* Directional Caret (flèche vers le haut si le menu est sous la sélection) */}
-            {!showNoteInput && placement.startsWith('bottom') && (
-              <div className="w-0 h-0 border-x-[6px] border-x-transparent border-b-[6px] border-b-popover/95 drop-shadow-[0_-1px_1px_rgba(0,0,0,0.08)] mb-[-1px] z-10 pointer-events-none" />
-            )}
-
-            <div
-              className={cn(
-                'bg-popover/95 text-popover-foreground border border-border/40 backdrop-blur-xl shadow-2xl font-sans transition-all duration-150 ease-out',
-                showNoteInput ? 'rounded-2xl w-80 sm:w-84 p-4 space-y-3' : 'rounded-xl py-1 px-1'
+        {({ text: selectedText, range, placement, clearSelection: clearSel }) => {
+          // L'explication IA appartient à LA sélection courante : la
+          // refermer avec elle (jamais d'explication orpheline affichée
+          // sur un autre passage).
+          const clearSelection = () => {
+            setExplanation(null);
+            clearSel();
+          };
+          return (
+            /* 🍏 APPLE CALLOUT MENU (Inspiré du callout menu natif d'Apple) */
+            <div className="relative flex flex-col items-center">
+              {/* Directional Caret (flèche vers le haut si le menu est sous la sélection) */}
+              {!showNoteInput && placement.startsWith('bottom') && (
+                <div className="w-0 h-0 border-x-[6px] border-x-transparent border-b-[6px] border-b-popover/95 drop-shadow-[0_-1px_1px_rgba(0,0,0,0.08)] mb-[-1px] z-10 pointer-events-none" />
               )}
-            >
-              <AnimatePresence mode="popLayout" initial={false}>
-                {!showNoteInput ? (
-                  /* STATE A: Apple Callout Menu Toolbar */
-                  <motion.div
-                    key="toolbar-state"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.1 }}
-                    className="flex items-center text-xs font-semibold select-none"
-                  >
-                    {/* 1-Click Instant Highlight */}
-                    <button
-                      type="button"
-                      onClick={() => handleInstantHighlight(selectedText, clearSelection)}
-                      disabled={saving}
-                      className="px-3.5 py-1.5 rounded-lg text-foreground/90 hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer"
-                      title={t`Surligner ce passage`}
+
+              <div
+                className={cn(
+                  'bg-popover/95 text-popover-foreground border border-border/40 backdrop-blur-xl shadow-2xl font-sans transition-all duration-150 ease-out',
+                  showNoteInput ? 'rounded-2xl w-80 sm:w-84 p-4 space-y-3' : 'rounded-xl py-1 px-1'
+                )}
+              >
+                <AnimatePresence mode="popLayout" initial={false}>
+                  {!showNoteInput ? (
+                    /* STATE A: Apple Callout Menu Toolbar */
+                    <motion.div
+                      key="toolbar-state"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.1 }}
+                      className="flex items-center text-xs font-semibold select-none"
                     >
-                      {t`Surligner`}
-                    </button>
+                      {/* 1-Click Instant Highlight */}
+                      <button
+                        type="button"
+                        onClick={() => handleInstantHighlight(selectedText, clearSelection)}
+                        disabled={saving}
+                        className="px-3.5 py-1.5 rounded-lg text-foreground/90 hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer"
+                        title={t`Surligner ce passage`}
+                      >
+                        {t`Surligner`}
+                      </button>
 
-                    <div className="w-px h-3.5 bg-border/40 shrink-0" />
+                      <div className="w-px h-3.5 bg-border/40 shrink-0" />
 
-                    {/* 1-Click Feed Crosspost */}
-                    <button
-                      type="button"
-                      onClick={() => handleDirectCrosspostToFeed(selectedText, clearSelection)}
-                      disabled={saving}
-                      className="px-3.5 py-1.5 rounded-lg text-foreground/90 hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-                      title={t`Citer ce passage sur le Feed`}
-                    >
-                      {saving ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : savedSuccess ? (
-                        <span className="text-success font-bold">{t`Cité !`}</span>
-                      ) : (
-                        t`Citer`
-                      )}
-                    </button>
+                      {/* 1-Click Feed Crosspost */}
+                      <button
+                        type="button"
+                        onClick={() => handleDirectCrosspostToFeed(selectedText, clearSelection)}
+                        disabled={saving}
+                        className="px-3.5 py-1.5 rounded-lg text-foreground/90 hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                        title={t`Citer ce passage sur le Feed`}
+                      >
+                        {saving ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : savedSuccess ? (
+                          <span className="text-success font-bold">{t`Cité !`}</span>
+                        ) : (
+                          t`Citer`
+                        )}
+                      </button>
 
-                    <div className="w-px h-3.5 bg-border/40 shrink-0" />
+                      <div className="w-px h-3.5 bg-border/40 shrink-0" />
 
-                    {/* Add Note Trigger (Morph to State B) */}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!isAuthenticated) {
-                          handleLoginRedirect();
-                        } else {
-                          setActiveDraftText(selectedText);
-                          applyTempDraftMark(range);
-                          setShowNoteInput(true);
-                        }
-                      }}
-                      className="px-3.5 py-1.5 rounded-lg text-foreground/90 hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer"
-                      title={t`Ajouter une note ou annotation publique`}
-                    >
-                      {t`Annoter`}
-                    </button>
-
-                    <div className="w-px h-3.5 bg-border/40 shrink-0" />
-
-                    {/* Écouter la sélection */}
-                    {tts && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            clearSelection();
-                            tts.openAndPlay({ customText: selectedText });
-                          }}
-                          className="px-3.5 py-1.5 rounded-lg text-foreground/90 hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer flex items-center gap-1.5"
-                          title={t`Écouter ce passage`}
-                        >
-                          <Volume2 className="w-3.5 h-3.5 text-primary" />
-                          <span>{t`Écouter`}</span>
-                        </button>
-
-                        <div className="w-px h-3.5 bg-border/40 shrink-0" />
-                      </>
-                    )}
-
-                    {/* Copy to Clipboard */}
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(selectedText, clearSelection)}
-                      className="px-3.5 py-1.5 rounded-lg text-foreground/90 hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer"
-                      title={t`Copier l'extrait`}
-                    >
-                      {copiedSuccess ? (
-                        <span className="text-success font-bold">{t`Copié !`}</span>
-                      ) : (
-                        t`Copier`
-                      )}
-                    </button>
-                  </motion.div>
-                ) : (
-                  /* STATE B: Expanded Card with Unified Quoted Block & Separator */
-                  <motion.form
-                    key="form-state"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.12 }}
-                    onSubmit={(e) => handleHighlightSubmit(e, selectedText, clearSelection)}
-                    className="flex flex-col gap-3 text-left"
-                  >
-                    {/* Header: Centered Title + Pencil SVG with Gomme Separation Line */}
-                    <div className="flex items-center justify-between">
-                      <div className="w-6 h-6" /> {/* Left spacer */}
-                      <span className="text-sm font-semibold text-foreground flex items-center justify-center gap-2">
-                        <svg
-                          className="w-4 h-4 text-foreground shrink-0"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="1.75"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          {/* Pencil body filled */}
-                          <path
-                            d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"
-                            fill="currentColor"
-                            fillOpacity="0.25"
-                          />
-                          {/* Distinct Eraser / Gomme separation line */}
-                          <line
-                            x1="15"
-                            y1="5"
-                            x2="19"
-                            y2="9"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                          />
-                        </svg>
-                        <span>Nouvelle annotation</span>
-                      </span>
+                      {/* Add Note Trigger (Morph to State B) */}
                       <button
                         type="button"
                         onClick={() => {
-                          clearForm();
-                          clearSelection();
+                          if (!isAuthenticated) {
+                            handleLoginRedirect();
+                          } else {
+                            setActiveDraftText(selectedText);
+                            applyTempDraftMark(range);
+                            setShowNoteInput(true);
+                          }
                         }}
-                        className="w-6 h-6 rounded-full bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
+                        className="px-3.5 py-1.5 rounded-lg text-foreground/90 hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer"
+                        title={t`Ajouter une note ou annotation publique`}
                       >
-                        <X className="w-3.5 h-3.5" />
+                        {t`Annoter`}
                       </button>
-                    </div>
 
-                    {/* Single Unified Card: Quoted Block + Capillary Line + Textarea */}
-                    <div className="rounded-2xl border border-border/30 bg-gradient-to-b from-muted/60 via-muted/20 to-transparent overflow-hidden shadow-xs">
-                      {/* Top Quoted Passage */}
-                      <div className="p-3 text-xs text-foreground/90 flex items-center gap-2.5">
-                        <Quote className="w-4 h-4 fill-muted-foreground/30 text-muted-foreground shrink-0" />
-                        <p className="font-sans italic text-xs font-medium truncate text-foreground/90">
-                          “ "{activeDraftText || selectedText}" ”
-                        </p>
+                      <div className="w-px h-3.5 bg-border/40 shrink-0" />
+
+                      {/* Écouter la sélection */}
+                      {tts && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              clearSelection();
+                              tts.openAndPlay({ customText: selectedText });
+                            }}
+                            className="px-3.5 py-1.5 rounded-lg text-foreground/90 hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer flex items-center gap-1.5"
+                            title={t`Écouter ce passage`}
+                          >
+                            <Volume2 className="w-3.5 h-3.5 text-primary" />
+                            <span>{t`Écouter`}</span>
+                          </button>
+
+                          <div className="w-px h-3.5 bg-border/40 shrink-0" />
+                        </>
+                      )}
+
+                      {/* Copy to Clipboard */}
+                      <button
+                        type="button"
+                        onClick={() => handleCopy(selectedText, clearSelection)}
+                        className="px-3.5 py-1.5 rounded-lg text-foreground/90 hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer"
+                        title={t`Copier l'extrait`}
+                      >
+                        {copiedSuccess ? (
+                          <span className="text-success font-bold">{t`Copié !`}</span>
+                        ) : (
+                          t`Copier`
+                        )}
+                      </button>
+
+                      {/* Expliquer (IA, fiche Plus P1) : visible seulement si
+                       * le parent branche onExplain (moteur neutre sinon). */}
+                      {callbacks?.onExplain && (
+                        <>
+                          <div className="w-px h-3.5 bg-border/40 shrink-0" />
+                          <button
+                            type="button"
+                            disabled={explaining}
+                            onClick={() => void handleExplain(selectedText)}
+                            className="px-3.5 py-1.5 rounded-lg text-foreground/90 hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                            title={t`Expliquer ce passage (IA)`}
+                          >
+                            {explaining ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <Sparkles className="w-3.5 h-3.5 text-primary" />
+                            )}
+                            <span>{t`Expliquer`}</span>
+                          </button>
+                        </>
+                      )}
+                      {/* Explication reçue : TOUJOURS présentée comme IA (fiche :
+                       * jamais confondue avec l'éditorial). */}
+                      {explanation && (
+                        <div className="px-3.5 pb-2 pt-1 text-left max-w-xs">
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-primary flex items-center gap-1">
+                            <Sparkles className="w-3 h-3" />
+                            {t`Expliqué par IA`}
+                          </p>
+                          <p className="text-xs text-foreground/90 leading-relaxed mt-1 whitespace-pre-wrap">
+                            {explanation}
+                          </p>
+                        </div>
+                      )}
+                    </motion.div>
+                  ) : (
+                    /* STATE B: Expanded Card with Unified Quoted Block & Separator */
+                    <motion.form
+                      key="form-state"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.12 }}
+                      onSubmit={(e) => handleHighlightSubmit(e, selectedText, clearSelection)}
+                      className="flex flex-col gap-3 text-left"
+                    >
+                      {/* Header: Centered Title + Pencil SVG with Gomme Separation Line */}
+                      <div className="flex items-center justify-between">
+                        <div className="w-6 h-6" /> {/* Left spacer */}
+                        <span className="text-sm font-semibold text-foreground flex items-center justify-center gap-2">
+                          <svg
+                            className="w-4 h-4 text-foreground shrink-0"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="1.75"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            {/* Pencil body filled */}
+                            <path
+                              d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"
+                              fill="currentColor"
+                              fillOpacity="0.25"
+                            />
+                            {/* Distinct Eraser / Gomme separation line */}
+                            <line
+                              x1="15"
+                              y1="5"
+                              x2="19"
+                              y2="9"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                            />
+                          </svg>
+                          <span>Nouvelle annotation</span>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            clearForm();
+                            clearSelection();
+                          }}
+                          className="w-6 h-6 rounded-full bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
                       </div>
 
-                      {/* Ultra-subtle Capillary Line Separator */}
-                      <div className="w-full h-px bg-border/25" />
+                      {/* Single Unified Card: Quoted Block + Capillary Line + Textarea */}
+                      <div className="rounded-2xl border border-border/30 bg-gradient-to-b from-muted/60 via-muted/20 to-transparent overflow-hidden shadow-xs">
+                        {/* Top Quoted Passage */}
+                        <div className="p-3 text-xs text-foreground/90 flex items-center gap-2.5">
+                          <Quote className="w-4 h-4 fill-muted-foreground/30 text-muted-foreground shrink-0" />
+                          <p className="font-sans italic text-xs font-medium truncate text-foreground/90">
+                            “ "{activeDraftText || selectedText}" ”
+                          </p>
+                        </div>
 
-                      {/* Bottom Textarea Input */}
-                      <textarea
-                        autoFocus
-                        value={noteText}
-                        onChange={(e) => setNoteText(e.target.value)}
-                        placeholder={t`Écrivez votre réflexion sur ce passage...`}
-                        className="w-full bg-transparent p-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none font-sans resize-none h-20 leading-relaxed border-none"
-                      />
-                    </div>
+                        {/* Ultra-subtle Capillary Line Separator */}
+                        <div className="w-full h-px bg-border/25" />
 
-                    {/* Apple-Style Segmented Pill Control with Sliding Active Background */}
-                    <div className="p-1 rounded-full bg-muted/60 border border-border/20 flex items-center relative select-none">
+                        {/* Bottom Textarea Input */}
+                        <textarea
+                          autoFocus
+                          value={noteText}
+                          onChange={(e) => setNoteText(e.target.value)}
+                          placeholder={t`Écrivez votre réflexion sur ce passage...`}
+                          className="w-full bg-transparent p-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none font-sans resize-none h-20 leading-relaxed border-none"
+                        />
+                      </div>
+
+                      {/* Apple-Style Segmented Pill Control with Sliding Active Background */}
+                      <div className="p-1 rounded-full bg-muted/60 border border-border/20 flex items-center relative select-none">
+                        <button
+                          type="button"
+                          onClick={() => setIsPublicChoice(false)}
+                          className={cn(
+                            'relative z-10 flex-1 py-1.5 rounded-full text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer',
+                            !isPublicChoice
+                              ? 'text-primary-foreground'
+                              : 'text-muted-foreground hover:text-foreground'
+                          )}
+                        >
+                          <span>{t`Privée`}</span>
+                          <Lock className="w-3.5 h-3.5" />
+                          {!isPublicChoice && (
+                            <motion.div
+                              layoutId="privacy-pill-indicator"
+                              className="absolute inset-0 bg-primary rounded-full shadow-xs -z-10"
+                              transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+                            />
+                          )}
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={!allowPublicAnnotations}
+                          onClick={() => setIsPublicChoice(true)}
+                          className={cn(
+                            'relative z-10 flex-1 py-1.5 rounded-full text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer',
+                            !allowPublicAnnotations && 'opacity-40 cursor-not-allowed',
+                            isPublicChoice
+                              ? 'text-primary-foreground'
+                              : 'text-muted-foreground hover:text-foreground'
+                          )}
+                          title={
+                            !allowPublicAnnotations
+                              ? t`Les annotations publiques sont désactivées par l'auteur`
+                              : t`Annotation publique`
+                          }
+                        >
+                          <Globe className="w-3.5 h-3.5" />
+                          <span>{t`Publique`}</span>
+                          {isPublicChoice && (
+                            <motion.div
+                              layoutId="privacy-pill-indicator"
+                              className="absolute inset-0 bg-primary rounded-full shadow-xs -z-10"
+                              transition={{ type: 'spring', stiffness: 450, damping: 32 }}
+                            />
+                          )}
+                        </button>
+                      </div>
+
+                      {!allowPublicAnnotations && (
+                        <p className="text-[10px] text-muted-foreground italic text-center">
+                          Les annotations publiques sont désactivées par l'auteur.
+                        </p>
+                      )}
+
+                      {errorMessage && (
+                        <p className="text-[11px] text-destructive font-medium text-center">
+                          {errorMessage}
+                        </p>
+                      )}
+
+                      {/* Primary Action Button */}
                       <button
-                        type="button"
-                        onClick={() => setIsPublicChoice(false)}
+                        type="submit"
+                        disabled={saving || savedSuccess}
                         className={cn(
-                          'relative z-10 flex-1 py-1.5 rounded-full text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer',
-                          !isPublicChoice
-                            ? 'text-primary-foreground'
-                            : 'text-muted-foreground hover:text-foreground'
+                          'w-full py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs',
+                          savedSuccess
+                            ? 'bg-success text-success-foreground'
+                            : 'bg-primary text-primary-foreground hover:opacity-90'
                         )}
                       >
-                        <span>{t`Privée`}</span>
-                        <Lock className="w-3.5 h-3.5" />
-                        {!isPublicChoice && (
-                          <motion.div
-                            layoutId="privacy-pill-indicator"
-                            className="absolute inset-0 bg-primary rounded-full shadow-xs -z-10"
-                            transition={{ type: 'spring', stiffness: 450, damping: 32 }}
-                          />
+                        {saving ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : savedSuccess ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-white" /> Enregistré !
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="w-3.5 h-3.5" /> Enregistrer l'annotation
+                          </>
                         )}
                       </button>
+                    </motion.form>
+                  )}
+                </AnimatePresence>
+              </div>
 
-                      <button
-                        type="button"
-                        disabled={!allowPublicAnnotations}
-                        onClick={() => setIsPublicChoice(true)}
-                        className={cn(
-                          'relative z-10 flex-1 py-1.5 rounded-full text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer',
-                          !allowPublicAnnotations && 'opacity-40 cursor-not-allowed',
-                          isPublicChoice
-                            ? 'text-primary-foreground'
-                            : 'text-muted-foreground hover:text-foreground'
-                        )}
-                        title={
-                          !allowPublicAnnotations
-                            ? t`Les annotations publiques sont désactivées par l'auteur`
-                            : t`Annotation publique`
-                        }
-                      >
-                        <Globe className="w-3.5 h-3.5" />
-                        <span>{t`Publique`}</span>
-                        {isPublicChoice && (
-                          <motion.div
-                            layoutId="privacy-pill-indicator"
-                            className="absolute inset-0 bg-primary rounded-full shadow-xs -z-10"
-                            transition={{ type: 'spring', stiffness: 450, damping: 32 }}
-                          />
-                        )}
-                      </button>
-                    </div>
-
-                    {!allowPublicAnnotations && (
-                      <p className="text-[10px] text-muted-foreground italic text-center">
-                        Les annotations publiques sont désactivées par l'auteur.
-                      </p>
-                    )}
-
-                    {errorMessage && (
-                      <p className="text-[11px] text-destructive font-medium text-center">
-                        {errorMessage}
-                      </p>
-                    )}
-
-                    {/* Primary Action Button */}
-                    <button
-                      type="submit"
-                      disabled={saving || savedSuccess}
-                      className={cn(
-                        'w-full py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs',
-                        savedSuccess
-                          ? 'bg-success text-success-foreground'
-                          : 'bg-primary text-primary-foreground hover:opacity-90'
-                      )}
-                    >
-                      {saving ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : savedSuccess ? (
-                        <>
-                          <Check className="w-3.5 h-3.5 text-white" /> Enregistré !
-                        </>
-                      ) : (
-                        <>
-                          <Plus className="w-3.5 h-3.5" /> Enregistrer l'annotation
-                        </>
-                      )}
-                    </button>
-                  </motion.form>
-                )}
-              </AnimatePresence>
+              {/* Directional Caret (flèche vers le bas si le menu est au-dessus de la sélection) */}
+              {!showNoteInput && placement.startsWith('top') && (
+                <div className="w-0 h-0 border-x-[6px] border-x-transparent border-t-[6px] border-t-popover/95 drop-shadow-[0_1px_1px_rgba(0,0,0,0.08)] mt-[-1px] z-10 pointer-events-none" />
+              )}
             </div>
-
-            {/* Directional Caret (flèche vers le bas si le menu est au-dessus de la sélection) */}
-            {!showNoteInput && placement.startsWith('top') && (
-              <div className="w-0 h-0 border-x-[6px] border-x-transparent border-t-[6px] border-t-popover/95 drop-shadow-[0_1px_1px_rgba(0,0,0,0.08)] mt-[-1px] z-10 pointer-events-none" />
-            )}
-          </div>
-        )}
+          );
+        }}
       </TextSelectionPopover>
 
       {/* Side Drawer when clicking any mark */}

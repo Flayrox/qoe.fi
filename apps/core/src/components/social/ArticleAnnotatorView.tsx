@@ -20,9 +20,11 @@ import {
   createAnnotationCommentAction,
   toggleHighlightPrivacyAction,
   deleteHighlightAction,
+  explainPassageAction,
 } from '@qoe/sdk';
 import { toggleFollowCreatorHomeAction } from '@qoe/sdk/actions/feed';
 import { SimilarArticlesSection } from './SimilarArticlesSection';
+import { ArticleSummary } from './ArticleSummary';
 import { useArticleReadingTracker } from '@qoe/analytics';
 import { SubscribeForm, SafeAvatar, ProfileHoverCard } from '@qoe/ui';
 import { CertifiedBadge } from '@qoe/ui/ui/CertifiedBadge';
@@ -205,6 +207,14 @@ function ArticleAnnotatorViewInner({
             deleteHighlightAction(typeof id === 'string' ? { highlightId: id } : id),
         },
         {
+          // IA Expliquer (fiche Plus P1) : le backend gate (Plus, quotas,
+          // provider) et code ; ici on transmet tel quel (le moteur ui
+          // affiche selon le code).
+          onExplain: async ({ text }) => {
+            const res = await explainPassageAction({ text });
+            if (res.ok) return { ok: true, data: { explanation: res.data.explanation } };
+            return { ok: false, error: res.error };
+          },
           onCrosspost: async ({ text, commentary }) => {
             if (typeof window !== 'undefined') {
               window.dispatchEvent(
@@ -401,6 +411,14 @@ function ArticleAnnotatorViewInner({
         <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-foreground leading-[1.14]">
           {article.title}
         </h1>
+
+        {/* 1b. RÉSUMÉ IA (fiche Plus P1) : replié par défaut, servi à la
+         * demande (quotas), toujours présenté comme IA. */}
+        {article.id && (
+          <div className="pt-1">
+            <ArticleSummary articleId={article.id} />
+          </div>
+        )}
 
         {/* 2. IMAGE DE COUVERTURE SOUS LE TITRE */}
         {article.imageUrl && (

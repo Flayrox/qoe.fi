@@ -20,6 +20,11 @@ import (
 // BudgetDB est la surface SQL minimale pour les budgets : les poolers des
 // modules (home, creator) la satisfont déjà, sans importer pgxpool dans leur
 // API. *pgxpool.Pool la satisfait aussi.
+// RÈGLE (piège Go) : ne jamais y passer un *pgxpool.Pool NIL — une fois
+// wrappé en interface, `pool == nil` est faux et les gardes ne tiennent
+// plus (panic au premier QueryRow). Passer nil littéral (détecté) ou un
+// pool garanti non-nil. Même règle sur toutes les interfaces DB du projet
+// (support.DB, subscriptions.DB/SignalDB-like).
 type BudgetDB interface {
 	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
@@ -44,6 +49,13 @@ func DailyWindow(now time.Time) time.Time {
 	// minuit UTC) — deux workers doivent voir la même fenêtre.
 	now = now.UTC()
 	return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+}
+
+// MonthlyWindow tronque au 1er du mois UTC (fenêtres mensuelles — quotas IA
+// de la fiche Plus : quota mensuel transparent, pas journalier).
+func MonthlyWindow(now time.Time) time.Time {
+	now = now.UTC()
+	return time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
 }
 
 // UtcMs normalise un instant en UTC tronqué à la milliseconde : les colonnes
@@ -117,6 +129,23 @@ func ConfirmBudgetScopes(email, publicationID string) [][2]string {
 		{"email_publication", email + "|" + publicationID},
 		{"publication", publicationID},
 	}
+}
+
+// RefundBudget rembourse n unités (jamais sous zéro) : quand une action
+// budgétée ÉCHOUE après consommation (provider en panne, erreur distante),
+// on ne facture pas l'échec. Non atomique par design (un remboursement
+// perdu sous-estime au pire de n — jamais bloquant) : seul le REFUS est
+// atomique (ConsumeBudget), le remboursement est best-effort.
+func RefundBudget(ctx context.Context, pool BudgetDB, scopeType, scopeID, action string, window time.Time, n int) {
+	if pool == nil {
+		return
+	}
+	window = window.UTC()
+	_, _ = pool.Exec(ctx, `
+		UPDATE "CapabilityBudget"
+		SET "consumed" = GREATEST("consumed" - $5, 0), "updatedAt" = now()
+		WHERE "scopeType" = $1 AND "scopeId" = $2 AND "action" = $3 AND "window" = $4`,
+		scopeType, scopeID, action, window, n)
 }
 
 // ConfirmAllowed consomme les deux budgets d'une demande de confirmation

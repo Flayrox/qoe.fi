@@ -153,6 +153,13 @@ export interface AnnotationActionCallbacks {
   onDelete?: (highlightId: string) => Promise<AnnotationActionResult<void>>;
   onCrosspost?: (params: CrosspostPassageParams) => Promise<AnnotationActionResult>;
   onLoginRedirect?: () => void;
+  /** IA (fiche Plus P1) : expliquer un extrait. Absent = pas de bouton
+   * (le moteur reste neutre — c'est le parent qui branche l'IA + Plus).
+   * Résultat : { ok, explanation? } ou { ok: false, error } avec
+   * error.code ∈ AI_PLUS_REQUIRED, AI_QUOTA_EXCEEDED, AI_UNAVAILABLE. */
+  onExplain?: (params: {
+    text: string;
+  }) => Promise<AnnotationActionResult<{ explanation: string }>>;
 }
 
 // ---------------------------------------------------------------------
