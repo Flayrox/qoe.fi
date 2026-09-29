@@ -24,6 +24,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
+	"github.com/qoefi/api/internal/subscriptions"
 	"github.com/qoefi/api/internal/workers"
 )
 
@@ -65,9 +66,11 @@ func (s *Service) SendTestEmail(ctx context.Context, userID, publicationID, loca
 		return nil, err
 	}
 
-	prefs := workers.ApplyTier(workers.ParseEmailPrefs(row.EmailSettings), row.EmailPro)
+	prefs := workers.ApplyTier(workers.ParseEmailPrefs(row.EmailSettings),
+		subscriptions.HasPro(ctx, s.pool, publicationID, time.Now()))
 	if len(draft) > 0 {
-		prefs = workers.ApplyTier(workers.ParseEmailPrefs(draft), row.EmailPro)
+		prefs = workers.ApplyTier(workers.ParseEmailPrefs(draft),
+		subscriptions.HasPro(ctx, s.pool, publicationID, time.Now()))
 	}
 	loc := workers.NormalizeEmailLocale(locale)
 	tpl := template

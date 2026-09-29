@@ -46,10 +46,18 @@
 # PRO (❌) : domaine personnalisé + DKIM/SPF/DMARC (tranche 7, attend le
 # domaine), statistiques avancées, webhooks auteur ? (à cadrer).
 #
+# ── OCTROIS MANUELS (intérim Stripe, table SubscriptionGrant) ──────────
+# Le staff attribue sans abonnement : Pro offert/presse/test, Plus offert,
+# programmé (début futur), fin datée. Source UNIQUE (HasEntitlement :
+# startsAt <= now < endsAt) — fini la colonne miroir. Pas de suppression :
+# révoquer = finir maintenant (historique). Pas de sweep (l'échéance est
+# une condition de lecture). Stripe, plus tard : le webhook appelle les
+# MÊMES fonctions (période payée = octroi, impayé = révocation).
+#
 # ── RÈGLES COMMUNES ──────────────────────────────────────────────────
 # Pas de checkout avant Stripe (ni faux bouton d'achat, ni fausse waitlist
 # sans stockage) : les CTA Pro affichent « lancement prochain » + contact
-# support. emailPro est l'intérim (webhook Stripe → SET emailPro).
+# support.
 # Ne jamais mettre en payant : lecture publique, abonnement auteur,
 # publication, commentaires, recherche publique, accessibilité (taille
 # texte, dark mode), collections simples, export de SES données de base.

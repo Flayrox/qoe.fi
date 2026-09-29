@@ -30,6 +30,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -37,6 +38,7 @@ import (
 	"github.com/qoefi/api/internal/comms"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/queue"
+	"github.com/qoefi/api/internal/subscriptions"
 )
 
 // subscriberMailer porte le pool + le fournisseur email partagés par les
@@ -142,10 +144,11 @@ func (w *ConfirmEmailWorker) HandleSubscriberConfirm(ctx context.Context, t *asy
 	}
 
 	locale := NormalizeEmailLocale(info.Locale)
-	// Freemium (décision produit) : les overrides pro d'une publication
-	// gratuite sont ignorés ici (seconde barrière — la première est à la
-	// sauvegarde). EmailPro lu en base, jamais du JSON (forgeable).
-	prefs := ApplyTier(ParseEmailPrefs(info.EmailSettings), info.EmailPro)
+	// Freemium (décision produit) : les overrides pro sans droit effectif
+	// sont ignorés ici (seconde barrière — la première est à la sauvegarde).
+	// Droit lu des octrois (source unique), jamais du JSON (forgeable).
+	prefs := ApplyTier(ParseEmailPrefs(info.EmailSettings),
+		subscriptions.HasPro(ctx, w.pool, p.PublicationID, time.Now()))
 	pubURL := publicationPublicURL(info.Subdomain, info.CustomDomain)
 	link := buildConfirmURL(confirmEmailBaseURL(), p.PublicationID, p.Email, info.ConfirmationToken.String)
 

@@ -46,6 +46,17 @@ func DailyWindow(now time.Time) time.Time {
 	return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
 }
 
+// UtcMs normalise un instant en UTC tronqué à la milliseconde : les colonnes
+// TIMESTAMP(3) ARRONDISSENT (pas tronquent) — un instant à 12:00:00.0006
+// stocké devient 12:00:00.001, soit ~1 ms DANS LE FUTUR. Pour les comparaisons
+// d'échéance (fin de grant, révocation immédiate), cette ms fantôme rend un
+// droit expiré encore « effectif ». Tronquer AVANT stockage supprime la
+// classe entière de bugs (même racine que FutureTolerance côté lecture des
+// signaux — ici on corrige à l'écriture, sans tolérance sémantique).
+func UtcMs(t time.Time) time.Time {
+	return t.UTC().Truncate(time.Millisecond)
+}
+
 // ConsumeBudget consomme n unités d'un budget (périmètre, action, fenêtre),
 // en le créant au plafond donné s'il n'existe pas. Retourne true si la
 // consommation est accordée, false si le plafond est atteint — jamais d'erreur

@@ -597,7 +597,6 @@ CREATE TABLE "Publication" (
     "seoDescription" TEXT,
     "supportUrl" TEXT,
     "emailSettings" JSONB NOT NULL DEFAULT '{}'::jsonb,
-    "emailPro" BOOLEAN NOT NULL DEFAULT false,
     "stripeAccountId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,

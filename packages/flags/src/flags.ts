@@ -42,6 +42,10 @@ export const FLAGS = {
   // Sémantique inversée : true = 503 explicite avant toute écriture, les
   // confirmations en cours aboutissent. Miroir de AbuseSignupKill (Go).
   'abuse.signup-kill': false,
+  // 🛑 Support public — ARRÊT D'URGENCE du formulaire vitrine.
+  // Sémantique inversée : true = 503 explicite avant toute écriture,
+  // dossiers existants et console intouchés. Miroir de SupportPublicKill (Go).
+  'support.public-kill': false,
 } as const satisfies Record<string, boolean>;
 
 export type FlagKey = keyof typeof FLAGS;

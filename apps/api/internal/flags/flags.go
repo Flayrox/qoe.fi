@@ -44,6 +44,12 @@ const (
 	// normalement (on ne punit pas les légitimes en attente). false
 	// (défaut) = inscriptions autorisées (budgets + rate-limits usuels).
 	AbuseSignupKill = "abuse.signup-kill"
+	// SupportPublicKill est l'arrêt d'urgence du formulaire public de la
+	// vitrine (même doctrine : bouton d'arrêt par capacité). true = 503
+	// explicite AVANT toute écriture ; les dossiers existants et la console
+	// ne sont pas concernés (on ne coupe jamais le suivi en cours).
+	// false (défaut) = dépôts autorisés (rate-limit + budget usuels).
+	SupportPublicKill = "support.public-kill"
 )
 
 // defaults est le registre des défauts (miroir exact de @qoe/flags) : utilisé
@@ -58,6 +64,7 @@ var defaults = map[string]bool{
 	AuthzEnforce:          false,
 	WorkersEmailKill:      false,
 	AbuseSignupKill:       false,
+	SupportPublicKill:     false,
 }
 
 // cacheTTL borne la fraîcheur d'un flag : une bascule console est appliquée

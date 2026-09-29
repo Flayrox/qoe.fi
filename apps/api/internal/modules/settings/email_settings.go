@@ -8,11 +8,12 @@ package settings
 //   GET  /v1/settings/email?publicationId=…
 //   PATCH /v1/settings/email  { publicationId, settings }
 //
-// Ce qui se règle : nom d'expéditeur, reply-to, couleur d'accent des
-// boutons, logo d'en-tête, sujets et textes d'aperçu par email (fr/en),
-// note de pied de page, corps du bienvenue (fr/en) et activation de
-// l'email de bienvenue. La langue d'AFFICHAGE, elle, suit chaque abonné
-// (Subscriber.locale, captée à l'inscription).
+// Ce qui se règle : logo d'en-tête + activation du bienvenue (gratuit) ;
+// nom d'expéditeur, reply-to, accent, sujets, aperçus, note de pied,
+// corps du bienvenue (PRO, version unique — fini le par-langue). La langue
+// d'AFFICHAGE suit chaque abonné (Subscriber.locale, captée à l'inscription)
+// via les défauts plateforme localisés (gratuits). Palier lu des octrois
+// (source unique) : sanitize à la sauvegarde + enforcement au rendu.
 //
 // La validation est faite par workers.ParseEmailPrefs (source de vérité
 // unique, bornes strictes) : toute valeur invalide est ignorée, jamais
@@ -23,11 +24,13 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
+	"github.com/qoefi/api/internal/subscriptions"
 	"github.com/qoefi/api/internal/workers"
 )
 
@@ -46,11 +49,12 @@ func (s *Service) GetEmailSettings(ctx context.Context, userID, publicationID st
 		}
 		return nil, err
 	}
-	clean := workers.ApplyTier(workers.ParseEmailPrefs(row.EmailSettings), row.EmailPro)
+	clean := workers.ApplyTier(workers.ParseEmailPrefs(row.EmailSettings),
+		subscriptions.HasPro(ctx, s.pool, publicationID, time.Now()))
 	out := map[string]any{
 		"publicationName": row.Name,
 		"emailSettings":   clean,
-		"emailPro":        row.EmailPro,
+		"emailPro":        subscriptions.HasPro(ctx, s.pool, publicationID, time.Now()),
 		// Langues d'emails disponibles (QOE_EMAIL_LOCALES, défaut fr,en) :
 		// le panneau studio génère ses onglets de langue depuis cette liste —
 		// ajouter une langue côté serveur suffit, zéro front à déployer.
@@ -75,14 +79,16 @@ func (s *Service) UpdateEmailSettings(ctx context.Context, userID, publicationID
 	if err := s.authorizeSettings(ctx, userID, publicationID); err != nil {
 		return nil, errForbidden
 	}
-	defaults, err := s.q.GetPublicationEmailDefaults(ctx, publicationID)
-	if err != nil {
+	// Existence (404 si inconnue) ; le palier est relu à l'instant via les
+	// octrois (pas la valeur lue ici — temps réel, même sémantique que le rendu).
+	if _, err := s.q.GetPublicationEmailDefaults(ctx, publicationID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, errNotFound
 		}
 		return nil, err
 	}
-	clean := workers.ApplyTier(workers.ParseEmailPrefs(raw), defaults.EmailPro)
+	clean := workers.ApplyTier(workers.ParseEmailPrefs(raw),
+		subscriptions.HasPro(ctx, s.pool, publicationID, time.Now()))
 	b, err := json.Marshal(clean)
 	if err != nil {
 		return nil, err
@@ -116,9 +122,11 @@ func (s *Service) PreviewEmailSettings(ctx context.Context, userID, publicationI
 	// Réglages : brouillon du panneau sinon ceux stockés — TOUJOURS filtrés
 	// au palier (un brouillon pro sur une publication gratuite s'aperçoit en
 	// défauts : l'aperçu est fidèle à 100 %, y compris au gating).
-	prefs := workers.ApplyTier(workers.ParseEmailPrefs(row.EmailSettings), row.EmailPro)
+	prefs := workers.ApplyTier(workers.ParseEmailPrefs(row.EmailSettings),
+		subscriptions.HasPro(ctx, s.pool, publicationID, time.Now()))
 	if len(draft) > 0 {
-		prefs = workers.ApplyTier(workers.ParseEmailPrefs(draft), row.EmailPro)
+		prefs = workers.ApplyTier(workers.ParseEmailPrefs(draft),
+		subscriptions.HasPro(ctx, s.pool, publicationID, time.Now()))
 	}
 	loc := workers.NormalizeEmailLocale(locale)
 	tpl := template
