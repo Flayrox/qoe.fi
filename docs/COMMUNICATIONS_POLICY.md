@@ -104,6 +104,24 @@ valeur « accepted » créée par un cron) et le refus antérieur (`declinedAt`)
 un document refusé reste « sans acceptation » (pas de contournement) mais le
 refus est visible (pas de relance aveugle).
 
+## Langue par destinataire (`internal/comms`, pur et testé)
+
+Chaîne de la fiche 04 §12, dans l'ordre : choix explicite → compte → abonnement
+→ session/formulaire → défaut publication → défaut qoe.fi. Un Accept-Language
+brut n'est qu'un repli de niveau session, jamais une préférence définitive.
+Tags normalisés (`fr-FR` → `fr`), locale non supportée = descente de chaîne
+(jamais de blocage), provenance conservée dans le résultat (la personne doit
+pouvoir comprendre et changer la langue de ses e-mails).
+
+État d'application : les inscriptions stockent déjà la locale de session
+(`Subscriber.locale`, bornée fr/en) et les workers l'utilisent — conforme.
+Les niveaux explicite/compte n'ont pas encore de source (aucune préférence de
+langue côté compte) : le résolveur les appliquera dès qu'elle existera, sans
+changer les appelants. Limite connue : `T()` retombe sur l'anglais pour toute
+locale ≠ fr — sans effet tant que les locales restent fr/en, à revoir à
+l'ajout d'une troisième langue, avec les modèles versionnés par langue qui
+restent à construire (contenus FR/EN aujourd'hui en dur dans le moteur).
+
 ## Reste du chantier fiche 04 (ordre de la fiche §17)
 
 1. Fiabilité : outbox transactionnelle + idempotence, files prioritaires,

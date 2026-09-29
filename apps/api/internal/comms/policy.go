@@ -186,6 +186,122 @@ func EmailKillEngaged(ctx context.Context, pool *pgxpool.Pool) bool {
 	return flags.NewService(pool).IsOn(ctx, flags.WorkersEmailKill)
 }
 
+// ── Résolution de langue par destinataire (fiche 04 §12) ────────────────
+
+// LocaleKind indique la provenance d'une langue candidate. L'ordre de la
+// chaîne est fixe et documenté : un Accept-Language de navigateur n'est qu'un
+// repli de niveau session, jamais une préférence définitive.
+type LocaleKind string
+
+const (
+	// LocaleExplicit : choix explicite de la personne (préférence enregistrée).
+	LocaleExplicit LocaleKind = "explicit"
+	// LocaleAccount : langue du compte qoe.fi vérifié.
+	LocaleAccount LocaleKind = "account"
+	// LocaleSubscription : langue enregistrée à l'abonnement à cette publication.
+	LocaleSubscription LocaleKind = "subscription"
+	// LocaleSession : langue de la session ou du formulaire au moment de
+	// l'action (dont Accept-Language replié).
+	LocaleSession LocaleKind = "session"
+	// LocalePublication : langue par défaut de la publication.
+	LocalePublication LocaleKind = "publication"
+	// LocalePlatform : langue par défaut qoe.fi (dernier recours).
+	LocalePlatform LocaleKind = "platform"
+)
+
+// LocaleSource est une langue candidate avec sa provenance.
+type LocaleSource struct {
+	Kind  LocaleKind
+	Value string
+}
+
+// ResolvedLocale est la langue retenue et d'où elle vient. La provenance est
+// conservée (exigée par la fiche) : elle permet à la personne de comprendre
+// et de changer la langue de ses e-mails.
+type ResolvedLocale struct {
+	Locale string
+	From   LocaleKind
+}
+
+// ResolveLocale applique la chaîne de la fiche 04 §12 : première source
+// supportée dans l'ordre explicit → account → subscription → session →
+// publication → platform. `supported` est la liste des langues effectivement
+// prises en charge (jamais vide : au moins le défaut) ; `fallback` est la
+// langue par défaut qoe.fi. Les tags sont normalisés (fr-FR → fr) et une
+// locale non supportée ne bloque jamais : on descend la chaîne.
+func ResolveLocale(supported []string, fallback string, sources ...LocaleSource) ResolvedLocale {
+	supported = normalizeLocaleList(supported, fallback)
+	byKind := map[LocaleKind]string{}
+	order := []LocaleKind{
+		LocaleExplicit, LocaleAccount, LocaleSubscription,
+		LocaleSession, LocalePublication, LocalePlatform,
+	}
+	for _, s := range sources {
+		if _, ok := byKind[s.Kind]; !ok {
+			byKind[s.Kind] = s.Value
+		}
+	}
+	for _, kind := range order {
+		if raw, ok := byKind[kind]; ok {
+			if normalized, good := matchLocale(supported, raw); good {
+				return ResolvedLocale{Locale: normalized, From: kind}
+			}
+		}
+	}
+	return ResolvedLocale{Locale: supported[0], From: LocalePlatform}
+}
+
+func normalizeLocaleList(supported []string, fallback string) []string {
+	out := []string{}
+	seen := map[string]bool{}
+	for _, raw := range supported {
+		if n, ok := normalizeLocaleTag(raw); ok && !seen[n] {
+			seen[n] = true
+			out = append(out, n)
+		}
+	}
+	if fb, ok := normalizeLocaleTag(fallback); ok && !seen[fb] {
+		out = append(out, fb)
+	}
+	if len(out) == 0 {
+		return []string{"fr"}
+	}
+	return out
+}
+
+// normalizeLocaleTag réduit un tag (fr-FR, en_US, EN) à sa base en
+// minuscules. Retourne false si inexploitable.
+func normalizeLocaleTag(raw string) (string, bool) {
+	l := strings.ToLower(strings.TrimSpace(raw))
+	if i := strings.IndexAny(l, "-_,;"); i > 0 {
+		l = l[:i]
+	} else if i == 0 {
+		return "", false
+	}
+	if len(l) < 2 || len(l) > 3 {
+		return "", false
+	}
+	for _, r := range l {
+		if r < 'a' || r > 'z' {
+			return "", false
+		}
+	}
+	return l, true
+}
+
+func matchLocale(supported []string, raw string) (string, bool) {
+	n, ok := normalizeLocaleTag(raw)
+	if !ok {
+		return "", false
+	}
+	for _, s := range supported {
+		if s == n {
+			return n, true
+		}
+	}
+	return "", false
+}
+
 // SuppressionState est l'opposition connue pour un couple (email, publication).
 type SuppressionState struct {
 	Global      bool
