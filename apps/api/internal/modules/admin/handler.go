@@ -62,6 +62,9 @@ func (h *Handler) Register(r chi.Router) {
 	r.Get("/v1/admin/abuse/incidents", h.abuseIncidents)
 	r.Post("/v1/admin/abuse/incidents", h.openAbuseIncident)
 	r.Patch("/v1/admin/abuse/incidents/{id}", h.updateAbuseIncident)
+	// Recours (tranche 6) : file + décisions. Seule overturned lève.
+	r.Get("/v1/admin/abuse/appeals", h.abuseAppeals)
+	r.Patch("/v1/admin/abuse/appeals/{id}", h.decideAbuseAppeal)
 
 	// Widgets & tendances
 	r.Get("/v1/admin/widgets", h.widgets)
@@ -451,6 +454,62 @@ func (h *Handler) updateAbuseIncident(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, d)
+}
+
+// GET /v1/admin/abuse/appeals — file des recours (ouverts d'abord).
+// Query : ?status=open|under_review|decided&limit=50&offset=0
+func (h *Handler) abuseAppeals(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	items, total, err := h.svc.ListAbuseAppeals(r.Context(), userID, r.URL.Query().Get("status"), limit, offset)
+	if err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, map[string]any{"items": items, "total": total})
+}
+
+// PATCH /v1/admin/abuse/appeals/{id} — tranche un recours.
+// Body : { "status": "under_review|decided", "outcome": "upheld|overturned"
+// (exigé si decided), "staffNote": "...", "reply": "réponse à l'utilisateur" }.
+// overturned = faux positif avéré (verdict allow, la mesure tombe + appealRef) ;
+// upheld = mesure confirmée (verdict humain + appealRef). L'ouverture n'a
+// jamais rien levé — seule cette décision tranche.
+func (h *Handler) decideAbuseAppeal(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	var in struct {
+		Status    string `json:"status"`
+		Outcome   string `json:"outcome"`
+		StaffNote string `json:"staffNote"`
+		Reply     string `json:"reply"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	a, err := h.svc.DecideAbuseAppeal(r.Context(), userID, chi.URLParam(r, "id"), in.Status, in.Outcome, in.StaffNote, in.Reply)
+	if err != nil {
+		switch {
+		case errors.Is(err, abuse.ErrAppealNotFound):
+			response.NotFound(w, "Recours introuvable.")
+		case errors.Is(err, abuse.ErrAppealClosed):
+			response.Error(w, http.StatusGone, err.Error())
+		case errors.Is(err, abuse.ErrInvalidAppeal),
+			errors.Is(err, abuse.ErrNothingToAppeal):
+			response.BadRequest(w, err.Error())
+		default:
+			h.handleErr(w, err)
+		}
+		return
+	}
+	response.OK(w, a)
 }
 
 // PATCH /v1/admin/users/{userID} — modération (réservé superadmin).

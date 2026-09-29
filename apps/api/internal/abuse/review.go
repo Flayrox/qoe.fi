@@ -140,17 +140,27 @@ func ResolveDecision(ctx context.Context, pool BudgetDB, subjectType, subjectID,
 	if latestExpiry != nil && !latestExpiry.After(now) {
 		return "", ErrNoOpenDecision // périmé : plus une urgence, pas un dossier
 	}
-	humanReasons := append(append([]string{}, reasons...), "human:"+string(result))
-	var id string
-	err = pool.QueryRow(ctx, `
-		INSERT INTO "RiskDecision" ("id", "policy", "version", "subjectType", "subjectId", "result", "reasonCodes", "decidedBy", "deciderId", "note", "expiresAt", "createdAt")
-		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, 'human', $7, NULLIF(TRIM($8), ''), $9, $10)
-		RETURNING "id"`,
-		policy, version, subjectType, subjectID, string(result), humanReasons, humanID, note, expiresAt, now).Scan(&id)
+	id, err := insertHumanVerdict(ctx, pool, policy, version, subjectType, subjectID,
+		reasons, "human:"+string(result), result, humanID, note, "", expiresAt, now)
 	if err != nil {
 		return "", err
 	}
 	log.Printf("[abuse] revue humaine %s sujet %s:%s → %s (décideur %s)",
 		latestID, subjectType, subjectID, result, humanID)
 	return id, nil
+}
+
+// insertHumanVerdict persiste un verdict humain (revue directe ou recours) :
+// raisons reprises + code humain (human:<résultat> en revue, human:<outcome>
+// en recours), auteur, note, appealRef optionnel. Retourne l'identifiant.
+// Une seule implémentation pour les deux voies : même traçabilité.
+func insertHumanVerdict(ctx context.Context, pool BudgetDB, policy, version, subjectType, subjectID string, baseReasons []string, humanCode string, result Decision, deciderID, note, appealRef string, expiresAt *time.Time, now time.Time) (string, error) {
+	humanReasons := append(append([]string{}, baseReasons...), humanCode)
+	var id string
+	err := pool.QueryRow(ctx, `
+		INSERT INTO "RiskDecision" ("id", "policy", "version", "subjectType", "subjectId", "result", "reasonCodes", "decidedBy", "deciderId", "note", "appealRef", "expiresAt", "createdAt")
+		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, 'human', $7, NULLIF(TRIM($8), ''), NULLIF(TRIM($9), ''), $10, $11)
+		RETURNING "id"`,
+		policy, version, subjectType, subjectID, string(result), humanReasons, deciderID, note, appealRef, expiresAt, now).Scan(&id)
+	return id, err
 }

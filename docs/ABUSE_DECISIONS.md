@@ -92,6 +92,20 @@
 #   - Clôture signée (resolvedBy/resolvedAt) ; réouverture qui efface la
 #     signature mais garde l'historique.
 #
+# RECOURS (tables Appeal/AppealMessage 00042, routes /v1/appeals + console —
+# tranche 6, amorce) :
+#   - Toute mesure contre un COMPTE est contestable par l'intéressé, Y
+#     COMPRIS suspendu (l'auth n'exclut pas les suspendus). On ne conteste
+#     que pour soi (sujet user:<soi>), avec un verdict non-allow à contester.
+#   - UN SEUL recours ouvert par (sujet, ouvreur) — anti-saturation (index
+#     unique partiel). Rouvrir = nouveau dossier, historique conservé.
+#   - L'OUVERTURE NE LÈVE RIEN (ni suspension ni limitation — verrouillé
+#     par test) : seule overturned lève (verdict allow + appealRef),
+#     upheld confirme (verdict humain + appealRef). Clos = clos (410 sur
+#     écriture, nouveau recours pour rouvrir).
+#   - Décision ↔ recours liés (appealRef sur le verdict humain). Les
+#     contenus attendront le support complet (pièces, SLA, réviseur).
+#
 # DÉCISIONS ASSUMÉES (ce que la fiche propose et qu'on ne fait PAS tel quel) :
 #   - TrustStatus (table de capacités vérifiées) : REFUSÉ comme table —
 #     l'état dérive des verdicts humains RiskDecision (éligibilité), pas

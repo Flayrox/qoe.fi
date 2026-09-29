@@ -32,6 +32,7 @@ import (
 	"github.com/qoefi/api/internal/modules/creator"
 	"github.com/qoefi/api/internal/modules/devtools"
 	"github.com/qoefi/api/internal/modules/events"
+	"github.com/qoefi/api/internal/modules/appeals"
 	"github.com/qoefi/api/internal/modules/feed"
 	"github.com/qoefi/api/internal/modules/highlights"
 	"github.com/qoefi/api/internal/modules/home"
@@ -311,6 +312,12 @@ func newRouter(d RouterDeps) *chi.Mux {
 	newslettersHandler.SetSendRateLimit(rc, time.Hour, 10)
 	newslettersHandler.RegisterPublic(r)
 
+	// Recours anti-abus (tranche 6, amorce) : l'utilisateur conteste les
+	// mesures visant son compte, Y COMPRIS suspendu (l'auth n'exclut pas les
+	// suspendus — contester reste possible). Routes enregistrées sur le
+	// groupe protégé plus bas.
+	appealsHandler := appeals.NewHandler(appeals.NewService(pool))
+
 	// Feed & Posts : lecture publique (auth optionnelle : threads, trending, posts, profil, engagement).
 	feedHandler := feed.NewHandler(feed.NewService(pool, rc))
 	postsHandler := posts.NewHandler(posts.NewService(pool, rc, asynqClient))
@@ -480,6 +487,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 			return created, err
 		})).Group(func(reader chi.Router) {
 			feedHandler.RegisterProtected(reader)
+			appealsHandler.RegisterProtected(reader)
 			usersHandler.Register(reader)
 			trackingHandler.RegisterReader(reader)
 
