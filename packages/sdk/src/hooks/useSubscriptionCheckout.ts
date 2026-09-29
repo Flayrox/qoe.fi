@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * 💳 PORTABLE SUBSCRIPTION CHECKOUT HOOKS — @qoe/sdk
  *
