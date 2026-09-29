@@ -80,6 +80,17 @@
 #     clé absente ou DB en panne → autorisé + 1 log (dégradation ouverte).
 #   - Miroir TS @qoe/flags ; parité Go/TS verrouillée par test.
 #
+# INCIDENTS (table AntiAbuseIncident 00041, endpoints staff — fiche §9-§10) :
+#   - Dossier tenu par le STAFF (qualifier une attaque = jugement humain) :
+#     kind fermé (account_farm, report_raid, signup_flood, api_abuse,
+#     impersonation, spam_wave, other), portée, impact, mesures.
+#   - Statut qui avance sans se réécrire (open → contained → resolved,
+#     reopened sans effacer ; resolved → open direct interdit). Les mesures
+#     s'ajoutent horodatées et signées (matière du bilan et de la
+#     communication publique : mesures, impacts, correction, recours).
+#   - Clôture signée (resolvedBy/resolvedAt) ; réouverture qui efface la
+#     signature mais garde l'historique.
+#
 # EXPLOITATION : seuils côté serveur uniquement (jamais exposés — fiche §10 :
 # ne pas aider l'attaquant à calibrer). Dossiers expirés (72 h) = plus une
 # urgence. Signaux expirés purgés par expiresAt (pas de fichier perpétuel).

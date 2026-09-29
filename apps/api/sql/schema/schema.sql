@@ -191,6 +191,32 @@ CREATE TABLE "RiskDecision" (
 );
 
 -- CreateTable
+CREATE TABLE "AntiAbuseIncident" (
+    "id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "kind" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'open',
+    "scope" TEXT NOT NULL DEFAULT '',
+    "impact" TEXT NOT NULL DEFAULT '',
+    "measures" TEXT NOT NULL DEFAULT '',
+    "openedBy" TEXT NOT NULL,
+    "resolvedBy" TEXT,
+    "resolvedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "AntiAbuseIncident_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "AntiAbuseIncident_kind_check" CHECK ("kind" IN (
+        'account_farm', 'report_raid', 'signup_flood', 'api_abuse',
+        'impersonation', 'spam_wave', 'other'
+    )),
+    CONSTRAINT "AntiAbuseIncident_status_check" CHECK ("status" IN (
+        'open', 'contained', 'resolved', 'reopened'
+    )),
+    CONSTRAINT "AntiAbuseIncident_title_check" CHECK (char_length("title") BETWEEN 5 AND 200)
+);
+
+-- CreateTable
 CREATE TABLE "BlockedUser" (
     "id" TEXT NOT NULL,
     "creatorId" UUID NOT NULL,
