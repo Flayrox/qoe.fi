@@ -64,6 +64,14 @@ interface SemanticTrendingTopicDTO {
   growthRate: string;
 }
 
+// Auteur suivi dont les contenus sont masqués du flux Suivis (fiche 06 §9 :
+// jamais de suppression silencieuse). Miroir de HiddenAuthor (Go).
+export interface HiddenAuthor {
+  authorId: string;
+  reason: 'restricted' | 'suspended';
+  until: string | null;
+}
+
 interface HomeFeedResult {
   followedCreators: HydratePublication[];
   followedUserIds: string[];
@@ -75,6 +83,7 @@ interface HomeFeedResult {
   activityData: number[];
   mutedWords: string[];
   featuredArticle: HydrateArticle | null;
+  followingHidden: HiddenAuthor[];
 }
 
 type ArticleFeedItem = ReturnType<typeof mapArticleToFeedItem>;
@@ -93,6 +102,7 @@ interface HomeData {
   featuredArticle: ArticleFeedItem | null;
   widgetRecArticles: ArticleFeedItem[];
   activityData?: number[];
+  followingHidden: HiddenAuthor[];
 }
 
 const mapHydrated = (a: HydrateArticle): ArticleFeedItem =>
@@ -105,7 +115,9 @@ const mergeTimeline = (articles: FeedItem[], thoughts: FeedSlice[], userId?: str
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 
-function homeDataFromGo(h: HomeFeedResult, userId?: string): HomeData {
+// Exportée pour les tests (mapper pur) : le bundle Go vers les props.
+// followingHidden passe tel quel (tableau, jamais null — contrat Go).
+export function homeDataFromGo(h: HomeFeedResult, userId?: string): HomeData {
   return {
     followingArticles: mergeTimeline(
       list(h.following.articles).map(mapHydrated),
@@ -132,6 +144,7 @@ function homeDataFromGo(h: HomeFeedResult, userId?: string): HomeData {
     featuredArticle: h.featuredArticle ? mapHydrated(h.featuredArticle) : null,
     widgetRecArticles: list(h.recommended.articles).slice(0, 5).map(mapHydrated),
     activityData: h.activityData,
+    followingHidden: list(h.followingHidden),
   };
 }
 
@@ -221,5 +234,6 @@ export async function loadHomeFeedData() {
     onboardingCategories: onboardingData.categories,
     onboardingSuggestedCreators: onboardingData.suggestedCreators,
     activityData: home.activityData,
+    followingHidden: home.followingHidden,
   };
 }
