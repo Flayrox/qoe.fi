@@ -311,6 +311,56 @@ export async function getAdminAbuseAppeals(): Promise<{
   }
 }
 
+/** 🛡️ Incidents (attaques confirmées, dossier tenu par le staff). */
+export interface AbuseIncidentItem {
+  id: string;
+  title: string;
+  kind: string;
+  status: 'open' | 'contained' | 'resolved' | 'reopened';
+  scope: string;
+  impact: string;
+  measures: string;
+  openedBy: string;
+  resolvedBy: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function getAdminAbuseIncidents(): Promise<{
+  items: AbuseIncidentItem[];
+  total: number;
+}> {
+  try {
+    return await goFetch<{ items: AbuseIncidentItem[]; total: number }>(
+      '/v1/admin/abuse/incidents?limit=50'
+    );
+  } catch {
+    return { items: [], total: 0 };
+  }
+}
+
+/** 📊 Métriques de santé anti-abus (fiche 06 §11). */
+export interface AbuseMetrics {
+  since: string;
+  autoByResult: Record<string, number>;
+  autoByReason: Record<string, number>;
+  humanReviews: number;
+  humanDismissed: number;
+  humanByResult: Record<string, number>;
+  dismissalRate: number;
+  openQueue: number;
+  topSubjects: { subjectType: string; subjectId: string; signals: number; lastResult: string }[];
+}
+
+export async function getAdminAbuseMetrics(): Promise<AbuseMetrics | null> {
+  try {
+    return await goFetch<AbuseMetrics>('/v1/admin/abuse/metrics?days=30');
+  } catch {
+    return null;
+  }
+}
+
 /** 📬 Livraisons de notifications (compteurs + 50 dernières). */
 export async function getAdminDeliveries(): Promise<{
   counts: Record<string, number>;
