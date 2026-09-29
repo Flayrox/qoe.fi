@@ -2,7 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { t } from '@lingui/core/macro';
-import { Volume2 } from 'lucide-react';
+import { Volume2, Lock } from 'lucide-react';
 import { toast } from '@qoe/ui/toast';
 import { cn } from '@qoe/utils';
 import { useTextToSpeech, TextToSpeechProvider } from './TextToSpeechContext';
@@ -14,6 +14,10 @@ export interface TextToSpeechPlayerProps {
   articleContentSelector?: string;
   lang?: string;
   className?: string;
+  /** Gate Plus (fiche P1) : verrouillé = cadenas + onLockedClick (le parent
+   * affiche l'upsell — le moteur reste neutre, pas de vente de vent ici). */
+  locked?: boolean;
+  onLockedClick?: () => void;
 }
 
 export function TextToSpeechPlayer(props: TextToSpeechPlayerProps) {
@@ -43,6 +47,8 @@ function TextToSpeechPlayerInner({
   authorName,
   articleContentSelector = '#article-content',
   className = '',
+  locked = false,
+  onLockedClick,
 }: TextToSpeechPlayerProps) {
   const tts = useTextToSpeech()!;
 
@@ -75,6 +81,12 @@ function TextToSpeechPlayerInner({
   ]);
 
   const handleToggle = () => {
+    // Gate Plus AVANT tout (fiche P1) : verrouillé = pas de lecture, le
+    // parent explique (upsell informatif — pas de vente de vent).
+    if (locked) {
+      onLockedClick?.();
+      return;
+    }
     if (!tts) {
       toast.error(t`La synthèse vocale n'est pas initialisée.`);
       return;
@@ -103,9 +115,20 @@ function TextToSpeechPlayerInner({
           : 'border-border/60 bg-background/90 hover:bg-muted/80 text-foreground',
         className
       )}
-      title={isPlaying ? t`Arrêter la lecture audio` : t`Écouter l'article`}
+      title={
+        locked
+          ? t`Écoute réservée aux abonnés Plus`
+          : isPlaying
+            ? t`Arrêter la lecture audio`
+            : t`Écouter l'article`
+      }
     >
-      {isPlaying ? (
+      {locked ? (
+        <>
+          <Lock className="w-3.5 h-3.5 text-muted-foreground" />
+          <span>{t`Écouter`}</span>
+        </>
+      ) : isPlaying ? (
         <>
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full qoe-audio-dot-ping opacity-75" />

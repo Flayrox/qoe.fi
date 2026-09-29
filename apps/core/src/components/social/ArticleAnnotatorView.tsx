@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Bookmark, BookMarked, Check, Lock, Share2, UserCheck, UserPlus } from 'lucide-react';
 import { createClient } from '@qoe/supabase/client';
+import { toast } from '@qoe/ui/toast';
+import { usePlus } from '@/lib/use-plus';
 import {
   TextHighlighter,
   createAnnotationCallbacks,
@@ -134,6 +136,11 @@ function ArticleAnnotatorViewInner({
   const [bookmarked, setBookmarked] = useState(false);
   const [followed, setFollowed] = useState(false);
   const [copied, setCopied] = useState(false);
+  // Gate Plus du TTS (fiche P1) : partagé avec la toolbar dockée via le
+  // même hook (1 seul appel /v1/me/entitlements par session).
+  const ttsPlus = usePlus();
+  const ttsLocked = ttsPlus === false;
+  const ttsUpsell = () => toast.info(t`Écoute audio réservée aux abonnés Plus (bientôt).`);
 
   const activeBookmarked = toolbar ? toolbar.bookmarked : bookmarked;
   const activeCopied = toolbar ? toolbar.copied : copied;
@@ -602,6 +609,8 @@ function ArticleAnnotatorViewInner({
               articleCoverUrl={article.imageUrl}
               authorName={authorName}
               articleContentSelector="#article-content"
+              locked={ttsLocked}
+              onLockedClick={ttsUpsell}
             />
             <ReadingSettingsSheet />
           </div>

@@ -20,6 +20,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/qoefi/api/internal/shared/identifier"
+	"github.com/qoefi/api/internal/subscriptions"
 )
 
 type Service struct {
@@ -411,6 +412,13 @@ func (s *Service) CurrentUsername(ctx context.Context, userID string, out *strin
 }
 
 // Profile retourne le profil lecteur complet (id = sub du JWT Supabase).
+// HasPlus dit si le compte a les avantages lecteur Plus (octroi direct ou
+// publication Pro possédée — Pro INCLUT Plus). UNE fonction pour tous les
+// gates (back comme front via /v1/me/entitlements).
+func (s *Service) HasPlus(ctx context.Context, userID string) bool {
+	return subscriptions.HasPlus(ctx, s.pool, userID, time.Now())
+}
+
 func (s *Service) Profile(ctx context.Context, userID string) (*ReaderProfile, error) {
 	var p ReaderProfile
 	var createdAt pgtype.Timestamp

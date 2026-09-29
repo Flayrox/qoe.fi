@@ -6,6 +6,8 @@ import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
 import { TextToSpeechPlayer, ReadingSettingsSheet } from '@qoe/ui/reader';
 import { Popover, PopoverContent, PopoverTrigger } from '@qoe/ui';
+import { toast } from '@qoe/ui/toast';
+import { usePlus } from '@/lib/use-plus';
 import { useReaderToolbar } from './ReaderToolbarContext';
 
 export interface DockedReaderToolbarProps {
@@ -15,6 +17,10 @@ export interface DockedReaderToolbarProps {
 
 export function DockedReaderToolbar({ articleTitle, className = '' }: DockedReaderToolbarProps) {
   const toolbar = useReaderToolbar();
+  // Gate Plus (fiche P1) : null = chargement (neutre, pas de flash d'upsell).
+  const plus = usePlus();
+  const locked = plus === false;
+  const upsell = () => toast.info(t`Écoute audio réservée aux abonnés Plus (bientôt).`);
 
   if (!toolbar) return null;
 
@@ -48,8 +54,13 @@ export function DockedReaderToolbar({ articleTitle, className = '' }: DockedRead
           {copied ? <Check className="w-4 h-4 text-success" /> : <Share2 className="w-4 h-4" />}
         </button>
 
-        {/* 3. Écouter (TTS) */}
-        <TextToSpeechPlayer articleTitle={articleTitle} articleContentSelector="#article-content" />
+        {/* 3. Écouter (TTS, Plus — verrouillé sinon, upsell informatif) */}
+        <TextToSpeechPlayer
+          articleTitle={articleTitle}
+          articleContentSelector="#article-content"
+          locked={locked}
+          onLockedClick={upsell}
+        />
 
         {/* 4. Typographie & Accessibilité */}
         <ReadingSettingsSheet />

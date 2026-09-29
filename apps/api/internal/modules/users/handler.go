@@ -27,6 +27,7 @@ func NewHandler(svc *Service) *Handler {
 // module creator (qui expose /v1/users/me et /v1/users/{username}).
 func (h *Handler) Register(r chi.Router) {
 	r.Get("/v1/me", h.me)
+	r.Get("/v1/me/entitlements", h.entitlements)
 	r.Get("/v1/me/identity", h.identity)
 	r.Get("/v1/me/mfa", h.mfa)
 	r.Post("/v1/me/mfa/totp/enroll", h.mfaEnroll)
@@ -98,6 +99,18 @@ func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, profile)
+}
+
+// GET /v1/me/entitlements — droits du compte pour les gates front (TTS,
+// thèmes, quotas) : { plus }. Lecture seule, jamais null. Le front met en
+// cache court (le statut change rarement — octroi/révocation staff).
+func (h *Handler) entitlements(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	response.OK(w, map[string]any{"plus": h.svc.HasPlus(r.Context(), userID)})
 }
 
 type profilePatch struct {
