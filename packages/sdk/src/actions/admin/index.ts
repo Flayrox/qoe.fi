@@ -187,6 +187,52 @@ export const updateAbuseIncidentAction = safeAction<
   return { success: true };
 });
 
+/** 🎫 File des dossiers support (ouverts d'abord). */
+export const listSupportTicketsAction = safeAction<
+  { status?: string },
+  { items: unknown[]; total: number }
+>(async ({ status }) => {
+  const qs = status ? `?status=${encodeURIComponent(status)}&limit=50` : '?limit=50';
+  return goFetch<{ items: unknown[]; total: number }>(`/v1/admin/support/tickets${qs}`);
+});
+
+/** 🎫 Détail d'un dossier support (avec messages). */
+export const getSupportTicketAction = safeAction<{ ticketId: string }, { ticket: unknown }>(
+  async ({ ticketId }) => {
+    const ticket = await goFetch(`/v1/admin/support/tickets/${encodeURIComponent(ticketId)}`);
+    return { ticket };
+  }
+);
+
+/** 🎫 Prise en main (passe en under_review, assigné). */
+export const assignSupportTicketAction = safeAction<{ ticketId: string }, { success: boolean }>(
+  async ({ ticketId }) => {
+    await goFetch(`/v1/admin/support/tickets/${encodeURIComponent(ticketId)}/assign`, {
+      method: 'POST',
+    });
+    revalidatePath('/admin/support');
+    return { success: true };
+  }
+);
+
+/** 🎫 Avancement / clôture (note ajoutée, réponse éventuelle). Clore ne lève
+ * ni suspension ni permission — les actes passent par les chemins existants. */
+export const updateSupportTicketAction = safeAction<
+  { ticketId: string; status?: string; staffNote?: string; reply?: string },
+  { success: boolean }
+>(async ({ ticketId, status, staffNote, reply }) => {
+  await goFetch(`/v1/admin/support/tickets/${encodeURIComponent(ticketId)}`, {
+    method: 'PATCH',
+    body: {
+      status: status ?? '',
+      staffNote: staffNote ?? '',
+      reply: reply ?? '',
+    },
+  });
+  revalidatePath('/admin/support');
+  return { success: true };
+});
+
 /** ⚖️ Détail d'un recours (dossier + messages). */
 export const getAbuseAppealAction = safeAction<{ appealId: string }, { appeal: unknown }>(
   async ({ appealId }) => {
