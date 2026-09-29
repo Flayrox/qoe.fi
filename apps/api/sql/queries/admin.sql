@@ -21,7 +21,8 @@ ORDER BY u."createdAt" DESC;
 
 -- name: GetAdminUser :one
 SELECT u.id, u.name, u.email, u.username, u.role, u."isCertified", u."isShadowbanned",
-       u."isSuspended", u."suspendReason", u."logoUrl", u."publicationId", u."createdAt",
+       u."isSuspended", u."suspendReason", u."shadowbanReason", u."shadowbanUntil", u."shadowbanReviewAt",
+       u."logoUrl", u."publicationId", u."createdAt",
        p."subdomain", p."name" AS publication_name,
        (SELECT count(*) FROM "Article" a WHERE a."publicationId" = p.id) AS articles_count,
        (SELECT count(*) FROM "Subscriber" s WHERE s."publicationId" = p.id) AS subscribers_count,
@@ -38,7 +39,8 @@ WHERE w."userId" = $1 AND w."type" = 'SUBSCRIPTION_PAYMENT';
 -- name: UpdateAdminUserModeration :one
 UPDATE "User"
 SET "isCertified" = $2, "isShadowbanned" = $3, "isSuspended" = $4,
-    "suspendReason" = $5, "updatedAt" = now()
+    "suspendReason" = $5, "shadowbanReason" = $6, "shadowbanUntil" = $7,
+    "shadowbanReviewAt" = $8, "updatedAt" = now()
 WHERE id = $1
 RETURNING id, role, "isCertified", "isShadowbanned", "isSuspended", "suspendReason";
 

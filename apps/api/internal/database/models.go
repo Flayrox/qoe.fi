@@ -1576,6 +1576,9 @@ type User struct {
 	Role                   string           `json:"role"`
 	IsCertified            bool             `json:"isCertified"`
 	IsShadowbanned         bool             `json:"isShadowbanned"`
+	ShadowbanReason        pgtype.Text      `json:"shadowbanReason"`
+	ShadowbanUntil         pgtype.Timestamp `json:"shadowbanUntil"`
+	ShadowbanReviewAt      pgtype.Timestamp `json:"shadowbanReviewAt"`
 	IsSuspended            bool             `json:"isSuspended"`
 	SuspendReason          pgtype.Text      `json:"suspendReason"`
 	ForceStandardTheme     bool             `json:"forceStandardTheme"`

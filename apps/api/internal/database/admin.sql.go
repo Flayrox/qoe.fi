@@ -120,7 +120,8 @@ func (q *Queries) DeleteTrend(ctx context.Context, id string) error {
 
 const getAdminUser = `-- name: GetAdminUser :one
 SELECT u.id, u.name, u.email, u.username, u.role, u."isCertified", u."isShadowbanned",
-       u."isSuspended", u."suspendReason", u."logoUrl", u."publicationId", u."createdAt",
+       u."isSuspended", u."suspendReason", u."shadowbanReason", u."shadowbanUntil", u."shadowbanReviewAt",
+       u."logoUrl", u."publicationId", u."createdAt",
        p."subdomain", p."name" AS publication_name,
        (SELECT count(*) FROM "Article" a WHERE a."publicationId" = p.id) AS articles_count,
        (SELECT count(*) FROM "Subscriber" s WHERE s."publicationId" = p.id) AS subscribers_count,
@@ -140,6 +141,9 @@ type GetAdminUserRow struct {
 	IsShadowbanned          bool             `json:"isShadowbanned"`
 	IsSuspended             bool             `json:"isSuspended"`
 	SuspendReason           pgtype.Text      `json:"suspendReason"`
+	ShadowbanReason         pgtype.Text      `json:"shadowbanReason"`
+	ShadowbanUntil          pgtype.Timestamp `json:"shadowbanUntil"`
+	ShadowbanReviewAt       pgtype.Timestamp `json:"shadowbanReviewAt"`
 	LogoUrl                 pgtype.Text      `json:"logoUrl"`
 	PublicationId           pgtype.Text      `json:"publicationId"`
 	CreatedAt               pgtype.Timestamp `json:"createdAt"`
@@ -163,6 +167,9 @@ func (q *Queries) GetAdminUser(ctx context.Context, id string) (GetAdminUserRow,
 		&i.IsShadowbanned,
 		&i.IsSuspended,
 		&i.SuspendReason,
+		&i.ShadowbanReason,
+		&i.ShadowbanUntil,
+		&i.ShadowbanReviewAt,
 		&i.LogoUrl,
 		&i.PublicationId,
 		&i.CreatedAt,
@@ -781,17 +788,21 @@ func (q *Queries) UpdateAdminUserApiAccess(ctx context.Context, arg UpdateAdminU
 const updateAdminUserModeration = `-- name: UpdateAdminUserModeration :one
 UPDATE "User"
 SET "isCertified" = $2, "isShadowbanned" = $3, "isSuspended" = $4,
-    "suspendReason" = $5, "updatedAt" = now()
+    "suspendReason" = $5, "shadowbanReason" = $6, "shadowbanUntil" = $7,
+    "shadowbanReviewAt" = $8, "updatedAt" = now()
 WHERE id = $1
 RETURNING id, role, "isCertified", "isShadowbanned", "isSuspended", "suspendReason"
 `
 
 type UpdateAdminUserModerationParams struct {
-	ID             string      `json:"id"`
-	IsCertified    bool        `json:"isCertified"`
-	IsShadowbanned bool        `json:"isShadowbanned"`
-	IsSuspended    bool        `json:"isSuspended"`
-	SuspendReason  pgtype.Text `json:"suspendReason"`
+	ID                string           `json:"id"`
+	IsCertified       bool             `json:"isCertified"`
+	IsShadowbanned    bool             `json:"isShadowbanned"`
+	IsSuspended       bool             `json:"isSuspended"`
+	SuspendReason     pgtype.Text      `json:"suspendReason"`
+	ShadowbanReason   pgtype.Text      `json:"shadowbanReason"`
+	ShadowbanUntil    pgtype.Timestamp `json:"shadowbanUntil"`
+	ShadowbanReviewAt pgtype.Timestamp `json:"shadowbanReviewAt"`
 }
 
 type UpdateAdminUserModerationRow struct {
@@ -810,6 +821,9 @@ func (q *Queries) UpdateAdminUserModeration(ctx context.Context, arg UpdateAdmin
 		arg.IsShadowbanned,
 		arg.IsSuspended,
 		arg.SuspendReason,
+		arg.ShadowbanReason,
+		arg.ShadowbanUntil,
+		arg.ShadowbanReviewAt,
 	)
 	var i UpdateAdminUserModerationRow
 	err := row.Scan(

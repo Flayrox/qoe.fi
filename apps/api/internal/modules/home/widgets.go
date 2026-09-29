@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/qoefi/api/internal/abuse"
 	"github.com/qoefi/api/internal/modules/newsletters"
 	"github.com/qoefi/api/internal/queue"
 )
@@ -462,8 +463,15 @@ func (s *Service) SubscribeToNewsletter(ctx context.Context, email, publicationI
 	}
 	// Confirmation à envoyer sauf si déjà actif et confirmé (rien à prouver).
 	// C'est le worker confirm_email qui lit le token en base et envoie le
-	// lien signé ; ici on ne fait qu'enfiler la demande.
+	// lien signé ; ici on ne fait qu'enfiler la demande. Budget anti-abus
+	// (fiche 06 P0) : au-delà de 3 demandes/jour pour cette adresse ou de
+	// 2000/jour pour la publication, la demande reste enregistrée en attente
+	// mais aucun e-mail ne part — sans le dire (réponse neutre).
 	if !(receiveArticles && confirmed) && s.events != nil {
+		if !abuse.ConfirmAllowed(ctx, s.pool, email, publicationID, time.Now()) {
+			log.Printf("[home] confirmation non envoyée (budget épuisé) %s", email)
+			return true, nil
+		}
 		if err := queue.PublishSubscriberConfirm(s.events, queue.SubscriberConfirmPayload{
 			Email:         email,
 			PublicationID: publicationID,

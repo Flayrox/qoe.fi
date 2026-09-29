@@ -7,9 +7,11 @@ import (
 	"net/http"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
+	"github.com/qoefi/api/internal/abuse"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/modules/newsletters"
@@ -34,6 +36,7 @@ func newSubscriberConfirmToken() (string, error) {
 // réactive (ConfirmSubscriberByToken). Retourne l'abonné et s'il faut lui
 // envoyer une confirmation (faux s'il est déjà actif et confirmé).
 func (h *Handler) registerPendingSubscriber(r *http.Request, pubID, email string) (db.UpsertSubscriberPendingRow, bool, error) {
+	ctx := r.Context()
 	token, err := newSubscriberConfirmToken()
 	if err != nil {
 		return db.UpsertSubscriberPendingRow{}, false, err
@@ -51,8 +54,14 @@ func (h *Handler) registerPendingSubscriber(r *http.Request, pubID, email string
 	confirmed, _ := sub.Confirmed.(bool)
 	needsConfirm := !(sub.IsActive && sub.ReceiveArticles && confirmed)
 	if needsConfirm {
-		// Best-effort, comme ailleurs : une panne Redis n'invalide jamais une
-		// inscription déjà enregistrée en attente.
+		// Budget anti-abus (fiche 06 P0) : même protection que la voie
+		// publique — la clé API ne permet pas d'arroser une adresse au-delà
+		// de 3 confirmations/jour. Best-effort pour le reste : une panne
+		// Redis n'invalide jamais une inscription déjà enregistrée.
+		if !abuse.ConfirmAllowed(ctx, h.pool, email, pubID, time.Now()) {
+			log.Printf("[creator] confirmation non envoyée (budget épuisé) %s", email)
+			return sub, needsConfirm, nil
+		}
 		if err := queue.PublishSubscriberConfirm(h.asynq, queue.SubscriberConfirmPayload{
 			Email:         email,
 			PublicationID: pubID,
