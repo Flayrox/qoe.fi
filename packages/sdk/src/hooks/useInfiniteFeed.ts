@@ -1,3 +1,5 @@
+'use client';
+
 import { useInfiniteQuery, type InfiniteData } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
 import { feedKeys } from '../query-keys';
