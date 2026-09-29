@@ -60,6 +60,35 @@ func (s *Service) AbuseMetrics(ctx context.Context, userID string, days int) (ab
 	return abuse.ComputeMetrics(ctx, s.pool, days, time.Now())
 }
 
+// Abuse incidents (fiche 06 §9-§10, superadmin uniquement) : le staff ouvre
+// et tient les dossiers d'attaque confirmée — qualifier une attaque est un
+// jugement humain, jamais un verdict automate.
+
+// ListAbuseIncidents renvoie les dossiers (ouverts d'abord).
+func (s *Service) ListAbuseIncidents(ctx context.Context, userID, status string, limit, offset int) ([]abuse.Incident, int, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return nil, 0, err
+	}
+	return abuse.ListIncidents(ctx, s.pool, status, limit, offset, time.Now())
+}
+
+// OpenAbuseIncident ouvre un dossier d'attaque.
+func (s *Service) OpenAbuseIncident(ctx context.Context, userID, title, kind, scope, impact string) (abuse.Incident, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return abuse.Incident{}, err
+	}
+	return abuse.OpenIncident(ctx, s.pool, title, kind, scope, impact, userID, time.Now())
+}
+
+// UpdateAbuseIncident fait avancer un dossier (statut validé, mesure ajoutée
+// horodatée avec l'auteur, jamais écrasée).
+func (s *Service) UpdateAbuseIncident(ctx context.Context, userID, id, status, scope, impact, measure string) (abuse.Incident, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return abuse.Incident{}, err
+	}
+	return abuse.UpdateIncident(ctx, s.pool, id, userID, status, scope, impact, measure, time.Now())
+}
+
 // ResolveAbuseDecision clôt un dossier par un verdict humain tracé
 // (superadmin uniquement). `result` ∈ {allow, limit_distribution,
 // pause_sending, suspend} — le reste est refusé (abuse.ErrInvalidHumanResult).

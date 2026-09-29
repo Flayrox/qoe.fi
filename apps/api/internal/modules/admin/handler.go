@@ -58,6 +58,10 @@ func (h *Handler) Register(r chi.Router) {
 	// Métriques anti-abus (les deux erreurs : abus manqué vs légitimes
 	// bloqués). Query : ?days=30 (1-90).
 	r.Get("/v1/admin/abuse/metrics", h.abuseMetrics)
+	// Registre d'incidents (attaques confirmées, dossier tenu par le staff).
+	r.Get("/v1/admin/abuse/incidents", h.abuseIncidents)
+	r.Post("/v1/admin/abuse/incidents", h.openAbuseIncident)
+	r.Patch("/v1/admin/abuse/incidents/{id}", h.updateAbuseIncident)
 
 	// Widgets & tendances
 	r.Get("/v1/admin/widgets", h.widgets)
@@ -366,6 +370,87 @@ func (h *Handler) abuseMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, m)
+}
+
+// GET /v1/admin/abuse/incidents — dossiers d'attaques (ouverts d'abord).
+// Query : ?status=open|contained|resolved|reopened&limit=50&offset=0
+func (h *Handler) abuseIncidents(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	items, total, err := h.svc.ListAbuseIncidents(r.Context(), userID, r.URL.Query().Get("status"), limit, offset)
+	if err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, map[string]any{"items": items, "total": total})
+}
+
+// POST /v1/admin/abuse/incidents — ouvre un dossier.
+// Body : { "title": "Ferme de comptes contre ...", "kind": "account_farm",
+// "scope": "...", "impact": "..." }
+func (h *Handler) openAbuseIncident(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	var in struct {
+		Title  string `json:"title"`
+		Kind   string `json:"kind"`
+		Scope  string `json:"scope"`
+		Impact string `json:"impact"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.Title == "" || in.Kind == "" {
+		response.BadRequest(w, "JSON invalide (title et kind requis)")
+		return
+	}
+	d, err := h.svc.OpenAbuseIncident(r.Context(), userID, in.Title, in.Kind, in.Scope, in.Impact)
+	if err != nil {
+		if errors.Is(err, abuse.ErrInvalidIncident) {
+			response.BadRequest(w, err.Error())
+			return
+		}
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, d)
+}
+
+// PATCH /v1/admin/abuse/incidents/{id} — fait avancer un dossier.
+// Body : { "status": "contained|resolved|reopened|open", "scope": "...",
+// "impact": "...", "measure": "coupe-feu inscriptions engagé" } — la mesure
+// s'ajoute horodatée avec l'auteur, jamais écrasée.
+func (h *Handler) updateAbuseIncident(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	var in struct {
+		Status  string `json:"status"`
+		Scope   string `json:"scope"`
+		Impact  string `json:"impact"`
+		Measure string `json:"measure"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	d, err := h.svc.UpdateAbuseIncident(r.Context(), userID, chi.URLParam(r, "id"), in.Status, in.Scope, in.Impact, in.Measure)
+	if err != nil {
+		switch {
+		case errors.Is(err, abuse.ErrNoIncident):
+			response.NotFound(w, "Incident introuvable.")
+		case errors.Is(err, abuse.ErrInvalidIncident):
+			response.BadRequest(w, err.Error())
+		default:
+			h.handleErr(w, err)
+		}
+		return
+	}
+	response.OK(w, d)
 }
 
 // PATCH /v1/admin/users/{userID} — modération (réservé superadmin).
