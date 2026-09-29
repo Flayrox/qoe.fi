@@ -41,6 +41,7 @@ import { cn } from '@qoe/utils';
 import type { CanonicalDocument, SpotlightRange } from '@qoe/ui/annotations';
 import type { ThoughtData } from '@qoe/sdk';
 import type { FeedSlice } from '@/lib/feed-types';
+import type { HiddenAuthor } from '@/lib/home-feed-data';
 
 interface Author {
   id: string;
@@ -208,6 +209,9 @@ interface FeedDashboardProps {
   initialSpotlight?: SpotlightRange | null;
   /** Route de retour quand l'article initial vient d'un deep-link (ex. profil). */
   initialReturnUrl?: string | null;
+  /** Auteurs suivis dont les contenus sont masqués du flux Suivis (fiche 06 §9 :
+   * jamais de suppression silencieuse — le bandeau ci-dessous les nomme). */
+  followingHidden?: HiddenAuthor[];
 }
 
 export function FeedDashboard({
@@ -233,6 +237,7 @@ export function FeedDashboard({
   initialCanonicalDocument = null,
   initialSpotlight = null,
   initialReturnUrl = null,
+  followingHidden = [],
 }: FeedDashboardProps) {
   const [activeFeed, setActiveFeed] = useState<string>('recommandation');
   const [isOnboardingModalOpen, setIsOnboardingModalOpen] = useState(needsOnboarding);
@@ -376,6 +381,20 @@ export function FeedDashboard({
     if (inter?.bookmarked !== undefined) return inter.bookmarked;
     return bookmarks.some((b) => b.id === articleId);
   };
+
+  // Résumé des auteurs masqués (un auteur suspendu / restreint, avec
+  // échéance quand elle est connue). Chaîne calculée hors JSX pour rester
+  // compatible avec le macro d'internationalisation.
+  const hiddenSummary = useMemo(
+    () =>
+      followingHidden
+        .map((h) => {
+          const kind = h.reason === 'suspended' ? 'un auteur suspendu' : 'un auteur restreint';
+          return h.until ? `${kind} (jusqu'au ${new Date(h.until).toLocaleDateString()})` : kind;
+        })
+        .join(' · '),
+    [followingHidden]
+  );
 
   const currentFeedArticles = useMemo(() => {
     let list: FeedItem[] = [];
@@ -930,6 +949,17 @@ export function FeedDashboard({
                       </motion.div>
                     ) : (
                       <div key={`feed-${activeFeed}`} className="space-y-4">
+                        {/* Transparence du suivi (fiche 06 §9) : les auteurs
+                         * suivis masqués par une mesure sont nommés ici —
+                         * jamais de suivi vide et muet. */}
+                        {activeFeed === 'abonnement' && followingHidden.length > 0 && (
+                          <div className="bg-muted/40 border border-border/40 rounded-xl px-4 py-3 flex items-start gap-2.5 text-muted-foreground">
+                            <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                            <p className="text-xs leading-relaxed">
+                              {t`Certains contenus de vos abonnements sont temporairement masqués (mesure de modération) : ${hiddenSummary}.`}
+                            </p>
+                          </div>
+                        )}
                         <RealtimeFeedPill unreadCount={unreadCount} onFlush={flushBuffer} />
                         <VirtualizedFeedList
                           items={currentFeedArticles}
