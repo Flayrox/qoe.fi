@@ -104,7 +104,7 @@ func (q *Queries) DeleteSocialLinks(ctx context.Context, publicationid string) e
 }
 
 const getPublicationEmailDefaults = `-- name: GetPublicationEmailDefaults :one
-SELECT p.name, p."accentColor", p."logoUrl", p."emailSettings", p."emailPro"
+SELECT p.name, p."accentColor", p."logoUrl", p."emailSettings"
 FROM "Publication" p
 WHERE p.id = $1
 `
@@ -114,7 +114,6 @@ type GetPublicationEmailDefaultsRow struct {
 	AccentColor   pgtype.Text `json:"accentColor"`
 	LogoUrl       pgtype.Text `json:"logoUrl"`
 	EmailSettings []byte      `json:"emailSettings"`
-	EmailPro      bool        `json:"emailPro"`
 }
 
 // Identité par défaut de la publication (pré-remplissage du formulaire
@@ -127,7 +126,6 @@ func (q *Queries) GetPublicationEmailDefaults(ctx context.Context, id string) (G
 		&i.AccentColor,
 		&i.LogoUrl,
 		&i.EmailSettings,
-		&i.EmailPro,
 	)
 	return i, err
 }
@@ -138,8 +136,7 @@ SELECT p.name AS publication_name,
        p."customDomain" AS custom_domain,
        p."accentColor" AS accent_color,
        p."logoUrl" AS logo_url,
-       p."emailSettings",
-       p."emailPro"
+       p."emailSettings"
 FROM "Publication" p
 WHERE p.id = $1
 `
@@ -151,7 +148,6 @@ type GetPublicationForEmailTestRow struct {
 	AccentColor     pgtype.Text `json:"accent_color"`
 	LogoUrl         pgtype.Text `json:"logo_url"`
 	EmailSettings   []byte      `json:"emailSettings"`
-	EmailPro        bool        `json:"emailPro"`
 }
 
 // Identité complète de la publication pour l'envoi d'un email de test
@@ -167,7 +163,6 @@ func (q *Queries) GetPublicationForEmailTest(ctx context.Context, id string) (Ge
 		&i.AccentColor,
 		&i.LogoUrl,
 		&i.EmailSettings,
-		&i.EmailPro,
 	)
 	return i, err
 }
@@ -250,8 +245,7 @@ SELECT p.name AS publication_name,
        p."customDomain" AS custom_domain,
        p."accentColor" AS accent_color,
        p."logoUrl" AS logo_url,
-       p."emailSettings",
-       p."emailPro"
+       p."emailSettings"
 FROM "Publication" p
 WHERE p.id = $1
 `
@@ -263,7 +257,6 @@ type GetSubscriberEmailDefaultsRow struct {
 	AccentColor     pgtype.Text `json:"accent_color"`
 	LogoUrl         pgtype.Text `json:"logo_url"`
 	EmailSettings   []byte      `json:"emailSettings"`
-	EmailPro        bool        `json:"emailPro"`
 }
 
 // Identité d'une publication pour la prévisualisation des emails
@@ -280,7 +273,6 @@ func (q *Queries) GetSubscriberEmailDefaults(ctx context.Context, id string) (Ge
 		&i.AccentColor,
 		&i.LogoUrl,
 		&i.EmailSettings,
-		&i.EmailPro,
 	)
 	return i, err
 }

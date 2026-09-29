@@ -16,6 +16,7 @@ import (
 	"github.com/qoefi/api/internal/modules/imports"
 	"github.com/qoefi/api/internal/modules/users"
 	"github.com/qoefi/api/internal/response"
+	"github.com/qoefi/api/internal/subscriptions"
 	"github.com/qoefi/api/internal/support"
 )
 
@@ -61,6 +62,10 @@ func (h *Handler) Register(r chi.Router) {
 	r.Get("/v1/admin/abuse/metrics", h.abuseMetrics)
 	// Palier email Pro (freemium, intérim Stripe) : bascule superadmin.
 	r.Patch("/v1/admin/publications/{id}", h.setPublicationEmailPro)
+	// Abonnements manuels : octroyer (daté, programmé), révoquer, historique.
+	r.Get("/v1/admin/subscriptions/grants", h.subscriptionGrants)
+	r.Post("/v1/admin/subscriptions/grants", h.grantSubscription)
+	r.Post("/v1/admin/subscriptions/grants/{id}/revoke", h.revokeSubscriptionGrant)
 	// Registre d'incidents (attaques confirmées, dossier tenu par le staff).
 	r.Get("/v1/admin/abuse/incidents", h.abuseIncidents)
 	r.Post("/v1/admin/abuse/incidents", h.openAbuseIncident)
@@ -779,6 +784,77 @@ func (h *Handler) setPublicationEmailPro(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	response.OK(w, map[string]any{"emailPro": pro})
+}
+
+// GET /v1/admin/subscriptions/grants — octrois (plus récents d'abord).
+// Query : ?plan=pro|plus&effective=1&limit=50&offset=0
+func (h *Handler) subscriptionGrants(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	items, total, err := h.svc.ListSubscriptionGrants(r.Context(), userID,
+		r.URL.Query().Get("plan"), r.URL.Query().Get("effective") == "1", limit, offset)
+	if err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, map[string]any{"items": items, "total": total})
+}
+
+// POST /v1/admin/subscriptions/grants — octroyer un palier.
+// Body : { subjectType: user|publication, subjectId, plan: pro|plus,
+// startsAt?: RFC3339 (vide = maintenant), endsAt?: RFC3339 (vide = sans fin),
+// note? }. Début futur = programmé.
+func (h *Handler) grantSubscription(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	var in struct {
+		SubjectType string `json:"subjectType"`
+		SubjectID   string `json:"subjectId"`
+		Plan        string `json:"plan"`
+		StartsAt    string `json:"startsAt"`
+		EndsAt      string `json:"endsAt"`
+		Note        string `json:"note"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil ||
+		in.SubjectType == "" || in.SubjectID == "" || in.Plan == "" {
+		response.BadRequest(w, "JSON invalide (subjectType, subjectId et plan requis)")
+		return
+	}
+	g, err := h.svc.GrantSubscription(r.Context(), userID, in.SubjectType, in.SubjectID, in.Plan, in.StartsAt, in.EndsAt, in.Note)
+	if err != nil {
+		if errors.Is(err, subscriptions.ErrInvalidGrant) {
+			response.BadRequest(w, err.Error())
+			return
+		}
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, g)
+}
+
+// POST /v1/admin/subscriptions/grants/{id}/revoke — fin immédiate
+// (historique conservé, idempotent).
+func (h *Handler) revokeSubscriptionGrant(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	g, err := h.svc.RevokeSubscriptionGrant(r.Context(), userID, chi.URLParam(r, "id"))
+	if err != nil {
+		if errors.Is(err, subscriptions.ErrGrantNotFound) {
+			response.NotFound(w, "Octroi introuvable.")
+			return
+		}
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, g)
 }
 
 // PATCH /v1/admin/users/{userID} — modération (réservé superadmin).

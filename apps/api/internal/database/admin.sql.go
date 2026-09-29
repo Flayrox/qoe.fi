@@ -725,28 +725,6 @@ func (q *Queries) SetArticleEditorPick(ctx context.Context, arg SetArticleEditor
 	return i, err
 }
 
-const setPublicationEmailPro = `-- name: SetPublicationEmailPro :one
-UPDATE "Publication"
-SET "emailPro" = $2, "updatedAt" = now()
-WHERE id = $1
-RETURNING "emailPro"
-`
-
-type SetPublicationEmailProParams struct {
-	ID       string `json:"id"`
-	EmailPro bool   `json:"emailPro"`
-}
-
-// Bascule du palier email Pro (freemium, intérim en attendant Stripe) :
-// true = personnalisation complète (sujets, corps, couleurs…), false =
-// identité + défauts localisés. Réservé superadmin (vérifié côté service).
-func (q *Queries) SetPublicationEmailPro(ctx context.Context, arg SetPublicationEmailProParams) (bool, error) {
-	row := q.db.QueryRow(ctx, setPublicationEmailPro, arg.ID, arg.EmailPro)
-	var emailPro bool
-	err := row.Scan(&emailPro)
-	return emailPro, err
-}
-
 const setUserApiGrants = `-- name: SetUserApiGrants :exec
 UPDATE "User" SET "apiGrants" = $2, "updatedAt" = now() WHERE id = $1
 `

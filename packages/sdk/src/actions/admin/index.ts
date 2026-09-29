@@ -245,6 +245,45 @@ export const updateSupportArticleAction = safeAction<
   return { success: true };
 });
 
+/** 💎 Octroie un palier (staff) : sujet + plan + début/fin RFC3339 + note.
+ * Début vide = maintenant, fin vide = sans fin (début futur = programmé). */
+export const grantSubscriptionAction = safeAction<
+  {
+    subjectType: string;
+    subjectId: string;
+    plan: string;
+    startsAt?: string;
+    endsAt?: string;
+    note?: string;
+  },
+  { success: boolean }
+>(async (input) => {
+  await goFetch('/v1/admin/subscriptions/grants', {
+    method: 'POST',
+    body: {
+      subjectType: input.subjectType,
+      subjectId: input.subjectId,
+      plan: input.plan,
+      startsAt: input.startsAt ?? '',
+      endsAt: input.endsAt ?? '',
+      note: input.note ?? '',
+    },
+  });
+  revalidatePath('/admin/subscriptions');
+  return { success: true };
+});
+
+/** 💎 Révoque un octroi (fin immédiate, historique conservé). */
+export const revokeSubscriptionGrantAction = safeAction<{ grantId: string }, { success: boolean }>(
+  async ({ grantId }) => {
+    await goFetch(`/v1/admin/subscriptions/grants/${encodeURIComponent(grantId)}/revoke`, {
+      method: 'POST',
+    });
+    revalidatePath('/admin/subscriptions');
+    return { success: true };
+  }
+);
+
 /** 🎫 Détail d'un dossier support (avec messages). */
 export const getSupportTicketAction = safeAction<{ ticketId: string }, { ticket: unknown }>(
   async ({ ticketId }) => {

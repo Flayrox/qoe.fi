@@ -8,9 +8,12 @@ package admin
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/qoefi/api/internal/abuse"
+	"github.com/qoefi/api/internal/subscriptions"
 	"github.com/qoefi/api/internal/support"
 )
 
@@ -200,6 +203,52 @@ func (s *Service) UpdateSupportArticle(ctx context.Context, userID, id, titleFr,
 		return support.Article{}, err
 	}
 	return support.UpdateArticle(ctx, s.pool, id, titleFr, titleEn, bodyFr, bodyEn, position, published, time.Now())
+}
+
+// Abonnements manuels (intérim Stripe, superadmin uniquement) : octroyer
+// (programmé, daté), révoquer (fin immédiate), historique. La bascule
+// rapide Pro d'une publication reste PATCH /v1/admin/publications/{id}.
+
+// ListSubscriptionGrants renvoie les octrois (file, plus récents d'abord).
+func (s *Service) ListSubscriptionGrants(ctx context.Context, userID, plan string, effectiveOnly bool, limit, offset int) ([]subscriptions.Grant, int, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return nil, 0, err
+	}
+	return subscriptions.ListRecentGrants(ctx, s.pool, plan, effectiveOnly, limit, offset, time.Now())
+}
+
+// GrantSubscription octroie un palier (dates RFC3339 optionnelles : vide =
+// maintenant / sans fin).
+func (s *Service) GrantSubscription(ctx context.Context, userID, subjectType, subjectID, plan, startsAt, endsAt, note string) (subscriptions.Grant, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return subscriptions.Grant{}, err
+	}
+	now := time.Now()
+	start := now
+	if strings.TrimSpace(startsAt) != "" {
+		t, err := time.Parse(time.RFC3339, strings.TrimSpace(startsAt))
+		if err != nil {
+			return subscriptions.Grant{}, fmt.Errorf("startsAt RFC3339 attendu : %w", err)
+		}
+		start = t
+	}
+	var ends *time.Time
+	if strings.TrimSpace(endsAt) != "" {
+		t, err := time.Parse(time.RFC3339, strings.TrimSpace(endsAt))
+		if err != nil {
+			return subscriptions.Grant{}, fmt.Errorf("endsAt RFC3339 attendu : %w", err)
+		}
+		ends = &t
+	}
+	return subscriptions.GrantPlan(ctx, s.pool, subjectType, subjectID, plan, start, ends, userID, note, now)
+}
+
+// RevokeSubscriptionGrant révoque (fin immédiate, historique conservé).
+func (s *Service) RevokeSubscriptionGrant(ctx context.Context, userID, id string) (subscriptions.Grant, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return subscriptions.Grant{}, err
+	}
+	return subscriptions.RevokeGrant(ctx, s.pool, id, time.Now())
 }
 
 // ResolveAbuseDecision clôt un dossier par un verdict humain tracé

@@ -1395,7 +1395,6 @@ type Publication struct {
 	SeoDescription         pgtype.Text      `json:"seoDescription"`
 	SupportUrl             pgtype.Text      `json:"supportUrl"`
 	EmailSettings          []byte           `json:"emailSettings"`
-	EmailPro               bool             `json:"emailPro"`
 	StripeAccountId        pgtype.Text      `json:"stripeAccountId"`
 	CreatedAt              pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt              pgtype.Timestamp `json:"updatedAt"`
