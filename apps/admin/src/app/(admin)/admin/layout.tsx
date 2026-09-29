@@ -24,7 +24,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     const mainDomain = host.includes('qoe.test') ? 'qoe.test' : 'lvh.me';
     const loginUrl = isLocal
       ? `http://${mainDomain}:3010/login?redirect=${encodeURIComponent(`http://${host}/admin`)}`
-      : 'https://qoe.fi/login';
+      : `https://qoe.fi/login?redirect=${encodeURIComponent(`https://${host}/admin`)}`;
     redirect(loginUrl);
   }
 

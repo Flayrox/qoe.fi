@@ -32,7 +32,7 @@ export default async function SupportPage() {
   }
 
   const res = await listMySupportTicketsAction({ limit: 20 });
-  const initialItems = res.ok ? res.data.items : [];
+  const initialItems = res.ok && Array.isArray(res.data?.items) ? res.data.items : [];
 
   return <SupportApp initialItems={initialItems} />;
 }
