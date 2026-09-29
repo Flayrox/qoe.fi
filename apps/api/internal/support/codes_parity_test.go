@@ -16,7 +16,8 @@ func TestGeneratedTS_CoversSupport(t *testing.T) {
 	if err != nil {
 		t.Fatalf("fichier généré illisible (%s) : %v", path, err)
 	}
-	content := string(raw)
+	// Normalisation des guillemets (cf. test abuse : prettier reformate).
+	content := strings.ReplaceAll(string(raw), "'", `"`)
 	for typeName, values := range map[string][]string{
 		"SupportKind":   Kinds(),
 		"SupportStatus": Statuses(),

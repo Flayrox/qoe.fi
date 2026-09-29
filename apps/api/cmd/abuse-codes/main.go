@@ -24,8 +24,11 @@ func union(name string, values []string) string {
 	sort.Strings(sorted)
 	quoted := make([]string, len(sorted))
 	for i, v := range sorted {
-		quoted[i] = fmt.Sprintf("%q", v)
+		quoted[i] = fmt.Sprintf("'%s'", v)
 	}
+	// Format EXACT de prettier (vérifié --check) : union multi-lignes,
+	// indentée de 2 espaces, `|` en tête — le généré est idempotent au
+	// commit, sans diff parasite de reformatage.
 	return fmt.Sprintf("export type %s =\n  | %s;", name, strings.Join(quoted, "\n  | "))
 }
 

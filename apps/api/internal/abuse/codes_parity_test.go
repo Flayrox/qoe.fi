@@ -25,14 +25,17 @@ func generatedTS(t *testing.T) string {
 }
 
 func TestGeneratedTS_CoversVocabularies(t *testing.T) {
-	raw := generatedTS(t)
+	// Normalisation des guillemets : prettier (hook pre-commit) reformate
+	// en simples — le test vérifie les VALEURS, pas le style (le style est
+	// l'affaire de prettier, vérifiée par format:check).
+	raw := strings.ReplaceAll(generatedTS(t), "'", `"`)
 	lists := map[string][]string{
-		"AbuseDecision":      Decisions(),
-		"AbuseReasonCode":    ReasonCodes(),
-		"AbuseIncidentKind":  IncidentKinds(),
+		"AbuseDecision":       Decisions(),
+		"AbuseReasonCode":     ReasonCodes(),
+		"AbuseIncidentKind":   IncidentKinds(),
 		"AbuseIncidentStatus": IncidentStatuses(),
-		"AbuseAppealStatus":  AppealStatuses(),
-		"AbuseAppealOutcome": AppealOutcomes(),
+		"AbuseAppealStatus":   AppealStatuses(),
+		"AbuseAppealOutcome":  AppealOutcomes(),
 	}
 	for typeName, values := range lists {
 		if !strings.Contains(raw, "export type "+typeName+" =") {
