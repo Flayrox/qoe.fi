@@ -16,7 +16,10 @@ import { GrantsManager } from './components/grants-manager';
 
 export default async function AdminSubscriptionsPage() {
   const data = await getAdminSubscriptionGrants();
-  const activeCount = data.items.filter((g) => g.effective).length;
+  // Blindage défensif : même si l'API renvoyait `items: null`, la page ne
+  // doit jamais crasher (crash « This page couldn't load »).
+  const items = data.items ?? [];
+  const activeCount = items.filter((g) => g.effective).length;
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-10">
@@ -33,7 +36,7 @@ export default async function AdminSubscriptionsPage() {
         }
       />
 
-      <GrantsManager initialItems={data.items} />
+      <GrantsManager initialItems={items} />
     </div>
   );
 }

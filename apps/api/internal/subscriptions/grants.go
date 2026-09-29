@@ -264,7 +264,7 @@ func RevokeGrant(ctx context.Context, pool DB, id string, now time.Time) (Grant,
 // placeholders comptés à la main.
 func ListGrants(ctx context.Context, pool DB, subjectType, subjectID string, effectiveOnly bool, limit int, now time.Time) ([]Grant, error) {
 	if pool == nil {
-		return nil, nil
+		return []Grant{}, nil
 	}
 	if limit <= 0 || limit > 200 {
 		limit = 50
@@ -288,7 +288,7 @@ func ListGrants(ctx context.Context, pool DB, subjectType, subjectID string, eff
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Grant
+	items := []Grant{}
 	for rows.Next() {
 		g, err := scanGrantRow(rows, now)
 		if err != nil {
@@ -305,7 +305,10 @@ func ListGrants(ctx context.Context, pool DB, subjectType, subjectID string, eff
 // discipline que ListGrants : lisible, pas de placeholders comptés).
 func ListRecentGrants(ctx context.Context, pool DB, plan string, effectiveOnly bool, limit, offset int, now time.Time) ([]Grant, int, error) {
 	if pool == nil {
-		return nil, 0, nil
+		// Jamais nil : une slice non initialisée sérialise en `null` dans
+		// encoding/json, et le composant serveur admin crashe sur
+		// `data.items.filter(...)` (léçon du crash « This page couldn't load »).
+		return []Grant{}, 0, nil
 	}
 	if limit <= 0 || limit > 200 {
 		limit = 50
@@ -332,7 +335,7 @@ func ListRecentGrants(ctx context.Context, pool DB, plan string, effectiveOnly b
 		return nil, 0, err
 	}
 	defer rows.Close()
-	var items []Grant
+	items := []Grant{}
 	total := 0
 	for rows.Next() {
 		var g Grant

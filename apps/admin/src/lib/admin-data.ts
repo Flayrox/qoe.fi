@@ -251,7 +251,12 @@ export async function getAdminReports(
   status?: string
 ): Promise<{ items: ModerationReportItem[]; pending: number }> {
   const qs = status && status !== 'all' ? `?status=${encodeURIComponent(status)}` : '';
-  return goFetch<{ items: ModerationReportItem[]; pending: number }>(`/v1/admin/reports${qs}`);
+  // `items` peut arriver en `null` (slice Go non initialisée) : on garantit ici
+  // un tableau pour que les composants serveur ne crashent jamais sur `.filter`.
+  const res = await goFetch<{ items: ModerationReportItem[]; pending: number }>(
+    `/v1/admin/reports${qs}`
+  );
+  return { items: res.items ?? [], pending: res.pending ?? 0 };
 }
 
 /** 🛡️ File de revue anti-abus : dernier verdict non trivial par sujet
@@ -428,9 +433,10 @@ export async function getAdminSupportArticles(): Promise<{
   total: number;
 }> {
   try {
-    return await goFetch<{ items: SupportArticleItem[]; total: number }>(
+    const res = await goFetch<{ items: SupportArticleItem[]; total: number }>(
       '/v1/admin/support/articles?limit=100'
     );
+    return { items: res.items ?? [], total: res.total ?? 0 };
   } catch {
     return { items: [], total: 0 };
   }
@@ -455,9 +461,10 @@ export async function getAdminSubscriptionGrants(): Promise<{
   total: number;
 }> {
   try {
-    return await goFetch<{ items: SubscriptionGrantItem[]; total: number }>(
+    const res = await goFetch<{ items: SubscriptionGrantItem[]; total: number }>(
       '/v1/admin/subscriptions/grants?limit=50'
     );
+    return { items: res.items ?? [], total: res.total ?? 0 };
   } catch {
     return { items: [], total: 0 };
   }
@@ -510,7 +517,7 @@ export interface AdminAuditEntry {
 /** 🛡️ Journal d'audit superadmin (qui, quand, quoi — flag admin-audit-log). */
 export async function getAdminAuditLog(limit = 100): Promise<AdminAuditEntry[]> {
   const data = await goFetch<{ items: AdminAuditEntry[] }>(`/v1/admin/audit-log?limit=${limit}`);
-  return data.items;
+  return data.items ?? [];
 }
 
 // ── ⚖️ Contenu juridique ─────────────────────────────────────────────────────
@@ -579,7 +586,7 @@ export interface AdminLegalStats {
 /** ⚖️ Tous les documents juridiques (brouillons et inactifs inclus). */
 export async function getAdminLegalDocuments(): Promise<AdminLegalDocument[]> {
   const data = await goFetch<{ items: AdminLegalDocument[] }>('/v1/admin/legal');
-  return data.items;
+  return data.items ?? [];
 }
 
 /** 📚 Toutes les versions d'un document (drafts, publiées, archivées). */
@@ -587,7 +594,7 @@ export async function getAdminLegalVersions(documentId: string): Promise<AdminLe
   const data = await goFetch<{ items: AdminLegalVersion[] }>(
     `/v1/admin/legal/${encodeURIComponent(documentId)}/versions`
   );
-  return data.items;
+  return data.items ?? [];
 }
 
 /** ✍️ Preuves de consentement (qui a accepté quelle version). */
@@ -601,13 +608,13 @@ export async function getAdminLegalAcceptances(
   const data = await goFetch<{ items: AdminLegalAcceptance[] }>(
     `/v1/admin/legal/acceptances?${qs.toString()}`
   );
-  return data.items;
+  return data.items ?? [];
 }
 
 /** 📊 Volumétrie de consentement par document. */
 export async function getAdminLegalStats(): Promise<AdminLegalStats[]> {
   const data = await goFetch<{ items: AdminLegalStats[] }>('/v1/admin/legal/stats');
-  return data.items;
+  return data.items ?? [];
 }
 
 // ─── Conformité ──────────────────────────────────────────────────────
@@ -702,7 +709,7 @@ export async function getAdminLegalCompliance(): Promise<ComplianceSnapshot> {
 /** 📣 Campagnes d'information légale (avec état d'envoi). */
 export async function getAdminLegalNotices(limit = 20): Promise<LegalNotice[]> {
   const data = await goFetch<{ items: LegalNotice[] }>(`/v1/admin/legal/notices?limit=${limit}`);
-  return data.items;
+  return data.items ?? [];
 }
 
 // ─── Registre signé des consentements ────────────────────────────────

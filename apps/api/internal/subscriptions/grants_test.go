@@ -7,6 +7,7 @@ package subscriptions
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/abuse"
 	"github.com/qoefi/api/internal/testutil"
 )
 
@@ -61,6 +63,72 @@ func TestValidPlanSubject(t *testing.T) {
 	}
 }
 
+// TestListGrants_NilPool_ReturnsNonNilEmptySlice et le pendant
+// ListRecentGrants verrouillent la cause racine du crash « This page couldn't
+// load » : une slice Go non initialisée sérialise en `null`, le composant
+// serveur admin crashe sur `.filter`. Le JSON doit porter `[]`, jamais `null`.
+func TestListGrants_NilPool_ReturnsNonNilEmptySlice(t *testing.T) {
+	items, err := ListGrants(context.Background(), nil, SubjectPublication, "x", false, 10, time.Now())
+	if err != nil || items == nil || len(items) != 0 {
+		t.Fatalf("nil pool = (%#v, %v), attendu (slice vide, nil)", items, err)
+	}
+}
+
+func TestListRecentGrants_NilPool_ReturnsNonNilEmptySlice(t *testing.T) {
+	items, total, err := ListRecentGrants(context.Background(), nil, "", false, 10, 0, time.Now())
+	if err != nil || total != 0 || items == nil || len(items) != 0 {
+		t.Fatalf("nil pool = (%#v, %d, %v), attendu (slice vide, 0, nil)", items, total, err)
+	}
+	raw, err := json.Marshal(map[string]any{"items": items, "total": total})
+	if err != nil {
+		t.Fatalf("marshal : %v", err)
+	}
+	if want := `{"items":[],"total":0}`; string(raw) != want {
+		t.Fatalf("JSON = %s, attendu %s", raw, want)
+	}
+}
+
+// TestGrants_NilPool_Errors : sans base, les écritures/lectures unitaires
+// refusent explicitement (aucun droit accordé par défaut sûr).
+func TestGrants_NilPool_Errors(t *testing.T) {
+	ctx := context.Background()
+	if _, err := GrantPlan(ctx, nil, SubjectPublication, "x", PlanPro, time.Now(), nil, "staff", "", time.Now()); err == nil {
+		t.Fatal("GrantPlan pool nil : erreur attendue")
+	}
+	if _, err := GetGrant(ctx, nil, "x", time.Now()); err == nil {
+		t.Fatal("GetGrant pool nil : erreur attendue")
+	}
+	if _, err := RevokeGrant(ctx, nil, "x", time.Now()); err == nil {
+		t.Fatal("RevokeGrant pool nil : erreur attendue")
+	}
+}
+
+// TestIsEffective couvre la règle pure d'effectivité (début toléré +1s, fin
+// stricte) sans base : c'est la seule définition, partagée par les scans et
+// les requêtes — elle doit rester exacte.
+func TestIsEffective(t *testing.T) {
+	now := time.Now()
+	later := now.Add(time.Hour)
+	past := now.Add(-time.Hour)
+	cases := []struct {
+		name     string
+		startsAt time.Time
+		endsAt   *time.Time
+		want     bool
+	}{
+		{"commencé, sans fin", past, nil, true},
+		{"commencé, fin future", past, &later, true},
+		{"commencé, fin passée", past, &past, false},
+		{"futur lointain", now.Add(time.Hour), nil, false},
+		{"futur dans la tolérance", now.Add(abuse.FutureTolerance / 2), nil, true},
+	}
+	for _, c := range cases {
+		if got := isEffective(c.startsAt, c.endsAt, now); got != c.want {
+			t.Errorf("%s : isEffective = %v, attendu %v", c.name, got, c.want)
+		}
+	}
+}
+
 func TestHasEntitlement_NilPool_Denies(t *testing.T) {
 	// Inverse des budgets : sans base, PAS de droits (défaut sûr).
 	if HasEntitlement(context.Background(), nil, SubjectPublication, "x", PlanPro, time.Now()) {
@@ -68,6 +136,9 @@ func TestHasEntitlement_NilPool_Denies(t *testing.T) {
 	}
 	if HasPro(context.Background(), nil, "x", time.Now()) {
 		t.Fatal("pool nil : pas de Pro attendu")
+	}
+	if HasPlus(context.Background(), nil, "x", time.Now()) {
+		t.Fatal("pool nil : pas de Plus attendu")
 	}
 }
 
