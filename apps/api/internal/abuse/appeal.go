@@ -51,6 +51,16 @@ const (
 	AppealDecided     = "decided"
 )
 
+// AppealOutcomes retourne le vocabulaire fermé des outcomes.
+func AppealOutcomes() []string {
+	return []string{AppealUpheld, AppealOverturned}
+}
+
+// AppealStatuses retourne le vocabulaire fermé des statuts.
+func AppealStatuses() []string {
+	return []string{AppealOpen, AppealUnderReview, AppealDecided}
+}
+
 // ValidAppealOutcome dit si l'outcome tranche (upheld = la mesure était
 // justifiée, overturned = faux positif avéré — les deux sont des verdicts,
 // pas des états).

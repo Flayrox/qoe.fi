@@ -9,6 +9,16 @@
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { createClient } from '@qoe/supabase/server';
 import { FLAGS } from '@qoe/flags';
+import type {
+  AbuseDecision,
+  AbuseReasonCode,
+  AbuseIncidentKind,
+  AbuseIncidentStatus,
+  AbuseAppealStatus,
+  AbuseAppealOutcome,
+  SupportKind,
+  SupportStatus,
+} from '@qoe/sdk';
 export interface AdminDashboardCounts {
   users: number;
   creators: number;
@@ -246,16 +256,17 @@ export async function getAdminReports(
 
 /** 🛡️ File de revue anti-abus : dernier verdict non trivial par sujet
  * (fiche 06 §8). Miroir de AbuseDecision (Go) : jamais de sanction
- * automatique, clôture humaine tracée (allow = classé sans suite). */
+ * automatique, clôture humaine tracée (allow = classé sans suite).
+ * Vocabulaires typés depuis le généré (lot 4) : tout écart Go↔TS casse tsc. */
 export interface AbuseDecisionItem {
   id: string;
   policy: string;
   version: string;
   subjectType: string;
   subjectId: string;
-  result: string;
-  reasonCodes: string[];
-  decidedBy: string;
+  result: AbuseDecision;
+  reasonCodes: AbuseReasonCode[];
+  decidedBy: 'auto' | 'human';
   deciderId: string | null;
   createdAt: string;
   recentFacts: number;
@@ -289,8 +300,8 @@ export interface AbuseAppealItem {
   subjectId: string;
   decisionId: string | null;
   openedBy: string;
-  status: 'open' | 'under_review' | 'decided';
-  outcome: 'upheld' | 'overturned' | null;
+  status: AbuseAppealStatus;
+  outcome: AbuseAppealOutcome | null;
   staffNote: string;
   decidedBy: string | null;
   decidedAt: string | null;
@@ -315,8 +326,8 @@ export async function getAdminAbuseAppeals(): Promise<{
 export interface AbuseIncidentItem {
   id: string;
   title: string;
-  kind: string;
-  status: 'open' | 'contained' | 'resolved' | 'reopened';
+  kind: AbuseIncidentKind;
+  status: AbuseIncidentStatus;
   scope: string;
   impact: string;
   measures: string;
@@ -350,10 +361,10 @@ export interface SupportMessage {
 
 export interface SupportTicketItem {
   id: string;
-  kind: string;
+  kind: SupportKind;
   subject: string;
   openedBy: string;
-  status: 'open' | 'under_review' | 'closed';
+  status: SupportStatus;
   assignee: string | null;
   relatedType: string;
   relatedId: string;

@@ -54,6 +54,20 @@ var (
 	ErrTicketForbidden = errors.New("dossier réservé à son ouvreur")
 )
 
+// Kinds retourne le vocabulaire fermé des kinds (CHECK en base, source du
+// générateur TS).
+func Kinds() []string {
+	return []string{
+		KindAccountRestricted, KindAccountLost, KindContentModeration,
+		KindAPIAccess, KindImportIssue, KindDelivery, KindReportIssue, KindOther,
+	}
+}
+
+// Statuses retourne le vocabulaire fermé des statuts.
+func Statuses() []string {
+	return []string{StatusOpen, StatusUnderReview, StatusClosed}
+}
+
 // ValidKind dit si le kind appartient au vocabulaire fermé.
 func ValidKind(kind string) bool {
 	switch kind {
