@@ -244,6 +244,37 @@ export async function getAdminReports(
   return goFetch<{ items: ModerationReportItem[]; pending: number }>(`/v1/admin/reports${qs}`);
 }
 
+/** 🛡️ File de revue anti-abus : dernier verdict non trivial par sujet
+ * (fiche 06 §8). Miroir de AbuseDecision (Go) : jamais de sanction
+ * automatique, clôture humaine tracée (allow = classé sans suite). */
+export interface AbuseDecisionItem {
+  id: string;
+  policy: string;
+  version: string;
+  subjectType: string;
+  subjectId: string;
+  result: string;
+  reasonCodes: string[];
+  decidedBy: string;
+  deciderId: string | null;
+  createdAt: string;
+  recentFacts: number;
+}
+
+export async function getAdminAbuseDecisions(): Promise<{
+  items: AbuseDecisionItem[];
+  total: number;
+}> {
+  try {
+    return await goFetch<{ items: AbuseDecisionItem[]; total: number }>(
+      '/v1/admin/abuse/decisions?limit=50'
+    );
+  } catch {
+    // Table pas encore migrée / API indisponible : page résiliente.
+    return { items: [], total: 0 };
+  }
+}
+
 /** 📬 Livraisons de notifications (compteurs + 50 dernières). */
 export async function getAdminDeliveries(): Promise<{
   counts: Record<string, number>;
