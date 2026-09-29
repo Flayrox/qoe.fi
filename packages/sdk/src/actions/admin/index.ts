@@ -140,6 +140,22 @@ export const resolveModerationReportAction = safeAction<
   return { success: true };
 });
 
+/** 🛡️ Clôt un dossier anti-abus par verdict humain tracé (fiche 06 §8).
+ * result ∈ allow (classé sans suite) | limit_distribution | pause_sending
+ * | suspend (escalades dont l'acte passe par la modération existante).
+ * Le backend Go vérifie le rôle superadmin (403 sinon). */
+export const resolveAbuseDecisionAction = safeAction<
+  { subjectType: string; subjectId: string; result: string; note?: string },
+  { success: boolean; id: string }
+>(async ({ subjectType, subjectId, result, note }) => {
+  const res = await goFetch<{ id: string }>('/v1/admin/abuse/decisions', {
+    method: 'PATCH',
+    body: { subjectType, subjectId, result, note: note ?? '' },
+  });
+  revalidatePath('/admin/abuse');
+  return { success: true, id: res.id };
+});
+
 export const updateCreatorApiAccessAction = safeAction<
   {
     userId: string;
