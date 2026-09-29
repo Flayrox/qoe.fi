@@ -14,6 +14,18 @@
 # chaîne libre (faute de frappe = type fantôme). Tous les faits portent
 # l'instant de l'appel (rejouer l'historique = RecordSignal direct).
 #
+# PERF MESURÉE (lot 3, EXPLAIN sur dev — scans sub-ms, index sains) :
+# le coût dominant est le roundtrip (~20-40 ms Mac→VPS), pas les scans.
+#   - Lecture groupée (UNION ALL, 1 requête quelle que soit la taille du
+#     lot ; 0,26 ms mesuré pour 2 branches) : signalement et like passent
+#     de 2 lectures à 1. loadRecentFacts = wrapper à 1 clé (une seule
+#     implémentation).
+#   - Budget en CTE (INSERT…ON CONFLICT + UPDATE conditionnel en 1 requête) :
+#     mêmes garanties atomiques (course 10→5 vérifiée sur dev), 1 aller-retour
+#     au lieu de 2 — soit 2 roundtrips économisés par inscription (2 budgets).
+#   - Bilan : inscription ~7→~5, signalement/like 4→3 roundtrips (hors
+#     transactions métier). Rien n'est caché (kill-switch toujours direct).
+#
 # FAITS (AbuseSignal, migration 00039) :
 #   - signup.attempt (confiance 70, fait constaté) : toute inscription,
 #     sujet = la publication visée. Rétention 24 h.

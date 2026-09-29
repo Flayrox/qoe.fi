@@ -121,30 +121,54 @@ func RecordSignal(ctx context.Context, pool BudgetDB, signalType, subjectType, s
 }
 
 // loadRecentFacts relit les faits d'un sujet depuis la plus large fenêtre
-// des règles v1 (7 jours) : les règles filtrent elles-mêmes par récence
+// des règles (7 jours) : les règles filtrent elles-mêmes par récence
 // (Match), une seule requête suffit quel que soit le nombre de règles.
+// Wrapper du batch à 1 clé (une seule implémentation de lecture).
 func loadRecentFacts(ctx context.Context, pool SignalDB, signalType, subjectType, subjectID string, since time.Time) ([]Fact, error) {
-	rows, err := pool.Query(ctx, `
-		SELECT "type", "subjectType", "subjectId", "observedAt"
-		FROM "AbuseSignal"
-		WHERE "type" = $1 AND "subjectType" = $2 AND "subjectId" = $3
-		  AND "observedAt" >= $4
-		ORDER BY "observedAt" DESC
-		LIMIT 5000`,
-		signalType, subjectType, subjectID, since)
+	got, err := loadRecentFactsBatch(ctx, pool, []groupKey{{signalType, subjectType, subjectID}}, since)
+	if err != nil {
+		return nil, err
+	}
+	return got[groupKey{signalType, subjectType, subjectID}], nil
+}
+
+// loadRecentFactsBatch relit les faits de K (type, sujet) en UNE requête
+// (UNION ALL de K SELECTs indexés — cf. AbuseSignal_burst_idx). Lot 3 :
+// Observe à 2 groupes (signalement, like) passe de 2 allers-retours à 1 —
+// à ~20-40 ms le roundtrip Mac→VPS, c'est le gain dominant (les scans
+// eux-mêmes sont sub-ms, vérifié EXPLAIN sur dev).
+func loadRecentFactsBatch(ctx context.Context, pool SignalDB, keys []groupKey, since time.Time) (map[groupKey][]Fact, error) {
+	out := make(map[groupKey][]Fact, len(keys))
+	if len(keys) == 0 {
+		return out, nil
+	}
+	parts := make([]string, 0, len(keys))
+	args := make([]any, 0, len(keys)*4)
+	for i, k := range keys {
+		base := i*4 + 1
+		// Parenthèses obligatoires : sans elles, ORDER BY/LIMIT s'appliqueraient
+		// au résultat global (erreur de syntaxe au milieu de l'UNION ALL).
+		parts = append(parts, fmt.Sprintf(
+			`(SELECT "type", "subjectType", "subjectId", "observedAt" FROM "AbuseSignal"
+			  WHERE "type" = $%d AND "subjectType" = $%d AND "subjectId" = $%d AND "observedAt" >= $%d
+			  ORDER BY "observedAt" DESC LIMIT 5000)`,
+			base, base+1, base+2, base+3))
+		args = append(args, k.signalType, k.subjectType, k.subjectID, since)
+	}
+	rows, err := pool.Query(ctx, strings.Join(parts, " UNION ALL "), args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var facts []Fact
 	for rows.Next() {
 		var f Fact
 		if err := rows.Scan(&f.Type, &f.SubjectType, &f.SubjectID, &f.ObservedAt); err != nil {
 			return nil, err
 		}
-		facts = append(facts, f)
+		k := groupKey{f.Type, f.SubjectType, f.SubjectID}
+		out[k] = append(out[k], f)
 	}
-	return facts, rows.Err()
+	return out, rows.Err()
 }
 
 // persistDecision écrit le verdict en RiskDecision : politique, version,
@@ -222,24 +246,30 @@ func Observe(ctx context.Context, pool SignalDB, now time.Time, signals ...Signa
 	}
 	// Groupement : un compteur par (type, sujet) — les faits d'un groupe ne
 	// traversent jamais dans un autre (cf. Match : identité vérifiée).
-	groups := map[groupKey][]Signal{}
+	seen := map[groupKey]bool{}
 	order := []groupKey{}
 	for _, s := range signals {
 		k := groupKey{s.Type, s.SubjectType, s.SubjectID}
-		if _, seen := groups[k]; !seen {
+		if !seen[k] {
+			seen[k] = true
 			order = append(order, k)
 		}
-		groups[k] = append(groups[k], s)
+	}
+	// Lecture groupée : 1 seul aller-retour quelle que soit la taille du lot
+	// (lot 3). En cas de panne, tous les groupes tombent en verdict neutre
+	// (observer ne casse jamais le chemin principal).
+	loaded, err := loadRecentFactsBatch(ctx, pool, order, now.Add(-7*24*time.Hour))
+	if err != nil {
+		log.Printf("[abuse] lecture signaux (%d groupes): %v (verdicts neutres)", len(order), err)
+		neutral := make([]Outcome, 0, len(order))
+		for range order {
+			neutral = append(neutral, Outcome{Decision: DecisionAllow, Policy: CurrentPolicy.Name, Version: CurrentPolicy.Version})
+		}
+		return neutral
 	}
 	outcomes := make([]Outcome, 0, len(order))
 	for _, k := range order {
-		facts, err := loadRecentFacts(ctx, pool, k.signalType, k.subjectType, k.subjectID, now.Add(-7*24*time.Hour))
-		if err != nil {
-			log.Printf("[abuse] lecture signaux %s: %v (verdict neutre)", k.signalType, err)
-			outcomes = append(outcomes, Outcome{Decision: DecisionAllow, Policy: CurrentPolicy.Name, Version: CurrentPolicy.Version})
-			continue
-		}
-		outcomes = append(outcomes, evaluateLoaded(ctx, pool, k.subjectType, k.subjectID, facts, now))
+		outcomes = append(outcomes, evaluateLoaded(ctx, pool, k.subjectType, k.subjectID, loaded[k], now))
 	}
 	return outcomes
 }
