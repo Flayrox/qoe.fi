@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"time"
 
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -28,6 +29,7 @@ import (
 	"github.com/qoefi/api/internal/comms"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/queue"
+	"github.com/qoefi/api/internal/subscriptions"
 )
 
 // WelcomeEmailWorker envoie les emails de bienvenue (TaskSubscriberWelcome).
@@ -81,10 +83,12 @@ func (w *WelcomeEmailWorker) HandleSubscriberWelcome(ctx context.Context, t *asy
 	}
 
 	locale := NormalizeEmailLocale(info.Locale)
-	// Freemium (décision produit) : les overrides pro d'une publication
-	// gratuite sont ignorés ici (seconde barrière — la première est à la
-	// sauvegarde). EmailPro lu en base, jamais du JSON (forgeable).
-	prefs := ApplyTier(ParseEmailPrefs(info.EmailSettings), info.EmailPro)
+	// Freemium (décision produit) : les overrides pro sans droit effectif
+	// sont ignorés ici (seconde barrière — la première est à la sauvegarde).
+	// Droit lu des octrois (source unique), jamais du JSON (forgeable).
+	// Freemium : droit lu des octrois (source unique), jamais du JSON.
+	prefs := ApplyTier(ParseEmailPrefs(info.EmailSettings),
+		subscriptions.HasPro(ctx, w.pool, p.PublicationID, time.Now()))
 	if prefs.WelcomeEnabled != nil && !*prefs.WelcomeEnabled {
 		log.Printf("[welcome] bienvenue désactivé par le créateur pour %s", p.PublicationID)
 		return nil

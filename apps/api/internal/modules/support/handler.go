@@ -110,6 +110,9 @@ func (h *Handler) openPublic(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, internalsupport.ErrPublicBudgetExhausted):
 			w.Header().Set("Retry-After", "86400")
 			response.Error(w, http.StatusTooManyRequests, err.Error())
+		case errors.Is(err, internalsupport.ErrPublicSuspended):
+			w.Header().Set("Retry-After", "300")
+			response.Error(w, http.StatusServiceUnavailable, err.Error())
 		default:
 			h.mapErr(w, err)
 		}

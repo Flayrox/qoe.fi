@@ -13,13 +13,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/qoefi/api/internal/abuse"
+	"github.com/qoefi/api/internal/flags"
 )
 
 // Kinds (vocabulaire fermé, CHECK en base).
@@ -82,6 +85,33 @@ const PublicCapPerEmailDay = 3
 
 // ErrPublicBudgetExhausted : plafond public atteint → 429 + Retry-After.
 var ErrPublicBudgetExhausted = errors.New("trop de demandes aujourd'hui, réessayez demain")
+
+// ErrPublicSuspended : coupe-feu engagé → 503 explicite (urgence assumée,
+// Retry-After indicatif — même doctrine que les inscriptions).
+var ErrPublicSuspended = errors.New("dépôts temporairement suspendus (maintenance anti-abus)")
+
+// logPublicKillOnce : un seul avertissement par processus en cas de lecture
+// impossible (sinon noyade des logs à chaque dépôt pendant une panne).
+var logPublicKillOnce sync.Once
+
+// PublicKillEngaged dit si le coupe-feu du formulaire public est engagé
+// (flags.SupportPublicKill). Lecture DIRECTE (effet immédiat, pas de cache
+// TTL) ; clé absente ou DB en panne → désengagé + 1 log (dégradation
+// ouverte : un coupe-feu illisible ne bloque pas l'aide).
+func PublicKillEngaged(ctx context.Context, pool DB) bool {
+	if pool == nil {
+		return false
+	}
+	var on bool
+	err := pool.QueryRow(ctx, `SELECT "is_enabled" FROM "feature_flags" WHERE "key" = $1`, flags.SupportPublicKill).Scan(&on)
+	if err != nil {
+		logPublicKillOnce.Do(func() {
+			log.Printf("[support] lecture coupe-feu public: %v (désengagé par dégradation)", err)
+		})
+		return false
+	}
+	return on
+}
 
 var emailFormat = regexp.MustCompile(`^[^\s@]+@[^\s@]+\.[^\s@]+$`)
 
@@ -217,6 +247,11 @@ func GuestOpener(email string) string {
 func OpenPublicTicket(ctx context.Context, pool DB, userID, name, email, kind, subject, message string, now time.Time) (Ticket, error) {
 	if pool == nil {
 		return Ticket{}, errors.New("base indisponible")
+	}
+	// Coupe-feu d'abord (avant toute validation coûteuse comme le budget) :
+	// engagé → refus AVANT toute écriture.
+	if PublicKillEngaged(ctx, pool) {
+		return Ticket{}, ErrPublicSuspended
 	}
 	email = strings.ToLower(strings.TrimSpace(email))
 	if !emailFormat.MatchString(email) {
