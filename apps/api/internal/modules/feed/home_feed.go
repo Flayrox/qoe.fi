@@ -23,6 +23,18 @@ type HomeFeedGroup struct {
 	Thoughts []posts.FeedSlice `json:"thoughts"`
 }
 
+// HiddenAuthor est un auteur suivi dont les contenus sont masqués du flux
+// Suivis par une mesure (fiche 06 §9 : jamais de suppression silencieuse).
+// `reason` = restricted (shadowban motivé et borné) ou suspended (refus
+// dur) ; `until` = fin de la mesure (RFC3339) ou null si indéterminée.
+// Le front s'en sert pour afficher « contenus de X masqués jusqu'au ... »
+// au lieu d'un suivi mystérieusement vide.
+type HiddenAuthor struct {
+	AuthorID string  `json:"authorId"`
+	Reason   string  `json:"reason"`
+	Until    *string `json:"until"`
+}
+
 // HomeFeedResult est la réponse complète de la page d'accueil lecteur.
 type HomeFeedResult struct {
 	FollowedCreators []HydratePublication `json:"followedCreators"`
@@ -35,6 +47,9 @@ type HomeFeedResult struct {
 	ActivityData     []int                `json:"activityData"`
 	MutedWords       []string             `json:"mutedWords"`
 	FeaturedArticle  *HydrateArticle      `json:"featuredArticle"`
+	// FollowingHidden liste les auteurs suivis masqués du flux Suivis
+	// (TOUJOURS un tableau, jamais null — même contrat que les autres listes).
+	FollowingHidden []HiddenAuthor `json:"followingHidden"`
 }
 
 // queryIDs exécute une requête SELECT id et renvoie les ids ordonnés.
@@ -65,6 +80,7 @@ func (s *Service) HomeFeed(ctx context.Context, userID string) (HomeFeedResult, 
 		Bookmarks:        []HydrateArticle{},
 		ActivityData:     make([]int, 7),
 		MutedWords:       []string{},
+		FollowingHidden:  []HiddenAuthor{},
 	}
 	if userID == "" {
 		// Anonyme : pas de Suivis ni de bibliothèque ; Explorer + Recommandé restent.
@@ -101,7 +117,8 @@ func (s *Service) HomeFeed(ctx context.Context, userID string) (HomeFeedResult, 
 	var highlightsCount int
 	var muted []string
 
-	wg.Add(7)
+	var hidden []HiddenAuthor
+	wg.Add(8)
 	go func() { defer wg.Done(); s.loadGroup(ctx, &following, pubIDs, followedUserIDs, userID, "following") }()
 	go func() { defer wg.Done(); s.loadGroup(ctx, &discover, pubIDs, followedUserIDs, userID, "discover") }()
 	go func() {
@@ -112,6 +129,9 @@ func (s *Service) HomeFeed(ctx context.Context, userID string) (HomeFeedResult, 
 	go func() { defer wg.Done(); highlightsCount, _ = s.countHighlights(ctx, userID) }()
 	go func() { defer wg.Done(); res.ActivityData = s.activityLast7Days(ctx, userID) }()
 	go func() { defer wg.Done(); muted, _ = s.fetchMutedWordsAll(ctx, userID) }()
+	// Transparence du suivi (fiche 06 §9) : les auteurs suivis masqués sont
+	// nommés avec le motif et l'échéance — jamais de suivi vide et muet.
+	go func() { defer wg.Done(); hidden = s.fetchHiddenAuthors(ctx, followedUserIDs, pubIDs) }()
 	wg.Wait()
 
 	res.Following = following
@@ -125,6 +145,12 @@ func (s *Service) HomeFeed(ctx context.Context, userID string) (HomeFeedResult, 
 		muted = []string{}
 	}
 	res.MutedWords = muted
+	// Même contrat pour les auteurs masqués (jamais null — le front fait
+	// followingHidden.map(...) pour afficher les bandeaux d'explication).
+	if hidden == nil {
+		hidden = []HiddenAuthor{}
+	}
+	res.FollowingHidden = hidden
 	featured, _ = s.fetchFeaturedArticle(ctx)
 	res.FeaturedArticle = featured
 	return res, nil
@@ -173,6 +199,61 @@ func (s *Service) fetchPersonalOwners(ctx context.Context, pubIDs []string) ([]s
 		SELECT u.id::text FROM "User" u
 		JOIN "Publication" p ON p.id = u."publicationId"
 		WHERE p.id = ANY($1::text[]) AND p.type = 'PERSONAL' AND u.role = 'creator'`, pubIDs)
+}
+
+// fetchHiddenAuthors liste les auteurs suivis masqués du flux Suivis
+// (owners des publications suivies + auteurs publiés de ces publications,
+// dès qu'ils sont shadowbanned, suspendus ou sous verdict humain suspendu).
+// Best-effort : un échec rend un tableau vide (la transparence ne casse
+// jamais la home), jamais une erreur.
+func (s *Service) fetchHiddenAuthors(ctx context.Context, followedUserIDs, pubIDs []string) []HiddenAuthor {
+	out := []HiddenAuthor{}
+	rows, err := s.pool.Query(ctx, `
+		SELECT DISTINCT u.id::text,
+		       u."isSuspended",
+		       u."isShadowbanned",
+		       u."shadowbanUntil",
+		       (SELECT rd."expiresAt" FROM "RiskDecision" rd
+		         WHERE rd."decidedBy" = 'human' AND rd."result" = 'suspend'
+		           AND rd."subjectType" = 'user' AND rd."subjectId" = u.id::text
+		           AND (rd."expiresAt" IS NULL OR rd."expiresAt" > now())
+		         ORDER BY rd."createdAt" DESC LIMIT 1) AS suspend_until
+		FROM "User" u
+		WHERE (u.id::text = ANY($1::text[])
+		    OR u.id IN (SELECT a."authorId" FROM "Article" a
+		                WHERE a."publicationId" = ANY($2::text[]) AND a.published = true))
+		  AND (u."isShadowbanned" = true OR u."isSuspended" = true
+		    OR EXISTS (SELECT 1 FROM "RiskDecision" rd
+		               WHERE rd."decidedBy" = 'human' AND rd."result" = 'suspend'
+		                 AND rd."subjectType" = 'user' AND rd."subjectId" = u.id::text
+		                 AND (rd."expiresAt" IS NULL OR rd."expiresAt" > now())))`,
+		followedUserIDs, pubIDs)
+	if err != nil {
+		log.Printf("[home] hidden authors: %v", err)
+		return out
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		var suspended, shadowbanned bool
+		var until, suspendUntil *time.Time
+		if err := rows.Scan(&id, &suspended, &shadowbanned, &until, &suspendUntil); err != nil {
+			continue
+		}
+		h := HiddenAuthor{AuthorID: id, Reason: "restricted"}
+		if suspended || suspendUntil != nil {
+			h.Reason = "suspended"
+			if suspendUntil != nil {
+				s := suspendUntil.UTC().Format(time.RFC3339)
+				h.Until = &s
+			}
+		} else if until != nil {
+			s := until.UTC().Format(time.RFC3339)
+			h.Until = &s
+		}
+		out = append(out, h)
+	}
+	return out
 }
 
 // loadGroup charge un flux de la home (articles hydratés + pensées FeedSlice).

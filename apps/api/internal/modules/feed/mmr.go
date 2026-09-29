@@ -36,18 +36,20 @@ func dupSim(sim, threshold float64) float64 {
 // candidat un peu moins pertinent mais sémantiquement différent gagne sa
 // place. C'est le remplaçant du plafond par-auteur, qui laissait passer deux
 // pensées quasi identiques écrites par deux auteurs différents.
+//
 //	// `lambda` contrôle l'arbitrage : 1.0 = pertinence pure (pas de diversité),
-	// 0.0 = diversité pure. Le défaut du moteur est 0.7 (pertinence dominante),
-	// et la similarité passe par dupSim : sous `dupThreshold`, deux items ne se
-	// pénalisent pas — seules les quasi-copies sont écartées.
-	//
-	// Les embeddings manquants (map absente ou vecteur vide) sont traités comme
-	// orthogonaux (similarité 0) : la sélection retombe alors sur l'ordre de
-	// pertinence pur — un repli sûr, jamais de blocage du feed.
-	//
-	// Retourne les ids retenus dans l'ordre de sélection (≤ maxItems), le premier
-	// étant l'item le plus pertinent (aucun item n'est encore sélectionné, la
-	// pénalité de redondance est nulle).
+//
+// 0.0 = diversité pure. Le défaut du moteur est 0.7 (pertinence dominante),
+// et la similarité passe par dupSim : sous `dupThreshold`, deux items ne se
+// pénalisent pas — seules les quasi-copies sont écartées.
+//
+// Les embeddings manquants (map absente ou vecteur vide) sont traités comme
+// orthogonaux (similarité 0) : la sélection retombe alors sur l'ordre de
+// pertinence pur — un repli sûr, jamais de blocage du feed.
+//
+// Retourne les ids retenus dans l'ordre de sélection (≤ maxItems), le premier
+// étant l'item le plus pertinent (aucun item n'est encore sélectionné, la
+// pénalité de redondance est nulle).
 func mmrSelect(ids []string, scores map[string]float64, embs map[string][]float32, maxItems int, lambda, dupThreshold float64) []string {
 	if maxItems <= 0 || len(ids) == 0 {
 		return nil
