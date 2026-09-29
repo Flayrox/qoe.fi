@@ -62,26 +62,25 @@ func ConsumeBudget(ctx context.Context, pool BudgetDB, scopeType, scopeID, actio
 		return true, nil // sans base, pas de budget : dégradation ouverte documentée (tests purs)
 	}
 	window = window.UTC() // TIMESTAMP sans fuseau : la fenêtre est UTC (DailyWindow déjà, robustesse si appel direct).
-	// Création paresseuse (idempotente), puis consommation atomique
-	// conditionnée au plafond : deux requêtes séparées (pgx n'exécute pas de
-	// multi-statements dans QueryRow), mais la seconde seule décide — une
-	// course à la création ne crée qu'une ligne (contrainte unique) et la
-	// consommation reste atomique.
-	if _, err := pool.Exec(ctx, `
-		INSERT INTO "CapabilityBudget" ("id", "scopeType", "scopeId", "action", "window", "cap", "consumed", "createdAt", "updatedAt")
-		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, 0, now(), now())
-		ON CONFLICT ("scopeType", "scopeId", "action", "window") DO NOTHING`,
-		scopeType, scopeID, action, window, cap); err != nil {
-		return false, err
-	}
+	// Création paresseuse (idempotente) + consommation atomique conditionnée
+	// au plafond, en UNE requête (CTE — lot 3 : 1 aller-retour au lieu de 2 ;
+	// le chemin confirmation en fait 2 budgets, soit 2 roundtrips économisés
+	// par inscription). La clause UPDATE seule décide : une course à la
+	// création ne crée qu'une ligne (contrainte unique) et la consommation
+	// reste atomique — mêmes garanties, moitié d'allers-retours.
 	var granted bool
 	err := pool.QueryRow(ctx, `
+		WITH ins AS (
+			INSERT INTO "CapabilityBudget" ("id", "scopeType", "scopeId", "action", "window", "cap", "consumed", "createdAt", "updatedAt")
+			VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, 0, now(), now())
+			ON CONFLICT ("scopeType", "scopeId", "action", "window") DO NOTHING
+		)
 		UPDATE "CapabilityBudget"
-		SET "consumed" = "consumed" + $5, "updatedAt" = now()
+		SET "consumed" = "consumed" + $6, "updatedAt" = now()
 		WHERE "scopeType" = $1 AND "scopeId" = $2 AND "action" = $3 AND "window" = $4
-		  AND "consumed" + $5 <= "cap"
+		  AND "consumed" + $6 <= "cap"
 		RETURNING true`,
-		scopeType, scopeID, action, window, n).Scan(&granted)
+		scopeType, scopeID, action, window, cap, n).Scan(&granted)
 	if err != nil {
 		// Zéro ligne = plafond atteint (pas d'erreur, c'est la protection
 		// qui fonctionne) ; toute autre erreur remonte.
