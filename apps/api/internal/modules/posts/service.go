@@ -288,16 +288,19 @@ func (s *Service) ToggleLike(ctx context.Context, postID, userID string) (bool, 
 
 	// Observation anti-abus (tranche 5 : engagement inauthentique, politique
 	// v2) : seuls les AJOUTS comptent (retirer n'amplifie rien). Deux
-	// compteurs indépendants, best-effort : essaim sur la pensée (50/10min)
-	// et volume du liker (100/h) → revue priorisée, jamais de sanction.
-	now := time.Now()
-	likeSubject := "post:" + postID
-	abuse.RecordSignal(ctx, s.pool, abuse.SignalLikeCast, abuse.SubjectLikeTarget, likeSubject,
-		"api:posts.like", abuse.ConfidenceObserved, abuse.LikeSignalRetention, now)
-	abuse.EvaluateSubject(ctx, s.pool, abuse.SignalLikeCast, abuse.SubjectLikeTarget, likeSubject, now)
-	abuse.RecordSignal(ctx, s.pool, abuse.SignalLikeVolume, abuse.SubjectUser, userID,
-		"api:posts.like", abuse.ConfidenceObserved, abuse.LikeSignalRetention, now)
-	abuse.EvaluateSubject(ctx, s.pool, abuse.SignalLikeVolume, abuse.SubjectUser, userID, now)
+	// compteurs indépendants, en UN appel Observe : essaim sur la pensée
+	// (50/10min) et volume du liker (100/h) → revue priorisée, jamais de
+	// sanction.
+	abuse.Observe(ctx, s.pool, time.Now(),
+		abuse.Signal{
+			Type: abuse.SignalLikeCast, SubjectType: abuse.SubjectLikeTarget, SubjectID: "post:" + postID,
+			Source: abuse.SourcePostsLike, Confidence: abuse.ConfidenceObserved, Retention: abuse.LikeSignalRetention,
+		},
+		abuse.Signal{
+			Type: abuse.SignalLikeVolume, SubjectType: abuse.SubjectUser, SubjectID: userID,
+			Source: abuse.SourcePostsLike, Confidence: abuse.ConfidenceObserved, Retention: abuse.LikeSignalRetention,
+		},
+	)
 
 	// 🧠 EMA vectorielle : aimer une pensée rapproche le profil de son thème
 	// (fire-and-forget — ne bloque jamais le like).
@@ -814,24 +817,28 @@ func (s *Service) Report(ctx context.Context, userID, targetID, targetType, reas
 	}
 	// Observation anti-abus (fiche 06 §8-§10, mode observation fiche §11) :
 	// chaque signalement est un fait de confiance basse (une alerte n'est
-	// pas une preuve). Deux compteurs indépendants, best-effort :
+	// pas une preuve). Deux compteurs indépendants, en UN appel Observe :
 	//   - essaim contre la cible (10/h) → revue de LA CIBLE (jamais une
 	//     sanction automatique) ;
 	//   - volume du reporter (10/h, toutes cibles) → revue DU REPORTER
 	//     (raid de signalement : l'arme est le volume du plaignant, pas la
 	//     culpabilité des cibles — le dossier s'ouvre sur lui seul).
-	now := time.Now()
-	subjectID := targetType + ":" + targetID
-	abuse.RecordSignal(ctx, s.pool, abuse.SignalReportFiled, abuse.SubjectReportTarget, subjectID,
-		"api:posts.report", abuse.ConfidenceUserReport, abuse.ReportSignalRetention, now)
-	abuse.EvaluateSubject(ctx, s.pool, abuse.SignalReportFiled, abuse.SubjectReportTarget, subjectID, now)
 	// Convention (partout dans abuse) : subjectId = identifiant BRUT (id
 	// utilisateur, article:xxx...), subjectType dit de quoi il s'agit. Le
 	// même utilisateur suspect (dossier volume) et diffusé (éligibilité)
 	// reste corrélable par le support.
-	abuse.RecordSignal(ctx, s.pool, abuse.SignalReportVolume, abuse.SubjectUser, userID,
-		"api:posts.report", abuse.ConfidenceObserved, abuse.ReportSignalRetention, now)
-	abuse.EvaluateSubject(ctx, s.pool, abuse.SignalReportVolume, abuse.SubjectUser, userID, now)
+	now := time.Now()
+	subjectID := targetType + ":" + targetID
+	abuse.Observe(ctx, s.pool, now,
+		abuse.Signal{
+			Type: abuse.SignalReportFiled, SubjectType: abuse.SubjectReportTarget, SubjectID: subjectID,
+			Source: abuse.SourcePostsReport, Confidence: abuse.ConfidenceUserReport, Retention: abuse.ReportSignalRetention,
+		},
+		abuse.Signal{
+			Type: abuse.SignalReportVolume, SubjectType: abuse.SubjectUser, SubjectID: userID,
+			Source: abuse.SourcePostsReport, Confidence: abuse.ConfidenceObserved, Retention: abuse.ReportSignalRetention,
+		},
+	)
 	return nil
 }
 

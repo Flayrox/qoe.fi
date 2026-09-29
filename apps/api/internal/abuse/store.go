@@ -11,12 +11,83 @@ package abuse
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// Signal est un fait à observer : type, sujet, témoin (source), confiance
+// et rétention. Les constantes de types/portées vivent dans decision.go ;
+// les sources (voies d'entrée) ci-dessous — JAMAIS de chaîne libre aux
+// sites d'appel (une faute de frappe créerait un type fantôme invisible).
+type Signal struct {
+	Type        string
+	SubjectType string
+	SubjectID   string
+	Source      string
+	Confidence  int
+	Retention   time.Duration
+}
+
+// Sources : les voies d'entrée qui produisent des faits. Une voie = une
+// constante (ajouter une voie = ajouter une constante + un appel Observe,
+// jamais une chaîne ad hoc).
+const (
+	// SourceHomeSubscribe : inscription publique (/v1/home/subscribe).
+	SourceHomeSubscribe = "api:home.subscribe"
+	// SourcePostsReport : signalement (posts.Report).
+	SourcePostsReport = "api:posts.report"
+	// SourcePostsLike : ajout de like (posts.ToggleLike).
+	SourcePostsLike = "api:posts.like"
+)
+
+// clampConfidence borne la confiance 0-100 (l'anti-abus n'invalide jamais
+// le chemin principal pour une borne absurde).
+func clampConfidence(c int) int {
+	if c < 0 {
+		return 0
+	}
+	if c > 100 {
+		return 100
+	}
+	return c
+}
+
+// insertSignals écrit N faits en UNE requête (VALUES multi-lignes,
+// paramètres — jamais d'interpolation : seul le NOMBRE de lignes varie, les
+// valeurs restent des $n). Une seule implémentation pour RecordSignal (1
+// fait) et Observe (N faits) : même normalisation UTC, même version de
+// politique, même best-effort.
+func insertSignals(ctx context.Context, pool BudgetDB, now time.Time, signals []Signal) error {
+	if len(signals) == 0 {
+		return nil
+	}
+	// Normalisation UTC obligatoire : les colonnes sont des TIMESTAMP SANS
+	// fuseau — un time.Time en heure locale (ex. CEST sur un poste de dev)
+	// serait stocké avec ses champs calendaires locaux puis relu comme UTC,
+	// décalant tous les faits de +2 h dans le futur et rendant les fenêtres
+	// inopérantes. Même règle dans tout le package : la base ne voit que UTC.
+	now = now.UTC()
+	values := make([]string, 0, len(signals))
+	args := make([]any, 0, len(signals)*9)
+	for i, s := range signals {
+		base := i*9 + 1
+		values = append(values, fmt.Sprintf(
+			"(gen_random_uuid()::text, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d, $%d)",
+			base, base+1, base+2, base+3, base+4, base+5, base+6, base+7, base+8))
+		args = append(args,
+			s.Type, s.SubjectType, s.SubjectID, s.Source, clampConfidence(s.Confidence),
+			CurrentPolicy.Version, now, now.Add(s.Retention), now)
+	}
+	_, err := pool.Exec(ctx, `
+		INSERT INTO "AbuseSignal" ("id", "type", "subjectType", "subjectId", "source", "confidence", "ruleVersion", "observedAt", "expiresAt", "createdAt")
+		VALUES `+strings.Join(values, ", "), args...)
+	return err
+}
 
 // SignalDB étend BudgetDB avec la lecture multi-lignes : charger les faits
 // récents d'un sujet pour les soumettre à la politique (pure). Les poolers
@@ -41,18 +112,10 @@ func RecordSignal(ctx context.Context, pool BudgetDB, signalType, subjectType, s
 	// serait stocké avec ses champs calendaires locaux puis relu comme UTC,
 	// décalant tous les faits de +2 h dans le futur et rendant les fenêtres
 	// inopérantes. Même règle dans tout le package : la base ne voit que UTC.
-	now = now.UTC()
-	if confidence < 0 {
-		confidence = 0
-	}
-	if confidence > 100 {
-		confidence = 100
-	}
-	_, err := pool.Exec(ctx, `
-		INSERT INTO "AbuseSignal" ("id", "type", "subjectType", "subjectId", "source", "confidence", "ruleVersion", "observedAt", "expiresAt", "createdAt")
-		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-		signalType, subjectType, subjectID, source, confidence, CurrentPolicy.Version, now, now.Add(retention), now)
-	if err != nil {
+	if err := insertSignals(ctx, pool, now, []Signal{{
+		Type: signalType, SubjectType: subjectType, SubjectID: subjectID,
+		Source: source, Confidence: confidence, Retention: retention,
+	}}); err != nil {
 		log.Printf("[abuse] signal %s non enregistré: %v", signalType, err)
 	}
 }
@@ -114,6 +177,14 @@ func EvaluateSubject(ctx context.Context, pool SignalDB, signalType, subjectType
 		log.Printf("[abuse] lecture signaux %s: %v (verdict neutre)", signalType, err)
 		return neutral
 	}
+	return evaluateLoaded(ctx, pool, subjectType, subjectID, facts, now)
+}
+
+// evaluateLoaded applique la politique à des faits déjà chargés et persiste
+// le verdict s'il n'est pas `allow`. Une seule implémentation pour
+// EvaluateSubject (1 sujet) et Observe (N sujets) : même politique, même
+// persistance, même journal.
+func evaluateLoaded(ctx context.Context, pool SignalDB, subjectType, subjectID string, facts []Fact, now time.Time) Outcome {
 	out := CurrentPolicy.Evaluate(subjectType, subjectID, facts, now)
 	if out.Decision == DecisionAllow {
 		return out
@@ -122,4 +193,53 @@ func EvaluateSubject(ctx context.Context, pool SignalDB, signalType, subjectType
 	log.Printf("[abuse] verdict %s sujet %s:%s raisons=%v (revue priorisée, aucune sanction)",
 		out.Decision, subjectType, subjectID, out.Reasons)
 	return out
+}
+
+// groupKey identifie un compteur (type + sujet) pour le groupement.
+type groupKey struct {
+	signalType  string
+	subjectType string
+	subjectID   string
+}
+
+// Observe est LE pivot d'observation (lot 1) : N faits en UN appel — 1 seul
+// INSERT multi-lignes, puis 1 lecture+évaluation par (type, sujet) distinct.
+// Ajouter une voie d'entrée = construire ses Signaux et appeler Observe :
+// impossible d'enregistrer sans évaluer, ni d'évaluer sans enregistrer.
+// Tous les faits portent l'instant de l'appel (les voies réelles observent
+// des événements qui arrivent — jamais du passé ; pour rejouer de
+// l'historique, RecordSignal reste disponible avec son instant explicite).
+// Best-effort comme toujours : une panne observe sans bloquer (verdicts
+// neutres), pool nil : aucun verdict. Retourne les verdicts par groupe
+// (la plupart des appelants les ignorent — mode observation).
+func Observe(ctx context.Context, pool SignalDB, now time.Time, signals ...Signal) []Outcome {
+	if pool == nil || len(signals) == 0 {
+		return nil
+	}
+	now = now.UTC() // comparer, charger et stocker en UTC (cf. insertSignals).
+	if err := insertSignals(ctx, pool, now, signals); err != nil {
+		log.Printf("[abuse] signaux non enregistrés (%d): %v", len(signals), err)
+	}
+	// Groupement : un compteur par (type, sujet) — les faits d'un groupe ne
+	// traversent jamais dans un autre (cf. Match : identité vérifiée).
+	groups := map[groupKey][]Signal{}
+	order := []groupKey{}
+	for _, s := range signals {
+		k := groupKey{s.Type, s.SubjectType, s.SubjectID}
+		if _, seen := groups[k]; !seen {
+			order = append(order, k)
+		}
+		groups[k] = append(groups[k], s)
+	}
+	outcomes := make([]Outcome, 0, len(order))
+	for _, k := range order {
+		facts, err := loadRecentFacts(ctx, pool, k.signalType, k.subjectType, k.subjectID, now.Add(-7*24*time.Hour))
+		if err != nil {
+			log.Printf("[abuse] lecture signaux %s: %v (verdict neutre)", k.signalType, err)
+			outcomes = append(outcomes, Outcome{Decision: DecisionAllow, Policy: CurrentPolicy.Name, Version: CurrentPolicy.Version})
+			continue
+		}
+		outcomes = append(outcomes, evaluateLoaded(ctx, pool, k.subjectType, k.subjectID, facts, now))
+	}
+	return outcomes
 }

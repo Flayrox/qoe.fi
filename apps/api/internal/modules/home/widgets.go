@@ -460,11 +460,12 @@ func (s *Service) SubscribeToNewsletter(ctx context.Context, email, publicationI
 	// chaque inscription est un fait (rafale = ferme de comptes possible).
 	// Le verdict éventuel (needs_review) est journalisé et persisté pour la
 	// revue — il ne bloque JAMAIS l'inscription (aucune sanction
-	// automatique sur un signal faible). Best-effort, comme tout l'anti-abus.
-	now := time.Now()
-	abuse.RecordSignal(ctx, s.pool, abuse.SignalSignupAttempt, abuse.SubjectPublication, publicationID,
-		"api:home.subscribe", abuse.ConfidenceObserved, abuse.SignupSignalRetention, now)
-	abuse.EvaluateSubject(ctx, s.pool, abuse.SignalSignupAttempt, abuse.SubjectPublication, publicationID, now)
+	// automatique sur un signal faible). Un seul appel Observe (pivot lot 1 :
+	// enregistrer sans évaluer est impossible).
+	abuse.Observe(ctx, s.pool, time.Now(), abuse.Signal{
+		Type: abuse.SignalSignupAttempt, SubjectType: abuse.SubjectPublication, SubjectID: publicationID,
+		Source: abuse.SourceHomeSubscribe, Confidence: abuse.ConfidenceObserved, Retention: abuse.SignupSignalRetention,
+	})
 
 	// Création effective d'un abonné en attente → événement webhook. Best-
 	// effort : une panne Redis n'empêche JAMAIS l'inscription de réussir.

@@ -6,6 +6,14 @@
 # par les chemins de modération existants. Aucun bouton universel qui
 # mêlerait qualité, danger et consentement.
 
+# PIVOT D'OBSERVATION (abuse.Observe, lot 1) : N faits en UN appel — 1 seul
+# INSERT multi-lignes (paramétré), puis 1 lecture+évaluation par (type,
+# sujet). Ajouter une voie = construire ses Signaux + appeler Observe :
+# enregistrer sans évaluer est impossible. Sources en constantes
+# (SourceHomeSubscribe, SourcePostsReport, SourcePostsLike) — jamais de
+# chaîne libre (faute de frappe = type fantôme). Tous les faits portent
+# l'instant de l'appel (rejouer l'historique = RecordSignal direct).
+#
 # FAITS (AbuseSignal, migration 00039) :
 #   - signup.attempt (confiance 70, fait constaté) : toute inscription,
 #     sujet = la publication visée. Rétention 24 h.
