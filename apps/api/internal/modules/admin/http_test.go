@@ -65,6 +65,7 @@ func TestAdminRoutes_AuthMatrix(t *testing.T) {
 		{"GET", "/v1/admin/api-applicants", ""},
 		{"PATCH", "/v1/admin/api-applicants/" + adminCreator, `{"status":"approved"}`},
 		{"GET", "/v1/admin/deliveries", ""},
+		{"POST", "/v1/admin/users/" + adminCreator + "/revoke-sessions", ""},
 		{"GET", "/v1/admin/storage/usage", ""},
 		{"GET", "/v1/admin/registrations/allowlist", ""},
 		{"POST", "/v1/admin/registrations/allowlist", `{"email":"x@y.z"}`},

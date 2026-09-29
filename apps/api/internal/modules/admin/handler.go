@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/modules/imports"
+	"github.com/qoefi/api/internal/modules/users"
 	"github.com/qoefi/api/internal/response"
 )
 
@@ -22,7 +23,14 @@ type Handler struct {
 	// subscriberImports est branché par SetSubscriberImports : sans lui, les
 	// routes de revue des imports d'abonnés ne sont pas enregistrées.
 	subscriberImports *imports.Service
+	// usersSvc est branché par SetUsersService : sans lui, la révocation de
+	// sessions est indisponible (refus explicite, pas de contournement).
+	usersSvc *users.Service
 }
+
+// SetUsersService branche le service des comptes (même pattern que
+// SetSubscriberImports) pour les opérations staff sur les sessions.
+func (h *Handler) SetUsersService(svc *users.Service) { h.usersSvc = svc }
 
 func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
@@ -34,6 +42,9 @@ func (h *Handler) Register(r chi.Router) {
 	r.Get("/v1/admin/users", h.users)
 	r.Get("/v1/admin/users/{userID}", h.userDetail)
 	r.Patch("/v1/admin/users/{userID}", h.updateModeration)
+	// Révocation de toutes les sessions d'un compte (compromission suspectée,
+	// récupération après perte de facteurs). Superadmin uniquement, journalisé.
+	r.Post("/v1/admin/users/{userID}/revoke-sessions", h.revokeUserSessions)
 
 	// File de modération (signalements)
 	r.Get("/v1/admin/reports", h.reports)
@@ -292,6 +303,42 @@ func (h *Handler) updateModeration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, data)
+}
+
+// revokeUserSessions révoque toutes les sessions d'un compte côté fournisseur
+// (y compris élevées et step-up) : compromission suspectée ou récupération
+// après perte de facteurs (fiche 05 §8). Pas de révocation partielle côté
+// GoTrue — le périmètre large est assumé, journalisé, et communiqué à
+// l'utilisateur concerné (voir docs/ACCOUNT_RECOVERY.md).
+func (h *Handler) revokeUserSessions(w http.ResponseWriter, r *http.Request) {
+	staffID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	// Le rôle est vérifié dans le service (comme toutes les routes admin) :
+	// sans cela, n'importe quel compte authentifié révoquerait n'importe qui.
+	if err := h.svc.checkSuperadmin(r.Context(), staffID); err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	if h.usersSvc == nil {
+		response.Error(w, http.StatusServiceUnavailable, "Service des comptes non branché")
+		return
+	}
+	targetID := chi.URLParam(r, "userID")
+	if targetID == "" {
+		response.BadRequest(w, "userID requis")
+		return
+	}
+	if err := h.usersSvc.RevokeUserSessions(r.Context(), targetID); err != nil {
+		log.Printf("[admin] revoke-sessions %s: %v", targetID, err)
+		response.Error(w, http.StatusBadGateway, "Révocation impossible pour le moment")
+		return
+	}
+	h.svc.logAudit(r.Context(), staffID, "account.sessions_revoked", "user", targetID, map[string]any{
+		"scope": "all",
+	})
+	response.OK(w, map[string]bool{"success": true})
 }
 
 // ── Widgets & tendances ───────────────────────────────────────────────────────

@@ -458,6 +458,9 @@ func newRouter(d RouterDeps) *chi.Mux {
 		// Revue staff des imports d'abonnés : même service que le dépôt, exposé
 		// derrière le garde superadmin de la console.
 		adminHandler.SetSubscriberImports(importsSvc)
+		// Révocation staff des sessions (compromission, récupération) :
+		// journalisée côté admin, exécutée côté comptes.
+		adminHandler.SetUsersService(usersSvc)
 		adminHandler.Register(protected)
 
 		// Édition du contenu légal (superadmin, revérifié dans le service).
