@@ -12,11 +12,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/qoefi/api/internal/abuse"
-	"github.com/qoefi/api/internal/support"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/modules/imports"
 	"github.com/qoefi/api/internal/modules/users"
 	"github.com/qoefi/api/internal/response"
+	"github.com/qoefi/api/internal/support"
 )
 
 // Handler expose la console superadmin.
@@ -74,6 +74,12 @@ func (h *Handler) Register(r chi.Router) {
 	r.Post("/v1/admin/support/tickets/{id}/assign", h.assignSupportTicket)
 	r.Patch("/v1/admin/support/tickets/{id}", h.updateSupportTicket)
 	r.Get("/v1/admin/support/metrics", h.supportMetrics)
+	// Articles d'aide (centre d'aide sans redéploiement) : liste (brouillons
+	// inclus), création (brouillon), détail, modification (dont publication).
+	r.Get("/v1/admin/support/articles", h.supportArticles)
+	r.Post("/v1/admin/support/articles", h.createSupportArticle)
+	r.Get("/v1/admin/support/articles/{id}", h.supportArticleDetail)
+	r.Patch("/v1/admin/support/articles/{id}", h.updateSupportArticle)
 
 	// Widgets & tendances
 	r.Get("/v1/admin/widgets", h.widgets)
@@ -644,6 +650,106 @@ func (h *Handler) supportMetrics(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, m)
+}
+
+// GET /v1/admin/support/articles — tout (brouillons inclus pour la revue).
+func (h *Handler) supportArticles(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	items, total, err := h.svc.ListSupportArticles(r.Context(), userID, limit, offset)
+	if err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, map[string]any{"items": items, "total": total})
+}
+
+// POST /v1/admin/support/articles — crée un BROUILLON (publier = acte séparé).
+// Body : { slug, titleFr, titleEn, bodyFr, bodyEn, position? }.
+func (h *Handler) createSupportArticle(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	var in struct {
+		Slug     string `json:"slug"`
+		TitleFr  string `json:"titleFr"`
+		TitleEn  string `json:"titleEn"`
+		BodyFr   string `json:"bodyFr"`
+		BodyEn   string `json:"bodyEn"`
+		Position int    `json:"position"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil || in.Slug == "" {
+		response.BadRequest(w, "JSON invalide (slug, titres et textes requis)")
+		return
+	}
+	a, err := h.svc.CreateSupportArticle(r.Context(), userID, in.Slug, in.TitleFr, in.TitleEn, in.BodyFr, in.BodyEn, in.Position)
+	if err != nil {
+		if errors.Is(err, support.ErrInvalidArticle) {
+			response.BadRequest(w, err.Error())
+			return
+		}
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, a)
+}
+
+// GET /v1/admin/support/articles/{id} — détail (brouillon inclus).
+func (h *Handler) supportArticleDetail(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	a, err := h.svc.GetSupportArticle(r.Context(), userID, chi.URLParam(r, "id"))
+	if err != nil {
+		if errors.Is(err, support.ErrArticleNotFound) {
+			response.NotFound(w, "Article introuvable.")
+			return
+		}
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, a)
+}
+
+// PATCH /v1/admin/support/articles/{id} — modifie (contenu, position,
+// published). Champs texte vides = inchangés ; published/position : pointeurs
+// (absent = inchangé — publier/dépublier est explicite).
+func (h *Handler) updateSupportArticle(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireSuperadmin(w, r)
+	if !ok {
+		return
+	}
+	var in struct {
+		TitleFr   string `json:"titleFr"`
+		TitleEn   string `json:"titleEn"`
+		BodyFr    string `json:"bodyFr"`
+		BodyEn    string `json:"bodyEn"`
+		Position  *int   `json:"position"`
+		Published *bool  `json:"published"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	a, err := h.svc.UpdateSupportArticle(r.Context(), userID, chi.URLParam(r, "id"), in.TitleFr, in.TitleEn, in.BodyFr, in.BodyEn, in.Position, in.Published)
+	if err != nil {
+		switch {
+		case errors.Is(err, support.ErrArticleNotFound):
+			response.NotFound(w, "Article introuvable.")
+		case errors.Is(err, support.ErrInvalidArticle):
+			response.BadRequest(w, err.Error())
+		default:
+			h.handleErr(w, err)
+		}
+		return
+	}
+	response.OK(w, a)
 }
 
 // PATCH /v1/admin/users/{userID} — modération (réservé superadmin).

@@ -196,6 +196,55 @@ export const listSupportTicketsAction = safeAction<
   return goFetch<{ items: unknown[]; total: number }>(`/v1/admin/support/tickets${qs}`);
 });
 
+/** 📝 Articles d'aide : liste (brouillons inclus). */
+export const listSupportArticlesAction = safeAction<
+  Record<string, never>,
+  { items: unknown[]; total: number }
+>(async () => {
+  return goFetch<{ items: unknown[]; total: number }>('/v1/admin/support/articles?limit=100');
+});
+
+/** 📝 Création d'un article (brouillon — publier est un acte séparé). */
+export const createSupportArticleAction = safeAction<
+  {
+    slug: string;
+    titleFr: string;
+    titleEn: string;
+    bodyFr: string;
+    bodyEn: string;
+    position?: number;
+  },
+  { success: boolean }
+>(async (input) => {
+  await goFetch('/v1/admin/support/articles', {
+    method: 'POST',
+    body: { ...input, position: input.position ?? 0 },
+  });
+  revalidatePath('/admin/support/articles');
+  return { success: true };
+});
+
+/** 📝 Modification (contenu, position, publication). Champs absents = inchangés. */
+export const updateSupportArticleAction = safeAction<
+  {
+    articleId: string;
+    titleFr?: string;
+    titleEn?: string;
+    bodyFr?: string;
+    bodyEn?: string;
+    position?: number;
+    published?: boolean;
+  },
+  { success: boolean }
+>(async ({ articleId, ...rest }) => {
+  await goFetch(`/v1/admin/support/articles/${encodeURIComponent(articleId)}`, {
+    method: 'PATCH',
+    body: rest,
+  });
+  revalidatePath('/admin/support/articles');
+  return { success: true };
+});
+
 /** 🎫 Détail d'un dossier support (avec messages). */
 export const getSupportTicketAction = safeAction<{ ticketId: string }, { ticket: unknown }>(
   async ({ ticketId }) => {

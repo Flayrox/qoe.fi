@@ -74,8 +74,41 @@ const FAQ: FaqEntry[] = [
 
 // filterFaq : recherche insensible à la casse, FR+EN mélangés — un
 // anglophone trouve avec ses mots, et inversement. Exporté pour les tests.
-export function filterFaq(query: string): FaqEntry[] {
+export function filterFaq(entries: FaqEntry[], query: string): FaqEntry[] {
   const q = query.trim().toLowerCase();
-  if (!q) return FAQ;
-  return FAQ.filter((e) => `${e.qFr} ${e.aFr} ${e.qEn} ${e.aEn}`.toLowerCase().includes(q));
+  if (!q) return entries;
+  return entries.filter((e) => `${e.qFr} ${e.aFr} ${e.qEn} ${e.aEn}`.toLowerCase().includes(q));
+}
+
+// ManagedArticle : article publié servi par l'API (console staff).
+export interface ManagedArticle {
+  slug: string;
+  titleFr: string;
+  titleEn: string;
+  bodyFr: string;
+  bodyEn: string;
+}
+
+// mergeFaq combine statique + gérés : les gérés d'abord (ordre API =
+// position voulue par le staff), puis les statiques NON surchargés. Même
+// slug qu'une entrée statique = la version console la REMPLACE (le staff
+// corrige sans redéployer) ; API injoignable = statique seul (repli).
+export function mergeFaq(managed: ManagedArticle[]): FaqEntry[] {
+  const bySlug = new Map(managed.map((m) => [m.slug, m]));
+  const out: FaqEntry[] = managed.map((m) => ({
+    id: m.slug,
+    qFr: m.titleFr,
+    aFr: m.bodyFr,
+    qEn: m.titleEn,
+    aEn: m.bodyEn,
+  }));
+  for (const e of FAQ) {
+    if (!bySlug.has(e.id)) out.push(e);
+  }
+  return out;
+}
+
+// defaultFaq : le statique seul (repli quand l'API est injoignable).
+export function defaultFaq(): FaqEntry[] {
+  return FAQ;
 }

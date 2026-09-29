@@ -294,6 +294,28 @@ CREATE TABLE "SupportMessage" (
 );
 
 -- CreateTable
+CREATE TABLE "SupportArticle" (
+    "id" TEXT NOT NULL,
+    "slug" TEXT NOT NULL,
+    "titleFr" TEXT NOT NULL,
+    "titleEn" TEXT NOT NULL,
+    "bodyFr" TEXT NOT NULL,
+    "bodyEn" TEXT NOT NULL,
+    "position" INTEGER NOT NULL DEFAULT 0,
+    "published" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "SupportArticle_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "SupportArticle_slug_unique" UNIQUE ("slug"),
+    CONSTRAINT "SupportArticle_slug_check" CHECK ("slug" ~ '^[a-z0-9-]{3,80}$'),
+    CONSTRAINT "SupportArticle_title_check" CHECK (
+        char_length("titleFr") BETWEEN 5 AND 200 AND char_length("titleEn") BETWEEN 5 AND 200),
+    CONSTRAINT "SupportArticle_body_check" CHECK (
+        char_length("bodyFr") BETWEEN 1 AND 10000 AND char_length("bodyEn") BETWEEN 1 AND 10000)
+);
+
+-- CreateTable
 CREATE TABLE "BlockedUser" (
     "id" TEXT NOT NULL,
     "creatorId" UUID NOT NULL,

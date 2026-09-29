@@ -70,6 +70,21 @@ func (h *Handler) RegisterProtected(r chi.Router) {
 // (guest:<email>). Réponse avec la référence (UUID non devinable) à conserver.
 func (h *Handler) RegisterPublic(r chi.Router) {
 	r.Post("/v1/support/public/tickets", h.publicLimiter(h.openPublic).ServeHTTP)
+	// Articles d'aide publiés (centre d'aide — sans auth, cacheable).
+	r.Get("/v1/support/articles", h.listArticles)
+}
+
+// GET /v1/support/articles — articles publiés, ordre voulu puis récents.
+func (h *Handler) listArticles(w http.ResponseWriter, r *http.Request) {
+	items, err := h.svc.ListArticles(r.Context())
+	if err != nil {
+		response.Internal(w)
+		return
+	}
+	if items == nil {
+		items = []internalsupport.Article{}
+	}
+	response.OK(w, map[string]any{"items": items})
 }
 
 // POST /v1/support/public/tickets — dépôt public.
