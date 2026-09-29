@@ -43,6 +43,11 @@ func (h *Handler) RegisterProtected(r chi.Router) {
 	r.Get("/v1/me/ebooks/{id}/cover", h.cover)
 	r.Patch("/v1/me/ebooks/{id}/progress", h.progress)
 	r.Delete("/v1/me/ebooks/{id}", h.remove)
+	// Notes de lecture (table dédiée — jamais publiques, jamais votées).
+	r.Get("/v1/me/ebooks/{id}/notes", h.listNotes)
+	r.Post("/v1/me/ebooks/{id}/notes", h.addNote)
+	r.Patch("/v1/me/ebooks/{id}/notes/{noteId}", h.updateNote)
+	r.Delete("/v1/me/ebooks/{id}/notes/{noteId}", h.deleteNote)
 }
 
 func (h *Handler) mapErr(w http.ResponseWriter, err error) {
@@ -54,6 +59,10 @@ func (h *Handler) mapErr(w http.ResponseWriter, err error) {
 	case errors.Is(err, ErrEbookQuota):
 		response.ErrorCode(w, http.StatusForbidden, "EBOOK_QUOTA_EXCEEDED", err.Error())
 	case errors.Is(err, ErrEpubInvalid):
+		response.BadRequest(w, err.Error())
+	case errors.Is(err, ErrNoteNotFound):
+		response.NotFound(w, err.Error())
+	case errors.Is(err, ErrNoteEmpty), errors.Is(err, ErrNoteTooLong):
 		response.BadRequest(w, err.Error())
 	default:
 		response.Internal(w)
@@ -163,8 +172,87 @@ func (h *Handler) progress(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, map[string]bool{"success": true})
 }
 
+// GET /v1/me/ebooks/{id}/notes — mes notes sur ce livre (ordre de lecture).
+func (h *Handler) listNotes(w http.ResponseWriter, r *http.Request) {
+	uid, ok := h.userID(w, r)
+	if !ok {
+		return
+	}
+	items, err := h.svc.Notes(r.Context(), uid, chi.URLParam(r, "id"))
+	if err != nil {
+		h.mapErr(w, err)
+		return
+	}
+	if items == nil {
+		items = []Note{}
+	}
+	response.OK(w, map[string]any{"items": items})
+}
+
+// POST /v1/me/ebooks/{id}/notes { chapter, chapterTitle, excerpt, note } —
+// une note = un passage et/ou un mot à soi (les deux vides = refus).
+func (h *Handler) addNote(w http.ResponseWriter, r *http.Request) {
+	uid, ok := h.userID(w, r)
+	if !ok {
+		return
+	}
+	var in struct {
+		Chapter      int    `json:"chapter"`
+		ChapterTitle string `json:"chapterTitle"`
+		Excerpt      string `json:"excerpt"`
+		Note         string `json:"note"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	note, err := h.svc.AddNote(r.Context(), uid, chi.URLParam(r, "id"), NoteInput{
+		ChapterIndex: in.Chapter, ChapterTitle: in.ChapterTitle, Excerpt: in.Excerpt, Note: in.Note,
+	})
+	if err != nil {
+		h.mapErr(w, err)
+		return
+	}
+	response.Created(w, note)
+}
+
+// PATCH /v1/me/ebooks/{id}/notes/{noteId} { note } — l'extrait ne bouge pas.
+func (h *Handler) updateNote(w http.ResponseWriter, r *http.Request) {
+	uid, ok := h.userID(w, r)
+	if !ok {
+		return
+	}
+	var in struct {
+		Note string `json:"note"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	note, err := h.svc.UpdateNote(r.Context(), uid, chi.URLParam(r, "id"), chi.URLParam(r, "noteId"), in.Note)
+	if err != nil {
+		h.mapErr(w, err)
+		return
+	}
+	response.OK(w, note)
+}
+
+// DELETE /v1/me/ebooks/{id}/notes/{noteId} — suppression (idempotente côté
+// UX ; un id inconnu répond 404, pas 200 menteur).
+func (h *Handler) deleteNote(w http.ResponseWriter, r *http.Request) {
+	uid, ok := h.userID(w, r)
+	if !ok {
+		return
+	}
+	if err := h.svc.DeleteNote(r.Context(), uid, chi.URLParam(r, "id"), chi.URLParam(r, "noteId")); err != nil {
+		h.mapErr(w, err)
+		return
+	}
+	response.OK(w, map[string]bool{"deleted": true})
+}
+
 // DELETE /v1/me/ebooks/{id} — suppression (le brut n'a jamais été stocké,
-// rien d'autre à purger).
+// rien d'autre à purger — les notes partent en cascade avec le livre).
 func (h *Handler) remove(w http.ResponseWriter, r *http.Request) {
 	uid, ok := h.userID(w, r)
 	if !ok {

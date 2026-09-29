@@ -402,6 +402,19 @@ func TestP1EbooksContracts(t *testing.T) {
 	if w, _ := doReq(t, r, http.MethodDelete, "/v1/me/ebooks/"+missing, token, nil); w.Code != http.StatusNotFound {
 		t.Fatalf("DELETE inexistant = %d, attendu 404", w.Code)
 	}
+
+	// Notes de lecture : même doctrine (authentifié, privé, 404 silencieux),
+	// et une note vide est refusée AVANT toute écriture (400, pas 500).
+	if w, _ := doReq(t, r, http.MethodGet, "/v1/me/ebooks/"+missing+"/notes", "", nil); w.Code != http.StatusUnauthorized {
+		t.Fatalf("GET notes sans jeton = %d, attendu 401", w.Code)
+	}
+	if w, _ := doReq(t, r, http.MethodPost, "/v1/me/ebooks/"+missing+"/notes", token,
+		map[string]any{"chapter": 0, "excerpt": "", "note": ""}); w.Code != http.StatusNotFound {
+		t.Fatalf("POST note sur livre inexistant = %d, attendu 404", w.Code)
+	}
+	if w, _ := doReq(t, r, http.MethodGet, "/v1/me/ebooks/"+missing+"/notes", token, nil); w.Code != http.StatusNotFound {
+		t.Fatalf("GET notes sur livre inexistant = %d, attendu 404", w.Code)
+	}
 }
 
 var _ = json.Valid

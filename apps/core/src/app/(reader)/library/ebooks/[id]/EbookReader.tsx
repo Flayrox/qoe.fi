@@ -2,11 +2,21 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ArrowLeft, ChevronLeft, ChevronRight, Check, Loader2, Search, X } from 'lucide-react';
-import { setEbookProgressAction, type EbookDetail } from '@qoe/sdk';
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  Loader2,
+  Search,
+  StickyNote,
+  X,
+} from 'lucide-react';
+import { setEbookProgressAction, type EbookDetail, type EbookNote } from '@qoe/sdk';
 import { cn } from '@qoe/utils';
 import { clampChapter, clampPct } from '../ebooks-helpers';
 import { searchEbookChapters, type EbookSearchHit } from '../ebook-search';
+import { EbookNotes } from './EbookNotes';
 
 // =====================================================================
 // 📖 Lecteur EPUB — un chapitre à la fois, progression synchronisée
@@ -33,7 +43,13 @@ function Snippet({ hit }: { hit: EbookSearchHit }) {
   );
 }
 
-export function EbookReader({ book }: { book: EbookDetail }) {
+export function EbookReader({
+  book,
+  initialNotes = [],
+}: {
+  book: EbookDetail;
+  initialNotes?: EbookNote[];
+}) {
   const chapters = book.chapters ?? [];
   const [index, setIndex] = useState(() =>
     clampChapter(book.progressChapter, chapters.length || 1)
@@ -41,6 +57,10 @@ export function EbookReader({ book }: { book: EbookDetail }) {
   const [state, setState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [notes, setNotes] = useState<EbookNote[]>(initialNotes);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [selection, setSelection] = useState<string | null>(null);
+  const [draftExcerpt, setDraftExcerpt] = useState<string | null>(null);
   // Les chapitres sont déjà dans le client : la recherche est locale (aucun
   // aller-retour par frappe) et bornée (40 extraits max).
   const hits = useMemo(() => searchEbookChapters(chapters, query), [chapters, query]);
@@ -93,6 +113,19 @@ export function EbookReader({ book }: { book: EbookDetail }) {
   }, [chapters.length]);
 
   const chapter = chapters[index];
+  const chapterNotes = notes.filter((n) => n.chapterIndex === index);
+
+  // Sélection de texte → on propose de la garder (jamais d'action imposée :
+  // le bouton est flottant, la sélection reste utilisable normalement).
+  const captureSelection = () => {
+    const text = window.getSelection()?.toString().trim() ?? '';
+    setSelection(text.length >= 2 ? text.slice(0, 500) : null);
+  };
+
+  const keepNotesSorted = (list: EbookNote[]) =>
+    [...list].sort(
+      (a, b) => a.chapterIndex - b.chapterIndex || a.createdAt.localeCompare(b.createdAt)
+    );
 
   if (!chapter) {
     return (
@@ -143,6 +176,20 @@ export function EbookReader({ book }: { book: EbookDetail }) {
                 <span className="text-destructive">Hors ligne — non enregistré</span>
               )}
             </span>
+            <button
+              type="button"
+              onClick={() => setNotesOpen((v) => !v)}
+              className={cn(
+                'flex items-center gap-1 transition-colors cursor-pointer',
+                notesOpen ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+              )}
+              title="Mes notes sur ce chapitre"
+            >
+              <StickyNote className="w-4 h-4" />
+              {chapterNotes.length > 0 && (
+                <span className="text-[10px] font-semibold">{chapterNotes.length}</span>
+              )}
+            </button>
             <button
               type="button"
               onClick={() => {
@@ -204,11 +251,31 @@ export function EbookReader({ book }: { book: EbookDetail }) {
         </div>
       </div>
 
+      {/* ─── Notes du chapitre (table dédiée, privée) ─── */}
+      {notesOpen && (
+        <EbookNotes
+          ebookId={book.id}
+          chapterIndex={index}
+          chapterTitle={chapter.title || `Chapitre ${index + 1}`}
+          notes={chapterNotes}
+          totalCount={notes.length}
+          onAdd={(n) => setNotes((prev) => keepNotesSorted([...prev, n]))}
+          onUpdate={(n) =>
+            setNotes((prev) => keepNotesSorted(prev.map((x) => (x.id === n.id ? n : x))))
+          }
+          onDelete={(id) => setNotes((prev) => prev.filter((x) => x.id !== id))}
+          draftExcerpt={draftExcerpt}
+          onDraftConsumed={() => setDraftExcerpt(null)}
+        />
+      )}
+
       {/* ─── Chapitre : HTML strict du parseur (sûr par construction) ─── */}
-      <article
-        className="prose prose-zinc dark:prose-invert max-w-none text-base md:text-lg leading-relaxed text-foreground/90 antialiased"
-        dangerouslySetInnerHTML={{ __html: chapter.html }}
-      />
+      <div onMouseUp={captureSelection}>
+        <article
+          className="prose prose-zinc dark:prose-invert max-w-none text-base md:text-lg leading-relaxed text-foreground/90 antialiased"
+          dangerouslySetInnerHTML={{ __html: chapter.html }}
+        />
+      </div>
 
       {/* ─── Navigation ─── */}
       <div className="flex items-center justify-between gap-3 border-t border-border/40 pt-4">
@@ -253,6 +320,38 @@ export function EbookReader({ book }: { book: EbookDetail }) {
           <ChevronRight className="w-3.5 h-3.5" />
         </button>
       </div>
+
+      {/* ─── Passage sélectionné : on propose de le garder (aucune action
+            imposée, la sélection reste utilisable normalement) ─── */}
+      {selection && (
+        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 max-w-lg w-[calc(100%-2rem)]">
+          <div className="rounded-2xl border border-border/60 bg-card shadow-lg px-3 py-2 flex items-center gap-3">
+            <p className="text-[11px] italic text-muted-foreground line-clamp-2 flex-1">
+              « {selection} »
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setDraftExcerpt(selection);
+                setNotesOpen(true);
+                setSelection(null);
+              }}
+              className="inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity cursor-pointer shrink-0"
+            >
+              <StickyNote className="w-3.5 h-3.5" />
+              <span>Noter ce passage</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelection(null)}
+              className="text-muted-foreground hover:text-foreground cursor-pointer shrink-0"
+              title="Ignorer"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

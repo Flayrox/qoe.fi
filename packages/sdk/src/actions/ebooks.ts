@@ -59,9 +59,7 @@ export const setEbookProgressAction = safeAction<
     method: 'PATCH',
     body: { chapter, pct },
   });
-});
-
-/** Supprimer un livre (le brut n'a jamais été stocké — rien d'autre à purger). */
+}); /** Supprimer un livre (le brut n'a jamais été stocké — rien d'autre à purger). */
 export const deleteEbookAction = safeAction<{ id: string }, { deleted: boolean }>(
   async ({ id }) => {
     return goFetch<{ deleted: boolean }>(`/v1/me/ebooks/${encodeURIComponent(id)}`, {
@@ -69,3 +67,61 @@ export const deleteEbookAction = safeAction<{ id: string }, { deleted: boolean }
     });
   }
 );
+
+// ── Notes de lecture (table dédiée, jamais publiques) ──────────────────
+
+export interface EbookNote {
+  id: string;
+  chapterIndex: number;
+  chapterTitle: string;
+  excerpt: string;
+  note: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Mes notes sur un livre (ordre de lecture). */
+export const listEbookNotesAction = safeAction<{ ebookId: string }, { items: EbookNote[] }>(
+  async ({ ebookId }) => {
+    const res = await goFetch<{ items: EbookNote[] }>(
+      `/v1/me/ebooks/${encodeURIComponent(ebookId)}/notes`
+    );
+    return { items: res.items ?? [] };
+  }
+);
+
+/**
+ * Créer une note : un passage et/ou un mot à soi (les deux vides = 400
+ * NOTE vide, l'extrait est tronqué à 1000, la note refusée au-delà de 4000).
+ */
+export const addEbookNoteAction = safeAction<
+  { ebookId: string; chapter: number; chapterTitle: string; excerpt: string; note: string },
+  EbookNote
+>(async ({ ebookId, chapter, chapterTitle, excerpt, note }) => {
+  return goFetch<EbookNote>(`/v1/me/ebooks/${encodeURIComponent(ebookId)}/notes`, {
+    method: 'POST',
+    body: { chapter, chapterTitle, excerpt, note },
+  });
+});
+
+/** Modifier le texte d'une note (l'extrait ne bouge pas). */
+export const updateEbookNoteAction = safeAction<
+  { ebookId: string; noteId: string; note: string },
+  EbookNote
+>(async ({ ebookId, noteId, note }) => {
+  return goFetch<EbookNote>(
+    `/v1/me/ebooks/${encodeURIComponent(ebookId)}/notes/${encodeURIComponent(noteId)}`,
+    { method: 'PATCH', body: { note } }
+  );
+});
+
+/** Supprimer une note (404 explicite sur un id inconnu). */
+export const deleteEbookNoteAction = safeAction<
+  { ebookId: string; noteId: string },
+  { deleted: boolean }
+>(async ({ ebookId, noteId }) => {
+  return goFetch<{ deleted: boolean }>(
+    `/v1/me/ebooks/${encodeURIComponent(ebookId)}/notes/${encodeURIComponent(noteId)}`,
+    { method: 'DELETE' }
+  );
+});

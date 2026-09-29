@@ -352,6 +352,31 @@ CREATE TABLE "Ebook" (
 );
 
 -- CreateTable
+CREATE TABLE "EbookNote" (
+    "id" TEXT NOT NULL,
+    "ebookId" TEXT NOT NULL REFERENCES "Ebook"(id) ON DELETE CASCADE,
+    "ownerId" UUID NOT NULL REFERENCES "User"(id) ON DELETE CASCADE,
+    "chapterIndex" INTEGER NOT NULL,
+    "chapterTitle" TEXT NOT NULL DEFAULT '',
+    "excerpt" TEXT NOT NULL DEFAULT '',
+    "note" TEXT NOT NULL DEFAULT '',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "EbookNote_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "EbookNote_chapter_check" CHECK ("chapterIndex" >= 0),
+    CONSTRAINT "EbookNote_excerpt_check" CHECK (char_length("excerpt") <= 1000),
+    CONSTRAINT "EbookNote_note_check" CHECK (char_length("note") <= 4000),
+    CONSTRAINT "EbookNote_not_empty_check" CHECK (char_length("excerpt") > 0 OR char_length("note") > 0)
+);
+
+-- CreateIndex
+CREATE INDEX "EbookNote_ebook_idx" ON "EbookNote"("ebookId", "chapterIndex", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "EbookNote_owner_idx" ON "EbookNote"("ownerId", "createdAt" DESC);
+
+-- CreateTable
 CREATE TABLE "BlockedUser" (
     "id" TEXT NOT NULL,
     "creatorId" UUID NOT NULL,
