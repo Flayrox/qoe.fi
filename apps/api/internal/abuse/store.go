@@ -51,7 +51,7 @@ func RecordSignal(ctx context.Context, pool BudgetDB, signalType, subjectType, s
 	_, err := pool.Exec(ctx, `
 		INSERT INTO "AbuseSignal" ("id", "type", "subjectType", "subjectId", "source", "confidence", "ruleVersion", "observedAt", "expiresAt", "createdAt")
 		VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-		signalType, subjectType, subjectID, source, confidence, PolicyV1.Version, now, now.Add(retention), now)
+		signalType, subjectType, subjectID, source, confidence, CurrentPolicy.Version, now, now.Add(retention), now)
 	if err != nil {
 		log.Printf("[abuse] signal %s non enregistré: %v", signalType, err)
 	}
@@ -104,7 +104,7 @@ func persistDecision(ctx context.Context, pool BudgetDB, out Outcome, subjectTyp
 // `allow` en dégradation : pool nil, panne de lecture — observer ne casse
 // jamais le chemin principal).
 func EvaluateSubject(ctx context.Context, pool SignalDB, signalType, subjectType, subjectID string, now time.Time) Outcome {
-	neutral := Outcome{Decision: DecisionAllow, Policy: PolicyV1.Name, Version: PolicyV1.Version}
+	neutral := Outcome{Decision: DecisionAllow, Policy: CurrentPolicy.Name, Version: CurrentPolicy.Version}
 	if pool == nil {
 		return neutral
 	}
@@ -114,7 +114,7 @@ func EvaluateSubject(ctx context.Context, pool SignalDB, signalType, subjectType
 		log.Printf("[abuse] lecture signaux %s: %v (verdict neutre)", signalType, err)
 		return neutral
 	}
-	out := PolicyV1.Evaluate(subjectType, subjectID, facts, now)
+	out := CurrentPolicy.Evaluate(subjectType, subjectID, facts, now)
 	if out.Decision == DecisionAllow {
 		return out
 	}

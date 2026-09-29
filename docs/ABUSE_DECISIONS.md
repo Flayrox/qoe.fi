@@ -92,6 +92,14 @@
 #   - Clôture signée (resolvedBy/resolvedAt) ; réouverture qui efface la
 #     signature mais garde l'historique.
 #
+# ENGAGEMENT INAUTHENTIQUE (politique abuse-core/v2, branchée dans
+# posts.ToggleLike — tranche 5) :
+#   - like-swarm (50 likes/10 min/même pensée) et like-volume (100 likes/h/
+#     même liker) → needs_review. Seuls les AJOUTS comptent (retirer
+#     n'amplifie rien). Seuils conservateurs : un like est un acte faible.
+#   - Les politiques ne s'éditent jamais : v1 figée (rejouabilité des
+#     verdicts historiques, verrouillée par test), v2 = v1 + likes.
+#
 # RECOURS (tables Appeal/AppealMessage 00042, routes /v1/appeals + console —
 # tranche 6, amorce) :
 #   - Toute mesure contre un COMPTE est contestable par l'intéressé, Y
