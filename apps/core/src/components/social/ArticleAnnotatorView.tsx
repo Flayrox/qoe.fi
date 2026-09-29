@@ -612,7 +612,12 @@ function ArticleAnnotatorViewInner({
               locked={ttsLocked}
               onLockedClick={ttsUpsell}
             />
-            <ReadingSettingsSheet />
+            <ReadingSettingsSheet
+              plusThemesLocked={ttsLocked}
+              onLockedThemeClick={() =>
+                toast.info(t`Papiers Nuit chaude et Papier réservés aux abonnés Plus (bientôt).`)
+              }
+            />
           </div>
         </div>
       </div>
