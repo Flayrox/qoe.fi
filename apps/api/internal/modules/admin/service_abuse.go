@@ -51,6 +51,15 @@ func (s *Service) ListAbuseDecisions(ctx context.Context, userID string, limit, 
 	return out, total, nil
 }
 
+// AbuseMetrics expose l'instantané de santé anti-abus (fiche 06 §11,
+// superadmin uniquement — données d'investigation nominatives).
+func (s *Service) AbuseMetrics(ctx context.Context, userID string, days int) (abuse.Metrics, error) {
+	if err := s.checkSuperadmin(ctx, userID); err != nil {
+		return abuse.Metrics{}, err
+	}
+	return abuse.ComputeMetrics(ctx, s.pool, days, time.Now())
+}
+
 // ResolveAbuseDecision clôt un dossier par un verdict humain tracé
 // (superadmin uniquement). `result` ∈ {allow, limit_distribution,
 // pause_sending, suspend} — le reste est refusé (abuse.ErrInvalidHumanResult).
