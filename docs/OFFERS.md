@@ -56,7 +56,12 @@
 #     lue côté player = lot suivant (le TTS lit déjà les files MediaSession).
 #   - ✅ Thèmes premium (Nuit chaude, Papier — cadenassés, sélecteur ajouté
 #     au panneau qui n'en avait pas) ; gratuits intacts (accessibilité).
-#   - ❌ notes dedans, podcasts offline, badge.
+#   - ✅ Notes de lecture DANS un EPUB : passage sélectionné et/ou mot à soi,
+#     ancrés à un chapitre, en table DÉDIÉE (les surlignages d'articles
+#     gardent la leur — public/votés — aucun mélange). Jamais publiques,
+#     jamais votées, cascade avec le livre ; extrait tronqué à 1000, note
+#     écrite refusée au-delà de 4000 (jamais coupée), les deux vides = 400.
+#   - ❌ podcasts offline, badge.
 #   - ✅ EPUB personnels (« Mes livres ») : import .epub (20 Mo, borné),
 #     parseur allowlist maison (titres/paragraphes/citations/emphases ;
 #     scripts, styles, iframes, images et handlers JAMAIS stockés — XSS
