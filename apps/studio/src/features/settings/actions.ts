@@ -124,20 +124,21 @@ export async function requestAccountSecurityDeletionAction() {
 //                                  envois) pour la prévisualisation live.
 
 export interface PublicationEmailSettings {
+  // Champs PRO (verrouillés sans palier — voir emailPro) : nom
+  // d'expéditeur, reply-to, accent, sujets, aperçus, note, corps — TOUS
+  // UNIQUES (fini les variantes par langue, côté API comme ici).
   fromName?: string;
   replyTo?: string;
   accentColor?: string;
-  logoUrl?: string;
-  // Clés « template.locale » (« confirm.fr », « welcome.es »…) générées
-  // dynamiquement depuis la liste `locales` renvoyée par l'API — ajouter
-  // une langue côté serveur suffit, aucun changement de type nécessaire.
   subjects?: Record<string, string>;
   preheaders?: Record<string, string>;
   footerNote?: string;
+  welcomeBody?: string;
+  // Gratuits : logo, activation du bienvenue, langues d'envoi (locales).
+  logoUrl?: string;
   welcomeEnabled?: boolean;
-  welcomeBodyFr?: string;
-  welcomeBodyEn?: string;
-  welcomeBodies?: Record<string, string>;
+  // Palier lu (GET) — jamais envoyé (le serveur décide, pas le client).
+  emailPro?: boolean;
 }
 
 export async function getEmailSettingsAction(publicationId: string) {
@@ -147,6 +148,7 @@ export async function getEmailSettingsAction(publicationId: string) {
     accentColor?: string;
     logoUrl?: string;
     locales: string[];
+    emailPro: boolean;
   }>(`/v1/settings/email?publicationId=${encodeURIComponent(publicationId)}`);
 }
 
