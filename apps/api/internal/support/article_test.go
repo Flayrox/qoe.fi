@@ -5,8 +5,10 @@ package support
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 )
@@ -25,15 +27,73 @@ func TestValidArticleInput(t *testing.T) {
 		"slug trop court": func() error {
 			return ValidArticleInput("ab", "Titre assez long", "Title long enough", "Corps.", "Body.")
 		},
+		"slug trop long": func() error {
+			return ValidArticleInput(strings.Repeat("a", 81), "Titre assez long", "Title long enough", "Corps.", "Body.")
+		},
 		"titre trop court": func() error { return ValidArticleInput("slug-ok", "abc", "Title long enough", "Corps.", "Body.") },
+		"titre FR trop long": func() error {
+			return ValidArticleInput("slug-ok", strings.Repeat("a", 201), "Title long enough", "Corps.", "Body.")
+		},
+		"titre EN trop court": func() error {
+			return ValidArticleInput("slug-ok", "Titre assez long", "abc", "Corps.", "Body.")
+		},
 		"corps vide": func() error {
 			return ValidArticleInput("slug-ok", "Titre assez long", "Title long enough", "", "Body.")
+		},
+		"corps FR trop long": func() error {
+			return ValidArticleInput("slug-ok", "Titre assez long", "Title long enough", strings.Repeat("a", 10001), "Body.")
+		},
+		"corps EN vide": func() error {
+			return ValidArticleInput("slug-ok", "Titre assez long", "Title long enough", "Corps.", "")
+		},
+		"corps EN trop long": func() error {
+			return ValidArticleInput("slug-ok", "Titre assez long", "Title long enough", "Corps.", strings.Repeat("a", 10001))
 		},
 	}
 	for name, fn := range cases {
 		if err := fn(); !errors.Is(err, ErrInvalidArticle) {
 			t.Errorf("%s : attendu ErrInvalidArticle, obtenu %v", name, err)
 		}
+	}
+}
+
+// TestListAllArticles_NilPool_ReturnsNonNilEmptySlice verrouille la cause
+// racine du crash « This page couldn't load » : une slice Go non initialisée
+// sérialise en `null`, le composant serveur admin crashe sur `.filter`. Le
+// JSON doit porter `[]`, jamais `null`.
+func TestListAllArticles_NilPool_ReturnsNonNilEmptySlice(t *testing.T) {
+	items, total, err := ListAllArticles(context.Background(), nil, 10, 0)
+	if err != nil || total != 0 || items == nil || len(items) != 0 {
+		t.Fatalf("nil pool = (%#v, %d, %v), attendu (slice vide, 0, nil)", items, total, err)
+	}
+	raw, err := json.Marshal(map[string]any{"items": items, "total": total})
+	if err != nil {
+		t.Fatalf("marshal : %v", err)
+	}
+	if want := `{"items":[],"total":0}`; string(raw) != want {
+		t.Fatalf("JSON = %s, attendu %s", raw, want)
+	}
+}
+
+func TestListPublishedArticles_NilPool_ReturnsNonNilEmptySlice(t *testing.T) {
+	items, err := ListPublishedArticles(context.Background(), nil)
+	if err != nil || items == nil || len(items) != 0 {
+		t.Fatalf("nil pool = (%#v, %v), attendu (slice vide, nil)", items, err)
+	}
+}
+
+// TestArticle_NilPool_Errors : sans base, les écritures/lectures unitaires
+// refusent explicitement (jamais de zéro-valeur silencieuse).
+func TestArticle_NilPool_Errors(t *testing.T) {
+	ctx := context.Background()
+	if _, err := CreateArticle(ctx, nil, "slug-ok", "Titre assez long", "Title long enough", "Corps.", "Body.", 0, time.Now()); err == nil {
+		t.Fatal("CreateArticle pool nil : erreur attendue")
+	}
+	if _, err := GetArticle(ctx, nil, "x"); err == nil {
+		t.Fatal("GetArticle pool nil : erreur attendue")
+	}
+	if _, err := UpdateArticle(ctx, nil, "x", "", "", "", "", nil, nil, time.Now()); err == nil {
+		t.Fatal("UpdateArticle pool nil : erreur attendue")
 	}
 }
 

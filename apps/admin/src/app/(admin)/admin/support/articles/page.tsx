@@ -16,7 +16,10 @@ import { ArticlesManager } from './components/articles-manager';
 
 export default async function AdminSupportArticlesPage() {
   const data = await getAdminSupportArticles();
-  const draftCount = data.items.filter((a) => !a.published).length;
+  // Blindage défensif : même si l'API renvoyait `items: null`, la page ne
+  // doit jamais crasher (crash « This page couldn't load »).
+  const items = data.items ?? [];
+  const draftCount = items.filter((a) => !a.published).length;
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-10">
@@ -32,7 +35,7 @@ export default async function AdminSupportArticlesPage() {
         }
       />
 
-      <ArticlesManager initialItems={data.items} />
+      <ArticlesManager initialItems={items} />
     </div>
   );
 }

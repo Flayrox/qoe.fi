@@ -176,7 +176,7 @@ func UpdateArticle(ctx context.Context, pool DB, id, titleFr, titleEn, bodyFr, b
 // récents. Pool nil : vide (la vitrine bascule sur son statique).
 func ListPublishedArticles(ctx context.Context, pool DB) ([]Article, error) {
 	if pool == nil {
-		return nil, nil
+		return []Article{}, nil
 	}
 	rows, err := pool.Query(ctx, `
 		SELECT `+articleColumns+` FROM "SupportArticle"
@@ -204,7 +204,10 @@ func ListPublishedArticles(ctx context.Context, pool DB) ([]Article, error) {
 // ListAllArticles : la console (tout, brouillons inclus, récents d'abord).
 func ListAllArticles(ctx context.Context, pool DB, limit, offset int) ([]Article, int, error) {
 	if pool == nil {
-		return nil, 0, nil
+		// Jamais nil : une slice non initialisée sérialise en `null` dans
+		// encoding/json, et le composant serveur admin crashe sur
+		// `data.items.filter(...)` (léçon du crash « This page couldn't load »).
+		return []Article{}, 0, nil
 	}
 	if limit <= 0 || limit > 200 {
 		limit = 50
@@ -219,7 +222,7 @@ func ListAllArticles(ctx context.Context, pool DB, limit, offset int) ([]Article
 		return nil, 0, err
 	}
 	defer rows.Close()
-	var items []Article
+	items := []Article{}
 	total := 0
 	for rows.Next() {
 		var a Article
