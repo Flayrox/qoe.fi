@@ -275,6 +275,42 @@ export async function getAdminAbuseDecisions(): Promise<{
   }
 }
 
+/** ⚖️ Recours (tranche 6) : dossier + messages. Miroir de Appeal (Go). */
+export interface AbuseAppealMessage {
+  id: string;
+  authorId: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface AbuseAppealItem {
+  id: string;
+  subjectType: string;
+  subjectId: string;
+  decisionId: string | null;
+  openedBy: string;
+  status: 'open' | 'under_review' | 'decided';
+  outcome: 'upheld' | 'overturned' | null;
+  staffNote: string;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  createdAt: string;
+  messages?: AbuseAppealMessage[];
+}
+
+export async function getAdminAbuseAppeals(): Promise<{
+  items: AbuseAppealItem[];
+  total: number;
+}> {
+  try {
+    return await goFetch<{ items: AbuseAppealItem[]; total: number }>(
+      '/v1/admin/abuse/appeals?limit=50'
+    );
+  } catch {
+    return { items: [], total: 0 };
+  }
+}
+
 /** 📬 Livraisons de notifications (compteurs + 50 dernières). */
 export async function getAdminDeliveries(): Promise<{
   counts: Record<string, number>;
