@@ -286,9 +286,6 @@ type Querier interface {
 	GetOAuthTokenByAccessHash(ctx context.Context, accesstokenhash string) (GetOAuthTokenByAccessHashRow, error)
 	GetOAuthTokenByRefreshHash(ctx context.Context, refreshtokenhash pgtype.Text) (GetOAuthTokenByRefreshHashRow, error)
 	GetOAuthUserClaims(ctx context.Context, id string) (GetOAuthUserClaimsRow, error)
-	// =====================================================================
-	// ✅ Double opt-in — email de confirmation des inscriptions publiques
-	// =====================================================================
 	GetPendingConfirmation(ctx context.Context, arg GetPendingConfirmationParams) (GetPendingConfirmationRow, error)
 	GetPersonalOwnerForCredit(ctx context.Context, publicationid pgtype.Text) (GetPersonalOwnerForCreditRow, error)
 	GetPersonalPublicationByUserID(ctx context.Context, id string) (pgtype.Text, error)
@@ -349,6 +346,13 @@ type Querier interface {
 	// prévisualisation ne suppose aucun abonné réel.
 	GetSubscriberEmailDefaults(ctx context.Context, id string) (GetSubscriberEmailDefaultsRow, error)
 	GetSubscriberEntitlement(ctx context.Context, arg GetSubscriberEntitlementParams) (GetSubscriberEntitlementRow, error)
+	// =====================================================================
+	// ✅ Double opt-in — email de confirmation des inscriptions publiques
+	// =====================================================================
+	// Locale d'un abonné (même confirmé ou sans token) : sert les pages de
+	// confirmation (succès comme erreur) dans la langue de l'abonné. Défaut
+	// géré côté Go ("fr" si ligne absente).
+	GetSubscriberLocale(ctx context.Context, arg GetSubscriberLocaleParams) (string, error)
 	GetSubscriberStatsByPublication(ctx context.Context, publicationid string) (GetSubscriberStatsByPublicationRow, error)
 	GetSystemConfigsByKeys(ctx context.Context, dollar_1 []string) ([]SystemConfig, error)
 	GetThoughtByID(ctx context.Context, id string) (GetThoughtByIDRow, error)

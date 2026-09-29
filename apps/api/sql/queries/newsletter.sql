@@ -317,6 +317,14 @@ WHERE p.id = $1;
 -- ✅ Double opt-in — email de confirmation des inscriptions publiques
 -- =====================================================================
 
+-- name: GetSubscriberLocale :one
+-- Locale d'un abonné (même confirmé ou sans token) : sert les pages de
+-- confirmation (succès comme erreur) dans la langue de l'abonné. Défaut
+-- géré côté Go ("fr" si ligne absente).
+SELECT s.locale FROM "Subscriber" s
+WHERE s.email = $1
+  AND s."publicationId" = $2;
+
 -- name: GetPendingConfirmation :one
 SELECT s.email, s."publicationId", s.locale,
        s."confirmationToken",

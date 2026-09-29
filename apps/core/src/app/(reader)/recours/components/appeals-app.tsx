@@ -94,7 +94,11 @@ export function AppealsApp({ userId, initialItems }: AppealsAppProps) {
         <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
           Une mesure vise votre compte à tort ? Contestez ici. Déposer un recours ne lève rien à lui
           seul — le staff revoit chaque dossier et tranche : mesure confirmée, ou faux positif avéré
-          (la mesure tombe).
+          (la mesure tombe). Pour tout autre problème,{' '}
+          <a href="/support" className="underline underline-offset-2 font-semibold">
+            contactez le support
+          </a>
+          .
         </p>
       </div>
 

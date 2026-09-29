@@ -100,8 +100,11 @@ export function SupportApp({ initialItems }: SupportAppProps) {
         <h1 className="text-2xl font-bold tracking-tight">Support</h1>
         <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
           Un problème de compte, de contenu, d&apos;API, d&apos;import ou de livraison ? Ouvrez un
-          dossier — un par motif, le reste s&apos;écrit dedans. Pour contester une mesure anti-abus,
-          voyez vos recours.
+          dossier — un par motif, le reste s&apos;écrit dedans. Pour contester une mesure anti-abus,{' '}
+          <a href="/recours" className="underline underline-offset-2 font-semibold">
+            voyez vos recours
+          </a>
+          .
         </p>
       </div>
 

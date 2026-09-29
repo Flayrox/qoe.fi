@@ -3,8 +3,10 @@ package newsletters
 import (
 	"encoding/json"
 	"errors"
+	"html"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -257,10 +259,80 @@ func (h *Handler) unsubscribe(w http.ResponseWriter, r *http.Request) {
 </div></body></html>`))
 }
 
+// confirmTexts localise une page de confirmation (succès comme erreur) : la
+// langue de l'abonné quand on la connaît, "fr" sinon. Les pages sont lues
+// par un humain qui clique depuis son email — jamais de JSON brut dans un
+// navigateur (le POST, lui, reste JSON pour les clients API).
+func confirmTexts(locale string) (title, body, resend, resent, home string) {
+	if strings.HasPrefix(strings.ToLower(locale), "en") {
+		return "This link has expired",
+			"Confirmation links are single-use and expire. If your subscription is still pending, get a fresh link below — otherwise you're already subscribed.",
+			"Send me a new link",
+			"If your subscription is pending, a new link was just sent. Otherwise you're already subscribed — check your inbox.",
+			"Back to home"
+	}
+	return "Ce lien a expiré",
+		"Les liens de confirmation sont à usage unique et expirent. Si votre inscription est en attente, recevez un nouveau lien ci-dessous — sinon, vous êtes déjà abonné.",
+		"Recevoir un nouveau lien",
+		"Si votre inscription est en attente, un nouveau lien vient de vous être envoyé. Sinon, vous êtes déjà abonné — vérifiez votre boîte mail.",
+		"Retourner à l'accueil"
+}
+
+// renderConfirmErrorPage rend une page HTML d'échec de confirmation (même
+// coquille inline que le succès — pas de dépendance au front). resend=true
+// affiche le bouton de renvoi (params fiables : signature vérifiée) qui
+// re-POSTe vers /v1/home/subscribe en même origine (rate-limit anti-abus
+// conservé) puis un message neutre (ne révèle ni l'existence ni l'état).
+func renderConfirmErrorPage(w http.ResponseWriter, locale, heading, body string, resend bool) {
+	title, text, resendLabel, resentMsg, homeLabel := confirmTexts(locale)
+	if heading != "" {
+		title = heading
+	}
+	if body != "" {
+		text = body
+	}
+	button := ""
+	script := ""
+	if resend {
+		button = `<button id="resend" style="display:inline-block;background:#111827;color:#ffffff;border:0;cursor:pointer;font-size:13px;font-weight:500;padding:10px 24px;border-radius:9999px;">` + resendLabel + `</button>
+<p id="resend-msg" style="font-size:13px;line-height:1.6;color:#6b7280;margin:12px 0 0;min-height:20px;"></p>`
+		script = `<script>
+document.getElementById('resend').onclick = async (e) => {
+  const btn = e.target;
+  btn.disabled = true;
+  try {
+    const q = new URLSearchParams(location.search);
+    const r = await fetch('/v1/home/subscribe', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({email: q.get('email'), publicationId: q.get('pub') || q.get('publicationId')})
+    });
+    document.getElementById('resend-msg').textContent = ` + "`" + resentMsg + "`" + `;
+  } catch (_) {
+    document.getElementById('resend-msg').textContent = ` + "`" + resentMsg + "`" + `;
+  }
+};
+</script>`
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write([]byte(`<!DOCTYPE html><html lang="` + html.EscapeString(locale) + `"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>` + html.EscapeString(title) + `</title></head>
+<body style="font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Segoe UI',Roboto,sans-serif;background:#f9fafb;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:20px;-webkit-font-smoothing:antialiased;">
+<div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,0.04);padding:40px 32px;max-width:440px;width:100%;text-align:center;">
+<div style="width:48px;height:48px;background:#fef3c7;border:1px solid #fde68a;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:22px;color:#d97706;">!</div>
+<h1 style="font-size:20px;font-weight:600;color:#111827;margin:0 0 8px;letter-spacing:-0.01em;">` + html.EscapeString(title) + `</h1>
+<p style="font-size:14px;line-height:1.6;color:#6b7280;margin:0 0 24px;">` + html.EscapeString(text) + `</p>
+` + button + `
+<div style="margin-top:16px;"><a href="https://qoe.fi" style="display:inline-block;color:#6b7280;text-decoration:underline;font-size:13px;">` + html.EscapeString(homeLabel) + `</a></div>
+</div>` + script + `</body></html>`))
+}
+
 // GET & POST /v1/newsletters/confirm?pub=&email=&token=&sig= — confirmation
 // double opt-in : le lien signé (HMAC timing-safe) envoyé par email valide la
 // possession de la boîte et active receiveArticles. Token à usage unique : un
 // lien rejoué (déjà consommé) répond 409 « déjà utilisé » — jamais une 500.
+// En GET (navigateur), TOUS les échecs rendent une page HTML lisible (jamais
+// de JSON brut) ; le 409 propose le renvoi d'un lien frais. En POST (clients
+// API), les erreurs restent JSON.
 func (h *Handler) confirm(w http.ResponseWriter, r *http.Request) {
 	pubID := r.URL.Query().Get("pub")
 	if pubID == "" {
@@ -269,20 +341,49 @@ func (h *Handler) confirm(w http.ResponseWriter, r *http.Request) {
 	email := r.URL.Query().Get("email")
 	token := r.URL.Query().Get("token")
 	sig := r.URL.Query().Get("sig")
+	isBrowser := r.Method == http.MethodGet
+
+	// Langue best-effort (même en échec : un abonné inconnu qui clique un
+	// vieux lien reçoit quand même une page propre, en français par défaut).
+	locale := "fr"
+	if pubID != "" && email != "" {
+		if raw := h.svc.ConfirmLocaleRaw(r.Context(), pubID, email); raw != "" {
+			locale = workers.NormalizeEmailLocale(raw)
+		}
+	}
 
 	if pubID == "" || email == "" || token == "" {
+		if isBrowser {
+			// Lien tronqué/inutilisable : même page (le message « expiré »
+			// couvre les liens morts — pas de jargon technique).
+			w.WriteHeader(http.StatusBadRequest)
+			renderConfirmErrorPage(w, locale, "", "", false)
+			return
+		}
 		response.BadRequest(w, "pub, email et token requis")
 		return
 	}
 
 	// 🛡️ Signature HMAC timing-safe (miroir de l'unsubscribe RFC 8058) : le
 	// token (hash md5 non secret, jamais réutilisé) est blindé par la sig.
+	// Params non fiables ici : page d'erreur SANS renvoi (on ne re-POSTe
+	// jamais des paramètres forgés).
 	if !workers.VerifyConfirm(pubID, email, sig) {
+		if isBrowser {
+			w.WriteHeader(http.StatusForbidden)
+			renderConfirmErrorPage(w, locale, "", "", false)
+			return
+		}
 		response.Forbidden(w, "Lien de confirmation invalide")
 		return
 	}
 
 	if err := h.svc.ConfirmSubscriber(r.Context(), pubID, email, token); err != nil {
+		if isBrowser {
+			w.WriteHeader(http.StatusConflict)
+			renderConfirmErrorPage(w, locale, "", "", true)
+			return
+		}
 		h.handleConfirmErr(w, err)
 		return
 	}

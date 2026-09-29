@@ -389,7 +389,6 @@ func (q *Queries) GetNewsletterIssueWithPublication(ctx context.Context, id stri
 }
 
 const getPendingConfirmation = `-- name: GetPendingConfirmation :one
-
 SELECT s.email, s."publicationId", s.locale,
        s."confirmationToken",
        p.name AS publication_name, p.subdomain, p."customDomain", p."accentColor",
@@ -419,9 +418,6 @@ type GetPendingConfirmationRow struct {
 	EmailSettings     []byte      `json:"emailSettings"`
 }
 
-// =====================================================================
-// ✅ Double opt-in — email de confirmation des inscriptions publiques
-// =====================================================================
 func (q *Queries) GetPendingConfirmation(ctx context.Context, arg GetPendingConfirmationParams) (GetPendingConfirmationRow, error) {
 	row := q.db.QueryRow(ctx, getPendingConfirmation, arg.Email, arg.PublicationId)
 	var i GetPendingConfirmationRow
@@ -597,6 +593,31 @@ func (q *Queries) GetSubscriberEmailContext(ctx context.Context, arg GetSubscrib
 		&i.EmailSettings,
 	)
 	return i, err
+}
+
+const getSubscriberLocale = `-- name: GetSubscriberLocale :one
+
+SELECT s.locale FROM "Subscriber" s
+WHERE s.email = $1
+  AND s."publicationId" = $2
+`
+
+type GetSubscriberLocaleParams struct {
+	Email         string `json:"email"`
+	PublicationId string `json:"publicationId"`
+}
+
+// =====================================================================
+// ✅ Double opt-in — email de confirmation des inscriptions publiques
+// =====================================================================
+// Locale d'un abonné (même confirmé ou sans token) : sert les pages de
+// confirmation (succès comme erreur) dans la langue de l'abonné. Défaut
+// géré côté Go ("fr" si ligne absente).
+func (q *Queries) GetSubscriberLocale(ctx context.Context, arg GetSubscriberLocaleParams) (string, error) {
+	row := q.db.QueryRow(ctx, getSubscriberLocale, arg.Email, arg.PublicationId)
+	var locale string
+	err := row.Scan(&locale)
+	return locale, err
 }
 
 const getSubscriberStatsByPublication = `-- name: GetSubscriberStatsByPublication :one
