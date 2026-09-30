@@ -17,6 +17,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
 
+	"github.com/qoefi/api/internal/adminauthz"
 	"github.com/qoefi/api/internal/cache"
 	"github.com/qoefi/api/internal/config"
 	"github.com/qoefi/api/internal/database"
@@ -24,18 +25,17 @@ import (
 	"github.com/qoefi/api/internal/flags"
 	authmw "github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/modules/admin"
+	aimod "github.com/qoefi/api/internal/modules/ai"
 	"github.com/qoefi/api/internal/modules/analytics"
+	"github.com/qoefi/api/internal/modules/appeals"
 	"github.com/qoefi/api/internal/modules/articles"
 	"github.com/qoefi/api/internal/modules/billing"
 	"github.com/qoefi/api/internal/modules/collaborations"
 	"github.com/qoefi/api/internal/modules/conversations"
 	"github.com/qoefi/api/internal/modules/creator"
 	"github.com/qoefi/api/internal/modules/devtools"
-	"github.com/qoefi/api/internal/modules/events"
-	aimod "github.com/qoefi/api/internal/modules/ai"
-	"github.com/qoefi/api/internal/modules/appeals"
 	"github.com/qoefi/api/internal/modules/ebooks"
-	"github.com/qoefi/api/internal/modules/support"
+	"github.com/qoefi/api/internal/modules/events"
 	"github.com/qoefi/api/internal/modules/feed"
 	"github.com/qoefi/api/internal/modules/highlights"
 	"github.com/qoefi/api/internal/modules/home"
@@ -51,6 +51,7 @@ import (
 	"github.com/qoefi/api/internal/modules/publications"
 	"github.com/qoefi/api/internal/modules/search"
 	"github.com/qoefi/api/internal/modules/settings"
+	"github.com/qoefi/api/internal/modules/support"
 	"github.com/qoefi/api/internal/modules/tracking"
 	"github.com/qoefi/api/internal/modules/users"
 	"github.com/qoefi/api/internal/modules/webhooks"
@@ -498,12 +499,31 @@ func newRouter(d RouterDeps) *chi.Mux {
 		// Révocation staff des sessions (compromission, récupération) :
 		// journalisée côté admin, exécutée côté comptes.
 		adminHandler.SetUsersService(usersSvc)
+
+		// Console d'administration unifiée (internal/adminauthz) : un seul
+		// service de capacités et un seul registre route → capacité pour tous
+		// les modules qui publient sous /v1/admin/* (admin, légal, placements).
+		// Chaque route déclare la capacité qu'elle exige et le garde refuse par
+		// défaut. Le mode suit le flag `authz-enforce` — en OBSERVATION par
+		// défaut, comme le noyau N0–N3 : on câble, on mesure, puis on bascule
+		// sans redéploiement. La garde superadmin des services (checkSuperadmin)
+		// reste en défense en profondeur, donc l'observation ne peut jamais
+		// élargir un accès réel.
+		adminAuthzSvc := adminauthz.NewService(pool)
+		adminAuthzSvc.SetModeResolver(func(ctx context.Context) bool {
+			return flagsSvc.IsOn(ctx, flags.AuthzEnforce)
+		})
+		adminConsole := adminauthz.NewConsole(protected, adminAuthzSvc, nil)
+
+		adminHandler.SetConsole(adminConsole)
 		adminHandler.Register(protected)
 
-		// Édition du contenu légal (superadmin, revérifié dans le service).
+		// Édition du contenu légal (revérifié dans le service, en plus du garde).
+		legalHandler.SetConsole(adminConsole)
 		legalHandler.RegisterAdmin(protected)
 
-		// Gestion des placements et bannières in-app (superadmin)
+		// Gestion des placements et bannières in-app (superadmin).
+		placementsHandler.SetConsole(adminConsole)
 		placementsHandler.RegisterAdmin(protected)
 
 		newslettersHandler.Register(protected)

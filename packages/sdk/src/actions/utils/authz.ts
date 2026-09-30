@@ -27,6 +27,8 @@ export const AUTHZ_CODES = [
   'deny_phone_not_verified',
   'needs_step_up',
   'needs_review',
+  'deny_missing_capability',
+  'deny_capability_lookup',
 ] as const;
 
 export type AuthzCode = (typeof AUTHZ_CODES)[number];
@@ -113,6 +115,18 @@ export function authzGuidance(
       return {
         title: 'Double validation requise',
         description: 'Une seconde personne autorisée doit approuver cette action.',
+      };
+    case 'deny_missing_capability':
+      return {
+        title: 'Droits insuffisants sur la console',
+        description:
+          'Votre rôle ne couvre pas cette capacité. Demandez-la à un superadmin — le refus est journalisé.',
+      };
+    case 'deny_capability_lookup':
+      return {
+        title: 'Vérification des droits indisponible',
+        description:
+          'Réessayez dans un instant : le registre des droits est momentanément illisible.',
       };
     default:
       return null;

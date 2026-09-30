@@ -31,6 +31,16 @@ const (
 	CodeNeedsStepUp Code = "needs_step_up"
 	// CodeNeedsReview — N3 : une seconde validation reste nécessaire.
 	CodeNeedsReview Code = "needs_review"
+	// CodeDenyMissingCapability — la personne n'a pas la capacité exigée par
+	// la route de la console (gardé par internal/adminauthz). Distinct de
+	// CodeDenyNoResourcePermission : ici il n'y a pas de ressource à laquelle
+	// se rattacher, juste un rôle manquant — le motif à afficher est donc
+	// « demandez le droit », pas « vos droits sur ce média sont insuffisants ».
+	CodeDenyMissingCapability Code = "deny_missing_capability"
+	// CodeDenyCapabilityLookup — la source des capacités n'a pas pu être lue.
+	// Le refus est technique, jamais un jugement sur la personne : le client
+	// doit proposer de réessayer plutôt qu'une demande de droits.
+	CodeDenyCapabilityLookup Code = "deny_capability_lookup"
 )
 
 // Inputs rassemble ce que l'appelant a réellement vérifié sur la ressource.

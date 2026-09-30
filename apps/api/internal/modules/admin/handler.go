@@ -12,6 +12,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
 	"github.com/qoefi/api/internal/abuse"
+	"github.com/qoefi/api/internal/adminauthz"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/modules/imports"
 	"github.com/qoefi/api/internal/modules/users"
@@ -29,118 +30,211 @@ type Handler struct {
 	// usersSvc est branché par SetUsersService : sans lui, la révocation de
 	// sessions est indisponible (refus explicite, pas de contournement).
 	usersSvc *users.Service
+	// console déclare et monte les routes de la console sous le garde de
+	// capacité (internal/adminauthz). Elle porte aussi le service de capacités
+	// lu par GET /v1/admin/me. Sans console partagée (tests unitaires),
+	// Register en crée une autonome : une route /v1/admin/* passe TOUJOURS par
+	// une déclaration de capacité, jamais par un enregistrement direct.
+	console *adminauthz.Console
 }
 
 // SetUsersService branche le service des comptes (même pattern que
 // SetSubscriberImports) pour les opérations staff sur les sessions.
 func (h *Handler) SetUsersService(svc *users.Service) { h.usersSvc = svc }
 
+// SetConsole branche la console partagée de la plateforme : le même registre
+// route → capacité est alors alimenté par tous les modules qui publient des
+// routes /v1/admin/* (admin, légal, placements), et le garde lit le service de
+// capacités branché dessus. C'est ce que fait cmd/server au démarrage.
+func (h *Handler) SetConsole(c *adminauthz.Console) { h.console = c }
+
 func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
 }
 
-// Register enregistre les routes admin (groupe protégé JWT).
-func (h *Handler) Register(r chi.Router) {
-	r.Get("/v1/admin/dashboard", h.dashboard)
-	r.Get("/v1/admin/users", h.users)
-	r.Get("/v1/admin/users/{userID}", h.userDetail)
-	r.Patch("/v1/admin/users/{userID}", h.updateModeration)
-	// Révocation de toutes les sessions d'un compte (compromission suspectée,
-	// récupération après perte de facteurs). Superadmin uniquement, journalisé.
-	r.Post("/v1/admin/users/{userID}/revoke-sessions", h.revokeUserSessions)
-
-	// File de modération (signalements)
-	r.Get("/v1/admin/reports", h.reports)
-	r.Patch("/v1/admin/reports/{id}", h.resolveReport)
-
-	// File de revue anti-abus (verdicts automatiques non triviaux → clôture
-	// humaine tracée). Superadmin, lecture puis PATCH par sujet.
-	r.Get("/v1/admin/abuse/decisions", h.abuseDecisions)
-	r.Patch("/v1/admin/abuse/decisions", h.resolveAbuseDecision)
-	// Métriques anti-abus (les deux erreurs : abus manqué vs légitimes
-	// bloqués). Query : ?days=30 (1-90).
-	r.Get("/v1/admin/abuse/metrics", h.abuseMetrics)
-	// Palier email Pro (freemium, intérim Stripe) : bascule superadmin.
-	r.Patch("/v1/admin/publications/{id}", h.setPublicationEmailPro)
-	// Abonnements manuels : octroyer (daté, programmé), révoquer, historique.
-	r.Get("/v1/admin/subscriptions/grants", h.subscriptionGrants)
-	r.Post("/v1/admin/subscriptions/grants", h.grantSubscription)
-	r.Post("/v1/admin/subscriptions/grants/{id}/revoke", h.revokeSubscriptionGrant)
-	// Registre d'incidents (attaques confirmées, dossier tenu par le staff).
-	r.Get("/v1/admin/abuse/incidents", h.abuseIncidents)
-	r.Post("/v1/admin/abuse/incidents", h.openAbuseIncident)
-	r.Patch("/v1/admin/abuse/incidents/{id}", h.updateAbuseIncident)
-	// Recours (tranche 6) : file + détail + décisions. Seule overturned lève.
-	r.Get("/v1/admin/abuse/appeals", h.abuseAppeals)
-	r.Get("/v1/admin/abuse/appeals/{id}", h.abuseAppealDetail)
-	r.Patch("/v1/admin/abuse/appeals/{id}", h.decideAbuseAppeal)
-	// Support général (tranche 6) : file + détail + assignation + avancement
-	// + charge. La clôture ne lève ni suspension ni permission.
-	r.Get("/v1/admin/support/tickets", h.supportTickets)
-	r.Get("/v1/admin/support/tickets/{id}", h.supportTicketDetail)
-	r.Post("/v1/admin/support/tickets/{id}/assign", h.assignSupportTicket)
-	r.Patch("/v1/admin/support/tickets/{id}", h.updateSupportTicket)
-	r.Get("/v1/admin/support/metrics", h.supportMetrics)
-	// Articles d'aide (centre d'aide sans redéploiement) : liste (brouillons
-	// inclus), création (brouillon), détail, modification (dont publication).
-	r.Get("/v1/admin/support/articles", h.supportArticles)
-	r.Post("/v1/admin/support/articles", h.createSupportArticle)
-	r.Get("/v1/admin/support/articles/{id}", h.supportArticleDetail)
-	r.Patch("/v1/admin/support/articles/{id}", h.updateSupportArticle)
-
-	// Widgets & tendances
-	r.Get("/v1/admin/widgets", h.widgets)
-	r.Post("/v1/admin/widgets/featured", h.setFeatured)
-	r.Post("/v1/admin/widgets/trends", h.addTrend)
-	r.Delete("/v1/admin/widgets/trends/{id}", h.deleteTrend)
-	r.Patch("/v1/admin/widgets/trends/{id}", h.updateTrend)
-	r.Post("/v1/admin/widgets/promos", h.savePromo)
-	r.Delete("/v1/admin/widgets/promos/{id}", h.deletePromo)
-	r.Patch("/v1/admin/widgets/promos/{id}", h.togglePromo)
-
-	// Stockage médias (supervision saturation du bucket images)
-	r.Get("/v1/admin/storage/usage", h.storageUsage)
-
-	// Allowlist d'inscription (accès privé : inscriptions sur invitation)
-	r.Get("/v1/admin/registrations/allowlist", h.listAllowlist)
-	r.Post("/v1/admin/registrations/allowlist", h.addAllowlist)
-	r.Delete("/v1/admin/registrations/allowlist/{email}", h.deleteAllowlist)
-
-	// Feature flags / config / frontend / traductions
-	r.Get("/v1/admin/config", h.configs)
-	r.Put("/v1/admin/config", h.upsertConfigs)
-	r.Delete("/v1/admin/config/{key}", h.deleteConfig)
-	r.Put("/v1/admin/reserved-identifiers/{kind}", h.updateReservedIdentifiers)
-
-	// OAuth
-	r.Get("/v1/admin/oauth/clients", h.oauthClients)
-	r.Patch("/v1/admin/oauth/clients/{id}", h.updateOAuthStatus)
-
-	// Demandes d'accès API (permissions modulables)
-	r.Get("/v1/admin/api-applicants", h.apiApplicants)
-	r.Patch("/v1/admin/api-applicants/{userID}", h.updateApiAccess)
-	r.Patch("/v1/admin/api-applicants/{userID}/grants", h.updateApiGrants)
-	r.Get("/v1/admin/api-access/modules", h.apiAccessModules)
-	r.Patch("/v1/admin/api-access/modules", h.updateApiAccessModules)
-
-	// Journal d'audit superadmin (flag admin-audit-log)
-	r.Get("/v1/admin/audit-log", h.auditLog)
-
-	// Notifications & livraisons
-	r.Get("/v1/admin/deliveries", h.deliveries)
-	r.Post("/v1/admin/deliveries/{id}/retry", h.retryDelivery)
-
-	h.registerSubscriberImports(r)
-	h.registerStaffCampaigns(r)
+// adminRoute associe une route de la console à la capacité qu'elle exige.
+type adminRoute struct {
+	method     string
+	pattern    string
+	capability adminauthz.Capability
+	handler    http.HandlerFunc
 }
 
-func (h *Handler) requireSuperadmin(w http.ResponseWriter, r *http.Request) (string, bool) {
+// Register enregistre les routes de la console (groupe protégé JWT). Chaque
+// route passe par la console (internal/adminauthz) : elle y DÉCLARE la capacité
+// qu'elle exige puis est montée sous le garde. Il n'existe pas d'autre chemin
+// d'enregistrement — une route qui échapperait au registre échapperait aussi au
+// garde, ce que le test des routes refuse.
+func (h *Handler) Register(r chi.Router) {
+	if h.console == nil {
+		h.console = adminauthz.NewStandaloneConsole(r)
+	}
+	for _, rt := range h.routeTable() {
+		h.console.Mount(rt.method, rt.pattern, rt.capability, rt.handler)
+	}
+	h.registerSubscriberImports()
+	h.registerStaffCampaigns()
+}
+
+// routeTable est la déclaration unique des routes de la console. Chaque entrée
+// nomme la capacité qu'elle exige : c'est cette table, et le registre qu'elle
+// alimente, que parcourt le test des routes.
+func (h *Handler) routeTable() []adminRoute {
+	return []adminRoute{
+		// ── Identité & pilotage ──────────────────────────────────────────
+		// /me sert sa propre identité : toute personne de la console y a droit,
+		// sinon l'interface ne pourrait pas savoir quoi afficher.
+		{http.MethodGet, "/v1/admin/me", adminauthz.SelfRead, h.me},
+		{http.MethodGet, "/v1/admin/dashboard", adminauthz.DashboardRead, h.dashboard},
+		// Stockage médias (supervision de la saturation du bucket images).
+		{http.MethodGet, "/v1/admin/storage/usage", adminauthz.DashboardRead, h.storageUsage},
+
+		// ── Comptes & modération ─────────────────────────────────────────
+		{http.MethodGet, "/v1/admin/users", adminauthz.UsersRead, h.users},
+		{http.MethodGet, "/v1/admin/users/{userID}", adminauthz.UsersRead, h.userDetail},
+		{http.MethodPatch, "/v1/admin/users/{userID}", adminauthz.UsersModerate, h.updateModeration},
+		// Révocation de toutes les sessions d'un compte (compromission
+		// suspectée, récupération après perte de facteurs).
+		{http.MethodPost, "/v1/admin/users/{userID}/revoke-sessions", adminauthz.UsersSessionsRevoke, h.revokeUserSessions},
+
+		// File de modération (signalements).
+		{http.MethodGet, "/v1/admin/reports", adminauthz.ReportsRead, h.reports},
+		{http.MethodPatch, "/v1/admin/reports/{id}", adminauthz.ReportsWrite, h.resolveReport},
+
+		// File de revue anti-abus (verdicts automatiques non triviaux → clôture
+		// humaine tracée).
+		{http.MethodGet, "/v1/admin/abuse/decisions", adminauthz.AbuseRead, h.abuseDecisions},
+		{http.MethodPatch, "/v1/admin/abuse/decisions", adminauthz.AbuseDecide, h.resolveAbuseDecision},
+		// Métriques anti-abus (les deux erreurs : abus manqué vs légitimes
+		// bloqués). Query : ?days=30 (1-90).
+		{http.MethodGet, "/v1/admin/abuse/metrics", adminauthz.AbuseRead, h.abuseMetrics},
+
+		// Registre d'incidents (attaques confirmées, dossier tenu par le staff).
+		{http.MethodGet, "/v1/admin/abuse/incidents", adminauthz.IncidentsRead, h.abuseIncidents},
+		{http.MethodPost, "/v1/admin/abuse/incidents", adminauthz.IncidentsWrite, h.openAbuseIncident},
+		{http.MethodPatch, "/v1/admin/abuse/incidents/{id}", adminauthz.IncidentsWrite, h.updateAbuseIncident},
+
+		// Recours : file, détail, décisions. Seul overturned lève la mesure.
+		{http.MethodGet, "/v1/admin/abuse/appeals", adminauthz.AppealsRead, h.abuseAppeals},
+		{http.MethodGet, "/v1/admin/abuse/appeals/{id}", adminauthz.AppealsRead, h.abuseAppealDetail},
+		{http.MethodPatch, "/v1/admin/abuse/appeals/{id}", adminauthz.AppealsDecide, h.decideAbuseAppeal},
+
+		// ── Support, contenu d'aide & abonnements ────────────────────────
+		// Dossiers support : la clôture ne lève ni suspension ni permission.
+		{http.MethodGet, "/v1/admin/support/tickets", adminauthz.SupportRead, h.supportTickets},
+		{http.MethodGet, "/v1/admin/support/tickets/{id}", adminauthz.SupportRead, h.supportTicketDetail},
+		{http.MethodPost, "/v1/admin/support/tickets/{id}/assign", adminauthz.SupportWrite, h.assignSupportTicket},
+		{http.MethodPatch, "/v1/admin/support/tickets/{id}", adminauthz.SupportWrite, h.updateSupportTicket},
+		{http.MethodGet, "/v1/admin/support/metrics", adminauthz.SupportRead, h.supportMetrics},
+		// Articles d'aide (centre d'aide sans redéploiement) : liste (brouillons
+		// inclus), création (brouillon), détail, modification (dont publication).
+		{http.MethodGet, "/v1/admin/support/articles", adminauthz.ContentRead, h.supportArticles},
+		{http.MethodPost, "/v1/admin/support/articles", adminauthz.ContentWrite, h.createSupportArticle},
+		{http.MethodGet, "/v1/admin/support/articles/{id}", adminauthz.ContentRead, h.supportArticleDetail},
+		{http.MethodPatch, "/v1/admin/support/articles/{id}", adminauthz.ContentWrite, h.updateSupportArticle},
+		// Palier email Pro (freemium, intérim Stripe) : c'est un droit
+		// d'abonnement, donc la capacité des octrois, pas celle du contenu.
+		{http.MethodPatch, "/v1/admin/publications/{id}", adminauthz.SubscriptionsWrite, h.setPublicationEmailPro},
+		// Abonnements manuels : octroyer (daté, programmé), révoquer, historique.
+		{http.MethodGet, "/v1/admin/subscriptions/grants", adminauthz.SubscriptionsRead, h.subscriptionGrants},
+		{http.MethodPost, "/v1/admin/subscriptions/grants", adminauthz.SubscriptionsWrite, h.grantSubscription},
+		{http.MethodPost, "/v1/admin/subscriptions/grants/{id}/revoke", adminauthz.SubscriptionsWrite, h.revokeSubscriptionGrant},
+
+		// ── Contenu éditorial & widgets ──────────────────────────────────
+		{http.MethodGet, "/v1/admin/widgets", adminauthz.WidgetsRead, h.widgets},
+		{http.MethodPost, "/v1/admin/widgets/featured", adminauthz.WidgetsWrite, h.setFeatured},
+		{http.MethodPost, "/v1/admin/widgets/trends", adminauthz.WidgetsWrite, h.addTrend},
+		{http.MethodDelete, "/v1/admin/widgets/trends/{id}", adminauthz.WidgetsWrite, h.deleteTrend},
+		{http.MethodPatch, "/v1/admin/widgets/trends/{id}", adminauthz.WidgetsWrite, h.updateTrend},
+		{http.MethodPost, "/v1/admin/widgets/promos", adminauthz.WidgetsWrite, h.savePromo},
+		{http.MethodDelete, "/v1/admin/widgets/promos/{id}", adminauthz.WidgetsWrite, h.deletePromo},
+		{http.MethodPatch, "/v1/admin/widgets/promos/{id}", adminauthz.WidgetsWrite, h.togglePromo},
+
+		// ── Notifications & livraisons ───────────────────────────────────
+		{http.MethodGet, "/v1/admin/deliveries", adminauthz.DeliveriesRead, h.deliveries},
+		{http.MethodPost, "/v1/admin/deliveries/{id}/retry", adminauthz.DeliveriesRetry, h.retryDelivery},
+
+		// ── Plateforme : configuration, inscriptions, OAuth, accès API ────
+		{http.MethodGet, "/v1/admin/config", adminauthz.ConfigRead, h.configs},
+		{http.MethodPut, "/v1/admin/config", adminauthz.ConfigWrite, h.upsertConfigs},
+		{http.MethodDelete, "/v1/admin/config/{key}", adminauthz.ConfigWrite, h.deleteConfig},
+		{http.MethodPut, "/v1/admin/reserved-identifiers/{kind}", adminauthz.ConfigWrite, h.updateReservedIdentifiers},
+		// Allowlist d'inscription (accès privé : inscriptions sur invitation).
+		{http.MethodGet, "/v1/admin/registrations/allowlist", adminauthz.ConfigRead, h.listAllowlist},
+		{http.MethodPost, "/v1/admin/registrations/allowlist", adminauthz.ConfigWrite, h.addAllowlist},
+		{http.MethodDelete, "/v1/admin/registrations/allowlist/{email}", adminauthz.ConfigWrite, h.deleteAllowlist},
+		{http.MethodGet, "/v1/admin/oauth/clients", adminauthz.OAuthRead, h.oauthClients},
+		{http.MethodPatch, "/v1/admin/oauth/clients/{id}", adminauthz.OAuthApprove, h.updateOAuthStatus},
+		// Demandes d'accès API (permissions modulables).
+		{http.MethodGet, "/v1/admin/api-applicants", adminauthz.APIRead, h.apiApplicants},
+		{http.MethodPatch, "/v1/admin/api-applicants/{userID}", adminauthz.APIGrantsWrite, h.updateApiAccess},
+		{http.MethodPatch, "/v1/admin/api-applicants/{userID}/grants", adminauthz.APIGrantsWrite, h.updateApiGrants},
+		{http.MethodGet, "/v1/admin/api-access/modules", adminauthz.APIRead, h.apiAccessModules},
+		{http.MethodPatch, "/v1/admin/api-access/modules", adminauthz.APIGrantsWrite, h.updateApiAccessModules},
+
+		// Journal d'audit de la console.
+		{http.MethodGet, "/v1/admin/audit-log", adminauthz.AuditRead, h.auditLog},
+	}
+}
+
+// requireAuthenticated n'est qu'un contrôle d'AUTHENTIFICATION : il confirme
+// qu'un identifiant est présent dans le contexte, et rien de plus.
+//
+// Le rôle ne se vérifie PAS ici. Il se prouve par capacité sur chaque route
+// (internal/adminauthz, monté par Register), et la garde superadmin des
+// services (checkSuperadmin) reste en défense en profondeur. Ce découpage est
+// volontaire : un contrôle de rôle enfoui dans un helper auquel on peut
+// échapper est une convention, pas une garantie.
+func (h *Handler) requireAuthenticated(w http.ResponseWriter, r *http.Request) (string, bool) {
 	userID, ok := middleware.UserID(r.Context())
 	if !ok || userID == "" {
 		response.Unauthorized(w, "Authentification requise")
 		return "", false
 	}
 	return userID, true
+}
+
+// AdminIdentity est l'accès résolu de la personne connectée (page /admin/me).
+// Les deux listes sont TOUJOURS non nulles : l'interface les parcourt, et une
+// liste `null` la ferait crasher (leçon du crash « This page couldn't load »).
+type AdminIdentity struct {
+	UserID       string   `json:"userId"`
+	Roles        []string `json:"roles"`
+	Capabilities []string `json:"capabilities"`
+}
+
+// GET /v1/admin/me — rôles et capacités de l'appelant.
+//
+// La console s'en sert pour n'afficher que ce qui est permis (confort) ; le
+// serveur reste l'autorité : masquer un bouton n'autorise rien, et chaque route
+// revérifie la capacité de son côté.
+func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
+	userID, ok := h.requireAuthenticated(w, r)
+	if !ok {
+		return
+	}
+	var lookup adminauthz.Lookup
+	if h.console != nil {
+		lookup = h.console.Lookup()
+	}
+	if lookup == nil {
+		// Sans registre branché, on ne peut pas décrire un accès : refus
+		// explicite plutôt qu'une identité vide qui ferait croire à une
+		// absence de droits.
+		response.Error(w, http.StatusServiceUnavailable, "Registre de capacités non branché")
+		return
+	}
+	access, err := lookup.Access(r.Context(), userID)
+	if err != nil {
+		log.Printf("[admin] me: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, AdminIdentity{
+		UserID:       userID,
+		Roles:        access.RoleKeys(),
+		Capabilities: access.CapabilityKeys(),
+	})
 }
 
 func (h *Handler) handleErr(w http.ResponseWriter, err error) {
@@ -159,7 +253,7 @@ func (h *Handler) handleErr(w http.ResponseWriter, err error) {
 
 // GET /v1/admin/dashboard — compteurs globaux (réservé superadmin).
 func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -174,7 +268,7 @@ func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
 // GET /v1/admin/storage/usage — supervision du bucket images (superadmin).
 // Query : ?limit=20 (top consommateurs, max 100).
 func (h *Handler) storageUsage(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -189,7 +283,7 @@ func (h *Handler) storageUsage(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/admin/registrations/allowlist — invitations d'inscription.
 func (h *Handler) listAllowlist(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -204,7 +298,7 @@ func (h *Handler) listAllowlist(w http.ResponseWriter, r *http.Request) {
 // POST /v1/admin/registrations/allowlist — invite un email.
 // Body : { email, note? }.
 func (h *Handler) addAllowlist(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -231,7 +325,7 @@ func (h *Handler) addAllowlist(w http.ResponseWriter, r *http.Request) {
 // DELETE /v1/admin/registrations/allowlist/{email} — retire une invitation.
 // Le {email} d'URL est URL-encodé (encodeURIComponent côté front).
 func (h *Handler) deleteAllowlist(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -253,7 +347,7 @@ func (h *Handler) deleteAllowlist(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/admin/users — liste des utilisateurs (réservé superadmin).
 func (h *Handler) users(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -267,7 +361,7 @@ func (h *Handler) users(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/admin/users/{userID} — détail d'un utilisateur (réservé superadmin).
 func (h *Handler) userDetail(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -282,7 +376,7 @@ func (h *Handler) userDetail(w http.ResponseWriter, r *http.Request) {
 // GET /v1/admin/reports — file de modération (pending en premier).
 // Query : ?status=pending|resolved|dismissed&limit=50&offset=0
 func (h *Handler) reports(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -304,7 +398,7 @@ func (h *Handler) reports(w http.ResponseWriter, r *http.Request) {
 // PATCH /v1/admin/reports/{id} — clôture + action de modération.
 // Body : { "action": "dismiss|resolve|hide_post|hide_article|unhide_post|unhide_article|suspend_author", "note": "..." }
 func (h *Handler) resolveReport(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -328,7 +422,7 @@ func (h *Handler) resolveReport(w http.ResponseWriter, r *http.Request) {
 // Query : ?limit=50&offset=0. Chaque dossier = dernier verdict non trivial
 // d'un sujet (non expiré), avec le nombre de faits récents en contexte.
 func (h *Handler) abuseDecisions(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -348,7 +442,7 @@ func (h *Handler) abuseDecisions(w http.ResponseWriter, r *http.Request) {
 // `allow` = classé sans suite (faux positif mesuré) ; le reste = escalade
 // dont l'acte passe par les chemins de modération existants.
 func (h *Handler) resolveAbuseDecision(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -384,7 +478,7 @@ func (h *Handler) resolveAbuseDecision(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/admin/abuse/metrics — santé anti-abus (fiche 06 §11).
 func (h *Handler) abuseMetrics(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -400,7 +494,7 @@ func (h *Handler) abuseMetrics(w http.ResponseWriter, r *http.Request) {
 // GET /v1/admin/abuse/incidents — dossiers d'attaques (ouverts d'abord).
 // Query : ?status=open|contained|resolved|reopened&limit=50&offset=0
 func (h *Handler) abuseIncidents(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -418,7 +512,7 @@ func (h *Handler) abuseIncidents(w http.ResponseWriter, r *http.Request) {
 // Body : { "title": "Ferme de comptes contre ...", "kind": "account_farm",
 // "scope": "...", "impact": "..." }
 func (h *Handler) openAbuseIncident(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -449,7 +543,7 @@ func (h *Handler) openAbuseIncident(w http.ResponseWriter, r *http.Request) {
 // "impact": "...", "measure": "coupe-feu inscriptions engagé" } — la mesure
 // s'ajoute horodatée avec l'auteur, jamais écrasée.
 func (h *Handler) updateAbuseIncident(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -481,7 +575,7 @@ func (h *Handler) updateAbuseIncident(w http.ResponseWriter, r *http.Request) {
 // GET /v1/admin/abuse/appeals — file des recours (ouverts d'abord).
 // Query : ?status=open|under_review|decided&limit=50&offset=0
 func (h *Handler) abuseAppeals(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -497,7 +591,7 @@ func (h *Handler) abuseAppeals(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/admin/abuse/appeals/{id} — un recours avec ses messages.
 func (h *Handler) abuseAppealDetail(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -520,7 +614,7 @@ func (h *Handler) abuseAppealDetail(w http.ResponseWriter, r *http.Request) {
 // upheld = mesure confirmée (verdict humain + appealRef). L'ouverture n'a
 // jamais rien levé — seule cette décision tranche.
 func (h *Handler) decideAbuseAppeal(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -555,7 +649,7 @@ func (h *Handler) decideAbuseAppeal(w http.ResponseWriter, r *http.Request) {
 // GET /v1/admin/support/tickets — file (ouverts d'abord).
 // Query : ?status=open|under_review|closed&limit=50&offset=0
 func (h *Handler) supportTickets(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -571,7 +665,7 @@ func (h *Handler) supportTickets(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/admin/support/tickets/{id} — un dossier avec ses messages.
 func (h *Handler) supportTicketDetail(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -590,7 +684,7 @@ func (h *Handler) supportTicketDetail(w http.ResponseWriter, r *http.Request) {
 // POST /v1/admin/support/tickets/{id}/assign — prise en main (passe en
 // under_review). L'assignation à soi-même est tracée, pas refusée.
 func (h *Handler) assignSupportTicket(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -615,7 +709,7 @@ func (h *Handler) assignSupportTicket(w http.ResponseWriter, r *http.Request) {
 // Clore son propre dossier = 400 (conflit d'intérêts) ; clore ne lève ni
 // suspension ni permission (les actes passent par les chemins existants).
 func (h *Handler) updateSupportTicket(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -647,7 +741,7 @@ func (h *Handler) updateSupportTicket(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/admin/support/metrics — charge (compteurs, ancienneté, délais).
 func (h *Handler) supportMetrics(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -661,7 +755,7 @@ func (h *Handler) supportMetrics(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/admin/support/articles — tout (brouillons inclus pour la revue).
 func (h *Handler) supportArticles(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -678,7 +772,7 @@ func (h *Handler) supportArticles(w http.ResponseWriter, r *http.Request) {
 // POST /v1/admin/support/articles — crée un BROUILLON (publier = acte séparé).
 // Body : { slug, titleFr, titleEn, bodyFr, bodyEn, position? }.
 func (h *Handler) createSupportArticle(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -708,7 +802,7 @@ func (h *Handler) createSupportArticle(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/admin/support/articles/{id} — détail (brouillon inclus).
 func (h *Handler) supportArticleDetail(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -728,7 +822,7 @@ func (h *Handler) supportArticleDetail(w http.ResponseWriter, r *http.Request) {
 // published). Champs texte vides = inchangés ; published/position : pointeurs
 // (absent = inchangé — publier/dépublier est explicite).
 func (h *Handler) updateSupportArticle(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -763,7 +857,7 @@ func (h *Handler) updateSupportArticle(w http.ResponseWriter, r *http.Request) {
 // Body : { "emailPro": true|false }. Effet immédiat (lu en base à chaque
 // rendu, sans cache). Retourne { emailPro }.
 func (h *Handler) setPublicationEmailPro(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -789,7 +883,7 @@ func (h *Handler) setPublicationEmailPro(w http.ResponseWriter, r *http.Request)
 // GET /v1/admin/subscriptions/grants — octrois (plus récents d'abord).
 // Query : ?plan=pro|plus&effective=1&limit=50&offset=0
 func (h *Handler) subscriptionGrants(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -809,7 +903,7 @@ func (h *Handler) subscriptionGrants(w http.ResponseWriter, r *http.Request) {
 // startsAt?: RFC3339 (vide = maintenant), endsAt?: RFC3339 (vide = sans fin),
 // note? }. Début futur = programmé.
 func (h *Handler) grantSubscription(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -841,7 +935,7 @@ func (h *Handler) grantSubscription(w http.ResponseWriter, r *http.Request) {
 // POST /v1/admin/subscriptions/grants/{id}/revoke — fin immédiate
 // (historique conservé, idempotent).
 func (h *Handler) revokeSubscriptionGrant(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -859,7 +953,7 @@ func (h *Handler) revokeSubscriptionGrant(w http.ResponseWriter, r *http.Request
 
 // PATCH /v1/admin/users/{userID} — modération (réservé superadmin).
 func (h *Handler) updateModeration(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -882,7 +976,7 @@ func (h *Handler) updateModeration(w http.ResponseWriter, r *http.Request) {
 // GoTrue — le périmètre large est assumé, journalisé, et communiqué à
 // l'utilisateur concerné (voir docs/ACCOUNT_RECOVERY.md).
 func (h *Handler) revokeUserSessions(w http.ResponseWriter, r *http.Request) {
-	staffID, ok := h.requireSuperadmin(w, r)
+	staffID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -916,7 +1010,7 @@ func (h *Handler) revokeUserSessions(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/admin/widgets — articles + tendances + promos.
 func (h *Handler) widgets(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -930,7 +1024,7 @@ func (h *Handler) widgets(w http.ResponseWriter, r *http.Request) {
 
 // POST /v1/admin/widgets/featured — bascule l'article à la une.
 func (h *Handler) setFeatured(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -951,7 +1045,7 @@ func (h *Handler) setFeatured(w http.ResponseWriter, r *http.Request) {
 
 // POST /v1/admin/widgets/trends — ajoute / met à jour une tendance.
 func (h *Handler) addTrend(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -973,7 +1067,7 @@ func (h *Handler) addTrend(w http.ResponseWriter, r *http.Request) {
 
 // DELETE /v1/admin/widgets/trends/{id}
 func (h *Handler) deleteTrend(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -986,7 +1080,7 @@ func (h *Handler) deleteTrend(w http.ResponseWriter, r *http.Request) {
 
 // PATCH /v1/admin/widgets/trends/{id} — met à jour le volume.
 func (h *Handler) updateTrend(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -1006,7 +1100,7 @@ func (h *Handler) updateTrend(w http.ResponseWriter, r *http.Request) {
 
 // POST /v1/admin/widgets/promos — crée / met à jour une promo.
 func (h *Handler) savePromo(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -1025,7 +1119,7 @@ func (h *Handler) savePromo(w http.ResponseWriter, r *http.Request) {
 
 // DELETE /v1/admin/widgets/promos/{id}
 func (h *Handler) deletePromo(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -1038,7 +1132,7 @@ func (h *Handler) deletePromo(w http.ResponseWriter, r *http.Request) {
 
 // PATCH /v1/admin/widgets/promos/{id} — active / désactive.
 func (h *Handler) togglePromo(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -1060,7 +1154,7 @@ func (h *Handler) togglePromo(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/admin/config?keys=a,b,c — liste des configs (toutes si keys absent).
 func (h *Handler) configs(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -1083,7 +1177,7 @@ func (h *Handler) configs(w http.ResponseWriter, r *http.Request) {
 
 // PUT /v1/admin/config — upsert d'une ou plusieurs configs.
 func (h *Handler) upsertConfigs(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -1106,7 +1200,7 @@ func (h *Handler) upsertConfigs(w http.ResponseWriter, r *http.Request) {
 // PUT /v1/admin/reserved-identifiers/{kind} — replaces the admin-managed
 // username/subdomain denylist. Values are normalized server-side.
 func (h *Handler) updateReservedIdentifiers(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -1126,7 +1220,7 @@ func (h *Handler) updateReservedIdentifiers(w http.ResponseWriter, r *http.Reque
 
 // DELETE /v1/admin/config/{key}
 func (h *Handler) deleteConfig(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -1141,7 +1235,7 @@ func (h *Handler) deleteConfig(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/admin/oauth/clients — applications OAuth + propriétaires.
 func (h *Handler) oauthClients(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -1155,7 +1249,7 @@ func (h *Handler) oauthClients(w http.ResponseWriter, r *http.Request) {
 
 // PATCH /v1/admin/oauth/clients/{id} — approuve / rejette / révoque.
 func (h *Handler) updateOAuthStatus(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -1183,7 +1277,7 @@ func (h *Handler) updateOAuthStatus(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/admin/api-applicants
 func (h *Handler) apiApplicants(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -1198,7 +1292,7 @@ func (h *Handler) apiApplicants(w http.ResponseWriter, r *http.Request) {
 // PATCH /v1/admin/api-applicants/{userID} — approuve / rejette / révoque,
 // avec les permissions (grants) choisies par l'admin à l'approbation.
 func (h *Handler) updateApiAccess(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -1226,7 +1320,7 @@ func (h *Handler) updateApiAccess(w http.ResponseWriter, r *http.Request) {
 // PATCH /v1/admin/api-applicants/{userID}/grants — ajuste les permissions d'un
 // créateur sans changer son statut (l'admin se réserve le droit).
 func (h *Handler) updateApiGrants(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -1246,7 +1340,7 @@ func (h *Handler) updateApiGrants(w http.ResponseWriter, r *http.Request) {
 
 // GET /v1/admin/api-access/modules — registre des permissions modulables.
 func (h *Handler) apiAccessModules(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -1261,7 +1355,7 @@ func (h *Handler) apiAccessModules(w http.ResponseWriter, r *http.Request) {
 // GET /v1/admin/audit-log — journal des actions sensibles (qui, quand, quoi).
 // Query : ?limit=50 (défaut 50, max 200).
 func (h *Handler) auditLog(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -1277,7 +1371,7 @@ func (h *Handler) auditLog(w http.ResponseWriter, r *http.Request) {
 // PATCH /v1/admin/api-access/modules — active / désactive les modules
 // accordables à l'échelle de la plateforme.
 func (h *Handler) updateApiAccessModules(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -1299,7 +1393,7 @@ func (h *Handler) updateApiAccessModules(w http.ResponseWriter, r *http.Request)
 
 // GET /v1/admin/deliveries — compteurs + 50 dernières livraisons.
 func (h *Handler) deliveries(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -1318,7 +1412,7 @@ func (h *Handler) deliveries(w http.ResponseWriter, r *http.Request) {
 
 // POST /v1/admin/deliveries/{id}/retry — relance une livraison en échec.
 func (h *Handler) retryDelivery(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireSuperadmin(w, r)
+	userID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}

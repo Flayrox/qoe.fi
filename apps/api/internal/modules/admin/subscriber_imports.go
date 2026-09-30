@@ -1,10 +1,11 @@
 package admin
 
-// ── Revue staff des imports d'abonnés (console superadmin) ──────────────
-// Les routes vivent ici pour réutiliser le garde superadmin déjà en place
-// (`requireSuperadmin`) plutôt que d'en écrire un second : deux contrôles
-// d'accès pour la même action finiraient par diverger. La logique métier, elle,
-// reste dans le module `imports` — ce fichier n'est qu'une façade HTTP.
+// ── Revue staff des imports d'abonnés (console d'administration) ───────
+// Les routes vivent ici et sont déclarées sur la console partagée avec la
+// capacité qu'elles exigent : lire la file demande admin.imports.read, juger un
+// lot demande admin.imports.review. Un second contrôle d'accès local finirait
+// par diverger du registre. La logique métier, elle, reste dans le module
+// `imports` — ce fichier n'est qu'une façade HTTP.
 
 import (
 	"encoding/json"
@@ -13,6 +14,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/qoefi/api/internal/adminauthz"
 	"github.com/qoefi/api/internal/modules/imports"
 	"github.com/qoefi/api/internal/response"
 )
@@ -21,32 +23,35 @@ import (
 // SetFlags : la console admin ne construit pas ce service, elle l'expose.
 func (h *Handler) SetSubscriberImports(svc *imports.Service) { h.subscriberImports = svc }
 
-// registerSubscriberImports enregistre les routes de revue quand le service
-// est branché. Sans lui, aucune route n'est créée : une console mal câblée
-// n'expose pas une revue fantôme.
-func (h *Handler) registerSubscriberImports(r chi.Router) {
+// registerSubscriberImports déclare et monte les routes de revue quand le
+// service est branché. Sans lui, aucune route n'est créée : une console mal
+// câblée n'expose pas une revue fantôme. La lecture (file, dossier, suivi des
+// vagues) demande admin.imports.read ; tout acte sur un lot (revendiquer,
+// juger, ouvrir ou purger une vague) demande admin.imports.review.
+func (h *Handler) registerSubscriberImports() {
 	if h.subscriberImports == nil {
 		return
 	}
-	r.Get("/v1/admin/import/subscribers", h.subscriberImportQueue)
-	r.Get("/v1/admin/import/subscribers/{id}", h.subscriberImportReview)
-	r.Post("/v1/admin/import/subscribers/{id}/claim", h.subscriberImportClaim)
-	r.Post("/v1/admin/import/subscribers/{id}/decide", h.subscriberImportDecide)
+	c := h.console
+	c.Get("/v1/admin/import/subscribers", adminauthz.ImportsRead, h.subscriberImportQueue)
+	c.Get("/v1/admin/import/subscribers/{id}", adminauthz.ImportsRead, h.subscriberImportReview)
+	c.Post("/v1/admin/import/subscribers/{id}/claim", adminauthz.ImportsReview, h.subscriberImportClaim)
+	c.Post("/v1/admin/import/subscribers/{id}/decide", adminauthz.ImportsReview, h.subscriberImportDecide)
 	// Branche de reconfirmation : ouvrir une vague, suivre les vagues, purger
-	// les demandes échues. Mêmes gardes superadmin, même service.
-	r.Post("/v1/admin/import/subscribers/{id}/reconfirm", h.subscriberImportReconfirm)
-	r.Get("/v1/admin/import/subscribers/{id}/reconfirm", h.subscriberImportReconfirmStatus)
-	r.Post("/v1/admin/import/subscribers/{id}/reconfirm/purge", h.subscriberImportReconfirmPurge)
+	// les demandes échues. Même capacité que le jugement d'un lot, même service.
+	c.Post("/v1/admin/import/subscribers/{id}/reconfirm", adminauthz.ImportsReview, h.subscriberImportReconfirm)
+	c.Get("/v1/admin/import/subscribers/{id}/reconfirm", adminauthz.ImportsRead, h.subscriberImportReconfirmStatus)
+	c.Post("/v1/admin/import/subscribers/{id}/reconfirm/purge", adminauthz.ImportsReview, h.subscriberImportReconfirmPurge)
 	// Envoi encadré : ouvrir une vague, suivre les vagues, annuler une vague.
-	// Mêmes gardes superadmin, même service — la console n'est qu'une façade.
-	r.Post("/v1/admin/import/subscribers/{id}/send-wave", h.subscriberImportSendWave)
-	r.Get("/v1/admin/import/subscribers/{id}/send-waves", h.subscriberImportSendWaves)
-	r.Post("/v1/admin/import/subscribers/{id}/send-waves/{waveId}/cancel", h.subscriberImportSendWaveCancel)
+	// Annuler une vague engage des envois, donc la capacité de revue.
+	c.Post("/v1/admin/import/subscribers/{id}/send-wave", adminauthz.ImportsReview, h.subscriberImportSendWave)
+	c.Get("/v1/admin/import/subscribers/{id}/send-waves", adminauthz.ImportsRead, h.subscriberImportSendWaves)
+	c.Post("/v1/admin/import/subscribers/{id}/send-waves/{waveId}/cancel", adminauthz.ImportsReview, h.subscriberImportSendWaveCancel)
 }
 
 // GET /v1/admin/import/subscribers — file de revue, plus anciens dépôts d'abord.
 func (h *Handler) subscriberImportQueue(w http.ResponseWriter, r *http.Request) {
-	if _, ok := h.requireSuperadmin(w, r); !ok {
+	if _, ok := h.requireAuthenticated(w, r); !ok {
 		return
 	}
 	batches, err := h.subscriberImports.ListSubscriberImportQueue(r.Context())
@@ -63,7 +68,7 @@ func (h *Handler) subscriberImportQueue(w http.ResponseWriter, r *http.Request) 
 // signaux de risque (historique de la publication, réimport du même fichier,
 // doublons entre lots, vérification du demandeur).
 func (h *Handler) subscriberImportReview(w http.ResponseWriter, r *http.Request) {
-	if _, ok := h.requireSuperadmin(w, r); !ok {
+	if _, ok := h.requireAuthenticated(w, r); !ok {
 		return
 	}
 	review, err := h.subscriberImports.ReviewSubscriberImport(r.Context(), chi.URLParam(r, "id"))
@@ -83,7 +88,7 @@ func (h *Handler) subscriberImportReview(w http.ResponseWriter, r *http.Request)
 // Idempotent : deux membres du staff qui ouvrent le même dossier ne se
 // marchent pas dessus.
 func (h *Handler) subscriberImportClaim(w http.ResponseWriter, r *http.Request) {
-	staffID, ok := h.requireSuperadmin(w, r)
+	staffID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -107,7 +112,7 @@ func (h *Handler) subscriberImportClaim(w http.ResponseWriter, r *http.Request) 
 // qu'un créateur ne puisse pas remplacer le contenu après approbation et
 // hériter de l'accord.
 func (h *Handler) subscriberImportDecide(w http.ResponseWriter, r *http.Request) {
-	staffID, ok := h.requireSuperadmin(w, r)
+	staffID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -137,7 +142,7 @@ func (h *Handler) subscriberImportDecide(w http.ResponseWriter, r *http.Request)
 // Idempotent par lot : une vague active existante est renvoyée au lieu d'en
 // créer une seconde qui doublerait les envois.
 func (h *Handler) subscriberImportReconfirm(w http.ResponseWriter, r *http.Request) {
-	staffID, ok := h.requireSuperadmin(w, r)
+	staffID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -169,7 +174,7 @@ func (h *Handler) subscriberImportReconfirm(w http.ResponseWriter, r *http.Reque
 // GET /v1/admin/import/subscribers/{id}/reconfirm — vagues du lot, la plus
 // récente d'abord (suivi d'envoi, confirmations, expirations).
 func (h *Handler) subscriberImportReconfirmStatus(w http.ResponseWriter, r *http.Request) {
-	if _, ok := h.requireSuperadmin(w, r); !ok {
+	if _, ok := h.requireAuthenticated(w, r); !ok {
 		return
 	}
 	waves, err := h.subscriberImports.ListReconfirmWaves(r.Context(), chi.URLParam(r, "id"))
@@ -185,7 +190,7 @@ func (h *Handler) subscriberImportReconfirmStatus(w http.ResponseWriter, r *http
 // échues et efface les jetons des abonnés restés non confirmés. Rejouable sans
 // effet. La non-confirmation n'est pas une opposition : aucune suppression.
 func (h *Handler) subscriberImportReconfirmPurge(w http.ResponseWriter, r *http.Request) {
-	staffID, ok := h.requireSuperadmin(w, r)
+	staffID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -203,7 +208,7 @@ func (h *Handler) subscriberImportReconfirmPurge(w http.ResponseWriter, r *http.
 // borné par le service). Idempotent par lot : une vague active existante est
 // renvoyée au lieu d'en créer une seconde qui doublerait les envois.
 func (h *Handler) subscriberImportSendWave(w http.ResponseWriter, r *http.Request) {
-	staffID, ok := h.requireSuperadmin(w, r)
+	staffID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -235,7 +240,7 @@ func (h *Handler) subscriberImportSendWave(w http.ResponseWriter, r *http.Reques
 // GET /v1/admin/import/subscribers/{id}/send-waves — vagues d'envoi du lot,
 // la plus récente d'abord (suivi, compteurs de qualité, budget consommé).
 func (h *Handler) subscriberImportSendWaves(w http.ResponseWriter, r *http.Request) {
-	if _, ok := h.requireSuperadmin(w, r); !ok {
+	if _, ok := h.requireAuthenticated(w, r); !ok {
 		return
 	}
 	waves, err := h.subscriberImports.ListSendWaves(r.Context(), chi.URLParam(r, "id"))
@@ -251,7 +256,7 @@ func (h *Handler) subscriberImportSendWaves(w http.ResponseWriter, r *http.Reque
 // une vague : les livraisons en attente sont écartées avec motif, jamais
 // envoyées plus tard par reprise.
 func (h *Handler) subscriberImportSendWaveCancel(w http.ResponseWriter, r *http.Request) {
-	staffID, ok := h.requireSuperadmin(w, r)
+	staffID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}

@@ -157,6 +157,10 @@ jobs:
           # Newsletters (2026-09) : pipeline par lots rate-limité (campagnes +
           # releases d'articles) — anti-spam et synchro release.
           check "internal/modules/newsletters" 80
+          # RBAC console admin — Phase 0 (2026-09) : capacités, résolution des
+          # rôles (colonne legacy + grants), expiration et cache TTL, garde
+          # HTTP. Tests live Postgres (Testcontainers) — lancés à 90%.
+          check "internal/adminauthz" 90
         env:
           TESTCONTAINERS_RYUK_DISABLED: 'true'
 
