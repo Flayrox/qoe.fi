@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/qoefi/api/internal/middleware"
@@ -122,9 +123,17 @@ func TestAdminUsers_ListDetailModerate(t *testing.T) {
 		t.Fatalf("user detail = %d %s", w.Code, w.Body.String())
 	}
 
-	// Modération : shadowban persisté.
+	// Modération : shadowban persisté. Règle produit (fiche 06 §6) : motif et
+	// échéance future obligatoires — les oublier est une saisie fautive (400),
+	// jamais une panne serveur (5xx).
 	w = do(r, http.MethodPatch, "/v1/admin/users/"+adminReaderID, adminAdminID,
 		`{"isShadowbanned":true}`)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("shadowban sans motif = %d %s, attendu 400", w.Code, w.Body.String())
+	}
+	until := time.Now().Add(24 * time.Hour).UTC().Format(time.RFC3339)
+	w = do(r, http.MethodPatch, "/v1/admin/users/"+adminReaderID, adminAdminID,
+		`{"isShadowbanned":true,"shadowbanReason":"test console","shadowbanUntil":"`+until+`"}`)
 	if w.Code != http.StatusOK {
 		t.Fatalf("moderation = %d %s", w.Code, w.Body.String())
 	}

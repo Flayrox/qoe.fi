@@ -13,12 +13,27 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/hibiken/asynq"
 
 	"github.com/qoefi/api/internal/queue"
+	"github.com/qoefi/api/internal/subscriptions"
 	"github.com/qoefi/api/internal/testutil"
 )
+
+// grantProPub octroie le palier Pro à une publication : la personnalisation
+// email (sujet, accent, expéditeur) est Pro — sans octroi, ApplyTier la retire
+// au rendu et le worker retombe sur les défauts plateforme.
+func grantProPub(t *testing.T, ctx context.Context, pubID string) {
+	t.Helper()
+	now := time.Now()
+	if _, err := subscriptions.GrantPlan(ctx, testutil.MustPool(t),
+		subscriptions.SubjectPublication, pubID, subscriptions.PlanPro, now, nil,
+		"staff-test", "test email pro", now); err != nil {
+		t.Fatalf("octroi pro: %v", err)
+	}
+}
 
 // seedWelcomeFixture crée une publication + un abonné CONFIRMÉ (éventuellement
 // avec réglages email et locale).
@@ -115,11 +130,12 @@ func TestWelcomeEmailWorker_CreatorCustomizationWins(t *testing.T) {
 	ctx := context.Background()
 	settings := `{
 		"subjects": {"welcome": "Ravi de vous rejoindre !"},
-		"welcomeBodyFr": "Corps personnalisé du créateur.",
+		"welcomeBody": "Corps personnalisé du créateur.",
 		"accentColor": "#7c3aed",
 		"fromName": "Léa"
 	}`
 	pubID, email := seedWelcomeFixture(t, ctx, "custom@test.dev", "fr", settings)
+	grantProPub(t, ctx, pubID)
 
 	fake := &fakeProvider{}
 	runWelcome(t, ctx, fake, email, pubID)

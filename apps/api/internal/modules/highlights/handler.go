@@ -261,7 +261,12 @@ func (h *Handler) myHighlightsCount(w http.ResponseWriter, r *http.Request) {
 	// Compteur EXACT en SQL (fini le hack len(MyHighlights(1000)) faux
 	// au-delà de 1000) + plafond + statut Plus : un seul appel pour
 	// l'UI (compteur « X/50 » et upsell). `limit: -1` = illimité.
-	used, limit, plus := h.svc.HighlightQuota(r.Context(), userID)
+	used, limit, plus, err := h.svc.HighlightQuota(r.Context(), userID)
+	if err != nil {
+		log.Printf("[highlights] quota: %v", err)
+		response.Internal(w)
+		return
+	}
 	response.OK(w, map[string]any{"count": used, "limit": limit, "plus": plus})
 }
 

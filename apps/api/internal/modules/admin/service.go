@@ -5,6 +5,7 @@ package admin
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -17,6 +18,11 @@ import (
 )
 
 var errForbidden = errors.New("réservé au superadmin")
+
+// errInvalidModeration : entrée de modération refusée par une règle métier
+// (shadowban sans motif ni échéance, par exemple). Sentinel pour que le
+// handler réponde 400 — une saisie invalide n'est pas une panne serveur.
+var errInvalidModeration = errors.New("modération invalide")
 
 // Service porte les opérations de la console admin.
 type Service struct {
@@ -269,11 +275,11 @@ func (s *Service) UpdateModeration(ctx context.Context, userID, targetID string,
 	shadowbanReviewAt := cur.ShadowbanReviewAt
 	if in.IsShadowbanned != nil && *in.IsShadowbanned && !cur.IsShadowbanned {
 		if strings.TrimSpace(strOrNil(in.ShadowbanReason)) == "" {
-			return nil, errors.New("un shadowban exige un motif (mesure punitive invisible)")
+			return nil, fmt.Errorf("%w : un shadowban exige un motif (mesure punitive invisible)", errInvalidModeration)
 		}
 		until, err := parseShadowbanTime(in.ShadowbanUntil)
 		if err != nil || until.IsZero() || !until.After(time.Now()) {
-			return nil, errors.New("un shadowban exige une échéance future (levée automatique)")
+			return nil, fmt.Errorf("%w : un shadowban exige une échéance future (levée automatique)", errInvalidModeration)
 		}
 		shadowbanReason = pgtype.Text{String: strings.TrimSpace(strOrNil(in.ShadowbanReason)), Valid: true}
 		shadowbanUntil = pgtype.Timestamp{Time: until, Valid: true}

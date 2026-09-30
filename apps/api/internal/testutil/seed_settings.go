@@ -31,10 +31,14 @@ func SeedSettings(ctx context.Context, pool *pgxpool.Pool) (*SettingsFixtures, e
 		return nil, fmt.Errorf("truncate: %w", err)
 	}
 
-	// Publication personnelle de l'owner (aucun subdomain → libre).
+	// Publication personnelle de l'owner (aucun subdomain → libre). Nom et
+	// slug alignés sur le compte : le trigger 00028
+	// (sync_user_to_personal_publication) les réécrit depuis User.name/
+	// username à l'insertion du propriétaire — le seed doit dire la vérité
+	// sur ce que la base contient réellement.
 	if err := pool.QueryRow(ctx,
 		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
-		 VALUES ('pub_set_own', 'PERSONAL', 'Owner Blog', 'owner-blog', now(), now())
+		 VALUES ('pub_set_own', 'PERSONAL', 'Owner Set', 'ownerset', now(), now())
 		 RETURNING id`,
 	).Scan(&fx.PubID); err != nil {
 		return nil, fmt.Errorf("publication owner: %w", err)

@@ -247,13 +247,16 @@ func (s *Service) CreateCampaign(ctx context.Context, staffID string, in StaffCa
 		return StaffCampaignDTO{}, err
 	}
 	id := uuid.NewString()
+	// "bodyText" est NOT NULL DEFAULT '' : le texte brut (version sans HTML)
+	// reste une chaîne vide tant qu'aucune version texte n'est fournie —
+	// NULLIF en ferait un NULL et violerait la contrainte.
 	if _, err := s.pool.Exec(ctx, `
 		INSERT INTO "StaffCampaign" (
 		    "id", "type", "subject", "bodyHtml", "bodyText",
 		    "subjectEn", "bodyHtmlEn", "bodyTextEn",
 		    "audienceType", "audiencePublicationId",
 		    "status", "draftedBy", "scheduledAt", "createdAt", "updatedAt"
-		) VALUES ($1, $2, $3, $4, NULLIF($5, ''), NULLIF($6, ''), NULLIF($7, ''), NULLIF($8, ''),
+		) VALUES ($1, $2, $3, $4, $5, NULLIF($6, ''), NULLIF($7, ''), NULLIF($8, ''),
 		          $9, NULLIF($10, ''), 'draft', $11, NULLIF($12, '')::timestamptz, now(), now())`,
 		id, in.Type, strings.TrimSpace(in.Subject), in.BodyHTML,
 		strings.TrimSpace(in.BodyText), strings.TrimSpace(in.SubjectEn),
@@ -294,7 +297,7 @@ func (s *Service) UpdateDraft(ctx context.Context, staffID, id string, in StaffC
 	}
 	if _, err := s.pool.Exec(ctx, `
 		UPDATE "StaffCampaign"
-		SET "type" = $2, "subject" = $3, "bodyHtml" = $4, "bodyText" = NULLIF($5, ''),
+		SET "type" = $2, "subject" = $3, "bodyHtml" = $4, "bodyText" = $5,
 		    "subjectEn" = NULLIF($6, ''), "bodyHtmlEn" = NULLIF($7, ''), "bodyTextEn" = NULLIF($8, ''),
 		    "audienceType" = $9, "audiencePublicationId" = NULLIF($10, ''),
 		    "scheduledAt" = NULLIF($11, '')::timestamptz, "updatedAt" = now()

@@ -139,17 +139,19 @@ func TestP0SeededTenantPublicationContract(t *testing.T) {
 	if err != nil {
 		t.Fatalf("seed settings: %v", err)
 	}
+	// Slug réel de la publication personnelle : celui du compte propriétaire
+	// (le trigger 00028 réécrit Publication.name/slug depuis User).
 	if _, err := poolTest.Exec(context.Background(),
-		`UPDATE "Publication" SET subdomain = 'owner-blog' WHERE id = $1`, fx.PubID); err != nil {
+		`UPDATE "Publication" SET subdomain = 'ownerset' WHERE id = $1`, fx.PubID); err != nil {
 		t.Fatalf("configure tenant domain: %v", err)
 	}
 	r := testRouter(t)
 
-	w, body := doReq(t, r, http.MethodGet, "/v1/publications/by-domain/owner-blog", "", nil)
+	w, body := doReq(t, r, http.MethodGet, "/v1/publications/by-domain/ownerset", "", nil)
 	if w.Code != http.StatusOK {
 		t.Fatalf("publication = %d, body=%s", w.Code, w.Body.String())
 	}
-	if body["slug"] != "owner-blog" {
+	if body["slug"] != "ownerset" {
 		t.Fatalf("slug=%v, body=%s", body["slug"], w.Body.String())
 	}
 	if body["id"] != fx.PubID {

@@ -16,8 +16,10 @@ import (
 // tables légales historiques sont déjà nettoyées par seedUsers).
 func cleanConsentTables(t *testing.T, ctx context.Context) {
 	t.Helper()
+	// Acceptations et refus inclus : chaque test part d'un historique vierge
+	// (sinon les compteurs voient les lignes laissées par le test précédent).
 	if _, err := poolTest.Exec(ctx,
-		`TRUNCATE TABLE legal_notice_delivery, legal_notice, cookie_consent_record CASCADE`); err != nil {
+		`TRUNCATE TABLE legal_notice_delivery, legal_notice, cookie_consent_record, legal_acceptance, legal_refusal CASCADE`); err != nil {
 		t.Fatalf("truncate consent tables: %v", err)
 	}
 }

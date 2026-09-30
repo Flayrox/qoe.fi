@@ -23,10 +23,12 @@ package legal
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	db "github.com/qoefi/api/internal/database"
 )
 
@@ -259,7 +261,11 @@ func (s *Service) DeclineBatch(ctx context.Context, userID string, in BatchDecli
 			Locale:     doc.Locale,
 			Source:     source,
 		}); err != nil {
-			return out, err
+			// ON CONFLICT DO NOTHING : un second refus de la même version ne
+			// renvoie aucune ligne — c'est un succès idempotent, pas une panne.
+			if !errors.Is(err, pgx.ErrNoRows) {
+				return out, err
+			}
 		}
 		s.audit(ctx, userID, "legal.decline", doc.ID, map[string]any{
 			"slug": doc.Slug, "version": doc.Version, "locale": doc.Locale, "source": source,

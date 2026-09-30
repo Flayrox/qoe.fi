@@ -80,9 +80,11 @@ func TestValidCampaignAudience(t *testing.T) {
 
 func seedCampaignPub(t *testing.T, ctx context.Context, pubID string) {
 	t.Helper()
+	// Slug unique par publication : un slug fixe ferait échouer la seconde
+	// publication sur l'unicité de Publication.slug (test 1 puis test 2).
 	if _, err := poolTest.Exec(ctx,
 		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
-		 VALUES ($1, 'PERSONAL', 'Campagne Test', 'campagne-test', now(), now())
+		 VALUES ($1, 'PERSONAL', 'Campagne Test', 'campagne-test-' || $1, now(), now())
 		 ON CONFLICT (id) DO NOTHING`, pubID); err != nil {
 		t.Fatalf("publication: %v", err)
 	}

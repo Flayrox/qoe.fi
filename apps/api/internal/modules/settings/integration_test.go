@@ -85,7 +85,9 @@ func TestGetPublicationSettings(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetPublicationSettings: %v", err)
 	}
-	if pub.Name != "Owner Blog" || pub.Slug != "owner-blog" {
+	// Nom/slug de la publication personnelle = ceux du compte propriétaire
+	// (trigger 00028 : sync_user_to_personal_publication).
+	if pub.Name != "Owner Set" || pub.Slug != "ownerset" {
 		t.Fatalf("pub = %+v", pub)
 	}
 	if pub.User == nil || pub.User.ID != fx.OwnerID || pub.User.AdvancedSettingsMode {

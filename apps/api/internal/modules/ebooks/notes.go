@@ -96,11 +96,14 @@ func (s *Service) AddNote(ctx context.Context, userID, ebookID string, in NoteIn
 	if userID == "" {
 		return Note{}, ErrEbookNotFound
 	}
-	in, err := normalizeNote(in)
+	// Existence d'abord : un livre inexistant est un 404 même si le corps
+	// serait refusé (400) — la ressource prime sur la validation du contenu,
+	// comme pour GET/PATCH/DELETE (jamais de fuite d'existence).
+	count, err := s.chapterCount(ctx, userID, ebookID)
 	if err != nil {
 		return Note{}, err
 	}
-	count, err := s.chapterCount(ctx, userID, ebookID)
+	in, err = normalizeNote(in)
 	if err != nil {
 		return Note{}, err
 	}
