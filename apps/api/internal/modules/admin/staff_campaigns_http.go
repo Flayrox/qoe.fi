@@ -1,10 +1,10 @@
 package admin
 
-// ── Routes HTTP du centre de campagnes (console superadmin) ─────────────
-// Façade fine sur le service : chaque handler vérifie le superadmin (le
-// groupe chi est déjà protégé, mais la vérification explicite par route évite
-// qu'un futur déplacement de route n'ouvre une voie sans garde).
-// Erreurs métier mappées en codes exploitables, jamais de 500 muette.
+// ── Routes HTTP du centre de campagnes (console d'administration) ─────
+// Façade fine sur le service : chaque route est déclarée sur la console avec
+// la capacité qu'elle exige (admin.campaigns.read|write), donc le droit est
+// prouvé par construction et non par un helper local. Erreurs métier mappées
+// en codes exploitables, jamais de 500 muette.
 
 import (
 	"encoding/json"
@@ -13,23 +13,29 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/qoefi/api/internal/adminauthz"
 	"github.com/qoefi/api/internal/response"
 )
 
-func (h *Handler) registerStaffCampaigns(r chi.Router) {
-	r.Get("/v1/admin/campaigns", h.listCampaigns)
-	r.Post("/v1/admin/campaigns", h.createCampaign)
-	r.Get("/v1/admin/campaigns/{id}", h.getCampaign)
-	r.Patch("/v1/admin/campaigns/{id}", h.updateCampaign)
-	r.Post("/v1/admin/campaigns/{id}/submit", h.submitCampaign)
-	r.Post("/v1/admin/campaigns/{id}/approve", h.approveCampaign)
-	r.Post("/v1/admin/campaigns/{id}/start", h.startCampaign)
-	r.Post("/v1/admin/campaigns/{id}/pause", h.pauseCampaign)
-	r.Post("/v1/admin/campaigns/{id}/cancel", h.cancelCampaign)
+// registerStaffCampaigns déclare et monte les routes du centre de campagnes
+// sur la console : lire une campagne exige admin.campaigns.read, la créer ou
+// la faire avancer exige admin.campaigns.write. Le rôle est donc prouvé par
+// route, sans dépendre d'un helper local.
+func (h *Handler) registerStaffCampaigns() {
+	c := h.console
+	c.Get("/v1/admin/campaigns", adminauthz.CampaignsRead, h.listCampaigns)
+	c.Post("/v1/admin/campaigns", adminauthz.CampaignsWrite, h.createCampaign)
+	c.Get("/v1/admin/campaigns/{id}", adminauthz.CampaignsRead, h.getCampaign)
+	c.Patch("/v1/admin/campaigns/{id}", adminauthz.CampaignsWrite, h.updateCampaign)
+	c.Post("/v1/admin/campaigns/{id}/submit", adminauthz.CampaignsWrite, h.submitCampaign)
+	c.Post("/v1/admin/campaigns/{id}/approve", adminauthz.CampaignsWrite, h.approveCampaign)
+	c.Post("/v1/admin/campaigns/{id}/start", adminauthz.CampaignsWrite, h.startCampaign)
+	c.Post("/v1/admin/campaigns/{id}/pause", adminauthz.CampaignsWrite, h.pauseCampaign)
+	c.Post("/v1/admin/campaigns/{id}/cancel", adminauthz.CampaignsWrite, h.cancelCampaign)
 }
 
 func (h *Handler) listCampaigns(w http.ResponseWriter, r *http.Request) {
-	if _, ok := h.requireSuperadmin(w, r); !ok {
+	if _, ok := h.requireAuthenticated(w, r); !ok {
 		return
 	}
 	items, err := h.svc.ListCampaigns(r.Context(), 50)
@@ -42,7 +48,7 @@ func (h *Handler) listCampaigns(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) createCampaign(w http.ResponseWriter, r *http.Request) {
-	staffID, ok := h.requireSuperadmin(w, r)
+	staffID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -60,7 +66,7 @@ func (h *Handler) createCampaign(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getCampaign(w http.ResponseWriter, r *http.Request) {
-	if _, ok := h.requireSuperadmin(w, r); !ok {
+	if _, ok := h.requireAuthenticated(w, r); !ok {
 		return
 	}
 	dto, err := h.svc.GetCampaign(r.Context(), chi.URLParam(r, "id"))
@@ -77,7 +83,7 @@ func (h *Handler) getCampaign(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) updateCampaign(w http.ResponseWriter, r *http.Request) {
-	staffID, ok := h.requireSuperadmin(w, r)
+	staffID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -95,7 +101,7 @@ func (h *Handler) updateCampaign(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) submitCampaign(w http.ResponseWriter, r *http.Request) {
-	staffID, ok := h.requireSuperadmin(w, r)
+	staffID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -108,7 +114,7 @@ func (h *Handler) submitCampaign(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) approveCampaign(w http.ResponseWriter, r *http.Request) {
-	staffID, ok := h.requireSuperadmin(w, r)
+	staffID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -121,7 +127,7 @@ func (h *Handler) approveCampaign(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) startCampaign(w http.ResponseWriter, r *http.Request) {
-	staffID, ok := h.requireSuperadmin(w, r)
+	staffID, ok := h.requireAuthenticated(w, r)
 	if !ok {
 		return
 	}
@@ -134,7 +140,7 @@ func (h *Handler) startCampaign(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) pauseCampaign(w http.ResponseWriter, r *http.Request) {
-	if _, ok := h.requireSuperadmin(w, r); !ok {
+	if _, ok := h.requireAuthenticated(w, r); !ok {
 		return
 	}
 	if err := h.svc.PauseCampaign(r.Context(), chi.URLParam(r, "id")); err != nil {
@@ -145,7 +151,7 @@ func (h *Handler) pauseCampaign(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) cancelCampaign(w http.ResponseWriter, r *http.Request) {
-	if _, ok := h.requireSuperadmin(w, r); !ok {
+	if _, ok := h.requireAuthenticated(w, r); !ok {
 		return
 	}
 	if err := h.svc.CancelCampaign(r.Context(), chi.URLParam(r, "id")); err != nil {

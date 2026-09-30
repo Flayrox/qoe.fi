@@ -148,7 +148,7 @@ func applyMigrations(url string) error {
 	if err := db.Ping(); err != nil {
 		return fmt.Errorf("ping base de test: %w", err)
 	}
-	dir, err := findMigrationsDir()
+	dir, err := MigrationsDir()
 	if err != nil {
 		return err
 	}
@@ -172,7 +172,11 @@ func Cleanup() {
 	tcStop = nil
 }
 
-func findMigrationsDir() (string, error) {
+// MigrationsDir retourne le dossier des migrations goose, trouvé en remontant
+// depuis le répertoire de travail. Exporté pour que les tests d'un paquet qui
+// pilote lui-même goose (up/down ciblé, base jetable par test) appliquent
+// exactement les mêmes migrations que la base de test partagée.
+func MigrationsDir() (string, error) {
 	dir, err := os.Getwd()
 	if err != nil {
 		return "", fmt.Errorf("getwd: %w", err)

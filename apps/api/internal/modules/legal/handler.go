@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/qoefi/api/internal/adminauthz"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
 )
@@ -18,9 +19,19 @@ import (
 // Handler expose les routes légales publiques, lecteur et superadmin.
 type Handler struct {
 	svc *Service
+	// console déclare et monte les routes /v1/admin/legal/* sous le garde de
+	// capacité (internal/adminauthz). Sans console partagée (tests unitaires),
+	// RegisterAdmin en crée une autonome : une route /v1/admin/* passe toujours
+	// par une déclaration de capacité, jamais par un enregistrement direct.
+	console *adminauthz.Console
 }
 
 func NewHandler(svc *Service) *Handler { return &Handler{svc: svc} }
+
+// SetConsole branche la console partagée de la plateforme (même registre
+// route → capacité que le module admin) : une seule table à parcourir pour
+// vérifier qu'aucune route /v1/admin/* n'échappe au garde.
+func (h *Handler) SetConsole(c *adminauthz.Console) { h.console = c }
 
 // RegisterPublic monte les routes publiques (aucune authentification).
 // Le contenu publié est public par nature : CGU, confidentialité, cookies…
@@ -47,35 +58,46 @@ func (h *Handler) RegisterProtected(r chi.Router) {
 	r.Get("/v1/me/legal-pending", h.myPending)
 }
 
-// RegisterAdmin monte la console superadmin (le service revérifie le rôle :
-// 403 si l'appelant n'est pas superadmin, indépendamment du groupe de routes).
+// RegisterAdmin déclare et monte la console légale sur le registre partagé.
+//
+// Chaque route nomme la capacité qu'elle exige : lire le contenu et son cycle
+// de vie demande admin.legal.read, l'éditer demande admin.legal.write ; les
+// données de conformité (acceptations, journal de traceurs, campagnes
+// d'information, exports du registre) demandent admin.compliance.read, et en
+// produire un export signé demande admin.compliance.export. Le service
+// revérifie en plus le rôle superadmin (défense en profondeur) : le mode
+// observation du garde ne peut donc jamais élargir un accès réel.
 func (h *Handler) RegisterAdmin(r chi.Router) {
-	r.Get("/v1/admin/legal", h.adminList)
-	r.Post("/v1/admin/legal", h.adminCreate)
-	r.Post("/v1/admin/legal/seed", h.adminSeed)
-	r.Get("/v1/admin/legal/acceptances", h.adminAcceptances)
-	r.Get("/v1/admin/legal/stats", h.adminStats)
-	r.Get("/v1/admin/legal/compliance", h.adminCompliance)
-	r.Get("/v1/admin/legal/notices", h.adminNotices)
-	r.Get("/v1/admin/legal/cookie-consents", h.adminCookieConsents)
+	if h.console == nil {
+		h.console = adminauthz.NewStandaloneConsole(r)
+	}
+	c := h.console
+	c.Get("/v1/admin/legal", adminauthz.LegalRead, h.adminList)
+	c.Post("/v1/admin/legal", adminauthz.LegalWrite, h.adminCreate)
+	c.Post("/v1/admin/legal/seed", adminauthz.LegalWrite, h.adminSeed)
+	c.Get("/v1/admin/legal/acceptances", adminauthz.ComplianceRead, h.adminAcceptances)
+	c.Get("/v1/admin/legal/stats", adminauthz.LegalRead, h.adminStats)
+	c.Get("/v1/admin/legal/compliance", adminauthz.ComplianceRead, h.adminCompliance)
+	c.Get("/v1/admin/legal/notices", adminauthz.ComplianceRead, h.adminNotices)
+	c.Get("/v1/admin/legal/cookie-consents", adminauthz.ComplianceRead, h.adminCookieConsents)
 	// 🧾 Exports signés du registre de consentement (contrôle, réquisition).
-	r.Post("/v1/admin/legal/consent-exports", h.adminCreateConsentExport)
-	r.Get("/v1/admin/legal/consent-exports", h.adminListConsentExports)
-	r.Get("/v1/admin/legal/consent-exports/verify", h.adminVerifyConsentExports)
+	c.Post("/v1/admin/legal/consent-exports", adminauthz.ComplianceExport, h.adminCreateConsentExport)
+	c.Get("/v1/admin/legal/consent-exports", adminauthz.ComplianceRead, h.adminListConsentExports)
+	c.Get("/v1/admin/legal/consent-exports/verify", adminauthz.ComplianceRead, h.adminVerifyConsentExports)
 	// 🔄 Cycle de vie : revues périodiques et publication planifiée.
-	r.Get("/v1/admin/legal/reviews", h.adminReviews)
-	r.Post("/v1/admin/legal/reviews", h.adminOpenReview)
-	r.Post("/v1/admin/legal/reviews/{reviewID}/dismiss", h.adminDismissReview)
-	r.Post("/v1/admin/legal/versions/{versionID}/schedule", h.adminScheduleVersion)
-	r.Post("/v1/admin/legal/lifecycle/run", h.adminRunLifecycle)
-	r.Get("/v1/admin/legal/{id}/versions", h.adminVersions)
-	r.Post("/v1/admin/legal/{id}/versions", h.adminCreateVersion)
-	r.Patch("/v1/admin/legal/{id}", h.adminUpdate)
-	r.Delete("/v1/admin/legal/{id}", h.adminDelete)
-	r.Patch("/v1/admin/legal/versions/{versionID}", h.adminUpdateVersion)
-	r.Post("/v1/admin/legal/versions/{versionID}/publish", h.adminPublish)
-	r.Post("/v1/admin/legal/versions/{versionID}/archive", h.adminArchive)
-	r.Delete("/v1/admin/legal/versions/{versionID}", h.adminDeleteDraft)
+	c.Get("/v1/admin/legal/reviews", adminauthz.LegalRead, h.adminReviews)
+	c.Post("/v1/admin/legal/reviews", adminauthz.LegalWrite, h.adminOpenReview)
+	c.Post("/v1/admin/legal/reviews/{reviewID}/dismiss", adminauthz.LegalWrite, h.adminDismissReview)
+	c.Post("/v1/admin/legal/versions/{versionID}/schedule", adminauthz.LegalWrite, h.adminScheduleVersion)
+	c.Post("/v1/admin/legal/lifecycle/run", adminauthz.LegalWrite, h.adminRunLifecycle)
+	c.Get("/v1/admin/legal/{id}/versions", adminauthz.LegalRead, h.adminVersions)
+	c.Post("/v1/admin/legal/{id}/versions", adminauthz.LegalWrite, h.adminCreateVersion)
+	c.Patch("/v1/admin/legal/{id}", adminauthz.LegalWrite, h.adminUpdate)
+	c.Delete("/v1/admin/legal/{id}", adminauthz.LegalWrite, h.adminDelete)
+	c.Patch("/v1/admin/legal/versions/{versionID}", adminauthz.LegalWrite, h.adminUpdateVersion)
+	c.Post("/v1/admin/legal/versions/{versionID}/publish", adminauthz.LegalWrite, h.adminPublish)
+	c.Post("/v1/admin/legal/versions/{versionID}/archive", adminauthz.LegalWrite, h.adminArchive)
+	c.Delete("/v1/admin/legal/versions/{versionID}", adminauthz.LegalWrite, h.adminDeleteDraft)
 }
 
 // ─── Public ──────────────────────────────────────────────────────────

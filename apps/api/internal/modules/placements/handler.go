@@ -9,17 +9,26 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/qoefi/api/internal/adminauthz"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
 )
 
 type Handler struct {
 	svc *Service
+	// console déclare et monte les routes /v1/admin/placements* sous le garde
+	// de capacité. Sans console partagée (tests unitaires), RegisterAdmin en
+	// crée une autonome : pas d'enregistrement direct sur le routeur.
+	console *adminauthz.Console
 }
 
 func NewHandler(svc *Service) *Handler {
 	return &Handler{svc: svc}
 }
+
+// SetConsole branche la console partagée de la plateforme (même registre
+// route → capacité que les autres modules /v1/admin/*).
+func (h *Handler) SetConsole(c *adminauthz.Console) { h.console = c }
 
 // RegisterPublic monte les routes publiques et lecteur (auth optionnelle).
 func (h *Handler) RegisterPublic(r chi.Router) {
@@ -27,12 +36,21 @@ func (h *Handler) RegisterPublic(r chi.Router) {
 	r.Post("/v1/placements/{id}/dismiss", h.dismissPlacement)
 }
 
-// RegisterAdmin monte les routes d'administration réservées au superadmin.
+// RegisterAdmin déclare et monte les routes d'administration des placements.
+//
+// Les placements n'ont pas de capacité dédiée au vocabulaire : ils alimentent
+// les widgets in-app, donc lire demande admin.widgets.read et modifier demande
+// admin.widgets.write. Le helper requireSuperadmin reste en plus (le service
+// vérifie le rôle) : la défense en profondeur survit au mode observation.
 func (h *Handler) RegisterAdmin(r chi.Router) {
-	r.Get("/v1/admin/placements", h.listPlacementsAdmin)
-	r.Post("/v1/admin/placements", h.createPlacementAdmin)
-	r.Put("/v1/admin/placements/{id}", h.updatePlacementAdmin)
-	r.Delete("/v1/admin/placements/{id}", h.deletePlacementAdmin)
+	if h.console == nil {
+		h.console = adminauthz.NewStandaloneConsole(r)
+	}
+	c := h.console
+	c.Get("/v1/admin/placements", adminauthz.WidgetsRead, h.listPlacementsAdmin)
+	c.Post("/v1/admin/placements", adminauthz.WidgetsWrite, h.createPlacementAdmin)
+	c.Put("/v1/admin/placements/{id}", adminauthz.WidgetsWrite, h.updatePlacementAdmin)
+	c.Delete("/v1/admin/placements/{id}", adminauthz.WidgetsWrite, h.deletePlacementAdmin)
 }
 
 // GET /v1/placements?slot=xxx OR ?slots=a,b,c
