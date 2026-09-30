@@ -13,9 +13,26 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/qoefi/api/internal/subscriptions"
 	"github.com/qoefi/api/internal/workers"
 )
+
+// grantEmailPro octroie le palier Pro à une publication : la personnalisation
+// email (expéditeur, accent, sujets, pied, corps) est Pro — sans octroi,
+// ApplyTier la retire au stockage comme au rendu (décision produit : « identité
+// gratuite, personnalisation Pro »). Les tests de personnalisation passent donc
+// par le même chemin que le staff.
+func grantEmailPro(t *testing.T, pubID string) {
+	t.Helper()
+	now := time.Now()
+	if _, err := subscriptions.GrantPlan(context.Background(), poolTest,
+		subscriptions.SubjectPublication, pubID, subscriptions.PlanPro, now, nil,
+		"staff-test", "test réglages email pro", now); err != nil {
+		t.Fatalf("octroi pro: %v", err)
+	}
+}
 
 func TestHandler_EmailSettings_GetDefaults(t *testing.T) {
 	requirePool(t)
@@ -43,18 +60,19 @@ func TestHandler_EmailSettings_GetDefaults(t *testing.T) {
 func TestHandler_EmailSettings_PatchValidatesAndPersists(t *testing.T) {
 	requirePool(t)
 	fx := seed(t)
+	grantEmailPro(t, fx.PubID)
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
 
 	payload := map[string]any{
 		"publicationId": fx.PubID,
 		"settings": map[string]any{
-			"fromName":      "Léa de La Gazette",
-			"accentColor":   "#7C3AED",               // sera normalisé en minuscules
-			"replyTo":       "bad reply with spaces", // rejeté par la validation
-			"subjects":      map[string]any{"welcome": "Bienvenue chez nous !", "nope": "clé inconnue"},
-			"footerNote":    "Publié avec amour.",
-			"welcomeBodyFr": "Corps personnalisé.",
+			"fromName":    "Léa de La Gazette",
+			"accentColor": "#7C3AED",               // sera normalisé en minuscules
+			"replyTo":     "bad reply with spaces", // rejeté par la validation
+			"subjects":    map[string]any{"welcome": "Bienvenue chez nous !", "nope": "clé inconnue"},
+			"footerNote":  "Publié avec amour.",
+			"welcomeBody": "Corps personnalisé.",
 		},
 	}
 	w, body := doJSON(t, r, "PATCH", "/v1/settings/email", token, payload)
@@ -155,6 +173,7 @@ func TestHandler_EmailSettings_AuthAndErrors(t *testing.T) {
 func TestHandler_EmailSettings_PreviewConfirmFR(t *testing.T) {
 	requirePool(t)
 	fx := seed(t)
+	grantEmailPro(t, fx.PubID)
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
 
@@ -166,7 +185,7 @@ func TestHandler_EmailSettings_PreviewConfirmFR(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
 	}
-	if got := body["subject"].(string); got != "Confirmez votre abonnement — Owner Blog" {
+	if got := body["subject"].(string); got != "Confirmez votre abonnement — Owner Set" {
 		t.Errorf("sujet FR = %q", got)
 	}
 	html, _ := body["html"].(string)
@@ -185,6 +204,7 @@ func TestHandler_EmailSettings_PreviewConfirmFR(t *testing.T) {
 func TestHandler_EmailSettings_PreviewWelcomeEN(t *testing.T) {
 	requirePool(t)
 	fx := seed(t)
+	grantEmailPro(t, fx.PubID)
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
 
@@ -196,10 +216,10 @@ func TestHandler_EmailSettings_PreviewWelcomeEN(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
 	}
-	if got := body["subject"].(string); got != "Welcome to Owner Blog" {
+	if got := body["subject"].(string); got != "Welcome to Owner Set" {
 		t.Errorf("sujet EN = %q", got)
 	}
-	if !strings.Contains(body["html"].(string), "Discover Owner Blog") {
+	if !strings.Contains(body["html"].(string), "Discover Owner Set") {
 		t.Error("CTA EN attendu dans le HTML")
 	}
 }
@@ -207,6 +227,7 @@ func TestHandler_EmailSettings_PreviewWelcomeEN(t *testing.T) {
 func TestHandler_EmailSettings_PreviewDraftOverridesStored(t *testing.T) {
 	requirePool(t)
 	fx := seed(t)
+	grantEmailPro(t, fx.PubID)
 	r := newTestRouter()
 	token := testJWT(fx.OwnerID)
 
@@ -326,6 +347,7 @@ func TestHandler_EmailTest_SendsToCreator(t *testing.T) {
 func TestHandler_EmailTest_DraftSettingsApplied(t *testing.T) {
 	requirePool(t)
 	fx := seed(t)
+	grantEmailPro(t, fx.PubID)
 	fake := &fakeProvider{}
 	r := newTestRouter(func(svc *Service) { svc.SetEmailTestSender(fake, "noreply@qoe.fi") })
 	token := testJWT(fx.OwnerID)
@@ -335,7 +357,9 @@ func TestHandler_EmailTest_DraftSettingsApplied(t *testing.T) {
 		"template":      "confirm",
 		"locale":        "fr",
 		"settings": map[string]any{
-			"subjects": map[string]any{"confirm.fr": "Mon sujet de test"},
+			// Clé de sujet par template (« confirm ») : les clés par langue
+			// (confirm.fr…) ne sont plus lues (freemium : version unique).
+			"subjects": map[string]any{"confirm": "Mon sujet de test"},
 		},
 	})
 	if w.Code != http.StatusOK {

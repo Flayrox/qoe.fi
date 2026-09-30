@@ -127,11 +127,13 @@ func HasEntitlement(ctx context.Context, pool HasDB, subjectType, subjectID, pla
 	now = abuse.UtcMs(now)
 	since := now.Add(abuse.FutureTolerance)
 	var ok bool
+	// Indices de placeholders alignés sur l'ordre des arguments : la fenêtre
+	// se lit à $4 (début toléré) et $5 (fin stricte), pas au sujet ni au plan.
 	err := pool.QueryRow(ctx, `
 		SELECT EXISTS(
 			SELECT 1 FROM "SubscriptionGrant"
 			WHERE "subjectType" = $1 AND "subjectId" = $2 AND "plan" = $3
-			  AND "startsAt" <= $2 AND ("endsAt" IS NULL OR "endsAt" > $3)
+			  AND "startsAt" <= $4 AND ("endsAt" IS NULL OR "endsAt" > $5)
 		)`, subjectType, subjectID, plan, since, now).Scan(&ok)
 	return err == nil && ok
 }

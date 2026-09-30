@@ -125,9 +125,11 @@ func (s *Service) RegisterAsset(ctx context.Context, ownerID string, in Register
 	// Throttle anti-flood : les doublons CAS ne créent aucune ligne donc ne
 	// consomment rien — seuls les nouveaux uploads comptent.
 	if s.uploadsPerHour > 0 {
+		// Seuil en UTC : MediaAsset."createdAt" est écrit par CURRENT_TIMESTAMP
+		// (horloge base en UTC) — un seuil en heure locale comptait zéro ligne.
 		recent, uerr := s.q.CountRecentUploads(ctx, db.CountRecentUploadsParams{
 			OwnerId:   ownerID,
-			CreatedAt: pgtype.Timestamp{Time: time.Now().Add(-uploadThrottleWindow), Valid: true},
+			CreatedAt: pgtype.Timestamp{Time: time.Now().UTC().Add(-uploadThrottleWindow), Valid: true},
 		})
 		if uerr != nil {
 			return db.MediaAsset{}, uerr

@@ -146,17 +146,25 @@ func TestHasPlus_DirectAndViaStudio(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
 	now := time.Now()
-	user := fmt.Sprintf("plus-user-%d", now.UnixNano())
+	// User.id est un UUID : la voie « studio » compare id = $1::uuid (index
+	// primaire). Un marqueur texte libre ferait échouer la requête entière —
+	// on teste donc avec un compte réel, comme l'auth en production.
+	user := fmt.Sprintf("00000000-0000-0000-0000-%012x", now.UnixNano()%1_000_000_000_000)
 	staff := "staff-plus-1"
 	pub := "plus-pub-" + user
 	cleanup := func() {
 		poolTest.Exec(ctx, `DELETE FROM "SubscriptionGrant" WHERE "subjectId" = $1 OR "subjectId" = $2`, user, pub)
-		poolTest.Exec(ctx, `DELETE FROM "User" WHERE "publicationId" = $1`, pub)
+		poolTest.Exec(ctx, `DELETE FROM "User" WHERE id = $1::uuid`, user)
 		poolTest.Exec(ctx, `DELETE FROM "Publication" WHERE id = $1`, pub)
 	}
 	cleanup()
 	defer cleanup()
 
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt")
+		 VALUES ($1::uuid, $2, 'u', 'U', 'user', now(), now())`, user, user+"@t.dev"); err != nil {
+		t.Fatalf("user : %v", err)
+	}
 	if HasPlus(ctx, poolTest, user, now) {
 		t.Fatal("sans droit : HasPlus faux attendu")
 	}
@@ -170,20 +178,21 @@ func TestHasPlus_DirectAndViaStudio(t *testing.T) {
 	poolTest.Exec(ctx, `DELETE FROM "SubscriptionGrant" WHERE "subjectId" = $1`, user)
 
 	// Via le studio : publication Pro possédée → Plus (Pro INCLUT Plus).
-	if _, err := poolTest.Exec(ctx, `INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt") VALUES ($1, 'PERSONAL', 'P', 'p', now(), now())`, pub); err != nil {
+	// Slug unique par construction (dérivé de l'id) : Publication.slug est
+	// unique et un slug fixe ferait échouer un second passage.
+	if _, err := poolTest.Exec(ctx, `INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt") VALUES ($1, 'PERSONAL', 'P', $1, now(), now())`, pub); err != nil {
 		t.Fatalf("pub : %v", err)
 	}
-	var uid string
-	if err := poolTest.QueryRow(ctx, `INSERT INTO "User" (id, email, username, name, role, "publicationId", "createdAt", "updatedAt") VALUES (gen_random_uuid(), $1, 'u', 'U', 'creator', $2, now(), now()) RETURNING id::text`, user+"@t.dev", pub).Scan(&uid); err != nil {
-		t.Fatalf("user : %v", err)
+	if _, err := poolTest.Exec(ctx, `UPDATE "User" SET "publicationId" = $1, "updatedAt" = now() WHERE id = $2::uuid`, pub, user); err != nil {
+		t.Fatalf("rattachement studio : %v", err)
 	}
-	if HasPlus(ctx, poolTest, uid, now) {
+	if HasPlus(ctx, poolTest, user, now) {
 		t.Fatal("publication non-Pro : faux attendu")
 	}
 	if _, err := GrantPlan(ctx, poolTest, SubjectPublication, pub, PlanPro, now, nil, staff, "test", now); err != nil {
 		t.Fatalf("octroi pro pub : %v", err)
 	}
-	if !HasPlus(ctx, poolTest, uid, now) {
+	if !HasPlus(ctx, poolTest, user, now) {
 		t.Fatal("publication Pro possédée : HasPlus vrai attendu (Pro INCLUT Plus)")
 	}
 }

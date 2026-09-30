@@ -44,7 +44,9 @@ func requirePool(t *testing.T) {
 func seedUser(t *testing.T, ctx context.Context, email string) string {
 	t.Helper()
 	var id string
-	if err := poolTest.QueryRow(ctx, `INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt") VALUES (gen_random_uuid(), $1, 'eb', 'E', 'user', now(), now()) RETURNING id::text`, email).Scan(&id); err != nil {
+	// Username unique par compte : User.username est UNIQUE et le test crée
+	// deux comptes — un libellé fixe ferait échouer le second.
+	if err := poolTest.QueryRow(ctx, `INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt") VALUES (gen_random_uuid(), $1, gen_random_uuid()::text, 'E', 'user', now(), now()) RETURNING id::text`, email).Scan(&id); err != nil {
 		t.Fatalf("user: %v", err)
 	}
 	return id

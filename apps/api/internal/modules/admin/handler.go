@@ -245,6 +245,10 @@ func (h *Handler) handleErr(w http.ResponseWriter, err error) {
 		response.NotFound(w, "Utilisateur introuvable.")
 	case errors.Is(err, errInvalidAction):
 		response.BadRequest(w, err.Error())
+	case errors.Is(err, errInvalidModeration):
+		// Règle métier refusée (shadowban sans motif/échéance) : la requête
+		// est fautive, pas le serveur.
+		response.BadRequest(w, err.Error())
 	default:
 		log.Printf("[admin] %v", err)
 		response.Internal(w)

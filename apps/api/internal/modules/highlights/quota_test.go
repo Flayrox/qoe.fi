@@ -33,7 +33,7 @@ func TestHighlightQuota_Unlimited(t *testing.T) {
 			strings.Join(values, ",")); err != nil {
 		t.Fatalf("seed 50: %v", err)
 	}
-	used, limit, _ := svc.HighlightQuota(ctx, fx.ViewerID)
+	used, limit, _, _ := svc.HighlightQuota(ctx, fx.ViewerID)
 	if used != 50 || limit != -1 {
 		t.Fatalf("quota (50, -1) attendu, obtenu (%d, %d)", used, limit)
 	}

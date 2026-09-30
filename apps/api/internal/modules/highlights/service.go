@@ -205,14 +205,16 @@ func (s *Service) resolveAnchor(ctx context.Context, articleID, text string, quo
 // Create crée un surlignage pour un lecteur sur un article.
 // Surlignages illimités pour tous (gratuit et Plus).
 
-// HighlightQuota renvoie (utilisés, plafond, plus) : plafond = -1 (illimité pour tous).
-func (s *Service) HighlightQuota(ctx context.Context, readerID string) (used, limit int, plus bool) {
+// HighlightQuota renvoie (utilisés, plafond, plus) : plafond = -1 (illimité pour
+// tous). Une erreur de lecture REMONTE : afficher « 0 » quand la base est en
+// panne masquerait les vrais compteurs (le handler répond 500).
+func (s *Service) HighlightQuota(ctx context.Context, readerID string) (used, limit int, plus bool, err error) {
 	plus = subscriptions.HasPlus(ctx, s.pool, readerID, time.Now())
 	var n int64
 	if err := s.pool.QueryRow(ctx, `SELECT COUNT(*) FROM "Highlight" WHERE "readerId" = $1::uuid`, readerID).Scan(&n); err != nil {
-		return 0, -1, plus
+		return 0, -1, plus, err
 	}
-	return int(n), -1, plus
+	return int(n), -1, plus, nil
 }
 
 func (s *Service) Create(ctx context.Context, articleID, readerID, text string, note *string, isPublic bool, quoteOrdinal int) (Highlight, error) {
