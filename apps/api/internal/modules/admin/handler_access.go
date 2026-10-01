@@ -86,6 +86,21 @@ func (h *Handler) revokeAccess(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, revoked)
 }
 
+// GET /v1/admin/access/people — personnes candidates à une attribution.
+// Query : ?q= (au moins deux caractères), ?limit= (max 50).
+func (h *Handler) accessPeople(w http.ResponseWriter, r *http.Request) {
+	if _, ok := h.requireAuthenticated(w, r); !ok {
+		return
+	}
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	items, err := h.svc.SearchAccessPeople(r.Context(), r.URL.Query().Get("q"), limit)
+	if err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, map[string]any{"items": items, "total": len(items)})
+}
+
 // GET /v1/admin/access/people/{userID} — « pourquoi cette personne détient-elle
 // ceci ? » : attributions, capacités effectives et rôle porteur de chacune.
 func (h *Handler) accessPerson(w http.ResponseWriter, r *http.Request) {
