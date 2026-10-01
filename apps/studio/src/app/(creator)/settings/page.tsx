@@ -9,7 +9,9 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { getActiveWorkspace } from '@/lib/active-workspace';
-import VisualStudio, { CreatorProfile } from '@/features/settings/components/visual-studio';
+import PublicationSettings, {
+  CreatorProfile,
+} from '@/features/settings/components/publication-settings';
 
 // Contrat Go GET /v1/settings/publication — mêmes champs JSON que le include
 // Prisma d'origine (le mapping vers CreatorProfile ci-dessous est inchangé).
@@ -166,7 +168,7 @@ export default async function CreatorSettingsPage() {
 
   return (
     <div className="space-y-12">
-      <VisualStudio initialCreator={initialCreatorData} publicationId={publication.id} />
+      <PublicationSettings initialCreator={initialCreatorData} publicationId={publication.id} />
 
       <div className="max-w-6xl mx-auto px-6">
         <div className="p-6 rounded-2xl border border-border/80 bg-card shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">

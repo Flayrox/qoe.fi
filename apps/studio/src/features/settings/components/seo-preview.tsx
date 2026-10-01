@@ -3,10 +3,13 @@
 // =====================================================================
 // 🔍 SeoPreview — Simulateur Google SERP & Carte Réseaux Sociaux (SEO)
 // =====================================================================
+// Supporte l'Auto-Pilot (Zero-Config par défaut) et le Mode Avancé
+// avec strict respect des tokens sémantiques @qoe/theme.
+// =====================================================================
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { Search, Share2, Globe, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { Search, Share2, Globe, ShieldCheck, ShieldAlert, Sparkles } from 'lucide-react';
 
 interface SeoPreviewProps {
   name: string | null;
@@ -14,9 +17,11 @@ interface SeoPreviewProps {
   customDomain: string | null;
   seoTitle: string | null;
   seoDescription: string | null;
+  heroText?: string | null;
   headerImageUrl: string | null;
   logoUrl: string | null;
   allowIndexing: boolean;
+  isAdvancedMode?: boolean;
 }
 
 export function SeoPreview({
@@ -25,18 +30,27 @@ export function SeoPreview({
   customDomain,
   seoTitle,
   seoDescription,
+  heroText,
   headerImageUrl,
   logoUrl,
   allowIndexing,
+  isAdvancedMode = false,
 }: SeoPreviewProps) {
   const [view, setView] = useState<'google' | 'social'>('google');
 
   const domain = customDomain || `${subdomain || 'publication'}.qoe.fi`;
   const url = `https://${domain}`;
-  const title = seoTitle?.trim() || `${name || 'Ma Publication'} — Écrits & Analyses`;
-  const description =
+
+  // En mode auto-pilot (sans surcharge manuelle), Qoefi génère le meilleur titre et description
+  const computedTitle =
+    seoTitle?.trim() ||
+    `${name || 'Ma Publication'} — ${heroText?.trim() || 'Écrits, analyses et récits'}`;
+  const computedDescription =
     seoDescription?.trim() ||
+    heroText?.trim() ||
     `Découvrez les publications, analyses et articles exclusifs de ${name || 'cette publication'} sur qoefi.`;
+
+  const isAutoManaged = !isAdvancedMode && !seoTitle && !seoDescription;
 
   return (
     <div className="rounded-2xl border border-border/60 bg-card overflow-hidden shadow-sm">
@@ -51,7 +65,14 @@ export function SeoPreview({
           ) : (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-destructive/10 text-destructive text-[10px] font-bold tracking-wider uppercase border border-destructive/20">
               <ShieldAlert className="w-3 h-3" />
-              Non indexé (noindex)
+              Non indexé
+            </span>
+          )}
+
+          {isAutoManaged && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold tracking-wider uppercase border border-primary/20">
+              <Sparkles className="w-2.5 h-2.5" />
+              Auto-Pilot
             </span>
           )}
         </div>
@@ -62,7 +83,7 @@ export function SeoPreview({
             onClick={() => setView('google')}
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
               view === 'google'
-                ? 'bg-background text-foreground shadow-xs'
+                ? 'bg-background text-foreground shadow-2xs font-semibold'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -74,7 +95,7 @@ export function SeoPreview({
             onClick={() => setView('social')}
             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
               view === 'social'
-                ? 'bg-background text-foreground shadow-xs'
+                ? 'bg-background text-foreground shadow-2xs font-semibold'
                 : 'text-muted-foreground hover:text-foreground'
             }`}
           >
@@ -87,7 +108,7 @@ export function SeoPreview({
       <div className="p-5">
         {view === 'google' ? (
           /* ──────── Google Search Simulator ──────── */
-          <div className="space-y-2 bg-background p-4 rounded-xl border border-border/40 shadow-xs">
+          <div className="space-y-2 bg-background p-4 rounded-xl border border-border/40 shadow-2xs">
             {/* Breadcrumb line */}
             <div className="flex items-center gap-2 text-xs">
               <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold text-foreground overflow-hidden border border-border/40 shrink-0">
@@ -115,29 +136,29 @@ export function SeoPreview({
 
             {/* Clickable Title */}
             <h4 className="text-base font-semibold text-primary hover:underline cursor-pointer leading-snug">
-              {title}
+              {computedTitle}
             </h4>
 
             {/* Description snippet */}
             <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">
-              {description}
+              {computedDescription}
             </p>
           </div>
         ) : (
           /* ──────── Social OpenGraph / Twitter Card Simulator ──────── */
-          <div className="rounded-xl border border-border/40 overflow-hidden bg-background shadow-xs max-w-md mx-auto">
+          <div className="rounded-xl border border-border/40 overflow-hidden bg-background shadow-2xs max-w-md mx-auto">
             {/* Social Card Image */}
             <div className="relative w-full h-44 bg-muted/40 overflow-hidden">
               {headerImageUrl ? (
                 <Image
                   src={headerImageUrl}
-                  alt={title}
+                  alt={computedTitle}
                   fill
                   className="object-cover"
                   sizes="400px"
                 />
               ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-primary/10 via-muted to-muted/80 p-4 text-center">
+                <div className="w-full h-full flex flex-col items-center justify-center bg-muted/30 p-4 text-center">
                   <Globe className="w-8 h-8 text-primary/40 mb-2" />
                   <span className="text-xs font-bold text-foreground">{name || 'Publication'}</span>
                 </div>
@@ -149,22 +170,37 @@ export function SeoPreview({
               <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">
                 {domain}
               </span>
-              <h5 className="text-xs font-bold text-foreground line-clamp-1">{title}</h5>
+              <h5 className="text-xs font-bold text-foreground line-clamp-1">{computedTitle}</h5>
               <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
-                {description}
+                {computedDescription}
               </p>
             </div>
+          </div>
+        )}
+
+        {/* Auto-pilot Benefits Recap */}
+        {isAutoManaged && (
+          <div className="mt-4 pt-3 border-t border-border/30 space-y-1.5 text-[11px] text-muted-foreground">
+            <div className="flex items-center gap-1.5 text-foreground font-semibold">
+              <Sparkles className="w-3.5 h-3.5 text-primary" />
+              <span>Optimisations automatiques actives :</span>
+            </div>
+            <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
+              <li>Balises OpenGraph & Twitter Cards enrichies</li>
+              <li>Sitemap XML généré et mis à jour automatiquement</li>
+              <li>Données structurées JSON-LD (Schema.org / WebSite)</li>
+            </ul>
           </div>
         )}
       </div>
 
       <div className="px-5 py-2.5 bg-muted/20 border-t border-border/30 flex items-center justify-between text-[11px] text-muted-foreground">
         <span>
-          Titre : <strong className="text-foreground">{seoTitle?.length || 0}</strong>/60 car.
+          Titre : <strong className="text-foreground">{computedTitle.length}</strong> car.
         </span>
         <span>
-          Description : <strong className="text-foreground">{seoDescription?.length || 0}</strong>
-          /160 car.
+          Description : <strong className="text-foreground">{computedDescription.length}</strong>{' '}
+          car.
         </span>
       </div>
     </div>
