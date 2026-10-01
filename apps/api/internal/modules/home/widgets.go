@@ -443,7 +443,12 @@ func (s *Service) SubscribeToNewsletter(ctx context.Context, email, publicationI
 		VALUES (gen_random_uuid()::text, $1, $2, $3, true, false, $4, now(), now())
 		ON CONFLICT ("email", "publicationId") DO UPDATE SET
 		  "isActive" = true,
-		  "locale" = EXCLUDED."locale",
+		  -- La langue N'EST PAS réécrite : elle est capturée à la première
+		  -- inscription (choix du lecteur pour ses emails) et une réinscription
+		  -- depuis un autre navigateur, ou dans une autre langue d'interface,
+		  -- ne doit pas changer la langue des envois qu'il reçoit déjà. Même
+		  -- principe que la réactivation : on ne modifie pas en silence un choix
+		  -- antérieur du lecteur.
 		  "confirmationToken" = CASE
 		      WHEN "Subscriber"."confirmedAt" IS NOT NULL
 		       AND "Subscriber"."receiveArticles" = true THEN NULL

@@ -10,10 +10,42 @@ package adminauthz
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"testing"
 )
+
+// latestMigrationVersion lit le plus grand préfixe numérique du dossier des
+// migrations : c'est la définition de « à jour » côté goose. Un littéral
+// (52/53) rendait ce test faux dès qu'une migration ultérieure arrivait —
+// 00054, 00055… — alors que le schéma était sain.
+func latestMigrationVersion(t *testing.T) int64 {
+	t.Helper()
+	entries, err := os.ReadDir(migrationsDir(t))
+	if err != nil {
+		t.Fatalf("lecture du dossier des migrations: %v", err)
+	}
+	var latest int64
+	for _, e := range entries {
+		name := e.Name()
+		cut := strings.Index(name, "_")
+		if e.IsDir() || cut <= 0 {
+			continue
+		}
+		var v int64
+		if _, err := fmt.Sscanf(name[:cut], "%d", &v); err != nil {
+			continue
+		}
+		if v > latest {
+			latest = v
+		}
+	}
+	if latest == 0 {
+		t.Fatal("aucune migration trouvée dans le dossier des migrations")
+	}
+	return latest
+}
 
 // TestMigration00053_AppliesRollsBackAndReapplies — la migration monte, se
 // défait proprement, et remonte : un `goose down` qui laisserait des tables
@@ -22,8 +54,8 @@ func TestMigration00053_AppliesRollsBackAndReapplies(t *testing.T) {
 	db := newTestDatabase(t)
 	db.upToLatest(t)
 
-	if got := db.version(t); got != 53 {
-		t.Fatalf("version goose = %d, attendu 53", got)
+	if got, want := db.version(t), latestMigrationVersion(t); got != want {
+		t.Fatalf("version goose = %d, attendu %d (dernière migration)", got, want)
 	}
 	for _, table := range []string{"AdminCapability", "AdminRole", "AdminRoleCapability", "AdminUserRole"} {
 		if !db.tableExists(t, table) {
@@ -47,8 +79,8 @@ func TestMigration00053_AppliesRollsBackAndReapplies(t *testing.T) {
 
 	// Remontée : mêmes contenus, aucun résidu de la première application.
 	db.upToLatest(t)
-	if got := db.version(t); got != 53 {
-		t.Fatalf("version goose après remontée = %d, attendu 53", got)
+	if got, want := db.version(t), latestMigrationVersion(t); got != want {
+		t.Fatalf("version goose après remontée = %d, attendu %d", got, want)
 	}
 	if n := db.count(t, "AdminCapability"); n != len(Capabilities()) {
 		t.Fatalf("AdminCapability = %d capacités après remontée, attendu %d", n, len(Capabilities()))

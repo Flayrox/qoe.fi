@@ -77,10 +77,12 @@ func SeedPosts(ctx context.Context, pool *pgxpool.Pool) (*PostFixtures, error) {
 		return nil, fmt.Errorf("post bob: %w", err)
 	}
 
-	// Publication + article (cible des bookmarks).
+	// Publication + article (cible des bookmarks). Publication PERSONNELLE
+	// d'Alice : elle porte donc SON identité (triggers 00028/00054) — un nom
+	// ou un slug inventé serait réécrit à la liaison ci-dessous.
 	if err := pool.QueryRow(ctx,
 		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
-		 VALUES ('pub_post_001', 'PERSONAL', 'Publication Test', 'publication-test', now(), now())
+		 VALUES ('pub_post_001', 'PERSONAL', 'Alice', 'alice', now(), now())
 		 RETURNING id`,
 	).Scan(&pubID); err != nil {
 		return nil, fmt.Errorf("publication: %w", err)

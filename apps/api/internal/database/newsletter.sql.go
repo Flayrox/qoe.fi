@@ -1013,6 +1013,12 @@ ON CONFLICT ("email", "publicationId") DO UPDATE SET
         WHEN "Subscriber"."confirmedAt" IS NOT NULL
          AND "Subscriber"."receiveArticles" = true THEN NULL
         ELSE EXCLUDED."confirmationToken" END,
+    -- Même règle que UpsertSubscriberPending : la preuve repart à zéro avec le
+    -- jeton — une ligne en attente n'est jamais « déjà confirmée ».
+    "confirmedAt" = CASE
+        WHEN "Subscriber"."confirmedAt" IS NOT NULL
+         AND "Subscriber"."receiveArticles" = true THEN "Subscriber"."confirmedAt"
+        ELSE NULL END,
     "updatedAt" = now()
 `
 
@@ -1179,6 +1185,16 @@ ON CONFLICT ("email", "publicationId") DO UPDATE SET
         WHEN "Subscriber"."confirmedAt" IS NOT NULL
          AND "Subscriber"."receiveArticles" = true THEN NULL
         ELSE EXCLUDED."confirmationToken" END,
+    -- La preuve repart à zéro avec le jeton : tant que le nouveau clic n'a pas
+    -- eu lieu, l'adresse n'est PAS confirmée. Garder la confirmation d'une vie
+    -- antérieure (désabonné qui se réinscrit) laisserait une ligne « en
+    -- attente » qui se déclare vérifiée — les envois et le rattachement à un
+    -- compte tiendraient la preuve pour acquise sans aucun clic. Même
+    -- condition que le jeton : seul un abonné DÉJÀ destinataire la garde.
+    "confirmedAt" = CASE
+        WHEN "Subscriber"."confirmedAt" IS NOT NULL
+         AND "Subscriber"."receiveArticles" = true THEN "Subscriber"."confirmedAt"
+        ELSE NULL END,
     "updatedAt" = now()
 RETURNING id, email, status, "isActive", "isPremium", "receiveArticles",
     ("confirmedAt" IS NOT NULL) AS confirmed,

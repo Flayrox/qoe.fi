@@ -50,6 +50,14 @@ const (
 	sendChunkSize = 100
 	// sendChunkDelay espace deux tranches d'une même vague.
 	sendChunkDelay = 60 * time.Second
+	// sendClaimLease : bail d'une livraison réclamée (`claimed`, issue
+	// inconnue). Passé ce délai, le worker qui l'avait réclamée est considéré
+	// disparu (crash, tâche tuée) et la tranche suivante la reprend. Assez long
+	// pour qu'un envoi normal (quelques secondes) aboutisse à son marquage,
+	// assez court pour qu'un crash ne fige pas la vague. Compromis assumé :
+	// dans cette fenêtre de crash, la reprise peut produire un doublon —
+	// préférable à un contact perdu en silence.
+	sendClaimLease = 15 * time.Minute
 	// Seuils de suspension automatique (surchargés par la décision).
 	defaultMaxHardBounceRate = 0.10
 	defaultMaxComplaints     = 5
@@ -64,8 +72,6 @@ var (
 	errSendExpired = errors.New("l'approbation d'envoi encadré a expiré")
 	// errSendNothingEligible : aucune adresse éligible dans ce lot.
 	errSendNothingEligible = errors.New("aucune adresse éligible dans ce lot")
-	// errSendBudgetExhausted : le plafond du lot est atteint.
-	errSendBudgetExhausted = errors.New("plafond d'envoi du lot atteint")
 )
 
 // Exportées pour la façade admin (même pattern que les autres sentinelles).
@@ -76,8 +82,6 @@ var (
 	ErrSendExpired = errSendExpired
 	// ErrSendNothingEligible : rien à envoyer.
 	ErrSendNothingEligible = errSendNothingEligible
-	// ErrSendBudgetExhausted : plafond atteint.
-	ErrSendBudgetExhausted = errSendBudgetExhausted
 )
 
 // SendWaveDTO est la vue API d'une vague d'envoi encadré.
@@ -410,12 +414,42 @@ func (s *Service) ClaimSendChunk(ctx context.Context, waveID string, limit int) 
 		return nil, nil
 	}
 
+	// Budget restant, verrouillé AVANT la sélection : la tranche est bornée à
+	// ce qu'il reste à dépenser. Sans ce plafond, un lot de 6 adresses avec un
+	// plafond de 4 tentait de réserver 6 d'un coup et rendait « plafond
+	// atteint » sans jamais envoyer les 4 premiers — le plafond doit limiter
+	// la tranche, pas l'annuler. Zéro restant n'est pas une panne : la vague
+	// reste ouverte et ses livraisons en attente, jamais envoyées ni perdues
+	// (une nouvelle décision du staff peut les reprendre). Le verrou sérialise
+	// deux workers concurrents : jamais plus que le plafond, même en course.
+	var remaining int
+	if err := tx.QueryRow(ctx, `
+		SELECT GREATEST(b."cap" - b."consumed", 0)
+		FROM "ImportSendBudget" b
+		JOIN "ImportSendWave" w ON w."budgetId" = b."id"
+		WHERE w."id" = $1
+		FOR UPDATE OF b`, waveID).Scan(&remaining); err != nil {
+		return nil, err
+	}
+	if remaining == 0 {
+		if err := tx.Commit(ctx); err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
+	if limit > remaining {
+		limit = remaining
+	}
+
 	rows, err := tx.Query(ctx, `
 		SELECT "id", "email" FROM "ImportSendDelivery"
-		WHERE "waveId" = $1 AND "status" = 'queued'
+		WHERE "waveId" = $1
+		  AND ("status" = 'queued'
+		       OR ("status" = 'claimed'
+		           AND "updatedAt" <= now() - ($3::int * interval '1 second')))
 		ORDER BY "email" ASC
 		LIMIT $2
-		FOR UPDATE SKIP LOCKED`, waveID, limit)
+		FOR UPDATE SKIP LOCKED`, waveID, limit, int(sendClaimLease.Seconds()))
 	if err != nil {
 		return nil, err
 	}
@@ -452,9 +486,11 @@ func (s *Service) ClaimSendChunk(ctx context.Context, waveID string, limit int) 
 		return nil, nil
 	}
 
-	// Réservation atomique : une seule requête, conditionnée au plafond. Deux
-	// workers concurrents ne dépassent jamais, même en course — le perdant
-	// obtient zéro ligne et termine sa tranche sur plafond atteint.
+	// Réservation atomique : une seule requête, conditionnée au plafond —
+	// seconde barrière après le verrou ci-dessus. Si elle échoue malgré tout
+	// (course improbable), on ne renvoie AUCUNE réclamation plutôt qu'une
+	// erreur : rien n'est réservé, rien n'est envoyé, les livraisons restent
+	// en attente pour la tranche suivante (jamais de dépassement de plafond).
 	var reserved int
 	err = tx.QueryRow(ctx, `
 		UPDATE "ImportSendBudget" b
@@ -467,7 +503,7 @@ func (s *Service) ClaimSendChunk(ctx context.Context, waveID string, limit int) 
 		RETURNING b."consumed"`, waveID, len(claimedRows)).Scan(&reserved)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errSendBudgetExhausted
+			return nil, nil
 		}
 		return nil, err
 	}
@@ -488,7 +524,7 @@ func (s *Service) ClaimSendChunk(ctx context.Context, waveID string, limit int) 
 			if _, err := tx.Exec(ctx, `
 				UPDATE "ImportSendDelivery"
 				SET "status" = 'skipped', "error" = 'contact devenu connu avant envoi', "updatedAt" = now()
-				WHERE "id" = $1 AND "status" = 'queued'`, c.id); err != nil {
+				WHERE "id" = $1 AND "status" IN ('queued', 'claimed')`, c.id); err != nil {
 				return nil, err
 			}
 			if _, err := tx.Exec(ctx, `
@@ -501,6 +537,26 @@ func (s *Service) ClaimSendChunk(ctx context.Context, waveID string, limit int) 
 		}
 		out = append(out, SendClaim{DeliveryID: c.id, Email: c.email, Token: token})
 	}
+
+	// Réservation matérialisée dans la MÊME transaction que le budget : les
+	// livraisons préparées sortent de la file (`claimed`). Sans ce marquage,
+	// elles restaient `queued` après le commit — `FOR UPDATE SKIP LOCKED` ne
+	// protège que le temps de la transaction — et un second worker, ou un
+	// simple retry après crash, réclamait la même adresse et envoyait deux
+	// fois. `claimed` n'est pas « envoyée » : seul MarkSendResult tranche.
+	if len(out) > 0 {
+		ids := make([]string, 0, len(out))
+		for _, c := range out {
+			ids = append(ids, c.DeliveryID)
+		}
+		if _, err := tx.Exec(ctx, `
+			UPDATE "ImportSendDelivery"
+			SET "status" = 'claimed', "updatedAt" = now()
+			WHERE "id" = ANY($1::text[]) AND "status" IN ('queued', 'claimed')`, ids); err != nil {
+			return nil, err
+		}
+	}
+
 	if _, err := tx.Exec(ctx, `
 		UPDATE "ImportSendWave"
 		SET "status" = 'sending', "updatedAt" = now()
@@ -574,7 +630,7 @@ func (s *Service) excludeSuppressedClaim(
 		if _, err := tx.Exec(ctx, `
 			UPDATE "ImportSendDelivery"
 			SET "status" = 'suppressed', "error" = 'opposition survenue avant envoi', "updatedAt" = now()
-			WHERE "id" = ANY($1::text[]) AND "status" = 'queued'`, skipped); err != nil {
+			WHERE "id" = ANY($1::text[]) AND "status" IN ('queued', 'claimed')`, skipped); err != nil {
 			return nil, err
 		}
 		if _, err := tx.Exec(ctx, `
@@ -599,7 +655,7 @@ func (s *Service) MarkSendResult(ctx context.Context, waveID, deliveryID string,
 	if _, err := s.pool.Exec(ctx, `
 		UPDATE "ImportSendDelivery"
 		SET "status" = $2, "error" = NULLIF($3, ''), "sentAt" = CASE WHEN $2 = 'sent' THEN now() ELSE NULL END, "updatedAt" = now()
-		WHERE "id" = $1 AND "waveId" = $4 AND "status" = 'queued'`,
+		WHERE "id" = $1 AND "waveId" = $4 AND "status" IN ('queued', 'claimed')`,
 		deliveryID, status, errText, waveID); err != nil {
 		return err
 	}
@@ -734,7 +790,7 @@ func (s *Service) FinishSendWaveIfDrained(ctx context.Context, waveID string) (b
 	err := s.pool.QueryRow(ctx, `
 		SELECT w."batchId",
 		       (SELECT COUNT(*) FROM "ImportSendDelivery" d
-		         WHERE d."waveId" = $1 AND d."status" = 'queued')
+		         WHERE d."waveId" = $1 AND d."status" IN ('queued', 'claimed'))
 		FROM "ImportSendWave" w WHERE w."id" = $1`, waveID).Scan(&batchID, &queued)
 	if err != nil {
 		return false, err
@@ -790,7 +846,7 @@ func (s *Service) CancelSendWave(ctx context.Context, staffID, waveID string) er
 	if _, err := tx.Exec(ctx, `
 		UPDATE "ImportSendDelivery"
 		SET "status" = 'skipped', "error" = 'vague annulée par le staff', "updatedAt" = now()
-		WHERE "waveId" = $1 AND "status" = 'queued'`, waveID); err != nil {
+		WHERE "waveId" = $1 AND "status" IN ('queued', 'claimed')`, waveID); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(ctx, `

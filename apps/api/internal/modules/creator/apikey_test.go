@@ -194,9 +194,12 @@ func TestCreatorAPI_Highlights(t *testing.T) {
 		 "Publication", "User" CASCADE`); err != nil {
 		t.Fatalf("truncate: %v", err)
 	}
+	// Publication PERSONNELLE du créateur : elle porte SON identité
+	// (triggers 00028/00054 → slug = username, name = nom du compte). Le nom
+	// et le slug ci-dessous sont donc ceux du compte propriétaire.
 	if _, err := poolTest.Exec(ctx,
 		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
-		 VALUES ($1, 'PERSONAL', 'Créateur API', 'createur-api', now(), now())`, pubID); err != nil {
+		 VALUES ($1, 'PERSONAL', 'apicreator', 'apicreator', now(), now())`, pubID); err != nil {
 		t.Fatalf("publication: %v", err)
 	}
 	for _, u := range []struct{ id, username string }{
@@ -413,7 +416,9 @@ func TestCreatorAPI_Content(t *testing.T) {
 		t.Fatalf("me = %d %v", code, me)
 	}
 	pub, _ := me["publication"].(map[string]any)
-	if pub == nil || pub["slug"] != "createur-api" || pub["name"] != "Créateur API" {
+	// La publication renvoyée est celle du compte propriétaire de la clé :
+	// pour une PERSONAL, son slug EST le pseudo du compte.
+	if pub == nil || pub["slug"] != "apicreator" || pub["name"] != "apicreator" {
 		t.Fatalf("publication inattendue : %v", pub)
 	}
 	if scopes, ok := me["scopes"].([]any); !ok || len(scopes) == 0 {

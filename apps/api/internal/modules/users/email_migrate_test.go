@@ -40,6 +40,22 @@ func seedMigrateAccount(t *testing.T, ctx context.Context, userID, email string)
 	})
 }
 
+// seedMigratePublication pose la publication visée par les abonnements :
+// "Subscriber"."publicationId" est une vraie clé étrangère — un abonné dont la
+// publication n'existe pas n'est pas un cas de test, c'est une donnée corrompue.
+func seedMigratePublication(t *testing.T, ctx context.Context, id string) {
+	t.Helper()
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
+		 VALUES ($1, 'PERSONAL', 'Publication migration', $1, now(), now())
+		 ON CONFLICT (id) DO NOTHING`, id); err != nil {
+		t.Fatalf("seed publication %s: %v", id, err)
+	}
+	t.Cleanup(func() {
+		_, _ = poolTest.Exec(ctx, `DELETE FROM "Publication" WHERE id = $1`, id)
+	})
+}
+
 func TestMigrateSubscriptions_RequiresConfirmedEmail(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
@@ -61,6 +77,8 @@ func TestMigrateSubscriptions_MovesOnlyActive(t *testing.T) {
 	ctx := context.Background()
 	const uid = "00000000-0000-0000-0000-00000000aa02"
 	seedMigrateAccount(t, ctx, uid, "arrivee@test.dev")
+	seedMigratePublication(t, ctx, "pub_mig_001")
+	seedMigratePublication(t, ctx, "pub_mig_002")
 
 	// Un abonnement actif lié au compte (ancienne adresse) + un désabonné lié
 	// au compte : seul l'actif doit migrer.
@@ -124,6 +142,7 @@ func TestMigrateSubscriptions_NoDuplicate(t *testing.T) {
 	ctx := context.Background()
 	const uid = "00000000-0000-0000-0000-00000000aa03"
 	seedMigrateAccount(t, ctx, uid, "double@test.dev")
+	seedMigratePublication(t, ctx, "pub_mig_003")
 
 	// L'ancienne adresse a un abonnement actif, et la nouvelle en a déjà un
 	// (créé directement) : la migration ne doit pas fusionner ni doublonner.

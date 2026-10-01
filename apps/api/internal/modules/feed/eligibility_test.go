@@ -100,20 +100,12 @@ func TestFollowingHidden_NamesRestrictedAuthors(t *testing.T) {
 	aliceID := "00000000-0000-0000-0000-000000000011"
 	bobID := "00000000-0000-0000-0000-000000000012"
 
-	// alice : shadowban motivé et borné (+24 h), propriétaire d'une
-	// publication PERSONAL suivie, avec un article dedans.
-	if _, err := poolTest.Exec(ctx,
-		`UPDATE "User" SET "isShadowbanned" = true, "shadowbanReason" = 'test', "shadowbanUntil" = now() + interval '24 hours', "publicationId" = 'pub_alice' WHERE id = $1::uuid`, aliceID); err != nil {
-		t.Fatalf("shadowban alice: %v", err)
-	}
-	// bob : suspendu (refus dur), même montage.
-	if _, err := poolTest.Exec(ctx,
-		`UPDATE "User" SET "isSuspended" = true, "suspendReason" = 'test', "publicationId" = 'pub_bob' WHERE id = $1::uuid`, bobID); err != nil {
-		t.Fatalf("suspend bob: %v", err)
-	}
+	// Les publications d'abord : "User"."publicationId" est une clé étrangère.
+	// Elles portent l'identité de leur propriétaire (publications PERSONAL,
+	// triggers 00028/00054) : le nom/slug saisis ici sont ceux des comptes.
 	for _, p := range []struct{ id, name, slug string }{
-		{"pub_alice", "Alice Pub", "alice-pub"},
-		{"pub_bob", "Bob Pub", "bob-pub"},
+		{"pub_alice", "alice", "alice"},
+		{"pub_bob", "bob", "bob"},
 	} {
 		if _, err := poolTest.Exec(ctx,
 			`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt") VALUES ($1, 'PERSONAL', $2, $3, now(), now())`,
@@ -125,6 +117,17 @@ func TestFollowingHidden_NamesRestrictedAuthors(t *testing.T) {
 			readerID, p.id); err != nil {
 			t.Fatalf("follow %s: %v", p.id, err)
 		}
+	}
+	// alice : shadowban motivé et borné (+24 h), propriétaire d'une
+	// publication PERSONAL suivie, avec un article dedans.
+	if _, err := poolTest.Exec(ctx,
+		`UPDATE "User" SET "isShadowbanned" = true, "shadowbanReason" = 'test', "shadowbanUntil" = now() + interval '24 hours', "publicationId" = 'pub_alice' WHERE id = $1::uuid`, aliceID); err != nil {
+		t.Fatalf("shadowban alice: %v", err)
+	}
+	// bob : suspendu (refus dur), même montage.
+	if _, err := poolTest.Exec(ctx,
+		`UPDATE "User" SET "isSuspended" = true, "suspendReason" = 'test', "publicationId" = 'pub_bob' WHERE id = $1::uuid`, bobID); err != nil {
+		t.Fatalf("suspend bob: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx,
 		`INSERT INTO "Article" (id, title, slug, content, published, visibility, "readingTime", status, "publicationId", "authorId", "createdAt", "updatedAt")
