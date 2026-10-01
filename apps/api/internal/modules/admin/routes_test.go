@@ -207,6 +207,14 @@ func TestSensitiveRoutesDeclareTheRightCapability(t *testing.T) {
 		{"GET", "/v1/admin/legal/compliance", adminauthz.ComplianceRead},
 		{"GET", "/v1/admin/placements", adminauthz.WidgetsRead},
 		{"POST", "/v1/admin/placements", adminauthz.WidgetsWrite},
+		// Accès staff : la lecture ouvre les écrans, l'attribution est le seul
+		// mouvement (motif, anti-escalade et garde-fous portés par le service).
+		{"GET", "/v1/admin/access/grants", adminauthz.AccessRead},
+		{"GET", "/v1/admin/access/people/{userID}", adminauthz.AccessRead},
+		{"GET", "/v1/admin/access/roles", adminauthz.AccessRead},
+		{"GET", "/v1/admin/access/capabilities", adminauthz.AccessRead},
+		{"POST", "/v1/admin/access/grants", adminauthz.AccessGrant},
+		{"POST", "/v1/admin/access/grants/{userID}/{roleKey}/revoke", adminauthz.AccessGrant},
 	}
 	for _, tc := range cases {
 		got, ok := console.Registry().Lookup(tc.method, tc.pattern)
@@ -229,6 +237,26 @@ func TestSensitiveRoutesDeclareTheRightCapability(t *testing.T) {
 	}
 	if !adminauthz.RoleSet(adminauthz.RoleSuperadmin).Has(grant) {
 		t.Errorf("superadmin ne peut pas écrire les abonnements (%q)", grant)
+	}
+
+	// Distribution des droits : lecture pour l'analyste, attribution pour le
+	// superadmin seulement. Accorder `admin.access.grant` à un rôle de lecture
+	// ouvrirait l'escalade par contournement du service.
+	accessRead, _ := console.Registry().Lookup("GET", "/v1/admin/access/grants")
+	accessGrant, _ := console.Registry().Lookup("POST", "/v1/admin/access/grants")
+	if !adminauthz.RoleSet(adminauthz.RoleAnalyst).Has(accessRead) {
+		t.Error("analyst doit pouvoir lire les attributions")
+	}
+	if adminauthz.RoleSet(adminauthz.RoleAnalyst).Has(accessGrant) {
+		t.Error("analyst ne doit pas pouvoir attribuer un rôle")
+	}
+	if !adminauthz.RoleSet(adminauthz.RoleSuperadmin).Has(accessGrant) {
+		t.Error("superadmin doit pouvoir attribuer un rôle")
+	}
+	for _, role := range []string{adminauthz.RoleSupport, adminauthz.RoleModeration, adminauthz.RoleContent, adminauthz.RoleOps, adminauthz.RoleLegal} {
+		if adminauthz.RoleSet(role).Has(accessGrant) {
+			t.Errorf("rôle %q ne doit pas détenir %q par défaut", role, accessGrant)
+		}
 	}
 }
 

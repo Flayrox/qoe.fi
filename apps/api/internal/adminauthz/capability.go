@@ -96,6 +96,16 @@ const (
 	LegalWrite       Capability = "admin.legal.write"
 	ComplianceRead   Capability = "admin.compliance.read"
 	ComplianceExport Capability = "admin.compliance.export"
+
+	// Accès staff : gérer les rôles DEPUIS la console.
+	//
+	// `AccessRead` est une capacité de lecture (suffixe `.read`) : le rôle
+	// « analyst » la détient par construction, comme toute capacité sans
+	// écriture. `AccessGrant` en revanche est réservée au superadmin par
+	// défaut — distribuer les droits de la console est précisément l'acte
+	// qu'on ne délègue pas implicitement.
+	AccessRead  Capability = "admin.access.read"
+	AccessGrant Capability = "admin.access.grant"
 )
 
 // capabilityPrefix distingue une capacité du reste du vocabulaire d'audit.
@@ -126,6 +136,7 @@ var vocabulary = []Capability{
 	APIRead, APIGrantsWrite,
 	LegalRead, LegalWrite,
 	ComplianceRead, ComplianceExport,
+	AccessRead, AccessGrant,
 }
 
 // domains associe chaque capacité à son domaine d'interface. Tenue à part de
@@ -175,6 +186,8 @@ var domains = map[Capability]string{
 	LegalWrite:       DomainPlateforme,
 	ComplianceRead:   DomainPlateforme,
 	ComplianceExport: DomainPlateforme,
+	AccessRead:       DomainPlateforme,
+	AccessGrant:      DomainPlateforme,
 }
 
 // Capabilities retourne le vocabulaire fermé, dans l'ordre d'affichage. La
