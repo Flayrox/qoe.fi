@@ -8,7 +8,7 @@
   <array>
     <string>/bin/sh</string>
     <string>-c</string>
-    <string>cd /Users/ephe/Desktop/Qoe.fi/dev/prod/qoe.fi/apps/core || exit 78; exec /opt/homebrew/bin/pnpm dev</string>
+    <string>cd /Users/ephe/Desktop/Qoefi/dev/prod/qoefi/apps/core || exit 78; exec /opt/homebrew/bin/pnpm dev</string>
   </array>
   <key>EnvironmentVariables</key>
   <dict>
@@ -18,7 +18,7 @@
   <key>ProcessType</key>
   <string>Interactive</string>
   <key>WorkingDirectory</key>
-  <string>/Users/ephe/Desktop/Qoe.fi/dev/prod/qoe.fi/apps/core</string>
+  <string>/Users/ephe/Desktop/Qoefi/dev/prod/qoefi/apps/core</string>
   <key>RunAtLoad</key>
   <true/>
   <key>KeepAlive</key>

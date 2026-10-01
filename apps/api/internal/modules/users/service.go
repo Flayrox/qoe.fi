@@ -549,45 +549,6 @@ func (s *Service) UpdateProfilePatch(ctx context.Context, userID string, patch P
 		return nil, err
 	}
 
-	// Synchronise la publication personnelle liée (slug, name, logoUrl)
-	pubSets := make([]string, 0, 4)
-	pubArgs := make([]any, 0, 5)
-	if patch.Username != nil && *patch.Username != "" {
-		un := identifier.NormalizeUsername(*patch.Username)
-		pubArgs = append(pubArgs, un)
-		pubSets = append(pubSets, fmt.Sprintf("slug = $%d", len(pubArgs)))
-	}
-	if patch.Name != nil && *patch.Name != "" {
-		name := strings.TrimSpace(*patch.Name)
-		if len(name) > 120 {
-			name = name[:120]
-		}
-		pubArgs = append(pubArgs, name)
-		pubSets = append(pubSets, fmt.Sprintf("name = $%d", len(pubArgs)))
-	}
-	if patch.LogoURL != nil {
-		logo := strings.TrimSpace(*patch.LogoURL)
-		if len(logo) > 2000 {
-			logo = logo[:2000]
-		}
-		pubArgs = append(pubArgs, optText(logo))
-		pubSets = append(pubSets, fmt.Sprintf(`"logoUrl" = $%d`, len(pubArgs)))
-	}
-
-	if len(pubSets) > 0 {
-		pubSets = append(pubSets, `"updatedAt" = now()`)
-		pubArgs = append(pubArgs, toUUID(userID))
-		pubQuery := fmt.Sprintf(`
-			UPDATE "Publication" p
-			SET %s
-			FROM "User" u
-			WHERE u."publicationId" = p.id
-			  AND u.id = $%d
-			  AND p.type = 'PERSONAL'`, strings.Join(pubSets, ", "), len(pubArgs))
-		if _, err := tx.Exec(ctx, pubQuery, pubArgs...); err != nil {
-			return nil, err
-		}
-	}
 
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err

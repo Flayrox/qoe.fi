@@ -17,7 +17,7 @@ import { t } from '@lingui/core/macro';
 import { toast } from '@qoe/ui/toast';
 import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
-import { Check, Loader2, Mail, SendHorizonal } from 'lucide-react';
+import { Check, Loader2, Mail, SendHorizonal, Monitor, Smartphone } from 'lucide-react';
 import {
   getEmailSettingsAction,
   previewEmailSettingsAction,
@@ -61,6 +61,7 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
   const [preview, setPreview] = useState<PreviewState>(null);
   const [previewing, setPreviewing] = useState(false);
   const [showText, setShowText] = useState(false);
+  const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop');
   const [sendingTest, setSendingTest] = useState(false);
   const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -449,11 +450,46 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
               </button>
             ))}
           </div>
-          {previewing && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
+
+          <div className="flex items-center gap-2">
+            {previewing && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
+            <div className="flex items-center gap-0.5 bg-muted/40 rounded-lg p-0.5">
+              <button
+                type="button"
+                onClick={() => setPreviewMode('desktop')}
+                title="Vue Bureau"
+                className={`p-1 rounded-md text-xs transition-colors cursor-pointer ${
+                  previewMode === 'desktop'
+                    ? 'bg-background shadow-sm text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Monitor className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setPreviewMode('mobile')}
+                title="Vue Mobile"
+                className={`p-1 rounded-md text-xs transition-colors cursor-pointer ${
+                  previewMode === 'mobile'
+                    ? 'bg-background shadow-sm text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Smartphone className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Fenêtre type client mail */}
-        <div className="rounded-xl border border-border/50 overflow-hidden bg-background shadow-sm">
+        <div
+          className={`transition-all duration-300 ${
+            previewMode === 'mobile'
+              ? 'max-w-[340px] mx-auto rounded-3xl border-4 border-border shadow-2xl overflow-hidden'
+              : 'rounded-xl border border-border/50 overflow-hidden bg-background shadow-sm'
+          }`}
+        >
           <div className="px-4 py-3 border-b border-border/40 bg-muted/30">
             <p className="text-[11px] font-semibold text-foreground truncate">
               {preview?.from || '…'}
@@ -467,7 +503,9 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
               title="email-preview"
               srcDoc={preview.html}
               sandbox=""
-              className="w-full h-[560px] bg-white"
+              className={`w-full bg-white transition-all ${
+                previewMode === 'mobile' ? 'h-[500px]' : 'h-[560px]'
+              }`}
             />
           )}
         </div>
