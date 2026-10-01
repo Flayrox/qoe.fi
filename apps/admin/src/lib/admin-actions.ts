@@ -11,6 +11,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import { assertCapability } from '@/lib/admin-identity';
 
 function getAdminClient() {
   return createClient(
@@ -25,15 +26,12 @@ function getAdminClient() {
   );
 }
 
-async function verifySuperadmin() {
-  // Go vérifie le rôle superadmin sur chaque route admin (403 sinon).
-  try {
-    await goFetch('/v1/admin/dashboard');
-  } catch (err) {
-    const status = (err as { status?: number })?.status;
-    if (status === 403) throw new Error('Forbidden');
-    throw err;
-  }
+// Défense en profondeur : la server-action revérifie la CAPACITÉ de l'acte
+// (modération de comptes), pas un rôle. Le garde HTTP du Go reste le seul juge —
+// masquer un bouton n'autorise rien, mais une action qui échapperait à
+// l'interface ne doit pas échapper au contrôle pour autant.
+async function verifyModeration() {
+  await assertCapability('admin.users.moderate');
 }
 
 export async function updateModerationAction(input: {
@@ -44,7 +42,7 @@ export async function updateModerationAction(input: {
   suspendReason?: string | null;
   publicationCertified?: boolean;
 }) {
-  await verifySuperadmin();
+  await verifyModeration();
 
   try {
     const body: Record<string, unknown> = {};
@@ -72,7 +70,7 @@ export async function updateModerationAction(input: {
 
 /** ✅ Bannir (DB + Supabase Auth). */
 export async function suspendUserAction(input: { userId: string; reason: string }) {
-  await verifySuperadmin();
+  await verifyModeration();
   const res = await updateModerationAction({
     userId: input.userId,
     isSuspended: true,
@@ -94,7 +92,7 @@ export async function suspendUserAction(input: { userId: string; reason: string 
 
 /** 🔓 Débannir (DB + Supabase Auth). */
 export async function unsuspendUserAction(userId: string) {
-  await verifySuperadmin();
+  await verifyModeration();
   const res = await updateModerationAction({
     userId,
     isSuspended: false,
