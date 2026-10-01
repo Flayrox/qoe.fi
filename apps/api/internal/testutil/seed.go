@@ -15,6 +15,12 @@ type Fixtures struct {
 	CategoryTech  string
 	CategoryFood  string
 	ArticleSlugs  []string // ordre décroissant de createdAt (le plus récent d'abord)
+	// PublishedArticleSlugs : mêmes slugs SANS le brouillon — le seul jeu
+	// utilisable par un test qui attend un article servi (hors-ligne, file
+	// d'écoute) : un brouillon n'est ni publié, ni téléchargeable, et le
+	// prendre par erreur ne teste plus rien (l'erreur dépend alors d'un état
+	// sans rapport avec le sujet du test).
+	PublishedArticleSlugs []string
 }
 
 // SeedArticles crée un environnement minimal mais réaliste :
@@ -35,10 +41,15 @@ func SeedArticles(ctx context.Context, pool *pgxpool.Pool) (*Fixtures, error) {
 		return nil, fmt.Errorf("truncate: %w", err)
 	}
 
-	// Publication
+	// Publication — c'est la publication PERSONNELLE de l'auteur, donc elle
+	// porte SON identité. Les triggers 00028/00054 recopient User.name/username
+	// dans Publication.name/slug (et l'inverse) : un libellé fantaisiste saisi
+	// ici serait réécrit en 'Auteur Test'/'author' dès l'insertion de
+	// l'utilisateur lié. La fixture pose donc directement l'état réel de
+	// production, pas un état que la base refuserait de conserver.
 	if err := pool.QueryRow(ctx,
 		`INSERT INTO "Publication" (id, type, name, slug, "createdAt", "updatedAt")
-		 VALUES ('pub_test_001', 'PERSONAL', 'Journal Test', 'journal-test', now(), now())
+		 VALUES ('pub_test_001', 'PERSONAL', 'Auteur Test', 'author', now(), now())
 		 RETURNING id`,
 	).Scan(&fx.PublicationID); err != nil {
 		return nil, fmt.Errorf("publication: %w", err)
@@ -107,6 +118,10 @@ func SeedArticles(ctx context.Context, pool *pgxpool.Pool) (*Fixtures, error) {
 	// plus récent mais est exclu quand published=true).
 	fx.ArticleSlugs = []string{
 		"brouillon", "recette-pates", "article-payant", "premier-article",
+	}
+	// Même ordre, brouillon exclu (cf. PublishedArticleSlugs).
+	fx.PublishedArticleSlugs = []string{
+		"recette-pates", "article-payant", "premier-article",
 	}
 	return fx, nil
 }

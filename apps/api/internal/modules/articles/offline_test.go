@@ -18,7 +18,9 @@ func TestOfflinePack_Gates(t *testing.T) {
 	fx := seed(t)
 	svc := NewService(poolTest, nil, nil)
 	now := time.Now()
-	slug := fx.ArticleSlugs[0]
+	// Article PUBLIÉ : ArticleSlugs[0] est le brouillon du seed, qui ne peut
+	// pas être servi (non publié) — le test ne mesurerait plus le hors-ligne.
+	slug := fx.PublishedArticleSlugs[0]
 
 	// Sans compte : refusé (pas de hors-ligne anonyme).
 	if _, err := svc.OfflinePack(ctx, slug, "", ""); !errors.Is(err, ErrOfflineForbidden) {
@@ -64,7 +66,7 @@ func TestOfflinePack_AuthorRight(t *testing.T) {
 		t.Fatalf("octroi : %v", err)
 	}
 	var articleID string
-	if err := poolTest.QueryRow(ctx, `SELECT id FROM "Article" WHERE slug = $1`, fx.ArticleSlugs[0]).Scan(&articleID); err != nil {
+	if err := poolTest.QueryRow(ctx, `SELECT id FROM "Article" WHERE slug = $1`, fx.PublishedArticleSlugs[0]).Scan(&articleID); err != nil {
 		t.Fatalf("resolve : %v", err)
 	}
 	// L'auteur restreint : même en Plus, refusé avec LA cause.
@@ -92,8 +94,8 @@ func TestListenLater_IdempotentOrdered(t *testing.T) {
 	svc := NewService(poolTest, nil, nil)
 	reader := seedReader(t, ctx)
 	var a1, a2 string
-	poolTest.QueryRow(ctx, `SELECT id FROM "Article" WHERE slug = $1`, fx.ArticleSlugs[0]).Scan(&a1)
-	poolTest.QueryRow(ctx, `SELECT id FROM "Article" WHERE slug = $1`, fx.ArticleSlugs[1]).Scan(&a2)
+	poolTest.QueryRow(ctx, `SELECT id FROM "Article" WHERE slug = $1`, fx.PublishedArticleSlugs[0]).Scan(&a1)
+	poolTest.QueryRow(ctx, `SELECT id FROM "Article" WHERE slug = $1`, fx.PublishedArticleSlugs[1]).Scan(&a2)
 
 	id1, err := svc.AddListenLater(ctx, reader, a1)
 	if err != nil || id1 == "" {
@@ -135,7 +137,7 @@ func TestListenLater_RespectsAuthorRight(t *testing.T) {
 	svc := NewService(poolTest, nil, nil)
 	reader := seedReader(t, ctx)
 	var articleID string
-	poolTest.QueryRow(ctx, `SELECT id FROM "Article" WHERE slug = $1`, fx.ArticleSlugs[0]).Scan(&articleID)
+	poolTest.QueryRow(ctx, `SELECT id FROM "Article" WHERE slug = $1`, fx.PublishedArticleSlugs[0]).Scan(&articleID)
 	if _, err := svc.SetAllowDownload(ctx, articleID, fx.AuthorID, false); err != nil {
 		t.Fatalf("toggle : %v", err)
 	}

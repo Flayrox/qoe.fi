@@ -20,6 +20,19 @@ func seedReader(t *testing.T, ctx context.Context) string {
 		 ON CONFLICT (id) DO NOTHING`, id); err != nil {
 		t.Fatalf("reader: %v", err)
 	}
+	// Droits remis à zéro : ce lecteur doit partir SANS Plus (les tests
+	// hors-ligne mesurent justement ce refus). L'id est fixe et partagé entre
+	// paquets comme entre exécutions : en base partagée (mode CI), un octroi
+	// laissé par un test interrompu le rendrait « déjà Plus » et le refus ne
+	// serait plus testé du tout.
+	if _, err := poolTest.Exec(ctx, `
+		DELETE FROM "SubscriptionGrant"
+		WHERE ("subjectType" = 'user' AND "subjectId" = $1::text)
+		   OR ("subjectType" = 'publication'
+		       AND "subjectId" = (SELECT u."publicationId" FROM "User" u WHERE u.id = $2::uuid))`,
+		id, id); err != nil {
+		t.Fatalf("droits lecteur: %v", err)
+	}
 	return id
 }
 

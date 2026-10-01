@@ -633,10 +633,16 @@ func (s *Service) sendReconfirmOne(ctx context.Context, tx pgx.Tx, waveID, publi
 	if (expiresAt != nil && !expiresAt.IsZero() && now.After(*expiresAt)) || !hasSubscriber {
 		return s.expireReconfirmRequest(ctx, tx, waveID, publicationID, c)
 	}
-	if suppressed || (hasSubscriber && (!isActive || !receiveArticles)) {
-		// Opposition survenue entre la création de la vague et l'envoi : la
-		// demande est écartée et l'opposition rendue durable. La vague ne
-		// réessaiera jamais cette adresse.
+	// Opposition survenue entre la création de la vague et l'envoi. Le signal
+	// est la DÉSACTIVATION (`isActive` faux : c'est ce que pose toute
+	// désinscription) ou un abonné confirmé qui ne reçoit plus rien. Le seul
+	// `receiveArticles` faux ne prouve RIEN : la vague provisionne elle-même
+	// ses abonnés en `receiveArticles = false, confirmedAt NULL` (elle ne rend
+	// personne destinataire), et lire ce champ comme une opposition écartait
+	// la totalité de ses propres adresses — zéro envoi, zéro clic possible.
+	if suppressed || (hasSubscriber && (!isActive || (confirmed && !receiveArticles))) {
+		// Opposition avérée : la demande est écartée et l'opposition rendue
+		// durable. La vague ne réessaiera jamais cette adresse.
 		if _, err := tx.Exec(ctx, `
 			UPDATE "SubscriberImportReconfirmRequest"
 			SET "status" = 'skipped', "updatedAt" = now()
@@ -717,8 +723,13 @@ func (s *Service) finishBatchIfDrained(ctx context.Context, batchID string) {
 		SELECT
 		  (SELECT COUNT(*) FROM "SubscriberImportReconfirmWave"
 		    WHERE "batchId" = $1 AND "status" IN ('queued', 'sending', 'paused')),
+		  -- Seules les demandes ENCORE À ENVOYER retiennent le lot ouvert. Une
+		  -- demande envoyée est partie : ce qui reste dépend du clic du
+		  -- destinataire, enregistré plus tard par MarkReconfirmConfirmed —
+		  -- compter ces demandes comme vivantes gardait le lot ouvert pour
+		  -- toujours (le clic du destinataire n'est pas une étape du lot).
 		  (SELECT COUNT(*) FROM "SubscriberImportReconfirmRequest"
-		    WHERE "batchId" = $1 AND "status" IN ('pending', 'sent'))`,
+		    WHERE "batchId" = $1 AND "status" = 'pending')`,
 		batchID).Scan(&activeWaves, &liveRequests)
 	if err != nil {
 		log.Printf("[imports] clôture lot %s: %v", batchID, err)

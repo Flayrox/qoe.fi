@@ -68,14 +68,34 @@ func TestPurgeExpiredAbuseData(t *testing.T) {
 	if err := poolTest.QueryRow(ctx, `SELECT COUNT(*) FROM "AbuseSignal" WHERE "type" = 'test.purge' AND "subjectId" = $1`, scope+"-fresh").Scan(&n); err != nil || n != 1 {
 		t.Fatalf("signal valide conservé : count=%d err=%v", n, err)
 	}
-	if _, err := ConsumeBudget(ctx, poolTest, "test", scope+"-cur", ActionConfirmRequest, DailyWindow(now), 1, 5); err != nil {
-		t.Fatalf("budget courant réutilisable : %v", err)
-	}
 	// Le budget courant a survécu avec sa consommation (1/5) : la purge ne
-	// remet jamais un compteur à zéro en douce.
+	// remet jamais un compteur à zéro en douce. Preuve par le plafond : les 4
+	// unités restantes passent (5/5 exactement), la suivante est refusée —
+	// un compteur remis à zéro accorderait les deux.
 	ok, err := ConsumeBudget(ctx, poolTest, "test", scope+"-cur", ActionConfirmRequest, DailyWindow(now), 4, 5)
 	if err != nil || !ok {
 		t.Fatalf("budget courant à 1/5 + 4 attendu accord, obtenu (%v, %v)", ok, err)
+	}
+	if ok, err := ConsumeBudget(ctx, poolTest, "test", scope+"-cur", ActionConfirmRequest, DailyWindow(now), 1, 5); err != nil || ok {
+		t.Fatalf("budget courant à 5/5 : refus attendu, obtenu (%v, %v)", ok, err)
+	}
+}
+
+// drainOpenDossiers classe (allow) tous les dossiers ouverts laissés par les
+// autres tests du paquet : la file de revue est globale par nature
+// (ListOpenDecisions ne filtre pas par test) et ce test contrôle des
+// comptages exacts. On la vide par l'API publique — même chemin qu'un staff,
+// pas un DELETE de complaisance.
+func drainOpenDossiers(ctx context.Context, t *testing.T, now time.Time) {
+	t.Helper()
+	items, total, err := ListOpenDecisions(ctx, poolTest, 200, 0, now)
+	if err != nil {
+		t.Fatalf("vidage de la file : %v", err)
+	}
+	for _, d := range items {
+		if _, err := ResolveDecision(ctx, poolTest, d.SubjectType, d.SubjectID, "test-drain", DecisionAllow, "vidage de file (fixture de test)", now); err != nil {
+			t.Fatalf("vidage %s:%s (%d dossiers) : %v", d.SubjectType, d.SubjectID, total, err)
+		}
 	}
 }
 
@@ -83,6 +103,7 @@ func TestReview_OpenResolveClose(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
 	now := time.Now()
+	drainOpenDossiers(ctx, t, now)
 	subject := fmt.Sprintf("article:review-%d", now.UnixNano())
 
 	// Pas de dossier avant les faits : refus explicite.

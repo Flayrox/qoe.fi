@@ -18,9 +18,10 @@ func TestConfirm_AttachesToMatchingAccount(t *testing.T) {
 	const token = "tok-attach-account"
 
 	// Un compte qoe.fi utilise cette adresse comme identifiant.
+	// `User.id` est un uuid : gen_random_uuid() nu, jamais son cast texte.
 	if _, err := poolTest.Exec(ctx,
 		`INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt")
-		 VALUES (gen_random_uuid()::text, $1, 'rattachemoi', 'Rattaché', 'user', now(), now())
+		 VALUES (gen_random_uuid(), $1, 'rattachemoi', 'Rattaché', 'user', now(), now())
 		 ON CONFLICT (email) DO NOTHING`, email); err != nil {
 		t.Fatalf("seed user: %v", err)
 	}
@@ -96,6 +97,13 @@ func TestConfirm_NeverOverwritesUserID(t *testing.T) {
 	seedPendingSubscriber(t, ctx, email, token)
 
 	const existing = "00000000-0000-0000-0000-00000000abcd"
+	// Le compte doit exister : "Subscriber"."userId" est une clé étrangère.
+	if _, err := poolTest.Exec(ctx,
+		`INSERT INTO "User" (id, email, username, name, role, "createdAt", "updatedAt")
+		 VALUES ($1, 'deja-rattache-compte@test.dev', 'dejarattachecompte', 'Déjà rattaché', 'user', now(), now())`,
+		existing); err != nil {
+		t.Fatalf("seed user attaché: %v", err)
+	}
 	if _, err := poolTest.Exec(ctx,
 		`UPDATE "Subscriber" SET "userId" = $1 WHERE email = $2 AND "publicationId" = $3`,
 		existing, email, pubID); err != nil {

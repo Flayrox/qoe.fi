@@ -120,7 +120,9 @@ func TestService_GetBySlug_Published(t *testing.T) {
 	if art.Author.ID != fx.AuthorID {
 		t.Fatalf("author = %+v", art.Author)
 	}
-	if art.Publication == nil || art.Publication.Slug != "journal-test" {
+	// La publication personnelle de l'auteur porte son identité
+	// (slug = username) : la fixture ne peut pas en inventer une autre.
+	if art.Publication == nil || art.Publication.Slug != "author" {
 		t.Fatalf("publication = %+v", art.Publication)
 	}
 	// Même contrat que le slug seul : image + tableaux jamais null.

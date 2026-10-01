@@ -88,8 +88,11 @@ func TestEvaluateSubject_BurstPersistsNeedsReview(t *testing.T) {
 	).Scan(&result, &policy, &version, &reasons); err != nil {
 		t.Fatalf("verdict non persisté : %v", err)
 	}
-	if result != "needs_review" || policy != "abuse-core" || version != "v1" {
-		t.Fatalf("verdict persisté incohérent : %s %s/%s", result, policy, version)
+	// Politique courante, jamais un littéral : la version monte (v1 → v2) et
+	// c'est le verdict persisté qui doit dire ce que le noyau applique.
+	if result != "needs_review" || policy != CurrentPolicy.Name || version != CurrentPolicy.Version {
+		t.Fatalf("verdict persisté incohérent : %s %s/%s (attendu %s/%s)",
+			result, policy, version, CurrentPolicy.Name, CurrentPolicy.Version)
 	}
 	if len(reasons) != 1 || reasons[0] != "swarm.report.target" {
 		t.Fatalf("raison attendue [swarm.report.target], obtenu %v", reasons)

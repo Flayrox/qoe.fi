@@ -173,7 +173,9 @@ func TestPublicationArticles(t *testing.T) {
 	}
 
 	svc := newTestService()
-	res, err := svc.PublicationArticles(context.Background(), "PUBLICATION-TEST", 20, 0)
+	// La publication personnelle d'Alice a le slug de son propriétaire ; la
+	// requête reste insensible à la casse (contrat de l'endpoint).
+	res, err := svc.PublicationArticles(context.Background(), "ALICE", 20, 0)
 	if err != nil {
 		t.Fatalf("PublicationArticles: %v", err)
 	}
@@ -911,7 +913,9 @@ func TestRecentArticles(t *testing.T) {
 			if a.Author.Username == nil || *a.Author.Username != "alice" {
 				t.Fatalf("author = %+v", a.Author)
 			}
-			if a.Publication.Name != "Publication Test" {
+			// Publication personnelle de l'auteur : elle porte son identité
+			// (trigger 00028/00054), donc son nom est celui du compte.
+			if a.Publication.Name != "Alice" {
 				t.Fatalf("publication = %+v", a.Publication)
 			}
 			if a.PublicationID == "" {

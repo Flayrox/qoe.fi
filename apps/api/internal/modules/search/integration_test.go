@@ -130,8 +130,10 @@ func TestSearchSemanticRanksBySimilarity(t *testing.T) {
 	if hits[0].AuthorName == nil || *hits[0].AuthorName != "Auteur Test" {
 		t.Fatalf("authorName = %v, attendu Auteur Test", hits[0].AuthorName)
 	}
-	if hits[0].Publication == nil || *hits[0].Publication != "Journal Test" {
-		t.Fatalf("publication = %v, attendu Journal Test", hits[0].Publication)
+	// Publication personnelle de l'auteur : son nom EST celui du compte
+	// (trigger 00028/00054) — la fixture ne peut pas en inventer un autre.
+	if hits[0].Publication == nil || *hits[0].Publication != "Auteur Test" {
+		t.Fatalf("publication = %v, attendu Auteur Test", hits[0].Publication)
 	}
 	if hits[0].AuthorID == "" {
 		t.Fatal("authorId doit être formaté (uuidString)")

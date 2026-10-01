@@ -95,8 +95,13 @@ func TestAppeal_FullCycle(t *testing.T) {
 		t.Fatalf("contenu : attendu ErrAppealForbidden, obtenu %v", err)
 	}
 
-	// Mesure contre le compte : ouverture.
+	// Mesure contre le compte : ouverture. L'horloge du test avance d'une
+	// seconde après les fixtures : « le dernier verdict » départage à la
+	// milliseconde (TIMESTAMP(3)), et un cycle réel s'étale sur plus d'une
+	// ms — sans cet écart, le verdict du recours pourrait naître « avant »
+	// la fixture posée à l'instant courant et la lecture repartirait d'elle.
 	verdictID := insertHumanVerdictDirect(ctx, t, SubjectUser, user, "suspend")
+	now = now.Add(time.Second)
 	a, err := OpenAppeal(ctx, poolTest, SubjectUser, user, user, "faux positif, voici pourquoi", now)
 	if err != nil {
 		t.Fatalf("ouverture : %v", err)
@@ -145,12 +150,15 @@ func TestAppeal_FullCycle(t *testing.T) {
 	if len(a.Messages) != 3 {
 		t.Fatalf("réponse staff en message attendue (3), obtenu %d", len(a.Messages))
 	}
+	// Lecture PAR LE LIEN, jamais par récence : la fixture et le verdict du
+	// recours partagent la même milliseconde (TIMESTAMP(3)) et le départage
+	// par identifiant n'est pas sémantique — seule la jointure appealRef
+	// prouve que ce verdict EST celui du recours.
 	var ref *string
 	var res string
 	if err := poolTest.QueryRow(ctx,
-		`SELECT "result", "appealRef" FROM "RiskDecision"
-		 WHERE "subjectType" = 'user' AND "subjectId" = $1 ORDER BY "createdAt" DESC LIMIT 1`,
-		user).Scan(&res, &ref); err != nil || res != "suspend" || ref == nil || *ref != a.ID {
+		`SELECT "result", "appealRef" FROM "RiskDecision" WHERE "appealRef" = $1`,
+		a.ID).Scan(&res, &ref); err != nil || res != "suspend" || ref == nil || *ref != a.ID {
 		t.Fatalf("verdict humain suspend + appealRef attendu, obtenu (%q, %v, %v)", res, ref, err)
 	}
 	// Clos = clos (message comme décision).
@@ -163,6 +171,10 @@ func TestAppeal_FullCycle(t *testing.T) {
 
 	// Nouveau cycle : essaim → needs_review auto → recours → overturned
 	// (faux positif avéré : la mesure tombe via un verdict allow).
+	// Encore une seconde d'écart : l'essaim doit être strictement plus récent
+	// que le verdict humain du cycle précédent, sinon le recours contesterait
+	// le verdict d'avant (même milliseconde, départage arbitraire).
+	now = now.Add(time.Second)
 	for i := 0; i < 10; i++ {
 		RecordSignal(ctx, poolTest, SignalReportVolume, SubjectUser, user,
 			"test", ConfidenceObserved, ReportSignalRetention, now.Add(-time.Duration(i)*time.Minute))
