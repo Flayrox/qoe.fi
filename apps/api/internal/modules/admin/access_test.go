@@ -416,6 +416,46 @@ func TestAccessRoutes_InvalidInputIsClientError(t *testing.T) {
 	}
 }
 
+// TestAccessPeople_SearchGuardsEnumeration — la recherche de personnes exige un
+// motif : le vide ne liste pas la base des comptes, et le motif ne filtre que
+// ce qu'il nomme.
+func TestAccessPeople_SearchGuardsEnumeration(t *testing.T) {
+	ctx := context.Background()
+	seedAdmin(t, ctx)
+	svc := newTestService()
+
+	if items, err := svc.SearchAccessPeople(ctx, "", 20); err != nil || len(items) != 0 {
+		t.Fatalf("recherche vide = %v (err=%v), attendu 0 résultat", items, err)
+	}
+	if items, err := svc.SearchAccessPeople(ctx, "a", 20); err != nil || len(items) != 0 {
+		t.Fatalf("motif d'un caractère = %v (err=%v), attendu 0 résultat", items, err)
+	}
+
+	items, err := svc.SearchAccessPeople(ctx, "reader-adm", 20)
+	if err != nil {
+		t.Fatalf("recherche: %v", err)
+	}
+	if len(items) != 1 || items[0].UserID != adminReaderID {
+		t.Fatalf("résultats = %+v", items)
+	}
+	if items[0].Roles == nil {
+		t.Fatal("contrat rompu : roles null")
+	}
+	if items[0].LegacySuperadmin {
+		t.Error("un lecteur n'est pas superadmin historique")
+	}
+
+	// Le superadmin historique est signalé comme tel : la console peut alors
+	// expliquer qu'il détient déjà tout, sans requête supplémentaire.
+	items, err = svc.SearchAccessPeople(ctx, "admin-adm", 20)
+	if err != nil {
+		t.Fatalf("recherche superadmin: %v", err)
+	}
+	if len(items) != 1 || !items[0].LegacySuperadmin {
+		t.Fatalf("superadmin historique non signalé : %+v", items)
+	}
+}
+
 // contains dit si la liste contient la valeur (petite aide de test).
 func contains(list []string, value string) bool {
 	for _, v := range list {

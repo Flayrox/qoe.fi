@@ -108,6 +108,21 @@ type AccessRole struct {
 	Holders      int64    `json:"holders"`
 }
 
+// AccessPersonSummary est une personne CANDIDATE à une attribution : de quoi
+// choisir sans recopier un identifiant à la main. La recherche exige un motif
+// d'au moins deux caractères : lister toute la base des comptes depuis la
+// console d'accès serait une énumération, pas une recherche.
+type AccessPersonSummary struct {
+	UserID   string  `json:"userId"`
+	Email    string  `json:"email"`
+	Name     *string `json:"name"`
+	Username *string `json:"username"`
+	// Roles : rôles ACTIFS (échéances appliquées), triés, toujours non nil.
+	Roles []string `json:"roles"`
+	// LegacySuperadmin : la promotion historique, qui détient déjà tout.
+	LegacySuperadmin bool `json:"legacySuperadmin"`
+}
+
 // AccessCapability décrit une capacité du vocabulaire semé en base.
 type AccessCapability struct {
 	Key         string `json:"key"`
@@ -190,6 +205,27 @@ const accessRolesQuery = `
 	  FROM "AdminRole" r
 	  LEFT JOIN "AdminRoleCapability" rc ON rc."roleKey" = r."key"
 	 ORDER BY r."key" ASC, rc."capabilityKey" ASC`
+
+// accessPeopleQuery cherche des personnes par email, pseudonyme ou nom.
+// $1 = motif brut (garde-fou de longueur côté Go), $2 = motif LIKE, $3 = limite.
+const accessPeopleQuery = `
+	SELECT u."id", u."email", u."name", u."username",
+	       COALESCE(
+	           array_agg(DISTINCT ur."roleKey") FILTER (
+	               WHERE ur."roleKey" IS NOT NULL
+	                 AND (ur."expiresAt" IS NULL OR ur."expiresAt" > CURRENT_TIMESTAMP)
+	           ), '{}'
+	       ) AS roles,
+	       (u."role" = 'superadmin') AS legacy_superadmin
+	  FROM "User" u
+	  LEFT JOIN "AdminUserRole" ur ON ur."userId" = u."id"
+	 WHERE ($1::text <> '' AND (
+	           u."email" ILIKE $2
+	        OR COALESCE(u."username", '') ILIKE $2
+	        OR COALESCE(u."name", '') ILIKE $2))
+	 GROUP BY u."id", u."email", u."name", u."username", u."role"
+	 ORDER BY u."email" ASC
+	 LIMIT $3`
 
 const accessCapabilitiesQuery = `
 	SELECT "key", "label", "domain", "description"
@@ -500,6 +536,51 @@ func (s *Service) AccessRoles(ctx context.Context) ([]AccessRole, error) {
 		role := byKey[key]
 		role.Holders = holders[key]
 		out = append(out, *role)
+	}
+	return out, nil
+}
+
+// SearchAccessPeople cherche des personnes à nommer. Motif d'au moins deux
+// caractères (le vide n'énumère pas la base). Lecture seule.
+func (s *Service) SearchAccessPeople(ctx context.Context, query string, limit int) ([]AccessPersonSummary, error) {
+	pool, err := s.requirePool()
+	if err != nil {
+		return nil, err
+	}
+	query = strings.TrimSpace(query)
+	if utf8.RuneCountInString(query) < 2 {
+		return []AccessPersonSummary{}, nil
+	}
+	if limit <= 0 || limit > 50 {
+		limit = 20
+	}
+	rows, err := pool.Query(ctx, accessPeopleQuery, query, "%"+query+"%", limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]AccessPersonSummary, 0, limit)
+	for rows.Next() {
+		var (
+			person   AccessPersonSummary
+			name     pgtype.Text
+			username pgtype.Text
+			roles    []string
+		)
+		if err := rows.Scan(&person.UserID, &person.Email, &name, &username, &roles, &person.LegacySuperadmin); err != nil {
+			return nil, err
+		}
+		person.Name = textPtr(name)
+		person.Username = textPtr(username)
+		person.Roles = append([]string{}, roles...)
+		if person.Roles == nil {
+			person.Roles = []string{}
+		}
+		out = append(out, person)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return out, nil
 }

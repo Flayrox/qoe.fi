@@ -179,6 +179,7 @@ func (h *Handler) routeTable() []adminRoute {
 		// Lectures : liste des attributions, fiche « pourquoi cette personne
 		// détient-elle ceci ? », matrice rôle × capacité, vocabulaire.
 		{http.MethodGet, "/v1/admin/access/grants", adminauthz.AccessRead, h.accessGrants},
+		{http.MethodGet, "/v1/admin/access/people", adminauthz.AccessRead, h.accessPeople},
 		{http.MethodGet, "/v1/admin/access/people/{userID}", adminauthz.AccessRead, h.accessPerson},
 		{http.MethodGet, "/v1/admin/access/roles", adminauthz.AccessRead, h.accessRoles},
 		{http.MethodGet, "/v1/admin/access/capabilities", adminauthz.AccessRead, h.accessCapabilities},
