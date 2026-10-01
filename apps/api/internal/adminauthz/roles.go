@@ -88,6 +88,9 @@ var RoleCapabilities = map[string][]Capability{
 		SupportRead, SubscriptionsRead, ImportsRead,
 		ContentRead, WidgetsRead, DeliveriesRead, CampaignsRead,
 		ConfigRead, OAuthRead, APIRead, LegalRead, ComplianceRead,
+		// Lire qui détient quoi est une lecture : l'analyste voit l'état des
+		// accès sans pouvoir en distribuer (AccessGrant reste superadmin).
+		AccessRead,
 	},
 }
 

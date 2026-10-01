@@ -174,6 +174,18 @@ func (h *Handler) routeTable() []adminRoute {
 
 		// Journal d'audit de la console.
 		{http.MethodGet, "/v1/admin/audit-log", adminauthz.AuditRead, h.auditLog},
+
+		// ── Accès staff : nommer un rôle sans SQL (plan, Phase 2) ────────
+		// Lectures : liste des attributions, fiche « pourquoi cette personne
+		// détient-elle ceci ? », matrice rôle × capacité, vocabulaire.
+		{http.MethodGet, "/v1/admin/access/grants", adminauthz.AccessRead, h.accessGrants},
+		{http.MethodGet, "/v1/admin/access/people/{userID}", adminauthz.AccessRead, h.accessPerson},
+		{http.MethodGet, "/v1/admin/access/roles", adminauthz.AccessRead, h.accessRoles},
+		{http.MethodGet, "/v1/admin/access/capabilities", adminauthz.AccessRead, h.accessCapabilities},
+		// Mouvements : motif obligatoire, anti-escalade et garde-fous portés par
+		// le service (dernier rôle, dernier superadmin), audit systématique.
+		{http.MethodPost, "/v1/admin/access/grants", adminauthz.AccessGrant, h.grantAccess},
+		{http.MethodPost, "/v1/admin/access/grants/{userID}/{roleKey}/revoke", adminauthz.AccessGrant, h.revokeAccess},
 	}
 }
 
@@ -248,6 +260,10 @@ func (h *Handler) handleErr(w http.ResponseWriter, err error) {
 	case errors.Is(err, errInvalidModeration):
 		// Règle métier refusée (shadowban sans motif/échéance) : la requête
 		// est fautive, pas le serveur.
+		response.BadRequest(w, err.Error())
+	case errors.Is(err, errInvalidAccess):
+		// Règle métier d'accès refusée (motif absent, escalade, dernier rôle,
+		// dernier superadmin) : la requête est fautive, pas le serveur.
 		response.BadRequest(w, err.Error())
 	default:
 		log.Printf("[admin] %v", err)

@@ -16,7 +16,13 @@ import (
 //
 // Le fichier est lu depuis le disque (pas de base de données) : le test tourne
 // sans Docker, comme le reste du paquet.
-const migrationPath = "../../sql/migrations/00053_admin_rbac.sql"
+// Le vocabulaire est désormais porté par DEUX migrations : 00053 (socle RBAC)
+// et 00056 (accès staff). Le test lit les deux et fusionne les lignes —
+// ajouter une capacité d'un seul côté fait échouer la comparaison.
+const (
+	migrationPath       = "../../sql/migrations/00053_admin_rbac.sql"
+	accessMigrationPath = "../../sql/migrations/00056_admin_access_rbac.sql"
+)
 
 // quoted matches a single-quoted SQL string, escaped quotes (” ) inclus.
 const quotedSQL = `'(?:[^']|'')*'`
@@ -27,13 +33,18 @@ var (
 	reMatrixRow     = regexp.MustCompile(`\(\s*'([^']+)'\s*,\s*'([^']+)'\s*\)`)
 )
 
-func readMigration(t *testing.T) string {
+func readMigrationAt(t *testing.T, path string) string {
 	t.Helper()
-	raw, err := os.ReadFile(migrationPath)
+	raw, err := os.ReadFile(path)
 	if err != nil {
-		t.Fatalf("migration illisible (%s) : %v", migrationPath, err)
+		t.Fatalf("migration illisible (%s) : %v", path, err)
 	}
 	return string(raw)
+}
+
+func readMigration(t *testing.T) string {
+	t.Helper()
+	return readMigrationAt(t, migrationPath)
 }
 
 // sqlBlock isole les lignes de valeurs d'un INSERT (jusqu'au ON CONFLICT qui
@@ -68,18 +79,24 @@ func sqlStatement(t *testing.T, sql, header string) string {
 }
 
 // TestMigrationParity_Capabilities — le vocabulaire SQL est exactement le
-// vocabulaire Go, avec le même domaine pour chaque capacité.
+// vocabulaire Go, avec le même domaine pour chaque capacité. Les deux
+// migrations qui sèment des capacités sont fusionnées : une capacité Go absente
+// des DEUX, ou semée deux fois, échoue.
 func TestMigrationParity_Capabilities(t *testing.T) {
-	sql := sqlBlock(t, readMigration(t), `INSERT INTO "AdminCapability"`)
-
 	type row struct{ domain string }
 	got := map[Capability]row{}
-	for _, m := range reCapabilityRow.FindAllStringSubmatch(sql, -1) {
-		key, domain := Capability(m[1]), m[2]
-		if _, dup := got[key]; dup {
-			t.Fatalf("capacité %q semée deux fois", key)
+	sql := ""
+	for _, path := range []string{migrationPath, accessMigrationPath} {
+		file := readMigrationAt(t, path)
+		sql += file
+		block := sqlBlock(t, file, `INSERT INTO "AdminCapability"`)
+		for _, m := range reCapabilityRow.FindAllStringSubmatch(block, -1) {
+			key, domain := Capability(m[1]), m[2]
+			if _, dup := got[key]; dup {
+				t.Fatalf("capacité %q semée deux fois", key)
+			}
+			got[key] = row{domain: domain}
 		}
-		got[key] = row{domain: domain}
 	}
 
 	if len(got) != len(Capabilities()) {
@@ -136,23 +153,25 @@ func TestMigrationParity_Roles(t *testing.T) {
 // une capacité accordée en base mais refusée par le Go (ou l'inverse) est
 // exactement le bug que ce test existe pour attraper.
 func TestMigrationParity_Matrix(t *testing.T) {
-	sql := sqlBlock(t, readMigration(t), `INSERT INTO "AdminRoleCapability"`)
-
 	type pair struct{ role, capability string }
 	got := map[pair]bool{}
-	for _, m := range reMatrixRow.FindAllStringSubmatch(sql, -1) {
-		role, cap := m[1], Capability(m[2])
-		if !ValidRole(role) {
-			t.Fatalf("matrice : rôle inconnu %q", role)
+	for _, path := range []string{migrationPath, accessMigrationPath} {
+		file := readMigrationAt(t, path)
+		block := sqlBlock(t, file, `INSERT INTO "AdminRoleCapability"`)
+		for _, m := range reMatrixRow.FindAllStringSubmatch(block, -1) {
+			role, cap := m[1], Capability(m[2])
+			if !ValidRole(role) {
+				t.Fatalf("matrice : rôle inconnu %q", role)
+			}
+			if !cap.Valid() {
+				t.Fatalf("matrice : capacité inconnue %q", cap)
+			}
+			p := pair{role, string(cap)}
+			if got[p] {
+				t.Fatalf("matrice : ligne dupliquée %v", p)
+			}
+			got[p] = true
 		}
-		if !cap.Valid() {
-			t.Fatalf("matrice : capacité inconnue %q", cap)
-		}
-		p := pair{role, string(cap)}
-		if got[p] {
-			t.Fatalf("matrice : ligne dupliquée %v", p)
-		}
-		got[p] = true
 	}
 
 	for _, role := range Roles() {
@@ -182,6 +201,61 @@ func TestMigrationParity_Matrix(t *testing.T) {
 	}
 	if len(got) != totalGo {
 		t.Fatalf("matrice SQL = %d lignes, matrice Go = %d", len(got), totalGo)
+	}
+}
+
+// TestMigrationParity_AccessMigration — la migration d'accès est bien formée,
+// cohérente avec le vocabulaire, et son Down ne touche JAMAIS les attributions
+// de rôles : retirer les deux capacités ne doit emporter l'accès de personne
+// (une personne nommée `analyst` garde son rôle).
+func TestMigrationParity_AccessMigration(t *testing.T) {
+	sql := readMigrationAt(t, accessMigrationPath)
+	for _, want := range []string{"-- +goose Up", "-- +goose Down", "-- +goose StatementBegin", "-- +goose StatementEnd"} {
+		if !strings.Contains(sql, want) {
+			t.Errorf("en-tête goose incomplet : %q absent", want)
+		}
+	}
+	if strings.Count(sql, "-- +goose StatementBegin") != strings.Count(sql, "-- +goose StatementEnd") {
+		t.Error("blocs StatementBegin/End déséquilibrés")
+	}
+
+	// La migration ne sème QUE les deux capacités d'accès, et uniquement en
+	// lecture pour `analyst` (distribuer un rôle ne se délègue pas par défaut).
+	block := sqlBlock(t, sql, `INSERT INTO "AdminCapability"`)
+	semées := map[Capability]bool{}
+	for _, m := range reCapabilityRow.FindAllStringSubmatch(block, -1) {
+		semées[Capability(m[1])] = true
+	}
+	if len(semées) != 2 || !semées[AccessRead] || !semées[AccessGrant] {
+		t.Errorf("capacités semées = %v, attendu {%s, %s}", semées, AccessRead, AccessGrant)
+	}
+
+	matrix := sqlBlock(t, sql, `INSERT INTO "AdminRoleCapability"`)
+	pairs := map[string]bool{}
+	for _, m := range reMatrixRow.FindAllStringSubmatch(matrix, -1) {
+		pairs[m[1]+"|"+m[2]] = true
+	}
+	for _, want := range []string{
+		RoleSuperadmin + "|" + string(AccessRead),
+		RoleSuperadmin + "|" + string(AccessGrant),
+		RoleAnalyst + "|" + string(AccessRead),
+	} {
+		if !pairs[want] {
+			t.Errorf("matrice : ligne %q absente", want)
+		}
+	}
+	if pairs[RoleAnalyst+"|"+string(AccessGrant)] {
+		t.Error("analyst ne doit pas détenir admin.access.grant (distribuer les droits ne se délègue pas par défaut)")
+	}
+
+	down := sql[strings.Index(sql, "-- +goose Down"):]
+	if strings.Contains(down, `DELETE FROM "AdminUserRole"`) || strings.Contains(down, `UPDATE "AdminUserRole"`) {
+		t.Error("Down : ne doit pas toucher les attributions de rôles")
+	}
+	for _, want := range []string{`DELETE FROM "AdminRoleCapability"`, `DELETE FROM "AdminCapability"`} {
+		if !strings.Contains(down, want) {
+			t.Errorf("Down : %q absent", want)
+		}
 	}
 }
 
