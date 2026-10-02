@@ -29,10 +29,13 @@ export interface StageEngineContextType {
   selectedBlock: TemplateBlock | null;
   selectedOid: string | null;
   selectedPath: string | null;
+  selectedNode: { node: TemplateNode; slotKey: string | null } | null;
   selectBlock: (id: string | null) => void;
   selectNode: (oid: string | null, path: string | null, blockId: string | null) => void;
   updateBlockProps: (id: string, newProps: Record<string, unknown>) => void;
   updateNode: (blockId: string, oid: string, patch: Partial<TemplateNode>) => void;
+  addNode: (blockId: string, slotKey: string | null, kind: TemplateNode['kind']) => void;
+  removeNode: (blockId: string, oid: string) => void;
   addBlock: (type: string, label: string) => void;
   duplicateBlock: (id: string) => void;
   deleteBlock: (id: string) => void;
@@ -248,6 +251,120 @@ export function StageEngineProvider({
     [layout]
   );
 
+  function removeNodes(nodes: TemplateNode[] | undefined, oid: string): TemplateNode[] | undefined {
+    if (!nodes) return undefined;
+    let changed = false;
+    const next: TemplateNode[] = [];
+    for (const n of nodes) {
+      if (n.oid === oid) {
+        changed = true;
+        continue;
+      }
+      if (n.children) {
+        const c = removeNodes(n.children, oid);
+        if (c) {
+          changed = true;
+          next.push({ ...n, children: c });
+          continue;
+        }
+      }
+      next.push(n);
+    }
+    return changed ? next : undefined;
+  }
+
+  function findNode(
+    block: TemplateBlock,
+    oid: string
+  ): { node: TemplateNode; slotKey: string | null } | null {
+    const search = (
+      nodes: TemplateNode[] | undefined,
+      slotKey: string | null
+    ): { node: TemplateNode; slotKey: string | null } | null => {
+      if (!nodes) return null;
+      for (const n of nodes) {
+        if (n.oid === oid) return { node: n, slotKey };
+        const found = search(n.children, slotKey);
+        if (found) return found;
+      }
+      return null;
+    };
+    const inNodes = search(block.nodes, null);
+    if (inNodes) return inNodes;
+    if (block.slots) {
+      for (const [k, v] of Object.entries(block.slots)) {
+        const found = search(v, k);
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
+  const addNode = useCallback(
+    (blockId: string, slotKey: string | null, kind: TemplateNode['kind']) => {
+      const oid = `oid_${Date.now().toString(36)}${Math.random().toString(36).substring(2, 6)}`;
+      const node: TemplateNode = {
+        oid,
+        kind,
+        ...(kind === 'text' ? { tag: 'p' as const, textFallback: 'Texte' } : {}),
+        ...(kind === 'button' ? { textFallback: 'Bouton', overrides: {} } : {}),
+        ...(kind === 'badge' ? { textFallback: 'Badge' } : {}),
+        ...(kind === 'image' ? { tag: 'img' as const, overrides: {} } : {}),
+      };
+      const nextBlocks = layout.blocks.map((b) => {
+        if (b.id !== blockId) return b;
+        if (slotKey) {
+          return {
+            ...b,
+            slots: { ...(b.slots ?? {}), [slotKey]: [...(b.slots?.[slotKey] ?? []), node] },
+          };
+        }
+        return { ...b, nodes: [...(b.nodes ?? []), node] };
+      });
+      setPast((prev) => [...prev.slice(-49), layout]);
+      setFuture([]);
+      setLayout({ ...layout, blocks: nextBlocks });
+      setSelectedOid(oid);
+      setHasUnsavedChanges(true);
+    },
+    [layout]
+  );
+
+  const removeNode = useCallback(
+    (blockId: string, oid: string) => {
+      const nextBlocks = layout.blocks.map((b) => {
+        if (b.id !== blockId) return b;
+        const nodes = removeNodes(b.nodes, oid);
+        if (nodes) return { ...b, nodes: nodes.length > 0 ? nodes : undefined };
+        if (b.slots) {
+          let changed = false;
+          const slots: Record<string, TemplateNode[]> = {};
+          for (const [k, v] of Object.entries(b.slots)) {
+            const nv = removeNodes(v, oid);
+            if (nv) {
+              changed = true;
+              if (nv.length > 0) slots[k] = nv;
+            } else {
+              slots[k] = v;
+            }
+          }
+          if (changed) {
+            const cleaned = Object.keys(slots).length > 0 ? slots : undefined;
+            return { ...b, slots: cleaned };
+          }
+        }
+        return b;
+      });
+      setPast((prev) => [...prev.slice(-49), layout]);
+      setFuture([]);
+      setLayout({ ...layout, blocks: nextBlocks });
+      setSelectedOid(null);
+      setSelectedPath(null);
+      setHasUnsavedChanges(true);
+    },
+    [layout]
+  );
+
   const addBlock = useCallback(
     (type: string, label: string) => {
       const newId = `block_${type}_${Date.now()}`;
@@ -397,6 +514,11 @@ export function StageEngineProvider({
     [layout]
   );
 
+  const selectedNode = useMemo(() => {
+    if (!selectedOid || !selectedBlock) return null;
+    return findNode(selectedBlock, selectedOid);
+  }, [selectedOid, selectedBlock, layout.blocks]);
+
   // ── Zoom Actions ──
   const zoomIn = useCallback(() => {
     setScale((s) => Math.min(s + 0.15, 2.5));
@@ -451,10 +573,13 @@ export function StageEngineProvider({
       selectedBlock,
       selectedOid,
       selectedPath,
+      selectedNode,
       selectBlock,
       selectNode,
       updateBlockProps,
       updateNode,
+      addNode,
+      removeNode,
       addBlock,
       duplicateBlock,
       deleteBlock,
@@ -497,10 +622,13 @@ export function StageEngineProvider({
       selectedBlock,
       selectedOid,
       selectedPath,
+      selectedNode,
       selectBlock,
       selectNode,
       updateBlockProps,
       updateNode,
+      addNode,
+      removeNode,
       addBlock,
       duplicateBlock,
       deleteBlock,
