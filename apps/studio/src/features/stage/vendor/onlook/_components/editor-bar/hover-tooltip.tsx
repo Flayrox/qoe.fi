@@ -1,10 +1,10 @@
-import { Tooltip, TooltipTrigger, TooltipContent } from '@onlook/ui/tooltip';
-import type { ReactNode } from 'react';
+import { Tooltip, TooltipTrigger, TooltipContent } from "@onlook/ui/tooltip";
+import type { ReactNode } from "react";
 
 interface HoverOnlyTooltipProps {
   children: ReactNode;
   content: ReactNode;
-  side?: 'top' | 'right' | 'bottom' | 'left';
+  side?: "top" | "right" | "bottom" | "left";
   className?: string;
   hideArrow?: boolean;
   disabled?: boolean;
@@ -14,7 +14,7 @@ interface HoverOnlyTooltipProps {
 export function HoverOnlyTooltip({
   children,
   content,
-  side = 'bottom',
+  side = "bottom",
   className,
   hideArrow = true,
   disabled = false,
@@ -27,14 +27,9 @@ export function HoverOnlyTooltip({
   return (
     <Tooltip disableHoverableContent>
       <TooltipTrigger asChild>{children}</TooltipTrigger>
-      <TooltipContent
-        side={side}
-        className={className}
-        hideArrow={hideArrow}
-        sideOffset={sideOffset}
-      >
+      <TooltipContent side={side} className={className} hideArrow={hideArrow} sideOffset={sideOffset}>
         {content}
       </TooltipContent>
     </Tooltip>
   );
-}
+} 
