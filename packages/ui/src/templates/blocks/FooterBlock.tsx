@@ -132,25 +132,18 @@ export function FooterBlock({
                   ) : (
                     <>
                       <Link
-                        href="/mentions-legales"
+                        href="/legal"
                         onClick={(e) => context.mode === 'editable' && e.preventDefault()}
                         className="hover:text-foreground transition-colors"
                       >
                         Mentions légales
                       </Link>
                       <Link
-                        href="/confidentialite"
+                        href="/legal"
                         onClick={(e) => context.mode === 'editable' && e.preventDefault()}
                         className="hover:text-foreground transition-colors"
                       >
                         Confidentialité
-                      </Link>
-                      <Link
-                        href="/rss"
-                        onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                        className="hover:text-foreground transition-colors"
-                      >
-                        Flux RSS
                       </Link>
                     </>
                   )}
