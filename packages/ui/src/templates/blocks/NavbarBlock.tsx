@@ -103,6 +103,7 @@ export function NavbarBlock({
           }
         ).styleBox
       }
+      blockStyle={(props as unknown as { style?: import('../schema').BlockStyleProps }).style}
     >
       <header className={containerClasses}>
         <div className={`container mx-auto px-4 lg:px-8 ${innerLayoutClasses}`}>

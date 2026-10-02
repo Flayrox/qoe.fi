@@ -61,6 +61,7 @@ export function FooterBlock({
           }
         ).styleBox
       }
+      blockStyle={(props as unknown as { style?: import('../schema').BlockStyleProps }).style}
     >
       <footer className="w-full border-t border-border bg-card/40 transition-colors">
         <div className="container mx-auto px-4 lg:px-8 py-10 md:py-14">

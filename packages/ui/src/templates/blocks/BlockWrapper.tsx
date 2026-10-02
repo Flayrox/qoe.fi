@@ -8,7 +8,8 @@
 
 import React from 'react';
 import { ArrowUp, ArrowDown, Trash2, EyeOff } from 'lucide-react';
-import type { TemplateRenderContext } from '../schema';
+import type { BlockStyleProps, TemplateRenderContext } from '../schema';
+import { resolveBlockStyle } from '../style';
 
 interface BlockWrapperProps {
   id: string;
@@ -19,6 +20,7 @@ interface BlockWrapperProps {
   context: TemplateRenderContext;
   children: React.ReactNode;
   styleBox?: { pt?: number; pb?: number; maxWidth?: number; opacity?: number };
+  blockStyle?: BlockStyleProps;
 }
 
 export function BlockWrapper({
@@ -30,6 +32,7 @@ export function BlockWrapper({
   context,
   children,
   styleBox,
+  blockStyle,
 }: BlockWrapperProps) {
   const { mode, selectedBlockId, onSelectBlock, onMoveBlock, onDeleteBlock } = context;
 
@@ -40,7 +43,7 @@ export function BlockWrapper({
       Number(styleBox.maxWidth ?? 0) > 0 ||
       (styleBox.opacity !== undefined && Number(styleBox.opacity) < 100));
 
-  const boxStyle: React.CSSProperties = hasBox
+  const legacyBox: React.CSSProperties = hasBox
     ? {
         paddingTop: Number(styleBox?.pt ?? 0) > 0 ? `${styleBox?.pt}px` : undefined,
         paddingBottom: Number(styleBox?.pb ?? 0) > 0 ? `${styleBox?.pb}px` : undefined,
@@ -54,10 +57,14 @@ export function BlockWrapper({
       }
     : {};
 
-  // En mode public / live : zéro surcharge sauf styleBox custom
+  const fineStyle = resolveBlockStyle(blockStyle);
+  const boxStyle: React.CSSProperties = { ...fineStyle, ...legacyBox };
+  const hasStyle = Object.keys(boxStyle).length > 0;
+
+  // En mode public / live : zéro surcharge sauf style custom
   if (mode === 'live') {
     if (!visible) return null;
-    if (!hasBox) return <>{children}</>;
+    if (!hasStyle) return <>{children}</>;
     return (
       <div data-block-id={id} data-block-type={type} style={boxStyle}>
         {children}
@@ -71,7 +78,7 @@ export function BlockWrapper({
     <div
       data-block-id={id}
       data-block-type={type}
-      style={hasBox ? boxStyle : undefined}
+      style={hasStyle ? boxStyle : undefined}
       onClick={(e) => {
         e.stopPropagation();
         onSelectBlock?.(id);

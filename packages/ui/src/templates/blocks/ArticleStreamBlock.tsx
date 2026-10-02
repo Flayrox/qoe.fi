@@ -107,6 +107,7 @@ export function ArticleStreamBlock({
           }
         ).styleBox
       }
+      blockStyle={(props as unknown as { style?: import('../schema').BlockStyleProps }).style}
     >
       <section className="container mx-auto px-4 lg:px-8 py-8 md:py-14">
         {displayMode === 'list' ? (
