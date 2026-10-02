@@ -18,7 +18,7 @@ import {
   SlidersHorizontal,
   UserCog,
 } from 'lucide-react';
-import { auditQuery, type AdminAuditEntry, type AuthzMode } from '@/lib/admin-audit-data';
+import { auditQuery, type AdminAuditEntry, type AuthzMode } from '@/lib/admin-audit-types';
 
 const actionMeta: Record<string, { label: string; icon: typeof ShieldCheck }> = {
   'api.access.status': { label: "Changement d'accès API", icon: ShieldCheck },

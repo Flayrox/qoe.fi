@@ -186,15 +186,17 @@ passage en `authz-enforce` décidé sur données.
 
 Effort : petit à moyen (réutilise le callback `Observer` du garde).
 
-## Phase 8 — Cycle de vie des accès (plus tard)
+## Phase 8 — Cycle de vie des accès (terminée)
 
-- Révision périodique : échéances visibles, rappel avant expiration, gel automatique
-  d'un rôle expiré, rapport mensuel des accès.
-- Quorum N3 pour les actes irréversibles : `DoubleApproval` est déjà modélisé dans
-  `internal/authz`, la console doit porter la demande et la seconde validation.
+- Révision périodique : échéances visibles, rappel avant expiration (< 30 jours),
+  gel automatique d'un rôle expiré, instantané mensuel immuable (`AdminAccessReview`,
+  migration `00059_admin_access_reviews.sql`, worker 24h, routes `/v1/admin/access/reviews*`,
+  écran `/admin/access`).
+- Quorum N3 pour les actes irréversibles : `DoubleApproval` porté dans `internal/authz`,
+  migration `00058_admin_approvals.sql`, routes `/v1/admin/approvals*`, écran
+  `/admin/approvals` avec file de décisions en direct.
 
-Effort : moyen ; à n'ouvrir qu'après la Phase 4 (sans audit lisible, un quorum est
-invérifiable).
+Statut : 100 % implémenté et testé (Go + Next.js Turbopack).
 
 ## Ordre conseillé
 

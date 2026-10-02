@@ -113,3 +113,67 @@ export async function getAccessRoles(): Promise<AccessRoleRow[]> {
 export async function getAccessCapabilities(): Promise<AccessCapabilityRow[]> {
   return itemsOrEmpty<AccessCapabilityRow>('/v1/admin/access/capabilities');
 }
+
+/** Répartition des rôles dans la revue d'accès. */
+export interface AccessRoleCount {
+  roleKey: string;
+  roleLabel: string;
+  count: number;
+}
+
+/** Instantané d'une revue périodique des accès. */
+export interface AccessReviewReport {
+  period: string;
+  generatedAt: string;
+  totalStaff: number;
+  activeGrants: number;
+  expiredGrants: number;
+  expiringSoon: number;
+  rolesDistribution: AccessRoleCount[];
+  expiringList: AccessGrantRow[];
+  expiredList: AccessGrantRow[];
+}
+
+/** Ligne archivée d'une revue périodique des accès. */
+export interface AccessReviewItem {
+  id: string;
+  period: string;
+  report: AccessReviewReport;
+  createdAt: string;
+}
+
+/** Données complètes des revues d'accès (direct + archives). */
+export interface AccessReviewsData {
+  current: AccessReviewReport | null;
+  items: AccessReviewItem[];
+  total: number;
+}
+
+/** Revues périodiques archivées + rapport en direct. */
+export async function getAccessReviews(limit = 24): Promise<AccessReviewsData> {
+  try {
+    const res = await goFetch<{
+      current?: AccessReviewReport;
+      items?: AccessReviewItem[];
+      total?: number;
+    }>(`/v1/admin/access/reviews?limit=${limit}`);
+    return {
+      current: res?.current ?? null,
+      items: Array.isArray(res?.items) ? res.items : [],
+      total: res?.total ?? 0,
+    };
+  } catch {
+    return { current: null, items: [], total: 0 };
+  }
+}
+
+/** Revue mensuelle pour une période précise ('AAAA-MM'). */
+export async function getAccessReviewPeriod(period: string): Promise<AccessReviewItem | null> {
+  try {
+    return await goFetch<AccessReviewItem>(
+      `/v1/admin/access/reviews/${encodeURIComponent(period)}`
+    );
+  } catch {
+    return null;
+  }
+}

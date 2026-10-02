@@ -176,6 +176,17 @@ func main() {
 		},
 	)
 
+	// 🗓️ Revue périodique des accès staff (plan console, Phase 8) : capture
+	// l'instantané mensuel immuable des attributions et échéances. Idempotent :
+	// ne réécrit pas si la période en cours est déjà scellée.
+	go workers.RunAccessReviewLoop(
+		ctx, pool, 24*time.Hour,
+		func(runCtx context.Context) error {
+			_, err := adminSvc.SnapshotAccessReview(runCtx, "", false)
+			return err
+		},
+	)
+
 	<-ctx.Done()
 	log.Println("arrêt des workers…")
 	srv.Shutdown()

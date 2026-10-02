@@ -17,10 +17,16 @@ import React from 'react';
 import { KeyRound } from 'lucide-react';
 import Link from 'next/link';
 import { getAdminIdentity, hasCapability, requireCapability } from '@/lib/admin-identity';
-import { getAccessGrants, getAccessRoles, searchAccessPeople } from '@/lib/admin-access-data';
+import {
+  getAccessGrants,
+  getAccessRoles,
+  searchAccessPeople,
+  getAccessReviews,
+} from '@/lib/admin-access-data';
 import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
 import { AccessGrantForm } from './components/access-grant-form';
 import { AccessGrantsTable } from './components/access-grants-table';
+import { AccessReviewsSection } from './components/access-reviews-section';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,10 +40,11 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
   requireCapability(identity, 'admin.access.read');
   const canGrant = hasCapability(identity, 'admin.access.grant');
 
-  const [grants, roles, people] = await Promise.all([
+  const [grants, roles, people, reviews] = await Promise.all([
     getAccessGrants(params.q ?? ''),
     getAccessRoles(),
     params.person ? searchAccessPeople(params.person) : Promise.resolve([]),
+    getAccessReviews(),
   ]);
 
   const active = grants.filter((grant) => grant.state === 'active').length;
@@ -63,6 +70,8 @@ export default async function AdminAccessPage({ searchParams }: AccessPageProps)
       <AccessGrantForm people={people} roles={roles} canGrant={canGrant} />
 
       <AccessGrantsTable grants={grants} query={params.q ?? ''} canGrant={canGrant} />
+
+      <AccessReviewsSection data={reviews} canGrant={canGrant} />
     </div>
   );
 }
