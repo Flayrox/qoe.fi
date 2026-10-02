@@ -1,5 +1,5 @@
 // =====================================================================
-// TemplateRenderer.tsx — Moteur de Rendu Polymorphe (Licorne 2026)
+// TemplateRenderer.tsx — Moteur de rendu polymorphe
 // =====================================================================
 // Composant universel consommé par :
 // 1. apps/tenants (Site souverain public *.qoe.fi en mode 'live')
@@ -33,6 +33,7 @@ import { BentoGridBlock } from './blocks/BentoGridBlock';
 import { ArticleStreamBlock } from './blocks/ArticleStreamBlock';
 import { NewsletterWallBlock } from './blocks/NewsletterWallBlock';
 import { FooterBlock } from './blocks/FooterBlock';
+import { DEMO_ARTICLES } from './demo';
 
 export interface TemplateRendererProps {
   config: LayoutConfig;
@@ -69,6 +70,10 @@ export function TemplateRenderer({
   onDeleteBlock,
   className = '',
 }: TemplateRendererProps) {
+  // En édition : placeholders démo neutres (jamais les vrais articles).
+  // En preview/live : les vrais articles.
+  const effectiveArticles = mode === 'editable' ? DEMO_ARTICLES : articles;
+
   const context: TemplateRenderContext = {
     mode,
     selectedBlockId,
@@ -140,7 +145,7 @@ export function TemplateRenderer({
                 key={block.id}
                 id={block.id}
                 props={block.props as LeadStoryBlockProps}
-                articles={articles}
+                articles={effectiveArticles}
                 publication={publication}
                 cardShape={cardShape}
                 context={context}
@@ -157,7 +162,7 @@ export function TemplateRenderer({
                 key={block.id}
                 id={block.id}
                 props={block.props as BentoGridBlockProps}
-                articles={articles}
+                articles={effectiveArticles}
                 publication={publication}
                 cardShape={cardShape}
                 surface={surface}
@@ -175,7 +180,7 @@ export function TemplateRenderer({
                 key={block.id}
                 id={block.id}
                 props={block.props as ArticleStreamBlockProps}
-                articles={articles}
+                articles={effectiveArticles}
                 publication={publication}
                 cardShape={cardShape}
                 context={context}

@@ -56,9 +56,9 @@ export function BentoGridBlock({
   const fallbackArticles: TemplateArticleItem[] = [
     {
       id: 'bento_fb_1',
-      title: 'L’art du minimalisme typographique dans le journalisme moderne',
+      title: "Titre de l'article",
       slug: 'minimalisme-typographique',
-      excerpt: 'Comment la suppression des fioritures visuelles réhabilite l’attention du lecteur.',
+      excerpt: '',
       imageUrl:
         'https://images.unsplash.com/photo-1507842229451-7f01be8860ee?q=80&w=800&auto=format&fit=crop',
       readingTime: 4,
@@ -66,9 +66,9 @@ export function BentoGridBlock({
     },
     {
       id: 'bento_fb_2',
-      title: 'L’essor des micro-publications souveraines',
+      title: "Titre de l'article",
       slug: 'micro-publications-souveraines',
-      excerpt: 'Pourquoi les auteurs reprennent le contrôle de leur lectorat.',
+      excerpt: '',
       imageUrl:
         'https://images.unsplash.com/photo-1499750310107-5fef28a66643?q=80&w=800&auto=format&fit=crop',
       readingTime: 5,
@@ -76,9 +76,9 @@ export function BentoGridBlock({
     },
     {
       id: 'bento_fb_3',
-      title: 'Au-delà du clic : mesurer l’attention réelle',
+      title: "Titre de l'article",
       slug: 'au-dela-du-clic',
-      excerpt: 'Les métriques de vanité laissent place à la profondeur de lecture.',
+      excerpt: '',
       imageUrl:
         'https://images.unsplash.com/photo-1488190211105-8b0e65b80b4e?q=80&w=800&auto=format&fit=crop',
       readingTime: 3,

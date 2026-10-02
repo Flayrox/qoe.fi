@@ -11,6 +11,7 @@ export * from './schema';
 export * from './defaults';
 export * from './parser';
 export * from './style';
+export * from './demo';
 export * from './TemplateRenderer';
 export * from './blocks/NavbarBlock';
 export * from './blocks/HeroBlock';
