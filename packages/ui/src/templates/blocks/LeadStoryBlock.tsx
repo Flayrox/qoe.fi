@@ -91,6 +91,7 @@ export function LeadStoryBlock({
           }
         ).styleBox
       }
+      blockStyle={(props as unknown as { style?: import('../schema').BlockStyleProps }).style}
     >
       <section className="container mx-auto px-4 lg:px-8 py-10 md:py-16">
         <Link

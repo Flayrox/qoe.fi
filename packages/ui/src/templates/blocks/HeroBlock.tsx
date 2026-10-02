@@ -74,6 +74,7 @@ export function HeroBlock({
           }
         ).styleBox
       }
+      blockStyle={(props as unknown as { style?: import('../schema').BlockStyleProps }).style}
     >
       <section className="relative w-full overflow-hidden border-b border-border/40">
         {/* Style 1 : Bannière Cinématique Panoramique */}
