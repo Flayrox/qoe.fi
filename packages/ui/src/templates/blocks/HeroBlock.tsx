@@ -100,7 +100,19 @@ export function HeroBlock({
           )}
 
           <h1
+            contentEditable={context.mode === 'editable'}
+            suppressContentEditableWarning
+            onBlur={(e) => {
+              const text = e.currentTarget.textContent?.trim();
+              if (text && text !== title) {
+                context.onUpdateBlockProps?.(id, { customTitle: text });
+              }
+            }}
             className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight max-w-4xl transition-colors ${
+              context.mode === 'editable'
+                ? 'cursor-text hover:outline-dashed hover:outline-1 hover:outline-primary/50 focus:outline-solid focus:outline-2 focus:outline-primary rounded-sm'
+                : ''
+            } ${
               style === 'cinematic-banner' && headerImageUrl
                 ? 'text-white drop-shadow-sm'
                 : 'text-foreground'
@@ -111,7 +123,19 @@ export function HeroBlock({
 
           {tagline && (
             <p
+              contentEditable={context.mode === 'editable'}
+              suppressContentEditableWarning
+              onBlur={(e) => {
+                const text = e.currentTarget.textContent?.trim();
+                if (text && text !== tagline) {
+                  context.onUpdateBlockProps?.(id, { customTagline: text });
+                }
+              }}
               className={`mt-4 sm:mt-6 text-base sm:text-lg md:text-xl max-w-2xl font-normal leading-relaxed ${
+                context.mode === 'editable'
+                  ? 'cursor-text hover:outline-dashed hover:outline-1 hover:outline-primary/50 focus:outline-solid focus:outline-2 focus:outline-primary rounded-sm'
+                  : ''
+              } ${
                 style === 'cinematic-banner' && headerImageUrl
                   ? 'text-white/80 drop-shadow-sm'
                   : 'text-muted-foreground'
