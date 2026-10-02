@@ -11,7 +11,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ChevronDown, ArrowUpRight } from 'lucide-react';
+import { ChevronDown, ArrowUpRight, Search } from 'lucide-react';
 import type { NavigationItem, SocialLink } from '@qoe/sdk/types';
 import { SocialIcon } from '../../SocialIcon';
 import type {
@@ -186,8 +186,16 @@ export function NavbarBlock({
             })}
           </nav>
 
-          {/* Actions : Réseaux Sociaux & Bouton de Soutien */}
+          {/* Actions : Recherche, Réseaux Sociaux & Bouton de Soutien */}
           <div className="flex items-center gap-3">
+            <Link
+              href="/search"
+              onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+              title="Rechercher"
+              className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <Search className="w-4 h-4" />
+            </Link>
             {showSocial && socialLinks.length > 0 && (
               <div className="hidden lg:flex items-center gap-2 pr-2 border-r border-border">
                 {socialLinks.slice(0, 4).map((social: SocialLink) => (
