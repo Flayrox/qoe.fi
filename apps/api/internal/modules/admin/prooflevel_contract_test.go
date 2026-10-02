@@ -244,7 +244,7 @@ func TestStepUpRoutesAcceptFreshProof(t *testing.T) {
 // s'oppose alors plus à l'acte.
 func TestStepUpRoutesAcceptFreshProofWithQuorum(t *testing.T) {
 	_, console, _ := testConsole(t, nil)
-	stub := stubConsole(t, console, func(context.Context, string, authz.Action) bool { return true })
+	stub := stubConsole(t, console, func(context.Context, string, authz.Action, string) bool { return true })
 
 	checked := 0
 	for _, rt := range console.Registry().Routes() {

@@ -21,6 +21,7 @@ import {
   ExternalLink,
   Filter,
   Globe,
+  Handshake,
   History,
   Loader2,
   Plus,
@@ -50,6 +51,7 @@ import {
   type LegalVersionRow,
 } from '@/lib/admin-legal-actions';
 import { attemptWithStepUp } from '@/lib/authz-feedback';
+import { requestLegalPublishApprovalAction } from '@/lib/admin-approval-actions';
 
 // Écrire dans le corpus juridique exige une preuve forte récente (N2) : quand
 // le garde refuse, la vérification d'un facteur s'ouvre ici et l'action est
@@ -309,6 +311,37 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
       }
       notify('ok', `Version ${version.version} publiée.`);
       if (selected) await loadVersions(selected.id);
+      router.refresh();
+    });
+  }
+
+  // 🤝 Demande de double validation : publier un texte opposable est un acte
+  // N3 — le garde exige qu'une SECONDE personne autorisée l'ait approuvé pour
+  // CETTE version. La demande se porte ici, avec un motif écrit (il part dans
+  // la file et dans le journal d'audit), et la publication reste refusée tant
+  // que la validation n'est pas donnée.
+  function requestApproval(version: LegalVersionRow) {
+    const reason = prompt(
+      `Demander la validation de la version ${version.version} (${version.locale.toUpperCase()}) ?\n\n` +
+        'Motif de la demande (5 caractères minimum) — il sera lu par la personne ' +
+        'qui valide et conservé dans le journal d’audit.',
+      ''
+    );
+    if (reason === null) return;
+    if (reason.trim().length < 5) {
+      notify('error', 'Motif trop court : expliquez la demande en une phrase.');
+      return;
+    }
+    startTransition(async () => {
+      const res = await attemptWithStepUp(
+        () => requestLegalPublishApprovalAction(version.id, reason.trim()),
+        { reason: `Validation de la version ${version.version}` }
+      );
+      if (!res.success) {
+        notify('error', res.error);
+        return;
+      }
+      notify('ok', 'Validation demandée : une seconde personne autorisée doit l’approuver (72 h).');
       router.refresh();
     });
   }
@@ -695,6 +728,16 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
                                 className="inline-flex items-center gap-1 rounded-lg bg-success px-2 py-1 text-[11px] font-semibold text-success-foreground hover:opacity-90 disabled:opacity-50"
                               >
                                 <Rocket className="h-3 w-3" /> Publier
+                              </button>
+                              <button
+                                onClick={() => requestApproval(version)}
+                                disabled={isPending}
+                                data-testid={`legal-request-approval-${version.id}`}
+                                aria-label="Demander la double validation"
+                                title="Demander la validation d’une seconde personne (obligatoire pour publier)"
+                                className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted disabled:opacity-50"
+                              >
+                                <Handshake className="h-3 w-3" /> Valider à deux
                               </button>
                               <button
                                 onClick={() => schedule(version)}

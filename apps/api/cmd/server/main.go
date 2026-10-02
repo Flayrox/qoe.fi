@@ -513,6 +513,10 @@ func newRouter(d RouterDeps) *chi.Mux {
 		adminAuthzSvc.SetModeResolver(func(ctx context.Context) bool {
 			return flagsSvc.IsOn(ctx, flags.AuthzEnforce)
 		})
+		// Le quorum N3 (double validation des actes lourds) lit les capacités à
+		// la MÊME source que le garde : qui peut commettre l'acte peut le
+		// valider, personne d'autre.
+		adminSvc.SetAccessLookup(adminAuthzSvc)
 		// Journal des décisions du garde (plan console, Phase 4) : chaque passage
 		// (accord, refus appliqué, refus seulement observé) laisse une trace
 		// interrogeable. Écriture asynchrone à tampon borné — une base lente ne
@@ -529,6 +533,10 @@ func newRouter(d RouterDeps) *chi.Mux {
 		adminHandler.Register(protected)
 
 		// Édition du contenu légal (revérifié dans le service, en plus du garde).
+		// Le registre des validations est celui de la console : publier une version
+		// juridique est l'acte N3 du corpus — preuve forte récente ET approbation
+		// d'une seconde personne autorisée, sur CETTE version.
+		legalHandler.SetApprovals(adminSvc)
 		legalHandler.SetConsole(adminConsole)
 		legalHandler.RegisterAdmin(protected)
 

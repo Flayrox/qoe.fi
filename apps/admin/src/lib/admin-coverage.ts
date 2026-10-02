@@ -139,6 +139,7 @@ export const ADMIN_ROUTE_COVERAGE: Record<string, AdminRouteCoverage> = {
   'PATCH /v1/admin/legal/versions/{versionID}': via('/admin/legal'),
   'DELETE /v1/admin/legal/versions/{versionID}': via('/admin/legal'),
   'POST /v1/admin/legal/versions/{versionID}/publish': via('/admin/legal'),
+  'POST /v1/admin/legal/versions/{versionID}/request-publish': via('/admin/legal'),
   'POST /v1/admin/legal/versions/{versionID}/archive': via('/admin/legal'),
   'POST /v1/admin/legal/versions/{versionID}/schedule': via('/admin/legal'),
   'POST /v1/admin/legal/seed': via('/admin/legal'),
@@ -155,6 +156,9 @@ export const ADMIN_ROUTE_COVERAGE: Record<string, AdminRouteCoverage> = {
   'POST /v1/admin/legal/consent-exports': via('/admin/compliance'),
   'GET /v1/admin/legal/cookie-consents': via('/admin/compliance'),
   'GET /v1/admin/legal/notices': via('/admin/compliance'),
+  // Doubles validations : la file des actes N3 et leur décision.
+  'GET /v1/admin/approvals': via('/admin/approvals'),
+  'POST /v1/admin/approvals/{id}/decide': via('/admin/approvals'),
   // Accès staff : attributions, explication, matrice, vocabulaire.
   'GET /v1/admin/access/grants': via('/admin/access'),
   'POST /v1/admin/access/grants': via('/admin/access'),

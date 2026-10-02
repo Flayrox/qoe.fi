@@ -1,6 +1,7 @@
 package legal
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,9 +18,25 @@ import (
 	"github.com/qoefi/api/internal/response"
 )
 
+// Approvals est le registre des validations N3, tenu par le module admin. Une
+// interface étroite (et non un import) évite au module légal de dépendre de la
+// console : il déclare ce dont il a besoin, cmd/server branche l'implémentation.
+type Approvals interface {
+	// RequestApproval crée (ou retrouve) la demande de validation d'un acte.
+	RequestApproval(ctx context.Context, actorID string, act authz.Action, target, reason string) (adminauthz.ApprovalRequest, error)
+	// ConsumeApproval marque l'approbation comme exercée, après le succès.
+	ConsumeApproval(ctx context.Context, actorID string, act authz.Action, target string) error
+	// CheckApproval répond à la question du garde : cette personne a-t-elle,
+	// pour CET acte et CETTE cible, l'approbation d'une seconde personne ?
+	CheckApproval(ctx context.Context, actorID string, act authz.Action, target string) bool
+}
+
 // Handler expose les routes légales publiques, lecteur et superadmin.
 type Handler struct {
 	svc *Service
+	// approvals : sans lui, publier reste N2 — on ne peut pas exiger une double
+	// validation qu'aucun dossier ne peut prouver.
+	approvals Approvals
 	// console déclare et monte les routes /v1/admin/legal/* sous le garde de
 	// capacité (internal/adminauthz). Sans console partagée (tests unitaires),
 	// RegisterAdmin en crée une autonome : une route /v1/admin/* passe toujours
@@ -28,6 +45,21 @@ type Handler struct {
 }
 
 func NewHandler(svc *Service) *Handler { return &Handler{svc: svc} }
+
+// SetApprovals branche le registre des validations (module admin).
+func (h *Handler) SetApprovals(a Approvals) { h.approvals = a }
+
+// approvalGuard est le contrôle de quorum branché sur la route de publication.
+// Il lit h.approvals à CHAQUE requête : le registre peut être branché après
+// l'enregistrement des routes, et un registre absent refuse par défaut — la
+// publication reste fermée tant que personne ne peut prouver la double
+// validation, jamais ouverte par un câblage incomplet.
+func (h *Handler) approvalGuard(ctx context.Context, userID string, act authz.Action, target string) bool {
+	if h.approvals == nil {
+		return false
+	}
+	return h.approvals.CheckApproval(ctx, userID, act, target)
+}
 
 // SetConsole branche la console partagée de la plateforme (même registre
 // route → capacité que le module admin) : une seule table à parcourir pour
@@ -116,13 +148,20 @@ func (h *Handler) RegisterAdmin(r chi.Router) {
 	c.Patch("/v1/admin/legal/{id}", adminauthz.LegalWrite, h.adminUpdate, stepUp)
 	c.Delete("/v1/admin/legal/{id}", adminauthz.LegalWrite, h.adminDelete, stepUp)
 	c.Patch("/v1/admin/legal/versions/{versionID}", adminauthz.LegalWrite, h.adminUpdateVersion, stepUp)
-	// 📜 Publier une version juridique : N2 aujourd'hui, N3 (double validation)
-	// dès que le quorum d'approbation de la console est branché — l'action
-	// `legal_publish` du noyau est déjà déclarée N3 + DoubleApproval, et le
-	// garde sait exiger l'acte (WithApprovalAct). Le niveau N2 est un plancher :
-	// publier un texte opposable ne doit jamais se faire depuis une session
-	// ouverte le matin.
-	c.Post("/v1/admin/legal/versions/{versionID}/publish", adminauthz.LegalWrite, h.adminPublish, stepUp)
+	// 📜 Publier une version juridique est l'acte N3 du corpus : preuve forte
+	// RÉCENTE et DOUBLE VALIDATION d'une seconde personne autorisée, liée à
+	// CETTE version (`ApprovalTargetParam`). Le quorum se demande juste en
+	// dessous, avec un motif ; il expire et se consomme.
+	c.Post("/v1/admin/legal/versions/{versionID}/publish", adminauthz.LegalWrite, h.adminPublish,
+		adminauthz.WithProofLevel(authz.Level3),
+		adminauthz.WithApprovalAct(authz.ActionLegalPublish),
+		adminauthz.WithApprovalTargetParam("versionID"),
+		adminauthz.WithApproval(h.approvalGuard),
+	)
+	// Demander la validation : c'est l'écran qui la porte, avec le motif — un
+	// acte opposable doit dire POURQUOI il a été validé.
+	c.Post("/v1/admin/legal/versions/{versionID}/request-publish", adminauthz.LegalWrite,
+		h.adminRequestPublishApproval, stepUp)
 	c.Post("/v1/admin/legal/versions/{versionID}/archive", adminauthz.LegalWrite, h.adminArchive, stepUp)
 	c.Delete("/v1/admin/legal/versions/{versionID}", adminauthz.LegalWrite, h.adminDeleteDraft, stepUp)
 }
@@ -417,17 +456,81 @@ func (h *Handler) adminUpdateVersion(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, v)
 }
 
+// adminPublish publie une version : le garde n'a laissé passer que si la
+// personne détient la capacité, une preuve forte récente ET une approbation
+// d'une seconde personne pour CETTE version. L'approbation est consommée après
+// le succès — jamais avant, sinon un échec forcerait à en demander une autre.
 func (h *Handler) adminPublish(w http.ResponseWriter, r *http.Request) {
 	actor := h.actor(w, r)
 	if actor == "" {
 		return
 	}
-	v, err := h.svc.PublishVersion(r.Context(), actor, chi.URLParam(r, "versionID"))
+	versionID := chi.URLParam(r, "versionID")
+	v, err := h.svc.PublishVersion(r.Context(), actor, versionID)
 	if err != nil {
 		h.fail(w, err)
 		return
 	}
+	h.consumeApproval(r.Context(), actor, versionID)
 	response.OK(w, v)
+}
+
+// adminRequestPublishApproval porte la demande de double validation d'une
+// publication juridique. Le motif est obligatoire (il part dans l'audit et dans
+// la file) ; la demande est idempotente pour une même version.
+func (h *Handler) adminRequestPublishApproval(w http.ResponseWriter, r *http.Request) {
+	actor := h.actor(w, r)
+	if actor == "" {
+		return
+	}
+	if h.approvals == nil {
+		// Sans registre de validations branché, on ne fait pas croire à une
+		// demande enregistrée : refus explicite, la publication reste fermée.
+		response.Error(w, http.StatusServiceUnavailable,
+			"Le registre des validations n'est pas branché : demande impossible.")
+		return
+	}
+	var in struct {
+		Reason string `json:"reason"`
+	}
+	if r.Body != nil {
+		_ = json.NewDecoder(r.Body).Decode(&in)
+	}
+	approval, err := h.approvals.RequestApproval(r.Context(), actor,
+		authz.ActionLegalPublish, chi.URLParam(r, "versionID"), in.Reason)
+	if err != nil {
+		h.failApproval(w, err)
+		return
+	}
+	response.Created(w, approval)
+}
+
+// failApproval traduit les refus du quorum en réponses que l'écran peut lire.
+// Les motifs sont ceux du protocole (adminauthz) : le module légal ne devine
+// pas ce que veut dire l'erreur, il relaie le vocabulaire partagé.
+func (h *Handler) failApproval(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, adminauthz.ErrApprovalForbidden):
+		response.Forbidden(w, err.Error())
+	case errors.Is(err, adminauthz.ErrApprovalReason), errors.Is(err, adminauthz.ErrApprovalUnknownAct):
+		response.BadRequest(w, err.Error())
+	case errors.Is(err, adminauthz.ErrApprovalSelf), errors.Is(err, adminauthz.ErrApprovalClosed):
+		response.Error(w, http.StatusConflict, err.Error())
+	default:
+		h.fail(w, err)
+	}
+}
+
+// consumeApproval marque l'approbation exercée. Best-effort : l'acte est déjà
+// accompli et tracé ; un registre indisponible ne doit pas transformer une
+// publication réussie en erreur pour la personne qui l'a faite.
+func (h *Handler) consumeApproval(ctx context.Context, actor, versionID string) {
+	if h.approvals == nil {
+		return
+	}
+	if err := h.approvals.ConsumeApproval(ctx, actor, authz.ActionLegalPublish, versionID); err != nil {
+		log.Printf("[legal] approbation non consommée (%s) : %v", versionID, err)
+	}
 }
 
 func (h *Handler) adminArchive(w http.ResponseWriter, r *http.Request) {

@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/qoefi/api/internal/authz"
 	"github.com/qoefi/api/internal/middleware"
 )
@@ -187,7 +188,7 @@ func TestRequire_ProofLevelN3NeedsApproval(t *testing.T) {
 		// Une approbation sans acte nommé validerait n'importe quoi : refus.
 		w := serveProof(t, enforcingProofLookup(LegalWrite), LegalWrite, fresh,
 			WithProofLevel(authz.Level3), WithMode(ModeEnforce),
-			WithApproval(func(context.Context, string, authz.Action) bool { return true }))
+			WithApproval(func(context.Context, string, authz.Action, string) bool { return true }))
 		if w.Code != http.StatusForbidden {
 			t.Fatalf("N3 sans acte = %d, attendu 403 (%s)", w.Code, w.Body.String())
 		}
@@ -197,7 +198,7 @@ func TestRequire_ProofLevelN3NeedsApproval(t *testing.T) {
 		w := serveProof(t, enforcingProofLookup(LegalWrite), LegalWrite, fresh,
 			WithProofLevel(authz.Level3), WithMode(ModeEnforce),
 			WithApprovalAct(authz.ActionLegalPublish),
-			WithApproval(func(context.Context, string, authz.Action) bool { return false }))
+			WithApproval(func(context.Context, string, authz.Action, string) bool { return false }))
 		if w.Code != http.StatusForbidden {
 			t.Fatalf("N3 non approuvé = %d, attendu 403 (%s)", w.Code, w.Body.String())
 		}
@@ -208,7 +209,7 @@ func TestRequire_ProofLevelN3NeedsApproval(t *testing.T) {
 		w := serveProof(t, enforcingProofLookup(LegalWrite), LegalWrite, fresh,
 			WithProofLevel(authz.Level3), WithMode(ModeEnforce),
 			WithApprovalAct(authz.ActionLegalPublish),
-			WithApproval(func(_ context.Context, _ string, act authz.Action) bool {
+			WithApproval(func(_ context.Context, _ string, act authz.Action, _ string) bool {
 				seenAct = act
 				return true
 			}))
@@ -219,6 +220,81 @@ func TestRequire_ProofLevelN3NeedsApproval(t *testing.T) {
 			t.Fatalf("acte transmis = %q, attendu %q", seenAct, authz.ActionLegalPublish)
 		}
 	})
+
+}
+
+// TestRequire_N3IsRefusedEvenInObserveMode — le quorum n'est pas une mesure
+// qu'on observe avant d'armer : tant qu'aucune approbation ne l'atteste, l'acte
+// N3 est refusé même quand le reste de la console est en observation. Sinon,
+// publier un texte opposable pendant la période d'observation serait exactement
+// ce que la double validation doit empêcher. N2, lui, reste observable.
+func TestRequire_N3IsRefusedEvenInObserveMode(t *testing.T) {
+	// Un Lookup SANS politique d'application : le garde est bien en observation.
+	observing := &plainLookup{access: accessWith(LegalWrite)}
+	fresh := claimsFor("aal2", proofNow.Add(-time.Minute), method("totp", proofNow.Add(-time.Minute)))
+	w := serveProof(t, observing, LegalWrite, fresh,
+		WithProofLevel(authz.Level3),
+		WithMode(ModeObserve),
+		WithApprovalAct(authz.ActionLegalPublish),
+		WithApproval(func(context.Context, string, authz.Action, string) bool { return false }))
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("N3 en observation = %d, attendu 403 (%s)", w.Code, w.Body.String())
+	}
+	if got := w.Header().Get("X-Qoe-Authz-Code"); got != string(authz.CodeNeedsReview) {
+		t.Fatalf("X-Qoe-Authz-Code = %q, attendu %q", got, authz.CodeNeedsReview)
+	}
+
+	// Sans preuve fraîche non plus : le niveau N3 est celui des actes qu'on ne
+	// rejoue pas, il ne se contente pas d'une session d'il y a quatre heures.
+	morning := claimsFor("aal2", proofNow.Add(-4*time.Hour), method("totp", proofNow.Add(-4*time.Hour)))
+	w = serveProof(t, observing, LegalWrite, morning,
+		WithProofLevel(authz.Level3),
+		WithMode(ModeObserve),
+		WithApprovalAct(authz.ActionLegalPublish),
+		WithApproval(func(context.Context, string, authz.Action, string) bool { return true }))
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("N3 en observation avec session ancienne = %d, attendu 403 (%s)", w.Code, w.Body.String())
+	}
+}
+
+// TestRequire_N3ApprovalIsBoundToItsTarget — la cible compte : une approbation
+// donnée pour publier la version A ne doit pas ouvrir la version B. Le garde la
+// relaie depuis l'URL, et refuse quand elle manque.
+func TestRequire_N3ApprovalIsBoundToItsTarget(t *testing.T) {
+	r := chi.NewRouter()
+	r.With(
+		Require(&policyLookup{plainLookup: plainLookup{access: accessWith(LegalWrite)}, enforce: true},
+			LegalWrite,
+			WithProofLevel(authz.Level3),
+			WithMode(ModeEnforce),
+			WithApprovalAct(authz.ActionLegalPublish),
+			WithApprovalTargetParam("versionID"),
+			WithClock(func() time.Time { return proofNow }),
+			WithApproval(func(_ context.Context, _ string, _ authz.Action, target string) bool {
+				return target == "ver-1"
+			}),
+		),
+	).Post("/v1/admin/legal/versions/{versionID}/publish", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	fresh := claimsFor("aal2", proofNow.Add(-time.Minute), method("totp", proofNow.Add(-time.Minute)))
+	call := func(version string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, "/v1/admin/legal/versions/"+version+"/publish", nil)
+		ctx := context.WithValue(req.Context(), middleware.UserIDKey, "u-1")
+		ctx = context.WithValue(ctx, middleware.ClaimsKey, fresh)
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, req.WithContext(ctx))
+		return w
+	}
+
+	if w := call("ver-1"); w.Code != http.StatusOK {
+		t.Fatalf("version approuvée = %d, attendu 200 (%s)", w.Code, w.Body.String())
+	}
+	if w := call("ver-2"); w.Code != http.StatusForbidden ||
+		w.Header().Get("X-Qoe-Authz-Code") != string(authz.CodeNeedsReview) {
+		t.Fatalf("autre version = %d (%s), attendu 403 needs_review", w.Code, w.Body.String())
+	}
 }
 
 // TestRequire_ProofCheckedAfterCapability — le droit d'abord : sans la
