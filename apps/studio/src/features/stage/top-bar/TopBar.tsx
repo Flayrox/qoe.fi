@@ -7,9 +7,6 @@
 import React from 'react';
 import Link from 'next/link';
 import {
-  Monitor,
-  Tablet,
-  Smartphone,
   Undo2,
   Redo2,
   ExternalLink,
@@ -21,14 +18,11 @@ import {
   Loader2,
   Menu,
 } from 'lucide-react';
-import type { StageDevice, StageMode } from '../types';
-import { DEVICE_DIMENSIONS } from '../types';
+import type { StageMode } from '../types';
 
 interface TopBarProps {
   publicationName: string;
   domain: string;
-  device: StageDevice;
-  onDeviceChange: (device: StageDevice) => void;
   mode: StageMode;
   onModeChange: (mode: StageMode) => void;
   scale: number;
@@ -48,8 +42,6 @@ interface TopBarProps {
 export function TopBar({
   publicationName,
   domain,
-  device,
-  onDeviceChange,
   mode,
   onModeChange,
   scale,
@@ -86,31 +78,6 @@ export function TopBar({
           <span className="text-foreground max-w-[140px] truncate">{publicationName}</span>
           <span className="opacity-40">/</span>
           <span className="text-foreground font-semibold">Stage</span>
-        </div>
-
-        <div className="h-4 w-px bg-border/60 mx-1" />
-
-        {/* Sélecteur de Devices (Desktop / Tablet / Mobile) */}
-        <div className="flex items-center bg-muted/60 p-0.5 rounded-lg border border-border/40">
-          {(['desktop', 'tablet', 'mobile'] as const).map((d) => {
-            const isSelected = device === d;
-            const Icon = d === 'desktop' ? Monitor : d === 'tablet' ? Tablet : Smartphone;
-            return (
-              <button
-                key={d}
-                type="button"
-                onClick={() => onDeviceChange(d)}
-                title={`${DEVICE_DIMENSIONS[d].label} (${DEVICE_DIMENSIONS[d].width}px)`}
-                className={`p-1.5 rounded-md transition-all ${
-                  isSelected
-                    ? 'bg-background text-foreground shadow-xs font-medium'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-background/40'
-                }`}
-              >
-                <Icon className="w-3.5 h-3.5" />
-              </button>
-            );
-          })}
         </div>
       </div>
 

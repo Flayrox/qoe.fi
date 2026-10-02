@@ -27,8 +27,6 @@ function StageWorkbench({ sidebarProps }: { sidebarProps?: StageClientProps['sid
       <TopBar
         publicationName={engine.publication.name || 'Publication'}
         domain={engine.publication.domain || 'nom.qoe.fi'}
-        device={engine.device}
-        onDeviceChange={engine.setDevice}
         mode={engine.editorMode === StageEditorMode.PREVIEW ? 'preview' : 'design'}
         onModeChange={(m) =>
           engine.setEditorMode(m === 'preview' ? StageEditorMode.PREVIEW : StageEditorMode.DESIGN)
