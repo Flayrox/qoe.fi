@@ -33,7 +33,6 @@ import {
   Compass,
   Info,
   Terminal,
-  Maximize2,
 } from 'lucide-react';
 
 // Import Server Actions
@@ -596,8 +595,8 @@ export default function PublicationSettings({
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white shadow-sm transition-all hover:opacity-95 active:scale-95"
                     style={{ backgroundColor: current.accentColor || 'hsl(var(--primary))' }}
                   >
-                    <Maximize2 className="w-3.5 h-3.5" />
-                    <span>Atelier Plein Écran (Figma)</span>
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Ouvrir Stage</span>
                   </Link>
 
                   <span className="text-xs text-muted-foreground hidden lg:inline">

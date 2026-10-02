@@ -205,4 +205,5 @@ export interface TemplatePublicationContext {
   navigation?: NavigationItem[];
   socialLinks?: SocialLink[];
   subscriberCount?: number;
+  layoutStyle?: string | null;
 }
