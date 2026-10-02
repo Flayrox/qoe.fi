@@ -46,6 +46,7 @@ import {
 import { EmailTemplates } from './email-templates';
 import { PublicationLivePreview } from './publication-live-preview';
 import { SeoPreview } from './seo-preview';
+import { CanvasSiteEditor } from './canvas-site-editor';
 
 // =====================================================================
 // 🎨 TYPES & DATA DEFINITIONS
@@ -166,6 +167,7 @@ export default function PublicationSettings({
   const [isAdvancedMode, setIsAdvancedMode] = useState<boolean>(
     initialCreator.advancedSettingsMode ?? false
   );
+  const [editorMode, setEditorMode] = useState<'canvas' | 'form'>('canvas');
 
   // Ecoute des events depuis le CmdK
   useEffect(() => {
@@ -541,7 +543,7 @@ export default function PublicationSettings({
           ===================================================================== */}
       <main className="max-w-6xl mx-auto px-6 pt-8">
         <AnimatePresence mode="wait">
-          {/* TAB 1: IDENTITÉ & DESIGN (AVEC LIVE PREVIEW IMMERSIF) */}
+          {/* TAB 1: IDENTITÉ & DESIGN (ATELIER ON-CANVAS LICORNE 2026 OU FORMULAIRE) */}
           {activeTab === 'general' && (
             <motion.div
               key="tab-general"
@@ -549,257 +551,320 @@ export default function PublicationSettings({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
-              className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start"
+              className="space-y-6"
             >
-              {/* Colonne de gauche : Formulaires de configuration */}
-              <div className="lg:col-span-7 space-y-6">
-                {/* Notice d'isolation : Site Web vs Compte personnel */}
-                <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 flex items-start gap-3 text-xs leading-relaxed text-muted-foreground shadow-2xs">
-                  <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                  <div className="space-y-1">
-                    <span className="font-semibold text-foreground block">
-                      Identité visuelle & éditoriale (Site Web)
-                    </span>
-                    <p>
-                      Ce nom, ce slogan et ces éléments graphiques définissent uniquement
-                      l'apparence de votre site web sur{' '}
-                      <strong className="text-foreground">
-                        {current.subdomain ? `${current.subdomain}.qoe.fi` : 'votre site'}
-                      </strong>
-                      . Ils sont strictement séparés de votre biographie personnelle et de votre
-                      compte lecteur.
-                    </p>
+              {/* Expérience d'édition Switcher: Atelier On-Canvas (Direct) vs Formulaire classique */}
+              <div className="flex items-center justify-between gap-4 pb-2 border-b border-border/30">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Atelier de création
+                  </span>
+                  <div className="flex items-center gap-1 bg-muted/60 p-0.5 rounded-xl border border-border/40">
+                    <button
+                      type="button"
+                      onClick={() => setEditorMode('canvas')}
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                        editorMode === 'canvas'
+                          ? 'bg-background text-foreground shadow-2xs font-bold'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-primary" />
+                      <span>Éditeur On-Canvas (Direct)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditorMode('form')}
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                        editorMode === 'form'
+                          ? 'bg-background text-foreground shadow-2xs font-bold'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      <span>Formulaire classique</span>
+                    </button>
                   </div>
                 </div>
 
-                {/* Card 1: Identité Textuelle */}
-                <div className="rounded-xl border border-border/50 bg-card p-5 space-y-4 shadow-2xs">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Identité du site web
-                  </h3>
+                <span className="text-xs text-muted-foreground hidden md:inline">
+                  {editorMode === 'canvas'
+                    ? 'Cliquez directement sur chaque élément de la page pour le personnaliser'
+                    : 'Champs de saisie tabulaires avec aperçu en direct'}
+                </span>
+              </div>
 
-                  {/* Title */}
-                  <div id="name" className="space-y-1.5">
-                    <label className="text-xs font-semibold text-foreground block">
-                      Nom du site web
-                    </label>
-                    <input
-                      type="text"
-                      value={current.name || ''}
-                      onChange={(e) => setCurrent((prev) => ({ ...prev, name: e.target.value }))}
-                      placeholder="Ex. Le Carnet de Sarah"
-                      className="w-full px-3.5 py-2.5 bg-muted/20 border border-border/40 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80 transition-colors"
-                    />
-                    <span className="text-[11px] text-muted-foreground block">
-                      Titre principal affiché dans l'en-tête de votre site et dans les flux de
-                      lecture.
-                    </span>
-                  </div>
-
-                  {/* Slogan éditorial */}
-                  <div id="hero" className="space-y-1.5 pt-2 border-t border-border/30">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-semibold text-foreground block">
-                        Slogan éditorial (Hero Tagline)
-                      </label>
-                      <span className="text-[10px] text-muted-foreground font-mono">
-                        {current.heroText?.length || 0}/180 car.
-                      </span>
+              {editorMode === 'canvas' ? (
+                <CanvasSiteEditor
+                  current={current}
+                  onChange={setCurrent}
+                  onReset={handleDiscardChanges}
+                  hasChanges={hasChanges}
+                  publicBlogUrl={publicBlogUrl}
+                />
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                  {/* Colonne de gauche : Formulaires de configuration */}
+                  <div className="lg:col-span-7 space-y-6">
+                    {/* Notice d'isolation : Site Web vs Compte personnel */}
+                    <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 flex items-start gap-3 text-xs leading-relaxed text-muted-foreground shadow-2xs">
+                      <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                      <div className="space-y-1">
+                        <span className="font-semibold text-foreground block">
+                          Identité visuelle & éditoriale (Site Web)
+                        </span>
+                        <p>
+                          Ce nom, ce slogan et ces éléments graphiques définissent uniquement
+                          l'apparence de votre site web sur{' '}
+                          <strong className="text-foreground">
+                            {current.subdomain ? `${current.subdomain}.qoe.fi` : 'votre site'}
+                          </strong>
+                          . Ils sont strictement séparés de votre biographie personnelle et de votre
+                          compte lecteur.
+                        </p>
+                      </div>
                     </div>
-                    <textarea
-                      value={current.heroText || ''}
-                      onChange={(e) =>
-                        setCurrent((prev) => ({ ...prev, heroText: e.target.value }))
-                      }
-                      maxLength={240}
-                      placeholder={t`Ex. Réflexions sur la technologie, l'art et l'écriture libre...`}
-                      rows={3}
-                      className="w-full px-3.5 py-2.5 bg-muted/20 border border-border/40 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80 resize-none transition-colors"
-                    />
-                    <span className="text-[11px] text-muted-foreground block">
-                      Sous-titre concis décrivant votre ligne éditoriale (affiché sur le header du
-                      site).
-                    </span>
-                  </div>
-                </div>
 
-                {/* Card 2: Direction Artistique (Typographie & Couleurs) */}
-                <div className="rounded-xl border border-border/50 bg-card p-5 space-y-5 shadow-2xs">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Direction artistique & Style
-                  </h3>
+                    {/* Card 1: Identité Textuelle */}
+                    <div className="rounded-xl border border-border/50 bg-card p-5 space-y-4 shadow-2xs">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        Identité du site web
+                      </h3>
 
-                  {/* Visual Font Cards */}
-                  <div className="space-y-2">
-                    <label className="text-xs font-semibold text-foreground block">
-                      Police éditoriale
-                    </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                      {SITE_FONTS.map((font) => {
-                        const isSelected = (current.fontFamily || 'sans') === font.id;
-                        return (
-                          <button
-                            key={font.id}
-                            type="button"
-                            onClick={() => setCurrent((prev) => ({ ...prev, fontFamily: font.id }))}
-                            className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                              isSelected
-                                ? 'border-primary bg-primary/10 ring-1 ring-primary shadow-xs'
-                                : 'border-border/40 bg-muted/20 hover:bg-muted/40 text-muted-foreground'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between mb-1.5">
-                              <span className="text-xs font-semibold text-foreground">
-                                {font.name}
-                              </span>
-                              {isSelected && <Check className="w-3.5 h-3.5 text-primary" />}
-                            </div>
-                            <p
-                              style={{ fontFamily: font.family }}
-                              className="text-sm text-foreground/90 font-medium truncate"
-                            >
-                              L'art d'écrire en toute liberté.
-                            </p>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Accent Color Swatches */}
-                  <div id="brand" className="space-y-2.5 pt-2 border-t border-border/30">
-                    <label className="text-xs font-semibold text-foreground block">
-                      Couleur d'accentuation
-                    </label>
-                    <div className="flex flex-wrap gap-2 items-center">
-                      {ACCENT_SWATCHES.map((swatch) => {
-                        const isSelected =
-                          current.accentColor?.toLowerCase() === swatch.hex.toLowerCase();
-                        return (
-                          <button
-                            key={swatch.id}
-                            type="button"
-                            onClick={() =>
-                              setCurrent((prev) => ({ ...prev, accentColor: swatch.hex }))
-                            }
-                            className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-2 cursor-pointer transition-all ${
-                              isSelected
-                                ? 'border-primary bg-primary/15 text-foreground ring-1 ring-primary shadow-xs'
-                                : 'border-border/40 bg-muted/20 hover:bg-muted/50 text-muted-foreground'
-                            }`}
-                          >
-                            <span
-                              className="w-3 h-3 rounded-full border border-black/10 shrink-0"
-                              style={{ backgroundColor: swatch.hex }}
-                            />
-                            <span>{swatch.name}</span>
-                          </button>
-                        );
-                      })}
-
-                      {/* Custom Color Input */}
-                      <div className="flex items-center gap-1.5 pl-1">
-                        <input
-                          type="color"
-                          value={current.accentColor || '#EE4B2B'}
-                          onChange={(e) =>
-                            setCurrent((prev) => ({ ...prev, accentColor: e.target.value }))
-                          }
-                          className="w-7 h-7 rounded border border-border/40 cursor-pointer bg-transparent shrink-0"
-                          title="Couleur personnalisée"
-                        />
+                      {/* Title */}
+                      <div id="name" className="space-y-1.5">
+                        <label className="text-xs font-semibold text-foreground block">
+                          Nom du site web
+                        </label>
                         <input
                           type="text"
-                          value={current.accentColor || '#EE4B2B'}
+                          value={current.name || ''}
                           onChange={(e) =>
-                            setCurrent((prev) => ({ ...prev, accentColor: e.target.value }))
+                            setCurrent((prev) => ({ ...prev, name: e.target.value }))
                           }
-                          className="w-24 px-2 py-1.5 bg-muted/20 border border-border/40 rounded-lg text-xs font-mono font-medium text-foreground focus:outline-none"
+                          placeholder="Ex. Le Carnet de Sarah"
+                          className="w-full px-3.5 py-2.5 bg-muted/20 border border-border/40 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80 transition-colors"
+                        />
+                        <span className="text-[11px] text-muted-foreground block">
+                          Titre principal affiché dans l'en-tête de votre site et dans les flux de
+                          lecture.
+                        </span>
+                      </div>
+
+                      {/* Slogan éditorial */}
+                      <div id="hero" className="space-y-1.5 pt-2 border-t border-border/30">
+                        <div className="flex items-center justify-between">
+                          <label className="text-xs font-semibold text-foreground block">
+                            Slogan éditorial (Hero Tagline)
+                          </label>
+                          <span className="text-[10px] text-muted-foreground font-mono">
+                            {current.heroText?.length || 0}/180 car.
+                          </span>
+                        </div>
+                        <textarea
+                          value={current.heroText || ''}
+                          onChange={(e) =>
+                            setCurrent((prev) => ({ ...prev, heroText: e.target.value }))
+                          }
+                          maxLength={240}
+                          placeholder={t`Ex. Réflexions sur la technologie, l'art et l'écriture libre...`}
+                          rows={3}
+                          className="w-full px-3.5 py-2.5 bg-muted/20 border border-border/40 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80 resize-none transition-colors"
+                        />
+                        <span className="text-[11px] text-muted-foreground block">
+                          Sous-titre concis décrivant votre ligne éditoriale (affiché sur le header
+                          du site).
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Card 2: Direction Artistique (Typographie & Couleurs) */}
+                    <div className="rounded-xl border border-border/50 bg-card p-5 space-y-5 shadow-2xs">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        Direction artistique & Style
+                      </h3>
+
+                      {/* Visual Font Cards */}
+                      <div className="space-y-2">
+                        <label className="text-xs font-semibold text-foreground block">
+                          Police éditoriale
+                        </label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {SITE_FONTS.map((font) => {
+                            const isSelected = (current.fontFamily || 'sans') === font.id;
+                            return (
+                              <button
+                                key={font.id}
+                                type="button"
+                                onClick={() =>
+                                  setCurrent((prev) => ({ ...prev, fontFamily: font.id }))
+                                }
+                                className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                                  isSelected
+                                    ? 'border-primary bg-primary/10 ring-1 ring-primary shadow-xs'
+                                    : 'border-border/40 bg-muted/20 hover:bg-muted/40 text-muted-foreground'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between mb-1.5">
+                                  <span className="text-xs font-semibold text-foreground">
+                                    {font.name}
+                                  </span>
+                                  {isSelected && <Check className="w-3.5 h-3.5 text-primary" />}
+                                </div>
+                                <p
+                                  style={{ fontFamily: font.family }}
+                                  className="text-sm text-foreground/90 font-medium truncate"
+                                >
+                                  L'art d'écrire en toute liberté.
+                                </p>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Accent Color Swatches */}
+                      <div id="brand" className="space-y-2.5 pt-2 border-t border-border/30">
+                        <label className="text-xs font-semibold text-foreground block">
+                          Couleur d'accentuation
+                        </label>
+                        <div className="flex flex-wrap gap-2 items-center">
+                          {ACCENT_SWATCHES.map((swatch) => {
+                            const isSelected =
+                              current.accentColor?.toLowerCase() === swatch.hex.toLowerCase();
+                            return (
+                              <button
+                                key={swatch.id}
+                                type="button"
+                                onClick={() =>
+                                  setCurrent((prev) => ({ ...prev, accentColor: swatch.hex }))
+                                }
+                                className={`px-3 py-1.5 rounded-lg border text-xs font-medium flex items-center gap-2 cursor-pointer transition-all ${
+                                  isSelected
+                                    ? 'border-primary bg-primary/15 text-foreground ring-1 ring-primary shadow-xs'
+                                    : 'border-border/40 bg-muted/20 hover:bg-muted/50 text-muted-foreground'
+                                }`}
+                              >
+                                <span
+                                  className="w-3 h-3 rounded-full border border-black/10 shrink-0"
+                                  style={{ backgroundColor: swatch.hex }}
+                                />
+                                <span>{swatch.name}</span>
+                              </button>
+                            );
+                          })}
+
+                          {/* Custom Color Input */}
+                          <div className="flex items-center gap-1.5 pl-1">
+                            <input
+                              type="color"
+                              value={current.accentColor || '#EE4B2B'}
+                              onChange={(e) =>
+                                setCurrent((prev) => ({ ...prev, accentColor: e.target.value }))
+                              }
+                              className="w-7 h-7 rounded border border-border/40 cursor-pointer bg-transparent shrink-0"
+                              title="Couleur personnalisée"
+                            />
+                            <input
+                              type="text"
+                              value={current.accentColor || '#EE4B2B'}
+                              onChange={(e) =>
+                                setCurrent((prev) => ({ ...prev, accentColor: e.target.value }))
+                              }
+                              className="w-24 px-2 py-1.5 bg-muted/20 border border-border/40 rounded-lg text-xs font-mono font-medium text-foreground focus:outline-none"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card 3: Médias & Marque (Logo & Couverture) */}
+                    <div className="rounded-xl border border-border/50 bg-card p-5 space-y-5 shadow-2xs">
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        Médias & Identité visuelle
+                      </h3>
+
+                      {/* Avatar / Logo */}
+                      <div className="space-y-2">
+                        <div>
+                          <label className="text-xs font-semibold text-foreground block">
+                            Avatar / Logo du média
+                          </label>
+                          <span className="text-[11px] text-muted-foreground block mt-0.5">
+                            Symbole rond affiché en en-tête et dans les favoris (512x512px
+                            recommandé).
+                          </span>
+                        </div>
+                        <div className="max-w-[140px]">
+                          <ImageUploader
+                            value={current.logoUrl}
+                            onChange={(url) => setCurrent((prev) => ({ ...prev, logoUrl: url }))}
+                            upload={(file) =>
+                              uploadImageToRoute(
+                                file,
+                                '/api/articles/upload',
+                                IMAGE_FOLDERS.avatars
+                              )
+                            }
+                            aspect={1}
+                            shape="circle"
+                            maxDimension={512}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Cover Image */}
+                      <div className="space-y-2 pt-3 border-t border-border/30">
+                        <div>
+                          <label className="text-xs font-semibold text-foreground block">
+                            Image de couverture (Bannière d'en-tête)
+                          </label>
+                          <span className="text-[11px] text-muted-foreground block mt-0.5">
+                            Bannière panoramique ratio 21:9 affichée en haut de votre site web.
+                          </span>
+                        </div>
+                        <ImageUploader
+                          value={current.headerImageUrl}
+                          onChange={(url) =>
+                            setCurrent((prev) => ({ ...prev, headerImageUrl: url }))
+                          }
+                          upload={(file) =>
+                            uploadImageToRoute(file, '/api/articles/upload', IMAGE_FOLDERS.banners)
+                          }
+                          aspect={21 / 9}
+                          shape="banner"
                         />
                       </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Card 3: Médias & Marque (Logo & Couverture) */}
-                <div className="rounded-xl border border-border/50 bg-card p-5 space-y-5 shadow-2xs">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Médias & Identité visuelle
-                  </h3>
-
-                  {/* Avatar / Logo */}
-                  <div className="space-y-2">
-                    <div>
-                      <label className="text-xs font-semibold text-foreground block">
-                        Avatar / Logo du média
-                      </label>
-                      <span className="text-[11px] text-muted-foreground block mt-0.5">
-                        Symbole rond affiché en en-tête et dans les favoris (512x512px recommandé).
-                      </span>
-                    </div>
-                    <div className="max-w-[140px]">
-                      <ImageUploader
-                        value={current.logoUrl}
-                        onChange={(url) => setCurrent((prev) => ({ ...prev, logoUrl: url }))}
-                        upload={(file) =>
-                          uploadImageToRoute(file, '/api/articles/upload', IMAGE_FOLDERS.avatars)
-                        }
-                        aspect={1}
-                        shape="circle"
-                        maxDimension={512}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Cover Image */}
-                  <div className="space-y-2 pt-3 border-t border-border/30">
-                    <div>
-                      <label className="text-xs font-semibold text-foreground block">
-                        Image de couverture (Bannière d'en-tête)
-                      </label>
-                      <span className="text-[11px] text-muted-foreground block mt-0.5">
-                        Bannière panoramique ratio 21:9 affichée en haut de votre site web.
-                      </span>
-                    </div>
-                    <ImageUploader
-                      value={current.headerImageUrl}
-                      onChange={(url) => setCurrent((prev) => ({ ...prev, headerImageUrl: url }))}
-                      upload={(file) =>
-                        uploadImageToRoute(file, '/api/articles/upload', IMAGE_FOLDERS.banners)
-                      }
-                      aspect={21 / 9}
-                      shape="banner"
+                  {/* Colonne de droite : Aperçu en direct du site (Sticky) */}
+                  <div className="lg:col-span-5 lg:sticky lg:top-24 space-y-4">
+                    <PublicationLivePreview
+                      name={current.name}
+                      heroText={current.heroText}
+                      accentColor={current.accentColor}
+                      fontFamily={current.fontFamily}
+                      logoUrl={current.logoUrl}
+                      headerImageUrl={current.headerImageUrl}
+                      subdomain={current.subdomain}
+                      username={current.username}
+                      navigation={current.navigation}
+                      socialLinks={current.socialLinks}
                     />
+
+                    <div className="p-4 bg-muted/20 border border-border/40 rounded-xl text-xs text-muted-foreground flex items-center justify-between gap-3">
+                      <span>Besoin de modifier votre mot de passe ou email ?</span>
+                      <a
+                        href={consoleSettingsUrl}
+                        className="shrink-0 px-2.5 py-1 bg-background hover:bg-muted border border-border/60 rounded-lg font-semibold text-foreground text-[11px] transition-colors flex items-center gap-1 shadow-2xs"
+                      >
+                        <span>Mon Compte</span>
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
                   </div>
                 </div>
-              </div>
-
-              {/* Colonne de droite : Aperçu en direct du site (Sticky) */}
-              <div className="lg:col-span-5 lg:sticky lg:top-24 space-y-4">
-                <PublicationLivePreview
-                  name={current.name}
-                  heroText={current.heroText}
-                  accentColor={current.accentColor}
-                  fontFamily={current.fontFamily}
-                  logoUrl={current.logoUrl}
-                  headerImageUrl={current.headerImageUrl}
-                  subdomain={current.subdomain}
-                  username={current.username}
-                  navigation={current.navigation}
-                  socialLinks={current.socialLinks}
-                />
-
-                <div className="p-4 bg-muted/20 border border-border/40 rounded-xl text-xs text-muted-foreground flex items-center justify-between gap-3">
-                  <span>Besoin de modifier votre mot de passe ou email ?</span>
-                  <a
-                    href={consoleSettingsUrl}
-                    className="shrink-0 px-2.5 py-1 bg-background hover:bg-muted border border-border/60 rounded-lg font-semibold text-foreground text-[11px] transition-colors flex items-center gap-1 shadow-2xs"
-                  >
-                    <span>Mon Compte</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-              </div>
+              )}
             </motion.div>
           )}
 
