@@ -81,3 +81,26 @@ export async function revokeRoleAction(input: {
     return { ok: false, error: readableError(err), ...authzTrailers(err) };
   }
 }
+
+/** Déclenche un instantané mensuel des accès. Nécessite admin.access.grant et step-up N2. */
+export async function triggerAccessReviewSnapshotAction(input?: {
+  period?: string;
+  force?: boolean;
+  reason?: string;
+}): Promise<AccessActionResult> {
+  try {
+    await assertCapability('admin.access.grant');
+    await goFetch('/v1/admin/access/reviews/snapshot', {
+      method: 'POST',
+      body: {
+        period: input?.period?.trim() || undefined,
+        force: input?.force ?? true,
+        reason: input?.reason?.trim() || 'Instantané manuel de la revue périodique des accès',
+      },
+    });
+    revalidatePath('/admin/access');
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: readableError(err), ...authzTrailers(err) };
+  }
+}

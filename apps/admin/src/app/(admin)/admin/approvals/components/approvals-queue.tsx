@@ -22,7 +22,7 @@ import {
   APPROVAL_STATUS_LABELS,
   isApprovalOpen,
   type AdminApprovalItem,
-} from '@/lib/admin-approval-data';
+} from '@/lib/admin-approval-types';
 
 interface ApprovalsQueueProps {
   initialItems: AdminApprovalItem[];

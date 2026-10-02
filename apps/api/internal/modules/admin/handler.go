@@ -121,6 +121,7 @@ var stepUpRoutes = map[string]authz.Level{
 	// session détournée ne doit pas pouvoir nommer un complice.
 	"POST /v1/admin/access/grants":                           authz.Level2,
 	"POST /v1/admin/access/grants/{userID}/{roleKey}/revoke": authz.Level2,
+	"POST /v1/admin/access/reviews/snapshot":                 authz.Level2,
 }
 
 // routeTable est la déclaration unique des routes de la console. Chaque entrée
@@ -249,6 +250,10 @@ func (h *Handler) routeTable() []adminRoute {
 		// le service (dernier rôle, dernier superadmin), audit systématique.
 		{http.MethodPost, "/v1/admin/access/grants", adminauthz.AccessGrant, h.grantAccess},
 		{http.MethodPost, "/v1/admin/access/grants/{userID}/{roleKey}/revoke", adminauthz.AccessGrant, h.revokeAccess},
+		// ── Revue périodique et cycle de vie des accès (plan, Phase 8) ───
+		{http.MethodGet, "/v1/admin/access/reviews", adminauthz.AccessRead, h.accessReviews},
+		{http.MethodGet, "/v1/admin/access/reviews/{period}", adminauthz.AccessRead, h.accessReviewPeriod},
+		{http.MethodPost, "/v1/admin/access/reviews/snapshot", adminauthz.AccessGrant, h.triggerAccessReviewSnapshot},
 	}
 }
 

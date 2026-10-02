@@ -12,39 +12,11 @@
 // =====================================================================
 
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import type { AdminApprovalItem } from './admin-approval-types';
 
-/** Une demande de double validation, telle que la console la porte. */
-export interface AdminApprovalItem {
-  id: string;
-  /** Acte du noyau visé (`legal_publish`, `staff_high_impact`…). */
-  act: string;
-  /** Cible de l'acte : ici l'identifiant de version juridique. */
-  target: string;
-  capability: string;
-  requestedBy: string;
-  reason: string;
-  status: 'pending' | 'approved' | 'rejected' | 'consumed' | string;
-  decidedBy?: string;
-  note?: string;
-  expiresAt: string;
-  createdAt: string;
-  decidedAt?: string;
-}
+export * from './admin-approval-types';
 
 const ACCESS_DENIED_MESSAGE = 'Lecture refusée : la capacité admin.legal.read est requise.';
-
-/** Libellés lisibles des actes soumis à quorum (jamais un code brut à l'écran). */
-export const APPROVAL_ACT_LABELS: Record<string, string> = {
-  legal_publish: 'Publication juridique',
-  staff_high_impact: 'Acte staff à fort impact',
-};
-
-export const APPROVAL_STATUS_LABELS: Record<string, string> = {
-  pending: 'En attente',
-  approved: 'Approuvée',
-  rejected: 'Refusée',
-  consumed: 'Exercée',
-};
 
 /** Demandes récentes : en attente d'abord (le serveur trie), puis les décidées. */
 export async function getApprovals(limit = 100): Promise<AdminApprovalItem[]> {
@@ -57,11 +29,4 @@ export async function getApprovals(limit = 100): Promise<AdminApprovalItem[]> {
     if ((err as { status?: number })?.status === 403) throw new Error(ACCESS_DENIED_MESSAGE);
     throw err;
   }
-}
-
-/** Une demande est-elle encore ouverte ? (`expiresAt` fait foi, pas le statut seul) */
-export function isApprovalOpen(item: AdminApprovalItem, now = Date.now()): boolean {
-  if (item.status !== 'pending') return false;
-  const expiry = Date.parse(item.expiresAt);
-  return !Number.isNaN(expiry) && expiry > now;
 }

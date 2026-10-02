@@ -167,6 +167,10 @@ export const ADMIN_ROUTE_COVERAGE: Record<string, AdminRouteCoverage> = {
   'GET /v1/admin/access/people/{userID}': via('/admin/access'),
   'GET /v1/admin/access/roles': via('/admin/access/roles'),
   'GET /v1/admin/access/capabilities': via('/admin/access/roles'),
+  // Revue périodique et cycle de vie des accès staff (plan, Phase 8).
+  'GET /v1/admin/access/reviews': via('/admin/access'),
+  'GET /v1/admin/access/reviews/{period}': via('/admin/access'),
+  'POST /v1/admin/access/reviews/snapshot': via('/admin/access'),
 };
 
 /** Nombre de routes classées (le test Go vérifie qu'il n'en manque aucune). */

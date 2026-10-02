@@ -6,6 +6,7 @@ package ebooks
 import (
 	"archive/zip"
 	"bytes"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -31,12 +32,15 @@ func buildEpub(t *testing.T, title, author string, chapters map[string]string, c
   <rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles>
 </container>`)
 	var manifest, spine strings.Builder
-	i := 0
+	keys := make([]string, 0, len(chapters))
 	for name := range chapters {
+		keys = append(keys, name)
+	}
+	sort.Strings(keys)
+	for i, name := range keys {
 		id := "ch" + string(rune('0'+i))
 		manifest.WriteString(`<item id="` + id + `" href="` + name + `" media-type="application/xhtml+xml"/>`)
 		spine.WriteString(`<itemref idref="` + id + `"/>`)
-		i++
 	}
 	coverItem := ""
 	if cover != nil {

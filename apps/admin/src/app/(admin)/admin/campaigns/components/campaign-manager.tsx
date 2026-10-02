@@ -20,7 +20,7 @@ import {
   CAMPAIGN_TRANSITIONS,
   CAMPAIGN_TYPES,
   type StaffCampaign,
-} from '@/lib/admin-infra-data';
+} from '@/lib/admin-campaign-types';
 import { campaignTransitionAction, createCampaignAction } from '@/lib/admin-infra-actions';
 import { QueueEmpty } from '@/components/queue/QueueEmpty';
 import { StatusPill } from '@/components/queue/StatusPill';
