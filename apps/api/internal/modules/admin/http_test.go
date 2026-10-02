@@ -24,10 +24,31 @@ func newHTTPRouter() http.Handler {
 	return r
 }
 
+// sessionClaims fabrique la session d'un membre du staff de la console : MFA
+// forte (TOTP) utilisée à l'instant. Depuis la Phase 3, les actes lourds
+// exigent une preuve forte RÉCENTE (N2) en plus de la capacité — les tests de
+// la console s'exécutent donc comme une personne qui vient de vérifier son
+// facteur, sur un jeton `aal2` horodaté. Les tests qui éprouvent l'ABSENCE de
+// preuve (session du matin, méthode SMS) montent leurs propres claims : voir
+// `doClaims` dans prooflevel_contract_test.go.
+func sessionClaims() map[string]any {
+	now := time.Now()
+	return map[string]any{
+		"sub":        "staff-test",
+		"session_id": "sess-test",
+		"aal":        "aal2",
+		"iat":        float64(now.Unix()),
+		"amr": []any{
+			map[string]any{"method": "totp", "timestamp": float64(now.Unix())},
+		},
+	}
+}
+
 func do(r http.Handler, method, path, userID, body string) *httptest.ResponseRecorder {
 	req := httptest.NewRequest(method, path, strings.NewReader(body))
 	if userID != "" {
 		ctx := context.WithValue(req.Context(), middleware.UserIDKey, userID)
+		ctx = context.WithValue(ctx, middleware.ClaimsKey, sessionClaims())
 		req = req.WithContext(ctx)
 	}
 	w := httptest.NewRecorder()

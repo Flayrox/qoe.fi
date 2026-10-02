@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/qoefi/api/internal/authz"
 	"github.com/qoefi/api/internal/middleware"
@@ -75,13 +76,31 @@ type guard struct {
 	mode       Mode
 	modeFn     func(ctx context.Context) bool
 	observer   Observer
-	// proofLevel : niveau de preuve exigé par la route (Phase 3, step-up).
-	// Vide = la capacité seule suffit, comportement historique.
-	proofLevel string
+	// proofLevel : niveau de preuve exigé par la route, EN PLUS de la
+	// capacité (Phase 3, step-up). Défaut N0 — l'authentification de base
+	// suffit — et chaque route monte le niveau qu'elle assume : le niveau est
+	// déclaré, jamais déduit du nom de la capacité.
+	proofLevel authz.Level
+	// approval : seconde validation d'un acte N3 (quorum, Phase 8). Un N3 sans
+	// mécanisme d'approbation branché est refusé — une double validation qu'on
+	// ne sait pas vérifier n'est pas une double validation.
+	approval ApprovalCheck
+	// approvalAct : l'action du noyau que la route exécute, celle qu'une seconde
+	// personne doit avoir approuvée. Sans elle, une approbation donnée pour un
+	// acte validerait n'importe quel autre : jamais de quorum implicite.
+	approvalAct authz.Action
+	// now : horloge injectable (tests de fraîcheur) ; nil = horloge système.
+	now func() time.Time
 }
 
 // Option configure le garde.
 type Option func(*guard)
+
+// ApprovalCheck dit si un dossier d'approbation couvre l'acte NOMMÉ que cette
+// personne s'apprête à commettre : une SECONDE personne autorisée a validé la
+// demande, dans un délai court. Branché par le quorum N3 (Phase 8) ; un
+// *Service d'approbations le satisfera.
+type ApprovalCheck func(ctx context.Context, userID string, act authz.Action) bool
 
 // WithMode fige le mode pour ce garde (prioritaire sur le resolver porté par
 // le Lookup, sauf WithModeResolver qui reste prioritaire).
@@ -95,11 +114,25 @@ func WithModeResolver(f func(ctx context.Context) bool) Option {
 // WithObserver branche la supervision des décisions.
 func WithObserver(o Observer) Option { return func(g *guard) { g.observer = o } }
 
-// WithProofLevel inscrit le niveau de preuve exigé par la route dans la trace
-// de décision. Le contrôle lui-même vit dans le noyau N0–N3 (internal/authz) :
-// ce paquet ne réinvente pas la preuve, il la NOMME dans le journal. Renseigné
-// par la Phase 3 (step-up).
-func WithProofLevel(level string) Option { return func(g *guard) { g.proofLevel = level } }
+// WithProofLevel déclare le niveau de preuve exigé par la route. Le contrôle
+// lui-même vit dans le noyau N0–N3 (authz.VerifyLevel) : ce paquet ne
+// réinvente pas la preuve, il la NOMME dans le journal et la fait respecter.
+//
+// Une route N2 n'accepte donc pas une session `aal2` ouverte le matin : il faut
+// un facteur fort (TOTP/passkey) utilisé il y a moins de 10 minutes, ce que le
+// client obtient par un step-up puis en rejouant l'action.
+func WithProofLevel(level authz.Level) Option { return func(g *guard) { g.proofLevel = level } }
+
+// WithApproval branche la vérification de la double validation (N3).
+func WithApproval(fn ApprovalCheck) Option { return func(g *guard) { g.approval = fn } }
+
+// WithApprovalAct nomme l'action du noyau (authz.Action) que la route exécute :
+// c'est CETTE action qu'une seconde personne doit avoir approuvée, jamais un
+// droit générique. Obligatoire sur une route N3.
+func WithApprovalAct(act authz.Action) Option { return func(g *guard) { g.approvalAct = act } }
+
+// WithClock remplace l'horloge du garde (fraîcheur de preuve, tests).
+func WithClock(now func() time.Time) Option { return func(g *guard) { g.now = now } }
 
 // requestIP lit l'adresse du client derrière un proxy (X-Forwarded-For posé par
 // le reverse proxy, puis X-Real-IP) et retombe sur l'adresse de connexion.
@@ -154,12 +187,42 @@ func (g *guard) trace(r *http.Request, code authz.Code, allowed bool) Decision {
 		Capability: g.capability,
 		Allowed:    allowed,
 		Code:       code,
-		ProofLevel: g.proofLevel,
+		ProofLevel: g.proofLevel.String(),
 		Method:     r.Method,
 		Path:       r.URL.Path,
 		IP:         requestIP(r),
 		RequestID:  r.Header.Get("X-Request-Id"),
 	}
+}
+
+// checkProof confronte la SESSION à la preuve exigée par la route. Il ne fait
+// rien pour une route N0 : c'est le cas de la quasi-totalité de la console.
+//
+// La session est reconstruite depuis les claims JWT à CHAQUE requête : rien
+// n'est lu d'un en-tête client, et un `aal2` annoncé par SMS ne compte pas plus
+// qu'ailleurs (même noyau que les actions média).
+func (g *guard) checkProof(r *http.Request, userID string) (authz.Code, string, bool) {
+	if !g.proofLevel.RequiresStrongAuth() {
+		return authz.CodeAllow, "", true
+	}
+	now := time.Now()
+	if g.now != nil {
+		now = g.now()
+	}
+	session := authz.FromClaims(middleware.Claims(r.Context()))
+	code, reason := authz.VerifyLevel(session, g.proofLevel, now)
+	if code != authz.CodeAllow {
+		return code, reason, false
+	}
+	if g.proofLevel == authz.Level3 {
+		if g.approval == nil || g.approvalAct == "" {
+			return authz.CodeNeedsReview, "double validation exigée : aucune approbation ne peut être vérifiée", false
+		}
+		if !g.approval(r.Context(), userID, g.approvalAct) {
+			return authz.CodeNeedsReview, "double validation requise : une seconde personne autorisée doit approuver", false
+		}
+	}
+	return authz.CodeAllow, "", true
 }
 
 // Require monte le garde de capacité sur une route.
@@ -192,13 +255,17 @@ func Require(lookup Lookup, capability Capability, opts ...Option) func(http.Han
 				// Ni capacité ni identité : rien à observer, refus immédiat.
 				g.observe(g.trace(r, authz.CodeDenyNoSession, false), "", ModeEnforce)
 				writeDenied(w, http.StatusUnauthorized, capability,
-					authz.CodeDenyNoSession, "Authentification requise.")
+					authz.CodeDenyNoSession, "Authentification requise.", "")
 				return
 			}
 
 			mode := g.resolveMode(r.Context())
 
 			if g.lookup == nil {
+				// Sans service de capacités, le garde n'affirme rien — ni sur
+				// le droit, ni sur la preuve : exiger un step-up alors qu'on ne
+				// sait pas vérifier le droit serait incohérent. La garde
+				// superadmin des services reste active (défense en profondeur).
 				log.Printf("[adminauthz] service de capacités non branché : %s non vérifiée (%s %s)",
 					capability, r.Method, r.URL.Path)
 				g.observe(g.trace(r, authz.CodeDenyCapabilityLookup, false), userID, mode)
@@ -216,7 +283,7 @@ func Require(lookup Lookup, capability Capability, opts ...Option) func(http.Han
 				g.observe(g.trace(r, authz.CodeDenyCapabilityLookup, false), userID, mode)
 				if mode == ModeEnforce {
 					writeDenied(w, http.StatusForbidden, capability,
-						authz.CodeDenyCapabilityLookup, "Vérification des droits indisponible.")
+						authz.CodeDenyCapabilityLookup, "Vérification des droits indisponible.", "")
 					return
 				}
 				next.ServeHTTP(w, r)
@@ -224,8 +291,47 @@ func Require(lookup Lookup, capability Capability, opts ...Option) func(http.Han
 			}
 
 			if access.Has(capability) {
-				g.observe(g.trace(r, authz.CodeAllow, true), userID, mode)
-				next.ServeHTTP(w, r)
+				// Le droit est établi ; reste à vérifier la preuve. Le droit
+				// d'abord : on n'invite pas à un step-up coûteux pour un acte
+				// qu'on n'a de toute façon pas le droit d'expédier.
+				code, reason, ok := g.checkProof(r, userID)
+				if ok {
+					g.observe(g.trace(r, authz.CodeAllow, true), userID, mode)
+					next.ServeHTTP(w, r)
+					return
+				}
+				if mode == ModeObserve {
+					log.Printf("[adminauthz:observe] %s %s : preuve insuffisante (user=%s, niveau=%s, code=%s) — step-up à proposer",
+						r.Method, r.URL.Path, userID, g.proofLevel, code)
+					g.observe(g.trace(r, code, false), userID, mode)
+					next.ServeHTTP(w, r)
+					return
+				}
+				log.Printf("[adminauthz:deny] %s %s (user=%s, niveau=%s, code=%s)",
+					r.Method, r.URL.Path, userID, g.proofLevel, code)
+				g.observe(g.trace(r, code, false), userID, mode)
+				writeDenied(w, http.StatusForbidden, capability, code, reason, g.proofLevel.String())
+				return
+			}
+
+			// Aucune capacité du tout : ce n'est pas un membre de la console.
+			// Ce refus ne dépend PAS du mode : l'observation sert à ne pas
+			// verrouiller un personnel légitime pendant la bascule — jamais à
+			// ouvrir le journal d'audit, la configuration ou les dossiers de
+			// comptes à quiconque possède un jeton Supabase. Un superadmin (ou
+			// tout rôle attribué) détient toujours au moins une capacité : ce
+			// refus ne peut pas atteindre quelqu'un qui a sa place ici.
+			//
+			// Seule exception : GET /v1/admin/me, qui sert à répondre « voici ce
+			// que vous détenez » — y compris « rien ». C'est cette réponse vide
+			// que l'interface transforme en refus explicable ; la refuser ferait
+			// croire à une panne au lieu d'un accès absent.
+			if !access.IsStaff() && capability != SelfRead {
+				log.Printf("[adminauthz:deny] %s %s : compte sans rôle staff (user=%s, capacité=%s)",
+					r.Method, r.URL.Path, userID, capability)
+				g.observe(g.trace(r, authz.CodeDenyMissingCapability, false), userID, ModeEnforce)
+				writeDenied(w, http.StatusForbidden, capability,
+					authz.CodeDenyMissingCapability, "Accès à la console d'administration requis.", g.proofLevel.String())
 				return
 			}
 
@@ -241,23 +347,28 @@ func Require(lookup Lookup, capability Capability, opts ...Option) func(http.Han
 				r.Method, r.URL.Path, userID, capability, access.Roles)
 			g.observe(g.trace(r, authz.CodeDenyMissingCapability, false), userID, mode)
 			writeDenied(w, http.StatusForbidden, capability,
-				authz.CodeDenyMissingCapability, "Capacité requise absente.")
+				authz.CodeDenyMissingCapability, "Capacité requise absente.", g.proofLevel.String())
 		})
 	}
 }
 
 // writeDenied répond avec un code exploitable par le client : `goFetch`
 // transporte `body.code` jusqu'à l'interface, qui peut alors expliquer le
-// refus (« il vous manque telle capacité ») au lieu d'un « accès refusé » muet.
-// L'en-tête X-Qoe-Authz-Code porte le même code pour les proxys qui
-// réécriraient le corps.
-func writeDenied(w http.ResponseWriter, status int, capability Capability, code authz.Code, reason string) {
+// refus (« il vous manque telle capacité », « votre preuve est trop ancienne »)
+// au lieu d'un « accès refusé » muet. L'en-tête X-Qoe-Authz-Code porte le même
+// code pour les proxys qui réécriraient le corps ; `level` dit la preuve
+// exigée, ce qui distingue un step-up d'un refus de droit.
+func writeDenied(w http.ResponseWriter, status int, capability Capability, code authz.Code, reason, level string) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.Header().Set("X-Qoe-Authz-Code", string(code))
 	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(map[string]any{
+	body := map[string]any{
 		"error":      reason,
 		"code":       string(code),
 		"capability": string(capability),
-	})
+	}
+	if level != "" {
+		body["level"] = level
+	}
+	_ = json.NewEncoder(w).Encode(body)
 }

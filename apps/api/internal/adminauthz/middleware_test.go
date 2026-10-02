@@ -73,7 +73,10 @@ func decodeDenied(t *testing.T, w *httptest.ResponseRecorder) map[string]any {
 // TestRequire_DefaultIsObserve — une console se câble sans se verrouiller : le
 // défaut est l'observation, le refus est journalisé mais la requête passe.
 func TestRequire_DefaultIsObserve(t *testing.T) {
-	w := serve(t, &plainLookup{access: accessWith()}, UsersModerate, "u-1")
+	// Un membre du staff qui DÉTIENT d'autres capacités mais pas celle-ci : sans
+	// aucune capacité, ce ne serait plus un membre de la console du tout (voir
+	// TestRequire_NoStaffIsRefusedEvenInObserve).
+	w := serve(t, &plainLookup{access: accessWith(SubscriptionsRead)}, UsersModerate, "u-1")
 	if w.Code != http.StatusOK {
 		t.Fatalf("mode observation = %d, attendu 200 (%s)", w.Code, w.Body.String())
 	}
@@ -97,6 +100,21 @@ func TestRequire_EnforceDeniesWithCode(t *testing.T) {
 	}
 	if body["capability"] != string(SubscriptionsWrite) {
 		t.Fatalf("corps capability = %v, attendu %q", body["capability"], SubscriptionsWrite)
+	}
+}
+
+// TestRequire_NoStaffIsRefusedEvenInObserve — un compte sans le moindre rôle
+// n'a rien à faire dans la console, quel que soit le mode : l'observation
+// protège un personnel légitime pendant la bascule, elle n'ouvre pas le journal
+// d'audit ni les dossiers de comptes à n'importe quel porteur de jeton.
+func TestRequire_NoStaffIsRefusedEvenInObserve(t *testing.T) {
+	outsider := &plainLookup{access: Access{UserID: "u-1"}}
+	w := serve(t, outsider, UsersRead, "u-1")
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("compte sans rôle en observation = %d, attendu 403 (%s)", w.Code, w.Body.String())
+	}
+	if got := w.Header().Get("X-Qoe-Authz-Code"); got != string(authz.CodeDenyMissingCapability) {
+		t.Fatalf("X-Qoe-Authz-Code = %q, attendu %q", got, authz.CodeDenyMissingCapability)
 	}
 }
 
@@ -174,14 +192,14 @@ func TestRequire_LookupErrorObserveVsEnforce(t *testing.T) {
 // TestRequire_ModeResolverOverridesLookupPolicy — le resolver du garde gagne
 // sur la politique portée par le Lookup (bascule par route si besoin).
 func TestRequire_ModeResolverOverridesLookupPolicy(t *testing.T) {
-	lookup := &policyLookup{plainLookup: plainLookup{access: accessWith()}, enforce: false}
+	lookup := &policyLookup{plainLookup: plainLookup{access: accessWith(SubscriptionsRead)}, enforce: false}
 	w := serve(t, lookup, UsersModerate, "u-1",
 		WithModeResolver(func(context.Context) bool { return true }))
 	if w.Code != http.StatusForbidden {
 		t.Fatalf("resolver enforce = %d, attendu 403", w.Code)
 	}
 
-	lookup = &policyLookup{plainLookup: plainLookup{access: accessWith()}, enforce: true}
+	lookup = &policyLookup{plainLookup: plainLookup{access: accessWith(SubscriptionsRead)}, enforce: true}
 	w = serve(t, lookup, UsersModerate, "u-1",
 		WithModeResolver(func(context.Context) bool { return false }))
 	if w.Code != http.StatusOK {
@@ -200,8 +218,8 @@ func TestRequire_ObserverSeesDecisions(t *testing.T) {
 		got = append(got, d)
 	}
 
-	// Refus observé.
-	serve(t, &plainLookup{access: accessWith()}, UsersModerate, "u-1", WithObserver(obs))
+	// Refus observé (staff sans cette capacité précise).
+	serve(t, &plainLookup{access: accessWith(SubscriptionsRead)}, UsersModerate, "u-1", WithObserver(obs))
 	if len(got) != 1 || got[0].Allowed {
 		t.Fatalf("décision observée = %+v", got)
 	}

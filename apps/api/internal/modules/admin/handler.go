@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/qoefi/api/internal/abuse"
 	"github.com/qoefi/api/internal/adminauthz"
+	"github.com/qoefi/api/internal/authz"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/modules/imports"
 	"github.com/qoefi/api/internal/modules/users"
@@ -75,10 +76,47 @@ func (h *Handler) Register(r chi.Router) {
 		h.console = adminauthz.NewStandaloneConsole(r)
 	}
 	for _, rt := range h.routeTable() {
-		h.console.Mount(rt.method, rt.pattern, rt.capability, rt.handler)
+		h.console.Mount(rt.method, rt.pattern, rt.capability, rt.handler,
+			adminauthz.WithProofLevel(stepUpRoutes[adminauthz.RouteKey(rt.method, rt.pattern)]))
 	}
 	h.registerSubscriberImports()
 	h.registerStaffCampaigns()
+}
+
+// stepUpRoutes : les routes de cette table qui exigent, EN PLUS de leur
+// capacité, une preuve forte récente (N2 — facteur TOTP/passkey utilisé il y a
+// moins de dix minutes). Le reste de la console est N0 : l'authentification de
+// base suffit, et c'est un choix explicite, pas un oubli.
+//
+// La ligne est tracée ici, à côté des capacités, et non déduite du nom de la
+// capacité : voler une session ouverte ne doit pas suffire à distribuer des
+// droits, à ouvrir un accès (rôles, abonnements offerts, allowlist, accès API,
+// client OAuth), à modérer lourdement un compte (suspension, révocation de
+// sessions) ni à réécrire la configuration de la plateforme. Aucune route N1 :
+// la console n'a pas de surface où une MFA de session (non récente) suffit —
+// soit la lecture est inoffensive (N0), soit l'acte est lourd (N2).
+var stepUpRoutes = map[string]authz.Level{
+	"PATCH /v1/admin/users/{userID}":                   authz.Level2,
+	"POST /v1/admin/users/{userID}/revoke-sessions":    authz.Level2,
+	"POST /v1/admin/subscriptions/grants":              authz.Level2,
+	"POST /v1/admin/subscriptions/grants/{id}/revoke":  authz.Level2,
+	"PATCH /v1/admin/publications/{id}":                authz.Level2,
+	"PUT /v1/admin/config":                             authz.Level2,
+	"DELETE /v1/admin/config/{key}":                    authz.Level2,
+	"PUT /v1/admin/reserved-identifiers/{kind}":        authz.Level2,
+	"POST /v1/admin/registrations/allowlist":           authz.Level2,
+	"DELETE /v1/admin/registrations/allowlist/{email}": authz.Level2, "PATCH /v1/admin/oauth/clients/{id}": authz.Level2,
+	// Modération qui mesure un compte : un verdict humain confirmé ou levé, et
+	// un recours dont le prononcé peut lever la mesure.
+	"PATCH /v1/admin/abuse/decisions":                authz.Level2,
+	"PATCH /v1/admin/abuse/appeals/{id}":             authz.Level2,
+	"PATCH /v1/admin/api-applicants/{userID}":        authz.Level2,
+	"PATCH /v1/admin/api-applicants/{userID}/grants": authz.Level2,
+	"PATCH /v1/admin/api-access/modules":             authz.Level2,
+	// Distribuer les droits de la console est l'acte le plus lourd : une
+	// session détournée ne doit pas pouvoir nommer un complice.
+	"POST /v1/admin/access/grants":                           authz.Level2,
+	"POST /v1/admin/access/grants/{userID}/{roleKey}/revoke": authz.Level2,
 }
 
 // routeTable est la déclaration unique des routes de la console. Chaque entrée

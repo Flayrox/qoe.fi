@@ -14,6 +14,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/qoefi/api/internal/adminauthz"
+	"github.com/qoefi/api/internal/authz"
 	"github.com/qoefi/api/internal/response"
 )
 
@@ -21,17 +22,23 @@ import (
 // sur la console : lire une campagne exige admin.campaigns.read, la créer ou
 // la faire avancer exige admin.campaigns.write. Le rôle est donc prouvé par
 // route, sans dépendre d'un helper local.
+//
+// Les mouvements (créer, modifier, soumettre, approuver, démarrer, suspendre,
+// annuler) exigent en plus une preuve forte récente (N2) : une campagne écrit à
+// des milliers d'adresses au nom de la plateforme ; une session détournée ne
+// doit pas pouvoir en lancer une.
 func (h *Handler) registerStaffCampaigns() {
 	c := h.console
+	stepUp := adminauthz.WithProofLevel(authz.Level2)
 	c.Get("/v1/admin/campaigns", adminauthz.CampaignsRead, h.listCampaigns)
-	c.Post("/v1/admin/campaigns", adminauthz.CampaignsWrite, h.createCampaign)
+	c.Post("/v1/admin/campaigns", adminauthz.CampaignsWrite, h.createCampaign, stepUp)
 	c.Get("/v1/admin/campaigns/{id}", adminauthz.CampaignsRead, h.getCampaign)
-	c.Patch("/v1/admin/campaigns/{id}", adminauthz.CampaignsWrite, h.updateCampaign)
-	c.Post("/v1/admin/campaigns/{id}/submit", adminauthz.CampaignsWrite, h.submitCampaign)
-	c.Post("/v1/admin/campaigns/{id}/approve", adminauthz.CampaignsWrite, h.approveCampaign)
-	c.Post("/v1/admin/campaigns/{id}/start", adminauthz.CampaignsWrite, h.startCampaign)
-	c.Post("/v1/admin/campaigns/{id}/pause", adminauthz.CampaignsWrite, h.pauseCampaign)
-	c.Post("/v1/admin/campaigns/{id}/cancel", adminauthz.CampaignsWrite, h.cancelCampaign)
+	c.Patch("/v1/admin/campaigns/{id}", adminauthz.CampaignsWrite, h.updateCampaign, stepUp)
+	c.Post("/v1/admin/campaigns/{id}/submit", adminauthz.CampaignsWrite, h.submitCampaign, stepUp)
+	c.Post("/v1/admin/campaigns/{id}/approve", adminauthz.CampaignsWrite, h.approveCampaign, stepUp)
+	c.Post("/v1/admin/campaigns/{id}/start", adminauthz.CampaignsWrite, h.startCampaign, stepUp)
+	c.Post("/v1/admin/campaigns/{id}/pause", adminauthz.CampaignsWrite, h.pauseCampaign, stepUp)
+	c.Post("/v1/admin/campaigns/{id}/cancel", adminauthz.CampaignsWrite, h.cancelCampaign, stepUp)
 }
 
 func (h *Handler) listCampaigns(w http.ResponseWriter, r *http.Request) {

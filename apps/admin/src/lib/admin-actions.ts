@@ -12,6 +12,7 @@ import { createClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { assertCapability } from '@/lib/admin-identity';
+import { authzTrailers } from '@/lib/action-result';
 
 function getAdminClient() {
   return createClient(
@@ -64,6 +65,9 @@ export async function updateModerationAction(input: {
     return {
       success: false as const,
       error: err instanceof Error ? err.message : 'Erreur serveur',
+      // La modération de comptes exige N2 : sans ce code, l'écran ne saurait
+      // pas qu'une vérification de facteur débloque l'acte.
+      ...authzTrailers(err),
     };
   }
 }

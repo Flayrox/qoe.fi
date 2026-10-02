@@ -60,6 +60,16 @@ type Access struct {
 // Has dit si la personne détient la capacité.
 func (a Access) Has(c Capability) bool { return a.Capabilities.Has(c) }
 
+// IsStaff dit si l'accès ouvre la console : au moins une capacité détenue.
+//
+// Un rôle ÉCHU ne compte pas : ses capacités sont retirées (visibles mais
+// inertes), donc l'accès n'ouvre plus rien. C'est cette question — « cette
+// personne est-elle du personnel ? » — que le garde tranche avant tout le
+// reste : l'observation existe pour ne pas verrouiller un personnel légitime
+// pendant la bascule, pas pour ouvrir les routes de la console à quiconque
+// possède un jeton.
+func (a Access) IsStaff() bool { return len(a.Capabilities) > 0 }
+
 // IsSuperadmin dit si l'accès vient du rôle superadmin (ou de la promotion
 // historique `User."role" = 'superadmin'`). Raccourci d'affichage : le code de
 // décision ne doit pas court-circuiter sur ce booléen, il teste la capacité.

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { toast } from '@qoe/ui/toast';
 import { Loader2, ShieldCheck, KeyRound, Globe } from 'lucide-react';
 import { updateOAuthClientStatusAction } from '@qoe/sdk/actions/admin';
+import { attemptWithStepUp, notifyActionFailure, readMessage } from '@/lib/authz-feedback';
 
 export interface OAuthClientAdmin {
   id: string;
@@ -43,14 +44,19 @@ export function OAuthAppsClient({ initialClients }: { initialClients: OAuthClien
   const handleStatus = async (id: string, status: 'APPROVED' | 'REJECTED' | 'REVOKED') => {
     setLoadingId(id);
     try {
-      const res = await updateOAuthClientStatusAction({ clientId: id, status });
+      // Approuver (ou révoquer) une application OAuth ouvre un accès aux données
+      // : c'est un acte N2 — un refus propose la vérification d'un facteur, puis
+      // l'action est rejouée telle quelle.
+      const res = await attemptWithStepUp(() =>
+        updateOAuthClientStatusAction({ clientId: id, status })
+      );
       if (res.ok) {
         setClients((prev) => prev.map((c) => (c.id === id ? { ...c, status } : c)));
         toast.success(
           `Application ${status === 'APPROVED' ? 'approuvée' : status === 'REJECTED' ? 'rejetée' : 'révoquée'}.`
         );
       } else {
-        toast.error(res.error?.message ?? 'Mise à jour impossible.');
+        notifyActionFailure(res, readMessage(res) ?? 'Mise à jour impossible.');
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Mise à jour impossible.');

@@ -3,14 +3,16 @@ package adminauthz
 import (
 	"encoding/json"
 	"testing"
+
+	"github.com/qoefi/api/internal/authz"
 )
 
 func TestRegistry_DeclareAndLookup(t *testing.T) {
 	r := NewRegistry()
-	if err := r.Declare("get", "/v1/admin/users", UsersRead); err != nil {
+	if err := r.Declare("get", "/v1/admin/users", UsersRead, authz.Level0, ""); err != nil {
 		t.Fatalf("déclaration valide refusée : %v", err)
 	}
-	if err := r.Declare("POST", "/v1/admin/users", UsersModerate); err != nil {
+	if err := r.Declare("POST", "/v1/admin/users", UsersModerate, authz.Level2, ""); err != nil {
 		t.Fatalf("déclaration valide refusée : %v", err)
 	}
 	if r.Len() != 2 {
@@ -33,10 +35,10 @@ func TestRegistry_DeclareAndLookup(t *testing.T) {
 // deux vérités sur la même porte : le démarrage doit s'arrêter.
 func TestRegistry_RefusesDuplicate(t *testing.T) {
 	r := NewRegistry()
-	if err := r.Declare("GET", "/v1/admin/users", UsersRead); err != nil {
+	if err := r.Declare("GET", "/v1/admin/users", UsersRead, authz.Level0, ""); err != nil {
 		t.Fatalf("première déclaration refusée : %v", err)
 	}
-	if err := r.Declare("GET", "/v1/admin/users", DashboardRead); err == nil {
+	if err := r.Declare("GET", "/v1/admin/users", DashboardRead, authz.Level0, ""); err == nil {
 		t.Fatal("route déclarée deux fois acceptée")
 	}
 	// Une seconde tentative ne doit pas écraser la première.
@@ -51,16 +53,24 @@ func TestRegistry_RefusesInvalidDeclaration(t *testing.T) {
 		method  string
 		pattern string
 		cap     Capability
+		level   authz.Level
+		act     authz.Action
 	}{
-		{"capacité inconnue", "GET", "/v1/admin/x", Capability("admin.nope.read")},
-		{"capacité vide", "GET", "/v1/admin/x", Capability("")},
-		{"méthode vide", "", "/v1/admin/x", UsersRead},
-		{"motif sans slash", "GET", "v1/admin/x", UsersRead},
+		{"capacité inconnue", "GET", "/v1/admin/x", Capability("admin.nope.read"), authz.Level0, ""},
+		{"capacité vide", "GET", "/v1/admin/x", Capability(""), authz.Level0, ""},
+		{"méthode vide", "", "/v1/admin/x", UsersRead, authz.Level0, ""},
+		{"motif sans slash", "GET", "v1/admin/x", UsersRead, authz.Level0, ""},
+		// Un niveau hors échelle ou un N3 sans acte nommé serait une politique
+		// que le garde appliquerait sans pouvoir la nommer : refusé au
+		// démarrage plutôt que découvert en production.
+		{"niveau hors échelle", "GET", "/v1/admin/x", UsersRead, authz.Level(4), ""},
+		{"niveau négatif", "GET", "/v1/admin/x", UsersRead, authz.Level(-1), ""},
+		{"N3 sans acte nommé", "GET", "/v1/admin/x", UsersRead, authz.Level3, ""},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			r := NewRegistry()
-			if err := r.Declare(tc.method, tc.pattern, tc.cap); err == nil {
+			if err := r.Declare(tc.method, tc.pattern, tc.cap, tc.level, tc.act); err == nil {
 				t.Fatalf("déclaration invalide acceptée (%+v)", tc)
 			}
 			if r.Len() != 0 {
@@ -70,11 +80,45 @@ func TestRegistry_RefusesInvalidDeclaration(t *testing.T) {
 	}
 }
 
+// TestRegistry_CarriesProofLevel — le registre publie la politique COMPLÈTE
+// (capacité + niveau + acte soumis à quorum) : c'est ce que lisent l'interface,
+// l'audit et les tests de contrat.
+func TestRegistry_CarriesProofLevel(t *testing.T) {
+	r := NewRegistry()
+	if err := r.Declare("POST", "/v1/admin/legal/versions/{versionID}/publish", LegalWrite,
+		authz.Level3, authz.ActionLegalPublish); err != nil {
+		t.Fatalf("déclaration N3 refusée : %v", err)
+	}
+	if err := r.Declare("PATCH", "/v1/admin/users/{userID}", UsersModerate, authz.Level2, ""); err != nil {
+		t.Fatalf("déclaration N2 refusée : %v", err)
+	}
+
+	if level, ok := r.Level("POST", "/v1/admin/legal/versions/{versionID}/publish"); !ok || level != authz.Level3 {
+		t.Fatalf("Level publish = %s/%v", level, ok)
+	}
+	if level, ok := r.Level("PATCH", "/v1/admin/users/{userID}"); !ok || level != authz.Level2 {
+		t.Fatalf("Level users = %s/%v", level, ok)
+	}
+	if _, ok := r.Level("GET", "/v1/admin/inconnue"); ok {
+		t.Fatal("Level rendu pour une route non déclarée")
+	}
+
+	var publish Route
+	for _, rt := range r.Routes() {
+		if rt.Key() == "POST /v1/admin/legal/versions/{versionID}/publish" {
+			publish = rt
+		}
+	}
+	if publish.Level != authz.Level3 || publish.ApprovalAct != authz.ActionLegalPublish {
+		t.Fatalf("route publish = %+v", publish)
+	}
+}
+
 func TestRegistry_RoutesSortedAndCopied(t *testing.T) {
 	r := NewRegistry()
-	_ = r.Declare("POST", "/v1/admin/users", UsersModerate)
-	_ = r.Declare("GET", "/v1/admin/users", UsersRead)
-	_ = r.Declare("GET", "/v1/admin/dashboard", DashboardRead)
+	_ = r.Declare("POST", "/v1/admin/users", UsersModerate, authz.Level0, "")
+	_ = r.Declare("GET", "/v1/admin/users", UsersRead, authz.Level0, "")
+	_ = r.Declare("GET", "/v1/admin/dashboard", DashboardRead, authz.Level0, "")
 
 	routes := r.Routes()
 	if len(routes) != 3 {
@@ -86,7 +130,7 @@ func TestRegistry_RoutesSortedAndCopied(t *testing.T) {
 		}
 	}
 	// La copie protège l'ordre interne.
-	routes[0] = Route{Method: "DELETE", Pattern: "/zzz", Capability: DashboardRead}
+	routes[0] = Route{Method: "DELETE", Pattern: "/zzz", Capability: DashboardRead, Level: authz.Level3}
 	if again := r.Routes(); again[0].Key() == "DELETE /zzz" {
 		t.Fatal("Routes a rendu la tranche interne")
 	}
@@ -100,9 +144,9 @@ func TestRegistry_RoutesSortedAndCopied(t *testing.T) {
 
 func TestRegistry_CapabilitiesUsed(t *testing.T) {
 	r := NewRegistry()
-	_ = r.Declare("GET", "/v1/admin/a", UsersRead)
-	_ = r.Declare("GET", "/v1/admin/b", UsersRead)
-	_ = r.Declare("POST", "/v1/admin/c", UsersModerate)
+	_ = r.Declare("GET", "/v1/admin/a", UsersRead, authz.Level0, "")
+	_ = r.Declare("GET", "/v1/admin/b", UsersRead, authz.Level0, "")
+	_ = r.Declare("POST", "/v1/admin/c", UsersModerate, authz.Level0, "")
 	used := r.CapabilitiesUsed()
 	if len(used) != 2 {
 		t.Fatalf("CapabilitiesUsed = %v", used)

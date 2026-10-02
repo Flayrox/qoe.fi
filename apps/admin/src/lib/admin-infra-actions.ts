@@ -13,11 +13,17 @@
 import { revalidatePath } from 'next/cache';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { assertCapability } from '@/lib/admin-identity';
+import { authzTrailers } from '@/lib/action-result';
 import type { StaffCampaignInput } from '@/lib/admin-infra-data';
 
 export interface InfraActionResult {
   ok: boolean;
   error?: string;
+  /** Code du garde (`needs_step_up`, `deny_weak_auth`…) : l'écran propose le
+   *  step-up et rejoue l'action au lieu d'un refus muet. */
+  code?: string;
+  /** Niveau de preuve exigé (N0–N3), quand la route en déclare un. */
+  level?: string;
 }
 
 function readableError(err: unknown): string {
@@ -46,7 +52,7 @@ export async function createCampaignAction(input: StaffCampaignInput): Promise<I
     revalidatePath('/admin/campaigns');
     return { ok: true };
   } catch (err) {
-    return { ok: false, error: readableError(err) };
+    return { ok: false, error: readableError(err), ...authzTrailers(err) };
   }
 }
 
@@ -64,6 +70,6 @@ export async function campaignTransitionAction(input: {
     revalidatePath('/admin/campaigns');
     return { ok: true };
   } catch (err) {
-    return { ok: false, error: readableError(err) };
+    return { ok: false, error: readableError(err), ...authzTrailers(err) };
   }
 }

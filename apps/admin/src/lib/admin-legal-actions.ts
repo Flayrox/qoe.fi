@@ -10,6 +10,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import { authzTrailers } from '@/lib/action-result';
 
 async function verifySuperadmin() {
   try {
@@ -98,7 +99,11 @@ export async function createLegalDocumentAction(input: LegalDocumentInput) {
     return { success: true as const, document: doc };
   } catch (error: unknown) {
     console.error(error);
-    return { success: false as const, error: errorMessage(error, 'Erreur de création') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Erreur de création'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -114,7 +119,11 @@ export async function updateLegalDocumentAction(id: string, input: LegalDocument
     return { success: true as const, document: doc };
   } catch (error: unknown) {
     console.error(error);
-    return { success: false as const, error: errorMessage(error, 'Erreur de mise à jour') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Erreur de mise à jour'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -127,7 +136,11 @@ export async function deleteLegalDocumentAction(id: string) {
     return { success: true as const };
   } catch (error: unknown) {
     console.error(error);
-    return { success: false as const, error: errorMessage(error, 'Erreur de suppression') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Erreur de suppression'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -143,7 +156,11 @@ export async function createLegalVersionAction(documentId: string, input: LegalV
     return { success: true as const, version };
   } catch (error: unknown) {
     console.error(error);
-    return { success: false as const, error: errorMessage(error, 'Erreur de création de version') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Erreur de création de version'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -162,7 +179,11 @@ export async function updateLegalVersionAction(
     return { success: true as const, version };
   } catch (error: unknown) {
     console.error(error);
-    return { success: false as const, error: errorMessage(error, 'Erreur de sauvegarde') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Erreur de sauvegarde'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -178,7 +199,11 @@ export async function publishLegalVersionAction(versionId: string) {
     return { success: true as const, version };
   } catch (error: unknown) {
     console.error(error);
-    return { success: false as const, error: errorMessage(error, 'Erreur de publication') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Erreur de publication'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -193,7 +218,11 @@ export async function archiveLegalVersionAction(versionId: string) {
     return { success: true as const };
   } catch (error: unknown) {
     console.error(error);
-    return { success: false as const, error: errorMessage(error, 'Erreur d’archivage') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Erreur d’archivage'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -208,7 +237,11 @@ export async function deleteLegalDraftAction(versionId: string) {
     return { success: true as const };
   } catch (error: unknown) {
     console.error(error);
-    return { success: false as const, error: errorMessage(error, 'Erreur de suppression') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Erreur de suppression'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -225,7 +258,11 @@ export async function scheduleLegalVersionAction(versionId: string, scheduledAt:
     return { success: true as const, version };
   } catch (error: unknown) {
     console.error(error);
-    return { success: false as const, error: errorMessage(error, 'Erreur de planification') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Erreur de planification'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -259,6 +296,10 @@ export async function seedLegalDefaultsAction() {
     return { success: true as const, result };
   } catch (error: unknown) {
     console.error(error);
-    return { success: false as const, error: errorMessage(error, 'Erreur d’installation') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Erreur d’installation'),
+      ...authzTrailers(error),
+    };
   }
 }

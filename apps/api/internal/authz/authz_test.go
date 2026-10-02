@@ -215,6 +215,109 @@ func TestEvaluateDenialAlwaysExplains(t *testing.T) {
 	}
 }
 
+// TestVerifyLevel — contrôle de niveau sans action nommée, celui que la console
+// monte par route : N0 libre, N1 exige un facteur fort utilisé dans CETTE
+// session, N2 exige en plus une preuve de moins de 10 minutes, et une session
+// `aal2` obtenue par SMS reste une preuve faible.
+func TestVerifyLevel(t *testing.T) {
+	tests := []struct {
+		name    string
+		session Session
+		level   Level
+		want    Code
+	}{
+		{
+			name:    "N0 sans facteur",
+			session: sessionWith("u1", "aal1", ago(4*time.Hour), AMREntry{Method: MethodPassword, Timestamp: ago(4 * time.Hour)}),
+			level:   Level0,
+			want:    CodeAllow,
+		},
+		{
+			name:    "N1 avec TOTP de la session, même ancien",
+			session: sessionWith("u1", "aal2", ago(3*time.Hour), totp(ago(3*time.Hour))),
+			level:   Level1,
+			want:    CodeAllow,
+		},
+		{
+			name:    "N1 avec aal2 SMS seulement",
+			session: sessionWith("u1", "aal2", ago(time.Minute), sms(ago(time.Minute))),
+			level:   Level1,
+			want:    CodeDenyWeakAuth,
+		},
+		{
+			name:    "N1 sans facteur",
+			session: sessionWith("u1", "aal1", ago(time.Minute), AMREntry{Method: MethodPassword, Timestamp: ago(time.Minute)}),
+			level:   Level1,
+			want:    CodeNeedsStepUp,
+		},
+		{
+			name:    "N2 avec TOTP de 5 minutes",
+			session: sessionWith("u1", "aal2", ago(5*time.Minute), totp(ago(5*time.Minute))),
+			level:   Level2,
+			want:    CodeAllow,
+		},
+		{
+			name:    "N2 avec preuve de 30 minutes",
+			session: sessionWith("u1", "aal2", ago(30*time.Minute), totp(ago(30*time.Minute))),
+			level:   Level2,
+			want:    CodeNeedsStepUp,
+		},
+		{
+			// Critère de sortie de la Phase 3 : une session `aal2` ouverte le
+			// matin ne peut pas expédier un acte N2 l'après-midi, même quand la
+			// pile d'authentification n'horodate pas `amr` — la fraîcheur se
+			// mesure alors à l'émission du jeton.
+			name:    "N2 : session aal2 du matin, amr sans horodatage",
+			session: sessionWith("u1", "aal2", ago(4*time.Hour), totp(time.Time{})),
+			level:   Level2,
+			want:    CodeNeedsStepUp,
+		},
+		{
+			name:    "N2 : amr sans horodatage mais jeton tout juste émis",
+			session: sessionWith("u1", "aal2", ago(2*time.Minute), totp(time.Time{})),
+			level:   Level2,
+			want:    CodeAllow,
+		},
+		{
+			name:    "N2 avec aal2 SMS seulement",
+			session: sessionWith("u1", "aal2", ago(time.Minute), sms(ago(time.Minute))),
+			level:   Level2,
+			want:    CodeDenyWeakAuth,
+		},
+		{
+			name:    "N2 sans claims exploitables",
+			session: Session{},
+			level:   Level2,
+			want:    CodeNeedsStepUp,
+		},
+		{
+			// N3 : la session doit être N2 ; la double validation est vérifiée
+			// par l'appelant, pas par les claims.
+			name:    "N3 avec preuve fraîche",
+			session: sessionWith("u1", "aal2", ago(time.Minute), passkey(ago(time.Minute))),
+			level:   Level3,
+			want:    CodeAllow,
+		},
+		{
+			name:    "N3 avec preuve ancienne",
+			session: sessionWith("u1", "aal2", ago(45*time.Minute), passkey(ago(45*time.Minute))),
+			level:   Level3,
+			want:    CodeNeedsStepUp,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			code, reason := VerifyLevel(tc.session, tc.level, testNow)
+			if code != tc.want {
+				t.Fatalf("code = %q, attendu %q (%s)", code, tc.want, reason)
+			}
+			if code != CodeAllow && reason == "" {
+				t.Fatal("refus sans motif : un refus doit toujours être explicable")
+			}
+		})
+	}
+}
+
 func TestRegistryCoherence(t *testing.T) {
 	for _, row := range Matrix() {
 		if row.Level < Level0 || row.Level > Level3 {
@@ -223,10 +326,10 @@ func TestRegistryCoherence(t *testing.T) {
 		if row.Note == "" {
 			t.Fatalf("%s : note produit manquante (matrice/audit)", row.Action)
 		}
-		if row.Level.requiresFreshProof() && row.Freshness == 0 {
+		if row.Level.RequiresFreshProof() && row.Freshness == 0 {
 			t.Fatalf("%s : N2/N3 sans délai de fraîcheur", row.Action)
 		}
-		if !row.Level.requiresStrongAuth() && row.Freshness > 0 {
+		if !row.Level.RequiresStrongAuth() && row.Freshness > 0 {
 			t.Fatalf("%s : délai de fraîcheur sur une action sans preuve forte", row.Action)
 		}
 		if row.DoubleApproval && row.Level < Level3 {

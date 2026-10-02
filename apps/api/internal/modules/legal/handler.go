@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/qoefi/api/internal/adminauthz"
+	"github.com/qoefi/api/internal/authz"
 	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/response"
 )
@@ -67,37 +68,63 @@ func (h *Handler) RegisterProtected(r chi.Router) {
 // produire un export signé demande admin.compliance.export. Le service
 // revérifie en plus le rôle superadmin (défense en profondeur) : le mode
 // observation du garde ne peut donc jamais élargir un accès réel.
+//
+// Les routes qui écrivent le corpus exigent en plus une preuve forte récente
+// (N2) : la capacité dit QUI peut éditer un texte opposable, le niveau dit
+// qu'une session détournée ne suffit pas à le faire depuis ce matin.
 func (h *Handler) RegisterAdmin(r chi.Router) {
 	if h.console == nil {
 		h.console = adminauthz.NewStandaloneConsole(r)
 	}
 	c := h.console
+	// Tout ce qui ÉCRIT le corpus juridique exige une preuve forte récente
+	// (N2) : une édition peut finir opposable, et publier, planifier ou
+	// archiver une version le devient immédiatement. La lecture, elle, reste
+	// N0 — consulter un texte n'engage personne.
+	stepUp := adminauthz.WithProofLevel(authz.Level2)
 	c.Get("/v1/admin/legal", adminauthz.LegalRead, h.adminList)
-	c.Post("/v1/admin/legal", adminauthz.LegalWrite, h.adminCreate)
-	c.Post("/v1/admin/legal/seed", adminauthz.LegalWrite, h.adminSeed)
+	c.Post("/v1/admin/legal", adminauthz.LegalWrite, h.adminCreate, stepUp)
+	c.Post("/v1/admin/legal/seed", adminauthz.LegalWrite, h.adminSeed, stepUp)
 	c.Get("/v1/admin/legal/acceptances", adminauthz.ComplianceRead, h.adminAcceptances)
 	c.Get("/v1/admin/legal/stats", adminauthz.LegalRead, h.adminStats)
 	c.Get("/v1/admin/legal/compliance", adminauthz.ComplianceRead, h.adminCompliance)
 	c.Get("/v1/admin/legal/notices", adminauthz.ComplianceRead, h.adminNotices)
 	c.Get("/v1/admin/legal/cookie-consents", adminauthz.ComplianceRead, h.adminCookieConsents)
 	// 🧾 Exports signés du registre de consentement (contrôle, réquisition).
-	c.Post("/v1/admin/legal/consent-exports", adminauthz.ComplianceExport, h.adminCreateConsentExport)
+	//
+	// N2 : produire un export du registre de consentement sort des données
+	// personnelles de l'ensemble des comptes. Le critère de sortie de la
+	// Phase 3 est exactement celui-ci — une session `aal2` ouverte le matin ne
+	// peut pas l'expédier l'après-midi ; il faut un facteur fort utilisé il y a
+	// moins de dix minutes, que l'écran obtient par step-up puis en rejouant
+	// l'action.
+	c.Post("/v1/admin/legal/consent-exports", adminauthz.ComplianceExport, h.adminCreateConsentExport,
+		adminauthz.WithProofLevel(authz.Level2))
 	c.Get("/v1/admin/legal/consent-exports", adminauthz.ComplianceRead, h.adminListConsentExports)
 	c.Get("/v1/admin/legal/consent-exports/verify", adminauthz.ComplianceRead, h.adminVerifyConsentExports)
 	// 🔄 Cycle de vie : revues périodiques et publication planifiée.
 	c.Get("/v1/admin/legal/reviews", adminauthz.LegalRead, h.adminReviews)
-	c.Post("/v1/admin/legal/reviews", adminauthz.LegalWrite, h.adminOpenReview)
-	c.Post("/v1/admin/legal/reviews/{reviewID}/dismiss", adminauthz.LegalWrite, h.adminDismissReview)
-	c.Post("/v1/admin/legal/versions/{versionID}/schedule", adminauthz.LegalWrite, h.adminScheduleVersion)
-	c.Post("/v1/admin/legal/lifecycle/run", adminauthz.LegalWrite, h.adminRunLifecycle)
+	c.Post("/v1/admin/legal/reviews", adminauthz.LegalWrite, h.adminOpenReview, stepUp)
+	c.Post("/v1/admin/legal/reviews/{reviewID}/dismiss", adminauthz.LegalWrite, h.adminDismissReview, stepUp)
+	// Planifier, c'est publier plus tard : même exigence que publier.
+	c.Post("/v1/admin/legal/versions/{versionID}/schedule", adminauthz.LegalWrite, h.adminScheduleVersion, stepUp)
+	// Le cycle de vie publie les versions arrivées à échéance : c'est un acte
+	// de publication déclenché à la main, pas une tâche de fond anodine.
+	c.Post("/v1/admin/legal/lifecycle/run", adminauthz.LegalWrite, h.adminRunLifecycle, stepUp)
 	c.Get("/v1/admin/legal/{id}/versions", adminauthz.LegalRead, h.adminVersions)
-	c.Post("/v1/admin/legal/{id}/versions", adminauthz.LegalWrite, h.adminCreateVersion)
-	c.Patch("/v1/admin/legal/{id}", adminauthz.LegalWrite, h.adminUpdate)
-	c.Delete("/v1/admin/legal/{id}", adminauthz.LegalWrite, h.adminDelete)
-	c.Patch("/v1/admin/legal/versions/{versionID}", adminauthz.LegalWrite, h.adminUpdateVersion)
-	c.Post("/v1/admin/legal/versions/{versionID}/publish", adminauthz.LegalWrite, h.adminPublish)
-	c.Post("/v1/admin/legal/versions/{versionID}/archive", adminauthz.LegalWrite, h.adminArchive)
-	c.Delete("/v1/admin/legal/versions/{versionID}", adminauthz.LegalWrite, h.adminDeleteDraft)
+	c.Post("/v1/admin/legal/{id}/versions", adminauthz.LegalWrite, h.adminCreateVersion, stepUp)
+	c.Patch("/v1/admin/legal/{id}", adminauthz.LegalWrite, h.adminUpdate, stepUp)
+	c.Delete("/v1/admin/legal/{id}", adminauthz.LegalWrite, h.adminDelete, stepUp)
+	c.Patch("/v1/admin/legal/versions/{versionID}", adminauthz.LegalWrite, h.adminUpdateVersion, stepUp)
+	// 📜 Publier une version juridique : N2 aujourd'hui, N3 (double validation)
+	// dès que le quorum d'approbation de la console est branché — l'action
+	// `legal_publish` du noyau est déjà déclarée N3 + DoubleApproval, et le
+	// garde sait exiger l'acte (WithApprovalAct). Le niveau N2 est un plancher :
+	// publier un texte opposable ne doit jamais se faire depuis une session
+	// ouverte le matin.
+	c.Post("/v1/admin/legal/versions/{versionID}/publish", adminauthz.LegalWrite, h.adminPublish, stepUp)
+	c.Post("/v1/admin/legal/versions/{versionID}/archive", adminauthz.LegalWrite, h.adminArchive, stepUp)
+	c.Delete("/v1/admin/legal/versions/{versionID}", adminauthz.LegalWrite, h.adminDeleteDraft, stepUp)
 }
 
 // ─── Public ──────────────────────────────────────────────────────────

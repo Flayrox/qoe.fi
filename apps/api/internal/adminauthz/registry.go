@@ -4,13 +4,22 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/qoefi/api/internal/authz"
 )
 
-// Route est une route de la console et la capacité qu'elle exige.
+// Route est une route de la console, la capacité qu'elle exige et le niveau de
+// preuve qu'elle ajoute à cette capacité.
 type Route struct {
 	Method     string
 	Pattern    string
 	Capability Capability
+	// Level : niveau de preuve exigé EN PLUS de la capacité (N0 = la capacité
+	// seule suffit, N2 = facteur fort utilisé il y a moins de dix minutes).
+	Level authz.Level
+	// ApprovalAct : action du noyau que la route exécute quand elle exige un
+	// quorum (N3). Vide pour tout le reste.
+	ApprovalAct authz.Action
 }
 
 // Key identifie la route (méthode + motif), forme utilisée par le registre.
@@ -40,10 +49,12 @@ func NewRegistry() *Registry {
 
 // Declare enregistre une route. Elle échoue — et l'appelant doit alors
 // interrompre le démarrage — si la capacité n'appartient pas au vocabulaire
-// fermé ou si la route est déclarée deux fois : une console dont une route
-// échappe au garde, ou dont une route est montée deux fois avec deux
-// capacités différentes, ne doit pas servir de trafic.
-func (r *Registry) Declare(method, pattern string, c Capability) error {
+// fermé, si le niveau de preuve sort de l'échelle N0–N3, si une route N3 ne
+// nomme pas l'acte soumis à quorum, ou si la route est déclarée deux fois : une
+// console dont une route échappe au garde, dont une route est montée deux fois
+// avec deux capacités différentes, ou dont un acte lourd n'assume pas son
+// niveau, ne doit pas servir de trafic.
+func (r *Registry) Declare(method, pattern string, c Capability, level authz.Level, act authz.Action) error {
 	method = strings.ToUpper(strings.TrimSpace(method))
 	if method == "" {
 		return fmt.Errorf("capacité %s : méthode vide pour %q", c, pattern)
@@ -54,12 +65,18 @@ func (r *Registry) Declare(method, pattern string, c Capability) error {
 	if !c.Valid() {
 		return fmt.Errorf("route %s : capacité %q hors du vocabulaire fermé", RouteKey(method, pattern), c)
 	}
+	if level < authz.Level0 || level > authz.Level3 {
+		return fmt.Errorf("route %s : niveau de preuve %d hors de l'échelle N0–N3", RouteKey(method, pattern), int(level))
+	}
+	if level >= authz.Level3 && act == "" {
+		return fmt.Errorf("route %s : niveau N3 sans acte nommé — une approbation ne peut pas valider « un peu de droit »", RouteKey(method, pattern))
+	}
 	key := RouteKey(method, pattern)
 	if existing, ok := r.index[key]; ok {
 		return fmt.Errorf("route %s déclarée deux fois (%s puis %s)", key, existing, c)
 	}
 	r.index[key] = c
-	r.routes = append(r.routes, Route{Method: method, Pattern: pattern, Capability: c})
+	r.routes = append(r.routes, Route{Method: method, Pattern: pattern, Capability: c, Level: level, ApprovalAct: act})
 	return nil
 }
 
@@ -69,6 +86,17 @@ func (r *Registry) Declare(method, pattern string, c Capability) error {
 func (r *Registry) Lookup(method, pattern string) (Capability, bool) {
 	c, ok := r.index[RouteKey(method, pattern)]
 	return c, ok
+}
+
+// Level rend le niveau de preuve déclaré d'une route (N0 si la route est
+// déclarée sans preuve renforcée). ok=false si la route n'est pas déclarée.
+func (r *Registry) Level(method, pattern string) (authz.Level, bool) {
+	for _, rt := range r.routes {
+		if RouteKey(rt.Method, rt.Pattern) == RouteKey(method, pattern) {
+			return rt.Level, true
+		}
+	}
+	return authz.Level0, false
 }
 
 // Routes retourne les routes déclarées, triées (motif puis méthode). La copie

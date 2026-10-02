@@ -27,6 +27,7 @@ import {
   startSendWaveAction,
 } from '@qoe/sdk/actions/admin';
 import type { ImportReview } from '@/lib/admin-data';
+import { attemptWithStepUp, notifyActionFailure, readMessage } from '@/lib/authz-feedback';
 
 const DECISION_LABELS: Record<string, string> = {
   needs_info: 'Complément demandé',
@@ -86,13 +87,17 @@ export function ImportReviewClient({ initial }: { initial: ImportReview }) {
   const [waveSize, setWaveSize] = useState('500');
   const [sendCap, setSendCap] = useState('');
 
+  // Les décisions sur un lot d'import — juger l'origine d'un fichier d'abonnés,
+  // ouvrir une vague d'envoi encadré, purger — exigent une preuve forte récente
+  // (N2). Un refus de ce type ouvre la vérification de facteur, puis l'action
+  // est REJOUÉE telle quelle : la décision en cours de rédaction n'est pas
+  // perdue, et rien n'est décidé deux fois.
   const run = async (key: string, fn: () => Promise<{ ok: boolean; error?: unknown }>) => {
     setBusy(key);
     try {
-      const res = await fn();
+      const res = await attemptWithStepUp(fn);
       if (!res.ok) {
-        const msg = typeof res.error === 'string' ? res.error : 'Action impossible';
-        toast.error(msg);
+        notifyActionFailure(res, readMessage(res) ?? 'Action impossible');
       } else {
         toast.success('Action enregistrée');
       }
