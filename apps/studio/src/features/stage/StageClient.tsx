@@ -8,6 +8,7 @@ import React, { useRef } from 'react';
 import type { LayoutConfig } from '@qoe/ui/templates';
 import { parseLayoutConfig } from '@qoe/ui/templates';
 import { StageEngineProvider, useStageEngine, StageEditorMode } from './context/StageEngineContext';
+import { StageEditorProvider } from './engine';
 import { TopBar } from './top-bar/TopBar';
 import { StageCanvas } from './canvas/StageCanvas';
 import { LeftPanelFull } from './left-panel/LeftPanelFull';
@@ -106,12 +107,14 @@ export function StageClient({ publication, articles, sidebarProps }: StageClient
   ).current;
 
   return (
-    <StageEngineProvider
-      initialLayout={initialLayout}
-      publication={publication}
-      articles={articles}
-    >
-      <StageWorkbench sidebarProps={sidebarProps} />
-    </StageEngineProvider>
+    <StageEditorProvider>
+      <StageEngineProvider
+        initialLayout={initialLayout}
+        publication={publication}
+        articles={articles}
+      >
+        <StageWorkbench sidebarProps={sidebarProps} />
+      </StageEngineProvider>
+    </StageEditorProvider>
   );
 }

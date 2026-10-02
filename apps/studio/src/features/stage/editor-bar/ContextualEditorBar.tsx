@@ -41,7 +41,7 @@ export function ContextualEditorBar() {
           {selected.type === 'hero' && (
             <div className="flex items-center gap-1">
               <select
-                value={props.style || 'cinematic-banner'}
+                value={(props.style as string) || 'cinematic-banner'}
                 onChange={(e) => engine.updateBlockProps(selected.id, { style: e.target.value })}
                 className="bg-muted/60 border border-border/40 rounded-lg px-2 py-1 text-foreground text-[11px] font-medium cursor-pointer"
               >
@@ -75,7 +75,7 @@ export function ContextualEditorBar() {
           {selected.type === 'article-stream' && (
             <div className="flex items-center gap-1">
               <select
-                value={props.displayMode || 'grid-3'}
+                value={(props.displayMode as string) || 'grid-3'}
                 onChange={(e) =>
                   engine.updateBlockProps(selected.id, { displayMode: e.target.value })
                 }

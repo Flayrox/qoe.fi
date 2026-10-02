@@ -119,7 +119,7 @@ export function StageEngineProvider({
   // ── Historique ──
   const pushState = useCallback(
     (newLayout: LayoutConfig) => {
-      setPast((prev) => [...prev.slice(-30), layout]);
+      setPast((prev) => [...prev.slice(-49), layout]);
       setFuture([]);
       setLayout(newLayout);
       setHasUnsavedChanges(true);
@@ -155,84 +155,87 @@ export function StageEngineProvider({
     setSelectedBlockId(id);
   }, []);
 
-  // ── Mutations de Blocs ──
-  const updateBlockProps = useCallback((id: string, newProps: Record<string, unknown>) => {
-    setLayout((curr) => {
-      const nextBlocks = curr.blocks.map((b) =>
+  // ── Mutations de Blocs (sans setState dans updater — StrictMode safe) ──
+  const updateBlockProps = useCallback(
+    (id: string, newProps: Record<string, unknown>) => {
+      const nextBlocks = layout.blocks.map((b) =>
         b.id === id ? { ...b, props: { ...(b.props as Record<string, unknown>), ...newProps } } : b
       );
-      const nextLayout = { ...curr, blocks: nextBlocks };
-      setPast((prev) => [...prev.slice(-30), curr]);
+      if (nextBlocks === layout.blocks) return;
+      setPast((prev) => [...prev.slice(-49), layout]);
       setFuture([]);
+      setLayout({ ...layout, blocks: nextBlocks });
       setHasUnsavedChanges(true);
-      return nextLayout;
-    });
-  }, []);
+    },
+    [layout]
+  );
 
-  const duplicateBlock = useCallback((id: string) => {
-    setLayout((curr) => {
-      const idx = curr.blocks.findIndex((b) => b.id === id);
-      if (idx === -1) return curr;
-      const original = curr.blocks[idx];
+  const duplicateBlock = useCallback(
+    (id: string) => {
+      const idx = layout.blocks.findIndex((b) => b.id === id);
+      if (idx === -1) return;
+      const original = layout.blocks[idx];
       const dupId = `${original.type}_${Date.now()}`;
       const duplicate: TemplateBlock = {
         ...original,
         id: dupId,
         props: { ...(original.props as Record<string, unknown>) },
       };
-      const nextBlocks = [...curr.blocks];
+      const nextBlocks = [...layout.blocks];
       nextBlocks.splice(idx + 1, 0, duplicate);
-      const nextLayout = { ...curr, blocks: nextBlocks };
-      setPast((prev) => [...prev.slice(-30), curr]);
+      setPast((prev) => [...prev.slice(-49), layout]);
       setFuture([]);
+      setLayout({ ...layout, blocks: nextBlocks });
       setSelectedBlockId(dupId);
       setHasUnsavedChanges(true);
-      return nextLayout;
-    });
-  }, []);
+    },
+    [layout]
+  );
 
-  const deleteBlock = useCallback((id: string) => {
-    setLayout((curr) => {
-      const nextBlocks = curr.blocks.filter((b) => b.id !== id);
-      const nextLayout = { ...curr, blocks: nextBlocks };
-      setPast((prev) => [...prev.slice(-30), curr]);
+  const deleteBlock = useCallback(
+    (id: string) => {
+      if (!layout.blocks.some((b) => b.id === id)) return;
+      setPast((prev) => [...prev.slice(-49), layout]);
       setFuture([]);
+      setLayout({ ...layout, blocks: layout.blocks.filter((b) => b.id !== id) });
       setSelectedBlockId(null);
       setHasUnsavedChanges(true);
-      return nextLayout;
-    });
-  }, []);
+    },
+    [layout]
+  );
 
-  const moveBlock = useCallback((id: string, direction: 'up' | 'down') => {
-    setLayout((curr) => {
-      const idx = curr.blocks.findIndex((b) => b.id === id);
-      if (idx === -1) return curr;
-      if (direction === 'up' && idx === 0) return curr;
-      if (direction === 'down' && idx === curr.blocks.length - 1) return curr;
+  const moveBlock = useCallback(
+    (id: string, direction: 'up' | 'down') => {
+      const idx = layout.blocks.findIndex((b) => b.id === id);
+      if (idx === -1) return;
+      if (direction === 'up' && idx === 0) return;
+      if (direction === 'down' && idx === layout.blocks.length - 1) return;
 
       const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
-      const nextBlocks = [...curr.blocks];
+      const nextBlocks = [...layout.blocks];
       const [moved] = nextBlocks.splice(idx, 1);
       nextBlocks.splice(targetIdx, 0, moved);
 
-      const nextLayout = { ...curr, blocks: nextBlocks };
-      setPast((prev) => [...prev.slice(-30), curr]);
+      setPast((prev) => [...prev.slice(-49), layout]);
       setFuture([]);
+      setLayout({ ...layout, blocks: nextBlocks });
       setHasUnsavedChanges(true);
-      return nextLayout;
-    });
-  }, []);
+    },
+    [layout]
+  );
 
-  const toggleVisibility = useCallback((id: string) => {
-    setLayout((curr) => {
-      const nextBlocks = curr.blocks.map((b) => (b.id === id ? { ...b, visible: !b.visible } : b));
-      const nextLayout = { ...curr, blocks: nextBlocks };
-      setPast((prev) => [...prev.slice(-30), curr]);
+  const toggleVisibility = useCallback(
+    (id: string) => {
+      setPast((prev) => [...prev.slice(-49), layout]);
       setFuture([]);
+      setLayout({
+        ...layout,
+        blocks: layout.blocks.map((b) => (b.id === id ? { ...b, visible: !b.visible } : b)),
+      });
       setHasUnsavedChanges(true);
-      return nextLayout;
-    });
-  }, []);
+    },
+    [layout]
+  );
 
   const updateTokens = useCallback(
     (tokens: Partial<LayoutConfig['tokens']>) => {
