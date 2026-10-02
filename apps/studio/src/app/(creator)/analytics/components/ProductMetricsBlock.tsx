@@ -56,7 +56,7 @@ export function ProductMetricsBlock({ metrics }: ProductMetricsBlockProps) {
               {subscriberDelta7d > 0 ? `+${subscriberDelta7d}` : subscriberDelta7d} sur 7j
             </span>
           </div>
-          <p className="text-xs text-muted-foreground mt-2">Lecteurs abonnés à votre publication</p>
+          <p className="text-xs text-muted-foreground mt-2">Lecteurs abonnés à votre site web</p>
         </div>
         {/* Engagement (bookmarks + highlights) */}
         <div className="rounded-xl border border-border/30 bg-card p-6 shadow-none">

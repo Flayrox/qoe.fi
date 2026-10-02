@@ -1361,7 +1361,7 @@ export function Editor({
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder={t`Titre de votre publication...`}
+            placeholder={t`Titre de votre article...`}
             className="w-full bg-transparent border-0 text-3xl md:text-4xl font-bold tracking-tight text-foreground focus:outline-none placeholder:text-muted-foreground/30 font-sans leading-tight"
           />
 
@@ -1853,7 +1853,7 @@ export function Editor({
                           setSeoTitle(e.target.value);
                           setHasUnsavedChanges(true);
                         }}
-                        placeholder={title || t`Titre de publication`}
+                        placeholder={title || t`Titre de l'article`}
                         className="w-full bg-background border border-border/40 rounded-xl p-2.5 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary transition-colors font-sans"
                       />
                     </div>
@@ -2170,7 +2170,7 @@ export function Editor({
         onConfirm={handleConfirmPublish}
         articleTitle={title}
         articleExcerpt={editor?.getText().slice(0, 180) || ''}
-        publicationName={subdomain ? `${subdomain}.qoe.fi` : 'Votre publication'}
+        publicationName={subdomain ? `${subdomain}.qoe.fi` : 'Votre site web'}
         initialIsPremium={isPremium}
       />
     </div>
