@@ -20,6 +20,7 @@ import type {
   CardCornerShape,
 } from '../schema';
 import { BlockWrapper } from './BlockWrapper';
+import { NodeRenderer } from './NodeRenderer';
 
 interface ArticleStreamBlockComponentProps {
   id: string;
@@ -30,6 +31,8 @@ interface ArticleStreamBlockComponentProps {
   context: TemplateRenderContext;
   visible?: boolean;
   locked?: boolean;
+  slots?: Record<string, import('../schema').TemplateNode[]>;
+  nodes?: import('../schema').TemplateNode[];
 }
 
 export function ArticleStreamBlock({
@@ -40,6 +43,8 @@ export function ArticleStreamBlock({
   context,
   visible = true,
   locked = false,
+  slots,
+  nodes,
 }: ArticleStreamBlockComponentProps) {
   const {
     displayMode = 'list',
@@ -110,6 +115,28 @@ export function ArticleStreamBlock({
       blockStyle={(props as unknown as { style?: import('../schema').BlockStyleProps }).style}
     >
       <section className="container mx-auto px-4 lg:px-8 py-8 md:py-14">
+        {(slots?.header || (nodes && nodes.length > 0)) && (
+          <div className="mb-5">
+            {slots?.header && (
+              <NodeRenderer
+                nodes={slots.header}
+                blockId={id}
+                blockProps={props as unknown as Record<string, unknown>}
+                context={context}
+                path="slots/header"
+              />
+            )}
+            {nodes && nodes.length > 0 && (
+              <NodeRenderer
+                nodes={nodes}
+                blockId={id}
+                blockProps={props as unknown as Record<string, unknown>}
+                context={context}
+                path="nodes"
+              />
+            )}
+          </div>
+        )}
         {displayMode === 'list' ? (
           /* Mode Liste */
           <div className="max-w-4xl mx-auto divide-y divide-border">

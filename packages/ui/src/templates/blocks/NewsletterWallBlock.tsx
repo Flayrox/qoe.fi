@@ -18,6 +18,8 @@ import type {
   CardCornerShape,
 } from '../schema';
 import { BlockWrapper } from './BlockWrapper';
+import { EditableText } from './EditableText';
+import { NodeRenderer } from './NodeRenderer';
 
 interface NewsletterWallBlockComponentProps {
   id: string;
@@ -27,6 +29,8 @@ interface NewsletterWallBlockComponentProps {
   context: TemplateRenderContext;
   visible?: boolean;
   locked?: boolean;
+  slots?: Record<string, import('../schema').TemplateNode[]>;
+  nodes?: import('../schema').TemplateNode[];
 }
 
 export function NewsletterWallBlock({
@@ -37,6 +41,8 @@ export function NewsletterWallBlock({
   context,
   visible = true,
   locked = false,
+  slots,
+  nodes,
 }: NewsletterWallBlockComponentProps) {
   const {
     title = 'Ne manquez aucune publication',
@@ -89,45 +95,55 @@ export function NewsletterWallBlock({
             {incentivePill && (
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground mb-4">
                 <Sparkles className="w-3.5 h-3.5 text-[var(--tenant-accent,hsl(var(--primary)))]" />
-                <span>{incentivePill}</span>
+                <EditableText
+                  blockId={id}
+                  propKey="incentivePill"
+                  value={incentivePill}
+                  context={context}
+                  as="span"
+                />
               </div>
             )}
 
-            <h2
-              contentEditable={context.mode === 'editable'}
-              suppressContentEditableWarning
-              onBlur={(e) => {
-                const text = e.currentTarget.textContent?.trim();
-                if (text && text !== title) {
-                  context.onUpdateBlockProps?.(id, { title: text });
-                }
-              }}
-              className={`text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-foreground max-w-xl ${
-                context.mode === 'editable'
-                  ? 'cursor-text hover:outline-dashed hover:outline-1 hover:outline-primary/50 focus:outline-solid focus:outline-2 focus:outline-primary rounded-sm'
-                  : ''
-              }`}
-            >
-              {title}
-            </h2>
+            {slots?.title ? (
+              <NodeRenderer
+                nodes={slots.title}
+                blockId={id}
+                blockProps={props as unknown as Record<string, unknown>}
+                context={context}
+                path="slots/title"
+              />
+            ) : (
+              <EditableText
+                blockId={id}
+                propKey="title"
+                value={title}
+                context={context}
+                as="h2"
+                className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-foreground max-w-xl"
+              />
+            )}
 
-            <p
-              contentEditable={context.mode === 'editable'}
-              suppressContentEditableWarning
-              onBlur={(e) => {
-                const text = e.currentTarget.textContent?.trim();
-                if (text && text !== subtitle) {
-                  context.onUpdateBlockProps?.(id, { subtitle: text });
-                }
-              }}
-              className={`mt-3 text-sm md:text-base text-muted-foreground max-w-lg leading-relaxed ${
-                context.mode === 'editable'
-                  ? 'cursor-text hover:outline-dashed hover:outline-1 hover:outline-primary/50 focus:outline-solid focus:outline-2 focus:outline-primary rounded-sm'
-                  : ''
-              }`}
-            >
-              {subtitle}
-            </p>
+            {slots?.subtitle ? (
+              <div className="mt-3 max-w-lg">
+                <NodeRenderer
+                  nodes={slots.subtitle}
+                  blockId={id}
+                  blockProps={props as unknown as Record<string, unknown>}
+                  context={context}
+                  path="slots/subtitle"
+                />
+              </div>
+            ) : (
+              <EditableText
+                blockId={id}
+                propKey="subtitle"
+                value={subtitle}
+                context={context}
+                as="p"
+                className="mt-3 text-sm md:text-base text-muted-foreground max-w-lg leading-relaxed"
+              />
+            )}
 
             {/* Formulaire d'inscription */}
             <form
@@ -153,7 +169,14 @@ export function NewsletterWallBlock({
                 className="w-full sm:w-auto px-5 py-2.5 rounded-xl text-sm font-semibold text-white shadow-sm transition-all whitespace-nowrap active:scale-95 hover:opacity-95 cursor-pointer"
                 style={{ backgroundColor: 'var(--tenant-accent, hsl(var(--primary)))' }}
               >
-                {buttonText}
+                <EditableText
+                  blockId={id}
+                  propKey="buttonText"
+                  value={buttonText}
+                  context={context}
+                  as="span"
+                  multiline={false}
+                />
               </button>
             </form>
 
@@ -163,6 +186,26 @@ export function NewsletterWallBlock({
                 <Users className="w-3.5 h-3.5 opacity-70" />
                 <span>Déjà rejoint par plus de {subscriberCount} lecteurs curieux</span>
               </div>
+            )}
+            {slots?.actions && (
+              <div className="mt-4 flex flex-wrap justify-center gap-2">
+                <NodeRenderer
+                  nodes={slots.actions}
+                  blockId={id}
+                  blockProps={props as unknown as Record<string, unknown>}
+                  context={context}
+                  path="slots/actions"
+                />
+              </div>
+            )}
+            {nodes && nodes.length > 0 && (
+              <NodeRenderer
+                nodes={nodes}
+                blockId={id}
+                blockProps={props as unknown as Record<string, unknown>}
+                context={context}
+                path="nodes"
+              />
             )}
           </div>
         </div>

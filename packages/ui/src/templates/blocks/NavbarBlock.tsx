@@ -20,6 +20,8 @@ import type {
   TemplateRenderContext,
 } from '../schema';
 import { BlockWrapper } from './BlockWrapper';
+import { EditableText } from './EditableText';
+import { NodeRenderer } from './NodeRenderer';
 
 type NavItemWithChildren = NavigationItem & { children?: NavigationItem[] };
 
@@ -30,6 +32,8 @@ interface NavbarBlockComponentProps {
   context: TemplateRenderContext;
   visible?: boolean;
   locked?: boolean;
+  slots?: Record<string, import('../schema').TemplateNode[]>;
+  nodes?: import('../schema').TemplateNode[];
 }
 
 export function NavbarBlock({
@@ -39,6 +43,8 @@ export function NavbarBlock({
   context,
   visible = true,
   locked = false,
+  slots,
+  nodes,
 }: NavbarBlockComponentProps) {
   const {
     brandDisplay = 'logo-and-name',
@@ -206,8 +212,35 @@ export function NavbarBlock({
                 className="px-3.5 py-1.5 text-xs md:text-sm font-semibold text-white rounded-full transition-all shadow-sm active:scale-95 hover:opacity-95"
                 style={{ backgroundColor: 'var(--tenant-accent, hsl(var(--primary)))' }}
               >
-                {supportText}
+                <EditableText
+                  blockId={id}
+                  propKey="supportText"
+                  value={supportText || 'Soutenir'}
+                  context={context}
+                  as="span"
+                  multiline={false}
+                />
               </Link>
+            )}
+            {slots?.actions && (
+              <div className="hidden md:flex items-center gap-2">
+                <NodeRenderer
+                  nodes={slots.actions}
+                  blockId={id}
+                  blockProps={props as unknown as Record<string, unknown>}
+                  context={context}
+                  path="slots/actions"
+                />
+              </div>
+            )}
+            {nodes && nodes.length > 0 && (
+              <NodeRenderer
+                nodes={nodes}
+                blockId={id}
+                blockProps={props as unknown as Record<string, unknown>}
+                context={context}
+                path="nodes"
+              />
             )}
           </div>
         </div>
