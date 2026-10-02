@@ -275,13 +275,9 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
     alsoUses: ['admin.subscriptions.write'],
     description: 'Octrois manuels datés, révocation, historique',
   },
-  {
-    href: '/admin/publications',
-    label: 'Publications & freemium',
-    capability: 'admin.subscriptions.read',
-    alsoUses: ['admin.subscriptions.write'],
-    description: 'Palier email Pro par publication (intérim Stripe)',
-  },
+  // Publications & freemium : la bascule email Pro n'a pas d'écran (l'API
+  // n'expose ni liste de publications ni état courant) — route assumée
+  // « API-only » dans le manifeste de couverture, donc pas d'entrée ici.
   {
     href: '/admin/imports',
     label: 'Imports d’abonnés',
@@ -310,20 +306,10 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
     alsoUses: ['admin.deliveries.retry'],
     description: 'Journal des livraisons d’emails et reprise des échecs',
   },
-  {
-    href: '/admin/registrations',
-    label: 'Inscriptions & allowlist',
-    capability: 'admin.config.read',
-    alsoUses: ['admin.config.write'],
-    description: 'Accès privé : invitations d’inscription et mode d’ouverture',
-  },
-  {
-    href: '/admin/reserved-identifiers',
-    label: 'Identifiants réservés',
-    capability: 'admin.config.read',
-    alsoUses: ['admin.config.write'],
-    description: 'Noms d’utilisateur et sous-domaines interdits à l’inscription',
-  },
+  // L'allowlist d'inscription et les identifiants réservés sont portés par
+  // l'écran Configuration : ces deux surfaces n'ont pas d'écran propre (le
+  // manifeste de couverture le vérifie), et une entrée de navigation sans
+  // écran derrière serait un 404 déguisé.
   {
     href: '/admin/storage',
     label: 'Stockage médias',
