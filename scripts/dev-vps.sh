@@ -35,6 +35,6 @@ ok "Environnement & traductions prêts"
 
 # 3. Apps Next.js / dev
 echo "${C_BOLD}→ Lancement des applications Next.js (Ctrl+C pour arrêter)…${C_RESET}"
-echo "   http://qoe.test (core) | http://start.qoe.test (hi) | http://studio.qoe.test (studio)"
+echo "   http://qoe.test (core) | http://start.qoe.test (hi) | http://studio.qoe.test (studio) | http://admin.qoe.test (admin :15405)"
 
 pnpm dev
