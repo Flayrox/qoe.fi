@@ -1,11 +1,11 @@
 // =====================================================================
-// 🔍 RightPanel.tsx — Inspecteur Chirurgical de Qoefi Stage (Adapté d'Onlook)
+// RightPanel.tsx — Inspecteur de Qoefi Stage
 // =====================================================================
 
 'use client';
 
 import React from 'react';
-import { Sliders, Copy, Trash2, Info } from 'lucide-react';
+import { Copy, Trash2 } from 'lucide-react';
 import type { LayoutConfig, TemplateBlock } from '@qoe/ui/templates';
 
 interface RightPanelProps {
@@ -32,22 +32,11 @@ export function RightPanel({
   // ── Cas 1 : Aucun bloc sélectionné (Inspecteur Global) ──
   if (!selectedBlock) {
     return (
-      <aside className="w-72 flex flex-col bg-background/90 backdrop-blur-2xl border border-border/60 rounded-2xl shadow-2xl p-4 select-none text-xs space-y-4">
-        <div className="flex items-center gap-2 font-medium text-foreground">
-          <Sliders className="w-4 h-4 text-primary" />
-          <span>Inspecteur Global</span>
-        </div>
+      <aside className="w-72 flex flex-col bg-background/90 backdrop-blur-md border border-border/60 rounded-xl shadow-sm p-4 select-none text-xs space-y-4">
+        <div className="font-medium text-foreground">Inspecteur</div>
 
-        <div className="p-3 rounded-xl bg-muted/40 border border-border/40 space-y-2 text-muted-foreground leading-relaxed">
-          <div className="flex items-center gap-1.5 text-foreground font-medium">
-            <Info className="w-3.5 h-3.5 text-primary" />
-            <span>Sélection d&apos;élément</span>
-          </div>
-          <p className="text-[11px]">
-            Cliquez sur n&apos;importe quelle section sur le plan de travail ou dans
-            l&apos;arborescence des calques à gauche pour ajuster sa typographie, ses espacements et
-            son contenu.
-          </p>
+        <div className="p-3 rounded-lg bg-muted/40 border border-border/40 text-muted-foreground">
+          <p className="text-[11px]">Sélectionnez un bloc pour voir ses réglages.</p>
         </div>
 
         <div className="space-y-2 pt-2 border-t border-border/40">
@@ -84,11 +73,10 @@ export function RightPanel({
   };
 
   return (
-    <aside className="w-72 flex flex-col bg-background/90 backdrop-blur-2xl border border-border/60 rounded-2xl shadow-2xl overflow-hidden select-none text-xs">
+    <aside className="w-72 flex flex-col bg-background/90 backdrop-blur-md border border-border/60 rounded-xl shadow-sm overflow-hidden select-none text-xs">
       {/* ── En-tête de l'Inspecteur ── */}
       <div className="p-3 border-b border-border/40 flex items-center justify-between bg-muted/30">
         <div className="flex items-center gap-2">
-          <span className="text-primary font-mono text-xs">◇</span>
           <span className="font-semibold text-foreground capitalize">{selectedBlock.type}</span>
           <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-muted text-muted-foreground">
             {selectedBlock.id.slice(0, 6)}
@@ -133,10 +121,10 @@ export function RightPanel({
                 onChange={(e) => handlePropChange('style', e.target.value)}
                 className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
               >
-                <option value="cinematic-banner">Bannière Cinématique</option>
-                <option value="typographic-minimal">Typographique Épurée</option>
+                <option value="cinematic-banner">Bannière</option>
+                <option value="typographic-minimal">Typographique</option>
                 <option value="split-featured">Deux Colonnes (Split)</option>
-                <option value="floating-card">Carte Flottante</option>
+                <option value="floating-card">Carte</option>
               </select>
             </div>
 
@@ -154,7 +142,7 @@ export function RightPanel({
                         : 'bg-muted/50 text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    {h === 'compact' ? 'Compact' : h === 'tall' ? 'Grand' : 'Idéal'}
+                    {h === 'compact' ? 'Compact' : h === 'tall' ? 'Grand' : 'Standard'}
                   </button>
                 ))}
               </div>
@@ -192,11 +180,11 @@ export function RightPanel({
             </div>
 
             <div className="space-y-1">
-              <label className="text-muted-foreground text-[11px]">Slogan / Manifeste</label>
+              <label className="text-muted-foreground text-[11px]">Chapeau</label>
               <textarea
                 rows={2}
                 value={(props.customTagline as string) || ''}
-                placeholder="Texte introductif percutant"
+                placeholder="Laisser vide pour masquer"
                 onChange={(e) => handlePropChange('customTagline', e.target.value)}
                 className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs resize-none"
               />
@@ -287,7 +275,7 @@ export function RightPanel({
               <input
                 type="text"
                 value={(props.title as string) || ''}
-                placeholder="Rejoignez notre communauté"
+                placeholder="Titre"
                 onChange={(e) => handlePropChange('title', e.target.value)}
                 className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
               />
@@ -298,7 +286,7 @@ export function RightPanel({
               <input
                 type="text"
                 value={(props.buttonText as string) || ''}
-                placeholder="S'abonner gratuitement"
+                placeholder="Texte du bouton"
                 onChange={(e) => handlePropChange('buttonText', e.target.value)}
                 className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
               />

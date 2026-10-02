@@ -1,5 +1,5 @@
 // =====================================================================
-// 📜 ArticleStreamBlock.tsx — Flux de Publications & Archives (Licorne 2026)
+// ArticleStreamBlock.tsx — Flux de Publications & Archives (Licorne 2026)
 // =====================================================================
 // Affiche le catalogue d'articles sous forme de liste ou de grille (2/3 cols).
 // Supporte :
@@ -57,10 +57,9 @@ export function ArticleStreamBlock({
   const fallbackArticles: TemplateArticleItem[] = [
     {
       id: 'art_fb_1',
-      title: 'Repenser l’autonomie éditoriale à l’ère des plateformes fermées',
+      title: "Titre de l'article",
       slug: 'autonomie-editoriale',
-      excerpt:
-        'Une réflexion sur l’importance de posséder son nom de domaine, son design et sa base d’abonnés sans intermédiaire.',
+      excerpt: '',
       imageUrl:
         'https://images.unsplash.com/photo-1499750310107-5fef28a66643?q=80&w=600&auto=format&fit=crop',
       readingTime: 4,
@@ -69,10 +68,9 @@ export function ArticleStreamBlock({
     },
     {
       id: 'art_fb_2',
-      title: 'L’économie de l’attention et la renaissance des longs formats',
+      title: "Titre de l'article",
       slug: 'renaissance-longs-formats',
-      excerpt:
-        'Pourquoi les lecteurs fatigués du scroll infini se tournent vers des essais denses et documentés.',
+      excerpt: '',
       imageUrl:
         'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?q=80&w=600&auto=format&fit=crop',
       readingTime: 7,
@@ -81,10 +79,9 @@ export function ArticleStreamBlock({
     },
     {
       id: 'art_fb_3',
-      title: 'Comment structurer une newsletter qui dure dans le temps',
+      title: "Titre de l'article",
       slug: 'structurer-newsletter-durable',
-      excerpt:
-        'Les principes cardinaux pour bâtir un rendez-vous hebdomadaire attendu sans s’épuiser.',
+      excerpt: '',
       imageUrl:
         'https://images.unsplash.com/photo-1512486130939-2c4f79935e4f?q=80&w=600&auto=format&fit=crop',
       readingTime: 5,
@@ -169,13 +166,13 @@ export function ArticleStreamBlock({
                         </span>
                       )}
                       {article.isPremium && (
-                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-warning/15 text-warning">
-                          Club
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-medium border border-border bg-background text-muted-foreground">
+                          Réservé
                         </span>
                       )}
                     </div>
 
-                    <h3 className="text-xl md:text-2xl font-bold tracking-tight text-foreground group-hover:text-[var(--tenant-accent,hsl(var(--primary)))] transition-colors">
+                    <h3 className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
                       {article.title}
                     </h3>
 
@@ -188,13 +185,13 @@ export function ArticleStreamBlock({
 
                   {article.imageUrl && (
                     <div
-                      className={`relative w-full sm:w-44 h-32 shrink-0 overflow-hidden bg-muted shadow-xs ${cardShape}`}
+                      className={`relative w-full sm:w-44 h-32 shrink-0 overflow-hidden bg-muted ${cardShape}`}
                     >
                       <Image
                         src={article.imageUrl}
                         alt={article.title}
                         fill
-                        className="object-cover transition-transform duration-500 group-hover:scale-104"
+                        className="object-cover"
                       />
                     </div>
                   )}
@@ -212,7 +209,7 @@ export function ArticleStreamBlock({
             {items.map((article) => (
               <article
                 key={article.id}
-                className={`group flex flex-col justify-between overflow-hidden bg-card border border-border transition-all duration-300 hover:shadow-md hover:-translate-y-0.5 ${cardShape}`}
+                className={`group flex flex-col justify-between overflow-hidden bg-card border border-border transition-colors duration-300 ${cardShape}`}
               >
                 <Link
                   href={`/article/${article.slug}`}
@@ -243,7 +240,7 @@ export function ArticleStreamBlock({
                         )}
                       </div>
 
-                      <h3 className="font-bold text-lg text-foreground group-hover:text-[var(--tenant-accent,hsl(var(--primary)))] transition-colors leading-snug">
+                      <h3 className="font-bold text-lg text-foreground leading-snug">
                         {article.title}
                       </h3>
 

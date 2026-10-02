@@ -1,5 +1,5 @@
 // =====================================================================
-// 🧩 NodeRenderer.tsx — rendu récursif des TemplateNode (AST v2)
+// NodeRenderer.tsx — rendu récursif des TemplateNode (AST v2)
 // Server-pur : aucun hook. En live : HTML sémantique sans data-*.
 // En editable : sélection oid + responsive sx.hiddenAt.
 // =====================================================================
@@ -114,7 +114,7 @@ export function NodeRenderer({
                 key={node.oid}
                 onClick={editable ? handleClick : undefined}
                 {...(editable ? { 'data-oid': node.oid } : {})}
-                className={`inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold ${cls}`}
+                className={`inline-flex items-center rounded-md bg-muted px-2.5 py-0.5 text-xs font-medium ${cls}`}
               >
                 {text}
               </span>

@@ -1,5 +1,5 @@
 // =====================================================================
-// 🏆 LeadStoryBlock.tsx — Grand Format & Article Vedette (Licorne 2026)
+// LeadStoryBlock.tsx — Article vedette
 // =====================================================================
 // Met en lumière l'article phare (le premier article ou sélectionné).
 // Supporte :
@@ -53,7 +53,7 @@ export function LeadStoryBlock({
     showExcerpt = true,
     showReadTime = true,
     showDate = true,
-    badgeText = 'À LA UNE',
+    badgeText,
   } = props;
 
   const leadArticle = articles[0];
@@ -61,10 +61,9 @@ export function LeadStoryBlock({
   // Placeholder élégant si aucun article n'a encore été publié
   const displayArticle: TemplateArticleItem = leadArticle || {
     id: 'placeholder_lead',
-    title: 'Les frontières invisibles de la pensée moderne',
+    title: "Titre de l'article",
     slug: 'frontieres-invisibles',
-    excerpt:
-      'Une analyse approfondie sur les dynamiques culturelles et technologiques qui redéfinissent notre rapport au savoir et à la souveraineté numérique.',
+    excerpt: '',
     imageUrl:
       'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1600&auto=format&fit=crop',
     readingTime: 6,
@@ -86,7 +85,7 @@ export function LeadStoryBlock({
     <BlockWrapper
       id={id}
       type="lead-story"
-      label="Article Vedette (À la Une)"
+      label="Article vedette"
       visible={visible}
       locked={locked}
       context={context}
@@ -106,7 +105,7 @@ export function LeadStoryBlock({
           className="group block"
         >
           <div
-            className={`relative overflow-hidden bg-card border border-border shadow-sm transition-all duration-300 group-hover:shadow-xl group-hover:border-border/80 ${cardShape}`}
+            className={`relative overflow-hidden bg-card border border-border shadow-xs transition-colors duration-300 ${cardShape}`}
           >
             {/* Image de couverture avec ratio contrôlé */}
             {displayArticle.imageUrl && (
@@ -115,15 +114,15 @@ export function LeadStoryBlock({
                   src={displayArticle.imageUrl}
                   alt={displayArticle.title}
                   fill
-                  className="object-cover transition-transform duration-700 ease-out group-hover:scale-102"
+                  className="object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
 
                 {/* Badge éditorial supérieur */}
                 <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
                   {badgeText && (
                     <span
-                      className="px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider text-white shadow-sm"
+                      className="px-2.5 py-1 rounded-md text-[11px] font-semibold text-primary-foreground"
                       style={{ backgroundColor: 'var(--tenant-accent, hsl(var(--primary)))' }}
                     >
                       <EditableText
@@ -137,13 +136,13 @@ export function LeadStoryBlock({
                     </span>
                   )}
                   {displayArticle.category && (
-                    <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-black/60 backdrop-blur-md text-white border border-white/20">
+                    <span className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-background/90 text-foreground">
                       {displayArticle.category.name}
                     </span>
                   )}
                   {displayArticle.isPremium && (
-                    <span className="px-2 py-1 rounded-full text-[11px] font-semibold bg-warning/90 text-warning-foreground flex items-center gap-1 shadow-sm">
-                      <Lock className="w-3 h-3" /> Membre
+                    <span className="px-2 py-1 rounded-md text-[11px] font-medium border border-border bg-background text-muted-foreground flex items-center gap-1">
+                      <Lock className="w-3 h-3" /> Réservé
                     </span>
                   )}
                 </div>
@@ -171,7 +170,7 @@ export function LeadStoryBlock({
                     )}
                   </div>
 
-                  <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight group-hover:text-white transition-colors">
+                  <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight">
                     {displayArticle.title}
                   </h2>
 

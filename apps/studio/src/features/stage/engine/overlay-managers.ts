@@ -1,5 +1,5 @@
 // =====================================================================
-// ⬢ OverlayManager + SnapManager — hover/click/measurement + guidelines
+// OverlayManager + SnapManager — hover/click/measurement + guidelines
 // Ref brute : vendor/onlook/_components/canvas/overlay/*
 // =====================================================================
 

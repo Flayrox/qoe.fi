@@ -1,5 +1,5 @@
 // =====================================================================
-// ⚓ FooterBlock.tsx — Pied de Page & Liens Légaux (Licorne 2026)
+// FooterBlock.tsx — Pied de page
 // =====================================================================
 // Supporte :
 // - Mises en page colonnes ou minimal-row

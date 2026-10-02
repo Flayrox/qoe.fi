@@ -1,5 +1,5 @@
 // =====================================================================
-// 📑 LeftPanelFull.tsx — rail 2 niveaux Figma-grade souverain
+// LeftPanelFull.tsx — rail 2 niveaux
 // Porté d'Onlook left-panel/design-panel (layers-tree, brand, pages,
 // images, windows, zoom-controls, help). DOM direct, pas d'iframe.
 // =====================================================================
@@ -21,7 +21,7 @@ import {
   ArrowDown,
   LayoutGrid,
   Newspaper,
-  Flame,
+  RectangleHorizontal,
   Mail,
   PanelBottom,
   Check,
@@ -46,38 +46,38 @@ const BLOCK_CATALOG: {
 }[] = [
   {
     type: 'hero',
-    label: 'Bannière & Manifeste',
-    description: 'Grand titre percutant, typographie noble et appel à action.',
-    icon: Flame,
+    label: 'Bannière',
+    description: 'Titre et image large.',
+    icon: RectangleHorizontal,
   },
   {
     type: 'lead-story',
-    label: 'Article Vedette & En Bref',
-    description: 'Récit principal grand format accompagné de brèves.',
+    label: 'Article vedette',
+    description: 'Image large et extrait.',
     icon: Newspaper,
   },
   {
     type: 'bento-grid',
-    label: 'Grille Bento Dynamique',
-    description: 'Disposition asymétrique pour formats hybrides et curation.',
+    label: 'Grille',
+    description: '2 à 3 cartes.',
     icon: LayoutGrid,
   },
   {
     type: 'article-stream',
-    label: "Flux d'Articles",
-    description: 'Liste chronologique avec filtres thématiques et lecture estimée.',
+    label: "Flux d'articles",
+    description: 'Liste des publications.',
     icon: Newspaper,
   },
   {
     type: 'newsletter-wall',
-    label: "Mur d'Abonnement",
-    description: 'Section de conversion avec proposition de valeur et réassurance.',
+    label: "Mur d'abonnement",
+    description: 'Formulaire email.',
     icon: Mail,
   },
   {
     type: 'footer',
     label: 'Pied de Page',
-    description: 'Mentions légales, liens de navigation et réseaux.',
+    description: 'Liens et mentions.',
     icon: PanelBottom,
   },
 ];
@@ -85,23 +85,24 @@ const BLOCK_CATALOG: {
 const ARCHETYPE_META: Record<string, { name: string; description: string }> = {
   magazine: {
     name: 'Éditorial Magazine',
-    description: 'Grand récit vedette, typographie littéraire noble et colonnes.',
+    description: 'Image large et extrait.',
   },
   broadsheet: {
     name: 'Broadsheet Moderne',
-    description: 'Grille d’actualité dense inspirée de la presse de référence.',
+    description: 'Liste dense.',
   },
   bento: {
     name: 'Bento Technologique',
-    description: 'Cartes modulaires asymétriques pour créateurs de contenus.',
+    description: 'Cartes modulaires.',
   },
   minimal: {
     name: 'Carnet Minimaliste',
-    description: 'Épure radicale, focus absolu sur la typographie et la lecture.',
+    description: 'Texte seul.',
   },
 };
 
-const ACCENT_PRESETS = ['#EE4B2B', '#111111', '#2563EB', '#16A34A', '#7C3AED', '#F59E0B'];
+const ACCENT_PRESETS = ['#111111', '#EE4B2B'];
+const ACCENT_PRESETS_ADVANCED = ['#2563EB', '#16A34A', '#7C3AED', '#F59E0B'];
 const FONT_OPTIONS = ['Inter', 'Georgia', 'Times New Roman', 'Menlo', 'System UI'];
 
 type TabId = 'layers' | 'blocks' | 'brand' | 'pages' | 'images' | 'windows';
@@ -111,15 +112,15 @@ function getBlockName(block: TemplateBlock) {
     case 'navbar':
       return 'En-tête & Navigation';
     case 'hero':
-      return 'Bannière & Manifeste';
+      return 'Bannière';
     case 'lead-story':
-      return 'Article Vedette';
+      return 'Article vedette';
     case 'bento-grid':
-      return 'Grille Bento';
+      return 'Grille';
     case 'article-stream':
-      return "Flux d'Articles";
+      return "Flux d'articles";
     case 'newsletter-wall':
-      return "Mur d'Abonnement";
+      return "Mur d'abonnement";
     case 'footer':
       return 'Pied de Page';
     default:
@@ -190,7 +191,7 @@ function LayersTab() {
                 } ${!block.visible ? 'opacity-45' : ''}`}
               >
                 <div className="flex min-w-0 items-center gap-1.5">
-                  <span className="font-mono text-[11px] text-primary/70">
+                  <span className="font-mono text-[11px] text-muted-foreground/60">
                     {isFrame ? '#' : '◇'}
                   </span>
                   <span className="truncate text-[11px]">{getBlockName(block)}</span>
@@ -317,6 +318,21 @@ function BrandTab() {
               />
             ))}
           </div>
+          <details className="text-[11px] text-muted-foreground">
+            <summary className="cursor-pointer hover:text-foreground">Plus de couleurs</summary>
+            <div className="mt-1.5 flex gap-1">
+              {ACCENT_PRESETS_ADVANCED.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => engine.updateTokens({ accentColor: c })}
+                  className="h-5 w-5 rounded border border-border/60"
+                  style={{ backgroundColor: c }}
+                  title={c}
+                />
+              ))}
+            </div>
+          </details>
         </div>
       </div>
       <div className="space-y-1.5">
@@ -372,7 +388,7 @@ function BrandTab() {
               onClick={() => engine.updateTokens({ cardShape: shape })}
               className={`rounded-lg px-2 py-1.5 text-center font-medium transition-all ${engine.layout.tokens.cardShape === shape ? 'bg-primary text-primary-foreground shadow-xs' : 'bg-muted/50 text-muted-foreground hover:text-foreground'}`}
             >
-              {shape === 'rounded-none' ? 'Vif' : shape === 'rounded-xl' ? 'Doux' : 'Galet'}
+              {shape === 'rounded-none' ? 'Carré' : shape === 'rounded-xl' ? 'Arrondi' : 'Large'}
             </button>
           ))}
         </div>
@@ -389,7 +405,7 @@ function BrandTab() {
               onClick={() => engine.updateTokens({ density: dens })}
               className={`rounded-lg px-1 py-1.5 text-center text-[10px] font-medium capitalize transition-all ${engine.layout.tokens.density === dens ? 'bg-primary text-primary-foreground shadow-xs' : 'bg-muted/50 text-muted-foreground hover:text-foreground'}`}
             >
-              {dens === 'compact' ? 'Compact' : dens === 'standard' ? 'Idéal' : 'Aéré'}
+              {dens === 'compact' ? 'Compact' : dens === 'standard' ? 'Standard' : 'Aéré'}
             </button>
           ))}
         </div>
@@ -485,8 +501,8 @@ function PagesTab() {
         <div>
           {renderTree(null, 0)}
           {nav.length === 0 && (
-            <p className="rounded-xl bg-muted/40 p-3 text-[11px] leading-relaxed text-muted-foreground">
-              La navigation s&apos;adapte aux rubriques de votre média.
+            <p className="rounded-lg bg-muted/40 p-3 text-[11px] text-muted-foreground">
+              Aucune page pour le moment.
             </p>
           )}
         </div>
@@ -577,7 +593,7 @@ function WindowsTab() {
           className={`flex w-full items-center justify-between rounded-xl border p-2.5 text-left ${engine.device === d.id ? 'border-primary bg-primary/10' : 'border-border/40 hover:border-border'}`}
         >
           <span className="flex items-center gap-2 text-[12px] font-medium">
-            <Monitor className="h-3.5 w-3.5 text-primary" />
+            <Monitor className="h-3.5 w-3.5 text-muted-foreground" />
             {d.label}
           </span>
           <span className="font-mono text-[10px] text-muted-foreground">{d.w}px</span>
@@ -655,7 +671,7 @@ export function LeftPanelFull() {
 
   return (
     <div className="absolute top-4 left-4 z-40 flex items-stretch gap-2 text-xs select-none">
-      <div className="flex w-16 flex-col items-center gap-1.5 rounded-2xl border border-border/60 bg-background/90 py-2 shadow-2xl backdrop-blur-2xl">
+      <div className="flex w-16 flex-col items-center gap-1.5 rounded-xl border border-border/60 bg-background/90 py-2 shadow-sm backdrop-blur-md">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isSelected = engine.leftPanelTab === tab.id;
@@ -686,7 +702,7 @@ export function LeftPanelFull() {
               {Math.round(engine.scale * 100)}%
             </button>
             {isZoomMenuOpen && (
-              <div className="absolute bottom-0 left-12 z-50 w-40 space-y-1 rounded-xl border border-border bg-background/95 p-1.5 shadow-2xl backdrop-blur-xl">
+              <div className="absolute bottom-0 left-12 z-50 w-40 space-y-1 rounded-lg border border-border bg-background/95 p-1.5 shadow-md">
                 {[
                   { label: 'Zoom avant', hint: '⌘+', fn: engine.zoomIn },
                   { label: 'Zoom arrière', hint: '⌘-', fn: engine.zoomOut },
@@ -729,7 +745,7 @@ export function LeftPanelFull() {
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -16 }}
             transition={{ type: 'spring', bounce: 0.1, duration: 0.3 }}
-            className="flex max-h-[calc(100vh-140px)] w-72 flex-col overflow-hidden rounded-2xl border border-border/60 bg-background/95 shadow-2xl backdrop-blur-2xl"
+            className="flex max-h-[calc(100vh-140px)] w-72 flex-col overflow-hidden rounded-xl border border-border/60 bg-background/95 shadow-sm backdrop-blur-md"
           >
             <div className="flex items-center justify-between border-b border-border/40 bg-muted/30 p-3">
               <span className="font-semibold text-foreground">
@@ -762,7 +778,7 @@ export function LeftPanelFull() {
                         className="group cursor-pointer space-y-1 rounded-xl border border-border/40 bg-card p-2.5 transition-all hover:border-primary/50 hover:bg-muted/40"
                       >
                         <div className="flex items-center gap-2 font-medium text-foreground transition-colors group-hover:text-primary">
-                          <Icon className="h-3.5 w-3.5 text-primary" />
+                          <Icon className="h-3.5 w-3.5 text-muted-foreground" />
                           <span>{cat.label}</span>
                         </div>
                         <p className="text-[11px] leading-relaxed text-muted-foreground">
@@ -783,8 +799,8 @@ export function LeftPanelFull() {
       </AnimatePresence>
 
       {isHelpOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs">
-          <div className="w-[360px] space-y-4 rounded-2xl border border-border bg-background p-4 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-[360px] space-y-4 rounded-xl border border-border bg-background p-4 shadow-lg">
             <div className="flex items-center justify-between border-b border-border/40 pb-2">
               <span className="text-sm font-bold text-foreground">Raccourcis clavier</span>
               <button

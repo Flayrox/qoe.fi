@@ -32,6 +32,7 @@ export function EditableText({
   const Tag = as as 'p';
 
   if (!editable) {
+    if (!value) return null;
     return <Tag className={className}>{value}</Tag>;
   }
 

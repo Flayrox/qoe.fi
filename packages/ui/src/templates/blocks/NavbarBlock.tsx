@@ -1,5 +1,5 @@
 // =====================================================================
-// 🧭 NavbarBlock.tsx — En-tête & Navigation Hiérarchique (Licorne 2026)
+// NavbarBlock.tsx — En-tête et navigation
 // =====================================================================
 // Supporte :
 // - Sous-menus déroulants via `NavigationItem.parentId`
@@ -52,8 +52,8 @@ export function NavbarBlock({
     sticky = true,
     showSocial = true,
     showSupport = true,
-    supportText = 'Nous soutenir',
-    enableBlur = true,
+    supportText = 'Soutenir',
+    enableBlur = false,
   } = props;
 
   const {
@@ -124,7 +124,7 @@ export function NavbarBlock({
                 <img
                   src={logoUrl}
                   alt={`${displayName} logo`}
-                  className="w-9 h-9 md:w-11 md:h-11 rounded-xl object-cover shadow-sm group-hover/brand:opacity-90 transition-opacity"
+                  className="w-9 h-9 md:w-11 md:h-11 rounded-md object-cover transition-opacity"
                 />
               )}
               {brandDisplay !== 'logo-only' && (
@@ -153,7 +153,7 @@ export function NavbarBlock({
 
                     {/* Menu Déroulant Enfant */}
                     <div className="absolute top-full left-0 pt-1.5 opacity-0 translate-y-2 pointer-events-none group-hover/menu:opacity-100 group-hover/menu:translate-y-0 group-hover/menu:pointer-events-auto transition-all duration-200 z-50 min-w-[200px]">
-                      <div className="bg-popover border border-border rounded-xl shadow-lg p-1.5 backdrop-blur-lg">
+                      <div className="bg-popover border border-border rounded-lg shadow-md p-1.5">
                         {item.children?.map((child) => (
                           <Link
                             key={child.id}
@@ -209,7 +209,7 @@ export function NavbarBlock({
               <Link
                 href={supportLink}
                 onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                className="px-3.5 py-1.5 text-xs md:text-sm font-semibold text-white rounded-full transition-all shadow-sm active:scale-95 hover:opacity-95"
+                className="px-3.5 py-1.5 text-xs md:text-sm font-semibold text-primary-foreground rounded-lg transition-colors shadow-xs"
                 style={{ backgroundColor: 'var(--tenant-accent, hsl(var(--primary)))' }}
               >
                 <EditableText

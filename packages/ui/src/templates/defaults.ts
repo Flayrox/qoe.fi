@@ -1,5 +1,5 @@
 // =====================================================================
-// 🎨 defaults.ts — Les 4 Archétypes Signatures Pré-packagés (Licorne 2026)
+// defaults.ts — Les 4 Archétypes Signatures Pré-packagés (Licorne 2026)
 // =====================================================================
 // Fournit les configurations AST par défaut pour chaque style fondamental.
 // Utilisé pour :
@@ -20,7 +20,7 @@ import type {
 } from './schema';
 
 /**
- * 👑 1. Archétype : Editorial Magazine
+ *  1. Archétype : Editorial Magazine
  * Inspiré par The New Yorker, Vanity Fair et The Atlantic.
  * Accent sur le storytelling littéraire, grand article vedette et typographie noble.
  */
@@ -47,7 +47,7 @@ export const EDITORIAL_MAGAZINE_CONFIG: LayoutConfig = {
         sticky: true,
         showSocial: true,
         showSupport: true,
-        supportText: 'Soutenir la revue',
+        supportText: 'Soutenir',
         enableBlur: true,
       } satisfies NavbarBlockProps,
     },
@@ -62,7 +62,7 @@ export const EDITORIAL_MAGAZINE_CONFIG: LayoutConfig = {
         showExcerpt: true,
         showReadTime: true,
         showDate: true,
-        badgeText: 'À LA UNE',
+
         highlightFirstArticle: true,
       } satisfies LeadStoryBlockProps,
     },
@@ -87,12 +87,11 @@ export const EDITORIAL_MAGAZINE_CONFIG: LayoutConfig = {
       visible: true,
       locked: false,
       props: {
-        title: 'Recevez nos grandes enquêtes',
-        subtitle: 'Une immersion hebdomadaire dans les coulisses de nos reportages.',
-        accentGlow: true,
-        showSubscriberCount: true,
-        buttonText: "Rejoindre l'édition",
-        incentivePill: '100% Indépendant',
+        title: 'Enquêtes',
+        subtitle: 'Une fois par semaine.',
+        accentGlow: false,
+        showSubscriberCount: false,
+        buttonText: "S'abonner",
       } satisfies NewsletterWallBlockProps,
     },
     {
@@ -128,7 +127,7 @@ export const EDITORIAL_MAGAZINE_CONFIG: LayoutConfig = {
 };
 
 /**
- * 📰 2. Archétype : Broadsheet Contemporain
+ *  2. Archétype : Broadsheet Contemporain
  * Inspiré par Financial Times et Substack Pro.
  * Formes tranchées ('rounded-none'), densité typographique élevée, clarté absolue.
  */
@@ -155,7 +154,7 @@ export const BROADSHEET_MODERN_CONFIG: LayoutConfig = {
         sticky: false,
         showSocial: true,
         showSupport: true,
-        supportText: "S'abonner",
+        supportText: 'Soutenir',
         enableBlur: false,
       } satisfies NavbarBlockProps,
     },
@@ -185,7 +184,7 @@ export const BROADSHEET_MODERN_CONFIG: LayoutConfig = {
         showExcerpt: true,
         showReadTime: true,
         showDate: true,
-        badgeText: 'ÉDITION DU JOUR',
+
         highlightFirstArticle: true,
       } satisfies LeadStoryBlockProps,
     },
@@ -215,9 +214,8 @@ export const BROADSHEET_MODERN_CONFIG: LayoutConfig = {
         title: 'La dépêche matinale directe',
         subtitle: 'Synthèse claire et indépendante chaque matin à 7h.',
         accentGlow: false,
-        showSubscriberCount: true,
-        buttonText: "S'inscrire",
-        incentivePill: 'Sans intermédiaire',
+        showSubscriberCount: false,
+        buttonText: "S'abonner",
       } satisfies NewsletterWallBlockProps,
     },
     {
@@ -237,7 +235,7 @@ export const BROADSHEET_MODERN_CONFIG: LayoutConfig = {
 };
 
 /**
- * ⚡ 3. Archétype : Bento Creator & Tech
+ *  3. Archétype : Bento Creator & Tech
  * Inspiré par Apple Newsroom, Linear et Framer.
  * Rayons généreux ('rounded-2xl'), cartes asymétriques 'glassmorphic', modern-sans.
  */
@@ -264,7 +262,7 @@ export const BENTO_TECH_CONFIG: LayoutConfig = {
         sticky: true,
         showSocial: true,
         showSupport: true,
-        supportText: 'Rejoindre',
+        supportText: 'Soutenir',
         enableBlur: true,
       } satisfies NavbarBlockProps,
     },
@@ -304,12 +302,11 @@ export const BENTO_TECH_CONFIG: LayoutConfig = {
       visible: true,
       locked: false,
       props: {
-        title: 'Restez branché sur le futur',
-        subtitle: 'Rejoignez notre réseau privé et recevez nos analyses avant tout le monde.',
-        accentGlow: true,
-        showSubscriberCount: true,
-        buttonText: 'Connexion Directe',
-        incentivePill: 'Réseau Décentralisé',
+        title: 'Suivre ce média',
+        subtitle: 'Une fois par semaine.',
+        accentGlow: false,
+        showSubscriberCount: false,
+        buttonText: "S'abonner",
       } satisfies NewsletterWallBlockProps,
     },
     {
@@ -345,7 +342,7 @@ export const BENTO_TECH_CONFIG: LayoutConfig = {
 };
 
 /**
- * 🍃 4. Archétype : Minimaliste Épuré
+ *  4. Archétype : Minimaliste Épuré
  * Inspiré par Ghost, Medium et Bear Blog.
  * Focus intégral sur le contenu et le confort visuel.
  */
@@ -417,7 +414,7 @@ export const MINIMAL_PORTFOLIO_CONFIG: LayoutConfig = {
         subtitle: 'Mes réflexions directement dans votre boîte mail, sans spam.',
         accentGlow: false,
         showSubscriberCount: false,
-        buttonText: "M'abonner",
+        buttonText: "S'abonner",
       } satisfies NewsletterWallBlockProps,
     },
     {

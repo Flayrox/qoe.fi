@@ -1,5 +1,5 @@
 // =====================================================================
-// 🎭 StageClient.tsx — Orchestrateur Central de Qoefi Stage (Adapté d'Onlook)
+// StageClient.tsx — Orchestrateur central de Qoefi Stage
 // =====================================================================
 
 'use client';
@@ -23,7 +23,7 @@ function StageWorkbench({ sidebarProps }: { sidebarProps?: StageClientProps['sid
 
   return (
     <div className="fixed inset-0 w-screen h-screen flex flex-col bg-background overflow-hidden z-50">
-      {/* ── 1. TopBar 40px Épurée ── */}
+      {/* ── 1. TopBar 40px ── */}
       <TopBar
         publicationName={engine.publication.name || 'Publication'}
         domain={engine.publication.domain || 'nom.qoe.fi'}
@@ -47,7 +47,7 @@ function StageWorkbench({ sidebarProps }: { sidebarProps?: StageClientProps['sid
         onToggleSidebar={() => engine.setIsSidebarOpen(true)}
       />
 
-      {/* ── 2. Espace Workbench Infini & Éléments Flottants ── */}
+      {/* ── 2. Workbench ── */}
       <main className="relative flex-1 w-full h-[calc(100vh-40px)] overflow-hidden">
         {/* Canvas Infini */}
         <StageCanvas
@@ -67,16 +67,16 @@ function StageWorkbench({ sidebarProps }: { sidebarProps?: StageClientProps['sid
           onDeleteBlock={engine.deleteBlock}
         />
 
-        {/* Rail Latéral Gauche à 2 Niveaux (Rail Fin 16 + Tiroir Dépliable) */}
+        {/* Panneau gauche */}
         <LeftPanelFull />
 
-        {/* Barre Contextuelle Flottante au-dessus du bloc sélectionné */}
+        {/* Barre contextuelle */}
         <ContextualEditorBar />
 
-        {/* Dock d'outils flottant en bas */}
+        {/* Dock bas */}
         <BottomBar />
 
-        {/* Panneau Flottant Droit (Inspecteur) */}
+        {/* Inspecteur droit */}
         {engine.editorMode !== StageEditorMode.PREVIEW && (
           <div className="absolute top-4 right-4 z-40 max-h-[calc(100%-32px)] flex">
             <RightPanel
@@ -91,7 +91,7 @@ function StageWorkbench({ sidebarProps }: { sidebarProps?: StageClientProps['sid
         )}
       </main>
 
-      {/* ── 3. Tiroir Latéral avec le Vrai <Sidebar /> de @qoe/ui/sidebar ── */}
+      {/* ── 3. Tiroir <Sidebar /> ── */}
       <SidebarDrawer
         isOpen={engine.isSidebarOpen}
         onClose={() => engine.setIsSidebarOpen(false)}

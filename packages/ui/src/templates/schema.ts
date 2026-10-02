@@ -1,5 +1,5 @@
 // =====================================================================
-// 🏛️ schema.ts — Contrat AST du Système de Templates Modulaire (Licorne 2026)
+// schema.ts — Contrat AST du Système de Templates Modulaire (Licorne 2026)
 // =====================================================================
 // Définit l'arbre syntaxique abstrait (AST) universel partagé entre :
 // 1. L'Atelier Visuel Studio (apps/studio) pour l'édition en direct

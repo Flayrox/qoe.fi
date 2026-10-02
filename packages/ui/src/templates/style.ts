@@ -1,5 +1,5 @@
 // =====================================================================
-// 🎨 style.ts — résolveur souverain BlockStyleProps → CSSProperties
+// style.ts — résolveur souverain BlockStyleProps → CSSProperties
 // Porté d'Onlook editor-bar (Box/Text/Dimension/Color) sans Tailwind AST.
 // =====================================================================
 

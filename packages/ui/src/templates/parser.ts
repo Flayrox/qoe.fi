@@ -1,5 +1,5 @@
 // =====================================================================
-// ⚙️ parser.ts — Parser Auto-guérisseur & Sérialiseur (Licorne 2026)
+// parser.ts — Parser Auto-guérisseur & Sérialiseur (Licorne 2026)
 // =====================================================================
 // Assure la conversion bidirectionnelle et sans friction entre :
 // - La colonne PostgreSQL `Publication.layoutStyle` (TEXT)

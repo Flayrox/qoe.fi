@@ -1,5 +1,5 @@
 // =====================================================================
-// ⌨️ useStageHotkeys — raccourcis canvas (portés d'Onlook hotkeys + Hotkey)
+// useStageHotkeys — raccourcis canvas
 // =====================================================================
 
 'use client';

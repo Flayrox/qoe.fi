@@ -1,5 +1,5 @@
 // =====================================================================
-// 📦 index.ts — Point d'Entrée du Moteur de Templates Modulaire
+// index.ts — Point d'Entrée du Moteur de Templates Modulaire
 // =====================================================================
 // Expose l'intégralité du contrat AST, des archétypes, du parser et du
 // moteur de rendu polymorphe pour consommation par :

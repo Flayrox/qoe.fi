@@ -1,5 +1,5 @@
 // =====================================================================
-// ⬢ StageOverlays — overlay canvas souverain (porté d'Onlook overlay/)
+// StageOverlays — overlay canvas
 // Ref brute : vendor/onlook/_components/canvas/overlay/elements/rect/*,
 // measurement.tsx, snap-guidelines.tsx, drag-select.tsx, recenter button.
 // Souverain : DOM direct [data-block-id], pas de penpal/iframe.
@@ -8,7 +8,7 @@
 'use client';
 
 import React from 'react';
-import { Scan } from 'lucide-react';
+import { Crosshair } from 'lucide-react';
 import type { StageRect } from '../../engine/models';
 
 export function HoverRect({ rect }: { rect: StageRect }) {
@@ -71,7 +71,7 @@ export function SelectedRect({
         boxShadow: 'inset 0 0 0 2px hsl(var(--primary))',
       }}
     >
-      <div className="absolute -top-6 left-0 flex items-center gap-1.5 rounded-md bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground shadow-md">
+      <div className="absolute -top-6 left-0 flex items-center gap-1.5 rounded-md bg-foreground px-2 py-0.5 text-[10px] font-semibold text-background shadow-sm">
         <span>{label}</span>
         <span className="font-mono font-normal opacity-80">
           {Math.round(rect.width)}×{Math.round(rect.height)}
@@ -113,11 +113,11 @@ export function MeasurementOverlay({ from, to }: { from: StageRect; to: StageRec
       {vGap && vGap.h > 0 && (
         <>
           <div
-            className="absolute w-px bg-destructive shadow-[0_0_6px_hsl(var(--destructive))]"
+            className="absolute w-px bg-destructive"
             style={{ left: vGap.x, top: vGap.y, height: vGap.h }}
           />
           <div
-            className="absolute flex h-5 w-10 items-center justify-center rounded bg-destructive px-1 text-[10px] font-mono font-bold text-white shadow"
+            className="absolute flex h-5 w-10 items-center justify-center rounded-sm bg-destructive px-1 text-[10px] font-mono font-bold text-destructive-foreground"
             style={{ left: vGap.x - 20, top: vGap.y + vGap.h / 2 - 10 }}
           >
             {Math.round(vGap.h)}
@@ -127,11 +127,11 @@ export function MeasurementOverlay({ from, to }: { from: StageRect; to: StageRec
       {hGap && hGap.w > 0 && (
         <>
           <div
-            className="absolute h-px bg-destructive shadow-[0_0_6px_hsl(var(--destructive))]"
+            className="absolute h-px bg-destructive"
             style={{ top: hGap.y, left: hGap.x, width: hGap.w }}
           />
           <div
-            className="absolute flex h-5 w-10 items-center justify-center rounded bg-destructive px-1 text-[10px] font-mono font-bold text-white shadow"
+            className="absolute flex h-5 w-10 items-center justify-center rounded-sm bg-destructive px-1 text-[10px] font-mono font-bold text-destructive-foreground"
             style={{ left: hGap.x + hGap.w / 2 - 20, top: hGap.y - 10 }}
           >
             {Math.round(hGap.w)}
@@ -155,13 +155,13 @@ export function SnapOverlay({
         l.orientation === 'v' ? (
           <div
             key={i}
-            className="absolute top-0 h-full w-px bg-destructive shadow-[0_0_8px_hsl(var(--destructive))]"
+            className="absolute top-0 h-full w-px bg-destructive"
             style={{ left: l.at - artboard.x }}
           />
         ) : (
           <div
             key={i}
-            className="absolute left-0 w-full bg-destructive shadow-[0_0_8px_hsl(var(--destructive))]"
+            className="absolute left-0 w-full bg-destructive"
             style={{ top: l.at - artboard.y, height: 1 }}
           />
         )
@@ -194,9 +194,9 @@ export function RecenterButton({ onRecenter }: { onRecenter: () => void }) {
     <button
       type="button"
       onClick={onRecenter}
-      className="absolute bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-full border border-border bg-background/95 px-3.5 py-1.5 text-xs font-medium shadow-xl backdrop-blur-md transition-colors hover:bg-muted"
+      className="absolute bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-2 rounded-lg border border-border bg-background/95 px-3.5 py-1.5 text-xs font-medium shadow-sm backdrop-blur-md transition-colors hover:bg-muted"
     >
-      <Scan className="h-3.5 w-3.5 text-primary" />
+      <Crosshair className="h-3.5 w-3.5 text-muted-foreground" />
       <span>Recentrer le canvas</span>
       <kbd className="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px]">⇧0</kbd>
     </button>
