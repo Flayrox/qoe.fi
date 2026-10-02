@@ -1,5 +1,5 @@
 // =====================================================================
-// 🧠 StateManager — mode/overlay/pan (adapté d'Onlook StateManager)
+// StateManager — mode/overlay/pan
 // Ref brute : vendor/onlook/store/editor/state/index.ts
 // =====================================================================
 

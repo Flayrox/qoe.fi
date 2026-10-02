@@ -1,5 +1,5 @@
 // =====================================================================
-// 🧠 StageEngineContext.tsx — Moteur d'État Réactif de Qoefi Stage (Adapté d'Onlook)
+// StageEngineContext.tsx — État réactif de Qoefi Stage
 // =====================================================================
 
 'use client';

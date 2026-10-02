@@ -1,5 +1,5 @@
 // =====================================================================
-// 🚀 TemplateRenderer.tsx — Moteur de Rendu Polymorphe (Licorne 2026)
+// TemplateRenderer.tsx — Moteur de Rendu Polymorphe (Licorne 2026)
 // =====================================================================
 // Composant universel consommé par :
 // 1. apps/tenants (Site souverain public *.qoe.fi en mode 'live')

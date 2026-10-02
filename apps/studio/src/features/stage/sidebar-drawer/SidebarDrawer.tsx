@@ -1,5 +1,5 @@
 // =====================================================================
-// 🚪 SidebarDrawer.tsx — Tiroir de Navigation Studio avec le Vrai <Sidebar />
+// SidebarDrawer.tsx — Tiroir de navigation Studio avec <Sidebar />
 // =====================================================================
 
 'use client';
@@ -33,17 +33,17 @@ export function SidebarDrawer({ isOpen, onClose, sidebarProps }: SidebarDrawerPr
       {/* ── Fond Assombri Dépoli (Backdrop) ── */}
       <div
         onClick={onClose}
-        className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300"
+        className="fixed inset-0 bg-black/50 transition-opacity duration-300"
       />
 
       {/* ── Tiroir Latéral Coulissant ── */}
-      <div className="relative z-10 flex flex-col h-full bg-background border-r border-border shadow-2xl animate-in slide-in-from-left duration-200">
+      <div className="relative z-10 flex flex-col h-full bg-background border-r border-border shadow-lg animate-in slide-in-from-left duration-200">
         {/* Bouton Fermer Flottant */}
         <button
           type="button"
           onClick={onClose}
           title="Fermer le menu (Échap)"
-          className="absolute top-3 right-3 z-30 flex items-center justify-center w-8 h-8 rounded-full bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+          className="absolute top-3 right-3 z-30 flex items-center justify-center w-8 h-8 rounded-md bg-muted/80 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
         >
           <X className="w-4 h-4" />
         </button>

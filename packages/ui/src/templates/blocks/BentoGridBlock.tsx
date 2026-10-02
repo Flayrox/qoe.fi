@@ -1,7 +1,5 @@
 // =====================================================================
-// 🍱 BentoGridBlock.tsx — Mosaïque Asymétrique Bento (Licorne 2026)
-// =====================================================================
-// Fournit une mise en page asymétrique hautement immersive (Apple/Linear).
+// BentoGridBlock.tsx — Grille asymétrique
 // Supporte :
 // - Agencement 1 grande carte vedette + 2 ou 3 cartes satellites
 // - Surface adaptative (glassmorphic, bordered, elevated)
@@ -11,7 +9,7 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ArrowUpRight, Clock, Lock } from 'lucide-react';
+import { Clock, Lock } from 'lucide-react';
 import type {
   BentoGridBlockProps,
   TemplateArticleItem,
@@ -92,16 +90,16 @@ export function BentoGridBlock({
 
   const surfaceClasses =
     surface === 'glassmorphic'
-      ? 'bg-card/60 backdrop-blur-md border border-border/80 shadow-sm'
+      ? 'bg-card border border-border/80 shadow-xs'
       : surface === 'elevated'
-        ? 'bg-card border border-border/60 shadow-lg'
+        ? 'bg-card border border-border/60 shadow-xs'
         : 'bg-card border border-border shadow-xs';
 
   return (
     <BlockWrapper
       id={id}
       type="bento-grid"
-      label="Grille Bento Dynamique"
+      label="Grille"
       visible={visible}
       locked={locked}
       context={context}
@@ -146,7 +144,7 @@ export function BentoGridBlock({
                 key={item.id}
                 href={`/article/${item.slug}`}
                 onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                className={`group flex flex-col justify-between overflow-hidden transition-all duration-300 hover:shadow-xl hover:-translate-y-1 ${cardShape} ${surfaceClasses} ${
+                className={`group flex flex-col justify-between overflow-hidden transition-all duration-300  ${cardShape} ${surfaceClasses} ${
                   isLead ? 'md:col-span-2 md:row-span-1 min-h-[340px]' : 'min-h-[300px]'
                 }`}
               >
@@ -161,19 +159,19 @@ export function BentoGridBlock({
                       src={item.imageUrl}
                       alt={item.title}
                       fill
-                      className="object-cover transition-transform duration-500 group-hover:scale-103"
+                      className="object-cover transition-transform duration-500 "
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
 
                     <div className="absolute top-3 left-3 z-10 flex items-center gap-2">
                       {showCategories && item.category && (
-                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-background/90 text-foreground backdrop-blur-sm shadow-xs">
+                        <span className="px-2.5 py-0.5 rounded-md text-[11px] font-medium bg-muted text-muted-foreground">
                           {item.category.name}
                         </span>
                       )}
                       {item.isPremium && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-warning/90 text-warning-foreground flex items-center gap-1">
-                          <Lock className="w-2.5 h-2.5" /> Club
+                        <span className="px-2 py-0.5 rounded-md text-[10px] font-medium border border-border bg-background text-muted-foreground flex items-center gap-1">
+                          <Lock className="w-2.5 h-2.5" /> Réservé
                         </span>
                       )}
                     </div>
@@ -184,7 +182,7 @@ export function BentoGridBlock({
                 <div className="p-5 md:p-6 flex flex-col justify-between flex-1">
                   <div>
                     <h3
-                      className={`font-bold tracking-tight text-foreground group-hover:text-[var(--tenant-accent,hsl(var(--primary)))] transition-colors ${
+                      className={`font-bold tracking-tight text-foreground transition-colors ${
                         isLead ? 'text-xl md:text-2xl' : 'text-base md:text-lg'
                       }`}
                     >
@@ -204,10 +202,6 @@ export function BentoGridBlock({
                         {item.readingTime} min
                       </span>
                     )}
-
-                    <span className="inline-flex items-center gap-1 font-medium group-hover:translate-x-0.5 transition-transform text-foreground">
-                      Lire <ArrowUpRight className="w-3.5 h-3.5" />
-                    </span>
                   </div>
                 </div>
               </Link>

@@ -1,5 +1,5 @@
 // =====================================================================
-// 🎭 StageEditorEngine — double-moteur temps réel (mobx éphémère)
+// StageEditorEngine — moteur temps réel (mobx éphémère)
 // Inspiré d'Onlook EditorEngine (vendor/onlook/store/editor/engine.ts:33-79)
 // Souverain : pas de projectId/posthog/trpc/sandbox/iframe — canvas + sélection
 // + overlay + history pour LayoutConfig JSON. La persistance reste dans

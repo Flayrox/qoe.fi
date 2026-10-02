@@ -1,5 +1,5 @@
 // =====================================================================
-// 🎨 StageCanvas.tsx — Workbench infini Figma-grade (porté d'Onlook canvas/)
+// StageCanvas.tsx — Workbench infini
 // Ref brute : vendor/onlook/_components/canvas/{index,frames,overlay/*,
 // hotkeys,selection-utils,recenter-canvas-button}
 // Souverain : DOM direct [data-block-id], clamp souverain, drag-select,
@@ -373,27 +373,19 @@ export function StageCanvas({
     >
       <div className="absolute top-0 left-0 will-change-transform" style={transformStyle}>
         <div className="flex flex-col items-start gap-2 px-24 pt-16 pb-32">
-          <div className="flex items-center gap-2 rounded-md border border-white/10 bg-white/5 px-2.5 py-1 font-mono text-[11px] font-medium text-white/50 backdrop-blur-md">
-            <span className="font-semibold text-primary">#</span>
+          <div className="flex items-center gap-2 rounded-md border border-border bg-muted px-2.5 py-1 font-mono text-[11px] font-medium text-muted-foreground">
             <span>Accueil</span>
             <span className="opacity-40">·</span>
             <span>{deviceWidth} × Auto</span>
             <span className="opacity-40">·</span>
             <span>{Math.round(transform.scale * 100)}%</span>
-            {isPreview && (
-              <span className="ml-1 rounded bg-primary/20 px-1.5 py-0.5 font-sans text-[10px] font-semibold text-primary">
-                Aperçu Direct
-              </span>
-            )}
           </div>
 
           <div
             ref={artboardRef}
             style={{ width: `${deviceWidth}px` }}
-            className={`relative overflow-hidden rounded-xl bg-background text-foreground shadow-2xl transition-all duration-300 ${
-              isPreview
-                ? 'border border-primary/40 ring-2 ring-primary/40'
-                : 'border border-white/10 ring-1 ring-white/15'
+            className={`relative overflow-hidden rounded-lg bg-background text-foreground shadow-md transition-all duration-300 ${
+              isPreview ? 'border border-border ring-1 ring-border' : 'border border-border'
             }`}
           >
             <TemplateRenderer

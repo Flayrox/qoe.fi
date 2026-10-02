@@ -1,5 +1,5 @@
 // =====================================================================
-// ⚡ ContextualEditorBar.tsx — barre contextuelle Figma-grade souveraine
+// ContextualEditorBar.tsx — barre d'outils contextuelle
 // Portée d'Onlook editor-bar/{div,text,frame}-selected + toolbar/overflow.
 // CSS fin (style BlockStyleProps) + Contenu métier + actions hiérarchiques.
 // =====================================================================
@@ -62,11 +62,10 @@ export function ContextualEditorBar() {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -12, scale: 0.96 }}
           transition={{ type: 'spring', bounce: 0.1, duration: 0.3 }}
-          className="flex max-w-[min(92vw,720px)] flex-col rounded-xl border border-border/70 bg-background/95 shadow-2xl backdrop-blur-2xl"
+          className="flex max-w-[min(92vw,720px)] flex-col rounded-lg border border-border/70 bg-background/95 shadow-md backdrop-blur-md"
         >
           <div className="flex items-center gap-1 p-1 text-xs">
-            <div className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1 font-semibold text-foreground">
-              <span className="font-mono text-primary">◇</span>
+            <div className="flex items-center px-2 py-1 text-[11px] font-medium text-muted-foreground">
               <span className="capitalize">{selected.type.replace('-', ' ')}</span>
             </div>
             <div className="mx-1 h-4 w-px bg-border/60" />
@@ -227,9 +226,8 @@ export function ContextualEditorBar() {
                   {(selected.type === 'navbar' ||
                     selected.type === 'footer' ||
                     selected.type === 'lead-story') && (
-                    <p className="rounded-lg bg-muted/40 p-2 text-[11px] leading-relaxed text-muted-foreground">
-                      Contenu métier dans l&apos;inspecteur droit. Le style fin (fond, bordure,
-                      espacements, typo) se règle ici.
+                    <p className="rounded-lg bg-muted/40 p-2 text-[11px] text-muted-foreground">
+                      Réglages dans l&apos;inspecteur droit.
                     </p>
                   )}
                 </div>

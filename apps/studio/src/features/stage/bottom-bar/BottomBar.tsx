@@ -1,5 +1,5 @@
 // =====================================================================
-// ⚓ BottomBar.tsx — Dock Flottant Inférieur de Qoefi Stage (Adapté d'Onlook)
+// BottomBar.tsx — Dock inférieur de Qoefi Stage
 // =====================================================================
 
 'use client';
@@ -22,7 +22,7 @@ export function BottomBar() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16 }}
             transition={{ type: 'spring', bounce: 0.1, duration: 0.3 }}
-            className="flex items-center gap-1 p-1 bg-background/90 backdrop-blur-xl border border-border/60 rounded-xl shadow-2xl text-xs"
+            className="flex items-center gap-1 p-1 bg-background/90 backdrop-blur-md border border-border/60 rounded-lg shadow-md text-xs"
           >
             {/* Outil Sélection (V) */}
             <button
@@ -72,7 +72,7 @@ export function BottomBar() {
               title="Ajouter un bloc"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-medium text-foreground hover:bg-muted/60 transition-colors"
             >
-              <Plus className="w-3.5 h-3.5 text-primary" />
+              <Plus className="w-3.5 h-3.5" />
               <span>Ajouter</span>
             </button>
 

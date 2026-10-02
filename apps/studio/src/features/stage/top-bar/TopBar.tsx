@@ -1,5 +1,5 @@
 // =====================================================================
-// 🔝 TopBar.tsx — Barre Supérieure Épurée de Qoefi Stage (Adaptée d'Onlook)
+// TopBar.tsx — Barre supérieure de Qoefi Stage
 // =====================================================================
 
 'use client';
@@ -13,7 +13,6 @@ import {
   Undo2,
   Redo2,
   ExternalLink,
-  Sparkles,
   Eye,
   Edit3,
   ZoomIn,
@@ -82,14 +81,11 @@ export function TopBar({
           <Menu className="w-4 h-4" />
         </button>
 
-        {/* Fil d'ariane noble */}
+        {/* Fil d'ariane */}
         <div className="flex items-center gap-1.5 font-medium text-muted-foreground">
           <span className="text-foreground max-w-[140px] truncate">{publicationName}</span>
           <span className="opacity-40">/</span>
-          <span className="text-foreground font-semibold flex items-center gap-1">
-            <Sparkles className="w-3 h-3 text-primary" />
-            Stage
-          </span>
+          <span className="text-foreground font-semibold">Stage</span>
         </div>
 
         <div className="h-4 w-px bg-border/60 mx-1" />

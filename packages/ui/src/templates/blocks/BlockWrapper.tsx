@@ -1,9 +1,7 @@
 // =====================================================================
-// 📦 BlockWrapper.tsx — Enveloppe Polymorphe de Bloc (Licorne 2026)
+// BlockWrapper.tsx — Enveloppe de bloc
 // =====================================================================
-// En mode "live" (site public) : Rendu direct sans aucune surcharge de DOM.
-// En mode "editable" (Studio) : Fournit le cadre interactif de sélection,
-// survol subtil, badge d'identification et poignées d'action rapide.
+// En live : rendu direct. En editable : sélection et actions.
 // =====================================================================
 
 import React from 'react';
@@ -87,8 +85,8 @@ export function BlockWrapper({
         !visible ? 'opacity-40 grayscale' : ''
       } ${
         isSelected
-          ? 'ring-2 ring-[var(--tenant-accent,hsl(var(--primary)))] shadow-md z-30'
-          : 'hover:ring-1 hover:ring-[var(--tenant-accent,hsl(var(--primary)))]/40 hover:bg-[var(--tenant-accent,hsl(var(--primary)))]/[0.02]'
+          ? 'ring-1 ring-[var(--tenant-accent,hsl(var(--primary)))] z-30'
+          : 'hover:ring-1 hover:ring-[var(--tenant-accent,hsl(var(--primary)))]/40'
       }`}
     >
       {/* Badge Flottant d'Identification & Actions */}
@@ -99,10 +97,7 @@ export function BlockWrapper({
             : 'opacity-0 -translate-y-1 group-hover/block:opacity-100 group-hover/block:translate-y-0'
         }`}
       >
-        <div
-          className="px-2.5 py-1 rounded-md text-[11px] font-semibold text-white shadow-sm flex items-center gap-1.5"
-          style={{ backgroundColor: 'var(--tenant-accent, hsl(var(--primary)))' }}
-        >
+        <div className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-foreground text-background flex items-center gap-1.5">
           <span>{label}</span>
           {!visible && (
             <span className="flex items-center gap-1 text-[10px] opacity-80">
@@ -112,7 +107,7 @@ export function BlockWrapper({
         </div>
 
         {isSelected && !locked && (
-          <div className="flex items-center bg-card border border-border shadow-md rounded-md p-0.5 text-muted-foreground">
+          <div className="flex items-center bg-card border border-border shadow-sm rounded-lg p-0.5 text-muted-foreground">
             <button
               type="button"
               title="Monter la section"
