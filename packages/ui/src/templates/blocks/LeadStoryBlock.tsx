@@ -21,6 +21,8 @@ import type {
   CardCornerShape,
 } from '../schema';
 import { BlockWrapper } from './BlockWrapper';
+import { EditableText } from './EditableText';
+import { NodeRenderer } from './NodeRenderer';
 
 interface LeadStoryBlockComponentProps {
   id: string;
@@ -31,6 +33,8 @@ interface LeadStoryBlockComponentProps {
   context: TemplateRenderContext;
   visible?: boolean;
   locked?: boolean;
+  slots?: Record<string, import('../schema').TemplateNode[]>;
+  nodes?: import('../schema').TemplateNode[];
 }
 
 export function LeadStoryBlock({
@@ -41,6 +45,8 @@ export function LeadStoryBlock({
   context,
   visible = true,
   locked = false,
+  slots,
+  nodes,
 }: LeadStoryBlockComponentProps) {
   const {
     aspectRatio = '21:9',
@@ -120,7 +126,14 @@ export function LeadStoryBlock({
                       className="px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider text-white shadow-sm"
                       style={{ backgroundColor: 'var(--tenant-accent, hsl(var(--primary)))' }}
                     >
-                      {badgeText}
+                      <EditableText
+                        blockId={id}
+                        propKey="badgeText"
+                        value={badgeText}
+                        context={context}
+                        as="span"
+                        multiline={false}
+                      />
                     </span>
                   )}
                   {displayArticle.category && (
@@ -172,6 +185,28 @@ export function LeadStoryBlock({
             )}
           </div>
         </Link>
+        {(slots?.actions || (nodes && nodes.length > 0)) && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {slots?.actions && (
+              <NodeRenderer
+                nodes={slots.actions}
+                blockId={id}
+                blockProps={props as unknown as Record<string, unknown>}
+                context={context}
+                path="slots/actions"
+              />
+            )}
+            {nodes && nodes.length > 0 && (
+              <NodeRenderer
+                nodes={nodes}
+                blockId={id}
+                blockProps={props as unknown as Record<string, unknown>}
+                context={context}
+                path="nodes"
+              />
+            )}
+          </div>
+        )}
       </section>
     </BlockWrapper>
   );

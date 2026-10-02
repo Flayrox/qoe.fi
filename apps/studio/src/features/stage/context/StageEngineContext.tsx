@@ -8,6 +8,7 @@ import React, { createContext, useContext, useState, useCallback, useMemo } from
 import type {
   LayoutConfig,
   TemplateBlock,
+  TemplateNode,
   TemplatePublicationContext,
   TemplateArticleItem,
 } from '@qoe/ui/templates';
@@ -26,8 +27,12 @@ export interface StageEngineContextType {
   articles: TemplateArticleItem[];
   selectedBlockId: string | null;
   selectedBlock: TemplateBlock | null;
+  selectedOid: string | null;
+  selectedPath: string | null;
   selectBlock: (id: string | null) => void;
+  selectNode: (oid: string | null, path: string | null, blockId: string | null) => void;
   updateBlockProps: (id: string, newProps: Record<string, unknown>) => void;
+  updateNode: (blockId: string, oid: string, patch: Partial<TemplateNode>) => void;
   addBlock: (type: string, label: string) => void;
   duplicateBlock: (id: string) => void;
   deleteBlock: (id: string) => void;
@@ -110,6 +115,8 @@ export function StageEngineProvider({
   const [isSaving, setIsSaving] = useState(false);
 
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
+  const [selectedOid, setSelectedOid] = useState<string | null>(null);
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [editorMode, setEditorMode] = useState<StageEditorMode>(StageEditorMode.DESIGN);
   const [device, setDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -159,7 +166,18 @@ export function StageEngineProvider({
 
   const selectBlock = useCallback((id: string | null) => {
     setSelectedBlockId(id);
+    setSelectedOid(null);
+    setSelectedPath(null);
   }, []);
+
+  const selectNode = useCallback(
+    (oid: string | null, path: string | null, blockId: string | null) => {
+      if (blockId) setSelectedBlockId(blockId);
+      setSelectedOid(oid);
+      setSelectedPath(path);
+    },
+    []
+  );
 
   // ── Mutations de Blocs (sans setState dans updater — StrictMode safe) ──
   const updateBlockProps = useCallback(
@@ -168,6 +186,60 @@ export function StageEngineProvider({
         b.id === id ? { ...b, props: { ...(b.props as Record<string, unknown>), ...newProps } } : b
       );
       if (nextBlocks === layout.blocks) return;
+      setPast((prev) => [...prev.slice(-49), layout]);
+      setFuture([]);
+      setLayout({ ...layout, blocks: nextBlocks });
+      setHasUnsavedChanges(true);
+    },
+    [layout]
+  );
+
+  function patchNodes(
+    nodes: TemplateNode[] | undefined,
+    oid: string,
+    patch: Partial<TemplateNode>
+  ): TemplateNode[] | undefined {
+    if (!nodes) return undefined;
+    let changed = false;
+    const next = nodes.map((n) => {
+      if (n.oid === oid) {
+        changed = true;
+        return { ...n, ...patch, oid: n.oid };
+      }
+      if (n.children) {
+        const c = patchNodes(n.children, oid, patch);
+        if (c) {
+          changed = true;
+          return { ...n, children: c };
+        }
+      }
+      return n;
+    });
+    return changed ? next : undefined;
+  }
+
+  const updateNode = useCallback(
+    (blockId: string, oid: string, patch: Partial<TemplateNode>) => {
+      const nextBlocks = layout.blocks.map((b) => {
+        if (b.id !== blockId) return b;
+        const nodes = patchNodes(b.nodes, oid, patch);
+        if (nodes) return { ...b, nodes };
+        if (b.slots) {
+          let changed = false;
+          const slots: Record<string, TemplateNode[]> = {};
+          for (const [k, v] of Object.entries(b.slots)) {
+            const nv = patchNodes(v, oid, patch);
+            if (nv) {
+              changed = true;
+              slots[k] = nv;
+            } else {
+              slots[k] = v;
+            }
+          }
+          if (changed) return { ...b, slots };
+        }
+        return b;
+      });
       setPast((prev) => [...prev.slice(-49), layout]);
       setFuture([]);
       setLayout({ ...layout, blocks: nextBlocks });
@@ -377,8 +449,12 @@ export function StageEngineProvider({
       articles,
       selectedBlockId,
       selectedBlock,
+      selectedOid,
+      selectedPath,
       selectBlock,
+      selectNode,
       updateBlockProps,
+      updateNode,
       addBlock,
       duplicateBlock,
       deleteBlock,
@@ -419,8 +495,12 @@ export function StageEngineProvider({
       articles,
       selectedBlockId,
       selectedBlock,
+      selectedOid,
+      selectedPath,
       selectBlock,
+      selectNode,
       updateBlockProps,
+      updateNode,
       addBlock,
       duplicateBlock,
       deleteBlock,

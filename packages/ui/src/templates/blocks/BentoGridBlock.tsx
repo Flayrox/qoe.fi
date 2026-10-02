@@ -21,6 +21,7 @@ import type {
   SurfaceStyle,
 } from '../schema';
 import { BlockWrapper } from './BlockWrapper';
+import { NodeRenderer } from './NodeRenderer';
 
 interface BentoGridBlockComponentProps {
   id: string;
@@ -32,6 +33,8 @@ interface BentoGridBlockComponentProps {
   context: TemplateRenderContext;
   visible?: boolean;
   locked?: boolean;
+  slots?: Record<string, import('../schema').TemplateNode[]>;
+  nodes?: import('../schema').TemplateNode[];
 }
 
 export function BentoGridBlock({
@@ -43,6 +46,8 @@ export function BentoGridBlock({
   context,
   visible = true,
   locked = false,
+  slots,
+  nodes,
 }: BentoGridBlockComponentProps) {
   const { maxArticles = 4, showCategories = true, showReadingTime = true } = props;
 
@@ -110,6 +115,28 @@ export function BentoGridBlock({
       blockStyle={(props as unknown as { style?: import('../schema').BlockStyleProps }).style}
     >
       <section className="container mx-auto px-4 lg:px-8 py-8 md:py-14">
+        {(slots?.header || (nodes && nodes.length > 0)) && (
+          <div className="mb-5">
+            {slots?.header && (
+              <NodeRenderer
+                nodes={slots.header}
+                blockId={id}
+                blockProps={props as unknown as Record<string, unknown>}
+                context={context}
+                path="slots/header"
+              />
+            )}
+            {nodes && nodes.length > 0 && (
+              <NodeRenderer
+                nodes={nodes}
+                blockId={id}
+                blockProps={props as unknown as Record<string, unknown>}
+                context={context}
+                path="nodes"
+              />
+            )}
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6">
           {items.map((item, index) => {
             const isLead = index === 0;

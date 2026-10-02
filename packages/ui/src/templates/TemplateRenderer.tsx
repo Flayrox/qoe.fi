@@ -40,8 +40,15 @@ export interface TemplateRendererProps {
   articles?: TemplateArticleItem[];
   mode?: 'live' | 'editable';
   selectedBlockId?: string | null;
+  selectedOid?: string | null;
   onSelectBlock?: (blockId: string) => void;
+  onSelectNode?: (oid: string, path: string, blockId: string) => void;
   onUpdateBlockProps?: (blockId: string, newProps: Partial<AnyBlockProps>) => void;
+  onUpdateNode?: (
+    blockId: string,
+    oid: string,
+    patch: Partial<import('./schema').TemplateNode>
+  ) => void;
   onMoveBlock?: (blockId: string, direction: 'up' | 'down') => void;
   onDeleteBlock?: (blockId: string) => void;
   className?: string;
@@ -53,8 +60,11 @@ export function TemplateRenderer({
   articles = [],
   mode = 'live',
   selectedBlockId = null,
+  selectedOid = null,
   onSelectBlock,
+  onSelectNode,
   onUpdateBlockProps,
+  onUpdateNode,
   onMoveBlock,
   onDeleteBlock,
   className = '',
@@ -62,8 +72,11 @@ export function TemplateRenderer({
   const context: TemplateRenderContext = {
     mode,
     selectedBlockId,
+    selectedOid,
     onSelectBlock,
+    onSelectNode,
     onUpdateBlockProps,
+    onUpdateNode,
     onMoveBlock,
     onDeleteBlock,
   };
@@ -101,6 +114,8 @@ export function TemplateRenderer({
                 context={context}
                 visible={block.visible}
                 locked={block.locked}
+                slots={block.slots}
+                nodes={block.nodes}
               />
             );
 
@@ -114,6 +129,8 @@ export function TemplateRenderer({
                 context={context}
                 visible={block.visible}
                 locked={block.locked}
+                slots={block.slots}
+                nodes={block.nodes}
               />
             );
 
@@ -129,6 +146,8 @@ export function TemplateRenderer({
                 context={context}
                 visible={block.visible}
                 locked={block.locked}
+                slots={block.slots}
+                nodes={block.nodes}
               />
             );
 
@@ -145,6 +164,8 @@ export function TemplateRenderer({
                 context={context}
                 visible={block.visible}
                 locked={block.locked}
+                slots={block.slots}
+                nodes={block.nodes}
               />
             );
 
@@ -160,6 +181,8 @@ export function TemplateRenderer({
                 context={context}
                 visible={block.visible}
                 locked={block.locked}
+                slots={block.slots}
+                nodes={block.nodes}
               />
             );
 
@@ -174,6 +197,8 @@ export function TemplateRenderer({
                 context={context}
                 visible={block.visible}
                 locked={block.locked}
+                slots={block.slots}
+                nodes={block.nodes}
               />
             );
 
@@ -187,6 +212,8 @@ export function TemplateRenderer({
                 context={context}
                 visible={block.visible}
                 locked={block.locked}
+                slots={block.slots}
+                nodes={block.nodes}
               />
             );
 

@@ -13,6 +13,8 @@ import Image from 'next/image';
 import { Sparkles } from 'lucide-react';
 import type { HeroBlockProps, TemplatePublicationContext, TemplateRenderContext } from '../schema';
 import { BlockWrapper } from './BlockWrapper';
+import { EditableText } from './EditableText';
+import { NodeRenderer } from './NodeRenderer';
 
 interface HeroBlockComponentProps {
   id: string;
@@ -21,6 +23,8 @@ interface HeroBlockComponentProps {
   context: TemplateRenderContext;
   visible?: boolean;
   locked?: boolean;
+  slots?: Record<string, import('../schema').TemplateNode[]>;
+  nodes?: import('../schema').TemplateNode[];
 }
 
 export function HeroBlock({
@@ -30,6 +34,8 @@ export function HeroBlock({
   context,
   visible = true,
   locked = false,
+  slots,
+  nodes,
 }: HeroBlockComponentProps) {
   const {
     style = 'cinematic-banner',
@@ -107,50 +113,74 @@ export function HeroBlock({
             </div>
           )}
 
-          <h1
-            contentEditable={context.mode === 'editable'}
-            suppressContentEditableWarning
-            onBlur={(e) => {
-              const text = e.currentTarget.textContent?.trim();
-              if (text && text !== title) {
-                context.onUpdateBlockProps?.(id, { customTitle: text });
-              }
-            }}
-            className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight max-w-4xl transition-colors ${
-              context.mode === 'editable'
-                ? 'cursor-text hover:outline-dashed hover:outline-1 hover:outline-primary/50 focus:outline-solid focus:outline-2 focus:outline-primary rounded-sm'
-                : ''
-            } ${
-              style === 'cinematic-banner' && headerImageUrl
-                ? 'text-white drop-shadow-sm'
-                : 'text-foreground'
-            }`}
-          >
-            {title}
-          </h1>
-
-          {tagline && (
-            <p
-              contentEditable={context.mode === 'editable'}
-              suppressContentEditableWarning
-              onBlur={(e) => {
-                const text = e.currentTarget.textContent?.trim();
-                if (text && text !== tagline) {
-                  context.onUpdateBlockProps?.(id, { customTagline: text });
-                }
-              }}
-              className={`mt-4 sm:mt-6 text-base sm:text-lg md:text-xl max-w-2xl font-normal leading-relaxed ${
-                context.mode === 'editable'
-                  ? 'cursor-text hover:outline-dashed hover:outline-1 hover:outline-primary/50 focus:outline-solid focus:outline-2 focus:outline-primary rounded-sm'
-                  : ''
-              } ${
+          {slots?.title ? (
+            <NodeRenderer
+              nodes={slots.title}
+              blockId={id}
+              blockProps={props as unknown as Record<string, unknown>}
+              context={context}
+              path="slots/title"
+            />
+          ) : (
+            <EditableText
+              blockId={id}
+              propKey="customTitle"
+              value={title}
+              context={context}
+              as="h1"
+              className={`text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight max-w-4xl transition-colors ${
                 style === 'cinematic-banner' && headerImageUrl
-                  ? 'text-white/80 drop-shadow-sm'
-                  : 'text-muted-foreground'
+                  ? 'text-white drop-shadow-sm'
+                  : 'text-foreground'
               }`}
-            >
-              {tagline}
-            </p>
+            />
+          )}
+
+          {slots?.subtitle ? (
+            <div className="mt-4 sm:mt-6 max-w-2xl">
+              <NodeRenderer
+                nodes={slots.subtitle}
+                blockId={id}
+                blockProps={props as unknown as Record<string, unknown>}
+                context={context}
+                path="slots/subtitle"
+              />
+            </div>
+          ) : (
+            tagline && (
+              <EditableText
+                blockId={id}
+                propKey="customTagline"
+                value={tagline}
+                context={context}
+                as="p"
+                className={`mt-4 sm:mt-6 text-base sm:text-lg md:text-xl max-w-2xl font-normal leading-relaxed ${
+                  style === 'cinematic-banner' && headerImageUrl
+                    ? 'text-white/80 drop-shadow-sm'
+                    : 'text-muted-foreground'
+                }`}
+              />
+            )
+          )}
+          {slots?.actions && (
+            <div className="mt-6 flex flex-wrap gap-2">
+              <NodeRenderer
+                nodes={slots.actions}
+                blockId={id}
+                blockProps={props as unknown as Record<string, unknown>}
+                context={context}
+                path="slots/actions"
+              />
+            </div>
+          )}
+          {nodes && nodes.length > 0 && (
+            <NodeRenderer
+              nodes={nodes}
+              blockId={id}
+              blockProps={props as unknown as Record<string, unknown>}
+              context={context}
+              path="nodes"
+            />
           )}
         </div>
       </section>

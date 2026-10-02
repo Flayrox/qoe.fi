@@ -17,6 +17,8 @@ import type {
   TemplateRenderContext,
 } from '../schema';
 import { BlockWrapper } from './BlockWrapper';
+import { EditableText } from './EditableText';
+import { NodeRenderer } from './NodeRenderer';
 
 interface FooterBlockComponentProps {
   id: string;
@@ -25,6 +27,8 @@ interface FooterBlockComponentProps {
   context: TemplateRenderContext;
   visible?: boolean;
   locked?: boolean;
+  slots?: Record<string, import('../schema').TemplateNode[]>;
+  nodes?: import('../schema').TemplateNode[];
 }
 
 export function FooterBlock({
@@ -34,6 +38,8 @@ export function FooterBlock({
   context,
   visible = true,
   locked = false,
+  slots,
+  nodes,
 }: FooterBlockComponentProps) {
   const {
     showLegalLinks = true,
@@ -83,7 +89,14 @@ export function FooterBlock({
                 </p>
               )}
               <p className="mt-4 text-xs text-muted-foreground">
-                © {year} {displayName}. {customCopyright || 'Tous droits réservés.'}
+                © {year} {displayName}.{' '}
+                <EditableText
+                  blockId={id}
+                  propKey="customCopyright"
+                  value={customCopyright || 'Tous droits réservés.'}
+                  context={context}
+                  as="span"
+                />
               </p>
             </div>
 
@@ -108,28 +121,49 @@ export function FooterBlock({
 
               {showLegalLinks && (
                 <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
-                  <Link
-                    href="/mentions-legales"
-                    onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                    className="hover:text-foreground transition-colors"
-                  >
-                    Mentions légales
-                  </Link>
-                  <Link
-                    href="/confidentialite"
-                    onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                    className="hover:text-foreground transition-colors"
-                  >
-                    Confidentialité
-                  </Link>
-                  <Link
-                    href="/rss"
-                    onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                    className="hover:text-foreground transition-colors"
-                  >
-                    Flux RSS
-                  </Link>
+                  {slots?.legal ? (
+                    <NodeRenderer
+                      nodes={slots.legal}
+                      blockId={id}
+                      blockProps={props as unknown as Record<string, unknown>}
+                      context={context}
+                      path="slots/legal"
+                    />
+                  ) : (
+                    <>
+                      <Link
+                        href="/mentions-legales"
+                        onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                        className="hover:text-foreground transition-colors"
+                      >
+                        Mentions légales
+                      </Link>
+                      <Link
+                        href="/confidentialite"
+                        onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                        className="hover:text-foreground transition-colors"
+                      >
+                        Confidentialité
+                      </Link>
+                      <Link
+                        href="/rss"
+                        onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                        className="hover:text-foreground transition-colors"
+                      >
+                        Flux RSS
+                      </Link>
+                    </>
+                  )}
                 </div>
+              )}
+              {nodes && nodes.length > 0 && (
+                <NodeRenderer
+                  nodes={nodes}
+                  blockId={id}
+                  blockProps={props as unknown as Record<string, unknown>}
+                  context={context}
+                  path="nodes"
+                />
               )}
             </div>
           </div>

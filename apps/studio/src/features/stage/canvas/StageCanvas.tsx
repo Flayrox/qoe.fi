@@ -402,7 +402,13 @@ export function StageCanvas({
               articles={articles}
               mode={isPreview ? 'live' : 'editable'}
               selectedBlockId={selectedBlockId}
+              selectedOid={persistent.selectedOid}
               onSelectBlock={(id) => onSelectBlock(id)}
+              onSelectNode={(oid, path, blockId) => persistent.selectNode(oid, path, blockId)}
+              onUpdateBlockProps={(blockId, patch) =>
+                persistent.updateBlockProps(blockId, patch as Record<string, unknown>)
+              }
+              onUpdateNode={(blockId, oid, patch) => persistent.updateNode(blockId, oid, patch)}
               onMoveBlock={onMoveBlock}
               onDeleteBlock={onDeleteBlock}
             />
