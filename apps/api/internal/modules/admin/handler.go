@@ -31,6 +31,10 @@ type Handler struct {
 	// usersSvc est branché par SetUsersService : sans lui, la révocation de
 	// sessions est indisponible (refus explicite, pas de contournement).
 	usersSvc *users.Service
+	// decisionStats : compteurs de l'enregistreur de décisions (Phase 7). Nil
+	// = compteurs à zéro, jamais un panic : la santé ne dépend pas d'un
+	// câblage optionnel.
+	decisionStats DecisionStatsSource
 	// console déclare et monte les routes de la console sous le garde de
 	// capacité (internal/adminauthz). Elle porte aussi le service de capacités
 	// lu par GET /v1/admin/me. Sans console partagée (tests unitaires),
@@ -89,6 +93,9 @@ func (h *Handler) routeTable() []adminRoute {
 		{http.MethodGet, "/v1/admin/dashboard", adminauthz.DashboardRead, h.dashboard},
 		// Stockage médias (supervision de la saturation du bucket images).
 		{http.MethodGet, "/v1/admin/storage/usage", adminauthz.DashboardRead, h.storageUsage},
+		// Santé de la plateforme : base, migration appliquée, mode d'autorisation
+		// et décisions récentes — la preuve chiffrée avant d'armer le refus.
+		{http.MethodGet, "/v1/admin/health", adminauthz.DashboardRead, h.health},
 
 		// ── Comptes & modération ─────────────────────────────────────────
 		{http.MethodGet, "/v1/admin/users", adminauthz.UsersRead, h.users},
@@ -289,6 +296,25 @@ func (h *Handler) dashboard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, data)
+}
+
+// GET /v1/admin/health — état de la plateforme (base, migration, mode,
+// décisions). Même capacité que le tableau de bord : constater l'état ne
+// demande pas de pouvoirs d'écriture.
+func (h *Handler) health(w http.ResponseWriter, r *http.Request) {
+	if _, ok := h.requireAuthenticated(w, r); !ok {
+		return
+	}
+	health := h.svc.GetPlatformHealth(r.Context())
+	health.Mode = h.enforceMode(r)
+	if h.decisionStats != nil {
+		health.Decisions.Recorder = RecorderCounters{
+			Written: h.decisionStats.Written(),
+			Dropped: h.decisionStats.Dropped(),
+			Queued:  h.decisionStats.Queued(),
+		}
+	}
+	response.OK(w, health)
 }
 
 // GET /v1/admin/storage/usage — supervision du bucket images (superadmin).

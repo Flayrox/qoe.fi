@@ -519,6 +519,9 @@ func newRouter(d RouterDeps) *chi.Mux {
 		// ralentit jamais une requête, et une perte éventuelle est COMPTÉE.
 		adminDecisions := adminauthz.NewRecorder(pool)
 		defer adminDecisions.Close()
+		// Les compteurs de l'enregistreur sont publiés par /admin/health : une
+		// perte de trace doit se voir, pas se deviner.
+		adminHandler.SetDecisionStats(adminDecisions)
 		adminConsole := adminauthz.NewConsole(protected, adminAuthzSvc, nil,
 			adminauthz.WithObserver(adminDecisions.Observe))
 
