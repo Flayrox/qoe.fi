@@ -85,11 +85,39 @@ export function NewsletterWallBlock({
               </div>
             )}
 
-            <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-foreground max-w-xl">
+            <h2
+              contentEditable={context.mode === 'editable'}
+              suppressContentEditableWarning
+              onBlur={(e) => {
+                const text = e.currentTarget.textContent?.trim();
+                if (text && text !== title) {
+                  context.onUpdateBlockProps?.(id, { title: text });
+                }
+              }}
+              className={`text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-foreground max-w-xl ${
+                context.mode === 'editable'
+                  ? 'cursor-text hover:outline-dashed hover:outline-1 hover:outline-primary/50 focus:outline-solid focus:outline-2 focus:outline-primary rounded-sm'
+                  : ''
+              }`}
+            >
               {title}
             </h2>
 
-            <p className="mt-3 text-sm md:text-base text-muted-foreground max-w-lg leading-relaxed">
+            <p
+              contentEditable={context.mode === 'editable'}
+              suppressContentEditableWarning
+              onBlur={(e) => {
+                const text = e.currentTarget.textContent?.trim();
+                if (text && text !== subtitle) {
+                  context.onUpdateBlockProps?.(id, { subtitle: text });
+                }
+              }}
+              className={`mt-3 text-sm md:text-base text-muted-foreground max-w-lg leading-relaxed ${
+                context.mode === 'editable'
+                  ? 'cursor-text hover:outline-dashed hover:outline-1 hover:outline-primary/50 focus:outline-solid focus:outline-2 focus:outline-primary rounded-sm'
+                  : ''
+              }`}
+            >
               {subtitle}
             </p>
 
