@@ -157,6 +157,8 @@ const eslintConfig = defineConfig([
     '**/.agents/**',
     // Reference codebases (Bluesky, Ghost) - never linted
     '.reference/**',
+    // Vendored third-party reference (Onlook port) — ported lot by lot, not linted brut
+    '**/vendor/**',
     // Generated files
     '**/next-env.d.ts',
     '**/*.tsbuildinfo',
