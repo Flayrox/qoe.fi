@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"net"
 	"net/http"
+	"strings"
 
 	"github.com/qoefi/api/internal/authz"
 	"github.com/qoefi/api/internal/middleware"
@@ -29,7 +31,9 @@ func (m Mode) String() string {
 	return "observe"
 }
 
-// Decision est la trace d'un passage dans le garde (supervision, audit).
+// Decision est la trace d'un passage dans le garde (supervision, audit). Elle
+// porte assez de contexte pour être écrite telle quelle dans le journal des
+// décisions (migration 00057) : route visée, mode, code, adresse.
 type Decision struct {
 	Capability Capability
 	// Allowed dit si la capacité a été prouvée.
@@ -38,6 +42,14 @@ type Decision struct {
 	Code authz.Code
 	// Mode est le mode effectif au moment de la décision.
 	Mode Mode
+	// ProofLevel est le niveau de preuve exigé (N0–N3), vide si aucun.
+	ProofLevel string
+	// Method et Path : la route visée, pour recouper avec les journaux HTTP.
+	Method string
+	Path   string
+	// IP et RequestID : de quoi recouper une décision avec une requête.
+	IP        string
+	RequestID string
 }
 
 // Lookup résout l'accès d'une personne. Un *Service le satisfait ; les tests
@@ -63,6 +75,9 @@ type guard struct {
 	mode       Mode
 	modeFn     func(ctx context.Context) bool
 	observer   Observer
+	// proofLevel : niveau de preuve exigé par la route (Phase 3, step-up).
+	// Vide = la capacité seule suffit, comportement historique.
+	proofLevel string
 }
 
 // Option configure le garde.
@@ -79,6 +94,31 @@ func WithModeResolver(f func(ctx context.Context) bool) Option {
 
 // WithObserver branche la supervision des décisions.
 func WithObserver(o Observer) Option { return func(g *guard) { g.observer = o } }
+
+// WithProofLevel inscrit le niveau de preuve exigé par la route dans la trace
+// de décision. Le contrôle lui-même vit dans le noyau N0–N3 (internal/authz) :
+// ce paquet ne réinvente pas la preuve, il la NOMME dans le journal. Renseigné
+// par la Phase 3 (step-up).
+func WithProofLevel(level string) Option { return func(g *guard) { g.proofLevel = level } }
+
+// requestIP lit l'adresse du client derrière un proxy (X-Forwarded-For posé par
+// le reverse proxy, puis X-Real-IP) et retombe sur l'adresse de connexion.
+// Jamais inventée : vide si rien n'est lisible.
+func requestIP(r *http.Request) string {
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		if first := strings.TrimSpace(strings.Split(forwarded, ",")[0]); first != "" {
+			return first
+		}
+	}
+	if real := strings.TrimSpace(r.Header.Get("X-Real-IP")); real != "" {
+		return real
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
+}
 
 // resolveMode rend le mode effectif : resolver du garde, puis résolver porté
 // par le Lookup (le flag de la console), puis mode statique du garde.
@@ -105,6 +145,21 @@ func (g *guard) observe(d Decision, userID string, mode Mode) {
 	}
 	d.Mode = mode
 	g.observer(d, userID)
+}
+
+// trace construit la décision d'une requête : capacité exigée, route, adresse.
+// Le mode est posé par observe (il dépend du moment de la décision).
+func (g *guard) trace(r *http.Request, code authz.Code, allowed bool) Decision {
+	return Decision{
+		Capability: g.capability,
+		Allowed:    allowed,
+		Code:       code,
+		ProofLevel: g.proofLevel,
+		Method:     r.Method,
+		Path:       r.URL.Path,
+		IP:         requestIP(r),
+		RequestID:  r.Header.Get("X-Request-Id"),
+	}
 }
 
 // Require monte le garde de capacité sur une route.
@@ -135,7 +190,7 @@ func Require(lookup Lookup, capability Capability, opts ...Option) func(http.Han
 			userID, _ := middleware.UserID(r.Context())
 			if userID == "" {
 				// Ni capacité ni identité : rien à observer, refus immédiat.
-				g.observe(Decision{Capability: capability, Code: authz.CodeDenyNoSession}, "", ModeEnforce)
+				g.observe(g.trace(r, authz.CodeDenyNoSession, false), "", ModeEnforce)
 				writeDenied(w, http.StatusUnauthorized, capability,
 					authz.CodeDenyNoSession, "Authentification requise.")
 				return
@@ -146,7 +201,7 @@ func Require(lookup Lookup, capability Capability, opts ...Option) func(http.Han
 			if g.lookup == nil {
 				log.Printf("[adminauthz] service de capacités non branché : %s non vérifiée (%s %s)",
 					capability, r.Method, r.URL.Path)
-				g.observe(Decision{Capability: capability, Code: authz.CodeDenyCapabilityLookup}, userID, mode)
+				g.observe(g.trace(r, authz.CodeDenyCapabilityLookup, false), userID, mode)
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -158,7 +213,7 @@ func Require(lookup Lookup, capability Capability, opts ...Option) func(http.Han
 				// en observation, on trace et on laisse passer.
 				log.Printf("[adminauthz] capacités indisponibles (user=%s, capacité=%s) : %v",
 					userID, capability, err)
-				g.observe(Decision{Capability: capability, Code: authz.CodeDenyCapabilityLookup}, userID, mode)
+				g.observe(g.trace(r, authz.CodeDenyCapabilityLookup, false), userID, mode)
 				if mode == ModeEnforce {
 					writeDenied(w, http.StatusForbidden, capability,
 						authz.CodeDenyCapabilityLookup, "Vérification des droits indisponible.")
@@ -169,7 +224,7 @@ func Require(lookup Lookup, capability Capability, opts ...Option) func(http.Han
 			}
 
 			if access.Has(capability) {
-				g.observe(Decision{Capability: capability, Allowed: true, Code: authz.CodeAllow}, userID, mode)
+				g.observe(g.trace(r, authz.CodeAllow, true), userID, mode)
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -177,14 +232,14 @@ func Require(lookup Lookup, capability Capability, opts ...Option) func(http.Han
 			if mode == ModeObserve {
 				log.Printf("[adminauthz:observe] %s %s refusé (user=%s, capacité=%s, rôles=%v)",
 					r.Method, r.URL.Path, userID, capability, access.Roles)
-				g.observe(Decision{Capability: capability, Code: authz.CodeDenyMissingCapability}, userID, mode)
+				g.observe(g.trace(r, authz.CodeDenyMissingCapability, false), userID, mode)
 				next.ServeHTTP(w, r)
 				return
 			}
 
 			log.Printf("[adminauthz:deny] %s %s (user=%s, capacité=%s, rôles=%v)",
 				r.Method, r.URL.Path, userID, capability, access.Roles)
-			g.observe(Decision{Capability: capability, Code: authz.CodeDenyMissingCapability}, userID, mode)
+			g.observe(g.trace(r, authz.CodeDenyMissingCapability, false), userID, mode)
 			writeDenied(w, http.StatusForbidden, capability,
 				authz.CodeDenyMissingCapability, "Capacité requise absente.")
 		})

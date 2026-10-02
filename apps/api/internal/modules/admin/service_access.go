@@ -43,7 +43,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/qoefi/api/internal/adminauthz"
-	db "github.com/qoefi/api/internal/database"
 )
 
 // errInvalidAccess : saisie d'accès refusée par une règle métier (motif
@@ -710,11 +709,10 @@ func (s *Service) GrantAccess(ctx context.Context, actorID string, in GrantAcces
 		return nil, err
 	}
 
-	s.logAccessAudit(ctx, actorID, "access.grant", targetID, map[string]any{
-		"roleKey":   roleKey,
-		"expiresAt": in.ExpiresAt,
-		"reason":    reason,
-	})
+	s.logAccessAudit(ctx, actorID, "access.grant", string(adminauthz.AccessGrant), targetID, reason,
+		nil,
+		map[string]any{"roleKey": roleKey, "expiresAt": in.ExpiresAt},
+	)
 	return grant, nil
 }
 
@@ -743,8 +741,7 @@ func (s *Service) RevokeAccess(ctx context.Context, actorID, targetID, roleKey, 
 	}
 
 	revoked, err := withTx(ctx, pool, func(tx pgx.Tx) (*AccessGrant, error) {
-		// État lu AVANT la suppression : c'est lui qu'on rend à l'interface
-		// (l'écran affiche ce qui vient d'être retiré).
+		// État lu AVANT la suppression : c'est lui qu'on rend à l'interface		// (l'écran affiche ce qui vient d'être retiré).
 		before, err := accessGrantTx(ctx, tx, targetID, roleKey)
 		if err != nil {
 			return nil, err
@@ -800,10 +797,10 @@ func (s *Service) RevokeAccess(ctx context.Context, actorID, targetID, roleKey, 
 		return nil, err
 	}
 
-	s.logAccessAudit(ctx, actorID, "access.revoke", targetID, map[string]any{
-		"roleKey": roleKey,
-		"reason":  reason,
-	})
+	s.logAccessAudit(ctx, actorID, "access.revoke", string(adminauthz.AccessGrant), targetID, reason,
+		map[string]any{"roleKey": revoked.RoleKey, "expiresAt": revoked.ExpiresAt},
+		nil,
+	)
 	return revoked, nil
 }
 
@@ -846,30 +843,56 @@ func withTx[T any](ctx context.Context, pool *pgxpool.Pool, fn func(tx pgx.Tx) (
 	return out, nil
 }
 
+// insertAccessAuditQuery écrit une trace de mouvement de droits avec TOUT ce
+// qu'une relecture demande : capacité exercée, motif, et diff avant/après.
+// (Les colonnes viennent de la migration 00057.)
+const insertAccessAuditQuery = `
+	INSERT INTO "AdminAuditLog"
+	    ("id", "actorId", "action", "targetType", "targetId", "metadata",
+	     "capability", "reason", "before", "after")
+	VALUES (gen_random_uuid()::text, $1::uuid, $2, 'admin_user_role', $3, $4,
+	        $5, $6, $7, $8)`
+
 // logAccessAudit écrit la trace d'un mouvement de droits, TOUJOURS. Le flag
 // `admin-audit-log` gouverne le journal d'audit générique de la console ; un
 // changement d'attribution, lui, doit rester traçable même flag éteint —
 // sinon la console saurait nommer des gens sans que personne ne puisse dire
 // qui l'a fait ni pourquoi.
-func (s *Service) logAccessAudit(ctx context.Context, actorID, action, targetID string, metadata map[string]any) {
+func (s *Service) logAccessAudit(ctx context.Context, actorID, action, capability, targetID, reason string, before, after any) {
+	if s == nil || s.pool == nil {
+		return
+	}
 	var actorUUID pgtype.UUID
 	if err := actorUUID.Scan(actorID); err != nil {
 		return
 	}
-	raw, err := json.Marshal(metadata)
+	metadata, err := json.Marshal(map[string]any{"reason": reason})
 	if err != nil {
 		return
 	}
-	if err := s.q.InsertAdminAuditLog(ctx, db.InsertAdminAuditLogParams{
-		ActorId:    actorUUID,
-		Action:     action,
-		TargetType: "admin_user_role",
-		TargetId:   optText(&targetID),
-		Column5:    string(raw),
-	}); err != nil {
+	beforeRaw, err := json.Marshal(before)
+	if err != nil || string(beforeRaw) == "null" {
+		beforeRaw = nil
+	}
+	afterRaw, err := json.Marshal(after)
+	if err != nil || string(afterRaw) == "null" {
+		afterRaw = nil
+	}
+	if _, err := s.pool.Exec(ctx, insertAccessAuditQuery,
+		actorID, action, targetID, string(metadata), capability, reason,
+		nullableJSON(beforeRaw), nullableJSON(afterRaw)); err != nil {
 		// Un audit manqué est une panne d'exploitation : on la voit.
 		log.Printf("[admin-access-audit] %s : %v", action, err)
 	}
+}
+
+// nullableJSON rend un JSONB NULL plutôt qu'une chaîne vide (une colonne vide
+// serait un diff, pas une absence de diff).
+func nullableJSON(raw []byte) any {
+	if len(raw) == 0 {
+		return nil
+	}
+	return string(raw)
 }
 
 // InvalidateAccess oublie l'accès en cache d'une personne. Branché par le

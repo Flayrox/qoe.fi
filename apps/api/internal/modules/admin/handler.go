@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
@@ -118,6 +119,10 @@ func (h *Handler) routeTable() []adminRoute {
 		{http.MethodGet, "/v1/admin/abuse/appeals", adminauthz.AppealsRead, h.abuseAppeals},
 		{http.MethodGet, "/v1/admin/abuse/appeals/{id}", adminauthz.AppealsRead, h.abuseAppealDetail},
 		{http.MethodPatch, "/v1/admin/abuse/appeals/{id}", adminauthz.AppealsDecide, h.decideAbuseAppeal},
+
+		// Journal des décisions du garde (accords, refus appliqués, refus
+		// observés) : lire le refus est un acte d'audit, d'où la capacité.
+		{http.MethodGet, "/v1/admin/access/decisions", adminauthz.AuditRead, h.accessDecisions},
 
 		// ── Support, contenu d'aide & abonnements ────────────────────────
 		// Dossiers support : la clôture ne lève ni suspension ni permission.
@@ -1376,17 +1381,94 @@ func (h *Handler) apiAccessModules(w http.ResponseWriter, r *http.Request) {
 // GET /v1/admin/audit-log — journal des actions sensibles (qui, quand, quoi).
 // Query : ?limit=50 (défaut 50, max 200).
 func (h *Handler) auditLog(w http.ResponseWriter, r *http.Request) {
-	userID, ok := h.requireAuthenticated(w, r)
-	if !ok {
+	if _, ok := h.requireAuthenticated(w, r); !ok {
 		return
 	}
 	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	entries, err := h.svc.ListAuditLogs(r.Context(), userID, int32(limit))
+	filter := AuditFilter{
+		Actor:      r.URL.Query().Get("actor"),
+		Capability: r.URL.Query().Get("capability"),
+		Action:     r.URL.Query().Get("action"),
+		Target:     r.URL.Query().Get("target"),
+		Since:      r.URL.Query().Get("since"),
+		Until:      r.URL.Query().Get("until"),
+		Limit:      int32(limit),
+	}
+	entries, err := h.svc.ListAuditEntries(r.Context(), filter)
 	if err != nil {
 		h.handleErr(w, err)
 		return
 	}
-	response.OK(w, map[string]any{"items": entries})
+
+	// Export CSV : le dossier part du serveur, pas d'un export navigateur qui
+	// perdrait les colonnes. Même filtre, même autorisation.
+	if r.URL.Query().Get("format") == "csv" {
+		csvBody, err := AuditCSV(entries)
+		if err != nil {
+			h.handleErr(w, err)
+			return
+		}
+		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+		w.Header().Set("Content-Disposition", `attachment; filename="audit-console.csv"`)
+		_, _ = w.Write([]byte(csvBody))
+		return
+	}
+
+	response.OK(w, map[string]any{
+		"items": entries,
+		"total": len(entries),
+		"mode":  h.enforceMode(r),
+	})
+}
+
+// enforceMode dit si le refus est réellement appliqué à cet instant. Sans
+// console branchée, on répond « observe » : la console ne prétend jamais
+// appliquer un refus qu'elle ne peut pas prouver.
+func (h *Handler) enforceMode(r *http.Request) string {
+	if h.console == nil {
+		return adminauthz.ModeObserve.String()
+	}
+	if resolver, ok := h.console.Lookup().(adminauthz.ModeResolver); ok && resolver != nil {
+		if resolver.Enforce(r.Context()) {
+			return adminauthz.ModeEnforce.String()
+		}
+	}
+	return adminauthz.ModeObserve.String()
+}
+
+// GET /v1/admin/access/decisions — journal des décisions du garde : ce qui a été
+// accordé, refusé, et refusé seulement OBSERVÉ. C'est la lecture qui prépare le
+// passage en `authz-enforce` : on y voit qui serait bloqué, par capacité.
+// Query : ?capability=&denied=1&userId=&window=168&limit=.
+func (h *Handler) accessDecisions(w http.ResponseWriter, r *http.Request) {
+	if _, ok := h.requireAuthenticated(w, r); !ok {
+		return
+	}
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	windowHours, _ := strconv.Atoi(r.URL.Query().Get("window"))
+	window := time.Duration(windowHours) * time.Hour
+	filter := AuthzDecisionFilter{
+		Capability: r.URL.Query().Get("capability"),
+		OnlyDenied: r.URL.Query().Get("denied") == "1",
+		UserID:     r.URL.Query().Get("userId"),
+		Window:     window,
+		Limit:      int32(limit),
+	}
+	groups, err := h.svc.ListAuthzDecisionGroups(r.Context(), window)
+	if err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	items, err := h.svc.ListAuthzDecisions(r.Context(), filter)
+	if err != nil {
+		h.handleErr(w, err)
+		return
+	}
+	response.OK(w, map[string]any{
+		"items":  items,
+		"groups": groups,
+		"mode":   h.enforceMode(r),
+	})
 }
 
 // PATCH /v1/admin/api-access/modules — active / désactive les modules

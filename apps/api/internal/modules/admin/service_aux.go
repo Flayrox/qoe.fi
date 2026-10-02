@@ -213,9 +213,9 @@ type StorageUserUsage struct {
 // StorageUsage est la supervision du bucket images pour la console
 // superadmin : totaux, répartition par statut et plus gros consommateurs.
 type StorageUsage struct {
-	TotalBytes int64            `json:"totalBytes"`
-	AssetCount int64            `json:"assetCount"`
-	ByStatus   map[string]int64 `json:"byStatus"`
+	TotalBytes int64              `json:"totalBytes"`
+	AssetCount int64              `json:"assetCount"`
+	ByStatus   map[string]int64   `json:"byStatus"`
 	TopUsers   []StorageUserUsage `json:"topUsers"`
 }
 
@@ -574,18 +574,8 @@ func (s *Service) logAudit(ctx context.Context, actorID, action, targetType, tar
 }
 
 // ── Journal d'audit superadmin ───────────────────────────────────────────────
-
-type AdminAuditEntry struct {
-	ID         string          `json:"id"`
-	ActorID    string          `json:"actorId"`
-	ActorName  *string         `json:"actorName"`
-	ActorEmail string          `json:"actorEmail"`
-	Action     string          `json:"action"`
-	TargetType string          `json:"targetType"`
-	TargetID   *string         `json:"targetId"`
-	Metadata   json.RawMessage `json:"metadata"`
-	CreatedAt  string          `json:"createdAt"`
-}
+// AdminAuditEntry (capacité, motif, diff avant/après) est déclaré dans
+// service_audit.go, avec la lecture filtrée qui l'accompagne.
 
 // ListAuditLogs retourne les N dernières entrées du journal (superadmin).
 func (s *Service) ListAuditLogs(ctx context.Context, userID string, limit int32) ([]AdminAuditEntry, error) {
