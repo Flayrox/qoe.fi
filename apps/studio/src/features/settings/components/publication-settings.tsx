@@ -441,7 +441,7 @@ export default function PublicationSettings({
           <div>
             <div className="flex items-center gap-2.5">
               <h1 className="text-xl font-bold tracking-tight text-foreground">
-                {current.name || 'Paramètres de la publication'}
+                {current.name || 'Paramètres du Site Web'}
               </h1>
               {isMediaWorkspace && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider border border-primary/20">
@@ -452,7 +452,7 @@ export default function PublicationSettings({
             <p className="text-xs text-muted-foreground mt-0.5">
               {isMediaWorkspace
                 ? `Configuration du média « ${current.name} » et de son identité publique`
-                : t`Configuration et design de votre publication souveraine`}
+                : t`Configuration et design de votre site web souverain`}
             </p>
           </div>
 
@@ -553,16 +553,16 @@ export default function PublicationSettings({
             >
               {/* Colonne de gauche : Formulaires de configuration */}
               <div className="lg:col-span-7 space-y-6">
-                {/* Notice d'isolation : Publication vs Compte personnel */}
+                {/* Notice d'isolation : Site Web vs Compte personnel */}
                 <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 flex items-start gap-3 text-xs leading-relaxed text-muted-foreground shadow-2xs">
                   <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                   <div className="space-y-1">
                     <span className="font-semibold text-foreground block">
-                      Identité éditoriale souveraine (Tenant)
+                      Identité visuelle & éditoriale (Site Web)
                     </span>
                     <p>
                       Ce nom, ce slogan et ces éléments graphiques définissent uniquement
-                      l'apparence de votre publication sur{' '}
+                      l'apparence de votre site web sur{' '}
                       <strong className="text-foreground">
                         {current.subdomain ? `${current.subdomain}.qoe.fi` : 'votre site'}
                       </strong>
@@ -575,13 +575,13 @@ export default function PublicationSettings({
                 {/* Card 1: Identité Textuelle */}
                 <div className="rounded-xl border border-border/50 bg-card p-5 space-y-4 shadow-2xs">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Identité de la publication
+                    Identité du site web
                   </h3>
 
                   {/* Title */}
                   <div id="name" className="space-y-1.5">
                     <label className="text-xs font-semibold text-foreground block">
-                      Nom de la publication
+                      Nom du site web
                     </label>
                     <input
                       type="text"
@@ -758,7 +758,7 @@ export default function PublicationSettings({
                         Image de couverture (Bannière d'en-tête)
                       </label>
                       <span className="text-[11px] text-muted-foreground block mt-0.5">
-                        Bannière panoramique ratio 21:9 affichée en haut de votre publication.
+                        Bannière panoramique ratio 21:9 affichée en haut de votre site web.
                       </span>
                     </div>
                     <ImageUploader
@@ -851,7 +851,7 @@ export default function PublicationSettings({
                         <p className="text-xs text-muted-foreground leading-relaxed">
                           Qoefi génère et met à jour en continu vos balises méta Google, vos aperçus
                           OpenGraph / Twitter Cards, votre sitemap XML et les données structurées
-                          Schema.org à partir du nom et du slogan de votre publication.
+                          Schema.org à partir du nom et du slogan de votre site web.
                         </p>
                       </div>
                     </div>
@@ -1132,7 +1132,7 @@ export default function PublicationSettings({
                       Menu de navigation du site
                     </h3>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Liens et onglets affichés en haut de votre publication.
+                      Liens et onglets affichés en haut de votre site web.
                     </p>
                   </div>
                   <button

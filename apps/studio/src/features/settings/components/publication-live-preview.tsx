@@ -49,11 +49,11 @@ export function PublicationLivePreview({
 
   const activeFont = FONT_FAMILIES[fontFamily || 'sans'] || "'Inter', sans-serif";
   const activeColor = accentColor || '#EE4B2B';
-  const displayName = name?.trim() || 'Ma Publication';
+  const displayName = name?.trim() || 'Mon Site Web';
   const displayHero =
     heroText?.trim() ||
     "Un espace dédié aux écrits de fond, aux analyses indépendantes et au partage d'idées.";
-  const displayDomain = `${subdomain || 'publication'}.qoe.fi`;
+  const displayDomain = `${subdomain || 'mon-site'}.qoe.fi`;
   const displayHandle = username || subdomain || 'auteur';
 
   return (
@@ -231,7 +231,7 @@ export function PublicationLivePreview({
                 Premier article publié sur {displayName}
               </h4>
               <p className="text-[11px] text-muted-foreground line-clamp-1">
-                La publication autonome permet aux auteurs de garder le contrôle total de leur
+                Le site web autonome permet aux auteurs de garder le contrôle total de leur
                 audience...
               </p>
             </div>

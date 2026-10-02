@@ -161,7 +161,7 @@ export async function AppSidebar() {
       iconName: 'Webhook',
     },
     {
-      title: t`Paramètres`,
+      title: t`Site Web`,
       url: '/settings',
       iconName: 'Settings',
     },
