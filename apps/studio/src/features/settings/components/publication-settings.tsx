@@ -8,6 +8,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { t } from '@lingui/core/macro';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDebounce } from 'use-debounce';
@@ -32,6 +33,7 @@ import {
   Compass,
   Info,
   Terminal,
+  Maximize2,
 } from 'lucide-react';
 
 // Import Server Actions
@@ -299,6 +301,7 @@ export default function PublicationSettings({
         'heroText',
         'accentColor',
         'fontFamily',
+        'layoutStyle',
         'logoUrl',
         'headerImageUrl',
         'footerText',
@@ -317,6 +320,7 @@ export default function PublicationSettings({
           heroText: current.heroText,
           accentColor: current.accentColor,
           fontFamily: current.fontFamily,
+          layoutStyle: current.layoutStyle,
           logoUrl: current.logoUrl,
           headerImageUrl: current.headerImageUrl,
           footerText: current.footerText,
@@ -586,11 +590,22 @@ export default function PublicationSettings({
                   </div>
                 </div>
 
-                <span className="text-xs text-muted-foreground hidden md:inline">
-                  {editorMode === 'canvas'
-                    ? 'Cliquez directement sur chaque élément de la page pour le personnaliser'
-                    : 'Champs de saisie tabulaires avec aperçu en direct'}
-                </span>
+                <div className="flex items-center gap-3">
+                  <Link
+                    href="/settings/design"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white shadow-sm transition-all hover:opacity-95 active:scale-95"
+                    style={{ backgroundColor: current.accentColor || 'hsl(var(--primary))' }}
+                  >
+                    <Maximize2 className="w-3.5 h-3.5" />
+                    <span>Atelier Plein Écran (Figma)</span>
+                  </Link>
+
+                  <span className="text-xs text-muted-foreground hidden lg:inline">
+                    {editorMode === 'canvas'
+                      ? 'Cliquez directement sur chaque élément de la page'
+                      : 'Champs de saisie tabulaires'}
+                  </span>
+                </div>
               </div>
 
               {editorMode === 'canvas' ? (

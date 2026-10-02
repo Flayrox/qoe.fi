@@ -21,7 +21,9 @@
     "./reader": "./src/reader/index.ts",
     "./profile": "./src/profile/index.ts",
     "./cards": "./src/cards/index.ts",
-    "./forms": "./src/forms/index.ts"
+    "./forms": "./src/forms/index.ts",
+    "./templates": "./src/templates/index.ts",
+    "./templates/*": "./src/templates/*"
   },
   "scripts": {
     "lint": "eslint .",
