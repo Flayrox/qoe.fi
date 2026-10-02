@@ -5,22 +5,42 @@
 'use client';
 
 import React from 'react';
-import { Copy, Trash2 } from 'lucide-react';
-import type { LayoutConfig, TemplateBlock } from '@qoe/ui/templates';
+import { Copy, Trash2, ArrowLeft, Plus, X } from 'lucide-react';
+import type { LayoutConfig, TemplateBlock, TemplateNode } from '@qoe/ui/templates';
 
 interface RightPanelProps {
   layout: LayoutConfig;
   selectedBlockId: string | null;
+  selectedOid: string | null;
+  selectedNode: { node: TemplateNode; slotKey: string | null } | null;
   onUpdateBlockProps: (id: string, newProps: Record<string, unknown>) => void;
+  onUpdateNode: (blockId: string, oid: string, patch: Partial<TemplateNode>) => void;
+  onAddNode: (blockId: string, slotKey: string | null, kind: TemplateNode['kind']) => void;
+  onRemoveNode: (blockId: string, oid: string) => void;
+  onSelectNode: (oid: string | null, path: string | null, blockId: string | null) => void;
   onDuplicateBlock: (id: string) => void;
   onDeleteBlock: (id: string) => void;
   onSelectBlock: (id: string | null) => void;
 }
 
+const SLOT_KEYS = ['title', 'subtitle', 'actions', 'header', 'legal'] as const;
+const NODE_KINDS: { kind: TemplateNode['kind']; label: string }[] = [
+  { kind: 'text', label: 'Texte' },
+  { kind: 'button', label: 'Bouton' },
+  { kind: 'badge', label: 'Badge' },
+  { kind: 'image', label: 'Image' },
+];
+
 export function RightPanel({
   layout,
   selectedBlockId,
+  selectedOid,
+  selectedNode,
   onUpdateBlockProps,
+  onUpdateNode,
+  onAddNode,
+  onRemoveNode,
+  onSelectNode,
   onDuplicateBlock,
   onDeleteBlock,
   onSelectBlock,
@@ -107,6 +127,142 @@ export function RightPanel({
 
       {/* ── Corps des Propriétés Spécifiques ── */}
       <div className="flex-1 overflow-y-auto p-3 space-y-4">
+        {/* NŒUD SÉLECTIONNÉ */}
+        {selectedNode && selectedBlock && selectedOid && (
+          <div className="space-y-2 rounded-lg border border-primary/40 bg-primary/5 p-2.5">
+            <button
+              type="button"
+              onClick={() => onSelectNode(null, null, selectedBlock.id)}
+              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-3 w-3" />
+              <span>
+                {selectedBlock.type} › {selectedNode.node.kind}
+              </span>
+            </button>
+            <div className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/70">
+              Élément · {selectedNode.node.kind}
+              {selectedNode.slotKey ? ` · ${selectedNode.slotKey}` : ''}
+            </div>
+            {(selectedNode.node.kind === 'text' ||
+              selectedNode.node.kind === 'button' ||
+              selectedNode.node.kind === 'badge') && (
+              <div className="space-y-1">
+                <label className="text-muted-foreground text-[11px]">Texte</label>
+                <input
+                  type="text"
+                  value={
+                    (selectedNode.node.overrides?.text as string) ??
+                    selectedNode.node.textFallback ??
+                    ''
+                  }
+                  onChange={(e) =>
+                    onUpdateNode(selectedBlock.id, selectedOid, {
+                      overrides: { ...(selectedNode.node.overrides ?? {}), text: e.target.value },
+                    })
+                  }
+                  className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
+                />
+              </div>
+            )}
+            {selectedNode.node.kind === 'button' && (
+              <div className="space-y-1">
+                <label className="text-muted-foreground text-[11px]">Lien</label>
+                <input
+                  type="text"
+                  value={(selectedNode.node.overrides?.href as string) ?? ''}
+                  placeholder="/contact"
+                  onChange={(e) =>
+                    onUpdateNode(selectedBlock.id, selectedOid, {
+                      overrides: { ...(selectedNode.node.overrides ?? {}), href: e.target.value },
+                    })
+                  }
+                  className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
+                />
+              </div>
+            )}
+            {selectedNode.node.kind === 'image' && (
+              <div className="space-y-1">
+                <label className="text-muted-foreground text-[11px]">Source image</label>
+                <input
+                  type="text"
+                  value={(selectedNode.node.overrides?.src as string) ?? ''}
+                  placeholder="https://…"
+                  onChange={(e) =>
+                    onUpdateNode(selectedBlock.id, selectedOid, {
+                      overrides: { ...(selectedNode.node.overrides ?? {}), src: e.target.value },
+                    })
+                  }
+                  className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
+                />
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => onRemoveNode(selectedBlock.id, selectedOid)}
+              className="flex w-full items-center justify-center gap-1 rounded-lg border border-destructive/40 py-1.5 text-[11px] text-destructive hover:bg-destructive/10"
+            >
+              <Trash2 className="h-3 w-3" />
+              <span>Supprimer l&apos;élément</span>
+            </button>
+          </div>
+        )}
+
+        {/* CONSTRUCTEUR D'ÉLÉMENTS */}
+        <div className="space-y-2">
+          <div className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/70">
+            Ajouter un élément
+          </div>
+          {SLOT_KEYS.map((slotKey) => {
+            const count =
+              (selectedBlock.slots?.[slotKey]?.length ?? 0) +
+              (slotKey === 'header' ? (selectedBlock.nodes?.length ?? 0) : 0);
+            return (
+              <div key={slotKey} className="rounded-lg border border-border/50 p-2">
+                <div className="mb-1.5 flex items-center justify-between">
+                  <span className="text-[11px] font-medium capitalize">{slotKey}</span>
+                  <span className="font-mono text-[10px] text-muted-foreground">{count}</span>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {NODE_KINDS.map((k) => (
+                    <button
+                      key={k.kind}
+                      type="button"
+                      onClick={() => onAddNode(selectedBlock.id, slotKey, k.kind)}
+                      className="flex items-center gap-1 rounded-md bg-muted/50 px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground"
+                      title={`Ajouter : ${k.label}`}
+                    >
+                      <Plus className="h-3 w-3" />
+                      <span>{k.label}</span>
+                    </button>
+                  ))}
+                </div>
+                {(selectedBlock.slots?.[slotKey] ?? []).map((n) => (
+                  <div
+                    key={n.oid}
+                    className="mt-1 flex items-center justify-between rounded-md bg-muted/40 px-2 py-1"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => onSelectNode(n.oid, `slots/${slotKey}`, selectedBlock.id)}
+                      className="text-[11px] text-muted-foreground hover:text-foreground"
+                    >
+                      {n.kind} · {n.oid.slice(0, 6)}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onRemoveNode(selectedBlock.id, n.oid)}
+                      className="rounded p-0.5 text-muted-foreground hover:text-destructive"
+                      title="Supprimer"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
         {/* HERO PROPS */}
         {selectedBlock.type === 'hero' && (
           <div className="space-y-3">
@@ -309,6 +465,122 @@ export function RightPanel({
                 className="rounded border-border accent-primary cursor-pointer"
               />
             </div>
+          </div>
+        )}
+
+        {/* LEAD-STORY PROPS */}
+        {selectedBlock.type === 'lead-story' && (
+          <div className="space-y-3">
+            <div className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/70">
+              Article vedette
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-muted-foreground text-[11px]">Badge</label>
+              <input
+                type="text"
+                value={(props.badgeText as string) || ''}
+                placeholder="Laisser vide pour masquer"
+                onChange={(e) => handlePropChange('badgeText', e.target.value)}
+                className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-muted-foreground text-[11px]">Ratio image</label>
+              <div className="grid grid-cols-4 gap-1">
+                {(['16:9', '21:9', '4:3', '1:1'] as const).map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => handlePropChange('aspectRatio', r)}
+                    className={`py-1 rounded-md font-mono text-[11px] transition-all ${
+                      (props.aspectRatio || '16:9') === r
+                        ? 'bg-primary text-primary-foreground font-medium'
+                        : 'bg-muted/50 text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {(
+              [
+                ['showExcerpt', 'Extrait'],
+                ['showReadTime', 'Temps de lecture'],
+                ['showDate', 'Date'],
+                ['highlightFirstArticle', 'Mettre en avant'],
+              ] as const
+            ).map(([key, label]) => (
+              <div key={key} className="flex items-center justify-between py-1">
+                <span className="text-muted-foreground text-[11px]">{label}</span>
+                <input
+                  type="checkbox"
+                  checked={props[key] !== false}
+                  onChange={(e) => handlePropChange(key, e.target.checked)}
+                  className="rounded border-border accent-primary cursor-pointer"
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* FOOTER PROPS */}
+        {selectedBlock.type === 'footer' && (
+          <div className="space-y-3">
+            <div className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/70">
+              Pied de page
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-muted-foreground text-[11px]">Disposition</label>
+              <div className="grid grid-cols-2 gap-1">
+                {(['columns', 'minimal-row'] as const).map((l) => (
+                  <button
+                    key={l}
+                    type="button"
+                    onClick={() => handlePropChange('layout', l)}
+                    className={`py-1 rounded-md transition-all ${
+                      (props.layout || 'columns') === l
+                        ? 'bg-primary text-primary-foreground font-medium'
+                        : 'bg-muted/50 text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {l === 'columns' ? 'Colonnes' : 'Ligne'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-muted-foreground text-[11px]">Mention copyright</label>
+              <input
+                type="text"
+                value={(props.customCopyright as string) || ''}
+                placeholder="Tous droits réservés."
+                onChange={(e) => handlePropChange('customCopyright', e.target.value)}
+                className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
+              />
+            </div>
+
+            {(
+              [
+                ['showLegalLinks', 'Liens légaux'],
+                ['showSocialLinks', 'Réseaux sociaux'],
+              ] as const
+            ).map(([key, label]) => (
+              <div key={key} className="flex items-center justify-between py-1">
+                <span className="text-muted-foreground text-[11px]">{label}</span>
+                <input
+                  type="checkbox"
+                  checked={props[key] !== false}
+                  onChange={(e) => handlePropChange(key, e.target.checked)}
+                  className="rounded border-border accent-primary cursor-pointer"
+                />
+              </div>
+            ))}
           </div>
         )}
       </div>
