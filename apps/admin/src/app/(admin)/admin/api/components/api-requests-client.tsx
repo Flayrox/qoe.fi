@@ -17,6 +17,7 @@ import {
   Globe,
 } from 'lucide-react';
 import { updateCreatorApiAccessAction, updateCreatorApiGrantsAction } from '@qoe/sdk/actions/admin';
+import { attemptWithStepUp, notifyActionFailure, readMessage } from '@/lib/authz-feedback';
 
 export interface ApiApplicant {
   id: string;
@@ -76,10 +77,16 @@ export function ApiRequestsClient({ initialApplicants, modules }: ApiRequestsCli
   const handleApprove = async (userId: string, grants: string[]) => {
     setLoadingId(userId);
     try {
-      const res = await updateCreatorApiAccessAction({ userId, status: 'approved', grants });
+      // Accorder un accès API exige une preuve forte récente (N2) : le refus
+      // ouvre la vérification d'un facteur, puis l'action est rejouée.
+      const res = await attemptWithStepUp(() =>
+        updateCreatorApiAccessAction({ userId, status: 'approved', grants })
+      );
       if (res.ok) {
         applyStatus(userId, { apiAccessStatus: 'approved', apiGrants: grants });
         toast.success('Accès API accordé avec les permissions sélectionnées.');
+      } else {
+        notifyActionFailure(res, readMessage(res) ?? 'Impossible d’accorder l’accès API.');
       }
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : 'Impossible d’accorder l’accès API.');
@@ -91,7 +98,9 @@ export function ApiRequestsClient({ initialApplicants, modules }: ApiRequestsCli
   const handleUpdateStatus = async (userId: string, newStatus: 'rejected' | 'revoked' | 'none') => {
     setLoadingId(userId);
     try {
-      const res = await updateCreatorApiAccessAction({ userId, status: newStatus });
+      const res = await attemptWithStepUp(() =>
+        updateCreatorApiAccessAction({ userId, status: newStatus })
+      );
       if (res.ok) {
         applyStatus(userId, { apiAccessStatus: newStatus, apiGrants: [] });
         toast.success(
@@ -99,6 +108,8 @@ export function ApiRequestsClient({ initialApplicants, modules }: ApiRequestsCli
             ? 'Accès révoqué : toutes les permissions ont été retirées.'
             : 'Statut mis à jour.'
         );
+      } else {
+        notifyActionFailure(res, readMessage(res) ?? 'Impossible de mettre à jour le statut.');
       }
     } catch (error: unknown) {
       toast.error(
@@ -113,10 +124,15 @@ export function ApiRequestsClient({ initialApplicants, modules }: ApiRequestsCli
   const handleUpdateGrants = async (userId: string, grants: string[]) => {
     setLoadingId(userId);
     try {
-      const res = await updateCreatorApiGrantsAction({ userId, grants });
+      const res = await attemptWithStepUp(() => updateCreatorApiGrantsAction({ userId, grants }));
       if (res.ok) {
         applyStatus(userId, { apiGrants: grants });
         toast.success('Permissions mises à jour.');
+      } else {
+        notifyActionFailure(
+          res,
+          readMessage(res) ?? 'Impossible de mettre à jour les permissions.'
+        );
       }
     } catch (error: unknown) {
       toast.error(

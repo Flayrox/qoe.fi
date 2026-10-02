@@ -7,6 +7,7 @@ import { AdminSidebar } from './components/AdminSidebar';
 import { CommandPalette } from './components/CommandPalette';
 import { AdminHeader } from './components/AdminHeader';
 import { AccessDenied } from './components/AccessDenied';
+import { StepUpGate } from '@/components/security/step-up';
 
 // L'identité d'accès est résolue à chaque requête : une attribution retirée doit
 // fermer la console au rechargement suivant, sans redéploiement.
@@ -71,6 +72,15 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       </main>
 
       <CommandPalette capabilities={identity.capabilities} roles={identity.roles} />
+
+      {/*
+        Vérification d'un facteur fort (Phase 3) : monté UNE fois pour toute la
+        console. Quand le garde refuse un acte par manque de preuve récente
+        (`needs_step_up`) ou par méthode insuffisante (`deny_weak_auth`),
+        l'écran propose la vérification ici, puis rejoue l'action — sans
+        quitter la page ni ressaisir le formulaire.
+      */}
+      <StepUpGate />
     </div>
   );
 }

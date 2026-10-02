@@ -14,10 +14,16 @@
 import { revalidatePath } from 'next/cache';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { assertCapability } from '@/lib/admin-identity';
+import { authzTrailers } from '@/lib/action-result';
 
 export interface AccessActionResult {
   ok: boolean;
   error?: string;
+  /** Code du garde (`needs_step_up`, `deny_weak_auth`…) : l'écran propose le
+   *  step-up et rejoue l'action au lieu d'un refus muet. */
+  code?: string;
+  /** Niveau de preuve exigé (N0–N3), quand la route en déclare un. */
+  level?: string;
 }
 
 /** Message lisible d'une erreur Go (le code de refus est déjà dans le corps). */
@@ -52,7 +58,7 @@ export async function grantRoleAction(input: {
     revalidatePath(`/admin/access/people/${input.userId}`);
     return { ok: true };
   } catch (err) {
-    return { ok: false, error: readableError(err) };
+    return { ok: false, error: readableError(err), ...authzTrailers(err) };
   }
 }
 
@@ -72,6 +78,6 @@ export async function revokeRoleAction(input: {
     revalidatePath(`/admin/access/people/${input.userId}`);
     return { ok: true };
   } catch (err) {
-    return { ok: false, error: readableError(err) };
+    return { ok: false, error: readableError(err), ...authzTrailers(err) };
   }
 }

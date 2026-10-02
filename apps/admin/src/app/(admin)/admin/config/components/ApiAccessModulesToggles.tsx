@@ -12,6 +12,7 @@
 
 import { useState } from 'react';
 import { saveApiAccessModulesAction } from '@/lib/admin-aux-actions';
+import { attemptWithStepUp, readMessage } from '@/lib/authz-feedback';
 import { cn } from '@qoe/utils';
 import { ArrowDownLeft, ArrowUpRight, KeyRound } from 'lucide-react';
 
@@ -39,8 +40,12 @@ export function ApiAccessModulesToggles({ initialModules }: { initialModules: Ap
     setMessage(null);
     try {
       const enabled = modules.filter((m) => m.enabled).map((m) => m.key);
-      const res = await saveApiAccessModulesAction(enabled);
-      setMessage(res.success ? 'Modules d’accès API enregistrés.' : (res.error ?? 'Erreur.'));
+      // L'ouverture d'un module d'API est un acte N2 : le refus propose la
+      // vérification d'un facteur, puis l'enregistrement est rejoué.
+      const res = await attemptWithStepUp(() => saveApiAccessModulesAction(enabled));
+      setMessage(
+        res.success ? 'Modules d’accès API enregistrés.' : (readMessage(res) ?? 'Erreur.')
+      );
     } finally {
       setSaving(false);
     }

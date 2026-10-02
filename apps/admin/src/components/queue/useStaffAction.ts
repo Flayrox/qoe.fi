@@ -2,6 +2,12 @@
 
 import { useState, useCallback } from 'react';
 import { toast } from '@qoe/ui/toast';
+import {
+  attemptWithStepUp,
+  isFailure,
+  notifyActionFailure,
+  readMessage,
+} from '@/lib/authz-feedback';
 
 // Exécuteur d'action staff (lot 2) : loading par identifiant + toasts +
 // extraction du message d'erreur — le boilerplate `run` recopié dans chaque
@@ -9,27 +15,32 @@ import { toast } from '@qoe/ui/toast';
 // Usage : const { loadingId, run } = useStaffAction<string>();
 //   await run(item.id, () => decideXAction({...}), { ok: 'Fait', });
 // `ok` accepte une chaîne ou une fonction du résultat (message variable).
+//
+// Depuis la Phase 3, `run` est STEP-UP CONSCIENT : quand le garde de la console
+// refuse par manque de preuve forte récente (`needs_step_up`) ou parce que la
+// session a été élevée par une méthode non autorisée (`deny_weak_auth`), la
+// vérification d'un facteur est proposée puis l'action est REJOUÉE telle quelle
+// — mêmes arguments, donc aucune saisie perdue. Les files de modération en
+// héritent sans rien changer.
 export function useStaffAction<TId extends string | number>() {
   const [loadingId, setLoadingId] = useState<TId | null>(null);
 
   const run = useCallback(
-    async <TRes extends { ok: boolean; error?: unknown }>(
+    async <TRes extends { ok: boolean; error?: unknown; code?: string }>(
       id: TId,
       fn: () => Promise<TRes>,
       messages: { ok: string | ((res: TRes) => string) }
     ): Promise<TRes | null> => {
       setLoadingId(id);
       try {
-        const res = await fn();
-        if (res.ok) {
+        const res = await attemptWithStepUp(fn);
+        if (!isFailure(res)) {
           toast.success(typeof messages.ok === 'function' ? messages.ok(res) : messages.ok);
           return res;
         }
-        const msg =
-          typeof res.error === 'string'
-            ? res.error
-            : ((res.error as { message?: string } | undefined)?.message ?? 'Action impossible');
-        toast.error(msg);
+        // Échec : on notifie et on rend `null` — contrat historique de `run`,
+        // que les appelants testent directement (`if (res) …`).
+        notifyActionFailure(res, readMessage(res) ?? 'Action impossible');
         return null;
       } catch (error: unknown) {
         toast.error(error instanceof Error ? error.message : 'Action impossible');

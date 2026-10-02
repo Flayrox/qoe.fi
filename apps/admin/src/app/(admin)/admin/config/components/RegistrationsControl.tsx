@@ -17,6 +17,7 @@ import {
   deleteAllowlistAction,
 } from '@/lib/admin-aux-actions';
 import type { AllowlistEntry } from '@/lib/admin-data';
+import { attemptWithStepUp, readMessage } from '@/lib/authz-feedback';
 import { cn } from '@qoe/utils';
 
 export function RegistrationsControl({
@@ -38,10 +39,12 @@ export function RegistrationsControl({
     setOpen(next);
     setErrorMsg(null);
     startTransition(async () => {
-      const res = await setRegistrationsOpenAction(next);
+      // Ouvrir les inscriptions à tous est un acte N2 : le refus propose la
+      // vérification d'un facteur, puis l'action est rejouée.
+      const res = await attemptWithStepUp(() => setRegistrationsOpenAction(next));
       if (!res.success) {
         setOpen(!next);
-        setErrorMsg(res.error ?? 'Erreur lors du changement de statut');
+        setErrorMsg(readMessage(res) ?? 'Erreur lors du changement de statut');
       }
     });
   };
@@ -51,9 +54,9 @@ export function RegistrationsControl({
     if (!trimmedEmail) return;
     setErrorMsg(null);
     startTransition(async () => {
-      const res = await addAllowlistAction(trimmedEmail, note);
+      const res = await attemptWithStepUp(() => addAllowlistAction(trimmedEmail, note));
       if (!res.success) {
-        setErrorMsg(res.error ?? "Erreur lors de l'invitation");
+        setErrorMsg(readMessage(res) ?? "Erreur lors de l'invitation");
         return;
       }
       setEntries((prev) => [
@@ -76,8 +79,8 @@ export function RegistrationsControl({
     if (!confirm(`Retirer l'invitation de ${target} ?`)) return;
     setEntries((prev) => prev.filter((e) => e.email !== target));
     startTransition(async () => {
-      const res = await deleteAllowlistAction(target);
-      if (!res.success) setErrorMsg(res.error ?? 'Erreur de suppression');
+      const res = await attemptWithStepUp(() => deleteAllowlistAction(target));
+      if (!res.success) setErrorMsg(readMessage(res) ?? 'Erreur de suppression');
     });
   };
 

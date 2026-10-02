@@ -123,7 +123,7 @@ func Evaluate(s Session, action Action, in Inputs, now time.Time) Decision {
 	}
 
 	// 4. Preuve forte par une méthode autorisée.
-	if rule.Level.requiresStrongAuth() {
+	if rule.Level.RequiresStrongAuth() {
 		_, at, ok := s.StrongMethodAt()
 		if !ok && in.StrongMethodHint != "" && IsStrongMethod(in.StrongMethodHint) {
 			// Preuve serveur explicitement fournie par l'appelant (jamais un

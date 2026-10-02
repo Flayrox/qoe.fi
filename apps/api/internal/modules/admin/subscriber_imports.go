@@ -15,6 +15,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/qoefi/api/internal/adminauthz"
+	"github.com/qoefi/api/internal/authz"
 	"github.com/qoefi/api/internal/modules/imports"
 	"github.com/qoefi/api/internal/response"
 )
@@ -27,26 +28,30 @@ func (h *Handler) SetSubscriberImports(svc *imports.Service) { h.subscriberImpor
 // service est branché. Sans lui, aucune route n'est créée : une console mal
 // câblée n'expose pas une revue fantôme. La lecture (file, dossier, suivi des
 // vagues) demande admin.imports.read ; tout acte sur un lot (revendiquer,
-// juger, ouvrir ou purger une vague) demande admin.imports.review.
+// juger, ouvrir ou purger une vague) demande admin.imports.review — ET une
+// preuve forte récente (N2) : ces actes portent sur les données d'autrui
+// (juger l'origine d'un fichier d'abonnés, déclencher des envois), un vol de
+// session ne doit pas suffire à les expédier.
 func (h *Handler) registerSubscriberImports() {
 	if h.subscriberImports == nil {
 		return
 	}
 	c := h.console
+	stepUp := adminauthz.WithProofLevel(authz.Level2)
 	c.Get("/v1/admin/import/subscribers", adminauthz.ImportsRead, h.subscriberImportQueue)
 	c.Get("/v1/admin/import/subscribers/{id}", adminauthz.ImportsRead, h.subscriberImportReview)
-	c.Post("/v1/admin/import/subscribers/{id}/claim", adminauthz.ImportsReview, h.subscriberImportClaim)
-	c.Post("/v1/admin/import/subscribers/{id}/decide", adminauthz.ImportsReview, h.subscriberImportDecide)
+	c.Post("/v1/admin/import/subscribers/{id}/claim", adminauthz.ImportsReview, h.subscriberImportClaim, stepUp)
+	c.Post("/v1/admin/import/subscribers/{id}/decide", adminauthz.ImportsReview, h.subscriberImportDecide, stepUp)
 	// Branche de reconfirmation : ouvrir une vague, suivre les vagues, purger
 	// les demandes échues. Même capacité que le jugement d'un lot, même service.
-	c.Post("/v1/admin/import/subscribers/{id}/reconfirm", adminauthz.ImportsReview, h.subscriberImportReconfirm)
+	c.Post("/v1/admin/import/subscribers/{id}/reconfirm", adminauthz.ImportsReview, h.subscriberImportReconfirm, stepUp)
 	c.Get("/v1/admin/import/subscribers/{id}/reconfirm", adminauthz.ImportsRead, h.subscriberImportReconfirmStatus)
-	c.Post("/v1/admin/import/subscribers/{id}/reconfirm/purge", adminauthz.ImportsReview, h.subscriberImportReconfirmPurge)
+	c.Post("/v1/admin/import/subscribers/{id}/reconfirm/purge", adminauthz.ImportsReview, h.subscriberImportReconfirmPurge, stepUp)
 	// Envoi encadré : ouvrir une vague, suivre les vagues, annuler une vague.
 	// Annuler une vague engage des envois, donc la capacité de revue.
-	c.Post("/v1/admin/import/subscribers/{id}/send-wave", adminauthz.ImportsReview, h.subscriberImportSendWave)
+	c.Post("/v1/admin/import/subscribers/{id}/send-wave", adminauthz.ImportsReview, h.subscriberImportSendWave, stepUp)
 	c.Get("/v1/admin/import/subscribers/{id}/send-waves", adminauthz.ImportsRead, h.subscriberImportSendWaves)
-	c.Post("/v1/admin/import/subscribers/{id}/send-waves/{waveId}/cancel", adminauthz.ImportsReview, h.subscriberImportSendWaveCancel)
+	c.Post("/v1/admin/import/subscribers/{id}/send-waves/{waveId}/cancel", adminauthz.ImportsReview, h.subscriberImportSendWaveCancel, stepUp)
 }
 
 // GET /v1/admin/import/subscribers — file de revue, plus anciens dépôts d'abord.

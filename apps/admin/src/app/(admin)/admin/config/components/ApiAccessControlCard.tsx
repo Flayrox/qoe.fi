@@ -18,6 +18,7 @@ import {
   saveApiDisabledEndpointsAction,
 } from '@/lib/admin-aux-actions';
 import { cn } from '@qoe/utils';
+import { attemptWithStepUp, readMessage } from '@/lib/authz-feedback';
 import { Power, Route, AlertTriangle } from 'lucide-react';
 
 interface ApiAccessControlCardProps {
@@ -40,7 +41,10 @@ export function ApiAccessControlCard({
     setSavingKill(true);
     setKillMsg(null);
     try {
-      const res = await setApiAccessDisabledAction(!disabled);
+      // La coupure générale de l'API exige une preuve forte récente (N2) : le
+      // refus ouvre la vérification de facteur, puis l'action est rejouée telle
+      // quelle — le bouton n'a rien à ressaisir.
+      const res = await attemptWithStepUp(() => setApiAccessDisabledAction(!disabled));
       if (res.success) {
         setDisabled(!disabled);
         setKillMsg(
@@ -49,7 +53,7 @@ export function ApiAccessControlCard({
             : 'Coupure générale désactivée : l’API répond à nouveau.'
         );
       } else {
-        setKillMsg(res.error ?? 'Erreur.');
+        setKillMsg(readMessage(res) ?? 'Erreur.');
       }
     } finally {
       setSavingKill(false);
@@ -64,7 +68,7 @@ export function ApiAccessControlCard({
     setSavingEndpoints(true);
     setEndpointsMsg(null);
     try {
-      const res = await saveApiDisabledEndpointsAction(patterns);
+      const res = await attemptWithStepUp(() => saveApiDisabledEndpointsAction(patterns));
       if (res.success) {
         setEndpointsText((res.patterns ?? []).join('\n'));
         setEndpointsMsg(
@@ -73,7 +77,7 @@ export function ApiAccessControlCard({
             : 'Aucun endpoint désactivé.'
         );
       } else {
-        setEndpointsMsg(res.error ?? 'Erreur.');
+        setEndpointsMsg(readMessage(res) ?? 'Erreur.');
       }
     } finally {
       setSavingEndpoints(false);

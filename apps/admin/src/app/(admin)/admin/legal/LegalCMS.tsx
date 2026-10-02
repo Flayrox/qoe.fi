@@ -49,6 +49,12 @@ import {
   updateLegalVersionAction,
   type LegalVersionRow,
 } from '@/lib/admin-legal-actions';
+import { attemptWithStepUp } from '@/lib/authz-feedback';
+
+// Écrire dans le corpus juridique exige une preuve forte récente (N2) : quand
+// le garde refuse, la vérification d'un facteur s'ouvre ici et l'action est
+// REJOUÉE telle quelle — le brouillon en cours d'édition n'est jamais perdu.
+// Toutes les écritures ci-dessous passent par `attemptWithStepUp`.
 
 const CATEGORIES = ['legal', 'privacy', 'commerce', 'creator', 'security', 'general'] as const;
 const AUDIENCES = ['all', 'creators', 'media', 'developers', 'subscribers'] as const;
@@ -256,9 +262,11 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
         changelog: draft.changelog,
         effectiveAt: draft.effectiveAt,
       };
-      const res = draft.id
-        ? await updateLegalVersionAction(draft.id, payload)
-        : await createLegalVersionAction(selected.id, payload);
+      const res = await attemptWithStepUp(() =>
+        draft.id
+          ? updateLegalVersionAction(draft.id, payload)
+          : createLegalVersionAction(selected.id, payload)
+      );
       if (!res.success) {
         notify('error', res.error);
         return;
@@ -294,7 +302,7 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
       return;
     }
     startTransition(async () => {
-      const res = await publishLegalVersionAction(version.id);
+      const res = await attemptWithStepUp(() => publishLegalVersionAction(version.id));
       if (!res.success) {
         notify('error', res.error);
         return;
@@ -329,7 +337,7 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
     }
 
     startTransition(async () => {
-      const res = await scheduleLegalVersionAction(version.id, iso);
+      const res = await attemptWithStepUp(() => scheduleLegalVersionAction(version.id, iso));
       if (!res.success) {
         notify('error', res.error);
         return;
@@ -348,7 +356,7 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
   function archive(version: LegalVersionRow) {
     if (!confirm(`Archiver la version ${version.version} ? Elle disparaîtra du public.`)) return;
     startTransition(async () => {
-      const res = await archiveLegalVersionAction(version.id);
+      const res = await attemptWithStepUp(() => archiveLegalVersionAction(version.id));
       if (!res.success) {
         notify('error', res.error);
         return;
@@ -362,7 +370,7 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
   function removeDraft(version: LegalVersionRow) {
     if (!confirm(`Supprimer le brouillon ${version.version} ?`)) return;
     startTransition(async () => {
-      const res = await deleteLegalDraftAction(version.id);
+      const res = await attemptWithStepUp(() => deleteLegalDraftAction(version.id));
       if (!res.success) {
         notify('error', res.error);
         return;
@@ -383,7 +391,7 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
       return;
     }
     startTransition(async () => {
-      const res = await deleteLegalDocumentAction(doc.id);
+      const res = await attemptWithStepUp(() => deleteLegalDocumentAction(doc.id));
       if (!res.success) {
         notify('error', res.error);
         return;
@@ -397,7 +405,7 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
 
   function seed() {
     startTransition(async () => {
-      const res = await seedLegalDefaultsAction();
+      const res = await attemptWithStepUp(() => seedLegalDefaultsAction());
       if (!res.success) {
         notify('error', res.error);
         return;
@@ -602,7 +610,9 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
                   pending={isPending}
                   onSave={(input) =>
                     startTransition(async () => {
-                      const res = await updateLegalDocumentAction(selected.id, input);
+                      const res = await attemptWithStepUp(() =>
+                        updateLegalDocumentAction(selected.id, input)
+                      );
                       if (!res.success) {
                         notify('error', res.error);
                         return;
@@ -882,7 +892,7 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
           onClose={() => setCreatingDoc(false)}
           onCreate={(input) =>
             startTransition(async () => {
-              const res = await createLegalDocumentAction(input);
+              const res = await attemptWithStepUp(() => createLegalDocumentAction(input));
               if (!res.success) {
                 notify('error', res.error);
                 return;

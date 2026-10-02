@@ -10,6 +10,7 @@
 
 import { useState } from 'react';
 import { saveAuthMethodsAction } from '@/lib/admin-aux-actions';
+import { attemptWithStepUp, readMessage } from '@/lib/authz-feedback';
 import { cn } from '@qoe/utils';
 
 export interface AuthMethodsState {
@@ -53,8 +54,12 @@ export function AuthMethodsToggles({ initialValue }: { initialValue?: string }) 
     setSaving(true);
     setMessage(null);
     try {
-      const res = await saveAuthMethodsAction(methods);
-      setMessage(res.success ? 'Méthodes de connexion enregistrées.' : (res.error ?? 'Erreur.'));
+      // Changer les méthodes de connexion autorisées est un acte N2 :
+      // vérification de facteur, puis rejeu automatique.
+      const res = await attemptWithStepUp(() => saveAuthMethodsAction(methods));
+      setMessage(
+        res.success ? 'Méthodes de connexion enregistrées.' : (readMessage(res) ?? 'Erreur.')
+      );
     } finally {
       setSaving(false);
     }

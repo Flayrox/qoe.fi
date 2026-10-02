@@ -17,6 +17,29 @@ import {
   suspendUserAction as suspendUser,
   unsuspendUserAction as unsuspendUser,
 } from '@/lib/admin-actions';
+import { toast } from '@qoe/ui/toast';
+import {
+  attemptWithStepUp,
+  isFailure,
+  notifyActionFailure,
+  readMessage,
+} from '@/lib/authz-feedback';
+
+// Modérer un compte (certifier, shadowban, bannir, débannir) exige une preuve
+// forte récente (N2) : un refus ouvre la vérification d'un facteur, puis
+// l'action est REJOUÉE telle quelle. Le résultat est expliqué — avant, un échec
+// passait totalement inaperçu (le résultat de l'action était ignoré).
+const moderate = async (
+  action: () => Promise<{ success?: boolean; ok?: boolean; error?: unknown }>,
+  done: string
+) => {
+  const res = await attemptWithStepUp(action);
+  if (isFailure(res)) {
+    notifyActionFailure(res, readMessage(res) ?? 'Modération impossible');
+    return;
+  }
+  toast.success(done);
+};
 
 export type AdminUser = {
   id: string;
@@ -129,7 +152,11 @@ export const columns: ColumnDef<AdminUser>[] = [
 
               <DropdownMenuItem
                 onClick={() =>
-                  toggleUserCertification({ userId: user.id, isCertified: !user.isCertified })
+                  void moderate(
+                    () =>
+                      toggleUserCertification({ userId: user.id, isCertified: !user.isCertified }),
+                    user.isCertified ? 'Certification retirée.' : 'Créateur certifié.'
+                  )
                 }
                 className="cursor-pointer hover:bg-muted focus:bg-muted rounded-xl px-3 py-2 text-sm font-medium"
               >
@@ -139,7 +166,14 @@ export const columns: ColumnDef<AdminUser>[] = [
 
               <DropdownMenuItem
                 onClick={() =>
-                  toggleUserShadowban({ userId: user.id, isShadowbanned: !user.isShadowbanned })
+                  void moderate(
+                    () =>
+                      toggleUserShadowban({
+                        userId: user.id,
+                        isShadowbanned: !user.isShadowbanned,
+                      }),
+                    user.isShadowbanned ? 'Shadowban levé.' : 'Shadowban appliqué.'
+                  )
                 }
                 className="cursor-pointer hover:bg-highlight/10 focus:bg-highlight/10 text-highlight focus:text-highlight rounded-xl px-3 py-2 text-sm font-medium"
               >
@@ -152,10 +186,14 @@ export const columns: ColumnDef<AdminUser>[] = [
               <DropdownMenuItem
                 onClick={() => {
                   if (user.isSuspended) {
-                    unsuspendUser(user.id);
+                    void moderate(() => unsuspendUser(user.id), 'Compte débanni.');
                   } else {
                     const reason = prompt('Raison du bannissement :');
-                    if (reason) suspendUser({ userId: user.id, reason });
+                    if (reason)
+                      void moderate(
+                        () => suspendUser({ userId: user.id, reason }),
+                        'Compte banni.'
+                      );
                   }
                 }}
 

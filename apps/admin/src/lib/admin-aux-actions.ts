@@ -10,6 +10,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import { authzTrailers } from '@/lib/action-result';
 import { createClient } from '@qoe/supabase/server';
 
 async function verifySuperadmin() {
@@ -38,10 +39,14 @@ export async function toggleFeaturedArticle(articleId: string) {
     });
     revalidatePath('/admin/widgets');
     revalidatePath('/home');
-    return { success: true };
+    return { success: true as const };
   } catch (error: unknown) {
     console.error(error);
-    return { success: false, error: errorMessage(error, 'Erreur de base de données') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Erreur de base de données'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -50,15 +55,19 @@ export async function addTrend(hashtag: string, count: number) {
   try {
     let h = hashtag.trim();
     if (!h.startsWith('#')) h = '#' + h;
-    if (h.length < 2) return { success: false, error: 'Hashtag invalide' };
+    if (h.length < 2) return { success: false as const, error: 'Hashtag invalide' };
 
     await goFetch('/v1/admin/widgets/trends', { method: 'POST', body: { hashtag: h, count } });
     revalidatePath('/admin/widgets');
     revalidatePath('/home');
-    return { success: true };
+    return { success: true as const };
   } catch (error: unknown) {
     console.error(error);
-    return { success: false, error: errorMessage(error, 'Erreur lors de la création') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Erreur lors de la création'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -68,10 +77,14 @@ export async function deleteTrend(id: string) {
     await goFetch(`/v1/admin/widgets/trends/${encodeURIComponent(id)}`, { method: 'DELETE' });
     revalidatePath('/admin/widgets');
     revalidatePath('/home');
-    return { success: true };
+    return { success: true as const };
   } catch (error: unknown) {
     console.error(error);
-    return { success: false, error: errorMessage(error, 'Erreur de suppression') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Erreur de suppression'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -84,10 +97,14 @@ export async function updateTrendCount(id: string, count: number) {
     });
     revalidatePath('/admin/widgets');
     revalidatePath('/home');
-    return { success: true };
+    return { success: true as const };
   } catch (error: unknown) {
     console.error(error);
-    return { success: false, error: errorMessage(error, 'Erreur de mise à jour') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Erreur de mise à jour'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -102,17 +119,22 @@ export async function savePromo(
 ) {
   await verifySuperadmin();
   try {
-    if (!title || !description) return { success: false, error: 'Titre et description requis' };
+    if (!title || !description)
+      return { success: false as const, error: 'Titre et description requis' };
     await goFetch('/v1/admin/widgets/promos', {
       method: 'POST',
       body: { id, title, description, ctaText, ctaUrl, imageUrl: imageUrl || null, isActive },
     });
     revalidatePath('/admin/widgets');
     revalidatePath('/home');
-    return { success: true };
+    return { success: true as const };
   } catch (error: unknown) {
     console.error(error);
-    return { success: false, error: errorMessage(error, 'Erreur de sauvegarde') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Erreur de sauvegarde'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -122,10 +144,14 @@ export async function deletePromo(id: string) {
     await goFetch(`/v1/admin/widgets/promos/${encodeURIComponent(id)}`, { method: 'DELETE' });
     revalidatePath('/admin/widgets');
     revalidatePath('/home');
-    return { success: true };
+    return { success: true as const };
   } catch (error: unknown) {
     console.error(error);
-    return { success: false, error: errorMessage(error, 'Erreur de suppression') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Erreur de suppression'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -138,10 +164,14 @@ export async function togglePromoActive(id: string, isActive: boolean) {
     });
     revalidatePath('/admin/widgets');
     revalidatePath('/home');
-    return { success: true };
+    return { success: true as const };
   } catch (error: unknown) {
     console.error(error);
-    return { success: false, error: errorMessage(error, 'Erreur de mise à jour') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Erreur de mise à jour'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -185,10 +215,14 @@ export async function setSystemConfigAction(input: {
       },
     ]);
     revalidatePath('/', 'layout');
-    return { success: true };
+    return { success: true as const };
   } catch (error: unknown) {
     console.error(error);
-    return { success: false, error: errorMessage(error, 'Erreur de sauvegarde') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Erreur de sauvegarde'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -204,10 +238,14 @@ export async function setRegistrationsOpenAction(open: boolean) {
       },
     ]);
     revalidatePath('/', 'layout');
-    return { success: true };
+    return { success: true as const };
   } catch (error: unknown) {
     console.error(error);
-    return { success: false, error: errorMessage(error, 'Erreur de sauvegarde') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Erreur de sauvegarde'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -215,16 +253,20 @@ export async function setRegistrationsOpenAction(open: boolean) {
 export async function addAllowlistAction(email: string, note?: string) {
   await verifySuperadmin();
   try {
-    if (!email || !email.includes('@')) return { success: false, error: 'Email invalide' };
+    if (!email || !email.includes('@')) return { success: false as const, error: 'Email invalide' };
     await goFetch('/v1/admin/registrations/allowlist', {
       method: 'POST',
       body: { email: email.trim(), note: note?.trim() || null },
     });
     revalidatePath('/admin/config');
-    return { success: true };
+    return { success: true as const };
   } catch (error: unknown) {
     console.error(error);
-    return { success: false, error: errorMessage(error, "Erreur lors de l'invitation") };
+    return {
+      success: false as const,
+      error: errorMessage(error, "Erreur lors de l'invitation"),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -236,10 +278,14 @@ export async function deleteAllowlistAction(email: string) {
       method: 'DELETE',
     });
     revalidatePath('/admin/config');
-    return { success: true };
+    return { success: true as const };
   } catch (error: unknown) {
     console.error(error);
-    return { success: false, error: errorMessage(error, 'Erreur de suppression') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Erreur de suppression'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -254,10 +300,14 @@ export async function updateReservedIdentifiersAction(
       body: { values },
     });
     revalidatePath('/admin/config');
-    return { success: true };
+    return { success: true as const };
   } catch (error: unknown) {
     console.error(error);
-    return { success: false, error: errorMessage(error, 'Erreur de sauvegarde') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Erreur de sauvegarde'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -266,10 +316,14 @@ export async function deleteSystemConfigAction(key: string) {
   try {
     await goFetch(`/v1/admin/config/${encodeURIComponent(key)}`, { method: 'DELETE' });
     revalidatePath('/', 'layout');
-    return { success: true };
+    return { success: true as const };
   } catch (error: unknown) {
     console.error(error);
-    return { success: false, error: errorMessage(error, 'Erreur de suppression') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Erreur de suppression'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -283,10 +337,14 @@ export async function saveApiAccessModulesAction(enabled: string[]) {
     });
     revalidatePath('/admin/config');
     revalidatePath('/admin/api');
-    return { success: true };
+    return { success: true as const };
   } catch (error: unknown) {
     console.error(error);
-    return { success: false, error: errorMessage(error, 'Erreur de sauvegarde') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Erreur de sauvegarde'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -304,10 +362,14 @@ export async function setApiAccessDisabledAction(disabled: boolean) {
       },
     });
     revalidatePath('/admin/config');
-    return { success: true };
+    return { success: true as const };
   } catch (error: unknown) {
     console.error(error);
-    return { success: false, error: errorMessage(error, 'Erreur de sauvegarde') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Erreur de sauvegarde'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -329,10 +391,14 @@ export async function saveApiDisabledEndpointsAction(patterns: string[]) {
       },
     });
     revalidatePath('/admin/config');
-    return { success: true, patterns: clean };
+    return { success: true as const, patterns: clean };
   } catch (error: unknown) {
     console.error(error);
-    return { success: false, error: errorMessage(error, 'Erreur de sauvegarde') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Erreur de sauvegarde'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -355,10 +421,14 @@ export async function saveAuthMethodsAction(methods: {
       },
     ]);
     revalidatePath('/admin/config');
-    return { success: true };
+    return { success: true as const };
   } catch (error: unknown) {
     console.error(error);
-    return { success: false, error: errorMessage(error, 'Erreur de sauvegarde') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Erreur de sauvegarde'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -388,10 +458,14 @@ export async function saveMultipleFrontendConfigs(
     );
     revalidatePath('/', 'layout');
     revalidatePath('/admin/frontend');
-    return { success: true };
+    return { success: true as const };
   } catch (error: unknown) {
     console.error(error);
-    return { success: false, error: errorMessage(error, 'Erreur de sauvegarde') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Erreur de sauvegarde'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -403,10 +477,14 @@ export async function retryNotificationDeliveryAction(deliveryId: string) {
     await goFetch(`/v1/admin/deliveries/${encodeURIComponent(deliveryId)}/retry`, {
       method: 'POST',
     });
-    return { success: true };
+    return { success: true as const };
   } catch (error: unknown) {
     console.error(error);
-    return { success: false, error: errorMessage(error, 'Relance impossible.') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Relance impossible.'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -428,10 +506,14 @@ export async function toggleFeatureFlagAction(key: string, isEnabled: boolean) {
     if (error) throw error;
     revalidatePath('/admin/config');
     revalidatePath('/', 'layout');
-    return { success: true };
+    return { success: true as const };
   } catch (error: unknown) {
     console.error('toggleFeatureFlagAction error:', error);
-    return { success: false, error: errorMessage(error, 'Impossible de modifier le flag.') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Impossible de modifier le flag.'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -480,10 +562,14 @@ export async function saveGlobalAnnouncementAction(
     ]);
     revalidatePath('/admin/notifications');
     revalidatePath('/', 'layout');
-    return { success: true, announcement: payload };
+    return { success: true as const, announcement: payload };
   } catch (error: unknown) {
     console.error('saveGlobalAnnouncementAction error:', error);
-    return { success: false, error: errorMessage(error, 'Sauvegarde de l annonce impossible.') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Sauvegarde de l annonce impossible.'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -528,10 +614,14 @@ export async function createPlacementAdminAction(data: AdminPlacementPayload) {
     });
     revalidatePath('/admin/notifications');
     revalidatePath('/', 'layout');
-    return { success: true, placement: created };
+    return { success: true as const, placement: created };
   } catch (error: unknown) {
     console.error('createPlacementAdminAction error:', error);
-    return { success: false, error: errorMessage(error, 'Création du placement impossible') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Création du placement impossible'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -547,10 +637,14 @@ export async function updatePlacementAdminAction(id: string, data: Partial<Admin
     );
     revalidatePath('/admin/notifications');
     revalidatePath('/', 'layout');
-    return { success: true, placement: updated };
+    return { success: true as const, placement: updated };
   } catch (error: unknown) {
     console.error('updatePlacementAdminAction error:', error);
-    return { success: false, error: errorMessage(error, 'Mise à jour impossible') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Mise à jour impossible'),
+      ...authzTrailers(error),
+    };
   }
 }
 
@@ -562,9 +656,13 @@ export async function deletePlacementAdminAction(id: string) {
     });
     revalidatePath('/admin/notifications');
     revalidatePath('/', 'layout');
-    return { success: true };
+    return { success: true as const };
   } catch (error: unknown) {
     console.error('deletePlacementAdminAction error:', error);
-    return { success: false, error: errorMessage(error, 'Suppression impossible') };
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Suppression impossible'),
+      ...authzTrailers(error),
+    };
   }
 }
