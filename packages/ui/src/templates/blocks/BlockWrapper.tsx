@@ -18,6 +18,7 @@ interface BlockWrapperProps {
   locked?: boolean;
   context: TemplateRenderContext;
   children: React.ReactNode;
+  styleBox?: { pt?: number; pb?: number; maxWidth?: number; opacity?: number };
 }
 
 export function BlockWrapper({
@@ -28,20 +29,49 @@ export function BlockWrapper({
   locked,
   context,
   children,
+  styleBox,
 }: BlockWrapperProps) {
   const { mode, selectedBlockId, onSelectBlock, onMoveBlock, onDeleteBlock } = context;
 
-  // En mode public / live : zéro surcharge, rendu brut
+  const hasBox =
+    styleBox &&
+    (Number(styleBox.pt ?? 0) > 0 ||
+      Number(styleBox.pb ?? 0) > 0 ||
+      Number(styleBox.maxWidth ?? 0) > 0 ||
+      (styleBox.opacity !== undefined && Number(styleBox.opacity) < 100));
+
+  const boxStyle: React.CSSProperties = hasBox
+    ? {
+        paddingTop: Number(styleBox?.pt ?? 0) > 0 ? `${styleBox?.pt}px` : undefined,
+        paddingBottom: Number(styleBox?.pb ?? 0) > 0 ? `${styleBox?.pb}px` : undefined,
+        maxWidth: Number(styleBox?.maxWidth ?? 0) > 0 ? `${styleBox?.maxWidth}px` : undefined,
+        marginLeft: Number(styleBox?.maxWidth ?? 0) > 0 ? 'auto' : undefined,
+        marginRight: Number(styleBox?.maxWidth ?? 0) > 0 ? 'auto' : undefined,
+        opacity:
+          styleBox?.opacity !== undefined && Number(styleBox.opacity) < 100
+            ? Number(styleBox.opacity) / 100
+            : undefined,
+      }
+    : {};
+
+  // En mode public / live : zéro surcharge sauf styleBox custom
   if (mode === 'live') {
     if (!visible) return null;
-    return <>{children}</>;
+    if (!hasBox) return <>{children}</>;
+    return (
+      <div data-block-id={id} data-block-type={type} style={boxStyle}>
+        {children}
+      </div>
+    );
   }
 
   const isSelected = selectedBlockId === id;
 
   return (
     <div
+      data-block-id={id}
       data-block-type={type}
+      style={hasBox ? boxStyle : undefined}
       onClick={(e) => {
         e.stopPropagation();
         onSelectBlock?.(id);

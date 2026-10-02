@@ -84,6 +84,13 @@ export function LeadStoryBlock({
       visible={visible}
       locked={locked}
       context={context}
+      styleBox={
+        (
+          props as unknown as {
+            styleBox?: { pt?: number; pb?: number; maxWidth?: number; opacity?: number };
+          }
+        ).styleBox
+      }
     >
       <section className="container mx-auto px-4 lg:px-8 py-10 md:py-16">
         <Link
