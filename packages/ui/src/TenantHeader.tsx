@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { ChevronDown, ArrowLeft } from 'lucide-react';
+import { ChevronDown, ArrowLeft, Search } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 import type { NavigationItem, SocialLink } from '@qoe/sdk/types';
 import { SocialIcon } from './SocialIcon';
@@ -134,6 +134,13 @@ export function TenantHeader({
           </nav>
 
           <div className="flex items-center gap-4 border-l pl-4 md:pl-6 ml-2">
+            <Link
+              href="/search"
+              title="Rechercher"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Search className="w-4 h-4" />
+            </Link>
             {socialLinks.slice(0, 3).map((social: SocialLink) => (
               <Link
                 key={social.id}
