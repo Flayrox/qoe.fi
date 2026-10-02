@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/qoefi/api/internal/authz"
 	"github.com/qoefi/api/internal/middleware"
 )
@@ -89,18 +90,16 @@ type guard struct {
 	// personne doit avoir approuvée. Sans elle, une approbation donnée pour un
 	// acte validerait n'importe quel autre : jamais de quorum implicite.
 	approvalAct authz.Action
+	// approvalTarget : nom du paramètre d'URL qui désigne la cible de l'acte
+	// (`versionID` pour une publication juridique). Vide = acte sans cible
+	// (approbation globale pour l'acte).
+	approvalTarget string
 	// now : horloge injectable (tests de fraîcheur) ; nil = horloge système.
 	now func() time.Time
 }
 
 // Option configure le garde.
 type Option func(*guard)
-
-// ApprovalCheck dit si un dossier d'approbation couvre l'acte NOMMÉ que cette
-// personne s'apprête à commettre : une SECONDE personne autorisée a validé la
-// demande, dans un délai court. Branché par le quorum N3 (Phase 8) ; un
-// *Service d'approbations le satisfera.
-type ApprovalCheck func(ctx context.Context, userID string, act authz.Action) bool
 
 // WithMode fige le mode pour ce garde (prioritaire sur le resolver porté par
 // le Lookup, sauf WithModeResolver qui reste prioritaire).
@@ -130,6 +129,14 @@ func WithApproval(fn ApprovalCheck) Option { return func(g *guard) { g.approval 
 // c'est CETTE action qu'une seconde personne doit avoir approuvée, jamais un
 // droit générique. Obligatoire sur une route N3.
 func WithApprovalAct(act authz.Action) Option { return func(g *guard) { g.approvalAct = act } }
+
+// WithApprovalTargetParam nomme le paramètre d'URL qui porte la cible de l'acte
+// (`versionID`, `importID`…). L'approbation est alors liée à cette cible
+// précise. Sur une route N3 qui déclare ce paramètre, une requête sans cible
+// est refusée : on ne valide pas « quelque chose ».
+func WithApprovalTargetParam(param string) Option {
+	return func(g *guard) { g.approvalTarget = param }
+}
 
 // WithClock remplace l'horloge du garde (fraîcheur de preuve, tests).
 func WithClock(now func() time.Time) Option { return func(g *guard) { g.now = now } }
@@ -218,8 +225,15 @@ func (g *guard) checkProof(r *http.Request, userID string) (authz.Code, string, 
 		if g.approval == nil || g.approvalAct == "" {
 			return authz.CodeNeedsReview, "double validation exigée : aucune approbation ne peut être vérifiée", false
 		}
-		if !g.approval(r.Context(), userID, g.approvalAct) {
-			return authz.CodeNeedsReview, "double validation requise : une seconde personne autorisée doit approuver", false
+		target := ""
+		if g.approvalTarget != "" {
+			target = chi.URLParam(r, g.approvalTarget)
+			if target == "" {
+				return authz.CodeNeedsReview, "cible de l'acte indéterminée : double validation impossible", false
+			}
+		}
+		if !g.approval(r.Context(), userID, g.approvalAct, target) {
+			return authz.CodeNeedsReview, "double validation requise : une seconde personne autorisée doit approuver cette demande", false
 		}
 	}
 	return authz.CodeAllow, "", true
@@ -300,7 +314,13 @@ func Require(lookup Lookup, capability Capability, opts ...Option) func(http.Han
 					next.ServeHTTP(w, r)
 					return
 				}
-				if mode == ModeObserve {
+				// Le quorum N3 n'est jamais « observé ». Une preuve ancienne (N2) est
+				// un risque gradué qu'on peut mesurer avant d'armer le refus ; un acte
+				// irréversible sans sa seconde validation n'est pas un faux positif —
+				// c'est l'absence du contrôle. N3 refuse donc dans les deux modes :
+				// l'observation aurait ouvert la publication juridique à quiconque
+				// détient la capacité, tant que le flag reste éteint.
+				if mode == ModeObserve && g.proofLevel < authz.Level3 {
 					log.Printf("[adminauthz:observe] %s %s : preuve insuffisante (user=%s, niveau=%s, code=%s) — step-up à proposer",
 						r.Method, r.URL.Path, userID, g.proofLevel, code)
 					g.observe(g.trace(r, code, false), userID, mode)
@@ -309,7 +329,10 @@ func Require(lookup Lookup, capability Capability, opts ...Option) func(http.Han
 				}
 				log.Printf("[adminauthz:deny] %s %s (user=%s, niveau=%s, code=%s)",
 					r.Method, r.URL.Path, userID, g.proofLevel, code)
-				g.observe(g.trace(r, code, false), userID, mode)
+				// ModeEnforce : ce refus est APPLIQUÉ, y compris le quorum N3 en
+				// observation. La trace ne doit pas laisser croire à un simple
+				// avertissement (le journal distingue « appliqué » d'« observé »).
+				g.observe(g.trace(r, code, false), userID, ModeEnforce)
 				writeDenied(w, http.StatusForbidden, capability, code, reason, g.proofLevel.String())
 				return
 			}

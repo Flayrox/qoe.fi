@@ -359,6 +359,17 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
     description: 'Documents légaux, versions, acceptations et avis',
   },
   {
+    // La file des doubles validations : publier un texte opposable est un acte
+    // N3, donc une SECONDE personne autorisée doit l'approuver. L'entrée ouvre
+    // sur `admin.legal.read` — la capacité que la route exige — et l'écran
+    // cache les boutons de décision à l'auteur de la demande.
+    href: '/admin/approvals',
+    label: 'Doubles validations',
+    capability: 'admin.legal.read',
+    alsoUses: ['admin.legal.write'],
+    description: 'Approuver ou refuser les actes irréversibles qui attendent une seconde personne',
+  },
+  {
     href: '/admin/compliance',
     label: 'Conformité',
     capability: 'admin.compliance.read',

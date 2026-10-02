@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/adminauthz"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/flags"
 )
@@ -33,12 +34,24 @@ type Service struct {
 	// flags lit la table feature_flags partagée : le flag admin-audit-log
 	// active/désactive le journal d'audit sans redéploiement.
 	flags *flags.Service
+
+	// access : source UNIQUE des capacités (le service adminauthz de la
+	// console). Branché pour que le quorum N3 vérifie lui-même que l'auteur
+	// ET l'approbateur détiennent la capacité de l'acte — sinon un mode
+	// observation, ou un garde non branché, laisserait valider un acte lourd
+	// par quelqu'un qui n'a pas le droit de le commettre.
+	access adminauthz.Lookup
 }
 
 // SetAsynqClient branche le client asynq (enfilement des tranches de
 // campagnes staff). Nil = les campagnes restent en `sending` sans avancer,
 // reprises à la main — dégradation sûre, jamais d'envoi fantôme.
 func (s *Service) SetAsynqClient(c *asynq.Client) { s.asynq = c }
+
+// SetAccessLookup branche la résolution des capacités (même source que le garde
+// de la console). Sans elle, le quorum refuse : on ne valide pas un acte lourd
+// sans pouvoir dire qui a le droit de le commettre.
+func (s *Service) SetAccessLookup(l adminauthz.Lookup) { s.access = l }
 
 // asynqClient expose le client au code du module (nil possible : les publishes
 // du package queue sont nil-safe et journalisent).

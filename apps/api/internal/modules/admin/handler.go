@@ -105,11 +105,15 @@ var stepUpRoutes = map[string]authz.Level{
 	"DELETE /v1/admin/config/{key}":                    authz.Level2,
 	"PUT /v1/admin/reserved-identifiers/{kind}":        authz.Level2,
 	"POST /v1/admin/registrations/allowlist":           authz.Level2,
-	"DELETE /v1/admin/registrations/allowlist/{email}": authz.Level2, "PATCH /v1/admin/oauth/clients/{id}": authz.Level2,
+	"DELETE /v1/admin/registrations/allowlist/{email}": authz.Level2,
+	"PATCH /v1/admin/oauth/clients/{id}":               authz.Level2,
 	// Modération qui mesure un compte : un verdict humain confirmé ou levé, et
 	// un recours dont le prononcé peut lever la mesure.
-	"PATCH /v1/admin/abuse/decisions":                authz.Level2,
-	"PATCH /v1/admin/abuse/appeals/{id}":             authz.Level2,
+	"PATCH /v1/admin/abuse/decisions":    authz.Level2,
+	"PATCH /v1/admin/abuse/appeals/{id}": authz.Level2,
+	// Valider la double validation d'un acte N3 est un acte lourd : on ne
+	// s'auto-valide pas, et une seconde personne doit prouver sa présence.
+	"POST /v1/admin/approvals/{id}/decide":           authz.Level2,
 	"PATCH /v1/admin/api-applicants/{userID}":        authz.Level2,
 	"PATCH /v1/admin/api-applicants/{userID}/grants": authz.Level2,
 	"PATCH /v1/admin/api-access/modules":             authz.Level2,
@@ -224,6 +228,14 @@ func (h *Handler) routeTable() []adminRoute {
 
 		// Journal d'audit de la console.
 		{http.MethodGet, "/v1/admin/audit-log", adminauthz.AuditRead, h.auditLog},
+
+		// ── Double validation des actes N3 (quorum, Phase 8) ─────────────
+		// Lire la file demande la lecture du domaine concerné (aujourd'hui le
+		// corpus juridique) ; DÉCIDER exige la capacité de l'acte, et une preuve
+		// forte récente : valider un acte irréversible n'est pas un clic de
+		// courtoisie. L'auto-validation est refusée par le service.
+		{http.MethodGet, "/v1/admin/approvals", adminauthz.LegalRead, h.approvals},
+		{http.MethodPost, "/v1/admin/approvals/{id}/decide", adminauthz.LegalWrite, h.decideApproval},
 
 		// ── Accès staff : nommer un rôle sans SQL (plan, Phase 2) ────────
 		// Lectures : liste des attributions, fiche « pourquoi cette personne
