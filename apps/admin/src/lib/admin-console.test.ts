@@ -113,7 +113,13 @@ describe('navigation', () => {
   it('ne présente que les écrans dont la capacité principale est détenue', () => {
     const analyst: AdminCapability[] = ['admin.self.read', 'admin.users.read', 'admin.audit.read'];
     const visible = visibleNav(analyst);
-    expect(visible.map((item) => item.href)).toEqual(['/admin/users', '/admin/audit']);
+    // L'analyste lit les comptes, l'audit ET les décisions d'autorisation :
+    // lire un refus relève de la capacité d'audit, pas du voisinage de l'URL.
+    expect(visible.map((item) => item.href)).toEqual([
+      '/admin/users',
+      '/admin/audit',
+      '/admin/access/decisions',
+    ]);
     expect(visible.every((item) => analyst.includes(item.capability))).toBe(true);
   });
 

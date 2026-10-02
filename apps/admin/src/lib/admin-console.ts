@@ -399,10 +399,13 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
     description: 'Rôle × capacité, généré depuis le vocabulaire serveur',
   },
   {
+    // La route exige `admin.audit.read` : lire un refus est un acte d'audit.
+    // La capacité principale suit donc le registre, pas le voisinage de l'URL
+    // (le domaine affiché se déduit de la capacité, jamais du chemin).
     href: '/admin/access/decisions',
     label: 'Décisions d’autorisation',
-    capability: 'admin.access.read',
-    alsoUses: ['admin.audit.read'],
+    capability: 'admin.audit.read',
+    alsoUses: ['admin.access.read'],
     description: 'Journal des refus observés, groupé par capacité',
   },
 ];

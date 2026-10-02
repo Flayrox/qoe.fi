@@ -513,7 +513,14 @@ func newRouter(d RouterDeps) *chi.Mux {
 		adminAuthzSvc.SetModeResolver(func(ctx context.Context) bool {
 			return flagsSvc.IsOn(ctx, flags.AuthzEnforce)
 		})
-		adminConsole := adminauthz.NewConsole(protected, adminAuthzSvc, nil)
+		// Journal des décisions du garde (plan console, Phase 4) : chaque passage
+		// (accord, refus appliqué, refus seulement observé) laisse une trace
+		// interrogeable. Écriture asynchrone à tampon borné — une base lente ne
+		// ralentit jamais une requête, et une perte éventuelle est COMPTÉE.
+		adminDecisions := adminauthz.NewRecorder(pool)
+		defer adminDecisions.Close()
+		adminConsole := adminauthz.NewConsole(protected, adminAuthzSvc, nil,
+			adminauthz.WithObserver(adminDecisions.Observe))
 
 		adminHandler.SetConsole(adminConsole)
 		adminHandler.Register(protected)
