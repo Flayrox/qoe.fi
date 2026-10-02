@@ -38,6 +38,7 @@ import {
   SnapOverlay,
 } from './overlay/StageOverlays';
 import { useStageHotkeys } from './useStageHotkeys';
+import { DevicePill } from './DevicePill';
 import { StageEditorMode } from '../engine/models';
 
 interface StageCanvasProps {
@@ -373,12 +374,13 @@ export function StageCanvas({
     >
       <div className="absolute top-0 left-0 will-change-transform" style={transformStyle}>
         <div className="flex flex-col items-start gap-2 px-24 pt-16 pb-32">
-          <div className="flex items-center gap-2 rounded-md border border-border bg-muted px-2.5 py-1 font-mono text-[11px] font-medium text-muted-foreground">
-            <span>Accueil</span>
-            <span className="opacity-40">·</span>
-            <span>{deviceWidth} × Auto</span>
-            <span className="opacity-40">·</span>
-            <span>{Math.round(transform.scale * 100)}%</span>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 rounded-md border border-border bg-muted px-2.5 py-1 font-mono text-[11px] font-medium text-muted-foreground">
+              <span>Accueil</span>
+              <span className="opacity-40">·</span>
+              <span>{deviceWidth} × Auto</span>
+            </div>
+            {!isPreview && <DevicePill />}
           </div>
 
           <div
