@@ -18,6 +18,7 @@ import { LegalFooterLinks } from '@/components/legal/LegalFooterLinks';
 import { TenantArticleHighlighter } from '../../article/[slug]/TenantArticleHighlighter';
 import { TenantArticleReadingTracker } from '../../article/[slug]/TenantArticleReadingTracker';
 import { TenantReaderShell } from '../../article/[slug]/TenantReaderShell';
+import { ReadingProgressBar } from '@/components/ReadingProgressBar';
 import { type CommentItem } from '../../article/[slug]/ArticleCommentsSection';
 import { PaywallCut } from '../../article/[slug]/PaywallCut';
 import { ReaderActions } from '../../article/[slug]/ReaderActions';
@@ -346,6 +347,7 @@ export default async function TenantCategoryArticlePage({
         contentSelector: '#article-content',
       }}
     >
+      <ReadingProgressBar />
       <JsonLd data={[jsonLdData, breadcrumbJsonLd]} />
       <TenantHeader
         name={name}

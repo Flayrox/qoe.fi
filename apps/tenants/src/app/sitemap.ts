@@ -9,6 +9,8 @@ import type { MetadataRoute } from 'next';
 import { headers } from 'next/headers';
 import { parseTenantHost } from '@qoe/config';
 import { fetchPublicTenantPublication } from '@/lib/tenant-data';
+import { fetchLegalDocuments } from '@qoe/sdk/actions/legal';
+import { getLanguage } from '@qoe/i18n/server';
 
 export const revalidate = 3600; // Cache 1 heure
 
@@ -48,7 +50,31 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.8,
       }));
 
-    return [...staticPages, ...articlePages];
+    let legalPages: MetadataRoute.Sitemap = [];
+    try {
+      const locale = await getLanguage().catch(() => 'fr');
+      const docs = await fetchLegalDocuments(locale);
+      legalPages = [
+        {
+          url: `${baseUrl}/legal`,
+          lastModified: new Date(),
+          changeFrequency: 'monthly',
+          priority: 0.3,
+        },
+        ...docs
+          .filter((doc) => Boolean(doc.slug))
+          .map((doc) => ({
+            url: `${baseUrl}/legal/${encodeURIComponent(doc.slug)}`,
+            lastModified: new Date(),
+            changeFrequency: 'monthly' as const,
+            priority: 0.3,
+          })),
+      ];
+    } catch {
+      legalPages = [];
+    }
+
+    return [...staticPages, ...articlePages, ...legalPages];
   } catch (err) {
     console.error('[tenants/sitemap] Error generating tenant sitemap:', err);
     return staticPages;
