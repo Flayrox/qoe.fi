@@ -15,6 +15,7 @@
 import type {
   LayoutConfig,
   TemplateBlock,
+  TemplateNode,
   BlockType,
   CardCornerShape,
   DensityMode,
@@ -144,7 +145,51 @@ function sanitizeLayoutConfig(input: Partial<LayoutConfig>): LayoutConfig {
   const accentColor = input.tokens?.accentColor || baseConfig.tokens.accentColor;
 
   const seenIds = new Set<string>();
+  const seenOids = new Set<string>();
   const sanitizedBlocks: TemplateBlock[] = [];
+  let hasV2Nodes = false;
+
+  function sanitizeNodes(nodes: unknown): TemplateNode[] | undefined {
+    if (!Array.isArray(nodes)) return undefined;
+    const out: TemplateNode[] = [];
+    for (const n of nodes) {
+      if (!n || typeof n !== 'object') continue;
+      const rec = n as Record<string, unknown>;
+      const kind = typeof rec.kind === 'string' ? rec.kind : 'box';
+      const validKinds = new Set([
+        'box',
+        'flex',
+        'stack',
+        'text',
+        'button',
+        'badge',
+        'image',
+        'slot',
+      ]);
+      if (!validKinds.has(kind as string)) continue;
+      let oid = typeof rec.oid === 'string' && rec.oid.trim() ? rec.oid.trim() : '';
+      if (!oid || seenOids.has(oid)) {
+        oid = `oid_${Math.random().toString(36).substring(2, 9)}`;
+      }
+      seenOids.add(oid);
+      const children = sanitizeNodes(rec.children);
+      out.push({
+        oid,
+        kind: kind as TemplateNode['kind'],
+        ...(typeof rec.tag === 'string' ? { tag: rec.tag as TemplateNode['tag'] } : {}),
+        ...(typeof rec.textKey === 'string' ? { textKey: rec.textKey } : {}),
+        ...(typeof rec.textFallback === 'string' ? { textFallback: rec.textFallback } : {}),
+        ...(rec.overrides && typeof rec.overrides === 'object'
+          ? { overrides: { ...(rec.overrides as Record<string, unknown>) } }
+          : {}),
+        ...(rec.sx && typeof rec.sx === 'object'
+          ? { sx: { ...(rec.sx as TemplateNode['sx']) } }
+          : {}),
+        ...(children ? { children } : {}),
+      });
+    }
+    return out.length > 0 ? out : undefined;
+  }
 
   if (Array.isArray(input.blocks) && input.blocks.length > 0) {
     input.blocks.forEach((block, index) => {
@@ -171,13 +216,36 @@ function sanitizeLayoutConfig(input: Partial<LayoutConfig>): LayoutConfig {
       const locked = typeof block.locked === 'boolean' ? block.locked : false;
       const props = block.props && typeof block.props === 'object' ? { ...block.props } : {};
 
+      let oid = typeof block.oid === 'string' && block.oid.trim() ? block.oid.trim() : id;
+      if (seenOids.has(oid)) {
+        oid = `${id}_oid`;
+      }
+      seenOids.add(oid);
+
+      const nodes = sanitizeNodes((block as { nodes?: unknown }).nodes);
+      let slots: Record<string, TemplateNode[]> | undefined;
+      const rawSlots = (block as { slots?: unknown }).slots;
+      if (rawSlots && typeof rawSlots === 'object') {
+        const entries = Object.entries(rawSlots as Record<string, unknown>);
+        const clean: Record<string, TemplateNode[]> = {};
+        for (const [key, val] of entries) {
+          const s = sanitizeNodes(val);
+          if (s) clean[key] = s;
+        }
+        if (Object.keys(clean).length > 0) slots = clean;
+      }
+      if (nodes || slots) hasV2Nodes = true;
+
       sanitizedBlocks.push({
         id,
+        oid,
         type,
         label,
         visible,
         locked,
         props,
+        ...(nodes ? { nodes } : {}),
+        ...(slots ? { slots } : {}),
       });
     });
   }
@@ -186,7 +254,7 @@ function sanitizeLayoutConfig(input: Partial<LayoutConfig>): LayoutConfig {
   const finalBlocks = sanitizedBlocks.length > 0 ? sanitizedBlocks : deepClone(baseConfig.blocks);
 
   return {
-    version: 1,
+    version: hasV2Nodes ? 2 : 1,
     archetype: archetypeId,
     tokens: {
       cardShape,
@@ -216,11 +284,14 @@ export function serializeLayoutConfig(config: LayoutConfig): string {
     },
     blocks: config.blocks.map((block) => ({
       id: block.id,
+      ...(block.oid ? { oid: block.oid } : {}),
       type: block.type,
       label: block.label,
       visible: block.visible,
       locked: block.locked || false,
       props: block.props || {},
+      ...(block.nodes ? { nodes: block.nodes } : {}),
+      ...(block.slots ? { slots: block.slots } : {}),
     })),
   };
 

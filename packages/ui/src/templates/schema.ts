@@ -117,17 +117,114 @@ export type AnyBlockProps =
   | Record<string, unknown>;
 
 // ─────────────────────────────────────────────────────────────────────
+// Styles fins par bloc (portés d'Onlook editor-bar, souverains)
+// ─────────────────────────────────────────────────────────────────────
+
+/** Boîte 4 côtés avec unité (px | %) */
+export interface BoxSides {
+  top?: number;
+  right?: number;
+  bottom?: number;
+  left?: number;
+  unit?: 'px' | '%';
+}
+
+/** Rayons indépendants par coin */
+export interface CornerRadii {
+  topLeft?: number;
+  topRight?: number;
+  bottomRight?: number;
+  bottomLeft?: number;
+}
+
+/** Dimensions Hug/Fill/Fixed (porté de width.tsx/height.tsx) */
+export type LayoutSizingMode = 'hug' | 'fill' | 'fixed';
+
+export interface SizingValue {
+  mode?: LayoutSizingMode;
+  value?: number;
+  min?: number;
+  max?: number;
+}
+
+/** Typographie fine par bloc */
+export interface BlockFontStyle {
+  family?: string;
+  size?: number;
+  weight?: number | string;
+  color?: string;
+  align?: 'left' | 'center' | 'right' | 'justify';
+  lineHeight?: number;
+  letterSpacing?: number;
+  transform?: 'none' | 'uppercase' | 'capitalize' | 'lowercase';
+  decoration?: 'none' | 'underline' | 'overline' | 'line-through';
+}
+
+/** Fond uni / alpha / gradient (porté de color-background.tsx) */
+export interface BlockBackground {
+  color?: string;
+  alpha?: number;
+  gradientCss?: string;
+}
+
+/** Props de style génériques intersectées aux props métier de chaque bloc */
+export interface BlockStyleProps {
+  padding?: BoxSides;
+  margin?: BoxSides & { auto?: boolean };
+  borderWidth?: number | BoxSides;
+  borderColor?: string;
+  radius?: number | CornerRadii;
+  display?: 'block' | 'flex' | 'grid';
+  flexDirection?: 'row' | 'column';
+  alignItems?: 'flex-start' | 'center' | 'flex-end' | 'stretch';
+  justifyContent?: 'flex-start' | 'center' | 'flex-end' | 'space-between';
+  gap?: number;
+  width?: SizingValue;
+  height?: SizingValue;
+  opacity?: number;
+  background?: BlockBackground;
+  font?: BlockFontStyle;
+  objectFit?: 'fill' | 'contain' | 'cover' | 'none' | 'scale-down';
+  /** Réservé canvas : espacements + largeur contrainte issus des poignées N/S/E/W */
+  styleBox?: { pt?: number; pb?: number; maxWidth?: number; opacity?: number };
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Nœuds récursifs (AST v2 — Phase 6 NodeRenderer, rétrocompat v1)
+// ─────────────────────────────────────────────────────────────────────
+
+export type TemplateNodeKind =
+  'box' | 'flex' | 'stack' | 'text' | 'button' | 'badge' | 'image' | 'slot';
+
+export interface TemplateNode {
+  oid: string;
+  kind: TemplateNodeKind;
+  tag?: 'h1' | 'h2' | 'h3' | 'p' | 'span' | 'a' | 'img' | 'div';
+  textKey?: string;
+  textFallback?: string;
+  overrides?: Record<string, unknown>;
+  sx?: { hiddenAt?: Array<'mobile' | 'tablet'>; order?: number };
+  children?: TemplateNode[];
+}
+
+// ─────────────────────────────────────────────────────────────────────
 // Nœud AST Universel
 // ─────────────────────────────────────────────────────────────────────
 
 /** Unité atomique de bloc dans l'arbre de mise en page */
 export interface TemplateBlock<TProps = AnyBlockProps> {
   id: string;
+  /** Équivalent Figma/Onlook oid — égal à id après migration */
+  oid?: string;
   type: BlockType;
   label: string;
   visible: boolean;
   locked?: boolean;
   props: TProps;
+  /** Slots nommés v2 (ex. hero: { title, actions }) */
+  slots?: Record<string, TemplateNode[]>;
+  /** Nœuds génériques v2 */
+  nodes?: TemplateNode[];
 }
 
 /** Configuration globale de tokens de design pour le site */
@@ -157,8 +254,13 @@ export interface LayoutConfig {
 export interface TemplateRenderContext {
   mode: 'live' | 'editable';
   selectedBlockId?: string | null;
+  /** Sélection sub-élément v2 (oid stable type Figma) */
+  selectedOid?: string | null;
+  selectedPath?: string | null;
   onSelectBlock?: (blockId: string) => void;
+  onSelectNode?: (oid: string, path: string, blockId: string) => void;
   onUpdateBlockProps?: (blockId: string, newProps: Partial<AnyBlockProps>) => void;
+  onUpdateNode?: (blockId: string, oid: string, patch: Partial<TemplateNode>) => void;
   onMoveBlock?: (blockId: string, direction: 'up' | 'down') => void;
   onDeleteBlock?: (blockId: string) => void;
 }
