@@ -67,6 +67,13 @@ export function HeroBlock({
       visible={visible}
       locked={locked}
       context={context}
+      styleBox={
+        (
+          props as unknown as {
+            styleBox?: { pt?: number; pb?: number; maxWidth?: number; opacity?: number };
+          }
+        ).styleBox
+      }
     >
       <section className="relative w-full overflow-hidden border-b border-border/40">
         {/* Style 1 : Bannière Cinématique Panoramique */}

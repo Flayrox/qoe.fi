@@ -100,6 +100,13 @@ export function ArticleStreamBlock({
       visible={visible}
       locked={locked}
       context={context}
+      styleBox={
+        (
+          props as unknown as {
+            styleBox?: { pt?: number; pb?: number; maxWidth?: number; opacity?: number };
+          }
+        ).styleBox
+      }
     >
       <section className="container mx-auto px-4 lg:px-8 py-8 md:py-14">
         {displayMode === 'list' ? (

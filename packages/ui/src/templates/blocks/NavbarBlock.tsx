@@ -96,6 +96,13 @@ export function NavbarBlock({
       visible={visible}
       locked={locked}
       context={context}
+      styleBox={
+        (
+          props as unknown as {
+            styleBox?: { pt?: number; pb?: number; maxWidth?: number; opacity?: number };
+          }
+        ).styleBox
+      }
     >
       <header className={containerClasses}>
         <div className={`container mx-auto px-4 lg:px-8 ${innerLayoutClasses}`}>
