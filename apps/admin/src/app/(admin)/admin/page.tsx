@@ -1,4 +1,6 @@
+import Link from 'next/link';
 import { getAdminDashboard } from '@/lib/admin-data';
+import { apiOnlyRoutes, coverageRatio } from '@/lib/admin-coverage';
 import { AnalyticsOverview } from './components/AnalyticsOverview';
 
 export default async function AdminDashboard() {
@@ -53,9 +55,43 @@ export default async function AdminDashboard() {
     revenue: mrr,
   };
 
+  // Couverture route → écran (Phase 5) : le ratio ET les orphelines assumées,
+  // pour que l'écart ne se reforme pas sans qu'on le voie.
+  const coverage = coverageRatio();
+  const orphans = apiOnlyRoutes();
+
   return (
-    <div className="max-w-6xl mx-auto font-sans">
+    <div className="max-w-6xl mx-auto font-sans space-y-8">
       <AnalyticsOverview data={data} totals={totals} />
+
+      <section
+        className="rounded-3xl border border-border bg-white p-6 shadow-sm"
+        data-testid="admin-coverage-card"
+      >
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-sm font-semibold">Couverture de la console</h2>
+          <span className="text-xs text-muted-foreground" data-testid="admin-coverage-ratio">
+            {coverage.covered}/{coverage.total} routes portées par un écran ({coverage.percent} %)
+          </span>
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Chaque route de l’API est classée : portée par un écran, ou assumée « API-only » avec sa
+          raison. Le test de parité Go ↔ TS échoue si une route n’est plus classée.{' '}
+          <Link href="/admin/health" className="underline">
+            Voir la santé de la plateforme
+          </Link>
+          .
+        </p>
+        {orphans.length > 0 && (
+          <ul className="mt-3 space-y-1.5" data-testid="admin-coverage-orphans">
+            {orphans.map((orphan) => (
+              <li key={orphan.key} className="text-[11px] text-muted-foreground">
+                <span className="font-mono">{orphan.key}</span> — {orphan.reason}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }
