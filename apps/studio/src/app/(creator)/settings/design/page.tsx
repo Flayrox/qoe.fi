@@ -1,15 +1,19 @@
 // =====================================================================
-// 🎨 Server Component — apps/studio/src/app/(creator)/settings/design/page.tsx
+// 🎭 Server Component — apps/studio/src/app/(creator)/settings/design/page.tsx
 // =====================================================================
-// Route dédiée plein écran pour l'Atelier Design Figma-Style.
-// Charge la publication active et injecte les données dans FigmaStudioClient.
+// Route dédiée plein écran pour Qoefi Stage (Atelier Visuel Souverain).
+// Charge la publication active et injecte les données dans StageClient.
 // =====================================================================
 
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { createClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { getActiveWorkspace } from '@/lib/active-workspace';
-import { FigmaStudioClient } from '@/features/settings/components/figma/FigmaStudioClient';
+import { StageClient } from '@/features/stage/StageClient';
+import { Logo } from '@qoe/ui';
+import { logout } from '@/app/login/actions';
+import type { SidebarProps } from '@qoe/ui/sidebar';
 import type { TemplatePublicationContext, TemplateArticleItem } from '@qoe/ui/templates';
 
 interface SettingsPublicationDTO {
@@ -52,19 +56,35 @@ interface SettingsPublicationDTO {
   categories: { id: string; name: string; slug: string }[];
 }
 
+interface MeResponse {
+  data: {
+    id: string;
+    email: string | null;
+    username: string | null;
+    name: string | null;
+    logoUrl: string | null;
+    publicationLogoUrl: string | null;
+  };
+}
+
+interface WorkspacesResponse {
+  medias: { id: string; name: string }[];
+}
+
 export default async function SettingsDesignPage() {
   const supabase = await createClient();
   const {
-    data: { user },
+    data: { user: authUser },
     error,
   } = await supabase.auth.getUser();
 
-  if (error || !user) {
+  if (error || !authUser) {
     redirect('/login');
   }
 
-  const workspace = await getActiveWorkspace(user.id);
+  const workspace = await getActiveWorkspace(authUser.id);
 
+  // 1. Récupération de la publication
   let publication: SettingsPublicationDTO | null = null;
   try {
     publication = await goFetch<SettingsPublicationDTO>(
@@ -85,7 +105,85 @@ export default async function SettingsDesignPage() {
     );
   }
 
-  // Mapper vers TemplatePublicationContext
+  // 2. Récupération des informations pour le Sidebar Drawer
+  let activeMediaId: string | null = null;
+  try {
+    const cookieStore = await cookies();
+    const raw = cookieStore.get('qoe_active_workspace')?.value ?? null;
+    if (raw) {
+      const parsed = JSON.parse(decodeURIComponent(raw));
+      if (parsed?.type === 'MEDIA' && parsed.id) activeMediaId = parsed.id;
+    }
+  } catch {
+    // aucun cookie
+  }
+
+  let dbUser = null;
+  let unreadCount = 0;
+  let mediaBrandName: string | null = null;
+
+  try {
+    const [me, unread, workspaces] = await Promise.all([
+      goFetch<MeResponse>('/v1/users/me').catch(() => null),
+      goFetch<{ count: number }>('/v1/notifications/unread-count').catch(() => ({ count: 0 })),
+      goFetch<WorkspacesResponse>('/v1/media/workspaces').catch(() => ({ medias: [] })),
+    ]);
+
+    if (me?.data) dbUser = me.data;
+    if (unread?.count) unreadCount = unread.count;
+    if (activeMediaId && workspaces?.medias) {
+      mediaBrandName = workspaces.medias.find((m) => m.id === activeMediaId)?.name ?? null;
+    }
+  } catch {
+    dbUser = null;
+  }
+
+  const userName =
+    dbUser?.name ||
+    dbUser?.username ||
+    (authUser.user_metadata?.name as string | undefined) ||
+    'Creator';
+  const userEmail = dbUser?.email || authUser.email || 'hello@qoe.fi';
+  const userAvatar =
+    dbUser?.logoUrl ||
+    dbUser?.publicationLogoUrl ||
+    (authUser.user_metadata?.avatar_url as string | undefined) ||
+    null;
+
+  const sidebarProps: SidebarProps = {
+    items: [
+      { title: 'Home', url: '/', iconName: 'Home' },
+      { title: 'Articles', url: '/articles', iconName: 'FileText' },
+      {
+        title: 'Notifications',
+        url: '/notifications',
+        iconName: 'Bell',
+        badge: unreadCount > 0 ? unreadCount : undefined,
+      },
+      { title: 'Médias', url: '/media', iconName: 'Building2' },
+      { title: 'Newsletters', url: '/newsletters', iconName: 'Mail' },
+      { title: 'Audience', url: '/audience', iconName: 'Users' },
+      { title: 'Analytics', url: '/analytics', iconName: 'PieChart' },
+      { title: 'Développeur / API', url: '/developer', iconName: 'Code' },
+      { title: 'Webhooks', url: '/developer/webhooks', iconName: 'Webhook' },
+      { title: 'Site Web', url: '/settings', iconName: 'Settings' },
+      { title: 'Offre Pro', url: '/pricing', iconName: 'Crown' },
+      { title: 'Importation', url: '/import', iconName: 'Upload' },
+    ],
+    logo: <Logo className="h-5 w-auto" fillColor="#EE4B2B" />,
+    brandName: mediaBrandName || 'Studio',
+    userName,
+    userEmail,
+    userFallback: userName.slice(0, 2).toUpperCase(),
+    userAvatar,
+    onLogout: logout,
+    primaryAction: {
+      label: 'Nouvel Écrit',
+      href: '/articles/new',
+    },
+  };
+
+  // 3. Mapper vers TemplatePublicationContext
   const domain =
     publication.customDomain ||
     (publication.subdomain ? `${publication.subdomain}.qoe.fi` : 'nom.qoe.fi');
@@ -134,5 +232,14 @@ export default async function SettingsDesignPage() {
     isPremium: art.isPremium,
   }));
 
-  return <FigmaStudioClient publication={templatePub} articles={templateArticles} />;
+  // 4. Injecter le layoutStyle existant
+  templatePub.layoutStyle = publication.layoutStyle;
+
+  return (
+    <StageClient
+      publication={templatePub}
+      articles={templateArticles}
+      sidebarProps={sidebarProps}
+    />
+  );
 }
