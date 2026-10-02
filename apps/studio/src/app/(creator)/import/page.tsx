@@ -218,7 +218,7 @@ export default function CreatorImportPage() {
         <p className="text-sm text-muted-foreground mb-6">
           {t`Déposez votre fichier `}
           <code className="text-foreground font-semibold">subscribers.csv</code>
-          {t` exporté depuis votre ancienne plateforme. Le fichier part en revue : aucun email n'est envoyé, aucune adresse n'est rattachée à votre publication et aucun contact n'est créé tant que le staff n'a pas statué.`}
+          {t` exporté depuis votre ancienne plateforme. Le fichier part en revue : aucun email n'est envoyé, aucune adresse n'est rattachée à votre site web et aucun contact n'est créé tant que le staff n'a pas statué.`}
         </p>
 
         {/* Provenance déclarée : nécessaire à la revue, revérifiée côté serveur. */}

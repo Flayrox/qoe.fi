@@ -13,7 +13,7 @@ import { WebhooksClient } from './WebhooksClient';
 
 export const metadata = {
   title: 'Webhooks | qoefi',
-  description: 'Recevez les événements de votre publication en temps réel.',
+  description: 'Recevez les événements de votre site web en temps réel.',
 };
 
 export default async function WebhooksPage() {

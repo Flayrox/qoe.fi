@@ -165,7 +165,7 @@ export default async function CreatorDashboardPage() {
         </div>
         <p className="text-muted-foreground/80 text-sm font-sans">
           {isMediaWorkspace
-            ? t`Bienvenue dans le studio du Média « ${workspace.name} ». Vue en temps réel de votre publication d'équipe.`
+            ? t`Bienvenue dans le studio du Média « ${workspace.name} ». Vue en temps réel de votre média d'équipe.`
             : t`Bienvenue, ${user.name || t`Créateur`}. Voici l'aperçu réel de votre studio créateur.`}
         </p>
       </section>
@@ -320,11 +320,11 @@ export default async function CreatorDashboardPage() {
             </div>
             <div>
               <h4 className="text-sm font-semibold text-foreground">
-                {topArticle ? t`Dernière publication phare` : t`Prêt à publier ?`}
+                {topArticle ? t`Dernier article phare` : t`Prêt à publier ?`}
               </h4>
               <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                 {topArticle
-                  ? t`Votre publication "${topArticle.title}" est en ligne. Pensez à la partager sur vos réseaux.`
+                  ? t`Votre article "${topArticle.title}" est en ligne. Pensez à le partager sur vos réseaux.`
                   : t`Vous n'avez pas encore d'article publié. Rédigez votre premier contenu pour attirer vos premiers lecteurs.`}
               </p>
             </div>
