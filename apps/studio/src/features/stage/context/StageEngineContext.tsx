@@ -11,6 +11,7 @@ import type {
   TemplatePublicationContext,
   TemplateArticleItem,
 } from '@qoe/ui/templates';
+import { ARCHETYPES_REGISTRY } from '@qoe/ui/templates';
 
 export enum StageEditorMode {
   DESIGN = 'design',
@@ -27,10 +28,13 @@ export interface StageEngineContextType {
   selectedBlock: TemplateBlock | null;
   selectBlock: (id: string | null) => void;
   updateBlockProps: (id: string, newProps: Record<string, unknown>) => void;
+  addBlock: (type: string, label: string) => void;
   duplicateBlock: (id: string) => void;
   deleteBlock: (id: string) => void;
   moveBlock: (id: string, direction: 'up' | 'down') => void;
+  moveBlockTo: (id: string, toIndex: number) => void;
   toggleVisibility: (id: string) => void;
+  toggleLock: (id: string) => void;
   updateTokens: (tokens: Partial<LayoutConfig['tokens']>) => void;
   selectArchetype: (archetypeId: string) => void;
 
@@ -67,8 +71,10 @@ export interface StageEngineContextType {
   setIsSidebarOpen: (open: boolean) => void;
 
   // ── Panneau Gauche Étendu ──
-  leftPanelTab: 'layers' | 'brand' | 'pages' | 'blocks' | null;
-  setLeftPanelTab: (tab: 'layers' | 'brand' | 'pages' | 'blocks' | null) => void;
+  leftPanelTab: 'layers' | 'brand' | 'pages' | 'blocks' | 'images' | 'windows' | null;
+  setLeftPanelTab: (
+    tab: 'layers' | 'brand' | 'pages' | 'blocks' | 'images' | 'windows' | null
+  ) => void;
   leftPanelLocked: boolean;
   setLeftPanelLocked: (locked: boolean) => void;
 }
@@ -108,9 +114,9 @@ export function StageEngineProvider({
   const [device, setDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  const [leftPanelTab, setLeftPanelTab] = useState<'layers' | 'brand' | 'pages' | 'blocks' | null>(
-    'layers'
-  );
+  const [leftPanelTab, setLeftPanelTab] = useState<
+    'layers' | 'brand' | 'pages' | 'blocks' | 'images' | 'windows' | null
+  >('layers');
   const [leftPanelLocked, setLeftPanelLocked] = useState(true);
 
   const [scale, setScale] = useState(0.95);
@@ -165,6 +171,30 @@ export function StageEngineProvider({
       setPast((prev) => [...prev.slice(-49), layout]);
       setFuture([]);
       setLayout({ ...layout, blocks: nextBlocks });
+      setHasUnsavedChanges(true);
+    },
+    [layout]
+  );
+
+  const addBlock = useCallback(
+    (type: string, label: string) => {
+      const newId = `block_${type}_${Date.now()}`;
+      const newBlock: TemplateBlock = {
+        id: newId,
+        type: type as TemplateBlock['type'],
+        label,
+        visible: true,
+        locked: false,
+        props: {},
+      };
+      const footerIdx = layout.blocks.findIndex((b) => b.type === 'footer');
+      const nextBlocks = [...layout.blocks];
+      if (footerIdx !== -1) nextBlocks.splice(footerIdx, 0, newBlock);
+      else nextBlocks.push(newBlock);
+      setPast((prev) => [...prev.slice(-49), layout]);
+      setFuture([]);
+      setLayout({ ...layout, blocks: nextBlocks });
+      setSelectedBlockId(newId);
       setHasUnsavedChanges(true);
     },
     [layout]
@@ -237,6 +267,36 @@ export function StageEngineProvider({
     [layout]
   );
 
+  const toggleLock = useCallback(
+    (id: string) => {
+      setPast((prev) => [...prev.slice(-49), layout]);
+      setFuture([]);
+      setLayout({
+        ...layout,
+        blocks: layout.blocks.map((b) => (b.id === id ? { ...b, locked: !b.locked } : b)),
+      });
+      setHasUnsavedChanges(true);
+    },
+    [layout]
+  );
+
+  const moveBlockTo = useCallback(
+    (id: string, toIndex: number) => {
+      const from = layout.blocks.findIndex((b) => b.id === id);
+      if (from === -1) return;
+      const clamped = Math.max(0, Math.min(layout.blocks.length - 1, toIndex));
+      if (clamped === from) return;
+      const nextBlocks = [...layout.blocks];
+      const [moved] = nextBlocks.splice(from, 1);
+      nextBlocks.splice(clamped, 0, moved);
+      setPast((prev) => [...prev.slice(-49), layout]);
+      setFuture([]);
+      setLayout({ ...layout, blocks: nextBlocks });
+      setHasUnsavedChanges(true);
+    },
+    [layout]
+  );
+
   const updateTokens = useCallback(
     (tokens: Partial<LayoutConfig['tokens']>) => {
       pushState({
@@ -247,9 +307,23 @@ export function StageEngineProvider({
     [layout, pushState]
   );
 
-  const selectArchetype = useCallback((_archetypeId: string) => {
-    // Sera alimenté par les archetypes constants
-  }, []);
+  const selectArchetype = useCallback(
+    (archetypeId: string) => {
+      const target = ARCHETYPES_REGISTRY[archetypeId];
+      if (!target) return;
+      setPast((prev) => [...prev.slice(-49), layout]);
+      setFuture([]);
+      setLayout({
+        ...layout,
+        archetype: target.archetype,
+        tokens: { ...target.tokens },
+        blocks: target.blocks.map((b) => ({ ...b, id: `${b.id}_${Date.now()}` })),
+      });
+      setSelectedBlockId(null);
+      setHasUnsavedChanges(true);
+    },
+    [layout]
+  );
 
   // ── Zoom Actions ──
   const zoomIn = useCallback(() => {
@@ -305,10 +379,13 @@ export function StageEngineProvider({
       selectedBlock,
       selectBlock,
       updateBlockProps,
+      addBlock,
       duplicateBlock,
       deleteBlock,
       moveBlock,
+      moveBlockTo,
       toggleVisibility,
+      toggleLock,
       updateTokens,
       selectArchetype,
       scale,
@@ -344,10 +421,13 @@ export function StageEngineProvider({
       selectedBlock,
       selectBlock,
       updateBlockProps,
+      addBlock,
       duplicateBlock,
       deleteBlock,
       moveBlock,
+      moveBlockTo,
       toggleVisibility,
+      toggleLock,
       updateTokens,
       selectArchetype,
       scale,

@@ -90,7 +90,7 @@ export function StageCanvas({
     end: { x: number; y: number };
   } | null>(null);
   const [artboardOutOfView, setArtboardOutOfView] = useState(false);
-  const [rectVersion, setRectVersion] = useState(0);
+  const [rectTick, setRectTick] = useState(0);
   const lastMousePos = useRef<{ x: number; y: number } | null>(null);
   const resizeRef = useRef<{
     id: string;
@@ -104,6 +104,8 @@ export function StageCanvas({
   const isPreview = mode === 'preview';
 
   // ── Mesure des rects [data-block-id] relatifs à l'artboard ──
+  // Note : les rects vivent dans editor.frames (mobx, impératif) ; la
+  // re-mesure est déclenchée par les effets ci-dessous (layout/device/scale).
   const measureRects = useCallback(() => {
     const art = artboardRef.current;
     if (!art) return;
@@ -122,7 +124,7 @@ export function StageCanvas({
         height: r.height / transform.scale,
       });
     });
-    setRectVersion((v) => v + 1);
+    setRectTick((v) => v + 1);
   }, [editor, transform.scale]);
 
   useEffect(() => {
@@ -327,6 +329,7 @@ export function StageCanvas({
   );
 
   const selectedRect = selectedBlockId ? editor.frames.getRect(selectedBlockId) : undefined;
+  void rectTick;
   const hoverRect =
     hoverId && hoverId !== selectedBlockId ? editor.frames.getRect(hoverId) : undefined;
   const selectedLabel =
