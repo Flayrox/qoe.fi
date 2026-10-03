@@ -258,8 +258,14 @@ func newRouter(d RouterDeps) *chi.Mux {
 	flagsHandler.WithSigningKey(d.FlagsSigningKey).RegisterPublic(r)
 
 	// Recherche publique : articles (Meilisearch) + sémantique (pgvector/jina).
+	// Sous OptionalAuth : le userID éventuel prouve la propriété d'une
+	// publication (contenu premium complet), sinon retronqué.
+	authForSearch := authmw.NewAuth(d.JWTSecret, d.SupabaseAuthURL)
 	searchHandler := search.NewHandler(search.NewSemanticService(d.Pool))
-	searchHandler.RegisterPublic(r)
+	searchHandler.SetPool(d.Pool)
+	r.With(authForSearch.OptionalAuth).Group(func(pub chi.Router) {
+		searchHandler.RegisterPublic(pub)
+	})
 
 	// Contenu légal (CGU, confidentialité, cookies, CGV, DPA…) : la lecture est
 	// publique (c'est la loi), l'édition est réservée au superadmin via
