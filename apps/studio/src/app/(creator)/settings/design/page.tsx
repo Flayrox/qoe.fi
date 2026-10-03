@@ -218,6 +218,11 @@ export default async function SettingsDesignPage() {
       order: s.order,
       publicationId: publication.id,
     })),
+    categories: (publication.categories || []).map((c) => ({
+      id: c.id,
+      name: c.name,
+      slug: c.slug,
+    })),
     subscriberCount: 380,
   };
 
@@ -232,14 +237,25 @@ export default async function SettingsDesignPage() {
     isPremium: art.isPremium,
   }));
 
-  // 4. Injecter le layoutStyle existant
+  // 4. Injecter le layoutStyle existant + le brouillon éventuel.
+  // Le brouillon prime : l'atelier reprend là où le créateur s'est arrêté.
   templatePub.layoutStyle = publication.layoutStyle;
+  let initialDraft: string | null = null;
+  try {
+    const draft = await goFetch<{ layout?: string | null }>(
+      `/v1/settings/site-layout?publicationId=${encodeURIComponent(publication.id)}`
+    );
+    if (draft?.layout) initialDraft = draft.layout;
+  } catch {
+    initialDraft = null;
+  }
 
   return (
     <StageClient
       publication={templatePub}
       articles={templateArticles}
       sidebarProps={sidebarProps}
+      initialDraft={initialDraft}
     />
   );
 }

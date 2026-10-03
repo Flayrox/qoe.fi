@@ -459,7 +459,13 @@ export function StageCanvas({
         <div className="flex flex-col items-start gap-2 px-24 pt-16 pb-32">
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-2 rounded-md border border-border bg-muted px-2.5 py-1 font-mono text-[11px] font-medium text-muted-foreground">
-              <span>{persistent.stagePage === 'article' ? 'Article' : 'Accueil'}</span>
+              <span>
+                {persistent.stagePage === 'article'
+                  ? persistent.articleCategory
+                    ? `Article · ${persistent.articleCategory}`
+                    : 'Article'
+                  : 'Accueil'}
+              </span>
               <span className="opacity-40">·</span>
               <span>{deviceWidth} × Auto</span>
             </div>

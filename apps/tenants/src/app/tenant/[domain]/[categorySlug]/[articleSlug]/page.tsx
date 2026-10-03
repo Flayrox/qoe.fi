@@ -297,7 +297,9 @@ export default async function TenantCategoryArticlePage({
 
   // Template article Stage : scope optionnel, repli lecteur natif sinon.
   const siteLayouts = parseSiteLayouts(publication.layoutStyle || 'magazine');
-  const articleLayout = siteLayouts.article;
+  const articleLayout =
+    (article.category?.slug && siteLayouts.articleByCategory[article.category.slug]) ||
+    siteLayouts.article;
   const templatePublication: TemplatePublicationContext = {
     id: publication.id,
     name: publication.name,

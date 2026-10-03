@@ -31,6 +31,8 @@ export interface StageClientProps {
   publication: TemplatePublicationContext;
   articles: TemplateArticleItem[];
   sidebarProps?: SidebarProps;
+  /** Brouillon serveur : prime sur layoutStyle (publié) au chargement. */
+  initialDraft?: string | null;
 }
 
 export const DEVICE_DIMENSIONS: Record<

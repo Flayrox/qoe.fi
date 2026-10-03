@@ -55,6 +55,14 @@ describe('serializeSiteLayouts — format stable', () => {
     expect(parsed.scopes.home.archetype).toBe('minimal');
     expect(parsed.scopes.article.blocks.length).toBeGreaterThan(0);
   });
+
+  it('overrides par rubrique : aller-retour', () => {
+    const raw = serializeSiteLayouts(ARCHETYPES_REGISTRY.minimal, ARTICLE_VARIANTS[0].config, {
+      essais: ARTICLE_VARIANTS[2].config,
+    });
+    const { articleByCategory } = parseSiteLayouts(raw);
+    expect(articleByCategory.essais?.blocks.some((b) => b.type === 'article-content')).toBe(true);
+  });
 });
 
 describe('parseLayoutConfig — champs v2 préservés', () => {

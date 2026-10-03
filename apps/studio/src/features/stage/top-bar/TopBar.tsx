@@ -36,6 +36,9 @@ interface TopBarProps {
   onSave: () => void;
   isSaving: boolean;
   hasUnsavedChanges: boolean;
+  onPublish: () => void;
+  isPublishing: boolean;
+  unpublished: boolean;
   onToggleSidebar: () => void;
 }
 
@@ -55,9 +58,13 @@ export function TopBar({
   onSave,
   isSaving,
   hasUnsavedChanges,
+  onPublish,
+  isPublishing,
+  unpublished,
   onToggleSidebar,
 }: TopBarProps) {
   const percentage = Math.round(scale * 100);
+  const publishState = hasUnsavedChanges ? 'dirty' : unpublished ? 'unpublished' : 'published';
 
   return (
     <header className="h-10 w-full px-3 flex items-center justify-between bg-background/85 backdrop-blur-xl border-b border-border/40 select-none z-50 text-xs">
@@ -175,24 +182,45 @@ export function TopBar({
           <ExternalLink className="w-3 h-3 opacity-60" />
         </Link>
 
-        {/* Bouton de sauvegarde & publication */}
-        <button
-          type="button"
-          onClick={onSave}
-          disabled={isSaving || !hasUnsavedChanges}
-          className={`flex items-center gap-1.5 px-3 py-1 rounded-lg font-medium shadow-xs transition-all ${
-            hasUnsavedChanges
-              ? 'bg-primary text-primary-foreground hover:opacity-95'
-              : 'bg-muted text-muted-foreground opacity-70 hover:opacity-100'
-          }`}
-        >
-          {isSaving ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          ) : (
-            <Save className="w-3.5 h-3.5" />
-          )}
-          <span>{hasUnsavedChanges ? 'Publier' : 'À jour'}</span>
-        </button>
+        {/* Bouton d'enregistrement (brouillon) et publication */}
+        {publishState === 'dirty' ? (
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={isSaving}
+            title="Enregistrer le brouillon (le site public ne change pas)"
+            className="flex items-center gap-1.5 px-3 py-1 rounded-lg font-medium shadow-xs transition-all bg-primary text-primary-foreground hover:opacity-95"
+          >
+            {isSaving ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Save className="w-3.5 h-3.5" />
+            )}
+            <span>Enregistrer</span>
+          </button>
+        ) : publishState === 'unpublished' ? (
+          <button
+            type="button"
+            onClick={onPublish}
+            disabled={isPublishing}
+            title="Mettre le brouillon en ligne"
+            className="flex items-center gap-1.5 px-3 py-1 rounded-lg font-medium shadow-xs transition-all bg-primary text-primary-foreground hover:opacity-95"
+          >
+            {isPublishing ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <Save className="w-3.5 h-3.5" />
+            )}
+            <span>Brouillon · Publier</span>
+          </button>
+        ) : (
+          <span
+            title="Le site public reflète l'atelier"
+            className="flex items-center gap-1.5 px-3 py-1 rounded-lg font-medium bg-muted text-muted-foreground"
+          >
+            <span>Publié</span>
+          </span>
+        )}
       </div>
     </header>
   );

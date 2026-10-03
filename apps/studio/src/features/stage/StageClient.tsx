@@ -42,6 +42,9 @@ function StageWorkbench({ sidebarProps }: { sidebarProps?: StageClientProps['sid
         onSave={engine.save}
         isSaving={engine.isSaving}
         hasUnsavedChanges={engine.hasUnsavedChanges}
+        onPublish={engine.publish}
+        isPublishing={engine.isPublishing}
+        unpublished={engine.unpublished}
         onToggleSidebar={() => engine.setIsSidebarOpen(true)}
       />
 
@@ -107,16 +110,27 @@ function StageWorkbench({ sidebarProps }: { sidebarProps?: StageClientProps['sid
   );
 }
 
-export function StageClient({ publication, articles, sidebarProps }: StageClientProps) {
-  const initialLayouts = useRef(parseSiteLayouts(publication.layoutStyle || 'magazine')).current;
+export function StageClient({
+  publication,
+  articles,
+  sidebarProps,
+  initialDraft,
+}: StageClientProps) {
+  const initialLayouts = useRef(
+    parseSiteLayouts(initialDraft || publication.layoutStyle || 'magazine')
+  ).current;
   const initialLayout = useRef<LayoutConfig>(initialLayouts.home).current;
   const initialArticleLayout = useRef(initialLayouts.article).current;
+  const initialOverrides = useRef(initialLayouts.articleByCategory).current;
+  const initialUnpublished = useRef(!!initialDraft).current;
 
   return (
     <StageEditorProvider>
       <StageEngineProvider
         initialLayout={initialLayout}
         initialArticleLayout={initialArticleLayout}
+        initialOverrides={initialOverrides}
+        initialUnpublished={initialUnpublished}
         publication={publication}
         articles={articles}
       >

@@ -8,7 +8,7 @@ import { TenantPageShell } from '@/components/TenantPageShell';
 
 interface PageProps {
   params: Promise<{ domain: string }>;
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; mode?: string }>;
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -55,11 +55,33 @@ async function searchBackend(publicationId: string, query: string): Promise<GoHi
   }
 }
 
+interface SemanticHit {
+  id: string;
+  title: string;
+  slug: string;
+  publicationId: string;
+  readingTime: number;
+}
+
+async function searchSemantic(publicationId: string, query: string): Promise<SemanticHit[] | null> {
+  // Sémantique globale filtrée côté tenant (pas de contenu renvoyé : zéro-fuite
+  // par construction). Indisponible si l'embedding n'est pas configuré.
+  try {
+    const res = await goFetch<{ items: SemanticHit[] }>(
+      `/search/semantic?q=${encodeURIComponent(query)}&limit=10`
+    );
+    return (res.items || []).filter((h) => h.publicationId === publicationId && h.slug);
+  } catch {
+    return null;
+  }
+}
+
 export default async function TenantSearchPage({ params, searchParams }: PageProps) {
   const { domain } = await params;
-  const { q } = await searchParams;
+  const { q, mode } = await searchParams;
   const decodedDomain = decodeURIComponent(domain);
   const query = (q || '').trim();
+  const semantic = mode === 'sens';
 
   const publication = await fetchTenantPublication(decodedDomain);
   if (!publication) notFound();
@@ -73,35 +95,54 @@ export default async function TenantSearchPage({ params, searchParams }: PagePro
     excerpt: string;
     categoryName: string | null;
   }[] = [];
+  let semanticDown = false;
   if (query.length > 0) {
-    const backend = await searchBackend(publication.id, query);
-    if (backend) {
-      results = backend.map((h) => ({
-        id: h.id,
-        title: h.title,
-        slug: h.slug,
-        excerpt: plainText(h.content || '').slice(0, 200),
-        categoryName: (h.categoryId && categories.get(h.categoryId)) || null,
-      }));
+    if (semantic) {
+      const hits = await searchSemantic(publication.id, query);
+      if (!hits) semanticDown = true;
+      if (hits) {
+        const bySlug = new Map((publication.articles || []).map((a) => [a.slug, a]));
+        results = hits.map((h) => {
+          const local = bySlug.get(h.slug);
+          return {
+            id: h.id,
+            title: h.title,
+            slug: h.slug,
+            excerpt: local ? plainText(local.content || '').slice(0, 200) : '',
+            categoryName: local?.category?.name || null,
+          };
+        });
+      }
     } else {
-      // Repli local si le backend est indisponible.
-      results = (publication.articles || [])
-        .filter((art) => {
-          if (art.published === false) return false;
-          const hay =
-            `${art.title} ${plainText(art.content || '')} ${art.category?.name || ''}`.toLowerCase();
-          return query
-            .toLowerCase()
-            .split(/\s+/)
-            .every((w) => hay.includes(w));
-        })
-        .map((art) => ({
-          id: art.id,
-          title: art.title,
-          slug: art.slug,
-          excerpt: plainText(art.content || '').slice(0, 200),
-          categoryName: art.category?.name || null,
+      const backend = await searchBackend(publication.id, query);
+      if (backend) {
+        results = backend.map((h) => ({
+          id: h.id,
+          title: h.title,
+          slug: h.slug,
+          excerpt: plainText(h.content || '').slice(0, 200),
+          categoryName: (h.categoryId && categories.get(h.categoryId)) || null,
         }));
+      } else {
+        // Repli local si le backend est indisponible.
+        results = (publication.articles || [])
+          .filter((art) => {
+            if (art.published === false) return false;
+            const hay =
+              `${art.title} ${plainText(art.content || '')} ${art.category?.name || ''}`.toLowerCase();
+            return query
+              .toLowerCase()
+              .split(/\s+/)
+              .every((w) => hay.includes(w));
+          })
+          .map((art) => ({
+            id: art.id,
+            title: art.title,
+            slug: art.slug,
+            excerpt: plainText(art.content || '').slice(0, 200),
+            categoryName: art.category?.name || null,
+          }));
+      }
     }
   }
 
@@ -118,6 +159,21 @@ export default async function TenantSearchPage({ params, searchParams }: PagePro
             placeholder="Titre, sujet, rubrique…"
             className="w-full rounded-lg border border-input bg-background py-2.5 pr-4 pl-10 text-sm outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-[var(--tenant-accent)]"
           />
+          {semantic && <input type="hidden" name="mode" value="sens" />}
+        </div>
+        <div className="flex rounded-lg border border-input p-0.5 text-sm">
+          <Link
+            href={`/search?q=${encodeURIComponent(query)}`}
+            className={`rounded-md px-3 py-2 ${!semantic ? 'bg-muted font-medium' : 'text-muted-foreground'}`}
+          >
+            Mots-clés
+          </Link>
+          <Link
+            href={`/search?q=${encodeURIComponent(query)}&mode=sens`}
+            className={`rounded-md px-3 py-2 ${semantic ? 'bg-muted font-medium' : 'text-muted-foreground'}`}
+          >
+            Sens
+          </Link>
         </div>
         <button
           type="submit"
@@ -126,6 +182,11 @@ export default async function TenantSearchPage({ params, searchParams }: PagePro
           Chercher
         </button>
       </form>
+      {semanticDown && (
+        <p className="mt-4 rounded-lg bg-muted/40 p-3 text-sm text-muted-foreground">
+          La recherche par sens est indisponible pour le moment.
+        </p>
+      )}
 
       {query.length > 0 && (
         <p className="mt-6 text-sm text-muted-foreground">

@@ -370,6 +370,31 @@ export function RightPanel({
             </div>
 
             <div className="space-y-1">
+              <label className="text-muted-foreground text-[11px]">Alignement sur mobile</label>
+              <div className="grid grid-cols-3 gap-1">
+                {(['auto', 'left', 'center'] as const).map((al) => (
+                  <button
+                    key={al}
+                    type="button"
+                    onClick={() =>
+                      handlePropChange(
+                        'alignMobile',
+                        al === 'auto' ? undefined : (al as 'left' | 'center')
+                      )
+                    }
+                    className={`py-1 rounded-md capitalize transition-all ${
+                      ((props.alignMobile as string) || 'auto') === al
+                        ? 'bg-primary text-primary-foreground font-medium'
+                        : 'bg-muted/50 text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {al === 'auto' ? 'Auto' : al === 'left' ? 'Gauche' : 'Centré'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1">
               <label className="text-muted-foreground text-[11px]">Titre Personnalisé</label>
               <input
                 type="text"
@@ -415,6 +440,26 @@ export function RightPanel({
                     }`}
                   >
                     {cols} Colonnes
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-muted-foreground text-[11px]">Colonnes sur mobile</label>
+              <div className="grid grid-cols-2 gap-1">
+                {[1, 2].map((cols) => (
+                  <button
+                    key={cols}
+                    type="button"
+                    onClick={() => handlePropChange('columnsMobile', cols)}
+                    className={`py-1 rounded-md font-medium transition-all ${
+                      ((props.columnsMobile as number) || 1) === cols
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted/50 text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {cols}
                   </button>
                 ))}
               </div>
@@ -543,6 +588,26 @@ export function RightPanel({
                 <option value="grid-2">Grille 2 Colonnes</option>
                 <option value="grid-3">Grille 3 Colonnes</option>
               </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-muted-foreground text-[11px]">Colonnes mobile (grille)</label>
+              <div className="grid grid-cols-2 gap-1">
+                {[1, 2].map((cols) => (
+                  <button
+                    key={cols}
+                    type="button"
+                    onClick={() => handlePropChange('columnsMobile', cols)}
+                    className={`py-1 rounded-md font-medium transition-all ${
+                      ((props.columnsMobile as number) || 1) === cols
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted/50 text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {cols}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="flex items-center justify-between py-1">
