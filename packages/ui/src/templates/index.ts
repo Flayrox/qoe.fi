@@ -20,6 +20,7 @@ export * from './blocks/BentoGridBlock';
 export * from './blocks/ArticleStreamBlock';
 export * from './blocks/NewsletterWallBlock';
 export * from './blocks/FooterBlock';
+export * from './blocks/ArticleContentBlock';
 export * from './blocks/BlockWrapper';
 export * from './blocks/EditableText';
 export * from './blocks/NodeRenderer';

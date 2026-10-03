@@ -4,7 +4,7 @@
 
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, useRef } from 'react';
 import type {
   LayoutConfig,
   TemplateBlock,
@@ -12,7 +12,11 @@ import type {
   TemplatePublicationContext,
   TemplateArticleItem,
 } from '@qoe/ui/templates';
-import { ARCHETYPES_REGISTRY } from '@qoe/ui/templates';
+import {
+  ARCHETYPES_REGISTRY,
+  ARTICLE_DEFAULT_CONFIG,
+  serializeSiteLayouts,
+} from '@qoe/ui/templates';
 
 export enum StageEditorMode {
   DESIGN = 'design',
@@ -45,6 +49,10 @@ export interface StageEngineContextType {
   toggleLock: (id: string) => void;
   updateTokens: (tokens: Partial<LayoutConfig['tokens']>) => void;
   selectArchetype: (archetypeId: string) => void;
+
+  // ── Scopes de pages (accueil / article) ──
+  stagePage: 'home' | 'article';
+  setStagePage: (page: 'home' | 'article') => void;
 
   // ── État Canvas (Zoom & Pan) ──
   scale: number;
@@ -103,15 +111,22 @@ export const useEditorEngine = useStageEngine;
 export function StageEngineProvider({
   children,
   initialLayout,
+  initialArticleLayout,
   publication,
   articles,
 }: {
   children: React.ReactNode;
   initialLayout: LayoutConfig;
+  initialArticleLayout: LayoutConfig | null;
   publication: TemplatePublicationContext;
   articles: TemplateArticleItem[];
 }) {
-  const [layout, setLayout] = useState<LayoutConfig>(initialLayout);
+  const [scoped, setScoped] = useState<{ home: LayoutConfig; article: LayoutConfig | null }>({
+    home: initialLayout,
+    article: initialArticleLayout,
+  });
+  const [stagePage, setStagePageState] = useState<'home' | 'article'>('home');
+  const pageRef = useRef<'home' | 'article'>('home');
   const [past, setPast] = useState<LayoutConfig[]>([]);
   const [future, setFuture] = useState<LayoutConfig[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -131,6 +146,37 @@ export function StageEngineProvider({
 
   const [scale, setScale] = useState(0.95);
   const [position, setPosition] = useState({ x: 60, y: 20 });
+
+  // Layout actif (scope accueil ou article). L'historique est volontairement
+  // réinitialisé au changement de page pour ne jamais mélanger les scopes.
+  const layout = scoped[stagePage] ?? scoped.home;
+  const setLayout = useCallback((next: LayoutConfig | ((prev: LayoutConfig) => LayoutConfig)) => {
+    const page = pageRef.current;
+    setScoped((prev) => {
+      const current = prev[page] ?? prev.home;
+      const resolved =
+        typeof next === 'function' ? (next as (p: LayoutConfig) => LayoutConfig)(current) : next;
+      return { ...prev, [page]: resolved };
+    });
+  }, []);
+
+  const setStagePage = useCallback((page: 'home' | 'article') => {
+    pageRef.current = page;
+    setStagePageState(page);
+    setSelectedBlockId(null);
+    setSelectedOid(null);
+    setSelectedPath(null);
+    setPast([]);
+    setFuture([]);
+    if (page === 'article') {
+      setScoped((prev) =>
+        prev.article
+          ? prev
+          : { ...prev, article: JSON.parse(JSON.stringify(ARTICLE_DEFAULT_CONFIG)) as LayoutConfig }
+      );
+      setHasUnsavedChanges(true);
+    }
+  }, []);
 
   // ── Historique ──
   const pushState = useCallback(
@@ -496,23 +542,28 @@ export function StageEngineProvider({
     [layout, pushState]
   );
 
-  const selectArchetype = useCallback(
-    (archetypeId: string) => {
-      const target = ARCHETYPES_REGISTRY[archetypeId];
-      if (!target) return;
-      setPast((prev) => [...prev.slice(-49), layout]);
-      setFuture([]);
-      setLayout({
-        ...layout,
+  // Les archétypes sont des presets d'accueil : appliqués au scope home.
+  const selectArchetype = useCallback((archetypeId: string) => {
+    const target = ARCHETYPES_REGISTRY[archetypeId];
+    if (!target) return;
+    pageRef.current = 'home';
+    setStagePageState('home');
+    setScoped((prev) => ({
+      ...prev,
+      home: {
+        ...prev.home,
         archetype: target.archetype,
         tokens: { ...target.tokens },
         blocks: target.blocks.map((b) => ({ ...b, id: `${b.id}_${Date.now()}` })),
-      });
-      setSelectedBlockId(null);
-      setHasUnsavedChanges(true);
-    },
-    [layout]
-  );
+      },
+    }));
+    setSelectedBlockId(null);
+    setSelectedOid(null);
+    setSelectedPath(null);
+    setPast([]);
+    setFuture([]);
+    setHasUnsavedChanges(true);
+  }, []);
 
   const selectedNode = useMemo(() => {
     if (!selectedOid || !selectedBlock) return null;
@@ -537,12 +588,13 @@ export function StageEngineProvider({
   const save = useCallback(async () => {
     setIsSaving(true);
     try {
+      const payload = serializeSiteLayouts(scoped.home, scoped.article);
       const res = await fetch('/api/settings/publication', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           publicationId: publication.id,
-          layoutStyle: JSON.stringify(layout),
+          layoutStyle: payload,
         }),
       });
       if (!res.ok) {
@@ -552,7 +604,7 @@ export function StageEngineProvider({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             publicationId: pubId,
-            layoutStyle: JSON.stringify(layout),
+            layoutStyle: payload,
           }),
         }).catch(() => null);
       }
@@ -562,11 +614,13 @@ export function StageEngineProvider({
     } finally {
       setIsSaving(false);
     }
-  }, [layout, publication.id]);
+  }, [scoped, publication.id]);
 
   const value = useMemo<StageEngineContextType>(
     () => ({
       layout,
+      stagePage,
+      setStagePage,
       publication,
       articles,
       selectedBlockId,
@@ -616,6 +670,8 @@ export function StageEngineProvider({
     }),
     [
       layout,
+      stagePage,
+      setStagePage,
       publication,
       articles,
       selectedBlockId,

@@ -6,7 +6,7 @@
 
 import React, { useRef } from 'react';
 import type { LayoutConfig } from '@qoe/ui/templates';
-import { parseLayoutConfig } from '@qoe/ui/templates';
+import { parseSiteLayouts } from '@qoe/ui/templates';
 import { StageEngineProvider, useStageEngine, StageEditorMode } from './context/StageEngineContext';
 import { StageEditorProvider } from './engine';
 import { TopBar } from './top-bar/TopBar';
@@ -106,14 +106,15 @@ function StageWorkbench({ sidebarProps }: { sidebarProps?: StageClientProps['sid
 }
 
 export function StageClient({ publication, articles, sidebarProps }: StageClientProps) {
-  const initialLayout = useRef<LayoutConfig>(
-    parseLayoutConfig(publication.layoutStyle || 'magazine')
-  ).current;
+  const initialLayouts = useRef(parseSiteLayouts(publication.layoutStyle || 'magazine')).current;
+  const initialLayout = useRef<LayoutConfig>(initialLayouts.home).current;
+  const initialArticleLayout = useRef(initialLayouts.article).current;
 
   return (
     <StageEditorProvider>
       <StageEngineProvider
         initialLayout={initialLayout}
+        initialArticleLayout={initialArticleLayout}
         publication={publication}
         articles={articles}
       >

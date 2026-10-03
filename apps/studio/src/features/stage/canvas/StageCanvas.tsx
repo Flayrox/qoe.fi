@@ -15,6 +15,7 @@ import type {
   TemplateArticleItem,
 } from '@qoe/ui/templates';
 import { TemplateRenderer } from '@qoe/ui/templates';
+import { DEMO_ARTICLES } from '@qoe/ui/templates';
 import type { StageDevice, StageMode, StageCanvasTransform } from '../types';
 import { DEVICE_DIMENSIONS } from '../types';
 import {
@@ -376,7 +377,7 @@ export function StageCanvas({
         <div className="flex flex-col items-start gap-2 px-24 pt-16 pb-32">
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-2 rounded-md border border-border bg-muted px-2.5 py-1 font-mono text-[11px] font-medium text-muted-foreground">
-              <span>Accueil</span>
+              <span>{persistent.stagePage === 'article' ? 'Article' : 'Accueil'}</span>
               <span className="opacity-40">·</span>
               <span>{deviceWidth} × Auto</span>
             </div>
@@ -394,6 +395,7 @@ export function StageCanvas({
               config={layout}
               publication={publication}
               articles={articles}
+              article={isPreview ? (articles[0] ?? DEMO_ARTICLES[0] ?? null) : undefined}
               mode={isPreview ? 'live' : 'editable'}
               selectedBlockId={selectedBlockId}
               selectedOid={persistent.selectedOid}
