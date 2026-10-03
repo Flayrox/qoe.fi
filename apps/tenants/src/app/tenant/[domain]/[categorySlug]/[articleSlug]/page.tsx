@@ -18,6 +18,7 @@ import { LegalFooterLinks } from '@/components/legal/LegalFooterLinks';
 import { TenantArticleHighlighter } from '../../article/[slug]/TenantArticleHighlighter';
 import { TenantArticleReadingTracker } from '../../article/[slug]/TenantArticleReadingTracker';
 import { TenantReaderShell } from '../../article/[slug]/TenantReaderShell';
+import { RelatedArticles } from '../../article/[slug]/RelatedArticles';
 import { ReadingProgressBar } from '@/components/ReadingProgressBar';
 import { TemplateRenderer, parseSiteLayouts } from '@qoe/ui/templates';
 import type { TemplatePublicationContext, TemplateArticleItem } from '@qoe/ui/templates';
@@ -495,6 +496,12 @@ export default async function TenantCategoryArticlePage({
             )}
           </>
         )}
+        <RelatedArticles
+          domain={decodedDomain}
+          currentSlug={article.slug}
+          categorySlug={article.category?.slug ?? null}
+          categoryName={article.category?.name ?? null}
+        />
         <TenantArticleHighlighter
           articleId={article.id}
           creatorName={authorName || t`L'Auteur`}
