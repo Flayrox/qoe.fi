@@ -140,11 +140,9 @@ export function BentoGridBlock({
             const isLead = index === 0;
 
             return (
-              <Link
+              <div
                 key={item.id}
-                href={`/article/${item.slug}`}
-                onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                className={`group flex flex-col justify-between overflow-hidden transition-all duration-300  ${cardShape} ${surfaceClasses} ${
+                className={`group relative flex flex-col justify-between overflow-hidden transition-colors duration-300 ${cardShape} ${surfaceClasses} ${
                   isLead ? 'md:col-span-2 md:row-span-1 min-h-[340px]' : 'min-h-[300px]'
                 }`}
               >
@@ -155,20 +153,28 @@ export function BentoGridBlock({
                       isLead ? 'h-48 md:h-56' : 'h-36'
                     }`}
                   >
-                    <Image
-                      src={item.imageUrl}
-                      alt={item.title}
-                      fill
-                      className="object-cover transition-transform duration-500 "
-                    />
+                    <Image src={item.imageUrl} alt="" fill className="object-cover" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
 
                     <div className="absolute top-3 left-3 z-10 flex items-center gap-2">
-                      {showCategories && item.category && (
-                        <span className="px-2.5 py-0.5 rounded-md text-[11px] font-medium bg-muted text-muted-foreground">
-                          {item.category.name}
-                        </span>
-                      )}
+                      {showCategories &&
+                        item.category &&
+                        (item.category.slug ? (
+                          <Link
+                            href={`/categorie/${item.category.slug}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (context.mode === 'editable') e.preventDefault();
+                            }}
+                            className="px-2.5 py-0.5 rounded-md text-[11px] font-medium bg-muted text-muted-foreground hover:text-foreground"
+                          >
+                            {item.category.name}
+                          </Link>
+                        ) : (
+                          <span className="px-2.5 py-0.5 rounded-md text-[11px] font-medium bg-muted text-muted-foreground">
+                            {item.category.name}
+                          </span>
+                        ))}
                       {item.isPremium && (
                         <span className="px-2 py-0.5 rounded-md text-[10px] font-medium border border-border bg-background text-muted-foreground flex items-center gap-1">
                           <Lock className="w-2.5 h-2.5" /> Réservé
@@ -182,11 +188,17 @@ export function BentoGridBlock({
                 <div className="p-5 md:p-6 flex flex-col justify-between flex-1">
                   <div>
                     <h3
-                      className={`font-bold tracking-tight text-foreground transition-colors ${
+                      className={`font-bold tracking-tight text-foreground ${
                         isLead ? 'text-xl md:text-2xl' : 'text-base md:text-lg'
                       }`}
                     >
-                      {item.title}
+                      <Link
+                        href={`/article/${item.slug}`}
+                        onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                        className="after:absolute after:inset-0"
+                      >
+                        {item.title}
+                      </Link>
                     </h3>
                     {item.excerpt && (
                       <p className="mt-2 text-xs md:text-sm text-muted-foreground line-clamp-2 leading-relaxed">
@@ -204,7 +216,7 @@ export function BentoGridBlock({
                     )}
                   </div>
                 </div>
-              </Link>
+              </div>
             );
           })}
         </div>

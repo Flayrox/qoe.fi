@@ -5,7 +5,7 @@
 // =====================================================================
 
 import React from 'react';
-import { ArrowUp, ArrowDown, Trash2, EyeOff } from 'lucide-react';
+import { ArrowUp, ArrowDown, Trash2, EyeOff, GripVertical } from 'lucide-react';
 import type { BlockStyleProps, TemplateRenderContext } from '../schema';
 import { resolveBlockStyle } from '../style';
 
@@ -108,6 +108,18 @@ export function BlockWrapper({
 
         {isSelected && !locked && (
           <div className="flex items-center bg-card border border-border shadow-sm rounded-lg p-0.5 text-muted-foreground">
+            <span
+              draggable
+              title="Glisser pour déplacer"
+              onDragStart={(e) => {
+                e.stopPropagation();
+                e.dataTransfer.setData('application/x-stage-block', id);
+                e.dataTransfer.effectAllowed = 'move';
+              }}
+              className="p-1 cursor-grab active:cursor-grabbing hover:text-foreground hover:bg-muted rounded transition-colors"
+            >
+              <GripVertical className="w-3.5 h-3.5" />
+            </span>
             <button
               type="button"
               title="Monter la section"

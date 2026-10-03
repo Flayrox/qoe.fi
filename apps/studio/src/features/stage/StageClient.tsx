@@ -86,6 +86,7 @@ function StageWorkbench({ sidebarProps }: { sidebarProps?: StageClientProps['sid
               onUpdateNode={engine.updateNode}
               onAddNode={engine.addNode}
               onRemoveNode={engine.removeNode}
+              onMoveNode={engine.moveNode}
               onSelectNode={(oid, path, blockId) => engine.selectNode(oid, path, blockId)}
               onDuplicateBlock={engine.duplicateBlock}
               onDeleteBlock={engine.deleteBlock}
