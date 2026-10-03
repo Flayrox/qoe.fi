@@ -30,6 +30,7 @@ import {
 } from '../engine/constants';
 import { useStageEditorEngine } from '../engine';
 import { useStageEngine } from '../context/StageEngineContext';
+import { StageEditorMode as PersistedEditorMode } from '../context/StageEngineContext';
 import {
   DragSelectRect,
   HoverRect,
@@ -93,6 +94,9 @@ export function StageCanvas({
   } | null>(null);
   const [artboardOutOfView, setArtboardOutOfView] = useState(false);
   const [rectTick, setRectTick] = useState(0);
+  const [dropY, setDropY] = useState<number | null>(null);
+  const dragIdRef = useRef<string | null>(null);
+  const lastDropY = useRef<number | null>(null);
   const lastMousePos = useRef<{ x: number; y: number } | null>(null);
   const resizeRef = useRef<{
     id: string;
@@ -157,7 +161,11 @@ export function StageCanvas({
       persistent.editorMode === 'preview' ? StageEditorMode.PREVIEW : StageEditorMode.DESIGN,
     setEditorMode: (m) =>
       persistent.setEditorMode(
-        m === StageEditorMode.PREVIEW ? ('preview' as never) : ('design' as never)
+        m === StageEditorMode.PREVIEW
+          ? PersistedEditorMode.PREVIEW
+          : m === StageEditorMode.PAN
+            ? PersistedEditorMode.PAN
+            : PersistedEditorMode.DESIGN
       ),
     undo: persistent.undo,
     redo: persistent.redo,
@@ -219,14 +227,16 @@ export function StageCanvas({
     return { x: clientX - rect.left, y: clientY - rect.top };
   };
 
+  const isPanTool = persistent.editorMode === 'pan';
+
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.button === 1 || (isSpacePan && e.button === 0)) {
+    if (e.button === 1 || (isSpacePan && e.button === 0) || (isPanTool && e.button === 0)) {
       e.preventDefault();
       setIsPanning(true);
       lastMousePos.current = { x: e.clientX, y: e.clientY };
       return;
     }
-    if (isPreview) return;
+    if (isPreview || isPanTool) return;
     if (e.target === containerRef.current && e.button === 0) {
       const p = toCanvasPoint(e.clientX, e.clientY);
       setDrag({ start: p, end: p });
@@ -275,6 +285,76 @@ export function StageCanvas({
       editor.state.isDragSelecting = false;
     }
   };
+
+  // ── Drop précis : réordonne les blocs avec indicateur ──
+  const dropPosition = useCallback(
+    (clientY: number): { id: string; index: number; y: number } | null => {
+      const draggedId = dragIdRef.current;
+      const art = artboardRef.current;
+      if (!draggedId || !art) return null;
+      const dragged = layout.blocks.find((b) => b.id === draggedId);
+      if (!dragged || dragged.locked) return null;
+      const artBox = art.getBoundingClientRect();
+      const y = (clientY - artBox.top) / transform.scale;
+      const ordered = layout.blocks.filter((b) => b.id !== draggedId);
+      for (let i = 0; i < ordered.length; i++) {
+        const r = editor.frames.getRect(ordered[i].id);
+        if (!r) continue;
+        if (y < r.y + r.height / 2) return { id: draggedId, index: i, y: r.y };
+      }
+      const last = [...ordered].reverse().find((b) => editor.frames.getRect(b.id));
+      const lastRect = last ? editor.frames.getRect(last.id) : undefined;
+      return {
+        id: draggedId,
+        index: ordered.length,
+        y: lastRect ? lastRect.y + lastRect.height : 0,
+      };
+    },
+    [editor, layout.blocks, transform.scale]
+  );
+
+  const handleArtboardDragOver = useCallback(
+    (e: React.DragEvent) => {
+      if (!e.dataTransfer.types.includes('application/x-stage-block')) return;
+      const id = e.dataTransfer.getData('application/x-stage-block') || dragIdRef.current;
+      if (id) dragIdRef.current = id;
+      const pos = dropPosition(e.clientY);
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      const y = pos ? Math.round(pos.y) : null;
+      if (y !== lastDropY.current) {
+        lastDropY.current = y;
+        setDropY(y);
+      }
+      if (pos) (e.currentTarget as HTMLElement).dataset.dropIndex = String(pos.index);
+    },
+    [dropPosition]
+  );
+
+  const handleArtboardDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      const pos = dropPosition(e.clientY);
+      dragIdRef.current = null;
+      lastDropY.current = null;
+      setDropY(null);
+      if (pos) {
+        onSelectBlock(pos.id);
+        persistent.moveBlockTo(pos.id, pos.index);
+      }
+    },
+    [dropPosition, onSelectBlock, persistent]
+  );
+
+  const handleArtboardDragLeave = useCallback(() => {
+    lastDropY.current = null;
+    setDropY(null);
+  }, []);
+
+  const handleArtboardDragStart = useCallback((e: React.DragEvent) => {
+    const id = e.dataTransfer.getData('application/x-stage-block');
+    if (id) dragIdRef.current = id;
+  }, []);
 
   // ── Resize 8 poignées → props.styleBox (padding + maxWidth) ──
   const handleResizeStart = useCallback(
@@ -366,7 +446,9 @@ export function StageCanvas({
         }
       }}
       className={`relative h-full w-full overflow-hidden select-none bg-[#0D0D10] ${
-        isSpacePan || isPanning ? 'cursor-grab active:cursor-grabbing' : 'cursor-default'
+        isSpacePan || isPanning || isPanTool
+          ? 'cursor-grab active:cursor-grabbing'
+          : 'cursor-default'
       }`}
       style={{
         backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.08) 1px, transparent 0)`,
@@ -387,6 +469,10 @@ export function StageCanvas({
           <div
             ref={artboardRef}
             style={{ width: `${deviceWidth}px` }}
+            onDragStart={handleArtboardDragStart}
+            onDragOver={handleArtboardDragOver}
+            onDrop={handleArtboardDrop}
+            onDragLeave={handleArtboardDragLeave}
             className={`relative overflow-hidden rounded-lg bg-background text-foreground shadow-md transition-all duration-300 ${
               isPreview ? 'border border-border ring-1 ring-border' : 'border border-border'
             }`}
@@ -410,7 +496,7 @@ export function StageCanvas({
             />
             {!isPreview && (
               <div className="pointer-events-none absolute inset-0">
-                {hoverRect && <HoverRect rect={hoverRect} />}
+                {hoverRect && !isPanTool && <HoverRect rect={hoverRect} />}
                 {selectedRect && (
                   <SelectedRect
                     rect={selectedRect}
@@ -422,8 +508,15 @@ export function StageCanvas({
                   <MeasurementOverlay from={selectedRect} to={hoverRect} />
                 )}
                 {snapLines.length > 0 && <SnapOverlay lines={snapLines} artboard={artboardBox} />}
+                {dropY !== null && (
+                  <div
+                    className="absolute left-0 right-0 z-30 h-0.5 bg-primary"
+                    style={{ top: dropY }}
+                  />
+                )}
               </div>
             )}
+            {isPanTool && !isPreview && <div className="absolute inset-0 z-20" />}
           </div>
         </div>
       </div>

@@ -99,11 +99,7 @@ export function LeadStoryBlock({
       blockStyle={(props as unknown as { style?: import('../schema').BlockStyleProps }).style}
     >
       <section className="container mx-auto px-4 lg:px-8 py-10 md:py-16">
-        <Link
-          href={`/article/${displayArticle.slug}`}
-          onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-          className="group block"
-        >
+        <div className="group relative block">
           <div
             className={`relative overflow-hidden bg-card border border-border shadow-xs transition-colors duration-300 ${cardShape}`}
           >
@@ -135,11 +131,23 @@ export function LeadStoryBlock({
                       />
                     </span>
                   )}
-                  {displayArticle.category && (
-                    <span className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-background/90 text-foreground">
-                      {displayArticle.category.name}
-                    </span>
-                  )}
+                  {displayArticle.category &&
+                    (displayArticle.category.slug ? (
+                      <Link
+                        href={`/categorie/${displayArticle.category.slug}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (context.mode === 'editable') e.preventDefault();
+                        }}
+                        className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-background/90 text-foreground hover:underline"
+                      >
+                        {displayArticle.category.name}
+                      </Link>
+                    ) : (
+                      <span className="px-2.5 py-1 rounded-md text-[11px] font-medium bg-background/90 text-foreground">
+                        {displayArticle.category.name}
+                      </span>
+                    ))}
                   {displayArticle.isPremium && (
                     <span className="px-2 py-1 rounded-md text-[11px] font-medium border border-border bg-background text-muted-foreground flex items-center gap-1">
                       <Lock className="w-3 h-3" /> Réservé
@@ -171,7 +179,13 @@ export function LeadStoryBlock({
                   </div>
 
                   <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight">
-                    {displayArticle.title}
+                    <Link
+                      href={`/article/${displayArticle.slug}`}
+                      onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                      className="after:absolute after:inset-0"
+                    >
+                      {displayArticle.title}
+                    </Link>
                   </h2>
 
                   {showExcerpt && displayArticle.excerpt && (
@@ -183,7 +197,7 @@ export function LeadStoryBlock({
               </div>
             )}
           </div>
-        </Link>
+        </div>
         {(slots?.actions || (nodes && nodes.length > 0)) && (
           <div className="mt-4 flex flex-wrap gap-2">
             {slots?.actions && (

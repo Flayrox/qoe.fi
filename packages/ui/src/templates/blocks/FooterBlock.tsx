@@ -145,6 +145,27 @@ export function FooterBlock({
                       >
                         Confidentialité
                       </Link>
+                      <Link
+                        href="/a-propos"
+                        onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                        className="hover:text-foreground transition-colors"
+                      >
+                        À propos
+                      </Link>
+                      <Link
+                        href="/equipe"
+                        onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                        className="hover:text-foreground transition-colors"
+                      >
+                        Équipe
+                      </Link>
+                      <Link
+                        href="/rss.xml"
+                        onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                        className="hover:text-foreground transition-colors"
+                      >
+                        RSS
+                      </Link>
                     </>
                   )}
                 </div>

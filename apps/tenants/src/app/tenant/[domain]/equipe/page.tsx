@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import Link from 'next/link';
 import type { Metadata } from 'next';
 import { fetchTenantPublication } from '@/lib/tenant-data';
 import { TenantPageShell } from '@/components/TenantPageShell';
@@ -61,27 +62,42 @@ export default async function TenantTeamPage({ params }: PageProps) {
       </p>
 
       <div className="mt-8 grid gap-3 sm:grid-cols-2">
-        {[...members.values()].map((m) => (
-          <div
-            key={m.username || m.name}
-            className="flex items-center gap-3 rounded-lg border border-border p-4"
-          >
-            {m.logoUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={m.logoUrl} alt={m.name} className="h-10 w-10 rounded-md object-cover" />
-            ) : (
-              <span className="flex h-10 w-10 items-center justify-center rounded-md bg-muted text-sm font-bold">
-                {m.name.slice(0, 1).toUpperCase()}
-              </span>
-            )}
-            <div className="min-w-0">
-              <p className="truncate text-sm font-bold">{m.name}</p>
-              {m.username && (
-                <p className="truncate text-xs text-muted-foreground">@{m.username}</p>
+        {[...members.values()].map((m) => {
+          const inner = (
+            <>
+              {m.logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={m.logoUrl} alt={m.name} className="h-10 w-10 rounded-md object-cover" />
+              ) : (
+                <span className="flex h-10 w-10 items-center justify-center rounded-md bg-muted text-sm font-bold">
+                  {m.name.slice(0, 1).toUpperCase()}
+                </span>
               )}
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold">{m.name}</p>
+                {m.username && (
+                  <p className="truncate text-xs text-muted-foreground">@{m.username}</p>
+                )}
+              </div>
+            </>
+          );
+          return m.username ? (
+            <Link
+              key={m.username}
+              href={`/auteur/${encodeURIComponent(m.username)}`}
+              className="flex items-center gap-3 rounded-lg border border-border p-4 transition-colors hover:border-foreground/30"
+            >
+              {inner}
+            </Link>
+          ) : (
+            <div
+              key={m.name}
+              className="flex items-center gap-3 rounded-lg border border-border p-4"
+            >
+              {inner}
             </div>
-          </div>
-        ))}
+          );
+        })}
         {members.size === 0 && (
           <p className="text-sm text-muted-foreground">Aucun membre pour le moment.</p>
         )}

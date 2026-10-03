@@ -5,7 +5,7 @@
 'use client';
 
 import React from 'react';
-import { Copy, Trash2, ArrowLeft, Plus, X } from 'lucide-react';
+import { Copy, Trash2, ArrowLeft, ArrowUp, ArrowDown, Plus, X } from 'lucide-react';
 import type { LayoutConfig, TemplateBlock, TemplateNode } from '@qoe/ui/templates';
 
 interface RightPanelProps {
@@ -17,6 +17,7 @@ interface RightPanelProps {
   onUpdateNode: (blockId: string, oid: string, patch: Partial<TemplateNode>) => void;
   onAddNode: (blockId: string, slotKey: string | null, kind: TemplateNode['kind']) => void;
   onRemoveNode: (blockId: string, oid: string) => void;
+  onMoveNode: (blockId: string, oid: string, direction: 'up' | 'down') => void;
   onSelectNode: (oid: string | null, path: string | null, blockId: string | null) => void;
   onDuplicateBlock: (id: string) => void;
   onDeleteBlock: (id: string) => void;
@@ -40,6 +41,7 @@ export function RightPanel({
   onUpdateNode,
   onAddNode,
   onRemoveNode,
+  onMoveNode,
   onSelectNode,
   onDuplicateBlock,
   onDeleteBlock,
@@ -249,14 +251,32 @@ export function RightPanel({
                     >
                       {n.kind} · {n.oid.slice(0, 6)}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => onRemoveNode(selectedBlock.id, n.oid)}
-                      className="rounded p-0.5 text-muted-foreground hover:text-destructive"
-                      title="Supprimer"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
+                    <div className="flex items-center">
+                      <button
+                        type="button"
+                        onClick={() => onMoveNode(selectedBlock.id, n.oid, 'up')}
+                        className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+                        title="Monter"
+                      >
+                        <ArrowUp className="h-3 w-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onMoveNode(selectedBlock.id, n.oid, 'down')}
+                        className="rounded p-0.5 text-muted-foreground hover:text-foreground"
+                        title="Descendre"
+                      >
+                        <ArrowDown className="h-3 w-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onRemoveNode(selectedBlock.id, n.oid)}
+                        className="rounded p-0.5 text-muted-foreground hover:text-destructive"
+                        title="Supprimer"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>

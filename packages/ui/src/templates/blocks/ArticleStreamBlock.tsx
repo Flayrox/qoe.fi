@@ -138,19 +138,28 @@ export function ArticleStreamBlock({
           /* Mode Liste */
           <div className="max-w-4xl mx-auto divide-y divide-border">
             {items.map((article) => (
-              <article key={article.id} className={`${paddingY} group`}>
-                <Link
-                  href={`/article/${article.slug}`}
-                  onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                  className="flex flex-col sm:flex-row gap-5 items-start justify-between"
-                >
+              <article key={article.id} className={`${paddingY} group relative`}>
+                <div className="flex flex-col sm:flex-row gap-5 items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2">
-                      {showCategories && article.category && (
-                        <span className="font-semibold text-foreground">
-                          {article.category.name}
-                        </span>
-                      )}
+                      {showCategories &&
+                        article.category &&
+                        (article.category.slug ? (
+                          <Link
+                            href={`/categorie/${article.category.slug}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (context.mode === 'editable') e.preventDefault();
+                            }}
+                            className="relative z-10 font-semibold text-foreground hover:underline"
+                          >
+                            {article.category.name}
+                          </Link>
+                        ) : (
+                          <span className="font-semibold text-foreground">
+                            {article.category.name}
+                          </span>
+                        ))}
                       {article.publishedAt && (
                         <span>
                           {new Date(article.publishedAt).toLocaleDateString('fr-FR', {
@@ -173,7 +182,13 @@ export function ArticleStreamBlock({
                     </div>
 
                     <h3 className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
-                      {article.title}
+                      <Link
+                        href={`/article/${article.slug}`}
+                        onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                        className="after:absolute after:inset-0"
+                      >
+                        {article.title}
+                      </Link>
                     </h3>
 
                     {showExcerpts && article.excerpt && (
@@ -187,15 +202,10 @@ export function ArticleStreamBlock({
                     <div
                       className={`relative w-full sm:w-44 h-32 shrink-0 overflow-hidden bg-muted ${cardShape}`}
                     >
-                      <Image
-                        src={article.imageUrl}
-                        alt={article.title}
-                        fill
-                        className="object-cover"
-                      />
+                      <Image src={article.imageUrl} alt="" fill className="object-cover" />
                     </div>
                   )}
-                </Link>
+                </div>
               </article>
             ))}
           </div>
@@ -209,39 +219,49 @@ export function ArticleStreamBlock({
             {items.map((article) => (
               <article
                 key={article.id}
-                className={`group flex flex-col justify-between overflow-hidden bg-card border border-border transition-colors duration-300 ${cardShape}`}
+                className={`group relative flex flex-col justify-between overflow-hidden bg-card border border-border transition-colors duration-300 ${cardShape}`}
               >
-                <Link
-                  href={`/article/${article.slug}`}
-                  onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                  className="flex flex-col h-full"
-                >
+                <div className="flex flex-col h-full">
                   {article.imageUrl && (
                     <div className="relative w-full h-44 overflow-hidden bg-muted">
-                      <Image
-                        src={article.imageUrl}
-                        alt={article.title}
-                        fill
-                        className="object-cover transition-transform duration-500 group-hover:scale-103"
-                      />
+                      <Image src={article.imageUrl} alt="" fill className="object-cover" />
                     </div>
                   )}
 
                   <div className="p-5 flex flex-col justify-between flex-1">
                     <div>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-                        {showCategories && article.category && (
-                          <span className="font-semibold text-foreground">
-                            {article.category.name}
-                          </span>
-                        )}
+                        {showCategories &&
+                          article.category &&
+                          (article.category.slug ? (
+                            <Link
+                              href={`/categorie/${article.category.slug}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (context.mode === 'editable') e.preventDefault();
+                              }}
+                              className="relative z-10 font-semibold text-foreground hover:underline"
+                            >
+                              {article.category.name}
+                            </Link>
+                          ) : (
+                            <span className="font-semibold text-foreground">
+                              {article.category.name}
+                            </span>
+                          ))}
                         {showReadingTime && article.readingTime && (
                           <span>{article.readingTime} min</span>
                         )}
                       </div>
 
                       <h3 className="font-bold text-lg text-foreground leading-snug">
-                        {article.title}
+                        <Link
+                          href={`/article/${article.slug}`}
+                          onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                          className="after:absolute after:inset-0"
+                        >
+                          {article.title}
+                        </Link>
                       </h3>
 
                       {showExcerpts && article.excerpt && (
@@ -251,7 +271,7 @@ export function ArticleStreamBlock({
                       )}
                     </div>
                   </div>
-                </Link>
+                </div>
               </article>
             ))}
           </div>

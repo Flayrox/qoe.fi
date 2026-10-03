@@ -40,6 +40,7 @@ export interface StageEngineContextType {
   updateNode: (blockId: string, oid: string, patch: Partial<TemplateNode>) => void;
   addNode: (blockId: string, slotKey: string | null, kind: TemplateNode['kind']) => void;
   removeNode: (blockId: string, oid: string) => void;
+  moveNode: (blockId: string, oid: string, direction: 'up' | 'down') => void;
   addBlock: (type: string, label: string) => void;
   duplicateBlock: (id: string) => void;
   deleteBlock: (id: string) => void;
@@ -411,6 +412,60 @@ export function StageEngineProvider({
     [layout]
   );
 
+  function moveOid(
+    nodes: TemplateNode[],
+    oid: string,
+    direction: 'up' | 'down'
+  ): TemplateNode[] | null {
+    const idx = nodes.findIndex((n) => n.oid === oid);
+    if (idx !== -1) {
+      const to = direction === 'up' ? idx - 1 : idx + 1;
+      if (to < 0 || to >= nodes.length) return null;
+      const next = [...nodes];
+      const [moved] = next.splice(idx, 1);
+      next.splice(to, 0, moved);
+      return next;
+    }
+    for (const n of nodes) {
+      if (!n.children) continue;
+      const moved = moveOid(n.children, oid, direction);
+      if (moved) return nodes.map((c) => (c === n ? { ...n, children: moved } : c));
+    }
+    return null;
+  }
+
+  const moveNode = useCallback(
+    (blockId: string, oid: string, direction: 'up' | 'down') => {
+      const nextBlocks = layout.blocks.map((b) => {
+        if (b.id !== blockId) return b;
+        if (b.nodes) {
+          const moved = moveOid(b.nodes, oid, direction);
+          if (moved) return { ...b, nodes: moved };
+        }
+        if (b.slots) {
+          let changed = false;
+          const slots: Record<string, TemplateNode[]> = {};
+          for (const [k, v] of Object.entries(b.slots)) {
+            const moved = moveOid(v, oid, direction);
+            if (moved) {
+              changed = true;
+              slots[k] = moved;
+            } else {
+              slots[k] = v;
+            }
+          }
+          if (changed) return { ...b, slots };
+        }
+        return b;
+      });
+      setPast((prev) => [...prev.slice(-49), layout]);
+      setFuture([]);
+      setLayout({ ...layout, blocks: nextBlocks });
+      setHasUnsavedChanges(true);
+    },
+    [layout]
+  );
+
   const addBlock = useCallback(
     (type: string, label: string) => {
       const newId = `block_${type}_${Date.now()}`;
@@ -634,6 +689,7 @@ export function StageEngineProvider({
       updateNode,
       addNode,
       removeNode,
+      moveNode,
       addBlock,
       duplicateBlock,
       deleteBlock,
@@ -685,6 +741,7 @@ export function StageEngineProvider({
       updateNode,
       addNode,
       removeNode,
+      moveNode,
       addBlock,
       duplicateBlock,
       deleteBlock,
