@@ -25,6 +25,7 @@ import type { Metadata } from 'next';
 import { JsonLd, buildArticleSchema } from '@qoe/ui';
 import { getLanguage } from '@qoe/i18n/server';
 import { TenantReaderShell } from './TenantReaderShell';
+import { RelatedArticles } from './RelatedArticles';
 import { ReadingProgressBar } from '@/components/ReadingProgressBar';
 import { LegalFooterLinks } from '@/components/legal/LegalFooterLinks';
 import { TemplateRenderer, parseSiteLayouts } from '@qoe/ui/templates';
@@ -463,6 +464,12 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
             )}
           </>
         )}
+        <RelatedArticles
+          domain={decodedDomain}
+          currentSlug={article.slug}
+          categorySlug={article.category?.slug ?? null}
+          categoryName={article.category?.name ?? null}
+        />
         {/* Interactive Genius Text Selection Highlighter & Side Drawer Engine */}
         <TenantArticleHighlighter
           articleId={article.id}

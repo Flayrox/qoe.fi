@@ -74,7 +74,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       legalPages = [];
     }
 
-    return [...staticPages, ...articlePages, ...legalPages];
+    const showcasePages: MetadataRoute.Sitemap = [
+      'a-propos',
+      'equipe',
+      'search',
+      'support',
+      'rss.xml',
+      ...(pub.categories || []).map((c) => `categorie/${encodeURIComponent(c.slug)}`),
+    ].map((path) => ({
+      url: `${baseUrl}/${path}`,
+      lastModified: new Date(),
+      changeFrequency: 'monthly' as const,
+      priority: 0.4,
+    }));
+
+    return [...staticPages, ...articlePages, ...legalPages, ...showcasePages];
   } catch (err) {
     console.error('[tenants/sitemap] Error generating tenant sitemap:', err);
     return staticPages;

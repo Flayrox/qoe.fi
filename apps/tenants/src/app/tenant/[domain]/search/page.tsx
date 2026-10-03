@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { Search } from 'lucide-react';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { fetchTenantPublication } from '@/lib/tenant-data';
 import { TenantPageShell } from '@/components/TenantPageShell';
 
@@ -30,6 +31,30 @@ function plainText(html: string): string {
     .trim();
 }
 
+interface GoHit {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  categoryId: string | null;
+  published: boolean;
+  isPremium: boolean;
+}
+
+async function searchBackend(publicationId: string, query: string): Promise<GoHit[] | null> {
+  // Backend Meilisearch scopé publication. Contenu premium retronqué côté Go
+  // pour les appelants non propriétaires (zéro-fuite) — l'extrait affiché
+  // est donc toujours sûr.
+  try {
+    const res = await goFetch<{ hits: GoHit[] }>(
+      `/search/articles?q=${encodeURIComponent(query)}&publicationId=${encodeURIComponent(publicationId)}`
+    );
+    return (res.hits || []).filter((h) => h.published !== false && h.slug);
+  } catch {
+    return null;
+  }
+}
+
 export default async function TenantSearchPage({ params, searchParams }: PageProps) {
   const { domain } = await params;
   const { q } = await searchParams;
@@ -39,9 +64,29 @@ export default async function TenantSearchPage({ params, searchParams }: PagePro
   const publication = await fetchTenantPublication(decodedDomain);
   if (!publication) notFound();
 
-  const results =
-    query.length > 0
-      ? (publication.articles || []).filter((art) => {
+  const categories = new Map((publication.categories || []).map((c) => [c.id, c.name]));
+
+  let results: {
+    id: string;
+    title: string;
+    slug: string;
+    excerpt: string;
+    categoryName: string | null;
+  }[] = [];
+  if (query.length > 0) {
+    const backend = await searchBackend(publication.id, query);
+    if (backend) {
+      results = backend.map((h) => ({
+        id: h.id,
+        title: h.title,
+        slug: h.slug,
+        excerpt: plainText(h.content || '').slice(0, 200),
+        categoryName: (h.categoryId && categories.get(h.categoryId)) || null,
+      }));
+    } else {
+      // Repli local si le backend est indisponible.
+      results = (publication.articles || [])
+        .filter((art) => {
           if (art.published === false) return false;
           const hay =
             `${art.title} ${plainText(art.content || '')} ${art.category?.name || ''}`.toLowerCase();
@@ -50,7 +95,15 @@ export default async function TenantSearchPage({ params, searchParams }: PagePro
             .split(/\s+/)
             .every((w) => hay.includes(w));
         })
-      : [];
+        .map((art) => ({
+          id: art.id,
+          title: art.title,
+          slug: art.slug,
+          excerpt: plainText(art.content || '').slice(0, 200),
+          categoryName: art.category?.name || null,
+        }));
+    }
+  }
 
   return (
     <TenantPageShell publication={publication} domain={decodedDomain}>
@@ -86,18 +139,14 @@ export default async function TenantSearchPage({ params, searchParams }: PagePro
         {results.map((art) => (
           <article key={art.id} className="py-5">
             <Link href={`/article/${art.slug}`} className="group">
-              {art.category && (
-                <p className="mb-1 text-xs font-medium text-muted-foreground">
-                  {art.category.name}
-                </p>
+              {art.categoryName && (
+                <p className="mb-1 text-xs font-medium text-muted-foreground">{art.categoryName}</p>
               )}
               <h2 className="text-lg font-bold tracking-tight group-hover:text-[var(--tenant-accent)]">
                 {art.title}
               </h2>
-              {art.content && (
-                <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-                  {plainText(art.content).slice(0, 200)}
-                </p>
+              {art.excerpt && (
+                <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{art.excerpt}</p>
               )}
             </Link>
           </article>
