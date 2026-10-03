@@ -38,6 +38,7 @@ interface TopBarProps {
   hasUnsavedChanges: boolean;
   onPublish: () => void;
   isPublishing: boolean;
+  saveError: string | null;
   unpublished: boolean;
   onToggleSidebar: () => void;
 }
@@ -61,6 +62,7 @@ export function TopBar({
   onPublish,
   isPublishing,
   unpublished,
+  saveError,
   onToggleSidebar,
 }: TopBarProps) {
   const percentage = Math.round(scale * 100);
@@ -219,6 +221,11 @@ export function TopBar({
             className="flex items-center gap-1.5 px-3 py-1 rounded-lg font-medium bg-muted text-muted-foreground"
           >
             <span>Publié</span>
+          </span>
+        )}
+        {saveError && (
+          <span className="truncate text-[11px] text-destructive" role="alert">
+            {saveError}
           </span>
         )}
       </div>

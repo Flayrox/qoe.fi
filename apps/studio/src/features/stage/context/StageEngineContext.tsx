@@ -19,6 +19,13 @@ import {
   parseSiteLayouts,
   serializeSiteLayouts,
 } from '@qoe/ui/templates';
+import {
+  getSiteLayoutDraftAction,
+  saveSiteLayoutDraftAction,
+  publishSiteLayoutAction,
+  listSiteLayoutVersionsAction,
+  restoreSiteLayoutVersionAction,
+} from '@/app/(creator)/settings/design/actions';
 
 export enum StageEditorMode {
   DESIGN = 'design',
@@ -104,6 +111,7 @@ export interface StageEngineContextType {
 
   // ── Sauvegarde ──
   isSaving: boolean;
+  saveError: string | null;
   hasUnsavedChanges: boolean;
   save: () => Promise<void>;
 
@@ -174,6 +182,7 @@ export function StageEngineProvider({
   const [future, setFuture] = useState<LayoutConfig[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [isPublishing, setIsPublishing] = useState(false);
   const [unpublished, setUnpublished] = useState(initialUnpublished);
   const [snapshots, setSnapshots] = useState<StageSnapshot[]>([]);
@@ -781,12 +790,9 @@ export function StageEngineProvider({
     if (!pubId) return;
     setSnapshotsLoading(true);
     try {
-      const res = await fetch(
-        `/v1/settings/site-layout/versions?publicationId=${encodeURIComponent(pubId)}`
-      );
-      if (!res.ok) return;
-      const data = (await res.json()) as { versions?: StageSnapshot[] };
-      setSnapshots(Array.isArray(data.versions) ? data.versions : []);
+      const res = await listSiteLayoutVersionsAction(pubId);
+      if (!res.success) return;
+      setSnapshots(res.versions as StageSnapshot[]);
     } catch {
       // Backend indisponible : pas de versions.
     } finally {
@@ -815,21 +821,12 @@ export function StageEngineProvider({
       const pubId = publication.id;
       if (!pubId) return;
       try {
-        const res = await fetch('/v1/settings/site-layout/restore', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ publicationId: pubId, versionId: id }),
-        });
-        if (!res.ok) return;
-        const draftRes = await fetch(
-          `/v1/settings/site-layout?publicationId=${encodeURIComponent(pubId)}`
-        );
-        if (!draftRes.ok) return;
-        const data = (await draftRes.json()) as { layout?: string | null };
-        if (data.layout) {
-          applyScopesPayload(data.layout);
-          setUnpublished(true);
-        }
+        const res = await restoreSiteLayoutVersionAction(pubId, id);
+        if (!res.success) return;
+        const draftRes = await getSiteLayoutDraftAction(pubId);
+        if (!draftRes.success || !draftRes.layout) return;
+        applyScopesPayload(draftRes.layout);
+        setUnpublished(true);
       } catch {
         // Restauration impossible : état local inchangé.
       }
@@ -858,22 +855,13 @@ export function StageEngineProvider({
     try {
       const payload = serializeSiteLayouts(scoped.home, scoped.article, overrides);
       const pubId = publication.id || '';
-      const res = await fetch('/v1/settings/site-layout', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ publicationId: pubId, layout: payload }),
-      });
-      if (!res.ok) {
-        // Repli backend historique : écriture directe (publié aussitôt).
-        await fetch(`/v1/settings/publication?publicationId=${encodeURIComponent(pubId)}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ publicationId: pubId, layoutStyle: payload }),
-        }).catch(() => null);
-        setUnpublished(false);
-      } else {
-        setUnpublished(true);
+      const res = await saveSiteLayoutDraftAction(pubId, payload);
+      if (!res.success) {
+        setSaveError(res.error ?? 'Enregistrement impossible');
+        return;
       }
+      setSaveError(null);
+      setUnpublished(true);
       setHasUnsavedChanges(false);
     } catch (err) {
       console.error('Erreur sauvegarde Stage :', err);
@@ -887,12 +875,12 @@ export function StageEngineProvider({
     if (!pubId) return;
     setIsPublishing(true);
     try {
-      const res = await fetch('/v1/settings/site-layout/publish', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ publicationId: pubId }),
-      });
-      if (!res.ok) return;
+      const res = await publishSiteLayoutAction(pubId);
+      if (!res.success) {
+        setSaveError(res.error ?? 'Publication impossible');
+        return;
+      }
+      setSaveError(null);
       setUnpublished(false);
       setHasUnsavedChanges(false);
       await loadSnapshots();
@@ -958,6 +946,7 @@ export function StageEngineProvider({
       undo,
       redo,
       isSaving,
+      saveError,
       hasUnsavedChanges,
       save,
       isSidebarOpen,
@@ -1017,6 +1006,7 @@ export function StageEngineProvider({
       undo,
       redo,
       isSaving,
+      saveError,
       hasUnsavedChanges,
       save,
       isSidebarOpen,
