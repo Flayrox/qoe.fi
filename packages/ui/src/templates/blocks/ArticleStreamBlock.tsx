@@ -33,6 +33,7 @@ interface ArticleStreamBlockComponentProps {
   locked?: boolean;
   slots?: Record<string, import('../schema').TemplateNode[]>;
   nodes?: import('../schema').TemplateNode[];
+  hiddenAt?: ('mobile' | 'tablet')[];
 }
 
 export function ArticleStreamBlock({
@@ -45,6 +46,7 @@ export function ArticleStreamBlock({
   locked = false,
   slots,
   nodes,
+  hiddenAt,
 }: ArticleStreamBlockComponentProps) {
   const {
     displayMode = 'list',
@@ -52,6 +54,7 @@ export function ArticleStreamBlock({
     showReadingTime = true,
     showExcerpts = true,
     showCategories = true,
+    categoryFilter,
   } = props;
 
   const fallbackArticles: TemplateArticleItem[] = [
@@ -90,7 +93,14 @@ export function ArticleStreamBlock({
     },
   ];
 
-  const items = articles.length > 0 ? articles : fallbackArticles;
+  const sourceArticles = categoryFilter
+    ? articles.filter((a) => a.category?.slug === categoryFilter)
+    : articles;
+  const items = categoryFilter
+    ? sourceArticles
+    : sourceArticles.length > 0
+      ? sourceArticles
+      : fallbackArticles;
 
   const paddingY = density === 'compact' ? 'py-3' : density === 'spacious' ? 'py-7' : 'py-5';
 
@@ -110,6 +120,7 @@ export function ArticleStreamBlock({
         ).styleBox
       }
       blockStyle={(props as unknown as { style?: import('../schema').BlockStyleProps }).style}
+      hiddenAt={hiddenAt}
     >
       <section className="container mx-auto px-4 lg:px-8 py-8 md:py-14">
         {(slots?.header || (nodes && nodes.length > 0)) && (

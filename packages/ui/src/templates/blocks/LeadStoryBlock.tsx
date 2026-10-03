@@ -35,6 +35,7 @@ interface LeadStoryBlockComponentProps {
   locked?: boolean;
   slots?: Record<string, import('../schema').TemplateNode[]>;
   nodes?: import('../schema').TemplateNode[];
+  hiddenAt?: ('mobile' | 'tablet')[];
 }
 
 export function LeadStoryBlock({
@@ -47,6 +48,7 @@ export function LeadStoryBlock({
   locked = false,
   slots,
   nodes,
+  hiddenAt,
 }: LeadStoryBlockComponentProps) {
   const {
     aspectRatio = '21:9',
@@ -54,9 +56,13 @@ export function LeadStoryBlock({
     showReadTime = true,
     showDate = true,
     badgeText,
+    categoryFilter,
   } = props;
 
-  const leadArticle = articles[0];
+  const pool = categoryFilter
+    ? articles.filter((a) => a.category?.slug === categoryFilter)
+    : articles;
+  const leadArticle = pool[0];
 
   // Placeholder élégant si aucun article n'a encore été publié
   const displayArticle: TemplateArticleItem = leadArticle || {
@@ -97,6 +103,7 @@ export function LeadStoryBlock({
         ).styleBox
       }
       blockStyle={(props as unknown as { style?: import('../schema').BlockStyleProps }).style}
+      hiddenAt={hiddenAt}
     >
       <section className="container mx-auto px-4 lg:px-8 py-10 md:py-16">
         <div className="group relative block">

@@ -1,5 +1,5 @@
 // =====================================================================
-// defaults.ts — Les 4 Archétypes Signatures Pré-packagés (Licorne 2026)
+// defaults.ts — Archétypes et gabarits pré-packagés
 // =====================================================================
 // Fournit les configurations AST par défaut pour chaque style fondamental.
 // Utilisé pour :
@@ -11,6 +11,7 @@
 import type {
   LayoutConfig,
   ArticleContentBlockProps,
+  CategorySpotlightBlockProps,
   NavbarBlockProps,
   HeroBlockProps,
   LeadStoryBlockProps,
@@ -434,14 +435,6 @@ export const MINIMAL_PORTFOLIO_CONFIG: LayoutConfig = {
   ],
 };
 
-/** Dictionnaire indexé des archétypes */
-export const ARCHETYPES_REGISTRY: Record<string, LayoutConfig> = {
-  magazine: EDITORIAL_MAGAZINE_CONFIG,
-  broadsheet: BROADSHEET_MODERN_CONFIG,
-  bento: BENTO_TECH_CONFIG,
-  minimal: MINIMAL_PORTFOLIO_CONFIG,
-};
-
 /** Gabarit par défaut du scope article (page article) */
 export const ARTICLE_DEFAULT_CONFIG: LayoutConfig = {
   version: 1,
@@ -497,4 +490,501 @@ export const ARTICLE_DEFAULT_CONFIG: LayoutConfig = {
       } satisfies FooterBlockProps,
     },
   ],
+};
+
+/** 5. Encre : contraste maximal, serif, angles vifs */
+export const ENCRE_CONFIG: LayoutConfig = {
+  version: 1,
+  archetype: 'encre',
+  tokens: {
+    cardShape: 'rounded-none',
+    density: 'compact',
+    surface: 'bordered',
+    fontFamily: 'serif',
+    accentColor: '#18181B',
+  },
+  blocks: [
+    {
+      id: 'block_navbar_encre',
+      type: 'navbar',
+      label: 'En-tête',
+      visible: true,
+      locked: false,
+      props: {
+        brandDisplay: 'name-only',
+        layout: 'spread',
+        sticky: true,
+        showSocial: false,
+        showSupport: true,
+        supportText: 'Soutenir',
+        enableBlur: false,
+      } satisfies NavbarBlockProps,
+    },
+    {
+      id: 'block_hero_encre',
+      type: 'hero',
+      label: 'Bannière',
+      visible: true,
+      locked: false,
+      props: {
+        style: 'typographic-minimal',
+        alignment: 'left',
+        height: 'compact',
+        showOverlay: false,
+        overlayOpacity: 0,
+        showCoverImage: false,
+      } satisfies HeroBlockProps,
+    },
+    {
+      id: 'block_lead_encre',
+      type: 'lead-story',
+      label: 'Article vedette',
+      visible: true,
+      locked: false,
+      props: {
+        aspectRatio: '21:9',
+        showExcerpt: true,
+        showReadTime: true,
+        showDate: false,
+        highlightFirstArticle: true,
+      } satisfies LeadStoryBlockProps,
+    },
+    {
+      id: 'block_stream_encre',
+      type: 'article-stream',
+      label: 'Flux',
+      visible: true,
+      locked: false,
+      props: {
+        displayMode: 'list',
+        density: 'compact',
+        showAuthor: false,
+        showReadingTime: true,
+        showExcerpts: false,
+        showCategories: true,
+        pagination: 'load-more',
+      } satisfies ArticleStreamBlockProps,
+    },
+    {
+      id: 'block_footer_encre',
+      type: 'footer',
+      label: 'Pied de Page',
+      visible: true,
+      locked: false,
+      props: {
+        showLegalLinks: true,
+        showSocialLinks: false,
+        customCopyright: '',
+        layout: 'minimal-row',
+      } satisfies FooterBlockProps,
+    },
+  ],
+};
+
+/** 6. Papier : minimal chaleureux, généreux en blanc */
+export const PAPIER_CONFIG: LayoutConfig = {
+  version: 1,
+  archetype: 'papier',
+  tokens: {
+    cardShape: 'rounded-lg',
+    density: 'spacious',
+    surface: 'flat',
+    fontFamily: 'serif',
+    accentColor: '#9A3412',
+  },
+  blocks: [
+    {
+      id: 'block_navbar_papier',
+      type: 'navbar',
+      label: 'En-tête',
+      visible: true,
+      locked: false,
+      props: {
+        brandDisplay: 'name-only',
+        layout: 'spread',
+        sticky: false,
+        showSocial: false,
+        showSupport: false,
+        enableBlur: false,
+      } satisfies NavbarBlockProps,
+    },
+    {
+      id: 'block_hero_papier',
+      type: 'hero',
+      label: 'Bannière',
+      visible: true,
+      locked: false,
+      props: {
+        style: 'typographic-minimal',
+        alignment: 'left',
+        height: 'compact',
+        showOverlay: false,
+        overlayOpacity: 0,
+        showCoverImage: false,
+      } satisfies HeroBlockProps,
+    },
+    {
+      id: 'block_stream_papier',
+      type: 'article-stream',
+      label: 'Carnet',
+      visible: true,
+      locked: false,
+      props: {
+        displayMode: 'list',
+        density: 'spacious',
+        showAuthor: false,
+        showReadingTime: false,
+        showExcerpts: true,
+        showCategories: false,
+        pagination: 'load-more',
+      } satisfies ArticleStreamBlockProps,
+    },
+    {
+      id: 'block_newsletter_papier',
+      type: 'newsletter-wall',
+      label: 'Abonnement',
+      visible: true,
+      locked: false,
+      props: {
+        title: 'Lettre',
+        subtitle: 'De temps en temps, sans bruit.',
+        accentGlow: false,
+        showSubscriberCount: false,
+        buttonText: "S'abonner",
+      } satisfies NewsletterWallBlockProps,
+    },
+    {
+      id: 'block_footer_papier',
+      type: 'footer',
+      label: 'Pied de Page',
+      visible: true,
+      locked: false,
+      props: {
+        showLegalLinks: true,
+        showSocialLinks: false,
+        customCopyright: '',
+        layout: 'minimal-row',
+      } satisfies FooterBlockProps,
+    },
+  ],
+};
+
+/** 7. Signal : tech, bento dense, bleu franc */
+export const SIGNAL_CONFIG: LayoutConfig = {
+  version: 1,
+  archetype: 'signal',
+  tokens: {
+    cardShape: 'rounded-2xl',
+    density: 'standard',
+    surface: 'bordered',
+    fontFamily: 'sans',
+    accentColor: '#2563EB',
+  },
+  blocks: [
+    {
+      id: 'block_navbar_signal',
+      type: 'navbar',
+      label: 'En-tête',
+      visible: true,
+      locked: false,
+      props: {
+        brandDisplay: 'logo-and-name',
+        layout: 'split',
+        sticky: true,
+        showSocial: true,
+        showSupport: true,
+        supportText: 'Soutenir',
+        enableBlur: false,
+      } satisfies NavbarBlockProps,
+    },
+    {
+      id: 'block_hero_signal',
+      type: 'hero',
+      label: 'Bannière',
+      visible: true,
+      locked: false,
+      props: {
+        style: 'cinematic-banner',
+        alignment: 'center',
+        height: 'medium',
+        showOverlay: true,
+        overlayOpacity: 50,
+        showCoverImage: true,
+      } satisfies HeroBlockProps,
+    },
+    {
+      id: 'block_bento_signal',
+      type: 'bento-grid',
+      label: 'Grille',
+      visible: true,
+      locked: false,
+      props: {
+        columns: 3,
+        pattern: 'asymmetric-lead',
+        maxArticles: 4,
+        showCategories: true,
+        showReadingTime: true,
+      } satisfies BentoGridBlockProps,
+    },
+    {
+      id: 'block_spot_signal',
+      type: 'category-spotlight',
+      label: 'Encadré rubrique',
+      visible: true,
+      locked: false,
+      props: {
+        layout: 'framed',
+        maxArticles: 3,
+        showReadingTime: true,
+      } satisfies CategorySpotlightBlockProps,
+    },
+    {
+      id: 'block_stream_signal',
+      type: 'article-stream',
+      label: 'Flux',
+      visible: true,
+      locked: false,
+      props: {
+        displayMode: 'grid-3',
+        density: 'standard',
+        showAuthor: false,
+        showReadingTime: true,
+        showExcerpts: true,
+        showCategories: true,
+        pagination: 'infinite',
+      } satisfies ArticleStreamBlockProps,
+    },
+    {
+      id: 'block_footer_signal',
+      type: 'footer',
+      label: 'Pied de Page',
+      visible: true,
+      locked: false,
+      props: {
+        showLegalLinks: true,
+        showSocialLinks: true,
+        customCopyright: '',
+        layout: 'columns',
+      } satisfies FooterBlockProps,
+    },
+  ],
+};
+
+/** 8. Kiosque : presse dense, rouge franc */
+export const KIOSQUE_CONFIG: LayoutConfig = {
+  version: 1,
+  archetype: 'kiosque',
+  tokens: {
+    cardShape: 'rounded-none',
+    density: 'compact',
+    surface: 'bordered',
+    fontFamily: 'sans',
+    accentColor: '#B91C1C',
+  },
+  blocks: [
+    {
+      id: 'block_navbar_kiosque',
+      type: 'navbar',
+      label: 'En-tête',
+      visible: true,
+      locked: false,
+      props: {
+        brandDisplay: 'name-only',
+        layout: 'centered',
+        sticky: false,
+        showSocial: false,
+        showSupport: true,
+        supportText: 'Soutenir',
+        enableBlur: false,
+      } satisfies NavbarBlockProps,
+    },
+    {
+      id: 'block_lead_kiosque',
+      type: 'lead-story',
+      label: 'Article vedette',
+      visible: true,
+      locked: false,
+      props: {
+        aspectRatio: '16:9',
+        showExcerpt: true,
+        showReadTime: true,
+        showDate: true,
+        highlightFirstArticle: true,
+      } satisfies LeadStoryBlockProps,
+    },
+    {
+      id: 'block_spot_kiosque',
+      type: 'category-spotlight',
+      label: 'Encadré rubrique',
+      visible: true,
+      locked: false,
+      props: {
+        layout: 'plain',
+        maxArticles: 4,
+        showReadingTime: true,
+      } satisfies CategorySpotlightBlockProps,
+    },
+    {
+      id: 'block_stream_kiosque',
+      type: 'article-stream',
+      label: 'Dépêches',
+      visible: true,
+      locked: false,
+      props: {
+        displayMode: 'list',
+        density: 'compact',
+        showAuthor: true,
+        showReadingTime: true,
+        showExcerpts: true,
+        showCategories: true,
+        pagination: 'load-more',
+      } satisfies ArticleStreamBlockProps,
+    },
+    {
+      id: 'block_footer_kiosque',
+      type: 'footer',
+      label: 'Pied de Page',
+      visible: true,
+      locked: false,
+      props: {
+        showLegalLinks: true,
+        showSocialLinks: false,
+        customCopyright: '',
+        layout: 'minimal-row',
+      } satisfies FooterBlockProps,
+    },
+  ],
+};
+
+/** Variantes de vue article (scope article) */
+export interface ArticleVariant {
+  id: string;
+  name: string;
+  description: string;
+  config: LayoutConfig;
+}
+
+function articleVariantConfig(
+  id: string,
+  contentProps: ArticleContentBlockProps,
+  withNewsletter: boolean
+): LayoutConfig {
+  return {
+    version: 1,
+    archetype: 'custom',
+    tokens: {
+      cardShape: 'rounded-xl',
+      density: 'standard',
+      surface: 'flat',
+      fontFamily: 'serif',
+      accentColor: '#EE4B2B',
+    },
+    blocks: [
+      {
+        id: `block_article_content_${id}`,
+        type: 'article-content',
+        label: 'Contenu article',
+        visible: true,
+        locked: false,
+        props: { ...contentProps },
+      },
+      ...(withNewsletter
+        ? [
+            {
+              id: `block_article_newsletter_${id}`,
+              type: 'newsletter-wall' as const,
+              label: 'Abonnement',
+              visible: true,
+              locked: false,
+              props: {
+                title: 'Newsletter',
+                subtitle: 'Un email par semaine.',
+                accentGlow: false,
+                showSubscriberCount: false,
+                buttonText: "S'abonner",
+              } satisfies NewsletterWallBlockProps,
+            },
+          ]
+        : []),
+      {
+        id: `block_article_footer_${id}`,
+        type: 'footer',
+        label: 'Pied de Page',
+        visible: true,
+        locked: false,
+        props: {
+          showLegalLinks: true,
+          showSocialLinks: true,
+          customCopyright: '',
+          layout: 'minimal-row',
+        } satisfies FooterBlockProps,
+      },
+    ],
+  };
+}
+
+export const ARTICLE_VARIANTS: ArticleVariant[] = [
+  {
+    id: 'longform',
+    name: 'Long format',
+    description: 'Titre, méta complètes, couverture, newsletter.',
+    config: articleVariantConfig(
+      'longform',
+      {
+        showTitle: true,
+        showMeta: true,
+        showAuthor: true,
+        showDate: true,
+        showReadingTime: true,
+        showCover: true,
+      },
+      true
+    ),
+  },
+  {
+    id: 'magazine',
+    name: 'Magazine',
+    description: 'Couverture large, méta resserrées, newsletter.',
+    config: articleVariantConfig(
+      'magazine',
+      {
+        showTitle: true,
+        showMeta: true,
+        showAuthor: true,
+        showDate: false,
+        showReadingTime: true,
+        showCover: true,
+      },
+      true
+    ),
+  },
+  {
+    id: 'note',
+    name: 'Note',
+    description: 'Titre seul, sans couverture ni newsletter.',
+    config: articleVariantConfig(
+      'note',
+      {
+        showTitle: true,
+        showMeta: false,
+        showAuthor: false,
+        showDate: false,
+        showReadingTime: false,
+        showCover: false,
+      },
+      false
+    ),
+  },
+];
+
+/** Dictionnaire indexé des archétypes */
+export const ARCHETYPES_REGISTRY: Record<string, LayoutConfig> = {
+  magazine: EDITORIAL_MAGAZINE_CONFIG,
+  broadsheet: BROADSHEET_MODERN_CONFIG,
+  bento: BENTO_TECH_CONFIG,
+  minimal: MINIMAL_PORTFOLIO_CONFIG,
+  encre: ENCRE_CONFIG,
+  papier: PAPIER_CONFIG,
+  signal: SIGNAL_CONFIG,
+  kiosque: KIOSQUE_CONFIG,
 };

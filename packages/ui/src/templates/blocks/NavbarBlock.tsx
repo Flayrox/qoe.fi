@@ -34,6 +34,7 @@ interface NavbarBlockComponentProps {
   locked?: boolean;
   slots?: Record<string, import('../schema').TemplateNode[]>;
   nodes?: import('../schema').TemplateNode[];
+  hiddenAt?: ('mobile' | 'tablet')[];
 }
 
 export function NavbarBlock({
@@ -45,6 +46,7 @@ export function NavbarBlock({
   locked = false,
   slots,
   nodes,
+  hiddenAt,
 }: NavbarBlockComponentProps) {
   const {
     brandDisplay = 'logo-and-name',
@@ -110,6 +112,7 @@ export function NavbarBlock({
         ).styleBox
       }
       blockStyle={(props as unknown as { style?: import('../schema').BlockStyleProps }).style}
+      hiddenAt={hiddenAt}
     >
       <header className={containerClasses}>
         <div className={`container mx-auto px-4 lg:px-8 ${innerLayoutClasses}`}>

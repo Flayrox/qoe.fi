@@ -21,6 +21,7 @@ interface ArticleContentBlockComponentProps {
   locked?: boolean;
   slots?: Record<string, import('../schema').TemplateNode[]>;
   nodes?: import('../schema').TemplateNode[];
+  hiddenAt?: ('mobile' | 'tablet')[];
 }
 
 function sanitizeArticleHtml(html: string): string {
@@ -69,6 +70,7 @@ export function ArticleContentBlock({
   locked = false,
   slots,
   nodes,
+  hiddenAt,
 }: ArticleContentBlockComponentProps) {
   const {
     showTitle = true,
@@ -110,6 +112,7 @@ export function ArticleContentBlock({
         ).styleBox
       }
       blockStyle={(props as unknown as { style?: import('../schema').BlockStyleProps }).style}
+      hiddenAt={hiddenAt}
     >
       <article className="container mx-auto px-4 lg:px-8 py-10 md:py-14 max-w-3xl">
         {slots?.before && (
