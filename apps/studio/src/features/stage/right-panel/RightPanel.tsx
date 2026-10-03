@@ -22,6 +22,7 @@ interface RightPanelProps {
   onDuplicateBlock: (id: string) => void;
   onDeleteBlock: (id: string) => void;
   onSelectBlock: (id: string | null) => void;
+  onToggleHiddenAt: (id: string, device: 'mobile' | 'tablet') => void;
 }
 
 const SLOT_KEYS = ['title', 'subtitle', 'actions', 'header', 'legal'] as const;
@@ -46,6 +47,7 @@ export function RightPanel({
   onDuplicateBlock,
   onDeleteBlock,
   onSelectBlock,
+  onToggleHiddenAt,
 }: RightPanelProps) {
   const selectedBlock: TemplateBlock | undefined = layout.blocks.find(
     (b: TemplateBlock) => b.id === selectedBlockId
@@ -283,6 +285,29 @@ export function RightPanel({
             );
           })}
         </div>
+        {/* RESPONSIVE — visible sur tous les blocs */}
+        <div className="space-y-2">
+          <div className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/70">
+            Appareils
+          </div>
+          {(['mobile', 'tablet'] as const).map((device) => {
+            const hidden = (selectedBlock.hiddenAt ?? []).includes(device);
+            return (
+              <div key={device} className="flex items-center justify-between py-1">
+                <span className="text-muted-foreground text-[11px]">
+                  {device === 'mobile' ? 'Masquer sur mobile' : 'Masquer sur tablette'}
+                </span>
+                <input
+                  type="checkbox"
+                  checked={hidden}
+                  onChange={() => onToggleHiddenAt(selectedBlock.id, device)}
+                  className="rounded border-border accent-primary cursor-pointer"
+                />
+              </div>
+            );
+          })}
+        </div>
+
         {/* HERO PROPS */}
         {selectedBlock.type === 'hero' && (
           <div className="space-y-3">
@@ -404,6 +429,99 @@ export function RightPanel({
                 className="rounded border-border accent-primary cursor-pointer"
               />
             </div>
+
+            <div className="space-y-1">
+              <label className="text-muted-foreground text-[11px]">
+                Rubrique (slug, vide = toutes)
+              </label>
+              <input
+                type="text"
+                value={(props.categoryFilter as string) || ''}
+                placeholder="ex. essais"
+                onChange={(e) => handlePropChange('categoryFilter', e.target.value)}
+                className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* CATEGORY SPOTLIGHT PROPS */}
+        {selectedBlock.type === 'category-spotlight' && (
+          <div className="space-y-3">
+            <div className="text-[10px] font-semibold tracking-wider uppercase text-muted-foreground/70">
+              Encadré rubrique
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-muted-foreground text-[11px]">Slug de la rubrique</label>
+              <input
+                type="text"
+                value={(props.categorySlug as string) || ''}
+                placeholder="ex. essais"
+                onChange={(e) => handlePropChange('categorySlug', e.target.value)}
+                className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-muted-foreground text-[11px]">
+                Titre (vide = nom de la rubrique)
+              </label>
+              <input
+                type="text"
+                value={(props.title as string) || ''}
+                placeholder="Titre"
+                onChange={(e) => handlePropChange('title', e.target.value)}
+                className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-muted-foreground text-[11px]">Présentation</label>
+              <div className="grid grid-cols-2 gap-1">
+                {(['framed', 'plain'] as const).map((l) => (
+                  <button
+                    key={l}
+                    type="button"
+                    onClick={() => handlePropChange('layout', l)}
+                    className={`py-1 rounded-md transition-all ${
+                      (props.layout || 'framed') === l
+                        ? 'bg-primary text-primary-foreground font-medium'
+                        : 'bg-muted/50 text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {l === 'framed' ? 'Encadré' : 'Simple'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-muted-foreground text-[11px]">Articles (1-6)</label>
+              <input
+                type="number"
+                min={1}
+                max={6}
+                value={(props.maxArticles as number) ?? 3}
+                onChange={(e) =>
+                  handlePropChange(
+                    'maxArticles',
+                    Math.max(1, Math.min(6, Number(e.target.value) || 3))
+                  )
+                }
+                className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
+              />
+            </div>
+
+            <div className="flex items-center justify-between py-1">
+              <span className="text-muted-foreground text-[11px]">Temps de lecture</span>
+              <input
+                type="checkbox"
+                checked={props.showReadingTime !== false}
+                onChange={(e) => handlePropChange('showReadingTime', e.target.checked)}
+                className="rounded border-border accent-primary cursor-pointer"
+              />
+            </div>
           </div>
         )}
 
@@ -434,6 +552,19 @@ export function RightPanel({
                 checked={props.showCategories !== false}
                 onChange={(e) => handlePropChange('showCategories', e.target.checked)}
                 className="rounded border-border accent-primary cursor-pointer"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-muted-foreground text-[11px]">
+                Rubrique (slug, vide = toutes)
+              </label>
+              <input
+                type="text"
+                value={(props.categoryFilter as string) || ''}
+                placeholder="ex. essais"
+                onChange={(e) => handlePropChange('categoryFilter', e.target.value)}
+                className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
               />
             </div>
           </div>
@@ -544,6 +675,19 @@ export function RightPanel({
                 />
               </div>
             ))}
+
+            <div className="space-y-1">
+              <label className="text-muted-foreground text-[11px]">
+                Rubrique (slug, vide = toutes)
+              </label>
+              <input
+                type="text"
+                value={(props.categoryFilter as string) || ''}
+                placeholder="ex. essais"
+                onChange={(e) => handlePropChange('categoryFilter', e.target.value)}
+                className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
+              />
+            </div>
           </div>
         )}
 

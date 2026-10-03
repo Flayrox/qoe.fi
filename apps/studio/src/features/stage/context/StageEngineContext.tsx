@@ -15,6 +15,7 @@ import type {
 import {
   ARCHETYPES_REGISTRY,
   ARTICLE_DEFAULT_CONFIG,
+  ARTICLE_VARIANTS,
   serializeSiteLayouts,
 } from '@qoe/ui/templates';
 
@@ -22,6 +23,33 @@ export enum StageEditorMode {
   DESIGN = 'design',
   PAN = 'pan',
   PREVIEW = 'preview',
+}
+
+/** Point de restauration local (versions sans backend) */
+export interface StageSnapshot {
+  id: string;
+  name: string;
+  at: number;
+  page: 'home' | 'article';
+  layout: LayoutConfig;
+}
+
+const SNAPSHOT_CAP = 20;
+
+function snapshotKey(publicationId: string | undefined): string {
+  return `qoe.stage.versions.${publicationId || 'unknown'}`;
+}
+
+function readSnapshots(publicationId: string | undefined): StageSnapshot[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = window.localStorage.getItem(snapshotKey(publicationId));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as StageSnapshot[];
+    return Array.isArray(parsed) ? parsed.slice(0, SNAPSHOT_CAP) : [];
+  } catch {
+    return [];
+  }
 }
 
 export interface StageEngineContextType {
@@ -54,6 +82,14 @@ export interface StageEngineContextType {
   // ── Scopes de pages (accueil / article) ──
   stagePage: 'home' | 'article';
   setStagePage: (page: 'home' | 'article') => void;
+  applyArticleVariant: (variantId: string) => void;
+  toggleHiddenAt: (id: string, device: 'mobile' | 'tablet') => void;
+
+  // ── Versions locales (points de restauration) ──
+  snapshots: StageSnapshot[];
+  saveSnapshot: (name?: string) => void;
+  restoreSnapshot: (id: string) => void;
+  deleteSnapshot: (id: string) => void;
 
   // ── État Canvas (Zoom & Pan) ──
   scale: number;
@@ -625,11 +661,105 @@ export function StageEngineProvider({
     return findNode(selectedBlock, selectedOid);
   }, [selectedOid, selectedBlock, layout.blocks]);
 
+  const toggleHiddenAt = useCallback(
+    (id: string, device: 'mobile' | 'tablet') => {
+      setPast((prev) => [...prev.slice(-49), layout]);
+      setFuture([]);
+      setLayout({
+        ...layout,
+        blocks: layout.blocks.map((b) => {
+          if (b.id !== id) return b;
+          const current = b.hiddenAt ?? [];
+          const next = current.includes(device)
+            ? current.filter((d) => d !== device)
+            : [...current, device];
+          return { ...b, hiddenAt: next.length > 0 ? next : undefined };
+        }),
+      });
+      setHasUnsavedChanges(true);
+    },
+    [layout]
+  );
+
+  const applyArticleVariant = useCallback((variantId: string) => {
+    const variant = ARTICLE_VARIANTS.find((v) => v.id === variantId);
+    if (!variant) return;
+    pageRef.current = 'article';
+    setStagePageState('article');
+    setScoped((prev) => ({
+      ...prev,
+      article: {
+        ...variant.config,
+        tokens: { ...prev.home.tokens },
+        blocks: variant.config.blocks.map((b) => ({ ...b, id: `${b.id}_${Date.now()}` })),
+      },
+    }));
+    setSelectedBlockId(null);
+    setSelectedOid(null);
+    setSelectedPath(null);
+    setPast([]);
+    setFuture([]);
+    setHasUnsavedChanges(true);
+  }, []);
+
+  // ── Versions locales (points de restauration, sans backend) ──
+  const [snapshots, setSnapshots] = useState<StageSnapshot[]>(() => readSnapshots(publication.id));
+
+  const persistSnapshots = useCallback(
+    (next: StageSnapshot[]) => {
+      setSnapshots(next);
+      try {
+        window.localStorage.setItem(snapshotKey(publication.id), JSON.stringify(next));
+      } catch {
+        // Stockage indisponible : versions en mémoire seule.
+      }
+    },
+    [publication.id]
+  );
+
+  const saveSnapshot = useCallback(
+    (name?: string) => {
+      const at = Date.now();
+      const entry: StageSnapshot = {
+        id: `snap_${at}`,
+        name: name || `Version ${new Date(at).toLocaleString('fr-FR')}`,
+        at,
+        page: pageRef.current,
+        layout: JSON.parse(JSON.stringify(layout)) as LayoutConfig,
+      };
+      persistSnapshots([entry, ...snapshots].slice(0, SNAPSHOT_CAP));
+    },
+    [layout, snapshots, persistSnapshots]
+  );
+
+  const restoreSnapshot = useCallback(
+    (id: string) => {
+      const snap = snapshots.find((s) => s.id === id);
+      if (!snap) return;
+      pageRef.current = snap.page;
+      setStagePageState(snap.page);
+      setScoped((prev) => ({ ...prev, [snap.page]: snap.layout }));
+      setSelectedBlockId(null);
+      setSelectedOid(null);
+      setSelectedPath(null);
+      setPast([]);
+      setFuture([]);
+      setHasUnsavedChanges(true);
+    },
+    [snapshots]
+  );
+
+  const deleteSnapshot = useCallback(
+    (id: string) => {
+      persistSnapshots(snapshots.filter((s) => s.id !== id));
+    },
+    [snapshots, persistSnapshots]
+  );
+
   // ── Zoom Actions ──
   const zoomIn = useCallback(() => {
     setScale((s) => Math.min(s + 0.15, 2.5));
   }, []);
-
   const zoomOut = useCallback(() => {
     setScale((s) => Math.max(s - 0.15, 0.2));
   }, []);
@@ -676,6 +806,12 @@ export function StageEngineProvider({
       layout,
       stagePage,
       setStagePage,
+      applyArticleVariant,
+      toggleHiddenAt,
+      snapshots,
+      saveSnapshot,
+      restoreSnapshot,
+      deleteSnapshot,
       publication,
       articles,
       selectedBlockId,
@@ -728,6 +864,12 @@ export function StageEngineProvider({
       layout,
       stagePage,
       setStagePage,
+      applyArticleVariant,
+      toggleHiddenAt,
+      snapshots,
+      saveSnapshot,
+      restoreSnapshot,
+      deleteSnapshot,
       publication,
       articles,
       selectedBlockId,

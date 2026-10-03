@@ -36,7 +36,12 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStageEngine, StageEditorMode } from '../context/StageEngineContext';
-import { ARCHETYPES_REGISTRY, type BlockType, type TemplateBlock } from '@qoe/ui/templates';
+import {
+  ARCHETYPES_REGISTRY,
+  ARTICLE_VARIANTS,
+  type BlockType,
+  type TemplateBlock,
+} from '@qoe/ui/templates';
 
 const BLOCK_CATALOG: {
   type: BlockType;
@@ -75,6 +80,12 @@ const BLOCK_CATALOG: {
     icon: Newspaper,
   },
   {
+    type: 'category-spotlight',
+    label: 'Encadré rubrique',
+    description: 'Sélection par rubrique.',
+    icon: LayoutGrid,
+  },
+  {
     type: 'newsletter-wall',
     label: "Mur d'abonnement",
     description: 'Formulaire email.',
@@ -105,6 +116,22 @@ const ARCHETYPE_META: Record<string, { name: string; description: string }> = {
     name: 'Carnet Minimaliste',
     description: 'Texte seul.',
   },
+  encre: {
+    name: 'Encre',
+    description: 'Contraste maximal, angles vifs.',
+  },
+  papier: {
+    name: 'Papier',
+    description: 'Minimal chaleureux, généreux.',
+  },
+  signal: {
+    name: 'Signal',
+    description: 'Tech, grille dense.',
+  },
+  kiosque: {
+    name: 'Kiosque',
+    description: 'Presse dense, rouge franc.',
+  },
 };
 
 const ACCENT_PRESETS = ['#111111', '#EE4B2B'];
@@ -127,6 +154,10 @@ function getBlockName(block: TemplateBlock) {
       return "Flux d'articles";
     case 'newsletter-wall':
       return "Mur d'abonnement";
+    case 'article-content':
+      return "Contenu de l'article";
+    case 'category-spotlight':
+      return 'Encadré rubrique';
     case 'article-content':
       return "Contenu de l'article";
     case 'footer':
@@ -500,6 +531,74 @@ function PagesTab() {
           </button>
         ))}
       </div>
+
+      {engine.stagePage === 'article' && (
+        <div className="space-y-1.5 rounded-lg border border-border/50 p-2">
+          <div className="px-1 text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
+            Type de vue article
+          </div>
+          {ARTICLE_VARIANTS.map((v) => (
+            <button
+              key={v.id}
+              type="button"
+              onClick={() => engine.applyArticleVariant(v.id)}
+              className="w-full rounded-lg border border-border/40 p-2 text-left hover:border-border"
+            >
+              <div className="text-[12px] font-medium text-foreground">{v.name}</div>
+              <p className="mt-0.5 text-[10px] text-muted-foreground">{v.description}</p>
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="space-y-1.5 rounded-lg border border-border/50 p-2">
+        <div className="flex items-center justify-between px-1">
+          <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
+            Versions
+          </span>
+          <button
+            type="button"
+            onClick={() => engine.saveSnapshot()}
+            className="rounded-md bg-muted/60 px-2 py-0.5 text-[10px] font-medium hover:text-foreground"
+          >
+            Enregistrer
+          </button>
+        </div>
+        {engine.snapshots.length === 0 && (
+          <p className="px-1 text-[10px] text-muted-foreground">Aucun point de restauration.</p>
+        )}
+        {engine.snapshots.map((s) => (
+          <div
+            key={s.id}
+            className="flex items-center justify-between gap-1 rounded-md bg-muted/40 px-2 py-1.5"
+          >
+            <div className="min-w-0">
+              <p className="truncate text-[11px] font-medium">{s.name}</p>
+              <p className="font-mono text-[9px] text-muted-foreground">
+                {s.page === 'home' ? 'Accueil' : 'Article'}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-0.5">
+              <button
+                type="button"
+                onClick={() => engine.restoreSnapshot(s.id)}
+                className="rounded p-1 text-[11px] font-medium text-primary hover:bg-muted"
+                title="Restaurer"
+              >
+                Restaurer
+              </button>
+              <button
+                type="button"
+                onClick={() => engine.deleteSnapshot(s.id)}
+                className="rounded p-1 text-muted-foreground hover:text-destructive"
+                title="Supprimer"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
       <label className="flex items-center gap-1.5 rounded-lg border border-border/50 bg-muted/40 px-2 py-1.5">
         <Search className="h-3 w-3 text-muted-foreground" />
         <input
@@ -793,6 +892,7 @@ export function LeftPanelFull() {
                   {BLOCK_CATALOG.filter((cat) =>
                     engine.stagePage === 'article'
                       ? cat.type === 'article-content' ||
+                        cat.type === 'category-spotlight' ||
                         cat.type === 'newsletter-wall' ||
                         cat.type === 'footer'
                       : cat.type !== 'article-content'
