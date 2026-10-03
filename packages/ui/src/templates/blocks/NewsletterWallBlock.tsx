@@ -31,6 +31,7 @@ interface NewsletterWallBlockComponentProps {
   locked?: boolean;
   slots?: Record<string, import('../schema').TemplateNode[]>;
   nodes?: import('../schema').TemplateNode[];
+  hiddenAt?: ('mobile' | 'tablet')[];
 }
 
 export function NewsletterWallBlock({
@@ -43,6 +44,7 @@ export function NewsletterWallBlock({
   locked = false,
   slots,
   nodes,
+  hiddenAt,
 }: NewsletterWallBlockComponentProps) {
   const {
     title = 'Newsletter',
@@ -70,6 +72,7 @@ export function NewsletterWallBlock({
         ).styleBox
       }
       blockStyle={(props as unknown as { style?: import('../schema').BlockStyleProps }).style}
+      hiddenAt={hiddenAt}
     >
       <section className="container mx-auto px-4 lg:px-8 py-10 md:py-16">
         <div

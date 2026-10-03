@@ -19,6 +19,7 @@ interface BlockWrapperProps {
   children: React.ReactNode;
   styleBox?: { pt?: number; pb?: number; maxWidth?: number; opacity?: number };
   blockStyle?: BlockStyleProps;
+  hiddenAt?: ('mobile' | 'tablet')[];
 }
 
 export function BlockWrapper({
@@ -31,8 +32,21 @@ export function BlockWrapper({
   children,
   styleBox,
   blockStyle,
+  hiddenAt,
 }: BlockWrapperProps) {
   const { mode, selectedBlockId, onSelectBlock, onMoveBlock, onDeleteBlock } = context;
+
+  // Personnalisation par appareil : classes Tailwind pures, zéro JS.
+  const hideMobile = hiddenAt?.includes('mobile') ?? false;
+  const hideTablet = hiddenAt?.includes('tablet') ?? false;
+  const responsiveClass =
+    hideMobile && hideTablet
+      ? 'hidden lg:block'
+      : hideMobile
+        ? 'hidden md:block'
+        : hideTablet
+          ? 'md:hidden lg:block'
+          : '';
 
   const hasBox =
     styleBox &&
@@ -59,12 +73,19 @@ export function BlockWrapper({
   const boxStyle: React.CSSProperties = { ...fineStyle, ...legacyBox };
   const hasStyle = Object.keys(boxStyle).length > 0;
 
-  // En mode public / live : zéro surcharge sauf style custom
+  // En mode public / live : zéro surcharge sauf style custom.
+  // Un bloc masqué sur tous les formats ne rend rien.
   if (mode === 'live') {
     if (!visible) return null;
-    if (!hasStyle) return <>{children}</>;
+    if (hideMobile && hideTablet) return null;
+    if (!hasStyle && !responsiveClass) return <>{children}</>;
     return (
-      <div data-block-id={id} data-block-type={type} style={boxStyle}>
+      <div
+        data-block-id={id}
+        data-block-type={type}
+        style={boxStyle}
+        className={responsiveClass || undefined}
+      >
         {children}
       </div>
     );
@@ -81,7 +102,7 @@ export function BlockWrapper({
         e.stopPropagation();
         onSelectBlock?.(id);
       }}
-      className={`group/block relative transition-all duration-200 cursor-pointer ${
+      className={`group/block relative transition-all duration-200 cursor-pointer ${responsiveClass} ${
         !visible ? 'opacity-40 grayscale' : ''
       } ${
         isSelected
@@ -102,6 +123,15 @@ export function BlockWrapper({
           {!visible && (
             <span className="flex items-center gap-1 text-[10px] opacity-80">
               <EyeOff className="w-3 h-3" /> Masqué
+            </span>
+          )}
+          {responsiveClass && (
+            <span className="text-[10px] opacity-80">
+              {hideMobile && hideTablet
+                ? 'Mobile + tablette masqués'
+                : hideMobile
+                  ? 'Mobile masqué'
+                  : 'Tablette masquée'}
             </span>
           )}
         </div>

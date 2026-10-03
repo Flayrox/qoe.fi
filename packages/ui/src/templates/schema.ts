@@ -22,7 +22,8 @@ export type BlockType =
   | 'article-stream'
   | 'newsletter-wall'
   | 'footer'
-  | 'article-content';
+  | 'article-content'
+  | 'category-spotlight';
 
 /** Forme géométrique des cartes et conteneurs (Tokens) */
 export type CardCornerShape =
@@ -72,6 +73,8 @@ export interface LeadStoryBlockProps {
   showDate: boolean;
   badgeText?: string;
   highlightFirstArticle: boolean;
+  /** Slug de rubrique : vide = tous les articles */
+  categoryFilter?: string;
 }
 
 /** Configuration de la Grille Asymétrique Bento */
@@ -81,6 +84,8 @@ export interface BentoGridBlockProps {
   maxArticles: number;
   showCategories: boolean;
   showReadingTime: boolean;
+  /** Slug de rubrique : vide = tous les articles */
+  categoryFilter?: string;
 }
 
 /** Configuration du Flux d'Articles */
@@ -92,6 +97,8 @@ export interface ArticleStreamBlockProps {
   showExcerpts: boolean;
   showCategories: boolean;
   pagination: 'infinite' | 'load-more' | 'pages';
+  /** Slug de rubrique : vide = tous les articles */
+  categoryFilter?: string;
 }
 
 /** Configuration du Mur d'Abonnement Newsletter */
@@ -110,6 +117,16 @@ export interface FooterBlockProps {
   showSocialLinks: boolean;
   customCopyright?: string;
   layout: 'columns' | 'minimal-row';
+}
+
+/** Configuration de l'Encadré Rubrique */
+export interface CategorySpotlightBlockProps {
+  /** Slug de rubrique mise en avant */
+  categorySlug?: string;
+  title?: string;
+  layout: 'framed' | 'plain';
+  maxArticles: number;
+  showReadingTime: boolean;
 }
 
 /** Configuration du Contenu Article (scope article) */
@@ -132,6 +149,7 @@ export type AnyBlockProps =
   | NewsletterWallBlockProps
   | FooterBlockProps
   | ArticleContentBlockProps
+  | CategorySpotlightBlockProps
   | Record<string, unknown>;
 
 // ─────────────────────────────────────────────────────────────────────
@@ -238,6 +256,8 @@ export interface TemplateBlock<TProps = AnyBlockProps> {
   label: string;
   visible: boolean;
   locked?: boolean;
+  /** Masqué sur ces formats (personnalisation par appareil) */
+  hiddenAt?: ('mobile' | 'tablet')[];
   props: TProps;
   /** Slots nommés v2 (ex. hero: { title, actions }) */
   slots?: Record<string, TemplateNode[]>;
@@ -255,7 +275,16 @@ export interface DesignTokensConfig {
 }
 
 /** Archétypes signatures pré-packagés */
-export type TemplateArchetypeId = 'magazine' | 'broadsheet' | 'bento' | 'minimal' | 'custom';
+export type TemplateArchetypeId =
+  | 'magazine'
+  | 'broadsheet'
+  | 'bento'
+  | 'minimal'
+  | 'encre'
+  | 'papier'
+  | 'signal'
+  | 'kiosque'
+  | 'custom';
 
 /**
  * Arbre complet de mise en page (AST racine)

@@ -38,6 +38,7 @@ const VALID_BLOCK_TYPES: Set<BlockType> = new Set([
   'newsletter-wall',
   'footer',
   'article-content',
+  'category-spotlight',
 ]);
 
 const VALID_CARD_SHAPES: Set<CardCornerShape> = new Set([
@@ -216,6 +217,10 @@ function sanitizeLayoutConfig(input: Partial<LayoutConfig>): LayoutConfig {
       const visible = typeof block.visible === 'boolean' ? block.visible : true;
       const locked = typeof block.locked === 'boolean' ? block.locked : false;
       const props = block.props && typeof block.props === 'object' ? { ...block.props } : {};
+      const rawHidden = (block as { hiddenAt?: unknown }).hiddenAt;
+      const hiddenAt = Array.isArray(rawHidden)
+        ? (rawHidden.filter((v) => v === 'mobile' || v === 'tablet') as ('mobile' | 'tablet')[])
+        : undefined;
 
       let oid = typeof block.oid === 'string' && block.oid.trim() ? block.oid.trim() : id;
       if (seenOids.has(oid)) {
@@ -245,6 +250,7 @@ function sanitizeLayoutConfig(input: Partial<LayoutConfig>): LayoutConfig {
         visible,
         locked,
         props,
+        ...(hiddenAt && hiddenAt.length > 0 ? { hiddenAt } : {}),
         ...(nodes ? { nodes } : {}),
         ...(slots ? { slots } : {}),
       });
@@ -291,6 +297,7 @@ export function serializeLayoutConfig(config: LayoutConfig): string {
       visible: block.visible,
       locked: block.locked || false,
       props: block.props || {},
+      ...(block.hiddenAt && block.hiddenAt.length > 0 ? { hiddenAt: block.hiddenAt } : {}),
       ...(block.nodes ? { nodes: block.nodes } : {}),
       ...(block.slots ? { slots: block.slots } : {}),
     })),
@@ -373,6 +380,7 @@ export function serializeSiteLayouts(home: LayoutConfig, article: LayoutConfig |
       visible: block.visible,
       locked: block.locked || false,
       props: block.props || {},
+      ...(block.hiddenAt && block.hiddenAt.length > 0 ? { hiddenAt: block.hiddenAt } : {}),
       ...(block.nodes ? { nodes: block.nodes } : {}),
       ...(block.slots ? { slots: block.slots } : {}),
     })),

@@ -29,6 +29,7 @@ interface FooterBlockComponentProps {
   locked?: boolean;
   slots?: Record<string, import('../schema').TemplateNode[]>;
   nodes?: import('../schema').TemplateNode[];
+  hiddenAt?: ('mobile' | 'tablet')[];
 }
 
 export function FooterBlock({
@@ -40,6 +41,7 @@ export function FooterBlock({
   locked = false,
   slots,
   nodes,
+  hiddenAt,
 }: FooterBlockComponentProps) {
   const {
     showLegalLinks = true,
@@ -68,6 +70,7 @@ export function FooterBlock({
         ).styleBox
       }
       blockStyle={(props as unknown as { style?: import('../schema').BlockStyleProps }).style}
+      hiddenAt={hiddenAt}
     >
       <footer className="w-full border-t border-border bg-card/40 transition-colors">
         <div className="container mx-auto px-4 lg:px-8 py-10 md:py-14">

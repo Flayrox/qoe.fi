@@ -26,6 +26,7 @@ import type {
   NewsletterWallBlockProps,
   FooterBlockProps,
   ArticleContentBlockProps,
+  CategorySpotlightBlockProps,
 } from './schema';
 import { NavbarBlock } from './blocks/NavbarBlock';
 import { HeroBlock } from './blocks/HeroBlock';
@@ -35,6 +36,7 @@ import { ArticleStreamBlock } from './blocks/ArticleStreamBlock';
 import { NewsletterWallBlock } from './blocks/NewsletterWallBlock';
 import { FooterBlock } from './blocks/FooterBlock';
 import { ArticleContentBlock } from './blocks/ArticleContentBlock';
+import { CategorySpotlightBlock } from './blocks/CategorySpotlightBlock';
 import { DEMO_ARTICLES } from './demo';
 
 export interface TemplateRendererProps {
@@ -126,6 +128,7 @@ export function TemplateRenderer({
                 locked={block.locked}
                 slots={block.slots}
                 nodes={block.nodes}
+                hiddenAt={block.hiddenAt}
               />
             );
 
@@ -141,6 +144,7 @@ export function TemplateRenderer({
                 locked={block.locked}
                 slots={block.slots}
                 nodes={block.nodes}
+                hiddenAt={block.hiddenAt}
               />
             );
 
@@ -158,6 +162,7 @@ export function TemplateRenderer({
                 locked={block.locked}
                 slots={block.slots}
                 nodes={block.nodes}
+                hiddenAt={block.hiddenAt}
               />
             );
 
@@ -176,6 +181,7 @@ export function TemplateRenderer({
                 locked={block.locked}
                 slots={block.slots}
                 nodes={block.nodes}
+                hiddenAt={block.hiddenAt}
               />
             );
 
@@ -193,6 +199,7 @@ export function TemplateRenderer({
                 locked={block.locked}
                 slots={block.slots}
                 nodes={block.nodes}
+                hiddenAt={block.hiddenAt}
               />
             );
 
@@ -209,6 +216,7 @@ export function TemplateRenderer({
                 locked={block.locked}
                 slots={block.slots}
                 nodes={block.nodes}
+                hiddenAt={block.hiddenAt}
               />
             );
 
@@ -224,6 +232,7 @@ export function TemplateRenderer({
                 locked={block.locked}
                 slots={block.slots}
                 nodes={block.nodes}
+                hiddenAt={block.hiddenAt}
               />
             );
 
@@ -240,6 +249,25 @@ export function TemplateRenderer({
                 locked={block.locked}
                 slots={block.slots}
                 nodes={block.nodes}
+                hiddenAt={block.hiddenAt}
+              />
+            );
+
+          case 'category-spotlight':
+            return (
+              <CategorySpotlightBlock
+                key={block.id}
+                id={block.id}
+                props={block.props as CategorySpotlightBlockProps}
+                articles={effectiveArticles}
+                publication={publication}
+                cardShape={cardShape}
+                context={context}
+                visible={block.visible}
+                locked={block.locked}
+                slots={block.slots}
+                nodes={block.nodes}
+                hiddenAt={block.hiddenAt}
               />
             );
 

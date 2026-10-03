@@ -33,6 +33,7 @@ interface BentoGridBlockComponentProps {
   locked?: boolean;
   slots?: Record<string, import('../schema').TemplateNode[]>;
   nodes?: import('../schema').TemplateNode[];
+  hiddenAt?: ('mobile' | 'tablet')[];
 }
 
 export function BentoGridBlock({
@@ -46,11 +47,15 @@ export function BentoGridBlock({
   locked = false,
   slots,
   nodes,
+  hiddenAt,
 }: BentoGridBlockComponentProps) {
-  const { maxArticles = 4, showCategories = true, showReadingTime = true } = props;
+  const { maxArticles = 4, showCategories = true, showReadingTime = true, categoryFilter } = props;
 
   // Découpage des articles (on saute éventuellement le 1er si déjà en lead)
-  const bentoArticles = articles.slice(0, maxArticles);
+  const sourceArticles = categoryFilter
+    ? articles.filter((a) => a.category?.slug === categoryFilter)
+    : articles;
+  const bentoArticles = sourceArticles.slice(0, maxArticles);
 
   // Articles de démonstration si la publication a peu d'articles
   const fallbackArticles: TemplateArticleItem[] = [
@@ -86,7 +91,11 @@ export function BentoGridBlock({
     },
   ];
 
-  const items = bentoArticles.length > 0 ? bentoArticles : fallbackArticles;
+  const items = categoryFilter
+    ? bentoArticles
+    : bentoArticles.length > 0
+      ? bentoArticles
+      : fallbackArticles;
 
   const surfaceClasses =
     surface === 'glassmorphic'
@@ -111,6 +120,7 @@ export function BentoGridBlock({
         ).styleBox
       }
       blockStyle={(props as unknown as { style?: import('../schema').BlockStyleProps }).style}
+      hiddenAt={hiddenAt}
     >
       <section className="container mx-auto px-4 lg:px-8 py-8 md:py-14">
         {(slots?.header || (nodes && nodes.length > 0)) && (

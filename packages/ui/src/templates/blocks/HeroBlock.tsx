@@ -24,6 +24,7 @@ interface HeroBlockComponentProps {
   locked?: boolean;
   slots?: Record<string, import('../schema').TemplateNode[]>;
   nodes?: import('../schema').TemplateNode[];
+  hiddenAt?: ('mobile' | 'tablet')[];
 }
 
 export function HeroBlock({
@@ -35,6 +36,7 @@ export function HeroBlock({
   locked = false,
   slots,
   nodes,
+  hiddenAt,
 }: HeroBlockComponentProps) {
   const {
     style = 'cinematic-banner',
@@ -77,6 +79,7 @@ export function HeroBlock({
         ).styleBox
       }
       blockStyle={(props as unknown as { style?: import('../schema').BlockStyleProps }).style}
+      hiddenAt={hiddenAt}
     >
       <section className="relative w-full overflow-hidden border-b border-border/40">
         {/* Style 1 : Bannière Cinématique Panoramique */}
