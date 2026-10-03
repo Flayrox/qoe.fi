@@ -45,6 +45,7 @@ function StageWorkbench({ sidebarProps }: { sidebarProps?: StageClientProps['sid
         onPublish={engine.publish}
         isPublishing={engine.isPublishing}
         unpublished={engine.unpublished}
+        saveError={engine.saveError}
         onToggleSidebar={() => engine.setIsSidebarOpen(true)}
       />
 
