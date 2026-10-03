@@ -45,6 +45,7 @@ func (h *Handler) RegisterProtected(r chi.Router) {
 		// Défaut de téléchargement des nouveaux articles (hors-ligne/file
 		// d'écoute — l'auteur ajuste ensuite par article).
 		r.Patch("/publication/download-default", h.setDownloadDefault)
+		registerSiteLayoutRoutes(r, h)
 		r.Post("/api-application", h.submitApiApplication)
 		r.Get("/api-keys", h.listApiKeys)
 		// Clés API personnelles : créer, faire tourner ou révoquer un secret
