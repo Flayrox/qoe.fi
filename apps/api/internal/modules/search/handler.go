@@ -3,6 +3,7 @@
 package search
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"log"
@@ -12,7 +13,9 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/meilisearch/meilisearch-go"
+	"github.com/qoefi/api/internal/middleware"
 	"github.com/qoefi/api/internal/modules/articles"
 	"github.com/qoefi/api/internal/response"
 )
@@ -43,6 +46,7 @@ func (m meiliSearcher) Search(query string, request *meilisearch.SearchRequest) 
 type Handler struct {
 	searcher Searcher
 	semantic *SemanticService
+	pool     *pgxpool.Pool
 }
 
 func NewHandler(semantic *SemanticService) *Handler {
@@ -55,10 +59,36 @@ func NewHandler(semantic *SemanticService) *Handler {
 }
 
 // RegisterPublic enregistre les routes publiques de recherche.
+// Monter de préférence sous auth.OptionalAuth : le userID éventuel sert à
+// prouver la propriété d'une publication (contenu premium complet),
+// sinon tout hit premium est retronqué (zéro-fuite).
 func (h *Handler) RegisterPublic(r chi.Router) {
 	r.Get("/search/articles", h.searchArticles)
 	r.Get("/search/semantic", h.searchSemantic)
 	r.Get("/search/thoughts", h.searchThoughts)
+}
+
+// SetPool fournit l'accès Postgres pour la vérification de propriété.
+// Sans pool : repli fermé, tout hit premium est retronqué.
+func (h *Handler) SetPool(pool *pgxpool.Pool) {
+	h.pool = pool
+}
+
+// ownsPublication vérifie qu'un utilisateur détient une publication
+// (publication personnelle ou membre owner/admin d'un média).
+func (h *Handler) ownsPublication(ctx context.Context, userID, publicationID string) bool {
+	if h.pool == nil || userID == "" || publicationID == "" {
+		return false
+	}
+	var ok bool
+	err := h.pool.QueryRow(ctx, `SELECT EXISTS(
+		SELECT 1 FROM "User" WHERE id::text = $1 AND "publicationId" = $2
+		UNION
+		SELECT 1 FROM "MediaMember" mm JOIN "Media" md ON md.id = mm."mediaId"
+		WHERE md."publicationId" = $2 AND mm."userId"::text = $1
+			AND mm.status = 'active' AND mm.role IN ('owner', 'admin')
+	)`, userID, publicationID).Scan(&ok)
+	return err == nil && ok
 }
 
 // searchThoughts cherche les pensées publiques (contenu + tags, ILIKE).
@@ -125,12 +155,11 @@ func (h *Handler) searchArticles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 🔒 Zéro-fuite : l'index Meilisearch stocke le contenu BRUT des articles et
-	// les hits sont renvoyés tels quels. En recherche publique (sans filtre de
-	// publication donc sans scope studio authentifié), un article premium
-	// exposerait son passage réservé dans la réponse JSON. On le retronque ici.
-	// Le scope studio (`publicationId`, créateur authentifié) garde le contenu
-	// complet : il a le droit d'éditer ses propres écrits.
-	if pubID == "" {
+	// les hits sont renvoyés tels quels. Le contenu premium complet n'est servi
+	// que si l'appelant authentifié détient la publication (scope studio) ;
+	// sinon (public, anonyme, ou publication d'un tiers) on retronque.
+	userID, _ := middleware.UserID(r.Context())
+	if !h.ownsPublication(r.Context(), userID, pubID) {
 		redactPremiumHitContents(hits)
 	}
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
@@ -87,6 +88,44 @@ func TestSearchArticlesMeiliError(t *testing.T) {
 
 	if w.Code != http.StatusInternalServerError {
 		t.Fatalf("code = %d, attendu 500", w.Code)
+	}
+}
+
+func TestSearchArticlesPremiumRedactedWithPublicationID(t *testing.T) {
+	// Fuite paywall : même avec publicationId, un appel anonyme (sans pool
+	// donc sans preuve de propriété) doit retronquer le contenu premium.
+	hit := meilisearch.Hit{
+		"id":        json.RawMessage(`"art_9"`),
+		"isPremium": json.RawMessage(`true`),
+		"content":   json.RawMessage(`"teaser<!--members-only-->passage réservé"`),
+	}
+	h := &Handler{searcher: stubSearcher{
+		resp: &meilisearch.SearchResponse{Hits: meilisearch.Hits{hit}, EstimatedTotalHits: 1},
+	}}
+	r := chi.NewRouter()
+	h.RegisterPublic(r)
+	req := httptest.NewRequest(http.MethodGet, "/search/articles?q=climat&publicationId=pub_1", nil)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("code = %d, attendu 200", w.Code)
+	}
+	var out struct {
+		Hits []map[string]json.RawMessage `json:"hits"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &out); err != nil {
+		t.Fatalf("json invalide: %v", err)
+	}
+	if len(out.Hits) != 1 {
+		t.Fatalf("hits = %d, attendu 1", len(out.Hits))
+	}
+	var content string
+	if err := json.Unmarshal(out.Hits[0]["content"], &content); err != nil {
+		t.Fatalf("content illisible: %v", err)
+	}
+	if strings.Contains(content, "passage réservé") {
+		t.Fatalf("fuite paywall : contenu premium complet exposé : %q", content)
 	}
 }
 
