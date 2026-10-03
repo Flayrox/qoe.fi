@@ -37,6 +37,7 @@ const VALID_BLOCK_TYPES: Set<BlockType> = new Set([
   'article-stream',
   'newsletter-wall',
   'footer',
+  'article-content',
 ]);
 
 const VALID_CARD_SHAPES: Set<CardCornerShape> = new Set([
@@ -268,7 +269,7 @@ function sanitizeLayoutConfig(input: Partial<LayoutConfig>): LayoutConfig {
 }
 
 /**
- * 💾 Sérialise un LayoutConfig pour persistance propre dans PostgreSQL.
+ * Sérialise un LayoutConfig pour persistance propre dans PostgreSQL.
  * Nettoie les champs éphémères et compacte le JSON.
  */
 export function serializeLayoutConfig(config: LayoutConfig): string {
@@ -296,4 +297,85 @@ export function serializeLayoutConfig(config: LayoutConfig): string {
   };
 
   return JSON.stringify(cleanConfig);
+}
+
+/** Paire de layouts éditables (accueil + article optionnel) */
+export interface SiteLayouts {
+  home: LayoutConfig;
+  article: LayoutConfig | null;
+}
+
+function sanitizeNestedConfig(input: unknown): LayoutConfig | null {
+  if (!input || typeof input !== 'object') return null;
+  const candidate = input as Partial<LayoutConfig>;
+  if (!Array.isArray(candidate.blocks) || candidate.blocks.length === 0) return null;
+  try {
+    return sanitizeLayoutConfig(candidate);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Parse le fichier multi-scopes `layoutStyle`.
+ * Rétrocompatible : un LayoutConfig plat ou un nom d'archétype donne
+ * `{ home: parsed, article: null }`.
+ */
+export function parseSiteLayouts(
+  raw: string | null | undefined,
+  tokenOverrides?: { accentColor?: string | null; fontFamily?: string | null }
+): SiteLayouts {
+  const home = parseLayoutConfig(raw, tokenOverrides);
+  if (typeof raw === 'string' && raw.trim().startsWith('{')) {
+    try {
+      const parsed = JSON.parse(raw.trim()) as {
+        version?: unknown;
+        scopes?: { home?: unknown; article?: unknown };
+      };
+      if (
+        parsed &&
+        typeof parsed === 'object' &&
+        parsed.scopes &&
+        typeof parsed.scopes === 'object'
+      ) {
+        const article = sanitizeNestedConfig(parsed.scopes.article);
+        const scopedHome = sanitizeNestedConfig(parsed.scopes.home);
+        return { home: scopedHome ?? home, article };
+      }
+    } catch {
+      // Repli sur le home déjà parsé
+    }
+  }
+  return { home, article: null };
+}
+
+/**
+ * Sérialise la paire de layouts. Sans scope article : format legacy
+ * LayoutConfig plat (aucun changement en base).
+ */
+export function serializeSiteLayouts(home: LayoutConfig, article: LayoutConfig | null): string {
+  if (!article) return serializeLayoutConfig(home);
+  const clean = (config: LayoutConfig): LayoutConfig => ({
+    version: config.version || 1,
+    archetype: config.archetype || 'custom',
+    tokens: {
+      cardShape: config.tokens.cardShape,
+      density: config.tokens.density,
+      surface: config.tokens.surface,
+      fontFamily: config.tokens.fontFamily,
+      accentColor: config.tokens.accentColor,
+    },
+    blocks: config.blocks.map((block) => ({
+      id: block.id,
+      ...(block.oid ? { oid: block.oid } : {}),
+      type: block.type,
+      label: block.label,
+      visible: block.visible,
+      locked: block.locked || false,
+      props: block.props || {},
+      ...(block.nodes ? { nodes: block.nodes } : {}),
+      ...(block.slots ? { slots: block.slots } : {}),
+    })),
+  });
+  return JSON.stringify({ version: 2, scopes: { home: clean(home), article: clean(article) } });
 }

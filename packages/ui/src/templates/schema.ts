@@ -15,7 +15,14 @@ import type { NavigationItem, SocialLink } from '@qoe/sdk/types';
 
 /** Types de blocs modulaires disponibles dans le constructeur */
 export type BlockType =
-  'navbar' | 'hero' | 'lead-story' | 'bento-grid' | 'article-stream' | 'newsletter-wall' | 'footer';
+  | 'navbar'
+  | 'hero'
+  | 'lead-story'
+  | 'bento-grid'
+  | 'article-stream'
+  | 'newsletter-wall'
+  | 'footer'
+  | 'article-content';
 
 /** Forme géométrique des cartes et conteneurs (Tokens) */
 export type CardCornerShape =
@@ -105,6 +112,16 @@ export interface FooterBlockProps {
   layout: 'columns' | 'minimal-row';
 }
 
+/** Configuration du Contenu Article (scope article) */
+export interface ArticleContentBlockProps {
+  showTitle: boolean;
+  showMeta: boolean;
+  showAuthor: boolean;
+  showDate: boolean;
+  showReadingTime: boolean;
+  showCover: boolean;
+}
+
 /** Union discriminée de toutes les configurations de blocs */
 export type AnyBlockProps =
   | NavbarBlockProps
@@ -114,6 +131,7 @@ export type AnyBlockProps =
   | ArticleStreamBlockProps
   | NewsletterWallBlockProps
   | FooterBlockProps
+  | ArticleContentBlockProps
   | Record<string, unknown>;
 
 // ─────────────────────────────────────────────────────────────────────
@@ -240,7 +258,7 @@ export interface DesignTokensConfig {
 export type TemplateArchetypeId = 'magazine' | 'broadsheet' | 'bento' | 'minimal' | 'custom';
 
 /**
- * 📦 Arbre Complet de Mise en Page (AST Racine)
+ * Arbre complet de mise en page (AST racine)
  * Stocké sous forme de JSON dans `Publication.layoutStyle` ou résolu à la volée.
  */
 export interface LayoutConfig {
@@ -250,6 +268,18 @@ export interface LayoutConfig {
   blocks: TemplateBlock[];
 }
 
+/** Scopes de pages éditables dans Stage */
+export type SiteScopeId = 'home' | 'article';
+
+/** Fichier multi-scopes persisté dans `Publication.layoutStyle` (v2) */
+export interface SiteLayoutsFile {
+  version: 2;
+  scopes: {
+    home: LayoutConfig;
+    article?: LayoutConfig;
+  };
+}
+
 /** Contexte partagé transmis lors de l'exécution du rendu d'un bloc */
 export interface TemplateRenderContext {
   mode: 'live' | 'editable';
@@ -257,6 +287,8 @@ export interface TemplateRenderContext {
   /** Sélection sub-élément v2 (oid stable type Figma) */
   selectedOid?: string | null;
   selectedPath?: string | null;
+  /** Article courant (scope article, bloc article-content) */
+  article?: TemplateArticleItem | null;
   onSelectBlock?: (blockId: string) => void;
   onSelectNode?: (oid: string, path: string, blockId: string) => void;
   onUpdateBlockProps?: (blockId: string, newProps: Partial<AnyBlockProps>) => void;

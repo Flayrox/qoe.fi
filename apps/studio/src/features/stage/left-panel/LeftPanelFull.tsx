@@ -45,6 +45,12 @@ const BLOCK_CATALOG: {
   icon: React.ComponentType<{ className?: string }>;
 }[] = [
   {
+    type: 'article-content',
+    label: "Contenu de l'article",
+    description: 'Titre, méta, couverture et corps.',
+    icon: FileText,
+  },
+  {
     type: 'hero',
     label: 'Bannière',
     description: 'Titre et image large.',
@@ -121,6 +127,8 @@ function getBlockName(block: TemplateBlock) {
       return "Flux d'articles";
     case 'newsletter-wall':
       return "Mur d'abonnement";
+    case 'article-content':
+      return "Contenu de l'article";
     case 'footer':
       return 'Pied de Page';
     default:
@@ -476,6 +484,22 @@ function PagesTab() {
 
   return (
     <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-1 rounded-lg border border-border/50 bg-muted/40 p-1">
+        {(['home', 'article'] as const).map((page) => (
+          <button
+            key={page}
+            type="button"
+            onClick={() => engine.setStagePage(page)}
+            className={`rounded-md px-2 py-1.5 text-[11px] font-medium transition-colors ${
+              engine.stagePage === page
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {page === 'home' ? 'Accueil' : 'Article'}
+          </button>
+        ))}
+      </div>
       <label className="flex items-center gap-1.5 rounded-lg border border-border/50 bg-muted/40 px-2 py-1.5">
         <Search className="h-3 w-3 text-muted-foreground" />
         <input
@@ -766,7 +790,13 @@ export function LeftPanelFull() {
                   <div className="px-2 py-1 text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
                     Ajouter une section
                   </div>
-                  {BLOCK_CATALOG.map((cat) => {
+                  {BLOCK_CATALOG.filter((cat) =>
+                    engine.stagePage === 'article'
+                      ? cat.type === 'article-content' ||
+                        cat.type === 'newsletter-wall' ||
+                        cat.type === 'footer'
+                      : cat.type !== 'article-content'
+                  ).map((cat) => {
                     const Icon = cat.icon;
                     return (
                       <div

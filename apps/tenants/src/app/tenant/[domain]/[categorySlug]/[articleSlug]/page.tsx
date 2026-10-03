@@ -19,6 +19,8 @@ import { TenantArticleHighlighter } from '../../article/[slug]/TenantArticleHigh
 import { TenantArticleReadingTracker } from '../../article/[slug]/TenantArticleReadingTracker';
 import { TenantReaderShell } from '../../article/[slug]/TenantReaderShell';
 import { ReadingProgressBar } from '@/components/ReadingProgressBar';
+import { TemplateRenderer, parseSiteLayouts } from '@qoe/ui/templates';
+import type { TemplatePublicationContext, TemplateArticleItem } from '@qoe/ui/templates';
 import { type CommentItem } from '../../article/[slug]/ArticleCommentsSection';
 import { PaywallCut } from '../../article/[slug]/PaywallCut';
 import { ReaderActions } from '../../article/[slug]/ReaderActions';
@@ -292,6 +294,42 @@ export default async function TenantCategoryArticlePage({
         }
       : sliceContentAtPaywall(article.content || '', { isMember, isPaidSubscriber }, visibility);
 
+  // Template article Stage : scope optionnel, repli lecteur natif sinon.
+  const siteLayouts = parseSiteLayouts(publication.layoutStyle || 'magazine');
+  const articleLayout = siteLayouts.article;
+  const templatePublication: TemplatePublicationContext = {
+    id: publication.id,
+    name: publication.name,
+    domain: decodedDomain,
+    logoUrl: publication.logoUrl,
+    accentColor: publication.accentColor,
+    fontFamily: publication.fontFamily,
+    themeMode: publication.themeMode,
+    navigation: navigation as TemplatePublicationContext['navigation'],
+    socialLinks: socialLinks as TemplatePublicationContext['socialLinks'],
+  };
+  const templateArticle: TemplateArticleItem = {
+    id: article.id,
+    title: article.title,
+    slug: article.slug,
+    content: paywallCutResult.content,
+    excerpt: '',
+    imageUrl: article.imageUrl || null,
+    publishedAt: article.createdAt,
+    readingTime: readingTimeMinutes,
+    isPremium: false,
+    category: article.category
+      ? { name: article.category.name, slug: article.category.slug }
+      : null,
+    author: article.author
+      ? {
+          name: article.author.name,
+          username: article.author.username,
+          logoUrl: article.author.logoUrl,
+        }
+      : null,
+  };
+
   // Tranche 1-b : document canonique (rendu par blocs + marques par offsets).
   // Uniquement quand l'accès complet est acquis — ne JAMAIS télécharger le
   // document complet d'un article verrouillé (fuite du contenu payant).
@@ -366,84 +404,96 @@ export default async function TenantCategoryArticlePage({
         initialSource="subdomain"
       />
       <main className="container mx-auto px-4 lg:px-8 pt-12 pb-24 max-w-3xl">
-        <header className="mb-10 space-y-4">
-          <div className="flex items-center gap-2 mb-4 flex-wrap">
-            {article.category && (
-              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-muted text-foreground flex items-center gap-1">
-                {article.category.parent && (
-                  <>
-                    <span className="text-muted-foreground font-normal">
-                      {article.category.parent.name}
-                    </span>
-                    <span className="text-muted-foreground/60 text-[10px]">›</span>
-                  </>
+        {articleLayout ? (
+          <TemplateRenderer
+            config={articleLayout}
+            publication={templatePublication}
+            articles={[]}
+            article={templateArticle}
+            mode="live"
+          />
+        ) : (
+          <>
+            <header className="mb-10 space-y-4">
+              <div className="flex items-center gap-2 mb-4 flex-wrap">
+                {article.category && (
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded bg-muted text-foreground flex items-center gap-1">
+                    {article.category.parent && (
+                      <>
+                        <span className="text-muted-foreground font-normal">
+                          {article.category.parent.name}
+                        </span>
+                        <span className="text-muted-foreground/60 text-[10px]">›</span>
+                      </>
+                    )}
+                    <span>{article.category.name}</span>
+                  </span>
                 )}
-                <span>{article.category.name}</span>
-              </span>
-            )}
-            <span className="text-xs text-muted-foreground font-medium">{t`${readingTimeMinutes} min de lecture`}</span>
-          </div>
-          <h1
-            className={`text-4xl md:text-5xl lg:text-6xl tracking-tight leading-[1.15] ${isBrutalist ? 'font-black uppercase' : 'font-bold text-foreground'}`}
-          >
-            {article.title}
-          </h1>
-          <div className="flex items-center gap-3 pt-4 border-b border-border/40 pb-6 text-sm text-muted-foreground">
-            {logoUrl && (
-              <Image
-                src={logoUrl}
-                alt={name || t`Auteur`}
-                width={40}
-                height={40}
-                className={`w-10 h-10 object-cover border border-border/40 shrink-0 ${isMediaBrand ? 'rounded-lg' : 'rounded-full'}`}
-              />
-            )}
-            <div>
-              <span className="font-semibold text-foreground">{authorName}</span>
-              {isMediaBrand && article.author?.name && (
-                <span className="ml-1.5 text-muted-foreground text-xs">
-                  • {t`Par ${article.author.name}`}
-                </span>
-              )}
-              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                <time dateTime={article.createdAt}>
-                  {new Date(article.createdAt).toLocaleDateString('fr-FR', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                  })}
-                </time>
+                <span className="text-xs text-muted-foreground font-medium">{t`${readingTimeMinutes} min de lecture`}</span>
               </div>
-            </div>
-          </div>
-        </header>
-        {article.imageUrl && (
-          <figure className="relative w-full overflow-hidden rounded-2xl border border-border/30">
-            <Image
-              src={article.imageUrl}
-              alt={article.title}
-              width={1200}
-              height={630}
-              priority
-              className="h-auto w-full object-cover"
-            />
-          </figure>
-        )}
-        {!canonicalDocument && (
-          <div
-            id="article-content"
-            className="prose prose-zinc dark:prose-invert max-w-none text-base md:text-lg leading-relaxed space-y-6"
-          >
-            <PaywallCut
-              contentHtml={paywallCutResult.content}
-              isPremium={article.isPremium && !paywallCutResult.accessGranted}
-              name={authorName}
-              isBrutalist={isBrutalist}
-              accentColor={accentColor}
-              mainAppUrl={mainAppUrl}
-              creatorId={article.authorId}
-            />
-          </div>
+              <h1
+                className={`text-4xl md:text-5xl lg:text-6xl tracking-tight leading-[1.15] ${isBrutalist ? 'font-black uppercase' : 'font-bold text-foreground'}`}
+              >
+                {article.title}
+              </h1>
+              <div className="flex items-center gap-3 pt-4 border-b border-border/40 pb-6 text-sm text-muted-foreground">
+                {logoUrl && (
+                  <Image
+                    src={logoUrl}
+                    alt={name || t`Auteur`}
+                    width={40}
+                    height={40}
+                    className={`w-10 h-10 object-cover border border-border/40 shrink-0 ${isMediaBrand ? 'rounded-lg' : 'rounded-full'}`}
+                  />
+                )}
+                <div>
+                  <span className="font-semibold text-foreground">{authorName}</span>
+                  {isMediaBrand && article.author?.name && (
+                    <span className="ml-1.5 text-muted-foreground text-xs">
+                      • {t`Par ${article.author.name}`}
+                    </span>
+                  )}
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                    <time dateTime={article.createdAt}>
+                      {new Date(article.createdAt).toLocaleDateString('fr-FR', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                      })}
+                    </time>
+                  </div>
+                </div>
+              </div>
+            </header>
+            {article.imageUrl && (
+              <figure className="relative w-full overflow-hidden rounded-2xl border border-border/30">
+                <Image
+                  src={article.imageUrl}
+                  alt={article.title}
+                  width={1200}
+                  height={630}
+                  priority
+                  className="h-auto w-full object-cover"
+                />
+              </figure>
+            )}
+            {!canonicalDocument && (
+              <div
+                id="article-content"
+                className="prose prose-zinc dark:prose-invert max-w-none text-base md:text-lg leading-relaxed space-y-6"
+              >
+                <PaywallCut
+                  contentHtml={paywallCutResult.content}
+                  isPremium={article.isPremium && !paywallCutResult.accessGranted}
+                  name={authorName}
+                  isBrutalist={isBrutalist}
+                  accentColor={accentColor}
+                  mainAppUrl={mainAppUrl}
+                  creatorId={article.authorId}
+                />
+              </div>
+            )}
+          </>
         )}
         <TenantArticleHighlighter
           articleId={article.id}

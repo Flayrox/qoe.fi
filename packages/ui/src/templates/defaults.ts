@@ -10,6 +10,7 @@
 
 import type {
   LayoutConfig,
+  ArticleContentBlockProps,
   NavbarBlockProps,
   HeroBlockProps,
   LeadStoryBlockProps,
@@ -439,4 +440,61 @@ export const ARCHETYPES_REGISTRY: Record<string, LayoutConfig> = {
   broadsheet: BROADSHEET_MODERN_CONFIG,
   bento: BENTO_TECH_CONFIG,
   minimal: MINIMAL_PORTFOLIO_CONFIG,
+};
+
+/** Gabarit par défaut du scope article (page article) */
+export const ARTICLE_DEFAULT_CONFIG: LayoutConfig = {
+  version: 1,
+  archetype: 'custom',
+  tokens: {
+    cardShape: 'rounded-xl',
+    density: 'standard',
+    surface: 'flat',
+    fontFamily: 'serif',
+    accentColor: '#EE4B2B',
+  },
+  blocks: [
+    {
+      id: 'block_article_content',
+      type: 'article-content',
+      label: 'Contenu article',
+      visible: true,
+      locked: false,
+      props: {
+        showTitle: true,
+        showMeta: true,
+        showAuthor: true,
+        showDate: true,
+        showReadingTime: true,
+        showCover: true,
+      } satisfies ArticleContentBlockProps,
+    },
+    {
+      id: 'block_article_newsletter',
+      type: 'newsletter-wall',
+      label: 'Abonnement',
+      visible: true,
+      locked: false,
+      props: {
+        title: 'Newsletter',
+        subtitle: 'Un email par semaine.',
+        accentGlow: false,
+        showSubscriberCount: false,
+        buttonText: "S'abonner",
+      } satisfies NewsletterWallBlockProps,
+    },
+    {
+      id: 'block_article_footer',
+      type: 'footer',
+      label: 'Pied de Page',
+      visible: true,
+      locked: false,
+      props: {
+        showLegalLinks: true,
+        showSocialLinks: true,
+        customCopyright: '',
+        layout: 'minimal-row',
+      } satisfies FooterBlockProps,
+    },
+  ],
 };

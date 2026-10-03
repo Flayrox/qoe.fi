@@ -25,6 +25,7 @@ import type {
   ArticleStreamBlockProps,
   NewsletterWallBlockProps,
   FooterBlockProps,
+  ArticleContentBlockProps,
 } from './schema';
 import { NavbarBlock } from './blocks/NavbarBlock';
 import { HeroBlock } from './blocks/HeroBlock';
@@ -33,6 +34,7 @@ import { BentoGridBlock } from './blocks/BentoGridBlock';
 import { ArticleStreamBlock } from './blocks/ArticleStreamBlock';
 import { NewsletterWallBlock } from './blocks/NewsletterWallBlock';
 import { FooterBlock } from './blocks/FooterBlock';
+import { ArticleContentBlock } from './blocks/ArticleContentBlock';
 import { DEMO_ARTICLES } from './demo';
 
 export interface TemplateRendererProps {
@@ -42,6 +44,7 @@ export interface TemplateRendererProps {
   mode?: 'live' | 'editable';
   selectedBlockId?: string | null;
   selectedOid?: string | null;
+  article?: TemplateArticleItem | null;
   onSelectBlock?: (blockId: string) => void;
   onSelectNode?: (oid: string, path: string, blockId: string) => void;
   onUpdateBlockProps?: (blockId: string, newProps: Partial<AnyBlockProps>) => void;
@@ -62,6 +65,7 @@ export function TemplateRenderer({
   mode = 'live',
   selectedBlockId = null,
   selectedOid = null,
+  article = null,
   onSelectBlock,
   onSelectNode,
   onUpdateBlockProps,
@@ -78,6 +82,7 @@ export function TemplateRenderer({
     mode,
     selectedBlockId,
     selectedOid,
+    article: article ?? (mode === 'editable' ? (DEMO_ARTICLES[0] ?? null) : null),
     onSelectBlock,
     onSelectNode,
     onUpdateBlockProps,
@@ -214,6 +219,22 @@ export function TemplateRenderer({
                 id={block.id}
                 props={block.props as FooterBlockProps}
                 publication={publication}
+                context={context}
+                visible={block.visible}
+                locked={block.locked}
+                slots={block.slots}
+                nodes={block.nodes}
+              />
+            );
+
+          case 'article-content':
+            return (
+              <ArticleContentBlock
+                key={block.id}
+                id={block.id}
+                props={block.props as ArticleContentBlockProps}
+                publication={publication}
+                article={context.article}
                 context={context}
                 visible={block.visible}
                 locked={block.locked}
