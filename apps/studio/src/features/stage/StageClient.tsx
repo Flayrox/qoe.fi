@@ -91,6 +91,7 @@ function StageWorkbench({ sidebarProps }: { sidebarProps?: StageClientProps['sid
               onDuplicateBlock={engine.duplicateBlock}
               onDeleteBlock={engine.deleteBlock}
               onSelectBlock={engine.selectBlock}
+              onToggleHiddenAt={engine.toggleHiddenAt}
             />
           </div>
         )}
