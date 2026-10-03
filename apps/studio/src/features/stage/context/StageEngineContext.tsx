@@ -16,6 +16,7 @@ import {
   ARCHETYPES_REGISTRY,
   ARTICLE_DEFAULT_CONFIG,
   ARTICLE_VARIANTS,
+  parseSiteLayouts,
   serializeSiteLayouts,
 } from '@qoe/ui/templates';
 
@@ -25,31 +26,11 @@ export enum StageEditorMode {
   PREVIEW = 'preview',
 }
 
-/** Point de restauration local (versions sans backend) */
+/** Version publiée archivée côté serveur */
 export interface StageSnapshot {
   id: string;
-  name: string;
-  at: number;
-  page: 'home' | 'article';
-  layout: LayoutConfig;
-}
-
-const SNAPSHOT_CAP = 20;
-
-function snapshotKey(publicationId: string | undefined): string {
-  return `qoe.stage.versions.${publicationId || 'unknown'}`;
-}
-
-function readSnapshots(publicationId: string | undefined): StageSnapshot[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = window.localStorage.getItem(snapshotKey(publicationId));
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as StageSnapshot[];
-    return Array.isArray(parsed) ? parsed.slice(0, SNAPSHOT_CAP) : [];
-  } catch {
-    return [];
-  }
+  label: string;
+  createdAt: string;
 }
 
 export interface StageEngineContextType {
@@ -79,17 +60,24 @@ export interface StageEngineContextType {
   updateTokens: (tokens: Partial<LayoutConfig['tokens']>) => void;
   selectArchetype: (archetypeId: string) => void;
 
-  // ── Scopes de pages (accueil / article) ──
+  // ── Scopes de pages (accueil / article / article par rubrique) ──
   stagePage: 'home' | 'article';
   setStagePage: (page: 'home' | 'article') => void;
+  articleCategory: string | null;
+  setArticleCategory: (slug: string | null) => void;
   applyArticleVariant: (variantId: string) => void;
   toggleHiddenAt: (id: string, device: 'mobile' | 'tablet') => void;
 
-  // ── Versions locales (points de restauration) ──
+  // ── Versions serveur (instantanés publiés) ──
   snapshots: StageSnapshot[];
-  saveSnapshot: (name?: string) => void;
-  restoreSnapshot: (id: string) => void;
-  deleteSnapshot: (id: string) => void;
+  snapshotsLoading: boolean;
+  loadSnapshots: () => Promise<void>;
+  restoreSnapshot: (id: string) => Promise<void>;
+
+  // ── Publication (brouillon → en ligne) ──
+  unpublished: boolean;
+  isPublishing: boolean;
+  publish: () => Promise<void>;
 
   // ── État Canvas (Zoom & Pan) ──
   scale: number;
@@ -149,12 +137,16 @@ export function StageEngineProvider({
   children,
   initialLayout,
   initialArticleLayout,
+  initialOverrides,
+  initialUnpublished,
   publication,
   articles,
 }: {
   children: React.ReactNode;
   initialLayout: LayoutConfig;
   initialArticleLayout: LayoutConfig | null;
+  initialOverrides: Record<string, LayoutConfig>;
+  initialUnpublished: boolean;
   publication: TemplatePublicationContext;
   articles: TemplateArticleItem[];
 }) {
@@ -162,12 +154,30 @@ export function StageEngineProvider({
     home: initialLayout,
     article: initialArticleLayout,
   });
+  const [overrides, setOverrides] = useState<Record<string, LayoutConfig>>(initialOverrides);
   const [stagePage, setStagePageState] = useState<'home' | 'article'>('home');
-  const pageRef = useRef<'home' | 'article'>('home');
+  const [articleCategory, setArticleCategoryState] = useState<string | null>(null);
+  const targetRef = useRef<{ page: 'home' | 'article'; category: string | null }>({
+    page: 'home',
+    category: null,
+  });
+  // Compat : pageRef historique (page seule).
+  const pageRef = {
+    get current() {
+      return targetRef.current.page;
+    },
+    set current(page: 'home' | 'article') {
+      targetRef.current = { page, category: null };
+    },
+  };
   const [past, setPast] = useState<LayoutConfig[]>([]);
   const [future, setFuture] = useState<LayoutConfig[]>([]);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [unpublished, setUnpublished] = useState(initialUnpublished);
+  const [snapshots, setSnapshots] = useState<StageSnapshot[]>([]);
+  const [snapshotsLoading, setSnapshotsLoading] = useState(false);
 
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null);
   const [selectedOid, setSelectedOid] = useState<string | null>(null);
@@ -184,36 +194,86 @@ export function StageEngineProvider({
   const [scale, setScale] = useState(0.95);
   const [position, setPosition] = useState({ x: 60, y: 20 });
 
-  // Layout actif (scope accueil ou article). L'historique est volontairement
-  // réinitialisé au changement de page pour ne jamais mélanger les scopes.
-  const layout = scoped[stagePage] ?? scoped.home;
+  // Layout actif : accueil, article, ou override de rubrique.
+  // L'historique est volontairement réinitialisé au changement de cible.
+  const layout =
+    stagePage === 'home'
+      ? scoped.home
+      : articleCategory && overrides[articleCategory]
+        ? overrides[articleCategory]
+        : (scoped.article ?? scoped.home);
   const setLayout = useCallback((next: LayoutConfig | ((prev: LayoutConfig) => LayoutConfig)) => {
-    const page = pageRef.current;
-    setScoped((prev) => {
-      const current = prev[page] ?? prev.home;
-      const resolved =
-        typeof next === 'function' ? (next as (p: LayoutConfig) => LayoutConfig)(current) : next;
-      return { ...prev, [page]: resolved };
-    });
+    const target = { ...targetRef.current };
+    if (target.page === 'home' || !target.category) {
+      const page = target.page;
+      setScoped((prev) => {
+        const current = prev[page] ?? prev.home;
+        const resolved =
+          typeof next === 'function' ? (next as (p: LayoutConfig) => LayoutConfig)(current) : next;
+        return { ...prev, [page]: resolved };
+      });
+    } else {
+      const slug = target.category as string;
+      setOverrides((prev) => {
+        const current = prev[slug];
+        if (!current) return prev;
+        const resolved =
+          typeof next === 'function' ? (next as (p: LayoutConfig) => LayoutConfig)(current) : next;
+        return { ...prev, [slug]: resolved };
+      });
+    }
   }, []);
 
-  const setStagePage = useCallback((page: 'home' | 'article') => {
-    pageRef.current = page;
-    setStagePageState(page);
+  const clearEditingState = useCallback(() => {
     setSelectedBlockId(null);
     setSelectedOid(null);
     setSelectedPath(null);
     setPast([]);
     setFuture([]);
-    if (page === 'article') {
-      setScoped((prev) =>
-        prev.article
-          ? prev
-          : { ...prev, article: JSON.parse(JSON.stringify(ARTICLE_DEFAULT_CONFIG)) as LayoutConfig }
-      );
-      setHasUnsavedChanges(true);
-    }
   }, []);
+
+  const setArticleCategory = useCallback(
+    (slug: string | null) => {
+      targetRef.current = { page: 'article', category: slug };
+      setStagePageState('article');
+      setArticleCategoryState(slug);
+      if (slug) {
+        setOverrides((prev) => {
+          if (prev[slug]) return prev;
+          const base =
+            scoped.article ?? (JSON.parse(JSON.stringify(ARTICLE_DEFAULT_CONFIG)) as LayoutConfig);
+          return {
+            ...prev,
+            [slug]: JSON.parse(JSON.stringify(base)) as LayoutConfig,
+          };
+        });
+        setHasUnsavedChanges(true);
+      }
+      clearEditingState();
+    },
+    [scoped.article, clearEditingState]
+  );
+
+  const setStagePage = useCallback(
+    (page: 'home' | 'article') => {
+      targetRef.current = { page, category: null };
+      setStagePageState(page);
+      setArticleCategoryState(null);
+      clearEditingState();
+      if (page === 'article') {
+        setScoped((prev) =>
+          prev.article
+            ? prev
+            : {
+                ...prev,
+                article: JSON.parse(JSON.stringify(ARTICLE_DEFAULT_CONFIG)) as LayoutConfig,
+              }
+        );
+        setHasUnsavedChanges(true);
+      }
+    },
+    [clearEditingState]
+  );
 
   // ── Historique ──
   const pushState = useCallback(
@@ -681,64 +741,30 @@ export function StageEngineProvider({
     [layout]
   );
 
-  const applyArticleVariant = useCallback((variantId: string) => {
-    const variant = ARTICLE_VARIANTS.find((v) => v.id === variantId);
-    if (!variant) return;
-    pageRef.current = 'article';
-    setStagePageState('article');
-    setScoped((prev) => ({
-      ...prev,
-      article: {
+  const applyArticleVariant = useCallback(
+    (variantId: string) => {
+      const variant = ARTICLE_VARIANTS.find((v) => v.id === variantId);
+      if (!variant) return;
+      const build = (tokens: LayoutConfig['tokens']): LayoutConfig => ({
         ...variant.config,
-        tokens: { ...prev.home.tokens },
+        tokens: { ...tokens },
         blocks: variant.config.blocks.map((b) => ({ ...b, id: `${b.id}_${Date.now()}` })),
-      },
-    }));
-    setSelectedBlockId(null);
-    setSelectedOid(null);
-    setSelectedPath(null);
-    setPast([]);
-    setFuture([]);
-    setHasUnsavedChanges(true);
-  }, []);
-
-  // ── Versions locales (points de restauration, sans backend) ──
-  const [snapshots, setSnapshots] = useState<StageSnapshot[]>(() => readSnapshots(publication.id));
-
-  const persistSnapshots = useCallback(
-    (next: StageSnapshot[]) => {
-      setSnapshots(next);
-      try {
-        window.localStorage.setItem(snapshotKey(publication.id), JSON.stringify(next));
-      } catch {
-        // Stockage indisponible : versions en mémoire seule.
+      });
+      const target = { ...targetRef.current, page: 'article' as const };
+      targetRef.current = target;
+      setStagePageState('article');
+      if (target.category) {
+        const slug = target.category;
+        setOverrides((prev) => ({
+          ...prev,
+          [slug]: build(prev[slug]?.tokens ?? scoped.home.tokens),
+        }));
+      } else {
+        setScoped((prev) => ({
+          ...prev,
+          article: build(prev.home.tokens),
+        }));
       }
-    },
-    [publication.id]
-  );
-
-  const saveSnapshot = useCallback(
-    (name?: string) => {
-      const at = Date.now();
-      const entry: StageSnapshot = {
-        id: `snap_${at}`,
-        name: name || `Version ${new Date(at).toLocaleString('fr-FR')}`,
-        at,
-        page: pageRef.current,
-        layout: JSON.parse(JSON.stringify(layout)) as LayoutConfig,
-      };
-      persistSnapshots([entry, ...snapshots].slice(0, SNAPSHOT_CAP));
-    },
-    [layout, snapshots, persistSnapshots]
-  );
-
-  const restoreSnapshot = useCallback(
-    (id: string) => {
-      const snap = snapshots.find((s) => s.id === id);
-      if (!snap) return;
-      pageRef.current = snap.page;
-      setStagePageState(snap.page);
-      setScoped((prev) => ({ ...prev, [snap.page]: snap.layout }));
       setSelectedBlockId(null);
       setSelectedOid(null);
       setSelectedPath(null);
@@ -746,14 +772,69 @@ export function StageEngineProvider({
       setFuture([]);
       setHasUnsavedChanges(true);
     },
-    [snapshots]
+    [scoped.home.tokens]
   );
 
-  const deleteSnapshot = useCallback(
-    (id: string) => {
-      persistSnapshots(snapshots.filter((s) => s.id !== id));
+  // ── Versions serveur (instantanés publiés) ──
+  const loadSnapshots = useCallback(async () => {
+    const pubId = publication.id;
+    if (!pubId) return;
+    setSnapshotsLoading(true);
+    try {
+      const res = await fetch(
+        `/v1/settings/site-layout/versions?publicationId=${encodeURIComponent(pubId)}`
+      );
+      if (!res.ok) return;
+      const data = (await res.json()) as { versions?: StageSnapshot[] };
+      setSnapshots(Array.isArray(data.versions) ? data.versions : []);
+    } catch {
+      // Backend indisponible : pas de versions.
+    } finally {
+      setSnapshotsLoading(false);
+    }
+  }, [publication.id]);
+
+  const applyScopesPayload = useCallback((payload: string) => {
+    try {
+      const parsed = parseSiteLayouts(payload);
+      setScoped({ home: parsed.home, article: parsed.article });
+      setOverrides(parsed.articleByCategory);
+      setSelectedBlockId(null);
+      setSelectedOid(null);
+      setSelectedPath(null);
+      setPast([]);
+      setFuture([]);
+      setHasUnsavedChanges(true);
+    } catch {
+      // Payload illisible : on ne touche à rien.
+    }
+  }, []);
+
+  const restoreSnapshot = useCallback(
+    async (id: string) => {
+      const pubId = publication.id;
+      if (!pubId) return;
+      try {
+        const res = await fetch('/v1/settings/site-layout/restore', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ publicationId: pubId, versionId: id }),
+        });
+        if (!res.ok) return;
+        const draftRes = await fetch(
+          `/v1/settings/site-layout?publicationId=${encodeURIComponent(pubId)}`
+        );
+        if (!draftRes.ok) return;
+        const data = (await draftRes.json()) as { layout?: string | null };
+        if (data.layout) {
+          applyScopesPayload(data.layout);
+          setUnpublished(true);
+        }
+      } catch {
+        // Restauration impossible : état local inchangé.
+      }
     },
-    [snapshots, persistSnapshots]
+    [publication.id, applyScopesPayload]
   );
 
   // ── Zoom Actions ──
@@ -769,29 +850,29 @@ export function StageEngineProvider({
     setPosition({ x: 60, y: 20 });
   }, []);
 
-  // ── Sauvegarde ──
+  // ── Sauvegarde (brouillon) puis publication ──
+  // Enregistrer = brouillon serveur (le site public ne change pas).
+  // Publier = bascule du brouillon en ligne + snapshot de l'ancienne version.
   const save = useCallback(async () => {
     setIsSaving(true);
     try {
-      const payload = serializeSiteLayouts(scoped.home, scoped.article);
-      const res = await fetch('/api/settings/publication', {
+      const payload = serializeSiteLayouts(scoped.home, scoped.article, overrides);
+      const pubId = publication.id || '';
+      const res = await fetch('/v1/settings/site-layout', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          publicationId: publication.id,
-          layoutStyle: payload,
-        }),
+        body: JSON.stringify({ publicationId: pubId, layout: payload }),
       });
       if (!res.ok) {
-        const pubId = publication.id || '';
+        // Repli backend historique : écriture directe (publié aussitôt).
         await fetch(`/v1/settings/publication?publicationId=${encodeURIComponent(pubId)}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            publicationId: pubId,
-            layoutStyle: payload,
-          }),
+          body: JSON.stringify({ publicationId: pubId, layoutStyle: payload }),
         }).catch(() => null);
+        setUnpublished(false);
+      } else {
+        setUnpublished(true);
       }
       setHasUnsavedChanges(false);
     } catch (err) {
@@ -801,17 +882,43 @@ export function StageEngineProvider({
     }
   }, [scoped, publication.id]);
 
+  const publish = useCallback(async () => {
+    const pubId = publication.id;
+    if (!pubId) return;
+    setIsPublishing(true);
+    try {
+      const res = await fetch('/v1/settings/site-layout/publish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ publicationId: pubId }),
+      });
+      if (!res.ok) return;
+      setUnpublished(false);
+      setHasUnsavedChanges(false);
+      await loadSnapshots();
+    } catch (err) {
+      console.error('Erreur publication Stage :', err);
+    } finally {
+      setIsPublishing(false);
+    }
+  }, [publication.id, loadSnapshots]);
+
   const value = useMemo<StageEngineContextType>(
     () => ({
       layout,
       stagePage,
       setStagePage,
+      articleCategory,
+      setArticleCategory,
       applyArticleVariant,
       toggleHiddenAt,
       snapshots,
-      saveSnapshot,
+      snapshotsLoading,
+      loadSnapshots,
       restoreSnapshot,
-      deleteSnapshot,
+      unpublished,
+      isPublishing,
+      publish,
       publication,
       articles,
       selectedBlockId,
@@ -864,12 +971,17 @@ export function StageEngineProvider({
       layout,
       stagePage,
       setStagePage,
+      articleCategory,
+      setArticleCategory,
       applyArticleVariant,
       toggleHiddenAt,
       snapshots,
-      saveSnapshot,
+      snapshotsLoading,
+      loadSnapshots,
       restoreSnapshot,
-      deleteSnapshot,
+      unpublished,
+      isPublishing,
+      publish,
       publication,
       articles,
       selectedBlockId,

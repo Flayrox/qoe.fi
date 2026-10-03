@@ -279,7 +279,9 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
   // Template article Stage : scope optionnel, repli lecteur natif sinon.
   // Le contenu passé au template est DÉJÀ tronqué au paywall (zéro-fuite).
   const siteLayouts = parseSiteLayouts(publication.layoutStyle || 'magazine');
-  const articleLayout = siteLayouts.article;
+  const articleLayout =
+    (article.category?.slug && siteLayouts.articleByCategory[article.category.slug]) ||
+    siteLayouts.article;
   const templatePublication: TemplatePublicationContext = {
     id: publication.id,
     name: publication.name,

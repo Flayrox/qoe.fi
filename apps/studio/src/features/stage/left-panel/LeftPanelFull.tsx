@@ -6,7 +6,7 @@
 
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Layers,
   PlusCircle,
@@ -473,6 +473,9 @@ function BrandTab() {
 function PagesTab() {
   const engine = useStageEngine();
   const [query, setQuery] = useState('');
+  useEffect(() => {
+    void engine.loadSnapshots();
+  }, [engine.loadSnapshots]);
   const nav = engine.publication.navigation || [];
   const childrenOf = (parentId: string | null) =>
     nav.filter((n) => (n.parentId ?? null) === parentId);
@@ -535,6 +538,21 @@ function PagesTab() {
       {engine.stagePage === 'article' && (
         <div className="space-y-1.5 rounded-lg border border-border/50 p-2">
           <div className="px-1 text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
+            Rubrique
+          </div>
+          <select
+            value={engine.articleCategory ?? ''}
+            onChange={(e) => engine.setArticleCategory(e.target.value || null)}
+            className="w-full rounded-lg border border-border/60 bg-muted/50 px-2 py-1.5 text-xs"
+          >
+            <option value="">Toutes les rubriques</option>
+            {(engine.publication.categories || []).map((c) => (
+              <option key={c.slug} value={c.slug}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <div className="px-1 text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
             Type de vue article
           </div>
           {ARTICLE_VARIANTS.map((v) => (
@@ -554,18 +572,23 @@ function PagesTab() {
       <div className="space-y-1.5 rounded-lg border border-border/50 p-2">
         <div className="flex items-center justify-between px-1">
           <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
-            Versions
+            Versions publiées
           </span>
           <button
             type="button"
-            onClick={() => engine.saveSnapshot()}
+            onClick={() => engine.loadSnapshots()}
             className="rounded-md bg-muted/60 px-2 py-0.5 text-[10px] font-medium hover:text-foreground"
           >
-            Enregistrer
+            Actualiser
           </button>
         </div>
-        {engine.snapshots.length === 0 && (
-          <p className="px-1 text-[10px] text-muted-foreground">Aucun point de restauration.</p>
+        {engine.snapshotsLoading && (
+          <p className="px-1 text-[10px] text-muted-foreground">Chargement…</p>
+        )}
+        {!engine.snapshotsLoading && engine.snapshots.length === 0 && (
+          <p className="px-1 text-[10px] text-muted-foreground">
+            Chaque publication archive ici l&apos;ancienne version.
+          </p>
         )}
         {engine.snapshots.map((s) => (
           <div
@@ -573,9 +596,9 @@ function PagesTab() {
             className="flex items-center justify-between gap-1 rounded-md bg-muted/40 px-2 py-1.5"
           >
             <div className="min-w-0">
-              <p className="truncate text-[11px] font-medium">{s.name}</p>
+              <p className="truncate text-[11px] font-medium">{s.label || 'Version'}</p>
               <p className="font-mono text-[9px] text-muted-foreground">
-                {s.page === 'home' ? 'Accueil' : 'Article'}
+                {new Date(s.createdAt).toLocaleString('fr-FR')}
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-0.5">
@@ -583,17 +606,9 @@ function PagesTab() {
                 type="button"
                 onClick={() => engine.restoreSnapshot(s.id)}
                 className="rounded p-1 text-[11px] font-medium text-primary hover:bg-muted"
-                title="Restaurer"
+                title="Restaurer vers le brouillon"
               >
                 Restaurer
-              </button>
-              <button
-                type="button"
-                onClick={() => engine.deleteSnapshot(s.id)}
-                className="rounded p-1 text-muted-foreground hover:text-destructive"
-                title="Supprimer"
-              >
-                <X className="h-3 w-3" />
               </button>
             </div>
           </div>
