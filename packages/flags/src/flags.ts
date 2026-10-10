@@ -59,6 +59,9 @@ export const FLAGS = {
   'reader-offline-pack': true,
   // 📚 Lecteur — import de livres EPUB personnels dans la bibliothèque.
   'reader-ebooks-upload': true,
+  // 🎭 Studio — Atelier visuel de design souverain (Stage).
+  // false (défaut) = masqué en production, actif en local dev (NODE_ENV === 'development').
+  'studio-stage-editor': false,
 } as const satisfies Record<string, boolean>;
 
 export type FlagKey = keyof typeof FLAGS;
