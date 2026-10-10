@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import { SafeImage } from '../../SafeImage';
 import { ArrowRight, Clock } from 'lucide-react';
 import type {
   CategorySpotlightBlockProps,
@@ -106,7 +106,7 @@ export function CategorySpotlightBlock({
                 >
                   {item.imageUrl && (
                     <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md bg-muted">
-                      <Image src={item.imageUrl} alt="" fill className="object-cover" />
+                      <SafeImage src={item.imageUrl} alt="" fill className="object-cover" />
                     </div>
                   )}
                   <div className="min-w-0 flex-1">

@@ -4,6 +4,7 @@
 // En preview/live, ce sont les vrais articles qui sont rendus.
 
 import type { TemplateArticleItem } from './schema';
+import { PLACEHOLDER_COVER_1, PLACEHOLDER_COVER_2, PLACEHOLDER_COVER_3 } from './placeholders';
 
 export const DEMO_ARTICLES: TemplateArticleItem[] = [
   {
@@ -11,8 +12,7 @@ export const DEMO_ARTICLES: TemplateArticleItem[] = [
     title: "Titre de l'article",
     slug: 'demo-article-1',
     excerpt: '',
-    imageUrl:
-      'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1600&auto=format&fit=crop',
+    imageUrl: PLACEHOLDER_COVER_1,
     readingTime: 4,
     publishedAt: new Date().toISOString(),
     category: { name: 'Rubrique' },
@@ -23,8 +23,7 @@ export const DEMO_ARTICLES: TemplateArticleItem[] = [
     title: "Titre de l'article",
     slug: 'demo-article-2',
     excerpt: '',
-    imageUrl:
-      'https://images.unsplash.com/photo-1499750310107-5fef28a66643?q=80&w=800&auto=format&fit=crop',
+    imageUrl: PLACEHOLDER_COVER_2,
     readingTime: 5,
     publishedAt: new Date().toISOString(),
     category: { name: 'Rubrique' },
@@ -35,8 +34,7 @@ export const DEMO_ARTICLES: TemplateArticleItem[] = [
     title: "Titre de l'article",
     slug: 'demo-article-3',
     excerpt: '',
-    imageUrl:
-      'https://images.unsplash.com/photo-1488190211105-8b0e65b80b4e?q=80&w=800&auto=format&fit=crop',
+    imageUrl: PLACEHOLDER_COVER_3,
     readingTime: 3,
     publishedAt: new Date().toISOString(),
     category: { name: 'Rubrique' },
