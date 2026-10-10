@@ -182,6 +182,8 @@ export async function AppSidebar() {
       items={menuItems}
       logo={<Logo className="h-5 w-auto" fillColor="#EE4B2B" />}
       brandName={brandName}
+      userId={dbUser?.id || authUser?.id}
+      userUsername={dbUser?.username}
       userName={userName}
       userEmail={userEmail}
       userFallback={userFallback}

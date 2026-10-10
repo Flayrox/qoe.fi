@@ -110,6 +110,7 @@ function BrandAvatar({ author, size = 42 }: { author: Author; size?: number }) {
   const isMedia = author.type === 'MEDIA';
   return (
     <SafeAvatar
+      id={author.id}
       src={author.logoUrl}
       name={author.name}
       username={author.username || author.subdomain}
@@ -154,6 +155,7 @@ function ContributorLine({
             onOpenProfile={onOpenProfile}
           >
             <SafeAvatar
+              id={person.id}
               src={person.logoUrl}
               name={person.name}
               username={person.username}

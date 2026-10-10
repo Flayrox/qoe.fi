@@ -42,6 +42,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   return (
     <div className="relative min-h-screen bg-background text-foreground transition-colors duration-300 font-sans selection:bg-foreground selection:text-background">
       <AppSidebar
+        userId={dbUser?.id || user?.id}
         userName={userName}
         userUsername={dbUser?.username}
         userEmail={userEmail}
@@ -50,6 +51,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         onLogout={logout}
       />
       <ReaderNavOverlay
+        userId={dbUser?.id || user?.id}
         userName={userName}
         userUsername={dbUser?.username}
         userEmail={userEmail}

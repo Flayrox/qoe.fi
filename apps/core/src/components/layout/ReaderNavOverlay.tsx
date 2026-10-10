@@ -10,6 +10,7 @@ import { useUnreadConversationCountQuery } from '@qoe/sdk';
 import { t } from '@lingui/core/macro';
 
 interface ReaderNavOverlayProps {
+  userId?: string | null;
   userName?: string;
   userUsername?: string | null;
   userEmail?: string;
@@ -19,6 +20,7 @@ interface ReaderNavOverlayProps {
 }
 
 export function ReaderNavOverlay({
+  userId = null,
   userName = t`Lecteur`,
   userUsername = null,
   userAvatar = null,
@@ -96,6 +98,8 @@ export function ReaderNavOverlay({
           aria-label={t`Mon profil`}
         >
           <SafeAvatar
+            id={userId}
+            username={userUsername}
             src={userAvatar}
             name={userName}
             className="w-6 h-6 rounded-full text-[10px] font-semibold"

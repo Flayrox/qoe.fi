@@ -136,8 +136,10 @@ export function RecommendationModal({
               >
                 {/* Avatar / Logo */}
                 <SafeAvatar
+                  id={rec.id}
                   src={avatar}
                   name={rec.name}
+                  username={rec.slug || rec.subdomain}
                   size={48}
                   shape="squircle"
                   className="border border-border/40 shrink-0 mt-0.5 rounded-xl"

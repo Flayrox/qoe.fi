@@ -72,7 +72,7 @@ export function UserAvatar({
         id={user?.id}
         src={logoUrl}
         name={name}
-        username={user?.username}
+        username={user?.username || user?.subdomain}
         size={pixelSize}
         shape={shape}
         type={resolvedType}
