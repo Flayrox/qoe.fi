@@ -243,6 +243,7 @@ export function BillingClient({ billing, userEmail, userName }: BillingClientPro
                     <SafeAvatar
                       src={pub?.logoUrl}
                       name={pubName}
+                      username={pub?.slug}
                       size={40}
                       shape="squircle"
                       className="rounded-xl border border-border/60 shrink-0"

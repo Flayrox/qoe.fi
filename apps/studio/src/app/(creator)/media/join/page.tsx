@@ -165,8 +165,10 @@ export default function MediaJoinPage() {
         <div className="rounded-2xl border border-border/40 bg-background/60 p-5 space-y-4">
           <div className="flex items-start gap-3">
             <SafeAvatar
+              id={preview.mediaId}
               src={preview.logoUrl}
               name={preview.name}
+              username={preview.slug}
               size={48}
               shape="squircle"
               type="MEDIA"
@@ -178,6 +180,7 @@ export default function MediaJoinPage() {
               {preview.inviter && (
                 <div className="mt-2 flex items-center gap-2">
                   <SafeAvatar
+                    id={preview.inviter.id}
                     src={preview.inviter.logoUrl}
                     name={preview.inviter.name}
                     username={preview.inviter.username}

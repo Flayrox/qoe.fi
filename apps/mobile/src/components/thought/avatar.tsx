@@ -16,6 +16,7 @@ import { CertifiedBadge } from '@/components/ui/badge';
 // =====================================================================
 
 export interface AvatarUser {
+  id?: string | null;
   name?: string | null;
   username?: string | null;
   logoUrl?: string | null;
@@ -58,7 +59,8 @@ export function Avatar({
   const resolvedShape: AvatarShape = shape || (isMedia ? 'squircle' : 'circle');
   const radius = resolvedShape === 'circle' ? px / 2 : Math.round(px * 0.24);
 
-  const seed = user?.id || user?.username || user?.name || 'qoe-user';
+  const rawSeed = user?.username || user?.id || user?.name || 'qoe-user';
+  const seed = rawSeed.replace(/^@/, '').toLowerCase().trim();
   const theme = getAvatarTheme(seed, isMedia ? 'MEDIA' : 'PERSONAL');
 
   const bgColor = isDark ? theme.darkBg : theme.lightBg;

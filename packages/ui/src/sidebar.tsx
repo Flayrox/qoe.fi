@@ -81,6 +81,10 @@ export interface SidebarProps {
   logo?: React.ReactNode;
   /** Brand name displayed next to logo */
   brandName?: string;
+  /** Authenticated user ID (for deterministic avatar seed) */
+  userId?: string | null;
+  /** Authenticated user username/handle (for deterministic avatar seed) */
+  userUsername?: string | null;
   /** Authenticated user name */
   userName?: string;
   /** Authenticated user email */
@@ -281,6 +285,8 @@ export function Sidebar({
   activeUrl: activeUrlProp,
   logo,
   brandName = 'qoefi',
+  userId,
+  userUsername,
   userName,
   userEmail,
   userAvatar,
@@ -500,6 +506,8 @@ export function Sidebar({
                     aria-label={t`Menu compte`}
                   >
                     <SafeAvatar
+                      id={userId}
+                      username={userUsername}
                       src={userAvatar}
                       name={userName}
                       size={28}

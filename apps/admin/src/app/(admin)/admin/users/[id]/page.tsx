@@ -49,8 +49,10 @@ export default async function UserProfilePage({ params }: PageProps) {
         <div className="bg-white border border-border/60 rounded-[24px] p-6 shadow-sm md:col-span-1 space-y-6">
           <div className="flex flex-col items-center text-center">
             <SafeAvatar
+              id={user.id}
+              src={user.logoUrl}
               name={user.name}
-              username={user.email}
+              username={user.username || user.email}
               size={80}
               shape="circle"
               className="mb-4 shadow-md"

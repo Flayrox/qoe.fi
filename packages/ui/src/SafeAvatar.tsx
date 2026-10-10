@@ -60,8 +60,10 @@ export function SafeAvatar({
   const resolvedShape: AvatarShape = shape || (isMedia ? 'squircle' : 'circle');
   const shapeClass = getShapeClass(resolvedShape, size);
 
-  // Thème déterministe basé en priorité sur l'identifiant immuable (id / UUID)
-  const seed = id || username || name || alt || 'qoe-user';
+  // Thème déterministe basé en priorité sur le handle public unique (username / slug),
+  // puis sur l'identifiant immuable (id / UUID), puis le nom
+  const rawSeed = username || id || name || alt || 'qoe-user';
+  const seed = rawSeed.replace(/^@/, '').toLowerCase().trim();
   const theme = getAvatarTheme(seed, isMedia ? 'MEDIA' : 'PERSONAL');
 
   // Nettoyage de l'URL source

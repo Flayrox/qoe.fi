@@ -191,7 +191,7 @@ export function getAvatarTheme(
   seed?: string | null,
   type?: 'PERSONAL' | 'MEDIA' | string | null
 ): AvatarTheme {
-  const cleanSeed = (seed || '').trim().toLowerCase() || 'qoe-default';
+  const cleanSeed = (seed || '').trim().toLowerCase().replace(/^@/, '') || 'qoe-default';
   const isMedia = type === 'MEDIA';
   const themes = isMedia ? MEDIA_AVATAR_THEMES : USER_AVATAR_THEMES;
   const index = hashString(cleanSeed) % themes.length;

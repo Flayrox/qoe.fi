@@ -11,6 +11,7 @@ import { t } from '@lingui/core/macro';
 import { useMemo } from 'react';
 
 interface AppSidebarProps {
+  userId?: string | null;
   userName?: string;
   userUsername?: string | null;
   userEmail?: string;
@@ -20,6 +21,7 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({
+  userId = null,
   userName = t`Lecteur`,
   userUsername = null,
   userEmail = '',
@@ -98,6 +100,8 @@ export function AppSidebar({
       items={menuItems}
       logo={<Logo className="h-5 w-auto" fillColor="#EE4B2B" />}
       brandName="qoefi"
+      userId={userId}
+      userUsername={userUsername}
       userName={userName}
       userEmail={userEmail}
       userFallback={userFallback}

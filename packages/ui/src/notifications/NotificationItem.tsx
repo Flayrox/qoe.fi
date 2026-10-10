@@ -244,6 +244,7 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
             {senders.slice(0, 5).map((sender, idx) => (
               <SafeAvatar
                 key={sender.id || idx}
+                id={sender.id}
                 src={sender.logoUrl}
                 name={sender.name}
                 username={sender.username}
