@@ -44,11 +44,14 @@ http://*.localhost, http://*.qoe.test, http://*.lvh.me {
 }
 
 # 🧪 LASSEZ — Labo Studio (Vue) qui pilote le daemon : studio.lassez.test → 4405
-http://studio.lassez.test {
+studio.lassez.test {
+	tls internal
 	reverse_proxy localhost:4405
 }
 
 # 🧪 LASSEZ — Front Next.js (site public) : lassez.test → 2500
-http://lassez.test {
+lassez.test {
+	tls internal
 	reverse_proxy localhost:2500
 }
+
