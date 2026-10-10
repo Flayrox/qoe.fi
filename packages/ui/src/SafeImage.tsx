@@ -28,20 +28,31 @@ export function SafeImage({
 }: SafeImageProps) {
   const [hasError, setHasError] = useState(false);
 
-  // Détection automatique de format SVG ou URL dynamique
+  // Détection automatique de format SVG ou URL dynamique / Data-URI
   const isSvg = typeof src === 'string' && (src.endsWith('.svg') || src.includes('.svg?'));
+  const isDataUri = typeof src === 'string' && src.startsWith('data:');
   const shouldUnoptimize =
-    unoptimized ?? (isSvg || (typeof src === 'string' && src.startsWith('http')));
+    unoptimized ?? (isSvg || isDataUri || (typeof src === 'string' && src.startsWith('http')));
 
   if (hasError || !src) {
     if (fallbackSrc && !hasError) {
+      const fallbackIsSvg =
+        typeof fallbackSrc === 'string' &&
+        (fallbackSrc.endsWith('.svg') || fallbackSrc.includes('.svg?'));
+      const fallbackIsDataUri = typeof fallbackSrc === 'string' && fallbackSrc.startsWith('data:');
+      const fallbackUnoptimized =
+        unoptimized ??
+        (fallbackIsSvg ||
+          fallbackIsDataUri ||
+          (typeof fallbackSrc === 'string' && fallbackSrc.startsWith('http')));
+
       return (
         <Image
           {...rest}
           src={fallbackSrc}
           alt={alt}
           className={className}
-          unoptimized={shouldUnoptimize}
+          unoptimized={fallbackUnoptimized}
           onError={() => setHasError(true)}
         />
       );

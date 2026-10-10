@@ -10,8 +10,9 @@
 
 import React from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import { SafeImage } from '../../SafeImage';
 import { Clock } from 'lucide-react';
+import { PLACEHOLDER_COVER_1, PLACEHOLDER_COVER_2, PLACEHOLDER_COVER_3 } from '../placeholders';
 import type {
   ArticleStreamBlockProps,
   TemplateArticleItem,
@@ -65,8 +66,7 @@ export function ArticleStreamBlock({
       title: "Titre de l'article",
       slug: 'autonomie-editoriale',
       excerpt: '',
-      imageUrl:
-        'https://images.unsplash.com/photo-1499750310107-5fef28a66643?q=80&w=600&auto=format&fit=crop',
+      imageUrl: PLACEHOLDER_COVER_1,
       readingTime: 4,
       publishedAt: new Date(Date.now() - 86400000 * 2).toISOString(),
       category: { name: 'Souveraineté' },
@@ -76,8 +76,7 @@ export function ArticleStreamBlock({
       title: "Titre de l'article",
       slug: 'renaissance-longs-formats',
       excerpt: '',
-      imageUrl:
-        'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?q=80&w=600&auto=format&fit=crop',
+      imageUrl: PLACEHOLDER_COVER_2,
       readingTime: 7,
       publishedAt: new Date(Date.now() - 86400000 * 5).toISOString(),
       category: { name: 'Médias' },
@@ -87,8 +86,7 @@ export function ArticleStreamBlock({
       title: "Titre de l'article",
       slug: 'structurer-newsletter-durable',
       excerpt: '',
-      imageUrl:
-        'https://images.unsplash.com/photo-1512486130939-2c4f79935e4f?q=80&w=600&auto=format&fit=crop',
+      imageUrl: PLACEHOLDER_COVER_3,
       readingTime: 5,
       publishedAt: new Date(Date.now() - 86400000 * 9).toISOString(),
       category: { name: 'Pratique' },
@@ -215,7 +213,7 @@ export function ArticleStreamBlock({
                     <div
                       className={`relative w-full sm:w-44 h-32 shrink-0 overflow-hidden bg-muted ${cardShape}`}
                     >
-                      <Image src={article.imageUrl} alt="" fill className="object-cover" />
+                      <SafeImage src={article.imageUrl} alt="" fill className="object-cover" />
                     </div>
                   )}
                 </div>
@@ -233,7 +231,7 @@ export function ArticleStreamBlock({
                 <div className="flex flex-col h-full">
                   {article.imageUrl && (
                     <div className="relative w-full h-44 overflow-hidden bg-muted">
-                      <Image src={article.imageUrl} alt="" fill className="object-cover" />
+                      <SafeImage src={article.imageUrl} alt="" fill className="object-cover" />
                     </div>
                   )}
 

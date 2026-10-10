@@ -8,8 +8,9 @@
 
 import React from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import { SafeImage } from '../../SafeImage';
 import { Clock, Lock } from 'lucide-react';
+import { PLACEHOLDER_COVER_1, PLACEHOLDER_COVER_2, PLACEHOLDER_COVER_3 } from '../placeholders';
 import type {
   BentoGridBlockProps,
   TemplateArticleItem,
@@ -74,8 +75,7 @@ export function BentoGridBlock({
       title: "Titre de l'article",
       slug: 'minimalisme-typographique',
       excerpt: '',
-      imageUrl:
-        'https://images.unsplash.com/photo-1507842229451-7f01be8860ee?q=80&w=800&auto=format&fit=crop',
+      imageUrl: PLACEHOLDER_COVER_1,
       readingTime: 4,
       category: { name: 'Design' },
     },
@@ -84,8 +84,7 @@ export function BentoGridBlock({
       title: "Titre de l'article",
       slug: 'micro-publications-souveraines',
       excerpt: '',
-      imageUrl:
-        'https://images.unsplash.com/photo-1499750310107-5fef28a66643?q=80&w=800&auto=format&fit=crop',
+      imageUrl: PLACEHOLDER_COVER_2,
       readingTime: 5,
       category: { name: 'Économie' },
     },
@@ -94,8 +93,7 @@ export function BentoGridBlock({
       title: "Titre de l'article",
       slug: 'au-dela-du-clic',
       excerpt: '',
-      imageUrl:
-        'https://images.unsplash.com/photo-1488190211105-8b0e65b80b4e?q=80&w=800&auto=format&fit=crop',
+      imageUrl: PLACEHOLDER_COVER_3,
       readingTime: 3,
       category: { name: 'Médias' },
     },
@@ -173,7 +171,7 @@ export function BentoGridBlock({
                       isLead ? 'h-48 md:h-56' : 'h-36'
                     }`}
                   >
-                    <Image src={item.imageUrl} alt="" fill className="object-cover" />
+                    <SafeImage src={item.imageUrl} alt="" fill className="object-cover" />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
 
                     <div className="absolute top-3 left-3 z-10 flex items-center gap-2">

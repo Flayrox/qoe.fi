@@ -11,8 +11,9 @@
 
 import React from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import { SafeImage } from '../../SafeImage';
 import { Clock, Calendar, Lock } from 'lucide-react';
+import { PLACEHOLDER_COVER_1 } from '../placeholders';
 import type {
   LeadStoryBlockProps,
   TemplateArticleItem,
@@ -70,8 +71,7 @@ export function LeadStoryBlock({
     title: "Titre de l'article",
     slug: 'frontieres-invisibles',
     excerpt: '',
-    imageUrl:
-      'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1600&auto=format&fit=crop',
+    imageUrl: PLACEHOLDER_COVER_1,
     readingTime: 6,
     publishedAt: new Date().toISOString(),
     category: { name: 'Essai' },
@@ -113,7 +113,7 @@ export function LeadStoryBlock({
             {/* Image de couverture avec ratio contrôlé */}
             {displayArticle.imageUrl && (
               <div className={`relative w-full ${ratioClass} overflow-hidden bg-muted`}>
-                <Image
+                <SafeImage
                   src={displayArticle.imageUrl}
                   alt={displayArticle.title}
                   fill

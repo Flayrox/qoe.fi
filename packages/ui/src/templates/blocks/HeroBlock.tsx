@@ -9,7 +9,7 @@
 // =====================================================================
 
 import React from 'react';
-import Image from 'next/image';
+import { SafeImage } from '../../SafeImage';
 import type { HeroBlockProps, TemplatePublicationContext, TemplateRenderContext } from '../schema';
 import { BlockWrapper } from './BlockWrapper';
 import { EditableText } from './EditableText';
@@ -96,7 +96,7 @@ export function HeroBlock({
                 style={{ opacity: overlayOpacity / 100 }}
               />
             )}
-            <Image
+            <SafeImage
               src={headerImageUrl}
               alt="Bannière de couverture"
               fill

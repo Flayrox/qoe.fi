@@ -19,7 +19,7 @@ const dummyRecommendations = [
     subdomain: 'tech',
     customDomain: null,
     description: 'Veille technologique de pointe',
-    logoUrl: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=120',
+    logoUrl: 'https://cdn.qoe.fi/partners/tech-horizon.png',
     articlesCount: 42,
     subscribersCount: 1200,
     authorName: 'Sarah Connor',
