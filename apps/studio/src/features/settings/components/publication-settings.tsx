@@ -590,14 +590,16 @@ export default function PublicationSettings({
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <Link
-                    href="/settings/design"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white shadow-sm transition-all hover:opacity-95 active:scale-95"
-                    style={{ backgroundColor: current.accentColor || 'hsl(var(--primary))' }}
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>Ouvrir Stage</span>
-                  </Link>
+                  {process.env.NODE_ENV === 'development' && (
+                    <Link
+                      href="/settings/design"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white shadow-sm transition-all hover:opacity-95 active:scale-95"
+                      style={{ backgroundColor: current.accentColor || 'hsl(var(--primary))' }}
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Ouvrir Stage</span>
+                    </Link>
+                  )}
 
                   <span className="text-xs text-muted-foreground hidden lg:inline">
                     {editorMode === 'canvas'

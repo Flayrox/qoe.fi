@@ -5,7 +5,7 @@
 // Charge la publication active et injecte les données dans StageClient.
 // =====================================================================
 
-import { redirect } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { createClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
@@ -72,6 +72,14 @@ interface WorkspacesResponse {
 }
 
 export default async function SettingsDesignPage() {
+  // 🛡️ Stage est réservé au développement local (en cours de dev).
+  // En production, la route renvoie 404 sauf si expressément activée via flag.
+  const isDev = process.env.NODE_ENV === 'development';
+  const isExplicitlyEnabled = process.env.ENABLE_STAGE_PROD === 'true';
+  if (!isDev && !isExplicitlyEnabled) {
+    notFound();
+  }
+
   const supabase = await createClient();
   const {
     data: { user: authUser },
