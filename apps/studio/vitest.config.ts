@@ -15,7 +15,7 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./vitest.setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
-    exclude: ['**/.reference/**', '**/node_modules/**', '**/.next/**', '**/e2e/**'],
+    exclude: ['**/.reference/**', '**/node_modules/**', '**/.next/**', '**/e2e/**', '**/vendor/**'],
     testTimeout: 20_000,
     env: {
       NEXT_PUBLIC_SUPABASE_URL: 'https://placeholder.supabase.co',

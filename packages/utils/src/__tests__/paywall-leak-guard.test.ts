@@ -211,7 +211,9 @@ describe('🔒 Sorties API publiques — garde-fou backend', () => {
   it('la recherche publique rédige le contenu premium des hits', () => {
     const source = read('apps/api/internal/modules/search/handler.go');
     expect(source).toContain('redactPremiumHitContents(');
-    expect(source).toMatch(/if pubID == "" \{\s*redactPremiumHitContents\(hits\)/);
+    expect(source).toMatch(
+      /if !h\.ownsPublication\(r\.Context\(\),\s*userID,\s*pubID\)\s*\{\s*redactPremiumHitContents\(hits\)/
+    );
   });
 
   it('le bundle tenant by-domain tronque le contenu pour un lecteur non autorisé', () => {
