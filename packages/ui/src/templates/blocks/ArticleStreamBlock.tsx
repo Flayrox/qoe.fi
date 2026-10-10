@@ -56,6 +56,8 @@ export function ArticleStreamBlock({
     showCategories = true,
     categoryFilter,
   } = props;
+  const gridMobileClasses = (props.columnsMobile ?? 1) === 2 ? 'grid-cols-2' : 'grid-cols-1';
+  const gridDesktopClasses = displayMode === 'grid-3' ? 'lg:grid-cols-3' : '';
 
   const fallbackArticles: TemplateArticleItem[] = [
     {
@@ -222,11 +224,7 @@ export function ArticleStreamBlock({
           </div>
         ) : (
           /* Mode Grille (2 ou 3 colonnes) */
-          <div
-            className={`grid grid-cols-1 md:grid-cols-2 ${
-              displayMode === 'grid-3' ? 'lg:grid-cols-3' : ''
-            } gap-6`}
-          >
+          <div className={`grid ${gridMobileClasses} md:grid-cols-2 ${gridDesktopClasses} gap-6`}>
             {items.map((article) => (
               <article
                 key={article.id}

@@ -50,6 +50,16 @@ export function BentoGridBlock({
   hiddenAt,
 }: BentoGridBlockComponentProps) {
   const { maxArticles = 4, showCategories = true, showReadingTime = true, categoryFilter } = props;
+  const columnsMobile = props.columnsMobile ?? 1;
+  const columns = props.columns ?? 3;
+  const gridClasses =
+    columnsMobile === 2
+      ? columns === 2
+        ? 'grid-cols-2 md:grid-cols-2'
+        : 'grid-cols-2 md:grid-cols-3'
+      : columns === 2
+        ? 'grid-cols-1 md:grid-cols-2'
+        : 'grid-cols-1 md:grid-cols-3';
 
   // Découpage des articles (on saute éventuellement le 1er si déjà en lead)
   const sourceArticles = categoryFilter
@@ -145,7 +155,7 @@ export function BentoGridBlock({
             )}
           </div>
         )}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6">
+        <div className={`grid ${gridClasses} gap-5 md:gap-6`}>
           {items.map((item, index) => {
             const isLead = index === 0;
 

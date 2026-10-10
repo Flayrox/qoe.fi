@@ -310,6 +310,7 @@ export function serializeLayoutConfig(config: LayoutConfig): string {
 export interface SiteLayouts {
   home: LayoutConfig;
   article: LayoutConfig | null;
+  articleByCategory: Record<string, LayoutConfig>;
 }
 
 function sanitizeNestedConfig(input: unknown): LayoutConfig | null {
@@ -337,7 +338,7 @@ export function parseSiteLayouts(
     try {
       const parsed = JSON.parse(raw.trim()) as {
         version?: unknown;
-        scopes?: { home?: unknown; article?: unknown };
+        scopes?: { home?: unknown; article?: unknown; articleByCategory?: unknown };
       };
       if (
         parsed &&
@@ -347,21 +348,34 @@ export function parseSiteLayouts(
       ) {
         const article = sanitizeNestedConfig(parsed.scopes.article);
         const scopedHome = sanitizeNestedConfig(parsed.scopes.home);
-        return { home: scopedHome ?? home, article };
+        const byCategory: Record<string, LayoutConfig> = {};
+        const rawMap = parsed.scopes.articleByCategory;
+        if (rawMap && typeof rawMap === 'object') {
+          for (const [slug, cfg] of Object.entries(rawMap as Record<string, unknown>)) {
+            const nested = sanitizeNestedConfig(cfg);
+            if (nested && slug.trim()) byCategory[slug.trim()] = nested;
+          }
+        }
+        return { home: scopedHome ?? home, article, articleByCategory: byCategory };
       }
     } catch {
       // Repli sur le home déjà parsé
     }
   }
-  return { home, article: null };
+  return { home, article: null, articleByCategory: {} };
 }
 
 /**
  * Sérialise la paire de layouts. Sans scope article : format legacy
  * LayoutConfig plat (aucun changement en base).
  */
-export function serializeSiteLayouts(home: LayoutConfig, article: LayoutConfig | null): string {
-  if (!article) return serializeLayoutConfig(home);
+export function serializeSiteLayouts(
+  home: LayoutConfig,
+  article: LayoutConfig | null,
+  articleByCategory?: Record<string, LayoutConfig>
+): string {
+  const hasOverrides = articleByCategory && Object.keys(articleByCategory).length > 0;
+  if (!article && !hasOverrides) return serializeLayoutConfig(home);
   const clean = (config: LayoutConfig): LayoutConfig => ({
     version: config.version || 1,
     archetype: config.archetype || 'custom',
@@ -385,5 +399,19 @@ export function serializeSiteLayouts(home: LayoutConfig, article: LayoutConfig |
       ...(block.slots ? { slots: block.slots } : {}),
     })),
   });
-  return JSON.stringify({ version: 2, scopes: { home: clean(home), article: clean(article) } });
+  const scopes: {
+    home: LayoutConfig;
+    article?: LayoutConfig;
+    articleByCategory?: Record<string, LayoutConfig>;
+  } = {
+    home: clean(home),
+  };
+  if (article) scopes.article = clean(article);
+  if (hasOverrides) {
+    scopes.articleByCategory = {};
+    for (const [slug, cfg] of Object.entries(articleByCategory as Record<string, LayoutConfig>)) {
+      scopes.articleByCategory[slug] = clean(cfg);
+    }
+  }
+  return JSON.stringify({ version: 2, scopes });
 }

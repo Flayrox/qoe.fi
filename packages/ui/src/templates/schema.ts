@@ -57,6 +57,8 @@ export interface NavbarBlockProps {
 export interface HeroBlockProps {
   style: 'cinematic-banner' | 'typographic-minimal' | 'split-featured' | 'floating-card';
   alignment: 'center' | 'left';
+  /** Alignement sur mobile (défaut : alignment) */
+  alignMobile?: 'center' | 'left';
   height: 'compact' | 'medium' | 'tall';
   showOverlay: boolean;
   overlayOpacity: number; // 0 to 100
@@ -80,6 +82,8 @@ export interface LeadStoryBlockProps {
 /** Configuration de la Grille Asymétrique Bento */
 export interface BentoGridBlockProps {
   columns: 2 | 3 | 4;
+  /** Colonnes sur mobile (défaut : 1) */
+  columnsMobile?: 1 | 2;
   pattern: 'asymmetric-lead' | 'symmetric-triad' | 'highlight-strip';
   maxArticles: number;
   showCategories: boolean;
@@ -91,6 +95,8 @@ export interface BentoGridBlockProps {
 /** Configuration du Flux d'Articles */
 export interface ArticleStreamBlockProps {
   displayMode: 'list' | 'grid-2' | 'grid-3';
+  /** Colonnes sur mobile en mode grille (défaut : 1) */
+  columnsMobile?: 1 | 2;
   density: DensityMode;
   showAuthor: boolean;
   showReadingTime: boolean;
@@ -306,6 +312,8 @@ export interface SiteLayoutsFile {
   scopes: {
     home: LayoutConfig;
     article?: LayoutConfig;
+    /** Gabarits article par slug de rubrique (prioritaire sur article) */
+    articleByCategory?: Record<string, LayoutConfig>;
   };
 }
 
@@ -367,6 +375,7 @@ export interface TemplatePublicationContext {
   supportUrl?: string | null;
   navigation?: NavigationItem[];
   socialLinks?: SocialLink[];
+  categories?: { id: string; name: string; slug: string }[];
   subscriberCount?: number;
   layoutStyle?: string | null;
 }

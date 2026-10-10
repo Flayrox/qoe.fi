@@ -41,6 +41,7 @@ export function HeroBlock({
   const {
     style = 'cinematic-banner',
     alignment = 'center',
+    alignMobile,
     height = 'medium',
     showOverlay = true,
     overlayOpacity = 50,
@@ -61,7 +62,11 @@ export function HeroBlock({
         ? 'py-28 md:py-40'
         : 'py-20 md:py-28';
 
-  const alignClasses = alignment === 'left' ? 'text-left items-start' : 'text-center items-center';
+  const mobileAlign = alignMobile ?? alignment;
+  const alignClasses = [
+    mobileAlign === 'left' ? 'text-left items-start' : 'text-center items-center',
+    alignment === 'left' ? 'md:text-left md:items-start' : 'md:text-center md:items-center',
+  ].join(' ');
 
   return (
     <BlockWrapper
