@@ -105,7 +105,7 @@ describe('SubscribeForm', () => {
     });
   });
 
-  it('propose l’inscription 1-clic Substack quand un utilisateur est connecté', async () => {
+  it('propose l’inscription 1-clic native quand un utilisateur est connecté', async () => {
     mocks.subscribeToNewsletterAction.mockResolvedValue({ ok: true });
     render(<SubscribeForm publicationId="pub_test_1" userEmail="abonne@qoefi.com" />);
 

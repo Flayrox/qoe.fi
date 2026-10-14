@@ -36,7 +36,7 @@ export function RecommendationModal({
   recommendations,
   subscriberEmail,
 }: RecommendationModalProps) {
-  // Pre-select all recommended publications by default (standard Substack pattern)
+  // Pre-select all recommended publications by default
   const [selectedIds, setSelectedIds] = useState<Set<string>>(
     () => new Set(recommendations.map((r) => r.id))
   );

@@ -1,3 +1,5 @@
+'use client';
+
 // =====================================================================
 // ArticleStreamBlock.tsx — Flux de Publications & Archives (Licorne 2026)
 // =====================================================================
@@ -8,11 +10,16 @@
 // - Format accessible et balisé pour le SEO
 // =====================================================================
 
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '../../SafeImage';
 import { Clock } from 'lucide-react';
-import { PLACEHOLDER_COVER_1, PLACEHOLDER_COVER_2, PLACEHOLDER_COVER_3 } from '../placeholders';
+import {
+  getCoverPlaceholder,
+  PLACEHOLDER_COVER_1,
+  PLACEHOLDER_COVER_2,
+  PLACEHOLDER_COVER_3,
+} from '../placeholders';
 import type {
   ArticleStreamBlockProps,
   TemplateArticleItem,
@@ -22,6 +29,8 @@ import type {
 } from '../schema';
 import { BlockWrapper } from './BlockWrapper';
 import { NodeRenderer } from './NodeRenderer';
+import { CraftIndicator } from '../../ui/craft-indicator';
+import { cn } from '@qoe/utils';
 
 interface ArticleStreamBlockComponentProps {
   id: string;
@@ -102,6 +111,24 @@ export function ArticleStreamBlock({
       ? sourceArticles
       : fallbackArticles;
 
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+
+  const availableCategories = useMemo(() => {
+    const cats = new Set<string>();
+    items.forEach((a) => {
+      if (a.category?.name) cats.add(a.category.name);
+    });
+    return Array.from(cats);
+  }, [items]);
+
+  const isAllSelected = selectedCategory === 'all';
+  const filteredItems = isAllSelected
+    ? items
+    : items.filter((a) => a.category?.name === selectedCategory);
+
+  const featuredArticle = filteredItems[0];
+  const remainingArticles = filteredItems.slice(1);
+
   const paddingY = density === 'compact' ? 'py-3' : density === 'spacious' ? 'py-7' : 'py-5';
 
   return (
@@ -145,7 +172,202 @@ export function ArticleStreamBlock({
             )}
           </div>
         )}
-        {displayMode === 'list' ? (
+        {displayMode === 'craft-notes' ? (
+          /* Mode Craft Notes (Option B : Journal Hybride Devouring Details) */
+          <div className="max-w-[640px] mx-auto space-y-10 py-4">
+            {featuredArticle && (
+              <article className="group relative space-y-4 pb-10 border-b border-border/40">
+                <div className="flex items-center justify-between text-xs text-muted-foreground/80">
+                  <div className="flex items-center gap-2.5">
+                    <CraftIndicator type="dot" color="var(--tenant-accent, #F97316)" size={10} />
+                    <span className="font-mono text-xs text-foreground/90 tabular-nums">01</span>
+                    {showCategories && featuredArticle.category && (
+                      <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                        · {featuredArticle.category.name}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-3 text-[11px]">
+                    {featuredArticle.publishedAt && (
+                      <span>
+                        {new Date(featuredArticle.publishedAt).toLocaleDateString('fr-FR', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </span>
+                    )}
+                    {showReadingTime && featuredArticle.readingTime && (
+                      <span>· {featuredArticle.readingTime} min read</span>
+                    )}
+                  </div>
+                </div>
+
+                <h2 className="text-2xl sm:text-3xl font-medium tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors">
+                  <Link
+                    href={`/article/${featuredArticle.slug}`}
+                    onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                  >
+                    {featuredArticle.title}
+                  </Link>
+                </h2>
+
+                {showExcerpts && featuredArticle.excerpt && (
+                  <p className="text-base text-muted-foreground/90 leading-relaxed max-w-xl">
+                    {featuredArticle.excerpt}
+                  </p>
+                )}
+
+                {/* Bleed media : s'étend au-delà de la colonne de 640px sur grands écrans */}
+                <div className="w-screen relative left-1/2 right-1/2 -translate-x-1/2 max-w-[960px] px-4 my-6">
+                  <Link
+                    href={`/article/${featuredArticle.slug}`}
+                    onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                    className="block group/cover"
+                  >
+                    <div className="relative w-full aspect-[16/9] sm:aspect-[2/1] rounded-2xl overflow-hidden border border-border/50 bg-muted shadow-2xs">
+                      <SafeImage
+                        src={
+                          featuredArticle.imageUrl ||
+                          getCoverPlaceholder(featuredArticle.slug || featuredArticle.id)
+                        }
+                        alt={featuredArticle.title}
+                        fill
+                        className="object-cover transition-transform duration-500 group-hover/cover:scale-[1.01]"
+                      />
+                    </div>
+                  </Link>
+                </div>
+
+                <div>
+                  <Link
+                    href={`/article/${featuredArticle.slug}`}
+                    onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                    className="inline-flex items-center gap-2 text-xs sm:text-[13px] font-medium text-foreground hover:text-primary transition-colors group/cta"
+                  >
+                    <span>Lire l’article</span>
+                    <span className="transition-transform group-hover/cta:translate-x-1 text-muted-foreground">
+                      →
+                    </span>
+                  </Link>
+                </div>
+              </article>
+            )}
+
+            {/* Barre de filtres par catégories (Pill segmented control minimal) */}
+            {availableCategories.length > 0 && (
+              <div className="pt-2 pb-2 flex items-center justify-between flex-wrap gap-3">
+                <span className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground/60">
+                  Sommaire
+                </span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedCategory('all')}
+                    className={cn(
+                      'text-xs px-3 py-1 rounded-full transition-all cursor-pointer font-medium',
+                      selectedCategory === 'all'
+                        ? 'bg-foreground text-background shadow-2xs'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                    )}
+                  >
+                    Tous ({items.length})
+                  </button>
+                  {availableCategories.map((cat) => {
+                    const count = items.filter((a) => a.category?.name === cat).length;
+                    const isActive = selectedCategory === cat;
+                    return (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setSelectedCategory(cat)}
+                        className={cn(
+                          'text-xs px-3 py-1 rounded-full transition-all cursor-pointer font-medium',
+                          isActive
+                            ? 'bg-foreground text-background shadow-2xs'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                        )}
+                      >
+                        {cat} ({count})
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Index numéroté sobre des articles suivants */}
+            {remainingArticles.length > 0 && (
+              <div className="divide-y divide-border/30 pt-1">
+                {remainingArticles.map((article, idx) => {
+                  const globalIndex = items.findIndex((a) => a.id === article.id);
+                  const num = String((globalIndex >= 0 ? globalIndex : idx + 1) + 1).padStart(
+                    2,
+                    '0'
+                  );
+                  return (
+                    <article
+                      key={article.id}
+                      className="group flex items-center justify-between py-4 sm:py-4.5 gap-4 transition-colors hover:bg-muted/20 px-3 -mx-3 rounded-lg"
+                    >
+                      <div className="flex items-center gap-3.5 min-w-0">
+                        <span className="font-mono text-xs tabular-nums text-muted-foreground/50 w-5 shrink-0">
+                          {num}
+                        </span>
+                        <Link
+                          href={`/article/${article.slug}`}
+                          onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                          className="shrink-0 w-10 h-10 sm:w-11 sm:h-11 rounded-md overflow-hidden bg-muted/30 border border-border/40"
+                        >
+                          <img
+                            src={
+                              article.imageUrl || getCoverPlaceholder(article.slug || article.id)
+                            }
+                            alt={article.title}
+                            className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                            loading="lazy"
+                          />
+                        </Link>
+                        <div className="min-w-0">
+                          <h3 className="text-base sm:text-[17px] font-medium tracking-tight text-foreground group-hover:text-primary transition-colors truncate">
+                            <Link
+                              href={`/article/${article.slug}`}
+                              onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                            >
+                              {article.title}
+                            </Link>
+                          </h3>
+                          {article.category && (
+                            <span className="text-[11px] uppercase tracking-wider text-muted-foreground/70 sm:hidden block mt-0.5">
+                              {article.category.name}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4 shrink-0 text-xs text-muted-foreground/80">
+                        {showCategories && article.category && (
+                          <span className="text-[11px] uppercase tracking-wider text-muted-foreground/60 hidden sm:inline">
+                            {article.category.name}
+                          </span>
+                        )}
+                        {showReadingTime && article.readingTime && (
+                          <span className="text-xs text-muted-foreground/60 font-mono">
+                            {article.readingTime} min
+                          </span>
+                        )}
+                        <span className="text-muted-foreground/30 group-hover:text-foreground group-hover:translate-x-1 transition-all">
+                          →
+                        </span>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ) : displayMode === 'list' ? (
           /* Mode Liste */
           <div className="max-w-4xl mx-auto divide-y divide-border">
             {items.map((article) => (

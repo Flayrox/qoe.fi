@@ -261,16 +261,21 @@ func upsertUser(ctx context.Context, pool *pgxpool.Pool, id, email, name, role s
 // UpsertArticle crée/met à jour un article publié (dédup publicationId + slug).
 func UpsertArticle(ctx context.Context, pool *pgxpool.Pool, publicationID, authorID, slug, title, content string,
 	readingTime int32, isPremium bool, visibility string, editorPick bool) error {
+	imageURL := "https://images.unsplash.com/photo-1516962215378-7fa2e137ae93?auto=format&fit=crop&w=1200&q=80"
+	if isPremium {
+		imageURL = "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=80"
+	}
 	_, err := pool.Exec(ctx, `
 		INSERT INTO "Article" (id, title, slug, content, published, status, visibility,
 		                       "isPremium", "isEditorPick", "readingTime", "publicationId", "authorId",
-		                       "createdAt", "updatedAt")
+		                       "imageUrl", "createdAt", "updatedAt")
 		VALUES (gen_random_uuid()::text, $2, $3, $4, true, 'PUBLISHED', $5, $6, $7, $8, $1, $9,
-		        now(), now())
+		        $10, now(), now())
 		ON CONFLICT ("publicationId", slug) DO UPDATE SET
 		  title = $2, content = $4, published = true, status = 'PUBLISHED', visibility = $5,
-		  "isPremium" = $6, "isEditorPick" = $7, "updatedAt" = now()`,
-		publicationID, title, slug, content, visibility, isPremium, editorPick, readingTime, authorID)
+		  "isPremium" = $6, "isEditorPick" = $7, "imageUrl" = COALESCE("Article"."imageUrl", $10),
+		  "updatedAt" = now()`,
+		publicationID, title, slug, content, visibility, isPremium, editorPick, readingTime, authorID, imageURL)
 	if err != nil {
 		return fmt.Errorf("article %s: %w", slug, err)
 	}

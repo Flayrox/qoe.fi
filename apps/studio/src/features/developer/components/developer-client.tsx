@@ -19,7 +19,6 @@ import {
   Send,
   CheckCircle,
   Code2,
-  Sparkles,
   RefreshCw,
   Globe,
   BookOpen,
@@ -90,7 +89,7 @@ const APPLICATION_PRESETS = [
     id: 'automation',
     title: 'Automatisation & CMS',
     subtitle: 'Zapier, Notion, Make, n8n',
-    icon: Sparkles,
+    icon: RefreshCw,
     template:
       "Je souhaite connecter l'API de publication qoefi à mes outils d'automatisation (Zapier / Make / Notion) pour synchroniser mes brouillons et articles.",
   },
@@ -543,7 +542,7 @@ print(articles)`,
                 <div className="space-y-2 max-w-2xl">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-primary/10 text-primary border border-primary/20">
-                      <Sparkles className="w-3 h-3" /> REST v1
+                      <Code2 className="w-3 h-3" /> REST v1
                     </span>
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium bg-muted/60 text-muted-foreground border border-border/60">
                       TypeScript SDK

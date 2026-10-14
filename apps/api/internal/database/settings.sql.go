@@ -173,6 +173,7 @@ SELECT p.id, p.name, p.slug, p."subdomain", p."customDomain", p."heroText",
        p."accentColor", p."fontFamily", p."themeMode", p."layoutStyle",
        p."logoUrl", p."headerImageUrl", p."footerText", p."seoTitle",
        p."seoDescription", p."allowIndexing", p."supportUrl", p.type, p."umamiWebsiteId",
+       p."siteOptions",
        COALESCE(u.id::text, '')::text AS owner_id, u.email AS owner_email, u.username AS owner_username,
        u."advancedSettingsMode" AS owner_advanced_settings_mode
 FROM "Publication" p
@@ -200,6 +201,7 @@ type GetPublicationForSettingsRow struct {
 	SupportUrl                pgtype.Text     `json:"supportUrl"`
 	Type                      PublicationType `json:"type"`
 	UmamiWebsiteId            pgtype.Text     `json:"umamiWebsiteId"`
+	SiteOptions               []byte          `json:"siteOptions"`
 	OwnerID                   string          `json:"owner_id"`
 	OwnerEmail                pgtype.Text     `json:"owner_email"`
 	OwnerUsername             pgtype.Text     `json:"owner_username"`
@@ -231,6 +233,7 @@ func (q *Queries) GetPublicationForSettings(ctx context.Context, id string) (Get
 		&i.SupportUrl,
 		&i.Type,
 		&i.UmamiWebsiteId,
+		&i.SiteOptions,
 		&i.OwnerID,
 		&i.OwnerEmail,
 		&i.OwnerUsername,

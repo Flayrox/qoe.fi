@@ -48,6 +48,7 @@ interface SettingsPublicationDTO {
     title: string;
     slug: string;
     content: string;
+    imageUrl?: string | null;
     published: boolean;
     isPremium: boolean;
     categoryId: string | null;
@@ -239,6 +240,7 @@ export default async function SettingsDesignPage() {
     title: art.title,
     slug: art.slug,
     content: art.content,
+    imageUrl: art.imageUrl || null,
     excerpt: art.content ? art.content.slice(0, 160) : undefined,
     publishedAt: art.createdAt,
     readingTime: Math.max(1, Math.round((art.content?.split(' ').length || 200) / 200)),

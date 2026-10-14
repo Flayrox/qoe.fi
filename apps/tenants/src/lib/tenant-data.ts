@@ -50,6 +50,7 @@ export interface TenantArticleSummary {
   title: string;
   slug: string;
   content: string;
+  imageUrl?: string | null;
   published: boolean;
   isPremium: boolean;
   visibility: string;
@@ -324,7 +325,7 @@ export interface RecommendationItem {
   subscribersCount: number;
 }
 
-/** Recommandations croisées entre créateurs (réseau viral Substack-style). */
+/** Recommandations croisées entre créateurs (réseau fédéré). */
 export async function fetchTenantRecommendations(domain: string): Promise<RecommendationItem[]> {
   try {
     const res = await goFetch<{ items: RecommendationItem[] }>(

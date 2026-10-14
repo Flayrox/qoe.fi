@@ -130,7 +130,7 @@ export const EDITORIAL_MAGAZINE_CONFIG: LayoutConfig = {
 
 /**
  *  2. Archétype : Broadsheet Contemporain
- * Inspiré par Financial Times et Substack Pro.
+ * Inspiré par la grande presse financière et d’analyse internationale.
  * Formes tranchées ('rounded-none'), densité typographique élevée, clarté absolue.
  */
 export const BROADSHEET_MODERN_CONFIG: LayoutConfig = {
@@ -343,97 +343,17 @@ export const BENTO_TECH_CONFIG: LayoutConfig = {
   ],
 };
 
-/**
- *  4. Archétype : Minimaliste Épuré
- * Inspiré par Ghost, Medium et Bear Blog.
- * Focus intégral sur le contenu et le confort visuel.
- */
-export const MINIMAL_PORTFOLIO_CONFIG: LayoutConfig = {
-  version: 1,
-  archetype: 'minimal',
-  tokens: {
-    cardShape: 'rounded-xl',
-    density: 'spacious',
-    surface: 'flat',
-    fontFamily: 'sans',
-    accentColor: '#18181B',
-  },
-  blocks: [
-    {
-      id: 'block_navbar_min',
-      type: 'navbar',
-      label: 'Navigation Épurée',
-      visible: true,
-      locked: false,
-      props: {
-        brandDisplay: 'name-only',
-        layout: 'spread',
-        sticky: false,
-        showSocial: true,
-        showSupport: false,
-        enableBlur: false,
-      } satisfies NavbarBlockProps,
-    },
-    {
-      id: 'block_hero_min',
-      type: 'hero',
-      label: 'Présentation de l’Auteur',
-      visible: true,
-      locked: false,
-      props: {
-        style: 'typographic-minimal',
-        alignment: 'left',
-        height: 'compact',
-        showOverlay: false,
-        overlayOpacity: 0,
-        showCoverImage: false,
-      } satisfies HeroBlockProps,
-    },
-    {
-      id: 'block_stream_min',
-      type: 'article-stream',
-      label: 'Carnet de Notes',
-      visible: true,
-      locked: false,
-      props: {
-        displayMode: 'list',
-        density: 'spacious',
-        showAuthor: false,
-        showReadingTime: true,
-        showExcerpts: true,
-        showCategories: false,
-        pagination: 'load-more',
-      } satisfies ArticleStreamBlockProps,
-    },
-    {
-      id: 'block_newsletter_min',
-      type: 'newsletter-wall',
-      label: 'Boîte aux Lettres',
-      visible: true,
-      locked: false,
-      props: {
-        title: 'Rester en contact',
-        subtitle: 'Mes réflexions directement dans votre boîte mail, sans spam.',
-        accentGlow: false,
-        showSubscriberCount: false,
-        buttonText: "S'abonner",
-      } satisfies NewsletterWallBlockProps,
-    },
-    {
-      id: 'block_footer_min',
-      type: 'footer',
-      label: 'Pied de Page',
-      visible: true,
-      locked: false,
-      props: {
-        showLegalLinks: true,
-        showSocialLinks: true,
-        customCopyright: '',
-        layout: 'minimal-row',
-      } satisfies FooterBlockProps,
-    },
-  ],
-};
+// 4. Archétype : Minimaliste Épuré (Devouring Details / Rauno Freiberg)
+import { MINIMAL_PORTFOLIO_CONFIG, MINIMAL_ARTICLE_CONFIG } from './defaults/minimal';
+export { MINIMAL_PORTFOLIO_CONFIG, MINIMAL_ARTICLE_CONFIG };
+
+// 5. Archétype : Dispatch Publication (Édition indépendante)
+import {
+  DISPATCH_NEWSPAPER_CONFIG,
+  DISPATCH_MAGAZINEY_CONFIG,
+  DISPATCH_ARTICLE_CONFIG,
+} from './registry/dispatch/layouts';
+export { DISPATCH_NEWSPAPER_CONFIG, DISPATCH_MAGAZINEY_CONFIG, DISPATCH_ARTICLE_CONFIG };
 
 /** Gabarit par défaut du scope article (page article) */
 export const ARTICLE_DEFAULT_CONFIG: LayoutConfig = {
@@ -983,6 +903,7 @@ export const ARCHETYPES_REGISTRY: Record<string, LayoutConfig> = {
   broadsheet: BROADSHEET_MODERN_CONFIG,
   bento: BENTO_TECH_CONFIG,
   minimal: MINIMAL_PORTFOLIO_CONFIG,
+  dispatch: DISPATCH_NEWSPAPER_CONFIG,
   encre: ENCRE_CONFIG,
   papier: PAPIER_CONFIG,
   signal: SIGNAL_CONFIG,

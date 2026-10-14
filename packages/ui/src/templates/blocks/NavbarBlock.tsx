@@ -67,7 +67,15 @@ export function NavbarBlock({
     socialLinks = [],
     stripeAccountId,
     supportUrl,
+    siteOptions,
   } = publication;
+
+  const allowLogo = (siteOptions?.showLogo ?? true) !== false;
+  const allowSocial = (siteOptions?.showSocialLinks ?? true) !== false;
+  const allowSupport = (siteOptions?.showSubscribeButton ?? true) !== false;
+
+  const effectiveShowSocial = showSocial && allowSocial;
+  const effectiveShowSupport = showSupport && allowSupport;
 
   const displayName = name || domain || subdomain || 'Mon Site Web';
   const supportLink = stripeAccountId ? '/support' : supportUrl || null;
@@ -123,7 +131,7 @@ export function NavbarBlock({
               onClick={(e) => context.mode === 'editable' && e.preventDefault()}
               className="flex items-center gap-3 group/brand transition-transform active:scale-98"
             >
-              {logoUrl && brandDisplay !== 'name-only' && (
+              {logoUrl && allowLogo && brandDisplay !== 'name-only' && (
                 <img
                   src={logoUrl}
                   alt={`${displayName} logo`}
@@ -199,7 +207,7 @@ export function NavbarBlock({
             >
               <Search className="w-4 h-4" />
             </Link>
-            {showSocial && socialLinks.length > 0 && (
+            {effectiveShowSocial && socialLinks.length > 0 && (
               <div className="hidden lg:flex items-center gap-2 pr-2 border-r border-border">
                 {socialLinks.slice(0, 4).map((social: SocialLink) => (
                   <Link
@@ -216,7 +224,7 @@ export function NavbarBlock({
               </div>
             )}
 
-            {showSupport && supportLink && (
+            {effectiveShowSupport && supportLink && (
               <Link
                 href={supportLink}
                 onClick={(e) => context.mode === 'editable' && e.preventDefault()}

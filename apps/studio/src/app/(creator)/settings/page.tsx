@@ -9,9 +9,8 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { getActiveWorkspace } from '@/lib/active-workspace';
-import PublicationSettings, {
-  CreatorProfile,
-} from '@/features/settings/components/publication-settings';
+import SettingsView from '@/features/settings/settings';
+import type { CreatorProfile } from '@/features/settings/types';
 
 // Contrat Go GET /v1/settings/publication — mêmes champs JSON que le include
 // Prisma d'origine (le mapping vers CreatorProfile ci-dessous est inchangé).
@@ -33,6 +32,7 @@ interface SettingsPublicationDTO {
   seoDescription: string | null;
   allowIndexing: boolean;
   supportUrl: string | null;
+  siteOptions?: Record<string, boolean> | null;
   navigation: {
     id: string;
     label: string;
@@ -161,6 +161,7 @@ export default async function CreatorSettingsPage() {
       name: cat.name,
       slug: cat.slug,
     })),
+    siteOptions: publication.siteOptions ?? null,
     advancedSettingsMode: owner?.advancedSettingsMode ?? false,
     isMedia,
     mediaRole: isMedia ? workspace.mediaRole : undefined,
@@ -168,7 +169,7 @@ export default async function CreatorSettingsPage() {
 
   return (
     <div className="space-y-12">
-      <PublicationSettings initialCreator={initialCreatorData} publicationId={publication.id} />
+      <SettingsView initialCreator={initialCreatorData} publicationId={publication.id} />
 
       <div className="max-w-6xl mx-auto px-6">
         <div className="p-6 rounded-2xl border border-border/80 bg-card shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">

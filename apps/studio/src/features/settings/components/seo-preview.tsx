@@ -9,7 +9,7 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { Search, Share2, Globe, ShieldCheck, ShieldAlert, Sparkles } from 'lucide-react';
+import { Search, Share2, Globe, ShieldCheck, ShieldAlert, Check } from 'lucide-react';
 
 interface SeoPreviewProps {
   name: string | null;
@@ -71,7 +71,7 @@ export function SeoPreview({
 
           {isAutoManaged && (
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold tracking-wider uppercase border border-primary/20">
-              <Sparkles className="w-2.5 h-2.5" />
+              <Globe className="w-2.5 h-2.5" />
               Auto-Pilot
             </span>
           )}
@@ -182,7 +182,7 @@ export function SeoPreview({
         {isAutoManaged && (
           <div className="mt-4 pt-3 border-t border-border/30 space-y-1.5 text-[11px] text-muted-foreground">
             <div className="flex items-center gap-1.5 text-foreground font-semibold">
-              <Sparkles className="w-3.5 h-3.5 text-primary" />
+              <Check className="w-3.5 h-3.5 text-primary" />
               <span>Optimisations automatiques actives :</span>
             </div>
             <ul className="space-y-1 pl-5 list-disc text-muted-foreground">

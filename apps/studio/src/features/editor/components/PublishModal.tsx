@@ -6,7 +6,6 @@ import {
   Globe,
   Mail,
   Lock,
-  Sparkles,
   Send,
   Check,
   Loader2,
@@ -85,7 +84,7 @@ export function PublishModal({
         <div className="p-6 border-b border-border/60 relative flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2 text-primary mb-1.5 font-medium text-xs tracking-wider uppercase">
-              <Sparkles className="w-3.5 h-3.5" />
+              <Send className="w-3.5 h-3.5" />
               <span>{t`Prêt pour la publication`}</span>
             </div>
             <h3 className="text-xl font-bold tracking-tight line-clamp-1">
