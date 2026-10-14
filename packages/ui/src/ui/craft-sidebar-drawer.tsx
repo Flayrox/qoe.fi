@@ -155,6 +155,7 @@ export function CraftSidebarDrawer({
 }: CraftSidebarProps) {
   const [headings, setHeadings] = useState<CraftTocHeading[]>([]);
   const [activeHeadingId, setActiveHeadingId] = useState<string | null>(null);
+  const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
 
   const isLeft = side === 'left';
 
@@ -314,6 +315,8 @@ export function CraftSidebarDrawer({
                           onSelectItem(item);
                         }
                       }}
+                      onMouseEnter={() => setHoveredItemId(item.id)}
+                      onMouseLeave={() => setHoveredItemId(null)}
                       className="platform_link relative flex items-center gap-[10px] group cursor-pointer h-6"
                       data-variant="secondary"
                       data-disabled="false"
@@ -321,7 +324,11 @@ export function CraftSidebarDrawer({
                       data-interactive="true"
                       tabIndex={0}
                     >
-                      <PlatformTick width={18} isActive={isChapterActive} isAccent={false} />
+                      <PlatformTick
+                        width={18}
+                        isActive={isChapterActive || hoveredItemId === item.id}
+                        isAccent={false}
+                      />
                       <span
                         className={cn(
                           'platform_label text-[13px] tracking-tight whitespace-nowrap transition-colors truncate',
@@ -346,7 +353,11 @@ export function CraftSidebarDrawer({
                       data-interactive="true"
                       tabIndex={0}
                     >
-                      <PlatformTick width={18} isActive={isChapterActive} isAccent={false} />
+                      <PlatformTick
+                        width={18}
+                        isActive={isChapterActive || hoveredItemId === item.id}
+                        isAccent={false}
+                      />
                       <span
                         className={cn(
                           'platform_label text-[13px] tracking-tight whitespace-nowrap transition-colors truncate',

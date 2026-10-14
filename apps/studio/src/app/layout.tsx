@@ -8,7 +8,7 @@
 // =====================================================================
 
 import type { Metadata } from 'next';
-import { Inter, Geist } from 'next/font/google';
+import { Inter, Geist, Newsreader, Outfit, Space_Grotesk } from 'next/font/google';
 import { I18nClientProvider } from '@qoe/i18n/provider';
 import { getStaticTranslations, initI18n } from '@qoe/i18n/server';
 import { TooltipProvider } from '@qoe/ui/ui/tooltip';
@@ -41,6 +41,19 @@ import '@qoe/theme/styles';
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
 const inter = Inter({ variable: '--font-body', subsets: ['latin'] });
 const displayFont = Geist({ variable: '--font-classical', subsets: ['latin'] });
+const newsreader = Newsreader({
+  subsets: ['latin'],
+  variable: '--font-serif',
+  style: ['normal', 'italic'],
+});
+const outfit = Outfit({
+  subsets: ['latin'],
+  variable: '--font-outfit',
+});
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  variable: '--font-space-grotesk',
+});
 
 export const metadata: Metadata = {
   title: 'qoefi Studio — Creator Dashboard',
@@ -85,14 +98,20 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      className={cn('scroll-smooth', 'font-sans', geist.variable)}
+      className={cn(
+        'scroll-smooth',
+        geist.variable,
+        newsreader.variable,
+        outfit.variable,
+        spaceGrotesk.variable
+      )}
       suppressHydrationWarning
     >
       <head>
         <ThemeSeedScript />
       </head>
       <body
-        className={`${inter.variable} ${displayFont.variable} antialiased selection:bg-primary selection:text-primary-foreground`}
+        className={`${inter.variable} ${displayFont.variable} ${newsreader.variable} ${outfit.variable} ${spaceGrotesk.variable} antialiased selection:bg-primary selection:text-primary-foreground`}
         suppressHydrationWarning
       >
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>

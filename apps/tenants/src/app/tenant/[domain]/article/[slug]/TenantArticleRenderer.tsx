@@ -15,6 +15,7 @@ import {
   TemplateRenderer,
   parseSiteLayouts,
   resolveTheme,
+  resolveFontFamily,
   MinimalCraftShell,
   getCoverPlaceholder,
   type TemplatePublicationContext,
@@ -96,7 +97,7 @@ export async function TenantArticleRenderer({
 
   const customStyle = {
     '--tenant-accent': accentColor || 'hsl(var(--primary))',
-    fontFamily: fontFamily ? `var(--font-${fontFamily})` : 'inherit',
+    fontFamily: resolveFontFamily(fontFamily),
     ...(themeMode === 'dark' && { colorScheme: 'dark' }),
   } as React.CSSProperties;
 
@@ -123,9 +124,10 @@ export async function TenantArticleRenderer({
         }
       : sliceContentAtPaywall(article.content || '', { isMember, isPaidSubscriber }, visibility);
 
-  // Résolution polymorphe du thème
-  const siteLayouts = parseSiteLayouts(publication.layoutStyle || 'magazine');
-  const theme = resolveTheme(publication.layoutStyle);
+  // Résolution polymorphe du thème (par défaut 'minimal' en accord avec Postgres et l'accueil)
+  const resolvedLayoutStyle = publication.layoutStyle || 'minimal';
+  const siteLayouts = parseSiteLayouts(resolvedLayoutStyle);
+  const theme = resolveTheme(resolvedLayoutStyle);
   const isMinimal = theme.id === 'minimal';
 
   const articleLayout =
@@ -469,6 +471,7 @@ export async function TenantArticleRenderer({
           publication={templatePublication}
           article={templateArticle}
           articles={drawerArticles}
+          style={customStyle}
         >
           {articleBodyContent}
         </MinimalCraftShell>

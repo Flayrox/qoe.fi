@@ -261,10 +261,7 @@ func upsertUser(ctx context.Context, pool *pgxpool.Pool, id, email, name, role s
 // UpsertArticle crée/met à jour un article publié (dédup publicationId + slug).
 func UpsertArticle(ctx context.Context, pool *pgxpool.Pool, publicationID, authorID, slug, title, content string,
 	readingTime int32, isPremium bool, visibility string, editorPick bool) error {
-	imageURL := "https://images.unsplash.com/photo-1516962215378-7fa2e137ae93?auto=format&fit=crop&w=1200&q=80"
-	if isPremium {
-		imageURL = "https://images.unsplash.com/photo-1499750310107-5fef28a66643?auto=format&fit=crop&w=1200&q=80"
-	}
+	imageURL := ""
 	_, err := pool.Exec(ctx, `
 		INSERT INTO "Article" (id, title, slug, content, published, status, visibility,
 		                       "isPremium", "isEditorPick", "readingTime", "publicationId", "authorId",

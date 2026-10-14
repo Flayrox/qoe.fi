@@ -66,10 +66,9 @@ export function MinimalCraftShell({
   const getSubcategories = (parentId: string) => categories.filter((c) => c.parentId === parentId);
 
   const isArticleMode = Boolean(article);
-  const currentSectionTitle = isArticleMode ? article?.title || 'Article' : 'Sommaire';
 
   // Préparation des items pour la réglette Devouring Details
-  const articleDrawerItems: CraftDrawerItem[] = articles.map((art, idx) => {
+  const articleDrawerItems: CraftDrawerItem[] = articles.map((art) => {
     const artSlug = art.slug || art.id;
     const catSlug = art.category?.slug;
     const href = catSlug ? `/${catSlug}/${artSlug}` : `/article/${artSlug}`;
@@ -77,7 +76,6 @@ export function MinimalCraftShell({
     return {
       id: art.id,
       label: art.title,
-      number: String(idx + 1).padStart(2, '0'),
       href,
       category: art.category?.name || 'Articles',
       isActive: article?.id === art.id,
@@ -88,7 +86,6 @@ export function MinimalCraftShell({
     {
       id: 'home',
       label: 'Accueil',
-      number: '00',
       href: '/',
       category: 'Navigation',
       isActive: !isArticleMode,
@@ -110,7 +107,7 @@ export function MinimalCraftShell({
         className
       )}
     >
-      {/* ── 1. EN-TÊTE FIXE SUPÉRIEUR DEVOURING DETAILS (top-8 sm:top-12 z-40) ── */}
+      {/* ── 1. EN-TÊTE FIXE SUPÉRIEUR DEVOURING DETAILS (top-6 sm:top-10 z-40) ── */}
       <header
         data-header="true"
         className="platform_header fixed top-6 sm:top-10 left-6 right-6 z-40 flex items-center justify-between select-none pointer-events-auto text-muted-foreground"
@@ -170,12 +167,13 @@ export function MinimalCraftShell({
           )}
         </div>
 
-        {/* Centre : Titre de la page choisie (ou Wordmark / Logo d'en-tête si présent) */}
+        {/* Centre : Identité de marque permanente (Wordmark ou Titre), constante sur Accueil et Article */}
         <div className="absolute left-1/2 -translate-x-1/2 pointer-events-auto max-w-[70vw] sm:max-w-lg text-center">
-          {!isArticleMode && headerWordmarkUrl ? (
+          {headerWordmarkUrl ? (
             <a
               href="/"
               className="inline-flex items-center justify-center transition-transform hover:scale-[1.02]"
+              title={displayName}
             >
               <img
                 src={headerWordmarkUrl}
@@ -184,13 +182,19 @@ export function MinimalCraftShell({
               />
             </a>
           ) : (
-            <p
-              data-breadcrumb="true"
-              aria-label="Titre de la page"
-              className="text-base sm:text-lg md:text-xl font-semibold tracking-tight text-foreground truncate"
+            <a
+              href="/"
+              className="inline-block transition-opacity hover:opacity-85"
+              title={displayName}
             >
-              {isArticleMode ? currentSectionTitle : displayName}
-            </p>
+              <p
+                data-breadcrumb="true"
+                aria-label="Nom de la publication"
+                className="text-base sm:text-lg md:text-xl font-semibold tracking-tight text-foreground truncate"
+              >
+                {displayName}
+              </p>
+            </a>
           )}
         </div>
 

@@ -9,8 +9,7 @@
 // - Formulaire d'inscription réactif
 // =====================================================================
 
-import React from 'react';
-import { Mail, Users } from 'lucide-react';
+import { Users } from 'lucide-react';
 import type {
   NewsletterWallBlockProps,
   TemplatePublicationContext,
@@ -20,6 +19,7 @@ import type {
 import { BlockWrapper } from './BlockWrapper';
 import { EditableText } from './EditableText';
 import { NodeRenderer } from './NodeRenderer';
+import { SubscribeForm } from '../../SubscribeForm';
 
 interface NewsletterWallBlockComponentProps {
   id: string;
@@ -133,40 +133,18 @@ export function NewsletterWallBlock({
               />
             )}
 
-            {/* Formulaire d'inscription */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (context.mode === 'editable') return;
-              }}
-              className="mt-6 flex flex-col sm:flex-row items-center gap-3 w-full max-w-md"
-            >
-              <div className="relative w-full">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input
-                  type="email"
-                  placeholder="votre.email@domaine.com"
-                  disabled={context.mode === 'editable'}
-                  className="w-full pl-10 pr-4 py-2.5 text-sm rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-[var(--tenant-accent,hsl(var(--primary)))] transition-all shadow-xs"
-                />
-              </div>
-
-              <button
-                type="submit"
+            {/* Formulaire d'inscription relié à l'API et au compte Qoefi */}
+            <div className="mt-6 w-full max-w-md mx-auto">
+              <SubscribeForm
+                publicationId={publication.id || ''}
+                authorName={publication.name || ''}
+                accentColor={publication.accentColor || undefined}
+                placeholder="votre.email@domaine.com"
+                buttonText={buttonText}
                 disabled={context.mode === 'editable'}
-                className="w-full sm:w-auto px-5 py-2.5 rounded-lg text-sm font-semibold text-primary-foreground shadow-xs transition-colors whitespace-nowrap cursor-pointer"
-                style={{ backgroundColor: 'var(--tenant-accent, hsl(var(--primary)))' }}
-              >
-                <EditableText
-                  blockId={id}
-                  propKey="buttonText"
-                  value={buttonText}
-                  context={context}
-                  as="span"
-                  multiline={false}
-                />
-              </button>
-            </form>
+                className="w-full"
+              />
+            </div>
 
             {/* Preuve sociale / Compteur de lecteurs */}
             {showSubscriberCount && (

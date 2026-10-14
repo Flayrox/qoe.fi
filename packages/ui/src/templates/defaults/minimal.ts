@@ -71,6 +71,7 @@ export const MINIMAL_PORTFOLIO_CONFIG: LayoutConfig = {
         showExcerpts: true,
         showCategories: true,
         pagination: 'load-more',
+        groupByCategory: false,
       } satisfies ArticleStreamBlockProps,
     },
     {

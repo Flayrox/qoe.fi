@@ -3,7 +3,7 @@
 // =====================================================================
 
 import type { Metadata } from 'next';
-import { Inter, JetBrains_Mono, Geist, Newsreader } from 'next/font/google';
+import { Inter, JetBrains_Mono, Geist, Newsreader, Outfit, Space_Grotesk } from 'next/font/google';
 import { I18nClientProvider } from '@qoe/i18n/provider';
 import { getStaticTranslations, getLanguage, initI18n } from '@qoe/i18n/server';
 import { cn } from '@qoe/utils';
@@ -37,6 +37,14 @@ const newsreader = Newsreader({
   subsets: ['latin'],
   variable: '--font-serif',
   style: ['normal', 'italic'],
+});
+const outfit = Outfit({
+  subsets: ['latin'],
+  variable: '--font-outfit',
+});
+const spaceGrotesk = Space_Grotesk({
+  subsets: ['latin'],
+  variable: '--font-space-grotesk',
 });
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -93,14 +101,20 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      className={cn('scroll-smooth', 'font-sans', geist.variable, newsreader.variable)}
+      className={cn(
+        'scroll-smooth',
+        geist.variable,
+        newsreader.variable,
+        outfit.variable,
+        spaceGrotesk.variable
+      )}
       suppressHydrationWarning
     >
       <head>
         <ThemeSeedScript />
       </head>
       <body
-        className={`${inter.variable} ${displayFont.variable} ${jetbrainsMono.variable} ${newsreader.variable} antialiased selection:bg-primary selection:text-primary-foreground`}
+        className={`${inter.variable} ${displayFont.variable} ${jetbrainsMono.variable} ${newsreader.variable} ${outfit.variable} ${spaceGrotesk.variable} antialiased selection:bg-primary selection:text-primary-foreground`}
         suppressHydrationWarning
       >
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>

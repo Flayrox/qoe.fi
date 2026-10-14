@@ -33,6 +33,15 @@ node scripts/copy-env.js >/dev/null
 pnpm intl:compile >/dev/null 2>&1 || true
 ok "Environnement & traductions prêts"
 
+# 2b. API Go & Worker (launchd)
+for label in com.qoefi.api-server com.qoefi.api-worker; do
+  if ! launchctl print "gui/$(id -u)/$label" >/dev/null 2>&1; then
+    launchctl bootstrap "gui/$(id -u)" "scripts/launchd/$label.plist" 2>/dev/null || true
+  fi
+  launchctl kickstart -k "gui/$(id -u)/$label" 2>/dev/null || true
+done
+ok "API Go & Worker prêts (:15407)"
+
 # 3. Apps Next.js / dev
 echo "${C_BOLD}→ Lancement des applications Next.js (Ctrl+C pour arrêter)…${C_RESET}"
 echo "   http://qoe.test (core) | http://start.qoe.test (hi) | http://studio.qoe.test (studio) | http://admin.qoe.test (admin :15405)"

@@ -78,12 +78,15 @@ export function ArticleRow({
 
         {/* Miniature carrée (36px) */}
         <div className="h-9 w-9 rounded-lg overflow-hidden shrink-0">
-          {article.imageUrl ? (
+          {article.imageUrl && !article.imageUrl.includes('unsplash') ? (
             <Image
               src={article.imageUrl}
               alt={article.title}
               width={36}
               height={36}
+              unoptimized={
+                article.imageUrl.startsWith('data:') || article.imageUrl.startsWith('http')
+              }
               className="h-full w-full object-cover rounded-lg border border-border/20"
             />
           ) : (

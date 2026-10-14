@@ -65,6 +65,7 @@ export function ArticleStreamBlock({
     showExcerpts = true,
     showCategories = true,
     categoryFilter,
+    groupByCategory = false,
   } = props;
   const gridMobileClasses = (props.columnsMobile ?? 1) === 2 ? 'grid-cols-2' : 'grid-cols-1';
   const gridDesktopClasses = displayMode === 'grid-3' ? 'lg:grid-cols-3' : '';
@@ -173,17 +174,16 @@ export function ArticleStreamBlock({
           </div>
         )}
         {displayMode === 'craft-notes' ? (
-          /* Mode Craft Notes (Option B : Journal Hybride Devouring Details) */
-          <div className="max-w-[640px] mx-auto space-y-10 py-4">
+          /* Mode Craft Notes (Journal Minimal Enrichi & Dense) */
+          <div className="max-w-4xl mx-auto space-y-12 py-4">
             {featuredArticle && (
               <article className="group relative space-y-4 pb-10 border-b border-border/40">
-                <div className="flex items-center justify-between text-xs text-muted-foreground/80">
+                <div className="flex items-center justify-between text-xs text-muted-foreground/80 flex-wrap gap-2">
                   <div className="flex items-center gap-2.5">
                     <CraftIndicator type="dot" color="var(--tenant-accent, #F97316)" size={10} />
-                    <span className="font-mono text-xs text-foreground/90 tabular-nums">01</span>
                     {showCategories && featuredArticle.category && (
-                      <span className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                        · {featuredArticle.category.name}
+                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-muted/70 border border-border/40 text-foreground uppercase tracking-wider">
+                        {featuredArticle.category.name}
                       </span>
                     )}
                   </div>
@@ -199,12 +199,15 @@ export function ArticleStreamBlock({
                       </span>
                     )}
                     {showReadingTime && featuredArticle.readingTime && (
-                      <span>· {featuredArticle.readingTime} min read</span>
+                      <span className="inline-flex items-center gap-1">
+                        <Clock className="w-3 h-3 opacity-60" />
+                        {featuredArticle.readingTime} min
+                      </span>
                     )}
                   </div>
                 </div>
 
-                <h2 className="text-2xl sm:text-3xl font-medium tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors">
+                <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors">
                   <Link
                     href={`/article/${featuredArticle.slug}`}
                     onClick={(e) => context.mode === 'editable' && e.preventDefault()}
@@ -214,13 +217,13 @@ export function ArticleStreamBlock({
                 </h2>
 
                 {showExcerpts && featuredArticle.excerpt && (
-                  <p className="text-base text-muted-foreground/90 leading-relaxed max-w-xl">
+                  <p className="text-base sm:text-lg text-muted-foreground/90 leading-relaxed max-w-2xl">
                     {featuredArticle.excerpt}
                   </p>
                 )}
 
-                {/* Bleed media : s'étend au-delà de la colonne de 640px sur grands écrans */}
-                <div className="w-screen relative left-1/2 right-1/2 -translate-x-1/2 max-w-[960px] px-4 my-6">
+                {/* Bleed media : s'étend au-delà de la colonne de texte sur grands écrans */}
+                <div className="w-full my-6">
                   <Link
                     href={`/article/${featuredArticle.slug}`}
                     onClick={(e) => context.mode === 'editable' && e.preventDefault()}
@@ -255,11 +258,11 @@ export function ArticleStreamBlock({
               </article>
             )}
 
-            {/* Barre de filtres par catégories (Pill segmented control minimal) */}
+            {/* Barre de filtres par catégories (Pill segmented control minimal & configurable) */}
             {availableCategories.length > 0 && (
               <div className="pt-2 pb-2 flex items-center justify-between flex-wrap gap-3">
                 <span className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground/60">
-                  Sommaire
+                  Rubriques
                 </span>
                 <div className="flex flex-wrap items-center gap-1.5">
                   <button
@@ -297,75 +300,197 @@ export function ArticleStreamBlock({
               </div>
             )}
 
-            {/* Index numéroté sobre des articles suivants */}
-            {remainingArticles.length > 0 && (
-              <div className="divide-y divide-border/30 pt-1">
-                {remainingArticles.map((article, idx) => {
-                  const globalIndex = items.findIndex((a) => a.id === article.id);
-                  const num = String((globalIndex >= 0 ? globalIndex : idx + 1) + 1).padStart(
-                    2,
-                    '0'
-                  );
+            {/* Articles secondaires : Grille dense ou regroupement par catégorie */}
+            {groupByCategory && isAllSelected && availableCategories.length > 0 ? (
+              <div className="space-y-12 pt-2">
+                {availableCategories.map((catName) => {
+                  const catArticles = items.filter((a) => a.category?.name === catName);
+                  if (catArticles.length === 0) return null;
+
                   return (
+                    <section key={catName} className="space-y-6">
+                      <div className="flex items-center justify-between border-b border-border/40 pb-3">
+                        <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground">
+                          {catName}
+                        </h3>
+                        <span className="text-xs text-muted-foreground font-mono">
+                          {catArticles.length} article{catArticles.length > 1 ? 's' : ''}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {catArticles.map((article) => (
+                          <article
+                            key={article.id}
+                            className="group flex flex-col justify-between rounded-2xl border border-border/40 bg-card/40 hover:bg-card hover:border-border/80 transition-all duration-200 overflow-hidden p-4 sm:p-5 shadow-2xs hover:shadow-sm"
+                          >
+                            <div className="space-y-3.5">
+                              <Link
+                                href={`/article/${article.slug}`}
+                                onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                                className="block relative w-full aspect-[16/10] rounded-xl overflow-hidden bg-muted border border-border/30 group/img"
+                              >
+                                <img
+                                  src={
+                                    article.imageUrl ||
+                                    getCoverPlaceholder(article.slug || article.id)
+                                  }
+                                  alt={article.title}
+                                  className="w-full h-full object-cover transition-transform duration-300 group-hover/img:scale-[1.03]"
+                                  loading="lazy"
+                                />
+                                {article.isPremium && (
+                                  <span className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-background/90 backdrop-blur-md border border-border/60 text-foreground shadow-xs">
+                                    Réservé
+                                  </span>
+                                )}
+                              </Link>
+
+                              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                <div className="flex items-center gap-2 text-[11px]">
+                                  {article.publishedAt && (
+                                    <span>
+                                      {new Date(article.publishedAt).toLocaleDateString('fr-FR', {
+                                        day: 'numeric',
+                                        month: 'short',
+                                      })}
+                                    </span>
+                                  )}
+                                  {showReadingTime && article.readingTime && (
+                                    <span className="inline-flex items-center gap-1 opacity-80">
+                                      · {article.readingTime} min
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <h4 className="text-lg font-bold tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors">
+                                <Link
+                                  href={`/article/${article.slug}`}
+                                  onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                                >
+                                  {article.title}
+                                </Link>
+                              </h4>
+
+                              {showExcerpts && article.excerpt && (
+                                <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+                                  {article.excerpt}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="pt-4 mt-2 border-t border-border/30 flex items-center justify-between text-xs">
+                              <Link
+                                href={`/article/${article.slug}`}
+                                onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                                className="inline-flex items-center gap-1.5 font-medium text-foreground group-hover:text-primary transition-colors"
+                              >
+                                <span>Lire</span>
+                                <span className="transition-transform group-hover:translate-x-1">
+                                  →
+                                </span>
+                              </Link>
+                            </div>
+                          </article>
+                        ))}
+                      </div>
+                    </section>
+                  );
+                })}
+              </div>
+            ) : remainingArticles.length > 0 ? (
+              <div className="space-y-6 pt-2">
+                <div className="flex items-center justify-between border-b border-border/40 pb-3">
+                  <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                    {selectedCategory === 'all' ? 'Dernières parutions' : selectedCategory}
+                  </h3>
+                  <span className="text-xs text-muted-foreground font-mono">
+                    {remainingArticles.length} article{remainingArticles.length > 1 ? 's' : ''}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {remainingArticles.map((article) => (
                     <article
                       key={article.id}
-                      className="group flex items-center justify-between py-4 sm:py-4.5 gap-4 transition-colors hover:bg-muted/20 px-3 -mx-3 rounded-lg"
+                      className="group flex flex-col justify-between rounded-2xl border border-border/40 bg-card/40 hover:bg-card hover:border-border/80 transition-all duration-200 overflow-hidden p-4 sm:p-5 shadow-2xs hover:shadow-sm"
                     >
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        <span className="font-mono text-xs tabular-nums text-muted-foreground/50 w-5 shrink-0">
-                          {num}
-                        </span>
+                      <div className="space-y-3.5">
                         <Link
                           href={`/article/${article.slug}`}
                           onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                          className="shrink-0 w-10 h-10 sm:w-11 sm:h-11 rounded-md overflow-hidden bg-muted/30 border border-border/40"
+                          className="block relative w-full aspect-[16/10] rounded-xl overflow-hidden bg-muted border border-border/30 group/img"
                         >
                           <img
                             src={
                               article.imageUrl || getCoverPlaceholder(article.slug || article.id)
                             }
                             alt={article.title}
-                            className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                            className="w-full h-full object-cover transition-transform duration-300 group-hover/img:scale-[1.03]"
                             loading="lazy"
                           />
+                          {article.isPremium && (
+                            <span className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-background/90 backdrop-blur-md border border-border/60 text-foreground shadow-xs">
+                              Réservé
+                            </span>
+                          )}
                         </Link>
-                        <div className="min-w-0">
-                          <h3 className="text-base sm:text-[17px] font-medium tracking-tight text-foreground group-hover:text-primary transition-colors truncate">
-                            <Link
-                              href={`/article/${article.slug}`}
-                              onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                            >
-                              {article.title}
-                            </Link>
-                          </h3>
-                          {article.category && (
-                            <span className="text-[11px] uppercase tracking-wider text-muted-foreground/70 sm:hidden block mt-0.5">
+
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          {showCategories && article.category && (
+                            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                               {article.category.name}
                             </span>
                           )}
+                          <div className="flex items-center gap-2 ml-auto text-[11px]">
+                            {article.publishedAt && (
+                              <span>
+                                {new Date(article.publishedAt).toLocaleDateString('fr-FR', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                })}
+                              </span>
+                            )}
+                            {showReadingTime && article.readingTime && (
+                              <span className="inline-flex items-center gap-1 opacity-80">
+                                · {article.readingTime} min
+                              </span>
+                            )}
+                          </div>
                         </div>
+
+                        <h4 className="text-lg font-bold tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors">
+                          <Link
+                            href={`/article/${article.slug}`}
+                            onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                          >
+                            {article.title}
+                          </Link>
+                        </h4>
+
+                        {showExcerpts && article.excerpt && (
+                          <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+                            {article.excerpt}
+                          </p>
+                        )}
                       </div>
 
-                      <div className="flex items-center gap-4 shrink-0 text-xs text-muted-foreground/80">
-                        {showCategories && article.category && (
-                          <span className="text-[11px] uppercase tracking-wider text-muted-foreground/60 hidden sm:inline">
-                            {article.category.name}
-                          </span>
-                        )}
-                        {showReadingTime && article.readingTime && (
-                          <span className="text-xs text-muted-foreground/60 font-mono">
-                            {article.readingTime} min
-                          </span>
-                        )}
-                        <span className="text-muted-foreground/30 group-hover:text-foreground group-hover:translate-x-1 transition-all">
-                          →
-                        </span>
+                      <div className="pt-4 mt-2 border-t border-border/30 flex items-center justify-between text-xs">
+                        <Link
+                          href={`/article/${article.slug}`}
+                          onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                          className="inline-flex items-center gap-1.5 font-medium text-foreground group-hover:text-primary transition-colors"
+                        >
+                          <span>Lire</span>
+                          <span className="transition-transform group-hover:translate-x-1">→</span>
+                        </Link>
                       </div>
                     </article>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
-            )}
+            ) : null}
           </div>
         ) : displayMode === 'list' ? (
           /* Mode Liste */

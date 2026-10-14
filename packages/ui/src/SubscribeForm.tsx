@@ -7,7 +7,7 @@ import { createClient } from '@qoe/supabase/client';
 import { Check, ChevronDown, Loader2, Mail } from 'lucide-react';
 import { RecommendationModal, type RecommendedPublication } from './RecommendationModal';
 
-interface SubscribeFormProps {
+export interface SubscribeFormProps {
   publicationId: string;
   isBrutalist?: boolean;
   authorName?: string;
@@ -15,6 +15,11 @@ interface SubscribeFormProps {
   userEmail?: string | null;
   className?: string;
   accentColor?: string;
+  placeholder?: string;
+  buttonText?: string;
+  helperText?: string;
+  disabled?: boolean;
+  size?: 'default' | 'compact';
 }
 
 export function SubscribeForm({
@@ -25,6 +30,11 @@ export function SubscribeForm({
   userEmail,
   className = '',
   accentColor,
+  placeholder,
+  buttonText,
+  helperText,
+  disabled = false,
+  size = 'default',
 }: SubscribeFormProps) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
@@ -83,7 +93,7 @@ export function SubscribeForm({
   }, [isDropdownOpen]);
 
   async function executeSubscribe(email: string) {
-    if (!email || !email.includes('@')) return;
+    if (disabled || !email || !email.includes('@')) return;
 
     setStatus('loading');
     setMessage('');
@@ -109,6 +119,7 @@ export function SubscribeForm({
 
   function handleFormSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (disabled) return;
     const formData = new FormData(e.currentTarget);
     const email = String(formData.get('email') || '').trim();
     void executeSubscribe(email);
@@ -158,22 +169,26 @@ export function SubscribeForm({
   const isOneClickMode = Boolean(connectedEmail && !isOtherEmailMode);
 
   return (
-    <div className={`w-full max-w-md mx-auto ${className}`}>
+    <div className={`w-full max-w-md ${className}`}>
       {isOneClickMode ? (
         <div className="relative" ref={dropdownRef}>
           <div
             className={`flex items-stretch overflow-hidden transition-all ${
               isBrutalist
                 ? 'border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] bg-background'
-                : 'rounded-xl shadow-xs border border-border/60'
+                : size === 'compact'
+                  ? 'rounded-lg shadow-2xs border border-border/60'
+                  : 'rounded-xl shadow-xs border border-border/60'
             }`}
           >
             {/* Primary 1-Click Subscribe Action */}
             <button
               type="button"
-              disabled={status === 'loading'}
+              disabled={disabled || status === 'loading'}
               onClick={() => void executeSubscribe(connectedEmail!)}
-              className={`flex-1 h-13 px-5 font-semibold text-base transition-colors flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 ${
+              className={`flex-1 font-semibold transition-colors flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 ${
+                size === 'compact' ? 'h-10 px-3.5 text-xs' : 'h-13 px-5 text-base'
+              } ${
                 accentColor
                   ? 'text-white hover:opacity-95'
                   : 'bg-foreground text-background hover:bg-foreground/90 dark:bg-white dark:text-black dark:hover:bg-white/90'
@@ -185,7 +200,7 @@ export function SubscribeForm({
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <>
-                  <Mail className="w-4 h-4 shrink-0 opacity-85" />
+                  <Mail className="w-3.5 h-3.5 shrink-0 opacity-85" />
                   <span className="truncate">
                     {t`S'abonner avec`}{' '}
                     <span className="font-bold underline decoration-current/40 underline-offset-2">
@@ -199,9 +214,11 @@ export function SubscribeForm({
             {/* Chevron Dropdown Trigger */}
             <button
               type="button"
-              disabled={status === 'loading'}
+              disabled={disabled || status === 'loading'}
               onClick={() => setIsDropdownOpen((prev) => !prev)}
-              className={`px-3 border-l flex items-center justify-center transition-colors cursor-pointer disabled:opacity-50 ${
+              className={`border-l flex items-center justify-center transition-colors cursor-pointer disabled:opacity-50 ${
+                size === 'compact' ? 'px-2.5' : 'px-3'
+              } ${
                 accentColor
                   ? 'border-white/20 text-white hover:bg-black/10'
                   : 'border-background/20 dark:border-black/20 bg-foreground text-background hover:bg-foreground/90 dark:bg-white dark:text-black dark:hover:bg-white/90'
@@ -259,35 +276,44 @@ export function SubscribeForm({
       ) : (
         /* Standard / Other Email Input Mode */
         <form onSubmit={handleFormSubmit} className="flex flex-col gap-2">
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col sm:flex-row gap-2.5">
             <input type="hidden" name="publicationId" value={publicationId} />
             <input
               type="email"
               name="email"
               required
+              disabled={disabled || status === 'loading'}
               autoFocus={isOtherEmailMode}
-              placeholder={t`Votre adresse email`}
-              className={`flex-1 h-13 px-4 text-base ${
-                isBrutalist
-                  ? 'border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] bg-background text-foreground placeholder:text-muted-foreground'
-                  : 'rounded-xl border border-input bg-background focus:ring-2 focus:ring-foreground/20 focus:border-transparent outline-none transition-all'
+              placeholder={placeholder || t`Votre adresse email`}
+              className={`flex-1 text-foreground placeholder:text-muted-foreground/60 outline-none transition-all ${
+                size === 'compact'
+                  ? 'h-10 px-3.5 text-sm rounded-lg border border-border bg-background shadow-2xs focus:ring-1 focus:ring-foreground'
+                  : isBrutalist
+                    ? 'h-13 px-4 text-base border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] bg-background text-foreground'
+                    : 'h-13 px-4 text-base rounded-xl border border-input bg-background shadow-xs focus:ring-2 focus:ring-foreground/20'
               }`}
             />
             <button
               type="submit"
-              disabled={status === 'loading'}
-              className={`h-13 px-7 font-semibold text-base transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shrink-0 ${
+              disabled={disabled || status === 'loading'}
+              className={`font-semibold transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shrink-0 ${
+                size === 'compact'
+                  ? 'h-10 px-4 text-sm rounded-lg shadow-2xs whitespace-nowrap'
+                  : isBrutalist
+                    ? 'h-13 px-7 text-base border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase tracking-wider'
+                    : 'h-13 px-7 text-base rounded-xl shadow-xs'
+              } ${
                 accentColor
                   ? 'text-white hover:opacity-95'
                   : 'bg-foreground text-background hover:bg-foreground/90 dark:bg-white dark:text-black dark:hover:bg-white/90'
-              } ${
-                isBrutalist
-                  ? 'border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase tracking-wider'
-                  : 'rounded-xl'
               }`}
               style={accentColor ? { backgroundColor: accentColor } : undefined}
             >
-              {status === 'loading' ? <Loader2 className="w-5 h-5 animate-spin" /> : t`S'abonner`}
+              {status === 'loading' ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                buttonText || t`S'abonner`
+              )}
             </button>
           </div>
 
@@ -302,6 +328,8 @@ export function SubscribeForm({
           )}
         </form>
       )}
+
+      {helperText && <p className="mt-2 text-[12px] text-muted-foreground/70">{helperText}</p>}
 
       {status === 'error' && <p className="mt-3 text-sm text-destructive text-center">{message}</p>}
     </div>
