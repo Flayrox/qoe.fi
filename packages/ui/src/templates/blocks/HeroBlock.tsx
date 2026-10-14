@@ -14,6 +14,7 @@ import type { HeroBlockProps, TemplatePublicationContext, TemplateRenderContext 
 import { BlockWrapper } from './BlockWrapper';
 import { EditableText } from './EditableText';
 import { NodeRenderer } from './NodeRenderer';
+import { SubscribeForm } from '../../SubscribeForm';
 
 interface HeroBlockComponentProps {
   id: string;
@@ -117,7 +118,7 @@ export function HeroBlock({
 
         {style === 'typographic-minimal' ? (
           /* Style Typographique Minimaliste (Devouring Details / Rauno) */
-          <div className="max-w-[680px] mx-auto px-4 sm:px-0 py-6 sm:py-10 relative">
+          <div className="max-w-4xl mx-auto px-4 sm:px-0 py-6 sm:py-10 relative">
             <div className="relative flex flex-col gap-3 sm:gap-4">
               {slots?.subtitle ? (
                 <div className="mt-2 max-w-2xl">
@@ -137,49 +138,27 @@ export function HeroBlock({
                     value={tagline}
                     context={context}
                     as="p"
-                    className="text-base sm:text-lg text-muted-foreground/90 leading-relaxed font-sans"
+                    className="text-base sm:text-lg text-muted-foreground/90 leading-relaxed"
                   />
                 )
               )}
 
-              {/* Formulaire d'abonnement épuré */}
+              {/* Formulaire d'abonnement épuré relié à l'API et au compte Qoefi */}
               <div
                 data-testid="hero-subscribe-box"
                 className="mt-6 pt-4 border-t border-border/40 select-none"
               >
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (context.mode === 'editable') return;
-                    const form = e.currentTarget;
-                    const input = form.querySelector(
-                      'input[type="email"]'
-                    ) as HTMLInputElement | null;
-                    if (input?.value) {
-                      window.location.href = `/subscribe?email=${encodeURIComponent(input.value)}`;
-                    }
-                  }}
-                  className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 max-w-md"
-                >
-                  <input
-                    type="email"
-                    placeholder="Entrez votre email..."
-                    disabled={context.mode === 'editable'}
-                    required
-                    className="flex-1 px-3.5 py-2 text-sm rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-foreground transition-all shadow-2xs"
-                  />
-                  <button
-                    type="submit"
-                    disabled={context.mode === 'editable'}
-                    className="px-4 py-2 rounded-lg text-sm font-medium transition-opacity cursor-pointer text-white shadow-2xs whitespace-nowrap text-center"
-                    style={{ backgroundColor: 'var(--tenant-accent, #18181B)' }}
-                  >
-                    S’abonner
-                  </button>
-                </form>
-                <p className="mt-2 text-[12px] text-muted-foreground/70 font-sans">
-                  Rejoignez les lecteurs de {title}. Désinscription libre en un clic.
-                </p>
+                <SubscribeForm
+                  publicationId={publication?.id || ''}
+                  authorName={title}
+                  accentColor={publication?.accentColor || undefined}
+                  placeholder="Entrez votre email..."
+                  buttonText="S’abonner"
+                  helperText={`Rejoignez les lecteurs de ${title}. Désinscription libre en un clic.`}
+                  disabled={context.mode === 'editable'}
+                  size="compact"
+                  className="max-w-md mx-0"
+                />
               </div>
             </div>
           </div>

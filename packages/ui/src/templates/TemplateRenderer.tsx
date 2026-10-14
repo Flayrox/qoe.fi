@@ -49,6 +49,7 @@ import {
 } from './blocks/dispatch/DispatchMagazineGrid';
 import { DEMO_ARTICLES } from './demo';
 import { resolveTheme } from './registry';
+import { resolveFontFamily } from './style';
 
 export interface TemplateRendererProps {
   config: LayoutConfig;
@@ -108,11 +109,12 @@ export function TemplateRenderer({
 
   const accentColor =
     config.tokens?.accentColor || publication.accentColor || 'hsl(var(--primary))';
-  const fontFamily = config.tokens?.fontFamily || publication.fontFamily || 'inherit';
+  const rawFontFamily = config.tokens?.fontFamily || publication.fontFamily || 'inherit';
+  const resolvedFont = resolveFontFamily(rawFontFamily);
 
   const customStyle: React.CSSProperties = {
     '--tenant-accent': accentColor,
-    fontFamily: fontFamily !== 'inherit' ? `var(--font-${fontFamily}, inherit)` : 'inherit',
+    fontFamily: resolvedFont,
     ...(publication.themeMode === 'dark' && { colorScheme: 'dark' }),
   } as React.CSSProperties;
 

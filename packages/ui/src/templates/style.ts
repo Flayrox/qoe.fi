@@ -6,6 +6,25 @@
 import type React from 'react';
 import type { BlockStyleProps } from './schema';
 
+/**
+ * Piles typographiques calibrées pour chaque identifiant de police de publication.
+ */
+export const FONT_STACKS: Record<string, string> = {
+  sans: "var(--font-sans, -apple-system, BlinkMacSystemFont, 'Inter', sans-serif)",
+  outfit: "var(--font-outfit, 'Outfit', sans-serif)",
+  'space-grotesk': "var(--font-space-grotesk, 'Space Grotesk', sans-serif)",
+  serif: "var(--font-serif, 'Newsreader', 'Playfair Display', Georgia, serif)",
+};
+
+/**
+ * Résout la valeur CSS fontFamily correspondante à un identifiant de police créateur.
+ */
+export function resolveFontFamily(fontKey?: string | null): string {
+  if (!fontKey || fontKey === 'inherit') return 'inherit';
+  const cleanKey = fontKey.trim();
+  return FONT_STACKS[cleanKey] || `var(--font-${cleanKey}, inherit)`;
+}
+
 function sidesToCss(
   v: BlockStyleProps['padding'],
   kind: 'padding' | 'margin'

@@ -75,7 +75,7 @@ describe('MinimalCraftShell - Devouring Details Exact Match (Screenshots 1 & 2)'
     expect(mainElement?.className).toContain('translate-x-0');
   });
 
-  it('displays the chosen page title in header instead of raw Index', () => {
+  it('preserves publication brand identity in header on article pages instead of morphing into article title', () => {
     const articleWithCategory: TemplateArticleItem = {
       id: 'art_2',
       title: 'Behind scenes',
@@ -94,12 +94,13 @@ describe('MinimalCraftShell - Devouring Details Exact Match (Screenshots 1 & 2)'
     );
 
     const headerBreadcrumb = container.querySelector('header p');
-    expect(headerBreadcrumb?.textContent).toContain('Behind scenes');
+    expect(headerBreadcrumb?.textContent).toContain('Devouring Details');
+    expect(headerBreadcrumb?.textContent).not.toContain('Behind scenes');
     expect(headerBreadcrumb?.textContent).not.toContain('Index');
     expect(headerBreadcrumb?.textContent).not.toContain('Sommaire');
   });
 
-  it('displays article title when active, never displaying raw Index or Sommaire', () => {
+  it('keeps publication brand in header when article has no category', () => {
     const articleWithoutCategory: TemplateArticleItem = {
       id: 'art_3',
       title: 'Behind scenes',
@@ -117,7 +118,8 @@ describe('MinimalCraftShell - Devouring Details Exact Match (Screenshots 1 & 2)'
     );
 
     const headerBreadcrumb = container.querySelector('header p');
-    expect(headerBreadcrumb?.textContent).toContain('Behind scenes');
+    expect(headerBreadcrumb?.textContent).toContain('Devouring Details');
+    expect(headerBreadcrumb?.textContent).not.toContain('Behind scenes');
     expect(headerBreadcrumb?.textContent).not.toContain('Index');
     expect(headerBreadcrumb?.textContent).not.toContain('Sommaire');
   });

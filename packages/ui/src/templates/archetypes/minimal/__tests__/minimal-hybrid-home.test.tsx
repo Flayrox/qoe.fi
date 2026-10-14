@@ -25,7 +25,7 @@ const mockArticles: TemplateArticleItem[] = [
     title: 'Behind scenes',
     slug: 'behind-scenes',
     excerpt: 'Deep dive into the kinetic models powering fluid responsive sheets.',
-    imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200',
+    imageUrl: 'https://images.example.com/cover-1.jpg',
     readingTime: 4,
     publishedAt: '2026-03-15T10:00:00Z',
     category: { name: 'Interactions', slug: 'interactions' },

@@ -39,10 +39,10 @@ export interface PreviewProps {
 }
 
 const FONT_FAMILIES: Record<string, string> = {
-  sans: "'Inter', sans-serif",
-  outfit: "'Outfit', sans-serif",
-  'space-grotesk': "'Space Grotesk', sans-serif",
-  serif: "'Playfair Display', serif",
+  sans: "var(--font-sans, 'Inter', sans-serif)",
+  outfit: "var(--font-outfit, 'Outfit', sans-serif)",
+  'space-grotesk': "var(--font-space-grotesk, 'Space Grotesk', sans-serif)",
+  serif: "var(--font-serif, 'Newsreader', 'Playfair Display', Georgia, serif)",
 };
 
 export function Preview({
@@ -165,97 +165,166 @@ export function Preview({
           </div>
         )}
 
-        {/* ── 4. CONTENU FACTICE DE LECTURE (Style suisse épuré) ── */}
-        <div className="relative z-10 px-6 sm:px-12 pt-6 pb-20 max-w-xl mx-auto space-y-8">
-          {/* Section 01 : Intro */}
-          <div className="relative space-y-3">
-            <div
-              className="w-3 h-3 rounded-full absolute -left-5 top-1.5 shadow-2xs"
-              style={{ backgroundColor: activeColor }}
-              aria-hidden="true"
-            />
-            <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-wider">
-              <span>№ 01</span>
-              <span>·</span>
-              <span>Introduction</span>
-            </div>
+        {/* ── 4. CONTENU DE LECTURE MINIMAL CRAFT (Dense, enrichi, sans numérotation 01/02) ── */}
+        <div className="relative z-10 px-6 sm:px-10 pt-6 pb-20 max-w-2xl mx-auto space-y-8">
+          {/* En-tête / Manifeste */}
+          <div className="space-y-4">
             <h1
               style={{ fontFamily: activeFont }}
-              className="text-lg sm:text-xl font-bold text-foreground tracking-tight leading-snug"
+              className="text-xl sm:text-2xl font-bold text-foreground tracking-tight leading-snug"
             >
               {displayName}
             </h1>
             {showTagline && (
-              <p className="text-xs sm:text-[13px] text-muted-foreground leading-relaxed">
+              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-lg">
                 {displayHero}
               </p>
             )}
-          </div>
 
-          {/* Bleed Mockup Media Factice */}
-          <div className="rounded-xl border border-border/50 bg-muted/20 overflow-hidden space-y-2 p-1 shadow-2xs">
-            <div className="aspect-16/9 rounded-lg bg-muted/40 flex items-center justify-center relative overflow-hidden">
-              {headerImageUrl && showBanner ? (
-                <Image src={headerImageUrl} alt="" fill className="object-cover" />
-              ) : (
-                <div className="flex flex-col items-center gap-1.5 text-muted-foreground/60">
-                  <div
-                    className="w-7 h-7 rounded-full flex items-center justify-center shadow-2xs text-white text-[10px]"
+            {/* Formulaire d'abonnement épuré en en-tête */}
+            {showSubscribeButton && (
+              <div className="pt-3 max-w-md">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="email"
+                    readOnly
+                    placeholder="Entrez votre email..."
+                    className="flex-1 h-9 px-3 text-xs rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground/60 shadow-2xs"
+                  />
+                  <span
+                    className="h-9 px-4 rounded-lg text-xs font-semibold text-white shadow-2xs flex items-center justify-center shrink-0 cursor-default"
                     style={{ backgroundColor: activeColor }}
                   >
-                    ▶
-                  </div>
-                  <span className="text-[10px] text-muted-foreground/80">
-                    Espace visuel & prototypes
+                    S’abonner
                   </span>
                 </div>
-              )}
-            </div>
-            <p className="text-center text-[10px] text-muted-foreground/70 py-1">
-              Mise en page épurée axée sur le confort de lecture et l'indépendance éditoriale.
-            </p>
+                <p className="mt-1.5 text-[11px] text-muted-foreground/70">
+                  Rejoignez les lecteurs de {displayName}. Désinscription en un clic.
+                </p>
+              </div>
+            )}
           </div>
 
-          {/* Section 02 Factice */}
-          <div className="space-y-2 border-t border-border/30 pt-6">
-            <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase tracking-wider">
-              <span>№ 02</span>
-              <span>·</span>
-              <span>Réflexion éditoriale</span>
-            </div>
-            <h2
-              style={{ fontFamily: activeFont }}
-              className="text-sm sm:text-base font-bold text-foreground tracking-tight"
-            >
-              L'art de la sobriété et de l'indépendance numérique
-            </h2>
-            <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
-              Retrouver la profondeur d'écriture et le temps long de la réflexion sans
-              intermédiaires.
-            </p>
+          {/* Filtres de rubriques / Catégories */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 pt-1 no-scrollbar border-t border-border/30">
+            <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-foreground/10 text-foreground shrink-0 shadow-2xs cursor-default">
+              Tous
+            </span>
+            <span className="px-2.5 py-1 rounded-full text-[11px] font-medium text-muted-foreground hover:text-foreground bg-muted/40 border border-border/40 shrink-0 cursor-default">
+              Interactions <span className="text-[9px] opacity-60 ml-0.5">3</span>
+            </span>
+            <span className="px-2.5 py-1 rounded-full text-[11px] font-medium text-muted-foreground hover:text-foreground bg-muted/40 border border-border/40 shrink-0 cursor-default">
+              Systèmes <span className="text-[9px] opacity-60 ml-0.5">2</span>
+            </span>
+            <span className="px-2.5 py-1 rounded-full text-[11px] font-medium text-muted-foreground hover:text-foreground bg-muted/40 border border-border/40 shrink-0 cursor-default">
+              Éditorial <span className="text-[9px] opacity-60 ml-0.5">1</span>
+            </span>
           </div>
 
-          {/* Newsletter Wall Factice */}
-          {showNewsletterWall && (
-            <div className="p-4 rounded-xl border border-border/40 bg-muted/15 text-center space-y-2">
-              <p className="text-xs font-semibold text-foreground">
-                Recevoir les prochains chapitres
+          {/* Flux d'articles dense & soigné */}
+          <div className="space-y-4">
+            {/* Article Vedette */}
+            <article className="group p-5 rounded-xl border border-border/50 bg-card hover:border-border/90 transition-all space-y-2.5 shadow-2xs">
+              <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                <span
+                  className="px-2 py-0.5 rounded-full font-semibold text-[10px]"
+                  style={{ backgroundColor: `${activeColor}18`, color: activeColor }}
+                >
+                  Interactions
+                </span>
+                <span>·</span>
+                <span>6 min de lecture</span>
+                <span>·</span>
+                <span>15 mars 2026</span>
+              </div>
+              <h2
+                style={{ fontFamily: activeFont }}
+                className="text-base sm:text-lg font-bold text-foreground leading-snug tracking-tight"
+              >
+                Modèles cinétiques et toucher tactile des surfaces fluides
+              </h2>
+              <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
+                Exploration des constantes d'élasticité, d'amortissement et de vélocité pour
+                conférer un momentum organique aux interfaces modernes.
               </p>
-              <div className="flex items-center gap-2 max-w-xs mx-auto">
+            </article>
+
+            {/* Grille secondaire 2 colonnes */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <article className="p-4 rounded-xl border border-border/40 bg-card space-y-2 shadow-2xs">
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  <span className="px-1.5 py-0.2 rounded bg-muted/50 font-medium text-[10px]">
+                    Systèmes
+                  </span>
+                  <span>·</span>
+                  <span>4 min</span>
+                </div>
+                <h3
+                  style={{ fontFamily: activeFont }}
+                  className="text-xs sm:text-sm font-semibold text-foreground leading-snug"
+                >
+                  L'indépendance éditoriale à l'ère des flux
+                </h3>
+                <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                  Pourquoi les créateurs reprennent la souveraineté de leur lectorat.
+                </p>
+              </article>
+
+              <article className="p-4 rounded-xl border border-border/40 bg-card space-y-2 shadow-2xs">
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                  <span className="px-1.5 py-0.2 rounded bg-muted/50 font-medium text-[10px]">
+                    Éditorial
+                  </span>
+                  <span>·</span>
+                  <span>3 min</span>
+                </div>
+                <h3
+                  style={{ fontFamily: activeFont }}
+                  className="text-xs sm:text-sm font-semibold text-foreground leading-snug"
+                >
+                  Le temps long comme méthode de travail
+                </h3>
+                <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
+                  S'affranchir du bruit permanent pour retrouver la profondeur des idées.
+                </p>
+              </article>
+            </div>
+          </div>
+
+          {/* Mur d'abonnement Newsletter (Style fidèle à SubscribeForm & NewsletterWallBlock) */}
+          {showNewsletterWall && (
+            <div className="p-6 rounded-2xl border border-border/50 bg-muted/20 text-center space-y-3 shadow-xs">
+              <div className="space-y-1">
+                <h3
+                  style={{ fontFamily: activeFont }}
+                  className="text-sm sm:text-base font-bold text-foreground"
+                >
+                  Rester en contact
+                </h3>
+                <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                  Mes réflexions directement dans votre boîte mail, sans algorithme ni spam.
+                </p>
+              </div>
+
+              {/* Formulaire moderne avec bouton accent */}
+              <div className="flex flex-col sm:flex-row items-center gap-2 max-w-md mx-auto pt-1">
                 <input
                   type="email"
                   readOnly
-                  placeholder="email@exemple.com"
-                  className="w-full px-2.5 py-1 bg-background border border-border/40 rounded-md text-[11px] text-muted-foreground"
+                  placeholder="votre.email@domaine.com"
+                  className="w-full sm:flex-1 h-9 px-3 rounded-lg border border-border bg-background text-xs text-foreground placeholder:text-muted-foreground focus:outline-none shadow-2xs"
                 />
-                <button
-                  type="button"
-                  className="px-3 py-1 rounded-md text-[11px] font-semibold text-white shrink-0 shadow-2xs"
+                <span
+                  className="w-full sm:w-auto h-9 px-4 rounded-lg text-xs font-semibold text-white shadow-2xs flex items-center justify-center whitespace-nowrap cursor-default"
                   style={{ backgroundColor: activeColor }}
                 >
-                  Suivre
-                </button>
+                  S'abonner
+                </span>
               </div>
+
+              <p className="text-[10px] text-muted-foreground/70">
+                100% Indépendant · 1-clic pour les membres Qoefi · Désinscription libre
+              </p>
             </div>
           )}
         </div>

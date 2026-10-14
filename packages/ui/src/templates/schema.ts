@@ -107,6 +107,8 @@ export interface ArticleStreamBlockProps {
   pagination: 'infinite' | 'load-more' | 'pages';
   /** Slug de rubrique : vide = tous les articles */
   categoryFilter?: string;
+  /** Regrouper les articles par rubriques / catégories */
+  groupByCategory?: boolean;
 }
 
 /** Configuration du Mur d'Abonnement Newsletter */

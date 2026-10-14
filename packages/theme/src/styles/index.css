@@ -41,6 +41,9 @@
   --font-classical:
     -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'SF Mono', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-outfit: 'Outfit', sans-serif;
+  --font-space-grotesk: 'Space Grotesk', sans-serif;
+  --font-serif: 'Newsreader', 'Playfair Display', Georgia, serif;
 
   --color-neural-emerald: var(--neural-emerald);
   --color-neural-rose: var(--neural-rose);
@@ -55,6 +58,9 @@
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: var(--font-sans);
+  --font-outfit: var(--font-outfit);
+  --font-space-grotesk: var(--font-space-grotesk);
+  --font-serif: var(--font-serif);
 
   --color-brand: var(--accent-brand);
   --color-brand-foreground: var(--accent-brand-fg);

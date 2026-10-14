@@ -19,6 +19,7 @@ import { getArticleUrl } from '@qoe/config/routes';
 import { Popover, PopoverContent, PopoverTrigger } from '@qoe/ui/ui/popover';
 import { SafeAvatar, ProfileHoverCard } from '@qoe/ui';
 import { CertifiedBadge } from '@qoe/ui/ui/CertifiedBadge';
+import { getCoverPlaceholder } from '@qoe/theme';
 import { ThoughtCard, type ThoughtData } from '@/components/social/ThoughtCard';
 
 interface Journalist {
@@ -385,7 +386,9 @@ export function ArticleCard({
     ? otherContributors.map((coAuthor) => ({ ...coAuthor, isMedia: false }))
     : secondaryPeople;
   const fallbackImage = useAuthorAsPrimary ? journalist?.logoUrl : article.author.logoUrl;
-  const coverImage = article.imageUrl || fallbackImage;
+  const rawCover = article.imageUrl?.includes('unsplash') ? null : article.imageUrl;
+  const rawFallback = fallbackImage?.includes('unsplash') ? null : fallbackImage;
+  const coverImage = rawCover || rawFallback || getCoverPlaceholder(article.id || article.slug);
   const excerpt = plainText(article.content);
   const date = new Date(article.createdAt).toLocaleDateString('fr-FR', {
     day: 'numeric',
@@ -446,6 +449,10 @@ export function ArticleCard({
             alt=""
             fill
             priority={featured}
+            unoptimized={
+              typeof coverImage === 'string' &&
+              (coverImage.startsWith('data:') || coverImage.startsWith('http'))
+            }
             className="object-cover"
             sizes="(max-width: 768px) 100vw, 720px"
           />
