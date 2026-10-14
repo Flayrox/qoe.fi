@@ -778,6 +778,37 @@ type CookieConsentRecord struct {
 	CreatedAt     pgtype.Timestamp `json:"created_at"`
 }
 
+type Ebook struct {
+	ID                string           `json:"id"`
+	OwnerId           pgtype.UUID      `json:"ownerId"`
+	Title             string           `json:"title"`
+	Author            string           `json:"author"`
+	Language          string           `json:"language"`
+	Chapters          []byte           `json:"chapters"`
+	ChapterCount      int32            `json:"chapterCount"`
+	Cover             []byte           `json:"cover"`
+	CoverMime         pgtype.Text      `json:"coverMime"`
+	FileSha           string           `json:"fileSha"`
+	SizeBytes         int32            `json:"sizeBytes"`
+	ProgressChapter   int32            `json:"progressChapter"`
+	ProgressPct       int16            `json:"progressPct"`
+	ProgressParagraph int32            `json:"progressParagraph"`
+	CreatedAt         pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt         pgtype.Timestamp `json:"updatedAt"`
+}
+
+type EbookNote struct {
+	ID           string           `json:"id"`
+	EbookId      string           `json:"ebookId"`
+	OwnerId      pgtype.UUID      `json:"ownerId"`
+	ChapterIndex int32            `json:"chapterIndex"`
+	ChapterTitle string           `json:"chapterTitle"`
+	Excerpt      string           `json:"excerpt"`
+	Note         string           `json:"note"`
+	CreatedAt    pgtype.Timestamp `json:"createdAt"`
+	UpdatedAt    pgtype.Timestamp `json:"updatedAt"`
+}
+
 type EmailSuppression struct {
 	ID            string           `json:"id"`
 	Email         string           `json:"email"`
@@ -1405,6 +1436,7 @@ type Publication struct {
 	SeoDescription         pgtype.Text      `json:"seoDescription"`
 	SupportUrl             pgtype.Text      `json:"supportUrl"`
 	EmailSettings          []byte           `json:"emailSettings"`
+	SiteOptions            []byte           `json:"siteOptions"`
 	StripeAccountId        pgtype.Text      `json:"stripeAccountId"`
 	CreatedAt              pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt              pgtype.Timestamp `json:"updatedAt"`

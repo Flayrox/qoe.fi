@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
@@ -151,6 +152,7 @@ type SettingsPublication struct {
 	SupportURL     *string              `json:"supportUrl"`
 	Type           string               `json:"type"`
 	UmamiWebsiteID *string              `json:"umamiWebsiteId"`
+	SiteOptions    map[string]any       `json:"siteOptions"`
 	Navigation     []SettingsNavItem    `json:"navigation"`
 	SocialLinks    []SettingsSocialLink `json:"socialLinks"`
 	Articles       []SettingsArticle    `json:"articles"`
@@ -184,10 +186,17 @@ func (s *Service) GetPublicationSettings(ctx context.Context, userID, publicatio
 		SeoTitle: textPtr(row.SeoTitle), SeoDescription: textPtr(row.SeoDescription),
 		AllowIndexing: row.AllowIndexing, SupportURL: textPtr(row.SupportUrl),
 		Type: string(row.Type), UmamiWebsiteID: textPtr(row.UmamiWebsiteId),
+		SiteOptions: map[string]any{},
 		Navigation:  []SettingsNavItem{},
 		SocialLinks: []SettingsSocialLink{},
 		Articles:    []SettingsArticle{},
 		Categories:  []SettingsCategory{},
+	}
+	if len(row.SiteOptions) > 0 {
+		var opts map[string]any
+		if err := json.Unmarshal(row.SiteOptions, &opts); err == nil && opts != nil {
+			pub.SiteOptions = opts
+		}
 	}
 	if row.OwnerID != "" {
 		pub.User = &SettingsOwner{
@@ -291,6 +300,17 @@ func (s *Service) UpdateProfile(ctx context.Context, userID, publicationID strin
 			return db.GetUserForSettingsRow{}, errors.New("allowIndexing doit être un booléen")
 		}
 		fields["allowIndexing"] = b
+	}
+	if v, ok := body["siteOptions"]; ok {
+		if v == nil {
+			fields["siteOptions"] = []byte("{}")
+		} else {
+			raw, err := json.Marshal(v)
+			if err != nil {
+				return db.GetUserForSettingsRow{}, errors.New("siteOptions JSON invalide")
+			}
+			fields["siteOptions"] = raw
+		}
 	}
 
 	if len(fields) > 0 {

@@ -25,3 +25,6 @@ export * from './blocks/CategorySpotlightBlock';
 export * from './blocks/BlockWrapper';
 export * from './blocks/EditableText';
 export * from './blocks/NodeRenderer';
+export * from './archetypes/minimal';
+export * from './registry';
+export * from './placeholders';

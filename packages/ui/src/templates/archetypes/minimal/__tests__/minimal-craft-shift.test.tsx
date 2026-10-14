@@ -1,0 +1,136 @@
+import React from 'react';
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { MinimalCraftShell } from '../MinimalCraftShell';
+import type { TemplatePublicationContext, TemplateArticleItem } from '../../../schema';
+
+global.IntersectionObserver = class {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+} as unknown as typeof IntersectionObserver;
+
+const mockPublication: TemplatePublicationContext = {
+  id: 'pub_1',
+  name: 'Devouring Details',
+  domain: 'devouringdetails.com',
+  accentColor: '#F97316',
+};
+
+const mockArticle: TemplateArticleItem = {
+  id: 'art_1',
+  title: 'Behind scenes',
+  slug: 'behind-scenes',
+};
+
+describe('MinimalCraftShell - Devouring Details Exact Match (Screenshots 1 & 2)', () => {
+  it('hides sidebar completely when closed, slides it in when open, and only shifts main content right while header remains fixed', () => {
+    const { container } = render(
+      <MinimalCraftShell
+        publication={mockPublication}
+        article={mockArticle}
+        articles={[mockArticle]}
+      >
+        <article id="test-article-body">Contenu de test</article>
+      </MinimalCraftShell>
+    );
+
+    const rootElement = container.querySelector('.platform_root');
+    expect(rootElement?.getAttribute('data-sidebar-open')).toBe('false');
+
+    const sidebarElement = container.querySelector('aside.platform_sidebar');
+    expect(sidebarElement).toBeTruthy();
+    // Quand fermé (Screenshot 2) : sidebar complètement masquée / escamotée à gauche
+    expect(sidebarElement?.className).toContain('-translate-x-full');
+    expect(sidebarElement?.className).toContain('opacity-0');
+
+    const mainElement = container.querySelector('main');
+    expect(mainElement?.className).toContain('translate-x-0');
+
+    // Le header breadcrumb NE DOIT PAS bouger avec le contenu, il reste à sa position fixe
+    const headerBreadcrumb = container.querySelector('header p');
+    expect(headerBreadcrumb?.className).not.toMatch(/translate-x-(48|60|64)/);
+
+    // Clic pour ouvrir la sidebar (Screenshot 1)
+    const toggleButton = screen.getByLabelText('Basculer la sidebar');
+    fireEvent.click(toggleButton);
+
+    expect(rootElement?.getAttribute('data-sidebar-open')).toBe('true');
+    // Quand ouvert (Screenshot 1) : sidebar visible sur le bord gauche
+    expect(sidebarElement?.className).toContain('translate-x-0');
+    expect(sidebarElement?.className).toContain('opacity-100');
+
+    // Le contenu principal est translaté vers la droite pour faire place à la sidebar
+    expect(mainElement?.className).toMatch(/translate-x-/);
+    expect(mainElement?.className).not.toContain('translate-x-0');
+
+    // Le header breadcrumb reste fixe
+    expect(headerBreadcrumb?.className).not.toMatch(/translate-x-(48|60|64)/);
+
+    // Clic pour refermer
+    fireEvent.click(toggleButton);
+    expect(rootElement?.getAttribute('data-sidebar-open')).toBe('false');
+    expect(sidebarElement?.className).toContain('-translate-x-full');
+    expect(sidebarElement?.className).toContain('opacity-0');
+    expect(mainElement?.className).toContain('translate-x-0');
+  });
+
+  it('displays the chosen page title in header instead of raw Index', () => {
+    const articleWithCategory: TemplateArticleItem = {
+      id: 'art_2',
+      title: 'Behind scenes',
+      slug: 'behind-scenes',
+      category: { name: 'Resources', slug: 'resources' },
+    };
+
+    const { container } = render(
+      <MinimalCraftShell
+        publication={mockPublication}
+        article={articleWithCategory}
+        articles={[articleWithCategory]}
+      >
+        <article>Contenu</article>
+      </MinimalCraftShell>
+    );
+
+    const headerBreadcrumb = container.querySelector('header p');
+    expect(headerBreadcrumb?.textContent).toContain('Behind scenes');
+    expect(headerBreadcrumb?.textContent).not.toContain('Index');
+    expect(headerBreadcrumb?.textContent).not.toContain('Sommaire');
+  });
+
+  it('displays article title when active, never displaying raw Index or Sommaire', () => {
+    const articleWithoutCategory: TemplateArticleItem = {
+      id: 'art_3',
+      title: 'Behind scenes',
+      slug: 'behind-scenes',
+    };
+
+    const { container } = render(
+      <MinimalCraftShell
+        publication={mockPublication}
+        article={articleWithoutCategory}
+        articles={[articleWithoutCategory]}
+      >
+        <article>Contenu</article>
+      </MinimalCraftShell>
+    );
+
+    const headerBreadcrumb = container.querySelector('header p');
+    expect(headerBreadcrumb?.textContent).toContain('Behind scenes');
+    expect(headerBreadcrumb?.textContent).not.toContain('Index');
+    expect(headerBreadcrumb?.textContent).not.toContain('Sommaire');
+  });
+
+  it('displays publication name on home page when no article is active, without Sommaire suffix', () => {
+    const { container } = render(
+      <MinimalCraftShell publication={mockPublication} articles={[mockArticle]}>
+        <div>Page d'accueil</div>
+      </MinimalCraftShell>
+    );
+
+    const headerBreadcrumb = container.querySelector('header p');
+    expect(headerBreadcrumb?.textContent).toContain('Devouring Details');
+    expect(headerBreadcrumb?.textContent).not.toContain('Sommaire');
+  });
+});

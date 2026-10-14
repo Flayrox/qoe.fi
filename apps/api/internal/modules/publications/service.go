@@ -64,6 +64,7 @@ type ArticleSummary struct {
 	Title       string        `json:"title"`
 	Slug        string        `json:"slug"`
 	Content     string        `json:"content"`
+	ImageURL    *string       `json:"imageUrl,omitempty"`
 	Published   bool          `json:"published"`
 	IsPremium   bool          `json:"isPremium"`
 	Visibility  string        `json:"visibility"`
@@ -424,7 +425,7 @@ func (s *Service) publishedArticles(ctx context.Context, pubID string) ([]Articl
 	rows, err := s.pool.Query(ctx, `
 		SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium",
 		       a.visibility, a."readingTime", a."createdAt", a."categoryId",
-		       c.id, c.name, c.slug
+		       c.id, c.name, c.slug, a."imageUrl"
 		FROM "Article" a
 		LEFT JOIN "Category" c ON c.id = a."categoryId"
 		WHERE a."publicationId" = $1 AND a.published = true
@@ -439,7 +440,7 @@ func (s *Service) publishedArticles(ctx context.Context, pubID string) ([]Articl
 		var createdAt time.Time
 		var catID, catName, catSlug *string
 		if err := rows.Scan(&a.ID, &a.Title, &a.Slug, &a.Content, &a.Published, &a.IsPremium,
-			&a.Visibility, &a.ReadingTime, &createdAt, &a.CategoryID, &catID, &catName, &catSlug); err != nil {
+			&a.Visibility, &a.ReadingTime, &createdAt, &a.CategoryID, &catID, &catName, &catSlug, &a.ImageURL); err != nil {
 			return nil, err
 		}
 		// 🔒 Zéro-fuite : la liste d'articles publiés alimente les cartes de la

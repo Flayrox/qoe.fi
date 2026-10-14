@@ -1,35 +1,17 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
 import { createClient } from '@qoe/supabase/server';
-import { getMainAppUrl } from '@qoe/config';
 import Link from 'next/link';
-import Image from 'next/image';
-import { TenantHeader, SubscribeForm } from '@qoe/ui';
-import { type AnnotationItem, type HighlightItem } from '@qoe/ui/annotations';
-import { TenantArticleHighlighter } from './TenantArticleHighlighter';
-import { TenantArticleReadingTracker } from './TenantArticleReadingTracker';
-import { type CommentItem } from './ArticleCommentsSection';
-import { PaywallCut } from './PaywallCut';
-import { ReaderActions } from './ReaderActions';
-import { ArticleCommentsSection } from './ArticleCommentsSection';
 import { getArticleCommentsAction } from './actions';
-import { buildPublicDescription, buildPublicExcerpt, sliceContentAtPaywall } from '@qoe/utils';
+import { buildPublicExcerpt } from '@qoe/utils';
 import { ContentVisibility } from '@qoe/config';
 import { t } from '@lingui/core/macro';
-import {
-  fetchTenantArticle,
-  fetchArticleHighlights,
-  fetchCanonicalDocument,
-} from '@/lib/tenant-data';
+import { fetchTenantArticle, fetchArticleHighlights } from '@/lib/tenant-data';
 import type { Metadata } from 'next';
-import { JsonLd, buildArticleSchema } from '@qoe/ui';
 import { getLanguage } from '@qoe/i18n/server';
-import { TenantReaderShell } from './TenantReaderShell';
-import { RelatedArticles } from './RelatedArticles';
-import { ReadingProgressBar } from '@/components/ReadingProgressBar';
-import { LegalFooterLinks } from '@/components/legal/LegalFooterLinks';
-import { TemplateRenderer, parseSiteLayouts } from '@qoe/ui/templates';
-import type { TemplatePublicationContext, TemplateArticleItem } from '@qoe/ui/templates';
+import { TenantPageRenderer } from '@/components/TenantPageRenderer';
+import type { CommentItem } from './ArticleCommentsSection';
+import type { AnnotationItem, HighlightItem } from '@qoe/ui/annotations';
 
 interface TenantArticlePageProps {
   params: Promise<{
@@ -55,10 +37,7 @@ export async function generateMetadata({ params }: TenantArticlePageProps): Prom
     ? `Lisez ${article.title} sur ${publication.name || decodedDomain}.`
     : `Read ${article.title} on ${publication.name || decodedDomain}.`;
 
-  // 🔒 Zéro-fuite : la description SEO/OpenGraph d'un visiteur anonyme est
-  // dérivée du contenu DÉJÀ tronqué au paywall — jamais du contenu brut, sinon
-  // le passage réservé partirait dans le HTML public, les métadonnées sociales
-  // (OpenGraph/Twitter) et l'index des moteurs de recherche.
+  // 🔒 Zéro-fuite : description SEO dérivée du teaser public
   const description =
     buildPublicExcerpt(
       article.content || '',
@@ -116,9 +95,7 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
     data: { user },
   } = await supabase.auth.getUser();
 
-  // 2+3. Go-first : GET /v1/publications/by-domain/{domain}/article/{slug} —
-  // résolution polymorphe de la Publication + article (catégorie, auteur,
-  // entitlements, bookmarked/followed) + fallback attribution côté Go.
+  // 2. Go-first : GET /v1/publications/by-domain/{domain}/article/{slug}
   const bundle = await fetchTenantArticle(decodedDomain, decodedSlug);
 
   if (!bundle) {
@@ -128,22 +105,6 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
   const publication = bundle.publication;
   const article = bundle.article;
   const displayName = publication.name || publication.user?.username || t`le créateur`;
-  const currentUserProfile: {
-    id: string;
-    name: string | null;
-    username: string | null;
-    logoUrl: string | null;
-  } | null = user
-    ? {
-        id: user.id,
-        name: (user.user_metadata?.name as string) ?? null,
-        username:
-          (user.user_metadata?.username as string) ??
-          (user.user_metadata?.user_name as string) ??
-          null,
-        logoUrl: (user.user_metadata?.avatar_url as string) ?? null,
-      }
-    : null;
 
   if (!article) {
     return (
@@ -172,9 +133,7 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
   }
 
   const isPublicationOwner =
-    publication.type === 'MEDIA'
-      ? false // Un article média est géré par les membres ; le brouillon n'est pas public
-      : publication.user?.id === user?.id;
+    publication.type === 'MEDIA' ? false : publication.user?.id === user?.id;
 
   // Si article non publié et visiteur ≠ propriétaire/membre du média
   if (!article.published && !isPublicationOwner && user?.id !== article.authorId) {
@@ -203,11 +162,7 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
     );
   }
 
-  // 4. Interactions + surlignages + commentaires — Go-first.
-  // bookmarked/followed viennent du bundle ; les surlignages publics + les
-  // siens via GET /v1/articles/{id}/highlights ; commentaires via l'action Go.
-  const initialBookmarked = bundle.bookmarked;
-  const initialFollowed = bundle.followed;
+  // 3. Fetch highlights & commentaires
   const [hlRes, commentsRes] = await Promise.all([
     fetchArticleHighlights(article.id),
     getArticleCommentsAction(article.id),
@@ -215,336 +170,21 @@ export default async function TenantArticlePage({ params }: TenantArticlePagePro
 
   const initialHighlights: HighlightItem[] = hlRes.myPrivateHighlights;
   const publicHighlights: AnnotationItem[] = hlRes.publicHighlights;
-
   const initialComments = (commentsRes?.comments || []) as unknown as CommentItem[];
 
-  const {
-    name,
-    accentColor,
-    fontFamily,
-    logoUrl,
-    footerText,
-    layoutStyle,
-    themeMode,
-    navigation,
-    socialLinks,
-    stripeAccountId,
-    supportUrl,
-  } = publication;
-
-  const authorName = article.author?.name || article.author?.username || name;
-
-  const allowPublicAnnotations =
-    (publication.allowPublicAnnotations ?? true) && (article.allowPublicAnnotations ?? true);
-  const allowComments = (publication.allowComments ?? true) && (article.allowComments ?? true);
-  const mainAppUrl = getMainAppUrl(domain);
-  const isBrutalist = layoutStyle === 'brutalist';
-  const isMediaBrand = publication.type === 'MEDIA';
-
-  const customStyle = {
-    '--tenant-accent': accentColor || 'hsl(var(--primary))',
-    fontFamily: fontFamily ? `var(--font-${fontFamily})` : 'inherit',
-    ...(themeMode === 'dark' && { colorScheme: 'dark' }),
-  } as React.CSSProperties;
-
-  const plainText = article.content.replace(/<[^>]*>?/gm, '');
-  const wordCount = plainText.split(/\s+/).length;
-  const readingTimeMinutes = Math.max(1, Math.ceil(wordCount / 200));
-
-  // 4. Paywall entitlements (résolus côté Go dans le bundle) & truncation
-  // serveur sans fuite.
-  const isAuthor = user?.id === article.authorId;
-  const isPaidSubscriber = isAuthor || bundle.entitlements.isPaidSubscriber;
-  const isMember = isAuthor || bundle.entitlements.isMember;
-
-  const visibility = article.isPremium
-    ? ContentVisibility.PAID_SUBSCRIBERS
-    : ContentVisibility.PUBLIC;
-
-  // 🔒 Zéro-fuite, défense en profondeur : le backend Go tronque DÉJÀ le
-  // contenu pour un lecteur non autorisé (`accessGranted === false`).
-  // `article.content` est alors l'aperçu public exact — on le réutilise tel
-  // quel au lieu de le retronquer (le marqueur de coupure ayant disparu, une
-  // seconde passe raboterait le teaser légitime). Sinon on recoupe localement.
-  const paywallCutResult =
-    article.accessGranted === false
-      ? {
-          content: article.content,
-          isTruncated: true,
-          accessGranted: false,
-          paywallMeta: null,
-        }
-      : sliceContentAtPaywall(article.content || '', { isMember, isPaidSubscriber }, visibility);
-
-  // Template article Stage : scope optionnel, repli lecteur natif sinon.
-  // Le contenu passé au template est DÉJÀ tronqué au paywall (zéro-fuite).
-  const siteLayouts = parseSiteLayouts(publication.layoutStyle || 'magazine');
-  const articleLayout =
-    (article.category?.slug && siteLayouts.articleByCategory[article.category.slug]) ||
-    siteLayouts.article;
-  const templatePublication: TemplatePublicationContext = {
-    id: publication.id,
-    name: publication.name,
-    domain: decodedDomain,
-    logoUrl: publication.logoUrl,
-    accentColor: publication.accentColor,
-    fontFamily: publication.fontFamily,
-    themeMode: publication.themeMode,
-    navigation: navigation as TemplatePublicationContext['navigation'],
-    socialLinks: socialLinks as TemplatePublicationContext['socialLinks'],
-  };
-  const templateArticle: TemplateArticleItem = {
-    id: article.id,
-    title: article.title,
-    slug: article.slug,
-    content: paywallCutResult.content,
-    excerpt: '',
-    imageUrl: article.imageUrl || null,
-    publishedAt: article.createdAt,
-    readingTime: readingTimeMinutes,
-    isPremium: false,
-    category: article.category
-      ? { name: article.category.name, slug: article.category.slug }
-      : null,
-    author: article.author
-      ? {
-          name: article.author.name,
-          username: article.author.username,
-          logoUrl: article.author.logoUrl,
-        }
-      : null,
-  };
-
-  // Tranche 1-b : document canonique (rendu par blocs + marques par offsets).
-  // Uniquement quand l'accès complet est acquis — ne JAMAIS télécharger le
-  // document complet d'un article verrouillé (fuite du contenu payant).
-  const canonicalDocument = !paywallCutResult.isTruncated
-    ? await fetchCanonicalDocument(article.id)
-    : null;
-
-  const jsonLdData = buildArticleSchema({
-    title: article.title,
-    // 🔒 Zéro-fuite : la description SEO/JSON-LD est dérivée du contenu DÉJÀ
-    // tronqué par le paywall, jamais du contenu brut de l'article.
-    description: buildPublicDescription(paywallCutResult.content),
-    slug: article.slug,
-    createdAt: article.createdAt,
-    authorName,
-    authorUsername: article.author?.username,
-    authorLogo: article.author?.logoUrl,
-    coverImage: article.imageUrl || publication.headerImageUrl || article.author?.logoUrl,
-    baseUrl: `https://${decodedDomain}`,
-  });
-
   return (
-    <TenantReaderShell
-      style={customStyle}
-      themeMode={themeMode}
-      articleMetadata={{
-        title: article.title,
-        coverUrl: article.imageUrl || publication.headerImageUrl || article.author?.logoUrl,
-        authorName,
-        contentSelector: '#article-content',
-      }}
-    >
-      <ReadingProgressBar />
-      <JsonLd data={jsonLdData} />
-      {/* Header */}
-      <TenantHeader
-        name={name}
-        domain={decodedDomain}
-        logoUrl={logoUrl}
-        layoutStyle={layoutStyle}
-        stripeAccountId={stripeAccountId}
-        supportUrl={supportUrl}
-        navigation={navigation}
-        socialLinks={socialLinks}
-      />
-
-      {/* Article Main Container */}
-      <TenantArticleReadingTracker
-        articleId={article.id}
-        slug={article.slug}
-        readingTimeMinutes={readingTimeMinutes}
-        initialSource="subdomain"
-      />
-      <main className="container mx-auto px-4 lg:px-8 pt-12 pb-24 max-w-3xl">
-        {articleLayout ? (
-          <TemplateRenderer
-            config={articleLayout}
-            publication={templatePublication}
-            articles={[]}
-            article={templateArticle}
-            mode="live"
-          />
-        ) : (
-          <>
-            {/* Category & Metadata Header */}
-            <header className="mb-10 space-y-4">
-              <div className="flex items-center gap-3">
-                {article.category && (
-                  <span
-                    className={`px-3 py-1 text-xs font-semibold rounded-full ${isBrutalist ? 'border-2 border-foreground uppercase' : 'bg-[var(--tenant-accent)]/10 text-[var(--tenant-accent)]'}`}
-                  >
-                    {article.category.name}
-                  </span>
-                )}
-                <span className="text-xs text-muted-foreground font-medium">
-                  {t`${readingTimeMinutes} min de lecture`}
-                </span>
-              </div>
-
-              <h1
-                className={`text-4xl md:text-5xl lg:text-6xl tracking-tight leading-[1.15] ${isBrutalist ? 'font-black uppercase' : 'font-bold text-foreground'}`}
-              >
-                {article.title}
-              </h1>
-
-              <div className="flex items-center gap-3 pt-4 border-b border-border/40 pb-6 text-sm text-muted-foreground">
-                {logoUrl && (
-                  <Image
-                    src={logoUrl}
-                    alt={name || t`Auteur`}
-                    width={40}
-                    height={40}
-                    className={`w-10 h-10 object-cover border border-border/40 shrink-0 ${
-                      isMediaBrand ? 'rounded-lg' : 'rounded-full'
-                    }`}
-                  />
-                )}
-                <div>
-                  <span className="font-semibold text-foreground">{authorName}</span>
-                  {isMediaBrand && article.author?.name && (
-                    <span className="ml-1.5 text-muted-foreground text-xs">
-                      • {t`Par ${article.author.name}`}
-                    </span>
-                  )}
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                    <time dateTime={article.createdAt}>
-                      {new Date(article.createdAt).toLocaleDateString('fr-FR', {
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric',
-                      })}
-                    </time>
-                  </div>
-                </div>
-              </div>
-            </header>
-
-            {article.imageUrl && (
-              <figure className="relative w-full overflow-hidden rounded-2xl border border-border/30">
-                <Image
-                  src={article.imageUrl}
-                  alt={article.title}
-                  width={1200}
-                  height={630}
-                  priority
-                  className="h-auto w-full object-cover"
-                />
-              </figure>
-            )}
-
-            {/* Article Body Container with Server-side Zero-Leak PaywallCut —
-            remplacé par le rendu par blocs (document canonique) quand
-            l'accès complet est acquis. */}
-            {!canonicalDocument && (
-              <div
-                id="article-content"
-                className="prose prose-zinc dark:prose-invert max-w-none text-base md:text-lg leading-relaxed space-y-6"
-              >
-                <PaywallCut
-                  contentHtml={paywallCutResult.content}
-                  isPremium={article.isPremium && !paywallCutResult.accessGranted}
-                  name={authorName}
-                  isBrutalist={isBrutalist}
-                  accentColor={accentColor}
-                  mainAppUrl={mainAppUrl}
-                  creatorId={article.authorId}
-                />
-              </div>
-            )}
-          </>
-        )}
-        <RelatedArticles
-          domain={decodedDomain}
-          currentSlug={article.slug}
-          categorySlug={article.category?.slug ?? null}
-          categoryName={article.category?.name ?? null}
-        />
-        {/* Interactive Genius Text Selection Highlighter & Side Drawer Engine */}
-        <TenantArticleHighlighter
-          articleId={article.id}
-          creatorName={authorName || t`L'Auteur`}
-          allowPublicAnnotations={allowPublicAnnotations}
-          isAuthenticated={!!user}
-          initialHighlights={initialHighlights}
-          publicHighlights={publicHighlights as AnnotationItem[]}
-          currentUserId={user?.id || null}
-          currentUserProfile={currentUserProfile}
-          articleAuthorId={article.authorId}
-          mainAppUrl={mainAppUrl}
-          canonicalDocument={canonicalDocument}
-          contentClassName="prose prose-zinc dark:prose-invert max-w-none text-base md:text-lg leading-relaxed space-y-6"
-        />
-
-        {/* Article Comments & Nested Replies Section */}
-        <ArticleCommentsSection
-          articleId={article.id}
-          initialComments={initialComments}
-          isAuthenticated={!!user}
-          currentUserId={user?.id || null}
-          allowComments={allowComments}
-          mainAppUrl={mainAppUrl}
-          isBrutalist={isBrutalist}
-        />
-
-        {/* End of Article Subscribe Section */}
-        <section id="subscribe" className="mt-20 pt-12 border-t border-border/40">
-          <div
-            className={`p-8 md:p-12 text-center rounded-3xl ${isBrutalist ? 'border-4 border-foreground shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] bg-card' : 'bg-card border border-border/40 shadow-sm'}`}
-          >
-            <h3
-              className={`text-2xl md:text-3xl mb-3 ${isBrutalist ? 'font-black uppercase' : 'font-bold'}`}
-            >
-              {t`Restez informé des prochaines publications`}
-            </h3>
-            <p className="text-muted-foreground text-sm md:text-base max-w-md mx-auto mb-8">
-              {t`Abonnez-vous gratuitement à la newsletter de `}
-              <strong className="text-foreground">{name}</strong>{' '}
-              {t`pour recevoir les prochains écrits directement dans votre boîte mail.`}
-            </p>
-            <SubscribeForm
-              publicationId={publication.id}
-              isBrutalist={isBrutalist}
-              userEmail={user?.email || null}
-              authorName={name}
-            />
-          </div>
-        </section>
-      </main>
-
-      {/* Floating Bottom Action Bar */}
-      <ReaderActions
-        articleId={article.id}
-        publicationId={publication.id}
-        creatorName={authorName || t`le créateur`}
-        isAuthenticated={!!user}
-        initialBookmarked={initialBookmarked}
-        initialFollowed={initialFollowed}
-        mainAppUrl={mainAppUrl}
-        articleTitle={article.title}
-      />
-
-      {/* Footer */}
-      <footer
-        className={`py-16 px-4 text-center ${isBrutalist ? 'border-t-4 border-foreground' : 'border-t border-border/40 bg-muted/20'}`}
-      >
-        <div className="max-w-2xl mx-auto space-y-6 text-sm text-muted-foreground">
-          <LegalFooterLinks />
-          <p>{footerText || t`© ${new Date().getFullYear()} ${name ?? ''}. Propulsé par qoefi`}</p>
-        </div>
-      </footer>
-    </TenantReaderShell>
+    <TenantPageRenderer
+      scope="article"
+      publication={publication}
+      article={article}
+      user={user}
+      bundle={bundle}
+      decodedDomain={decodedDomain}
+      initialBookmarked={bundle.bookmarked}
+      initialFollowed={bundle.followed}
+      initialHighlights={initialHighlights}
+      publicHighlights={publicHighlights}
+      initialComments={initialComments}
+    />
   );
 }

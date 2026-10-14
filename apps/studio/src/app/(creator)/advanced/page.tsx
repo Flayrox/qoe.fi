@@ -10,7 +10,7 @@ import {
   Sliders,
   ArrowRight,
   Loader2,
-  Sparkles,
+  Building2,
 } from 'lucide-react';
 import {
   getCollaborationRequestsAction,
@@ -301,7 +301,7 @@ export default function CreatorAdvancedPage() {
       <div className="bg-card border border-border/40 rounded-3xl p-6 md:p-8 shadow-sm">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
-            <Sparkles className="w-5 h-5" />
+            <Building2 className="w-5 h-5" />
           </div>
           <div>
             <h2 className="text-xl font-bold">Créer un Profil Média / Journal Collectif</h2>
@@ -372,7 +372,7 @@ export default function CreatorAdvancedPage() {
               ) : (
                 <>
                   <span>{t`Créer le Profil Média & Espace de Travail`}</span>
-                  <Sparkles className="w-4 h-4" />
+                  <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>

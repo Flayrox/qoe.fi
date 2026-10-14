@@ -103,3 +103,28 @@ export * from './seo/JsonLd';
 
 // 🧭 Page 404 Immersive & Interactive
 export { NotFoundView } from './NotFoundView';
+
+// 🛡️ Statuts Fonctionnalités (En développement, Pro, Bientôt)
+export {
+  FeatureTeaser,
+  UpcomingBadge,
+  FeatureInfoTooltip,
+  type FeatureStatus,
+  type FeatureTeaserProps,
+  type UpcomingBadgeProps,
+  type FeatureInfoTooltipProps,
+} from './ui/feature-teaser';
+
+// 🪶 Minimal Craft (Inspiré Rauno / Devouring Details)
+export {
+  CraftIndicator,
+  type CraftIndicatorProps,
+  type CraftIndicatorType,
+} from './ui/craft-indicator';
+export {
+  SidebarToggleIcon,
+  CraftSidebarDrawer,
+  type SidebarToggleIconProps,
+  type CraftSidebarDrawerProps,
+  type CraftDrawerItem,
+} from './ui/craft-sidebar-drawer';

@@ -1,0 +1,166 @@
+import React from 'react';
+import { JsonLd, buildWebSiteSchema } from '@qoe/ui';
+import {
+  TemplateRenderer,
+  parseSiteLayouts,
+  type TemplatePublicationContext,
+  type TemplateArticleItem,
+} from '@qoe/ui/templates';
+import { RecommendedSection } from '@/components/RecommendedSection';
+import { buildPublicDescription, sliceContentAtPaywall } from '@qoe/utils';
+import { ContentVisibility } from '@qoe/config';
+import type { TenantPublication, RecommendationItem } from '@/lib/tenant-data';
+import {
+  TenantArticleRenderer,
+  type TenantArticleRendererProps,
+} from '@/app/tenant/[domain]/article/[slug]/TenantArticleRenderer';
+
+export interface TenantHomeRendererProps {
+  scope: 'home';
+  publication: TenantPublication;
+  recommendations?: RecommendationItem[] | null;
+  decodedDomain: string;
+}
+
+export type TenantPageRendererProps =
+  TenantHomeRendererProps | (TenantArticleRendererProps & { scope: 'article' });
+
+/**
+ * Contrôleur universel Server Component pour le rendu des pages de publication
+ * (Home & Article). Assure une parité stricte avec le Theme Registry, l'isolation
+ * des Server Components et la protection paywall zéro-fuite.
+ */
+export async function TenantPageRenderer(props: TenantPageRendererProps) {
+  if (props.scope === 'article') {
+    return <TenantArticleRenderer {...props} />;
+  }
+
+  const { publication, recommendations, decodedDomain } = props;
+  const {
+    name,
+    heroText,
+    accentColor,
+    fontFamily,
+    logoUrl,
+    articles = [],
+    headerImageUrl,
+    footerText,
+    layoutStyle,
+    themeMode,
+    navigation = [],
+    socialLinks = [],
+    stripeAccountId,
+    supportUrl,
+  } = publication;
+
+  // 🔒 Zéro-fuite : les extraits des cartes sont dérivés du contenu DÉJÀ tronqué
+  // par le paywall. Rendre `article.content` brut exposait le passage réservé
+  // aux visiteurs non authentifiés (et aux crawlers) dès la page d'accueil.
+  const articleExcerpts = new Map(
+    articles.map((article) => {
+      const cut = sliceContentAtPaywall(
+        article.content || '',
+        { isMember: false, isPaidSubscriber: false },
+        article.isPremium ? ContentVisibility.PAID_SUBSCRIBERS : ContentVisibility.PUBLIC
+      );
+      return [article.id, buildPublicDescription(cut.content, 250) ?? ''];
+    })
+  );
+
+  const jsonLdData = buildWebSiteSchema({
+    name: name || decodedDomain,
+    url: `https://${decodedDomain}`,
+    description: heroText || undefined,
+  });
+
+  const siteLayouts = parseSiteLayouts(layoutStyle, {
+    accentColor,
+    fontFamily,
+  });
+
+  const templatePub: TemplatePublicationContext = {
+    id: publication.id,
+    name,
+    slug: publication.slug,
+    domain: decodedDomain,
+    subdomain: publication.subdomain,
+    customDomain: publication.customDomain,
+    logoUrl,
+    heroText,
+    headerImageUrl,
+    footerText,
+    accentColor,
+    fontFamily,
+    themeMode,
+    stripeAccountId,
+    supportUrl,
+    categories: (publication.categories ?? []).map((c) => ({
+      id: c.id,
+      name: c.name,
+      slug: c.slug,
+      parentId: c.parentId ?? null,
+    })),
+    siteOptions:
+      (
+        publication as {
+          siteOptions?: Record<string, boolean> | null;
+          site_options?: Record<string, boolean> | null;
+        }
+      ).siteOptions ??
+      (
+        publication as {
+          siteOptions?: Record<string, boolean> | null;
+          site_options?: Record<string, boolean> | null;
+        }
+      ).site_options ??
+      null,
+    navigation: navigation.map((n) => ({
+      id: n.id,
+      label: n.label,
+      url: n.url,
+      order: n.order,
+      isExternal: n.isExternal,
+      publicationId: publication.id,
+      parentId: n.parentId,
+    })),
+    socialLinks: socialLinks.map((s) => ({
+      id: s.id,
+      platform: s.platform,
+      url: s.url,
+      order: s.order,
+      publicationId: publication.id,
+    })),
+  };
+
+  const templateArticles: TemplateArticleItem[] = articles.map((article) => ({
+    id: article.id,
+    title: article.title,
+    slug: article.slug,
+    content: article.content,
+    imageUrl: article.imageUrl || null,
+    excerpt: articleExcerpts.get(article.id) || '',
+    readingTime: article.readingTime,
+    isPremium: article.isPremium,
+    publishedAt: article.createdAt,
+    category: article.category
+      ? { name: article.category.name, slug: article.category.slug }
+      : null,
+  }));
+
+  return (
+    <div className="min-h-screen bg-background text-foreground transition-colors selection:bg-[var(--tenant-accent)] selection:text-white">
+      <JsonLd data={jsonLdData} />
+      <TemplateRenderer
+        config={siteLayouts.home}
+        publication={templatePub}
+        articles={templateArticles}
+        mode="live"
+      />
+      {recommendations && recommendations.length > 0 && (
+        <div className="container mx-auto px-4 lg:px-8 py-12 border-t border-border">
+          <RecommendedSection authorName={name} recommendations={recommendations} />
+        </div>
+      )}
+    </div>
+  );
+}

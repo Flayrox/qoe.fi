@@ -65,6 +65,7 @@ interface UpdateCreatorProfileInput {
   seoDescription?: string | null;
   allowIndexing?: boolean;
   supportUrl?: string | null;
+  siteOptions?: Record<string, boolean> | null;
 }
 
 interface NavigationLinkInput {

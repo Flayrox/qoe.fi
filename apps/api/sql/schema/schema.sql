@@ -662,6 +662,7 @@ CREATE TABLE "Publication" (
     "seoDescription" TEXT,
     "supportUrl" TEXT,
     "emailSettings" JSONB NOT NULL DEFAULT '{}'::jsonb,
+    "siteOptions" JSONB NOT NULL DEFAULT '{}'::jsonb,
     "stripeAccountId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,

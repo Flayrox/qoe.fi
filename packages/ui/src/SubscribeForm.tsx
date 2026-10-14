@@ -31,7 +31,7 @@ export function SubscribeForm({
   const [submittedEmail, setSubmittedEmail] = useState('');
   const [showModal, setShowModal] = useState(false);
 
-  // Substack 1-Click State
+  // 1-Click Subscription State
   const [connectedEmail, setConnectedEmail] = useState<string | null>(userEmail ?? null);
   const [isOtherEmailMode, setIsOtherEmailMode] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -154,7 +154,7 @@ export function SubscribeForm({
     );
   }
 
-  // 1-Click Substack Mode for connected Qoefi user
+  // 1-Click Subscription Mode for connected Qoefi user
   const isOneClickMode = Boolean(connectedEmail && !isOtherEmailMode);
 
   return (
@@ -196,7 +196,7 @@ export function SubscribeForm({
               )}
             </button>
 
-            {/* Substack-Style Chevron Dropdown Trigger */}
+            {/* Chevron Dropdown Trigger */}
             <button
               type="button"
               disabled={status === 'loading'}

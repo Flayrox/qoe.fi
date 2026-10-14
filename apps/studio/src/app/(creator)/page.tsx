@@ -8,7 +8,6 @@ import {
   TrendingUp,
   Users,
   CreditCard,
-  Sparkles,
   Clock,
   Plus,
   FileText,
@@ -310,7 +309,7 @@ export default async function CreatorDashboardPage() {
           <h3 className="text-xl font-bold text-foreground tracking-tight">
             {t`Analyses & Conseils Créateur`}
           </h3>
-          <Sparkles className="w-5 h-5 text-primary stroke-[1.5]" />
+          <BarChart3 className="w-5 h-5 text-primary stroke-[1.5]" />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

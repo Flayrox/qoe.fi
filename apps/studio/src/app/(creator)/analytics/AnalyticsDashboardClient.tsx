@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useTransition } from 'react';
-import { Eye, Users, Activity, Clock, TrendingUp, Sparkles, Info } from 'lucide-react';
+import { Eye, Users, Activity, Clock, TrendingUp, Info } from 'lucide-react';
 import { getCreatorAnalyticsData, AnalyticsResponseData, TimePeriod } from './actions';
 import { TimeseriesChart } from './components/TimeseriesChart';
 import { TopPagesBlock } from './components/TopPagesBlock';
@@ -105,7 +105,7 @@ export function AnalyticsDashboardClient({ initialData }: AnalyticsDashboardClie
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-1.5 max-w-2xl">
               <div className="inline-flex items-center gap-1.5 text-[11px] font-bold tracking-wider uppercase text-muted-foreground mb-1">
-                <Sparkles className="h-3.5 w-3.5 stroke-[1.5]" />
+                <Activity className="h-3.5 w-3.5 stroke-[1.5]" />
                 <span>Configuration Analytics Umami</span>
               </div>
               <h2 className="text-lg font-semibold text-foreground tracking-tight">

@@ -23,7 +23,9 @@ export type BlockType =
   | 'newsletter-wall'
   | 'footer'
   | 'article-content'
-  | 'category-spotlight';
+  | 'category-spotlight'
+  | 'dispatch-feed'
+  | 'dispatch-magazine';
 
 /** Forme géométrique des cartes et conteneurs (Tokens) */
 export type CardCornerShape =
@@ -94,7 +96,7 @@ export interface BentoGridBlockProps {
 
 /** Configuration du Flux d'Articles */
 export interface ArticleStreamBlockProps {
-  displayMode: 'list' | 'grid-2' | 'grid-3';
+  displayMode: 'list' | 'grid-2' | 'grid-3' | 'craft-notes';
   /** Colonnes sur mobile en mode grille (défaut : 1) */
   columnsMobile?: 1 | 2;
   density: DensityMode;
@@ -286,6 +288,7 @@ export type TemplateArchetypeId =
   | 'broadsheet'
   | 'bento'
   | 'minimal'
+  | 'dispatch'
   | 'encre'
   | 'papier'
   | 'signal'
@@ -356,6 +359,14 @@ export interface TemplateArticleItem {
   } | null;
 }
 
+export interface TemplateCategoryItem {
+  id: string;
+  name: string;
+  slug: string;
+  parentId?: string | null;
+  children?: TemplateCategoryItem[];
+}
+
 /** Shape minimale de la publication requise pour l'affichage */
 export interface TemplatePublicationContext {
   id?: string;
@@ -375,7 +386,8 @@ export interface TemplatePublicationContext {
   supportUrl?: string | null;
   navigation?: NavigationItem[];
   socialLinks?: SocialLink[];
-  categories?: { id: string; name: string; slug: string }[];
+  categories?: TemplateCategoryItem[];
   subscriberCount?: number;
   layoutStyle?: string | null;
+  siteOptions?: Record<string, unknown> | null;
 }

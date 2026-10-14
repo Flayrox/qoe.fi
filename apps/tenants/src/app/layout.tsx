@@ -3,7 +3,7 @@
 // =====================================================================
 
 import type { Metadata } from 'next';
-import { Inter, JetBrains_Mono, Geist } from 'next/font/google';
+import { Inter, JetBrains_Mono, Geist, Newsreader } from 'next/font/google';
 import { I18nClientProvider } from '@qoe/i18n/provider';
 import { getStaticTranslations, getLanguage, initI18n } from '@qoe/i18n/server';
 import { cn } from '@qoe/utils';
@@ -33,6 +33,11 @@ const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
 const inter = Inter({ variable: '--font-body', subsets: ['latin'] });
 const displayFont = Geist({ variable: '--font-classical', subsets: ['latin'] });
 const jetbrainsMono = JetBrains_Mono({ variable: '--font-mono', subsets: ['latin'] });
+const newsreader = Newsreader({
+  subsets: ['latin'],
+  variable: '--font-serif',
+  style: ['normal', 'italic'],
+});
 
 export async function generateMetadata(): Promise<Metadata> {
   const lang = await getLanguage();
@@ -88,19 +93,16 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      className={cn('scroll-smooth', 'font-sans', geist.variable)}
+      className={cn('scroll-smooth', 'font-sans', geist.variable, newsreader.variable)}
       suppressHydrationWarning
     >
-      <head />
+      <head>
+        <ThemeSeedScript />
+      </head>
       <body
-        className={`${inter.variable} ${displayFont.variable} ${jetbrainsMono.variable} antialiased selection:bg-primary selection:text-primary-foreground`}
+        className={`${inter.variable} ${displayFont.variable} ${jetbrainsMono.variable} ${newsreader.variable} antialiased selection:bg-primary selection:text-primary-foreground`}
         suppressHydrationWarning
       >
-        {/* Script d'anti-FOUC du theme : next/script beforeInteractive est
-            hoiste dans le <head> par Next au SSR, quel que soit l'emplacement.
-            Place hors de <head> pour eviter le warning React 16
-            "Encountered a script tag while rendering React component". */}
-        <ThemeSeedScript />
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <I18nClientProvider language={locale} staticData={staticData}>
             <GlobalAuthModalProvider isAuthenticated={!!currentUser}>
