@@ -17,13 +17,34 @@ import type { HighlightDTO, AnnotationCommentDTO } from '../highlights';
 
 export const subscribeToNewsletterAction = safeAction<
   { email: string; publicationId: string },
-  { success: boolean }
+  { success: boolean; active?: boolean }
 >(
   async ({ email, publicationId }) => {
     const cleanEmail = email.trim().toLowerCase();
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(cleanEmail)) {
       throw new Error('Veuillez saisir une adresse email valide.');
+    }
+
+    // 1-Clic authentifié (fiche 01 §2) : si l'utilisateur a une session
+    // active et s'inscrit avec l'email de son compte, appel direct à
+    // POST /v1/me/subscriptions pour activation immédiate (sans lien opt-in).
+    try {
+      const { createClient } = await import('@qoe/supabase/server');
+      const supabase = await createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (user?.email && user.email.toLowerCase() === cleanEmail) {
+        const res = await goFetch<{ success: boolean; active?: boolean }>('/v1/me/subscriptions', {
+          method: 'POST',
+          body: { email: cleanEmail, publicationId },
+        });
+        return { success: true, active: res.active ?? true };
+      }
+    } catch {
+      // Hors contexte web ou non connecté : repli sur parcours invité.
     }
 
     // Go-only : POST /v1/home/subscribe (idempotent, backend-of-record).

@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { t } from '@lingui/core/macro';
 import { subscribeToNewsletterAction } from '@qoe/sdk/actions/tenant';
 import { createClient } from '@qoe/supabase/client';
-import { Check, ChevronDown, Loader2, Mail } from 'lucide-react';
+import { getMainAppUrl } from '@qoe/config';
+import { Check, ChevronDown, Loader2, Mail, Sparkles } from 'lucide-react';
 import { RecommendationModal, type RecommendedPublication } from './RecommendationModal';
 
 export interface SubscribeFormProps {
@@ -39,6 +40,7 @@ export function SubscribeForm({
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
   const [submittedEmail, setSubmittedEmail] = useState('');
+  const [isDirectActive, setIsDirectActive] = useState(false);
   const [showModal, setShowModal] = useState(false);
 
   // 1-Click Subscription State
@@ -46,6 +48,22 @@ export function SubscribeForm({
   const [isOtherEmailMode, setIsOtherEmailMode] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Client host / current URL for redirecting to Qoefi 1-click
+  const [currentHostname, setCurrentHostname] = useState('');
+  const [currentUrl, setCurrentUrl] = useState('');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setCurrentHostname(window.location.hostname);
+      setCurrentUrl(window.location.href);
+    }
+  }, []);
+
+  const mainApp = getMainAppUrl(currentHostname || 'qoe.fi');
+  const qoefiSubscribeUrl = `${mainApp}/subscribe-with-qoefi?publication=${encodeURIComponent(
+    publicationId
+  )}${currentUrl ? `&return=${encodeURIComponent(currentUrl)}` : ''}`;
 
   // Auto-detect connected user if not passed explicitly as prop
   useEffect(() => {
@@ -103,11 +121,17 @@ export function SubscribeForm({
 
     if (res.ok) {
       setStatus('success');
-      // Double opt-in (fiche 01) : l'abonnement n'est actif qu'après le clic
-      // sur le lien envoyé — ne jamais promettre une réception immédiate.
-      setMessage(
-        t`Vérifiez votre boîte mail : un lien de confirmation vient de partir. L'abonnement ne sera actif qu'après votre clic.`
-      );
+      if (res.data?.active) {
+        setIsDirectActive(true);
+        setMessage(t`Vous êtes désormais abonné à la newsletter !`);
+      } else {
+        setIsDirectActive(false);
+        // Double opt-in (fiche 01) : l'abonnement n'est actif qu'après le clic
+        // sur le lien envoyé — ne jamais promettre une réception immédiate.
+        setMessage(
+          t`Vérifiez votre boîte mail : un lien de confirmation vient de partir. L'abonnement ne sera actif qu'après votre clic.`
+        );
+      }
       if (recommendations && recommendations.length > 0) {
         setShowModal(true);
       }
@@ -147,7 +171,9 @@ export function SubscribeForm({
           <div className="w-10 h-10 rounded-full bg-success/20 text-success flex items-center justify-center mx-auto mb-3">
             <Check className="w-5 h-5 stroke-[2.5]" />
           </div>
-          <h4 className="text-lg font-bold text-success mb-1">{t`Plus qu'une étape !`}</h4>
+          <h4 className="text-lg font-bold text-success mb-1">
+            {isDirectActive ? t`Abonnement confirmé !` : t`Plus qu'une étape !`}
+          </h4>
           <p className="text-sm text-muted-foreground">{message}</p>
           <button
             type="button"
@@ -186,7 +212,7 @@ export function SubscribeForm({
               type="button"
               disabled={disabled || status === 'loading'}
               onClick={() => void executeSubscribe(connectedEmail!)}
-              className={`flex-1 font-semibold transition-colors flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 ${
+              className={`flex-1 min-w-0 font-semibold transition-colors flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 ${
                 size === 'compact' ? 'h-10 px-3.5 text-xs' : 'h-13 px-5 text-base'
               } ${
                 accentColor
@@ -197,7 +223,7 @@ export function SubscribeForm({
               title={t`S'abonner immédiatement avec ${connectedEmail || ''}`}
             >
               {status === 'loading' ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin shrink-0" />
               ) : (
                 <>
                   <Mail className="w-3.5 h-3.5 shrink-0 opacity-85" />
@@ -211,14 +237,12 @@ export function SubscribeForm({
               )}
             </button>
 
-            {/* Chevron Dropdown Trigger */}
+            {/* Chevron Dropdown Trigger - explicit width and shrink-0 to remain visible */}
             <button
               type="button"
               disabled={disabled || status === 'loading'}
               onClick={() => setIsDropdownOpen((prev) => !prev)}
-              className={`border-l flex items-center justify-center transition-colors cursor-pointer disabled:opacity-50 ${
-                size === 'compact' ? 'px-2.5' : 'px-3'
-              } ${
+              className={`shrink-0 w-11 border-l flex items-center justify-center transition-colors cursor-pointer disabled:opacity-50 ${
                 accentColor
                   ? 'border-white/20 text-white hover:bg-black/10'
                   : 'border-background/20 dark:border-black/20 bg-foreground text-background hover:bg-foreground/90 dark:bg-white dark:text-black dark:hover:bg-white/90'
@@ -230,6 +254,17 @@ export function SubscribeForm({
               <ChevronDown
                 className={`w-4 h-4 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
               />
+            </button>
+          </div>
+
+          {/* Sub-button to easily switch to another email */}
+          <div className="flex justify-center mt-2">
+            <button
+              type="button"
+              onClick={() => setIsOtherEmailMode(true)}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer hover:underline"
+            >
+              {t`Utiliser une autre adresse email`}
             </button>
           </div>
 
@@ -273,8 +308,78 @@ export function SubscribeForm({
             </div>
           )}
         </div>
+      ) : !connectedEmail && !isOtherEmailMode ? (
+        /* Guest Mode: 1-Click with Qoefi button + Divider + Standard Email Form */
+        <div className="flex flex-col gap-3">
+          <a
+            href={qoefiSubscribeUrl}
+            className={`w-full font-semibold transition-all flex items-center justify-center gap-2.5 cursor-pointer no-underline ${
+              size === 'compact' ? 'h-10 px-3.5 text-xs' : 'h-12 px-5 text-sm sm:text-base'
+            } ${
+              isBrutalist
+                ? 'border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase tracking-wider bg-background text-foreground hover:bg-muted'
+                : accentColor
+                  ? 'text-white shadow-xs hover:opacity-95'
+                  : 'bg-foreground text-background shadow-xs hover:bg-foreground/90 dark:bg-white dark:text-black dark:hover:bg-white/90 rounded-xl'
+            }`}
+            style={!isBrutalist && accentColor ? { backgroundColor: accentColor } : undefined}
+          >
+            <Sparkles className="w-4 h-4 shrink-0 opacity-85" />
+            <span>{t`S'abonner en 1 clic avec Qoefi`}</span>
+          </a>
+
+          <div className="flex items-center gap-3 my-0.5">
+            <div className="flex-1 h-px bg-border/50" />
+            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground/70 select-none">
+              {t`ou avec votre adresse email`}
+            </span>
+            <div className="flex-1 h-px bg-border/50" />
+          </div>
+
+          <form onSubmit={handleFormSubmit} className="flex flex-col gap-2">
+            <div className="flex flex-col sm:flex-row gap-2.5">
+              <input type="hidden" name="publicationId" value={publicationId} />
+              <input
+                type="email"
+                name="email"
+                required
+                disabled={disabled || status === 'loading'}
+                placeholder={placeholder || t`Votre adresse email`}
+                className={`flex-1 text-foreground placeholder:text-muted-foreground/60 outline-none transition-all ${
+                  size === 'compact'
+                    ? 'h-10 px-3.5 text-sm rounded-lg border border-border bg-background shadow-2xs focus:ring-1 focus:ring-foreground'
+                    : isBrutalist
+                      ? 'h-13 px-4 text-base border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] bg-background text-foreground'
+                      : 'h-13 px-4 text-base rounded-xl border border-input bg-background shadow-xs focus:ring-2 focus:ring-foreground/20'
+                }`}
+              />
+              <button
+                type="submit"
+                disabled={disabled || status === 'loading'}
+                className={`font-semibold transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shrink-0 ${
+                  size === 'compact'
+                    ? 'h-10 px-4 text-sm rounded-lg shadow-2xs whitespace-nowrap'
+                    : isBrutalist
+                      ? 'h-13 px-7 text-base border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase tracking-wider'
+                      : 'h-13 px-7 text-base rounded-xl shadow-xs'
+                } ${
+                  accentColor
+                    ? 'text-white hover:opacity-95'
+                    : 'bg-foreground text-background hover:bg-foreground/90 dark:bg-white dark:text-black dark:hover:bg-white/90'
+                }`}
+                style={accentColor ? { backgroundColor: accentColor } : undefined}
+              >
+                {status === 'loading' ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : (
+                  buttonText || t`S'abonner`
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
       ) : (
-        /* Standard / Other Email Input Mode */
+        /* Explicit Other Email Input Mode for connected user */
         <form onSubmit={handleFormSubmit} className="flex flex-col gap-2">
           <div className="flex flex-col sm:flex-row gap-2.5">
             <input type="hidden" name="publicationId" value={publicationId} />
