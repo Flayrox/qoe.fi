@@ -140,4 +140,39 @@ describe('SubscribeForm', () => {
     expect(screen.getByPlaceholderText(/Votre adresse email/i)).toBeDefined();
     expect(screen.getByText(/Revenir à mon compte Qoefi/i)).toBeDefined();
   });
+
+  it('propose le bouton S’abonner en 1 clic avec Qoefi pour un invité anonyme', () => {
+    render(<SubscribeForm publicationId="pub_test_1" />);
+    const qoefiBtn = screen.getByRole('link', { name: /S'abonner en 1 clic avec Qoefi/i });
+    expect(qoefiBtn).toBeDefined();
+    expect(qoefiBtn.getAttribute('href')).toContain('subscribe-with-qoefi?publication=pub_test_1');
+  });
+
+  it('affiche un succès direct sans double opt-in lorsque l’abonnement est actif immédiatement', async () => {
+    mocks.subscribeToNewsletterAction.mockResolvedValue({
+      ok: true,
+      data: { success: true, active: true },
+    });
+    render(<SubscribeForm publicationId="pub_test_1" userEmail="abonne@qoefi.com" />);
+
+    const user = userEvent.setup();
+    const oneClickBtn = screen.getByTitle(/S'abonner immédiatement avec abonne@qoefi.com/i);
+    await user.click(oneClickBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Abonnement confirmé !/i)).toBeDefined();
+      expect(screen.getByText(/Vous êtes désormais abonné à la newsletter !/i)).toBeDefined();
+    });
+  });
+
+  it('permet de basculer sur une autre adresse email via le bouton sous le 1-clic', async () => {
+    render(<SubscribeForm publicationId="pub_test_1" userEmail="abonne@qoefi.com" />);
+
+    const user = userEvent.setup();
+    const switchBtn = screen.getByRole('button', { name: /Utiliser une autre adresse email/i });
+    await user.click(switchBtn);
+
+    expect(screen.getByPlaceholderText(/Votre adresse email/i)).toBeDefined();
+    expect(screen.getByText(/Revenir à mon compte Qoefi/i)).toBeDefined();
+  });
 });

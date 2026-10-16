@@ -225,23 +225,28 @@ export function useReadingPreferences(): ReadingPreferencesContextValue {
  * Returns the CSS classes to apply to the article reader container
  * based on the active reading preferences.
  */
-export function getReaderTypographyClasses(prefs: ReadingPreferences): string {
+export function getReaderTypographyClasses(
+  prefs: ReadingPreferences,
+  disableFontOverride: boolean = false
+): string {
   const classes: string[] = [];
 
   // 1. Font Family
-  switch (prefs.fontFamily) {
-    case 'font-serif':
-      classes.push('font-serif');
-      break;
-    case 'font-sans':
-      classes.push('font-sans');
-      break;
-    case 'font-dyslexic':
-      classes.push('font-dyslexic font-sans tracking-wide leading-relaxed');
-      break;
-    default:
-      classes.push('font-serif');
-      break;
+  if (!disableFontOverride) {
+    switch (prefs.fontFamily) {
+      case 'font-serif':
+        classes.push('font-serif');
+        break;
+      case 'font-sans':
+        classes.push('font-sans');
+        break;
+      case 'font-dyslexic':
+        classes.push('font-dyslexic font-sans tracking-wide leading-relaxed');
+        break;
+      default:
+        classes.push('font-serif');
+        break;
+    }
   }
 
   // 2. Font Size

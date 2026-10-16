@@ -95,9 +95,26 @@ export async function TenantArticleRenderer({
   const isBrutalist = layoutStyle === 'brutalist';
   const isMediaBrand = publication.type === 'MEDIA';
 
+  // Résolution polymorphe du thème (par défaut 'minimal' en accord avec Postgres et l'accueil)
+  const resolvedLayoutStyle = publication.layoutStyle || 'minimal';
+  const siteLayouts = parseSiteLayouts(resolvedLayoutStyle);
+  const theme = resolveTheme(resolvedLayoutStyle);
+  const isMinimal = theme.id === 'minimal';
+
+  const articleLayout =
+    (article.category?.slug && siteLayouts.articleByCategory[article.category.slug]) ||
+    siteLayouts.article ||
+    null;
+
+  const effectiveFontFamily =
+    fontFamily ||
+    articleLayout?.tokens?.fontFamily ||
+    siteLayouts.home?.tokens?.fontFamily ||
+    'sans';
+
   const customStyle = {
     '--tenant-accent': accentColor || 'hsl(var(--primary))',
-    fontFamily: resolveFontFamily(fontFamily),
+    fontFamily: resolveFontFamily(effectiveFontFamily),
     ...(themeMode === 'dark' && { colorScheme: 'dark' }),
   } as React.CSSProperties;
 
@@ -123,17 +140,6 @@ export async function TenantArticleRenderer({
           paywallMeta: null,
         }
       : sliceContentAtPaywall(article.content || '', { isMember, isPaidSubscriber }, visibility);
-
-  // Résolution polymorphe du thème (par défaut 'minimal' en accord avec Postgres et l'accueil)
-  const resolvedLayoutStyle = publication.layoutStyle || 'minimal';
-  const siteLayouts = parseSiteLayouts(resolvedLayoutStyle);
-  const theme = resolveTheme(resolvedLayoutStyle);
-  const isMinimal = theme.id === 'minimal';
-
-  const articleLayout =
-    (article.category?.slug && siteLayouts.articleByCategory[article.category.slug]) ||
-    siteLayouts.article ||
-    null;
 
   const templatePublication: TemplatePublicationContext = {
     id: publication.id,
@@ -426,7 +432,11 @@ export async function TenantArticleRenderer({
         />
 
         {/* Section abonnement */}
-        <section id="subscribe" className="mt-20 pt-12 border-t border-border/40">
+        <section
+          id="subscribe"
+          className="mt-20 pt-12 border-t border-border/40"
+          style={{ fontFamily: resolveFontFamily(effectiveFontFamily) }}
+        >
           <div
             className={`p-8 md:p-12 text-center rounded-3xl ${isBrutalist ? 'border-4 border-foreground shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] bg-card' : 'bg-card border border-border/40 shadow-sm'}`}
           >
@@ -457,6 +467,7 @@ export async function TenantArticleRenderer({
       style={customStyle}
       themeMode={themeMode}
       showProgressBar={!isMinimal}
+      disableFontOverride={true}
       articleMetadata={{
         title: article.title,
         coverUrl: article.imageUrl || publication.headerImageUrl || article.author?.logoUrl,

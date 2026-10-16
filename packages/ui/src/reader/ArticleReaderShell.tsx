@@ -30,6 +30,8 @@ export interface ArticleReaderShellProps {
   showProgressBar?: boolean;
   /** Whether to render reading ruler when active in preferences (default: true) */
   showRuler?: boolean;
+  /** When true, preserves publication/theme font instead of forcing reader serif default */
+  disableFontOverride?: boolean;
 }
 
 export function ArticleReaderShell({
@@ -41,6 +43,7 @@ export function ArticleReaderShell({
   bionicContentSelector = '#article-content',
   showProgressBar = true,
   showRuler = true,
+  disableFontOverride = false,
 }: ArticleReaderShellProps) {
   return (
     <ReadingPreferencesProvider>
@@ -64,6 +67,7 @@ export function ArticleReaderShell({
           bionicContentSelector={bionicContentSelector}
           showProgressBar={showProgressBar}
           showRuler={showRuler}
+          disableFontOverride={disableFontOverride}
         >
           {children}
         </ArticleReaderShellInner>
@@ -80,9 +84,10 @@ function ArticleReaderShellInner({
   bionicContentSelector,
   showProgressBar,
   showRuler,
+  disableFontOverride = false,
 }: Omit<ArticleReaderShellProps, 'articleMetadata'>) {
   const { preferences } = useReadingPreferences();
-  const typographyClasses = getReaderTypographyClasses(preferences);
+  const typographyClasses = getReaderTypographyClasses(preferences, disableFontOverride);
   const paperThemeClasses = getPaperThemeClasses(preferences.paperTheme);
 
   // Non-destructive Bionic Reading toggle

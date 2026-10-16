@@ -6,10 +6,15 @@ import { cn } from '@qoe/utils';
 
 export type TenantReaderShellProps = ArticleReaderShellProps;
 
-export function TenantReaderShell({ className, ...props }: TenantReaderShellProps) {
+export function TenantReaderShell({
+  className,
+  disableFontOverride = true,
+  ...props
+}: TenantReaderShellProps) {
   return (
     <ArticleReaderShell
       className={cn('selection:bg-[var(--tenant-accent)] selection:text-white', className)}
+      disableFontOverride={disableFontOverride}
       {...props}
     />
   );
