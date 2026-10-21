@@ -102,14 +102,14 @@ export function MinimalCraftShell({
       data-sidebar-open={isSidebarOpen ? 'true' : 'false'}
       className={cn(
         'platform_root min-h-screen bg-background text-foreground transition-colors selection:bg-[var(--tenant-accent)] selection:text-white pb-32 relative',
-        hasCategoryBar ? 'pt-28 sm:pt-40' : 'pt-24 sm:pt-36',
+        hasCategoryBar ? 'pt-24 sm:pt-32' : 'pt-20 sm:pt-28',
         className
       )}
     >
-      {/* ── 1. EN-TÊTE FIXE SUPÉRIEUR DEVOURING DETAILS (top-6 sm:top-10 z-40) ── */}
+      {/* ── 1. EN-TÊTE FIXE SUPÉRIEUR DEVOURING DETAILS (top-4 sm:top-6 z-40) ── */}
       <header
         data-header="true"
-        className="platform_header fixed top-6 sm:top-10 left-6 right-6 z-40 flex items-center justify-between select-none pointer-events-auto text-muted-foreground"
+        className="platform_header fixed top-4 sm:top-6 left-6 right-6 z-40 flex items-center justify-between select-none pointer-events-auto text-muted-foreground"
       >
         {/* Côté Gauche : Logo classique + Contrôles de navigation (Sidebar + Retour si mode article) */}
         <div className="flex items-center gap-2.5 shrink-0 z-10 min-w-0">
@@ -201,21 +201,21 @@ export function MinimalCraftShell({
         <div className="w-7 sm:w-8 shrink-0 pointer-events-none" aria-hidden="true" />
       </header>
 
-      {/* ── 1.5. BARRE D'ONGLETS / RUBRIQUES & SOUS-RUBRIQUES (Translucide & Glassmorphic) ── */}
+      {/* ── 1.5. NAVIGATION CENTRÉE ÉPURÉE SANS PILULE (Catégories, Sous-catégories & Liens créateur) ── */}
       {hasCategoryBar && (
         <nav
-          aria-label="Navigation des rubriques"
-          className="fixed top-16 sm:top-20 left-0 right-0 z-35 flex justify-center pointer-events-none px-4"
+          aria-label="Navigation des rubriques et pages"
+          className="fixed top-12 sm:top-14 left-0 right-0 z-35 flex justify-center pointer-events-none px-4"
         >
-          <div className="pointer-events-auto flex items-center gap-1.5 px-3 py-1 rounded-full bg-background/60 backdrop-blur-2xl border border-border/40 shadow-xs max-w-[94vw] overflow-x-auto no-scrollbar">
+          <div className="pointer-events-auto flex items-center justify-center gap-4 sm:gap-6 max-w-[94vw] flex-wrap select-none">
             {/* Onglet Tous les articles / Accueil */}
             <a
               href="/"
               className={cn(
-                'text-xs font-medium px-3 py-1 rounded-full transition-all shrink-0 select-none',
+                'text-xs sm:text-[13px] font-medium tracking-tight transition-colors shrink-0',
                 !isArticleMode && !article?.category?.slug
-                  ? 'bg-foreground/10 text-foreground font-semibold shadow-2xs'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  ? 'text-foreground font-semibold underline underline-offset-4 decoration-2 decoration-[var(--tenant-accent)]'
+                  : 'text-muted-foreground hover:text-foreground'
               )}
             >
               Accueil
@@ -225,7 +225,9 @@ export function MinimalCraftShell({
             {rootCategories.map((cat) => {
               const subs = getSubcategories(cat.id);
               const hasSubs = subs.length > 0;
-              const isCatActive = article?.category?.slug === cat.slug;
+              const isCatActive =
+                article?.category?.slug === cat.slug ||
+                subs.some((s) => s.slug === article?.category?.slug);
               const isDropdownOpen = activeDropdownCatId === cat.id;
 
               if (!hasSubs) {
@@ -234,10 +236,10 @@ export function MinimalCraftShell({
                     key={cat.id}
                     href={`/${cat.slug}`}
                     className={cn(
-                      'text-xs font-medium px-3 py-1 rounded-full transition-all shrink-0 select-none',
+                      'text-xs sm:text-[13px] font-medium tracking-tight transition-colors shrink-0',
                       isCatActive
-                        ? 'bg-foreground/10 text-foreground font-semibold shadow-2xs'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                        ? 'text-foreground font-semibold underline underline-offset-4 decoration-2 decoration-[var(--tenant-accent)]'
+                        : 'text-muted-foreground hover:text-foreground'
                     )}
                   >
                     {cat.name}
@@ -251,10 +253,10 @@ export function MinimalCraftShell({
                     type="button"
                     onClick={() => setActiveDropdownCatId(isDropdownOpen ? null : cat.id)}
                     className={cn(
-                      'flex items-center gap-1 text-xs font-medium px-3 py-1 rounded-full transition-all select-none cursor-pointer',
+                      'flex items-center gap-1 text-xs sm:text-[13px] font-medium tracking-tight transition-colors select-none cursor-pointer',
                       isCatActive || isDropdownOpen
-                        ? 'bg-foreground/10 text-foreground font-semibold'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                        ? 'text-foreground font-semibold'
+                        : 'text-muted-foreground hover:text-foreground'
                     )}
                   >
                     <span>{cat.name}</span>
@@ -272,7 +274,7 @@ export function MinimalCraftShell({
                         className="fixed inset-0 z-40"
                         onClick={() => setActiveDropdownCatId(null)}
                       />
-                      <div className="absolute left-0 top-full mt-2 min-w-[170px] rounded-2xl border border-border/50 bg-background/90 backdrop-blur-2xl p-1.5 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150 space-y-0.5">
+                      <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 min-w-[170px] rounded-xl border border-border/60 bg-background/95 backdrop-blur-xl p-1.5 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150 space-y-0.5 text-left">
                         <a
                           href={`/${cat.slug}`}
                           onClick={() => setActiveDropdownCatId(null)}
@@ -299,7 +301,7 @@ export function MinimalCraftShell({
               );
             })}
 
-            {/* Liens de navigation additionnels si configurés */}
+            {/* Liens de navigation créateur ("À propos", etc.) */}
             {publication.navigation &&
               publication.navigation
                 .filter((nav) => !nav.parentId)
@@ -309,7 +311,7 @@ export function MinimalCraftShell({
                     href={nav.url || '#'}
                     target={nav.isExternal ? '_blank' : undefined}
                     rel={nav.isExternal ? 'noopener noreferrer' : undefined}
-                    className="text-xs font-medium px-3 py-1 rounded-full transition-all shrink-0 select-none text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                    className="text-xs sm:text-[13px] font-medium tracking-tight text-muted-foreground hover:text-foreground transition-colors shrink-0"
                   >
                     {nav.label}
                   </a>
