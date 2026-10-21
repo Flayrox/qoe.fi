@@ -222,9 +222,9 @@ export function ArticleContentBlock({
             articleId={article.id}
             articleSlug={article.slug}
             articleTitle={article.title}
-            initialLikes={article.likesCount ?? 21}
-            initialComments={article.commentsCount ?? 2}
-            initialReposts={article.repostsCount ?? 3}
+            initialLikes={article.likesCount ?? 0}
+            initialComments={article.commentsCount ?? 0}
+            initialReposts={article.repostsCount ?? 0}
             initialIsLiked={article.isLiked}
             size="md"
             showShareText={true}

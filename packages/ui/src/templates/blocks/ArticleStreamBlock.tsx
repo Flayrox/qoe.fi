@@ -300,8 +300,8 @@ export function ArticleStreamBlock({
                           <ArticleEngagementBar
                             articleId={leftSecondaryArticle.id}
                             articleSlug={leftSecondaryArticle.slug}
-                            initialLikes={leftSecondaryArticle.likesCount ?? 12}
-                            initialComments={leftSecondaryArticle.commentsCount ?? 1}
+                            initialLikes={leftSecondaryArticle.likesCount ?? 0}
+                            initialComments={leftSecondaryArticle.commentsCount ?? 0}
                             initialReposts={leftSecondaryArticle.repostsCount ?? 0}
                             initialIsLiked={leftSecondaryArticle.isLiked}
                             size="sm"
@@ -442,9 +442,9 @@ export function ArticleStreamBlock({
                       <ArticleEngagementBar
                         articleId={centerHeroArticle.id}
                         articleSlug={centerHeroArticle.slug}
-                        initialLikes={centerHeroArticle.likesCount ?? 21}
-                        initialComments={centerHeroArticle.commentsCount ?? 2}
-                        initialReposts={centerHeroArticle.repostsCount ?? 3}
+                        initialLikes={centerHeroArticle.likesCount ?? 0}
+                        initialComments={centerHeroArticle.commentsCount ?? 0}
+                        initialReposts={centerHeroArticle.repostsCount ?? 0}
                         initialIsLiked={centerHeroArticle.isLiked}
                         size="sm"
                         showShareText={false}
@@ -527,8 +527,8 @@ export function ArticleStreamBlock({
                           <ArticleEngagementBar
                             articleId={rightSecondaryArticle.id}
                             articleSlug={rightSecondaryArticle.slug}
-                            initialLikes={rightSecondaryArticle.likesCount ?? 14}
-                            initialComments={rightSecondaryArticle.commentsCount ?? 1}
+                            initialLikes={rightSecondaryArticle.likesCount ?? 0}
+                            initialComments={rightSecondaryArticle.commentsCount ?? 0}
                             initialReposts={rightSecondaryArticle.repostsCount ?? 0}
                             initialIsLiked={rightSecondaryArticle.isLiked}
                             size="sm"
@@ -673,8 +673,8 @@ export function ArticleStreamBlock({
                                     <ArticleEngagementBar
                                       articleId={article.id}
                                       articleSlug={article.slug}
-                                      initialLikes={article.likesCount ?? 12}
-                                      initialComments={article.commentsCount ?? 1}
+                                      initialLikes={article.likesCount ?? 0}
+                                      initialComments={article.commentsCount ?? 0}
                                       initialReposts={article.repostsCount ?? 0}
                                       initialIsLiked={article.isLiked}
                                       size="sm"
@@ -779,8 +779,8 @@ export function ArticleStreamBlock({
                               <ArticleEngagementBar
                                 articleId={article.id}
                                 articleSlug={article.slug}
-                                initialLikes={article.likesCount ?? 14}
-                                initialComments={article.commentsCount ?? 1}
+                                initialLikes={article.likesCount ?? 0}
+                                initialComments={article.commentsCount ?? 0}
                                 initialReposts={article.repostsCount ?? 0}
                                 initialIsLiked={article.isLiked}
                                 size="sm"

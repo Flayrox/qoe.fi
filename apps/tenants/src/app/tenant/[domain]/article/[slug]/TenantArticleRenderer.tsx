@@ -359,9 +359,11 @@ export async function TenantArticleRenderer({
                     articleId={article.id}
                     articleSlug={article.slug}
                     articleTitle={article.title}
-                    initialLikes={21}
-                    initialComments={initialComments.length || 2}
-                    initialReposts={3}
+                    initialLikes={article.likesCount ?? 0}
+                    initialComments={initialComments.length || (article.commentsCount ?? 0)}
+                    initialReposts={article.repostsCount ?? 0}
+                    initialIsLiked={article.isLiked ?? false}
+                    initialIsReposted={article.isReposted ?? false}
                     size="md"
                     showShareText={true}
                   />

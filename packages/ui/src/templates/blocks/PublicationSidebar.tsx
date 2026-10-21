@@ -122,9 +122,7 @@ export function PublicationSidebar({
               {authorName}
             </h3>
             {publication?.domain && (
-              <p className="text-[11px] text-muted-foreground truncate font-mono">
-                {publication.domain}
-              </p>
+              <p className="text-[11px] text-muted-foreground truncate">{publication.domain}</p>
             )}
           </div>
         </div>
@@ -159,7 +157,7 @@ export function PublicationSidebar({
             <Sparkles className="w-3.5 h-3.5 text-[var(--tenant-accent,hsl(var(--primary)))]" />
             <span>Recommandé par {authorName}</span>
           </div>
-          <span className="text-[11px] font-mono text-muted-foreground/60">
+          <span className="text-[11px] font-medium text-muted-foreground/60">
             {recommendations.length}
           </span>
         </div>
@@ -169,9 +167,17 @@ export function PublicationSidebar({
             const isSubscribed = Boolean(subscribedMap[rec.id]);
             const isLoading = Boolean(loadingMap[rec.id]);
             const isInputOpen = activeInlineEmailId === rec.id;
-            const targetUrl = rec.customDomain
-              ? `https://${rec.customDomain}`
-              : `http://${rec.subdomain}.qoe.test`;
+            const targetUrl = (() => {
+              if (rec.customDomain) return `https://${rec.customDomain}`;
+              if (!rec.subdomain) return '#';
+              if (typeof window !== 'undefined') {
+                const host = window.location.hostname;
+                if (host.endsWith('lvh.me')) return `http://${rec.subdomain}.lvh.me:15403`;
+                if (host.endsWith('localhost')) return `http://${rec.subdomain}.localhost:15403`;
+                if (host.endsWith('qoe.test')) return `http://${rec.subdomain}.qoe.test`;
+              }
+              return `https://${rec.subdomain}.qoe.fi`;
+            })();
 
             return (
               <div key={rec.id} className="pt-3 first:pt-0 space-y-2 group/rec">
@@ -298,7 +304,7 @@ export function PublicationSidebar({
           <div className="space-y-3">
             {topArticles.map((art, idx) => (
               <div key={art.id} className="flex items-start gap-3 group/top">
-                <span className="text-xs font-mono font-bold text-muted-foreground/50 shrink-0 mt-0.5">
+                <span className="text-xs font-semibold text-muted-foreground/50 shrink-0 mt-0.5">
                   0{idx + 1}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -310,7 +316,7 @@ export function PublicationSidebar({
                     {art.title}
                   </Link>
                   {art.readingTime && (
-                    <span className="text-[11px] text-muted-foreground font-mono mt-0.5 block">
+                    <span className="text-[11px] text-muted-foreground mt-0.5 block">
                       {art.readingTime} min de lecture
                     </span>
                   )}

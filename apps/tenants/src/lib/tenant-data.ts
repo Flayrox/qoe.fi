@@ -58,6 +58,11 @@ export interface TenantArticleSummary {
   createdAt: string;
   categoryId?: string | null;
   category?: TenantCategory | null;
+  likesCount?: number;
+  commentsCount?: number;
+  repostsCount?: number;
+  isLiked?: boolean;
+  isReposted?: boolean;
 }
 
 export interface TenantPublication {
@@ -126,6 +131,11 @@ export interface TenantArticle {
   author?: TenantArticleAuthor | null;
   authors?: TenantArticleAuthor[] | null;
   subtitle?: string | null;
+  likesCount?: number;
+  commentsCount?: number;
+  repostsCount?: number;
+  isLiked?: boolean;
+  isReposted?: boolean;
 }
 
 export interface TenantArticleBundle {
