@@ -157,10 +157,10 @@ export function ArticleContentBlock({
           </h1>
         )}
 
-        {/* Sous-titre / Chapô descriptif */}
-        {(article.subtitle || article.excerpt) && (
+        {/* Sous-titre / Chapô descriptif (uniquement si explicitement défini) */}
+        {article.subtitle && (
           <p className="text-base sm:text-lg md:text-xl text-muted-foreground leading-relaxed mb-6 font-normal">
-            {article.subtitle || article.excerpt}
+            {article.subtitle}
           </p>
         )}
 
@@ -185,7 +185,7 @@ export function ArticleContentBlock({
                   {authorsDisplayName}
                 </div>
               )}
-              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-mono mt-0.5 flex-wrap">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5 flex-wrap">
                 {showDate && article.publishedAt && (
                   <time
                     dateTime={
@@ -203,7 +203,7 @@ export function ArticleContentBlock({
                 )}
                 <span className="text-muted-foreground/40">·</span>
                 <span className="uppercase font-semibold tracking-wider text-[10px]">
-                  {article.isPremium ? 'RÉSERVÉ' : 'ACCÈS LIBRE'}
+                  {article.isPremium ? 'PAYANT' : 'GRATUIT'}
                 </span>
                 {showReadingTime && article.readingTime ? (
                   <>
@@ -221,6 +221,7 @@ export function ArticleContentBlock({
           <ArticleEngagementBar
             articleId={article.id}
             articleSlug={article.slug}
+            articleTitle={article.title}
             initialLikes={article.likesCount ?? 21}
             initialComments={article.commentsCount ?? 2}
             initialReposts={article.repostsCount ?? 3}

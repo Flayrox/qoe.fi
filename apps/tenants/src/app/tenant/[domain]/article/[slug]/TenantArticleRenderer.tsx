@@ -300,16 +300,18 @@ export async function TenantArticleRenderer({
           <>
             {isMinimal ? (
               /* En-tête épuré d'orfèvre Devouring Details / Rauno */
-              <header className="mb-6 space-y-4">
+              <header className="mt-4 sm:mt-8 mb-10 space-y-6 sm:space-y-8">
                 {/* 1. Grand titre h1 */}
                 <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-foreground leading-[1.18]">
                   {article.title}
                 </h1>
 
-                {/* 2. Sous-titre / Chapô descriptif */}
-                {((article as unknown as { subtitle?: string }).subtitle || articleExcerpt) && (
+                {/* 2. Sous-titre / Chapô descriptif (uniquement si explicitement renseigné) */}
+                {((article as unknown as { subtitle?: string | null }).subtitle ||
+                  (article as unknown as { seoDescription?: string | null }).seoDescription) && (
                   <p className="text-base sm:text-lg md:text-xl text-muted-foreground leading-relaxed font-normal">
-                    {(article as unknown as { subtitle?: string }).subtitle || articleExcerpt}
+                    {(article as unknown as { subtitle?: string | null }).subtitle ||
+                      (article as unknown as { seoDescription?: string | null }).seoDescription}
                   </p>
                 )}
 
@@ -333,7 +335,7 @@ export async function TenantArticleRenderer({
                         {authorsDisplayName}
                       </div>
                     )}
-                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-mono mt-0.5 flex-wrap">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5 flex-wrap">
                       <time dateTime={article.createdAt}>
                         {new Date(article.createdAt).toLocaleDateString('fr-FR', {
                           day: 'numeric',
@@ -343,7 +345,7 @@ export async function TenantArticleRenderer({
                       </time>
                       <span className="text-muted-foreground/40">·</span>
                       <span className="uppercase font-semibold tracking-wider text-[10px]">
-                        {article.isPremium ? 'RÉSERVÉ' : 'ACCÈS LIBRE'}
+                        {article.isPremium ? 'PAYANT' : 'GRATUIT'}
                       </span>
                       <span className="text-muted-foreground/40">·</span>
                       <span>{readingTimeMinutes} min</span>
@@ -352,10 +354,11 @@ export async function TenantArticleRenderer({
                 </div>
 
                 {/* 4. Barre d'engagement (Likes, Commentaires, Repost, Partager) */}
-                <div className="my-4">
+                <div className="py-2 my-6">
                   <ArticleEngagementBar
                     articleId={article.id}
                     articleSlug={article.slug}
+                    articleTitle={article.title}
                     initialLikes={21}
                     initialComments={initialComments.length || 2}
                     initialReposts={3}
@@ -369,7 +372,7 @@ export async function TenantArticleRenderer({
                   const coverSrc =
                     article.imageUrl || getCoverPlaceholder(article.slug || article.id);
                   return (
-                    <div className="mt-6 mb-8 -mx-4 sm:-mx-8 md:-mx-12">
+                    <div className="mt-8 mb-10 -mx-4 sm:-mx-8 md:-mx-12">
                       <div className="relative aspect-[16/9] sm:aspect-[2/1] rounded-2xl overflow-hidden border border-border/40 bg-muted/30 shadow-2xs">
                         <img
                           src={coverSrc}
