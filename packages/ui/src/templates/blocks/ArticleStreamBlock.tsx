@@ -152,7 +152,12 @@ export function ArticleStreamBlock({
       blockStyle={(props as unknown as { style?: import('../schema').BlockStyleProps }).style}
       hiddenAt={hiddenAt}
     >
-      <section className="container mx-auto px-4 lg:px-8 py-8 md:py-14">
+      <section
+        className={cn(
+          'container mx-auto px-4 lg:px-8',
+          displayMode === 'craft-notes' ? 'pt-2 sm:pt-3 pb-12' : 'py-8 md:py-14'
+        )}
+      >
         {(slots?.header || (nodes && nodes.length > 0)) && (
           <div className="mb-5">
             {slots?.header && (
@@ -177,13 +182,13 @@ export function ArticleStreamBlock({
         )}
         {displayMode === 'craft-notes' ? (
           /* Mode Craft Notes & Journal Éditorial (Inspiré par Substack & Devouring Details) */
-          <div className="max-w-6xl xl:max-w-7xl mx-auto py-2 sm:py-4">
+          <div className="max-w-6xl xl:max-w-7xl mx-auto py-1">
             {/* Agencement Éditorial en 2 Colonnes (Style Substack : Flux + Sidebar Sticky) */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 xl:gap-14 items-start">
               {/* Colonne Principale (~65%) : Article Vedette + Filtres et Flux d'articles */}
-              <div className="lg:col-span-8 space-y-8">
+              <div className="lg:col-span-8 space-y-6 sm:space-y-8">
                 {featuredArticle && (
-                  <article className="group relative space-y-4 pb-8 border-b border-border/40">
+                  <article className="group relative space-y-3 pb-6 border-b border-border/40">
                     <div className="flex items-center justify-between text-xs text-muted-foreground/80 flex-wrap gap-2">
                       <div className="flex items-center gap-2.5">
                         <CraftIndicator
@@ -217,7 +222,7 @@ export function ArticleStreamBlock({
                       </div>
                     </div>
 
-                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors">
+                    <h2 className="text-xl sm:text-2xl md:text-3xl font-bold tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors">
                       <Link
                         href={`/article/${featuredArticle.slug}`}
                         onClick={(e) => context.mode === 'editable' && e.preventDefault()}
@@ -227,19 +232,19 @@ export function ArticleStreamBlock({
                     </h2>
 
                     {showExcerpts && featuredArticle.excerpt && (
-                      <p className="text-base sm:text-lg text-muted-foreground/90 leading-relaxed max-w-3xl">
+                      <p className="text-sm sm:text-base text-muted-foreground/90 leading-relaxed max-w-2xl line-clamp-2">
                         {featuredArticle.excerpt}
                       </p>
                     )}
 
-                    {/* Image de couverture bien proportionnée dans la colonne */}
-                    <div className="w-full my-4">
+                    {/* Image de couverture bien proportionnée dans la colonne (hauteur contrôlée pour rester visible sans défilement) */}
+                    <div className="w-full my-3">
                       <Link
                         href={`/article/${featuredArticle.slug}`}
                         onClick={(e) => context.mode === 'editable' && e.preventDefault()}
                         className="block group/cover"
                       >
-                        <div className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden border border-border/50 bg-muted shadow-2xs">
+                        <div className="relative w-full aspect-[21/9] sm:aspect-[2.2/1] max-h-64 sm:max-h-72 md:max-h-80 rounded-2xl overflow-hidden border border-border/50 bg-muted shadow-2xs">
                           <SafeImage
                             src={
                               featuredArticle.imageUrl ||
