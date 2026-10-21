@@ -103,14 +103,14 @@ export async function TenantPageRenderer(props: TenantPageRendererProps) {
     siteOptions:
       (
         publication as {
-          siteOptions?: Record<string, boolean> | null;
-          site_options?: Record<string, boolean> | null;
+          siteOptions?: Record<string, unknown> | null;
+          site_options?: Record<string, unknown> | null;
         }
       ).siteOptions ??
       (
         publication as {
-          siteOptions?: Record<string, boolean> | null;
-          site_options?: Record<string, boolean> | null;
+          siteOptions?: Record<string, unknown> | null;
+          site_options?: Record<string, unknown> | null;
         }
       ).site_options ??
       null,
@@ -139,20 +139,33 @@ export async function TenantPageRenderer(props: TenantPageRendererProps) {
     },
   };
 
-  const templateArticles: TemplateArticleItem[] = articles.map((article) => ({
-    id: article.id,
-    title: article.title,
-    slug: article.slug,
-    content: article.content,
-    imageUrl: article.imageUrl || null,
-    excerpt: articleExcerpts.get(article.id) || '',
-    readingTime: article.readingTime,
-    isPremium: article.isPremium,
-    publishedAt: article.createdAt,
-    category: article.category
-      ? { name: article.category.name, slug: article.category.slug }
-      : null,
-  }));
+  const rawSiteOpts = (publication.siteOptions ??
+    (publication as unknown as { site_options?: Record<string, unknown> | null }).site_options ??
+    {}) as Record<string, unknown>;
+  const pinnedArticleId = rawSiteOpts?.pinnedArticleId as string | undefined;
+
+  const templateArticles: TemplateArticleItem[] = articles.map((article) => {
+    const artAny = article as unknown as { isPinned?: boolean; isEditorPick?: boolean };
+    const isPinned = Boolean(
+      artAny.isPinned || artAny.isEditorPick || (pinnedArticleId && article.id === pinnedArticleId)
+    );
+    return {
+      id: article.id,
+      title: article.title,
+      slug: article.slug,
+      content: article.content,
+      imageUrl: article.imageUrl || null,
+      excerpt: articleExcerpts.get(article.id) || '',
+      readingTime: article.readingTime,
+      isPremium: article.isPremium,
+      isPinned,
+      isEditorPick: Boolean(artAny.isEditorPick),
+      publishedAt: article.createdAt,
+      category: article.category
+        ? { name: article.category.name, slug: article.category.slug }
+        : null,
+    };
+  });
 
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors selection:bg-[var(--tenant-accent)] selection:text-white">

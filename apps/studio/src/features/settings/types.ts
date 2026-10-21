@@ -153,4 +153,14 @@ export const SITE_OPTION_ITEMS: SiteOptionItem[] = [
     label: 'Encart adhésion & newsletter',
     description: "Bloc d'inscription en pied d'article",
   },
+  {
+    key: 'featuredTrio',
+    label: 'Grille à la une 3 colonnes',
+    description: 'Affiche un grand article vedette au centre encadré par les parutions secondaires',
+  },
+  {
+    key: 'showPinnedBadge',
+    label: 'Badge Article Épinglé',
+    description: 'Affiche un badge distinctif 📌 sur l’article épinglé à la une',
+  },
 ];

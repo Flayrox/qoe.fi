@@ -96,7 +96,9 @@ export interface BentoGridBlockProps {
 
 /** Configuration du Flux d'Articles */
 export interface ArticleStreamBlockProps {
-  displayMode: 'list' | 'grid-2' | 'grid-3' | 'craft-notes';
+  displayMode: 'list' | 'grid-2' | 'grid-3' | 'craft-notes' | 'featured-trio';
+  /** Disposition de la zone à la une : trio (1 grand au centre + 2 sur les côtés), single (1 seul grand) ou none */
+  featuredLayout?: 'single' | 'trio' | 'none';
   /** Colonnes sur mobile en mode grille (défaut : 1) */
   columnsMobile?: 1 | 2;
   density: DensityMode;
@@ -351,6 +353,8 @@ export interface TemplateArticleItem {
   publishedAt?: string | Date;
   readingTime?: number;
   isPremium?: boolean;
+  isPinned?: boolean;
+  isEditorPick?: boolean;
   likesCount?: number;
   commentsCount?: number;
   repostsCount?: number;
