@@ -127,7 +127,7 @@ export function QuotedArticleCard({
           </span>
           {article.isPremium && (
             <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-highlight/15 text-highlight border border-highlight/30 shrink-0">
-              Premium
+              PAYANT
             </span>
           )}
         </div>

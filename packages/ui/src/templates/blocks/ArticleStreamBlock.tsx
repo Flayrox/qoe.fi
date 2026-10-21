@@ -304,6 +304,7 @@ export function ArticleStreamBlock({
                             initialComments={leftSecondaryArticle.commentsCount ?? 0}
                             initialReposts={leftSecondaryArticle.repostsCount ?? 0}
                             initialIsLiked={leftSecondaryArticle.isLiked}
+                            initialIsReposted={leftSecondaryArticle.isReposted}
                             size="sm"
                             showShareText={false}
                             className="border-0 py-0"
@@ -446,6 +447,7 @@ export function ArticleStreamBlock({
                         initialComments={centerHeroArticle.commentsCount ?? 0}
                         initialReposts={centerHeroArticle.repostsCount ?? 0}
                         initialIsLiked={centerHeroArticle.isLiked}
+                        initialIsReposted={centerHeroArticle.isReposted}
                         size="sm"
                         showShareText={false}
                         className="border-0 py-0"
@@ -454,9 +456,14 @@ export function ArticleStreamBlock({
                   </article>
                 </div>
 
-                {/* Colonne Droite (~25%, 3 colonnes) : Article secondaire droit */}
+                {/* Colonne Droite : Article secondaire droit */}
                 {rightSecondaryArticle && (
-                  <div className="lg:col-span-3 order-3 lg:order-3 space-y-6">
+                  <div
+                    className={cn(
+                      leftSecondaryArticle ? 'lg:col-span-3' : 'lg:col-span-4',
+                      'order-3 lg:order-3 space-y-6'
+                    )}
+                  >
                     <article className="group relative space-y-3">
                       <Link
                         href={`/article/${rightSecondaryArticle.slug}`}
@@ -531,6 +538,7 @@ export function ArticleStreamBlock({
                             initialComments={rightSecondaryArticle.commentsCount ?? 0}
                             initialReposts={rightSecondaryArticle.repostsCount ?? 0}
                             initialIsLiked={rightSecondaryArticle.isLiked}
+                            initialIsReposted={rightSecondaryArticle.isReposted}
                             size="sm"
                             showShareText={false}
                             className="border-0 py-0"
@@ -677,6 +685,7 @@ export function ArticleStreamBlock({
                                       initialComments={article.commentsCount ?? 0}
                                       initialReposts={article.repostsCount ?? 0}
                                       initialIsLiked={article.isLiked}
+                                      initialIsReposted={article.isReposted}
                                       size="sm"
                                       showShareText={false}
                                       className="border-0 py-0"
@@ -783,6 +792,7 @@ export function ArticleStreamBlock({
                                 initialComments={article.commentsCount ?? 0}
                                 initialReposts={article.repostsCount ?? 0}
                                 initialIsLiked={article.isLiked}
+                                initialIsReposted={article.isReposted}
                                 size="sm"
                                 showShareText={false}
                                 className="border-0 py-0"

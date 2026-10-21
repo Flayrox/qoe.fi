@@ -288,7 +288,7 @@ func (s *Service) Article(ctx context.Context, domain, slug, viewerID, viewerEma
 		bundle.Article.IsReposted = isReposted
 
 		var isLiked bool
-		_ = s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM "ContentFeedback" WHERE "userId" = $1::uuid AND "articleId" = $2 AND "type" = 'LIKE')`, viewerID, article.ID).Scan(&isLiked)
+		_ = s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM "ContentFeedback" WHERE "userId"::text = $1 AND "articleId" = $2 AND "type" = 'LIKE')`, viewerID, article.ID).Scan(&isLiked)
 		bundle.Article.IsLiked = isLiked
 	}
 
@@ -369,7 +369,7 @@ func (s *Service) publicationByDomain(ctx context.Context, domain string) (*Publ
 		       p."createdAt", p."updatedAt", u.id, u.username
 		FROM "Publication" p
 		LEFT JOIN "User" u ON u."publicationId" = p.id
-		WHERE lower(p.subdomain) = lower($1) OR lower(p.subdomain) = lower($2) OR lower(p."customDomain") = lower($1)
+		WHERE lower(p.subdomain) = lower($1) OR lower(p.subdomain) = lower($2) OR lower(p."customDomain") = lower($1) OR lower(p.slug) = lower($1)
 		LIMIT 1`, clean, sub).Scan(
 		&p.ID, &p.Type, &p.Name, &p.Slug, &p.Bio, &p.LogoURL, &p.IsCertified,
 		&p.Subdomain, &p.CustomDomain, &p.UmamiWebsiteID, &p.AccentColor,

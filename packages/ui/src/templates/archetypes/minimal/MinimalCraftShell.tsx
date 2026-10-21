@@ -378,7 +378,7 @@ export function MinimalCraftShell({
                             onClick={() => setActiveDropdownCatId(null)}
                             className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded-lg transition-colors"
                           >
-                            <span className="opacity-40 font-mono text-[10px]">↳</span>
+                            <span className="opacity-40 font-sans text-[10px]">↳</span>
                             <span>{sub.name}</span>
                           </a>
                         ))}

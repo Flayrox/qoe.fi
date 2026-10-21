@@ -20,6 +20,8 @@ import {
   Globe,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
+import { toast } from '@qoe/ui/toast';
+import { t } from '@lingui/core/macro';
 import {
   getRecommendationsAction,
   addRecommendationAction,
@@ -53,6 +55,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
     bio: string | null;
   } | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   // Charger les recommandations existantes
   const loadRecs = useCallback(async () => {
@@ -108,15 +111,16 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
         description: noteInput.trim() || undefined,
       });
       if (res.ok) {
+        toast.success(t`Recommandation ajoutée avec succès !`);
         setFoundPub(null);
         setDomainInput('');
         setNoteInput('');
         await loadRecs();
       } else {
-        alert(res.error || "Impossible d'ajouter la recommandation.");
+        toast.error(res.error || t`Impossible d'ajouter la recommandation.`);
       }
     } catch {
-      alert("Une erreur est survenue lors de l'ajout.");
+      toast.error(t`Une erreur est survenue lors de l'ajout.`);
     } finally {
       setIsAdding(false);
     }
@@ -124,18 +128,20 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
 
   // Supprimer une recommandation
   const handleRemove = async (recommendedId: string, name: string) => {
-    if (!confirm(`Retirer "${name}" de vos recommandations ?`)) return;
-
     try {
       const res = await removeRecommendationAction({ recommendedId });
       if (res.ok) {
+        toast.success(t`"${name}" retirée des recommandations.`);
+        setConfirmDeleteId(null);
         setRecommendations((prev) =>
           prev.filter((r) => r.id !== recommendedId && r.publicationId !== recommendedId)
         );
         await loadRecs();
+      } else {
+        toast.error(res.error || t`Impossible de supprimer la recommandation.`);
       }
     } catch {
-      alert('Impossible de supprimer la recommandation.');
+      toast.error(t`Impossible de supprimer la recommandation.`);
     }
   };
 
@@ -426,14 +432,33 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleRemove(rec.id, rec.publicationName)}
-                    className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer shrink-0"
-                    title="Retirer la recommandation"
-                  >
-                    <Trash2 className="w-4 h-4 stroke-[1.5]" />
-                  </button>
+                  {confirmDeleteId === rec.id ? (
+                    <div className="flex items-center gap-1.5 shrink-0 animate-in fade-in duration-150">
+                      <button
+                        type="button"
+                        onClick={() => handleRemove(rec.id, rec.publicationName)}
+                        className="px-2.5 py-1 text-xs font-semibold bg-destructive text-destructive-foreground hover:opacity-90 rounded-lg transition-opacity cursor-pointer shadow-2xs"
+                      >
+                        Retirer
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDeleteId(null)}
+                        className="px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground rounded-lg transition-colors cursor-pointer"
+                      >
+                        Annuler
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDeleteId(rec.id)}
+                      className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer shrink-0"
+                      title={t`Retirer la recommandation`}
+                    >
+                      <Trash2 className="w-4 h-4 stroke-[1.5]" />
+                    </button>
+                  )}
                 </div>
               );
             })}

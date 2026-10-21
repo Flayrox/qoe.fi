@@ -14,6 +14,7 @@ import React, { useState, useCallback, useRef, useEffect, useContext } from 'rea
 import { Heart, MessageSquare, Repeat, Share2, Check, Link2, Mail } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { toggleLikePostAction, toggleRepostPostAction } from '@qoe/sdk/actions/feed';
+import { t } from '@lingui/core/macro';
 import { AuthModalContext } from '../../auth/AuthModalContext';
 
 export interface ArticleEngagementBarProps {
@@ -87,6 +88,7 @@ export function ArticleEngagementBar({
   const [isLiked, setIsLiked] = useState(initialIsLiked);
   const [reposts, setReposts] = useState(initialReposts);
   const [isReposted, setIsReposted] = useState(initialIsReposted);
+  const [comments, setComments] = useState(initialComments);
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const shareContainerRef = useRef<HTMLDivElement>(null);
@@ -108,6 +110,10 @@ export function ArticleEngagementBar({
   useEffect(() => {
     setIsReposted(initialIsReposted);
   }, [initialIsReposted]);
+
+  useEffect(() => {
+    setComments(initialComments);
+  }, [initialComments]);
 
   // Fermeture du menu au clic extérieur ou touche Échap
   useEffect(() => {
@@ -252,8 +258,10 @@ export function ArticleEngagementBar({
       e.preventDefault();
       e.stopPropagation();
       const url = resolveShareUrl();
-      const subject = encodeURIComponent(articleTitle || 'À lire absolument');
-      const body = encodeURIComponent(`Je te recommande la lecture de cet article :\n\n${url}`);
+      const subject = encodeURIComponent(articleTitle || t`À lire absolument`);
+      const body = encodeURIComponent(
+        `${t`Je te recommande la lecture de cet article :`}\n\n${url}`
+      );
       window.location.href = `mailto:?subject=${subject}&body=${body}`;
       setIsShareOpen(false);
     },
@@ -313,8 +321,8 @@ export function ArticleEngagementBar({
               ? 'text-destructive bg-destructive/10 border-destructive/20'
               : 'hover:text-foreground hover:bg-muted/60'
           )}
-          title={isLiked ? "Je n'aime plus" : "J'aime cet écrit"}
-          aria-label={isLiked ? "Je n'aime plus" : "J'aime"}
+          title={isLiked ? t`Je n'aime plus` : t`J'aime cet écrit`}
+          aria-label={isLiked ? t`Je n'aime plus` : t`J'aime`}
         >
           <Heart
             className={cn(
@@ -330,11 +338,11 @@ export function ArticleEngagementBar({
           type="button"
           onClick={handleComment}
           className="flex items-center gap-1.5 rounded-full px-2.5 py-1 hover:text-foreground hover:bg-muted/60 transition-all cursor-pointer font-medium border border-transparent"
-          title="Voir et rédiger un commentaire"
-          aria-label="Commentaires"
+          title={t`Voir et rédiger un commentaire`}
+          aria-label={t`Commentaires`}
         >
           <MessageSquare className={isSmall ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
-          {initialComments > 0 && <span className="font-medium text-xs">{initialComments}</span>}
+          {comments > 0 && <span className="font-medium text-xs">{comments}</span>}
         </button>
 
         {/* Republier */}
@@ -347,8 +355,8 @@ export function ArticleEngagementBar({
               ? 'text-primary bg-primary/10 border-primary/20'
               : 'hover:text-foreground hover:bg-muted/60'
           )}
-          title={isReposted ? 'Retirer la republication' : 'Republier cet écrit'}
-          aria-label="Republier"
+          title={isReposted ? t`Retirer la republication` : t`Republier cet écrit`}
+          aria-label={t`Republier`}
         >
           <Repeat
             className={cn(isSmall ? 'w-3.5 h-3.5' : 'w-4 h-4', isReposted ? 'text-primary' : '')}
@@ -375,12 +383,12 @@ export function ArticleEngagementBar({
               : 'px-3 py-1 text-xs border-border/50 hover:border-foreground/40 hover:text-foreground bg-background hover:bg-muted/30 shadow-2xs',
             isShareOpen && 'bg-muted/50 text-foreground border-foreground/30'
           )}
-          title="Partager cet article"
-          aria-label="Partager"
+          title={t`Partager cet article`}
+          aria-label={t`Partager`}
           aria-expanded={isShareOpen}
         >
           <Share2 className="w-3.5 h-3.5" />
-          {showShareText && <span>Partager</span>}
+          {showShareText && <span>{t`Partager`}</span>}
         </button>
 
         {/* Popover Menu Déroulant de Partage */}
@@ -395,12 +403,12 @@ export function ArticleEngagementBar({
               {copied ? (
                 <>
                   <Check className="w-4 h-4 text-primary shrink-0" />
-                  <span className="text-primary font-semibold">Lien copié !</span>
+                  <span className="text-primary font-semibold">{t`Lien copié !`}</span>
                 </>
               ) : (
                 <>
                   <Link2 className="w-4 h-4 text-muted-foreground shrink-0" />
-                  <span>Copier le lien</span>
+                  <span>{t`Copier le lien`}</span>
                 </>
               )}
             </button>
@@ -412,7 +420,7 @@ export function ArticleEngagementBar({
               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium text-foreground hover:bg-muted/80 rounded-xl transition-colors cursor-pointer text-left"
             >
               <Mail className="w-4 h-4 text-muted-foreground shrink-0" />
-              <span>Envoyer par e-mail</span>
+              <span>{t`Envoyer par e-mail`}</span>
             </button>
 
             {/* Séparateur */}
@@ -425,7 +433,7 @@ export function ArticleEngagementBar({
               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium text-foreground hover:bg-muted/80 rounded-xl transition-colors cursor-pointer text-left"
             >
               <FacebookIcon className="w-4 h-4 text-muted-foreground shrink-0" />
-              <span>Partager sur Facebook</span>
+              <span>{t`Partager sur Facebook`}</span>
             </button>
 
             {/* Partager sur LinkedIn */}
@@ -435,7 +443,7 @@ export function ArticleEngagementBar({
               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium text-foreground hover:bg-muted/80 rounded-xl transition-colors cursor-pointer text-left"
             >
               <LinkedinIcon className="w-4 h-4 text-muted-foreground shrink-0" />
-              <span>Partager sur LinkedIn</span>
+              <span>{t`Partager sur LinkedIn`}</span>
             </button>
 
             {/* Partager sur Bluesky */}
@@ -445,7 +453,7 @@ export function ArticleEngagementBar({
               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium text-foreground hover:bg-muted/80 rounded-xl transition-colors cursor-pointer text-left"
             >
               <BlueskyIcon className="w-4 h-4 text-muted-foreground shrink-0" />
-              <span>Partager sur Bluesky</span>
+              <span>{t`Partager sur Bluesky`}</span>
             </button>
 
             {/* Partager sur X */}
@@ -455,7 +463,7 @@ export function ArticleEngagementBar({
               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium text-foreground hover:bg-muted/80 rounded-xl transition-colors cursor-pointer text-left"
             >
               <XTwitterIcon className="w-4 h-4 text-muted-foreground shrink-0" />
-              <span>Partager sur X</span>
+              <span>{t`Partager sur X`}</span>
             </button>
           </div>
         )}
