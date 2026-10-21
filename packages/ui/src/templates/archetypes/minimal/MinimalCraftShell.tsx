@@ -139,7 +139,7 @@ export function MinimalCraftShell({
       data-sidebar-open={isSidebarOpen ? 'true' : 'false'}
       className={cn(
         'platform_root min-h-screen bg-background text-foreground transition-colors selection:bg-[var(--tenant-accent)] selection:text-white pb-32 relative',
-        hasCategoryBar ? 'pt-20 sm:pt-24' : 'pt-16 sm:pt-20',
+        hasCategoryBar ? 'pt-28 sm:pt-36' : 'pt-20 sm:pt-28',
         className
       )}
     >
