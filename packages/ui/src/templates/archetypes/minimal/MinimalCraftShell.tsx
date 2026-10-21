@@ -14,8 +14,8 @@
 // 5. Dock contextuel inférieur arrondi (platform_footer)
 // =====================================================================
 
-import React, { useState } from 'react';
-import { ChevronDown, ArrowLeft } from 'lucide-react';
+import React, { useState, useContext } from 'react';
+import { ChevronDown, ArrowLeft, Search, Share2, Check } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { ProgressiveBlur } from '../../../ui/progressive-blur';
 import {
@@ -25,6 +25,7 @@ import {
 } from '../../../ui/craft-sidebar-drawer';
 import { MinimalDock } from './MinimalDock';
 import type { TemplatePublicationContext, TemplateArticleItem } from '../../schema';
+import { AuthModalContext } from '../../../auth/AuthModalContext';
 
 export interface MinimalCraftShellProps {
   publication: TemplatePublicationContext;
@@ -45,6 +46,8 @@ export function MinimalCraftShell({
 }: MinimalCraftShellProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeDropdownCatId, setActiveDropdownCatId] = useState<string | null>(null);
+  const [copiedShare, setCopiedShare] = useState(false);
+  const authContext = useContext(AuthModalContext);
 
   const accentColor = publication.accentColor || '#F97316';
   const displayName =
@@ -95,6 +98,40 @@ export function MinimalCraftShell({
   const hasCategoryBar =
     showCategoryTabs &&
     (rootCategories.length > 0 || (publication.navigation && publication.navigation.length > 0));
+
+  const supportLink = publication.stripeAccountId ? '/support' : publication.supportUrl || null;
+  const allowSupport = (siteOptions.showSubscribeButton ?? true) !== false;
+
+  const handleShare = async () => {
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title: displayName,
+          url: window.location.href,
+        });
+        return;
+      } catch {
+        // Ignorer l'annulation
+      }
+    }
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        setCopiedShare(true);
+        setTimeout(() => setCopiedShare(false), 2000);
+      } catch (err) {
+        console.error('Erreur copie presse-papier:', err);
+      }
+    }
+  };
+
+  const handleLogin = () => {
+    if (authContext?.openAuthModal) {
+      authContext.openAuthModal({ mode: 'login' });
+    } else if (typeof window !== 'undefined') {
+      window.location.href = `/login?redirect=${encodeURIComponent(window.location.href)}`;
+    }
+  };
 
   return (
     <div
@@ -197,8 +234,59 @@ export function MinimalCraftShell({
           )}
         </div>
 
-        {/* Espace droit équilibré sans le rond orange */}
-        <div className="w-7 sm:w-8 shrink-0 pointer-events-none" aria-hidden="true" />
+        {/* Côté Droit : Recherche, Partage, S'abonner, Se connecter */}
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 z-10 pointer-events-auto">
+          {/* Recherche */}
+          <a
+            href="/search"
+            className="p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+            title="Rechercher"
+            aria-label="Rechercher"
+          >
+            <Search className="w-4 h-4" />
+          </a>
+
+          {/* Partage */}
+          <button
+            type="button"
+            onClick={handleShare}
+            className="p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer"
+            title="Partager cette publication"
+            aria-label="Partager"
+          >
+            {copiedShare ? (
+              <Check className="w-4 h-4 text-primary" />
+            ) : (
+              <Share2 className="w-4 h-4" />
+            )}
+          </button>
+
+          {/* Bouton S'abonner (Pill plein coloré) */}
+          {allowSupport && (
+            <a
+              href={supportLink || '#subscribe'}
+              onClick={(e) => {
+                if (!supportLink && authContext?.openAuthModal) {
+                  e.preventDefault();
+                  authContext.openAuthModal({ mode: 'signup', actionContext: 'subscribe' });
+                }
+              }}
+              className="px-3 sm:px-4 py-1.5 rounded-full text-xs font-semibold text-white transition-transform hover:scale-[1.02] active:scale-[0.98] shadow-2xs shrink-0 cursor-pointer"
+              style={{ backgroundColor: 'var(--tenant-accent, #EE4B2B)' }}
+            >
+              S'abonner
+            </a>
+          )}
+
+          {/* Se connecter */}
+          <button
+            type="button"
+            onClick={handleLogin}
+            className="hidden sm:inline-block text-xs font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer shrink-0 px-1 py-1.5"
+          >
+            Se connecter
+          </button>
+        </div>
       </header>
 
       {/* ── 1.5. NAVIGATION CENTRÉE ÉPURÉE SANS PILULE (Catégories, Sous-catégories & Liens créateur) ── */}

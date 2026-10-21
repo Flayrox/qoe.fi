@@ -31,7 +31,8 @@ import { BlockWrapper } from './BlockWrapper';
 import { NodeRenderer } from './NodeRenderer';
 import { CraftIndicator } from '../../ui/craft-indicator';
 import { cn } from '@qoe/utils';
-import { SubstackSidebar } from './SubstackSidebar';
+import { PublicationSidebar } from './PublicationSidebar';
+import { ArticleEngagementBar } from './ArticleEngagementBar';
 
 interface ArticleStreamBlockComponentProps {
   id: string;
@@ -181,9 +182,9 @@ export function ArticleStreamBlock({
           </div>
         )}
         {displayMode === 'craft-notes' ? (
-          /* Mode Craft Notes & Journal Éditorial (Inspiré par Substack & Devouring Details) */
+          /* Mode Craft Notes & Journal Éditorial */
           <div className="max-w-6xl xl:max-w-7xl mx-auto py-1">
-            {/* Agencement Éditorial en 2 Colonnes (Style Substack : Flux + Sidebar Sticky) */}
+            {/* Agencement Éditorial en 2 Colonnes (Flux + Sidebar Sticky) */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 xl:gap-14 items-start">
               {/* Colonne Principale (~65%) : Article Vedette + Filtres et Flux d'articles */}
               <div className="lg:col-span-8 space-y-6 sm:space-y-8">
@@ -258,7 +259,7 @@ export function ArticleStreamBlock({
                       </Link>
                     </div>
 
-                    <div>
+                    <div className="flex items-center justify-between gap-4 pt-1 flex-wrap">
                       <Link
                         href={`/article/${featuredArticle.slug}`}
                         onClick={(e) => context.mode === 'editable' && e.preventDefault()}
@@ -269,6 +270,18 @@ export function ArticleStreamBlock({
                           →
                         </span>
                       </Link>
+
+                      <ArticleEngagementBar
+                        articleId={featuredArticle.id}
+                        articleSlug={featuredArticle.slug}
+                        initialLikes={featuredArticle.likesCount ?? 21}
+                        initialComments={featuredArticle.commentsCount ?? 2}
+                        initialReposts={featuredArticle.repostsCount ?? 3}
+                        initialIsLiked={featuredArticle.isLiked}
+                        size="sm"
+                        showShareText={false}
+                        className="border-0 py-0"
+                      />
                     </div>
                   </article>
                 )}
@@ -382,11 +395,30 @@ export function ArticleStreamBlock({
                                     </p>
                                   )}
 
-                                  <div className="pt-1 flex items-center gap-2 text-xs font-medium text-foreground group-hover:text-primary transition-colors">
-                                    <span>Lire</span>
-                                    <span className="transition-transform group-hover:translate-x-1">
-                                      →
-                                    </span>
+                                  <div className="pt-2 flex items-center justify-between gap-3 text-xs flex-wrap">
+                                    <Link
+                                      href={`/article/${article.slug}`}
+                                      onClick={(e) =>
+                                        context.mode === 'editable' && e.preventDefault()
+                                      }
+                                      className="inline-flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors group/cta"
+                                    >
+                                      <span>Lire</span>
+                                      <span className="transition-transform group-hover/cta:translate-x-1 text-muted-foreground">
+                                        →
+                                      </span>
+                                    </Link>
+                                    <ArticleEngagementBar
+                                      articleId={article.id}
+                                      articleSlug={article.slug}
+                                      initialLikes={article.likesCount ?? 12}
+                                      initialComments={article.commentsCount ?? 1}
+                                      initialReposts={article.repostsCount ?? 0}
+                                      initialIsLiked={article.isLiked}
+                                      size="sm"
+                                      showShareText={false}
+                                      className="border-0 py-0"
+                                    />
                                   </div>
                                 </div>
 
@@ -471,11 +503,28 @@ export function ArticleStreamBlock({
                               </p>
                             )}
 
-                            <div className="pt-1 flex items-center gap-2 text-xs font-medium text-foreground group-hover:text-primary transition-colors">
-                              <span>Lire</span>
-                              <span className="transition-transform group-hover:translate-x-1">
-                                →
-                              </span>
+                            <div className="pt-2 flex items-center justify-between gap-3 text-xs flex-wrap">
+                              <Link
+                                href={`/article/${article.slug}`}
+                                onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                                className="inline-flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors group/cta"
+                              >
+                                <span>Lire</span>
+                                <span className="transition-transform group-hover/cta:translate-x-1 text-muted-foreground">
+                                  →
+                                </span>
+                              </Link>
+                              <ArticleEngagementBar
+                                articleId={article.id}
+                                articleSlug={article.slug}
+                                initialLikes={article.likesCount ?? 14}
+                                initialComments={article.commentsCount ?? 1}
+                                initialReposts={article.repostsCount ?? 0}
+                                initialIsLiked={article.isLiked}
+                                size="sm"
+                                showShareText={false}
+                                className="border-0 py-0"
+                              />
                             </div>
                           </div>
 
@@ -502,7 +551,7 @@ export function ArticleStreamBlock({
 
               {/* Colonne Latérale (~35%) Sticky : Auteur + Recommandations Réseau + Newsletter + Top Lectures */}
               <div className="lg:col-span-4 lg:sticky lg:top-24">
-                <SubstackSidebar publication={publication} articles={items} context={context} />
+                <PublicationSidebar publication={publication} articles={items} context={context} />
               </div>
             </div>
           </div>

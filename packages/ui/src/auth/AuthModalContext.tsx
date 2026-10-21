@@ -24,7 +24,7 @@ export interface AuthModalContextValue extends AuthModalState {
   ) => (...args: Parameters<T>) => unknown;
 }
 
-const AuthModalContext = createContext<AuthModalContextValue | undefined>(undefined);
+export const AuthModalContext = createContext<AuthModalContextValue | undefined>(undefined);
 
 export interface AuthModalProviderProps {
   children: React.ReactNode;

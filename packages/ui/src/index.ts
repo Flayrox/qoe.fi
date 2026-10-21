@@ -42,6 +42,7 @@ export {
 export { OnboardingModal, type OnboardingModalProps } from './onboarding/OnboardingModal';
 export {
   AuthModalProvider,
+  AuthModalContext,
   useAuthModal,
   useRequireAuth,
   type AuthModalState,
