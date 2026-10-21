@@ -177,93 +177,96 @@ export function ArticleStreamBlock({
         )}
         {displayMode === 'craft-notes' ? (
           /* Mode Craft Notes & Journal Éditorial (Inspiré par Substack & Devouring Details) */
-          <div className="max-w-6xl xl:max-w-7xl mx-auto space-y-12 py-4">
-            {featuredArticle && (
-              <article className="group relative space-y-4 pb-10 border-b border-border/40">
-                <div className="flex items-center justify-between text-xs text-muted-foreground/80 flex-wrap gap-2">
-                  <div className="flex items-center gap-2.5">
-                    <CraftIndicator type="dot" color="var(--tenant-accent, #F97316)" size={10} />
-                    {showCategories && featuredArticle.category && (
-                      <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-muted/70 border border-border/40 text-foreground uppercase tracking-wider">
-                        {featuredArticle.category.name}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-3 text-[11px]">
-                    {featuredArticle.publishedAt && (
-                      <span>
-                        {new Date(featuredArticle.publishedAt).toLocaleDateString('fr-FR', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                        })}
-                      </span>
-                    )}
-                    {showReadingTime && featuredArticle.readingTime && (
-                      <span className="inline-flex items-center gap-1">
-                        <Clock className="w-3 h-3 opacity-60" />
-                        {featuredArticle.readingTime} min
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors">
-                  <Link
-                    href={`/article/${featuredArticle.slug}`}
-                    onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                  >
-                    {featuredArticle.title}
-                  </Link>
-                </h2>
-
-                {showExcerpts && featuredArticle.excerpt && (
-                  <p className="text-base sm:text-lg text-muted-foreground/90 leading-relaxed max-w-3xl">
-                    {featuredArticle.excerpt}
-                  </p>
-                )}
-
-                {/* Bleed media : s'étend avec prestance sur grands écrans */}
-                <div className="w-full my-6">
-                  <Link
-                    href={`/article/${featuredArticle.slug}`}
-                    onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                    className="block group/cover"
-                  >
-                    <div className="relative w-full aspect-[16/9] sm:aspect-[2/1] rounded-2xl overflow-hidden border border-border/50 bg-muted shadow-2xs">
-                      <SafeImage
-                        src={
-                          featuredArticle.imageUrl ||
-                          getCoverPlaceholder(featuredArticle.slug || featuredArticle.id)
-                        }
-                        alt={featuredArticle.title}
-                        fill
-                        className="object-cover transition-transform duration-500 group-hover/cover:scale-[1.01]"
-                      />
-                    </div>
-                  </Link>
-                </div>
-
-                <div>
-                  <Link
-                    href={`/article/${featuredArticle.slug}`}
-                    onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                    className="inline-flex items-center gap-2 text-xs sm:text-[13px] font-medium text-foreground hover:text-primary transition-colors group/cta"
-                  >
-                    <span>Lire l’article</span>
-                    <span className="transition-transform group-hover/cta:translate-x-1 text-muted-foreground">
-                      →
-                    </span>
-                  </Link>
-                </div>
-              </article>
-            )}
-
+          <div className="max-w-6xl xl:max-w-7xl mx-auto py-2 sm:py-4">
             {/* Agencement Éditorial en 2 Colonnes (Style Substack : Flux + Sidebar Sticky) */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 xl:gap-14 items-start">
-              {/* Colonne Principale (~65%) : Filtres et Flux d'articles */}
+              {/* Colonne Principale (~65%) : Article Vedette + Filtres et Flux d'articles */}
               <div className="lg:col-span-8 space-y-8">
+                {featuredArticle && (
+                  <article className="group relative space-y-4 pb-8 border-b border-border/40">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground/80 flex-wrap gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <CraftIndicator
+                          type="dot"
+                          color="var(--tenant-accent, #F97316)"
+                          size={10}
+                        />
+                        {showCategories && featuredArticle.category && (
+                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-muted/70 border border-border/40 text-foreground uppercase tracking-wider">
+                            {featuredArticle.category.name}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-3 text-[11px]">
+                        {featuredArticle.publishedAt && (
+                          <span>
+                            {new Date(featuredArticle.publishedAt).toLocaleDateString('fr-FR', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                            })}
+                          </span>
+                        )}
+                        {showReadingTime && featuredArticle.readingTime && (
+                          <span className="inline-flex items-center gap-1">
+                            <Clock className="w-3 h-3 opacity-60" />
+                            {featuredArticle.readingTime} min
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors">
+                      <Link
+                        href={`/article/${featuredArticle.slug}`}
+                        onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                      >
+                        {featuredArticle.title}
+                      </Link>
+                    </h2>
+
+                    {showExcerpts && featuredArticle.excerpt && (
+                      <p className="text-base sm:text-lg text-muted-foreground/90 leading-relaxed max-w-3xl">
+                        {featuredArticle.excerpt}
+                      </p>
+                    )}
+
+                    {/* Image de couverture bien proportionnée dans la colonne */}
+                    <div className="w-full my-4">
+                      <Link
+                        href={`/article/${featuredArticle.slug}`}
+                        onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                        className="block group/cover"
+                      >
+                        <div className="relative w-full aspect-[16/9] rounded-2xl overflow-hidden border border-border/50 bg-muted shadow-2xs">
+                          <SafeImage
+                            src={
+                              featuredArticle.imageUrl ||
+                              getCoverPlaceholder(featuredArticle.slug || featuredArticle.id)
+                            }
+                            alt={featuredArticle.title}
+                            fill
+                            className="object-cover transition-transform duration-500 group-hover/cover:scale-[1.01]"
+                          />
+                        </div>
+                      </Link>
+                    </div>
+
+                    <div>
+                      <Link
+                        href={`/article/${featuredArticle.slug}`}
+                        onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                        className="inline-flex items-center gap-2 text-xs sm:text-[13px] font-medium text-foreground hover:text-primary transition-colors group/cta"
+                      >
+                        <span>Lire l’article</span>
+                        <span className="transition-transform group-hover/cta:translate-x-1 text-muted-foreground">
+                          →
+                        </span>
+                      </Link>
+                    </div>
+                  </article>
+                )}
                 {/* Barre de filtres par catégories (Pill segmented control minimal & configurable) */}
                 {availableCategories.length > 0 && (
                   <div className="pt-1 pb-2 flex items-center justify-between flex-wrap gap-3 border-b border-border/30 pb-3">
