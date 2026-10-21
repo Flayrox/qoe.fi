@@ -369,6 +369,21 @@ export interface TemplateCategoryItem {
   children?: TemplateCategoryItem[];
 }
 
+export interface TemplateRecommendationItem {
+  id: string;
+  name: string;
+  slug: string;
+  subdomain: string;
+  customDomain?: string | null;
+  logoUrl?: string | null;
+  description?: string | null;
+  authorName?: string | null;
+  authorHandle?: string | null;
+  authorAvatarUrl?: string | null;
+  articlesCount?: number;
+  subscribersCount?: number;
+}
+
 /** Shape minimale de la publication requise pour l'affichage */
 export interface TemplatePublicationContext {
   id?: string;
@@ -392,4 +407,11 @@ export interface TemplatePublicationContext {
   subscriberCount?: number;
   layoutStyle?: string | null;
   siteOptions?: Record<string, unknown> | null;
+  recommendations?: TemplateRecommendationItem[] | null;
+  author?: {
+    name?: string | null;
+    username?: string | null;
+    avatarUrl?: string | null;
+    bio?: string | null;
+  } | null;
 }

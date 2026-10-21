@@ -130,6 +130,13 @@ export async function TenantPageRenderer(props: TenantPageRendererProps) {
       order: s.order,
       publicationId: publication.id,
     })),
+    recommendations: recommendations ?? null,
+    author: {
+      name: publication.name,
+      username: publication.user?.username ?? publication.subdomain ?? null,
+      avatarUrl: publication.logoUrl,
+      bio: publication.heroText ?? publication.bio ?? null,
+    },
   };
 
   const templateArticles: TemplateArticleItem[] = articles.map((article) => ({
