@@ -226,6 +226,7 @@ export function ArticleContentBlock({
             initialComments={article.commentsCount ?? 0}
             initialReposts={article.repostsCount ?? 0}
             initialIsLiked={article.isLiked}
+            initialIsReposted={article.isReposted}
             size="md"
             showShareText={true}
           />

@@ -181,11 +181,13 @@ export async function TenantPageRenderer(props: TenantPageRendererProps) {
         articles={templateArticles}
         mode="live"
       />
-      {recommendations && recommendations.length > 0 && (
-        <div className="container mx-auto px-4 lg:px-8 py-12 border-t border-border">
-          <RecommendedSection authorName={name} recommendations={recommendations} />
-        </div>
-      )}
+      {recommendations &&
+        recommendations.length > 0 &&
+        (rawSiteOpts?.showRecommendationsOnHome ?? true) !== false && (
+          <div className="container mx-auto px-4 lg:px-8 py-12 border-t border-border">
+            <RecommendedSection authorName={name} recommendations={recommendations} />
+          </div>
+        )}
     </div>
   );
 }

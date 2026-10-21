@@ -473,7 +473,7 @@ func (s *Service) toggleArticleRepost(ctx context.Context, articleID, userID str
 			"likeCount", "repostCount", "replyCount"
 		)
 		VALUES (
-			$1, '', $2, now(), '{}', 'public', 'PUBLIC',
+			$1, '', $2, now(), '{}'::text[], 'public', 'PUBLIC',
 			false, $3, 'everyone', false,
 			0, 0, 0
 		)

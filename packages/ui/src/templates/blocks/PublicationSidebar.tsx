@@ -151,122 +151,124 @@ export function PublicationSidebar({
       </div>
 
       {/* ── 2. RÉSEAU DE RECOMMANDATIONS ("Recommandé par...") ── */}
-      <div className="p-5 rounded-2xl bg-card/60 backdrop-blur-sm border border-border/50 shadow-2xs space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <Sparkles className="w-3.5 h-3.5 text-[var(--tenant-accent,hsl(var(--primary)))]" />
-            <span>Recommandé par {authorName}</span>
+      {(publication?.siteOptions?.showRecommendationsInSidebar ?? true) !== false && (
+        <div className="p-5 rounded-2xl bg-card/60 backdrop-blur-sm border border-border/50 shadow-2xs space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              <Sparkles className="w-3.5 h-3.5 text-[var(--tenant-accent,hsl(var(--primary)))]" />
+              <span>Recommandé par {authorName}</span>
+            </div>
+            <span className="text-[11px] font-medium text-muted-foreground/60">
+              {recommendations.length}
+            </span>
           </div>
-          <span className="text-[11px] font-medium text-muted-foreground/60">
-            {recommendations.length}
-          </span>
-        </div>
 
-        <div className="space-y-3 divide-y divide-border/30">
-          {recommendations.map((rec) => {
-            const isSubscribed = Boolean(subscribedMap[rec.id]);
-            const isLoading = Boolean(loadingMap[rec.id]);
-            const isInputOpen = activeInlineEmailId === rec.id;
-            const targetUrl = (() => {
-              if (rec.customDomain) return `https://${rec.customDomain}`;
-              if (!rec.subdomain) return '#';
-              if (typeof window !== 'undefined') {
-                const host = window.location.hostname;
-                if (host.endsWith('lvh.me')) return `http://${rec.subdomain}.lvh.me:15403`;
-                if (host.endsWith('localhost')) return `http://${rec.subdomain}.localhost:15403`;
-                if (host.endsWith('qoe.test')) return `http://${rec.subdomain}.qoe.test`;
-              }
-              return `https://${rec.subdomain}.qoe.fi`;
-            })();
+          <div className="space-y-3 divide-y divide-border/30">
+            {recommendations.map((rec) => {
+              const isSubscribed = Boolean(subscribedMap[rec.id]);
+              const isLoading = Boolean(loadingMap[rec.id]);
+              const isInputOpen = activeInlineEmailId === rec.id;
+              const targetUrl = (() => {
+                if (rec.customDomain) return `https://${rec.customDomain}`;
+                if (!rec.subdomain) return '#';
+                if (typeof window !== 'undefined') {
+                  const host = window.location.hostname;
+                  if (host.endsWith('lvh.me')) return `http://${rec.subdomain}.lvh.me:15403`;
+                  if (host.endsWith('localhost')) return `http://${rec.subdomain}.localhost:15403`;
+                  if (host.endsWith('qoe.test')) return `http://${rec.subdomain}.qoe.test`;
+                }
+                return `https://${rec.subdomain}.qoe.fi`;
+              })();
 
-            return (
-              <div key={rec.id} className="pt-3 first:pt-0 space-y-2 group/rec">
-                <div className="flex items-start justify-between gap-2.5">
-                  <div className="flex items-start gap-2.5 min-w-0 flex-1">
-                    <SafeAvatar
-                      src={rec.logoUrl || rec.authorAvatarUrl}
-                      name={rec.name}
-                      size={34}
-                      shape="squircle"
-                      className="border border-border/40 shrink-0 mt-0.5 shadow-2xs"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <a
-                        href={targetUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 font-semibold text-xs sm:text-[13px] text-foreground hover:text-primary transition-colors truncate max-w-full"
-                      >
-                        <span className="truncate">{rec.name}</span>
-                        <ExternalLink className="w-3 h-3 opacity-0 group-hover/rec:opacity-60 transition-opacity shrink-0" />
-                      </a>
-                      {rec.description && (
-                        <p className="text-[11px] text-muted-foreground line-clamp-1 leading-normal mt-0.5">
-                          {rec.description}
-                        </p>
-                      )}
+              return (
+                <div key={rec.id} className="pt-3 first:pt-0 space-y-2 group/rec">
+                  <div className="flex items-start justify-between gap-2.5">
+                    <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                      <SafeAvatar
+                        src={rec.logoUrl || rec.authorAvatarUrl}
+                        name={rec.name}
+                        size={34}
+                        shape="squircle"
+                        className="border border-border/40 shrink-0 mt-0.5 shadow-2xs"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <a
+                          href={targetUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 font-semibold text-xs sm:text-[13px] text-foreground hover:text-primary transition-colors truncate max-w-full"
+                        >
+                          <span className="truncate">{rec.name}</span>
+                          <ExternalLink className="w-3 h-3 opacity-0 group-hover/rec:opacity-60 transition-opacity shrink-0" />
+                        </a>
+                        {rec.description && (
+                          <p className="text-[11px] text-muted-foreground line-clamp-1 leading-normal mt-0.5">
+                            {rec.description}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleSubscribeClick(rec)}
-                    disabled={isLoading || isSubscribed}
-                    className={cn(
-                      'px-2.5 py-1 rounded-lg text-xs font-medium transition-all shrink-0 cursor-pointer border',
-                      isSubscribed
-                        ? 'bg-primary/10 text-primary border-primary/30'
-                        : 'bg-muted/70 hover:bg-foreground hover:text-background border-border/50 text-foreground shadow-2xs active:scale-95'
-                    )}
-                  >
-                    {isLoading ? (
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                    ) : isSubscribed ? (
-                      <span className="inline-flex items-center gap-1">
-                        <Check className="w-3 h-3" /> Abonné
-                      </span>
-                    ) : (
-                      "S'abonner"
-                    )}
-                  </button>
-                </div>
-
-                {/* Formulaire inline rapide */}
-                {isInputOpen && !isSubscribed && (
-                  <form
-                    onSubmit={(e) => handleInlineSubscribeSubmit(e, rec.id)}
-                    className="flex items-center gap-1.5 pt-1 animate-in fade-in slide-in-from-top-1 duration-200"
-                  >
-                    <input
-                      type="email"
-                      value={inlineEmail}
-                      onChange={(e) => setInlineEmail(e.target.value)}
-                      placeholder="Votre email..."
-                      required
-                      autoFocus
-                      className="flex-1 min-w-0 h-7 text-xs px-2 rounded-md bg-background border border-border/60 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                    <button
-                      type="submit"
-                      disabled={isLoading}
-                      className="h-7 px-2.5 rounded-md text-xs font-medium bg-foreground text-background hover:opacity-90 transition-opacity cursor-pointer shrink-0"
-                    >
-                      {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'OK'}
-                    </button>
                     <button
                       type="button"
-                      onClick={() => setActiveInlineEmailId(null)}
-                      className="h-7 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+                      onClick={() => handleSubscribeClick(rec)}
+                      disabled={isLoading || isSubscribed}
+                      className={cn(
+                        'px-2.5 py-1 rounded-lg text-xs font-medium transition-all shrink-0 cursor-pointer border',
+                        isSubscribed
+                          ? 'bg-primary/10 text-primary border-primary/30'
+                          : 'bg-muted/70 hover:bg-foreground hover:text-background border-border/50 text-foreground shadow-2xs active:scale-95'
+                      )}
                     >
-                      ✕
+                      {isLoading ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : isSubscribed ? (
+                        <span className="inline-flex items-center gap-1">
+                          <Check className="w-3 h-3" /> Abonné
+                        </span>
+                      ) : (
+                        "S'abonner"
+                      )}
                     </button>
-                  </form>
-                )}
-              </div>
-            );
-          })}
+                  </div>
+
+                  {/* Formulaire inline rapide */}
+                  {isInputOpen && !isSubscribed && (
+                    <form
+                      onSubmit={(e) => handleInlineSubscribeSubmit(e, rec.id)}
+                      className="flex items-center gap-1.5 pt-1 animate-in fade-in slide-in-from-top-1 duration-200"
+                    >
+                      <input
+                        type="email"
+                        value={inlineEmail}
+                        onChange={(e) => setInlineEmail(e.target.value)}
+                        placeholder="Votre email..."
+                        required
+                        autoFocus
+                        className="flex-1 min-w-0 h-7 text-xs px-2 rounded-md bg-background border border-border/60 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                      <button
+                        type="submit"
+                        disabled={isLoading}
+                        className="h-7 px-2.5 rounded-md text-xs font-medium bg-foreground text-background hover:opacity-90 transition-opacity cursor-pointer shrink-0"
+                      >
+                        {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'OK'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveInlineEmailId(null)}
+                        className="h-7 px-1.5 text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        ✕
+                      </button>
+                    </form>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ── 3. FORMULAIRE D'ABONNEMENT STICKY (Boîte aux lettres) ── */}
       <div className="p-5 rounded-2xl bg-card/60 backdrop-blur-sm border border-border/50 shadow-2xs space-y-3">
