@@ -64,9 +64,17 @@ export function RecommendedSection({ authorName, recommendations }: RecommendedS
             const isSubscribed = Boolean(subscribedMap[pub.id]);
             const isLoading = Boolean(loadingMap[pub.id]);
             const avatar = pub.logoUrl || pub.authorAvatarUrl;
-            const targetUrl = pub.customDomain
-              ? `https://${pub.customDomain}`
-              : `http://${pub.subdomain}.qoe.test`;
+            const targetUrl = (() => {
+              if (pub.customDomain) return `https://${pub.customDomain}`;
+              if (!pub.subdomain) return '#';
+              if (typeof window !== 'undefined') {
+                const host = window.location.hostname;
+                if (host.endsWith('lvh.me')) return `http://${pub.subdomain}.lvh.me:15403`;
+                if (host.endsWith('localhost')) return `http://${pub.subdomain}.localhost:15403`;
+                if (host.endsWith('qoe.test')) return `http://${pub.subdomain}.qoe.test`;
+              }
+              return `https://${pub.subdomain}.qoe.fi`;
+            })();
 
             return (
               <div

@@ -10,9 +10,11 @@
 // - Bouton Partager avec copie dans le presse-papier & API native Web Share
 // =====================================================================
 
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useContext } from 'react';
 import { Heart, MessageSquare, Repeat, Share2, Check, Link2, Mail } from 'lucide-react';
 import { cn } from '@qoe/utils';
+import { toggleLikePostAction, toggleRepostPostAction } from '@qoe/sdk/actions/feed';
+import { AuthModalContext } from '../../auth/AuthModalContext';
 
 export interface ArticleEngagementBarProps {
   articleId?: string;
@@ -65,6 +67,7 @@ function LinkedinIcon({ className = 'w-4 h-4' }: { className?: string }) {
 }
 
 export function ArticleEngagementBar({
+  articleId,
   articleSlug,
   articleTitle,
   initialLikes = 0,
@@ -87,6 +90,24 @@ export function ArticleEngagementBar({
   const [isShareOpen, setIsShareOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const shareContainerRef = useRef<HTMLDivElement>(null);
+  const authContext = useContext(AuthModalContext);
+
+  // Synchronisation si les props d'initialisation changent
+  useEffect(() => {
+    setLikes(initialLikes);
+  }, [initialLikes]);
+
+  useEffect(() => {
+    setIsLiked(initialIsLiked);
+  }, [initialIsLiked]);
+
+  useEffect(() => {
+    setReposts(initialReposts);
+  }, [initialReposts]);
+
+  useEffect(() => {
+    setIsReposted(initialIsReposted);
+  }, [initialIsReposted]);
 
   // Fermeture du menu au clic extérieur ou touche Échap
   useEffect(() => {
@@ -116,27 +137,73 @@ export function ArticleEngagementBar({
   }, [articleSlug]);
 
   const handleLike = useCallback(
-    (e: React.MouseEvent) => {
+    async (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
       const nextLiked = !isLiked;
       setIsLiked(nextLiked);
       setLikes((prev) => (nextLiked ? prev + 1 : Math.max(0, prev - 1)));
-      onLikeToggle?.(nextLiked);
+
+      if (onLikeToggle) {
+        onLikeToggle(nextLiked);
+        return;
+      }
+
+      if (articleId) {
+        try {
+          const res = await toggleLikePostAction(articleId);
+          if (res?.ok) {
+            setIsLiked(Boolean(res.data?.liked));
+          } else {
+            // Revert optimiste si échec ou non authentifié
+            setIsLiked(!nextLiked);
+            setLikes((prev) => (nextLiked ? Math.max(0, prev - 1) : prev + 1));
+            if (res?.error?.code === 'UNAUTHORIZED' && authContext?.openAuthModal) {
+              authContext.openAuthModal({ mode: 'login', actionContext: 'like' });
+            }
+          }
+        } catch {
+          setIsLiked(!nextLiked);
+          setLikes((prev) => (nextLiked ? Math.max(0, prev - 1) : prev + 1));
+        }
+      }
     },
-    [isLiked, onLikeToggle]
+    [isLiked, onLikeToggle, articleId, authContext]
   );
 
   const handleRepost = useCallback(
-    (e: React.MouseEvent) => {
+    async (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
       const nextReposted = !isReposted;
       setIsReposted(nextReposted);
       setReposts((prev) => (nextReposted ? prev + 1 : Math.max(0, prev - 1)));
-      onRepostToggle?.(nextReposted);
+
+      if (onRepostToggle) {
+        onRepostToggle(nextReposted);
+        return;
+      }
+
+      if (articleId) {
+        try {
+          const res = await toggleRepostPostAction(articleId);
+          if (res?.ok) {
+            setIsReposted(Boolean(res.data?.reposted));
+          } else {
+            // Revert optimiste si échec ou non authentifié
+            setIsReposted(!nextReposted);
+            setReposts((prev) => (nextReposted ? Math.max(0, prev - 1) : prev + 1));
+            if (res?.error?.code === 'UNAUTHORIZED' && authContext?.openAuthModal) {
+              authContext.openAuthModal({ mode: 'login', actionContext: 'repost' });
+            }
+          }
+        } catch {
+          setIsReposted(!nextReposted);
+          setReposts((prev) => (nextReposted ? Math.max(0, prev - 1) : prev + 1));
+        }
+      }
     },
-    [isReposted, onRepostToggle]
+    [isReposted, onRepostToggle, articleId, authContext]
   );
 
   const handleComment = useCallback(

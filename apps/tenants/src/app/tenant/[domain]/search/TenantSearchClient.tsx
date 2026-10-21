@@ -185,7 +185,7 @@ export function TenantSearchClient({
                     </span>
                   </div>
 
-                  <h3 className="text-base sm:text-lg font-bold tracking-tight text-foreground group-hover:text-[var(--tenant-accent,#C04328)] transition-colors leading-snug">
+                  <h3 className="text-base sm:text-lg font-bold tracking-tight text-foreground group-hover:text-primary transition-colors leading-snug">
                     {art.title}
                   </h3>
 
@@ -228,7 +228,7 @@ export function TenantSearchClient({
               setQuery('');
               setSelectedCategory('all');
             }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold text-white bg-[var(--tenant-accent,#C04328)] hover:opacity-90 transition-opacity cursor-pointer shadow-xs"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity cursor-pointer shadow-xs"
           >
             <span>Afficher tous les articles</span>
             <ArrowRight className="w-3.5 h-3.5" />

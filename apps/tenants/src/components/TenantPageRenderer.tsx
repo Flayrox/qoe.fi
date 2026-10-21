@@ -160,6 +160,11 @@ export async function TenantPageRenderer(props: TenantPageRendererProps) {
       isPremium: article.isPremium,
       isPinned,
       isEditorPick: Boolean(artAny.isEditorPick),
+      likesCount: article.likesCount ?? 0,
+      commentsCount: article.commentsCount ?? 0,
+      repostsCount: article.repostsCount ?? 0,
+      isLiked: Boolean(article.isLiked),
+      isReposted: Boolean(article.isReposted),
       publishedAt: article.createdAt,
       category: article.category
         ? { name: article.category.name, slug: article.category.slug }
