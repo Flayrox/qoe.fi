@@ -11,7 +11,7 @@ import {
 import { sanitizeHtml } from '@/lib/sanitize';
 import { t } from '@lingui/core/macro';
 
-interface PaywallCutProps {
+export interface PaywallCutProps {
   contentHtml: string;
   isPremium: boolean;
   name: string | null;
@@ -19,6 +19,8 @@ interface PaywallCutProps {
   accentColor: string | null;
   mainAppUrl: string;
   creatorId: string;
+  initialAuthenticated?: boolean;
+  initialUser?: WalletUser | null;
 }
 
 export function PaywallCut({
@@ -29,6 +31,8 @@ export function PaywallCut({
   accentColor,
   mainAppUrl,
   creatorId,
+  initialAuthenticated,
+  initialUser,
 }: PaywallCutProps) {
   const safeHtml = sanitizeHtml(contentHtml);
 
@@ -48,35 +52,46 @@ export function PaywallCut({
         accentColor={accentColor}
         mainAppUrl={mainAppUrl}
         creatorId={creatorId}
+        initialAuthenticated={initialAuthenticated}
+        initialUser={initialUser}
       />
     </>
   );
 }
 
-interface WalletUser {
+export interface WalletUser {
   walletBalanceCents?: number | null;
   name?: string | null;
   email?: string | null;
 }
 
-function PaywallOverlay({
-  name,
-  isBrutalist,
-  accentColor,
-  mainAppUrl,
-  creatorId,
-}: {
+export interface PaywallOverlayProps {
   name: string | null;
   isBrutalist: boolean;
   accentColor: string | null;
   mainAppUrl: string;
   creatorId: string;
-}) {
-  const [user, setUser] = useState<WalletUser | null>(null);
+  initialAuthenticated?: boolean;
+  initialUser?: WalletUser | null;
+}
+
+export function PaywallOverlay({
+  name,
+  isBrutalist,
+  accentColor,
+  mainAppUrl,
+  creatorId,
+  initialAuthenticated,
+  initialUser,
+}: PaywallOverlayProps) {
+  const [user, setUser] = useState<WalletUser | null>(initialUser ?? null);
   const [unlocking, setUnlocking] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    // If explicitly known as anonymous, avoid making an unnecessary network call
+    if (initialAuthenticated === false) return;
+
     getCurrentUser()
       .then((res) => {
         setUser(res.ok ? res.data : null);
@@ -84,7 +99,7 @@ function PaywallOverlay({
       .catch(() => {
         // ignore
       });
-  }, []);
+  }, [initialAuthenticated]);
 
   const handleUnlock = async () => {
     if (!user) {
@@ -248,7 +263,7 @@ function PaywallOverlay({
             </div>
           ) : (
             <div>
-              {t`Vous avez déjà un compte ou êtes déjà abonné ?`}{' '}
+              <span>{t`Vous avez déjà un compte ou êtes déjà abonné ?`} </span>
               <button
                 onClick={() =>
                   (window.location.href = `${mainAppUrl}/login?redirect=${encodeURIComponent(window.location.href)}`)

@@ -293,7 +293,9 @@ export function TextHighlighter({
         while (mark.firstChild) {
           parent.insertBefore(mark.firstChild, mark);
         }
-        parent.removeChild(mark);
+        if (parent.contains(mark)) {
+          parent.removeChild(mark);
+        }
       }
     });
     // 🌟 Merge adjacent text nodes after unwrapping marks so indexOf string matching stays 100% reliable
@@ -1171,7 +1173,9 @@ export function TextHighlighter({
               while (mark.firstChild) {
                 parent.insertBefore(mark.firstChild, mark);
               }
-              parent.removeChild(mark);
+              if (parent.contains(mark)) {
+                parent.removeChild(mark);
+              }
             }
           });
           setSelectedAnnotationForDrawer(null);

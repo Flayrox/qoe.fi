@@ -195,7 +195,7 @@ export function SubscribeForm({
   const isOneClickMode = Boolean(connectedEmail && !isOtherEmailMode);
 
   return (
-    <div className={`w-full max-w-md ${className}`}>
+    <div className={`w-full max-w-md font-[family:inherit] ${className}`}>
       {isOneClickMode ? (
         <div className="relative" ref={dropdownRef}>
           <div
@@ -212,7 +212,7 @@ export function SubscribeForm({
               type="button"
               disabled={disabled || status === 'loading'}
               onClick={() => void executeSubscribe(connectedEmail!)}
-              className={`flex-1 min-w-0 font-semibold transition-colors flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 ${
+              className={`flex-1 min-w-0 font-semibold font-[family:inherit] transition-colors flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50 ${
                 size === 'compact' ? 'h-10 px-3.5 text-xs' : 'h-13 px-5 text-base'
               } ${
                 accentColor
@@ -313,7 +313,7 @@ export function SubscribeForm({
         <div className="flex flex-col gap-3">
           <a
             href={qoefiSubscribeUrl}
-            className={`w-full font-semibold transition-all flex items-center justify-center gap-2.5 cursor-pointer no-underline ${
+            className={`w-full font-semibold font-[family:inherit] transition-all flex items-center justify-center gap-2.5 cursor-pointer no-underline ${
               size === 'compact' ? 'h-10 px-3.5 text-xs' : 'h-12 px-5 text-sm sm:text-base'
             } ${
               isBrutalist
@@ -345,7 +345,7 @@ export function SubscribeForm({
                 required
                 disabled={disabled || status === 'loading'}
                 placeholder={placeholder || t`Votre adresse email`}
-                className={`flex-1 text-foreground placeholder:text-muted-foreground/60 outline-none transition-all ${
+                className={`flex-1 text-foreground placeholder:text-muted-foreground/60 outline-none font-[family:inherit] transition-all ${
                   size === 'compact'
                     ? 'h-10 px-3.5 text-sm rounded-lg border border-border bg-background shadow-2xs focus:ring-1 focus:ring-foreground'
                     : isBrutalist
@@ -356,7 +356,7 @@ export function SubscribeForm({
               <button
                 type="submit"
                 disabled={disabled || status === 'loading'}
-                className={`font-semibold transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shrink-0 ${
+                className={`font-semibold font-[family:inherit] transition-colors flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 shrink-0 ${
                   size === 'compact'
                     ? 'h-10 px-4 text-sm rounded-lg shadow-2xs whitespace-nowrap'
                     : isBrutalist

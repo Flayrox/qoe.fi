@@ -5,7 +5,8 @@ import { type AnnotationItem, type HighlightItem } from '@qoe/ui/annotations';
 import { TenantArticleHighlighter } from './TenantArticleHighlighter';
 import { TenantArticleReadingTracker } from './TenantArticleReadingTracker';
 import { type CommentItem, ArticleCommentsSection } from './ArticleCommentsSection';
-import { PaywallCut } from './PaywallCut';
+import { PaywallCut, PaywallOverlay } from './PaywallCut';
+import { sanitizeHtml } from '@/lib/sanitize';
 import { ReaderActions } from './ReaderActions';
 import { TenantReaderShell } from './TenantReaderShell';
 import { RelatedArticles } from './RelatedArticles';
@@ -378,22 +379,36 @@ export async function TenantArticleRenderer({
               </>
             )}
 
-            {/* Corps de l'article avec coupure Paywall */}
+            {/* Corps de l'article (strictement le contenu textuel/HTML pur pour le surligneur) */}
             {!canonicalDocument && (
-              <div
-                id="article-content"
-                className="prose prose-zinc dark:prose-invert max-w-none text-base md:text-lg leading-relaxed space-y-6"
-              >
-                <PaywallCut
-                  contentHtml={paywallCutResult.content}
-                  isPremium={article.isPremium && !paywallCutResult.accessGranted}
-                  name={authorName}
-                  isBrutalist={isBrutalist}
-                  accentColor={accentColor}
-                  mainAppUrl={mainAppUrl}
-                  creatorId={article.authorId}
+              <>
+                <div
+                  id="article-content"
+                  className="prose prose-zinc dark:prose-invert max-w-none text-base md:text-lg leading-relaxed space-y-6"
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(paywallCutResult.content) }}
                 />
-              </div>
+                {article.isPremium && !paywallCutResult.accessGranted && (
+                  <PaywallOverlay
+                    name={authorName}
+                    isBrutalist={isBrutalist}
+                    accentColor={accentColor}
+                    mainAppUrl={mainAppUrl}
+                    creatorId={article.authorId}
+                    initialAuthenticated={!!user}
+                    initialUser={
+                      user
+                        ? {
+                            name:
+                              (user.user_metadata?.name as string) ??
+                              (user.user_metadata?.full_name as string) ??
+                              null,
+                            email: user.email ?? null,
+                          }
+                        : null
+                    }
+                  />
+                )}
+              </>
             )}
 
             {/* Surligneur Genius et moteur de sélections (rendu avec le corps d'article) */}
@@ -500,16 +515,6 @@ export async function TenantArticleRenderer({
             socialLinks={socialLinks}
           />
           <main className="pt-12 pb-24">{articleBodyContent}</main>
-          <ReaderActions
-            articleId={article.id}
-            publicationId={publication.id}
-            creatorName={authorName || t`le créateur`}
-            isAuthenticated={!!user}
-            initialBookmarked={initialBookmarked}
-            initialFollowed={initialFollowed}
-            mainAppUrl={mainAppUrl}
-            articleTitle={article.title}
-          />
           <footer
             className={`py-16 px-4 text-center ${isBrutalist ? 'border-t-4 border-foreground' : 'border-t border-border/40 bg-muted/20'}`}
           >
@@ -522,6 +527,18 @@ export async function TenantArticleRenderer({
           </footer>
         </>
       )}
+
+      {/* Barre d'actions globale du lecteur (Audio TTS, typographie, signets, follow créateur) */}
+      <ReaderActions
+        articleId={article.id}
+        publicationId={publication.id}
+        creatorName={authorName || t`le créateur`}
+        isAuthenticated={!!user}
+        initialBookmarked={initialBookmarked}
+        initialFollowed={initialFollowed}
+        mainAppUrl={mainAppUrl}
+        articleTitle={article.title}
+      />
     </TenantReaderShell>
   );
 }

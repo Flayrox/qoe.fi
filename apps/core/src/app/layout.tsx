@@ -191,6 +191,7 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
+      data-scroll-behavior="smooth"
       className={cn('scroll-smooth', 'font-sans', geist.variable)}
       data-qoe-reduce-motion={accountSettings?.reduceMotion ? 'true' : 'false'}
       data-qoe-high-contrast={accountSettings?.highContrast ? 'true' : 'false'}
