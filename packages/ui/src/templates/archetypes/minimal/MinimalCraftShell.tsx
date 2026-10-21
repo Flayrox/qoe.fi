@@ -15,7 +15,7 @@
 // =====================================================================
 
 import React, { useState } from 'react';
-import { ChevronDown, Folder, Heart, X, ArrowLeft } from 'lucide-react';
+import { ChevronDown, ArrowLeft } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { ProgressiveBlur } from '../../../ui/progressive-blur';
 import {
@@ -25,7 +25,6 @@ import {
 } from '../../../ui/craft-sidebar-drawer';
 import { MinimalDock } from './MinimalDock';
 import type { TemplatePublicationContext, TemplateArticleItem } from '../../schema';
-import { SocialIcon } from '../../../SocialIcon';
 
 export interface MinimalCraftShellProps {
   publication: TemplatePublicationContext;
@@ -45,7 +44,6 @@ export function MinimalCraftShell({
   style,
 }: MinimalCraftShellProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
   const [activeDropdownCatId, setActiveDropdownCatId] = useState<string | null>(null);
 
   const accentColor = publication.accentColor || '#F97316';
@@ -53,7 +51,8 @@ export function MinimalCraftShell({
     publication.name || publication.domain || publication.subdomain || 'Mon Carnet';
   const siteOptions = publication.siteOptions ?? {};
 
-  const showCraftIndex = (siteOptions.showCraftIndex ?? true) !== false;
+  // 📌 Sidebar mise de côté pour notre to-do future : désactivée par défaut
+  const showCraftIndex = Boolean(siteOptions.showCraftIndex);
   const showProgressiveBlur = (siteOptions.showProgressiveBlur ?? true) !== false;
   const showBanner = (siteOptions.showBanner ?? true) !== false;
   const headerWordmarkUrl = showBanner ? publication.headerImageUrl || null : null;
@@ -198,115 +197,8 @@ export function MinimalCraftShell({
           )}
         </div>
 
-        {/* Pastille de marque avec menu déroulant réglages / profil */}
-        <div className="relative shrink-0">
-          <button
-            type="button"
-            onClick={() => setIsSettingsMenuOpen((prev) => !prev)}
-            className="platform_settings ml-auto flex items-center gap-1.5 text-muted-foreground hover:text-foreground rounded-full outline-offset-2 cursor-pointer p-1 transition-colors"
-            aria-label="Menu du carnet"
-            title="Profil & Options"
-          >
-            <span
-              role="img"
-              aria-label="Logomark"
-              className="block rounded-full shadow-2xs transition-transform hover:scale-110"
-              style={{
-                width: 16,
-                height: 16,
-                backgroundColor: accentColor,
-              }}
-            />
-            <ChevronDown className="w-3.5 h-3.5 opacity-70" />
-          </button>
-
-          {/* Menu popover épuré Radix-style */}
-          {isSettingsMenuOpen && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={() => setIsSettingsMenuOpen(false)} />
-              <div className="absolute right-0 top-full mt-2 w-72 rounded-2xl border border-border/50 bg-background/95 backdrop-blur-xl p-4 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150">
-                <div className="flex items-start justify-between pb-3 border-b border-border/40">
-                  <div className="min-w-0 pr-2">
-                    <h4 className="text-sm font-semibold text-foreground truncate">
-                      {displayName}
-                    </h4>
-                    {publication.domain && (
-                      <p className="text-[11px] text-muted-foreground truncate">
-                        {publication.domain}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsSettingsMenuOpen(false)}
-                    className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                {publication.heroText && (
-                  <p className="text-xs text-muted-foreground leading-relaxed py-3 border-b border-border/40">
-                    {publication.heroText}
-                  </p>
-                )}
-
-                {/* Rubriques */}
-                {publication.categories && publication.categories.length > 0 && (
-                  <div className="py-2.5 border-b border-border/40 space-y-1.5">
-                    <span className="text-[10px] uppercase font-semibold text-muted-foreground/70 tracking-wider">
-                      Rubriques
-                    </span>
-                    <div className="flex flex-wrap gap-1">
-                      {publication.categories.map((cat) => (
-                        <a
-                          key={cat.id}
-                          href={`/${cat.slug}`}
-                          className="px-2 py-0.5 rounded text-[11px] border border-border/40 bg-muted/30 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center gap-1"
-                        >
-                          <Folder className="w-2.5 h-2.5 opacity-60" />
-                          <span>{cat.name}</span>
-                        </a>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Réseaux sociaux */}
-                {publication.socialLinks && publication.socialLinks.length > 0 && (
-                  <div className="pt-2.5 flex items-center gap-2 flex-wrap">
-                    {publication.socialLinks.map((link) => (
-                      <a
-                        key={link.id}
-                        href={link.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-1.5 rounded-md border border-border/40 bg-muted/20 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                        title={link.platform}
-                      >
-                        <SocialIcon platform={link.platform} className="w-3.5 h-3.5" />
-                      </a>
-                    ))}
-                  </div>
-                )}
-
-                {/* Lien de soutien si configuré */}
-                {publication.stripeAccountId && (
-                  <div className="pt-3">
-                    <a
-                      href="/support"
-                      className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-semibold text-white shadow-2xs"
-                      style={{ backgroundColor: accentColor }}
-                    >
-                      <Heart className="w-3.5 h-3.5" />
-                      <span>Soutenir l'auteur</span>
-                    </a>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </div>
+        {/* Espace droit équilibré sans le rond orange */}
+        <div className="w-7 sm:w-8 shrink-0 pointer-events-none" aria-hidden="true" />
       </header>
 
       {/* ── 1.5. BARRE D'ONGLETS / RUBRIQUES & SOUS-RUBRIQUES (Translucide & Glassmorphic) ── */}
