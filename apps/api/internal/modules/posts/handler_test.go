@@ -110,6 +110,19 @@ func TestHandlers_LikeRepostBookmarkPin(t *testing.T) {
 	if rr := doJSON(t, r, "POST", "/v1/posts/"+fx.ArticleID+"/bookmark", ""); rr.Code != http.StatusOK {
 		t.Fatalf("unbookmark code = %d, body=%s", rr.Code, rr.Body.String())
 	}
+	// Article like & repost toggles.
+	if rr := doJSON(t, r, "POST", "/v1/posts/"+fx.ArticleID+"/like", ""); rr.Code != http.StatusOK {
+		t.Fatalf("article like code = %d, body=%s", rr.Code, rr.Body.String())
+	}
+	if rr := doJSON(t, r, "POST", "/v1/posts/"+fx.ArticleID+"/like", ""); rr.Code != http.StatusOK {
+		t.Fatalf("article unlike code = %d, body=%s", rr.Code, rr.Body.String())
+	}
+	if rr := doJSON(t, r, "POST", "/v1/posts/"+fx.ArticleID+"/repost", ""); rr.Code != http.StatusOK {
+		t.Fatalf("article repost code = %d, body=%s", rr.Code, rr.Body.String())
+	}
+	if rr := doJSON(t, r, "POST", "/v1/posts/"+fx.ArticleID+"/repost", ""); rr.Code != http.StatusOK {
+		t.Fatalf("article unrepost code = %d, body=%s", rr.Code, rr.Body.String())
+	}
 	// pin est réservé à l'auteur.
 	ra := newTestRouter(t, fx.AuthorID)
 	if rr := doJSON(t, ra, "POST", "/v1/posts/"+fx.PostID+"/pin", ""); rr.Code != http.StatusOK {

@@ -140,10 +140,17 @@ export const mapQuotedArticle = (article: FeedPostRecord['quotedArticle']) =>
           id: article.author.id,
           name: article.author.name,
           username: article.author.username,
-          subdomain: article.publication.subdomain,
-          logoUrl: article.publication.logoUrl,
-          isCertified: article.publication.isCertified,
+          subdomain: article.publication?.subdomain,
+          logoUrl: article.publication?.logoUrl,
+          isCertified: article.publication?.isCertified,
         },
+        publication: article.publication
+          ? {
+              name: article.publication.name,
+              subdomain: article.publication.subdomain,
+              customDomain: article.publication.customDomain,
+            }
+          : null,
       }
     : null;
 

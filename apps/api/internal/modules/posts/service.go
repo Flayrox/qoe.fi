@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -244,7 +245,12 @@ func (s *Service) Get(ctx context.Context, id, viewerID string) (FeedPost, error
 }
 
 // ToggleLike ajoute ou retire un like, avec mise à jour atomique du compteur.
+// Supporte à la fois les pensées (table "Post") et les articles (table "Article").
 func (s *Service) ToggleLike(ctx context.Context, postID, userID string) (bool, error) {
+	if strings.HasPrefix(postID, "artc_") {
+		return s.toggleArticleLike(ctx, postID, userID)
+	}
+
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return false, err
@@ -266,7 +272,8 @@ func (s *Service) ToggleLike(ctx context.Context, postID, userID string) (bool, 
 		return false, tx.Commit(ctx)
 	}
 	if !errors.Is(err, pgx.ErrNoRows) {
-		return false, err
+		_ = tx.Rollback(ctx)
+		return s.toggleArticleLike(ctx, postID, userID)
 	}
 
 	if _, err := tq.InsertLike(ctx, db.InsertLikeParams{PostId: postID, UserId: toUUID(userID)}); err != nil {
@@ -274,7 +281,8 @@ func (s *Service) ToggleLike(ctx context.Context, postID, userID string) (bool, 
 		if isUniqueViolation(err) {
 			return true, nil
 		}
-		return false, err
+		_ = tx.Rollback(ctx)
+		return s.toggleArticleLike(ctx, postID, userID)
 	}
 	if err := tq.IncrementLikeCount(ctx, postID); err != nil {
 		return false, err
@@ -377,9 +385,17 @@ func (s *Service) SitemapThoughts(ctx context.Context, limit, offset int) (Sitem
 }
 
 // ToggleRepost ajoute ou retire un repost pur, avec mise à jour du compteur.
+// Supporte à la fois les pensées (table "Post") et les articles (table "Article").
 func (s *Service) ToggleRepost(ctx context.Context, postID, userID string) (bool, error) {
+	if strings.HasPrefix(postID, "artc_") {
+		return s.toggleArticleRepost(ctx, postID, userID)
+	}
+
 	canonicalID, err := s.q.GetCanonicalThoughtID(ctx, postID)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return s.toggleArticleRepost(ctx, postID, userID)
+		}
 		return false, err
 	}
 
@@ -418,6 +434,140 @@ func (s *Service) ToggleRepost(ctx context.Context, postID, userID string) (bool
 		return false, err
 	}
 	return true, tx.Commit(ctx)
+}
+
+func (s *Service) toggleArticleRepost(ctx context.Context, articleID, userID string) (bool, error) {
+	var articleAuthorID string
+	err := s.pool.QueryRow(ctx, `SELECT "authorId"::text FROM "Article" WHERE id = $1`, articleID).Scan(&articleAuthorID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, fmt.Errorf("article introuvable: %s", articleID)
+		}
+		return false, err
+	}
+
+	var existingPostID string
+	err = s.pool.QueryRow(ctx, `
+		SELECT id FROM "Post" 
+		WHERE "authorId" = $1 AND "quotedArticleId" = $2 AND ("content" IS NULL OR "content" = '')
+		LIMIT 1
+	`, userID, articleID).Scan(&existingPostID)
+
+	if err == nil && existingPostID != "" {
+		_, delErr := s.pool.Exec(ctx, `DELETE FROM "Post" WHERE id = $1`, existingPostID)
+		if delErr != nil {
+			return false, delErr
+		}
+		_ = s.deleteArticleEngagementNotification(ctx, "REPOST", articleID, userID)
+		return false, nil
+	}
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return false, err
+	}
+
+	newPostID := "post_" + strings.ReplaceAll(uuid.New().String(), "-", "")
+	_, insErr := s.pool.Exec(ctx, `
+		INSERT INTO "Post" (
+			id, "content", "authorId", "updatedAt", tags, "visibility", "contentVisibility",
+			"isDraft", "quotedArticleId", "replyRestriction", "isPinned",
+			"likeCount", "repostCount", "replyCount"
+		)
+		VALUES (
+			$1, '', $2, now(), '{}', 'public', 'PUBLIC',
+			false, $3, 'everyone', false,
+			0, 0, 0
+		)
+	`, newPostID, userID, articleID)
+	if insErr != nil {
+		return false, insErr
+	}
+
+	if articleAuthorID != "" && articleAuthorID != userID {
+		_ = s.notifyArticleEngagement(ctx, "REPOST", articleID, articleAuthorID, userID)
+	}
+
+	return true, nil
+}
+
+func (s *Service) toggleArticleLike(ctx context.Context, articleID, userID string) (bool, error) {
+	var articleAuthorID string
+	err := s.pool.QueryRow(ctx, `SELECT "authorId"::text FROM "Article" WHERE id = $1`, articleID).Scan(&articleAuthorID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return false, fmt.Errorf("article introuvable: %s", articleID)
+		}
+		return false, err
+	}
+
+	userUUID := toUUID(userID)
+	var feedbackID string
+	err = s.pool.QueryRow(ctx, `
+		SELECT id FROM "ContentFeedback" 
+		WHERE "userId" = $1 AND "articleId" = $2 AND "type" = 'LIKE'
+		LIMIT 1
+	`, userUUID, articleID).Scan(&feedbackID)
+
+	if err == nil && feedbackID != "" {
+		_, _ = s.pool.Exec(ctx, `DELETE FROM "ContentFeedback" WHERE id = $1`, feedbackID)
+		_ = s.deleteArticleEngagementNotification(ctx, "LIKE", articleID, userID)
+		return false, nil
+	}
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return false, err
+	}
+
+	newID := "cf_" + strings.ReplaceAll(uuid.New().String(), "-", "")
+	_, insErr := s.pool.Exec(ctx, `
+		INSERT INTO "ContentFeedback" (id, "userId", "articleId", "type", "createdAt")
+		VALUES ($1, $2, $3, 'LIKE', now())
+	`, newID, userUUID, articleID)
+	if insErr != nil {
+		if isUniqueViolation(insErr) {
+			return true, nil
+		}
+		return false, insErr
+	}
+
+	if articleAuthorID != "" && articleAuthorID != userID {
+		_ = s.notifyArticleEngagement(ctx, "LIKE", articleID, articleAuthorID, userID)
+	}
+
+	return true, nil
+}
+
+func (s *Service) notifyArticleEngagement(ctx context.Context, kind, articleID, authorID, senderID string) error {
+	if authorID == senderID || authorID == "" || senderID == "" {
+		return nil
+	}
+	authorUUID := toUUID(authorID)
+	senderUUID := toUUID(senderID)
+
+	var exists bool
+	_ = s.pool.QueryRow(ctx, `
+		SELECT EXISTS(
+			SELECT 1 FROM "Notification" 
+			WHERE "recipientId" = $1 AND "senderId" = $2 AND "type"::text = $3 AND "articleId" = $4 AND "isRead" = false
+		)
+	`, authorUUID, senderUUID, kind, articleID).Scan(&exists)
+	if exists {
+		return nil
+	}
+
+	newNotifID := "notif_" + strings.ReplaceAll(uuid.New().String(), "-", "")
+	_, err := s.pool.Exec(ctx, `
+		INSERT INTO "Notification" (id, "recipientId", "senderId", "type", "articleId", "isRead", "createdAt")
+		VALUES ($1, $2, $3, $4::"NotificationType", $5, false, now())
+	`, newNotifID, authorUUID, senderUUID, kind, articleID)
+	return err
+}
+
+func (s *Service) deleteArticleEngagementNotification(ctx context.Context, kind, articleID, senderID string) error {
+	senderUUID := toUUID(senderID)
+	_, err := s.pool.Exec(ctx, `
+		DELETE FROM "Notification" 
+		WHERE "senderId" = $1 AND "type"::text = $2 AND "articleId" = $3
+	`, senderUUID, kind, articleID)
+	return err
 }
 
 func isUniqueViolation(err error) bool {
