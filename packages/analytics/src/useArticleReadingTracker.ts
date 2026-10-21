@@ -103,6 +103,7 @@ export function useArticleReadingTracker({
   const lastActiveTimestampRef = useRef<number>(Date.now());
   const isTabActiveRef = useRef<boolean>(true);
   const isCompleteTriggeredRef = useRef<boolean>(false);
+  const reportedRef = useRef<boolean>(false);
 
   // 1. Résolution de la source + provenance fine au montage
   useEffect(() => {
@@ -265,8 +266,18 @@ export function useArticleReadingTracker({
   // 4. Rapport de fin de session au démontage (ou départ de la page)
   useEffect(() => {
     const sendSessionReport = () => {
+      if (reportedRef.current) return;
+
       const finalDwell = dwellSecondsRef.current;
       const finalScroll = maxScrollRef.current;
+
+      // 🛡️ Ignorer les sessions fantômes à 0s / 0% de scroll (montage/démontage React StrictMode)
+      if (finalDwell === 0 && finalScroll === 0) {
+        return;
+      }
+
+      reportedRef.current = true;
+
       const expectedSeconds = readingTimeMinutes * 60;
       const minReadingTime = expectedSeconds * 0.35;
 

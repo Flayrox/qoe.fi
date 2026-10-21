@@ -38,6 +38,19 @@ export async function updateSession(request: NextRequest) {
     request: { headers: request.headers },
   });
 
+  // 🚀 Optimisation souveraine : court-circuiter l'appel auth réseau
+  // si la requête ne possède aucun cookie de session Supabase (visiteur anonyme)
+  const hasAuthToken = request.cookies
+    .getAll()
+    .some((c) => c.name.startsWith('sb-') && c.name.includes('-auth-token'));
+
+  if (!hasAuthToken) {
+    return {
+      supabaseResponse,
+      user: null,
+    };
+  }
+
   const cookieDomain = getCookieDomain(hostname);
 
   const supabase = createServerClient(

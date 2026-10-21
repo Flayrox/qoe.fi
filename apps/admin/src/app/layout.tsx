@@ -84,6 +84,7 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
+      data-scroll-behavior="smooth"
       className={cn('scroll-smooth', 'font-sans', geist.variable)}
       suppressHydrationWarning
     >
