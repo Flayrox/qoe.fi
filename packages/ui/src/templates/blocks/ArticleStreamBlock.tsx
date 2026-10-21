@@ -31,6 +31,7 @@ import { BlockWrapper } from './BlockWrapper';
 import { NodeRenderer } from './NodeRenderer';
 import { CraftIndicator } from '../../ui/craft-indicator';
 import { cn } from '@qoe/utils';
+import { SubstackSidebar } from './SubstackSidebar';
 
 interface ArticleStreamBlockComponentProps {
   id: string;
@@ -50,6 +51,7 @@ export function ArticleStreamBlock({
   id,
   props,
   articles = [],
+  publication,
   cardShape = 'rounded-xl',
   context,
   visible = true,
@@ -174,8 +176,8 @@ export function ArticleStreamBlock({
           </div>
         )}
         {displayMode === 'craft-notes' ? (
-          /* Mode Craft Notes (Journal Minimal Enrichi & Dense) */
-          <div className="max-w-4xl mx-auto space-y-12 py-4">
+          /* Mode Craft Notes & Journal Éditorial (Inspiré par Substack & Devouring Details) */
+          <div className="max-w-6xl xl:max-w-7xl mx-auto space-y-12 py-4">
             {featuredArticle && (
               <article className="group relative space-y-4 pb-10 border-b border-border/40">
                 <div className="flex items-center justify-between text-xs text-muted-foreground/80 flex-wrap gap-2">
@@ -217,12 +219,12 @@ export function ArticleStreamBlock({
                 </h2>
 
                 {showExcerpts && featuredArticle.excerpt && (
-                  <p className="text-base sm:text-lg text-muted-foreground/90 leading-relaxed max-w-2xl">
+                  <p className="text-base sm:text-lg text-muted-foreground/90 leading-relaxed max-w-3xl">
                     {featuredArticle.excerpt}
                   </p>
                 )}
 
-                {/* Bleed media : s'étend au-delà de la colonne de texte sur grands écrans */}
+                {/* Bleed media : s'étend avec prestance sur grands écrans */}
                 <div className="w-full my-6">
                   <Link
                     href={`/article/${featuredArticle.slug}`}
@@ -258,239 +260,243 @@ export function ArticleStreamBlock({
               </article>
             )}
 
-            {/* Barre de filtres par catégories (Pill segmented control minimal & configurable) */}
-            {availableCategories.length > 0 && (
-              <div className="pt-2 pb-2 flex items-center justify-between flex-wrap gap-3">
-                <span className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground/60">
-                  Rubriques
-                </span>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedCategory('all')}
-                    className={cn(
-                      'text-xs px-3 py-1 rounded-full transition-all cursor-pointer font-medium',
-                      selectedCategory === 'all'
-                        ? 'bg-foreground text-background shadow-2xs'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                    )}
-                  >
-                    Tous ({items.length})
-                  </button>
-                  {availableCategories.map((cat) => {
-                    const count = items.filter((a) => a.category?.name === cat).length;
-                    const isActive = selectedCategory === cat;
-                    return (
+            {/* Agencement Éditorial en 2 Colonnes (Style Substack : Flux + Sidebar Sticky) */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 xl:gap-14 items-start">
+              {/* Colonne Principale (~65%) : Filtres et Flux d'articles */}
+              <div className="lg:col-span-8 space-y-8">
+                {/* Barre de filtres par catégories (Pill segmented control minimal & configurable) */}
+                {availableCategories.length > 0 && (
+                  <div className="pt-1 pb-2 flex items-center justify-between flex-wrap gap-3 border-b border-border/30 pb-3">
+                    <span className="text-[11px] font-mono uppercase tracking-widest text-muted-foreground/60">
+                      Rubriques
+                    </span>
+                    <div className="flex flex-wrap items-center gap-1.5">
                       <button
-                        key={cat}
                         type="button"
-                        onClick={() => setSelectedCategory(cat)}
+                        onClick={() => setSelectedCategory('all')}
                         className={cn(
                           'text-xs px-3 py-1 rounded-full transition-all cursor-pointer font-medium',
-                          isActive
+                          selectedCategory === 'all'
                             ? 'bg-foreground text-background shadow-2xs'
                             : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
                         )}
                       >
-                        {cat} ({count})
+                        Tous ({items.length})
                       </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Articles secondaires : Grille dense ou regroupement par catégorie */}
-            {groupByCategory && isAllSelected && availableCategories.length > 0 ? (
-              <div className="space-y-12 pt-2">
-                {availableCategories.map((catName) => {
-                  const catArticles = items.filter((a) => a.category?.name === catName);
-                  if (catArticles.length === 0) return null;
-
-                  return (
-                    <section key={catName} className="space-y-6">
-                      <div className="flex items-center justify-between border-b border-border/40 pb-3">
-                        <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground">
-                          {catName}
-                        </h3>
-                        <span className="text-xs text-muted-foreground font-mono">
-                          {catArticles.length} article{catArticles.length > 1 ? 's' : ''}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {catArticles.map((article) => (
-                          <article
-                            key={article.id}
-                            className="group flex flex-col justify-between rounded-2xl border border-border/40 bg-card/40 hover:bg-card hover:border-border/80 transition-all duration-200 overflow-hidden p-4 sm:p-5 shadow-2xs hover:shadow-sm"
+                      {availableCategories.map((cat) => {
+                        const count = items.filter((a) => a.category?.name === cat).length;
+                        const isActive = selectedCategory === cat;
+                        return (
+                          <button
+                            key={cat}
+                            type="button"
+                            onClick={() => setSelectedCategory(cat)}
+                            className={cn(
+                              'text-xs px-3 py-1 rounded-full transition-all cursor-pointer font-medium',
+                              isActive
+                                ? 'bg-foreground text-background shadow-2xs'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                            )}
                           >
-                            <div className="space-y-3.5">
-                              <Link
-                                href={`/article/${article.slug}`}
-                                onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                                className="block relative w-full aspect-[16/10] rounded-xl overflow-hidden bg-muted border border-border/30 group/img"
+                            {cat} ({count})
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Articles secondaires : Grille dense ou regroupement par catégorie */}
+                {groupByCategory && isAllSelected && availableCategories.length > 0 ? (
+                  <div className="space-y-12 pt-1">
+                    {availableCategories.map((catName) => {
+                      const catArticles = items.filter((a) => a.category?.name === catName);
+                      if (catArticles.length === 0) return null;
+
+                      return (
+                        <section key={catName} className="space-y-6">
+                          <div className="flex items-center justify-between border-b border-border/40 pb-3">
+                            <h3 className="text-sm font-semibold uppercase tracking-wider text-foreground">
+                              {catName}
+                            </h3>
+                            <span className="text-xs text-muted-foreground font-mono">
+                              {catArticles.length} article{catArticles.length > 1 ? 's' : ''}
+                            </span>
+                          </div>
+
+                          <div className="divide-y divide-border/30">
+                            {catArticles.map((article) => (
+                              <article
+                                key={article.id}
+                                className="group relative flex flex-col sm:flex-row items-start justify-between gap-6 py-6 first:pt-2 last:pb-2 transition-colors"
                               >
-                                <img
-                                  src={
-                                    article.imageUrl ||
-                                    getCoverPlaceholder(article.slug || article.id)
-                                  }
-                                  alt={article.title}
-                                  className="w-full h-full object-cover transition-transform duration-300 group-hover/img:scale-[1.03]"
-                                  loading="lazy"
-                                />
-                                {article.isPremium && (
-                                  <span className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-background/90 backdrop-blur-md border border-border/60 text-foreground shadow-xs">
-                                    Réservé
-                                  </span>
-                                )}
-                              </Link>
+                                <div className="flex-1 space-y-2.5 min-w-0">
+                                  <div className="flex items-center gap-2.5 text-xs text-muted-foreground flex-wrap">
+                                    {showCategories && article.category && (
+                                      <span className="font-semibold text-xs text-foreground uppercase tracking-wider">
+                                        {article.category.name}
+                                      </span>
+                                    )}
+                                    {article.publishedAt && (
+                                      <span>
+                                        {new Date(article.publishedAt).toLocaleDateString('fr-FR', {
+                                          day: 'numeric',
+                                          month: 'short',
+                                        })}
+                                      </span>
+                                    )}
+                                    {showReadingTime && article.readingTime && (
+                                      <span className="inline-flex items-center gap-1 opacity-80">
+                                        · {article.readingTime} min
+                                      </span>
+                                    )}
+                                    {article.isPremium && (
+                                      <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-background border border-border text-muted-foreground">
+                                        Réservé
+                                      </span>
+                                    )}
+                                  </div>
 
-                              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                <div className="flex items-center gap-2 text-[11px]">
-                                  {article.publishedAt && (
-                                    <span>
-                                      {new Date(article.publishedAt).toLocaleDateString('fr-FR', {
-                                        day: 'numeric',
-                                        month: 'short',
-                                      })}
-                                    </span>
+                                  <h4 className="text-lg sm:text-xl font-bold tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors">
+                                    <Link
+                                      href={`/article/${article.slug}`}
+                                      onClick={(e) =>
+                                        context.mode === 'editable' && e.preventDefault()
+                                      }
+                                    >
+                                      {article.title}
+                                    </Link>
+                                  </h4>
+
+                                  {showExcerpts && article.excerpt && (
+                                    <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+                                      {article.excerpt}
+                                    </p>
                                   )}
-                                  {showReadingTime && article.readingTime && (
-                                    <span className="inline-flex items-center gap-1 opacity-80">
-                                      · {article.readingTime} min
+
+                                  <div className="pt-1 flex items-center gap-2 text-xs font-medium text-foreground group-hover:text-primary transition-colors">
+                                    <span>Lire</span>
+                                    <span className="transition-transform group-hover:translate-x-1">
+                                      →
                                     </span>
-                                  )}
+                                  </div>
                                 </div>
-                              </div>
 
-                              <h4 className="text-lg font-bold tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors">
                                 <Link
                                   href={`/article/${article.slug}`}
                                   onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                                  className="relative w-full sm:w-44 md:w-48 aspect-[16/10] sm:h-32 shrink-0 rounded-xl overflow-hidden bg-muted border border-border/40 group/thumb block"
                                 >
-                                  {article.title}
+                                  <img
+                                    src={
+                                      article.imageUrl ||
+                                      getCoverPlaceholder(article.slug || article.id)
+                                    }
+                                    alt={article.title}
+                                    className="w-full h-full object-cover transition-transform duration-300 group-hover/thumb:scale-[1.03]"
+                                    loading="lazy"
+                                  />
                                 </Link>
-                              </h4>
+                              </article>
+                            ))}
+                          </div>
+                        </section>
+                      );
+                    })}
+                  </div>
+                ) : remainingArticles.length > 0 ? (
+                  <div className="space-y-6 pt-1">
+                    <div className="flex items-center justify-between border-b border-border/40 pb-3">
+                      <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                        {selectedCategory === 'all' ? 'Dernières parutions' : selectedCategory}
+                      </h3>
+                      <span className="text-xs text-muted-foreground font-mono">
+                        {remainingArticles.length} article{remainingArticles.length > 1 ? 's' : ''}
+                      </span>
+                    </div>
 
-                              {showExcerpts && article.excerpt && (
-                                <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-                                  {article.excerpt}
-                                </p>
+                    <div className="divide-y divide-border/30">
+                      {remainingArticles.map((article) => (
+                        <article
+                          key={article.id}
+                          className="group relative flex flex-col sm:flex-row items-start justify-between gap-6 py-6 first:pt-2 last:pb-2 transition-colors"
+                        >
+                          <div className="flex-1 space-y-2.5 min-w-0">
+                            <div className="flex items-center gap-2.5 text-xs text-muted-foreground flex-wrap">
+                              {showCategories && article.category && (
+                                <span className="font-semibold text-xs text-foreground uppercase tracking-wider">
+                                  {article.category.name}
+                                </span>
+                              )}
+                              {article.publishedAt && (
+                                <span>
+                                  {new Date(article.publishedAt).toLocaleDateString('fr-FR', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                  })}
+                                </span>
+                              )}
+                              {showReadingTime && article.readingTime && (
+                                <span className="inline-flex items-center gap-1 opacity-80">
+                                  · {article.readingTime} min
+                                </span>
+                              )}
+                              {article.isPremium && (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-background border border-border text-muted-foreground">
+                                  Réservé
+                                </span>
                               )}
                             </div>
 
-                            <div className="pt-4 mt-2 border-t border-border/30 flex items-center justify-between text-xs">
+                            <h4 className="text-lg sm:text-xl font-bold tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors">
                               <Link
                                 href={`/article/${article.slug}`}
                                 onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                                className="inline-flex items-center gap-1.5 font-medium text-foreground group-hover:text-primary transition-colors"
                               >
-                                <span>Lire</span>
-                                <span className="transition-transform group-hover:translate-x-1">
-                                  →
-                                </span>
+                                {article.title}
                               </Link>
+                            </h4>
+
+                            {showExcerpts && article.excerpt && (
+                              <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+                                {article.excerpt}
+                              </p>
+                            )}
+
+                            <div className="pt-1 flex items-center gap-2 text-xs font-medium text-foreground group-hover:text-primary transition-colors">
+                              <span>Lire</span>
+                              <span className="transition-transform group-hover:translate-x-1">
+                                →
+                              </span>
                             </div>
-                          </article>
-                        ))}
-                      </div>
-                    </section>
-                  );
-                })}
-              </div>
-            ) : remainingArticles.length > 0 ? (
-              <div className="space-y-6 pt-2">
-                <div className="flex items-center justify-between border-b border-border/40 pb-3">
-                  <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                    {selectedCategory === 'all' ? 'Dernières parutions' : selectedCategory}
-                  </h3>
-                  <span className="text-xs text-muted-foreground font-mono">
-                    {remainingArticles.length} article{remainingArticles.length > 1 ? 's' : ''}
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {remainingArticles.map((article) => (
-                    <article
-                      key={article.id}
-                      className="group flex flex-col justify-between rounded-2xl border border-border/40 bg-card/40 hover:bg-card hover:border-border/80 transition-all duration-200 overflow-hidden p-4 sm:p-5 shadow-2xs hover:shadow-sm"
-                    >
-                      <div className="space-y-3.5">
-                        <Link
-                          href={`/article/${article.slug}`}
-                          onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                          className="block relative w-full aspect-[16/10] rounded-xl overflow-hidden bg-muted border border-border/30 group/img"
-                        >
-                          <img
-                            src={
-                              article.imageUrl || getCoverPlaceholder(article.slug || article.id)
-                            }
-                            alt={article.title}
-                            className="w-full h-full object-cover transition-transform duration-300 group-hover/img:scale-[1.03]"
-                            loading="lazy"
-                          />
-                          {article.isPremium && (
-                            <span className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-background/90 backdrop-blur-md border border-border/60 text-foreground shadow-xs">
-                              Réservé
-                            </span>
-                          )}
-                        </Link>
-
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          {showCategories && article.category && (
-                            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                              {article.category.name}
-                            </span>
-                          )}
-                          <div className="flex items-center gap-2 ml-auto text-[11px]">
-                            {article.publishedAt && (
-                              <span>
-                                {new Date(article.publishedAt).toLocaleDateString('fr-FR', {
-                                  day: 'numeric',
-                                  month: 'short',
-                                })}
-                              </span>
-                            )}
-                            {showReadingTime && article.readingTime && (
-                              <span className="inline-flex items-center gap-1 opacity-80">
-                                · {article.readingTime} min
-                              </span>
-                            )}
                           </div>
-                        </div>
 
-                        <h4 className="text-lg font-bold tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors">
                           <Link
                             href={`/article/${article.slug}`}
                             onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                            className="relative w-full sm:w-44 md:w-48 aspect-[16/10] sm:h-32 shrink-0 rounded-xl overflow-hidden bg-muted border border-border/40 group/thumb block"
                           >
-                            {article.title}
+                            <img
+                              src={
+                                article.imageUrl || getCoverPlaceholder(article.slug || article.id)
+                              }
+                              alt={article.title}
+                              className="w-full h-full object-cover transition-transform duration-300 group-hover/thumb:scale-[1.03]"
+                              loading="lazy"
+                            />
                           </Link>
-                        </h4>
-
-                        {showExcerpts && article.excerpt && (
-                          <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-                            {article.excerpt}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="pt-4 mt-2 border-t border-border/30 flex items-center justify-between text-xs">
-                        <Link
-                          href={`/article/${article.slug}`}
-                          onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                          className="inline-flex items-center gap-1.5 font-medium text-foreground group-hover:text-primary transition-colors"
-                        >
-                          <span>Lire</span>
-                          <span className="transition-transform group-hover:translate-x-1">→</span>
-                        </Link>
-                      </div>
-                    </article>
-                  ))}
-                </div>
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
-            ) : null}
+
+              {/* Colonne Latérale (~35%) Sticky : Auteur + Recommandations Réseau + Newsletter + Top Lectures */}
+              <div className="lg:col-span-4 lg:sticky lg:top-24">
+                <SubstackSidebar publication={publication} articles={items} context={context} />
+              </div>
+            </div>
           </div>
         ) : displayMode === 'list' ? (
           /* Mode Liste */
