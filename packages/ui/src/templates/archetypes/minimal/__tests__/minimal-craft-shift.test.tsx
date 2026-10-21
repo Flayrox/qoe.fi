@@ -15,6 +15,9 @@ const mockPublication: TemplatePublicationContext = {
   name: 'Devouring Details',
   domain: 'devouringdetails.com',
   accentColor: '#F97316',
+  siteOptions: {
+    showCraftIndex: true,
+  },
 };
 
 const mockArticle: TemplateArticleItem = {
