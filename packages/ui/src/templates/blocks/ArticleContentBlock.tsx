@@ -98,6 +98,29 @@ export function ArticleContentBlock({
   const authorName = article.author?.name || article.author?.username || publication.name || '';
   const safeHtml = sanitizeArticleHtml(article.content || '');
 
+  const rawAuthors = article.authors;
+  const authorsList: Array<{ name: string; logoUrl?: string | null }> =
+    rawAuthors && rawAuthors.length > 0
+      ? rawAuthors.map((a) => ({
+          name: a.name || a.username || 'Auteur',
+          logoUrl: a.logoUrl || null,
+        }))
+      : [
+          {
+            name: authorName || 'Auteur',
+            logoUrl: article.author?.logoUrl || publication.logoUrl || null,
+          },
+        ];
+
+  const formatAuthorNames = (list: Array<{ name: string }>) => {
+    const names = list.map((a) => a.name).filter(Boolean);
+    if (names.length === 0) return '';
+    if (names.length === 1) return names[0];
+    if (names.length === 2) return `${names[0]} & ${names[1]}`;
+    return `${names.slice(0, -1).join(', ')} & ${names[names.length - 1]}`;
+  };
+  const authorsDisplayName = formatAuthorNames(authorsList);
+
   return (
     <BlockWrapper
       id={id}
@@ -141,20 +164,25 @@ export function ArticleContentBlock({
           </p>
         )}
 
-        {/* Ligne Byline Auteur détaillée */}
+        {/* Ligne Byline Auteur(s) détaillée */}
         {showMeta && (
           <div className="flex items-center gap-3 py-2 mb-4 select-none">
-            <SafeAvatar
-              src={article.author?.logoUrl || publication.logoUrl || null}
-              name={authorName}
-              size={42}
-              shape="circle"
-              className="border border-border/50 shrink-0 shadow-2xs"
-            />
+            <div className="flex items-center -space-x-2 shrink-0">
+              {authorsList.map((auth, idx) => (
+                <SafeAvatar
+                  key={idx}
+                  src={auth.logoUrl}
+                  name={auth.name}
+                  size={40}
+                  shape="circle"
+                  className="border-2 border-background ring-1 ring-border/40 shrink-0 shadow-2xs"
+                />
+              ))}
+            </div>
             <div className="min-w-0 flex-1">
-              {showAuthor && authorName && (
+              {showAuthor && authorsDisplayName && (
                 <div className="text-xs font-bold uppercase tracking-wider text-foreground leading-tight truncate">
-                  {authorName}
+                  {authorsDisplayName}
                 </div>
               )}
               <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-mono mt-0.5 flex-wrap">
