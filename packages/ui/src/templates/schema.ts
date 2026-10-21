@@ -365,6 +365,12 @@ export interface TemplateArticleItem {
     username?: string | null;
     logoUrl?: string | null;
   } | null;
+  authors?: Array<{
+    id?: string;
+    name?: string | null;
+    username?: string | null;
+    logoUrl?: string | null;
+  }> | null;
 }
 
 export interface TemplateCategoryItem {

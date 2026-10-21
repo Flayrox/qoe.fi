@@ -124,6 +124,8 @@ export interface TenantArticle {
   authorId: string;
   category?: TenantCategory | null;
   author?: TenantArticleAuthor | null;
+  authors?: TenantArticleAuthor[] | null;
+  subtitle?: string | null;
 }
 
 export interface TenantArticleBundle {

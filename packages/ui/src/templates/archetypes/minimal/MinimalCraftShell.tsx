@@ -271,8 +271,8 @@ export function MinimalCraftShell({
                   authContext.openAuthModal({ mode: 'signup', actionContext: 'subscribe' });
                 }
               }}
-              className="px-3 sm:px-4 py-1.5 rounded-full text-xs font-semibold text-white transition-transform hover:scale-[1.02] active:scale-[0.98] shadow-2xs shrink-0 cursor-pointer"
-              style={{ backgroundColor: 'var(--tenant-accent, #EE4B2B)' }}
+              className="px-3 sm:px-4 py-1.5 rounded-full text-xs font-semibold text-white hover:opacity-90 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-2xs shrink-0 cursor-pointer"
+              style={{ backgroundColor: publication.accentColor || '#C04328' }}
             >
               S'abonner
             </a>

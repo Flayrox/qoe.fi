@@ -1,11 +1,10 @@
 import React from 'react';
-import Image from 'next/image';
-import { TenantHeader, SubscribeForm, JsonLd, buildArticleSchema } from '@qoe/ui';
+import { TenantHeader, SubscribeForm, JsonLd, buildArticleSchema, SafeAvatar } from '@qoe/ui';
 import { type AnnotationItem, type HighlightItem } from '@qoe/ui/annotations';
 import { TenantArticleHighlighter } from './TenantArticleHighlighter';
 import { TenantArticleReadingTracker } from './TenantArticleReadingTracker';
 import { type CommentItem, ArticleCommentsSection } from './ArticleCommentsSection';
-import { PaywallCut, PaywallOverlay } from './PaywallCut';
+import { PaywallOverlay } from './PaywallCut';
 import { sanitizeHtml } from '@/lib/sanitize';
 import { ReaderActions } from './ReaderActions';
 import { TenantReaderShell } from './TenantReaderShell';
@@ -19,6 +18,7 @@ import {
   resolveFontFamily,
   MinimalCraftShell,
   getCoverPlaceholder,
+  ArticleEngagementBar,
   type TemplatePublicationContext,
   type TemplateArticleItem,
 } from '@qoe/ui/templates';
@@ -114,7 +114,7 @@ export async function TenantArticleRenderer({
     'sans';
 
   const customStyle = {
-    '--tenant-accent': accentColor || 'hsl(var(--primary))',
+    '--tenant-accent': accentColor || '#C04328',
     fontFamily: resolveFontFamily(effectiveFontFamily),
     ...(themeMode === 'dark' && { colorScheme: 'dark' }),
   } as React.CSSProperties;
@@ -122,6 +122,39 @@ export async function TenantArticleRenderer({
   const plainText = (article.content || '').replace(/<[^>]*>?/gm, '');
   const wordCount = plainText.split(/\s+/).length;
   const readingTimeMinutes = Math.max(1, Math.ceil(wordCount / 200));
+
+  const articleExcerpt =
+    (article as unknown as { subtitle?: string }).subtitle ||
+    (article as unknown as { excerpt?: string }).excerpt ||
+    (plainText ? plainText.slice(0, 160).trim() + (plainText.length > 160 ? '…' : '') : '');
+
+  const rawAuthors = (
+    article as unknown as {
+      authors?: Array<{ name?: string | null; username?: string | null; logoUrl?: string | null }>;
+    }
+  ).authors;
+
+  const authorsList: Array<{ name: string; logoUrl?: string | null }> =
+    rawAuthors && rawAuthors.length > 0
+      ? rawAuthors.map((a) => ({
+          name: a.name || a.username || 'Auteur',
+          logoUrl: a.logoUrl || null,
+        }))
+      : [
+          {
+            name: authorName,
+            logoUrl: article.author?.logoUrl || publication.logoUrl || null,
+          },
+        ];
+
+  const formatAuthorNames = (list: Array<{ name: string }>) => {
+    const names = list.map((a) => a.name).filter(Boolean);
+    if (names.length === 0) return '';
+    if (names.length === 1) return names[0];
+    if (names.length === 2) return `${names[0]} & ${names[1]}`;
+    return `${names.slice(0, -1).join(', ')} & ${names[names.length - 1]}`;
+  };
+  const authorsDisplayName = formatAuthorNames(authorsList);
 
   // Paywall entitlements & truncation sans fuite
   const isAuthor = user?.id === article.authorId;
@@ -182,11 +215,12 @@ export async function TenantArticleRenderer({
     title: article.title,
     slug: article.slug,
     content: paywallCutResult.content,
-    excerpt: '',
+    excerpt: articleExcerpt,
+    subtitle: (article as unknown as { subtitle?: string }).subtitle ?? undefined,
     imageUrl: article.imageUrl || null,
     publishedAt: article.createdAt,
     readingTime: readingTimeMinutes,
-    isPremium: false,
+    isPremium: article.isPremium,
     category: article.category
       ? { name: article.category.name, slug: article.category.slug }
       : null,
@@ -197,6 +231,7 @@ export async function TenantArticleRenderer({
           logoUrl: article.author.logoUrl,
         }
       : null,
+    authors: authorsList,
   };
 
   const drawerArticles: TemplateArticleItem[] = (publication.articles ?? []).map((art) => ({
@@ -265,38 +300,76 @@ export async function TenantArticleRenderer({
           <>
             {isMinimal ? (
               /* En-tête épuré d'orfèvre Devouring Details / Rauno */
-              <header className="mb-8 space-y-4">
-                <div className="flex items-center gap-2.5 text-xs text-muted-foreground select-none">
-                  <span
-                    className="w-2.5 h-2.5 rounded-full shrink-0 shadow-2xs"
-                    style={{ backgroundColor: accentColor || '#F97316' }}
-                    aria-hidden="true"
-                  />
-                  {authorName && (
-                    <span className="font-semibold text-foreground/90">{authorName}</span>
-                  )}
-                  <span className="text-muted-foreground/40">·</span>
-                  <time dateTime={article.createdAt}>
-                    {new Date(article.createdAt).toLocaleDateString('fr-FR', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                    })}
-                  </time>
-                  <span className="text-muted-foreground/40">·</span>
-                  <span>{readingTimeMinutes} min</span>
-                </div>
-
-                <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tight text-foreground leading-snug">
+              <header className="mb-6 space-y-4">
+                {/* 1. Grand titre h1 */}
+                <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-foreground leading-[1.18]">
                   {article.title}
                 </h1>
 
-                {/* Couverture article : image réelle ou composition vectorielle déterministe */}
+                {/* 2. Sous-titre / Chapô descriptif */}
+                {((article as unknown as { subtitle?: string }).subtitle || articleExcerpt) && (
+                  <p className="text-base sm:text-lg md:text-xl text-muted-foreground leading-relaxed font-normal">
+                    {(article as unknown as { subtitle?: string }).subtitle || articleExcerpt}
+                  </p>
+                )}
+
+                {/* 3. Ligne Byline Auteur(s) détaillée avec stack d'avatars */}
+                <div className="flex items-center gap-3 py-2 select-none">
+                  <div className="flex items-center -space-x-2 shrink-0">
+                    {authorsList.map((auth, idx) => (
+                      <SafeAvatar
+                        key={idx}
+                        src={auth.logoUrl}
+                        name={auth.name}
+                        size={40}
+                        shape="circle"
+                        className="border-2 border-background ring-1 ring-border/40 shrink-0 shadow-2xs"
+                      />
+                    ))}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    {authorsDisplayName && (
+                      <div className="text-xs font-bold uppercase tracking-wider text-foreground leading-tight truncate">
+                        {authorsDisplayName}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-mono mt-0.5 flex-wrap">
+                      <time dateTime={article.createdAt}>
+                        {new Date(article.createdAt).toLocaleDateString('fr-FR', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </time>
+                      <span className="text-muted-foreground/40">·</span>
+                      <span className="uppercase font-semibold tracking-wider text-[10px]">
+                        {article.isPremium ? 'RÉSERVÉ' : 'ACCÈS LIBRE'}
+                      </span>
+                      <span className="text-muted-foreground/40">·</span>
+                      <span>{readingTimeMinutes} min</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Barre d'engagement (Likes, Commentaires, Repost, Partager) */}
+                <div className="my-4">
+                  <ArticleEngagementBar
+                    articleId={article.id}
+                    articleSlug={article.slug}
+                    initialLikes={21}
+                    initialComments={initialComments.length || 2}
+                    initialReposts={3}
+                    size="md"
+                    showShareText={true}
+                  />
+                </div>
+
+                {/* 5. Couverture article : image réelle ou composition vectorielle déterministe */}
                 {(() => {
                   const coverSrc =
                     article.imageUrl || getCoverPlaceholder(article.slug || article.id);
                   return (
-                    <div className="mt-8 mb-8 -mx-4 sm:-mx-8 md:-mx-12">
+                    <div className="mt-6 mb-8 -mx-4 sm:-mx-8 md:-mx-12">
                       <div className="relative aspect-[16/9] sm:aspect-[2/1] rounded-2xl overflow-hidden border border-border/40 bg-muted/30 shadow-2xs">
                         <img
                           src={coverSrc}
@@ -332,24 +405,20 @@ export async function TenantArticleRenderer({
                   </h1>
 
                   <div className="flex items-center gap-3 pt-4 border-b border-border/40 pb-6 text-sm text-muted-foreground">
-                    {logoUrl && (
-                      <Image
-                        src={logoUrl}
-                        alt={name || t`Auteur`}
-                        width={40}
-                        height={40}
-                        className={`w-10 h-10 object-cover border border-border/40 shrink-0 ${
-                          isMediaBrand ? 'rounded-lg' : 'rounded-full'
-                        }`}
-                      />
-                    )}
+                    <div className="flex items-center -space-x-2 shrink-0">
+                      {authorsList.map((auth, idx) => (
+                        <SafeAvatar
+                          key={idx}
+                          src={auth.logoUrl}
+                          name={auth.name}
+                          size={40}
+                          shape={isMediaBrand ? 'squircle' : 'circle'}
+                          className="border-2 border-background ring-1 ring-border/40 shrink-0 shadow-2xs"
+                        />
+                      ))}
+                    </div>
                     <div>
-                      <span className="font-semibold text-foreground">{authorName}</span>
-                      {isMediaBrand && article.author?.name && (
-                        <span className="ml-1.5 text-muted-foreground text-xs">
-                          • {t`Par ${article.author.name}`}
-                        </span>
-                      )}
+                      <span className="font-semibold text-foreground">{authorsDisplayName}</span>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                         <time dateTime={article.createdAt}>
                           {new Date(article.createdAt).toLocaleDateString('fr-FR', {
