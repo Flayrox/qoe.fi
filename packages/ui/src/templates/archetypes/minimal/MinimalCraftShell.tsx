@@ -320,18 +320,12 @@ export function MinimalCraftShell({
         </nav>
       )}
 
-      {/* ── 2. FLOU PROGRESSIF DEVOURING DETAILS (z-20, passe SOUS l'en-tête z-40) ── */}
+      {/* ── 2. FLOU PROGRESSIF DISCRET SOUS L'EN-TÊTE (z-20) ── */}
       {showProgressiveBlur && (
-        <>
-          <ProgressiveBlur
-            direction="top"
-            className="h-28 sm:h-32 fixed top-0 left-0 right-0 z-20 pointer-events-none"
-          />
-          <ProgressiveBlur
-            direction="bottom"
-            className="h-28 sm:h-32 fixed bottom-0 left-0 right-0 z-20 pointer-events-none"
-          />
-        </>
+        <ProgressiveBlur
+          direction="top"
+          className="h-16 sm:h-20 fixed top-0 left-0 right-0 z-20 pointer-events-none"
+        />
       )}
 
       {/* ── 3. CONTENU PRINCIPAL DE L'ARTICLE (z-10) ── */}

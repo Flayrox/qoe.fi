@@ -74,6 +74,11 @@ export function HeroBlock({
     alignment === 'left' ? 'md:text-left md:items-start' : 'md:text-center md:items-center',
   ].join(' ');
 
+  // Évite d'afficher une boîte vide isolée si aucun manifeste ou accroche n'est défini
+  if (style === 'typographic-minimal' && !tagline && !slots?.subtitle) {
+    return null;
+  }
+
   return (
     <BlockWrapper
       id={id}

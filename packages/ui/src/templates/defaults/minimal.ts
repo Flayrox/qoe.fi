@@ -5,9 +5,7 @@
 import type {
   LayoutConfig,
   NavbarBlockProps,
-  HeroBlockProps,
   ArticleStreamBlockProps,
-  NewsletterWallBlockProps,
   FooterBlockProps,
   ArticleContentBlockProps,
 } from '../schema';
@@ -43,21 +41,6 @@ export const MINIMAL_PORTFOLIO_CONFIG: LayoutConfig = {
       } satisfies NavbarBlockProps,
     },
     {
-      id: 'block_hero_min',
-      type: 'hero',
-      label: 'Présentation de l’Auteur',
-      visible: true,
-      locked: false,
-      props: {
-        style: 'typographic-minimal',
-        alignment: 'left',
-        height: 'compact',
-        showOverlay: false,
-        overlayOpacity: 0,
-        showCoverImage: false,
-      } satisfies HeroBlockProps,
-    },
-    {
       id: 'block_stream_min',
       type: 'article-stream',
       label: 'Carnet de Notes & Détails',
@@ -73,20 +56,6 @@ export const MINIMAL_PORTFOLIO_CONFIG: LayoutConfig = {
         pagination: 'load-more',
         groupByCategory: false,
       } satisfies ArticleStreamBlockProps,
-    },
-    {
-      id: 'block_newsletter_min',
-      type: 'newsletter-wall',
-      label: 'Boîte aux Lettres',
-      visible: true,
-      locked: false,
-      props: {
-        title: 'Rester en contact',
-        subtitle: 'Mes réflexions directement dans votre boîte mail, sans spam.',
-        accentGlow: false,
-        showSubscriberCount: false,
-        buttonText: "S'abonner",
-      } satisfies NewsletterWallBlockProps,
     },
     {
       id: 'block_footer_min',
