@@ -10,10 +10,31 @@ import {
   getCategoriesAction,
   getEditorCapabilitiesAction,
 } from '@qoe/sdk/actions/articles';
+import { createClient } from '@qoe/supabase/server';
+import { getActiveWorkspace } from '@/lib/active-workspace';
+import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 
 import { ArticlesClient } from './articles-client';
 
 export default async function ArticlesPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let pinnedArticleId: string | null = null;
+  if (user) {
+    try {
+      const workspace = await getActiveWorkspace(user.id);
+      const pub = await goFetch<{ siteOptions?: Record<string, unknown> }>(
+        `/v1/settings/publication?publicationId=${encodeURIComponent(workspace.publicationId)}`
+      );
+      pinnedArticleId = (pub.siteOptions?.pinnedArticleId as string) || null;
+    } catch {
+      // Ignorer si indisponible
+    }
+  }
+
   // Récupération initiale des données sur le serveur (Server Action ou Prisma direct)
   const [articlesRes, categoriesRes, capsRes] = await Promise.all([
     getArticlesAction(),
@@ -30,6 +51,7 @@ export default async function ArticlesPage() {
       <ArticlesClient
         initialArticles={articles}
         initialCategories={categories}
+        initialPinnedArticleId={pinnedArticleId}
         canReview={capabilities?.canReview ?? false}
       />
     </div>

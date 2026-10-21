@@ -30,6 +30,7 @@ import {
   X,
   Move,
   FolderInput,
+  Pin,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import {
@@ -40,6 +41,7 @@ import {
   getArticlesAction,
   moveCategoryAction,
 } from '@qoe/sdk/actions/articles';
+import { updateCreatorProfileAction } from '@qoe/sdk/actions/dashboard';
 import { t } from '@lingui/core/macro';
 
 import { ArticleInspectorModal } from '../analytics/components/ArticleInspectorModal';
@@ -85,6 +87,7 @@ interface CategoryWithCount {
 interface ArticlesClientProps {
   initialArticles: ArticleWithCategory[];
   initialCategories: CategoryWithCount[];
+  initialPinnedArticleId?: string | null;
   canReview?: boolean;
 }
 
@@ -96,12 +99,28 @@ type StatusFilter = 'all' | 'published' | 'draft' | 'review';
 export function ArticlesClient({
   initialArticles,
   initialCategories,
+  initialPinnedArticleId = null,
   canReview = false,
 }: ArticlesClientProps) {
   const [activeMainTab, setActiveMainTab] = useState<'articles' | 'categories'>('articles');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [articles, setArticles] = useState<ArticleWithCategory[]>(initialArticles);
   const [categories, setCategories] = useState<CategoryWithCount[]>(initialCategories);
+  const [pinnedArticleId, setPinnedArticleId] = useState<string | null>(initialPinnedArticleId);
+
+  const handleTogglePin = async (id: string) => {
+    const nextPinned = pinnedArticleId === id ? null : id;
+    setPinnedArticleId(nextPinned);
+    try {
+      await updateCreatorProfileAction({
+        siteOptions: {
+          pinnedArticleId: nextPinned,
+        },
+      });
+    } catch (err) {
+      console.error('Failed to pin article', err);
+    }
+  };
 
   // Search & Advanced Sorting & Filtering State
   const [searchTerm, setSearchTerm] = useState('');
@@ -1021,6 +1040,17 @@ export function ArticlesClient({
                             </span>
                           )}
 
+                          {/* Pinned Badge */}
+                          {((art as unknown as { isPinned?: boolean; isEditorPick?: boolean })
+                            .isPinned ||
+                            (art as unknown as { isPinned?: boolean; isEditorPick?: boolean })
+                              .isEditorPick ||
+                            pinnedArticleId === art.id) && (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/25 inline-flex items-center gap-1 font-sans">
+                              📌 À la une
+                            </span>
+                          )}
+
                           <span className="text-xs text-muted-foreground font-sans">
                             {new Date(art.updatedAt).toLocaleDateString('fr-FR', {
                               month: 'short',
@@ -1098,6 +1128,26 @@ export function ArticlesClient({
                           title={t`Analyses de l'article`}
                         >
                           <BarChart3 className="w-4 h-4 stroke-[1.5]" />
+                        </button>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleTogglePin(art.id);
+                          }}
+                          className={cn(
+                            'p-1.5 rounded transition-colors cursor-pointer',
+                            pinnedArticleId === art.id
+                              ? 'text-primary bg-primary/10'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                          )}
+                          title={
+                            pinnedArticleId === art.id
+                              ? t`Désepingler de la une`
+                              : t`Épingler à la une`
+                          }
+                        >
+                          <Pin className="w-4 h-4 stroke-[1.5]" />
                         </button>
 
                         <a
