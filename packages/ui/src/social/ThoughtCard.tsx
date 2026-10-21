@@ -171,15 +171,19 @@ export function ThoughtCard({
   onDeleteClick,
   className,
 }: ThoughtCardProps) {
-  const isPureRepost = !!post.repost && !post.content?.trim();
+  const isPureThoughtRepost = !!post.repost && !post.content?.trim();
+  const isPureArticleRepost = !post.repost && !post.content?.trim() && !!post.articleQuote;
+  const isPureRepost = isPureThoughtRepost || isPureArticleRepost;
   const isQuotePost = !!post.repost && !!post.content?.trim();
 
-  const displayAuthor = isPureRepost ? post.repost!.author : post.author;
-  const displayContent = isPureRepost ? post.repost!.content : post.content;
+  const displayAuthor = isPureThoughtRepost ? post.repost!.author : post.author;
+  const displayContent = isPureThoughtRepost ? post.repost!.content : post.content;
   const rawDisplayContent = displayContent;
-  const displayImageUrl = isPureRepost ? post.repost!.imageUrl : post.imageUrl;
-  const displayPostId = isPureRepost ? post.repost!.id : post.id;
-  const displayCreatedAt = isPureRepost ? post.repost!.createdAt || post.createdAt : post.createdAt;
+  const displayImageUrl = isPureThoughtRepost ? post.repost!.imageUrl : post.imageUrl;
+  const displayPostId = isPureThoughtRepost ? post.repost!.id : post.id;
+  const displayCreatedAt = isPureThoughtRepost
+    ? post.repost!.createdAt || post.createdAt
+    : post.createdAt;
 
   const authorHandle =
     displayAuthor.username || displayAuthor.subdomain || displayAuthor.id?.slice(0, 8) || 'auteur';
@@ -302,10 +306,22 @@ export function ThoughtCard({
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground pb-0.5 font-sans">
               <Repeat className="w-3.5 h-3.5 text-success" />
               <span>
-                <strong className="font-semibold text-foreground">
-                  @{post.author.username || post.author.subdomain || post.author.id.slice(0, 8)}
-                </strong>{' '}
-                a repartagé
+                {currentUserId && post.author.id === currentUserId ? (
+                  t`Vous avez repartagé`
+                ) : (
+                  <>
+                    <strong className="font-semibold text-foreground">
+                      @{post.author.username || post.author.subdomain || post.author.id.slice(0, 8)}
+                    </strong>{' '}
+                    {isFollowingAuthor ||
+                    Boolean(
+                      'isFollowing' in post.author &&
+                      (post.author as { isFollowing?: boolean }).isFollowing
+                    )
+                      ? t`que vous suivez a repartagé`
+                      : t`a repartagé`}
+                  </>
+                )}
               </span>
             </div>
           )}

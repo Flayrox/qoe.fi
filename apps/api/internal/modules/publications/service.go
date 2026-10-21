@@ -155,6 +155,11 @@ type ArticleDetail struct {
 	AuthorID               string        `json:"authorId"`
 	Category               *CategoryItem `json:"category"`
 	Author                 *AuthorInfo   `json:"author"`
+	LikesCount             int           `json:"likesCount"`
+	CommentsCount          int           `json:"commentsCount"`
+	RepostsCount           int           `json:"repostsCount"`
+	IsLiked                bool          `json:"isLiked"`
+	IsReposted             bool          `json:"isReposted"`
 }
 
 type Entitlements struct {
@@ -262,6 +267,29 @@ func (s *Service) Article(ctx context.Context, domain, slug, viewerID, viewerEma
 			followed, _ := s.isFollowed(ctx, pub.ID, viewerID)
 			bundle.Followed = followed
 		}
+	}
+
+	// Compteurs d'engagement réels
+	var repostsCount int
+	_ = s.pool.QueryRow(ctx, `SELECT count(*) FROM "Post" WHERE "quotedArticleId" = $1`, article.ID).Scan(&repostsCount)
+	bundle.Article.RepostsCount = repostsCount
+
+	var commentsCount int
+	_ = s.pool.QueryRow(ctx, `SELECT count(*) FROM "ArticleComment" WHERE "articleId" = $1`, article.ID).Scan(&commentsCount)
+	bundle.Article.CommentsCount = commentsCount
+
+	var likesCount int
+	_ = s.pool.QueryRow(ctx, `SELECT count(*) FROM "ContentFeedback" WHERE "articleId" = $1 AND "type" = 'LIKE'`, article.ID).Scan(&likesCount)
+	bundle.Article.LikesCount = likesCount
+
+	if viewerID != "" {
+		var isReposted bool
+		_ = s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM "Post" WHERE "authorId" = $1 AND "quotedArticleId" = $2 AND ("content" IS NULL OR "content" = ''))`, viewerID, article.ID).Scan(&isReposted)
+		bundle.Article.IsReposted = isReposted
+
+		var isLiked bool
+		_ = s.pool.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM "ContentFeedback" WHERE "userId" = $1::uuid AND "articleId" = $2 AND "type" = 'LIKE')`, viewerID, article.ID).Scan(&isLiked)
+		bundle.Article.IsLiked = isLiked
 	}
 
 	// 🔒 Zéro-fuite : cette route est PUBLIQUE (lecture anonyme du site tenant).
