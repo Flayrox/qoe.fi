@@ -1,7 +1,7 @@
 'use client';
 
 // =====================================================================
-// SubstackSidebar.tsx — Colonne Latérale Éditoriale (Inspirée Substack)
+// PublicationSidebar.tsx — Colonne Latérale Éditoriale
 // =====================================================================
 // Affiche :
 // 1. Carte de l'Auteur / Publication ("À propos")
@@ -24,7 +24,7 @@ import type {
   TemplateRenderContext,
 } from '../schema';
 
-export interface SubstackSidebarProps {
+export interface PublicationSidebarProps {
   publication?: TemplatePublicationContext;
   articles?: TemplateArticleItem[];
   context: TemplateRenderContext;
@@ -55,12 +55,12 @@ const CURATED_DEFAULT_RECOMMENDATIONS: TemplateRecommendationItem[] = [
   },
 ];
 
-export function SubstackSidebar({
+export function PublicationSidebar({
   publication,
   articles = [],
   context,
   className = '',
-}: SubstackSidebarProps) {
+}: PublicationSidebarProps) {
   const [subscribedMap, setSubscribedMap] = useState<Record<string, boolean>>({});
   const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
   const [activeInlineEmailId, setActiveInlineEmailId] = useState<string | null>(null);
@@ -80,7 +80,6 @@ export function SubstackSidebar({
   const handleSubscribeClick = (rec: TemplateRecommendationItem) => {
     if (context.mode === 'editable') return;
     if (subscribedMap[rec.id]) return;
-    // Ouvre le champ email inline pour cette recommandation
     setActiveInlineEmailId(rec.id);
   };
 
@@ -100,7 +99,7 @@ export function SubstackSidebar({
         setInlineEmail('');
       }
     } catch (err) {
-      console.warn('[SubstackSidebar] subscribe error:', err);
+      console.warn('[PublicationSidebar] subscribe error:', err);
     } finally {
       setLoadingMap((prev) => ({ ...prev, [recId]: false }));
     }
@@ -153,7 +152,7 @@ export function SubstackSidebar({
         )}
       </div>
 
-      {/* ── 2. RÉSEAU DE RECOMMANDATIONS SUBSTACK ("Recommandé par...") ── */}
+      {/* ── 2. RÉSEAU DE RECOMMANDATIONS ("Recommandé par...") ── */}
       <div className="p-5 rounded-2xl bg-card/60 backdrop-blur-sm border border-border/50 shadow-2xs space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
@@ -226,7 +225,7 @@ export function SubstackSidebar({
                   </button>
                 </div>
 
-                {/* Formulaire inline rapide si non authentifié */}
+                {/* Formulaire inline rapide */}
                 {isInputOpen && !isSubscribed && (
                   <form
                     onSubmit={(e) => handleInlineSubscribeSubmit(e, rec.id)}

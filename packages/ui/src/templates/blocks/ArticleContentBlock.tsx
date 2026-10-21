@@ -10,6 +10,8 @@ import type {
 } from '../schema';
 import { BlockWrapper } from './BlockWrapper';
 import { NodeRenderer } from './NodeRenderer';
+import { SafeAvatar } from '../../SafeAvatar';
+import { ArticleEngagementBar } from './ArticleEngagementBar';
 
 interface ArticleContentBlockComponentProps {
   id: string;
@@ -125,48 +127,80 @@ export function ArticleContentBlock({
           />
         )}
 
-        {showMeta && (
-          <div className="flex items-center gap-2.5 text-xs text-muted-foreground mb-4 select-none">
-            <span
-              className="w-2.5 h-2.5 rounded-full shrink-0 shadow-2xs"
-              style={{ backgroundColor: 'var(--tenant-accent, #F97316)' }}
-              aria-hidden="true"
-            />
-            {showAuthor && authorName && (
-              <span className="font-semibold text-foreground/90">{authorName}</span>
-            )}
-            {showDate && article.publishedAt && (
-              <>
-                <span className="text-muted-foreground/40">·</span>
-                <time
-                  dateTime={
-                    article.publishedAt instanceof Date
-                      ? article.publishedAt.toISOString()
-                      : article.publishedAt
-                  }
-                >
-                  {new Date(article.publishedAt).toLocaleDateString('fr-FR', {
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric',
-                  })}
-                </time>
-              </>
-            )}
-            {showReadingTime && article.readingTime ? (
-              <>
-                <span className="text-muted-foreground/40">·</span>
-                <span>{article.readingTime} min</span>
-              </>
-            ) : null}
-          </div>
-        )}
-
+        {/* Titre principal de l'article */}
         {showTitle && article.title && (
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-semibold tracking-tight text-foreground leading-snug">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight text-foreground leading-[1.18] mb-3">
             {article.title}
           </h1>
         )}
+
+        {/* Sous-titre / Chapô descriptif */}
+        {(article.subtitle || article.excerpt) && (
+          <p className="text-base sm:text-lg md:text-xl text-muted-foreground leading-relaxed mb-6 font-normal">
+            {article.subtitle || article.excerpt}
+          </p>
+        )}
+
+        {/* Ligne Byline Auteur détaillée */}
+        {showMeta && (
+          <div className="flex items-center gap-3 py-2 mb-4 select-none">
+            <SafeAvatar
+              src={article.author?.logoUrl || publication.logoUrl || null}
+              name={authorName}
+              size={42}
+              shape="circle"
+              className="border border-border/50 shrink-0 shadow-2xs"
+            />
+            <div className="min-w-0 flex-1">
+              {showAuthor && authorName && (
+                <div className="text-xs font-bold uppercase tracking-wider text-foreground leading-tight truncate">
+                  {authorName}
+                </div>
+              )}
+              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-mono mt-0.5 flex-wrap">
+                {showDate && article.publishedAt && (
+                  <time
+                    dateTime={
+                      article.publishedAt instanceof Date
+                        ? article.publishedAt.toISOString()
+                        : article.publishedAt
+                    }
+                  >
+                    {new Date(article.publishedAt).toLocaleDateString('fr-FR', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    })}
+                  </time>
+                )}
+                <span className="text-muted-foreground/40">·</span>
+                <span className="uppercase font-semibold tracking-wider text-[10px]">
+                  {article.isPremium ? 'RÉSERVÉ' : 'ACCÈS LIBRE'}
+                </span>
+                {showReadingTime && article.readingTime ? (
+                  <>
+                    <span className="text-muted-foreground/40">·</span>
+                    <span>{article.readingTime} min</span>
+                  </>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Barre d'engagement (Likes, Commentaires, Reposts, Partager) */}
+        <div className="my-4">
+          <ArticleEngagementBar
+            articleId={article.id}
+            articleSlug={article.slug}
+            initialLikes={article.likesCount ?? 21}
+            initialComments={article.commentsCount ?? 2}
+            initialReposts={article.repostsCount ?? 3}
+            initialIsLiked={article.isLiked}
+            size="md"
+            showShareText={true}
+          />
+        </div>
 
         {showCover && article.imageUrl && (
           <div className="mt-8 mb-8 -mx-4 sm:-mx-8 md:-mx-12">

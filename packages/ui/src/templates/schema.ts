@@ -346,10 +346,16 @@ export interface TemplateArticleItem {
   slug: string;
   content?: string;
   excerpt?: string;
+  subtitle?: string;
   imageUrl?: string | null;
   publishedAt?: string | Date;
   readingTime?: number;
   isPremium?: boolean;
+  likesCount?: number;
+  commentsCount?: number;
+  repostsCount?: number;
+  isLiked?: boolean;
+  isReposted?: boolean;
   category?: {
     name: string;
     slug?: string;
