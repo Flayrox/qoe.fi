@@ -25,7 +25,6 @@ import {
   Image as ImageIcon,
   PenTool,
   Trash2,
-  Sparkles,
   Building2,
   ShieldCheck,
 } from 'lucide-react';
