@@ -139,8 +139,10 @@ func (h *Handler) umamiReturning(w http.ResponseWriter, r *http.Request) {
 			response.Forbidden(w, "Permission insuffisante")
 			return
 		}
-		// Publication sans Umami provisionné : dégradation propre.
-		response.OK(w, map[string]any{})
+		// Publication sans Umami provisionné : on renvoie la FORME du contrat
+		// avec des zéros. Un objet vide faisait planter le client, qui lit
+		// `returningVisitors` sans garde (page analytics en erreur).
+		response.OK(w, ReturningVisitors{})
 		return
 	}
 	startAt, endAt := parsePeriod(r)
@@ -167,7 +169,9 @@ func (h *Handler) umamiHours(w http.ResponseWriter, r *http.Request) {
 			response.Forbidden(w, "Permission insuffisante")
 			return
 		}
-		response.OK(w, map[string]any{})
+		// Même logique : tableau vide, jamais un objet, pour que le client
+		// itère sans se demander si la donnée existe.
+		response.OK(w, []HourVisit{})
 		return
 	}
 	startAt, endAt := parsePeriod(r)

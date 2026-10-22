@@ -36,10 +36,16 @@ function HourBar({ hour, visits, max }: { hour: number; visits: number; max: num
 
 export function ReturningAndHeatmapBlock({ insights }: ReturningAndHeatmapBlockProps) {
   const { returning, hours } = insights;
+  // Le backend peut renvoyer un payload partiel (publication sans Umami
+  // provisionné, dégradation d'API) : on ne lit jamais un champ sans repli,
+  // sinon une donnée manquante fait tomber toute la page analytics.
   const total = returning?.total ?? 0;
-  const newPct = total > 0 ? Math.round(((returning?.newVisitors ?? 0) / total) * 100) : 0;
+  const newVisitors = returning?.newVisitors ?? 0;
+  const returningVisitors = returning?.returningVisitors ?? 0;
+  const hoursList = hours ?? [];
+  const newPct = total > 0 ? Math.round((newVisitors / total) * 100) : 0;
   const returningPct = total > 0 ? 100 - newPct : 0;
-  const maxHour = hours.length > 0 ? Math.max(...hours.map((h) => h.visits)) : 0;
+  const maxHour = hoursList.length > 0 ? Math.max(...hoursList.map((h) => h.visits)) : 0;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -97,7 +103,7 @@ export function ReturningAndHeatmapBlock({ insights }: ReturningAndHeatmapBlockP
                       Récurrents
                     </span>
                     <span className="font-semibold text-foreground">
-                      {returning.returningVisitors.toLocaleString()}
+                      {returningVisitors.toLocaleString()}
                     </span>
                   </div>
                   <div className="h-2 rounded-full bg-muted/40 overflow-hidden">
@@ -114,7 +120,7 @@ export function ReturningAndHeatmapBlock({ insights }: ReturningAndHeatmapBlockP
                       Nouveaux
                     </span>
                     <span className="font-semibold text-foreground">
-                      {returning.newVisitors.toLocaleString()}
+                      {newVisitors.toLocaleString()}
                     </span>
                   </div>
                   <div className="h-2 rounded-full bg-muted/40 overflow-hidden">
@@ -156,7 +162,7 @@ export function ReturningAndHeatmapBlock({ insights }: ReturningAndHeatmapBlockP
           <span className="text-xs text-muted-foreground font-medium">UTC</span>
         </div>
 
-        {hours.length === 0 || maxHour === 0 ? (
+        {hoursList.length === 0 || maxHour === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center border border-dashed rounded-lg border-border/30 bg-muted/10">
             <Clock className="h-6 w-6 text-muted-foreground/40 mb-2 stroke-[1.5]" />
             <p className="text-xs font-medium text-muted-foreground">
@@ -165,7 +171,7 @@ export function ReturningAndHeatmapBlock({ insights }: ReturningAndHeatmapBlockP
           </div>
         ) : (
           <div className="space-y-1 max-h-[300px] overflow-y-auto pr-1">
-            {hours.map((h) => (
+            {hoursList.map((h) => (
               <HourBar key={h.hour} hour={h.hour} visits={h.visits} max={maxHour} />
             ))}
           </div>
