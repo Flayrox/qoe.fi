@@ -149,5 +149,83 @@ describe('Option B - Minimal Hybrid Home (Devouring Details)', () => {
       // "Spring physics & tactile feel" should still be visible
       expect(screen.getByText('Spring physics & tactile feel')).toBeTruthy();
     });
+
+    it('renders 3-column layout with skeleton placeholders when there is only 1 article', () => {
+      const singleArticle = [mockArticles[0]];
+
+      render(
+        <ArticleStreamBlock
+          id="stream_single"
+          props={streamProps}
+          articles={singleArticle}
+          publication={mockPublication}
+          context={mockContext}
+        />
+      );
+
+      // Center article must be present
+      expect(screen.getByTestId('center-hero-article')).toBeTruthy();
+      expect(screen.getByText('Behind scenes')).toBeTruthy();
+
+      // Both left and right columns must render skeleton placeholders
+      expect(screen.getByTestId('left-skeleton')).toBeTruthy();
+      expect(screen.getByTestId('right-skeleton')).toBeTruthy();
+
+      // Neither secondary article is present
+      expect(screen.queryByTestId('left-secondary-article')).toBeNull();
+      expect(screen.queryByTestId('right-secondary-article')).toBeNull();
+
+      // "À paraître" appears in the skeletons
+      const upcomingBadges = screen.getAllByText(/À paraître/i);
+      expect(upcomingBadges.length).toBe(2);
+    });
+
+    it('renders 3-column layout with left secondary article and right skeleton when there are 2 articles', () => {
+      const twoArticles = [mockArticles[0], mockArticles[1]];
+
+      render(
+        <ArticleStreamBlock
+          id="stream_two"
+          props={streamProps}
+          articles={twoArticles}
+          publication={mockPublication}
+          context={mockContext}
+        />
+      );
+
+      // Center article & left secondary article must be present
+      expect(screen.getByTestId('center-hero-article')).toBeTruthy();
+      expect(screen.getByTestId('left-secondary-article')).toBeTruthy();
+      expect(screen.getByText('Behind scenes')).toBeTruthy();
+      expect(screen.getByText('Spring physics & tactile feel')).toBeTruthy();
+
+      // Left skeleton is NOT rendered, but right skeleton IS rendered
+      expect(screen.queryByTestId('left-skeleton')).toBeNull();
+      expect(screen.getByTestId('right-skeleton')).toBeTruthy();
+      expect(screen.queryByTestId('right-secondary-article')).toBeNull();
+
+      const upcomingBadges = screen.getAllByText(/À paraître/i);
+      expect(upcomingBadges.length).toBe(1);
+    });
+
+    it('renders real articles in all 3 columns when there are 3 articles without skeletons', () => {
+      render(
+        <ArticleStreamBlock
+          id="stream_three"
+          props={streamProps}
+          articles={mockArticles}
+          publication={mockPublication}
+          context={mockContext}
+        />
+      );
+
+      expect(screen.getByTestId('center-hero-article')).toBeTruthy();
+      expect(screen.getByTestId('left-secondary-article')).toBeTruthy();
+      expect(screen.getByTestId('right-secondary-article')).toBeTruthy();
+
+      expect(screen.queryByTestId('left-skeleton')).toBeNull();
+      expect(screen.queryByTestId('right-skeleton')).toBeNull();
+      expect(screen.queryByText(/À paraître/i)).toBeNull();
+    });
   });
 });
