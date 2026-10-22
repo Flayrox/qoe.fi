@@ -26,10 +26,13 @@ import {
   PenTool,
   Trash2,
   Sparkles,
+  Building2,
+  ShieldCheck,
 } from 'lucide-react';
 
 import type { CreatorProfile } from '../types';
 import { ACCENT_SWATCHES, SITE_FONTS, SITE_OPTION_ITEMS } from '../types';
+import { MediaProfilePreviewEditor } from '../components/MediaProfilePreviewEditor';
 
 interface GeneralTabProps {
   current: CreatorProfile;
@@ -397,69 +400,88 @@ export function GeneralTab({
             </div>
           </div>
         </div>
+      ) : isMedia ? (
+        /* =====================================================================
+           VUE 2A : PROFIL DU MÉDIA (PREVIEW INTERACTIVE INTELIGENTE)
+           ===================================================================== */
+        <MediaProfilePreviewEditor current={current} setCurrent={setCurrent} />
       ) : (
         /* =====================================================================
-           VUE 2 : PROFIL AUTEUR / MÉDIA (CORE)
+           VUE 2B : COMPTE PERSONNEL (PASSE PAR LE CORE QOEFI)
            ===================================================================== */
-        <div className="max-w-2xl mx-auto rounded-xl border border-border/50 bg-card p-6 space-y-5 shadow-2xs">
+        <div className="max-w-2xl mx-auto rounded-2xl border border-border/50 bg-card p-6 space-y-6 shadow-2xs">
           <div className="flex items-center justify-between pb-3 border-b border-border/30">
-            <div>
-              <h3 className="text-sm font-bold text-foreground">
-                {isMedia ? 'Profil public du média' : 'Votre profil public'}
-              </h3>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Ces informations apparaissent sur le réseau qoe.fi et auprès des lecteurs.
-              </p>
+            <div className="flex items-center gap-2">
+              <User className="w-4 h-4 text-primary" />
+              <h3 className="text-sm font-bold text-foreground">Profil personnel d'auteur</h3>
             </div>
+            <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border/40">
+              Géré sur le Core
+            </span>
           </div>
 
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-foreground block">Nom affiché</label>
-              <input
-                type="text"
-                value={current.name || ''}
-                onChange={(e) => setCurrent((prev) => ({ ...prev, name: e.target.value }))}
-                placeholder="Votre nom ou pseudonyme"
-                className="w-full px-3 py-2 bg-background border border-border/40 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80 transition-colors"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-foreground block">
-                Description / Bio
-              </label>
-              <textarea
-                value={current.heroText || ''}
-                onChange={(e) => setCurrent((prev) => ({ ...prev, heroText: e.target.value }))}
-                rows={3}
-                placeholder="Votre biographie publique..."
-                className="w-full px-3 py-2 bg-background border border-border/40 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80 resize-none transition-colors"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-foreground block">Avatar / Photo</label>
-              <div className="max-w-[100px]">
-                <ImageUploader
-                  value={current.logoUrl}
-                  onChange={(url) => setCurrent((prev) => ({ ...prev, logoUrl: url }))}
-                  upload={(file) =>
-                    uploadImageToRoute(file, '/api/articles/upload', IMAGE_FOLDERS.avatars)
-                  }
-                  aspect={1}
-                  shape="circle"
-                  maxDimension={512}
+          {/* Carte d'identité actuelle en lecture seule */}
+          <div className="flex items-start gap-4 p-4 rounded-xl bg-muted/20 border border-border/40">
+            <div className="w-14 h-14 rounded-full bg-primary/10 border-2 border-primary/20 overflow-hidden flex items-center justify-center shrink-0">
+              {current.logoUrl ? (
+                <img
+                  src={current.logoUrl}
+                  alt={current.name || 'Avatar'}
+                  className="w-full h-full object-cover"
                 />
+              ) : (
+                <span className="text-xl font-bold text-primary">
+                  {(current.name || 'A').charAt(0).toUpperCase()}
+                </span>
+              )}
+            </div>
+
+            <div className="space-y-1 min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <h4 className="text-sm font-bold text-foreground truncate">
+                  {current.name || 'Auteur Qoefi'}
+                </h4>
+                {current.username && (
+                  <span className="text-xs text-muted-foreground font-mono">
+                    @{current.username}
+                  </span>
+                )}
               </div>
+
+              {current.heroText ? (
+                <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+                  {current.heroText}
+                </p>
+              ) : (
+                <p className="text-xs text-muted-foreground italic">
+                  Aucune biographie renseignée pour le moment.
+                </p>
+              )}
             </div>
           </div>
 
-          <div className="pt-3 border-t border-border/30 flex justify-between items-center text-xs">
-            <span className="text-muted-foreground">Paramètres de sécurité avancés</span>
-            <a href={consoleSettingsUrl} className="text-primary hover:underline font-semibold">
-              Gérer sur le compte personnel ↗
-            </a>
+          {/* Explication & Action vers le Core */}
+          <div className="space-y-4 pt-1">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Votre identité publique d'auteur (nom, biographie, photo de profil et sécurité) est
+              centralisée sur le réseau souverain Qoefi. Les modifications sont instantanément
+              répercutées sur l'ensemble de vos écrits et de vos interactions.
+            </p>
+
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-border/30">
+              <span className="text-xs text-muted-foreground font-medium">
+                Modification du profil, avatar ou sécurité :
+              </span>
+              <a
+                href={consoleSettingsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-all shadow-xs cursor-pointer active:scale-95"
+              >
+                <span>Gérer mon profil sur Qoefi Core</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
           </div>
         </div>
       )}
