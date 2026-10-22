@@ -14,12 +14,7 @@ import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '../../SafeImage';
 import { Clock } from 'lucide-react';
-import {
-  getCoverPlaceholder,
-  PLACEHOLDER_COVER_1,
-  PLACEHOLDER_COVER_2,
-  PLACEHOLDER_COVER_3,
-} from '../placeholders';
+import { PLACEHOLDER_COVER_1, PLACEHOLDER_COVER_2, PLACEHOLDER_COVER_3 } from '../placeholders';
 import type {
   ArticleStreamBlockProps,
   TemplateArticleItem,
@@ -31,7 +26,7 @@ import { BlockWrapper } from './BlockWrapper';
 import { NodeRenderer } from './NodeRenderer';
 import { cn } from '@qoe/utils';
 import { PublicationSidebar } from './PublicationSidebar';
-import { ArticleEngagementBar } from './ArticleEngagementBar';
+import { ArticleCard } from './ArticleCard';
 import { findCategoryBySlug, filterArticlesByCategory } from '../navigation';
 
 interface ArticleStreamBlockComponentProps {
@@ -297,108 +292,16 @@ export function ArticleStreamBlock({
                 {/* Colonne Gauche (~25%, 3 colonnes) : Article secondaire gauche ou Skeleton */}
                 <div className="lg:col-span-3 order-2 lg:order-1 space-y-6">
                   {leftSecondaryArticle ? (
-                    <article
-                      className="group relative space-y-3"
-                      data-testid="left-secondary-article"
-                    >
-                      {/* 1. Image EN HAUT */}
-                      <Link
-                        href={`/article/${leftSecondaryArticle.slug}`}
-                        onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                        className="block group/cover"
-                      >
-                        <div className="relative w-full aspect-[16/10] rounded-[3px] overflow-hidden border border-border/50 bg-muted shadow-2xs">
-                          <SafeImage
-                            src={
-                              leftSecondaryArticle.imageUrl ||
-                              getCoverPlaceholder(
-                                leftSecondaryArticle.slug || leftSecondaryArticle.id
-                              )
-                            }
-                            alt={leftSecondaryArticle.title}
-                            fill
-                            className="object-cover transition-transform duration-500 group-hover/cover:scale-[1.03]"
-                          />
-                        </div>
-                      </Link>
-
-                      <div className="space-y-1.5">
-                        {/* 2. Titre SOUS L'IMAGE (Police synchronisée avec le thème) */}
-                        <h3 className="text-base sm:text-lg font-bold tracking-tight text-foreground leading-snug hover:opacity-85 transition-opacity line-clamp-2">
-                          <Link
-                            href={`/article/${leftSecondaryArticle.slug}`}
-                            onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                          >
-                            {leftSecondaryArticle.title}
-                          </Link>
-                        </h3>
-
-                        {/* 3. Extrait sous le titre */}
-                        {showExcerpts && leftSecondaryArticle.excerpt && (
-                          <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-                            {leftSecondaryArticle.excerpt}
-                          </p>
-                        )}
-
-                        {/* 4. Métadonnées EN BAS (Date · Auteur · Temps · Statut) */}
-                        <div className="pt-1.5 space-y-2 border-t border-border/20">
-                          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/80 tracking-wide uppercase font-medium flex-wrap">
-                            {leftSecondaryArticle.publishedAt && (
-                              <span>
-                                {new Date(leftSecondaryArticle.publishedAt).toLocaleDateString(
-                                  'fr-FR',
-                                  {
-                                    day: 'numeric',
-                                    month: 'short',
-                                    year: 'numeric',
-                                  }
-                                )}
-                              </span>
-                            )}
-                            {leftSecondaryArticle.author?.name && (
-                              <>
-                                <span className="opacity-40">·</span>
-                                <span>{leftSecondaryArticle.author.name}</span>
-                              </>
-                            )}
-                            {showReadingTime && leftSecondaryArticle.readingTime && (
-                              <>
-                                <span className="opacity-40">·</span>
-                                <span>{leftSecondaryArticle.readingTime} min</span>
-                              </>
-                            )}
-                            {showCategories && leftSecondaryArticle.category && (
-                              <>
-                                <span className="opacity-40">·</span>
-                                <span className="text-foreground font-semibold">
-                                  {leftSecondaryArticle.category.name}
-                                </span>
-                              </>
-                            )}
-                            {leftSecondaryArticle.isPremium !== undefined && (
-                              <span className="px-1.5 py-0.2 rounded-[3px] text-[10px] font-medium bg-muted border border-border/40 text-foreground normal-case">
-                                {leftSecondaryArticle.isPremium ? 'Payant' : 'Gratuit'}
-                              </span>
-                            )}
-                          </div>
-
-                          <ArticleEngagementBar
-                            articleId={leftSecondaryArticle.id}
-                            articleSlug={leftSecondaryArticle.slug}
-                            articleTitle={leftSecondaryArticle.title}
-                            initialLikes={leftSecondaryArticle.likesCount ?? 0}
-                            initialComments={leftSecondaryArticle.commentsCount ?? 0}
-                            initialReposts={leftSecondaryArticle.repostsCount ?? 0}
-                            initialIsLiked={leftSecondaryArticle.isLiked}
-                            initialIsReposted={leftSecondaryArticle.isReposted}
-                            size="sm"
-                            showShareText={false}
-                            revealOnHover={true}
-                            className="border-0 py-0"
-                          />
-                        </div>
-                      </div>
-                    </article>
+                    <ArticleCard
+                      article={leftSecondaryArticle}
+                      variant="secondary"
+                      publicationName={publication?.name}
+                      showExcerpts={showExcerpts}
+                      showReadingTime={showReadingTime}
+                      showCategories={showCategories}
+                      editableMode={context.mode === 'editable'}
+                      testId="left-secondary-article"
+                    />
                   ) : (
                     <SkeletonArticleCard data-testid="left-skeleton" />
                   )}
@@ -406,222 +309,32 @@ export function ArticleStreamBlock({
 
                 {/* Colonne Centre (~50%, 6 colonnes) : GRAND ARTICLE VEDETTE OU ÉPINGLÉ */}
                 <div className="lg:col-span-6 order-1 lg:order-2 space-y-4">
-                  <article className="group relative space-y-4" data-testid="center-hero-article">
-                    {/* 1. Grande Image Vedette EN HAUT (comme sur Substack, bords très légèrement arrondis) */}
-                    <div className="w-full">
-                      <Link
-                        href={`/article/${centerHeroArticle.slug}`}
-                        onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                        className="block group/cover"
-                      >
-                        <div className="relative w-full aspect-[16/10] sm:aspect-[16/10] rounded-[3px] overflow-hidden border border-border/50 bg-muted shadow-2xs">
-                          <SafeImage
-                            src={
-                              centerHeroArticle.imageUrl ||
-                              getCoverPlaceholder(centerHeroArticle.slug || centerHeroArticle.id)
-                            }
-                            alt={centerHeroArticle.title}
-                            fill
-                            className="object-cover transition-transform duration-500 group-hover/cover:scale-[1.01]"
-                          />
-                        </div>
-                      </Link>
-                    </div>
-
-                    {/* 2. Titre centré sous l'image (police synchronisée avec le thème, pas d'orange) */}
-                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-foreground text-center leading-[1.2] hover:opacity-85 transition-opacity">
-                      <Link
-                        href={`/article/${centerHeroArticle.slug}`}
-                        onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                      >
-                        {centerHeroArticle.title}
-                      </Link>
-                    </h2>
-
-                    {/* 3. Extrait centré sous le titre */}
-                    {showExcerpts && centerHeroArticle.excerpt && (
-                      <p className="text-sm sm:text-base text-muted-foreground text-center max-w-xl mx-auto leading-relaxed line-clamp-3">
-                        {centerHeroArticle.excerpt}
-                      </p>
-                    )}
-
-                    {/* 4. Métadonnées & Auteur EN BAS (centrées comme sur Substack) */}
-                    <div className="flex flex-col items-center justify-center gap-2.5 pt-2 border-t border-border/20">
-                      <div className="flex items-center justify-center gap-2 flex-wrap uppercase tracking-wider text-[11px] font-medium text-muted-foreground/80">
-                        {isArticlePinned(centerHeroArticle) && (
-                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary">
-                            📌
-                          </span>
-                        )}
-                        {centerHeroArticle.publishedAt && (
-                          <span>
-                            {new Date(centerHeroArticle.publishedAt).toLocaleDateString('fr-FR', {
-                              day: 'numeric',
-                              month: 'short',
-                              year: 'numeric',
-                            })}
-                          </span>
-                        )}
-                        <span className="opacity-40">·</span>
-                        <span>
-                          {centerHeroArticle.author?.name || publication?.name || 'Rédaction'}
-                        </span>
-                        {showReadingTime && centerHeroArticle.readingTime && (
-                          <>
-                            <span className="opacity-40">·</span>
-                            <span>{centerHeroArticle.readingTime} min</span>
-                          </>
-                        )}
-                        {showCategories && centerHeroArticle.category && (
-                          <>
-                            <span className="opacity-40">·</span>
-                            <span className="text-foreground font-semibold">
-                              {centerHeroArticle.category.name}
-                            </span>
-                          </>
-                        )}
-                        {centerHeroArticle.isPremium !== undefined && (
-                          <span className="px-1.5 py-0.2 rounded-[3px] text-[10px] font-medium bg-muted border border-border/40 text-foreground normal-case">
-                            {centerHeroArticle.isPremium ? 'Payant' : 'Gratuit'}
-                          </span>
-                        )}
-                        {/* Lien d'accessibilité discret pour les lecteurs d'écran et suites de tests */}
-                        <Link
-                          href={`/article/${centerHeroArticle.slug}`}
-                          onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                          className="sr-only"
-                        >
-                          Lire l’article
-                        </Link>
-                      </div>
-
-                      {/* 5. Barre d'engagement sociale centrée sur sa propre ligne (comme sur Substack) */}
-                      <div className="pt-0.5">
-                        <ArticleEngagementBar
-                          articleId={centerHeroArticle.id}
-                          articleSlug={centerHeroArticle.slug}
-                          articleTitle={centerHeroArticle.title}
-                          initialLikes={centerHeroArticle.likesCount ?? 0}
-                          initialComments={centerHeroArticle.commentsCount ?? 0}
-                          initialReposts={centerHeroArticle.repostsCount ?? 0}
-                          initialIsLiked={centerHeroArticle.isLiked}
-                          initialIsReposted={centerHeroArticle.isReposted}
-                          size="sm"
-                          showShareText={false}
-                          layout="center"
-                          revealOnHover={true}
-                          className="border-0 py-0"
-                        />
-                      </div>
-                    </div>
-                  </article>
+                  <ArticleCard
+                    article={centerHeroArticle}
+                    variant="hero-center"
+                    publicationName={publication?.name}
+                    showExcerpts={showExcerpts}
+                    showReadingTime={showReadingTime}
+                    showCategories={showCategories}
+                    isPinned={isArticlePinned(centerHeroArticle)}
+                    editableMode={context.mode === 'editable'}
+                    testId="center-hero-article"
+                  />
                 </div>
 
                 {/* Colonne Droite (~25%, 3 colonnes) : Article secondaire droit ou Skeleton */}
                 <div className="lg:col-span-3 order-3 lg:order-3 space-y-6">
                   {rightSecondaryArticle ? (
-                    <article
-                      className="group relative space-y-3"
-                      data-testid="right-secondary-article"
-                    >
-                      {/* 1. Image EN HAUT */}
-                      <Link
-                        href={`/article/${rightSecondaryArticle.slug}`}
-                        onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                        className="block group/cover"
-                      >
-                        <div className="relative w-full aspect-[16/10] rounded-[3px] overflow-hidden border border-border/50 bg-muted shadow-2xs">
-                          <SafeImage
-                            src={
-                              rightSecondaryArticle.imageUrl ||
-                              getCoverPlaceholder(
-                                rightSecondaryArticle.slug || rightSecondaryArticle.id
-                              )
-                            }
-                            alt={rightSecondaryArticle.title}
-                            fill
-                            className="object-cover transition-transform duration-500 group-hover/cover:scale-[1.03]"
-                          />
-                        </div>
-                      </Link>
-
-                      <div className="space-y-1.5">
-                        {/* 2. Titre SOUS L'IMAGE (Police synchronisée avec le thème) */}
-                        <h3 className="text-base sm:text-lg font-bold tracking-tight text-foreground leading-snug hover:opacity-85 transition-opacity line-clamp-2">
-                          <Link
-                            href={`/article/${rightSecondaryArticle.slug}`}
-                            onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                          >
-                            {rightSecondaryArticle.title}
-                          </Link>
-                        </h3>
-
-                        {/* 3. Extrait sous le titre */}
-                        {showExcerpts && rightSecondaryArticle.excerpt && (
-                          <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-                            {rightSecondaryArticle.excerpt}
-                          </p>
-                        )}
-
-                        {/* 4. Métadonnées EN BAS (Date · Auteur · Temps · Statut) */}
-                        <div className="pt-1.5 space-y-2 border-t border-border/20">
-                          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/80 tracking-wide uppercase font-medium flex-wrap">
-                            {rightSecondaryArticle.publishedAt && (
-                              <span>
-                                {new Date(rightSecondaryArticle.publishedAt).toLocaleDateString(
-                                  'fr-FR',
-                                  {
-                                    day: 'numeric',
-                                    month: 'short',
-                                    year: 'numeric',
-                                  }
-                                )}
-                              </span>
-                            )}
-                            {rightSecondaryArticle.author?.name && (
-                              <>
-                                <span className="opacity-40">·</span>
-                                <span>{rightSecondaryArticle.author.name}</span>
-                              </>
-                            )}
-                            {showReadingTime && rightSecondaryArticle.readingTime && (
-                              <>
-                                <span className="opacity-40">·</span>
-                                <span>{rightSecondaryArticle.readingTime} min</span>
-                              </>
-                            )}
-                            {showCategories && rightSecondaryArticle.category && (
-                              <>
-                                <span className="opacity-40">·</span>
-                                <span className="text-foreground font-semibold">
-                                  {rightSecondaryArticle.category.name}
-                                </span>
-                              </>
-                            )}
-                            {rightSecondaryArticle.isPremium !== undefined && (
-                              <span className="px-1.5 py-0.2 rounded-[3px] text-[10px] font-medium bg-muted border border-border/40 text-foreground normal-case">
-                                {rightSecondaryArticle.isPremium ? 'Payant' : 'Gratuit'}
-                              </span>
-                            )}
-                          </div>
-
-                          <ArticleEngagementBar
-                            articleId={rightSecondaryArticle.id}
-                            articleSlug={rightSecondaryArticle.slug}
-                            articleTitle={rightSecondaryArticle.title}
-                            initialLikes={rightSecondaryArticle.likesCount ?? 0}
-                            initialComments={rightSecondaryArticle.commentsCount ?? 0}
-                            initialReposts={rightSecondaryArticle.repostsCount ?? 0}
-                            initialIsLiked={rightSecondaryArticle.isLiked}
-                            initialIsReposted={rightSecondaryArticle.isReposted}
-                            size="sm"
-                            showShareText={false}
-                            revealOnHover={true}
-                            className="border-0 py-0"
-                          />
-                        </div>
-                      </div>
-                    </article>
+                    <ArticleCard
+                      article={rightSecondaryArticle}
+                      variant="secondary"
+                      publicationName={publication?.name}
+                      showExcerpts={showExcerpts}
+                      showReadingTime={showReadingTime}
+                      showCategories={showCategories}
+                      editableMode={context.mode === 'editable'}
+                      testId="right-secondary-article"
+                    />
                   ) : (
                     <SkeletonArticleCard data-testid="right-skeleton" />
                   )}
@@ -695,99 +408,16 @@ export function ArticleStreamBlock({
 
                           <div className="divide-y divide-border/30">
                             {catArticles.map((article) => (
-                              <article
+                              <ArticleCard
                                 key={article.id}
-                                className="group relative flex flex-col sm:flex-row items-start justify-between gap-6 py-6 first:pt-2 last:pb-2 transition-colors"
-                              >
-                                <div className="flex-1 space-y-2 min-w-0">
-                                  <h4 className="text-lg sm:text-xl font-bold tracking-tight text-foreground leading-snug hover:opacity-85 transition-opacity">
-                                    <Link
-                                      href={`/article/${article.slug}`}
-                                      onClick={(e) =>
-                                        context.mode === 'editable' && e.preventDefault()
-                                      }
-                                    >
-                                      {article.title}
-                                    </Link>
-                                  </h4>
-
-                                  {showExcerpts && article.excerpt && (
-                                    <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-                                      {article.excerpt}
-                                    </p>
-                                  )}
-
-                                  <div className="flex items-center gap-2 text-xs text-muted-foreground/80 tracking-wide uppercase font-medium flex-wrap pt-0.5">
-                                    {article.publishedAt && (
-                                      <span>
-                                        {new Date(article.publishedAt).toLocaleDateString('fr-FR', {
-                                          day: 'numeric',
-                                          month: 'short',
-                                          year: 'numeric',
-                                        })}
-                                      </span>
-                                    )}
-                                    {article.author?.name && (
-                                      <>
-                                        <span className="opacity-40">·</span>
-                                        <span>{article.author.name}</span>
-                                      </>
-                                    )}
-                                    {showReadingTime && article.readingTime && (
-                                      <>
-                                        <span className="opacity-40">·</span>
-                                        <span>{article.readingTime} min</span>
-                                      </>
-                                    )}
-                                    {showCategories && article.category && (
-                                      <>
-                                        <span className="opacity-40">·</span>
-                                        <span className="text-foreground font-semibold">
-                                          {article.category.name}
-                                        </span>
-                                      </>
-                                    )}
-                                    {article.isPremium !== undefined && (
-                                      <span className="px-1.5 py-0.2 rounded-[3px] text-[10px] font-medium bg-muted border border-border/40 text-foreground normal-case">
-                                        {article.isPremium ? 'Payant' : 'Gratuit'}
-                                      </span>
-                                    )}
-                                  </div>
-
-                                  <div className="pt-2 flex items-center justify-start text-xs">
-                                    <ArticleEngagementBar
-                                      articleId={article.id}
-                                      articleSlug={article.slug}
-                                      articleTitle={article.title}
-                                      initialLikes={article.likesCount ?? 0}
-                                      initialComments={article.commentsCount ?? 0}
-                                      initialReposts={article.repostsCount ?? 0}
-                                      initialIsLiked={article.isLiked}
-                                      initialIsReposted={article.isReposted}
-                                      size="sm"
-                                      showShareText={false}
-                                      revealOnHover={true}
-                                      className="border-0 py-0"
-                                    />
-                                  </div>
-                                </div>
-
-                                <Link
-                                  href={`/article/${article.slug}`}
-                                  onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                                  className="relative w-full sm:w-44 md:w-48 aspect-[16/10] sm:h-32 shrink-0 rounded-[3px] overflow-hidden bg-muted border border-border/40 group/thumb block"
-                                >
-                                  <img
-                                    src={
-                                      article.imageUrl ||
-                                      getCoverPlaceholder(article.slug || article.id)
-                                    }
-                                    alt={article.title}
-                                    className="w-full h-full object-cover transition-transform duration-300 group-hover/thumb:scale-[1.03]"
-                                    loading="lazy"
-                                  />
-                                </Link>
-                              </article>
+                                article={article}
+                                variant="row"
+                                publicationName={publication?.name}
+                                showExcerpts={showExcerpts}
+                                showReadingTime={showReadingTime}
+                                showCategories={showCategories}
+                                editableMode={context.mode === 'editable'}
+                              />
                             ))}
                           </div>
                         </section>
@@ -807,96 +437,16 @@ export function ArticleStreamBlock({
 
                     <div className="divide-y divide-border/30">
                       {streamArticles.map((article) => (
-                        <article
+                        <ArticleCard
                           key={article.id}
-                          className="group relative flex flex-col sm:flex-row items-start justify-between gap-6 py-6 first:pt-2 last:pb-2 transition-colors"
-                        >
-                          <div className="flex-1 space-y-2 min-w-0">
-                            <h4 className="text-lg sm:text-xl font-bold tracking-tight text-foreground leading-snug hover:opacity-85 transition-opacity">
-                              <Link
-                                href={`/article/${article.slug}`}
-                                onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                              >
-                                {article.title}
-                              </Link>
-                            </h4>
-
-                            {showExcerpts && article.excerpt && (
-                              <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
-                                {article.excerpt}
-                              </p>
-                            )}
-
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground/80 tracking-wide uppercase font-medium flex-wrap pt-0.5">
-                              {article.publishedAt && (
-                                <span>
-                                  {new Date(article.publishedAt).toLocaleDateString('fr-FR', {
-                                    day: 'numeric',
-                                    month: 'short',
-                                    year: 'numeric',
-                                  })}
-                                </span>
-                              )}
-                              {article.author?.name && (
-                                <>
-                                  <span className="opacity-40">·</span>
-                                  <span>{article.author.name}</span>
-                                </>
-                              )}
-                              {showReadingTime && article.readingTime && (
-                                <>
-                                  <span className="opacity-40">·</span>
-                                  <span>{article.readingTime} min</span>
-                                </>
-                              )}
-                              {showCategories && article.category && (
-                                <>
-                                  <span className="opacity-40">·</span>
-                                  <span className="text-foreground font-semibold">
-                                    {article.category.name}
-                                  </span>
-                                </>
-                              )}
-                              {article.isPremium !== undefined && (
-                                <span className="px-1.5 py-0.2 rounded-[3px] text-[10px] font-medium bg-muted border border-border/40 text-foreground normal-case">
-                                  {article.isPremium ? 'Payant' : 'Gratuit'}
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="pt-2 flex items-center justify-start text-xs">
-                              <ArticleEngagementBar
-                                articleId={article.id}
-                                articleSlug={article.slug}
-                                articleTitle={article.title}
-                                initialLikes={article.likesCount ?? 0}
-                                initialComments={article.commentsCount ?? 0}
-                                initialReposts={article.repostsCount ?? 0}
-                                initialIsLiked={article.isLiked}
-                                initialIsReposted={article.isReposted}
-                                size="sm"
-                                showShareText={false}
-                                revealOnHover={true}
-                                className="border-0 py-0"
-                              />
-                            </div>
-                          </div>
-
-                          <Link
-                            href={`/article/${article.slug}`}
-                            onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                            className="relative w-full sm:w-44 md:w-48 aspect-[16/10] sm:h-32 shrink-0 rounded-[3px] overflow-hidden bg-muted border border-border/40 group/thumb block"
-                          >
-                            <img
-                              src={
-                                article.imageUrl || getCoverPlaceholder(article.slug || article.id)
-                              }
-                              alt={article.title}
-                              className="w-full h-full object-cover transition-transform duration-300 group-hover/thumb:scale-[1.03]"
-                              loading="lazy"
-                            />
-                          </Link>
-                        </article>
+                          article={article}
+                          variant="row"
+                          publicationName={publication?.name}
+                          showExcerpts={showExcerpts}
+                          showReadingTime={showReadingTime}
+                          showCategories={showCategories}
+                          editableMode={context.mode === 'editable'}
+                        />
                       ))}
                     </div>
                   </div>

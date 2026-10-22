@@ -11,7 +11,7 @@
 // =====================================================================
 
 import React, { useState, useCallback, useRef, useEffect, useContext } from 'react';
-import { Heart, MessageSquare, Repeat, Share2, Check, Link2, Mail } from 'lucide-react';
+import { Heart, MessageSquare, Repeat, Share2, Check, Link2, Mail, Quote } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { toggleLikePostAction, toggleRepostPostAction } from '@qoe/sdk/actions/feed';
 import { t } from '@lingui/core/macro';
@@ -30,6 +30,7 @@ export interface ArticleEngagementBarProps {
   onRepostToggle?: (isReposted: boolean) => void;
   onCommentClick?: () => void;
   onShareClick?: () => void;
+  onQuoteClick?: () => void;
   size?: 'sm' | 'md';
   showShareText?: boolean;
   className?: string;
@@ -82,6 +83,7 @@ export function ArticleEngagementBar({
   onRepostToggle,
   onCommentClick,
   onShareClick,
+  onQuoteClick,
   size = 'md',
   showShareText = true,
   className,
@@ -94,8 +96,10 @@ export function ArticleEngagementBar({
   const [isReposted, setIsReposted] = useState(initialIsReposted);
   const [comments, setComments] = useState(initialComments);
   const [isShareOpen, setIsShareOpen] = useState(false);
+  const [isRepostOpen, setIsRepostOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const shareContainerRef = useRef<HTMLDivElement>(null);
+  const repostContainerRef = useRef<HTMLDivElement>(null);
   const authContext = useContext(AuthModalContext);
 
   // Synchronisation si les props d'initialisation changent
@@ -119,16 +123,23 @@ export function ArticleEngagementBar({
     setComments(initialComments);
   }, [initialComments]);
 
-  // Fermeture du menu au clic extérieur ou touche Échap
+  // Fermeture des menus au clic extérieur ou touche Échap
   useEffect(() => {
-    if (!isShareOpen) return;
+    if (!isShareOpen && !isRepostOpen) return;
     const handleClickOutside = (e: MouseEvent) => {
-      if (shareContainerRef.current && !shareContainerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (shareContainerRef.current && !shareContainerRef.current.contains(target)) {
         setIsShareOpen(false);
+      }
+      if (repostContainerRef.current && !repostContainerRef.current.contains(target)) {
+        setIsRepostOpen(false);
       }
     };
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setIsShareOpen(false);
+      if (e.key === 'Escape') {
+        setIsShareOpen(false);
+        setIsRepostOpen(false);
+      }
     };
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('keydown', handleKeyDown);
@@ -136,7 +147,7 @@ export function ArticleEngagementBar({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isShareOpen]);
+  }, [isShareOpen, isRepostOpen]);
 
   const resolveShareUrl = useCallback(() => {
     if (typeof window === 'undefined') return '';
@@ -181,10 +192,20 @@ export function ArticleEngagementBar({
     [isLiked, onLikeToggle, articleId, authContext]
   );
 
-  const handleRepost = useCallback(
+  // Déclenchement du menu popover de republication (Republier vs Citer)
+  const handleRepostButtonClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsRepostOpen((prev) => !prev);
+    setIsShareOpen(false);
+  }, []);
+
+  // Action 1 : Republication directe sur le profil
+  const handleDirectRepost = useCallback(
     async (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
+      setIsRepostOpen(false);
       const nextReposted = !isReposted;
       setIsReposted(nextReposted);
       setReposts((prev) => (nextReposted ? prev + 1 : Math.max(0, prev - 1)));
@@ -214,6 +235,27 @@ export function ArticleEngagementBar({
       }
     },
     [isReposted, onRepostToggle, articleId, authContext]
+  );
+
+  // Action 2 : Citation de l'article avec une réflexion / note
+  const handleQuoteRepost = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsRepostOpen(false);
+
+      if (onQuoteClick) {
+        onQuoteClick();
+        return;
+      }
+
+      // Redirection native vers le composer de pensées de Qoefi avec l'article en citation
+      if (typeof window !== 'undefined') {
+        const target = articleSlug || articleId || '';
+        window.location.href = `/home?compose=true&quoteArticle=${encodeURIComponent(target)}`;
+      }
+    },
+    [onQuoteClick, articleSlug, articleId]
   );
 
   const handleComment = useCallback(
@@ -321,8 +363,10 @@ export function ArticleEngagementBar({
     );
   };
 
+  const isAnyMenuOpen = isShareOpen || isRepostOpen;
+
   const interactiveClass =
-    revealOnHover && !isShareOpen
+    revealOnHover && !isAnyMenuOpen
       ? 'pointer-events-auto sm:pointer-events-none sm:group-hover/bar:pointer-events-auto sm:cursor-default sm:group-hover/bar:cursor-pointer'
       : 'cursor-pointer';
 
@@ -366,25 +410,70 @@ export function ArticleEngagementBar({
         {renderCount(comments)}
       </button>
 
-      {/* Republier */}
-      <button
-        type="button"
-        onClick={handleRepost}
-        className={cn(
-          'group/btn flex items-center gap-1.5 rounded-full px-2 py-1 transition-all border border-transparent font-medium',
-          interactiveClass,
-          isReposted
-            ? 'text-primary bg-primary/10 border-primary/20'
-            : 'hover:text-foreground hover:bg-muted/60'
+      {/* Republier avec Popover (Republier sur mon profil vs Citer la publication) */}
+      <div className="relative group/btn" ref={repostContainerRef}>
+        <button
+          type="button"
+          onClick={handleRepostButtonClick}
+          className={cn(
+            'group/btn flex items-center gap-1.5 rounded-full px-2 py-1 transition-all border font-medium',
+            interactiveClass,
+            isReposted
+              ? 'text-primary bg-primary/10 border-primary/20'
+              : 'hover:text-foreground hover:bg-muted/60 border-transparent',
+            isRepostOpen && 'bg-muted/50 text-foreground border-foreground/30'
+          )}
+          title={
+            isReposted ? t`Retirer la republication ou citer` : t`Republier ou citer cet écrit`
+          }
+          aria-label={t`Republier`}
+          aria-expanded={isRepostOpen}
+        >
+          <Repeat
+            className={cn(isSmall ? 'w-3.5 h-3.5' : 'w-4 h-4', isReposted ? 'text-primary' : '')}
+          />
+          {renderCount(reposts)}
+        </button>
+
+        {/* Menu Popover de Republication (choix entre repost direct et citation) */}
+        {isRepostOpen && (
+          <div className="absolute left-0 top-full mt-2 w-56 rounded-[4px] bg-card/95 backdrop-blur-xl border border-border/60 shadow-xl p-1.5 z-50 flex flex-col text-sm animate-in fade-in-0 zoom-in-95 font-sans">
+            {/* 1. Republier directement */}
+            <button
+              type="button"
+              onClick={handleDirectRepost}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium text-foreground hover:bg-muted/80 rounded-[3px] transition-colors cursor-pointer text-left"
+            >
+              <Repeat
+                className={cn('w-4 h-4 shrink-0', isReposted ? 'text-destructive' : 'text-primary')}
+              />
+              <div className="flex flex-col">
+                <span>
+                  {isReposted ? t`Annuler la republication` : t`Republier sur mon profil`}
+                </span>
+                <span className="text-[10px] text-muted-foreground font-normal">
+                  {isReposted ? t`Retirer du fil` : t`Partage direct dans le fil`}
+                </span>
+              </div>
+            </button>
+
+            {/* 2. Citer la publication */}
+            <button
+              type="button"
+              onClick={handleQuoteRepost}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium text-foreground hover:bg-muted/80 rounded-[3px] transition-colors cursor-pointer text-left"
+            >
+              <Quote className="w-4 h-4 text-primary shrink-0" />
+              <div className="flex flex-col">
+                <span>{t`Citer la publication`}</span>
+                <span className="text-[10px] text-muted-foreground font-normal">
+                  {t`Ajouter une note ou réflexion`}
+                </span>
+              </div>
+            </button>
+          </div>
         )}
-        title={isReposted ? t`Retirer la republication` : t`Republier cet écrit`}
-        aria-label={t`Republier`}
-      >
-        <Repeat
-          className={cn(isSmall ? 'w-3.5 h-3.5' : 'w-4 h-4', isReposted ? 'text-primary' : '')}
-        />
-        {renderCount(reposts)}
-      </button>
+      </div>
     </>
   );
 
@@ -499,7 +588,7 @@ export function ArticleEngagementBar({
       className={cn(
         'select-none text-muted-foreground group/bar pointer-events-auto',
         revealOnHover &&
-          !isShareOpen &&
+          !isAnyMenuOpen &&
           'opacity-70 sm:opacity-50 group-hover:opacity-90 group-hover/bar:opacity-100 transition-opacity',
         isCenter
           ? 'flex items-center justify-center gap-3 sm:gap-5'
