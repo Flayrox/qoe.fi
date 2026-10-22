@@ -29,7 +29,6 @@ import type {
 } from '../schema';
 import { BlockWrapper } from './BlockWrapper';
 import { NodeRenderer } from './NodeRenderer';
-import { CraftIndicator } from '../../ui/craft-indicator';
 import { cn } from '@qoe/utils';
 import { PublicationSidebar } from './PublicationSidebar';
 import { ArticleEngagementBar } from './ArticleEngagementBar';
@@ -52,7 +51,7 @@ interface ArticleStreamBlockComponentProps {
 /**
  * Bloc gris de chargement simulant un article à venir (« À paraître »)
  * pour conserver la structure souveraine en 3 colonnes lorsque la publication
- * a moins de 3 articles publiés.
+ * a moins de 3 articles publiés (disposition Substack : image en haut, titre, date en bas).
  */
 function SkeletonArticleCard({
   className,
@@ -70,37 +69,37 @@ function SkeletonArticleCard({
       )}
       aria-hidden="true"
     >
-      {/* 1. Bloc Image gris simulant une couverture en chargement */}
-      <div className="relative w-full aspect-[16/10] rounded-xl overflow-hidden border border-border/40 bg-muted/50 animate-pulse flex items-center justify-center shadow-2xs">
-        <span className="text-[10px] font-mono tracking-widest uppercase text-muted-foreground/60 font-semibold">
+      {/* 1. Bloc Image gris simulant une couverture en chargement (EN HAUT) */}
+      <div className="relative w-full aspect-[16/10] rounded-xl overflow-hidden border border-border/40 bg-muted/40 animate-pulse flex items-center justify-center shadow-2xs">
+        <span className="text-[10px] tracking-widest uppercase text-muted-foreground/50 font-medium">
           À paraître
         </span>
       </div>
 
-      {/* 2. Lignes de métadonnées grises */}
-      <div className="space-y-2">
+      {/* 2. Lignes de titre grises (SOUS L'IMAGE) */}
+      <div className="space-y-1.5 pt-0.5">
+        <div className="h-4 w-5/6 bg-muted/50 rounded-md animate-pulse" />
+        <div className="h-4 w-3/5 bg-muted/30 rounded-md animate-pulse" />
+      </div>
+
+      {/* 3. Lignes d'extrait grises */}
+      <div className="space-y-1">
+        <div className="h-2.5 w-full bg-muted/30 rounded animate-pulse" />
+        <div className="h-2.5 w-4/5 bg-muted/20 rounded animate-pulse" />
+      </div>
+
+      {/* 4. Lignes de métadonnées grises (EN BAS) */}
+      <div className="pt-1.5 space-y-2 border-t border-border/20">
         <div className="flex items-center gap-2">
-          <div className="h-3.5 w-16 bg-muted/60 rounded-full animate-pulse" />
-          <div className="h-2.5 w-10 bg-muted/40 rounded animate-pulse" />
-        </div>
-
-        {/* 3. Lignes de titre grises */}
-        <div className="space-y-1.5 pt-0.5">
-          <div className="h-4 w-5/6 bg-muted/50 rounded-md animate-pulse" />
-          <div className="h-4 w-3/5 bg-muted/30 rounded-md animate-pulse" />
-        </div>
-
-        {/* 4. Lignes d'extrait grises */}
-        <div className="space-y-1 pt-1">
-          <div className="h-2.5 w-full bg-muted/30 rounded animate-pulse" />
-          <div className="h-2.5 w-4/5 bg-muted/20 rounded animate-pulse" />
+          <div className="h-3 w-20 bg-muted/40 rounded animate-pulse" />
+          <div className="h-3 w-12 bg-muted/30 rounded animate-pulse" />
         </div>
 
         {/* 5. Faux boutons d'engagement discrets */}
-        <div className="pt-2 flex items-center gap-4 opacity-40">
-          <div className="h-3 w-8 bg-muted/50 rounded-full animate-pulse" />
-          <div className="h-3 w-8 bg-muted/40 rounded-full animate-pulse" />
-          <div className="h-3 w-8 bg-muted/40 rounded-full animate-pulse" />
+        <div className="flex items-center gap-4 opacity-40">
+          <div className="h-3 w-7 bg-muted/50 rounded-full animate-pulse" />
+          <div className="h-3 w-7 bg-muted/40 rounded-full animate-pulse" />
+          <div className="h-3 w-7 bg-muted/40 rounded-full animate-pulse" />
         </div>
       </div>
     </div>
@@ -302,6 +301,7 @@ export function ArticleStreamBlock({
                       className="group relative space-y-3"
                       data-testid="left-secondary-article"
                     >
+                      {/* 1. Image EN HAUT */}
                       <Link
                         href={`/article/${leftSecondaryArticle.slug}`}
                         onClick={(e) => context.mode === 'editable' && e.preventDefault()}
@@ -323,36 +323,8 @@ export function ArticleStreamBlock({
                       </Link>
 
                       <div className="space-y-1.5">
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-                          {showCategories && leftSecondaryArticle.category && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted/80 border border-border/40 text-foreground uppercase tracking-wider">
-                              {leftSecondaryArticle.category.name}
-                            </span>
-                          )}
-                          {leftSecondaryArticle.publishedAt && (
-                            <span>
-                              {new Date(leftSecondaryArticle.publishedAt).toLocaleDateString(
-                                'fr-FR',
-                                {
-                                  day: 'numeric',
-                                  month: 'short',
-                                }
-                              )}
-                            </span>
-                          )}
-                          {showReadingTime && leftSecondaryArticle.readingTime && (
-                            <span className="inline-flex items-center gap-1 opacity-70">
-                              · {leftSecondaryArticle.readingTime} min
-                            </span>
-                          )}
-                          {leftSecondaryArticle.isPremium !== undefined && (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted border border-border/40 text-foreground">
-                              {leftSecondaryArticle.isPremium ? 'Payant' : 'Gratuit'}
-                            </span>
-                          )}
-                        </div>
-
-                        <h3 className="text-base sm:text-lg font-bold tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors line-clamp-2">
+                        {/* 2. Titre SOUS L'IMAGE (Police Serif éditoriale) */}
+                        <h3 className="text-base sm:text-lg font-serif font-bold tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors line-clamp-2">
                           <Link
                             href={`/article/${leftSecondaryArticle.slug}`}
                             onClick={(e) => context.mode === 'editable' && e.preventDefault()}
@@ -361,13 +333,55 @@ export function ArticleStreamBlock({
                           </Link>
                         </h3>
 
+                        {/* 3. Extrait sous le titre */}
                         {showExcerpts && leftSecondaryArticle.excerpt && (
                           <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 leading-relaxed">
                             {leftSecondaryArticle.excerpt}
                           </p>
                         )}
 
-                        <div className="pt-2">
+                        {/* 4. Métadonnées EN BAS (Date · Auteur · Temps · Statut) */}
+                        <div className="pt-1.5 space-y-2 border-t border-border/20">
+                          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/80 tracking-wide uppercase font-medium flex-wrap">
+                            {leftSecondaryArticle.publishedAt && (
+                              <span>
+                                {new Date(leftSecondaryArticle.publishedAt).toLocaleDateString(
+                                  'fr-FR',
+                                  {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    year: 'numeric',
+                                  }
+                                )}
+                              </span>
+                            )}
+                            {leftSecondaryArticle.author?.name && (
+                              <>
+                                <span className="opacity-40">·</span>
+                                <span>{leftSecondaryArticle.author.name}</span>
+                              </>
+                            )}
+                            {showReadingTime && leftSecondaryArticle.readingTime && (
+                              <>
+                                <span className="opacity-40">·</span>
+                                <span>{leftSecondaryArticle.readingTime} min</span>
+                              </>
+                            )}
+                            {showCategories && leftSecondaryArticle.category && (
+                              <>
+                                <span className="opacity-40">·</span>
+                                <span className="text-foreground font-semibold">
+                                  {leftSecondaryArticle.category.name}
+                                </span>
+                              </>
+                            )}
+                            {leftSecondaryArticle.isPremium !== undefined && (
+                              <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-muted border border-border/40 text-foreground normal-case">
+                                {leftSecondaryArticle.isPremium ? 'Payant' : 'Gratuit'}
+                              </span>
+                            )}
+                          </div>
+
                           <ArticleEngagementBar
                             articleId={leftSecondaryArticle.id}
                             articleSlug={leftSecondaryArticle.slug}
@@ -391,94 +405,14 @@ export function ArticleStreamBlock({
                 {/* Colonne Centre (~50%, 6 colonnes) : GRAND ARTICLE VEDETTE OU ÉPINGLÉ */}
                 <div className="lg:col-span-6 order-1 lg:order-2 space-y-4">
                   <article className="group relative space-y-3.5" data-testid="center-hero-article">
-                    <div className="flex items-center justify-between text-xs text-muted-foreground flex-wrap gap-2">
-                      <div className="flex items-center gap-2">
-                        <CraftIndicator
-                          type="dot"
-                          color="var(--tenant-accent, #F97316)"
-                          size={10}
-                        />
-                        {isArticlePinned(centerHeroArticle) && (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-primary/10 text-primary border border-primary/25">
-                            📌 Épinglé
-                          </span>
-                        )}
-                        {showCategories && centerHeroArticle.category && (
-                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-muted/80 border border-border/40 text-foreground uppercase tracking-wider">
-                            {centerHeroArticle.category.name}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-3 text-xs">
-                        {centerHeroArticle.publishedAt && (
-                          <span>
-                            {new Date(centerHeroArticle.publishedAt).toLocaleDateString('fr-FR', {
-                              day: 'numeric',
-                              month: 'short',
-                              year: 'numeric',
-                            })}
-                          </span>
-                        )}
-                        {showReadingTime && centerHeroArticle.readingTime && (
-                          <span className="inline-flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5 opacity-60" />
-                            {centerHeroArticle.readingTime} min
-                          </span>
-                        )}
-                        {centerHeroArticle.isPremium !== undefined && (
-                          <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-muted border border-border/40 text-foreground">
-                            {centerHeroArticle.isPremium ? 'Payant' : 'Gratuit'}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-foreground leading-[1.15] group-hover:text-primary transition-colors">
-                      <Link
-                        href={`/article/${centerHeroArticle.slug}`}
-                        onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                      >
-                        {centerHeroArticle.title}
-                      </Link>
-                    </h2>
-
-                    {showExcerpts && centerHeroArticle.excerpt && (
-                      <p className="text-sm sm:text-base text-muted-foreground leading-relaxed line-clamp-3">
-                        {centerHeroArticle.excerpt}
-                      </p>
-                    )}
-
-                    {/* Ligne Auteur(s) */}
-                    <div className="flex items-center gap-2 pt-0.5 text-xs text-muted-foreground">
-                      {centerHeroArticle.author?.logoUrl ||
-                      (centerHeroArticle.authors && centerHeroArticle.authors[0]?.logoUrl) ? (
-                        <div className="flex -space-x-1.5 overflow-hidden items-center">
-                          {(centerHeroArticle.authors || [centerHeroArticle.author])
-                            .filter(Boolean)
-                            .map((a, i) => (
-                              <img
-                                key={a?.id || i}
-                                src={a?.logoUrl || ''}
-                                alt={a?.name || ''}
-                                className="inline-block h-5 w-5 rounded-full ring-2 ring-background object-cover"
-                              />
-                            ))}
-                        </div>
-                      ) : null}
-                      <span className="font-medium text-foreground">
-                        {centerHeroArticle.author?.name || publication?.name || 'Rédaction'}
-                      </span>
-                    </div>
-
-                    {/* Grande Image Vedette */}
-                    <div className="w-full my-3">
+                    {/* 1. Grande Image Vedette EN HAUT (comme sur Substack) */}
+                    <div className="w-full">
                       <Link
                         href={`/article/${centerHeroArticle.slug}`}
                         onClick={(e) => context.mode === 'editable' && e.preventDefault()}
                         className="block group/cover"
                       >
-                        <div className="relative w-full aspect-[16/10] sm:aspect-[16/9] max-h-80 md:max-h-96 rounded-2xl overflow-hidden border border-border/50 bg-muted shadow-2xs">
+                        <div className="relative w-full aspect-[16/10] sm:aspect-[16/10] rounded-2xl overflow-hidden border border-border/50 bg-muted shadow-2xs">
                           <SafeImage
                             src={
                               centerHeroArticle.imageUrl ||
@@ -492,30 +426,89 @@ export function ArticleStreamBlock({
                       </Link>
                     </div>
 
-                    <div className="flex items-center justify-between gap-4 pt-1 flex-wrap">
+                    {/* 2. Titre immédiatement sous l'image en police serif éditoriale */}
+                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-serif font-bold tracking-tight text-foreground leading-[1.2] group-hover:text-primary transition-colors">
                       <Link
                         href={`/article/${centerHeroArticle.slug}`}
                         onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                        className="inline-flex items-center gap-2 text-xs sm:text-[13px] font-medium text-foreground hover:text-primary transition-colors group/cta"
                       >
-                        <span>Lire l’article</span>
-                        <span className="transition-transform group-hover/cta:translate-x-1 text-muted-foreground">
-                          →
-                        </span>
+                        {centerHeroArticle.title}
                       </Link>
+                    </h2>
 
-                      <ArticleEngagementBar
-                        articleId={centerHeroArticle.id}
-                        articleSlug={centerHeroArticle.slug}
-                        initialLikes={centerHeroArticle.likesCount ?? 0}
-                        initialComments={centerHeroArticle.commentsCount ?? 0}
-                        initialReposts={centerHeroArticle.repostsCount ?? 0}
-                        initialIsLiked={centerHeroArticle.isLiked}
-                        initialIsReposted={centerHeroArticle.isReposted}
-                        size="sm"
-                        showShareText={false}
-                        className="border-0 py-0"
-                      />
+                    {/* 3. Extrait sous le titre */}
+                    {showExcerpts && centerHeroArticle.excerpt && (
+                      <p className="text-sm sm:text-base text-muted-foreground leading-relaxed line-clamp-3">
+                        {centerHeroArticle.excerpt}
+                      </p>
+                    )}
+
+                    {/* 4. Métadonnées & Auteur EN BAS (comme sur Substack : DATE · AUTEUR · TEMPS) */}
+                    <div className="flex items-center justify-between text-xs text-muted-foreground flex-wrap gap-3 pt-1.5 border-t border-border/20">
+                      <div className="flex items-center gap-2 flex-wrap uppercase tracking-wide text-[11px] font-medium text-muted-foreground/80">
+                        {centerHeroArticle.publishedAt && (
+                          <span>
+                            {new Date(centerHeroArticle.publishedAt).toLocaleDateString('fr-FR', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                            })}
+                          </span>
+                        )}
+                        <span className="opacity-40">·</span>
+                        <span>
+                          {centerHeroArticle.author?.name || publication?.name || 'Rédaction'}
+                        </span>
+                        {showReadingTime && centerHeroArticle.readingTime && (
+                          <>
+                            <span className="opacity-40">·</span>
+                            <span>{centerHeroArticle.readingTime} min</span>
+                          </>
+                        )}
+                        {showCategories && centerHeroArticle.category && (
+                          <>
+                            <span className="opacity-40">·</span>
+                            <span className="text-foreground font-semibold">
+                              {centerHeroArticle.category.name}
+                            </span>
+                          </>
+                        )}
+                        {isArticlePinned(centerHeroArticle) && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20 normal-case">
+                            📌 Épinglé
+                          </span>
+                        )}
+                        {centerHeroArticle.isPremium !== undefined && (
+                          <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-muted border border-border/40 text-foreground normal-case">
+                            {centerHeroArticle.isPremium ? 'Payant' : 'Gratuit'}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <Link
+                          href={`/article/${centerHeroArticle.slug}`}
+                          onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                          className="inline-flex items-center gap-1.5 text-xs font-medium text-foreground hover:text-primary transition-colors group/cta"
+                        >
+                          <span>Lire l’article</span>
+                          <span className="transition-transform group-hover/cta:translate-x-0.5 text-muted-foreground">
+                            →
+                          </span>
+                        </Link>
+                        <ArticleEngagementBar
+                          articleId={centerHeroArticle.id}
+                          articleSlug={centerHeroArticle.slug}
+                          initialLikes={centerHeroArticle.likesCount ?? 0}
+                          initialComments={centerHeroArticle.commentsCount ?? 0}
+                          initialReposts={centerHeroArticle.repostsCount ?? 0}
+                          initialIsLiked={centerHeroArticle.isLiked}
+                          initialIsReposted={centerHeroArticle.isReposted}
+                          size="sm"
+                          showShareText={false}
+                          className="border-0 py-0"
+                        />
+                      </div>
                     </div>
                   </article>
                 </div>
@@ -527,6 +520,7 @@ export function ArticleStreamBlock({
                       className="group relative space-y-3"
                       data-testid="right-secondary-article"
                     >
+                      {/* 1. Image EN HAUT */}
                       <Link
                         href={`/article/${rightSecondaryArticle.slug}`}
                         onClick={(e) => context.mode === 'editable' && e.preventDefault()}
@@ -548,36 +542,8 @@ export function ArticleStreamBlock({
                       </Link>
 
                       <div className="space-y-1.5">
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-                          {showCategories && rightSecondaryArticle.category && (
-                            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted/80 border border-border/40 text-foreground uppercase tracking-wider">
-                              {rightSecondaryArticle.category.name}
-                            </span>
-                          )}
-                          {rightSecondaryArticle.publishedAt && (
-                            <span>
-                              {new Date(rightSecondaryArticle.publishedAt).toLocaleDateString(
-                                'fr-FR',
-                                {
-                                  day: 'numeric',
-                                  month: 'short',
-                                }
-                              )}
-                            </span>
-                          )}
-                          {showReadingTime && rightSecondaryArticle.readingTime && (
-                            <span className="inline-flex items-center gap-1 opacity-70">
-                              · {rightSecondaryArticle.readingTime} min
-                            </span>
-                          )}
-                          {rightSecondaryArticle.isPremium !== undefined && (
-                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted border border-border/40 text-foreground">
-                              {rightSecondaryArticle.isPremium ? 'Payant' : 'Gratuit'}
-                            </span>
-                          )}
-                        </div>
-
-                        <h3 className="text-base sm:text-lg font-bold tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors line-clamp-2">
+                        {/* 2. Titre SOUS L'IMAGE (Police Serif éditoriale) */}
+                        <h3 className="text-base sm:text-lg font-serif font-bold tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors line-clamp-2">
                           <Link
                             href={`/article/${rightSecondaryArticle.slug}`}
                             onClick={(e) => context.mode === 'editable' && e.preventDefault()}
@@ -586,13 +552,55 @@ export function ArticleStreamBlock({
                           </Link>
                         </h3>
 
+                        {/* 3. Extrait sous le titre */}
                         {showExcerpts && rightSecondaryArticle.excerpt && (
                           <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 leading-relaxed">
                             {rightSecondaryArticle.excerpt}
                           </p>
                         )}
 
-                        <div className="pt-2">
+                        {/* 4. Métadonnées EN BAS (Date · Auteur · Temps · Statut) */}
+                        <div className="pt-1.5 space-y-2 border-t border-border/20">
+                          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/80 tracking-wide uppercase font-medium flex-wrap">
+                            {rightSecondaryArticle.publishedAt && (
+                              <span>
+                                {new Date(rightSecondaryArticle.publishedAt).toLocaleDateString(
+                                  'fr-FR',
+                                  {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    year: 'numeric',
+                                  }
+                                )}
+                              </span>
+                            )}
+                            {rightSecondaryArticle.author?.name && (
+                              <>
+                                <span className="opacity-40">·</span>
+                                <span>{rightSecondaryArticle.author.name}</span>
+                              </>
+                            )}
+                            {showReadingTime && rightSecondaryArticle.readingTime && (
+                              <>
+                                <span className="opacity-40">·</span>
+                                <span>{rightSecondaryArticle.readingTime} min</span>
+                              </>
+                            )}
+                            {showCategories && rightSecondaryArticle.category && (
+                              <>
+                                <span className="opacity-40">·</span>
+                                <span className="text-foreground font-semibold">
+                                  {rightSecondaryArticle.category.name}
+                                </span>
+                              </>
+                            )}
+                            {rightSecondaryArticle.isPremium !== undefined && (
+                              <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-muted border border-border/40 text-foreground normal-case">
+                                {rightSecondaryArticle.isPremium ? 'Payant' : 'Gratuit'}
+                              </span>
+                            )}
+                          </div>
+
                           <ArticleEngagementBar
                             articleId={rightSecondaryArticle.id}
                             articleSlug={rightSecondaryArticle.slug}
@@ -685,34 +693,8 @@ export function ArticleStreamBlock({
                                 key={article.id}
                                 className="group relative flex flex-col sm:flex-row items-start justify-between gap-6 py-6 first:pt-2 last:pb-2 transition-colors"
                               >
-                                <div className="flex-1 space-y-2.5 min-w-0">
-                                  <div className="flex items-center gap-2.5 text-xs text-muted-foreground flex-wrap">
-                                    {showCategories && article.category && (
-                                      <span className="font-semibold text-xs text-foreground uppercase tracking-wider">
-                                        {article.category.name}
-                                      </span>
-                                    )}
-                                    {article.publishedAt && (
-                                      <span>
-                                        {new Date(article.publishedAt).toLocaleDateString('fr-FR', {
-                                          day: 'numeric',
-                                          month: 'short',
-                                        })}
-                                      </span>
-                                    )}
-                                    {showReadingTime && article.readingTime && (
-                                      <span className="inline-flex items-center gap-1 opacity-80">
-                                        · {article.readingTime} min
-                                      </span>
-                                    )}
-                                    {article.isPremium !== undefined && (
-                                      <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-background border border-border text-muted-foreground">
-                                        {article.isPremium ? 'Payant' : 'Gratuit'}
-                                      </span>
-                                    )}
-                                  </div>
-
-                                  <h4 className="text-lg sm:text-xl font-bold tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors">
+                                <div className="flex-1 space-y-2 min-w-0">
+                                  <h4 className="text-lg sm:text-xl font-serif font-bold tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors">
                                     <Link
                                       href={`/article/${article.slug}`}
                                       onClick={(e) =>
@@ -728,6 +710,43 @@ export function ArticleStreamBlock({
                                       {article.excerpt}
                                     </p>
                                   )}
+
+                                  <div className="flex items-center gap-2 text-xs text-muted-foreground/80 tracking-wide uppercase font-medium flex-wrap pt-0.5">
+                                    {article.publishedAt && (
+                                      <span>
+                                        {new Date(article.publishedAt).toLocaleDateString('fr-FR', {
+                                          day: 'numeric',
+                                          month: 'short',
+                                          year: 'numeric',
+                                        })}
+                                      </span>
+                                    )}
+                                    {article.author?.name && (
+                                      <>
+                                        <span className="opacity-40">·</span>
+                                        <span>{article.author.name}</span>
+                                      </>
+                                    )}
+                                    {showReadingTime && article.readingTime && (
+                                      <>
+                                        <span className="opacity-40">·</span>
+                                        <span>{article.readingTime} min</span>
+                                      </>
+                                    )}
+                                    {showCategories && article.category && (
+                                      <>
+                                        <span className="opacity-40">·</span>
+                                        <span className="text-foreground font-semibold">
+                                          {article.category.name}
+                                        </span>
+                                      </>
+                                    )}
+                                    {article.isPremium !== undefined && (
+                                      <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-muted border border-border/40 text-foreground normal-case">
+                                        {article.isPremium ? 'Payant' : 'Gratuit'}
+                                      </span>
+                                    )}
+                                  </div>
 
                                   <div className="pt-2 flex items-center justify-between gap-3 text-xs flex-wrap">
                                     <Link
@@ -796,34 +815,8 @@ export function ArticleStreamBlock({
                           key={article.id}
                           className="group relative flex flex-col sm:flex-row items-start justify-between gap-6 py-6 first:pt-2 last:pb-2 transition-colors"
                         >
-                          <div className="flex-1 space-y-2.5 min-w-0">
-                            <div className="flex items-center gap-2.5 text-xs text-muted-foreground flex-wrap">
-                              {showCategories && article.category && (
-                                <span className="font-semibold text-xs text-foreground uppercase tracking-wider">
-                                  {article.category.name}
-                                </span>
-                              )}
-                              {article.publishedAt && (
-                                <span>
-                                  {new Date(article.publishedAt).toLocaleDateString('fr-FR', {
-                                    day: 'numeric',
-                                    month: 'short',
-                                  })}
-                                </span>
-                              )}
-                              {showReadingTime && article.readingTime && (
-                                <span className="inline-flex items-center gap-1 opacity-80">
-                                  · {article.readingTime} min
-                                </span>
-                              )}
-                              {article.isPremium !== undefined && (
-                                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-background border border-border text-muted-foreground">
-                                  {article.isPremium ? 'Payant' : 'Gratuit'}
-                                </span>
-                              )}
-                            </div>
-
-                            <h4 className="text-lg sm:text-xl font-bold tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors">
+                          <div className="flex-1 space-y-2 min-w-0">
+                            <h4 className="text-lg sm:text-xl font-serif font-bold tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors">
                               <Link
                                 href={`/article/${article.slug}`}
                                 onClick={(e) => context.mode === 'editable' && e.preventDefault()}
@@ -837,6 +830,43 @@ export function ArticleStreamBlock({
                                 {article.excerpt}
                               </p>
                             )}
+
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground/80 tracking-wide uppercase font-medium flex-wrap pt-0.5">
+                              {article.publishedAt && (
+                                <span>
+                                  {new Date(article.publishedAt).toLocaleDateString('fr-FR', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    year: 'numeric',
+                                  })}
+                                </span>
+                              )}
+                              {article.author?.name && (
+                                <>
+                                  <span className="opacity-40">·</span>
+                                  <span>{article.author.name}</span>
+                                </>
+                              )}
+                              {showReadingTime && article.readingTime && (
+                                <>
+                                  <span className="opacity-40">·</span>
+                                  <span>{article.readingTime} min</span>
+                                </>
+                              )}
+                              {showCategories && article.category && (
+                                <>
+                                  <span className="opacity-40">·</span>
+                                  <span className="text-foreground font-semibold">
+                                    {article.category.name}
+                                  </span>
+                                </>
+                              )}
+                              {article.isPremium !== undefined && (
+                                <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-muted border border-border/40 text-foreground normal-case">
+                                  {article.isPremium ? 'Payant' : 'Gratuit'}
+                                </span>
+                              )}
+                            </div>
 
                             <div className="pt-2 flex items-center justify-between gap-3 text-xs flex-wrap">
                               <Link
