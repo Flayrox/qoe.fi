@@ -190,7 +190,7 @@ export function ArticleBulkSettingsDialog({
               className="w-full rounded-xl border border-border/40 bg-background p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
             >
               <option value="keep">{t`Ne pas modifier`}</option>
-              <option value="default">{t`Non classé (catégorie par défaut)`}</option>
+              <option value="default">{t`Non catégorisé`}</option>
               {rootCategories.map((root) => {
                 const subs = categories.filter((category) => category.parentId === root.id);
                 return (

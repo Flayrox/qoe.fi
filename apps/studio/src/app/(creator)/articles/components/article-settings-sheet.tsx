@@ -1,85 +1,78 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { Loader2, X } from 'lucide-react';
+import React, { useCallback, useEffect, useMemo } from 'react';
+import { AlertTriangle, Check, Loader2, RotateCcw, SlidersHorizontal, X } from 'lucide-react';
+import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
-import { toast } from '@qoe/ui/toast';
-import {
-  getArticleByIdAction,
-  saveArticleAction,
-  unpublishArticleAction,
-  type ArticleEditorPayload,
-} from '@qoe/sdk/actions/articles';
 import { EditorSettingsDrawer } from '@/features/editor/components/EditorSettingsDrawer';
-import type { ArticleAttributionDraft } from '@/features/editor/components/ArticleAttributionEditor';
-import {
-  currentTimeZoneLabel,
-  parseDateTimeLocalValue,
-  toDateTimeLocalValue,
-} from '@/features/editor/lib/datetime';
+import { useArticleSettings } from '@/features/editor/hooks/useArticleSettings';
+import { computeAutoSeoDescription } from '@/features/editor/lib/article-settings';
+import { currentTimeZoneLabel } from '@/features/editor/lib/datetime';
 
 import type { CategoryWithCount } from './article-list-types';
 import type { ConfirmAction } from './confirm-action-dialog';
 
-interface ArticleSettingsDraft {
-  id: string;
-  title: string;
-  content: string;
-  imageUrl: string | null;
-  slug: string;
-  published: boolean;
-  status: string;
-  scheduledAt: string | null;
-  scheduleDraft: string;
-  isPremium: boolean;
-  categoryId: string | null;
-  seoTitle: string;
-  seoDescription: string;
-  allowPublicAnnotations: boolean;
-  allowComments: boolean;
-  allowDownload: boolean;
-  attributions: ArticleAttributionDraft[];
-  subdomain?: string;
+function SettingsOverlay({
+  onClose,
+  subtitle,
+  children,
+}: {
+  onClose: () => void;
+  subtitle: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 overflow-hidden font-sans">
+      <div
+        className="fixed inset-0 bg-background/50 backdrop-blur-xs transition-opacity duration-200"
+        onClick={onClose}
+      />
+      <div className="fixed inset-y-0 right-0 flex max-w-full pl-6 sm:pl-10">
+        <aside className="flex w-screen max-w-md flex-col border-l border-border/50 bg-card shadow-2xl">
+          <div className="flex shrink-0 items-center justify-between border-b border-border/40 px-5 py-4">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary shadow-xs">
+                <SlidersHorizontal className="h-4 w-4" />
+              </div>
+              <div>
+                <h3 className="font-sans text-sm font-bold text-foreground">
+                  {t`Paramètres de l'article`}
+                </h3>
+                <p className="text-[11px] text-muted-foreground">{subtitle}</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={t`Fermer`}
+              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          {children}
+        </aside>
+      </div>
+    </div>
+  );
 }
 
-function buildAttributionDrafts(article: ArticleEditorPayload): ArticleAttributionDraft[] {
-  const existing = (article.attributions ?? []).map((entry) => ({
-    userId: entry.user.id,
-    name: entry.user.name,
-    username: entry.user.username,
-    logoUrl: entry.user.logoUrl,
-    isCertified: entry.user.isCertified,
-    role: entry.role,
-    order: entry.order,
-    isVisible: entry.isVisible,
-    consentStatus: entry.consentStatus,
-  }));
-  if (existing.length > 0) return existing;
-
-  const base: ArticleAttributionDraft = {
-    userId: article.author.id,
-    name: article.author.name,
-    username: article.author.username,
-    logoUrl: article.author.logoUrl,
-    isCertified: article.author.isCertified,
-    role: 'PRIMARY_AUTHOR',
-    order: 0,
-    isVisible: true,
-  };
-  const coAuthors = (article.coAuthors ?? [])
-    .filter((coAuthor) => coAuthor.id !== article.author.id)
-    .map((coAuthor, index) => ({
-      userId: coAuthor.id,
-      name: coAuthor.name,
-      username: coAuthor.username,
-      logoUrl: coAuthor.logoUrl,
-      isCertified: coAuthor.isCertified,
-      role: 'CO_AUTHOR',
-      order: 1 + index,
-      isVisible: true,
-      consentStatus: 'ACCEPTED',
-    }));
-  return [base, ...coAuthors];
+function SettingsSkeleton() {
+  return (
+    <div className="flex-1 space-y-6 overflow-hidden p-5" aria-busy="true">
+      <div className="flex items-center justify-center gap-2 pt-8 text-xs text-muted-foreground">
+        <Loader2 className="h-4 w-4 animate-spin text-primary" />
+        {t`Chargement des paramètres…`}
+      </div>
+      {[0, 1, 2].map((index) => (
+        <div key={index} className="space-y-3">
+          <div className="h-3 w-32 animate-pulse rounded-full bg-muted" />
+          <div className="h-10 animate-pulse rounded-xl bg-muted/70" />
+          <div className="h-3 w-2/3 animate-pulse rounded-full bg-muted/60" />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function ArticleSettingsSheet({
@@ -97,230 +90,223 @@ export function ArticleSettingsSheet({
   onSaved: () => Promise<void> | void;
   onRequestConfirm: (action: ConfirmAction) => void;
 }) {
-  const [draft, setDraft] = useState<ArticleSettingsDraft | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const {
+    draft,
+    loadState,
+    error,
+    saving,
+    scheduling,
+    downloadSaving,
+    lastSavedAt,
+    dirty,
+    patchDraft,
+    resetDraft,
+    save,
+    schedule,
+    clearSchedule,
+    unpublish,
+    toggleDownload,
+    retry,
+  } = useArticleSettings({ articleId, onSaved });
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    setDraft(null);
-
-    getArticleByIdAction(articleId)
-      .then((res) => {
-        if (cancelled) return;
-        if (!res.ok || !res.data) {
-          toast.error(t`Impossible de charger les paramètres de l'article.`);
-          onClose();
-          return;
-        }
-        const article = res.data;
-        setDraft({
-          id: article.id,
-          title: article.title,
-          content: article.content,
-          imageUrl: article.imageUrl ?? null,
-          slug: article.slug,
-          published: article.published,
-          status: article.status,
-          scheduledAt: article.scheduledAt ?? null,
-          scheduleDraft: toDateTimeLocalValue(article.scheduledAt),
-          isPremium: article.isPremium,
-          categoryId: article.categoryId,
-          seoTitle: article.seoTitle ?? '',
-          seoDescription: article.seoDescription ?? '',
-          allowPublicAnnotations: article.allowPublicAnnotations ?? true,
-          allowComments: article.allowComments ?? true,
-          allowDownload: article.allowDownload ?? true,
-          attributions: buildAttributionDrafts(article),
-          subdomain: article.publication?.subdomain ?? undefined,
-        });
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        console.error('Failed to load article settings', err);
-        toast.error(t`Impossible de charger les paramètres de l'article.`);
-        onClose();
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [articleId, onClose]);
-
-  const patchSettings = (patch: Partial<ArticleSettingsDraft>) =>
-    setDraft((prev) => (prev ? { ...prev, ...patch } : prev));
-
-  const handleSave = async () => {
-    if (!draft) return;
-    setSaving(true);
-    try {
-      const scheduledAt = draft.scheduleDraft
-        ? (parseDateTimeLocalValue(draft.scheduleDraft)?.toISOString() ?? null)
-        : null;
-      const status = scheduledAt
-        ? 'SCHEDULED'
-        : draft.status === 'SCHEDULED'
-          ? 'DRAFT'
-          : draft.status;
-      const res = await saveArticleAction({
-        id: draft.id,
-        title: draft.title,
-        content: draft.content,
-        imageUrl: draft.imageUrl,
-        slug: draft.slug,
-        published: draft.published,
-        status,
-        scheduledAt,
-        isPremium: draft.isPremium,
-        categoryId: draft.categoryId,
-        seoTitle: draft.seoTitle.trim() || null,
-        seoDescription: draft.seoDescription.trim() || null,
-        allowPublicAnnotations: draft.allowPublicAnnotations,
-        allowComments: draft.allowComments,
-        allowDownload: draft.allowDownload,
-        attributions: draft.attributions,
-      });
-      if (!res.ok) throw new Error(res.error.message);
-      toast.success(t`Paramètres de l'article enregistrés.`);
-      onClose();
-      await onSaved();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t`Échec de l'enregistrement.`);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleSchedule = () => {
-    if (!draft) return;
-    const date = parseDateTimeLocalValue(draft.scheduleDraft);
-    if (!date || date.getTime() <= Date.now()) {
-      toast.error(t`Choisissez une date future pour programmer l'article.`);
-      return;
-    }
-    patchSettings({ scheduledAt: date.toISOString(), status: 'SCHEDULED' });
-  };
-
-  const handleClearSchedule = () => {
-    patchSettings({
-      scheduledAt: null,
-      scheduleDraft: '',
-      status: draft?.published ? 'PUBLISHED' : 'DRAFT',
-    });
-  };
-
-  const handleUnpublish = () => {
-    if (!draft) return;
-    const id = draft.id;
-    onRequestConfirm({
-      title: t`Dépublier cet article ?`,
-      description: t`Il sera immédiatement retiré du site public et repassera en brouillon. Le contenu est conservé.`,
-      confirmLabel: t`Dépublier`,
-      destructive: true,
-      onConfirm: async () => {
-        const res = await unpublishArticleAction(id);
-        if (!res.ok) {
-          toast.error(res.error.message);
-          return;
-        }
-        toast.success(t`Article dépublié.`);
-        onClose();
-        await onSaved();
-      },
-    });
-  };
-
-  if (loading || !draft) {
-    return (
-      <div className="fixed inset-0 z-50 overflow-hidden font-sans">
-        <div
-          className="fixed inset-0 bg-background/50 backdrop-blur-xs transition-opacity duration-200"
-          onClick={onClose}
-        />
-        <div className="fixed inset-y-0 right-0 flex max-w-full pl-6 sm:pl-10">
-          <aside className="flex w-screen max-w-md flex-col items-center justify-center border-l border-border/50 bg-card shadow-2xl">
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            <p className="mt-3 text-xs text-muted-foreground">{t`Chargement des paramètres…`}</p>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label={t`Fermer`}
-              className="absolute right-5 top-4 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </aside>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <EditorSettingsDrawer
-      open
-      onClose={onClose}
-      published={draft.published}
-      status={draft.status}
-      scheduledAt={draft.scheduledAt}
-      scheduleDraft={draft.scheduleDraft}
-      timeZoneLabel={currentTimeZoneLabel()}
-      onScheduleDraftChange={(value) => patchSettings({ scheduleDraft: value })}
-      onSchedule={handleSchedule}
-      onClearSchedule={handleClearSchedule}
-      isPremium={draft.isPremium}
-      onTogglePremium={(value) => patchSettings({ isPremium: value })}
-      categories={categories.map((category) => ({
+  const timeZoneLabel = useMemo(() => currentTimeZoneLabel(), []);
+  const drawerCategories = useMemo(
+    () =>
+      categories.map((category) => ({
         id: category.id,
         name: category.name,
         parentId: category.parentId,
         slug: category.slug,
-      }))}
+      })),
+    [categories]
+  );
+
+  const requestClose = useCallback(() => {
+    if (saving || scheduling) return;
+    if (!dirty) {
+      onClose();
+      return;
+    }
+    onRequestConfirm({
+      title: t`Fermer sans enregistrer ?`,
+      description: t`Les modifications apportées aux paramètres de cet article seront perdues.`,
+      confirmLabel: t`Fermer sans enregistrer`,
+      destructive: true,
+      onConfirm: onClose,
+    });
+  }, [dirty, onClose, onRequestConfirm, saving, scheduling]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault();
+        if (dirty && !saving && loadState === 'ready') void save();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [dirty, loadState, save, saving]);
+
+  const autoSeoDescription = useMemo(
+    () => (draft ? computeAutoSeoDescription(draft.content, draft.isPremium) : ''),
+    [draft]
+  );
+
+  if (loadState === 'loading') {
+    return (
+      <SettingsOverlay onClose={onClose} subtitle={t`Chargement sécurisé…`}>
+        <SettingsSkeleton />
+      </SettingsOverlay>
+    );
+  }
+
+  if (loadState === 'error' || !draft) {
+    return (
+      <SettingsOverlay onClose={onClose} subtitle={t`Une erreur est survenue`}>
+        <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full border border-destructive/25 bg-destructive/10 text-destructive">
+            <AlertTriangle className="h-5 w-5" />
+          </div>
+          <div className="space-y-1.5">
+            <p className="text-sm font-semibold text-foreground">
+              {t`Impossible de charger les paramètres`}
+            </p>
+            <p className="max-w-xs text-xs leading-relaxed text-muted-foreground">
+              {error || t`Réessayez dans un instant.`}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void retry()}
+            className="inline-flex h-9 items-center gap-2 rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+            {t`Réessayer`}
+          </button>
+        </div>
+      </SettingsOverlay>
+    );
+  }
+
+  const savedLabel = lastSavedAt
+    ? t`Enregistré à ${lastSavedAt.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      })}`
+    : t`À jour`;
+
+  return (
+    <EditorSettingsDrawer
+      open
+      onClose={requestClose}
+      published={draft.published}
+      status={draft.status}
+      scheduledAt={draft.scheduledAt}
+      scheduleDraft={draft.scheduleDraft}
+      timeZoneLabel={timeZoneLabel}
+      onScheduleDraftChange={(value) => patchDraft({ scheduleDraft: value })}
+      onSchedule={() => void schedule()}
+      onClearSchedule={() => void clearSchedule()}
+      schedulePending={scheduling}
+      isPremium={draft.isPremium}
+      onTogglePremium={(value) => patchDraft({ isPremium: value })}
+      categories={drawerCategories}
       categoryId={draft.categoryId}
-      onCategoryChange={(value) => patchSettings({ categoryId: value })}
+      onCategoryChange={(value) => patchDraft({ categoryId: value })}
       slug={draft.slug}
-      onSlugChange={(value) => patchSettings({ slug: value })}
+      onSlugChange={(value) => patchDraft({ slug: value })}
       subdomain={draft.subdomain}
       attributions={draft.attributions}
-      onAttributionsChange={(value) => patchSettings({ attributions: value })}
+      onAttributionsChange={(value) => patchDraft({ attributions: value })}
       articleId={draft.id}
       seoTitle={draft.seoTitle}
       seoDescription={draft.seoDescription}
       autoSeoTitle={draft.title}
-      autoSeoDescription=""
-      onSeoTitleChange={(value) => patchSettings({ seoTitle: value })}
-      onSeoDescriptionChange={(value) => patchSettings({ seoDescription: value })}
+      autoSeoDescription={autoSeoDescription}
+      onSeoTitleChange={(value) => patchDraft({ seoTitle: value })}
+      onSeoDescriptionChange={(value) => patchDraft({ seoDescription: value })}
       allowPublicAnnotations={draft.allowPublicAnnotations}
       allowComments={draft.allowComments}
-      onTogglePublicAnnotations={(value) => patchSettings({ allowPublicAnnotations: value })}
-      onToggleComments={(value) => patchSettings({ allowComments: value })}
+      onTogglePublicAnnotations={(value) => patchDraft({ allowPublicAnnotations: value })}
+      onToggleComments={(value) => patchDraft({ allowComments: value })}
       allowDownload={draft.allowDownload}
-      downloadSaving={false}
-      onToggleDownload={(value) => patchSettings({ allowDownload: value })}
+      downloadSaving={downloadSaving}
+      onToggleDownload={(value) => void toggleDownload(value)}
       canPublish={canPublish}
-      onUnpublish={handleUnpublish}
+      onUnpublish={() =>
+        onRequestConfirm({
+          title: t`Dépublier cet article ?`,
+          description: t`Il sera immédiatement retiré du site public et repassera en brouillon. Le contenu est conservé.`,
+          confirmLabel: t`Dépublier`,
+          destructive: true,
+          onConfirm: async () => {
+            const success = await unpublish();
+            if (success) onClose();
+          },
+        })
+      }
       footer={
-        <div className="flex items-center justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={saving}
-            className="h-9 rounded-xl px-4 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted disabled:opacity-50"
-          >
-            {t`Annuler`}
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleSave()}
-            disabled={saving}
-            className="inline-flex h-9 items-center gap-2 rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-          >
-            {saving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-            {t`Enregistrer`}
-          </button>
+        <div className="space-y-2.5">
+          <div className="flex min-h-4 items-center justify-between gap-2 text-[10px]">
+            <div className="flex items-center gap-1.5">
+              {error ? (
+                <>
+                  <AlertTriangle className="h-3 w-3 shrink-0 text-destructive" />
+                  <span className="line-clamp-2 text-destructive">{error}</span>
+                </>
+              ) : dirty ? (
+                <>
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-highlight" />
+                  <span className="font-medium text-highlight">
+                    {t`Modifications non enregistrées`}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <Check className="h-3 w-3 shrink-0 text-success" />
+                  <span className="text-muted-foreground">{savedLabel}</span>
+                </>
+              )}
+            </div>
+            {dirty && (
+              <button
+                type="button"
+                onClick={resetDraft}
+                disabled={saving || scheduling}
+                className="shrink-0 font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+              >
+                {t`Réinitialiser`}
+              </button>
+            )}
+          </div>
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={requestClose}
+              disabled={saving || scheduling}
+              className="h-9 rounded-xl px-4 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted disabled:opacity-50"
+            >
+              {t`Fermer`}
+            </button>
+            <button
+              type="button"
+              onClick={() => void save()}
+              disabled={saving || scheduling || !dirty}
+              className={cn(
+                'inline-flex h-9 items-center gap-2 rounded-xl px-4 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+                dirty
+                  ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                  : 'bg-muted text-muted-foreground'
+              )}
+            >
+              {saving ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : dirty ? null : (
+                <Check className="h-3.5 w-3.5" />
+              )}
+              {saving ? t`Enregistrement…` : dirty ? t`Enregistrer` : t`Enregistré`}
+            </button>
+          </div>
         </div>
       }
     />

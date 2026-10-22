@@ -26,15 +26,14 @@ import { ImageGallery, GalleryImage } from '../extensions/ImageGallery';
 import { useCollaborationSession } from '../hooks/useCollaborationSession';
 import { computePayloadHash } from '../lib/payload-hash';
 import {
-  currentTimeZoneLabel,
-  parseDateTimeLocalValue,
-  toDateTimeLocalValue,
-} from '../lib/datetime';
+  computeAutoSeoDescription,
+  parseFutureScheduleDraft,
+  resolveArticleCategoryPath,
+} from '../lib/article-settings';
+import { currentTimeZoneLabel, toDateTimeLocalValue } from '../lib/datetime';
 import type { ArticleAttributionDraft } from './ArticleAttributionEditor';
 import { EditorHeader } from './EditorHeader';
 import { EditorToolbar } from './EditorToolbar';
-import { buildPublicExcerpt } from '@qoe/utils';
-import { ContentVisibility } from '@qoe/config';
 import { EditorSettingsDrawer } from './EditorSettingsDrawer';
 import { CoverUploader } from './CoverUploader';
 import { AnnotationPopover } from './AnnotationPopover';
@@ -124,7 +123,10 @@ export function Editor({
   const [published, setPublished] = useState(initialPublished);
   const [status, setStatus] = useState<string>(initialStatus || 'DRAFT');
   const [scheduledAt, setScheduledAt] = useState<string | null>(initialScheduledAt ?? null);
-  const [scheduleDraft, setScheduleDraft] = useState('');
+  const [scheduleDraft, setScheduleDraft] = useState(() =>
+    toDateTimeLocalValue(initialScheduledAt)
+  );
+  const [schedulePending, setSchedulePending] = useState(false);
   const [isPremium, setIsPremium] = useState(initialIsPremium);
   const [categoryId, setCategoryId] = useState<string | null>(initialCategoryId);
   const [seoTitle, setSeoTitle] = useState(initialSeoTitle || '');
@@ -830,16 +832,18 @@ export function Editor({
   }, [baseSavePayload]);
 
   const handleSchedule = useCallback(async () => {
-    const date = parseDateTimeLocalValue(scheduleDraft);
+    if (schedulePending) return;
+    const { date, reason } = parseFutureScheduleDraft(scheduleDraft);
     if (!date) {
-      setError(t`Choisissez une date de programmation.`);
-      return;
-    }
-    if (date.getTime() <= Date.now()) {
-      setError(t`La date de programmation doit être dans le futur.`);
+      setError(
+        reason === 'past'
+          ? t`La date de programmation doit être dans le futur.`
+          : t`Choisissez une date de programmation.`
+      );
       return;
     }
 
+    setSchedulePending(true);
     try {
       setError(null);
       let id = persistedIdRef.current;
@@ -857,6 +861,7 @@ export function Editor({
       if (!res.ok) throw new Error(res.error.message);
 
       setScheduledAt(iso);
+      setScheduleDraft(toDateTimeLocalValue(iso));
       setStatus('SCHEDULED');
       setPublished(false);
       // Évite qu'un auto-save immédiat ne réécrive le statut SCHEDULED.
@@ -869,11 +874,15 @@ export function Editor({
       toast.success(t`Publication programmée`);
     } catch (err: unknown) {
       setError(getErrorMessage(err, t`Échec de la programmation.`));
+    } finally {
+      setSchedulePending(false);
     }
-  }, [scheduleDraft, baseSavePayload, status, onSave]);
+  }, [schedulePending, scheduleDraft, baseSavePayload, status, onSave]);
 
   const handleClearSchedule = useCallback(async () => {
+    if (schedulePending) return;
     const id = persistedIdRef.current;
+    setSchedulePending(true);
     try {
       if (id) {
         const res = await scheduleArticleAction({ id, scheduledAt: null });
@@ -890,8 +899,10 @@ export function Editor({
       toast.success(t`Programmation annulée`);
     } catch (err: unknown) {
       setError(getErrorMessage(err, t`Échec de l'annulation.`));
+    } finally {
+      setSchedulePending(false);
     }
-  }, [baseSavePayload]);
+  }, [schedulePending, baseSavePayload]);
 
   const handleToggleDownload = useCallback((next: boolean) => {
     const id = persistedIdRef.current;
@@ -933,14 +944,10 @@ export function Editor({
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasUnsavedChanges]);
 
-  const articlePath = useMemo(() => {
-    const selected = categories.find((category) => category.id === categoryId);
-    if (!selected?.slug) return '/uncategorized';
-    const parent = selected.parentId
-      ? categories.find((category) => category.id === selected.parentId)
-      : undefined;
-    return `/${parent?.slug ? `${parent.slug}/` : ''}${selected.slug}`;
-  }, [categories, categoryId]);
+  const articlePath = useMemo(
+    () => resolveArticleCategoryPath(categories, categoryId),
+    [categories, categoryId]
+  );
 
   const previewHref = useMemo(() => {
     if (!slug) return undefined;
@@ -1002,7 +1009,14 @@ export function Editor({
         settingsOpen={showSettings}
         onBack={onBack}
         onOpenAnalytics={() => setShowAnalyticsModal(true)}
-        onToggleSettings={() => setShowSettings((open) => !open)}
+        onToggleSettings={() =>
+          setShowSettings((open) => {
+            if (!open && !scheduleDraft && scheduledAt) {
+              setScheduleDraft(toDateTimeLocalValue(scheduledAt));
+            }
+            return !open;
+          })
+        }
         onOpenSchedule={() => {
           setScheduleDraft(toDateTimeLocalValue(scheduledAt));
           setShowSettings(true);
@@ -1139,6 +1153,7 @@ export function Editor({
         onScheduleDraftChange={setScheduleDraft}
         onSchedule={() => void handleSchedule()}
         onClearSchedule={() => void handleClearSchedule()}
+        schedulePending={schedulePending}
         isPremium={isPremium}
         onTogglePremium={(value) => {
           setIsPremium(value);
@@ -1165,14 +1180,7 @@ export function Editor({
         seoTitle={seoTitle}
         seoDescription={seoDescription}
         autoSeoTitle={title ?? ''}
-        autoSeoDescription={
-          buildPublicExcerpt(
-            editor?.getText() || '',
-            isPremium ? ContentVisibility.PAID_SUBSCRIBERS : ContentVisibility.PUBLIC,
-            null,
-            160
-          ) ?? ''
-        }
+        autoSeoDescription={computeAutoSeoDescription(editor?.getHTML() || '', isPremium)}
         onSeoTitleChange={(value) => {
           setSeoTitle(value);
           setHasUnsavedChanges(true);

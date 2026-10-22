@@ -20,6 +20,7 @@ import {
   Move,
   FolderInput,
   Pin,
+  Lock,
   SlidersHorizontal,
   Rows3,
   Save,
@@ -226,6 +227,10 @@ export function ArticlesClient({
 
   // Catégories mères et enfants helpers
   const rootCategories = useMemo(() => categories.filter((c) => !c.parentId), [categories]);
+  const uncategorizedCount = useMemo(
+    () => articles.filter((c) => !c.categoryId && !c.category).length,
+    [articles]
+  );
 
   const PREF_KEY = 'qoe.articles.list.preferences.v2';
   const VIEWS_KEY = 'qoe.articles.list.views';
@@ -870,7 +875,7 @@ export function ArticlesClient({
 
   // Category matching including sub-categories
   const matchingCategoryIds = useMemo(() => {
-    if (selectedCategory === 'all') return null;
+    if (selectedCategory === 'all' || selectedCategory === 'uncategorized') return null;
     const childIds = categories.filter((c) => c.parentId === selectedCategory).map((c) => c.id);
     return new Set([selectedCategory, ...childIds]);
   }, [selectedCategory, categories]);
@@ -889,8 +894,13 @@ export function ArticlesClient({
       if (statusFilter === 'draft' && (art.published || art.status === 'SUBMITTED')) return false;
       if (statusFilter === 'review' && art.status !== 'SUBMITTED') return false;
 
-      // 3. Category filter (matches parent or sub-categories)
-      if (matchingCategoryIds && (!art.categoryId || !matchingCategoryIds.has(art.categoryId))) {
+      // 3. Category filter (matches parent or sub-categories, or uncategorized)
+      if (selectedCategory === 'uncategorized') {
+        if (art.categoryId || art.category) return false;
+      } else if (
+        matchingCategoryIds &&
+        (!art.categoryId || !matchingCategoryIds.has(art.categoryId))
+      ) {
         return false;
       }
 
@@ -1097,6 +1107,11 @@ export function ArticlesClient({
                         className="w-full bg-background border border-border/30 rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
                       >
                         <option value="all">{t`Toutes les catégories`}</option>
+                        {uncategorizedCount > 0 && (
+                          <option value="uncategorized">
+                            {t`Non catégorisé`} ({uncategorizedCount})
+                          </option>
+                        )}
                         {rootCategories.map((root) => {
                           const subs = categories.filter((c) => c.parentId === root.id);
                           return (

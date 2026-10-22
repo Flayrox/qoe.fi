@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Editor } from '@/features/editor/components/Editor';
 import type { ArticleAttributionDraft } from '@/features/editor/components/ArticleAttributionEditor';
 import { saveArticleAction } from '@qoe/sdk/actions/articles';
+import { buildAttributionDrafts } from '@/features/editor/lib/article-settings';
 import type { EditorCapabilities } from '@qoe/sdk/actions/articles';
 
 interface ArticleData {
@@ -26,6 +27,8 @@ interface ArticleData {
   scheduledAt?: string | null;
   isPremium: boolean;
   allowDownload?: boolean;
+  allowPublicAnnotations?: boolean;
+  allowComments?: boolean;
   categoryId: string | null;
   seoTitle: string | null;
   seoDescription: string | null;
@@ -98,50 +101,7 @@ export function EditArticleClient({ article, categories, capabilities }: EditArt
     }
   };
 
-  const initialAttributions = React.useMemo(() => {
-    const existing = (article.attributions ?? []).map((entry) => ({
-      userId: entry.user.id,
-      name: entry.user.name,
-      username: entry.user.username,
-      logoUrl: entry.user.logoUrl,
-      isCertified: entry.user.isCertified,
-      role: entry.role,
-      order: entry.order,
-      isVisible: entry.isVisible,
-      consentStatus: entry.consentStatus,
-    }));
-
-    if (existing.length > 0) return existing;
-
-    const baseAttributions: ArticleAttributionDraft[] = [
-      {
-        userId: article.author.id,
-        name: article.author.name,
-        username: article.author.username,
-        logoUrl: article.author.logoUrl,
-        isCertified: article.author.isCertified,
-        role: 'PRIMARY_AUTHOR',
-        order: 0,
-        isVisible: true,
-      },
-    ];
-
-    const coAuthors = (article.coAuthors ?? [])
-      .filter((coAuthor) => !existing.some((attr) => attr.userId === coAuthor.id))
-      .map((coAuthor, index) => ({
-        userId: coAuthor.id,
-        name: coAuthor.name,
-        username: coAuthor.username,
-        logoUrl: coAuthor.logoUrl,
-        isCertified: coAuthor.isCertified,
-        role: 'CO_AUTHOR',
-        order: 1 + index,
-        isVisible: true,
-        consentStatus: 'ACCEPTED',
-      }));
-
-    return [...baseAttributions, ...coAuthors];
-  }, [article.id, article.attributions, article.author, article.coAuthors]);
+  const initialAttributions = React.useMemo(() => buildAttributionDrafts(article), [article]);
 
   return (
     <div className="py-4">

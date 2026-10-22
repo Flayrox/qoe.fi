@@ -111,14 +111,17 @@ export function ArticleListRow({
         </div>
 
         <div className="mt-0.5 flex items-center gap-2 font-sans text-[11px] text-muted-foreground">
-          {columns.category && article.category && (
-            <span className="max-w-40 truncate">
-              {article.category.name?.trim() || article.category.slug}
+          {columns.category && (
+            <span
+              className={cn(
+                'max-w-40 truncate',
+                !article.category && 'italic text-muted-foreground/75'
+              )}
+            >
+              {article.category?.name?.trim() || article.category?.slug || t`Non catégorisé`}
             </span>
           )}
-          {columns.category && article.category && columns.updatedAt && (
-            <span className="text-border">·</span>
-          )}
+          {columns.category && columns.updatedAt && <span className="text-border">·</span>}
           {columns.updatedAt && (
             <span className="shrink-0">
               {new Date(article.updatedAt).toLocaleDateString('fr-FR', {
