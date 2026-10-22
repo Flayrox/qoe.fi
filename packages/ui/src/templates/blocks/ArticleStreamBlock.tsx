@@ -49,6 +49,64 @@ interface ArticleStreamBlockComponentProps {
   hiddenAt?: ('mobile' | 'tablet')[];
 }
 
+/**
+ * Bloc gris de chargement simulant un article à venir (« À paraître »)
+ * pour conserver la structure souveraine en 3 colonnes lorsque la publication
+ * a moins de 3 articles publiés.
+ */
+function SkeletonArticleCard({
+  className,
+  'data-testid': testId,
+}: {
+  className?: string;
+  'data-testid'?: string;
+}) {
+  return (
+    <div
+      data-testid={testId}
+      className={cn(
+        'group relative space-y-3 select-none pointer-events-none opacity-80 transition-opacity',
+        className
+      )}
+      aria-hidden="true"
+    >
+      {/* 1. Bloc Image gris simulant une couverture en chargement */}
+      <div className="relative w-full aspect-[16/10] rounded-xl overflow-hidden border border-border/40 bg-muted/50 animate-pulse flex items-center justify-center shadow-2xs">
+        <span className="text-[10px] font-mono tracking-widest uppercase text-muted-foreground/60 font-semibold">
+          À paraître
+        </span>
+      </div>
+
+      {/* 2. Lignes de métadonnées grises */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <div className="h-3.5 w-16 bg-muted/60 rounded-full animate-pulse" />
+          <div className="h-2.5 w-10 bg-muted/40 rounded animate-pulse" />
+        </div>
+
+        {/* 3. Lignes de titre grises */}
+        <div className="space-y-1.5 pt-0.5">
+          <div className="h-4 w-5/6 bg-muted/50 rounded-md animate-pulse" />
+          <div className="h-4 w-3/5 bg-muted/30 rounded-md animate-pulse" />
+        </div>
+
+        {/* 4. Lignes d'extrait grises */}
+        <div className="space-y-1 pt-1">
+          <div className="h-2.5 w-full bg-muted/30 rounded animate-pulse" />
+          <div className="h-2.5 w-4/5 bg-muted/20 rounded animate-pulse" />
+        </div>
+
+        {/* 5. Faux boutons d'engagement discrets */}
+        <div className="pt-2 flex items-center gap-4 opacity-40">
+          <div className="h-3 w-8 bg-muted/50 rounded-full animate-pulse" />
+          <div className="h-3 w-8 bg-muted/40 rounded-full animate-pulse" />
+          <div className="h-3 w-8 bg-muted/40 rounded-full animate-pulse" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ArticleStreamBlock({
   id,
   props,
@@ -171,13 +229,11 @@ export function ArticleStreamBlock({
     isEditorialMode &&
     (featuredLayout === 'trio' ||
       displayMode === 'featured-trio' ||
-      siteOpts.featuredTrio !== false ||
-      sortedItems.length >= 2);
+      siteOpts.featuredTrio !== false);
 
   const centerHeroArticle = sortedItems[0] || null;
-  const leftSecondaryArticle = sortedItems.length >= 3 ? sortedItems[1] : null;
-  const rightSecondaryArticle =
-    sortedItems.length >= 3 ? sortedItems[2] : sortedItems.length === 2 ? sortedItems[1] : null;
+  const leftSecondaryArticle = sortedItems.length >= 2 ? sortedItems[1] : null;
+  const rightSecondaryArticle = sortedItems.length >= 3 ? sortedItems[2] : null;
 
   const trioUsedCount =
     sortedItems.length >= 3 ? 3 : sortedItems.length === 2 ? 2 : sortedItems.length === 1 ? 1 : 0;
@@ -239,10 +295,13 @@ export function ArticleStreamBlock({
                 ===================================================================== */}
             {centerHeroArticle && (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 xl:gap-12 items-start pb-10 border-b border-border/40">
-                {/* Colonne Gauche (~25%, 3 colonnes) : Article secondaire gauche */}
-                {leftSecondaryArticle && (
-                  <div className="lg:col-span-3 order-2 lg:order-1 space-y-6">
-                    <article className="group relative space-y-3">
+                {/* Colonne Gauche (~25%, 3 colonnes) : Article secondaire gauche ou Skeleton */}
+                <div className="lg:col-span-3 order-2 lg:order-1 space-y-6">
+                  {leftSecondaryArticle ? (
+                    <article
+                      className="group relative space-y-3"
+                      data-testid="left-secondary-article"
+                    >
                       <Link
                         href={`/article/${leftSecondaryArticle.slug}`}
                         onClick={(e) => context.mode === 'editable' && e.preventDefault()}
@@ -324,21 +383,14 @@ export function ArticleStreamBlock({
                         </div>
                       </div>
                     </article>
-                  </div>
-                )}
+                  ) : (
+                    <SkeletonArticleCard data-testid="left-skeleton" />
+                  )}
+                </div>
 
                 {/* Colonne Centre (~50%, 6 colonnes) : GRAND ARTICLE VEDETTE OU ÉPINGLÉ */}
-                <div
-                  className={cn(
-                    leftSecondaryArticle && rightSecondaryArticle
-                      ? 'lg:col-span-6'
-                      : leftSecondaryArticle || rightSecondaryArticle
-                        ? 'lg:col-span-8'
-                        : 'lg:col-span-12',
-                    'order-1 lg:order-2 space-y-4'
-                  )}
-                >
-                  <article className="group relative space-y-3.5">
+                <div className="lg:col-span-6 order-1 lg:order-2 space-y-4">
+                  <article className="group relative space-y-3.5" data-testid="center-hero-article">
                     <div className="flex items-center justify-between text-xs text-muted-foreground flex-wrap gap-2">
                       <div className="flex items-center gap-2">
                         <CraftIndicator
@@ -426,7 +478,7 @@ export function ArticleStreamBlock({
                         onClick={(e) => context.mode === 'editable' && e.preventDefault()}
                         className="block group/cover"
                       >
-                        <div className="relative w-full aspect-[16/10] sm:aspect-[2.1/1] max-h-72 sm:max-h-80 md:max-h-96 rounded-2xl overflow-hidden border border-border/50 bg-muted shadow-2xs">
+                        <div className="relative w-full aspect-[16/10] sm:aspect-[16/9] max-h-80 md:max-h-96 rounded-2xl overflow-hidden border border-border/50 bg-muted shadow-2xs">
                           <SafeImage
                             src={
                               centerHeroArticle.imageUrl ||
@@ -468,15 +520,13 @@ export function ArticleStreamBlock({
                   </article>
                 </div>
 
-                {/* Colonne Droite : Article secondaire droit */}
-                {rightSecondaryArticle && (
-                  <div
-                    className={cn(
-                      leftSecondaryArticle ? 'lg:col-span-3' : 'lg:col-span-4',
-                      'order-3 lg:order-3 space-y-6'
-                    )}
-                  >
-                    <article className="group relative space-y-3">
+                {/* Colonne Droite (~25%, 3 colonnes) : Article secondaire droit ou Skeleton */}
+                <div className="lg:col-span-3 order-3 lg:order-3 space-y-6">
+                  {rightSecondaryArticle ? (
+                    <article
+                      className="group relative space-y-3"
+                      data-testid="right-secondary-article"
+                    >
                       <Link
                         href={`/article/${rightSecondaryArticle.slug}`}
                         onClick={(e) => context.mode === 'editable' && e.preventDefault()}
@@ -558,8 +608,10 @@ export function ArticleStreamBlock({
                         </div>
                       </div>
                     </article>
-                  </div>
-                )}
+                  ) : (
+                    <SkeletonArticleCard data-testid="right-skeleton" />
+                  )}
+                </div>
               </div>
             )}
 
