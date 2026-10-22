@@ -13,6 +13,7 @@ import {
   UmamiTimeseriesPoint,
 } from '@qoe/analytics/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import type { FeatureSignalSummary } from '@/features/upcoming/actions';
 
 export type TimePeriod = '24h' | '7d' | '30d' | '90d' | 'all';
 
@@ -32,6 +33,8 @@ export interface AnalyticsResponseData {
   audience: AudienceInsights;
   umamiAdvanced: UmamiAdvancedInsights;
   provenance: ProvenanceBreakdown;
+  /** Intérêt porté aux fonctionnalités à venir / Pro (90 j, espace actif). */
+  featureInterest: FeatureSignalSummary[];
 }
 
 // 🧭 Provenance fine — d'où viennent les vues (le plus poussé)
@@ -184,6 +187,21 @@ async function fetchPublicationLite(publicationId: string): Promise<SettingsPubl
   );
 }
 
+/**
+ * Intérêt pour les fonctionnalités à venir (interstitiel @qoe/ui).
+ * Statistique secondaire : l'API peut être indisponible sans casser la page.
+ */
+async function fetchFeatureInterest(publicationId: string): Promise<FeatureSignalSummary[]> {
+  try {
+    const res = await goFetch<{ signals: FeatureSignalSummary[] }>(
+      `/v1/features/signals/summary?publicationId=${encodeURIComponent(publicationId)}`
+    );
+    return res.signals ?? [];
+  } catch {
+    return [];
+  }
+}
+
 // Contrat Go GET /v1/analytics/creator.
 interface CreatorReadingStats {
   perArticle: Record<string, number>;
@@ -271,6 +289,7 @@ export async function getCreatorAnalyticsData(
     };
 
     const audience = await getAudienceInsights(pubLite.id);
+    const featureInterest = await fetchFeatureInterest(workspace.publicationId);
 
     const targetWebsiteId =
       pubLite.umamiWebsiteId || process.env.NEXT_PUBLIC_UMAMI_WEBSITE_ID || '';
@@ -293,6 +312,7 @@ export async function getCreatorAnalyticsData(
           audience,
           umamiAdvanced: { returning: null, hours: [] },
           provenance,
+          featureInterest,
         },
       };
     }
@@ -392,6 +412,7 @@ export async function getCreatorAnalyticsData(
         audience,
         umamiAdvanced,
         provenance,
+        featureInterest,
       },
     };
   } catch (err: unknown) {

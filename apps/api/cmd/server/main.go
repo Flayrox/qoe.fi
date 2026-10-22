@@ -36,6 +36,7 @@ import (
 	"github.com/qoefi/api/internal/modules/devtools"
 	"github.com/qoefi/api/internal/modules/ebooks"
 	"github.com/qoefi/api/internal/modules/events"
+	"github.com/qoefi/api/internal/modules/features"
 	"github.com/qoefi/api/internal/modules/feed"
 	"github.com/qoefi/api/internal/modules/highlights"
 	"github.com/qoefi/api/internal/modules/home"
@@ -473,6 +474,12 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 		analyticsHandler := analytics.NewHandler(analytics.NewService(pool, d.UmamiDatabaseURL))
 		analyticsHandler.Register(protected)
+
+		// Mesure d'intérêt des fonctionnalités à venir / Pro (interstitiel
+		// @qoe/ui) : attribuée au créateur et à sa publication active, donc
+		// lisible côté créateur comme côté média.
+		featuresHandler := features.NewHandler(features.NewService(pool))
+		featuresHandler.RegisterProtected(protected)
 
 		settingsHandler.RegisterProtected(protected)
 
