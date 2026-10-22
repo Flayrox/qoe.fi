@@ -7,111 +7,53 @@ import {
   Plus,
   Trash2,
   Edit3,
-  Eye,
-  MessageSquare,
-  BarChart3,
   Search,
   AlertCircle,
-  Tag,
   ArrowUpDown,
   FilterX,
-  Lock,
-  CheckCircle2,
-  XCircle,
-  Clock,
   GripVertical,
   FolderOpen,
   FolderTree,
   CornerDownRight,
   ArrowUpRight,
-  ChevronDown,
-  Layers,
   X,
   Move,
   FolderInput,
   Pin,
-  Heart,
-  Repeat2,
-  MoreHorizontal,
   SlidersHorizontal,
   Rows3,
   Save,
-  AlertTriangle,
-  Loader2,
 } from 'lucide-react';
 import { cn, slugify } from '@qoe/utils';
 import { isReservedTenantRoute } from '@qoe/config';
 import {
-  bulkUpdateArticlesAction,
   deleteArticleAction,
-  getArticleByIdAction,
-  saveArticleAction,
   saveCategoryAction,
   deleteCategoryAction,
   reviewArticleAction,
   getArticlesAction,
   moveCategoryAction,
-  unpublishArticleAction,
-  type ArticleEditorPayload,
-  type BulkUpdateArticlesInput,
 } from '@qoe/sdk/actions/articles';
 import { updateCreatorProfileAction } from '@qoe/sdk/actions/dashboard';
 import { toast } from '@qoe/ui/toast';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@qoe/ui';
 import { t } from '@lingui/core/macro';
 
 import { ArticleInspectorModal } from '../analytics/components/ArticleInspectorModal';
-import { EditorSettingsDrawer } from '@/features/editor/components/EditorSettingsDrawer';
-import type { ArticleAttributionDraft } from '@/features/editor/components/ArticleAttributionEditor';
-import {
-  currentTimeZoneLabel,
-  parseDateTimeLocalValue,
-  toDateTimeLocalValue,
-} from '@/features/editor/lib/datetime';
-
-interface ArticleWithCategory {
-  id: string;
-  title: string;
-  slug: string;
-  content: string;
-  published: boolean;
-  status?: string;
-  isPremium: boolean;
-  readingTime: number;
-  categoryId: string | null;
-  createdAt: Date | string;
-  updatedAt: Date | string;
-  category: {
-    id: string;
-    name: string;
-    slug: string;
-  } | null;
-  _count?: {
-    bookmarks: number;
-    highlights: number;
-    letters: number;
-  };
-  views?: number;
-  viewsUnique?: number;
-  commentsCount?: number;
-  likesCount?: number;
-  repostsCount?: number;
-  allowPublicAnnotations?: boolean;
-  allowComments?: boolean;
-  allowDownload?: boolean;
-}
-
-interface CategoryWithCount {
-  id: string;
-  name: string;
-  slug: string;
-  description: string | null;
-  parentId: string | null;
-  isDefault?: boolean;
-  _count: {
-    articles: number;
-  };
-}
+import { ArticleBulkSettingsDialog } from './components/article-bulk-settings-dialog';
+import { ArticleListRow } from './components/article-list-row';
+import { ArticleSettingsSheet } from './components/article-settings-sheet';
+import { ConfirmActionDialog, type ConfirmAction } from './components/confirm-action-dialog';
+import type {
+  AccessFilter,
+  ArticleWithCategory,
+  CategoryWithCount,
+  Density,
+  ListColumnPrefs,
+  SavedListView,
+  SortDirection,
+  SortField,
+  StatusFilter,
+} from './components/article-list-types';
 
 interface ArticlesClientProps {
   initialArticles: ArticleWithCategory[];
@@ -121,140 +63,6 @@ interface ArticlesClientProps {
   initialTab?: 'articles' | 'categories';
   canReview?: boolean;
   canPublish?: boolean;
-}
-
-type SortField =
-  'updatedAt' | 'createdAt' | 'title' | 'readingTime' | 'likes' | 'reposts' | 'engagement';
-type SortDirection = 'desc' | 'asc';
-type AccessFilter = 'all' | 'free' | 'premium';
-type StatusFilter = 'all' | 'published' | 'draft' | 'review';
-type Density = 'comfortable' | 'compact';
-interface ListColumnPrefs {
-  category: boolean;
-  status: boolean;
-  premium: boolean;
-  updatedAt: boolean;
-  views: boolean;
-  comments: boolean;
-}
-interface SavedListView {
-  sortField: SortField;
-  sortDirection: SortDirection;
-  selectedCategory: string;
-  accessFilter: AccessFilter;
-  statusFilter: StatusFilter;
-  density: Density;
-  columns: ListColumnPrefs;
-}
-
-interface ArticleSettingsDraft {
-  id: string;
-  publicationId: string;
-  title: string;
-  content: string;
-  imageUrl: string | null;
-  slug: string;
-  published: boolean;
-  status: string;
-  scheduledAt: string | null;
-  scheduleDraft: string;
-  isPremium: boolean;
-  categoryId: string | null;
-  seoTitle: string;
-  seoDescription: string;
-  allowPublicAnnotations: boolean;
-  allowComments: boolean;
-  allowDownload: boolean;
-  attributions: ArticleAttributionDraft[];
-  subdomain?: string;
-}
-
-type TriState = 'keep' | 'on' | 'off';
-interface BulkSettingsDraft {
-  category: string;
-  premium: TriState;
-  comments: TriState;
-  annotations: TriState;
-  download: TriState;
-  publication: 'keep' | 'publish' | 'unpublish';
-}
-
-interface ConfirmAction {
-  title: string;
-  description: string;
-  confirmLabel: string;
-  destructive?: boolean;
-  onConfirm: () => Promise<void> | void;
-}
-
-function BulkTriRow({
-  label,
-  description,
-  value,
-  onChange,
-}: {
-  label: string;
-  description: string;
-  value: TriState;
-  onChange: (value: TriState) => void;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border border-border/40 bg-muted/15 p-3">
-      <div className="min-w-0">
-        <p className="text-xs font-semibold text-foreground">{label}</p>
-        <p className="text-[10px] text-muted-foreground leading-tight">{description}</p>
-      </div>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value as TriState)}
-        className="h-8 shrink-0 rounded-lg border border-border/40 bg-background px-2 text-xs text-foreground focus:border-primary focus:outline-none"
-      >
-        <option value="keep">{t`Ne pas modifier`}</option>
-        <option value="on">{t`Activer`}</option>
-        <option value="off">{t`Désactiver`}</option>
-      </select>
-    </div>
-  );
-}
-
-function buildAttributionDrafts(article: ArticleEditorPayload): ArticleAttributionDraft[] {
-  const existing = (article.attributions ?? []).map((entry) => ({
-    userId: entry.user.id,
-    name: entry.user.name,
-    username: entry.user.username,
-    logoUrl: entry.user.logoUrl,
-    isCertified: entry.user.isCertified,
-    role: entry.role,
-    order: entry.order,
-    isVisible: entry.isVisible,
-    consentStatus: entry.consentStatus,
-  }));
-  if (existing.length > 0) return existing;
-
-  const base: ArticleAttributionDraft = {
-    userId: article.author.id,
-    name: article.author.name,
-    username: article.author.username,
-    logoUrl: article.author.logoUrl,
-    isCertified: article.author.isCertified,
-    role: 'PRIMARY_AUTHOR',
-    order: 0,
-    isVisible: true,
-  };
-  const coAuthors = (article.coAuthors ?? [])
-    .filter((coAuthor) => coAuthor.id !== article.author.id)
-    .map((coAuthor, index) => ({
-      userId: coAuthor.id,
-      name: coAuthor.name,
-      username: coAuthor.username,
-      logoUrl: coAuthor.logoUrl,
-      isCertified: coAuthor.isCertified,
-      role: 'CO_AUTHOR',
-      order: 1 + index,
-      isVisible: true,
-      consentStatus: 'ACCEPTED',
-    }));
-  return [base, ...coAuthors];
 }
 
 export function ArticlesClient({
@@ -304,19 +112,6 @@ export function ArticlesClient({
     });
   };
 
-  const executeConfirm = async () => {
-    if (!confirmAction) return;
-    setConfirmPending(true);
-    try {
-      await confirmAction.onConfirm();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t`Une erreur est survenue.`);
-    } finally {
-      setConfirmPending(false);
-      setConfirmAction(null);
-    }
-  };
-
   const handleToggleAbout = async (id: string) => {
     const nextAbout = aboutArticleId === id ? null : id;
     setAboutArticleId(nextAbout);
@@ -351,226 +146,21 @@ export function ArticlesClient({
     status: true,
     premium: false,
     updatedAt: true,
-    views: false,
-    comments: false,
+    views: true,
+    comments: true,
   });
   const [savedViews, setSavedViews] = useState<Record<string, SavedListView>>({});
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
-  const [confirmPending, setConfirmPending] = useState(false);
-  const [settingsDraft, setSettingsDraft] = useState<ArticleSettingsDraft | null>(null);
-  const [settingsLoadingId, setSettingsLoadingId] = useState<string | null>(null);
-  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsArticleId, setSettingsArticleId] = useState<string | null>(null);
   const [bulkSettingsOpen, setBulkSettingsOpen] = useState(false);
-  const [bulkApplying, setBulkApplying] = useState(false);
-  const [bulkSettings, setBulkSettings] = useState<BulkSettingsDraft>({
-    category: 'keep',
-    premium: 'keep',
-    comments: 'keep',
-    annotations: 'keep',
-    download: 'keep',
-    publication: 'keep',
-  });
+
+  const closeArticleSettings = React.useCallback(() => setSettingsArticleId(null), []);
 
   const refreshArticles = async () => {
     const res = await getArticlesAction(period);
     if (res.ok && res.data) {
       setArticles(res.data as unknown as ArticleWithCategory[]);
-    }
-  };
-
-  const patchSettings = (patch: Partial<ArticleSettingsDraft>) =>
-    setSettingsDraft((prev) => (prev ? { ...prev, ...patch } : prev));
-
-  const handleOpenArticleSettings = async (id: string) => {
-    setSettingsLoadingId(id);
-    try {
-      const res = await getArticleByIdAction(id);
-      if (!res.ok || !res.data) {
-        toast.error(t`Impossible de charger les paramètres de l'article.`);
-        return;
-      }
-      const article = res.data;
-      setSettingsDraft({
-        id: article.id,
-        publicationId: article.publicationId,
-        title: article.title,
-        content: article.content,
-        imageUrl: article.imageUrl ?? null,
-        slug: article.slug,
-        published: article.published,
-        status: article.status,
-        scheduledAt: article.scheduledAt ?? null,
-        scheduleDraft: toDateTimeLocalValue(article.scheduledAt),
-        isPremium: article.isPremium,
-        categoryId: article.categoryId,
-        seoTitle: article.seoTitle ?? '',
-        seoDescription: article.seoDescription ?? '',
-        allowPublicAnnotations: article.allowPublicAnnotations ?? true,
-        allowComments: article.allowComments ?? true,
-        allowDownload: article.allowDownload ?? true,
-        attributions: buildAttributionDrafts(article),
-        subdomain: article.publication?.subdomain ?? undefined,
-      });
-    } catch (err) {
-      console.error('Failed to load article settings', err);
-      toast.error(t`Impossible de charger les paramètres de l'article.`);
-    } finally {
-      setSettingsLoadingId(null);
-    }
-  };
-
-  const handleSaveArticleSettings = async () => {
-    if (!settingsDraft) return;
-    setSettingsSaving(true);
-    try {
-      const scheduledAt = settingsDraft.scheduleDraft
-        ? (parseDateTimeLocalValue(settingsDraft.scheduleDraft)?.toISOString() ?? null)
-        : null;
-      const status = scheduledAt
-        ? 'SCHEDULED'
-        : settingsDraft.status === 'SCHEDULED'
-          ? 'DRAFT'
-          : settingsDraft.status;
-      const res = await saveArticleAction({
-        id: settingsDraft.id,
-        title: settingsDraft.title,
-        content: settingsDraft.content,
-        imageUrl: settingsDraft.imageUrl,
-        slug: settingsDraft.slug,
-        published: settingsDraft.published,
-        status,
-        scheduledAt,
-        isPremium: settingsDraft.isPremium,
-        categoryId: settingsDraft.categoryId,
-        seoTitle: settingsDraft.seoTitle.trim() || null,
-        seoDescription: settingsDraft.seoDescription.trim() || null,
-        allowPublicAnnotations: settingsDraft.allowPublicAnnotations,
-        allowComments: settingsDraft.allowComments,
-        allowDownload: settingsDraft.allowDownload,
-        attributions: settingsDraft.attributions,
-      });
-      if (!res.ok) throw new Error(res.error.message);
-      toast.success(t`Paramètres de l'article enregistrés.`);
-      setSettingsDraft(null);
-      await refreshArticles();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t`Échec de l'enregistrement.`);
-    } finally {
-      setSettingsSaving(false);
-    }
-  };
-
-  const handleScheduleSettings = () => {
-    if (!settingsDraft) return;
-    const date = parseDateTimeLocalValue(settingsDraft.scheduleDraft);
-    if (!date || date.getTime() <= Date.now()) {
-      toast.error(t`Choisissez une date future pour programmer l'article.`);
-      return;
-    }
-    patchSettings({ scheduledAt: date.toISOString(), status: 'SCHEDULED' });
-  };
-
-  const handleClearScheduleSettings = () => {
-    patchSettings({
-      scheduledAt: null,
-      scheduleDraft: '',
-      status: settingsDraft?.published ? 'PUBLISHED' : 'DRAFT',
-    });
-  };
-
-  const handleUnpublishSettings = () => {
-    if (!settingsDraft) return;
-    const articleId = settingsDraft.id;
-    requestConfirm({
-      title: t`Dépublier cet article ?`,
-      description: t`Il sera immédiatement retiré du site public et repassera en brouillon. Le contenu est conservé.`,
-      confirmLabel: t`Dépublier`,
-      destructive: true,
-      onConfirm: async () => {
-        const res = await unpublishArticleAction(articleId);
-        if (!res.ok) {
-          toast.error(res.error.message);
-          return;
-        }
-        toast.success(t`Article dépublié.`);
-        setSettingsDraft(null);
-        await refreshArticles();
-      },
-    });
-  };
-
-  const openBulkSettings = () => {
-    setBulkSettings({
-      category: 'keep',
-      premium: 'keep',
-      comments: 'keep',
-      annotations: 'keep',
-      download: 'keep',
-      publication: 'keep',
-    });
-    setBulkSettingsOpen(true);
-  };
-
-  const applyBulkSettings = async () => {
-    if (selectedIds.size === 0) return;
-    const input: BulkUpdateArticlesInput = {
-      ids: Array.from(selectedIds),
-    };
-    if (bulkSettings.category !== 'keep') {
-      input.setCategory = true;
-      input.categoryId = bulkSettings.category === 'default' ? null : bulkSettings.category;
-    }
-    if (bulkSettings.premium !== 'keep') input.isPremium = bulkSettings.premium === 'on';
-    if (bulkSettings.comments !== 'keep') input.allowComments = bulkSettings.comments === 'on';
-    if (bulkSettings.annotations !== 'keep')
-      input.allowPublicAnnotations = bulkSettings.annotations === 'on';
-    if (bulkSettings.download !== 'keep') input.allowDownload = bulkSettings.download === 'on';
-    if (bulkSettings.publication === 'publish') input.published = true;
-    if (bulkSettings.publication === 'unpublish') input.published = false;
-
-    const hasChange =
-      input.setCategory ||
-      input.isPremium !== undefined ||
-      input.allowComments !== undefined ||
-      input.allowPublicAnnotations !== undefined ||
-      input.allowDownload !== undefined ||
-      input.published !== undefined;
-    if (!hasChange) {
-      toast.error(t`Choisissez au moins un paramètre à modifier.`);
-      return;
-    }
-
-    setBulkApplying(true);
-    try {
-      const res = await bulkUpdateArticlesAction(input);
-      if (!res.ok) throw new Error(res.error.message);
-      const { updated, failed } = res.data;
-      if (updated > 0) {
-        toast.success(
-          `${updated} ${updated > 1 ? t`articles mis à jour` : t`article mis à jour`}.`
-        );
-      }
-      if (failed.length > 0) {
-        toast.error(
-          `${failed.length} ${failed.length > 1 ? t`articles n'ont pas pu être modifiés` : t`article n'a pas pu être modifié`}.`
-        );
-      }
-      setBulkSettingsOpen(false);
-      setSelectedIds(new Set());
-      setBulkSettings({
-        category: 'keep',
-        premium: 'keep',
-        comments: 'keep',
-        annotations: 'keep',
-        download: 'keep',
-        publication: 'keep',
-      });
-      await refreshArticles();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t`Échec de la modification groupée.`);
-    } finally {
-      setBulkApplying(false);
     }
   };
 
@@ -637,7 +227,7 @@ export function ArticlesClient({
   // Catégories mères et enfants helpers
   const rootCategories = useMemo(() => categories.filter((c) => !c.parentId), [categories]);
 
-  const PREF_KEY = 'qoe.articles.list.preferences';
+  const PREF_KEY = 'qoe.articles.list.preferences.v2';
   const VIEWS_KEY = 'qoe.articles.list.views';
 
   useEffect(() => {
@@ -1237,25 +827,6 @@ export function ArticlesClient({
     setStatusFilter('all');
   };
 
-  const handleBulkApply = () => {
-    if (bulkSettings.publication === 'keep') {
-      void applyBulkSettings();
-      return;
-    }
-    const publish = bulkSettings.publication === 'publish';
-    requestConfirm({
-      title: publish
-        ? t`Publier ${selectedIds.size} article(s) ?`
-        : t`Dépublier ${selectedIds.size} article(s) ?`,
-      description: publish
-        ? t`Les articles sélectionnés seront immédiatement visibles publiquement.`
-        : t`Les articles sélectionnés seront immédiatement retirés du site public et repasseront en brouillon.`,
-      confirmLabel: publish ? t`Publier` : t`Dépublier`,
-      destructive: !publish,
-      onConfirm: applyBulkSettings,
-    });
-  };
-
   const handleBulkDelete = async () => {
     const ids = Array.from(selectedIds);
     if (ids.length === 0) return;
@@ -1703,7 +1274,7 @@ export function ArticlesClient({
                     {selectedIds.size} {t`sélectionné(s)`}
                   </span>
                   <button
-                    onClick={openBulkSettings}
+                    onClick={() => setBulkSettingsOpen(true)}
                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/10 text-primary border border-primary/20 text-xs font-semibold hover:bg-primary/20 transition-colors"
                   >
                     <SlidersHorizontal className="w-3 h-3" />
@@ -1774,233 +1345,34 @@ export function ArticlesClient({
               </div>
             ) : (
               <section className="flex flex-col divide-y divide-border/30">
-                {filteredAndSortedArticles.map((art) => {
-                  const interactionsCount =
-                    (art._count?.bookmarks || 0) +
-                    (art._count?.highlights || 0) +
-                    (art._count?.letters || 0);
-
-                  return (
-                    <div
-                      key={art.id}
-                      className={cn(
-                        'flex items-center gap-4 hover:bg-muted/30 transition-colors cursor-pointer group px-3 rounded-lg border-b border-border/30',
-                        density === 'compact' ? 'py-2' : 'py-3.5',
-                        selectedIds.has(art.id) && 'bg-primary/5'
-                      )}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(art.id)}
-                        onChange={(event) => {
-                          event.stopPropagation();
-                          toggleSelected(art.id);
-                        }}
-                        onClick={(event) => event.stopPropagation()}
-                        className="w-3.5 h-3.5 rounded border-border/40 text-primary focus:ring-primary shrink-0"
-                        aria-label={t`Sélectionner ${art.title}`}
-                      />
-                      {/* Contenu principal : une ligne, lisible d'abord */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <a
-                            href={`/articles/${art.id}`}
-                            className="text-sm text-foreground font-medium truncate group-hover:text-primary transition-colors font-sans"
-                          >
-                            {art.title}
-                          </a>
-                          {columns.status &&
-                            (art.status === 'SUBMITTED' ? (
-                              <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-highlight/10 text-highlight border border-highlight/20">
-                                <Clock className="w-2.5 h-2.5" />
-                                {t`En revue`}
-                              </span>
-                            ) : (
-                              <span
-                                className={cn(
-                                  'shrink-0 px-1.5 py-0.5 rounded text-[10px] font-semibold',
-                                  art.published
-                                    ? 'bg-primary/10 text-primary'
-                                    : 'bg-muted text-muted-foreground'
-                                )}
-                              >
-                                {art.published ? t`Publié` : t`Brouillon`}
-                              </span>
-                            ))}
-                          {columns.premium && art.isPremium && (
-                            <Lock className="w-3 h-3 text-highlight shrink-0" />
-                          )}
-                          {((art as unknown as { isPinned?: boolean }).isPinned ||
-                            pinnedArticleId === art.id) && (
-                            <Pin className="w-3 h-3 text-primary shrink-0" />
-                          )}
-                        </div>
-                        <div className="mt-0.5 flex items-center gap-2 text-[11px] text-muted-foreground font-sans">
-                          {columns.category && art.category && (
-                            <span className="truncate max-w-40">
-                              {art.category.name?.trim() || art.category.slug}
-                            </span>
-                          )}
-                          {columns.category && art.category && columns.updatedAt && (
-                            <span className="text-border">·</span>
-                          )}
-                          {columns.updatedAt && (
-                            <span className="shrink-0">
-                              {new Date(art.updatedAt).toLocaleDateString('fr-FR', {
-                                day: 'numeric',
-                                month: 'short',
-                              })}
-                            </span>
-                          )}
-                          <span className="shrink-0 flex items-center gap-1 tabular-nums">
-                            <span className="text-border">·</span>
-                            <Heart className="w-3 h-3" />
-                            {art.likesCount ?? 0}
-                          </span>
-                          <span className="shrink-0 flex items-center gap-1 tabular-nums">
-                            <span className="text-border">·</span>
-                            <Repeat2 className="w-3 h-3" />
-                            {art.repostsCount ?? 0}
-                          </span>
-                          {(aboutArticleId === art.id ||
-                            art.slug === 'a-propos' ||
-                            art.slug === 'about') && (
-                            <span className="shrink-0 text-primary/80">· {t`À propos`}</span>
-                          )}
-                          {columns.views && (
-                            <span className="shrink-0 flex items-center gap-1">
-                              <span className="text-border">·</span>
-                              <Eye className="w-3 h-3" />
-                              {art.views ?? 0}
-                            </span>
-                          )}
-                          {columns.comments && (
-                            <span className="shrink-0 flex items-center gap-1">
-                              <span className="text-border">·</span>
-                              <MessageSquare className="w-3 h-3" />
-                              {art.commentsCount ?? interactionsCount}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Actions rapides visibles, le reste dans un menu */}
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setInspectingArticle({ id: art.id, slug: art.slug });
-                        }}
-                        className="p-1.5 text-muted-foreground hover:text-foreground rounded transition-colors opacity-60 group-hover:opacity-100 focus:opacity-100"
-                        title={t`Voir les analyses`}
-                      >
-                        <BarChart3 className="w-4 h-4 stroke-[1.5]" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          requestTogglePin(art.id, art.title);
-                        }}
-                        className={cn(
-                          'p-1.5 rounded transition-colors hover:text-foreground',
-                          pinnedArticleId === art.id
-                            ? 'text-primary'
-                            : 'text-muted-foreground opacity-60 group-hover:opacity-100 focus:opacity-100'
-                        )}
-                        title={
-                          pinnedArticleId === art.id ? t`Retirer de la une` : t`Épingler à la une`
-                        }
-                      >
-                        <Pin className="w-4 h-4 stroke-[1.5]" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          void handleOpenArticleSettings(art.id);
-                        }}
-                        disabled={settingsLoadingId === art.id}
-                        className="p-1.5 text-muted-foreground hover:text-foreground rounded transition-colors opacity-60 group-hover:opacity-100 focus:opacity-100 disabled:opacity-40"
-                        title={t`Paramètres de l'article`}
-                      >
-                        {settingsLoadingId === art.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Edit3 className="w-4 h-4 stroke-[1.5]" />
-                        )}
-                      </button>
-                      <details className="relative">
-                        <summary
-                          className="list-none p-1.5 text-muted-foreground hover:text-foreground rounded transition-colors cursor-pointer"
-                          title={t`Plus d'actions`}
-                        >
-                          <MoreHorizontal className="w-4 h-4" />
-                        </summary>
-                        <div className="absolute right-0 top-full mt-1 z-40 w-52 rounded-xl border border-border/40 bg-card p-1 shadow-xl">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              (
-                                e.currentTarget.closest('details') as HTMLDetailsElement | null
-                              )?.removeAttribute('open');
-                              handleToggleAbout(art.id);
-                            }}
-                            className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-foreground hover:bg-muted/60 transition-colors"
-                          >
-                            <BookOpen className="w-3.5 h-3.5" />
-                            {aboutArticleId === art.id
-                              ? t`Retirer de la page À propos`
-                              : t`Définir comme page À propos`}
-                          </button>
-                          {canReview && art.status === 'SUBMITTED' && (
-                            <>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  (
-                                    e.currentTarget.closest('details') as HTMLDetailsElement | null
-                                  )?.removeAttribute('open');
-                                  requestReview(art.id, true, art.title);
-                                }}
-                                className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-success hover:bg-success/10 transition-colors"
-                              >
-                                <CheckCircle2 className="w-3.5 h-3.5" />
-                                {t`Approuver et publier`}
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  (
-                                    e.currentTarget.closest('details') as HTMLDetailsElement | null
-                                  )?.removeAttribute('open');
-                                  requestReview(art.id, false, art.title);
-                                }}
-                                className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-destructive hover:bg-destructive/10 transition-colors"
-                              >
-                                <XCircle className="w-3.5 h-3.5" />
-                                {t`Rejeter`}
-                              </button>
-                            </>
-                          )}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              (
-                                e.currentTarget.closest('details') as HTMLDetailsElement | null
-                              )?.removeAttribute('open');
-                              requestDeleteArticle(art.id, art.title);
-                            }}
-                            className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-destructive hover:bg-destructive/10 transition-colors"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            {t`Supprimer`}
-                          </button>
-                        </div>
-                      </details>
-                    </div>
-                  );
-                })}
+                {filteredAndSortedArticles.map((art) => (
+                  <ArticleListRow
+                    key={art.id}
+                    article={art}
+                    columns={columns}
+                    density={density}
+                    selected={selectedIds.has(art.id)}
+                    pinned={
+                      Boolean((art as unknown as { isPinned?: boolean }).isPinned) ||
+                      pinnedArticleId === art.id
+                    }
+                    about={
+                      aboutArticleId === art.id || art.slug === 'a-propos' || art.slug === 'about'
+                    }
+                    canReview={canReview}
+                    onToggleSelect={toggleSelected}
+                    onOpenAnalytics={(article) =>
+                      setInspectingArticle({ id: article.id, slug: article.slug })
+                    }
+                    onTogglePin={(article) => requestTogglePin(article.id, article.title)}
+                    onOpenSettings={setSettingsArticleId}
+                    onToggleAbout={handleToggleAbout}
+                    onReview={(article, approve) =>
+                      requestReview(article.id, approve, article.title)
+                    }
+                    onDelete={(article) => requestDeleteArticle(article.id, article.title)}
+                  />
+                ))}
               </section>
             )}
           </motion.div>
@@ -2689,247 +2061,31 @@ export function ArticlesClient({
         )}
       </AnimatePresence>
 
-      {/* Paramètres de l'article — panneau latéral sans quitter la liste */}
-      {settingsDraft && (
-        <EditorSettingsDrawer
-          open
-          onClose={() => setSettingsDraft(null)}
-          published={settingsDraft.published}
-          status={settingsDraft.status}
-          scheduledAt={settingsDraft.scheduledAt}
-          scheduleDraft={settingsDraft.scheduleDraft}
-          timeZoneLabel={currentTimeZoneLabel()}
-          onScheduleDraftChange={(value) => patchSettings({ scheduleDraft: value })}
-          onSchedule={handleScheduleSettings}
-          onClearSchedule={handleClearScheduleSettings}
-          isPremium={settingsDraft.isPremium}
-          onTogglePremium={(value) => patchSettings({ isPremium: value })}
-          categories={categories.map((category) => ({
-            id: category.id,
-            name: category.name,
-            parentId: category.parentId,
-            slug: category.slug,
-          }))}
-          categoryId={settingsDraft.categoryId}
-          onCategoryChange={(value) => patchSettings({ categoryId: value })}
-          slug={settingsDraft.slug}
-          onSlugChange={(value) => patchSettings({ slug: value })}
-          subdomain={settingsDraft.subdomain}
-          attributions={settingsDraft.attributions}
-          onAttributionsChange={(value) => patchSettings({ attributions: value })}
-          articleId={settingsDraft.id}
-          seoTitle={settingsDraft.seoTitle}
-          seoDescription={settingsDraft.seoDescription}
-          autoSeoTitle={settingsDraft.title}
-          autoSeoDescription=""
-          onSeoTitleChange={(value) => patchSettings({ seoTitle: value })}
-          onSeoDescriptionChange={(value) => patchSettings({ seoDescription: value })}
-          allowPublicAnnotations={settingsDraft.allowPublicAnnotations}
-          allowComments={settingsDraft.allowComments}
-          onTogglePublicAnnotations={(value) => patchSettings({ allowPublicAnnotations: value })}
-          onToggleComments={(value) => patchSettings({ allowComments: value })}
-          allowDownload={settingsDraft.allowDownload}
-          downloadSaving={false}
-          onToggleDownload={(value) => patchSettings({ allowDownload: value })}
+      {settingsArticleId && (
+        <ArticleSettingsSheet
+          articleId={settingsArticleId}
+          categories={categories}
           canPublish={canPublish}
-          onUnpublish={handleUnpublishSettings}
-          footer={
-            <div className="flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setSettingsDraft(null)}
-                disabled={settingsSaving}
-                className="h-9 rounded-xl px-4 text-xs font-medium text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50"
-              >
-                {t`Annuler`}
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleSaveArticleSettings()}
-                disabled={settingsSaving}
-                className="inline-flex h-9 items-center gap-2 rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
-              >
-                {settingsSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                {t`Enregistrer`}
-              </button>
-            </div>
-          }
+          onClose={closeArticleSettings}
+          onSaved={refreshArticles}
+          onRequestConfirm={requestConfirm}
         />
       )}
 
-      {/* Modification groupée */}
-      <Dialog
+      <ArticleBulkSettingsDialog
         open={bulkSettingsOpen}
-        onOpenChange={(open) => {
-          if (!bulkApplying) setBulkSettingsOpen(open);
+        onOpenChange={setBulkSettingsOpen}
+        selectedIds={Array.from(selectedIds)}
+        selectedCount={selectedIds.size}
+        categories={categories}
+        onApplied={async () => {
+          setSelectedIds(new Set());
+          await refreshArticles();
         }}
-      >
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="space-y-1">
-            <DialogTitle className="text-base font-bold">
-              {t`Modifier ${selectedIds.size} article(s)`}
-            </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground">
-              {t`Seuls les paramètres que vous changez ici seront appliqués. Le contenu n'est jamais modifié.`}
-            </DialogDescription>
-          </DialogHeader>
+        onRequestConfirm={requestConfirm}
+      />
 
-          <div className="space-y-3 pt-1">
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {t`Catégorie`}
-              </label>
-              <select
-                value={bulkSettings.category}
-                onChange={(event) =>
-                  setBulkSettings((prev) => ({ ...prev, category: event.target.value }))
-                }
-                className="w-full rounded-xl border border-border/40 bg-background p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
-              >
-                <option value="keep">{t`Ne pas modifier`}</option>
-                <option value="default">{t`Non classé (catégorie par défaut)`}</option>
-                {rootCategories.map((root) => {
-                  const subs = categories.filter((category) => category.parentId === root.id);
-                  return (
-                    <React.Fragment key={root.id}>
-                      <option value={root.id}>{root.name?.trim() || root.slug}</option>
-                      {subs.map((sub) => (
-                        <option key={sub.id} value={sub.id}>
-                          ↳ {sub.name?.trim() || sub.slug}
-                        </option>
-                      ))}
-                    </React.Fragment>
-                  );
-                })}
-              </select>
-            </div>
-
-            <BulkTriRow
-              label={t`Article Premium`}
-              description={t`Réserver aux abonnés payants.`}
-              value={bulkSettings.premium}
-              onChange={(value) => setBulkSettings((prev) => ({ ...prev, premium: value }))}
-            />
-            <BulkTriRow
-              label={t`Commentaires`}
-              description={t`Ouvrir ou fermer l'espace de débat.`}
-              value={bulkSettings.comments}
-              onChange={(value) => setBulkSettings((prev) => ({ ...prev, comments: value }))}
-            />
-            <BulkTriRow
-              label={t`Annotations publiques`}
-              description={t`Autoriser les lecteurs à surligner et annoter.`}
-              value={bulkSettings.annotations}
-              onChange={(value) => setBulkSettings((prev) => ({ ...prev, annotations: value }))}
-            />
-            <BulkTriRow
-              label={t`Téléchargement hors-ligne`}
-              description={t`Autoriser les lecteurs Plus à télécharger.`}
-              value={bulkSettings.download}
-              onChange={(value) => setBulkSettings((prev) => ({ ...prev, download: value }))}
-            />
-
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {t`Publication`}
-              </label>
-              <select
-                value={bulkSettings.publication}
-                onChange={(event) =>
-                  setBulkSettings((prev) => ({
-                    ...prev,
-                    publication: event.target.value as BulkSettingsDraft['publication'],
-                  }))
-                }
-                className="w-full rounded-xl border border-border/40 bg-background p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
-              >
-                <option value="keep">{t`Ne pas modifier`}</option>
-                <option value="publish">{t`Publier`}</option>
-                <option value="unpublish">{t`Dépublier (brouillon)`}</option>
-              </select>
-              {bulkSettings.publication !== 'keep' && (
-                <p className="flex items-start gap-1.5 rounded-lg border border-highlight/20 bg-highlight/10 p-2 text-[10px] text-highlight">
-                  <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
-                  {bulkSettings.publication === 'publish'
-                    ? t`Les articles seront immédiatement visibles publiquement.`
-                    : t`Les articles seront immédiatement retirés du site public.`}
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={() => setBulkSettingsOpen(false)}
-              disabled={bulkApplying}
-              className="h-9 rounded-xl px-4 text-xs font-medium text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50"
-            >
-              {t`Annuler`}
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleBulkApply()}
-              disabled={bulkApplying}
-              className="inline-flex h-9 items-center gap-2 rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
-            >
-              {bulkApplying && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              {t`Appliquer`}
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Confirmation générique (pin, suppression, revue, dépublier) */}
-      <Dialog
-        open={Boolean(confirmAction)}
-        onOpenChange={(open) => {
-          if (!open && !confirmPending) setConfirmAction(null);
-        }}
-      >
-        <DialogContent className="max-w-md p-6">
-          <DialogHeader className="space-y-1.5">
-            <div
-              className={cn(
-                'flex h-11 w-11 items-center justify-center rounded-full border',
-                confirmAction?.destructive
-                  ? 'border-destructive/30 bg-destructive/10 text-destructive'
-                  : 'border-primary/20 bg-primary/10 text-primary'
-              )}
-            >
-              <AlertTriangle className="h-5 w-5" />
-            </div>
-            <DialogTitle className="pt-1 text-base font-bold">{confirmAction?.title}</DialogTitle>
-            <DialogDescription className="text-xs leading-relaxed text-muted-foreground">
-              {confirmAction?.description}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex items-center justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={() => setConfirmAction(null)}
-              disabled={confirmPending}
-              className="rounded-xl px-4 py-2 text-xs font-medium text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50"
-            >
-              {t`Annuler`}
-            </button>
-            <button
-              type="button"
-              onClick={() => void executeConfirm()}
-              disabled={confirmPending}
-              className={cn(
-                'inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold text-white transition-colors disabled:opacity-50',
-                confirmAction?.destructive
-                  ? 'bg-destructive hover:bg-destructive/90'
-                  : 'bg-primary hover:bg-primary/90'
-              )}
-            >
-              {confirmPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              {confirmAction?.confirmLabel}
-            </button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <ConfirmActionDialog action={confirmAction} onClose={() => setConfirmAction(null)} />
 
       {/* Article Inspector Drawer Modal — période synchronisée avec la liste, toutes les données envoyées */}
       {inspectingArticle && (
