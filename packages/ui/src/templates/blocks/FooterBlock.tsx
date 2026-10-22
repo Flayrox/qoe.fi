@@ -163,6 +163,13 @@ export function FooterBlock({
                         Équipe
                       </Link>
                       <Link
+                        href="/sitemap"
+                        onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                        className="hover:text-foreground transition-colors"
+                      >
+                        Plan du site
+                      </Link>
+                      <Link
                         href="/rss.xml"
                         onClick={(e) => context.mode === 'editable' && e.preventDefault()}
                         className="hover:text-foreground transition-colors"

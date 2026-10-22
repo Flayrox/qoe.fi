@@ -10,6 +10,7 @@ package publications
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -110,6 +111,19 @@ type PublicationDetail struct {
 	Categories             []CategoryItem   `json:"categories"`
 	Articles               []ArticleSummary `json:"articles,omitempty"`
 	User                   *PublicationUser `json:"user,omitempty"`
+	SiteOptions            any              `json:"siteOptions,omitempty"`
+	Team                   []TeamMemberItem `json:"team,omitempty"`
+}
+
+// TeamMemberItem est un contributeur / auteur de la publication.
+type TeamMemberItem struct {
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	Username    *string `json:"username"`
+	LogoURL     *string `json:"logoUrl"`
+	Bio         *string `json:"bio,omitempty"`
+	Role        string  `json:"role"`
+	IsCertified bool    `json:"isCertified"`
 }
 
 // RecommendationItem est une publication recommandée par un créateur.
@@ -212,6 +226,9 @@ func (s *Service) ByDomain(ctx context.Context, domain string) (*PublicationDeta
 		return nil, err
 	}
 	pub.Articles = articles
+	if team, err := s.teamMembers(ctx, pub); err == nil {
+		pub.Team = team
+	}
 	return pub, nil
 }
 
@@ -359,6 +376,7 @@ func (s *Service) publicationByDomain(ctx context.Context, domain string) (*Publ
 	var p PublicationDetail
 	var userID, username *string
 	var createdAt, updatedAt time.Time
+	var siteOptionsBytes []byte
 	err := s.pool.QueryRow(ctx, `
 		SELECT p.id, p.type, p.name, p.slug, p.bio, p."logoUrl", p."isCertified",
 		       p.subdomain, p."customDomain", p."umamiWebsiteId", p."accentColor",
@@ -366,6 +384,7 @@ func (s *Service) publicationByDomain(ctx context.Context, domain string) (*Publ
 		       p."themeMode", p."layoutStyle", p."allowIndexing",
 		       p."allowPublicAnnotations", p."allowComments", p."seoTitle",
 		       p."seoDescription", p."supportUrl", p."stripeAccountId",
+		       p."siteOptions",
 		       p."createdAt", p."updatedAt", u.id, u.username
 		FROM "Publication" p
 		LEFT JOIN "User" u ON u."publicationId" = p.id
@@ -377,12 +396,19 @@ func (s *Service) publicationByDomain(ctx context.Context, domain string) (*Publ
 		&p.ThemeMode, &p.LayoutStyle, &p.AllowIndexing,
 		&p.AllowPublicAnnotations, &p.AllowComments, &p.SeoTitle,
 		&p.SeoDescription, &p.SupportURL, &p.StripeAccountID,
+		&siteOptionsBytes,
 		&createdAt, &updatedAt, &userID, &username)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, errNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("publication by domain: %w", err)
+	}
+	if len(siteOptionsBytes) > 0 {
+		var so any
+		if jsonErr := json.Unmarshal(siteOptionsBytes, &so); jsonErr == nil {
+			p.SiteOptions = so
+		}
 	}
 	if userID != nil {
 		p.User = &PublicationUser{ID: *userID, Username: username}
@@ -665,3 +691,141 @@ func (s *Service) Recommendations(ctx context.Context, domain string) ([]Recomme
 	}
 	return out, rows.Err()
 }
+
+func (s *Service) teamMembers(ctx context.Context, pub *PublicationDetail) ([]TeamMemberItem, error) {
+	membersMap := make(map[string]TeamMemberItem)
+
+	// 1. Owner / Créateur principal
+	if pub.User != nil && pub.User.ID != "" {
+		var uName, uUsername, uLogo *string
+		var isCert bool
+		err := s.pool.QueryRow(ctx, `
+			SELECT name, username, "logoUrl", "isCertified"
+			FROM "User" WHERE id = $1`, pub.User.ID).Scan(&uName, &uUsername, &uLogo, &isCert)
+		if err == nil {
+			displayName := pub.Name
+			if uName != nil && *uName != "" {
+				displayName = *uName
+			}
+			role := "Fondateur & Auteur"
+			if pub.Type == "MEDIA" {
+				role = "Direction de la publication"
+			}
+			membersMap[pub.User.ID] = TeamMemberItem{
+				ID:          pub.User.ID,
+				Name:        displayName,
+				Username:    uUsername,
+				LogoURL:     uLogo,
+				Bio:         pub.Bio,
+				Role:        role,
+				IsCertified: isCert || pub.IsCertified,
+			}
+		}
+	}
+
+	// 2. Si Média, membres d'équipe actifs
+	if pub.Type == "MEDIA" {
+		rows, err := s.pool.Query(ctx, `
+			SELECT u.id, u.name, u.username, u."logoUrl", u."isCertified", mm.role
+			FROM "Media" m
+			JOIN "MediaMember" mm ON mm."mediaId" = m.id AND mm.status = 'active'
+			JOIN "User" u ON u.id = mm."userId"
+			WHERE m."publicationId" = $1
+			ORDER BY mm."joinedAt" ASC`, pub.ID)
+		if err == nil {
+			for rows.Next() {
+				var uid string
+				var name, username, logo *string
+				var isCert bool
+				var role string
+				if scanErr := rows.Scan(&uid, &name, &username, &logo, &isCert, &role); scanErr == nil {
+					displayName := uid
+					if name != nil && *name != "" {
+						displayName = *name
+					} else if username != nil && *username != "" {
+						displayName = *username
+					}
+					cleanRole := "Rédacteur régulier"
+					switch role {
+					case "owner", "admin":
+						cleanRole = "Rédacteur en chef"
+					case "writer", "editor":
+						cleanRole = "Rédacteur régulier"
+					case "contributor":
+						cleanRole = "Contributeur"
+					}
+					membersMap[uid] = TeamMemberItem{
+						ID:          uid,
+						Name:        displayName,
+						Username:    username,
+						LogoURL:     logo,
+						Role:        cleanRole,
+						IsCertified: isCert,
+					}
+				}
+			}
+			rows.Close()
+		}
+	}
+
+	// 3. Auteurs des articles publiés
+	rows, err := s.pool.Query(ctx, `
+		SELECT DISTINCT u.id, u.name, u.username, u."logoUrl", u."isCertified"
+		FROM "Article" a
+		JOIN "User" u ON u.id = a."authorId"
+		WHERE a."publicationId" = $1 AND a.published = true
+		LIMIT 15`, pub.ID)
+	if err == nil {
+		for rows.Next() {
+			var uid string
+			var name, username, logo *string
+			var isCert bool
+			if scanErr := rows.Scan(&uid, &name, &username, &logo, &isCert); scanErr == nil {
+				if _, exists := membersMap[uid]; !exists {
+					displayName := uid
+					if name != nil && *name != "" {
+						displayName = *name
+					} else if username != nil && *username != "" {
+						displayName = *username
+					}
+					membersMap[uid] = TeamMemberItem{
+						ID:          uid,
+						Name:        displayName,
+						Username:    username,
+						LogoURL:     logo,
+						Role:        "Auteur",
+						IsCertified: isCert,
+					}
+				}
+			}
+		}
+		rows.Close()
+	}
+
+	if len(membersMap) == 0 {
+		return []TeamMemberItem{
+			{
+				ID:          pub.ID,
+				Name:        pub.Name,
+				Username:    pub.User.Username,
+				LogoURL:     pub.LogoURL,
+				Bio:         pub.Bio,
+				Role:        "Auteur",
+				IsCertified: pub.IsCertified,
+			},
+		}, nil
+	}
+
+	out := make([]TeamMemberItem, 0, len(membersMap))
+	if pub.User != nil && pub.User.ID != "" {
+		if owner, ok := membersMap[pub.User.ID]; ok {
+			out = append(out, owner)
+			delete(membersMap, pub.User.ID)
+		}
+	}
+	for _, m := range membersMap {
+		out = append(out, m)
+	}
+	return out, nil
+}
+

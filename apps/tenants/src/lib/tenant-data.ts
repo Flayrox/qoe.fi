@@ -65,6 +65,16 @@ export interface TenantArticleSummary {
   isReposted?: boolean;
 }
 
+export interface TenantTeamMember {
+  id: string;
+  name: string;
+  username?: string | null;
+  logoUrl?: string | null;
+  bio?: string | null;
+  role: string;
+  isCertified: boolean;
+}
+
 export interface TenantPublication {
   id: string;
   type: string;
@@ -94,6 +104,7 @@ export interface TenantPublication {
   socialLinks: TenantSocialLink[];
   categories: TenantCategory[];
   articles?: TenantArticleSummary[];
+  team?: TenantTeamMember[];
   siteOptions?: Record<string, unknown> | null;
   site_options?: Record<string, unknown> | null;
   user: { id: string; username: string | null } | null;

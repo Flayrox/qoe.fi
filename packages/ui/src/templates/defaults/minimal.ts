@@ -8,6 +8,7 @@ import type {
   ArticleStreamBlockProps,
   FooterBlockProps,
   ArticleContentBlockProps,
+  NewsletterWallBlockProps,
 } from '../schema';
 
 /**
