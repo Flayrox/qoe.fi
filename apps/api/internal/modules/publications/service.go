@@ -75,11 +75,17 @@ type ArticleSummary struct {
 	CreatedAt   string        `json:"createdAt"`
 	CategoryID  *string       `json:"categoryId"`
 	Category    *CategoryItem `json:"category,omitempty"`
+	// Compteurs d'engagement réels (alimentent le tri par popularité côté home).
+	LikesCount    int `json:"likesCount"`
+	CommentsCount int `json:"commentsCount"`
+	RepostsCount  int `json:"repostsCount"`
 }
 
 type PublicationUser struct {
 	ID       string  `json:"id"`
 	Username *string `json:"username"`
+	Name     *string `json:"name,omitempty"`
+	LogoURL  *string `json:"logoUrl,omitempty"`
 }
 
 // PublicationDetail est la publication dénormalisée (header + home).
@@ -376,7 +382,7 @@ func (s *Service) publicationByDomain(ctx context.Context, domain string) (*Publ
 	}
 
 	var p PublicationDetail
-	var userID, username *string
+	var userID, username, userName, userLogo *string
 	var createdAt, updatedAt time.Time
 	var siteOptionsBytes []byte
 	err := s.pool.QueryRow(ctx, `
@@ -387,7 +393,7 @@ func (s *Service) publicationByDomain(ctx context.Context, domain string) (*Publ
 		       p."allowPublicAnnotations", p."allowComments", p."seoTitle",
 		       p."seoDescription", p."supportUrl", p."stripeAccountId",
 		       p."siteOptions",
-		       p."createdAt", p."updatedAt", u.id, u.username
+		       p."createdAt", p."updatedAt", u.id, u.username, u.name, u."logoUrl"
 		FROM "Publication" p
 		LEFT JOIN "User" u ON u."publicationId" = p.id
 		WHERE lower(p.subdomain) = lower($1) OR lower(p.subdomain) = lower($2) OR lower(p."customDomain") = lower($1) OR lower(p.slug) = lower($1)
@@ -399,7 +405,7 @@ func (s *Service) publicationByDomain(ctx context.Context, domain string) (*Publ
 		&p.AllowPublicAnnotations, &p.AllowComments, &p.SeoTitle,
 		&p.SeoDescription, &p.SupportURL, &p.StripeAccountID,
 		&siteOptionsBytes,
-		&createdAt, &updatedAt, &userID, &username)
+		&createdAt, &updatedAt, &userID, &username, &userName, &userLogo)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, errNotFound
 	}
@@ -413,7 +419,7 @@ func (s *Service) publicationByDomain(ctx context.Context, domain string) (*Publ
 		}
 	}
 	if userID != nil {
-		p.User = &PublicationUser{ID: *userID, Username: username}
+		p.User = &PublicationUser{ID: *userID, Username: username, Name: userName, LogoURL: userLogo}
 	}
 	return &p, nil
 }
@@ -481,7 +487,10 @@ func (s *Service) publishedArticles(ctx context.Context, pubID string) ([]Articl
 	rows, err := s.pool.Query(ctx, `
 		SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium",
 		       a.visibility, a."readingTime", a."createdAt", a."categoryId",
-		       c.id, c.name, c.slug, a."imageUrl"
+		       c.id, c.name, c.slug, a."imageUrl",
+		       (SELECT count(*) FROM "ContentFeedback" f WHERE f."articleId" = a.id AND f."type" = 'LIKE') AS likes,
+		       (SELECT count(*) FROM "ArticleComment" ac WHERE ac."articleId" = a.id) AS comments,
+		       (SELECT count(*) FROM "Post" p WHERE p."quotedArticleId" = a.id) AS reposts
 		FROM "Article" a
 		LEFT JOIN "Category" c ON c.id = a."categoryId"
 		WHERE a."publicationId" = $1 AND a.published = true
@@ -496,7 +505,8 @@ func (s *Service) publishedArticles(ctx context.Context, pubID string) ([]Articl
 		var createdAt time.Time
 		var catID, catName, catSlug *string
 		if err := rows.Scan(&a.ID, &a.Title, &a.Slug, &a.Content, &a.Published, &a.IsPremium,
-			&a.Visibility, &a.ReadingTime, &createdAt, &a.CategoryID, &catID, &catName, &catSlug, &a.ImageURL); err != nil {
+			&a.Visibility, &a.ReadingTime, &createdAt, &a.CategoryID, &catID, &catName, &catSlug, &a.ImageURL,
+			&a.LikesCount, &a.CommentsCount, &a.RepostsCount); err != nil {
 			return nil, err
 		}
 		// 🔒 Zéro-fuite : la liste d'articles publiés alimente les cartes de la

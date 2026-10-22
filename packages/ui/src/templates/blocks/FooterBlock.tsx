@@ -10,6 +10,8 @@
 import React from 'react';
 import Link from 'next/link';
 import type { SocialLink } from '@qoe/sdk/types';
+import { getMainAppUrl } from '@qoe/config';
+import { COOKIE_POLICY_SLUG } from '@qoe/utils/cookie-consent';
 import { SocialIcon } from '../../SocialIcon';
 import type {
   FooterBlockProps,
@@ -53,6 +55,9 @@ export function FooterBlock({
   const { name, domain, socialLinks = [], footerText } = publication;
   const displayName = name || domain || 'Mon Site Web';
   const year = new Date().getFullYear();
+  // Les documents légaux sont ceux de la plateforme : ils vivent sur qoe.fi,
+  // jamais sur le sous-domaine de la publication.
+  const platformUrl = publication.mainAppUrl || getMainAppUrl(domain ?? '');
 
   return (
     <BlockWrapper
@@ -134,29 +139,42 @@ export function FooterBlock({
                     />
                   ) : (
                     <>
-                      <Link
-                        href="/legal"
+                      <a
+                        href={`${platformUrl}/legal/mentions-legales`}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         onClick={(e) => context.mode === 'editable' && e.preventDefault()}
                         className="hover:text-foreground transition-colors"
                       >
                         Mentions légales
-                      </Link>
-                      <Link
-                        href="/legal"
+                      </a>
+                      <a
+                        href={`${platformUrl}/legal/politique-confidentialite`}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         onClick={(e) => context.mode === 'editable' && e.preventDefault()}
                         className="hover:text-foreground transition-colors"
                       >
                         Confidentialité
-                      </Link>
+                      </a>
+                      <a
+                        href={`${platformUrl}/legal/${COOKIE_POLICY_SLUG}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                        className="hover:text-foreground transition-colors"
+                      >
+                        Cookies
+                      </a>
                       <Link
-                        href="/a-propos"
+                        href="/about"
                         onClick={(e) => context.mode === 'editable' && e.preventDefault()}
                         className="hover:text-foreground transition-colors"
                       >
                         À propos
                       </Link>
                       <Link
-                        href="/equipe"
+                        href="/team"
                         onClick={(e) => context.mode === 'editable' && e.preventDefault()}
                         className="hover:text-foreground transition-colors"
                       >

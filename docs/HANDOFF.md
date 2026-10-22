@@ -11,7 +11,7 @@
 - ✅ Monorepo Turborepo + pnpm : ~21 packages + 8 apps
 - ✅ **Backend unique Go** (`apps/api`, module `github.com/qoefi/api`) — Hono legacy supprimé
 - ✅ **Queue unique asynq** (`apps/api/cmd/worker`) — BullMQ supprimé
-- ✅ Prisma centralisé dans `packages/db/prisma/` (source unique)
+- ✅ **Schéma SQL unique** : `apps/api/sql/schema/` + migrations goose (`apps/api/sql/migrations/`) + sqlc — Prisma et `packages/db` supprimés
 - ✅ Supabase **auto-hébergé** sur le VPS (pgvector, RLS) — `auth.qoe.fi` / `base.admin.qoe.fi`
 - ✅ CI : typecheck 21/21, tests Go 13/13, coverage gates 6/6 au vert
 - ✅ Noms alignés : **service = sous-domaine** quand il existe (`hi`, `studio`, `admin`, `api`) ; `core`/`tenants` servent `qoe.fi` et le wildcard

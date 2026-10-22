@@ -1,7 +1,8 @@
 # 🐳 Guide Docker — qoe.fi monorepo (état post-refacto)
 
-> **13 services, 2 réseaux isolés, 1 source de vérité pour Prisma.**
-> Ce guide reflète l'état après le refacto qui a dédupliqué `packages/db/prisma/`.
+> **13 services, 2 réseaux isolés, 1 source de vérité SQL (`apps/api/sql/`).**
+> Ce guide reflète l'état après la migration vers le backend Go : il n'y a plus
+> de Prisma ni de `packages/db/prisma/`.
 
 ---
 
@@ -148,7 +149,6 @@ pnpm docker:dev:admin       # Logs admin
 pnpm docker:dev:shell       # Shell dans le container console
 pnpm docker:dev:db          # psql dans db
 pnpm docker:dev:redis       # redis-cli
-pnpm docker:dev:prisma      # Prisma Studio (http://localhost:5555)
 ```
 
 ### Build manuel
@@ -446,15 +446,10 @@ docker stats
 - **Alternative open-source** à Pinecone/Weaviate
 - **Une seule DB** à gérer au lieu de 2
 
-### Source unique Prisma : pourquoi `packages/db/prisma/` ?
+### Source unique du schéma : `apps/api/sql/`
 
-- **Co-localisation** : le schema est avec le client qui l'utilise
-- **Pas de duplication** : pas de `prisma/` racine à synchroniser
-- **Build pipeline** : `prebuild` lance `prisma generate` automatiquement
-- **CI/CD friendly** : un seul path à docker-copier
-
-### Pourquoi ne pas avoir mis `prisma generate` dans `postinstall` ?
-
-- **Performance** : `postinstall` ralentit `pnpm install`
-- **Cache** : Turbo cache le `prisma generate` séparément
-- **Debug** : on voit clairement quand le client est regenéré
+- **DDL** : `apps/api/sql/schema/*.sql`
+- **Migrations** : `apps/api/sql/migrations/*.sql` (goose, `pnpm db:migrate`)
+- **Requêtes** : `apps/api/sql/queries/*.sql` → sqlc (`apps/api/internal/database/`)
+- **Build pipeline** : le stage `migrate` applique goose au démarrage ; aucun
+  client ORM n'est généré côté Node.

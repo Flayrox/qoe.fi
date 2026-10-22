@@ -4,7 +4,12 @@
 > du monorepo et sert de base au développement de l'**application mobile**
 > (`apps/mobile`).
 >
-> Dernière mise à jour : août 2026 (noms v3 : core/hi/studio/tenants/api).
+> Dernière mise à jour : octobre 2026 (noms v3 : core/hi/studio/tenants/api).
+>
+> ⚠️ **Plus de Prisma** : le schéma vit dans `apps/api/sql/schema/`, les migrations dans
+> `apps/api/sql/migrations/` (goose) et les requêtes typées dans
+> `apps/api/internal/database/` (sqlc). Les packages `@qoe/db`, `@qoe/billing` et
+> `@qoe/email` n'existent plus.
 >
 > 📌 **Compléments pour le mobile** :
 > - [`docs/MOBILE_SPEC.md`](./MOBILE_SPEC.md) — spec pixel-perfect de l'app
@@ -45,10 +50,7 @@ qoe.fi/
 ├── packages/         # Bibliothèques partagées (source de vérité)
 │   ├── sdk/              # Couche data : client HTTP universel + server actions + hooks React Query
 │   ├── auth/         # RBAC (permissions.ts, can(user, action)), mailer sécurité
-│   ├── billing/      # Stripe + paywall (truncation AST côté serveur)
 │   ├── config/       # ENV Zod, constantes, routes, tenant, features
-│   ├── db/           # Prisma (schema unique) + repositories typés
-│   ├── email/        # Outbox email + providers (Resend/Postmark/SES/SMTP) — dossier packages/workers
 │   ├── flags/        # Feature flags (registre typé)
 │   ├── i18n/         # Lingui (core + catalogs RN-safe)
 │   ├── observability/# Logger + cache Redis (withCache)
@@ -79,10 +81,10 @@ Navigateur (web) / Mobile
         ┌──────┴───────┐
         │ OUI          │ NON
         ▼              ▼
-┌───────────────┐  ┌──────────────────┐
-│ apps/api   │  │ @qoe/db (Prisma) │
-│ (Go, chi/v5)  │  │ repositories     │
-└──────┬────────┘  └──────────────────┘
+┌───────────────┐  ┌──────────────────────────┐
+│ apps/api      │  │ QOE_API_URL manquant     │
+│ (Go, chi/v5)  │  │ → erreur explicite       │
+└──────┬────────┘  └──────────────────────────┘
        │
        ▼
   PostgreSQL (+ Redis cache, + Meilisearch, + asynq workers)
@@ -91,8 +93,9 @@ Navigateur (web) / Mobile
 - **`safeAction(fn, {requireAuth})`** (`packages/sdk/src/actions/utils/safe-action.ts`)
   enveloppe chaque action : résout l'utilisateur Supabase (cookies SSR) puis
   retourne `ActionResult<T>` (`{ok, data}` / `{ok:false, error, code}`).
-- **`goFetch(path, {method, body})`** (`.../utils/go-client.ts`) remplace
-  l'implémentation Prisma par un appel HTTP au backend Go, **même contrat TS**.
+- **`goFetch(path, {method, body})`** (`.../utils/go-client.ts`) est le seul
+  chemin d'accès aux données : appel HTTP vers le backend Go, **même contrat TS**.
+  Il n'y a plus de fallback ORM.
 - **Le mobile n'utilise PAS les server actions** : il appelle l'API Go en
   direct via `QoeApiClient` (`packages/sdk/src/client.ts`), avec le
   JWT Supabase en header `Authorization: Bearer`.
@@ -259,16 +262,15 @@ apps/mobile/src/
 
 ## 5. Packages partagés — rôles & relations
 
-### `@qoe/db` — Source de vérité des données
-- **`prisma/schema.prisma`** : schéma unique (modèles User, Publication,
-  Article, Thought, Like, Follow, Subscriber, Notification, Highlight,
+### Données — Go uniquement (plus de `@qoe/db`)
+- **`apps/api/sql/schema/*.sql`** : DDL de référence (User, Publication,
+  Article, Post/Thought, Like, Follow, Subscriber, Notification, Highlight,
   Poll, MediaMember, Wallet…).
-- `src/repositories/*` : accès typé (posts, articles, follows, bookmarks,
-  notifications, highlights, polls, threadgates, wallet…).
-- `src/client.ts` : singleton Prisma. `src/index.ts` : re-exports.
-- **Relation** : consommé par les server actions (`@qoe/sdk/actions/*`)
-  et les workers TS. Le backend Go a son **propre** mapping SQL (sqlc,
-  `apps/api/sql/`) — attention à la double source pour les requêtes Go.
+- **`apps/api/sql/migrations/*.sql`** : migrations goose (`pnpm db:migrate`).
+- **`apps/api/sql/queries/*.sql`** → `apps/api/internal/database/*.sql.go` :
+  requêtes typées sqlc, consommées par les services Go.
+- **Relation** : les server actions (`@qoe/sdk/actions/*`) proxient vers Go via
+  `goFetch`. Aucun client ORM côté TypeScript.
 
 ### `@qoe/sdk` — La couche data (web + mobile)
 - **`client.ts`** : `QoeApiClient` universel (fetch + Bearer token) — le
@@ -321,7 +323,8 @@ apps/mobile/src/
 
 ### `@qoe/observability`
 - Logger + `withCache` / `cacheInvalidateNamespace` (Redis).
-- Consommé par `@qoe/db` (repositories) et le feed.
+- Consommé par les server actions et les routes Next ; le backend Go a son
+  propre cache/rate-limit Redis (`apps/api/internal/middleware`).
 
 ### `@qoe/utils`
 - `cn`, `slugify`, `shortId`, formatage, `ActionResult<T>` +
@@ -356,19 +359,28 @@ tout passe par `packages/*`. (`transpilePackages: ["@qoe/*"]` dans chaque
 
 ## 8. Règles architecturales (à respecter)
 
-1. **SSOT** : le modèle de données n'existe que dans `packages/db/prisma/`.
-   Ne pas dupliquer.
+1. **SSOT** : le modèle de données n'existe que dans `apps/api/sql/schema/`
+   (+ migrations goose). Ne pas dupliquer dans un ORM TS.
 2. **Couplage** : les composants passent par `packages/ui` +
    `packages/sdk`. Imports directs entre apps interdits.
 3. **Paywall** : la troncature du contenu premium se fait **côté serveur**
-   (`packages/billing/src/paywall/ast-truncation.ts` côté TS,
+   (`packages/utils/src/paywall.ts` côté TS,
    `apps/api/internal/modules/articles/paywall.go` côté Go). Jamais de
    `display:none`.
 4. **Optimistic UI** : snapshot + rollback obligatoires.
 5. **Mobile** : le mobile consomme l'API Go via `@qoe/sdk/mobile` —
-   ne jamais importer de server action (`'use server'` / Prisma) dans l'app.
-6. **Go** : quand `QOE_API_URL` est défini, les server actions doivent
-   proxiser via `goFetch` (ne pas dupliquer la logique Prisma).
+   ne jamais importer de server action dans l'app.
+6. **Go** : les server actions proxient via `goFetch` (pas de requête DB
+   directe depuis Next, pas de logique métier dupliquée).
+7. **Routes tenant** : slugs génériques en **anglais** (`/about`, `/team`,
+   `/thoughts`, `/author/[username]`) ; les alias FR redirigent en 308.
+   Toute route statique doit être déclarée dans `RESERVED_TENANT_ROUTES`
+   (`packages/config/src/tenant.ts`) **et** dans `reservedTenantRoutes`
+   (`apps/api/internal/shared/identifier/identifier.go`). Le test
+   `apps/tenants/src/lib/__tests__/reserved-routes.test.ts` échoue si une
+   route est ajoutée sans être réservée, ou si les deux listes divergent.
+   L'API refuse (400) tout slug de catégorie réservé ; les slugs historiques
+   déjà en place restent éditables (grandfathering).
 
 ---
 

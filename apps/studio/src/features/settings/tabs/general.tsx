@@ -274,7 +274,7 @@ export function GeneralTab({
                 </h3>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-start">
                 {/* Logo */}
                 <div className="p-3 rounded-lg border border-border/40 bg-muted/10 space-y-2">
                   <div className="flex items-center justify-between">
@@ -306,11 +306,49 @@ export function GeneralTab({
                   </p>
                 </div>
 
+                {/* Wordmark : logo typographique de l'en-tête */}
+                <div className="sm:col-span-2 p-3 rounded-lg border border-border/40 bg-muted/10 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-foreground">Wordmark</label>
+                    {Boolean(current.siteOptions?.wordmarkUrl) && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCurrent((prev) => ({
+                            ...prev,
+                            siteOptions: { ...(prev.siteOptions || {}), wordmarkUrl: null },
+                          }))
+                        }
+                        className="text-[11px] text-destructive hover:underline cursor-pointer"
+                      >
+                        Supprimer
+                      </button>
+                    )}
+                  </div>
+                  <ImageUploader
+                    value={(current.siteOptions?.wordmarkUrl as string | undefined) || null}
+                    onChange={(url) =>
+                      setCurrent((prev) => ({
+                        ...prev,
+                        siteOptions: { ...(prev.siteOptions || {}), wordmarkUrl: url },
+                      }))
+                    }
+                    upload={(file) =>
+                      uploadImageToRoute(file, '/api/articles/upload', IMAGE_FOLDERS.banners)
+                    }
+                    shape="banner"
+                    maxDimension={1600}
+                  />
+                  <p className="text-[10px] text-muted-foreground text-center">
+                    Logo texte PNG/SVG, remplace le nom dans l'en-tête
+                  </p>
+                </div>
+
                 {/* Bannière / Image d'en-tête */}
-                <div className="p-3 rounded-lg border border-border/40 bg-muted/10 space-y-2">
+                <div className="sm:col-span-3 p-3 rounded-lg border border-border/40 bg-muted/10 space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-semibold text-foreground">
-                      Wordmark / Bannière
+                      Bannière d'en-tête
                     </label>
                     {current.headerImageUrl && (
                       <button

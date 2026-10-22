@@ -1,5 +1,7 @@
 import React from 'react';
-import { TenantHeader, SubscribeForm, JsonLd, buildArticleSchema, SafeAvatar } from '@qoe/ui';
+import Link from 'next/link';
+import { headers } from 'next/headers';
+import { SubscribeForm, JsonLd, buildArticleSchema, SafeAvatar } from '@qoe/ui';
 import { type AnnotationItem, type HighlightItem } from '@qoe/ui/annotations';
 import { TenantArticleHighlighter } from './TenantArticleHighlighter';
 import { TenantArticleReadingTracker } from './TenantArticleReadingTracker';
@@ -9,15 +11,11 @@ import { sanitizeHtml } from '@/lib/sanitize';
 import { ReaderActions } from './ReaderActions';
 import { TenantReaderShell } from './TenantReaderShell';
 import { RelatedArticles } from './RelatedArticles';
-import { ReadingProgressBar } from '@/components/ReadingProgressBar';
-import { LegalFooterLinks } from '@/components/legal/LegalFooterLinks';
 import {
   TemplateRenderer,
   parseSiteLayouts,
-  resolveTheme,
   resolveFontFamily,
   MinimalCraftShell,
-  getCoverPlaceholder,
   ArticleEngagementBar,
   type TemplatePublicationContext,
   type TemplateArticleItem,
@@ -66,20 +64,7 @@ export async function TenantArticleRenderer({
   initialComments,
   breadcrumbJsonLd,
 }: TenantArticleRendererProps) {
-  const {
-    name,
-    accentColor,
-    fontFamily,
-    logoUrl,
-    footerText,
-    layoutStyle,
-    themeMode,
-    navigation,
-    socialLinks,
-    stripeAccountId,
-    supportUrl,
-    categories,
-  } = publication;
+  const { name, accentColor, fontFamily, themeMode, navigation, socialLinks } = publication;
 
   const authorName = article.author?.name || article.author?.username || name;
   const showAnnotationsOption =
@@ -93,15 +78,11 @@ export async function TenantArticleRenderer({
     (article.allowPublicAnnotations ?? true) &&
     showAnnotationsOption !== false;
   const allowComments = (publication.allowComments ?? true) && (article.allowComments ?? true);
-  const mainAppUrl = getMainAppUrl(decodedDomain);
-  const isBrutalist = layoutStyle === 'brutalist';
-  const isMediaBrand = publication.type === 'MEDIA';
-
-  // Résolution polymorphe du thème (par défaut 'minimal' en accord avec Postgres et l'accueil)
-  const resolvedLayoutStyle = publication.layoutStyle || 'minimal';
-  const siteLayouts = parseSiteLayouts(resolvedLayoutStyle);
-  const theme = resolveTheme(resolvedLayoutStyle);
-  const isMinimal = theme.id === 'minimal';
+  const headersList = await headers();
+  const host = headersList.get('x-forwarded-host') || headersList.get('host') || decodedDomain;
+  const mainAppUrl = getMainAppUrl(host);
+  // Thème unique : Minimal Craft, quel que soit le layoutStyle historique.
+  const siteLayouts = parseSiteLayouts('minimal');
 
   const articleLayout =
     (article.category?.slug && siteLayouts.articleByCategory[article.category.slug]) ||
@@ -180,6 +161,7 @@ export async function TenantArticleRenderer({
     id: publication.id,
     name: publication.name,
     domain: decodedDomain,
+    mainAppUrl,
     logoUrl: publication.logoUrl,
     heroText: publication.heroText,
     accentColor: publication.accentColor,
@@ -210,6 +192,12 @@ export async function TenantArticleRenderer({
         }
       ).site_options ??
       null,
+    author: {
+      name: publication.user?.name ?? publication.name,
+      username: publication.user?.username ?? publication.subdomain ?? null,
+      avatarUrl: publication.user?.logoUrl ?? null,
+      bio: publication.bio ?? null,
+    },
   };
 
   const templateArticle: TemplateArticleItem = {
@@ -317,7 +305,7 @@ export async function TenantArticleRenderer({
             {article.isPremium && !paywallCutResult.accessGranted && (
               <PaywallOverlay
                 name={authorName}
-                isBrutalist={isBrutalist}
+                isBrutalist={false}
                 accentColor={accentColor}
                 mainAppUrl={mainAppUrl}
                 creatorId={article.authorId}
@@ -338,160 +326,89 @@ export async function TenantArticleRenderer({
           </div>
         ) : (
           <>
-            {isMinimal ? (
-              /* En-tête épuré d'orfèvre Devouring Details / Rauno */
-              <header className="mt-4 sm:mt-8 mb-10 space-y-6 sm:space-y-8">
-                {/* 1. Grand titre h1 */}
-                <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-foreground leading-[1.18]">
-                  {article.title}
-                </h1>
+            {/* En-tête épuré d'orfèvre Devouring Details / Rauno */}
+            <header className="mt-4 sm:mt-8 mb-10 space-y-6 sm:space-y-8">
+              {/* 1. Grand titre h1 */}
+              <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-foreground leading-[1.18]">
+                {article.title}
+              </h1>
 
-                {/* 2. Sous-titre / Chapô descriptif (uniquement si explicitement renseigné) */}
-                {((article as unknown as { subtitle?: string | null }).subtitle ||
-                  (article as unknown as { seoDescription?: string | null }).seoDescription) && (
-                  <p className="text-base sm:text-lg md:text-xl text-muted-foreground leading-relaxed font-normal">
-                    {(article as unknown as { subtitle?: string | null }).subtitle ||
-                      (article as unknown as { seoDescription?: string | null }).seoDescription}
-                  </p>
-                )}
+              {/* 2. Sous-titre / Chapô descriptif (uniquement si explicitement renseigné) */}
+              {((article as unknown as { subtitle?: string | null }).subtitle ||
+                (article as unknown as { seoDescription?: string | null }).seoDescription) && (
+                <p className="text-base sm:text-lg md:text-xl text-muted-foreground leading-relaxed font-normal">
+                  {(article as unknown as { subtitle?: string | null }).subtitle ||
+                    (article as unknown as { seoDescription?: string | null }).seoDescription}
+                </p>
+              )}
 
-                {/* 3. Ligne Byline Auteur(s) détaillée avec stack d'avatars */}
-                <div className="flex items-center gap-3 py-2 select-none">
-                  <div className="flex items-center -space-x-2 shrink-0">
-                    {authorsList.map((auth, idx) => (
-                      <SafeAvatar
-                        key={idx}
-                        src={auth.logoUrl}
-                        name={auth.name}
-                        size={40}
-                        shape="circle"
-                        className="border-2 border-background ring-1 ring-border/40 shrink-0 shadow-2xs"
-                      />
-                    ))}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    {authorsDisplayName && (
-                      <div className="text-xs font-bold uppercase tracking-wider text-foreground leading-tight truncate">
-                        {authorsDisplayName}
-                      </div>
-                    )}
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5 flex-wrap">
-                      <time dateTime={article.createdAt}>
-                        {new Date(article.createdAt).toLocaleDateString('fr-FR', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                        })}
-                      </time>
-                      <span className="text-muted-foreground/40">·</span>
-                      <span className="uppercase font-semibold tracking-wider text-[10px]">
-                        {article.isPremium ? 'PAYANT' : 'GRATUIT'}
-                      </span>
-                      <span className="text-muted-foreground/40">·</span>
-                      <span>{readingTimeMinutes} min</span>
-                    </div>
-                  </div>
+              {/* 3. Ligne Byline Auteur(s) détaillée avec stack d'avatars */}
+              <div className="flex items-center gap-3 py-2 select-none">
+                <div className="flex items-center -space-x-2 shrink-0">
+                  {authorsList.map((auth, idx) => (
+                    <SafeAvatar
+                      key={idx}
+                      src={auth.logoUrl}
+                      name={auth.name}
+                      size={40}
+                      shape="circle"
+                      className="border-2 border-background ring-1 ring-border/40 shrink-0 shadow-2xs"
+                    />
+                  ))}
                 </div>
-
-                {/* 4. Barre d'engagement (Likes, Commentaires, Repost, Partager) */}
-                <div className="py-2 my-6">
-                  <ArticleEngagementBar
-                    articleId={article.id}
-                    articleSlug={article.slug}
-                    articleTitle={article.title}
-                    initialLikes={article.likesCount ?? 0}
-                    initialComments={initialComments.length || (article.commentsCount ?? 0)}
-                    initialReposts={article.repostsCount ?? 0}
-                    initialIsLiked={article.isLiked ?? false}
-                    initialIsReposted={article.isReposted ?? false}
-                    size="md"
-                    showShareText={true}
-                  />
-                </div>
-
-                {/* 5. Couverture article : image réelle ou composition vectorielle déterministe */}
-                {(() => {
-                  const coverSrc =
-                    article.imageUrl || getCoverPlaceholder(article.slug || article.id);
-                  return (
-                    <div className="mt-8 mb-10 -mx-4 sm:-mx-8 md:-mx-12">
-                      <div className="relative aspect-[16/9] sm:aspect-[2/1] rounded-2xl overflow-hidden border border-border/40 bg-muted/30 shadow-2xs">
-                        <img
-                          src={coverSrc}
-                          alt={article.title}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
+                <div className="min-w-0 flex-1">
+                  {authorsDisplayName && (
+                    <div className="text-xs font-bold uppercase tracking-wider text-foreground leading-tight truncate">
+                      {authorsDisplayName}
                     </div>
-                  );
-                })()}
-              </header>
-            ) : (
-              /* En-tête standard Magazine */
-              <>
-                <header className="mb-10 space-y-4">
-                  <div className="flex items-center gap-3">
-                    {article.category && (
-                      <span
-                        className={`px-3 py-1 text-xs font-semibold rounded-full ${isBrutalist ? 'border-2 border-foreground uppercase' : 'bg-[var(--tenant-accent)]/10 text-[var(--tenant-accent)]'}`}
-                      >
-                        {article.category.name}
-                      </span>
-                    )}
-                    <span className="text-xs text-muted-foreground font-medium">
-                      {t`${readingTimeMinutes} min de lecture`}
+                  )}
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5 flex-wrap">
+                    <time dateTime={article.createdAt}>
+                      {new Date(article.createdAt).toLocaleDateString('fr-FR', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
+                    </time>
+                    <span className="text-muted-foreground/40">·</span>
+                    <span className="uppercase font-semibold tracking-wider text-[10px]">
+                      {article.isPremium ? 'PAYANT' : 'GRATUIT'}
                     </span>
+                    <span className="text-muted-foreground/40">·</span>
+                    <span>{readingTimeMinutes} min</span>
                   </div>
+                </div>
+              </div>
 
-                  <h1
-                    className={`text-4xl md:text-5xl lg:text-6xl tracking-tight leading-[1.15] ${isBrutalist ? 'font-black uppercase' : 'font-bold text-foreground'}`}
-                  >
-                    {article.title}
-                  </h1>
+              {/* 4. Barre d'engagement (Likes, Commentaires, Repost, Partager) */}
+              <div className="py-2 my-6">
+                <ArticleEngagementBar
+                  articleId={article.id}
+                  articleSlug={article.slug}
+                  articleTitle={article.title}
+                  initialLikes={article.likesCount ?? 0}
+                  initialComments={initialComments.length || (article.commentsCount ?? 0)}
+                  initialReposts={article.repostsCount ?? 0}
+                  initialIsLiked={article.isLiked ?? false}
+                  initialIsReposted={article.isReposted ?? false}
+                  size="md"
+                  showShareText={true}
+                />
+              </div>
 
-                  <div className="flex items-center gap-3 pt-4 border-b border-border/40 pb-6 text-sm text-muted-foreground">
-                    <div className="flex items-center -space-x-2 shrink-0">
-                      {authorsList.map((auth, idx) => (
-                        <SafeAvatar
-                          key={idx}
-                          src={auth.logoUrl}
-                          name={auth.name}
-                          size={40}
-                          shape={isMediaBrand ? 'squircle' : 'circle'}
-                          className="border-2 border-background ring-1 ring-border/40 shrink-0 shadow-2xs"
-                        />
-                      ))}
-                    </div>
-                    <div>
-                      <span className="font-semibold text-foreground">{authorsDisplayName}</span>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                        <time dateTime={article.createdAt}>
-                          {new Date(article.createdAt).toLocaleDateString('fr-FR', {
-                            day: 'numeric',
-                            month: 'long',
-                            year: 'numeric',
-                          })}
-                        </time>
-                      </div>
-                    </div>
+              {/* 5. Couverture article : image réelle ou composition vectorielle déterministe */}
+              {article.imageUrl && (
+                <div className="mt-8 mb-10 -mx-4 sm:-mx-8 md:-mx-12">
+                  <div className="relative aspect-[16/9] sm:aspect-[2/1] rounded-2xl overflow-hidden border border-border/40 bg-muted/30 shadow-2xs">
+                    <img
+                      src={article.imageUrl}
+                      alt={article.title}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
-                </header>
-
-                {(() => {
-                  const coverSrc =
-                    article.imageUrl || getCoverPlaceholder(article.slug || article.id);
-                  return (
-                    <figure className="relative w-full overflow-hidden rounded-2xl border border-border/30">
-                      <img
-                        src={coverSrc}
-                        alt={article.title}
-                        className="h-auto w-full object-cover"
-                      />
-                    </figure>
-                  );
-                })()}
-              </>
-            )}
+                </div>
+              )}
+            </header>
 
             {/* Surligneur Genius et moteur de sélections (rendu avec le corps d'article ou barre d'annotations en haut) */}
             <TenantArticleHighlighter
@@ -520,7 +437,7 @@ export async function TenantArticleRenderer({
                 {article.isPremium && !paywallCutResult.accessGranted && (
                   <PaywallOverlay
                     name={authorName}
-                    isBrutalist={isBrutalist}
+                    isBrutalist={false}
                     accentColor={accentColor}
                     mainAppUrl={mainAppUrl}
                     creatorId={article.authorId}
@@ -557,36 +474,79 @@ export async function TenantArticleRenderer({
           currentUserId={user?.id || null}
           allowComments={allowComments}
           mainAppUrl={mainAppUrl}
-          isBrutalist={isBrutalist}
+          isBrutalist={false}
         />
 
         {/* Section abonnement */}
         <section
           id="subscribe"
-          className="mt-20 pt-12 border-t border-border/40"
+          className="mt-16 pt-10 border-t border-border/60"
           style={{ fontFamily: resolveFontFamily(effectiveFontFamily) }}
         >
-          <div
-            className={`p-8 md:p-12 text-center rounded-3xl ${isBrutalist ? 'border-4 border-foreground shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] bg-card' : 'bg-card border border-border/40 shadow-sm'}`}
-          >
-            <h3
-              className={`text-2xl md:text-3xl mb-3 ${isBrutalist ? 'font-black uppercase' : 'font-bold'}`}
-            >
+          <div className="max-w-xl">
+            <h3 className="text-2xl font-semibold tracking-tight">
               {t`Restez informé des prochaines publications`}
             </h3>
-            <p className="text-muted-foreground text-sm md:text-base max-w-md mx-auto mb-8">
+            <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
               {t`Abonnez-vous gratuitement à la newsletter de `}
-              <strong className="text-foreground">{name}</strong>{' '}
-              {t`pour recevoir les prochains écrits directement dans votre boîte mail.`}
+              <strong className="text-foreground font-medium">{name}</strong>{' '}
+              {t`pour recevoir les prochains écrits dans votre boîte mail.`}
             </p>
-            <SubscribeForm
-              publicationId={publication.id}
-              isBrutalist={isBrutalist}
-              userEmail={user?.email || null}
-              authorName={name}
-            />
+            <div className="mt-5">
+              <SubscribeForm
+                publicationId={publication.id}
+                isBrutalist={false}
+                userEmail={user?.email || null}
+                authorName={name}
+              />
+            </div>
           </div>
         </section>
+
+        {/* Pied de page sobre : pages de la publication + documents de la plateforme */}
+        <footer className="mt-12 border-t border-border/60 pt-6 pb-2 text-[11px] text-muted-foreground">
+          <nav aria-label="Liens de la publication" className="flex flex-wrap gap-x-5 gap-y-2">
+            <Link href="/about" className="hover:text-foreground transition-colors">
+              {t`À propos`}
+            </Link>
+            <Link href="/team" className="hover:text-foreground transition-colors">
+              {t`Équipe`}
+            </Link>
+            <Link href="/sitemap" className="hover:text-foreground transition-colors">
+              {t`Plan du site`}
+            </Link>
+            <a href="/rss.xml" className="hover:text-foreground transition-colors">
+              RSS
+            </a>
+            <a
+              href={`${mainAppUrl}/legal/mentions-legales`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-foreground transition-colors"
+            >
+              {t`Mentions légales`}
+            </a>
+            <a
+              href={`${mainAppUrl}/legal/politique-confidentialite`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-foreground transition-colors"
+            >
+              {t`Confidentialité`}
+            </a>
+            <a
+              href={`${mainAppUrl}/legal/politique-cookies`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-foreground transition-colors"
+            >
+              {t`Cookies`}
+            </a>
+          </nav>
+          <p className="mt-4">
+            © {new Date().getFullYear()} {name}. {t`Propulsé par qoefi`}
+          </p>
+        </footer>
       </div>
     </>
   );
@@ -595,7 +555,7 @@ export async function TenantArticleRenderer({
     <TenantReaderShell
       style={customStyle}
       themeMode={themeMode}
-      showProgressBar={!isMinimal}
+      showProgressBar={false}
       disableFontOverride={true}
       articleMetadata={{
         title: article.title,
@@ -606,46 +566,14 @@ export async function TenantArticleRenderer({
     >
       <JsonLd data={breadcrumbJsonLd ? [jsonLdData, breadcrumbJsonLd] : jsonLdData} />
 
-      {isMinimal ? (
-        <MinimalCraftShell
-          publication={templatePublication}
-          article={templateArticle}
-          articles={drawerArticles}
-          style={customStyle}
-        >
-          {articleBodyContent}
-        </MinimalCraftShell>
-      ) : (
-        <>
-          <ReadingProgressBar />
-          <TenantHeader
-            name={name}
-            domain={decodedDomain}
-            logoUrl={logoUrl}
-            layoutStyle={layoutStyle}
-            stripeAccountId={stripeAccountId}
-            supportUrl={supportUrl}
-            navigation={navigation}
-            categories={categories}
-            siteOptions={
-              publication.siteOptions ||
-              (publication as unknown as { site_options?: Record<string, unknown> }).site_options
-            }
-            socialLinks={socialLinks}
-          />
-          <main className="pt-12 pb-24">{articleBodyContent}</main>
-          <footer
-            className={`py-16 px-4 text-center ${isBrutalist ? 'border-t-4 border-foreground' : 'border-t border-border/40 bg-muted/20'}`}
-          >
-            <div className="max-w-2xl mx-auto space-y-6 text-sm text-muted-foreground">
-              <LegalFooterLinks />
-              <p>
-                {footerText || t`© ${new Date().getFullYear()} ${name ?? ''}. Propulsé par qoefi`}
-              </p>
-            </div>
-          </footer>
-        </>
-      )}
+      <MinimalCraftShell
+        publication={templatePublication}
+        article={templateArticle}
+        articles={drawerArticles}
+        style={customStyle}
+      >
+        {articleBodyContent}
+      </MinimalCraftShell>
 
       {/* Barre d'actions globale du lecteur (Audio TTS, typographie, signets, follow créateur) */}
       <ReaderActions

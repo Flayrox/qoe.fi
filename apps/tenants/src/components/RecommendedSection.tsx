@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { t } from '@lingui/core/macro';
 import { subscribeToNewsletterAction } from '@qoe/sdk/actions/tenant';
-import { Check, Loader2, Sparkles, ExternalLink } from 'lucide-react';
+import { Check, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { SafeAvatar } from '@qoe/ui';
 import type { RecommendationItem } from '@/lib/tenant-data';
@@ -43,23 +43,20 @@ export function RecommendedSection({ authorName, recommendations }: RecommendedS
   };
 
   return (
-    <section className="w-full my-16 py-12 border-y border-border/40 bg-muted/20">
+    <section className="w-full my-16 border-t border-border/60 pt-10">
       <div className="container mx-auto px-4 lg:px-8 max-w-5xl">
-        <div className="flex items-center justify-between gap-4 mb-8">
-          <div>
-            <div className="flex items-center gap-2 text-[var(--tenant-accent,hsl(var(--primary)))] mb-1.5 font-medium text-xs tracking-wider uppercase">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>{t`Réseau de Recommandations`}</span>
-            </div>
-            <h3 className="text-2xl font-bold tracking-tight">
-              {authorName
-                ? t`Les lectures recommandées par ${authorName}`
-                : t`Publications recommandées`}
-            </h3>
-          </div>
+        <div className="mb-6">
+          <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+            {t`Recommandations`}
+          </p>
+          <h3 className="mt-2 text-xl sm:text-2xl font-semibold tracking-tight">
+            {authorName
+              ? t`Les lectures recommandées par ${authorName}`
+              : t`Publications recommandées`}
+          </h3>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-6">
           {recommendations.map((pub) => {
             const isSubscribed = Boolean(subscribedMap[pub.id]);
             const isLoading = Boolean(loadingMap[pub.id]);
@@ -77,78 +74,56 @@ export function RecommendedSection({ authorName, recommendations }: RecommendedS
             })();
 
             return (
-              <div
-                key={pub.id}
-                className="group relative flex flex-col justify-between p-5 rounded-2xl bg-card border border-border hover:border-border/80 transition-all hover:shadow-lg duration-300"
-              >
-                <div>
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <SafeAvatar
-                      src={avatar}
-                      name={pub.name}
-                      username={pub.subdomain}
-                      size={48}
-                      shape="squircle"
-                      className="border border-border/50 shrink-0 rounded-xl"
-                    />
+              <div key={pub.id} className="flex items-start gap-3 py-1">
+                <SafeAvatar
+                  src={avatar}
+                  name={pub.name}
+                  username={pub.subdomain}
+                  size={36}
+                  shape="circle"
+                  className="border border-border/50 shrink-0 mt-0.5"
+                />
 
-                    <Link
-                      href={targetUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                      aria-label={`Visiter ${pub.name}`}
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </Link>
-                  </div>
-
+                <div className="min-w-0 flex-1">
                   <Link href={targetUrl} target="_blank" rel="noopener noreferrer">
-                    <h4 className="font-semibold text-base tracking-tight hover:text-[var(--tenant-accent)] transition-colors line-clamp-1">
+                    <h4 className="font-medium text-sm tracking-tight hover:underline underline-offset-4 truncate">
                       {pub.name}
                     </h4>
                   </Link>
 
                   {pub.authorName && (
-                    <p className="text-xs text-muted-foreground mt-0.5">
+                    <p className="text-[11px] text-muted-foreground mt-0.5 truncate">
                       {t`par ${pub.authorName}`}
                     </p>
                   )}
 
                   {pub.description && (
-                    <p className="text-xs text-muted-foreground mt-2 line-clamp-2 leading-relaxed">
+                    <p className="text-[11.5px] text-muted-foreground mt-1 line-clamp-2 leading-snug">
                       {pub.description}
                     </p>
                   )}
-                </div>
 
-                <div className="mt-5 pt-4 border-t border-border/40 flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">
-                    {pub.articlesCount > 0 ? t`${pub.articlesCount} écrits` : ''}
-                  </span>
-
-                  <button
-                    onClick={() => {
-                      if (!isSubscribed) setEmailModalPub(pub);
-                    }}
-                    disabled={isSubscribed || isLoading}
-                    className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 ${
-                      isSubscribed
-                        ? 'bg-success/10 text-success border border-success/30'
-                        : 'bg-foreground text-background hover:opacity-90 active:scale-95'
-                    }`}
-                  >
-                    {isSubscribed ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                        <span>{t`Abonné`}</span>
-                      </>
-                    ) : isLoading ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <span>{t`S'abonner`}</span>
-                    )}
-                  </button>
+                  <div className="mt-1.5 flex items-center gap-3 text-[11px] text-muted-foreground">
+                    {pub.articlesCount > 0 && <span>{t`${pub.articlesCount} écrits`}</span>}
+                    <button
+                      onClick={() => {
+                        if (!isSubscribed) setEmailModalPub(pub);
+                      }}
+                      disabled={isSubscribed || isLoading}
+                      className="inline-flex items-center gap-1 font-medium text-foreground underline underline-offset-4 decoration-border hover:decoration-foreground transition-colors disabled:opacity-60 cursor-pointer"
+                    >
+                      {isSubscribed ? (
+                        <>
+                          <Check className="w-3 h-3" />
+                          <span>{t`Abonné`}</span>
+                        </>
+                      ) : isLoading ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <span>{t`S'abonner`}</span>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
             );

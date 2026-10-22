@@ -38,7 +38,6 @@ export function NewsletterWallBlock({
   id,
   props,
   publication,
-  cardShape = 'rounded-xl',
   context,
   visible = true,
   locked = false,
@@ -74,67 +73,74 @@ export function NewsletterWallBlock({
       blockStyle={(props as unknown as { style?: import('../schema').BlockStyleProps }).style}
       hiddenAt={hiddenAt}
     >
-      <section className="container mx-auto px-4 lg:px-8 py-10 md:py-16">
-        <div
-          className={`relative overflow-hidden bg-card border border-border p-8 md:p-14 text-center max-w-4xl mx-auto shadow-xs transition-all ${cardShape}`}
-        >
-          {/* Halo lumineux d'accentuation en arrière-plan */}
-          <div className="relative z-10 flex flex-col items-center">
-            {/* Pastille incitative */}
-            {incentivePill && (
-              <div className="inline-flex items-center px-3 py-1 rounded-md text-xs font-medium bg-muted text-muted-foreground mb-4">
-                <EditableText
-                  blockId={id}
-                  propKey="incentivePill"
-                  value={incentivePill}
-                  context={context}
-                  as="span"
-                />
-              </div>
-            )}
+      <section id="subscribe" className="container mx-auto px-4 lg:px-8 py-12 md:py-16">
+        <div className="mx-auto max-w-5xl border-t border-border pt-10 md:pt-12">
+          <div className="grid gap-8 md:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] md:items-end">
+            <div>
+              {/* Surtitre / pastille incitative */}
+              {incentivePill && (
+                <div className="mb-3 text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+                  <EditableText
+                    blockId={id}
+                    propKey="incentivePill"
+                    value={incentivePill}
+                    context={context}
+                    as="span"
+                  />
+                </div>
+              )}
 
-            {slots?.title ? (
-              <NodeRenderer
-                nodes={slots.title}
-                blockId={id}
-                blockProps={props as unknown as Record<string, unknown>}
-                context={context}
-                path="slots/title"
-              />
-            ) : (
-              <EditableText
-                blockId={id}
-                propKey="title"
-                value={title}
-                context={context}
-                as="h2"
-                className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight text-foreground max-w-xl"
-              />
-            )}
-
-            {slots?.subtitle ? (
-              <div className="mt-3 max-w-lg">
+              {slots?.title ? (
                 <NodeRenderer
-                  nodes={slots.subtitle}
+                  nodes={slots.title}
                   blockId={id}
                   blockProps={props as unknown as Record<string, unknown>}
                   context={context}
-                  path="slots/subtitle"
+                  path="slots/title"
                 />
-              </div>
-            ) : (
-              <EditableText
-                blockId={id}
-                propKey="subtitle"
-                value={subtitle}
-                context={context}
-                as="p"
-                className="mt-3 text-sm md:text-base text-muted-foreground max-w-lg leading-relaxed"
-              />
-            )}
+              ) : (
+                <EditableText
+                  blockId={id}
+                  propKey="title"
+                  value={title}
+                  context={context}
+                  as="h2"
+                  className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground"
+                />
+              )}
+
+              {slots?.subtitle ? (
+                <div className="mt-2 max-w-md">
+                  <NodeRenderer
+                    nodes={slots.subtitle}
+                    blockId={id}
+                    blockProps={props as unknown as Record<string, unknown>}
+                    context={context}
+                    path="slots/subtitle"
+                  />
+                </div>
+              ) : (
+                <EditableText
+                  blockId={id}
+                  propKey="subtitle"
+                  value={subtitle}
+                  context={context}
+                  as="p"
+                  className="mt-2 text-sm text-muted-foreground max-w-md leading-relaxed"
+                />
+              )}
+
+              {/* Preuve sociale / Compteur de lecteurs */}
+              {showSubscriberCount && (
+                <div className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <Users className="w-3 h-3 opacity-70" />
+                  <span>{subscriberCount} abonnés</span>
+                </div>
+              )}
+            </div>
 
             {/* Formulaire d'inscription relié à l'API et au compte Qoefi */}
-            <div className="mt-6 w-full max-w-md mx-auto">
+            <div>
               <SubscribeForm
                 publicationId={publication.id || ''}
                 authorName={publication.name || ''}
@@ -144,35 +150,27 @@ export function NewsletterWallBlock({
                 disabled={context.mode === 'editable'}
                 className="w-full"
               />
-            </div>
-
-            {/* Preuve sociale / Compteur de lecteurs */}
-            {showSubscriberCount && (
-              <div className="mt-5 flex items-center gap-2 text-xs text-muted-foreground">
-                <Users className="w-3.5 h-3.5 opacity-70" />
-                <span>{subscriberCount} abonnés</span>
-              </div>
-            )}
-            {slots?.actions && (
-              <div className="mt-4 flex flex-wrap justify-center gap-2">
+              {slots?.actions && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <NodeRenderer
+                    nodes={slots.actions}
+                    blockId={id}
+                    blockProps={props as unknown as Record<string, unknown>}
+                    context={context}
+                    path="slots/actions"
+                  />
+                </div>
+              )}
+              {nodes && nodes.length > 0 && (
                 <NodeRenderer
-                  nodes={slots.actions}
+                  nodes={nodes}
                   blockId={id}
                   blockProps={props as unknown as Record<string, unknown>}
                   context={context}
-                  path="slots/actions"
+                  path="nodes"
                 />
-              </div>
-            )}
-            {nodes && nodes.length > 0 && (
-              <NodeRenderer
-                nodes={nodes}
-                blockId={id}
-                blockProps={props as unknown as Record<string, unknown>}
-                context={context}
-                path="nodes"
-              />
-            )}
+              )}
+            </div>
           </div>
         </div>
       </section>

@@ -86,6 +86,22 @@ describe('resolveTenantNavigation — Moteur souverain de navigation Tenant', ()
     expect(shop?.isExternal).toBe(true);
   });
 
+  it('n’affiche qu’une fois les catégories homonymes dans le menu', () => {
+    const res = resolveTenantNavigation({
+      categories: [
+        { id: 'cat_sport_1', name: 'Sport', slug: 'sport-1', parentId: null },
+        { id: 'cat_sport_2', name: 'Sport', slug: 'sport-2', parentId: null },
+        { id: 'cat_sport_3', name: ' sport ', slug: 'sport-3', parentId: null },
+        { id: 'cat_design', name: 'Design', slug: 'design', parentId: null },
+      ],
+      navigation: [],
+      siteOptions: {},
+    });
+
+    expect(res.rootCategories.map((c) => c.slug)).toEqual(['sport-1', 'design']);
+    expect(res.navItems.filter((n) => n.label.trim().toLowerCase() === 'sport')).toHaveLength(1);
+  });
+
   it('ignore les liens externes sans URL exploitable (placeholder https://)', () => {
     const res = resolveTenantNavigation({
       categories: [],

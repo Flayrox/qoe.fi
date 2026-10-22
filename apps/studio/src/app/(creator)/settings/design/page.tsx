@@ -249,7 +249,7 @@ export default async function SettingsDesignPage() {
 
   // 4. Injecter le layoutStyle existant + le brouillon éventuel.
   // Le brouillon prime : l'atelier reprend là où le créateur s'est arrêté.
-  templatePub.layoutStyle = publication.layoutStyle;
+  templatePub.layoutStyle = 'minimal';
   let initialDraft: string | null = null;
   try {
     const draft = await goFetch<{ layout?: string | null }>(

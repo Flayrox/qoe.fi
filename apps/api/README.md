@@ -22,7 +22,7 @@ apps/api/
 │   ├── response/             # sérialisation JSON
 │   └── modules/              # domaines métier (posts, feed, …)
 ├── sql/
-│   ├── schema/schema.sql     # DDL exporté du datamodel Prisma
+│   ├── schema/schema.sql     # DDL de référence (source des migrations goose)
 │   └── queries/              # requêtes SQL pures (*.sql) pour sqlc
 ├── sqlc.yaml
 └── go.mod
@@ -161,8 +161,8 @@ curl -X POST http://localhost:8080/internal/events/article-published \
 ```
 
 ## Contraintes DB importantes
-- Les colonnes `id` (TEXT) et `updatedAt` n'ont **pas de défaut en base** (Prisma
-  les génère côté client). Les INSERTs Go utilisent `gen_random_uuid()::text`
-  et `now()`.
+- Les colonnes `id` (TEXT) et `updatedAt` n'ont **pas de défaut en base**
+  (convention héritée de l'ancien ORM). Les INSERTs Go utilisent
+  `gen_random_uuid()::text` et `now()`.
 - Colonnes FK nullables (`parentId`, `rootId`, `repostId`) : typées
   `pgtype.Text` via overrides sqlc ; NULL via `NULLIF(arg,'')`.

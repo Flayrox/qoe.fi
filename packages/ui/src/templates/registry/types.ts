@@ -30,7 +30,7 @@ export interface ThemeLayoutVariant {
 
 /** Définition déclarative complète d'un thème / archétype */
 export interface ThemeDefinition {
-  /** Identifiant unique de l'archétype (ex: 'minimal', 'magazine', 'standard', 'dispatch') */
+  /** Identifiant unique de l'archétype (seul 'minimal' est supporté) */
   id: string;
   /** Nom d'affichage lisible */
   name: string;

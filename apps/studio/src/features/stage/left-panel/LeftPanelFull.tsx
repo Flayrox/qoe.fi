@@ -24,7 +24,6 @@ import {
   RectangleHorizontal,
   Mail,
   PanelBottom,
-  Check,
   HelpCircle,
   X,
   Lock,
@@ -36,12 +35,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStageEngine, StageEditorMode } from '../context/StageEngineContext';
-import {
-  ARCHETYPES_REGISTRY,
-  ARTICLE_VARIANTS,
-  type BlockType,
-  type TemplateBlock,
-} from '@qoe/ui/templates';
+import { ARTICLE_VARIANTS, type BlockType, type TemplateBlock } from '@qoe/ui/templates';
 
 const BLOCK_CATALOG: {
   type: BlockType;
@@ -98,41 +92,6 @@ const BLOCK_CATALOG: {
     icon: PanelBottom,
   },
 ];
-
-const ARCHETYPE_META: Record<string, { name: string; description: string }> = {
-  magazine: {
-    name: 'Éditorial Magazine',
-    description: 'Image large et extrait.',
-  },
-  broadsheet: {
-    name: 'Broadsheet Moderne',
-    description: 'Liste dense.',
-  },
-  bento: {
-    name: 'Bento Technologique',
-    description: 'Cartes modulaires.',
-  },
-  minimal: {
-    name: 'Carnet Minimaliste',
-    description: 'Texte seul.',
-  },
-  encre: {
-    name: 'Encre',
-    description: 'Contraste maximal, angles vifs.',
-  },
-  papier: {
-    name: 'Papier',
-    description: 'Minimal chaleureux, généreux.',
-  },
-  signal: {
-    name: 'Signal',
-    description: 'Tech, grille dense.',
-  },
-  kiosque: {
-    name: 'Kiosque',
-    description: 'Presse dense, rouge franc.',
-  },
-};
 
 const ACCENT_PRESETS = ['#111111', '#EE4B2B'];
 const ACCENT_PRESETS_ADVANCED = ['#2563EB', '#16A34A', '#7C3AED', '#F59E0B'];
@@ -389,31 +348,6 @@ function BrandTab() {
             </option>
           ))}
         </select>
-      </div>
-      <div className="space-y-2">
-        <div className="px-1 text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
-          Archétypes de design
-        </div>
-        <div className="grid grid-cols-1 gap-1.5">
-          {Object.keys(ARCHETYPES_REGISTRY).map((key) => {
-            const isCurrent = engine.layout.archetype === key;
-            const meta = ARCHETYPE_META[key] || { name: key, description: '' };
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => engine.selectArchetype(key)}
-                className={`w-full rounded-xl border p-2.5 text-left transition-all ${isCurrent ? 'border-primary bg-primary/10 text-foreground' : 'border-border/40 text-muted-foreground hover:border-border hover:text-foreground'}`}
-              >
-                <div className="flex items-center justify-between font-medium">
-                  <span className="text-foreground">{meta.name}</span>
-                  {isCurrent && <Check className="h-3.5 w-3.5 text-primary" />}
-                </div>
-                <p className="mt-0.5 text-[10px] text-muted-foreground">{meta.description}</p>
-              </button>
-            );
-          })}
-        </div>
       </div>
       <div className="space-y-1.5 border-t border-border/40 pt-2">
         <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">

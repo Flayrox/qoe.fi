@@ -1,9 +1,12 @@
-import React from 'react';
+'use client';
+
+import React, { useState } from 'react';
 import Link from 'next/link';
-import { ChevronDown, ArrowLeft, Search } from 'lucide-react';
+import { ChevronDown, ArrowLeft, Search, Menu, X } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 import type { NavigationItem, SocialLink } from '@qoe/sdk/types';
 import { SocialIcon } from './SocialIcon';
+import { SafeAvatar } from './SafeAvatar';
 import { resolveTenantNavigation } from './templates/navigation';
 
 // Define the nested type since Prisma returns flat by default without includes
@@ -13,6 +16,9 @@ interface TenantHeaderProps {
   name: string | null;
   domain: string;
   logoUrl: string | null;
+  /** Avatar de la personne : repli quand aucun logo n'est configuré. */
+  avatarUrl?: string | null;
+  username?: string | null;
   layoutStyle: string | null;
   stripeAccountId: string | null;
   supportUrl: string | null;
@@ -27,6 +33,8 @@ export function TenantHeader({
   name,
   domain,
   logoUrl,
+  avatarUrl,
+  username,
   layoutStyle,
   stripeAccountId,
   supportUrl,
@@ -36,6 +44,7 @@ export function TenantHeader({
   siteOptions,
   isArticlePage = false,
 }: TenantHeaderProps) {
+  const [mobileOpen, setMobileOpen] = useState(false);
   const isBrutalist = layoutStyle === 'brutalist';
   const isMagazine = layoutStyle === 'magazine';
 
@@ -71,11 +80,20 @@ export function TenantHeader({
           )}
 
           <Link href="/" className="flex items-center gap-4 group">
-            {logoUrl && (
+            {logoUrl ? (
               <img
                 src={logoUrl}
                 alt={`${name} logo`}
                 className={`object-cover ${isBrutalist ? 'w-12 h-12 md:w-16 md:h-16 border-2 border-foreground shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] dark:shadow-[4px_4px_0px_0px_rgba(255,255,255,1)] group-hover:translate-x-1 group-hover:translate-y-1 group-hover:shadow-none transition-all' : 'w-10 h-10 md:w-14 md:h-14 rounded-xl shadow-md group-hover:opacity-80 transition-opacity'}`}
+              />
+            ) : (
+              <SafeAvatar
+                src={avatarUrl}
+                name={name || domain}
+                username={username}
+                size={48}
+                shape="squircle"
+                className={isBrutalist ? 'border-2 border-foreground' : 'shadow-md'}
               />
             )}
             <p
@@ -157,6 +175,24 @@ export function TenantHeader({
             >
               <Search className="w-4 h-4" />
             </Link>
+
+            <a
+              href="#subscribe"
+              className={`hidden sm:inline-flex items-center px-4 py-2 text-sm font-semibold text-white transition-all whitespace-nowrap ${isBrutalist ? 'border-2 border-foreground shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] uppercase tracking-wider hover:translate-y-px hover:shadow-none' : 'rounded-full hover:opacity-90 active:scale-95'}`}
+              style={{ backgroundColor: 'var(--tenant-accent)' }}
+            >
+              {t`S'abonner`}
+            </a>
+
+            <button
+              type="button"
+              onClick={() => setMobileOpen((open) => !open)}
+              className="md:hidden p-1 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label={mobileOpen ? t`Fermer le menu` : t`Ouvrir le menu`}
+              aria-expanded={mobileOpen}
+            >
+              {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
             {socialLinks.slice(0, 3).map((social: SocialLink) => (
               <Link
                 key={social.id}
@@ -182,6 +218,72 @@ export function TenantHeader({
           </div>
         </div>
       </div>
+
+      {/* Navigation mobile : les liens sont masqués sous md, il faut une porte d'entrée. */}
+      {mobileOpen && (
+        <div className="md:hidden border-t border-border/40 bg-card">
+          <nav
+            aria-label={t`Navigation mobile`}
+            className="container mx-auto px-4 py-3 flex flex-col gap-1 text-sm font-medium"
+          >
+            {nestedNav.map((nav) => (
+              <div key={nav.id}>
+                {nav.isExternal ? (
+                  <a
+                    href={nav.url || '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setMobileOpen(false)}
+                    className="block py-2 text-muted-foreground hover:text-foreground"
+                  >
+                    {nav.label}
+                  </a>
+                ) : (
+                  <Link
+                    href={nav.url || '/'}
+                    onClick={() => setMobileOpen(false)}
+                    className="block py-2 text-muted-foreground hover:text-foreground"
+                  >
+                    {nav.label}
+                  </Link>
+                )}
+                {nav.children?.map((child) =>
+                  child.isExternal ? (
+                    <a
+                      key={child.id}
+                      href={child.url || '#'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setMobileOpen(false)}
+                      className="block py-1.5 pl-4 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      {child.label}
+                    </a>
+                  ) : (
+                    <Link
+                      key={child.id}
+                      href={child.url || '/'}
+                      onClick={() => setMobileOpen(false)}
+                      className="block py-1.5 pl-4 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      {child.label}
+                    </Link>
+                  )
+                )}
+              </div>
+            ))}
+
+            <a
+              href="#subscribe"
+              onClick={() => setMobileOpen(false)}
+              className="mt-2 inline-flex items-center justify-center rounded-full px-4 py-2.5 text-sm font-semibold text-white"
+              style={{ backgroundColor: 'var(--tenant-accent)' }}
+            >
+              {t`S'abonner`}
+            </a>
+          </nav>
+        </div>
+      )}
     </header>
   );
 }

@@ -120,7 +120,7 @@ describe('🔒 Paywall — helpers zéro-fuite', () => {
 
   it('buildPublicDescription retire le HTML et borne la longueur', () => {
     const desc = buildPublicDescription('<p>Bonjour <strong>le monde</strong>.</p>', 10);
-    expect(desc).toBe('Bonjour le');
+    expect(desc).toBe('Bonjour…');
   });
 });
 

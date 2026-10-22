@@ -4,6 +4,10 @@ import React from 'react';
 import { TenantArticleRenderer } from '../TenantArticleRenderer';
 import type { TenantPublication, TenantArticle } from '@/lib/tenant-data';
 
+vi.mock('next/headers', () => ({
+  headers: vi.fn(async () => new Headers({ host: 'journal.qoe.fi' })),
+}));
+
 vi.mock('@/lib/tenant-data', () => ({
   fetchCanonicalDocument: vi.fn(async () => null),
 }));

@@ -117,9 +117,9 @@ export function StageClient({
   sidebarProps,
   initialDraft,
 }: StageClientProps) {
-  const initialLayouts = useRef(
-    parseSiteLayouts(initialDraft || publication.layoutStyle || 'magazine')
-  ).current;
+  // Un seul thème : l'éditeur charge toujours le layout minimal, même pour
+  // une publication historiquement en editorial/magazine.
+  const initialLayouts = useRef(parseSiteLayouts('minimal')).current;
   const initialLayout = useRef<LayoutConfig>(initialLayouts.home).current;
   const initialArticleLayout = useRef(initialLayouts.article).current;
   const initialOverrides = useRef(initialLayouts.articleByCategory).current;

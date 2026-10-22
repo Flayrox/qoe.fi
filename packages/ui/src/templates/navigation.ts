@@ -74,9 +74,21 @@ export function resolveTenantNavigation(input: TenantNavigationInput): ResolvedT
 
   // 1. Filtrage des catégories visibles (celles qui sont des rubriques dans l'en-tête)
   const visibleCategories = (input.categories || []).filter((c) => !hiddenCatIds.has(c.id));
-  const rootCategories = visibleCategories.filter((c) => !c.parentId);
+  // Les données historiques peuvent contenir plusieurs catégories homonymes
+  // (« Sport » x3) : on n'affiche que la première dans le menu, sans supprimer
+  // les autres catégories (leurs pages restent accessibles par URL).
+  const dedupeByLabel = <T extends { name: string }>(items: T[]) => {
+    const seen = new Set<string>();
+    return items.filter((item) => {
+      const key = item.name.trim().toLocaleLowerCase('fr');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  };
+  const rootCategories = dedupeByLabel(visibleCategories.filter((c) => !c.parentId));
   const getSubcategories = (parentId: string) =>
-    visibleCategories.filter((c) => c.parentId === parentId);
+    dedupeByLabel(visibleCategories.filter((c) => c.parentId === parentId));
 
   // 2. Transformation des rubriques en items de navigation arborescents
   const categoryNavItems: ResolvedTenantNavItem[] = rootCategories.map((cat, idx) => ({

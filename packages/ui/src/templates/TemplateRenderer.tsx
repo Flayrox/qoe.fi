@@ -39,14 +39,6 @@ import { NewsletterWallBlock } from './blocks/NewsletterWallBlock';
 import { FooterBlock } from './blocks/FooterBlock';
 import { ArticleContentBlock } from './blocks/ArticleContentBlock';
 import { CategorySpotlightBlock } from './blocks/CategorySpotlightBlock';
-import {
-  DispatchFeedBlock,
-  type DispatchFeedBlockProps,
-} from './blocks/dispatch/DispatchFeedBlock';
-import {
-  DispatchMagazineGrid,
-  type DispatchMagazineGridProps,
-} from './blocks/dispatch/DispatchMagazineGrid';
 import { DEMO_ARTICLES } from './demo';
 import { resolveTheme } from './registry';
 import { resolveFontFamily } from './style';
@@ -284,36 +276,6 @@ export function TemplateRenderer({
             locked={block.locked}
             slots={block.slots}
             nodes={block.nodes}
-            hiddenAt={block.hiddenAt}
-          />
-        );
-
-      case 'dispatch-feed':
-        return (
-          <DispatchFeedBlock
-            key={block.id}
-            id={block.id}
-            props={block.props as DispatchFeedBlockProps}
-            articles={effectiveArticles}
-            publication={publication}
-            context={context}
-            visible={block.visible}
-            locked={block.locked}
-            hiddenAt={block.hiddenAt}
-          />
-        );
-
-      case 'dispatch-magazine':
-        return (
-          <DispatchMagazineGrid
-            key={block.id}
-            id={block.id}
-            props={block.props as DispatchMagazineGridProps}
-            articles={effectiveArticles}
-            publication={publication}
-            context={context}
-            visible={block.visible}
-            locked={block.locked}
             hiddenAt={block.hiddenAt}
           />
         );
