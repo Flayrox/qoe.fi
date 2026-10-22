@@ -9,7 +9,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Sparkles,
+  Users,
   Plus,
   Trash2,
   ExternalLink,
@@ -169,21 +169,18 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
       {/* ── EN-TÊTE DE L'ONGLET ── */}
       <div className="space-y-1.5 pb-6 border-b border-border/40">
         <div className="flex items-center gap-2.5 text-primary">
-          <Sparkles className="w-5 h-5 stroke-[1.5]" />
-          <h2 className="text-xl font-bold tracking-tight text-foreground">
-            Créateurs & Publications Recommandés
-          </h2>
+          <Users className="w-5 h-5 stroke-[1.5]" />
+          <h2 className="text-xl font-bold tracking-tight text-foreground">Recommandations</h2>
         </div>
         <p className="text-sm text-muted-foreground leading-relaxed max-w-2xl">
-          Recommandez d’autres publications souveraines à votre lectorat pour créer un réseau
-          solidaire et favoriser la découvrabilité mutuelle de vos écrits.
+          Mettez en avant les publications que vous lisez.
         </p>
       </div>
 
       {/* ── OPTIONS D'AFFICHAGE SUR LE SITE ── */}
       <div className="rounded-2xl border border-border/50 bg-card p-5 space-y-4 shadow-2xs">
         <h3 className="text-sm font-semibold text-foreground tracking-tight">
-          Emplacements d’affichage sur votre site
+          Affichage sur le site
         </h3>
         <div className="divide-y divide-border/30">
           <div className="py-3 flex items-center justify-between gap-4 first:pt-0">
@@ -192,10 +189,10 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
                 htmlFor="opt-rec-sidebar"
                 className="text-xs font-semibold text-foreground cursor-pointer block"
               >
-                Colonne latérale éditoriale
+                Colonne latérale
               </label>
               <span className="text-[11px] text-muted-foreground block">
-                Affiche l’encart « Recommandé par l’auteur » dans la barre latérale de l’accueil
+                Affiche « Recommandé par l’auteur » dans la barre latérale.
               </span>
             </div>
             <button
@@ -224,10 +221,10 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
                 htmlFor="opt-rec-home"
                 className="text-xs font-semibold text-foreground cursor-pointer block"
               >
-                Section Réseau en pied de page d’accueil
+                Section en pied de page
               </label>
               <span className="text-[11px] text-muted-foreground block">
-                Affiche la grille complète des créateurs recommandés sous le flux d’articles
+                Affiche la grille sous le flux d’articles.
               </span>
             </div>
             <button
@@ -349,9 +346,9 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
                   {isAdding ? (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   ) : (
-                    <Sparkles className="w-3.5 h-3.5" />
+                    <Plus className="w-3.5 h-3.5" />
                   )}
-                  <span>Recommander cette publication</span>
+                  <span>Ajouter</span>
                 </button>
               </div>
             </div>
@@ -385,11 +382,10 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
           </div>
         ) : recommendations.length === 0 ? (
           <div className="text-center p-8 border border-dashed border-border/60 rounded-2xl space-y-2">
-            <Sparkles className="w-8 h-8 text-muted-foreground/40 mx-auto" />
+            <Users className="w-8 h-8 text-muted-foreground/40 mx-auto" />
             <p className="text-sm font-medium text-foreground">Aucune recommandation configurée</p>
             <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-              Utilisez le champ ci-dessus pour chercher une publication ou un auteur souverain et
-              l’ajouter à vos recommandations.
+              Cherchez une publication ci-dessus pour l’ajouter.
             </p>
           </div>
         ) : (

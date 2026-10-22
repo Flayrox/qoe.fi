@@ -23,7 +23,7 @@ import {
   Globe,
   Compass,
   Terminal,
-  Sparkles,
+  Users,
 } from 'lucide-react';
 
 import {
@@ -325,7 +325,7 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
   const TABS = [
     { id: 'general' as const, label: t`Identité & Design`, icon: Palette },
     { id: 'emails' as const, label: t`Emails & Abonnés`, icon: Mail },
-    { id: 'recommendations' as const, label: t`Recommandations`, icon: Sparkles },
+    { id: 'recommendations' as const, label: t`Recommandations`, icon: Users },
     { id: 'seo' as const, label: t`SEO & Réseaux`, icon: Search },
     { id: 'domain' as const, label: t`Domaine & DNS`, icon: Globe },
     { id: 'navigation' as const, label: t`Menu & liens`, icon: Compass },
