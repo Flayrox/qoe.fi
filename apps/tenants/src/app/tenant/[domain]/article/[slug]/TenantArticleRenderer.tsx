@@ -289,14 +289,52 @@ export async function TenantArticleRenderer({
       />
       <div className="container mx-auto px-4 lg:px-8 max-w-3xl">
         {articleLayout ? (
-          <TemplateRenderer
-            config={articleLayout}
-            publication={templatePublication}
-            articles={drawerArticles}
-            article={templateArticle}
-            standaloneShell={false}
-            mode="live"
-          />
+          <div className="relative">
+            {/* Surligneur Genius et moteur de sélections (rendu avec le corps d'article ou barre d'annotations en haut) */}
+            <TenantArticleHighlighter
+              articleId={article.id}
+              creatorName={authorName || t`L'Auteur`}
+              allowPublicAnnotations={allowPublicAnnotations}
+              isAuthenticated={!!user}
+              initialHighlights={initialHighlights}
+              publicHighlights={publicHighlights as AnnotationItem[]}
+              currentUserId={user?.id || null}
+              currentUserProfile={currentUserProfile}
+              articleAuthorId={article.authorId}
+              mainAppUrl={mainAppUrl}
+              canonicalDocument={canonicalDocument}
+              contentClassName="prose prose-zinc dark:prose-invert max-w-none text-base md:text-lg leading-relaxed space-y-6"
+            />
+            <TemplateRenderer
+              config={articleLayout}
+              publication={templatePublication}
+              articles={drawerArticles}
+              article={templateArticle}
+              standaloneShell={false}
+              mode="live"
+            />
+            {article.isPremium && !paywallCutResult.accessGranted && (
+              <PaywallOverlay
+                name={authorName}
+                isBrutalist={isBrutalist}
+                accentColor={accentColor}
+                mainAppUrl={mainAppUrl}
+                creatorId={article.authorId}
+                initialAuthenticated={!!user}
+                initialUser={
+                  user
+                    ? {
+                        name:
+                          (user.user_metadata?.name as string) ??
+                          (user.user_metadata?.full_name as string) ??
+                          null,
+                        email: user.email ?? null,
+                      }
+                    : null
+                }
+              />
+            )}
+          </div>
         ) : (
           <>
             {isMinimal ? (

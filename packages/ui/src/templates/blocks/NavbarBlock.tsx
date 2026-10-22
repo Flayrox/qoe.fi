@@ -12,7 +12,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { ChevronDown, ArrowUpRight, Search } from 'lucide-react';
-import type { NavigationItem, SocialLink } from '@qoe/sdk/types';
+import type { SocialLink } from '@qoe/sdk/types';
 import { SocialIcon } from '../../SocialIcon';
 import type {
   NavbarBlockProps,
@@ -22,8 +22,7 @@ import type {
 import { BlockWrapper } from './BlockWrapper';
 import { EditableText } from './EditableText';
 import { NodeRenderer } from './NodeRenderer';
-
-type NavItemWithChildren = NavigationItem & { children?: NavigationItem[] };
+import { resolveTenantNavigation } from '../navigation';
 
 interface NavbarBlockComponentProps {
   id: string;
@@ -80,63 +79,13 @@ export function NavbarBlock({
   const displayName = name || domain || subdomain || 'Mon Site Web';
   const supportLink = stripeAccountId ? '/support' : supportUrl || null;
 
-  // Construction de l'arbre hiérarchique avec parentId, ou auto-génération à partir des rubriques
-  // Filtrage des catégories masquées du menu (catégories seules)
-  const hiddenCatIds = new Set((siteOptions?.hiddenNavCategoryIds as string[] | undefined) || []);
-  const visibleCategories = (publication.categories || []).filter((c) => !hiddenCatIds.has(c.id));
-
-  // Rubriques issues des catégories visibles
-  const categoryNavItems: NavItemWithChildren[] = visibleCategories
-    .filter((c) => !c.parentId)
-    .map((cat, idx) => ({
-      id: cat.id,
-      label: cat.name,
-      url: `/${cat.slug}`,
-      order: idx,
-      isExternal: false,
-      publicationId: publication.id || '',
-      children: visibleCategories
-        .filter((c) => c.parentId === cat.id)
-        .map((sub, sIdx) => ({
-          id: sub.id,
-          label: sub.name,
-          url: `/${sub.slug}`,
-          order: sIdx,
-          isExternal: false,
-          publicationId: publication.id || '',
-        })),
-    }));
-
-  // Liens externes du menu
-  const externalNavItems: NavItemWithChildren[] = (navigation || [])
-    .filter((n) => n.isExternal && !n.parentId)
-    .map((parent) => ({
-      ...parent,
-      children: (navigation || [])
-        .filter((n) => n.parentId === parent.id)
-        .sort((a, b) => a.order - b.order),
-    }))
-    .sort((a, b) => a.order - b.order);
-
-  // Repli hérité pour anciens liens internes si aucune catégorie
-  const legacyInternalNav: NavItemWithChildren[] =
-    categoryNavItems.length === 0
-      ? (navigation || [])
-          .filter((n) => !n.isExternal && !n.parentId)
-          .map((parent) => ({
-            ...parent,
-            children: (navigation || [])
-              .filter((n) => n.parentId === parent.id)
-              .sort((a, b) => a.order - b.order),
-          }))
-          .sort((a, b) => a.order - b.order)
-      : [];
-
-  const nestedNav: NavItemWithChildren[] = [
-    ...categoryNavItems,
-    ...legacyInternalNav,
-    ...externalNavItems,
-  ];
+  // Résolution souveraine et unifiée de la navigation (rubriques + liens externes)
+  const { navItems: nestedNav } = resolveTenantNavigation({
+    categories: publication.categories,
+    navigation,
+    siteOptions,
+    publicationId: publication.id,
+  });
 
   const containerClasses = [
     'w-full border-b border-border transition-colors duration-200',

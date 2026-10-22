@@ -33,6 +33,7 @@ import { CraftIndicator } from '../../ui/craft-indicator';
 import { cn } from '@qoe/utils';
 import { PublicationSidebar } from './PublicationSidebar';
 import { ArticleEngagementBar } from './ArticleEngagementBar';
+import { findCategoryBySlug, filterArticlesByCategory } from '../navigation';
 
 interface ArticleStreamBlockComponentProps {
   id: string;
@@ -110,9 +111,18 @@ export function ArticleStreamBlock({
     },
   ];
 
-  const sourceArticles = categoryFilter
-    ? articles.filter((a) => a.category?.slug === categoryFilter)
-    : articles;
+  const targetCategory = useMemo(() => {
+    if (!categoryFilter) return undefined;
+    return findCategoryBySlug(publication?.categories || [], categoryFilter);
+  }, [categoryFilter, publication?.categories]);
+
+  const sourceArticles = useMemo(() => {
+    if (!categoryFilter) return articles;
+    if (targetCategory) {
+      return filterArticlesByCategory(articles, targetCategory, publication?.categories || []);
+    }
+    return articles.filter((a) => a.category?.slug === categoryFilter);
+  }, [categoryFilter, targetCategory, articles, publication?.categories]);
   const items = categoryFilter
     ? sourceArticles
     : context.mode === 'live' || Boolean(publication?.id)

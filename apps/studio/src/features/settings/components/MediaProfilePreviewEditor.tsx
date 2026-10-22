@@ -13,8 +13,6 @@
 // =====================================================================
 
 import React, { useRef, useState } from 'react';
-import Image from 'next/image';
-import { t } from '@lingui/core/macro';
 import {
   Building2,
   Camera,
@@ -22,13 +20,10 @@ import {
   Mail,
   ExternalLink,
   Trash2,
-  Sparkles,
-  Link as LinkIcon,
   Check,
   Edit2,
   ShieldCheck,
 } from 'lucide-react';
-import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
 import { cn } from '@qoe/utils';
 import type { CreatorProfile } from '../types';
@@ -56,9 +51,17 @@ export const MEDIA_METADATA_CONFIG: MediaMetadataField[] = [
     id: 'supportUrl',
     label: 'Contact / Support',
     placeholder: 'https://mon-media.fr/contact ou mailto:...',
-    icon: Mail,
+    icon: ExternalLink,
     getValue: (p) => p.supportUrl || '',
     setValue: (val, setCurrent) => setCurrent((prev) => ({ ...prev, supportUrl: val || null })),
+  },
+  {
+    id: 'editorialEmail',
+    label: 'Email rédactionnel',
+    placeholder: 'redaction@mon-media.fr',
+    icon: Mail,
+    getValue: (p) => p.email || '',
+    setValue: (val, setCurrent) => setCurrent((prev) => ({ ...prev, email: val })),
   },
   {
     id: 'customDomain',
@@ -72,6 +75,7 @@ export const MEDIA_METADATA_CONFIG: MediaMetadataField[] = [
 
 export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfilePreviewEditorProps) {
   const [activeMetadataModal, setActiveMetadataModal] = useState<string | null>(null);
+  const [editingDraft, setEditingDraft] = useState<string>('');
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
@@ -284,7 +288,10 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
                     {!isEditing ? (
                       <button
                         type="button"
-                        onClick={() => setActiveMetadataModal(field.id)}
+                        onClick={() => {
+                          setActiveMetadataModal(field.id);
+                          setEditingDraft(value);
+                        }}
                         className={cn(
                           'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all cursor-pointer',
                           value
@@ -304,19 +311,20 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
                         <IconComponent className="w-3.5 h-3.5 text-primary ml-1 shrink-0" />
                         <input
                           type="text"
-                          defaultValue={value}
+                          value={editingDraft}
+                          onChange={(e) => setEditingDraft(e.target.value)}
                           autoFocus
                           placeholder={field.placeholder}
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') {
-                              field.setValue((e.target as HTMLInputElement).value, setCurrent);
+                              field.setValue(editingDraft.trim(), setCurrent);
                               setActiveMetadataModal(null);
                             } else if (e.key === 'Escape') {
                               setActiveMetadataModal(null);
                             }
                           }}
-                          onBlur={(e) => {
-                            field.setValue(e.target.value, setCurrent);
+                          onBlur={() => {
+                            field.setValue(editingDraft.trim(), setCurrent);
                             setActiveMetadataModal(null);
                           }}
                           className="px-2 py-0.5 text-xs text-foreground bg-transparent focus:outline-none min-w-[220px]"
@@ -324,7 +332,10 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
                         <button
                           type="button"
                           onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => setActiveMetadataModal(null)}
+                          onClick={() => {
+                            field.setValue(editingDraft.trim(), setCurrent);
+                            setActiveMetadataModal(null);
+                          }}
                           className="p-1 text-primary hover:bg-primary/10 rounded cursor-pointer"
                         >
                           <Check className="w-3 h-3" />

@@ -13,6 +13,7 @@ import type {
 } from '../schema';
 import { BlockWrapper } from './BlockWrapper';
 import { NodeRenderer } from './NodeRenderer';
+import { findCategoryBySlug, filterArticlesByCategory } from '../navigation';
 
 interface CategorySpotlightBlockComponentProps {
   id: string;
@@ -32,6 +33,7 @@ export function CategorySpotlightBlock({
   id,
   props,
   articles = [],
+  publication,
   context,
   visible = true,
   locked = false,
@@ -41,9 +43,18 @@ export function CategorySpotlightBlock({
 }: CategorySpotlightBlockComponentProps) {
   const { categorySlug, title, layout = 'framed', maxArticles = 3, showReadingTime = true } = props;
 
-  const pool = categorySlug ? articles.filter((a) => a.category?.slug === categorySlug) : articles;
+  const targetCategory = categorySlug
+    ? findCategoryBySlug(publication?.categories || [], categorySlug)
+    : undefined;
+
+  const pool = targetCategory
+    ? filterArticlesByCategory(articles, targetCategory, publication?.categories || [])
+    : categorySlug
+      ? articles.filter((a) => a.category?.slug === categorySlug)
+      : articles;
+
   const items = pool.slice(0, Math.max(1, Math.min(6, maxArticles)));
-  const firstCategoryName = items[0]?.category?.name ?? null;
+  const firstCategoryName = targetCategory?.name || items[0]?.category?.name || null;
   const heading = title || firstCategoryName || 'Sélection';
 
   return (

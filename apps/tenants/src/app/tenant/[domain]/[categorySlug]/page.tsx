@@ -3,6 +3,7 @@ import type { Metadata } from 'next';
 import { fetchTenantPublication, fetchTenantRecommendations } from '@/lib/tenant-data';
 import { TenantPageRenderer } from '@/components/TenantPageRenderer';
 import { getLanguage } from '@qoe/i18n/server';
+import { findCategoryBySlug, filterArticlesByCategory } from '@qoe/ui/templates';
 
 interface PageProps {
   params: Promise<{ domain: string; categorySlug: string }>;
@@ -19,7 +20,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const publication = await fetchTenantPublication(decodedDomain);
   if (!publication) return {};
 
-  const category = (publication.categories || []).find((c) => c.slug === decodedCategorySlug);
+  const category = findCategoryBySlug(publication.categories || [], decodedCategorySlug);
   if (!category) return {};
 
   const title = `${category.name} | ${publication.name || decodedDomain}`;
@@ -27,7 +28,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     ? `Découvrez tous les articles de la rubrique ${category.name} sur ${publication.name || decodedDomain}.`
     : `Explore articles from ${category.name} on ${publication.name || decodedDomain}.`;
 
-  const canonicalUrl = `https://${decodedDomain}/${encodeURIComponent(decodedCategorySlug)}`;
+  const canonicalUrl = `https://${decodedDomain}/${encodeURIComponent(category.slug)}`;
 
   return {
     title,
@@ -62,41 +63,17 @@ export default async function TenantCategoryFilterPage({ params }: PageProps) {
     return notFound();
   }
 
-  const category = (publication.categories || []).find((c) => c.slug === decodedCategorySlug);
+  const category = findCategoryBySlug(publication.categories || [], decodedCategorySlug);
   if (!category) {
     return notFound();
   }
 
-  // Si c'est une catégorie parente, on inclut aussi les articles de ses sous-catégories
-  const subcategoryIds = new Set(
-    (publication.categories || []).filter((c) => c.parentId === category.id).map((c) => c.id)
+  // Filtrage souverain et déterministe via le moteur de taxonomie partagé
+  const filteredArticles = filterArticlesByCategory(
+    publication.articles || [],
+    category,
+    publication.categories || []
   );
-
-  const subcategorySlugs = new Set(
-    (publication.categories || []).filter((c) => c.parentId === category.id).map((c) => c.slug)
-  );
-
-  // Filtrer les articles de la publication pour cette catégorie ou ses sous-catégories
-  const filteredArticles = (publication.articles || []).filter((art) => {
-    if (art.published === false) return false;
-    const catId = art.categoryId || (art.category as { id?: string } | undefined)?.id;
-    const catSlug = art.category?.slug;
-
-    // Correspondance directe de catégorie
-    if (catSlug === decodedCategorySlug || catId === category.id) {
-      return true;
-    }
-
-    // Si c'est une catégorie parente, inclure aussi les articles de ses sous-catégories
-    if (catId && subcategoryIds.has(catId)) {
-      return true;
-    }
-    if (catSlug && subcategorySlugs.has(catSlug)) {
-      return true;
-    }
-
-    return false;
-  });
 
   return (
     <TenantPageRenderer
