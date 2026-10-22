@@ -10,7 +10,7 @@ import type { BlockStyleProps } from './schema';
  * Piles typographiques calibrées pour chaque identifiant de police de publication.
  */
 export const FONT_STACKS: Record<string, string> = {
-  sans: "var(--font-sans, -apple-system, BlinkMacSystemFont, 'Inter', sans-serif)",
+  sans: "var(--font-sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif)",
   outfit: "var(--font-outfit, 'Outfit', sans-serif)",
   'space-grotesk': "var(--font-space-grotesk, 'Space Grotesk', sans-serif)",
   serif: "var(--font-serif, 'Newsreader', 'Playfair Display', Georgia, serif)",
