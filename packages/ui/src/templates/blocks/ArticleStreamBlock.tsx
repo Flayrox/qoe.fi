@@ -65,7 +65,7 @@ function SkeletonArticleCard({
       aria-hidden="true"
     >
       {/* 1. Bloc Image gris simulant une couverture en chargement (EN HAUT) */}
-      <div className="relative w-full aspect-[16/10] rounded-[3px] overflow-hidden border border-border/40 bg-muted/40 animate-pulse flex items-center justify-center shadow-2xs">
+      <div className="relative w-full aspect-[16/10] rounded-[6px] overflow-hidden border border-border/40 bg-muted/40 animate-pulse flex items-center justify-center shadow-2xs">
         <span className="text-[10px] tracking-widest uppercase text-muted-foreground/50 font-medium">
           À paraître
         </span>

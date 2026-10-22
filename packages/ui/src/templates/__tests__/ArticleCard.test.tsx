@@ -38,7 +38,7 @@ describe('ArticleCard', () => {
     expect(html).toContain('Rose Florence');
     expect(html).toContain('Essais');
     expect(html).toContain('Payant');
-    expect(html).toContain('rounded-[3px]');
+    expect(html).toContain('rounded-[6px]');
   });
 
   it('affiche la variante secondary avec structure compacte pour colonnes latérales', () => {
@@ -48,7 +48,7 @@ describe('ArticleCard', () => {
 
     expect(html).toContain('data-testid="test-secondary"');
     expect(html).toContain('line-clamp-2');
-    expect(html).toContain('rounded-[3px]');
+    expect(html).toContain('rounded-[6px]');
     expect(html).toContain('5 min');
   });
 
@@ -59,6 +59,6 @@ describe('ArticleCard', () => {
 
     expect(html).toContain('data-testid="test-row"');
     expect(html).toContain('sm:flex-row');
-    expect(html).toContain('rounded-[3px]');
+    expect(html).toContain('rounded-[6px]');
   });
 });

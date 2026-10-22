@@ -116,7 +116,7 @@ export function ArticleCard({
         {/* 1. Image Vedette en haut avec micro-arrondi */}
         <div className="w-full">
           <Link href={articleHref} onClick={handleLinkClick} className="block group/cover">
-            <div className="relative w-full aspect-[16/10] sm:aspect-[16/10] rounded-[3px] overflow-hidden border border-border/50 bg-muted shadow-2xs">
+            <div className="relative w-full aspect-[16/10] sm:aspect-[16/10] rounded-[6px] overflow-hidden border border-border/50 bg-muted shadow-2xs">
               <SafeImage
                 src={coverUrl}
                 alt={article.title}
@@ -183,7 +183,7 @@ export function ArticleCard({
       <article data-testid={testId} className={cn('group relative space-y-3', className)}>
         {/* 1. Image en haut */}
         <Link href={articleHref} onClick={handleLinkClick} className="block group/cover">
-          <div className="relative w-full aspect-[16/10] rounded-[3px] overflow-hidden border border-border/50 bg-muted shadow-2xs">
+          <div className="relative w-full aspect-[16/10] rounded-[6px] overflow-hidden border border-border/50 bg-muted shadow-2xs">
             <SafeImage
               src={coverUrl}
               alt={article.title}
@@ -290,7 +290,7 @@ export function ArticleCard({
       <Link
         href={articleHref}
         onClick={handleLinkClick}
-        className="relative w-full sm:w-44 md:w-48 aspect-[16/10] sm:h-32 shrink-0 rounded-[3px] overflow-hidden bg-muted border border-border/40 group/thumb block"
+        className="relative w-full sm:w-44 md:w-48 aspect-[16/10] sm:h-32 shrink-0 rounded-[6px] overflow-hidden bg-muted border border-border/40 group/thumb block"
       >
         <img
           src={coverUrl}
