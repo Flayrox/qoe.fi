@@ -477,9 +477,15 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 		// Mesure d'intérêt des fonctionnalités à venir / Pro (interstitiel
 		// @qoe/ui) : attribuée au créateur et à sa publication active, donc
-		// lisible côté créateur comme côté média.
+		// lisible côté créateur comme côté média. Limiteur dédié (30/min) :
+		// une annonce ne se consulte pas 600 fois par minute, et une écriture
+		// de signal ne doit pas pouvoir marteler la base.
 		featuresHandler := features.NewHandler(features.NewService(pool))
-		featuresHandler.RegisterProtected(protected)
+		protected.With(authmw.RateLimit("feature-signals", rc, time.Minute, 30, true)).Group(
+			func(featureRoutes chi.Router) {
+				featuresHandler.RegisterProtected(featureRoutes)
+			},
+		)
 
 		settingsHandler.RegisterProtected(protected)
 

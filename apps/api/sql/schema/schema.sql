@@ -2811,3 +2811,11 @@ CREATE INDEX "FeatureSignal_user_feature_created_idx"
 CREATE UNIQUE INDEX "FeatureSignal_notify_unique_idx"
     ON "FeatureSignal" ("userId", "featureKey")
     WHERE "kind" = 'notify' AND "userId" IS NOT NULL;
+
+-- CreateIndex
+CREATE INDEX "FeatureSignal_created_idx"
+    ON "FeatureSignal" ("createdAt");
+
+-- CreateIndex
+CREATE INDEX "FeatureSignal_publication_created_idx"
+    ON "FeatureSignal" ("publicationId", "createdAt" DESC);

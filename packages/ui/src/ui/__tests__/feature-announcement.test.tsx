@@ -234,6 +234,25 @@ describe('FeatureAnnouncementProvider', () => {
   });
 });
 
+describe('FeatureAnnouncementProvider — état relu du serveur', () => {
+  it('ouvre l’annonce déjà « notée » quand la demande est connue', () => {
+    render(
+      <FeatureAnnouncementProvider
+        locale="fr"
+        notifiedFeatures={new Set(['custom-domain'] as const)}
+      >
+        <UpcomingBadge feature="custom-domain" />
+      </FeatureAnnouncementProvider>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /bientôt/i }));
+    const done = screen.getByRole('button', { name: /c’est noté/i }) as HTMLButtonElement;
+    expect(done.disabled).toBe(true);
+    // Une fonctionnalité non concernée reste demandable.
+    expect(screen.queryByRole('button', { name: /me prévenir/i })).toBeNull();
+  });
+});
+
 describe('useFeatureAnnouncement', () => {
   it('reste utilisable hors provider', () => {
     function Probe() {

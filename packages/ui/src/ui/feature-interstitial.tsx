@@ -284,6 +284,13 @@ export interface FeatureAnnouncementProviderProps {
    * qui les attribuer : créateur personnel ou publication média.
    */
   onSignal?: (signal: FeatureSignal) => void | Promise<void>;
+  /**
+   * Demandes déjà enregistrées (relues côté serveur au montage) : l'annonce
+   * affiche « c'est noté » d'emblée plutôt que de reproposer un clic.
+   */
+  notifiedFeatures?: ReadonlySet<FeatureKey>;
+  /** Prévenir le porteur d'état qu'une demande locale vient d'aboutir. */
+  onNotified?: (feature: FeatureKey) => void;
 }
 
 /**
@@ -295,11 +302,13 @@ export function FeatureAnnouncementProvider({
   locale = DEFAULT_FEATURE_LOCALE,
   pricingHref,
   onSignal,
+  notifiedFeatures,
+  onNotified,
 }: FeatureAnnouncementProviderProps) {
   const [activeFeature, setActiveFeature] = React.useState<FeatureKey | null>(null);
-  // Les demandes déjà enregistrées survivent à la fermeture de l'annonce :
-  // rouvrir ne doit pas proposer de « me prévenir » une seconde fois.
-  const [notifiedKeys, setNotifiedKeys] = React.useState<ReadonlySet<FeatureKey>>(new Set());
+  // Les demandes déjà enregistrées survivent à la fermeture de l'annonce
+  // (état local), et à un rechargement quand l'appelant le fournit.
+  const [localNotified, setLocalNotified] = React.useState<ReadonlySet<FeatureKey>>(new Set());
 
   const value = React.useMemo<FeatureAnnouncementContextValue>(
     () => ({
@@ -325,14 +334,17 @@ export function FeatureAnnouncementProvider({
           locale={locale}
           pricingHref={pricingHref}
           onSignal={onSignal}
-          notified={notifiedKeys.has(activeFeature)}
-          onNotified={() =>
-            setNotifiedKeys((prev) => {
+          notified={
+            (notifiedFeatures?.has(activeFeature) ?? false) || localNotified.has(activeFeature)
+          }
+          onNotified={() => {
+            setLocalNotified((prev) => {
               const next = new Set(prev);
               next.add(activeFeature);
               return next;
-            })
-          }
+            });
+            onNotified?.(activeFeature);
+          }}
         />
       )}
     </FeatureAnnouncementContext.Provider>
