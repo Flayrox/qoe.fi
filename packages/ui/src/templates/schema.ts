@@ -420,6 +420,7 @@ export interface TemplatePublicationContext {
   navigation?: NavigationItem[];
   socialLinks?: SocialLink[];
   categories?: TemplateCategoryItem[];
+  activeCategory?: TemplateCategoryItem | null;
   subscriberCount?: number;
   layoutStyle?: string | null;
   siteOptions?: Record<string, unknown> | null;

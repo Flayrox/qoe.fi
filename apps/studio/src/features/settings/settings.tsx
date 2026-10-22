@@ -462,6 +462,7 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
                 current={current}
                 setCurrent={setCurrent}
                 consoleSettingsUrl={consoleSettingsUrl}
+                publicBlogUrl={publicBlogUrl}
               />
             </motion.div>
           )}

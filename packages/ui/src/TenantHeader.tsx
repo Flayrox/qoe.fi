@@ -17,6 +17,8 @@ interface TenantHeaderProps {
   supportUrl: string | null;
   navigation: NavItemWithChildren[];
   socialLinks: SocialLink[];
+  categories?: Array<{ id: string; name: string; slug: string; parentId?: string | null }>;
+  siteOptions?: Record<string, unknown> | null;
   isArticlePage?: boolean;
 }
 
@@ -29,6 +31,8 @@ export function TenantHeader({
   supportUrl,
   navigation,
   socialLinks,
+  categories,
+  siteOptions,
   isArticlePage = false,
 }: TenantHeaderProps) {
   const isBrutalist = layoutStyle === 'brutalist';
@@ -42,18 +46,62 @@ export function TenantHeader({
 
   const supportLink = stripeAccountId ? `/support` : supportUrl || null;
 
-  // Filter top level nav items (those without a parent)
-  const topLevelNav = navigation.filter((n) => !n.parentId);
+  // Filtrage des catégories masquées du menu (catégories seules)
+  const hiddenCatIds = new Set((siteOptions?.hiddenNavCategoryIds as string[] | undefined) || []);
+  const visibleCategories = (categories || []).filter((c) => !hiddenCatIds.has(c.id));
 
-  // Map children to their parents
-  const nestedNav = topLevelNav
+  // Rubriques issues des catégories visibles
+  const categoryNavItems: NavItemWithChildren[] = visibleCategories
+    .filter((c) => !c.parentId)
+    .map((cat, idx) => ({
+      id: cat.id,
+      label: cat.name,
+      url: `/${cat.slug}`,
+      order: idx,
+      isExternal: false,
+      publicationId: '',
+      children: visibleCategories
+        .filter((c) => c.parentId === cat.id)
+        .map((sub, sIdx) => ({
+          id: sub.id,
+          label: sub.name,
+          url: `/${sub.slug}`,
+          order: sIdx,
+          isExternal: false,
+          publicationId: '',
+        })),
+    }));
+
+  // Liens externes du créateur (Podcast, Réseaux, etc.)
+  const externalNavItems: NavItemWithChildren[] = (navigation || [])
+    .filter((n) => n.isExternal && !n.parentId)
     .map((parent) => ({
       ...parent,
-      children: navigation
+      children: (navigation || [])
         .filter((n) => n.parentId === parent.id)
         .sort((a, b) => a.order - b.order),
     }))
     .sort((a, b) => a.order - b.order);
+
+  // Repli hérité pour liens internes personnalisés existants (si aucune catégorie)
+  const legacyInternalNav: NavItemWithChildren[] =
+    categoryNavItems.length === 0
+      ? (navigation || [])
+          .filter((n) => !n.isExternal && !n.parentId)
+          .map((parent) => ({
+            ...parent,
+            children: (navigation || [])
+              .filter((n) => n.parentId === parent.id)
+              .sort((a, b) => a.order - b.order),
+          }))
+          .sort((a, b) => a.order - b.order)
+      : [];
+
+  const nestedNav: NavItemWithChildren[] = [
+    ...categoryNavItems,
+    ...legacyInternalNav,
+    ...externalNavItems,
+  ];
 
   return (
     <header className={headerClasses}>

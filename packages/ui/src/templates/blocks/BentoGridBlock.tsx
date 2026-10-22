@@ -179,7 +179,7 @@ export function BentoGridBlock({
                         item.category &&
                         (item.category.slug ? (
                           <Link
-                            href={`/categorie/${item.category.slug}`}
+                            href={`/${item.category.slug}`}
                             onClick={(e) => {
                               e.stopPropagation();
                               if (context.mode === 'editable') e.preventDefault();

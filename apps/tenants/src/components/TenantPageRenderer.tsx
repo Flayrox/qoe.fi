@@ -20,6 +20,8 @@ export interface TenantHomeRendererProps {
   publication: TenantPublication;
   recommendations?: RecommendationItem[] | null;
   decodedDomain: string;
+  activeCategory?: { id: string; name: string; slug: string; parentId?: string | null } | null;
+  filteredArticles?: import('@/lib/tenant-data').TenantArticleSummary[];
 }
 
 export type TenantPageRendererProps =
@@ -36,6 +38,8 @@ export async function TenantPageRenderer(props: TenantPageRendererProps) {
   }
 
   const { publication, recommendations, decodedDomain } = props;
+  const activeCategory = 'activeCategory' in props ? props.activeCategory : null;
+  const filteredArticles = 'filteredArticles' in props ? props.filteredArticles : null;
   const {
     name,
     heroText,
@@ -53,11 +57,13 @@ export async function TenantPageRenderer(props: TenantPageRendererProps) {
     supportUrl,
   } = publication;
 
+  const effectiveArticles = filteredArticles ?? articles;
+
   // 🔒 Zéro-fuite : les extraits des cartes sont dérivés du contenu DÉJÀ tronqué
   // par le paywall. Rendre `article.content` brut exposait le passage réservé
   // aux visiteurs non authentifiés (et aux crawlers) dès la page d'accueil.
   const articleExcerpts = new Map(
-    articles.map((article) => {
+    effectiveArticles.map((article) => {
       const cut = sliceContentAtPaywall(
         article.content || '',
         { isMember: false, isPaidSubscriber: false },
@@ -100,6 +106,14 @@ export async function TenantPageRenderer(props: TenantPageRendererProps) {
       slug: c.slug,
       parentId: c.parentId ?? null,
     })),
+    activeCategory: activeCategory
+      ? {
+          id: activeCategory.id,
+          name: activeCategory.name,
+          slug: activeCategory.slug,
+          parentId: activeCategory.parentId ?? null,
+        }
+      : null,
     siteOptions:
       (
         publication as {
@@ -144,7 +158,7 @@ export async function TenantPageRenderer(props: TenantPageRendererProps) {
     {}) as Record<string, unknown>;
   const pinnedArticleId = rawSiteOpts?.pinnedArticleId as string | undefined;
 
-  const templateArticles: TemplateArticleItem[] = articles.map((article) => {
+  const templateArticles: TemplateArticleItem[] = effectiveArticles.map((article) => {
     const artAny = article as unknown as { isPinned?: boolean; isEditorPick?: boolean };
     const isPinned = Boolean(
       artAny.isPinned || artAny.isEditorPick || (pinnedArticleId && article.id === pinnedArticleId)

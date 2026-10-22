@@ -31,6 +31,7 @@ export interface MinimalCraftShellProps {
   publication: TemplatePublicationContext;
   article?: TemplateArticleItem | null;
   articles?: TemplateArticleItem[];
+  activeCategory?: import('../../schema').TemplateCategoryItem | null;
   children: React.ReactNode;
   className?: string;
   style?: React.CSSProperties;
@@ -40,6 +41,7 @@ export function MinimalCraftShell({
   publication,
   article,
   articles = [],
+  activeCategory: propActiveCategory,
   children,
   className = '',
   style,
@@ -63,9 +65,13 @@ export function MinimalCraftShell({
   const showLogo = (siteOptions.showLogo ?? true) !== false;
   const showCategoryTabs = (siteOptions.showCategoryTabs ?? true) !== false;
 
-  const categories = publication.categories || [];
+  const hiddenCatIds = new Set((siteOptions.hiddenNavCategoryIds as string[] | undefined) || []);
+  const categories = (publication.categories || []).filter((c) => !hiddenCatIds.has(c.id));
   const rootCategories = categories.filter((c) => !c.parentId);
   const getSubcategories = (parentId: string) => categories.filter((c) => c.parentId === parentId);
+
+  const activeCategory = propActiveCategory || publication.activeCategory || null;
+  const activeCategorySlug = activeCategory?.slug || article?.category?.slug || null;
 
   const isArticleMode = Boolean(article);
 
@@ -301,7 +307,7 @@ export function MinimalCraftShell({
               href="/"
               className={cn(
                 'text-xs sm:text-[13px] font-medium tracking-tight transition-colors shrink-0',
-                !isArticleMode && !article?.category?.slug
+                !isArticleMode && !activeCategorySlug
                   ? 'text-foreground font-semibold underline underline-offset-4 decoration-2 decoration-[var(--tenant-accent)]'
                   : 'text-muted-foreground hover:text-foreground'
               )}
@@ -314,8 +320,7 @@ export function MinimalCraftShell({
               const subs = getSubcategories(cat.id);
               const hasSubs = subs.length > 0;
               const isCatActive =
-                article?.category?.slug === cat.slug ||
-                subs.some((s) => s.slug === article?.category?.slug);
+                activeCategorySlug === cat.slug || subs.some((s) => s.slug === activeCategorySlug);
               const isDropdownOpen = activeDropdownCatId === cat.id;
 
               if (!hasSubs) {
@@ -342,9 +347,11 @@ export function MinimalCraftShell({
                     onClick={() => setActiveDropdownCatId(isDropdownOpen ? null : cat.id)}
                     className={cn(
                       'flex items-center gap-1 text-xs sm:text-[13px] font-medium tracking-tight transition-colors select-none cursor-pointer',
-                      isCatActive || isDropdownOpen
-                        ? 'text-foreground font-semibold'
-                        : 'text-muted-foreground hover:text-foreground'
+                      isCatActive
+                        ? 'text-foreground font-semibold underline underline-offset-4 decoration-2 decoration-[var(--tenant-accent)]'
+                        : isDropdownOpen
+                          ? 'text-foreground font-semibold'
+                          : 'text-muted-foreground hover:text-foreground'
                     )}
                   >
                     <span>{cat.name}</span>
@@ -366,7 +373,12 @@ export function MinimalCraftShell({
                         <a
                           href={`/${cat.slug}`}
                           onClick={() => setActiveDropdownCatId(null)}
-                          className="flex items-center justify-between px-3 py-1.5 text-xs font-medium rounded-lg text-foreground hover:bg-muted/70 transition-colors"
+                          className={cn(
+                            'flex items-center justify-between px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
+                            activeCategorySlug === cat.slug
+                              ? 'bg-muted text-foreground font-semibold'
+                              : 'text-foreground hover:bg-muted/70'
+                          )}
                         >
                           <span>Tout voir dans {cat.name}</span>
                         </a>
@@ -376,7 +388,12 @@ export function MinimalCraftShell({
                             key={sub.id}
                             href={`/${sub.slug}`}
                             onClick={() => setActiveDropdownCatId(null)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/70 rounded-lg transition-colors"
+                            className={cn(
+                              'flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-colors',
+                              activeCategorySlug === sub.slug
+                                ? 'bg-muted text-foreground font-semibold'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/70'
+                            )}
                           >
                             <span className="opacity-40 font-sans text-[10px]">↳</span>
                             <span>{sub.name}</span>
@@ -423,6 +440,32 @@ export function MinimalCraftShell({
           isSidebarOpen ? 'sm:translate-x-[240px] md:translate-x-[280px]' : 'translate-x-0'
         )}
       >
+        {activeCategory && !isArticleMode && (
+          <div className="container mx-auto px-4 sm:px-6 max-w-4xl pt-2 pb-4">
+            <div className="flex items-center justify-between border-b border-border/30 pb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Rubrique :
+                </span>
+                <span className="text-xs sm:text-sm font-bold text-foreground">
+                  {activeCategory.name}
+                </span>
+                {activeCategory.parentId && (
+                  <span className="text-[10px] text-muted-foreground font-mono bg-muted/40 px-1.5 py-0.5 rounded">
+                    sous-rubrique
+                  </span>
+                )}
+              </div>
+              <a
+                href="/"
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1 font-medium group"
+                title="Afficher tous les articles"
+              >
+                <span className="group-hover:underline">✕ Voir tous les articles</span>
+              </a>
+            </div>
+          </div>
+        )}
         {children}
       </main>
 
