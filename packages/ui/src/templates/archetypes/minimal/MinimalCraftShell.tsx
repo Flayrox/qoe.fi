@@ -26,6 +26,7 @@ import {
 import { MinimalDock } from './MinimalDock';
 import type { TemplatePublicationContext, TemplateArticleItem } from '../../schema';
 import { AuthModalContext } from '../../../auth/AuthModalContext';
+import { resolveTenantNavigation } from '../../navigation';
 
 export interface MinimalCraftShellProps {
   publication: TemplatePublicationContext;
@@ -65,10 +66,13 @@ export function MinimalCraftShell({
   const showLogo = (siteOptions.showLogo ?? true) !== false;
   const showCategoryTabs = (siteOptions.showCategoryTabs ?? true) !== false;
 
-  const hiddenCatIds = new Set((siteOptions.hiddenNavCategoryIds as string[] | undefined) || []);
-  const categories = (publication.categories || []).filter((c) => !hiddenCatIds.has(c.id));
-  const rootCategories = categories.filter((c) => !c.parentId);
-  const getSubcategories = (parentId: string) => categories.filter((c) => c.parentId === parentId);
+  // Résolution souveraine et unifiée de la navigation (rubriques + liens externes)
+  const { rootCategories, getSubcategories, externalLinks } = resolveTenantNavigation({
+    categories: publication.categories,
+    navigation: publication.navigation,
+    siteOptions,
+    publicationId: publication.id,
+  });
 
   const activeCategory = propActiveCategory || publication.activeCategory || null;
   const activeCategorySlug = activeCategory?.slug || article?.category?.slug || null;
@@ -406,21 +410,18 @@ export function MinimalCraftShell({
               );
             })}
 
-            {/* Liens de navigation créateur ("À propos", etc.) */}
-            {publication.navigation &&
-              publication.navigation
-                .filter((nav) => !nav.parentId)
-                .map((nav, nIdx) => (
-                  <a
-                    key={nav.id || nIdx}
-                    href={nav.url || '#'}
-                    target={nav.isExternal ? '_blank' : undefined}
-                    rel={nav.isExternal ? 'noopener noreferrer' : undefined}
-                    className="text-xs sm:text-[13px] font-medium tracking-tight text-muted-foreground hover:text-foreground transition-colors shrink-0"
-                  >
-                    {nav.label}
-                  </a>
-                ))}
+            {/* Liens de navigation externes configurés ("Podcast", "Boutique", etc.) */}
+            {externalLinks.map((nav, nIdx) => (
+              <a
+                key={nav.id || nIdx}
+                href={nav.url || '#'}
+                target={nav.isExternal ? '_blank' : undefined}
+                rel={nav.isExternal ? 'noopener noreferrer' : undefined}
+                className="text-xs sm:text-[13px] font-medium tracking-tight text-muted-foreground hover:text-foreground transition-colors shrink-0"
+              >
+                {nav.label}
+              </a>
+            ))}
           </div>
         </nav>
       )}

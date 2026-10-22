@@ -4,6 +4,7 @@ import { ChevronDown, ArrowLeft, Search } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 import type { NavigationItem, SocialLink } from '@qoe/sdk/types';
 import { SocialIcon } from './SocialIcon';
+import { resolveTenantNavigation } from './templates/navigation';
 
 // Define the nested type since Prisma returns flat by default without includes
 type NavItemWithChildren = NavigationItem & { children?: NavigationItem[] };
@@ -46,62 +47,12 @@ export function TenantHeader({
 
   const supportLink = stripeAccountId ? `/support` : supportUrl || null;
 
-  // Filtrage des catégories masquées du menu (catégories seules)
-  const hiddenCatIds = new Set((siteOptions?.hiddenNavCategoryIds as string[] | undefined) || []);
-  const visibleCategories = (categories || []).filter((c) => !hiddenCatIds.has(c.id));
-
-  // Rubriques issues des catégories visibles
-  const categoryNavItems: NavItemWithChildren[] = visibleCategories
-    .filter((c) => !c.parentId)
-    .map((cat, idx) => ({
-      id: cat.id,
-      label: cat.name,
-      url: `/${cat.slug}`,
-      order: idx,
-      isExternal: false,
-      publicationId: '',
-      children: visibleCategories
-        .filter((c) => c.parentId === cat.id)
-        .map((sub, sIdx) => ({
-          id: sub.id,
-          label: sub.name,
-          url: `/${sub.slug}`,
-          order: sIdx,
-          isExternal: false,
-          publicationId: '',
-        })),
-    }));
-
-  // Liens externes du créateur (Podcast, Réseaux, etc.)
-  const externalNavItems: NavItemWithChildren[] = (navigation || [])
-    .filter((n) => n.isExternal && !n.parentId)
-    .map((parent) => ({
-      ...parent,
-      children: (navigation || [])
-        .filter((n) => n.parentId === parent.id)
-        .sort((a, b) => a.order - b.order),
-    }))
-    .sort((a, b) => a.order - b.order);
-
-  // Repli hérité pour liens internes personnalisés existants (si aucune catégorie)
-  const legacyInternalNav: NavItemWithChildren[] =
-    categoryNavItems.length === 0
-      ? (navigation || [])
-          .filter((n) => !n.isExternal && !n.parentId)
-          .map((parent) => ({
-            ...parent,
-            children: (navigation || [])
-              .filter((n) => n.parentId === parent.id)
-              .sort((a, b) => a.order - b.order),
-          }))
-          .sort((a, b) => a.order - b.order)
-      : [];
-
-  const nestedNav: NavItemWithChildren[] = [
-    ...categoryNavItems,
-    ...legacyInternalNav,
-    ...externalNavItems,
-  ];
+  // Résolution souveraine et unifiée de la navigation (rubriques + liens externes)
+  const { navItems: nestedNav } = resolveTenantNavigation({
+    categories,
+    navigation,
+    siteOptions,
+  });
 
   return (
     <header className={headerClasses}>

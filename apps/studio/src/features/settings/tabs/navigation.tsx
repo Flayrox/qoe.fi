@@ -1,15 +1,15 @@
 import React from 'react';
-import { t } from '@lingui/core/macro';
 import {
   Plus,
   Trash2,
   FolderTree,
   CornerDownRight,
   ExternalLink,
-  Check,
   Eye,
   EyeOff,
   Share2,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import type { CreatorProfile, ClientNavigationItem } from '../types';
@@ -18,7 +18,7 @@ import { SUPPORTED_SOCIAL_PLATFORMS } from '../types';
 interface NavigationTabProps {
   current: CreatorProfile;
   setCurrent: React.Dispatch<React.SetStateAction<CreatorProfile>>;
-  addNavigationLink: () => void;
+  addNavigationLink?: () => void;
   removeNavigationLink: (idx: number) => void;
   reorderNavigationLink: (idx: number, direction: 'up' | 'down') => void;
   addSocialLink: (platform: string) => void;
@@ -28,8 +28,8 @@ interface NavigationTabProps {
 export function NavigationTab({
   current,
   setCurrent,
-  addNavigationLink,
   removeNavigationLink,
+  reorderNavigationLink,
   addSocialLink,
   removeSocialLink,
 }: NavigationTabProps) {
@@ -273,13 +273,34 @@ export function NavigationTab({
           </div>
         ) : (
           <div className="space-y-2">
-            {externalLinks.map((nav) => {
+            {externalLinks.map((nav, extIdx) => {
               const globalIndex = current.navigation.findIndex((n) => n === nav);
               return (
                 <div
                   key={globalIndex}
                   className="flex flex-col sm:flex-row sm:items-center gap-2 p-2.5 bg-muted/20 border border-border/40 rounded-xl"
                 >
+                  <div className="flex items-center gap-0.5 shrink-0">
+                    <button
+                      type="button"
+                      disabled={extIdx === 0}
+                      onClick={() => reorderNavigationLink(globalIndex, 'up')}
+                      className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed rounded transition-colors"
+                      title="Monter ce lien"
+                    >
+                      <ArrowUp className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={extIdx === externalLinks.length - 1}
+                      onClick={() => reorderNavigationLink(globalIndex, 'down')}
+                      className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed rounded transition-colors"
+                      title="Descendre ce lien"
+                    >
+                      <ArrowDown className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
                   <input
                     type="text"
                     value={nav.label}

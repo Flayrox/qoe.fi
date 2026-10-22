@@ -30,3 +30,4 @@ export * from './blocks/ArticleEngagementBar';
 export * from './archetypes/minimal';
 export * from './registry';
 export * from './placeholders';
+export * from './navigation';
