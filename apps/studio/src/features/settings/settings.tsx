@@ -339,7 +339,7 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
           <div>
             <div className="flex items-center gap-2.5">
               <h1 className="text-xl font-bold tracking-tight text-foreground">
-                {current.name || 'Paramètres du Site Web'}
+                {current.name || 'Paramètres'}
               </h1>
               {isMediaWorkspace && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider border border-primary/20">
@@ -349,8 +349,8 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
               {isMediaWorkspace
-                ? `Configuration du média « ${current.name} » et de son identité publique`
-                : t`Configuration et design de votre site web souverain`}
+                ? `Configuration du média « ${current.name} »`
+                : t`Configuration de votre site`}
             </p>
           </div>
 

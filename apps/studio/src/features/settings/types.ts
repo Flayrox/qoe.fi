@@ -161,6 +161,6 @@ export const SITE_OPTION_ITEMS: SiteOptionItem[] = [
   {
     key: 'showPinnedBadge',
     label: 'Badge Article Épinglé',
-    description: 'Affiche un badge distinctif 📌 sur l’article épinglé à la une',
+    description: 'Affiche un badge sur l’article épinglé à la une',
   },
 ];
