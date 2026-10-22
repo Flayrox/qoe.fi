@@ -1,6 +1,7 @@
 import { GlobalCommandMenu } from '@/features/dashboard/components/GlobalCommandMenu';
 import { AppSidebar } from '@/features/dashboard/components/app-sidebar';
 import { DashboardLayoutContent } from '@/features/dashboard/components/DashboardLayoutContent';
+import { FeatureAnnouncements } from '@/features/upcoming/provider';
 import { requireUser } from '@qoe/auth/current-user';
 import { getLanguage } from '@qoe/i18n/server';
 import { fetchPendingAcceptances } from '@qoe/sdk/actions/legal';
@@ -45,8 +46,10 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <div className="relative flex min-h-screen bg-background">
       <AppSidebar />
       <DashboardLayoutContent>
-        <GlobalCommandMenu />
-        {children}
+        <FeatureAnnouncements locale={locale}>
+          <GlobalCommandMenu />
+          {children}
+        </FeatureAnnouncements>
       </DashboardLayoutContent>
       <LegalConsentGate pending={pendingConsents} locale={locale} hrefBase={legalHrefBase} />
     </div>

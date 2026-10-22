@@ -1,106 +1,164 @@
 'use client';
 
 // =====================================================================
-// 🛡️ @qoe/ui — feature-teaser.tsx
+// 🛡️ feature-teaser.tsx — Badges et enveloppes des fonctionnalités à venir
 // =====================================================================
-// Système souverain & épuré de mise en valeur des fonctionnalités en cours
-// de développement ou réservées à l'offre Pro (style Vercel & Linear).
-// 100% tokens sémantiques, zéro emoji IA, précision typographique.
+// 📖 Trois primitives, une seule source de copie (@see feature-catalog) :
+//    • UpcomingBadge     — micro-badge cliquable (« Bientôt », « Pro »)
+//    • FeatureInfoTooltip — rappel au survol, complémentaire du badge
+//    • FeatureTeaser      — enveloppe un panneau verrouillé et explique
+//      pourquoi, sans jamais retirer le contenu du regard.
+//
+// ♿ Accessibilité : le badge est un vrai <button> (clavier, lecteurs
+//    d'écran) qui ouvre l'interstitiel ; le contenu verrouillé est rendu
+//    `inert` — donc non focalisable et non cliquable — au lieu d'être
+//    neutralisé par `pointer-events-none`, qui laissait le focus clavier
+//    traverser des champs inactifs.
 // =====================================================================
 
 import React from 'react';
-import { Info, Lock, Clock } from 'lucide-react';
+import { Clock, Info, Lock } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from './tooltip';
+import {
+  DEFAULT_FEATURE_LOCALE,
+  FEATURE_STATUS_COPY,
+  getFeature,
+  localize,
+  type FeatureDefinition,
+  type FeatureKey,
+  type FeatureLocale,
+  type FeatureStatus,
+} from './feature-catalog';
+import { useFeatureAnnouncement } from './feature-interstitial';
 
-export type FeatureStatus = 'in-development' | 'pro' | 'coming-soon';
+export type { FeatureStatus } from './feature-catalog';
 
-const STATUS_CONFIG: Record<
-  FeatureStatus,
-  {
-    label: string;
-    title: string;
-    description: string;
-    Icon: React.ComponentType<{ className?: string }>;
-  }
-> = {
-  'in-development': {
-    label: 'En développement',
-    title: 'Développement actif',
-    description:
-      'Cette fonctionnalité est actuellement en cours de développement. Elle sera déployée prochainement dans une mise à jour gratuite.',
-    Icon: Clock,
-  },
-  pro: {
-    label: 'Pro',
-    title: 'Offre Qoefi Pro',
-    description:
-      'Fonctionnalité avancée réservée aux publications disposant d’un abonnement Qoefi Pro. Déploiement en cours.',
-    Icon: Lock,
-  },
-  'coming-soon': {
-    label: 'Bientôt',
-    title: 'Prochainement disponible',
-    description:
-      'Les équipes finalisent l’intégration de cette option souveraine. Elle sera disponible sans surcoût.',
-    Icon: Info,
-  },
+const STATUS_ICONS: Record<FeatureStatus, React.ComponentType<{ className?: string }>> = {
+  'in-development': Clock,
+  pro: Lock,
+  'coming-soon': Info,
 };
 
-export interface UpcomingBadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
+function resolveStatus(feature?: FeatureDefinition, status?: FeatureStatus): FeatureStatus {
+  return status ?? feature?.status ?? 'in-development';
+}
+
+export interface UpcomingBadgeProps extends Omit<React.HTMLAttributes<HTMLElement>, 'children'> {
+  /** Clé du catalogue : statut + copie + action viennent de là. */
+  feature?: FeatureKey;
   status?: FeatureStatus;
+  locale?: FeatureLocale;
+  /** Remplace le libellé du catalogue (rare : contrats marketing). */
   label?: string;
   showIcon?: boolean;
+  /**
+   * Ouvre l'interstitiel au clic. Désactivé automatiquement si aucun
+   * `feature` n'est fourni (rien à annoncer) ou hors provider.
+   */
+  interactive?: boolean;
+  /** Ouvre l'annonce au lieu de dépendre du provider (tests, compositions). */
+  onOpen?: () => void;
 }
 
 /**
- * Micro-badge clinique & typographique pour signaler le statut d'une fonctionnalité.
+ * Micro-badge sobre et typographique. Clic = annonce complète, jamais un
+ * simple toast : l'utilisateur obtient le pourquoi, le quand et le coût.
  */
 export function UpcomingBadge({
-  status = 'in-development',
+  feature,
+  status,
+  locale = DEFAULT_FEATURE_LOCALE,
   label,
   showIcon = true,
+  interactive = true,
+  onOpen,
   className,
   ...props
 }: UpcomingBadgeProps) {
-  const config = STATUS_CONFIG[status];
-  const Icon = config.Icon;
-  const displayLabel = label || config.label;
+  const announcement = useFeatureAnnouncement();
+  const definition = feature ? getFeature(feature) : undefined;
+  const resolvedStatus = resolveStatus(definition, status);
+  const Icon = STATUS_ICONS[resolvedStatus];
+  const displayLabel =
+    label ??
+    (definition ? localize(definition.copy.label, locale) : undefined) ??
+    localize(FEATURE_STATUS_COPY[resolvedStatus].label, locale);
+
+  // Un badge cliquable doit TOUJOURS aboutir à l'annonce : hors provider et
+  // sans `onOpen`, on reste un libellé plutôt qu'un bouton mort.
+  const canOpen = interactive && !!feature && (!!onOpen || announcement.available);
+
+  const content = (
+    <>
+      {showIcon && <Icon className="w-2.5 h-2.5 opacity-70 shrink-0" aria-hidden="true" />}
+      <span>{displayLabel}</span>
+    </>
+  );
+
+  const classes = cn(
+    'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider',
+    'border border-border/80 bg-muted/40 text-muted-foreground select-none',
+    canOpen &&
+      'cursor-pointer transition-colors hover:text-foreground hover:border-border focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/30',
+    className
+  );
+
+  if (!canOpen) {
+    return (
+      <span className={classes} {...props}>
+        {content}
+      </span>
+    );
+  }
 
   return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider',
-        'border border-border/80 bg-muted/40 text-muted-foreground select-none',
-        className
-      )}
-      {...props}
+    <button
+      type="button"
+      aria-haspopup="dialog"
+      onClick={() => {
+        if (onOpen) onOpen();
+        else if (feature) announcement.open(feature);
+      }}
+      className={classes}
+      {...(props as React.ButtonHTMLAttributes<HTMLButtonElement>)}
     >
-      {showIcon && <Icon className="w-2.5 h-2.5 opacity-70 shrink-0" />}
-      <span>{displayLabel}</span>
-    </span>
+      {content}
+    </button>
   );
 }
 
 export interface FeatureInfoTooltipProps {
+  feature?: FeatureKey;
   status?: FeatureStatus;
+  locale?: FeatureLocale;
   title?: string;
   description?: string;
   className?: string;
 }
 
 /**
- * Bouton discret « (i) » avec popover/tooltip d'explication sobre.
+ * Rappel discret « (i) » : un survol ne doit jamais être le SEUL chemin
+ * vers l'information — le badge cliquable reste l'accès principal.
  */
 export function FeatureInfoTooltip({
-  status = 'in-development',
+  feature,
+  status,
+  locale = DEFAULT_FEATURE_LOCALE,
   title,
   description,
   className,
 }: FeatureInfoTooltipProps) {
-  const config = STATUS_CONFIG[status];
-  const displayTitle = title || config.title;
-  const displayDesc = description || config.description;
+  const definition = feature ? getFeature(feature) : undefined;
+  const statusCopy = FEATURE_STATUS_COPY[resolveStatus(definition, status)];
+  const displayTitle =
+    title ||
+    (definition ? localize(definition.copy.title, locale) : localize(statusCopy.title, locale));
+  const displayDesc =
+    description ||
+    (definition
+      ? `${localize(definition.copy.summary, locale)} ${localize(definition.copy.availability, locale)}`
+      : localize(statusCopy.description, locale));
 
   return (
     <TooltipProvider delay={100}>
@@ -115,7 +173,7 @@ export function FeatureInfoTooltip({
             className
           )}
         >
-          <Info className="w-3.5 h-3.5" />
+          <Info className="w-3.5 h-3.5" aria-hidden="true" />
         </TooltipTrigger>
         <TooltipContent
           side="top"
@@ -130,37 +188,48 @@ export function FeatureInfoTooltip({
   );
 }
 
-export interface FeatureTeaserProps extends React.HTMLAttributes<HTMLDivElement> {
-  status?: FeatureStatus;
-  title?: string;
-  description?: string;
-  badgeLabel?: string;
-  /** Si true, applique un filtre d'opacité et bloque les interactions enfants */
+export interface FeatureTeaserProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'title'> {
+  /** Clé du catalogue : seul moyen d'obtenir un libellé juste. */
+  feature: FeatureKey;
+  locale?: FeatureLocale;
+  /** Désactive (inert) le contenu. Par défaut : oui, c'est un teaser. */
   disabled?: boolean;
-  /** Si true, affiche le badge et l'info dans un en-tête en coin */
+  /** Affiche le bandeau statut + « En savoir plus ». */
   showHeader?: boolean;
+  /** Enveloppe (fieldset-like) : panneau verrouillé à annoncer. */
   children?: React.ReactNode;
+  /** Ouvre l'annonce au lieu de dépendre du provider. */
+  onOpen?: () => void;
 }
 
 /**
- * Enveloppe un groupe de réglages ou un composant pour le présenter avec
- * une retenue élégante (mode grisé sans friction, indicateur discret).
+ * Enveloppe un panneau indisponible : bandeau de statut, contenu visible
+ * mais réellement inerte, et un seul chemin d'action (« En savoir plus »).
  */
 export function FeatureTeaser({
-  status = 'in-development',
-  title,
-  description,
-  badgeLabel,
+  feature,
+  locale = DEFAULT_FEATURE_LOCALE,
   disabled = true,
   showHeader = true,
   children,
+  onOpen,
   className,
   ...props
 }: FeatureTeaserProps) {
+  const announcement = useFeatureAnnouncement();
+  const definition = getFeature(feature);
+  if (!definition) return null;
+
+  const canOpen = !!onOpen || announcement.available;
+  const openAnnouncement = () => {
+    if (onOpen) onOpen();
+    else announcement.open(feature);
+  };
+
   return (
     <div
       className={cn(
-        'relative rounded-2xl border border-border/60 transition-all group overflow-hidden',
+        'relative rounded-2xl border border-border/60 overflow-hidden',
         disabled && 'border-dashed bg-muted/10',
         className
       )}
@@ -168,26 +237,43 @@ export function FeatureTeaser({
     >
       {showHeader && (
         <div className="flex items-center justify-between gap-2 px-3.5 py-2 border-b border-border/40 bg-muted/20">
-          <UpcomingBadge status={status} label={badgeLabel} />
-          <FeatureInfoTooltip status={status} title={title} description={description} />
+          <UpcomingBadge
+            feature={feature}
+            locale={locale}
+            interactive={canOpen}
+            onOpen={canOpen ? openAnnouncement : undefined}
+          />
+          {canOpen && (
+            <button
+              type="button"
+              onClick={openAnnouncement}
+              className="text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer rounded px-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground/30"
+            >
+              {localize({ fr: 'En savoir plus', en: 'Learn more' }, locale)}
+            </button>
+          )}
         </div>
       )}
 
       {children ? (
         <div
-          className={cn(
-            'transition-all',
-            disabled && 'opacity-55 pointer-events-none select-none filter blur-[0.2px]'
-          )}
+          // `inert` retire le sous-arbre du focus et des interactions : c'est
+          // la sémantique correcte d'un panneau verrouillé (contrairement à
+          // opacity + pointer-events, qui laisse le clavier entrer).
+          inert={disabled ? true : undefined}
+          aria-disabled={disabled || undefined}
+          className={cn('transition-opacity', disabled && 'opacity-60')}
         >
           {children}
         </div>
       ) : (
-        <div className="p-3 text-xs space-y-1">
-          {title && <h5 className="font-semibold text-foreground text-xs">{title}</h5>}
-          {description && (
-            <p className="text-[11px] text-muted-foreground leading-relaxed">{description}</p>
-          )}
+        <div className="p-3.5 space-y-1">
+          <h5 className="font-semibold text-foreground text-xs">
+            {localize(definition.copy.title, locale)}
+          </h5>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            {localize(definition.copy.summary, locale)}
+          </p>
         </div>
       )}
     </div>

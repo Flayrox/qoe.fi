@@ -2781,3 +2781,33 @@ CREATE INDEX "legal_refusal_user_idx" ON "legal_refusal" ("user_id", "created_at
 
 -- CreateIndex
 CREATE INDEX "legal_refusal_document_idx" ON "legal_refusal" ("document_id", "created_at" DESC);
+
+-- CreateTable
+-- Signaux d'intérêt des fonctionnalités à venir / Pro (migration 00062).
+CREATE TABLE "FeatureSignal" (
+    "id"            TEXT NOT NULL,
+    "featureKey"    TEXT NOT NULL,
+    "kind"          TEXT NOT NULL,
+    "source"        TEXT NOT NULL DEFAULT 'studio',
+    "userId"        TEXT,
+    "publicationId" TEXT,
+    "createdAt"     TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "FeatureSignal_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "FeatureSignal_kind_check" CHECK ("kind" IN ('view', 'notify')),
+    CONSTRAINT "FeatureSignal_source_check" CHECK ("source" IN ('studio', 'site')),
+    CONSTRAINT "FeatureSignal_feature_key_check" CHECK ("featureKey" ~ '^[a-z0-9]+(-[a-z0-9]+)*$')
+);
+
+-- CreateIndex
+CREATE INDEX "FeatureSignal_publication_kind_idx"
+    ON "FeatureSignal" ("publicationId", "kind", "featureKey");
+
+-- CreateIndex
+CREATE INDEX "FeatureSignal_user_feature_created_idx"
+    ON "FeatureSignal" ("userId", "featureKey", "createdAt" DESC);
+
+-- CreateIndex
+CREATE UNIQUE INDEX "FeatureSignal_notify_unique_idx"
+    ON "FeatureSignal" ("userId", "featureKey")
+    WHERE "kind" = 'notify' AND "userId" IS NOT NULL;

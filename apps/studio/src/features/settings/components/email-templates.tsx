@@ -14,6 +14,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { t } from '@lingui/core/macro';
+import { UpcomingBadge, useFeatureAnnouncement } from '@qoe/ui';
 import { toast } from '@qoe/ui/toast';
 import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
@@ -64,6 +65,8 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
   const [previewMode, setPreviewMode] = useState<'desktop' | 'mobile'>('desktop');
   const [sendingTest, setSendingTest] = useState(false);
   const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Annonce unique (statut, périmètre, palier) ouverte depuis le verrou Pro.
+  const announcement = useFeatureAnnouncement();
 
   // Chargement initial : réglages stockés (assainis AU PALIER côté API —
   // une publication gratuite ne reçoit jamais ses anciens overrides) +
@@ -174,10 +177,14 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
   // Verrou Pro : les champs de personnalisation sont désactivés sans palier
   // (le serveur ignore de toute façon leurs valeurs — ergonomie, pas sécurité).
   const locked = !isPro;
+  // Badge informatif uniquement : il vit à l'intérieur de <label>, où un
+  // bouton volerait l'association du libellé. L'action est dans le bandeau.
   const proBadge = (
-    <span className="ml-2 inline-block rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase text-primary">
-      Pro
-    </span>
+    <UpcomingBadge
+      feature="email-customization"
+      interactive={false}
+      className="ml-2 align-middle"
+    />
   );
 
   return (
@@ -185,13 +192,20 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
       {/* ══════════════════ COLONNE RÉGLAGES ══════════════════ */}
       <div className="divide-y divide-border/30">
         {locked && (
-          <div className="py-4 rounded-xl border border-primary/30 bg-primary/5 px-4 mb-2">
-            <p className="text-xs font-semibold">
+          <div className="py-4 rounded-xl border border-primary/30 bg-primary/5 px-4 mb-2 space-y-2">
+            <p className="text-xs font-semibold flex items-center gap-2 flex-wrap">
               {t`Personnalisation Pro`} {proBadge}
             </p>
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground">
               {t`Nom d'expéditeur, couleurs, sujets et textes personnalisés sont réservés aux publications Pro. Gratuit : nom, logo, langues d'envoi et e-mails soignés par défaut.`}
             </p>
+            <button
+              type="button"
+              onClick={() => announcement.open('email-customization')}
+              className="text-xs font-semibold text-primary hover:underline cursor-pointer"
+            >
+              {t`Voir ce qui est inclus`}
+            </button>
           </div>
         )}
         {/* Expéditeur (Pro) */}

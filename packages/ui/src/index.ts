@@ -105,16 +105,40 @@ export * from './seo/JsonLd';
 // 🧭 Page 404 Immersive & Interactive
 export { NotFoundView } from './NotFoundView';
 
-// 🛡️ Statuts Fonctionnalités (En développement, Pro, Bientôt)
+// 🛡️ Fonctionnalités à venir / réservées Pro — registre, badge, teaser, interstitiel
+export {
+  FEATURES,
+  FEATURE_KEYS,
+  FEATURE_STATUS_COPY,
+  DEFAULT_FEATURE_LOCALE,
+  getFeature,
+  isFeatureKey,
+  localize,
+  type FeatureAudience,
+  type FeatureCta,
+  type FeatureDefinition,
+  type FeatureKey,
+  type FeatureLocale,
+  type FeaturePlan,
+  type FeatureStatus,
+  type LocalizedText,
+} from './ui/feature-catalog';
 export {
   FeatureTeaser,
   UpcomingBadge,
   FeatureInfoTooltip,
-  type FeatureStatus,
   type FeatureTeaserProps,
   type UpcomingBadgeProps,
   type FeatureInfoTooltipProps,
 } from './ui/feature-teaser';
+export {
+  FeatureInterstitial,
+  FeatureAnnouncementProvider,
+  useFeatureAnnouncement,
+  type FeatureInterstitialProps,
+  type FeatureSignal,
+  type FeatureAnnouncementProviderProps,
+} from './ui/feature-interstitial';
 
 // 🪶 Minimal Craft (Inspiré Rauno / Devouring Details)
 export {

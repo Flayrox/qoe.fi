@@ -321,6 +321,28 @@ apps/mobile/src/
 - `server.ts` : `isFlagOn`, `createFlagsContext` (dégradation gracieuse).
 - Provider React hydraté depuis le payload SSR (pas de flicker).
 
+### `@qoe/ui` — fonctionnalités à venir / Pro (annonce unifiée)
+- `ui/feature-catalog.ts` : **registre unique** des fonctionnalités non
+  disponibles (clé stable kebab-case, `status` `in-development` | `pro` |
+  `coming-soon`, `plan`, `audience`, copie FR+EN `LocalizedText`). Ajouter
+  une fonctionnalité = une entrée ; badge, tooltip et interstitiel lisent le
+  même enregistrement.
+- `ui/feature-interstitial.tsx` : l'interstitiel unique (statut, bénéfices,
+  disponibilité, action « me prévenir » ou offre Pro).
+  `FeatureAnnouncementProvider` + `useFeatureAnnouncement()` le montent une
+  fois par app ; `FeatureInterstitial` reste utilisable en composant
+  contrôlé (site public, tests).
+- `ui/feature-teaser.tsx` : `UpcomingBadge` (vrai bouton, `aria-haspopup`),
+  `FeatureTeaser` (contenu visible mais `inert`, sans blur) et
+  `FeatureInfoTooltip` (rappel au survol, jamais seul chemin).
+- **Mesure** : chaque ouverture (`view`) et chaque demande (`notify`) émet un
+  `FeatureSignal` remonté par l'appelant. Côté studio, l'action serveur
+  résout l'espace actif puis `POST /v1/features/signals` l'attribue au
+  **créateur** (publication personnelle) ou au **média** (workspace actif) ;
+  `GET /v1/features/signals/summary` alimente le bloc analytics
+  « Fonctionnalités à venir » (90 j). Une vue est dédupliquée 24 h et le
+  « me prévenir » est idempotent (index partiel unique).
+
 ### `@qoe/observability`
 - Logger + `withCache` / `cacheInvalidateNamespace` (Redis).
 - Consommé par les server actions et les routes Next ; le backend Go a son

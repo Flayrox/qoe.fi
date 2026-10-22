@@ -4,10 +4,11 @@
 
 import { redirect } from 'next/navigation';
 import { getCreatorAnalyticsData, AnalyticsResponseData } from './actions';
+import { getLanguage } from '@qoe/i18n/server';
 import { AnalyticsDashboardClient } from './AnalyticsDashboardClient';
 
 export default async function AnalyticsPage() {
-  const result = await getCreatorAnalyticsData('30d');
+  const [result, language] = await Promise.all([getCreatorAnalyticsData('30d'), getLanguage()]);
 
   if (result.error === 'Non autorisé') {
     redirect('/login');
@@ -52,7 +53,10 @@ export default async function AnalyticsPage() {
     },
     umamiAdvanced: { returning: null, hours: [] },
     provenance: { bySource: [], byHostname: [], byReferrer: [] },
+    featureInterest: [],
   };
 
-  return <AnalyticsDashboardClient initialData={initialData} />;
+  return (
+    <AnalyticsDashboardClient initialData={initialData} locale={language === 'en' ? 'en' : 'fr'} />
+  );
 }

@@ -2,12 +2,14 @@
 
 import React, { useState, useTransition } from 'react';
 import { Eye, Users, Activity, Clock, TrendingUp, Info } from 'lucide-react';
+import type { FeatureLocale } from '@qoe/ui';
 import { getCreatorAnalyticsData, AnalyticsResponseData, TimePeriod } from './actions';
 import { TimeseriesChart } from './components/TimeseriesChart';
 import { TopPagesBlock } from './components/TopPagesBlock';
 import { ReferrersBlock } from './components/ReferrersBlock';
 import { DevicesAndGeoBlock } from './components/DevicesAndGeoBlock';
 import { ProductMetricsBlock } from './components/ProductMetricsBlock';
+import { FeatureInterestBlock } from './components/FeatureInterestBlock';
 import { ProvenanceBlock } from './components/ProvenanceBlock';
 import { AudienceInsightsBlock } from './components/AudienceInsightsBlock';
 import { ReturningAndHeatmapBlock } from './components/ReturningAndHeatmapBlock';
@@ -15,9 +17,13 @@ import { ArticleInspectorModal } from './components/ArticleInspectorModal';
 
 interface AnalyticsDashboardClientProps {
   initialData: AnalyticsResponseData;
+  locale?: FeatureLocale;
 }
 
-export function AnalyticsDashboardClient({ initialData }: AnalyticsDashboardClientProps) {
+export function AnalyticsDashboardClient({
+  initialData,
+  locale = 'fr',
+}: AnalyticsDashboardClientProps) {
   const [data, setData] = useState<AnalyticsResponseData>(initialData);
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>(initialData.period);
   const [selectedArticleUrl, setSelectedArticleUrl] = useState<string | null>(null);
@@ -214,6 +220,9 @@ export function AnalyticsDashboardClient({ initialData }: AnalyticsDashboardClie
 
       {/* ─── Product Metrics: Subscribers & Top Articles ────────── */}
       <ProductMetricsBlock metrics={data.productMetrics} />
+
+      {/* ─── Intérêt pour les fonctionnalités à venir / Pro ─────── */}
+      <FeatureInterestBlock signals={data.featureInterest} locale={locale} />
 
       {/* ─── Provenance fine : d'où viennent les vues (le plus poussé) ── */}
       <ProvenanceBlock provenance={data.provenance} />
