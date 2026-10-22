@@ -127,6 +127,56 @@ describe('MinimalCraftShell - Devouring Details Exact Match (Screenshots 1 & 2)'
     expect(headerBreadcrumb?.textContent).not.toContain('Sommaire');
   });
 
+  it('renders a readable category header with breadcrumb, description and subcategory chips', () => {
+    const publicationWithCategories: TemplatePublicationContext = {
+      ...mockPublication,
+      categories: [
+        { id: 'cat_tech', name: 'Technologie', slug: 'tech', parentId: null },
+        {
+          id: 'cat_ia',
+          name: 'Intelligence Artificielle',
+          slug: 'ia',
+          description: 'Analyses et repères sur les modèles et leurs usages.',
+          parentId: 'cat_tech',
+        },
+        { id: 'cat_ml', name: 'Machine Learning', slug: 'machine-learning', parentId: 'cat_ia' },
+      ],
+    };
+
+    const { container } = render(
+      <MinimalCraftShell
+        publication={publicationWithCategories}
+        articles={[mockArticle]}
+        activeCategory={publicationWithCategories.categories![1]}
+      >
+        <div>Articles de la catégorie</div>
+      </MinimalCraftShell>
+    );
+
+    const breadcrumb = screen.getByLabelText('Fil d’Ariane');
+    expect(breadcrumb.textContent).toContain('Accueil');
+    expect(breadcrumb.textContent).toContain('Technologie');
+    expect(breadcrumb.textContent).toContain('Intelligence Artificielle');
+    expect(breadcrumb.querySelector('[aria-current="page"]')?.textContent).toBe(
+      'Intelligence Artificielle'
+    );
+
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Intelligence Artificielle' }).textContent
+    ).toBe('Intelligence Artificielle');
+    expect(
+      screen.getByText('Analyses et repères sur les modèles et leurs usages.').textContent
+    ).toContain('Analyses et repères');
+    expect(screen.getByText('1 article').textContent).toBe('1 article');
+
+    const subcategories = screen.getByLabelText('Sous-catégories');
+    expect(subcategories.textContent).toContain('Machine Learning');
+    expect(subcategories.querySelector('a')?.getAttribute('href')).toBe('/machine-learning');
+
+    // Le jargon interne ne doit plus apparaitre cote lecteur.
+    expect(container.textContent).not.toContain('sous-rubrique');
+  });
+
   it('displays publication name on home page when no article is active, without Sommaire suffix', () => {
     const { container } = render(
       <MinimalCraftShell publication={mockPublication} articles={[mockArticle]}>

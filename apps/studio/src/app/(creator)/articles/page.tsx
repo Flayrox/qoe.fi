@@ -16,7 +16,13 @@ import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 
 import { ArticlesClient } from './articles-client';
 
-export default async function ArticlesPage() {
+interface ArticlesPageProps {
+  searchParams: Promise<{ tab?: string }>;
+}
+
+export default async function ArticlesPage({ searchParams }: ArticlesPageProps) {
+  const { tab } = await searchParams;
+  const initialTab = tab === 'categories' ? 'categories' : 'articles';
   const supabase = await createClient();
   const {
     data: { user },
@@ -55,6 +61,7 @@ export default async function ArticlesPage() {
         initialCategories={categories}
         initialPinnedArticleId={pinnedArticleId}
         initialAboutArticleId={aboutArticleId}
+        initialTab={initialTab}
         canReview={capabilities?.canReview ?? false}
       />
     </div>

@@ -53,7 +53,7 @@ interface SettingsPublicationDTO {
     seoDescription: string | null;
     createdAt: string;
   }[];
-  categories: { id: string; name: string; slug: string }[];
+  categories: { id: string; name: string; slug: string; parentId?: string | null }[];
   user: {
     id: string;
     email: string | null;
@@ -160,6 +160,7 @@ export default async function CreatorSettingsPage() {
       id: cat.id,
       name: cat.name,
       slug: cat.slug,
+      parentId: cat.parentId ?? null,
     })),
     siteOptions: publication.siteOptions ?? null,
     advancedSettingsMode: owner?.advancedSettingsMode ?? false,

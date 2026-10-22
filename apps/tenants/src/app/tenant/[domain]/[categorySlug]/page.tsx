@@ -24,9 +24,11 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!category) return {};
 
   const title = `${category.name} | ${publication.name || decodedDomain}`;
-  const description = isFr
-    ? `Découvrez tous les articles de la rubrique ${category.name} sur ${publication.name || decodedDomain}.`
-    : `Explore articles from ${category.name} on ${publication.name || decodedDomain}.`;
+  const description =
+    category.description?.trim() ||
+    (isFr
+      ? `Découvrez tous les articles de la rubrique ${category.name} sur ${publication.name || decodedDomain}.`
+      : `Explore articles from ${category.name} on ${publication.name || decodedDomain}.`);
 
   const canonicalUrl = `https://${decodedDomain}/${encodeURIComponent(category.slug)}`;
 

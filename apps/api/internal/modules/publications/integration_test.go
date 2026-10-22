@@ -26,6 +26,7 @@ func TestMain(m *testing.M) {
 	}
 	os.Exit(code)
 }
+
 // requirePool skippe les tests DB quand Docker/testcontainers est absent.
 func requirePool(t *testing.T) {
 	t.Helper()
@@ -33,7 +34,6 @@ func requirePool(t *testing.T) {
 		t.Skip("DB indisponible (Docker/testcontainers requis)")
 	}
 }
-
 
 func seedPublication(t *testing.T) (pubID, userID, articleID string) {
 	requirePool(t)
@@ -81,10 +81,15 @@ func seedPublication(t *testing.T) (pubID, userID, articleID string) {
 	}
 	var catID string
 	if err := poolTest.QueryRow(ctx, `
-		INSERT INTO "Category" (id, name, slug, "publicationId")
-		VALUES (gen_random_uuid()::text, 'Écologie', 'ecologie', $1) RETURNING id`,
+		INSERT INTO "Category" (id, name, slug, description, "publicationId")
+		VALUES (gen_random_uuid()::text, 'Écologie', 'ecologie', 'Enjeux planétaires', $1) RETURNING id`,
 		pubID).Scan(&catID); err != nil {
 		t.Fatalf("category: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx, `
+		INSERT INTO "Category" (id, name, slug, "publicationId", "parentId")
+		VALUES (gen_random_uuid()::text, 'Climat', 'climat', $1, $2)`, pubID, catID); err != nil {
+		t.Fatalf("sous-catégorie: %v", err)
 	}
 	articleID = "article_tenant_1"
 	if _, err := poolTest.Exec(ctx, `
@@ -114,6 +119,17 @@ func seedPublication(t *testing.T) (pubID, userID, articleID string) {
 	return pubID, userID, articleID
 }
 
+func findCategory(t *testing.T, categories []CategoryItem, slug string) CategoryItem {
+	t.Helper()
+	for _, category := range categories {
+		if category.Slug == slug {
+			return category
+		}
+	}
+	t.Fatalf("catégorie %q absente de %+v", slug, categories)
+	return CategoryItem{}
+}
+
 func TestPublicationsByDomain(t *testing.T) {
 	pubID, _, _ := seedPublication(t)
 	svc := NewService(poolTest)
@@ -135,6 +151,17 @@ func TestPublicationsByDomain(t *testing.T) {
 	if len(pub.Articles) != 1 || pub.Articles[0].Category == nil {
 		t.Fatalf("articles = %d (category attendue), articles[0].Category = %v",
 			len(pub.Articles), pub.Articles[0].Category)
+	}
+
+	// Les catégories publiques doivent exposer la description et la hiérarchie :
+	// sans parentId, le tenant ne peut ni filtrer les sous-rubriques ni afficher
+	// de fil d'Ariane.
+	parent, child := findCategory(t, pub.Categories, "ecologie"), findCategory(t, pub.Categories, "climat")
+	if parent.Description == nil || *parent.Description != "Enjeux planétaires" {
+		t.Fatalf("description parente = %v, attendu 'Enjeux planétaires'", parent.Description)
+	}
+	if child.ParentID == nil || *child.ParentID != parent.ID {
+		t.Fatalf("parentId de climat = %v, attendu %s", child.ParentID, parent.ID)
 	}
 
 	// Résolution par domaine personnalisé (insensible à la casse).

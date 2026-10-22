@@ -191,6 +191,7 @@ export async function TenantArticleRenderer({
       id: c.id,
       name: c.name,
       slug: c.slug,
+      description: c.description ?? null,
       parentId: c.parentId ?? null,
     })),
     supportUrl: publication.supportUrl,

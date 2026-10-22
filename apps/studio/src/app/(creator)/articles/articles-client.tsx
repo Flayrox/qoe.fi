@@ -32,7 +32,8 @@ import {
   FolderInput,
   Pin,
 } from 'lucide-react';
-import { cn } from '@qoe/utils';
+import { cn, slugify } from '@qoe/utils';
+import { isReservedTenantRoute } from '@qoe/config';
 import {
   deleteArticleAction,
   saveCategoryAction,
@@ -90,6 +91,7 @@ interface ArticlesClientProps {
   initialCategories: CategoryWithCount[];
   initialPinnedArticleId?: string | null;
   initialAboutArticleId?: string | null;
+  initialTab?: 'articles' | 'categories';
   canReview?: boolean;
 }
 
@@ -103,9 +105,10 @@ export function ArticlesClient({
   initialCategories,
   initialPinnedArticleId = null,
   initialAboutArticleId = null,
+  initialTab = 'articles',
   canReview = false,
 }: ArticlesClientProps) {
-  const [activeMainTab, setActiveMainTab] = useState<'articles' | 'categories'>('articles');
+  const [activeMainTab, setActiveMainTab] = useState<'articles' | 'categories'>(initialTab);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [articles, setArticles] = useState<ArticleWithCategory[]>(initialArticles);
   const [categories, setCategories] = useState<CategoryWithCount[]>(initialCategories);
@@ -437,17 +440,14 @@ export function ArticlesClient({
     const name = inlineSubName.trim();
     if (!name || isCreatingInline) return;
 
+    const slug = slugify(name) || `cat-${Date.now()}`;
+    if (isReservedTenantRoute(slug)) {
+      toast.error(t`Le slug « ${slug} » est réservé par une page du site.`);
+      return;
+    }
+
     try {
       setIsCreatingInline(true);
-      const slug =
-        name
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .replace(/[^a-z0-9\s-]/g, '')
-          .replace(/\s+/g, '-')
-          .replace(/-+/g, '-') || `cat-${Date.now()}`;
-
       const res = await saveCategoryAction({
         name,
         slug,
@@ -483,17 +483,14 @@ export function ArticlesClient({
     const name = inlineRootName.trim();
     if (!name || isCreatingInline) return;
 
+    const slug = slugify(name) || `cat-${Date.now()}`;
+    if (isReservedTenantRoute(slug)) {
+      toast.error(t`Le slug « ${slug} » est réservé par une page du site.`);
+      return;
+    }
+
     try {
       setIsCreatingInline(true);
-      const slug =
-        name
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .replace(/[^a-z0-9\s-]/g, '')
-          .replace(/\s+/g, '-')
-          .replace(/-+/g, '-') || `cat-${Date.now()}`;
-
       const res = await saveCategoryAction({
         name,
         slug,
@@ -529,6 +526,14 @@ export function ArticlesClient({
   const handleCreateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCatName.trim()) return;
+
+    const candidateSlug = slugify(newCatSlug.trim() || newCatName.trim());
+    if (isReservedTenantRoute(candidateSlug)) {
+      setCategoryError(
+        t`Le slug « ${candidateSlug} » est réservé par une page du site. Choisissez un autre nom.`
+      );
+      return;
+    }
 
     try {
       setCategoryError(null);
@@ -594,6 +599,14 @@ export function ArticlesClient({
     if (editCatParentId && hasChildren(editingCat.id)) {
       setEditError(
         t`Cette catégorie contient déjà des sous-catégories et ne peut pas devenir une sous-catégorie.`
+      );
+      return;
+    }
+
+    const candidateSlug = slugify(editCatSlug.trim() || editCatName.trim());
+    if (isReservedTenantRoute(candidateSlug)) {
+      setEditError(
+        t`Le slug « ${candidateSlug} » est réservé par une page du site. Choisissez un autre nom.`
       );
       return;
     }

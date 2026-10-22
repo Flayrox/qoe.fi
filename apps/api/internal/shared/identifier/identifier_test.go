@@ -24,6 +24,41 @@ func TestUsernameValidation(t *testing.T) {
 	}
 }
 
+func TestReservedTenantRoutes(t *testing.T) {
+	for _, slug := range []string{
+		"about",
+		"team",
+		"thoughts",
+		"author",
+		"article",
+		"search",
+		"support",
+		"sitemap",
+		"a-propos",
+		"auteur",
+		"rss.xml",
+		"api",
+		"sitemap.xml",
+	} {
+		if !IsReservedTenantRoute(slug) {
+			t.Errorf("IsReservedTenantRoute(%q)=false, want true", slug)
+		}
+	}
+
+	// Casse, espaces et slashs de bord sont normalisés, comme la saisie UI.
+	for _, slug := range []string{"  ABOUT ", "/team/"} {
+		if !IsReservedTenantRoute(slug) {
+			t.Errorf("IsReservedTenantRoute(%q)=false, want true", slug)
+		}
+	}
+
+	for _, slug := range []string{"actualites", "cuisine", "about-2", "mes-notes"} {
+		if IsReservedTenantRoute(slug) {
+			t.Errorf("IsReservedTenantRoute(%q)=true, want false", slug)
+		}
+	}
+}
+
 func TestSubdomainValidation(t *testing.T) {
 	for _, tc := range []struct {
 		value string

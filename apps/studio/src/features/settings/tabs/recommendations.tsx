@@ -65,6 +65,8 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
       const res = await getRecommendationsAction();
       if (res.ok && res.data) {
         setRecommendations(res.data);
+      } else if (!res.ok) {
+        setError(res.error?.message || 'Impossible de charger les recommandations.');
       }
     } catch {
       setError('Impossible de charger les recommandations.');
@@ -371,8 +373,15 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
             <span>Chargement des recommandations...</span>
           </div>
         ) : error ? (
-          <div className="p-4 rounded-xl border border-destructive/20 bg-destructive/5 text-destructive text-xs">
-            {error}
+          <div className="p-4 rounded-xl border border-destructive/20 bg-destructive/5 text-destructive text-xs flex items-center justify-between gap-3">
+            <span>{error}</span>
+            <button
+              type="button"
+              onClick={loadRecs}
+              className="shrink-0 rounded-lg border border-destructive/30 px-2.5 py-1 font-semibold hover:bg-destructive/10 transition-colors cursor-pointer"
+            >
+              Réessayer
+            </button>
           </div>
         ) : recommendations.length === 0 ? (
           <div className="text-center p-8 border border-dashed border-border/60 rounded-2xl space-y-2">

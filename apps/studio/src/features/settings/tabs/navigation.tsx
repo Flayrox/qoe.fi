@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 import {
   Plus,
   Trash2,
@@ -7,22 +8,19 @@ import {
   ExternalLink,
   Eye,
   EyeOff,
-  Share2,
   ArrowUp,
   ArrowDown,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
-import type { CreatorProfile, ClientNavigationItem } from '../types';
-import { SUPPORTED_SOCIAL_PLATFORMS } from '../types';
+import { isReservedTenantRoute } from '@qoe/config';
+import type { CreatorProfile, ClientCategory, ClientNavigationItem } from '../types';
 
 interface NavigationTabProps {
   current: CreatorProfile;
   setCurrent: React.Dispatch<React.SetStateAction<CreatorProfile>>;
-  addNavigationLink?: () => void;
   removeNavigationLink: (idx: number) => void;
   reorderNavigationLink: (idx: number, direction: 'up' | 'down') => void;
-  addSocialLink: (platform: string) => void;
-  removeSocialLink: (idx: number) => void;
+  hasUnsavedChanges: boolean;
 }
 
 export function NavigationTab({
@@ -30,18 +28,75 @@ export function NavigationTab({
   setCurrent,
   removeNavigationLink,
   reorderNavigationLink,
-  addSocialLink,
-  removeSocialLink,
+  hasUnsavedChanges,
 }: NavigationTabProps) {
+  // Quitter les réglages pour Articles abandonne les modifications non
+  // enregistrées : on demande confirmation avant de suivre le lien.
+  const guardUnsavedNavigation = (e: React.MouseEvent) => {
+    if (
+      hasUnsavedChanges &&
+      !window.confirm('Des modifications ne sont pas enregistrées. Quitter sans enregistrer ?')
+    ) {
+      e.preventDefault();
+    }
+  };
   // Liste des IDs des catégories masquées du menu de navigation (catégories seules)
   const hiddenNavCategoryIds =
     (current.siteOptions?.hiddenNavCategoryIds as string[] | undefined) || [];
+  const categoryById = new Map(current.categories.map((c) => [c.id, c]));
+
+  /** IDs de la catégorie et de toutes ses descendantes (masquage en cascade). */
+  const categoryBranchIds = (catId: string) => {
+    const ids = new Set([catId]);
+    let grew = true;
+    while (grew) {
+      grew = false;
+      for (const cat of current.categories) {
+        if (cat.parentId && ids.has(cat.parentId) && !ids.has(cat.id)) {
+          ids.add(cat.id);
+          grew = true;
+        }
+      }
+    }
+    return ids;
+  };
+
+  /**
+   * Une catégorie n'apparaît dans le menu que si elle et tous ses parents sont
+   * visibles : masquer un parent masque donc toute sa branche.
+   */
+  const isEffectivelyHidden = (cat: ClientCategory) => {
+    const visited = new Set<string>();
+    let cursor: ClientCategory | undefined = cat;
+    while (cursor && !visited.has(cursor.id)) {
+      if (hiddenNavCategoryIds.includes(cursor.id)) return true;
+      visited.add(cursor.id);
+      cursor = cursor.parentId ? categoryById.get(cursor.parentId) : undefined;
+    }
+    return false;
+  };
+
+  /** IDs des parents, du plus proche à la racine. */
+  const ancestorIds = (catId: string) => {
+    const ids = new Set<string>();
+    let cursor = categoryById.get(catId)?.parentId;
+    while (cursor && !ids.has(cursor)) {
+      ids.add(cursor);
+      cursor = categoryById.get(cursor)?.parentId;
+    }
+    return ids;
+  };
 
   const toggleCategoryInNav = (catId: string) => {
-    const isHidden = hiddenNavCategoryIds.includes(catId);
+    const category = categoryById.get(catId);
+    const isHidden = category
+      ? isEffectivelyHidden(category)
+      : hiddenNavCategoryIds.includes(catId);
+    const branch = categoryBranchIds(catId);
     const nextHidden = isHidden
-      ? hiddenNavCategoryIds.filter((id) => id !== catId)
-      : [...hiddenNavCategoryIds, catId];
+      ? // Réafficher une sous-catégorie réaffiche aussi le chemin qui y mène.
+        hiddenNavCategoryIds.filter((id) => !branch.has(id) && !ancestorIds(catId).has(id))
+      : Array.from(new Set([...hiddenNavCategoryIds, ...branch]));
 
     setCurrent((prev) => ({
       ...prev,
@@ -52,13 +107,42 @@ export function NavigationTab({
     }));
   };
 
+  /** Ordonne les catégories parent → enfants pour refléter la hiérarchie réelle. */
+  const orderedCategories = (() => {
+    const childrenOf = new Map<string | null, ClientCategory[]>();
+    for (const cat of current.categories) {
+      const parentId = cat.parentId && categoryById.has(cat.parentId) ? cat.parentId : null;
+      const siblings = childrenOf.get(parentId) || [];
+      siblings.push(cat);
+      childrenOf.set(parentId, siblings);
+    }
+
+    const ordered: Array<{ cat: ClientCategory; depth: number }> = [];
+    const walk = (parentId: string | null, depth: number) => {
+      for (const cat of childrenOf.get(parentId) || []) {
+        ordered.push({ cat, depth });
+        walk(cat.id, depth + 1);
+      }
+    };
+    walk(null, 0);
+
+    // Garde-fou : catégories orphelines ou cycles éventuels.
+    for (const cat of current.categories) {
+      if (!ordered.some((entry) => entry.cat.id === cat.id)) {
+        ordered.push({ cat, depth: 0 });
+      }
+    }
+    return ordered;
+  })();
+
   // Liens externes uniquement (isExternal === true)
   const externalLinks = current.navigation.filter((n) => n.isExternal);
 
   const addExternalLink = () => {
     const newLink: ClientNavigationItem = {
       label: 'Nouveau lien',
-      url: 'https://',
+      // Pas de "https://" pré-rempli : une URL incomplète finit dans le menu public.
+      url: '',
       order: current.navigation.length,
       isExternal: true,
       parentId: null,
@@ -68,7 +152,7 @@ export function NavigationTab({
 
   return (
     <div className="max-w-4xl space-y-6">
-      {/* ── 1. RUBRIQUES & CATÉGORIES D'ARTICLES ── */}
+      {/* ── 1. CATÉGORIES & VISIBILITÉ DANS LE MENU ── */}
       <div
         id="categories"
         className="rounded-xl border border-border/50 bg-card p-5 space-y-4 shadow-2xs"
@@ -78,158 +162,114 @@ export function NavigationTab({
             <div className="flex items-center gap-2">
               <FolderTree className="w-4 h-4 text-primary" />
               <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Rubriques & Catégories d'articles
+                Catégories & menu
               </h3>
             </div>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              Vos catégories classent vos articles. Activez ou désactivez le statut « Rubrique »
-              selon que vous souhaitez qu'elle apparaisse ou non dans la barre du haut.
+              Choisissez les catégories visibles dans le menu. Masquer une catégorie masque aussi
+              ses sous-catégories. Création, renommage, slug et hiérarchie se gèrent dans Articles →
+              Catégories.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              const newId = `temp-${Date.now()}`;
-              const uniqueSlug = `rubrique-${Date.now().toString(36)}`;
-              setCurrent((prev) => ({
-                ...prev,
-                categories: [
-                  ...prev.categories,
-                  {
-                    id: newId,
-                    name: 'Nouvelle rubrique',
-                    slug: uniqueSlug,
-                    parentId: null,
-                  },
-                ],
-              }));
-            }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold transition-all active:scale-95 cursor-pointer shadow-xs shrink-0"
+          <Link
+            href="/articles?tab=categories"
+            onClick={guardUnsavedNavigation}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/50 bg-muted/30 hover:bg-muted/60 text-foreground text-xs font-semibold transition-colors shrink-0"
           >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Ajouter une catégorie</span>
-          </button>
+            Gérer les catégories
+            <ExternalLink className="w-3 h-3" />
+          </Link>
         </div>
 
         {current.categories.length === 0 ? (
-          <div className="py-8 text-center border border-dashed border-border/40 rounded-lg text-xs text-muted-foreground">
-            Aucune catégorie configurée pour le moment.
+          <div className="py-8 text-center border border-dashed border-border/40 rounded-lg text-xs text-muted-foreground space-y-2">
+            <p>Aucune catégorie pour le moment.</p>
+            <Link
+              href="/articles?tab=categories"
+              onClick={guardUnsavedNavigation}
+              className="inline-block font-semibold text-primary hover:underline"
+            >
+              Créer votre première catégorie
+            </Link>
           </div>
         ) : (
           <div className="space-y-2.5">
-            {current.categories.map((cat, idx) => {
-              const isSubcategory = Boolean(cat.parentId);
-              const isHiddenFromNav = hiddenNavCategoryIds.includes(cat.id);
-              const parentCandidates = current.categories.filter(
-                (c) => c.id !== cat.id && !c.parentId
-              );
+            {orderedCategories.map(({ cat, depth }) => {
+              const isSubcategory = depth > 0;
+              const parent = cat.parentId ? categoryById.get(cat.parentId) : null;
+              const isHiddenFromNav = isEffectivelyHidden(cat);
+              const slugReserved = isReservedTenantRoute(cat.slug);
 
               return (
                 <div
-                  key={cat.id || idx}
+                  key={cat.id}
+                  style={isSubcategory ? { marginLeft: Math.min(depth, 3) * 16 } : undefined}
                   className={cn(
-                    'flex flex-col md:flex-row md:items-center gap-2.5 p-2.5 bg-muted/20 border border-border/40 rounded-xl transition-all',
-                    isSubcategory && 'ml-4 sm:ml-6 border-l-2 border-l-primary/70 bg-muted/30'
+                    'flex flex-col sm:flex-row sm:items-center gap-2.5 p-2.5 bg-muted/20 border border-border/40 rounded-xl transition-all',
+                    isSubcategory && 'border-l-2 border-l-primary/70 bg-muted/30'
                   )}
                 >
-                  <div className="flex items-center gap-2 min-w-[200px] flex-1">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
                     {isSubcategory ? (
                       <CornerDownRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                     ) : (
                       <div className="w-2 h-2 rounded-full bg-primary/70 shrink-0" />
                     )}
-                    <input
-                      type="text"
-                      value={cat.name}
-                      onChange={(e) => {
-                        const newName = e.target.value;
-                        const newSlug = newName
-                          .toLowerCase()
-                          .normalize('NFD')
-                          .replace(/[\u0300-\u036f]/g, '')
-                          .replace(/[^a-z0-9]+/g, '-')
-                          .replace(/^-+|-+$/g, '');
-                        const updated = [...current.categories];
-                        updated[idx] = {
-                          ...updated[idx],
-                          name: newName,
-                          slug: newSlug || updated[idx].slug,
-                        };
-                        setCurrent((prev) => ({ ...prev, categories: updated }));
-                      }}
-                      placeholder="Nom de la rubrique"
-                      className="w-full px-3 py-1.5 bg-background border border-border/40 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80"
-                    />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-semibold text-foreground truncate">
+                          {cat.name}
+                        </span>
+                        {parent && (
+                          <span className="text-[10px] text-muted-foreground">
+                            dans {parent.name}
+                          </span>
+                        )}
+                      </div>
+                      <span
+                        className={cn(
+                          'text-[10px] font-mono text-muted-foreground',
+                          slugReserved && 'text-destructive'
+                        )}
+                        title={
+                          slugReserved
+                            ? 'Ce slug est réservé par une page du site ; renommez la catégorie dans Articles.'
+                            : undefined
+                        }
+                      >
+                        /{cat.slug}
+                        {slugReserved && ' · réservé'}
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-                    <span className="text-[11px] text-muted-foreground font-mono bg-muted/40 px-2 py-1 rounded shrink-0">
-                      /{cat.slug}
-                    </span>
-
-                    {/* Sélection du parent pour en faire une sous-rubrique */}
-                    <select
-                      value={cat.parentId || ''}
-                      onChange={(e) => {
-                        const val = e.target.value || null;
-                        const updated = [...current.categories];
-                        updated[idx] = { ...updated[idx], parentId: val };
-                        setCurrent((prev) => ({ ...prev, categories: updated }));
-                      }}
-                      className="px-2 py-1.5 bg-background border border-border/40 rounded-lg text-xs text-foreground focus:outline-none cursor-pointer max-w-[150px] truncate"
-                      title="Parent de la rubrique"
-                    >
-                      <option value="">Rubrique racine</option>
-                      {parentCandidates.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          Sous-rubrique de : {p.name}
-                        </option>
-                      ))}
-                    </select>
-
-                    {/* Toggle Rubrique en haut vs Catégorie seule */}
-                    <button
-                      type="button"
-                      onClick={() => toggleCategoryInNav(cat.id)}
-                      className={cn(
-                        'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer shrink-0',
-                        !isHiddenFromNav
-                          ? 'border-primary/50 bg-primary/10 text-primary shadow-2xs'
-                          : 'border-border/40 bg-muted/40 text-muted-foreground hover:text-foreground'
-                      )}
-                      title={
-                        !isHiddenFromNav
-                          ? 'Visible dans la barre de navigation du site'
-                          : 'Masquée du menu (catégorie d’articles seule)'
-                      }
-                    >
-                      {!isHiddenFromNav ? (
-                        <>
-                          <Eye className="w-3 h-3 text-primary" />
-                          <span className="text-[11px]">Rubrique active</span>
-                        </>
-                      ) : (
-                        <>
-                          <EyeOff className="w-3 h-3 opacity-60" />
-                          <span className="text-[11px]">Catégorie seule</span>
-                        </>
-                      )}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCurrent((prev) => ({
-                          ...prev,
-                          categories: prev.categories.filter((_, i) => i !== idx),
-                        }));
-                      }}
-                      className="p-1.5 text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer shrink-0"
-                      title="Supprimer la rubrique"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggleCategoryInNav(cat.id)}
+                    className={cn(
+                      'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer shrink-0 self-start sm:self-auto',
+                      !isHiddenFromNav
+                        ? 'border-primary/50 bg-primary/10 text-primary shadow-2xs'
+                        : 'border-border/40 bg-muted/40 text-muted-foreground hover:text-foreground'
+                    )}
+                    title={
+                      !isHiddenFromNav
+                        ? 'Visible dans le menu du site (cliquez pour masquer cette branche)'
+                        : 'Masquée du menu du site (cliquez pour afficher cette branche)'
+                    }
+                  >
+                    {!isHiddenFromNav ? (
+                      <>
+                        <Eye className="w-3 h-3 text-primary" />
+                        <span className="text-[11px]">Dans le menu</span>
+                      </>
+                    ) : (
+                      <>
+                        <EyeOff className="w-3 h-3 opacity-60" />
+                        <span className="text-[11px]">Masquée</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               );
             })}
@@ -237,7 +277,7 @@ export function NavigationTab({
         )}
       </div>
 
-      {/* ── 2. LIENS EXTERNES DU MENU (PODCAST, TWITTER, BOUTIQUE...) ── */}
+      {/* ── 2. LIENS EXTERNES DU MENU (PODCAST, BOUTIQUE...) ── */}
       <div
         id="links"
         className="rounded-xl border border-border/50 bg-card p-5 space-y-4 shadow-2xs"
@@ -253,7 +293,7 @@ export function NavigationTab({
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
               Ajoutez des raccourcis vers vos autres espaces (Podcast, Boutique, Substack,
               YouTube...) qui s’afficheront directement dans la barre du haut aux côtés de vos
-              rubriques.
+              catégories.
             </p>
           </div>
           <button
@@ -268,8 +308,8 @@ export function NavigationTab({
 
         {externalLinks.length === 0 ? (
           <div className="py-6 text-center border border-dashed border-border/40 rounded-lg text-xs text-muted-foreground">
-            Aucun lien externe configuré. Seules vos rubriques actives apparaîtront dans la barre du
-            haut.
+            Aucun lien externe configuré. Seules vos catégories visibles apparaîtront dans la barre
+            du haut.
           </div>
         ) : (
           <div className="space-y-2">
@@ -336,78 +376,6 @@ export function NavigationTab({
                 </div>
               );
             })}
-          </div>
-        )}
-      </div>
-
-      {/* ── 3. RÉSEAUX SOCIAUX ── */}
-      <div
-        id="social"
-        className="rounded-xl border border-border/50 bg-card p-5 space-y-4 shadow-2xs"
-      >
-        <div className="flex items-center gap-2 pb-2 border-b border-border/30">
-          <Share2 className="w-4 h-4 text-primary" />
-          <div>
-            <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Réseaux sociaux
-            </h3>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Connectez vos profils pour permettre à vos lecteurs de vous suivre.
-            </p>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          {SUPPORTED_SOCIAL_PLATFORMS.map((plat) => {
-            const isConnected = current.socialLinks.some((s) => s.platform === plat.id);
-            return (
-              <button
-                key={plat.id}
-                type="button"
-                disabled={isConnected}
-                onClick={() => addSocialLink(plat.id)}
-                className={cn(
-                  'px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors cursor-pointer',
-                  isConnected
-                    ? 'bg-muted/20 border-border/20 text-muted-foreground/40 cursor-not-allowed'
-                    : 'border-border/40 bg-muted/20 hover:bg-muted/50 text-foreground'
-                )}
-              >
-                {plat.name} {isConnected && '✓'}
-              </button>
-            );
-          })}
-        </div>
-
-        {current.socialLinks.length > 0 && (
-          <div className="space-y-2 pt-2 border-t border-border/30">
-            {current.socialLinks.map((s, idx) => (
-              <div
-                key={s.platform}
-                className="flex items-center gap-2 p-2 bg-muted/20 border border-border/30 rounded-lg"
-              >
-                <span className="text-xs font-semibold text-foreground capitalize w-24 px-1 truncate">
-                  {s.platform}
-                </span>
-                <input
-                  type="text"
-                  value={s.url}
-                  onChange={(e) => {
-                    const updated = [...current.socialLinks];
-                    updated[idx] = { ...updated[idx], url: e.target.value };
-                    setCurrent((prev) => ({ ...prev, socialLinks: updated }));
-                  }}
-                  className="flex-1 px-3 py-1.5 bg-background border border-border/40 rounded text-xs font-medium text-foreground focus:outline-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeSocialLink(idx)}
-                  className="p-1.5 text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer shrink-0"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            ))}
           </div>
         )}
       </div>

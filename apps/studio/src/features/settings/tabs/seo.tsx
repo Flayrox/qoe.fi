@@ -7,8 +7,10 @@
 import React from 'react';
 import { t } from '@lingui/core/macro';
 import { toast } from '@qoe/ui/toast';
-import { Globe, Terminal } from 'lucide-react';
+import { Globe, Terminal, Share2, Trash2 } from 'lucide-react';
+import { cn } from '@qoe/utils';
 import type { CreatorProfile } from '../types';
+import { SUPPORTED_SOCIAL_PLATFORMS } from '../types';
 import { SeoPreview } from '../components/seo-preview';
 
 interface SeoTabProps {
@@ -16,9 +18,18 @@ interface SeoTabProps {
   setCurrent: React.Dispatch<React.SetStateAction<CreatorProfile>>;
   isAdvancedMode: boolean;
   setIsAdvancedMode: React.Dispatch<React.SetStateAction<boolean>>;
+  addSocialLink: (platform: string) => void;
+  removeSocialLink: (idx: number) => void;
 }
 
-export function SeoTab({ current, setCurrent, isAdvancedMode, setIsAdvancedMode }: SeoTabProps) {
+export function SeoTab({
+  current,
+  setCurrent,
+  isAdvancedMode,
+  setIsAdvancedMode,
+  addSocialLink,
+  removeSocialLink,
+}: SeoTabProps) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
       {/* Formulaire SEO */}
@@ -171,6 +182,86 @@ export function SeoTab({ current, setCurrent, isAdvancedMode, setIsAdvancedMode 
               Mention affichée en bas de chaque page de votre site.
             </span>
           </div>
+        </div>
+
+        {/* Réseaux sociaux */}
+        <div
+          id="social"
+          className="rounded-xl border border-border/50 bg-card p-5 space-y-4 shadow-2xs"
+        >
+          <div className="flex items-center gap-2 pb-2 border-b border-border/30">
+            <Share2 className="w-4 h-4 text-primary" />
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Réseaux sociaux
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Connectez vos profils pour permettre à vos lecteurs de vous suivre.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {SUPPORTED_SOCIAL_PLATFORMS.map((plat) => {
+              const isConnected = current.socialLinks.some((s) => s.platform === plat.id);
+              return (
+                <button
+                  key={plat.id}
+                  type="button"
+                  disabled={isConnected}
+                  onClick={() => addSocialLink(plat.id)}
+                  className={cn(
+                    'px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors cursor-pointer',
+                    isConnected
+                      ? 'bg-muted/20 border-border/20 text-muted-foreground/40 cursor-not-allowed'
+                      : 'border-border/40 bg-muted/20 hover:bg-muted/50 text-foreground'
+                  )}
+                >
+                  {plat.name} {isConnected && '✓'}
+                </button>
+              );
+            })}
+          </div>
+
+          {current.socialLinks.length > 0 && (
+            <div className="space-y-2 pt-2 border-t border-border/30">
+              {current.socialLinks.map((s, idx) => {
+                const platformLabel =
+                  SUPPORTED_SOCIAL_PLATFORMS.find((p) => p.id === s.platform)?.name ?? s.platform;
+                return (
+                  <div
+                    key={s.platform}
+                    className="flex items-center gap-2 p-2 bg-muted/20 border border-border/30 rounded-lg"
+                  >
+                    <span className="text-xs font-semibold text-foreground w-24 px-1 truncate">
+                      {platformLabel}
+                    </span>
+                    <input
+                      type="url"
+                      value={s.url}
+                      aria-label={`URL du profil ${platformLabel}`}
+                      placeholder="https://..."
+                      onChange={(e) => {
+                        const updated = [...current.socialLinks];
+                        updated[idx] = { ...updated[idx], url: e.target.value };
+                        setCurrent((prev) => ({ ...prev, socialLinks: updated }));
+                      }}
+                      className="flex-1 px-3 py-1.5 bg-background border border-border/40 rounded text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeSocialLink(idx)}
+                      title={`Retirer ${platformLabel}`}
+                      aria-label={`Retirer ${platformLabel}`}
+                      className="p-1.5 text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer shrink-0"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 

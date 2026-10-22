@@ -86,6 +86,42 @@ describe('resolveTenantNavigation — Moteur souverain de navigation Tenant', ()
     expect(shop?.isExternal).toBe(true);
   });
 
+  it('ignore les liens externes sans URL exploitable (placeholder https://)', () => {
+    const res = resolveTenantNavigation({
+      categories: [],
+      navigation: [
+        {
+          id: 'ext_empty',
+          label: 'Nouveau lien',
+          url: '',
+          order: 0,
+          isExternal: true,
+          parentId: null,
+        },
+        {
+          id: 'ext_scheme',
+          label: 'Lien incomplet',
+          url: 'https://',
+          order: 1,
+          isExternal: true,
+          parentId: null,
+        },
+        {
+          id: 'ext_ok',
+          label: 'Podcast',
+          url: 'https://podcast.com',
+          order: 2,
+          isExternal: true,
+          parentId: null,
+        },
+      ],
+      siteOptions: {},
+    });
+
+    expect(res.navItems.map((n) => n.id)).toEqual(['ext_ok']);
+    expect(res.externalLinks.map((n) => n.id)).toEqual(['ext_ok']);
+  });
+
   it('utilise le repli pour anciens liens internes si aucune catégorie n’existe', () => {
     const legacyNav = [
       {

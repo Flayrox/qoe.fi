@@ -33,9 +33,8 @@ import {
   saveNavigationLinksAction,
   saveSocialLinksAction,
 } from '@qoe/sdk/actions/dashboard';
-import { saveCategoryAction, deleteCategoryAction } from '@qoe/sdk/actions/articles';
 
-import type { CreatorProfile, ClientNavigationItem, ClientSocialLink } from './types';
+import type { CreatorProfile, ClientSocialLink } from './types';
 
 import { GeneralTab } from './tabs/general';
 import { EmailsTab } from './tabs/emails';
@@ -72,6 +71,18 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
       const tabMatch = hash.match(/^#(general|emails|recommendations|domain|navigation|seo)/);
       if (tabMatch) {
         setActiveTab(tabMatch[1] as TabType);
+      } else {
+        // Ancres de section : retrouver l'onglet qui les contient (Cmd+K).
+        const sectionTabs: Record<string, TabType> = {
+          categories: 'navigation',
+          links: 'navigation',
+          social: 'seo',
+          meta: 'seo',
+          indexing: 'seo',
+        };
+        const section = hash.substring(1).split('#').pop() || '';
+        const tab = sectionTabs[section];
+        if (tab) setActiveTab(tab);
       }
 
       setTimeout(() => {
@@ -243,27 +254,8 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
         await saveSocialLinksAction(current.socialLinks);
       }
 
-      const categoriesChanged =
-        JSON.stringify(current.categories) !== JSON.stringify(original.categories);
-      if (categoriesChanged) {
-        const currentIds = new Set(current.categories.map((c) => c.id));
-        for (const orig of original.categories) {
-          if (!currentIds.has(orig.id)) {
-            await deleteCategoryAction(orig.id);
-          }
-        }
-        for (const cat of current.categories) {
-          const isNew =
-            cat.id.startsWith('temp-') || !original.categories.some((o) => o.id === cat.id);
-          await saveCategoryAction({
-            id: isNew ? undefined : cat.id,
-            name: cat.name,
-            slug: cat.slug,
-            parentId: cat.parentId || null,
-          });
-        }
-      }
-
+      // Les catégories ne sont plus modifiables ici : création, renommage,
+      // slug et hiérarchie vivent dans Articles → Catégories.
       toast.success(t`Paramètres enregistrés.`);
       setOriginal(current);
     } catch (err: unknown) {
@@ -288,16 +280,6 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
   }, [hasChanges, isSaving, current]);
 
   // Helpers Navigation
-  const addNavigationLink = () => {
-    const newLink: ClientNavigationItem = {
-      label: 'Nouvel onglet',
-      url: 'https://',
-      order: current.navigation.length,
-      isExternal: true,
-    };
-    setCurrent((prev) => ({ ...prev, navigation: [...prev.navigation, newLink] }));
-  };
-
   const removeNavigationLink = (idx: number) => {
     setCurrent((prev) => {
       const filtered = prev.navigation.filter((_, i) => i !== idx);
@@ -346,7 +328,7 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
     { id: 'recommendations' as const, label: t`Recommandations`, icon: Sparkles },
     { id: 'seo' as const, label: t`SEO & Réseaux`, icon: Search },
     { id: 'domain' as const, label: t`Domaine & DNS`, icon: Globe },
-    { id: 'navigation' as const, label: t`Navigation & Liens`, icon: Compass },
+    { id: 'navigation' as const, label: t`Menu & liens`, icon: Compass },
   ];
 
   return (
@@ -504,6 +486,8 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
                 setCurrent={setCurrent}
                 isAdvancedMode={isAdvancedMode}
                 setIsAdvancedMode={setIsAdvancedMode}
+                addSocialLink={addSocialLink}
+                removeSocialLink={removeSocialLink}
               />
             </motion.div>
           )}
@@ -537,11 +521,9 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
               <NavigationTab
                 current={current}
                 setCurrent={setCurrent}
-                addNavigationLink={addNavigationLink}
                 removeNavigationLink={removeNavigationLink}
                 reorderNavigationLink={reorderNavigationLink}
-                addSocialLink={addSocialLink}
-                removeSocialLink={removeSocialLink}
+                hasUnsavedChanges={hasChanges}
               />
             </motion.div>
           )}
