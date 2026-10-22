@@ -46,7 +46,7 @@ describe('resolveTenantNavigation — Moteur souverain de navigation Tenant', ()
     expect(techItem?.url).toBe('/tech');
     expect(techItem?.children?.length).toBe(1);
     expect(techItem?.children?.[0].label).toBe('Intelligence Artificielle');
-    expect(techItem?.children?.[0].url).toBe('/ia');
+    expect(techItem?.children?.[0].url).toBe('/tech/ia');
   });
 
   it('exclut automatiquement les catégories marquées comme masquées (hiddenNavCategoryIds)', () => {

@@ -1,4 +1,5 @@
 // =====================================================================
+import { buildArticlePath, buildCategoryPath } from '@qoe/utils';
 // BentoGridBlock.tsx — Grille asymétrique
 // Supporte :
 // - Agencement 1 grande carte vedette + 2 ou 3 cartes satellites
@@ -179,7 +180,7 @@ export function BentoGridBlock({
                         item.category &&
                         (item.category.slug ? (
                           <Link
-                            href={`/${item.category.slug}`}
+                            href={buildCategoryPath(item.category)}
                             onClick={(e) => {
                               e.stopPropagation();
                               if (context.mode === 'editable') e.preventDefault();
@@ -211,7 +212,7 @@ export function BentoGridBlock({
                       }`}
                     >
                       <Link
-                        href={`/article/${item.slug}`}
+                        href={buildArticlePath(item)}
                         onClick={(e) => context.mode === 'editable' && e.preventDefault()}
                         className="after:absolute after:inset-0"
                       >

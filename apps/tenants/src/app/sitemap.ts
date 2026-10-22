@@ -1,3 +1,4 @@
+import { buildArticlePath, buildCategoryPath } from '@qoe/utils';
 // =====================================================================
 // 🗺️ sitemap.ts — apps/tenants (*.qoe.fi & domaines personnalisés)
 // =====================================================================
@@ -42,7 +43,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const articlePages: MetadataRoute.Sitemap = (pub.articles || [])
       .filter((art) => art.published !== false && Boolean(art.slug))
       .map((art) => ({
-        url: `${baseUrl}/article/${encodeURIComponent(art.slug)}`,
+        url: `${baseUrl}${buildArticlePath(art, pub.categories)}`,
         lastModified: art.createdAt ? new Date(art.createdAt) : new Date(),
         changeFrequency: 'weekly',
         priority: 0.8,
@@ -53,7 +54,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       'team',
       'sitemap',
       'rss.xml',
-      ...(pub.categories || []).map((c) => encodeURIComponent(c.slug)),
+      ...(pub.categories || []).map((c) => buildCategoryPath(c, pub.categories).replace(/^\//, '')),
     ].map((path) => ({
       url: `${baseUrl}/${path}`,
       lastModified: new Date(),

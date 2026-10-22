@@ -54,7 +54,7 @@ func (q *Queries) CheckCategorySlugExists(ctx context.Context, arg CheckCategory
 const createCategory = `-- name: CreateCategory :one
 INSERT INTO "Category" (id, name, slug, description, "publicationId", "parentId")
 VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5)
-RETURNING id, name, slug, description, "publicationId", "parentId"
+RETURNING id, name, slug, description, "publicationId", "parentId", "isDefault"
 `
 
 type CreateCategoryParams struct {
@@ -81,12 +81,13 @@ func (q *Queries) CreateCategory(ctx context.Context, arg CreateCategoryParams) 
 		&i.Description,
 		&i.PublicationId,
 		&i.ParentId,
+		&i.IsDefault,
 	)
 	return i, err
 }
 
 const deleteCategory = `-- name: DeleteCategory :exec
-DELETE FROM "Category" WHERE id = $1
+DELETE FROM "Category" WHERE id = $1 AND "isDefault" = false
 `
 
 func (q *Queries) DeleteCategory(ctx context.Context, id string) error {
@@ -94,9 +95,33 @@ func (q *Queries) DeleteCategory(ctx context.Context, id string) error {
 	return err
 }
 
+const ensureDefaultCategory = `-- name: EnsureDefaultCategory :one
+INSERT INTO "Category" (id, name, slug, description, "publicationId", "parentId", "isDefault")
+VALUES (gen_random_uuid()::text, 'Non classé', 'uncategorized', NULL, $1, NULL, true)
+ON CONFLICT ("publicationId") WHERE "isDefault" DO UPDATE SET "isDefault" = EXCLUDED."isDefault"
+RETURNING id, name, slug, description, "publicationId", "parentId", "isDefault"
+`
+
+// Crée (ou récupère) la catégorie « Non classé » d'une publication.
+// Idempotent grâce à l'index unique partiel sur ("publicationId") WHERE "isDefault".
+func (q *Queries) EnsureDefaultCategory(ctx context.Context, publicationid string) (Category, error) {
+	row := q.db.QueryRow(ctx, ensureDefaultCategory, publicationid)
+	var i Category
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Slug,
+		&i.Description,
+		&i.PublicationId,
+		&i.ParentId,
+		&i.IsDefault,
+	)
+	return i, err
+}
+
 const getCategoryByID = `-- name: GetCategoryByID :one
 
-SELECT id, name, slug, description, "publicationId", "parentId"
+SELECT id, name, slug, description, "publicationId", "parentId", "isDefault"
 FROM "Category"
 WHERE id = $1
 `
@@ -112,6 +137,7 @@ func (q *Queries) GetCategoryByID(ctx context.Context, id string) (Category, err
 		&i.Description,
 		&i.PublicationId,
 		&i.ParentId,
+		&i.IsDefault,
 	)
 	return i, err
 }

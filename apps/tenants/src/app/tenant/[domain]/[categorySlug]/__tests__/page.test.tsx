@@ -1,11 +1,15 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { notFound } from 'next/navigation';
 import { render, screen, cleanup } from '@testing-library/react';
-import TenantCategoryFilterPage, { generateMetadata } from '../page';
+import {
+  TenantCategoryRoute,
+  generateTenantCategoryMetadata as generateMetadata,
+} from '@/lib/tenant-category-route';
 import * as tenantData from '@/lib/tenant-data';
 
 vi.mock('next/navigation', () => ({
   notFound: vi.fn(),
+  permanentRedirect: vi.fn(),
 }));
 
 vi.mock('@qoe/i18n/server', () => ({
@@ -77,17 +81,13 @@ describe('TenantCategoryFilterPage — Filtrage par rubrique et sous-rubrique', 
   });
 
   it("appelle notFound() si la rubrique n'existe pas", async () => {
-    await TenantCategoryFilterPage({
-      params: Promise.resolve({ domain: 'tech.qoe.fi', categorySlug: 'inexistante' }),
-    });
+    await TenantCategoryRoute({ domain: 'tech.qoe.fi', categorySlug: 'inexistante' });
 
     expect(notFound).toHaveBeenCalled();
   });
 
   it('affiche les articles de la rubrique parente ET de ses sous-rubriques', async () => {
-    const Component = await TenantCategoryFilterPage({
-      params: Promise.resolve({ domain: 'tech.qoe.fi', categorySlug: 'tech' }),
-    });
+    const Component = await TenantCategoryRoute({ domain: 'tech.qoe.fi', categorySlug: 'tech' });
 
     render(Component);
 
@@ -100,9 +100,7 @@ describe('TenantCategoryFilterPage — Filtrage par rubrique et sous-rubrique', 
   });
 
   it("affiche uniquement les articles de la sous-rubrique lorsqu'elle est sélectionnée", async () => {
-    const Component = await TenantCategoryFilterPage({
-      params: Promise.resolve({ domain: 'tech.qoe.fi', categorySlug: 'ia' }),
-    });
+    const Component = await TenantCategoryRoute({ domain: 'tech.qoe.fi', categorySlug: 'ia' });
 
     render(Component);
 
@@ -114,9 +112,7 @@ describe('TenantCategoryFilterPage — Filtrage par rubrique et sous-rubrique', 
   });
 
   it('génère les metadata de la rubrique correctement', async () => {
-    const meta = await generateMetadata({
-      params: Promise.resolve({ domain: 'tech.qoe.fi', categorySlug: 'tech' }),
-    });
+    const meta = await generateMetadata({ domain: 'tech.qoe.fi', categorySlug: 'tech' });
 
     expect(meta.title).toBe('Technologie | Carnet Tech');
     expect(meta.alternates?.canonical).toBe('https://tech.qoe.fi/tech');

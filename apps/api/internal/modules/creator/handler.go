@@ -183,6 +183,7 @@ type category struct {
 	Slug          string  `json:"slug"`
 	Description   *string `json:"description"`
 	ParentID      *string `json:"parentId"`
+	IsDefault     bool    `json:"isDefault"`
 	ArticlesCount int32   `json:"articlesCount"`
 }
 
@@ -194,6 +195,12 @@ func (h *Handler) categories(w http.ResponseWriter, r *http.Request) {
 	if pubID == "" {
 		response.NotFound(w, "Publication not found")
 		return
+	}
+
+	// Garantit l'existence de la catégorie par défaut (« Non classé »)
+	// même pour les publications créées après la migration.
+	if _, err := h.q.EnsureDefaultCategory(r.Context(), pubID); err != nil {
+		log.Printf("[creator] ensureDefaultCategory: %v", err)
 	}
 
 	rows, err := h.q.ListCategoriesByPublication(r.Context(), pubID)
@@ -219,6 +226,7 @@ func (h *Handler) categories(w http.ResponseWriter, r *http.Request) {
 			Slug:          row.Slug,
 			Description:   desc,
 			ParentID:      parentID,
+			IsDefault:     row.IsDefault,
 			ArticlesCount: row.ArticlesCount,
 		})
 	}
@@ -345,6 +353,10 @@ func (h *Handler) updateCategory(w http.ResponseWriter, r *http.Request) {
 		response.Forbidden(w, "Vous n'êtes pas autorisé à modifier cette catégorie.")
 		return
 	}
+	if existing.IsDefault {
+		response.BadRequest(w, "La catégorie par défaut « Non classé » ne peut pas être modifiée.")
+		return
+	}
 
 	if in.Name == "" {
 		in.Name = existing.Name
@@ -442,6 +454,10 @@ func (h *Handler) deleteCategory(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.authorizeCategories(r.Context(), userID, existing.PublicationId); err != nil {
 		response.Forbidden(w, "Vous n'êtes pas autorisé à supprimer cette catégorie.")
+		return
+	}
+	if existing.IsDefault {
+		response.BadRequest(w, "La catégorie par défaut « Non classé » ne peut pas être supprimée.")
 		return
 	}
 	if err := h.q.DeleteCategory(r.Context(), id); err != nil {

@@ -172,6 +172,36 @@ paths:
           $ref: '#/components/responses/NotFound'
         '400':
           $ref: '#/components/responses/BadRequest'
+  /v1/articles/bulk:
+    patch:
+      tags: [articles]
+      operationId: bulkUpdateArticles
+      summary: Modifie les réglages de plusieurs articles sans toucher au contenu
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ArticleBulkUpdateInput'
+      responses:
+        '200':
+          description: Résultat de la modification groupée
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  updated:
+                    type: integer
+                    example: 3
+                  failed:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /v1/articles/{id}:
     patch:
       tags: [articles]
@@ -253,6 +283,32 @@ paths:
                     example: true
         '403':
           $ref: '#/components/responses/Forbidden'
+  /v1/articles/{id}/unpublish:
+    post:
+      tags: [articles]
+      operationId: unpublishArticle
+      summary: Repasse un article en brouillon privé et efface la programmation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Article dépublié
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  published:
+                    type: boolean
+                    example: false
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
   /v1/categories:
     get:
       tags: [categories]
@@ -297,7 +353,12 @@ paths:
                 name: { type: string }
                 slug: { type: string, description: auto-slugify si vide }
                 description: { type: string, nullable: true }
-                parentId: { type: string, nullable: true, description: ID de la catégorie parente (limite 2 niveaux) }
+                parentId:
+                  {
+                    type: string,
+                    nullable: true,
+                    description: ID de la catégorie parente (limite 2 niveaux),
+                  }
       responses:
         '201':
           description: Catégorie créée
@@ -328,7 +389,12 @@ paths:
                 name: { type: string }
                 slug: { type: string }
                 description: { type: string, nullable: true }
-                parentId: { type: string, nullable: true, description: ID de la catégorie parente ou null/vide pour détacher }
+                parentId:
+                  {
+                    type: string,
+                    nullable: true,
+                    description: ID de la catégorie parente ou null/vide pour détacher,
+                  }
       responses:
         '200':
           description: Catégorie mise à jour
@@ -385,6 +451,11 @@ paths:
         - name: publicationId
           in: query
           required: true
+          schema: { type: string }
+        - name: articleId
+          in: query
+          required: false
+          description: Permet à un co-auteur non-membre d'obtenir ses droits sur l'article
           schema: { type: string }
       responses:
         '200':
@@ -1052,6 +1123,9 @@ components:
         parentId:
           type: [string, 'null']
           description: ID de la catégorie parente s'il s'agit d'une sous-catégorie
+        isDefault:
+          type: boolean
+          description: Catégorie technique « Non classé », non supprimable et masquée de la navigation publique
         articlesCount:
           type: integer
           description: Nombre d'articles publiés dans la catégorie
@@ -1209,6 +1283,18 @@ components:
           type: [string, 'null']
         seoDescription:
           type: [string, 'null']
+        imageUrl:
+          type: [string, 'null']
+          description: Image de couverture de l'article (null = repli sur celle de la publication)
+        allowPublicAnnotations:
+          type: boolean
+          default: true
+        allowComments:
+          type: boolean
+          default: true
+        allowDownload:
+          type: boolean
+          default: true
         readingTime:
           type: integer
         published:
@@ -1218,6 +1304,31 @@ components:
           type: string
           format: date-time
           description: Publication programmée (status SCHEDULED)
+    ArticleBulkUpdateInput:
+      type: object
+      required: [ids]
+      description: Applique uniquement les champs fournis à chaque article.
+      properties:
+        ids:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: string
+        isPremium:
+          type: boolean
+        setCategory:
+          type: boolean
+        categoryId:
+          type: [string, 'null']
+        allowPublicAnnotations:
+          type: boolean
+        allowComments:
+          type: boolean
+        allowDownload:
+          type: boolean
+        published:
+          type: boolean
     ArticleUpdateInput:
       type: object
       description: Mise à jour partielle d'un article
@@ -1242,6 +1353,14 @@ components:
           type: [string, 'null']
         seoDescription:
           type: [string, 'null']
+        imageUrl:
+          type: [string, 'null']
+        allowPublicAnnotations:
+          type: boolean
+        allowComments:
+          type: boolean
+        allowDownload:
+          type: boolean
         readingTime:
           type: integer
         scheduledAt:

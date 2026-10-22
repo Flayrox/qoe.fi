@@ -172,6 +172,9 @@ type Querier interface {
 	DeleteTrend(ctx context.Context, id string) error
 	DeleteWebhook(ctx context.Context, id string) error
 	DismissLegalReview(ctx context.Context, arg DismissLegalReviewParams) (LegalReview, error)
+	// Crée (ou récupère) la catégorie « Non classé » d'une publication.
+	// Idempotent grâce à l'index unique partiel sur ("publicationId") WHERE "isDefault".
+	EnsureDefaultCategory(ctx context.Context, publicationid string) (Category, error)
 	ExistsUnreadCommentNotification(ctx context.Context, arg ExistsUnreadCommentNotificationParams) (int32, error)
 	ExistsUnreadFollowNotification(ctx context.Context, arg ExistsUnreadFollowNotificationParams) (int32, error)
 	ExistsUnreadLikeNotification(ctx context.Context, arg ExistsUnreadLikeNotificationParams) (int32, error)
@@ -742,6 +745,7 @@ type Querier interface {
 	UpdateArticleContent(ctx context.Context, arg UpdateArticleContentParams) (string, error)
 	UpdateArticleDraft(ctx context.Context, arg UpdateArticleDraftParams) (string, error)
 	UpdateArticleFull(ctx context.Context, arg UpdateArticleFullParams) (string, error)
+	UpdateArticleSettings(ctx context.Context, arg UpdateArticleSettingsParams) (string, error)
 	UpdateCategory(ctx context.Context, arg UpdateCategoryParams) error
 	UpdateCollaborationRequestResponse(ctx context.Context, arg UpdateCollaborationRequestResponseParams) error
 	UpdateHighlight(ctx context.Context, arg UpdateHighlightParams) (UpdateHighlightRow, error)

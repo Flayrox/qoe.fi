@@ -1,4 +1,5 @@
 // CategorySpotlightBlock.tsx — Encadré rubrique
+import { buildArticlePath, buildCategoryPath } from '@qoe/utils';
 
 import React from 'react';
 import Link from 'next/link';
@@ -87,7 +88,7 @@ export function CategorySpotlightBlock({
             <h2 className="text-lg md:text-xl font-bold tracking-tight">{heading}</h2>
             {categorySlug && (
               <Link
-                href={`/${categorySlug}`}
+                href={buildCategoryPath(targetCategory ?? { slug: categorySlug })}
                 onClick={(e) => context.mode === 'editable' && e.preventDefault()}
                 className="flex shrink-0 items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
               >
@@ -123,7 +124,7 @@ export function CategorySpotlightBlock({
                   <div className="min-w-0 flex-1">
                     <h3 className="truncate text-sm md:text-base font-bold">
                       <Link
-                        href={`/article/${item.slug}`}
+                        href={buildArticlePath(item)}
                         onClick={(e) => context.mode === 'editable' && e.preventDefault()}
                         className="after:absolute after:inset-0"
                       >

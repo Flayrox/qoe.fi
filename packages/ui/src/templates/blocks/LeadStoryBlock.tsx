@@ -1,4 +1,5 @@
 // =====================================================================
+import { buildArticlePath, buildCategoryPath } from '@qoe/utils';
 // LeadStoryBlock.tsx — Article vedette
 // =====================================================================
 // Met en lumière l'article phare (le premier article ou sélectionné).
@@ -141,7 +142,7 @@ export function LeadStoryBlock({
                   {displayArticle.category &&
                     (displayArticle.category.slug ? (
                       <Link
-                        href={`/${displayArticle.category.slug}`}
+                        href={buildCategoryPath(displayArticle.category)}
                         onClick={(e) => {
                           e.stopPropagation();
                           if (context.mode === 'editable') e.preventDefault();
@@ -187,7 +188,7 @@ export function LeadStoryBlock({
 
                   <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold tracking-tight">
                     <Link
-                      href={`/article/${displayArticle.slug}`}
+                      href={buildArticlePath(displayArticle)}
                       onClick={(e) => context.mode === 'editable' && e.preventDefault()}
                       className="after:absolute after:inset-0"
                     >

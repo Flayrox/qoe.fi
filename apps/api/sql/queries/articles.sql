@@ -212,6 +212,7 @@ WHERE a."publicationId" = sqlc.arg('publicationId')
 -- name: ListArticlesWithCategory :many
 SELECT a.id, a.title, a.slug, a.published, a."isPremium", a.visibility, a."readingTime",
        a.status, a."createdAt", a."updatedAt", a."categoryId", a."publicationId",
+       a."allowPublicAnnotations", a."allowComments", a."allowDownload",
        c.id  AS category_id,
        c.name AS category_name,
        c.slug AS category_slug
@@ -228,8 +229,9 @@ SELECT id FROM "Article" WHERE "publicationId" = $1 AND slug = $2 LIMIT 1;
 -- name: CreateArticle :one
 INSERT INTO "Article" (id, title, slug, content, published, "isPremium", visibility,
                        "readingTime", "allowPublicAnnotations", "allowComments", "allowDownload", status,
-                       "publicationId", "authorId", "categoryId", "tierId", "seoTitle", "seoDescription", "scheduledAt", "updatedAt")
-VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, now())
+                       "publicationId", "authorId", "categoryId", "tierId", "seoTitle", "seoDescription",
+                       "scheduledAt", "imageUrl", "updatedAt")
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, now())
 RETURNING id;
 
 -- name: UpdateArticleContent :one
@@ -243,8 +245,23 @@ RETURNING id;
 UPDATE "Article"
 SET title = $2, content = $3, slug = $4, published = $5, status = $6, "isPremium" = $7,
     "categoryId" = $8, "seoTitle" = $9, "seoDescription" = $10, "readingTime" = $11,
-    "scheduledAt" = $12, "updatedAt" = now()
+    "scheduledAt" = $12, "imageUrl" = $13, "allowPublicAnnotations" = $14,
+    "allowComments" = $15, "allowDownload" = $16, "updatedAt" = now()
 WHERE id = $1
+RETURNING id;
+
+-- name: UpdateArticleSettings :one
+UPDATE "Article"
+SET "isPremium" = COALESCE(sqlc.narg('is_premium'), "isPremium"),
+    "categoryId" = CASE
+      WHEN sqlc.arg('set_category')::boolean THEN sqlc.narg('category_id')
+      ELSE "categoryId"
+    END,
+    "allowPublicAnnotations" = COALESCE(sqlc.narg('allow_public_annotations'), "allowPublicAnnotations"),
+    "allowComments" = COALESCE(sqlc.narg('allow_comments'), "allowComments"),
+    "allowDownload" = COALESCE(sqlc.narg('allow_download'), "allowDownload"),
+    "updatedAt" = now()
+WHERE id = sqlc.arg('id')
 RETURNING id;
 
 -- name: UpdateArticleDraft :one

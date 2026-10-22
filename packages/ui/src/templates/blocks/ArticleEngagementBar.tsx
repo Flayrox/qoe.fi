@@ -151,9 +151,6 @@ export function ArticleEngagementBar({
 
   const resolveShareUrl = useCallback(() => {
     if (typeof window === 'undefined') return '';
-    if (articleSlug) {
-      return `${window.location.origin}/article/${articleSlug}`;
-    }
     return window.location.href;
   }, [articleSlug]);
 
@@ -271,8 +268,8 @@ export function ArticleEngagementBar({
         e.preventDefault();
         e.stopPropagation();
         el.scrollIntoView({ behavior: 'smooth' });
-      } else if (articleSlug) {
-        window.location.href = `/article/${articleSlug}#comments`;
+      } else {
+        window.location.href = `${window.location.pathname}#comments`;
       }
     },
     [onCommentClick, articleSlug]

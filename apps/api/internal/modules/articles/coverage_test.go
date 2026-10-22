@@ -377,3 +377,121 @@ func TestHandler_GetByID_ForbiddenForOutsider(t *testing.T) {
 		t.Fatalf("status = %d, attendu 403 (étranger à la publication)", w.Code)
 	}
 }
+
+// ─── Isolation du brouillon & dépublication ──────────────────────────
+
+func TestService_Update_PublishedArticle_IsolatesDraft(t *testing.T) {
+	requirePool(t)
+	ctx := context.Background()
+	fx := seedMedia(t)
+	svc := newService()
+
+	id, err := svc.Create(ctx, fx.EditorID, CreateArticleInput{
+		PublicationID: fx.PublicationID, Title: "Version publique", Slug: "iso-draft",
+		Content: "<p>contenu public</p>", ContentFormat: "html",
+		Status: "PUBLISHED", Published: true,
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	// Auto-save d'un article publié : published=false + status PUBLISHED ne
+	// doit JAMAIS écraser le contenu/titre/slug publics, mais les métadonnées
+	// (catégorie, SEO, attributions) doivent rester persistées.
+	seoDraft := "SEO brouillon"
+	if err := svc.Update(ctx, id, fx.EditorID, UpdateArticleInput{
+		Title: "Titre retouché", Content: "<p>contenu brouillon</p>",
+		ContentFormat: "html", Slug: "slug-retouche", Status: "PUBLISHED",
+		SeoTitle:  &seoDraft,
+		Published: false, ActivePublicationID: fx.PublicationID,
+	}); err != nil {
+		t.Fatalf("Update(auto-save): %v", err)
+	}
+
+	var title, slug, seoTitle, content, draft string
+	if err := poolTest.QueryRow(ctx,
+		`SELECT title, slug, COALESCE("seoTitle", ''), content, "draftContent" FROM "Article" WHERE id=$1`, id,
+	).Scan(&title, &slug, &seoTitle, &content, &draft); err != nil {
+		t.Fatalf("select: %v", err)
+	}
+	if !strings.Contains(content, "contenu public") {
+		t.Fatalf("contenu public écrasé: %q", content)
+	}
+	if !strings.Contains(draft, "contenu brouillon") {
+		t.Fatalf("draftContent = %q, attendu contenu brouillon", draft)
+	}
+	if title != "Version publique" || slug != "iso-draft" {
+		t.Fatalf("titre/slug publics modifiés: title=%q slug=%q", title, slug)
+	}
+	if seoTitle != "SEO brouillon" {
+		t.Fatalf("seoTitle = %q, attendu métadonnées persistées", seoTitle)
+	}
+
+	// Mise à jour explicite en direct : le brouillon est promu.
+	if err := svc.Update(ctx, id, fx.EditorID, UpdateArticleInput{
+		Title: "Titre live", Content: "<p>contenu live</p>",
+		ContentFormat: "html", Slug: "iso-draft", Status: "PUBLISHED",
+		Published: true, ActivePublicationID: fx.PublicationID,
+	}); err != nil {
+		t.Fatalf("Update(live): %v", err)
+	}
+	if err := poolTest.QueryRow(ctx,
+		`SELECT title, content, "draftContent" FROM "Article" WHERE id=$1`, id,
+	).Scan(&title, &content, &draft); err != nil {
+		t.Fatalf("select live: %v", err)
+	}
+	if !strings.Contains(content, "contenu live") || draft != "" || title != "Titre live" {
+		t.Fatalf("après live: title=%q content=%q draft=%q, attendu promotion", title, content, draft)
+	}
+}
+
+func TestService_Unpublish_ClearsScheduleAndPublishesDraft(t *testing.T) {
+	requirePool(t)
+	ctx := context.Background()
+	fx := seedMedia(t)
+	svc := newService()
+
+	id, err := svc.Create(ctx, fx.EditorID, CreateArticleInput{
+		PublicationID: fx.PublicationID, Title: "À dépublier", Slug: "a-depublier",
+		Content: "<p>en ligne</p>", ContentFormat: "html",
+		Status: "PUBLISHED", Published: true,
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if _, err := poolTest.Exec(ctx,
+		`UPDATE "Article" SET "scheduledAt" = $2 WHERE id=$1`,
+		id, time.Now().Add(time.Hour),
+	); err != nil {
+		t.Fatalf("set scheduledAt: %v", err)
+	}
+
+	if err := svc.Unpublish(ctx, id, fx.EditorID); err != nil {
+		t.Fatalf("Unpublish: %v", err)
+	}
+
+	var status string
+	var published bool
+	var scheduled pgtype.Timestamp
+	if err := poolTest.QueryRow(ctx,
+		`SELECT status, published, "scheduledAt" FROM "Article" WHERE id=$1`, id,
+	).Scan(&status, &published, &scheduled); err != nil {
+		t.Fatalf("select: %v", err)
+	}
+	if status != "DRAFT" || published || scheduled.Valid {
+		t.Fatalf("après unpublish: status=%q published=%v scheduled=%v", status, published, scheduled.Valid)
+	}
+
+	// Un utilisateur étranger ne peut pas dépublier.
+	id2, err := svc.Create(ctx, fx.EditorID, CreateArticleInput{
+		PublicationID: fx.PublicationID, Title: "Protégé", Slug: "protege",
+		Content: "<p>x</p>", ContentFormat: "html",
+		Status: "PUBLISHED", Published: true,
+	})
+	if err != nil {
+		t.Fatalf("Create 2: %v", err)
+	}
+	if err := svc.Unpublish(ctx, id2, fx.ViewerID); err == nil {
+		t.Fatal("Unpublish(viewer) = nil, attendu errForbidden")
+	}
+}

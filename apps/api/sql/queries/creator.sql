@@ -40,6 +40,7 @@ SELECT c.id,
        c.slug,
        c.description,
        c."parentId",
+       c."isDefault",
        (SELECT COUNT(*)::int
         FROM "Article" a
         WHERE a."categoryId" = c.id AND a."published" = true) AS articles_count

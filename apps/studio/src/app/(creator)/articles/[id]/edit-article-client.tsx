@@ -77,16 +77,20 @@ export function EditArticleClient({ article, categories, capabilities }: EditArt
       attributions?: ArticleAttributionDraft[];
     } & { id?: string }
   ): Promise<{ id?: string } | void> => {
-    if (isSaving) return { id: article.id };
+    // Pas de court-circuit `if (isSaving) return` : le hook d'auto-save
+    // sérialise déjà les requêtes, et jeter une sauvegarde manuelle pendant
+    // un auto-save faisait perdre les dernières modifications.
     try {
       setIsSaving(true);
       const res = await saveArticleAction({
         id: (data as { id?: string }).id || article.id,
         ...data,
       });
+      if (!res.ok) {
+        throw new Error(res.error.message);
+      }
       // saveArticleAction renvoie l'article mis à jour ; on garde l'id pour l'auto-save
-      const newId = (res as { data?: { id?: string } })?.data?.id || article.id;
-      return { id: newId };
+      return { id: res.data?.id || article.id };
     } catch (err: unknown) {
       throw new Error(err instanceof Error ? err.message : t`Échec de l'enregistrement.`);
     } finally {
@@ -151,6 +155,8 @@ export function EditArticleClient({ article, categories, capabilities }: EditArt
         initialScheduledAt={article.scheduledAt ?? null}
         initialIsPremium={article.isPremium}
         initialAllowDownload={article.allowDownload ?? true}
+        initialAllowPublicAnnotations={article.allowPublicAnnotations ?? true}
+        initialAllowComments={article.allowComments ?? true}
         initialCategoryId={article.categoryId}
         initialSeoTitle={article.seoTitle || ''}
         initialSeoDescription={article.seoDescription || ''}

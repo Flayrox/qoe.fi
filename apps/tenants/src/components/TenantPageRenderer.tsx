@@ -120,6 +120,7 @@ export async function TenantPageRenderer(props: TenantPageRendererProps) {
       slug: c.slug,
       description: c.description ?? null,
       parentId: c.parentId ?? null,
+      isDefault: c.isDefault ?? false,
     })),
     activeCategory: activeCategory
       ? {
@@ -199,7 +200,12 @@ export async function TenantPageRenderer(props: TenantPageRendererProps) {
       isReposted: Boolean(article.isReposted),
       publishedAt: article.createdAt,
       category: article.category
-        ? { name: article.category.name, slug: article.category.slug }
+        ? {
+            name: article.category.name,
+            slug: article.category.slug,
+            parentSlug: article.category.parentSlug ?? null,
+            isDefault: article.category.isDefault ?? false,
+          }
         : null,
     };
   });

@@ -13,7 +13,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Check, Loader2 } from 'lucide-react';
-import { cn } from '@qoe/utils';
+import { buildArticlePath, cn } from '@qoe/utils';
 import { SafeAvatar } from '../../SafeAvatar';
 import { SubscribeForm } from '../../SubscribeForm';
 import { subscribeToNewsletterAction } from '@qoe/sdk/actions/tenant';
@@ -289,7 +289,7 @@ export function PublicationSidebar({
                 </span>
                 <div className="min-w-0 flex-1">
                   <Link
-                    href={`/article/${art.slug}`}
+                    href={buildArticlePath(art)}
                     onClick={(e) => context.mode === 'editable' && e.preventDefault()}
                     className="block text-[13px] font-medium text-foreground leading-snug hover:underline underline-offset-4"
                   >

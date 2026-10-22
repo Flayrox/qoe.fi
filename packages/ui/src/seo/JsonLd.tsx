@@ -34,13 +34,17 @@ export interface ArticleSchemaInput {
   authorLogo?: string | null;
   coverImage?: string | null;
   baseUrl: string;
+  /** Chemin canonique de l'article (ex. /tech/slug). */
+  path?: string;
 }
 
 /**
  * Construit un schéma Schema.org conforme de type 'Article' ou 'NewsArticle'.
  */
 export function buildArticleSchema(input: ArticleSchemaInput) {
-  const url = `${input.baseUrl.replace(/\/$/, '')}/article/${encodeURIComponent(input.slug)}`;
+  const url = input.path
+    ? `${input.baseUrl.replace(/\/$/, '')}${input.path}`
+    : `${input.baseUrl.replace(/\/$/, '')}/article/${encodeURIComponent(input.slug)}`;
   const authorUrl = input.authorUsername
     ? `${input.baseUrl.replace(/\/$/, '')}/${encodeURIComponent(input.authorUsername)}`
     : input.baseUrl;
@@ -77,6 +81,8 @@ export interface PersonSchemaInput {
   bio?: string | null;
   logoUrl?: string | null;
   baseUrl: string;
+  /** Chemin canonique de l'article (ex. /tech/slug). */
+  path?: string;
 }
 
 /**

@@ -21,7 +21,7 @@ import { SafeImage } from '../../SafeImage';
 import { getCoverPlaceholder } from '../placeholders';
 import { ArticleEngagementBar } from './ArticleEngagementBar';
 import type { TemplateArticleItem } from '../schema';
-import { cn } from '@qoe/utils';
+import { buildArticlePath, cn } from '@qoe/utils';
 
 export type ArticleCardVariant = 'hero-center' | 'secondary' | 'row';
 
@@ -53,7 +53,7 @@ export function ArticleCard({
   onQuoteClick,
 }: ArticleCardProps) {
   const coverUrl = article.imageUrl || getCoverPlaceholder(article.slug || article.id);
-  const articleHref = `/article/${article.slug}`;
+  const articleHref = buildArticlePath(article);
 
   const handleLinkClick = (e: React.MouseEvent) => {
     if (editableMode) {
