@@ -1018,7 +1018,7 @@ curl -X POST -H "Authorization: Bearer $JWT" http://localhost:8080/v1/settings/a
 
 Query : `page` 1-based déf 1, `limit` 1-100 déf 10, `category` slug filtre, `published` bool déf `true` (seuls publiés si `true`).
 
-- **JWT dashboard** -> tableau brut `ArticleResponse[]` 100 max, brouillons inclus, récents d'abord (parité Prisma).
+- **JWT dashboard** -> tableau brut `ArticleResponse[]` 100 max, brouillons inclus, récents d'abord (parité avec l'ancien backend).
 
 **Exemples**
 

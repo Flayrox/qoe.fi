@@ -347,14 +347,6 @@ export const BENTO_TECH_CONFIG: LayoutConfig = {
 import { MINIMAL_PORTFOLIO_CONFIG, MINIMAL_ARTICLE_CONFIG } from './defaults/minimal';
 export { MINIMAL_PORTFOLIO_CONFIG, MINIMAL_ARTICLE_CONFIG };
 
-// 5. Archétype : Dispatch Publication (Édition indépendante)
-import {
-  DISPATCH_NEWSPAPER_CONFIG,
-  DISPATCH_MAGAZINEY_CONFIG,
-  DISPATCH_ARTICLE_CONFIG,
-} from './registry/dispatch/layouts';
-export { DISPATCH_NEWSPAPER_CONFIG, DISPATCH_MAGAZINEY_CONFIG, DISPATCH_ARTICLE_CONFIG };
-
 /** Gabarit par défaut du scope article (page article) */
 export const ARTICLE_DEFAULT_CONFIG: LayoutConfig = {
   version: 1,
@@ -903,7 +895,6 @@ export const ARCHETYPES_REGISTRY: Record<string, LayoutConfig> = {
   broadsheet: BROADSHEET_MODERN_CONFIG,
   bento: BENTO_TECH_CONFIG,
   minimal: MINIMAL_PORTFOLIO_CONFIG,
-  dispatch: DISPATCH_NEWSPAPER_CONFIG,
   encre: ENCRE_CONFIG,
   papier: PAPIER_CONFIG,
   signal: SIGNAL_CONFIG,

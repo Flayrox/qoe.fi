@@ -39,8 +39,6 @@ const VALID_BLOCK_TYPES: Set<BlockType> = new Set([
   'footer',
   'article-content',
   'category-spotlight',
-  'dispatch-feed',
-  'dispatch-magazine',
 ]);
 
 const VALID_CARD_SHAPES: Set<CardCornerShape> = new Set([

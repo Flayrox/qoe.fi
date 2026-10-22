@@ -3,11 +3,7 @@ import type { Metadata } from 'next';
 import { fetchTenantPublication } from '@/lib/tenant-data';
 import { TenantPageShell } from '@/components/TenantPageShell';
 import { TenantSearchClient, type SearchArticleItem } from './TenantSearchClient';
-import {
-  MinimalCraftShell,
-  resolveTheme,
-  type TemplatePublicationContext,
-} from '@qoe/ui/templates';
+import { MinimalCraftShell, type TemplatePublicationContext } from '@qoe/ui/templates';
 
 interface PageProps {
   params: Promise<{ domain: string }>;
@@ -58,10 +54,8 @@ export default async function TenantSearchPage({ params, searchParams }: PagePro
     isPremium: art.isPremium,
   }));
 
-  const isMinimal =
-    !publication.layoutStyle ||
-    publication.layoutStyle === 'minimal' ||
-    resolveTheme(publication.layoutStyle).id === 'minimal';
+  // Thème unique Minimal Craft.
+  const isMinimal = true;
 
   const templatePublication: TemplatePublicationContext = {
     id: publication.id,

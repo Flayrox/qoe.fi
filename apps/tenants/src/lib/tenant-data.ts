@@ -108,7 +108,12 @@ export interface TenantPublication {
   team?: TenantTeamMember[];
   siteOptions?: Record<string, unknown> | null;
   site_options?: Record<string, unknown> | null;
-  user: { id: string; username: string | null } | null;
+  user: {
+    id: string;
+    username: string | null;
+    name?: string | null;
+    logoUrl?: string | null;
+  } | null;
 }
 
 export interface TenantArticleAuthor {

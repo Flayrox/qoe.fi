@@ -85,7 +85,6 @@ Une fois tout démarré, accède directement à tes applications via les domaine
 - **Landing Vitrine** : [http://start.localhost](http://start.localhost) _(ou `localhost:3040`)_
 - **API (Go)** : [http://api.localhost](http://api.localhost) _(ou `localhost:8080/health`)_ — `cd apps/api && go run ./cmd/server` (port 8080, activé via `QOE_API_URL`)
 - **Blogs Créateurs** : `http://*.localhost:3001` _(wildcard multi-tenant, ex: `http://demo.localhost:3001`)_
-- **Prisma Studio (GUI)** : [http://localhost:5555](http://localhost:5555)
 - **GrowthBook (flags UI)** : [http://localhost:3100](http://localhost:3100)
 
 ---
@@ -112,7 +111,7 @@ apps/mobile/src/
 
 - Le mobile importe **`@qoe/sdk/mobile`** : entrée RN-safe du client
   partagé (client + types + query-keys + `useInfiniteFeed`), sans les actions
-  serveur (`'use server'` / Prisma) que tire l'index racine.
+  serveur (`'use server'`) que tire l'index racine.
 - `src/lib/api.ts` résout l'hôte automatiquement : `localhost` sur simulateur,
   IP locale (via `hostUri` Metro) sur appareil physique.
 - Data fetching : **@tanstack/react-query** (même version que les apps web).

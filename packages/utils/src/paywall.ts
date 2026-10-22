@@ -155,7 +155,14 @@ export function buildPublicDescription(publicContent: string, maxLength = 200): 
     .replace(/\s+/g, ' ')
     .trim();
   if (!text) return undefined;
-  return text.slice(0, maxLength);
+  if (text.length <= maxLength) return text;
+
+  // Coupe sur un mot entier : « …reprendre la main su » donnait un extrait
+  // manifestement tronqué sur les cartes publiques.
+  const slice = text.slice(0, Math.max(1, maxLength - 1));
+  const lastSpace = slice.lastIndexOf(' ');
+  const cleanCut = lastSpace > Math.floor(maxLength * 0.6) ? slice.slice(0, lastSpace) : slice;
+  return `${cleanCut.trimEnd()}…`;
 }
 
 /** Entitlements d'un visiteur anonyme : aucun accès au contenu verrouillé. */

@@ -124,7 +124,7 @@ Redirect URI autorisée chez Google (local) : `http://localhost:54321/auth/v1/ca
 | Moteur | CLI `supabase start` | stack docker `supabase/supabase@v1.27.12` |
 | Auth | GoTrue ES256 (JWKS) | GoTrue v2.189 (JWKS) |
 | DB | Postgres 54322 | `supabase-db:5432` (réseau `supabase_default`) |
-| RLS / schéma | Prisma + `rls-interactions.sql` | idem |
+| RLS / schéma | migrations goose (`apps/api/sql/migrations/`) + `rls-interactions.sql` | idem |
 
 Les deux sont **self-hostés** et exposent la même API Auth/REST : le code est
 le même, seules les URLs/clés changent dans les `.env`.

@@ -1,6 +1,7 @@
-import Link from 'next/link';
+import { headers } from 'next/headers';
 import { getLanguage } from '@qoe/i18n/server';
 import { fetchLegalDocuments } from '@qoe/sdk/actions/legal';
+import { getMainAppUrl } from '@qoe/config';
 import { CookiePreferencesButton } from '@qoe/ui';
 
 // =====================================================================
@@ -9,6 +10,9 @@ import { CookiePreferencesButton } from '@qoe/ui';
 // L'information doit être « facilement accessible » (art. 12 RGPD,
 // art. 6 LCEN) : les documents restent liés depuis chaque pied de page,
 // avec une porte de sortie pour changer d'avis sur les cookies.
+//
+// Ces documents sont ceux de la plateforme, pas ceux de la publication :
+// les liens ouvrent donc l'app principale qoefi.
 // =====================================================================
 
 export async function LegalFooterLinks({ className }: { className?: string }) {
@@ -24,16 +28,22 @@ export async function LegalFooterLinks({ className }: { className?: string }) {
 
   if (documents.length === 0) return null;
 
+  const headersList = await headers();
+  const host = headersList.get('x-forwarded-host') || headersList.get('host') || '';
+  const platformUrl = getMainAppUrl(host);
+
   return (
     <nav className={className ?? 'flex flex-wrap items-center justify-center gap-x-5 gap-y-2'}>
       {documents.map((doc) => (
-        <Link
+        <a
           key={doc.id}
-          href={`/legal/${doc.slug}`}
+          href={`${platformUrl}/legal/${doc.slug}`}
+          target="_blank"
+          rel="noopener noreferrer"
           className="text-sm text-muted-foreground transition-colors hover:text-[var(--tenant-accent)]"
         >
           {doc.title}
-        </Link>
+        </a>
       ))}
       <CookiePreferencesButton
         label="Gérer mes cookies"

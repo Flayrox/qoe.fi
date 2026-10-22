@@ -16,7 +16,7 @@ qoe.fi is structured as a modern Monorepo utilizing **Turborepo** and **pnpm wor
 | -------------------- | ----------------------------------------------------- |
 | **Frameworks**       | Next.js 16 (App Router), Go (`apps/api`)          |
 | **Package Manager**  | pnpm 11.21 (Workspaces) + Turborepo 2.9               |
-| **Database Layer**   | PostgreSQL 16 + pgvector, Prisma ORM, Redis (BullMQ TS + asynq Go) |
+| **Database Layer**   | PostgreSQL 16 + pgvector, DDL SQL + migrations goose + sqlc (Go), Redis (asynq Go) |
 | **Infrastructure**   | Docker, Docker Compose, Caddy 2 (Reverse Proxy / TLS) |
 | **State Management** | TanStack Query (React Query) + Optimistic Updates     |
 | **Typing**           | TypeScript 5.9 (Strict), Zod                          |
@@ -48,12 +48,12 @@ The front-facing and API surface areas of the platform.
 
 The Single Source of Truth for logic, data, and configuration.
 
-- **`@qoe/db`**: The definitive source for the Database. Contains the solitary `schema.prisma`, migrations, seeds, and typed repository patterns (Users, Articles, Posts).
+- **Database (Go, `apps/api`)**: The single source of truth for the schema is `apps/api/sql/schema/*.sql`, versioned by `apps/api/sql/migrations/*.sql` (goose) and compiled into typed queries with sqlc (`apps/api/internal/database/*.sql.go`). There is **no Prisma client** and no `packages/db` anymore.
 - **`@qoe/config`**: Core environment variables mapping, global constants (ROLES, LIMITS), and Zod schema validations.
 - **`@qoe/auth`**: Strict RBAC (Role-Based Access Control) matrix (`permissions.ts`), user session validation, and mailer templates.
 - **`@qoe/supabase`**: Isomorphic Supabase client initialization handling complex Cookie behaviors for SSR, Middlewares, and client-side components.
 - **`@qoe/sdk`**: TanStack Query data layer encapsulating hooks, optimistic UI mutations (Like, Bookmark, Repost), and Server Action typings.
-- **`@qoe/billing`**: Stripe Webhook handlers, subscription plans, and the server-side Paywall AST Truncation engine.
+- **Paywall & billing**: Stripe (webhooks, subscriptions) lives in the Go backend (`apps/api/internal/workers/stripe.go`, `modules/webhooks`) ; the TS paywall truncation helpers live in `packages/utils/src/paywall.ts`.
 - **`@qoe/ui`**: Shared UI components and Shadcn UI library implementations (Command Menus, Modals).
 - **`@qoe/theme`**: Centralized design tokens and CSS variable registries to enforce UI consistency across all apps.
 - **`@qoe/analytics`**, **`@qoe/i18n`**, **`@qoe/utils`**, **`@qoe/tsconfig`**: Utilities for tracking, translation, formatting, and strict TS configurations.
@@ -85,8 +85,8 @@ cp .env.docker.example .env
 # 4. Start the database and redis backing services via Docker
 docker compose -f docker-compose.dev.yml up -d db redis
 
-# 5. Generate Prisma Client
-pnpm prisma:generate
+# 5. Apply the SQL migrations (goose)
+pnpm db:migrate
 
 # 6. Start the Caddy reverse proxy
 caddy start --config Caddyfile.dev
@@ -115,16 +115,16 @@ pnpm dev:api         # api only
 ```bash
 pnpm db:migrate        # Apply migrations (goose, apps/api/sql/migrations)
 pnpm db:seed           # Seed demo data (Go, apps/api/cmd/seed)
-pnpm prisma:studio     # Launch Prisma Studio GUI
+pnpm db:migrate:status # Show applied/pending migrations
 ```
 
 ---
 
 ## 🔒 Crucial Architectural Rules
 
-1. **Strict Single Source of Truth**: Data models exist only in `@qoe/db`. Do not replicate the Prisma schema.
+1. **Strict Single Source of Truth**: Data models exist only in `apps/api/sql/schema/` (DDL) and its goose migrations. TS types must derive from the API contract, never from a duplicated ORM schema.
 2. **Coupling Validation**: UI components must utilize shared logic via `packages/ui` and `packages/sdk`. Direct imports between `apps/` are strictly forbidden.
-3. **Paywall Security**: Content truncation occurs explicitly at the Server Layer (`packages/billing/src/paywall/ast-truncation.ts`). Under no circumstances should premium content leak to the DOM for non-subscribers.
+3. **Paywall Security**: Content truncation occurs explicitly on the server (`packages/utils/src/paywall.ts` for TS consumers, `apps/api/internal/modules/articles/paywall.go` for the API). Under no circumstances should premium content leak to the DOM for non-subscribers.
 4. **Optimistic UI Constraints**: Optimistic mutations (`useOptimisticLike`, etc.) must always include rigorous query-cancellation and rollback mechanisms on failure.
 
 ---

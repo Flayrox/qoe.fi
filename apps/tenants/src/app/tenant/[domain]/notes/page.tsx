@@ -1,10 +1,9 @@
-import { redirect } from 'next/navigation';
+import { permanentRedirect } from 'next/navigation';
 
-interface PageProps {
-  params: Promise<{ domain: string }>;
-}
-
-export default async function TenantNotesRedirect({ params }: PageProps) {
-  await params;
-  redirect('./thoughts');
+/**
+ * Ancienne URL conservée pour les liens externes.
+ * La route canonique est désormais /thoughts.
+ */
+export default async function LegacyNotesRedirect() {
+  permanentRedirect('/thoughts');
 }

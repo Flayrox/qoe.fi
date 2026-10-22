@@ -78,6 +78,25 @@ describe('MinimalCraftShell - Devouring Details Exact Match (Screenshots 1 & 2)'
     expect(mainElement?.className).toContain('translate-x-0');
   });
 
+  it('renders the configured wordmark next to the avatar instead of the publication name', () => {
+    const publicationWithWordmark: TemplatePublicationContext = {
+      ...mockPublication,
+      siteOptions: { wordmarkUrl: 'https://cdn.example.com/rose-period.png' },
+    };
+
+    const { container } = render(
+      <MinimalCraftShell publication={publicationWithWordmark} articles={[]}>
+        <article>Contenu</article>
+      </MinimalCraftShell>
+    );
+
+    const header = container.querySelector('header');
+    const wordmark = header?.querySelector('img');
+    expect(wordmark?.getAttribute('src')).toBe('https://cdn.example.com/rose-period.png');
+    expect(wordmark?.getAttribute('alt')).toBe('Devouring Details');
+    expect(header?.querySelector('p')).toBeNull();
+  });
+
   it('preserves publication brand identity in header on article pages instead of morphing into article title', () => {
     const articleWithCategory: TemplateArticleItem = {
       id: 'art_2',

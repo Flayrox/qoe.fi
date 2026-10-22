@@ -1,6 +1,6 @@
 # 🚀 Guide de déploiement production — qoe.fi
 
-> **État actuel (2026-08)** : monorepo pnpm, source unique Prisma dans `packages/db/prisma/`,
+> **État actuel (2026-10)** : monorepo pnpm, schéma SQL + migrations goose dans `apps/api/sql/` (plus de Prisma),
 > **14 services Docker** sur **3 réseaux isolés**, Supabase **self-hébergé** à côté, Caddy
 > comme unique reverse proxy + TLS. Déployé avec succès sur Netcup (Debian 13, 4 cœurs / 8 Go).
 >
@@ -205,7 +205,7 @@ PRIMARY_DOMAIN=qoe.fi
 NODE_ENV=production
 NEXT_TELEMETRY_DISABLED=1
 
-# === DB (Prisma → supabase-db, réseau supabase_default) ===
+# === DB (migrations goose → supabase-db, réseau supabase_default) ===
 DATABASE_URL="postgresql://postgres:<PW>@supabase-db:5432/postgres?schema=public"
 DIRECT_URL="postgresql://postgres:<PW>@supabase-db:5432/postgres?schema=public"
 # ⚠️ API Go : DSN SANS ?schema=public (pgx l'envoie en startup parameter → refusé)
@@ -284,8 +284,11 @@ docker run --rm --name qoe-seed \
   -e NEXT_PUBLIC_SUPABASE_URL=http://supabase-kong:8000 \
   -e EMBEDDING_URL=http://qoefi-embedding:80/v1/embeddings \
   --entrypoint sh qoefi-migrate -c \
-  "cd /app/packages/db && /app/node_modules/.bin/tsx prisma/seed-large.ts"
+  "cd /app && pnpm db:seed"
 ```
+
+> ⚠️ L'ancien seed TS `packages/db/prisma/seed-large.ts` n'existe plus ; le seed
+> de référence est Go (`apps/api/cmd/seed`, exposé par `pnpm db:seed`).
 
 - `NEXT_PUBLIC_SUPABASE_URL` interne → Kong (création des **500 comptes auth**, mdp `password123`)
 - `EMBEDDING_URL` doit être l'URL **complète** `…/v1/embeddings` (le script l'utilise telle quelle)
@@ -293,14 +296,12 @@ docker run --rm --name qoe-seed \
 Puis les embeddings des articles/pensées :
 
 ```bash
-docker run --rm --name qoe-embed-all \
-  --network supabase_default --network qoefi-private \
-  --env-file /var/www/qoe.fi/.env.docker \
-  -v /var/www/qoe.fi/packages/db/prisma/embed-all.ts:/app/packages/db/prisma/embed-all.ts:ro \
-  -e EMBEDDING_URL=http://qoefi-embedding:80/v1/embeddings \
-  --entrypoint sh qoefi-migrate -c \
-  "cd /app/packages/db && /app/node_modules/.bin/tsx prisma/embed-all.ts"
+# Backfill embeddings (Go, enqueue les jobs asynq)
+cd apps/api && go run ./cmd/backfill -posts
 ```
+
+> ⚠️ L'ancien script `packages/db/prisma/embed-all.ts` a été supprimé avec Prisma.
+> Le backfill passe désormais par `cmd/backfill` et la queue asynq.
 
 > ⚠️ **Leçon n°4 (embed-all)** : `embed-all.ts` avait l'URL d'embedding **en dur**
 > (`127.0.0.1:8081`) → 500 erreurs ECONNREFUSED en prod. Corrigé (env `EMBEDDING_URL`),

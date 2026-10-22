@@ -52,7 +52,7 @@ Avant que l'onboarding soit terminé (ou pour les visiteurs non authentifiés) :
 
 ## 5. Moteur de feed Two-Tower actuel (Go, pgvector)
 
-Le moteur **réel en production** (port Go de `packages/db/feed.ts`, fichier `apps/api/internal/modules/feed/personalized.go`) a remplacé le scoring générique du §3. Il classe des **articles ET des pensées** via deux tours, avec un pool de candidats sim-dominant puis un rerank :
+Le moteur **réel en production** (port Go du moteur de feed legacy, fichier `apps/api/internal/modules/feed/personalized.go`) a remplacé le scoring générique du §3. Il classe des **articles ET des pensées** via deux tours, avec un pool de candidats sim-dominant puis un rerank :
 
 - **Pool de candidats** (sim-dominant) : `0.65·Sim + 0.15·Fresh + 0.20·Complétion` (pilotable : `feed.pool_sim`, `feed.pool_fresh`, `feed.pool_completion`).
 - **Rerank articles** : `0.40·Sim + 0.15·Fresh + 0.15·Engagement + 0.15·Circadien + 0.15·CF` × bonus complétion (pilotable : `feed.rerank_sim`, `feed.rerank_fresh`, `feed.rerank_engagement`, `feed.rerank_circadian_weight`, `feed.rerank_cf_weight`, `feed.completion_bonus_base`, `feed.completion_bonus_scale`).

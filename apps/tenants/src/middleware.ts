@@ -10,13 +10,17 @@ export async function middleware(request: NextRequest) {
   const url = request.nextUrl.clone();
   const pathname = url.pathname;
 
-  // 1. Skip Next.js internals, API, static files, already-rewritten tenant routes and SSO auth routes
+  // 1. Skip Next.js internals, API, static files, already-rewritten tenant routes and SSO auth routes.
+  // `/rss.xml` est une route tenant : elle doit être réécrite comme le reste du site
+  // (sinon elle tombe sur le 404 global à cause du filtre d'extensions).
+  const isTenantFeed = pathname === '/rss.xml';
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api') ||
     pathname.startsWith('/auth/sso') ||
     pathname.startsWith('/tenant/') ||
-    /\.(ico|png|jpg|jpeg|svg|css|js|webp|json|txt|xml|woff|woff2|ttf|eot)$/i.test(pathname)
+    (!isTenantFeed &&
+      /\.(ico|png|jpg|jpeg|svg|css|js|webp|json|txt|xml|woff|woff2|ttf|eot)$/i.test(pathname))
   ) {
     return NextResponse.next();
   }

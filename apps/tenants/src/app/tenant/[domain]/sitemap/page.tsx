@@ -107,19 +107,19 @@ export default async function TenantSitemapPage({ params }: PageProps) {
             </h2>
             <div className="flex flex-wrap gap-2 text-sm">
               <Link
-                href="/a-propos"
+                href="/about"
                 className="px-3 py-1.5 rounded-[6px] border border-border/40 hover:bg-muted/40 transition-colors"
               >
                 À propos
               </Link>
               <Link
-                href="/equipe"
+                href="/team"
                 className="px-3 py-1.5 rounded-[6px] border border-border/40 hover:bg-muted/40 transition-colors"
               >
                 Équipe & Contributeurs
               </Link>
               <Link
-                href="/notes"
+                href="/thoughts"
                 className="px-3 py-1.5 rounded-[6px] border border-border/40 hover:bg-muted/40 transition-colors"
               >
                 Notes

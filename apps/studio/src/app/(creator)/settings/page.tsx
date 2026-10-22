@@ -121,7 +121,7 @@ export default async function CreatorSettingsPage() {
     accentColor: publication.accentColor ?? null,
     fontFamily: publication.fontFamily ?? null,
     themeMode: publication.themeMode || 'classic',
-    layoutStyle: publication.layoutStyle || 'minimal',
+    layoutStyle: 'minimal',
     logoUrl: publication.logoUrl ?? null,
     headerImageUrl: publication.headerImageUrl ?? null,
     footerText: publication.footerText ?? null,

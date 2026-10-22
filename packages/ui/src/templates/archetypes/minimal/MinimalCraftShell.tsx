@@ -24,6 +24,7 @@ import {
   type CraftDrawerItem,
 } from '../../../ui/craft-sidebar-drawer';
 import { MinimalDock } from './MinimalDock';
+import { SafeAvatar } from '../../../SafeAvatar';
 import type { TemplatePublicationContext, TemplateArticleItem } from '../../schema';
 import { AuthModalContext } from '../../../auth/AuthModalContext';
 import { resolveTenantNavigation } from '../../navigation';
@@ -60,8 +61,12 @@ export function MinimalCraftShell({
   // 📌 Sidebar mise de côté pour notre to-do future : désactivée par défaut
   const showCraftIndex = Boolean(siteOptions.showCraftIndex);
   const showProgressiveBlur = (siteOptions.showProgressiveBlur ?? true) !== false;
-  const showBanner = (siteOptions.showBanner ?? true) !== false;
-  const headerWordmarkUrl = showBanner ? publication.headerImageUrl || null : null;
+  // Wordmark : logo typographique dédié (image), distinct de la bannière
+  // d'en-tête qui reste utilisée par le hero et les partages.
+  const wordmarkUrl =
+    typeof siteOptions.wordmarkUrl === 'string' && siteOptions.wordmarkUrl.trim().length > 0
+      ? siteOptions.wordmarkUrl
+      : null;
   const isLogoSquare = siteOptions.logoShape === 'square' || Boolean(siteOptions.logoShapeSquare);
   const showLogo = (siteOptions.showLogo ?? true) !== false;
   const showCategoryTabs = (siteOptions.showCategoryTabs ?? true) !== false;
@@ -164,38 +169,53 @@ export function MinimalCraftShell({
       {/* ── 1. EN-TÊTE FIXE SUPÉRIEUR DEVOURING DETAILS (top-4 sm:top-6 z-40) ── */}
       <header
         data-header="true"
-        className="platform_header fixed top-4 sm:top-6 left-6 right-6 z-40 flex items-center justify-between select-none pointer-events-auto text-muted-foreground"
+        className="platform_header fixed top-5 sm:top-7 left-6 right-6 z-40 flex items-center justify-between select-none pointer-events-auto text-muted-foreground"
       >
         {/* Côté Gauche : Logo classique + Contrôles de navigation (Sidebar + Retour si mode article) */}
         <div className="flex items-center gap-2.5 shrink-0 z-10 min-w-0">
-          {showLogo &&
-            (publication.logoUrl ? (
-              <a
-                href="/"
-                className="inline-flex items-center justify-center shrink-0 transition-transform hover:scale-105"
-                title={displayName}
-              >
-                <img
-                  src={publication.logoUrl}
-                  alt={displayName}
-                  className={cn(
-                    'w-7 h-7 sm:w-8 sm:h-8 object-cover border border-border/50 shadow-2xs',
-                    isLogoSquare ? 'rounded-lg' : 'rounded-full'
-                  )}
-                />
-              </a>
+          {/* Marque : logo configuré dans les réglages, sinon l'avatar de la
+              personne, sinon l'avatar de repli déterministe (jamais une lettre
+              générique). */}
+          {showLogo && (
+            <a
+              href="/"
+              className="inline-flex items-center justify-center shrink-0 transition-transform hover:scale-105"
+              title={displayName}
+            >
+              <SafeAvatar
+                src={publication.logoUrl || publication.author?.avatarUrl || null}
+                name={publication.author?.name || displayName}
+                username={publication.author?.username || publication.subdomain}
+                size={42}
+                shape={isLogoSquare ? 'squircle' : 'circle'}
+                className="border border-border/50 shadow-2xs"
+              />
+            </a>
+          )}
+
+          {/* Marque typographique : wordmark dédié, sinon le nom. Alignée à
+              gauche comme sur Substack, jamais au centre au-dessus des actions. */}
+          <a
+            href="/"
+            className="min-w-0 max-w-[36vw] sm:max-w-[38vw] transition-opacity hover:opacity-85"
+            title={displayName}
+          >
+            {wordmarkUrl ? (
+              <img
+                src={wordmarkUrl}
+                alt={displayName}
+                className="h-7 sm:h-8 md:h-9 w-auto max-w-full object-contain object-left"
+              />
             ) : (
-              <a
-                href="/"
-                className={cn(
-                  'inline-flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 shrink-0 bg-muted/60 border border-border/50 text-[11px] font-bold text-foreground transition-transform hover:scale-105 shadow-2xs',
-                  isLogoSquare ? 'rounded-lg' : 'rounded-full'
-                )}
-                title={displayName}
+              <p
+                data-breadcrumb="true"
+                aria-label="Nom de la publication"
+                className="truncate text-lg sm:text-xl md:text-2xl font-semibold tracking-tight text-foreground"
               >
-                {(displayName[0] || 'Q').toUpperCase()}
-              </a>
-            ))}
+                {displayName}
+              </p>
+            )}
+          </a>
 
           {showCraftIndex && (
             <button
@@ -221,37 +241,6 @@ export function MinimalCraftShell({
           )}
         </div>
 
-        {/* Centre : Identité de marque permanente (Wordmark ou Titre), constante sur Accueil et Article */}
-        <div className="absolute left-1/2 -translate-x-1/2 pointer-events-auto max-w-[70vw] sm:max-w-lg text-center">
-          {headerWordmarkUrl ? (
-            <a
-              href="/"
-              className="inline-flex items-center justify-center transition-transform hover:scale-[1.02]"
-              title={displayName}
-            >
-              <img
-                src={headerWordmarkUrl}
-                alt={displayName}
-                className="h-6 sm:h-7 md:h-8 w-auto max-w-[200px] sm:max-w-[280px] object-contain mx-auto"
-              />
-            </a>
-          ) : (
-            <a
-              href="/"
-              className="inline-block transition-opacity hover:opacity-85"
-              title={displayName}
-            >
-              <p
-                data-breadcrumb="true"
-                aria-label="Nom de la publication"
-                className="text-base sm:text-lg md:text-xl font-semibold tracking-tight text-foreground truncate"
-              >
-                {displayName}
-              </p>
-            </a>
-          )}
-        </div>
-
         {/* Côté Droit : Recherche, Partage, S'abonner, Se connecter */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 z-10 pointer-events-auto">
           {/* Recherche */}
@@ -268,7 +257,7 @@ export function MinimalCraftShell({
           <button
             type="button"
             onClick={handleShare}
-            className="p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer"
+            className="hidden sm:inline-flex p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer"
             title="Partager cette publication"
             aria-label="Partager"
           >
@@ -311,7 +300,7 @@ export function MinimalCraftShell({
       {hasCategoryBar && (
         <nav
           aria-label="Navigation des rubriques et pages"
-          className="fixed top-12 sm:top-14 left-0 right-0 z-35 flex justify-center pointer-events-none px-4"
+          className="fixed top-[4.25rem] sm:top-[4.75rem] left-0 right-0 z-35 flex justify-center pointer-events-none px-4"
         >
           <div className="pointer-events-auto flex items-center justify-center gap-4 sm:gap-6 max-w-[94vw] flex-wrap select-none">
             {/* Onglet Tous les articles / Accueil */}

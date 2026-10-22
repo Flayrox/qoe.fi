@@ -13,6 +13,8 @@ import { SidebarToggleIcon } from '@qoe/ui';
 import type { ClientNavigationItem, ClientSocialLink } from './types';
 
 export interface SiteOptions {
+  /** Logo typographique (image) affiché dans l'en-tête, distinct de la bannière. */
+  wordmarkUrl?: string | null;
   showBanner?: boolean;
   showLogo?: boolean;
   showTagline?: boolean;

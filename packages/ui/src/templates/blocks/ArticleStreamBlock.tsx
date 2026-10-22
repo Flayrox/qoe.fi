@@ -14,7 +14,12 @@ import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '../../SafeImage';
 import { Clock } from 'lucide-react';
-import { PLACEHOLDER_COVER_1, PLACEHOLDER_COVER_2, PLACEHOLDER_COVER_3 } from '../placeholders';
+import {
+  PLACEHOLDER_COVER_1,
+  PLACEHOLDER_COVER_2,
+  PLACEHOLDER_COVER_3,
+  getCoverPlaceholder,
+} from '../placeholders';
 import type {
   ArticleStreamBlockProps,
   TemplateArticleItem,
@@ -41,64 +46,6 @@ interface ArticleStreamBlockComponentProps {
   slots?: Record<string, import('../schema').TemplateNode[]>;
   nodes?: import('../schema').TemplateNode[];
   hiddenAt?: ('mobile' | 'tablet')[];
-}
-
-/**
- * Bloc gris de chargement simulant un article à venir (« À paraître »)
- * pour conserver la structure souveraine en 3 colonnes lorsque la publication
- * a moins de 3 articles publiés (disposition éditoriale : image en haut, titre, date en bas).
- */
-function SkeletonArticleCard({
-  className,
-  'data-testid': testId,
-}: {
-  className?: string;
-  'data-testid'?: string;
-}) {
-  return (
-    <div
-      data-testid={testId}
-      className={cn(
-        'group relative space-y-3 select-none pointer-events-none opacity-80 transition-opacity',
-        className
-      )}
-      aria-hidden="true"
-    >
-      {/* 1. Bloc Image gris simulant une couverture en chargement (EN HAUT) */}
-      <div className="relative w-full aspect-[16/10] rounded-[6px] overflow-hidden border border-border/40 bg-muted/40 animate-pulse flex items-center justify-center shadow-2xs">
-        <span className="text-[10px] tracking-widest uppercase text-muted-foreground/50 font-medium">
-          À paraître
-        </span>
-      </div>
-
-      {/* 2. Lignes de titre grises (SOUS L'IMAGE) */}
-      <div className="space-y-1.5 pt-0.5">
-        <div className="h-4 w-5/6 bg-muted/50 rounded-[2px] animate-pulse" />
-        <div className="h-4 w-3/5 bg-muted/30 rounded-[2px] animate-pulse" />
-      </div>
-
-      {/* 3. Lignes d'extrait grises */}
-      <div className="space-y-1">
-        <div className="h-2.5 w-full bg-muted/30 rounded-[2px] animate-pulse" />
-        <div className="h-2.5 w-4/5 bg-muted/20 rounded-[2px] animate-pulse" />
-      </div>
-
-      {/* 4. Lignes de métadonnées grises (EN BAS) */}
-      <div className="pt-1.5 space-y-2 border-t border-border/20">
-        <div className="flex items-center gap-2">
-          <div className="h-3 w-20 bg-muted/40 rounded-[2px] animate-pulse" />
-          <div className="h-3 w-12 bg-muted/30 rounded-[2px] animate-pulse" />
-        </div>
-
-        {/* 5. Faux boutons d'engagement discrets */}
-        <div className="flex items-center gap-4 opacity-40">
-          <div className="h-3 w-7 bg-muted/50 rounded-full animate-pulse" />
-          <div className="h-3 w-7 bg-muted/40 rounded-full animate-pulse" />
-          <div className="h-3 w-7 bg-muted/40 rounded-full animate-pulse" />
-        </div>
-      </div>
-    </div>
-  );
 }
 
 export function ArticleStreamBlock({
@@ -184,6 +131,7 @@ export function ArticleStreamBlock({
         : fallbackArticles;
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<'recent' | 'popular' | 'discussed'>('recent');
 
   const availableCategories = useMemo(() => {
     const cats = new Set<string>();
@@ -210,13 +158,33 @@ export function ArticleStreamBlock({
 
   const sortedItems = useMemo(() => {
     const list = [...filteredItems];
+
+    if (sortBy === 'popular') {
+      return list.sort(
+        (a, b) =>
+          (b.likesCount ?? 0) +
+          (b.commentsCount ?? 0) * 2 +
+          (b.repostsCount ?? 0) * 2 -
+          ((a.likesCount ?? 0) + (a.commentsCount ?? 0) * 2 + (a.repostsCount ?? 0) * 2)
+      );
+    }
+
+    if (sortBy === 'discussed') {
+      return list.sort(
+        (a, b) =>
+          (b.commentsCount ?? 0) - (a.commentsCount ?? 0) ||
+          (b.likesCount ?? 0) - (a.likesCount ?? 0)
+      );
+    }
+
+    // Tri par défaut : ordre de publication fourni par l'API, l'épinglé en tête.
     const pinnedIdx = list.findIndex(isArticlePinned);
     if (pinnedIdx > 0) {
       const [pinned] = list.splice(pinnedIdx, 1);
       return [pinned, ...list];
     }
     return list;
-  }, [filteredItems, pinnedArticleId]);
+  }, [filteredItems, pinnedArticleId, sortBy]);
 
   const isEditorialMode = displayMode === 'craft-notes' || displayMode === 'featured-trio';
   const isTrioMode =
@@ -225,13 +193,50 @@ export function ArticleStreamBlock({
       displayMode === 'featured-trio' ||
       siteOpts.featuredTrio !== false);
 
-  const centerHeroArticle = sortedItems[0] || null;
-  const leftSecondaryArticle = sortedItems.length >= 2 ? sortedItems[1] : null;
-  const rightSecondaryArticle = sortedItems.length >= 3 ? sortedItems[2] : null;
+  // ── Grille à la une ───────────────────────────────────────────────────
+  // Centre : l'article épinglé, sinon le plus récent. Si l'épinglé n'est pas
+  // le plus récent, ce dernier ne disparaît pas : il passe en tête de la
+  // colonne de gauche (les plus récents). À droite : les plus lus.
+  const popularityScore = (art: TemplateArticleItem) =>
+    (art.likesCount ?? 0) + (art.commentsCount ?? 0) * 2 + (art.repostsCount ?? 0) * 2;
 
-  const trioUsedCount =
-    sortedItems.length >= 3 ? 3 : sortedItems.length === 2 ? 2 : sortedItems.length === 1 ? 1 : 0;
-  const streamArticles = isTrioMode ? sortedItems.slice(trioUsedCount) : sortedItems.slice(1);
+  const publishedTimestamp = (art: TemplateArticleItem) => {
+    const ts = art.publishedAt ? new Date(art.publishedAt).getTime() : 0;
+    return Number.isNaN(ts) ? 0 : ts;
+  };
+
+  const byRecency = [...filteredItems].sort(
+    (a, b) => publishedTimestamp(b) - publishedTimestamp(a)
+  );
+  const pinnedHeroArticle = filteredItems.find(isArticlePinned) ?? null;
+  const centerHeroArticle = pinnedHeroArticle ?? byRecency[0] ?? null;
+
+  const sidePool = byRecency.filter((art) => art.id !== centerHeroArticle?.id);
+  const leftTarget = Math.min(3, Math.ceil(sidePool.length / 2));
+  const recentColumnArticles = sidePool.slice(0, leftTarget);
+  const recentColumnIds = new Set(recentColumnArticles.map((art) => art.id));
+
+  const popularColumnArticles = [...sidePool]
+    .filter((art) => !recentColumnIds.has(art.id))
+    .sort(
+      (a, b) =>
+        popularityScore(b) - popularityScore(a) || publishedTimestamp(b) - publishedTimestamp(a)
+    )
+    .slice(0, 3);
+  const hasPopularitySignal = popularColumnArticles.some((art) => popularityScore(art) > 0);
+
+  const trioIds = new Set(
+    [centerHeroArticle, ...recentColumnArticles, ...popularColumnArticles]
+      .filter((art): art is TemplateArticleItem => Boolean(art))
+      .map((art) => art.id)
+  );
+
+  const streamArticles = isTrioMode
+    ? sortedItems.filter((art) => !trioIds.has(art.id))
+    : sortedItems.slice(1);
+
+  const formatShortDate = (iso?: string | Date | null) =>
+    iso ? new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : null;
 
   const paddingY = density === 'compact' ? 'py-3' : density === 'spacious' ? 'py-7' : 'py-5';
 
@@ -289,26 +294,60 @@ export function ArticleStreamBlock({
                 ===================================================================== */}
             {centerHeroArticle && (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 xl:gap-12 items-start pb-10 border-b border-border/40">
-                {/* Colonne Gauche (~25%, 3 colonnes) : Article secondaire gauche ou Skeleton */}
-                <div className="lg:col-span-3 order-2 lg:order-1 space-y-6">
-                  {leftSecondaryArticle ? (
-                    <ArticleCard
-                      article={leftSecondaryArticle}
-                      variant="secondary"
-                      publicationName={publication?.name}
-                      showExcerpts={showExcerpts}
-                      showReadingTime={showReadingTime}
-                      showCategories={showCategories}
-                      editableMode={context.mode === 'editable'}
-                      testId="left-secondary-article"
-                    />
-                  ) : (
-                    <SkeletonArticleCard data-testid="left-skeleton" />
-                  )}
-                </div>
+                {/* Colonne Gauche (~25%) : les plus récents, en liste compacte */}
+                {recentColumnArticles.length > 0 && (
+                  <div
+                    className="lg:col-span-3 lg:col-start-1 order-2 lg:order-1"
+                    data-testid="trio-recent-column"
+                  >
+                    <div className="flex items-baseline justify-between border-b border-border/50 pb-2">
+                      <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                        Les plus récents
+                      </h3>
+                      <span className="text-[11px] tabular-nums text-muted-foreground/50">
+                        {String(recentColumnArticles.length).padStart(2, '0')}
+                      </span>
+                    </div>
 
-                {/* Colonne Centre (~50%, 6 colonnes) : GRAND ARTICLE VEDETTE OU ÉPINGLÉ */}
-                <div className="lg:col-span-6 order-1 lg:order-2 space-y-4">
+                    <ol className="divide-y divide-border/40">
+                      {recentColumnArticles.map((art) => (
+                        <li key={art.id} className="py-4 first:pt-3" data-testid="trio-recent-item">
+                          <div className="flex gap-3">
+                            <Link
+                              href={`/article/${art.slug}`}
+                              onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                              className="relative w-16 h-12 shrink-0 overflow-hidden rounded-[4px] border border-border/40 bg-muted"
+                            >
+                              <SafeImage
+                                src={art.imageUrl || getCoverPlaceholder(art.slug || art.id)}
+                                alt=""
+                                fill
+                                className="object-cover"
+                              />
+                            </Link>
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+                                {formatShortDate(art.publishedAt) ?? art.category?.name}
+                              </p>
+                              <h4 className="mt-1 text-[13px] font-semibold leading-snug text-foreground line-clamp-2">
+                                <Link
+                                  href={`/article/${art.slug}`}
+                                  onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                                  className="hover:underline underline-offset-2"
+                                >
+                                  {art.title}
+                                </Link>
+                              </h4>
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
+
+                {/* Colonne Centre (~50%) : l'épinglé, sinon le plus récent */}
+                <div className="lg:col-span-6 lg:col-start-4 order-1 lg:order-2 space-y-4">
                   <ArticleCard
                     article={centerHeroArticle}
                     variant="hero-center"
@@ -322,23 +361,56 @@ export function ArticleStreamBlock({
                   />
                 </div>
 
-                {/* Colonne Droite (~25%, 3 colonnes) : Article secondaire droit ou Skeleton */}
-                <div className="lg:col-span-3 order-3 lg:order-3 space-y-6">
-                  {rightSecondaryArticle ? (
-                    <ArticleCard
-                      article={rightSecondaryArticle}
-                      variant="secondary"
-                      publicationName={publication?.name}
-                      showExcerpts={showExcerpts}
-                      showReadingTime={showReadingTime}
-                      showCategories={showCategories}
-                      editableMode={context.mode === 'editable'}
-                      testId="right-secondary-article"
-                    />
-                  ) : (
-                    <SkeletonArticleCard data-testid="right-skeleton" />
-                  )}
-                </div>
+                {/* Colonne Droite (~25%) : les plus lus, classés par engagement réel */}
+                {popularColumnArticles.length > 0 && (
+                  <div
+                    className="lg:col-span-3 lg:col-start-10 order-3"
+                    data-testid="trio-popular-column"
+                  >
+                    <div className="flex items-baseline justify-between border-b border-border/50 pb-2">
+                      <h3 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                        {hasPopularitySignal ? 'Les plus lus' : 'À lire aussi'}
+                      </h3>
+                      <span className="text-[11px] tabular-nums text-muted-foreground/50">
+                        {String(popularColumnArticles.length).padStart(2, '0')}
+                      </span>
+                    </div>
+
+                    <ol className="divide-y divide-border/40">
+                      {popularColumnArticles.map((art, index) => {
+                        const comments = art.commentsCount ?? 0;
+                        return (
+                          <li
+                            key={art.id}
+                            className="flex gap-3 py-4 first:pt-3"
+                            data-testid="trio-popular-item"
+                          >
+                            <span className="w-4 shrink-0 pt-0.5 text-[11px] tabular-nums text-muted-foreground/50">
+                              {String(index + 1).padStart(2, '0')}
+                            </span>
+                            <div className="min-w-0">
+                              <h4 className="text-[13px] font-semibold leading-snug text-foreground line-clamp-2">
+                                <Link
+                                  href={`/article/${art.slug}`}
+                                  onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                                  className="hover:underline underline-offset-2"
+                                >
+                                  {art.title}
+                                </Link>
+                              </h4>
+                              <p className="mt-1 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+                                {art.readingTime ? `${art.readingTime} min` : null}
+                                {comments > 0
+                                  ? ` · ${comments} commentaire${comments > 1 ? 's' : ''}`
+                                  : null}
+                              </p>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  </div>
+                )}
               </div>
             )}
 
@@ -347,43 +419,73 @@ export function ArticleStreamBlock({
               {/* Colonne Principale (~65%) : Filtres et Flux d'articles */}
               <div className="lg:col-span-8 space-y-6 sm:space-y-8">
                 {/* Barre de filtres par catégories */}
-                {availableCategories.length > 0 && (
+                {items.length > 1 && (
                   <div className="pt-1 pb-2 flex items-center justify-between flex-wrap gap-3 border-b border-border/30 pb-3">
-                    <span className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground/60">
-                      Rubriques
-                    </span>
+                    {availableCategories.length > 0 && (
+                      <span className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground/60">
+                        Rubriques
+                      </span>
+                    )}
                     <div className="flex flex-wrap items-center gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedCategory('all')}
-                        className={cn(
-                          'text-xs px-3 py-1 rounded-full transition-all cursor-pointer font-medium',
-                          selectedCategory === 'all'
-                            ? 'bg-foreground text-background shadow-2xs'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                        )}
-                      >
-                        Tous ({items.length})
-                      </button>
-                      {availableCategories.map((cat) => {
-                        const count = items.filter((a) => a.category?.name === cat).length;
-                        const isActive = selectedCategory === cat;
-                        return (
+                      {availableCategories.length > 0 && (
+                        <>
                           <button
-                            key={cat}
                             type="button"
-                            onClick={() => setSelectedCategory(cat)}
+                            onClick={() => setSelectedCategory('all')}
                             className={cn(
                               'text-xs px-3 py-1 rounded-full transition-all cursor-pointer font-medium',
-                              isActive
+                              selectedCategory === 'all'
                                 ? 'bg-foreground text-background shadow-2xs'
                                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
                             )}
                           >
-                            {cat} ({count})
+                            Tous ({items.length})
                           </button>
-                        );
-                      })}
+                          {availableCategories.map((cat) => {
+                            const count = items.filter((a) => a.category?.name === cat).length;
+                            const isActive = selectedCategory === cat;
+                            return (
+                              <button
+                                key={cat}
+                                type="button"
+                                onClick={() => setSelectedCategory(cat)}
+                                className={cn(
+                                  'text-xs px-3 py-1 rounded-full transition-all cursor-pointer font-medium',
+                                  isActive
+                                    ? 'bg-foreground text-background shadow-2xs'
+                                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                                )}
+                              >
+                                {cat} ({count})
+                              </button>
+                            );
+                          })}
+                        </>
+                      )}
+                      {/* Le tri n'agit que sur le flux d'archives : inutile quand
+                          tous les articles tiennent déjà dans la une. */}
+                      {(!isTrioMode || streamArticles.length > 0) && (
+                        <div className="flex items-center gap-1.5 pl-2 ml-1 border-l border-border/50">
+                          <label
+                            htmlFor={`stream-sort-${id}`}
+                            className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground/60"
+                          >
+                            Tri
+                          </label>
+                          <select
+                            id={`stream-sort-${id}`}
+                            value={sortBy}
+                            onChange={(e) =>
+                              setSortBy(e.target.value as 'recent' | 'popular' | 'discussed')
+                            }
+                            className="bg-transparent text-xs font-medium text-foreground cursor-pointer focus:outline-none"
+                          >
+                            <option value="recent">Récents</option>
+                            <option value="popular">Populaires</option>
+                            <option value="discussed">Commentés</option>
+                          </select>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -428,7 +530,13 @@ export function ArticleStreamBlock({
                   <div className="space-y-6 pt-1">
                     <div className="flex items-center justify-between border-b border-border/40 pb-3">
                       <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
-                        {selectedCategory === 'all' ? 'Dernières parutions' : selectedCategory}
+                        {selectedCategory !== 'all'
+                          ? selectedCategory
+                          : sortBy === 'popular'
+                            ? 'Les plus lus'
+                            : sortBy === 'discussed'
+                              ? 'Les plus commentés'
+                              : 'Dernières parutions'}
                       </h3>
                       <span className="text-xs text-muted-foreground font-medium">
                         {streamArticles.length} article{streamArticles.length > 1 ? 's' : ''}
@@ -467,7 +575,12 @@ export function ArticleStreamBlock({
 
               {/* Colonne Latérale (~35%) Sticky : Auteur + Recommandations Réseau + Newsletter + Top Lectures */}
               <div className="lg:col-span-4 lg:sticky lg:top-24">
-                <PublicationSidebar publication={publication} articles={items} context={context} />
+                <PublicationSidebar
+                  publication={publication}
+                  articles={items}
+                  context={context}
+                  showTopArticles={!isTrioMode}
+                />
               </div>
             </div>
           </div>

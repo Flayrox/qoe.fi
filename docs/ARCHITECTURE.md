@@ -1,5 +1,7 @@
 # 🏛️ Architecture & Scalability Diagnostics (qoe.fi)
 
+> **Mise à jour octobre 2026.** Le backend Go (`apps/api`, chi + sqlc + goose + asynq) est le backend-of-record unique. Il n'y a plus de Prisma, de `packages/db` ni de `packages/billing` dans le monorepo ; toute mention de ces éléments ci-dessous décrit l'historique ou est corrigée inline.
+
 This document provides a deep-dive analysis into the architectural decisions, structural coupling, and system constraints of the qoe.fi platform.
 
 ## 1. System Architecture Map
@@ -27,8 +29,9 @@ User Request -> Caddy Reverse Proxy
 
 ### Single Source of Truth (SSOT)
 
-- **Status:** **PASS**.
-- The schema is strictly confined to `packages/db/prisma/schema.prisma`. All interfaces and Zod schemas in `@qoe/config` inherit types from this source.
+- **Status:** **PARTIAL**.
+- Le schéma est confiné à `apps/api/sql/schema/*.sql`, versionné par les migrations goose (`apps/api/sql/migrations/`) et compilé en requêtes typées par sqlc (`apps/api/internal/database/*.sql.go`). Il n'y a plus de client Prisma ni de `packages/db`.
+- Les types TS ne sont **pas** générés depuis ce schéma : ils sont recopiés dans `@qoe/sdk` / `@qoe/schemas`, ce qui reste la principale source de dérive de contrat.
 - **UUID Strategy:** The system has fully migrated to UUIDs (`@db.Uuid`) for critical entities (Users, Articles) to prevent enumeration attacks and support distributed database sharding if required in the future.
 - **pgvector Integration:** The `Thought` and `Article` tables are equipped with PostgreSQL vector columns (`vector(1536)`) for AI-powered semantic search and RAG capabilities (extension pré-activée par l'image `pgvector/pgvector`, cf. `docker/postgres/init.sql`).
 
@@ -44,7 +47,7 @@ User Request -> Caddy Reverse Proxy
 
 ### Paywall Security (AST Truncation)
 
-- **Mechanism:** `packages/billing/src/paywall/ast-truncation.ts` strictly truncates Premium content on the server.
+- **Mechanism:** `packages/utils/src/paywall.ts` (consommateurs TS) et `apps/api/internal/modules/articles/paywall.go` (API) tronquent strictement le contenu Premium côté serveur.
 - **Why this matters:** The system does not hide content using CSS (`display: none;`). It intercepts the Tiptap HTML string and splits it at the `<div data-type="paywall-divider">` marker. If the marker is missing, it falls back to paragraph limits or strict character limits (400 chars).
 - **Scalability Win:** Ensures 0 bytes of premium content leak over the network, completely mitigating DOM inspection bypasses.
 
@@ -66,7 +69,7 @@ User Request -> Caddy Reverse Proxy
 
 ### Coupling Evaluation (1-vs-20 Test)
 
-- **Data Models:** Changing the Prisma schema requires updating 1 file (`schema.prisma`), then regenerating. It propagates safely across 18 packages.
+- **Data Models:** Un changement de schéma demande une migration goose (`apps/api/sql/migrations/`) puis `sqlc generate`. Côté TS, le contrat est manuel : c'est le point de couplage le plus fragile.
 - **UI Components:** Modifying a core UI element (e.g., `SocialIcon`) requires changing 1 file in `packages/ui`.
 - **Coupling Rating:** **HIGHLY DECOUPLED.**
 
@@ -89,4 +92,4 @@ User Request -> Caddy Reverse Proxy
 
 4. **N+1 Query Risk (Feed):**
    - **Scenario:** Rendering the global feed.
-   - **Impact:** The system avoids N+1 queries by leveraging Prisma's `include` API strictly within Repository abstractions (`packages/db/src/repositories/posts.ts`). However, caching (via Next.js `unstable_cache` or Redis) is recommended for highly accessed generic feed views.
+   - **Impact:** Le backend Go charge les slices de feed via sqlc (`apps/api/internal/modules/feed/service.go`, `buildSlices`) et les index SQL couvrent les colonnes chaudes (`Article(publicationId, published, createdAt)`, `Post(authorId, createdAt)`, `Highlight(articleId, …)`). Le risque résiduel est côté Next : `fetchTenantPublication` est appelé plusieurs fois par rendu sans `cache()`, et les payloads de publication ne sont pas cachés côté API.

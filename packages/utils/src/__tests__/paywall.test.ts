@@ -119,6 +119,12 @@ describe('buildPublicDescription (zero-leak SEO)', () => {
     const long = `<p>${'a'.repeat(500)}</p>`;
     expect(buildPublicDescription(long)?.length).toBe(200);
     expect(buildPublicDescription(long, 42)?.length).toBe(42);
+    expect(buildPublicDescription(long)).toMatch(/…$/);
+  });
+
+  it('coupe sur un mot entier plutôt qu’au milieu', () => {
+    expect(buildPublicDescription('Bonjour le monde entier', 14)).toBe('Bonjour le…');
+    expect(buildPublicDescription('Bonjour le monde entier')).toBe('Bonjour le monde entier');
   });
 
   it('retourne undefined sur un contenu vide', () => {

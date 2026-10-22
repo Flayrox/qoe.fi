@@ -1,4 +1,6 @@
 import React from 'react';
+import { headers } from 'next/headers';
+import { getMainAppUrl } from '@qoe/config';
 import { JsonLd, buildWebSiteSchema } from '@qoe/ui';
 import {
   TemplateRenderer,
@@ -55,7 +57,6 @@ export async function TenantPageRenderer(props: TenantPageRendererProps) {
     articles = [],
     headerImageUrl,
     footerText,
-    layoutStyle,
     themeMode,
     navigation = [],
     socialLinks = [],
@@ -85,16 +86,23 @@ export async function TenantPageRenderer(props: TenantPageRendererProps) {
     description: heroText || undefined,
   });
 
-  const siteLayouts = parseSiteLayouts(layoutStyle, {
+  // Thème unique : même une publication historiquement en « editorial » ou
+  // « magazine » est rendue avec le layout minimal.
+  const siteLayouts = parseSiteLayouts('minimal', {
     accentColor,
     fontFamily,
   });
+
+  const headersList = await headers();
+  const host = headersList.get('x-forwarded-host') || headersList.get('host') || decodedDomain;
+  const mainAppUrl = getMainAppUrl(host);
 
   const templatePub: TemplatePublicationContext = {
     id: publication.id,
     name,
     slug: publication.slug,
     domain: decodedDomain,
+    mainAppUrl,
     subdomain: publication.subdomain,
     customDomain: publication.customDomain,
     logoUrl,
@@ -154,9 +162,11 @@ export async function TenantPageRenderer(props: TenantPageRendererProps) {
     })),
     recommendations: recommendations ?? null,
     author: {
-      name: publication.name,
+      // L'avatar de la personne (et non le logo de la publication) : l'en-tête
+      // s'en sert comme identité de repli quand aucun logo n'est configuré.
+      name: publication.user?.name ?? publication.name,
       username: publication.user?.username ?? publication.subdomain ?? null,
-      avatarUrl: publication.logoUrl,
+      avatarUrl: publication.user?.logoUrl ?? null,
       bio: publication.heroText ?? publication.bio ?? null,
     },
   };

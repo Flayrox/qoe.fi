@@ -49,6 +49,6 @@ Le client (`@hocuspocus/provider`) est branché dans
 
 - **Permissions** : pour l'instant tout utilisateur authentifié peut éditer un
   document dont il connaît le nom. À durcir : vérifier l'appartenance à la
-  publication dans `onLoadDocument` (via Prisma).
+  publication dans `onLoadDocument` (requête SQL via le pool `pg` de `database.ts`).
 - **Backup/export** : l'état canonique pour le public reste le JSON TipTap
   sauvegardé par le dashboard ; le document Yjs est un brouillon de travail.

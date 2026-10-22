@@ -47,6 +47,8 @@ export function TenantPageShell({
         name={name}
         domain={domain}
         logoUrl={logoUrl}
+        avatarUrl={publication.user?.logoUrl ?? null}
+        username={publication.user?.username ?? publication.subdomain ?? null}
         layoutStyle={layoutStyle}
         stripeAccountId={stripeAccountId}
         supportUrl={supportUrl}

@@ -4,6 +4,10 @@ import React from 'react';
 import { TenantPageRenderer } from '../TenantPageRenderer';
 import type { TenantPublication } from '@/lib/tenant-data';
 
+vi.mock('next/headers', () => ({
+  headers: vi.fn(async () => new Headers({ host: 'journal.qoe.fi' })),
+}));
+
 vi.mock('@qoe/ui/templates', () => ({
   TemplateRenderer: ({
     publication,

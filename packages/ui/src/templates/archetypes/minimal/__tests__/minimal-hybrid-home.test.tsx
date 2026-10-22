@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import { HeroBlock } from '../../../blocks/HeroBlock';
 import { ArticleStreamBlock } from '../../../blocks/ArticleStreamBlock';
 import type {
@@ -102,7 +102,7 @@ describe('Option B - Minimal Hybrid Home (Devouring Details)', () => {
       pagination: 'load-more',
     };
 
-    it('renders featured article with bleed cover, category pill and "Lire l’article" button', () => {
+    it('centres the most recent article with its category pill and "Lire l’article" link', () => {
       render(
         <ArticleStreamBlock
           id="stream_test"
@@ -113,18 +113,69 @@ describe('Option B - Minimal Hybrid Home (Devouring Details)', () => {
         />
       );
 
-      // Featured article title
-      const featuredTitle = screen.getByText('Behind scenes');
-      expect(featuredTitle).toBeTruthy();
+      const hero = screen.getByTestId('center-hero-article');
+      expect(within(hero).getByText('Gestural drawer dynamics')).toBeTruthy();
+      expect(within(hero).getByText('Interactions')).toBeTruthy();
+      expect(within(hero).getByText(/Lire l’article/i)).toBeTruthy();
+    });
 
-      // Excerpt of featured article
+    it('keeps the pinned article in the centre and moves the most recent one to the left column', () => {
+      const pinnedOldest: TemplateArticleItem[] = [
+        { ...mockArticles[0], isPinned: true },
+        mockArticles[1],
+        mockArticles[2],
+      ];
+
+      render(
+        <ArticleStreamBlock
+          id="stream_pinned"
+          props={streamProps}
+          articles={pinnedOldest}
+          publication={mockPublication}
+          context={mockContext}
+        />
+      );
+
+      const hero = screen.getByTestId('center-hero-article');
+      expect(within(hero).getByText('Behind scenes')).toBeTruthy();
+
+      const recentColumn = screen.getByTestId('trio-recent-column');
+      expect(within(recentColumn).getByText('Gestural drawer dynamics')).toBeTruthy();
+    });
+
+    it('ranks the right column by real engagement (likes + comments + reposts)', () => {
+      const engaged: TemplateArticleItem[] = [
+        { ...mockArticles[0], likesCount: 9 },
+        { ...mockArticles[1], commentsCount: 1 },
+        { ...mockArticles[2], likesCount: 2 },
+        {
+          id: 'art_4',
+          title: 'Fresh off the press',
+          slug: 'fresh-off-the-press',
+          readingTime: 2,
+          publishedAt: '2026-03-28T10:00:00Z',
+          likesCount: 0,
+        },
+      ];
+
+      render(
+        <ArticleStreamBlock
+          id="stream_popular"
+          props={streamProps}
+          articles={engaged}
+          publication={mockPublication}
+          context={mockContext}
+        />
+      );
+
       expect(
-        screen.getByText(/Deep dive into the kinetic models powering fluid responsive sheets/i)
+        within(screen.getByTestId('center-hero-article')).getByText('Fresh off the press')
       ).toBeTruthy();
 
-      // Call-to-action button / link
-      const readCta = screen.getByText(/Lire l’article/i);
-      expect(readCta).toBeTruthy();
+      const popular = screen.getByTestId('trio-popular-column');
+      expect(within(popular).getByText('Les plus lus')).toBeTruthy();
+      expect(within(popular).getByText('Behind scenes')).toBeTruthy();
+      expect(within(popular).queryByText('Spring physics & tactile feel')).toBeNull();
     });
 
     it('renders category filter pills and allows filtering articles', () => {
@@ -150,7 +201,7 @@ describe('Option B - Minimal Hybrid Home (Devouring Details)', () => {
       expect(screen.getByText('Spring physics & tactile feel')).toBeTruthy();
     });
 
-    it('renders 3-column layout with skeleton placeholders when there is only 1 article', () => {
+    it('renders only the centred article when there is a single article', () => {
       const singleArticle = [mockArticles[0]];
 
       render(
@@ -163,24 +214,15 @@ describe('Option B - Minimal Hybrid Home (Devouring Details)', () => {
         />
       );
 
-      // Center article must be present
       expect(screen.getByTestId('center-hero-article')).toBeTruthy();
       expect(screen.getByText('Behind scenes')).toBeTruthy();
 
-      // Both left and right columns must render skeleton placeholders
-      expect(screen.getByTestId('left-skeleton')).toBeTruthy();
-      expect(screen.getByTestId('right-skeleton')).toBeTruthy();
-
-      // Neither secondary article is present
-      expect(screen.queryByTestId('left-secondary-article')).toBeNull();
-      expect(screen.queryByTestId('right-secondary-article')).toBeNull();
-
-      // "À paraître" appears in the skeletons
-      const upcomingBadges = screen.getAllByText(/À paraître/i);
-      expect(upcomingBadges.length).toBe(2);
+      expect(screen.queryByTestId('trio-recent-column')).toBeNull();
+      expect(screen.queryByTestId('trio-popular-column')).toBeNull();
+      expect(screen.queryByText(/À paraître/i)).toBeNull();
     });
 
-    it('renders 3-column layout with left secondary article and right skeleton when there are 2 articles', () => {
+    it('puts the remaining article in the recent column when there are 2 articles', () => {
       const twoArticles = [mockArticles[0], mockArticles[1]];
 
       render(
@@ -193,22 +235,18 @@ describe('Option B - Minimal Hybrid Home (Devouring Details)', () => {
         />
       );
 
-      // Center article & left secondary article must be present
-      expect(screen.getByTestId('center-hero-article')).toBeTruthy();
-      expect(screen.getByTestId('left-secondary-article')).toBeTruthy();
-      expect(screen.getByText('Behind scenes')).toBeTruthy();
-      expect(screen.getByText('Spring physics & tactile feel')).toBeTruthy();
+      expect(
+        within(screen.getByTestId('center-hero-article')).getByText('Spring physics & tactile feel')
+      ).toBeTruthy();
 
-      // Left skeleton is NOT rendered, but right skeleton IS rendered
-      expect(screen.queryByTestId('left-skeleton')).toBeNull();
-      expect(screen.getByTestId('right-skeleton')).toBeTruthy();
-      expect(screen.queryByTestId('right-secondary-article')).toBeNull();
+      const recentColumn = screen.getByTestId('trio-recent-column');
+      expect(within(recentColumn).getByText('Behind scenes')).toBeTruthy();
 
-      const upcomingBadges = screen.getAllByText(/À paraître/i);
-      expect(upcomingBadges.length).toBe(1);
+      expect(screen.queryByTestId('trio-popular-column')).toBeNull();
+      expect(screen.queryByText(/À paraître/i)).toBeNull();
     });
 
-    it('renders real articles in all 3 columns when there are 3 articles without skeletons', () => {
+    it('renders all 3 columns when there are 3 articles', () => {
       render(
         <ArticleStreamBlock
           id="stream_three"
@@ -220,12 +258,63 @@ describe('Option B - Minimal Hybrid Home (Devouring Details)', () => {
       );
 
       expect(screen.getByTestId('center-hero-article')).toBeTruthy();
-      expect(screen.getByTestId('left-secondary-article')).toBeTruthy();
-      expect(screen.getByTestId('right-secondary-article')).toBeTruthy();
+      expect(
+        within(screen.getByTestId('trio-recent-column')).getByText('Spring physics & tactile feel')
+      ).toBeTruthy();
+      expect(
+        within(screen.getByTestId('trio-popular-column')).getByText('Behind scenes')
+      ).toBeTruthy();
 
-      expect(screen.queryByTestId('left-skeleton')).toBeNull();
-      expect(screen.queryByTestId('right-skeleton')).toBeNull();
       expect(screen.queryByText(/À paraître/i)).toBeNull();
+    });
+
+    it('splits many articles across the columns without repeating any of them', () => {
+      const many = [
+        ...mockArticles,
+        {
+          id: 'art_4',
+          title: 'Fourth story',
+          slug: 'fourth-story',
+          readingTime: 2,
+          publishedAt: '2026-03-27T10:00:00Z',
+        },
+        {
+          id: 'art_5',
+          title: 'Fifth story',
+          slug: 'fifth-story',
+          readingTime: 3,
+          publishedAt: '2026-03-29T10:00:00Z',
+        },
+      ];
+
+      render(
+        <ArticleStreamBlock
+          id="stream_many"
+          props={streamProps}
+          articles={many}
+          publication={mockPublication}
+          context={mockContext}
+        />
+      );
+
+      expect(
+        within(screen.getByTestId('center-hero-article')).getByText('Fifth story')
+      ).toBeTruthy();
+      expect(screen.getByTestId('trio-recent-column')).toBeTruthy();
+      expect(screen.getByTestId('trio-popular-column')).toBeTruthy();
+
+      expect(screen.getAllByTestId('trio-recent-item').length).toBe(2);
+      expect(screen.getAllByTestId('trio-popular-item').length).toBe(2);
+
+      const columns = ['trio-recent-column', 'trio-popular-column'] as const;
+      const titles = columns.flatMap((testId) =>
+        within(screen.getByTestId(testId))
+          .getAllByRole('link')
+          .map((link) => link.textContent?.trim() ?? '')
+          .filter(Boolean)
+      );
+      expect(new Set(titles).size).toBe(titles.length);
+      expect(titles).not.toContain('Fifth story');
     });
   });
 });

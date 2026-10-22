@@ -23,9 +23,7 @@ export type BlockType =
   | 'newsletter-wall'
   | 'footer'
   | 'article-content'
-  | 'category-spotlight'
-  | 'dispatch-feed'
-  | 'dispatch-magazine';
+  | 'category-spotlight';
 
 /** Forme géométrique des cartes et conteneurs (Tokens) */
 export type CardCornerShape =
@@ -292,7 +290,6 @@ export type TemplateArchetypeId =
   | 'broadsheet'
   | 'bento'
   | 'minimal'
-  | 'dispatch'
   | 'encre'
   | 'papier'
   | 'signal'
@@ -417,6 +414,8 @@ export interface TemplatePublicationContext {
   name: string | null;
   slug?: string;
   domain?: string;
+  /** URL absolue de l'app principale qoefi (calculée côté serveur depuis l'hôte réel). */
+  mainAppUrl?: string;
   subdomain?: string | null;
   customDomain?: string | null;
   logoUrl?: string | null;

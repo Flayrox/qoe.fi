@@ -5,14 +5,14 @@
 // =====================================================================
 // Affiche :
 // 1. Carte de l'Auteur / Publication ("À propos")
-// 2. Réseau de Recommandations ("Recommandé par [Auteur]") avec abonnement 1-clic
+// 2. Réseau de Recommandations (uniquement celles réellement configurées)
 // 3. Boîte d'Abonnement Newsletter Sticky
-// 4. Sélection "À ne pas manquer" (Top Lectures)
+// 4. Sélection "Les plus lus" (classée par popularité réelle)
 // =====================================================================
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Sparkles, ExternalLink, Check, Loader2, Mail, BookOpen } from 'lucide-react';
+import { Check, Loader2 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { SafeAvatar } from '../../SafeAvatar';
 import { SubscribeForm } from '../../SubscribeForm';
@@ -29,37 +29,23 @@ export interface PublicationSidebarProps {
   articles?: TemplateArticleItem[];
   context: TemplateRenderContext;
   className?: string;
+  /** Désactivé quand la grille à la une affiche déjà sa propre colonne « Les plus lus ». */
+  showTopArticles?: boolean;
 }
 
-// Recommandations par défaut élégantes du réseau souverain Qoefi (si l'auteur n'en a pas encore configuré)
-const CURATED_DEFAULT_RECOMMENDATIONS: TemplateRecommendationItem[] = [
-  {
-    id: 'rec_souverainete',
-    name: 'Souveraineté & Médias',
-    slug: 'souverainete-medias',
-    subdomain: 'souverainete',
-    description: 'Chroniques sur l’indépendance éditoriale et le web décentralisé.',
-    customDomain: null,
-    articlesCount: 14,
-    subscribersCount: 1200,
-  },
-  {
-    id: 'rec_craft',
-    name: 'Atelier Craft & Code',
-    slug: 'atelier-craft',
-    subdomain: 'craft',
-    description: 'Micro-craft, typographie d’orfèvre et architecture de contenu.',
-    customDomain: null,
-    articlesCount: 8,
-    subscribersCount: 850,
-  },
-];
+/** Score de popularité simple et transparent : likes + 2×commentaires + 2×repartages. */
+function popularityScore(article: TemplateArticleItem): number {
+  return (
+    (article.likesCount ?? 0) + (article.commentsCount ?? 0) * 2 + (article.repostsCount ?? 0) * 2
+  );
+}
 
 export function PublicationSidebar({
   publication,
   articles = [],
   context,
   className = '',
+  showTopArticles = true,
 }: PublicationSidebarProps) {
   const [subscribedMap, setSubscribedMap] = useState<Record<string, boolean>>({});
   const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
@@ -69,13 +55,24 @@ export function PublicationSidebar({
   const authorName = publication?.name || 'L’Auteur';
   const bio = publication?.heroText || publication?.author?.bio || null;
   const avatarUrl = publication?.logoUrl || publication?.author?.avatarUrl || null;
-  const recommendations =
+
+  // Aucune recommandation inventée : si l'auteur n'en a pas configuré,
+  // le bloc disparaît au lieu d'afficher des publications fictives.
+  const recommendations: TemplateRecommendationItem[] =
     publication?.recommendations && publication.recommendations.length > 0
       ? publication.recommendations
-      : CURATED_DEFAULT_RECOMMENDATIONS;
+      : [];
 
-  // Articles secondaires pour le bloc "Top Lectures" (affiché s'il y a au moins 5 articles pour éviter les doublons avec le flux)
-  const topArticles = articles.length >= 5 ? articles.slice(1, 4) : [];
+  // Affiché seulement quand l'archive est assez fournie : sinon le flux
+  // juste à côté montre déjà les mêmes titres.
+  const leadingArticleId = articles[0]?.id;
+  const topArticles =
+    showTopArticles && articles.length >= 5
+      ? [...articles]
+          .filter((article) => article.id !== leadingArticleId)
+          .sort((a, b) => popularityScore(b) - popularityScore(a))
+          .slice(0, 3)
+      : [];
 
   const handleSubscribeClick = (rec: TemplateRecommendationItem) => {
     if (context.mode === 'editable') return;
@@ -105,22 +102,32 @@ export function PublicationSidebar({
     }
   };
 
+  const targetUrlFor = (rec: TemplateRecommendationItem) => {
+    if (rec.customDomain) return `https://${rec.customDomain}`;
+    if (!rec.subdomain) return '#';
+    if (typeof window !== 'undefined') {
+      const host = window.location.hostname;
+      if (host.endsWith('lvh.me')) return `http://${rec.subdomain}.lvh.me:15403`;
+      if (host.endsWith('localhost')) return `http://${rec.subdomain}.localhost:15403`;
+      if (host.endsWith('qoe.test')) return `http://${rec.subdomain}.qoe.test`;
+    }
+    return `https://${rec.subdomain}.qoe.fi`;
+  };
+
   return (
-    <aside className={cn('space-y-6', className)}>
-      {/* ── 1. CARTE DE L'AUTEUR / PUBLICATION ("À propos") ── */}
-      <div className="p-5 rounded-2xl bg-card/60 backdrop-blur-sm border border-border/50 shadow-2xs space-y-3.5">
+    <aside className={cn('flex flex-col divide-y divide-border/60 text-sm', className)}>
+      {/* ── 1. À PROPOS ── */}
+      <section className="pb-6">
         <div className="flex items-center gap-3">
           <SafeAvatar
             src={avatarUrl}
             name={authorName}
-            size={46}
-            shape="squircle"
-            className="border border-border/60 shrink-0 shadow-2xs"
+            size={40}
+            shape="circle"
+            className="border border-border/60 shrink-0"
           />
           <div className="min-w-0 flex-1">
-            <h3 className="font-semibold text-sm sm:text-base tracking-tight text-foreground truncate">
-              {authorName}
-            </h3>
+            <h3 className="font-medium tracking-tight text-foreground truncate">{authorName}</h3>
             {publication?.domain && (
               <p className="text-[11px] text-muted-foreground truncate">{publication.domain}</p>
             )}
@@ -128,205 +135,176 @@ export function PublicationSidebar({
         </div>
 
         {bio && (
-          <p className="text-xs sm:text-[13px] text-muted-foreground leading-relaxed line-clamp-4">
+          <p className="mt-3 text-[13px] text-muted-foreground leading-relaxed line-clamp-4">
             {bio}
           </p>
         )}
 
         {publication?.socialLinks && publication.socialLinks.length > 0 && (
-          <div className="flex items-center gap-2 pt-2 border-t border-border/30">
+          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1">
             {publication.socialLinks.map((s, idx) => (
               <a
                 key={s.id || idx}
                 href={s.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wider px-2 py-0.5 rounded-md hover:bg-muted/60"
+                className="text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors capitalize"
               >
                 {s.platform}
               </a>
             ))}
           </div>
         )}
-      </div>
+      </section>
 
-      {/* ── 2. RÉSEAU DE RECOMMANDATIONS ("Recommandé par...") ── */}
-      {(publication?.siteOptions?.showRecommendationsInSidebar ?? true) !== false && (
-        <div className="p-5 rounded-2xl bg-card/60 backdrop-blur-sm border border-border/50 shadow-2xs space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <Sparkles className="w-3.5 h-3.5 text-[var(--tenant-accent,hsl(var(--primary)))]" />
-              <span>Recommandé par {authorName}</span>
-            </div>
-            <span className="text-[11px] font-medium text-muted-foreground/60">
-              {recommendations.length}
-            </span>
-          </div>
+      {/* ── 2. RECOMMANDATIONS (uniquement si configurées) ── */}
+      {recommendations.length > 0 &&
+        (publication?.siteOptions?.showRecommendationsInSidebar ?? true) !== false && (
+          <section className="py-6">
+            <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+              Recommandé par {authorName}
+            </p>
 
-          <div className="space-y-3 divide-y divide-border/30">
-            {recommendations.map((rec) => {
-              const isSubscribed = Boolean(subscribedMap[rec.id]);
-              const isLoading = Boolean(loadingMap[rec.id]);
-              const isInputOpen = activeInlineEmailId === rec.id;
-              const targetUrl = (() => {
-                if (rec.customDomain) return `https://${rec.customDomain}`;
-                if (!rec.subdomain) return '#';
-                if (typeof window !== 'undefined') {
-                  const host = window.location.hostname;
-                  if (host.endsWith('lvh.me')) return `http://${rec.subdomain}.lvh.me:15403`;
-                  if (host.endsWith('localhost')) return `http://${rec.subdomain}.localhost:15403`;
-                  if (host.endsWith('qoe.test')) return `http://${rec.subdomain}.qoe.test`;
-                }
-                return `https://${rec.subdomain}.qoe.fi`;
-              })();
+            <ul className="mt-4 space-y-5">
+              {recommendations.map((rec) => {
+                const isSubscribed = Boolean(subscribedMap[rec.id]);
+                const isLoading = Boolean(loadingMap[rec.id]);
+                const isInputOpen = activeInlineEmailId === rec.id;
+                const targetUrl = targetUrlFor(rec);
 
-              return (
-                <div key={rec.id} className="pt-3 first:pt-0 space-y-2 group/rec">
-                  <div className="flex items-start justify-between gap-2.5">
-                    <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                return (
+                  <li key={rec.id}>
+                    <div className="flex items-start gap-3">
                       <SafeAvatar
                         src={rec.logoUrl || rec.authorAvatarUrl}
                         name={rec.name}
-                        size={34}
-                        shape="squircle"
-                        className="border border-border/40 shrink-0 mt-0.5 shadow-2xs"
+                        size={30}
+                        shape="circle"
+                        className="border border-border/50 shrink-0 mt-0.5"
                       />
                       <div className="min-w-0 flex-1">
                         <a
                           href={targetUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 font-semibold text-xs sm:text-[13px] text-foreground hover:text-primary transition-colors truncate max-w-full"
+                          className="block font-medium text-[13px] text-foreground hover:underline underline-offset-4 truncate"
                         >
-                          <span className="truncate">{rec.name}</span>
-                          <ExternalLink className="w-3 h-3 opacity-0 group-hover/rec:opacity-60 transition-opacity shrink-0" />
+                          {rec.name}
                         </a>
                         {rec.description && (
-                          <p className="text-[11px] text-muted-foreground line-clamp-1 leading-normal mt-0.5">
+                          <p className="mt-0.5 text-[11.5px] text-muted-foreground line-clamp-2 leading-snug">
                             {rec.description}
                           </p>
                         )}
+                        {!isSubscribed && !isInputOpen && (
+                          <button
+                            type="button"
+                            onClick={() => handleSubscribeClick(rec)}
+                            disabled={isLoading}
+                            className="mt-1.5 text-[11px] font-medium text-muted-foreground underline underline-offset-4 decoration-border hover:text-foreground transition-colors cursor-pointer"
+                          >
+                            {isLoading ? 'Envoi…' : "S'abonner"}
+                          </button>
+                        )}
+                        {isSubscribed && (
+                          <span className="mt-1.5 inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                            <Check className="w-3 h-3" /> Abonné
+                          </span>
+                        )}
+                        {isInputOpen && !isSubscribed && (
+                          <form
+                            onSubmit={(e) => handleInlineSubscribeSubmit(e, rec.id)}
+                            className="mt-2 flex items-center gap-1.5"
+                          >
+                            <input
+                              type="email"
+                              value={inlineEmail}
+                              onChange={(e) => setInlineEmail(e.target.value)}
+                              placeholder="Votre email"
+                              required
+                              autoFocus
+                              className="flex-1 min-w-0 h-7 text-[11px] px-2 bg-transparent border-b border-border focus:outline-none focus:border-foreground text-foreground placeholder:text-muted-foreground"
+                            />
+                            <button
+                              type="submit"
+                              disabled={isLoading}
+                              className="h-7 px-1.5 text-[11px] font-medium text-foreground hover:opacity-70 transition-opacity cursor-pointer shrink-0"
+                            >
+                              {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'OK'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setActiveInlineEmailId(null)}
+                              className="h-7 px-1 text-[11px] text-muted-foreground hover:text-foreground cursor-pointer"
+                              aria-label="Annuler"
+                            >
+                              ✕
+                            </button>
+                          </form>
+                        )}
                       </div>
                     </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
+        )}
 
-                    <button
-                      type="button"
-                      onClick={() => handleSubscribeClick(rec)}
-                      disabled={isLoading || isSubscribed}
-                      className={cn(
-                        'px-2.5 py-1 rounded-lg text-xs font-medium transition-all shrink-0 cursor-pointer border',
-                        isSubscribed
-                          ? 'bg-primary/10 text-primary border-primary/30'
-                          : 'bg-muted/70 hover:bg-foreground hover:text-background border-border/50 text-foreground shadow-2xs active:scale-95'
-                      )}
-                    >
-                      {isLoading ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : isSubscribed ? (
-                        <span className="inline-flex items-center gap-1">
-                          <Check className="w-3 h-3" /> Abonné
-                        </span>
-                      ) : (
-                        "S'abonner"
-                      )}
-                    </button>
-                  </div>
-
-                  {/* Formulaire inline rapide */}
-                  {isInputOpen && !isSubscribed && (
-                    <form
-                      onSubmit={(e) => handleInlineSubscribeSubmit(e, rec.id)}
-                      className="flex items-center gap-1.5 pt-1 animate-in fade-in slide-in-from-top-1 duration-200"
-                    >
-                      <input
-                        type="email"
-                        value={inlineEmail}
-                        onChange={(e) => setInlineEmail(e.target.value)}
-                        placeholder="Votre email..."
-                        required
-                        autoFocus
-                        className="flex-1 min-w-0 h-7 text-xs px-2 rounded-md bg-background border border-border/60 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                      />
-                      <button
-                        type="submit"
-                        disabled={isLoading}
-                        className="h-7 px-2.5 rounded-md text-xs font-medium bg-foreground text-background hover:opacity-90 transition-opacity cursor-pointer shrink-0"
-                      >
-                        {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'OK'}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setActiveInlineEmailId(null)}
-                        className="h-7 px-1.5 text-xs text-muted-foreground hover:text-foreground"
-                      >
-                        ✕
-                      </button>
-                    </form>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ── 3. FORMULAIRE D'ABONNEMENT STICKY (Boîte aux lettres) ── */}
-      <div className="p-5 rounded-2xl bg-card/60 backdrop-blur-sm border border-border/50 shadow-2xs space-y-3">
-        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          <Mail className="w-3.5 h-3.5 text-[var(--tenant-accent,hsl(var(--primary)))]" />
-          <span>Newsletter</span>
-        </div>
-        <h4 className="font-semibold text-sm tracking-tight text-foreground">
-          Recevez les prochains écrits
-        </h4>
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          Directement dans votre boîte mail. Zéro spam, désinscription libre en un clic.
+      {/* ── 3. NEWSLETTER ── */}
+      <section id="subscribe" className="py-6 scroll-mt-24">
+        <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+          Newsletter
         </p>
-        <div className="pt-1">
+        <p className="mt-2 text-[13px] text-foreground leading-snug">
+          Recevez les prochains écrits dans votre boîte mail.
+        </p>
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          Pas de spam, désinscription en un clic.
+        </p>
+        <div className="mt-3">
           <SubscribeForm
             publicationId={publication?.id || ''}
             authorName={authorName}
             accentColor={publication?.accentColor || undefined}
-            placeholder="Votre adresse email..."
+            placeholder="Votre adresse email"
             buttonText="S’abonner"
             size="compact"
             disabled={context.mode === 'editable'}
           />
         </div>
-      </div>
+      </section>
 
-      {/* ── 4. SÉLECTION TOP LECTURES (Articles secondaires) ── */}
+      {/* ── 4. LES PLUS LUS (popularité réelle) ── */}
       {topArticles.length > 0 && (
-        <div className="p-5 rounded-2xl bg-card/60 backdrop-blur-sm border border-border/50 shadow-2xs space-y-3.5">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <BookOpen className="w-3.5 h-3.5 text-[var(--tenant-accent,hsl(var(--primary)))]" />
-            <span>À ne pas manquer</span>
-          </div>
-
-          <div className="space-y-3">
+        <section className="pt-6">
+          <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
+            Les plus lus
+          </p>
+          <ol className="mt-4 space-y-4">
             {topArticles.map((art, idx) => (
-              <div key={art.id} className="flex items-start gap-3 group/top">
-                <span className="text-xs font-semibold text-muted-foreground/50 shrink-0 mt-0.5">
-                  0{idx + 1}
+              <li key={art.id} className="flex items-start gap-3">
+                <span className="text-[11px] tabular-nums text-muted-foreground/60 shrink-0 mt-0.5">
+                  {String(idx + 1).padStart(2, '0')}
                 </span>
                 <div className="min-w-0 flex-1">
                   <Link
                     href={`/article/${art.slug}`}
                     onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                    className="font-medium text-xs sm:text-[13px] text-foreground hover:text-primary transition-colors line-clamp-2 leading-snug"
+                    className="block text-[13px] font-medium text-foreground leading-snug hover:underline underline-offset-4"
                   >
                     {art.title}
                   </Link>
                   {art.readingTime && (
-                    <span className="text-[11px] text-muted-foreground mt-0.5 block">
+                    <span className="mt-0.5 block text-[11px] text-muted-foreground">
                       {art.readingTime} min de lecture
                     </span>
                   )}
                 </div>
-              </div>
+              </li>
             ))}
-          </div>
-        </div>
+          </ol>
+        </section>
       )}
     </aside>
   );

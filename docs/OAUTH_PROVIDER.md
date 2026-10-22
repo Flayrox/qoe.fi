@@ -26,7 +26,7 @@ API Go (apps/api) — autorité OAuth
 Application tierce  ←  code / access_token / refresh_token / id_token
 
 Gestion des apps :  apps/studio  → /developer/oauth  (via /v1/oauth/clients)
-Approbation admin :  apps/admin   → /admin/oauth       (Prisma, rôle superadmin)
+Approbation admin :  apps/admin   → /admin/oauth       (rôle superadmin)
 ```
 
 - **Backend-of-record** : l'API Go (`apps/api/internal/modules/oauth`).
