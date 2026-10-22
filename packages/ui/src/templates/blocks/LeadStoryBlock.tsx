@@ -141,7 +141,7 @@ export function LeadStoryBlock({
                   {displayArticle.category &&
                     (displayArticle.category.slug ? (
                       <Link
-                        href={`/categorie/${displayArticle.category.slug}`}
+                        href={`/${displayArticle.category.slug}`}
                         onClick={(e) => {
                           e.stopPropagation();
                           if (context.mode === 'editable') e.preventDefault();

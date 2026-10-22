@@ -80,16 +80,63 @@ export function NavbarBlock({
   const displayName = name || domain || subdomain || 'Mon Site Web';
   const supportLink = stripeAccountId ? '/support' : supportUrl || null;
 
-  // Construction de l'arbre hiérarchique avec parentId
-  const topLevelNav = navigation.filter((n) => !n.parentId);
-  const nestedNav: NavItemWithChildren[] = topLevelNav
+  // Construction de l'arbre hiérarchique avec parentId, ou auto-génération à partir des rubriques
+  // Filtrage des catégories masquées du menu (catégories seules)
+  const hiddenCatIds = new Set((siteOptions?.hiddenNavCategoryIds as string[] | undefined) || []);
+  const visibleCategories = (publication.categories || []).filter((c) => !hiddenCatIds.has(c.id));
+
+  // Rubriques issues des catégories visibles
+  const categoryNavItems: NavItemWithChildren[] = visibleCategories
+    .filter((c) => !c.parentId)
+    .map((cat, idx) => ({
+      id: cat.id,
+      label: cat.name,
+      url: `/${cat.slug}`,
+      order: idx,
+      isExternal: false,
+      publicationId: publication.id || '',
+      children: visibleCategories
+        .filter((c) => c.parentId === cat.id)
+        .map((sub, sIdx) => ({
+          id: sub.id,
+          label: sub.name,
+          url: `/${sub.slug}`,
+          order: sIdx,
+          isExternal: false,
+          publicationId: publication.id || '',
+        })),
+    }));
+
+  // Liens externes du menu
+  const externalNavItems: NavItemWithChildren[] = (navigation || [])
+    .filter((n) => n.isExternal && !n.parentId)
     .map((parent) => ({
       ...parent,
-      children: navigation
+      children: (navigation || [])
         .filter((n) => n.parentId === parent.id)
         .sort((a, b) => a.order - b.order),
     }))
     .sort((a, b) => a.order - b.order);
+
+  // Repli hérité pour anciens liens internes si aucune catégorie
+  const legacyInternalNav: NavItemWithChildren[] =
+    categoryNavItems.length === 0
+      ? (navigation || [])
+          .filter((n) => !n.isExternal && !n.parentId)
+          .map((parent) => ({
+            ...parent,
+            children: (navigation || [])
+              .filter((n) => n.parentId === parent.id)
+              .sort((a, b) => a.order - b.order),
+          }))
+          .sort((a, b) => a.order - b.order)
+      : [];
+
+  const nestedNav: NavItemWithChildren[] = [
+    ...categoryNavItems,
+    ...legacyInternalNav,
+    ...externalNavItems,
+  ];
 
   const containerClasses = [
     'w-full border-b border-border transition-colors duration-200',

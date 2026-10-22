@@ -78,6 +78,7 @@ export async function TenantArticleRenderer({
     socialLinks,
     stripeAccountId,
     supportUrl,
+    categories,
   } = publication;
 
   const authorName = article.author?.name || article.author?.username || name;
@@ -453,7 +454,23 @@ export async function TenantArticleRenderer({
               </>
             )}
 
-            {/* Corps de l'article (strictement le contenu textuel/HTML pur pour le surligneur) */}
+            {/* Surligneur Genius et moteur de sélections (rendu avec le corps d'article ou barre d'annotations en haut) */}
+            <TenantArticleHighlighter
+              articleId={article.id}
+              creatorName={authorName || t`L'Auteur`}
+              allowPublicAnnotations={allowPublicAnnotations}
+              isAuthenticated={!!user}
+              initialHighlights={initialHighlights}
+              publicHighlights={publicHighlights as AnnotationItem[]}
+              currentUserId={user?.id || null}
+              currentUserProfile={currentUserProfile}
+              articleAuthorId={article.authorId}
+              mainAppUrl={mainAppUrl}
+              canonicalDocument={canonicalDocument}
+              contentClassName="prose prose-zinc dark:prose-invert max-w-none text-base md:text-lg leading-relaxed space-y-6"
+            />
+
+            {/* Corps de l'article de secours (HTML tronqué) + Paywall si document non canonique (article restreint/payant) */}
             {!canonicalDocument && (
               <>
                 <div
@@ -484,22 +501,6 @@ export async function TenantArticleRenderer({
                 )}
               </>
             )}
-
-            {/* Surligneur Genius et moteur de sélections (rendu avec le corps d'article) */}
-            <TenantArticleHighlighter
-              articleId={article.id}
-              creatorName={authorName || t`L'Auteur`}
-              allowPublicAnnotations={allowPublicAnnotations}
-              isAuthenticated={!!user}
-              initialHighlights={initialHighlights}
-              publicHighlights={publicHighlights as AnnotationItem[]}
-              currentUserId={user?.id || null}
-              currentUserProfile={currentUserProfile}
-              articleAuthorId={article.authorId}
-              mainAppUrl={mainAppUrl}
-              canonicalDocument={canonicalDocument}
-              contentClassName="prose prose-zinc dark:prose-invert max-w-none text-base md:text-lg leading-relaxed space-y-6"
-            />
           </>
         )}
         <RelatedArticles
@@ -586,6 +587,11 @@ export async function TenantArticleRenderer({
             stripeAccountId={stripeAccountId}
             supportUrl={supportUrl}
             navigation={navigation}
+            categories={categories}
+            siteOptions={
+              publication.siteOptions ||
+              (publication as unknown as { site_options?: Record<string, unknown> }).site_options
+            }
             socialLinks={socialLinks}
           />
           <main className="pt-12 pb-24">{articleBodyContent}</main>

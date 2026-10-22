@@ -115,9 +115,11 @@ export function ArticleStreamBlock({
     : articles;
   const items = categoryFilter
     ? sourceArticles
-    : sourceArticles.length > 0
+    : context.mode === 'live' || Boolean(publication?.id)
       ? sourceArticles
-      : fallbackArticles;
+      : sourceArticles.length > 0
+        ? sourceArticles
+        : fallbackArticles;
 
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
@@ -818,6 +820,18 @@ export function ArticleStreamBlock({
                       ))}
                     </div>
                   </div>
+                ) : items.length === 0 ? (
+                  <div className="py-16 text-center border border-dashed border-border/40 rounded-2xl p-8 space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      Aucun article dans cette rubrique pour le moment.
+                    </p>
+                    <a
+                      href="/"
+                      className="inline-block text-xs font-semibold text-[var(--tenant-accent)] hover:underline"
+                    >
+                      ← Voir tous les articles
+                    </a>
+                  </div>
                 ) : null}
               </div>
 
@@ -839,7 +853,7 @@ export function ArticleStreamBlock({
                         article.category &&
                         (article.category.slug ? (
                           <Link
-                            href={`/categorie/${article.category.slug}`}
+                            href={`/${article.category.slug}`}
                             onClick={(e) => {
                               e.stopPropagation();
                               if (context.mode === 'editable') e.preventDefault();
@@ -924,7 +938,7 @@ export function ArticleStreamBlock({
                           article.category &&
                           (article.category.slug ? (
                             <Link
-                              href={`/categorie/${article.category.slug}`}
+                              href={`/${article.category.slug}`}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (context.mode === 'editable') e.preventDefault();

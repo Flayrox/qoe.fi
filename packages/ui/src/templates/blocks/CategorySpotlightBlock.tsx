@@ -76,7 +76,7 @@ export function CategorySpotlightBlock({
             <h2 className="text-lg md:text-xl font-bold tracking-tight">{heading}</h2>
             {categorySlug && (
               <Link
-                href={`/categorie/${categorySlug}`}
+                href={`/${categorySlug}`}
                 onClick={(e) => context.mode === 'editable' && e.preventDefault()}
                 className="flex shrink-0 items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
               >

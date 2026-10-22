@@ -51,6 +51,11 @@ export function TenantPageShell({
         stripeAccountId={stripeAccountId}
         supportUrl={supportUrl}
         navigation={navigation}
+        categories={publication.categories}
+        siteOptions={
+          publication.siteOptions ||
+          (publication as unknown as { site_options?: Record<string, unknown> }).site_options
+        }
         socialLinks={socialLinks}
       />
 

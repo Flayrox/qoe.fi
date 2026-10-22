@@ -94,6 +94,8 @@ export interface TenantPublication {
   socialLinks: TenantSocialLink[];
   categories: TenantCategory[];
   articles?: TenantArticleSummary[];
+  siteOptions?: Record<string, unknown> | null;
+  site_options?: Record<string, unknown> | null;
   user: { id: string; username: string | null } | null;
 }
 
