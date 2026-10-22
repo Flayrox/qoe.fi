@@ -33,6 +33,8 @@ export interface ArticleEngagementBarProps {
   size?: 'sm' | 'md';
   showShareText?: boolean;
   className?: string;
+  layout?: 'spread' | 'center';
+  revealOnHover?: boolean;
 }
 
 function BlueskyIcon({ className = 'w-4 h-4' }: { className?: string }) {
@@ -83,6 +85,8 @@ export function ArticleEngagementBar({
   size = 'md',
   showShareText = true,
   className,
+  layout = 'spread',
+  revealOnHover = false,
 }: ArticleEngagementBarProps) {
   const [likes, setLikes] = useState(initialLikes);
   const [isLiked, setIsLiked] = useState(initialIsLiked);
@@ -300,174 +304,221 @@ export function ArticleEngagementBar({
   );
 
   const isSmall = size === 'sm';
+  const isCenter = layout === 'center';
+
+  const renderCount = (count: number) => {
+    if (count <= 0) return null;
+    return (
+      <span
+        className={cn(
+          'font-medium text-xs',
+          revealOnHover &&
+            'opacity-0 group-hover/btn:opacity-100 group-hover/bar:opacity-100 max-w-0 group-hover/btn:max-w-xs group-hover/bar:max-w-xs overflow-hidden transition-all duration-200'
+        )}
+      >
+        {count}
+      </span>
+    );
+  };
+
+  const interactiveClass =
+    revealOnHover && !isShareOpen
+      ? 'pointer-events-auto sm:pointer-events-none sm:group-hover/bar:pointer-events-auto sm:cursor-default sm:group-hover/bar:cursor-pointer'
+      : 'cursor-pointer';
+
+  const actionButtons = (
+    <>
+      {/* Like */}
+      <button
+        type="button"
+        onClick={handleLike}
+        className={cn(
+          'group/btn flex items-center gap-1.5 rounded-full px-2 py-1 transition-all border border-transparent font-medium',
+          interactiveClass,
+          isLiked
+            ? 'text-destructive bg-destructive/10 border-destructive/20'
+            : 'hover:text-foreground hover:bg-muted/60'
+        )}
+        title={isLiked ? t`Je n'aime plus` : t`J'aime cet écrit`}
+        aria-label={isLiked ? t`Je n'aime plus` : t`J'aime`}
+      >
+        <Heart
+          className={cn(
+            isSmall ? 'w-3.5 h-3.5' : 'w-4 h-4',
+            isLiked ? 'fill-destructive text-destructive scale-105' : 'transition-transform'
+          )}
+        />
+        {renderCount(likes)}
+      </button>
+
+      {/* Commentaires */}
+      <button
+        type="button"
+        onClick={handleComment}
+        className={cn(
+          'group/btn flex items-center gap-1.5 rounded-full px-2 py-1 hover:text-foreground hover:bg-muted/60 transition-all font-medium border border-transparent',
+          interactiveClass
+        )}
+        title={t`Voir et rédiger un commentaire`}
+        aria-label={t`Commentaires`}
+      >
+        <MessageSquare className={isSmall ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
+        {renderCount(comments)}
+      </button>
+
+      {/* Republier */}
+      <button
+        type="button"
+        onClick={handleRepost}
+        className={cn(
+          'group/btn flex items-center gap-1.5 rounded-full px-2 py-1 transition-all border border-transparent font-medium',
+          interactiveClass,
+          isReposted
+            ? 'text-primary bg-primary/10 border-primary/20'
+            : 'hover:text-foreground hover:bg-muted/60'
+        )}
+        title={isReposted ? t`Retirer la republication` : t`Republier cet écrit`}
+        aria-label={t`Republier`}
+      >
+        <Repeat
+          className={cn(isSmall ? 'w-3.5 h-3.5' : 'w-4 h-4', isReposted ? 'text-primary' : '')}
+        />
+        {renderCount(reposts)}
+      </button>
+    </>
+  );
+
+  const shareButton = (
+    <div className="relative group/btn" ref={shareContainerRef}>
+      <button
+        type="button"
+        onClick={() => {
+          if (onShareClick) {
+            onShareClick();
+            return;
+          }
+          setIsShareOpen((prev) => !prev);
+        }}
+        className={cn(
+          'inline-flex items-center gap-1.5 rounded-full font-medium transition-all border',
+          interactiveClass,
+          isSmall || !showShareText
+            ? 'px-2 py-1 text-[11px] hover:text-foreground hover:bg-muted/60 border-transparent'
+            : 'px-3 py-1 text-xs border-border/50 hover:border-foreground/40 hover:text-foreground bg-background hover:bg-muted/30 shadow-2xs',
+          isShareOpen && 'bg-muted/50 text-foreground border-foreground/30'
+        )}
+        title={t`Partager cet article`}
+        aria-label={t`Partager`}
+        aria-expanded={isShareOpen}
+      >
+        <Share2 className={isSmall ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
+        {showShareText && <span>{t`Partager`}</span>}
+      </button>
+
+      {/* Popover Menu Déroulant de Partage */}
+      {isShareOpen && (
+        <div className="absolute right-0 top-full mt-2 w-56 rounded-[4px] bg-card/95 backdrop-blur-xl border border-border/60 shadow-xl p-1.5 z-50 flex flex-col text-sm animate-in fade-in-0 zoom-in-95">
+          {/* Copier le lien */}
+          <button
+            type="button"
+            onClick={handleCopyLink}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium text-foreground hover:bg-muted/80 rounded-[3px] transition-colors cursor-pointer text-left"
+          >
+            {copied ? (
+              <>
+                <Check className="w-4 h-4 text-primary shrink-0" />
+                <span className="text-primary font-semibold">{t`Lien copié !`}</span>
+              </>
+            ) : (
+              <>
+                <Link2 className="w-4 h-4 text-muted-foreground shrink-0" />
+                <span>{t`Copier le lien`}</span>
+              </>
+            )}
+          </button>
+
+          {/* Envoyer par e-mail */}
+          <button
+            type="button"
+            onClick={handleEmailShare}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium text-foreground hover:bg-muted/80 rounded-[3px] transition-colors cursor-pointer text-left"
+          >
+            <Mail className="w-4 h-4 text-muted-foreground shrink-0" />
+            <span>{t`Envoyer par e-mail`}</span>
+          </button>
+
+          {/* Séparateur */}
+          <div className="h-px bg-border/40 my-1 mx-2" />
+
+          {/* Partager sur Facebook */}
+          <button
+            type="button"
+            onClick={handleSocialShare('facebook')}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium text-foreground hover:bg-muted/80 rounded-[3px] transition-colors cursor-pointer text-left"
+          >
+            <FacebookIcon className="w-4 h-4 text-muted-foreground shrink-0" />
+            <span>{t`Partager sur Facebook`}</span>
+          </button>
+
+          {/* Partager sur LinkedIn */}
+          <button
+            type="button"
+            onClick={handleSocialShare('linkedin')}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium text-foreground hover:bg-muted/80 rounded-[3px] transition-colors cursor-pointer text-left"
+          >
+            <LinkedinIcon className="w-4 h-4 text-muted-foreground shrink-0" />
+            <span>{t`Partager sur LinkedIn`}</span>
+          </button>
+
+          {/* Partager sur X */}
+          <button
+            type="button"
+            onClick={handleSocialShare('x')}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium text-foreground hover:bg-muted/80 rounded-[3px] transition-colors cursor-pointer text-left"
+          >
+            <XTwitterIcon className="w-4 h-4 text-muted-foreground shrink-0" />
+            <span>{t`Partager sur X`}</span>
+          </button>
+
+          {/* Partager sur Bluesky */}
+          <button
+            type="button"
+            onClick={handleSocialShare('bluesky')}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium text-foreground hover:bg-muted/80 rounded-[3px] transition-colors cursor-pointer text-left"
+          >
+            <BlueskyIcon className="w-4 h-4 text-muted-foreground shrink-0" />
+            <span>{t`Partager sur Bluesky`}</span>
+          </button>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div
       className={cn(
-        'flex items-center justify-between gap-3 select-none text-muted-foreground',
+        'select-none text-muted-foreground group/bar pointer-events-auto',
+        revealOnHover &&
+          !isShareOpen &&
+          'opacity-70 sm:opacity-50 group-hover:opacity-90 group-hover/bar:opacity-100 transition-opacity',
+        isCenter
+          ? 'flex items-center justify-center gap-3 sm:gap-5'
+          : 'flex items-center justify-between gap-3',
         isSmall ? 'text-xs' : 'text-[13px] py-1.5 border-y border-border/40',
         className
       )}
     >
-      {/* Groupe gauche : J'aime, Commentaires, Republier */}
-      <div className="flex items-center gap-1.5 sm:gap-2">
-        {/* Like */}
-        <button
-          type="button"
-          onClick={handleLike}
-          className={cn(
-            'flex items-center gap-1.5 rounded-full px-2.5 py-1 transition-all cursor-pointer border border-transparent font-medium',
-            isLiked
-              ? 'text-destructive bg-destructive/10 border-destructive/20'
-              : 'hover:text-foreground hover:bg-muted/60'
-          )}
-          title={isLiked ? t`Je n'aime plus` : t`J'aime cet écrit`}
-          aria-label={isLiked ? t`Je n'aime plus` : t`J'aime`}
-        >
-          <Heart
-            className={cn(
-              isSmall ? 'w-3.5 h-3.5' : 'w-4 h-4',
-              isLiked ? 'fill-destructive text-destructive scale-105' : 'transition-transform'
-            )}
-          />
-          {likes > 0 && <span className="font-medium text-xs">{likes}</span>}
-        </button>
-
-        {/* Commentaires */}
-        <button
-          type="button"
-          onClick={handleComment}
-          className="flex items-center gap-1.5 rounded-full px-2.5 py-1 hover:text-foreground hover:bg-muted/60 transition-all cursor-pointer font-medium border border-transparent"
-          title={t`Voir et rédiger un commentaire`}
-          aria-label={t`Commentaires`}
-        >
-          <MessageSquare className={isSmall ? 'w-3.5 h-3.5' : 'w-4 h-4'} />
-          {comments > 0 && <span className="font-medium text-xs">{comments}</span>}
-        </button>
-
-        {/* Republier */}
-        <button
-          type="button"
-          onClick={handleRepost}
-          className={cn(
-            'flex items-center gap-1.5 rounded-full px-2.5 py-1 transition-all cursor-pointer border border-transparent font-medium',
-            isReposted
-              ? 'text-primary bg-primary/10 border-primary/20'
-              : 'hover:text-foreground hover:bg-muted/60'
-          )}
-          title={isReposted ? t`Retirer la republication` : t`Republier cet écrit`}
-          aria-label={t`Republier`}
-        >
-          <Repeat
-            className={cn(isSmall ? 'w-3.5 h-3.5' : 'w-4 h-4', isReposted ? 'text-primary' : '')}
-          />
-          {reposts > 0 && <span className="font-medium text-xs">{reposts}</span>}
-        </button>
-      </div>
-
-      {/* Groupe droit : Bouton et Menu Déroulant Partager */}
-      <div className="relative" ref={shareContainerRef}>
-        <button
-          type="button"
-          onClick={() => {
-            if (onShareClick) {
-              onShareClick();
-              return;
-            }
-            setIsShareOpen((prev) => !prev);
-          }}
-          className={cn(
-            'inline-flex items-center gap-1.5 rounded-full font-medium transition-all cursor-pointer border',
-            isSmall
-              ? 'px-2 py-0.5 text-[11px] hover:text-foreground hover:bg-muted/60 border-transparent'
-              : 'px-3 py-1 text-xs border-border/50 hover:border-foreground/40 hover:text-foreground bg-background hover:bg-muted/30 shadow-2xs',
-            isShareOpen && 'bg-muted/50 text-foreground border-foreground/30'
-          )}
-          title={t`Partager cet article`}
-          aria-label={t`Partager`}
-          aria-expanded={isShareOpen}
-        >
-          <Share2 className="w-3.5 h-3.5" />
-          {showShareText && <span>{t`Partager`}</span>}
-        </button>
-
-        {/* Popover Menu Déroulant de Partage */}
-        {isShareOpen && (
-          <div className="absolute right-0 top-full mt-2 w-56 rounded-2xl bg-card/95 backdrop-blur-xl border border-border/60 shadow-xl p-1.5 z-50 flex flex-col text-sm animate-in fade-in-0 zoom-in-95">
-            {/* Copier le lien */}
-            <button
-              type="button"
-              onClick={handleCopyLink}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium text-foreground hover:bg-muted/80 rounded-xl transition-colors cursor-pointer text-left"
-            >
-              {copied ? (
-                <>
-                  <Check className="w-4 h-4 text-primary shrink-0" />
-                  <span className="text-primary font-semibold">{t`Lien copié !`}</span>
-                </>
-              ) : (
-                <>
-                  <Link2 className="w-4 h-4 text-muted-foreground shrink-0" />
-                  <span>{t`Copier le lien`}</span>
-                </>
-              )}
-            </button>
-
-            {/* Envoyer par e-mail */}
-            <button
-              type="button"
-              onClick={handleEmailShare}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium text-foreground hover:bg-muted/80 rounded-xl transition-colors cursor-pointer text-left"
-            >
-              <Mail className="w-4 h-4 text-muted-foreground shrink-0" />
-              <span>{t`Envoyer par e-mail`}</span>
-            </button>
-
-            {/* Séparateur */}
-            <div className="h-px bg-border/40 my-1 mx-2" />
-
-            {/* Partager sur Facebook */}
-            <button
-              type="button"
-              onClick={handleSocialShare('facebook')}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium text-foreground hover:bg-muted/80 rounded-xl transition-colors cursor-pointer text-left"
-            >
-              <FacebookIcon className="w-4 h-4 text-muted-foreground shrink-0" />
-              <span>{t`Partager sur Facebook`}</span>
-            </button>
-
-            {/* Partager sur LinkedIn */}
-            <button
-              type="button"
-              onClick={handleSocialShare('linkedin')}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium text-foreground hover:bg-muted/80 rounded-xl transition-colors cursor-pointer text-left"
-            >
-              <LinkedinIcon className="w-4 h-4 text-muted-foreground shrink-0" />
-              <span>{t`Partager sur LinkedIn`}</span>
-            </button>
-
-            {/* Partager sur Bluesky */}
-            <button
-              type="button"
-              onClick={handleSocialShare('bluesky')}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium text-foreground hover:bg-muted/80 rounded-xl transition-colors cursor-pointer text-left"
-            >
-              <BlueskyIcon className="w-4 h-4 text-muted-foreground shrink-0" />
-              <span>{t`Partager sur Bluesky`}</span>
-            </button>
-
-            {/* Partager sur X */}
-            <button
-              type="button"
-              onClick={handleSocialShare('x')}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium text-foreground hover:bg-muted/80 rounded-xl transition-colors cursor-pointer text-left"
-            >
-              <XTwitterIcon className="w-4 h-4 text-muted-foreground shrink-0" />
-              <span>{t`Partager sur X`}</span>
-            </button>
-          </div>
-        )}
-      </div>
+      {isCenter ? (
+        <>
+          {actionButtons}
+          {shareButton}
+        </>
+      ) : (
+        <>
+          <div className="flex items-center gap-1.5 sm:gap-2">{actionButtons}</div>
+          {shareButton}
+        </>
+      )}
     </div>
   );
 }

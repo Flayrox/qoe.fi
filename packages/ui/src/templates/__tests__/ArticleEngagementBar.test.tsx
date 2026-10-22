@@ -60,4 +60,24 @@ describe('ArticleEngagementBar', () => {
     expect(html).not.toContain('<span>Partager</span>');
     expect(html).toContain('text-xs');
   });
+
+  it('gère le layout centré (layout="center") et le masquage des compteurs hors survol (revealOnHover)', () => {
+    const html = renderToStaticMarkup(
+      <ArticleEngagementBar
+        articleId="artc_test"
+        articleSlug="test-article"
+        initialLikes={134}
+        initialComments={20}
+        initialReposts={7}
+        layout="center"
+        revealOnHover={true}
+      />
+    );
+    expect(html).toContain('justify-center');
+    expect(html).toContain('opacity-0');
+    expect(html).toContain('group-hover/bar:max-w-xs');
+    expect(html).toContain('134');
+    expect(html).toContain('20');
+    expect(html).toContain('7');
+  });
 });

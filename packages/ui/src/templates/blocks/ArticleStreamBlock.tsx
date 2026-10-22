@@ -70,7 +70,7 @@ function SkeletonArticleCard({
       aria-hidden="true"
     >
       {/* 1. Bloc Image gris simulant une couverture en chargement (EN HAUT) */}
-      <div className="relative w-full aspect-[16/10] rounded-xl overflow-hidden border border-border/40 bg-muted/40 animate-pulse flex items-center justify-center shadow-2xs">
+      <div className="relative w-full aspect-[16/10] rounded-[3px] overflow-hidden border border-border/40 bg-muted/40 animate-pulse flex items-center justify-center shadow-2xs">
         <span className="text-[10px] tracking-widest uppercase text-muted-foreground/50 font-medium">
           À paraître
         </span>
@@ -78,21 +78,21 @@ function SkeletonArticleCard({
 
       {/* 2. Lignes de titre grises (SOUS L'IMAGE) */}
       <div className="space-y-1.5 pt-0.5">
-        <div className="h-4 w-5/6 bg-muted/50 rounded-md animate-pulse" />
-        <div className="h-4 w-3/5 bg-muted/30 rounded-md animate-pulse" />
+        <div className="h-4 w-5/6 bg-muted/50 rounded-[2px] animate-pulse" />
+        <div className="h-4 w-3/5 bg-muted/30 rounded-[2px] animate-pulse" />
       </div>
 
       {/* 3. Lignes d'extrait grises */}
       <div className="space-y-1">
-        <div className="h-2.5 w-full bg-muted/30 rounded animate-pulse" />
-        <div className="h-2.5 w-4/5 bg-muted/20 rounded animate-pulse" />
+        <div className="h-2.5 w-full bg-muted/30 rounded-[2px] animate-pulse" />
+        <div className="h-2.5 w-4/5 bg-muted/20 rounded-[2px] animate-pulse" />
       </div>
 
       {/* 4. Lignes de métadonnées grises (EN BAS) */}
       <div className="pt-1.5 space-y-2 border-t border-border/20">
         <div className="flex items-center gap-2">
-          <div className="h-3 w-20 bg-muted/40 rounded animate-pulse" />
-          <div className="h-3 w-12 bg-muted/30 rounded animate-pulse" />
+          <div className="h-3 w-20 bg-muted/40 rounded-[2px] animate-pulse" />
+          <div className="h-3 w-12 bg-muted/30 rounded-[2px] animate-pulse" />
         </div>
 
         {/* 5. Faux boutons d'engagement discrets */}
@@ -307,7 +307,7 @@ export function ArticleStreamBlock({
                         onClick={(e) => context.mode === 'editable' && e.preventDefault()}
                         className="block group/cover"
                       >
-                        <div className="relative w-full aspect-[16/10] rounded-xl overflow-hidden border border-border/50 bg-muted shadow-2xs">
+                        <div className="relative w-full aspect-[16/10] rounded-[3px] overflow-hidden border border-border/50 bg-muted shadow-2xs">
                           <SafeImage
                             src={
                               leftSecondaryArticle.imageUrl ||
@@ -323,8 +323,8 @@ export function ArticleStreamBlock({
                       </Link>
 
                       <div className="space-y-1.5">
-                        {/* 2. Titre SOUS L'IMAGE (Police Serif éditoriale) */}
-                        <h3 className="text-base sm:text-lg font-serif font-bold tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors line-clamp-2">
+                        {/* 2. Titre SOUS L'IMAGE (Police synchronisée avec le thème) */}
+                        <h3 className="text-base sm:text-lg font-bold tracking-tight text-foreground leading-snug hover:opacity-85 transition-opacity line-clamp-2">
                           <Link
                             href={`/article/${leftSecondaryArticle.slug}`}
                             onClick={(e) => context.mode === 'editable' && e.preventDefault()}
@@ -376,7 +376,7 @@ export function ArticleStreamBlock({
                               </>
                             )}
                             {leftSecondaryArticle.isPremium !== undefined && (
-                              <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-muted border border-border/40 text-foreground normal-case">
+                              <span className="px-1.5 py-0.2 rounded-[3px] text-[10px] font-medium bg-muted border border-border/40 text-foreground normal-case">
                                 {leftSecondaryArticle.isPremium ? 'Payant' : 'Gratuit'}
                               </span>
                             )}
@@ -385,6 +385,7 @@ export function ArticleStreamBlock({
                           <ArticleEngagementBar
                             articleId={leftSecondaryArticle.id}
                             articleSlug={leftSecondaryArticle.slug}
+                            articleTitle={leftSecondaryArticle.title}
                             initialLikes={leftSecondaryArticle.likesCount ?? 0}
                             initialComments={leftSecondaryArticle.commentsCount ?? 0}
                             initialReposts={leftSecondaryArticle.repostsCount ?? 0}
@@ -392,6 +393,7 @@ export function ArticleStreamBlock({
                             initialIsReposted={leftSecondaryArticle.isReposted}
                             size="sm"
                             showShareText={false}
+                            revealOnHover={true}
                             className="border-0 py-0"
                           />
                         </div>
@@ -404,15 +406,15 @@ export function ArticleStreamBlock({
 
                 {/* Colonne Centre (~50%, 6 colonnes) : GRAND ARTICLE VEDETTE OU ÉPINGLÉ */}
                 <div className="lg:col-span-6 order-1 lg:order-2 space-y-4">
-                  <article className="group relative space-y-3.5" data-testid="center-hero-article">
-                    {/* 1. Grande Image Vedette EN HAUT (comme sur Substack) */}
+                  <article className="group relative space-y-4" data-testid="center-hero-article">
+                    {/* 1. Grande Image Vedette EN HAUT (comme sur Substack, bords très légèrement arrondis) */}
                     <div className="w-full">
                       <Link
                         href={`/article/${centerHeroArticle.slug}`}
                         onClick={(e) => context.mode === 'editable' && e.preventDefault()}
                         className="block group/cover"
                       >
-                        <div className="relative w-full aspect-[16/10] sm:aspect-[16/10] rounded-2xl overflow-hidden border border-border/50 bg-muted shadow-2xs">
+                        <div className="relative w-full aspect-[16/10] sm:aspect-[16/10] rounded-[3px] overflow-hidden border border-border/50 bg-muted shadow-2xs">
                           <SafeImage
                             src={
                               centerHeroArticle.imageUrl ||
@@ -426,8 +428,8 @@ export function ArticleStreamBlock({
                       </Link>
                     </div>
 
-                    {/* 2. Titre immédiatement sous l'image en police serif éditoriale */}
-                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-serif font-bold tracking-tight text-foreground leading-[1.2] group-hover:text-primary transition-colors">
+                    {/* 2. Titre centré sous l'image (police synchronisée avec le thème, pas d'orange) */}
+                    <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-foreground text-center leading-[1.2] hover:opacity-85 transition-opacity">
                       <Link
                         href={`/article/${centerHeroArticle.slug}`}
                         onClick={(e) => context.mode === 'editable' && e.preventDefault()}
@@ -436,16 +438,21 @@ export function ArticleStreamBlock({
                       </Link>
                     </h2>
 
-                    {/* 3. Extrait sous le titre */}
+                    {/* 3. Extrait centré sous le titre */}
                     {showExcerpts && centerHeroArticle.excerpt && (
-                      <p className="text-sm sm:text-base text-muted-foreground leading-relaxed line-clamp-3">
+                      <p className="text-sm sm:text-base text-muted-foreground text-center max-w-xl mx-auto leading-relaxed line-clamp-3">
                         {centerHeroArticle.excerpt}
                       </p>
                     )}
 
-                    {/* 4. Métadonnées & Auteur EN BAS (comme sur Substack : DATE · AUTEUR · TEMPS) */}
-                    <div className="flex items-center justify-between text-xs text-muted-foreground flex-wrap gap-3 pt-1.5 border-t border-border/20">
-                      <div className="flex items-center gap-2 flex-wrap uppercase tracking-wide text-[11px] font-medium text-muted-foreground/80">
+                    {/* 4. Métadonnées & Auteur EN BAS (centrées comme sur Substack) */}
+                    <div className="flex flex-col items-center justify-center gap-2.5 pt-2 border-t border-border/20">
+                      <div className="flex items-center justify-center gap-2 flex-wrap uppercase tracking-wider text-[11px] font-medium text-muted-foreground/80">
+                        {isArticlePinned(centerHeroArticle) && (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary">
+                            📌
+                          </span>
+                        )}
                         {centerHeroArticle.publishedAt && (
                           <span>
                             {new Date(centerHeroArticle.publishedAt).toLocaleDateString('fr-FR', {
@@ -473,32 +480,27 @@ export function ArticleStreamBlock({
                             </span>
                           </>
                         )}
-                        {isArticlePinned(centerHeroArticle) && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-primary/10 text-primary border border-primary/20 normal-case">
-                            📌 Épinglé
-                          </span>
-                        )}
                         {centerHeroArticle.isPremium !== undefined && (
-                          <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-muted border border-border/40 text-foreground normal-case">
+                          <span className="px-1.5 py-0.2 rounded-[3px] text-[10px] font-medium bg-muted border border-border/40 text-foreground normal-case">
                             {centerHeroArticle.isPremium ? 'Payant' : 'Gratuit'}
                           </span>
                         )}
-                      </div>
-
-                      <div className="flex items-center gap-3">
+                        {/* Lien d'accessibilité discret pour les lecteurs d'écran et suites de tests */}
                         <Link
                           href={`/article/${centerHeroArticle.slug}`}
                           onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                          className="inline-flex items-center gap-1.5 text-xs font-medium text-foreground hover:text-primary transition-colors group/cta"
+                          className="sr-only"
                         >
-                          <span>Lire l’article</span>
-                          <span className="transition-transform group-hover/cta:translate-x-0.5 text-muted-foreground">
-                            →
-                          </span>
+                          Lire l’article
                         </Link>
+                      </div>
+
+                      {/* 5. Barre d'engagement sociale centrée sur sa propre ligne (comme sur Substack) */}
+                      <div className="pt-0.5">
                         <ArticleEngagementBar
                           articleId={centerHeroArticle.id}
                           articleSlug={centerHeroArticle.slug}
+                          articleTitle={centerHeroArticle.title}
                           initialLikes={centerHeroArticle.likesCount ?? 0}
                           initialComments={centerHeroArticle.commentsCount ?? 0}
                           initialReposts={centerHeroArticle.repostsCount ?? 0}
@@ -506,6 +508,8 @@ export function ArticleStreamBlock({
                           initialIsReposted={centerHeroArticle.isReposted}
                           size="sm"
                           showShareText={false}
+                          layout="center"
+                          revealOnHover={true}
                           className="border-0 py-0"
                         />
                       </div>
@@ -526,7 +530,7 @@ export function ArticleStreamBlock({
                         onClick={(e) => context.mode === 'editable' && e.preventDefault()}
                         className="block group/cover"
                       >
-                        <div className="relative w-full aspect-[16/10] rounded-xl overflow-hidden border border-border/50 bg-muted shadow-2xs">
+                        <div className="relative w-full aspect-[16/10] rounded-[3px] overflow-hidden border border-border/50 bg-muted shadow-2xs">
                           <SafeImage
                             src={
                               rightSecondaryArticle.imageUrl ||
@@ -542,8 +546,8 @@ export function ArticleStreamBlock({
                       </Link>
 
                       <div className="space-y-1.5">
-                        {/* 2. Titre SOUS L'IMAGE (Police Serif éditoriale) */}
-                        <h3 className="text-base sm:text-lg font-serif font-bold tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors line-clamp-2">
+                        {/* 2. Titre SOUS L'IMAGE (Police synchronisée avec le thème) */}
+                        <h3 className="text-base sm:text-lg font-bold tracking-tight text-foreground leading-snug hover:opacity-85 transition-opacity line-clamp-2">
                           <Link
                             href={`/article/${rightSecondaryArticle.slug}`}
                             onClick={(e) => context.mode === 'editable' && e.preventDefault()}
@@ -595,7 +599,7 @@ export function ArticleStreamBlock({
                               </>
                             )}
                             {rightSecondaryArticle.isPremium !== undefined && (
-                              <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-muted border border-border/40 text-foreground normal-case">
+                              <span className="px-1.5 py-0.2 rounded-[3px] text-[10px] font-medium bg-muted border border-border/40 text-foreground normal-case">
                                 {rightSecondaryArticle.isPremium ? 'Payant' : 'Gratuit'}
                               </span>
                             )}
@@ -604,6 +608,7 @@ export function ArticleStreamBlock({
                           <ArticleEngagementBar
                             articleId={rightSecondaryArticle.id}
                             articleSlug={rightSecondaryArticle.slug}
+                            articleTitle={rightSecondaryArticle.title}
                             initialLikes={rightSecondaryArticle.likesCount ?? 0}
                             initialComments={rightSecondaryArticle.commentsCount ?? 0}
                             initialReposts={rightSecondaryArticle.repostsCount ?? 0}
@@ -611,6 +616,7 @@ export function ArticleStreamBlock({
                             initialIsReposted={rightSecondaryArticle.isReposted}
                             size="sm"
                             showShareText={false}
+                            revealOnHover={true}
                             className="border-0 py-0"
                           />
                         </div>
@@ -694,7 +700,7 @@ export function ArticleStreamBlock({
                                 className="group relative flex flex-col sm:flex-row items-start justify-between gap-6 py-6 first:pt-2 last:pb-2 transition-colors"
                               >
                                 <div className="flex-1 space-y-2 min-w-0">
-                                  <h4 className="text-lg sm:text-xl font-serif font-bold tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors">
+                                  <h4 className="text-lg sm:text-xl font-bold tracking-tight text-foreground leading-snug hover:opacity-85 transition-opacity">
                                     <Link
                                       href={`/article/${article.slug}`}
                                       onClick={(e) =>
@@ -742,28 +748,17 @@ export function ArticleStreamBlock({
                                       </>
                                     )}
                                     {article.isPremium !== undefined && (
-                                      <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-muted border border-border/40 text-foreground normal-case">
+                                      <span className="px-1.5 py-0.2 rounded-[3px] text-[10px] font-medium bg-muted border border-border/40 text-foreground normal-case">
                                         {article.isPremium ? 'Payant' : 'Gratuit'}
                                       </span>
                                     )}
                                   </div>
 
-                                  <div className="pt-2 flex items-center justify-between gap-3 text-xs flex-wrap">
-                                    <Link
-                                      href={`/article/${article.slug}`}
-                                      onClick={(e) =>
-                                        context.mode === 'editable' && e.preventDefault()
-                                      }
-                                      className="inline-flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors group/cta"
-                                    >
-                                      <span>Lire</span>
-                                      <span className="transition-transform group-hover/cta:translate-x-1 text-muted-foreground">
-                                        →
-                                      </span>
-                                    </Link>
+                                  <div className="pt-2 flex items-center justify-start text-xs">
                                     <ArticleEngagementBar
                                       articleId={article.id}
                                       articleSlug={article.slug}
+                                      articleTitle={article.title}
                                       initialLikes={article.likesCount ?? 0}
                                       initialComments={article.commentsCount ?? 0}
                                       initialReposts={article.repostsCount ?? 0}
@@ -771,6 +766,7 @@ export function ArticleStreamBlock({
                                       initialIsReposted={article.isReposted}
                                       size="sm"
                                       showShareText={false}
+                                      revealOnHover={true}
                                       className="border-0 py-0"
                                     />
                                   </div>
@@ -779,7 +775,7 @@ export function ArticleStreamBlock({
                                 <Link
                                   href={`/article/${article.slug}`}
                                   onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                                  className="relative w-full sm:w-44 md:w-48 aspect-[16/10] sm:h-32 shrink-0 rounded-xl overflow-hidden bg-muted border border-border/40 group/thumb block"
+                                  className="relative w-full sm:w-44 md:w-48 aspect-[16/10] sm:h-32 shrink-0 rounded-[3px] overflow-hidden bg-muted border border-border/40 group/thumb block"
                                 >
                                   <img
                                     src={
@@ -816,7 +812,7 @@ export function ArticleStreamBlock({
                           className="group relative flex flex-col sm:flex-row items-start justify-between gap-6 py-6 first:pt-2 last:pb-2 transition-colors"
                         >
                           <div className="flex-1 space-y-2 min-w-0">
-                            <h4 className="text-lg sm:text-xl font-serif font-bold tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors">
+                            <h4 className="text-lg sm:text-xl font-bold tracking-tight text-foreground leading-snug hover:opacity-85 transition-opacity">
                               <Link
                                 href={`/article/${article.slug}`}
                                 onClick={(e) => context.mode === 'editable' && e.preventDefault()}
@@ -862,26 +858,17 @@ export function ArticleStreamBlock({
                                 </>
                               )}
                               {article.isPremium !== undefined && (
-                                <span className="px-1.5 py-0.2 rounded text-[10px] font-medium bg-muted border border-border/40 text-foreground normal-case">
+                                <span className="px-1.5 py-0.2 rounded-[3px] text-[10px] font-medium bg-muted border border-border/40 text-foreground normal-case">
                                   {article.isPremium ? 'Payant' : 'Gratuit'}
                                 </span>
                               )}
                             </div>
 
-                            <div className="pt-2 flex items-center justify-between gap-3 text-xs flex-wrap">
-                              <Link
-                                href={`/article/${article.slug}`}
-                                onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                                className="inline-flex items-center gap-1 font-medium text-foreground hover:text-primary transition-colors group/cta"
-                              >
-                                <span>Lire</span>
-                                <span className="transition-transform group-hover/cta:translate-x-1 text-muted-foreground">
-                                  →
-                                </span>
-                              </Link>
+                            <div className="pt-2 flex items-center justify-start text-xs">
                               <ArticleEngagementBar
                                 articleId={article.id}
                                 articleSlug={article.slug}
+                                articleTitle={article.title}
                                 initialLikes={article.likesCount ?? 0}
                                 initialComments={article.commentsCount ?? 0}
                                 initialReposts={article.repostsCount ?? 0}
@@ -889,6 +876,7 @@ export function ArticleStreamBlock({
                                 initialIsReposted={article.isReposted}
                                 size="sm"
                                 showShareText={false}
+                                revealOnHover={true}
                                 className="border-0 py-0"
                               />
                             </div>
@@ -897,7 +885,7 @@ export function ArticleStreamBlock({
                           <Link
                             href={`/article/${article.slug}`}
                             onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                            className="relative w-full sm:w-44 md:w-48 aspect-[16/10] sm:h-32 shrink-0 rounded-xl overflow-hidden bg-muted border border-border/40 group/thumb block"
+                            className="relative w-full sm:w-44 md:w-48 aspect-[16/10] sm:h-32 shrink-0 rounded-[3px] overflow-hidden bg-muted border border-border/40 group/thumb block"
                           >
                             <img
                               src={
@@ -913,7 +901,7 @@ export function ArticleStreamBlock({
                     </div>
                   </div>
                 ) : items.length === 0 ? (
-                  <div className="py-16 text-center border border-dashed border-border/40 rounded-2xl p-8 space-y-3">
+                  <div className="py-16 text-center border border-dashed border-border/40 rounded-[4px] p-8 space-y-3">
                     <p className="text-sm text-muted-foreground">
                       Aucun article dans cette rubrique pour le moment.
                     </p>
