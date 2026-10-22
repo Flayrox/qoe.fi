@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { PersonCard } from '../blocks/PersonCard';
 
 describe('PersonCard', () => {
-  it('affiche les informations du contributeur selon le standard Substack Pencraft', () => {
+  it('affiche les informations du contributeur selon le standard éditorial Qoefi', () => {
     const html = renderToStaticMarkup(
       <PersonCard
         id="author-1"

@@ -3,12 +3,12 @@
 // =====================================================================
 // AboutPageContent.tsx — Moteur de Page À Propos Personnalisable
 // =====================================================================
-// Inspiré du standard Substack (The Rose Period) :
+// Standard Qoefi :
 // 1. Conteneur centré compact (max-w-[624px])
 // 2. Titre éditorial avec bouton d'ancre cliquable (copie du lien)
-// 3. Récit / Manifeste personnalisable (siteOptions.about.content ou bio)
+// 3. Corps éditorial rédigé (comme un article complet) ou récit de secours
 // 4. Widget d'abonnement inline compact (capture email directe)
-// 5. Illustration / Couverture légendée avec boutons Restack & Zoom
+// 5. Illustration / Couverture légendée avec boutons Plein écran & Partage
 // 6. Blocs réassurance éditoriale ("Dans votre boîte mail", "Communauté")
 // 7. Section People (Équipe / Contributeurs) intégrée
 // =====================================================================
@@ -37,6 +37,8 @@ export interface AboutPageContentProps {
   members?: TemplateTeamMember[];
   domain?: string;
   customConfig?: AboutCustomConfig;
+  articleContent?: string | null;
+  articleTitle?: string | null;
   className?: string;
 }
 
@@ -44,6 +46,8 @@ export function AboutPageContent({
   publication,
   members,
   customConfig,
+  articleContent,
+  articleTitle,
   className,
 }: AboutPageContentProps) {
   const [email, setEmail] = useState('');
@@ -57,6 +61,7 @@ export function AboutPageContent({
   const config: AboutCustomConfig = {
     title:
       customConfig?.title ||
+      articleTitle ||
       siteOptionsAbout.title ||
       `À propos de ${publication.name || 'la publication'}`,
     captionedImageUrl:
@@ -143,24 +148,32 @@ export function AboutPageContent({
         )}
       </header>
 
-      {/* ── 2. Manifeste / Récit de la publication ── */}
-      <div className="prose prose-neutral dark:prose-invert max-w-none text-[15px] sm:text-base leading-relaxed space-y-4">
-        {publication.bio ? (
-          <p className="whitespace-pre-line text-foreground/90">{publication.bio}</p>
-        ) : (
-          <p className="text-foreground/90">
-            Bienvenue sur <strong>{publication.name}</strong>. Une publication indépendante et
-            souveraine dédiée aux récits profonds, analyses fouillées et réflexions régulières.
+      {/* ── 2. Corps éditorial rédigé (comme un article) ou récit de secours ── */}
+      {articleContent ? (
+        <div
+          data-testid="about-article-body"
+          className="prose prose-neutral dark:prose-invert max-w-none text-[15px] sm:text-base leading-relaxed space-y-4"
+          dangerouslySetInnerHTML={{ __html: articleContent }}
+        />
+      ) : (
+        <div className="prose prose-neutral dark:prose-invert max-w-none text-[15px] sm:text-base leading-relaxed space-y-4">
+          {publication.bio ? (
+            <p className="whitespace-pre-line text-foreground/90">{publication.bio}</p>
+          ) : (
+            <p className="text-foreground/90">
+              Bienvenue sur <strong>{publication.name}</strong>. Une publication indépendante et
+              souveraine dédiée aux récits profonds, analyses fouillées et réflexions régulières.
+            </p>
+          )}
+
+          <p className="text-muted-foreground text-sm">
+            Abonnez-vous pour recevoir les prochaines parutions directement par email et avoir un
+            accès complet aux archives.
           </p>
-        )}
+        </div>
+      )}
 
-        <p className="text-muted-foreground text-sm">
-          Abonnez-vous pour recevoir les prochaines parutions directement par email et avoir un
-          accès complet aux archives.
-        </p>
-      </div>
-
-      {/* ── 3. Widget d'abonnement inline Substack ── */}
+      {/* ── 3. Widget d'abonnement inline ── */}
       {config.showSubscribeWidget && (
         <div className="p-4 sm:p-5 rounded-[8px] border border-border/50 bg-card/50 backdrop-blur-xs space-y-3 shadow-2xs">
           <div className="space-y-1">

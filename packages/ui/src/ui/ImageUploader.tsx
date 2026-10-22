@@ -31,7 +31,7 @@ interface ImageUploaderProps {
   /** Ratio de crop (1 = carré, 16/9, 21/9…) ; undefined = libre */
   aspect?: number;
   /** Forme de la preview */
-  shape?: 'circle' | 'rounded' | 'banner';
+  shape?: 'circle' | 'rounded' | 'banner' | 'square';
   /** Dimension max du côté le plus long en sortie (px) */
   maxDimension?: number;
   quality?: number;
@@ -252,9 +252,11 @@ export function ImageUploader({
   const previewClass =
     shape === 'circle'
       ? 'size-24 rounded-full'
-      : shape === 'banner'
-        ? 'w-full h-28 rounded-lg'
-        : 'w-full h-24 rounded-lg';
+      : shape === 'square'
+        ? 'size-24 rounded-lg'
+        : shape === 'banner'
+          ? 'w-full h-28 rounded-lg'
+          : 'w-full h-24 rounded-lg';
 
   return (
     <div className={cn('space-y-2', className)}>

@@ -4,7 +4,7 @@
 // ArticleCard.tsx — Composant Atomique Souverain pour les Articles
 // =====================================================================
 // Centralise l'affichage et les règles d'interaction pour TOUS les modes :
-// - 'hero-center' : Vedette centrale Substack (Image haut, centrage parfait)
+// - 'hero-center' : Vedette centrale éditoriale (Image haut, centrage parfait)
 // - 'secondary'   : Colonnes latérales (Image haut, texte compact)
 // - 'row'         : Lignes horizontales d'archives et de rubriques
 //
@@ -108,7 +108,7 @@ export function ArticleCard({
   );
 
   // ===================================================================
-  // Variante 1 : HERO CENTER (Disposition Substack centré)
+  // Variante 1 : HERO CENTER (Disposition éditoriale centrée)
   // ===================================================================
   if (variant === 'hero-center') {
     return (

@@ -89,6 +89,7 @@ interface ArticlesClientProps {
   initialArticles: ArticleWithCategory[];
   initialCategories: CategoryWithCount[];
   initialPinnedArticleId?: string | null;
+  initialAboutArticleId?: string | null;
   canReview?: boolean;
 }
 
@@ -101,6 +102,7 @@ export function ArticlesClient({
   initialArticles,
   initialCategories,
   initialPinnedArticleId = null,
+  initialAboutArticleId = null,
   canReview = false,
 }: ArticlesClientProps) {
   const [activeMainTab, setActiveMainTab] = useState<'articles' | 'categories'>('articles');
@@ -108,6 +110,7 @@ export function ArticlesClient({
   const [articles, setArticles] = useState<ArticleWithCategory[]>(initialArticles);
   const [categories, setCategories] = useState<CategoryWithCount[]>(initialCategories);
   const [pinnedArticleId, setPinnedArticleId] = useState<string | null>(initialPinnedArticleId);
+  const [aboutArticleId, setAboutArticleId] = useState<string | null>(initialAboutArticleId);
 
   const handleTogglePin = async (id: string) => {
     const nextPinned = pinnedArticleId === id ? null : id;
@@ -123,6 +126,25 @@ export function ArticlesClient({
       console.error('Failed to pin article', err);
       setPinnedArticleId(pinnedArticleId);
       toast.error(t`Impossible de modifier l'épinglage.`);
+    }
+  };
+
+  const handleToggleAbout = async (id: string) => {
+    const nextAbout = aboutArticleId === id ? null : id;
+    setAboutArticleId(nextAbout);
+    try {
+      await updateCreatorProfileAction({
+        siteOptions: {
+          aboutArticleId: nextAbout,
+        },
+      });
+      toast.success(
+        nextAbout ? t`Article défini comme page À propos !` : t`Article retiré de la page À propos.`
+      );
+    } catch (err) {
+      console.error('Failed to set about article', err);
+      setAboutArticleId(aboutArticleId);
+      toast.error(t`Impossible de modifier la page À propos.`);
     }
   };
 
@@ -757,30 +779,58 @@ export function ArticlesClient({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h2 className="text-3xl font-bold tracking-tight text-foreground font-sans">{t`Articles`}</h2>
 
-          {/* Tab Switcher: Articles vs Catégories */}
-          <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-lg border border-border/30 text-xs font-semibold">
-            <button
-              onClick={() => setActiveMainTab('articles')}
-              className={cn(
-                'px-3 py-1 rounded-md transition-all cursor-pointer font-sans',
-                activeMainTab === 'articles'
-                  ? 'bg-card text-foreground shadow-xs font-bold'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              {t`Écrits`} ({articles.length})
-            </button>
-            <button
-              onClick={() => setActiveMainTab('categories')}
-              className={cn(
-                'px-3 py-1 rounded-md transition-all cursor-pointer font-sans',
-                activeMainTab === 'categories'
-                  ? 'bg-card text-foreground shadow-xs font-bold'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              {t`Catégories`} ({categories.length})
-            </button>
+          <div className="flex items-center gap-2">
+            {/* Shortcut: Page À propos */}
+            {(() => {
+              const targetAbout = articles.find(
+                (a) => a.id === aboutArticleId || a.slug === 'a-propos' || a.slug === 'about'
+              );
+              return (
+                <a
+                  href={
+                    targetAbout
+                      ? `/articles/${targetAbout.id}`
+                      : '/articles/new?slug=a-propos&title=%C3%80%20propos'
+                  }
+                  className={cn(
+                    'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors font-sans',
+                    targetAbout
+                      ? 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/15'
+                      : 'border-border/40 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                  )}
+                  title={t`Rédiger ou modifier la page À propos de votre publication comme un article complet`}
+                >
+                  <BookOpen className="w-3.5 h-3.5 stroke-[1.5]" />
+                  <span>{t`Page À propos`}</span>
+                </a>
+              );
+            })()}
+
+            {/* Tab Switcher: Articles vs Catégories */}
+            <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-lg border border-border/30 text-xs font-semibold">
+              <button
+                onClick={() => setActiveMainTab('articles')}
+                className={cn(
+                  'px-3 py-1 rounded-md transition-all cursor-pointer font-sans',
+                  activeMainTab === 'articles'
+                    ? 'bg-card text-foreground shadow-xs font-bold'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {t`Écrits`} ({articles.length})
+              </button>
+              <button
+                onClick={() => setActiveMainTab('categories')}
+                className={cn(
+                  'px-3 py-1 rounded-md transition-all cursor-pointer font-sans',
+                  activeMainTab === 'categories'
+                    ? 'bg-card text-foreground shadow-xs font-bold'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {t`Catégories`} ({categories.length})
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -1055,6 +1105,15 @@ export function ArticlesClient({
                             </span>
                           )}
 
+                          {/* About Page Badge */}
+                          {(aboutArticleId === art.id ||
+                            art.slug === 'a-propos' ||
+                            art.slug === 'about') && (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-accent/20 text-accent-foreground border border-border/40 inline-flex items-center gap-1 font-sans">
+                              📖 Page À propos
+                            </span>
+                          )}
+
                           <span className="text-xs text-muted-foreground font-sans">
                             {new Date(art.updatedAt).toLocaleDateString('fr-FR', {
                               month: 'short',
@@ -1152,6 +1211,26 @@ export function ArticlesClient({
                           }
                         >
                           <Pin className="w-4 h-4 stroke-[1.5]" />
+                        </button>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleAbout(art.id);
+                          }}
+                          className={cn(
+                            'p-1.5 rounded transition-colors cursor-pointer',
+                            aboutArticleId === art.id
+                              ? 'text-primary bg-primary/10'
+                              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                          )}
+                          title={
+                            aboutArticleId === art.id
+                              ? t`Retirer de la page À propos`
+                              : t`Définir comme page À propos`
+                          }
+                        >
+                          <BookOpen className="w-4 h-4 stroke-[1.5]" />
                         </button>
 
                         <a

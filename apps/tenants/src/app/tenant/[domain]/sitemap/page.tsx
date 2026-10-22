@@ -51,7 +51,7 @@ export default async function TenantSitemapPage({ params }: PageProps) {
           </p>
         </div>
 
-        {/* Liens annuels façon Substack */}
+        {/* Liens annuels d'archives chronologiques */}
         <div className="space-y-6">
           <div className="space-y-3">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">

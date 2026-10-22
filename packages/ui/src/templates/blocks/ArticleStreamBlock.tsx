@@ -46,7 +46,7 @@ interface ArticleStreamBlockComponentProps {
 /**
  * Bloc gris de chargement simulant un article à venir (« À paraître »)
  * pour conserver la structure souveraine en 3 colonnes lorsque la publication
- * a moins de 3 articles publiés (disposition Substack : image en haut, titre, date en bas).
+ * a moins de 3 articles publiés (disposition éditoriale : image en haut, titre, date en bas).
  */
 function SkeletonArticleCard({
   className,

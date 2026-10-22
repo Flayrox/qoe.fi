@@ -1,7 +1,7 @@
 'use client';
 
 // =====================================================================
-// PeopleSection.tsx — Section Équipe / Contributeurs (Pencraft Substack)
+// PeopleSection.tsx — Section Équipe / Contributeurs (Standard Éditorial Qoefi)
 // =====================================================================
 // Affiche :
 // - Titre de section "Équipe" ou "Contributeurs"
