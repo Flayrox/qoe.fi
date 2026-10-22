@@ -164,7 +164,7 @@ export function GeneralTab({
                   onChange={(e) => setCurrent((prev) => ({ ...prev, heroText: e.target.value }))}
                   maxLength={180}
                   rows={2}
-                  placeholder="Ex. Réflexions sur la technologie, le design et l'écriture libre..."
+                  placeholder="Ex. Analyses, essais et récits"
                   className="w-full px-3 py-2 bg-background border border-border/40 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80 resize-none transition-colors"
                 />
               </div>
