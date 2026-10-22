@@ -20,7 +20,13 @@ export interface TenantHomeRendererProps {
   publication: TenantPublication;
   recommendations?: RecommendationItem[] | null;
   decodedDomain: string;
-  activeCategory?: { id: string; name: string; slug: string; parentId?: string | null } | null;
+  activeCategory?: {
+    id: string;
+    name: string;
+    slug: string;
+    description?: string | null;
+    parentId?: string | null;
+  } | null;
   filteredArticles?: import('@/lib/tenant-data').TenantArticleSummary[];
 }
 
@@ -104,6 +110,7 @@ export async function TenantPageRenderer(props: TenantPageRendererProps) {
       id: c.id,
       name: c.name,
       slug: c.slug,
+      description: c.description ?? null,
       parentId: c.parentId ?? null,
     })),
     activeCategory: activeCategory
@@ -111,6 +118,7 @@ export async function TenantPageRenderer(props: TenantPageRendererProps) {
           id: activeCategory.id,
           name: activeCategory.name,
           slug: activeCategory.slug,
+          description: activeCategory.description ?? null,
           parentId: activeCategory.parentId ?? null,
         }
       : null,

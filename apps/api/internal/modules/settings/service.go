@@ -117,9 +117,11 @@ type SettingsArticle struct {
 
 // SettingsCategory est une catégorie de la liste settings (parité Category Prisma).
 type SettingsCategory struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	Slug string `json:"slug"`
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	Slug        string  `json:"slug"`
+	Description *string `json:"description,omitempty"`
+	ParentID    *string `json:"parentId,omitempty"`
 }
 
 // SettingsOwner est le propriétaire de la publication (parité user: {select} Prisma).
@@ -247,7 +249,11 @@ func (s *Service) GetPublicationSettings(ctx context.Context, userID, publicatio
 	}
 	for _, c := range catRows {
 		pub.Categories = append(pub.Categories, SettingsCategory{
-			ID: c.ID, Name: c.Name, Slug: c.Slug,
+			ID:          c.ID,
+			Name:        c.Name,
+			Slug:        c.Slug,
+			Description: textPtr(c.Description),
+			ParentID:    textPtr(c.ParentId),
 		})
 	}
 
@@ -361,19 +367,6 @@ func (s *Service) updatePublication(ctx context.Context, publicationID string, f
 	return err
 }
 
-var defaultReservedSubdomains = map[string]bool{
-	// Platform routes and infrastructure names must never become tenant hosts.
-	"admin": true, "api": true, "app": true, "auth": true, "billing": true,
-	"blog": true, "cdn": true, "dashboard": true, "dev": true, "developer": true,
-	"developers": true, "docs": true, "download": true, "email": true, "feed": true,
-	"files": true, "help": true, "home": true, "login": true, "mail": true,
-	"main": true, "media": true, "metrics": true, "onboarding": true, "payments": true,
-	"portal": true, "qoe": true, "root": true, "search": true, "settings": true,
-	"staging": true, "start": true, "static": true, "status": true, "store": true,
-	"studio": true, "support": true, "system": true, "uploads": true, "web": true,
-	"www": true,
-}
-
 // Tenant subdomains are single DNS labels: dots are deliberately forbidden.
 var subdomainRegex = identifier.SubdomainPattern
 
@@ -411,7 +404,8 @@ func (s *Service) CheckSubdomain(ctx context.Context, subdomain string) (availab
 	if err != nil {
 		return false, "Vérification impossible, réessayez."
 	}
-	if reserved || defaultReservedSubdomains[clean] {
+	// Denylist unique partagée avec les usernames (identifier.reserved).
+	if reserved || identifier.IsReserved(clean) {
 		return false, "Ce nom de sous-domaine est réservé par la plateforme."
 	}
 	exists, err := s.q.CheckSubdomainExists(ctx, pgtype.Text{String: clean, Valid: true})

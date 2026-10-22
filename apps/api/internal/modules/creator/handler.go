@@ -23,6 +23,7 @@ import (
 	"github.com/qoefi/api/internal/modules/mediaassets"
 	"github.com/qoefi/api/internal/permissions"
 	"github.com/qoefi/api/internal/response"
+	"github.com/qoefi/api/internal/shared/identifier"
 	"github.com/qoefi/api/internal/slug"
 	"github.com/qoefi/api/internal/supastorage"
 	"github.com/qoefi/api/internal/umami"
@@ -108,10 +109,9 @@ func (h *Handler) RegisterAPIKey(r chi.Router) {
 	r.With(middleware.RequireAPIScope(middleware.ScopeWrite)).Delete("/v1/creator/subscribers/{idOrEmail}", h.apiSubscriberDelete)
 	// Métadonnées complètes de branding de la publication pour front headless
 	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/publication", h.apiPublicationMetadata)
-	// Recommandations croisées de publications
-	r.With(middleware.RequireAPIScope(middleware.ScopeRead)).Get("/v1/creator/recommendations", h.apiRecommendationsList)
-	r.With(middleware.RequireAPIScope(middleware.ScopeWrite)).Post("/v1/creator/recommendations", h.apiRecommendationAdd)
-	r.With(middleware.RequireAPIScope(middleware.ScopeWrite)).Delete("/v1/creator/recommendations/{recommendedId}", h.apiRecommendationRemove)
+	// ⚠️ /v1/creator/recommendations N'EST PAS déclaré ici : il vit dans
+	// RegisterProtected (CombinedAuth JWT + clés API). Un double enregistrement
+	// ferait masquer la route JWT par le groupe clé API → 401 sur le dashboard.
 }
 
 // apiHighlights — GET /v1/creator/highlights : surlignages publics des
@@ -275,12 +275,16 @@ func (h *Handler) createCategory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	finalSlug := in.Slug
+	finalSlug := slug.Slugify(in.Slug)
 	if finalSlug == "" {
 		finalSlug = slug.Slugify(in.Name)
 	}
 	if finalSlug == "" {
 		finalSlug = "cat-" + slug.ShortID(8)
+	}
+	if identifier.IsReservedTenantRoute(finalSlug) {
+		response.BadRequest(w, fmt.Sprintf("Le slug %q est réservé par une page du site. Choisissez un autre nom.", finalSlug))
+		return
 	}
 	exists, err := h.q.CheckCategorySlugExists(r.Context(), db.CheckCategorySlugExistsParams{
 		PublicationId: in.PublicationID, Slug: finalSlug, ID: "",
@@ -346,12 +350,18 @@ func (h *Handler) updateCategory(w http.ResponseWriter, r *http.Request) {
 		in.Name = existing.Name
 	}
 
-	finalSlug := in.Slug
+	finalSlug := slug.Slugify(in.Slug)
 	if finalSlug == "" {
 		finalSlug = slug.Slugify(in.Name)
 	}
 	if finalSlug == "" {
 		finalSlug = existing.Slug
+	}
+	// Un slug historique déjà réservé reste éditable (grandfathering) ; seul
+	// un changement vers un slug réservé est refusé.
+	if finalSlug != existing.Slug && identifier.IsReservedTenantRoute(finalSlug) {
+		response.BadRequest(w, fmt.Sprintf("Le slug %q est réservé par une page du site. Choisissez un autre nom.", finalSlug))
+		return
 	}
 	exists, err := h.q.CheckCategorySlugExists(r.Context(), db.CheckCategorySlugExistsParams{
 		PublicationId: existing.PublicationId, Slug: finalSlug, ID: id,

@@ -542,16 +542,18 @@ func (q *Queries) ListArticlesForSettings(ctx context.Context, publicationid str
 }
 
 const listCategoriesForPublication = `-- name: ListCategoriesForPublication :many
-SELECT id, name, slug
+SELECT id, name, slug, description, "parentId"
 FROM "Category"
 WHERE "publicationId" = $1
 ORDER BY name ASC
 `
 
 type ListCategoriesForPublicationRow struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	Slug string `json:"slug"`
+	ID          string      `json:"id"`
+	Name        string      `json:"name"`
+	Slug        string      `json:"slug"`
+	Description pgtype.Text `json:"description"`
+	ParentId    pgtype.Text `json:"parentId"`
 }
 
 func (q *Queries) ListCategoriesForPublication(ctx context.Context, publicationid string) ([]ListCategoriesForPublicationRow, error) {
@@ -563,7 +565,13 @@ func (q *Queries) ListCategoriesForPublication(ctx context.Context, publicationi
 	items := []ListCategoriesForPublicationRow{}
 	for rows.Next() {
 		var i ListCategoriesForPublicationRow
-		if err := rows.Scan(&i.ID, &i.Name, &i.Slug); err != nil {
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Slug,
+			&i.Description,
+			&i.ParentId,
+		); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

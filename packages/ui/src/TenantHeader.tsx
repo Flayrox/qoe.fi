@@ -103,29 +103,46 @@ export function TenantHeader({
                       <div
                         className={`flex flex-col overflow-hidden ${isBrutalist ? 'border-2 border-foreground bg-background shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]' : 'bg-card border rounded-xl shadow-lg'}`}
                       >
-                        {nav.children!.map((child) => (
-                          <Link
-                            key={child.id}
-                            href={child.url || '/'}
-                            target={child.isExternal ? '_blank' : '_self'}
-                            className={`block px-4 py-3 hover:bg-[var(--tenant-accent)]/10 hover:text-[var(--tenant-accent)] transition-colors ${isBrutalist ? 'border-b-2 border-foreground last:border-0 font-bold uppercase text-xs' : ''}`}
-                          >
-                            {child.label}
-                          </Link>
-                        ))}
+                        {nav.children!.map((child) => {
+                          const childClass = `block px-4 py-3 hover:bg-[var(--tenant-accent)]/10 hover:text-[var(--tenant-accent)] transition-colors ${isBrutalist ? 'border-b-2 border-foreground last:border-0 font-bold uppercase text-xs' : ''}`;
+                          // Un lien externe doit rester une ancre : next/link tente
+                          // de le précharger et échoue sur une URL incomplète.
+                          return child.isExternal ? (
+                            <a
+                              key={child.id}
+                              href={child.url || '#'}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={childClass}
+                            >
+                              {child.label}
+                            </a>
+                          ) : (
+                            <Link key={child.id} href={child.url || '/'} className={childClass}>
+                              {child.label}
+                            </Link>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
                 );
               }
 
-              return (
-                <Link
+              const linkClass =
+                'hover:text-foreground hover:text-[var(--tenant-accent)] transition-colors py-2 block';
+              return nav.isExternal ? (
+                <a
                   key={nav.id}
-                  href={nav.url || '/'}
-                  target={nav.isExternal ? '_blank' : '_self'}
-                  className="hover:text-foreground hover:text-[var(--tenant-accent)] transition-colors py-2 block"
+                  href={nav.url || '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={linkClass}
                 >
+                  {nav.label}
+                </a>
+              ) : (
+                <Link key={nav.id} href={nav.url || '/'} className={linkClass}>
                   {nav.label}
                 </Link>
               );

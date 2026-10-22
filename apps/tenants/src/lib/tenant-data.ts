@@ -37,6 +37,7 @@ export interface TenantCategory {
   id: string;
   name: string;
   slug: string;
+  description?: string | null;
   parentId?: string | null;
   parent?: {
     id: string;

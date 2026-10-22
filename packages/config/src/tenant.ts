@@ -21,6 +21,53 @@ export const RESERVED_SUBDOMAINS = [
   'cdn',
 ] as const;
 
+/**
+ * Segments de premier niveau déjà utilisés par une route statique d'un site
+ * tenant. Une catégorie avec l'un de ces slugs serait inaccessible : la route
+ * statique gagne toujours sur le catch-all [categorySlug].
+ *
+ * Source : apps/tenants/src/app/tenant/[domain] + routes racine de l'app.
+ * Le test de parité `reserved-routes.test.ts` échoue si une route est ajoutée
+ * sans être réservée ici (et dans identifier.go côté Go).
+ */
+export const RESERVED_TENANT_ROUTES = [
+  'about',
+  'team',
+  'thoughts',
+  'author',
+  'article',
+  'articles',
+  'legal',
+  'search',
+  'support',
+  'sitemap',
+  'rss.xml',
+  'a-propos',
+  'equipe',
+  'pensees',
+  'notes',
+  'auteur',
+  'categorie',
+  'api',
+  'auth',
+  'tenant',
+  'robots.txt',
+  'sitemap.xml',
+  'icon.svg',
+] as const;
+
+/**
+ * 🔒 Vrai si un slug de catégorie entre en collision avec une route du site.
+ * Normalise la casse et les slashs de bord, comme la validation Go.
+ */
+export function isReservedTenantRoute(slug: string): boolean {
+  const normalized = slug
+    .trim()
+    .replace(/^\/+|\/+$/g, '')
+    .toLowerCase();
+  return (RESERVED_TENANT_ROUTES as readonly string[]).includes(normalized);
+}
+
 export const SYSTEM_DOMAINS = [
   'localhost',
   'qoe.test',

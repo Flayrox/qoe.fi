@@ -55,9 +55,11 @@ type SocialLinkItem struct {
 }
 
 type CategoryItem struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	Slug string `json:"slug"`
+	ID          string  `json:"id"`
+	Name        string  `json:"name"`
+	Slug        string  `json:"slug"`
+	Description *string `json:"description,omitempty"`
+	ParentID    *string `json:"parentId,omitempty"`
 }
 
 type ArticleSummary struct {
@@ -458,7 +460,7 @@ func (s *Service) socialLinks(ctx context.Context, pubID string) ([]SocialLinkIt
 
 func (s *Service) categories(ctx context.Context, pubID string) ([]CategoryItem, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT id, name, slug FROM "Category"
+		SELECT id, name, slug, description, "parentId" FROM "Category"
 		WHERE "publicationId" = $1 ORDER BY name ASC`, pubID)
 	if err != nil {
 		return nil, err
@@ -467,7 +469,7 @@ func (s *Service) categories(ctx context.Context, pubID string) ([]CategoryItem,
 	out := []CategoryItem{}
 	for rows.Next() {
 		var c CategoryItem
-		if err := rows.Scan(&c.ID, &c.Name, &c.Slug); err != nil {
+		if err := rows.Scan(&c.ID, &c.Name, &c.Slug, &c.Description, &c.ParentID); err != nil {
 			return nil, err
 		}
 		out = append(out, c)
@@ -828,4 +830,3 @@ func (s *Service) teamMembers(ctx context.Context, pub *PublicationDetail) ([]Te
 	}
 	return out, nil
 }
-

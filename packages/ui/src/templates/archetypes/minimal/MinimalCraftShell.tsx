@@ -76,6 +76,14 @@ export function MinimalCraftShell({
 
   const activeCategory = propActiveCategory || publication.activeCategory || null;
   const activeCategorySlug = activeCategory?.slug || article?.category?.slug || null;
+  const activeCategoryParent =
+    activeCategory?.parentId && publication.categories
+      ? (publication.categories.find((c) => c.id === activeCategory.parentId) ?? null)
+      : null;
+  const activeCategoryChildren =
+    activeCategory && publication.categories
+      ? publication.categories.filter((c) => c.parentId === activeCategory.id)
+      : [];
 
   const isArticleMode = Boolean(article);
 
@@ -442,28 +450,65 @@ export function MinimalCraftShell({
         )}
       >
         {activeCategory && !isArticleMode && (
-          <div className="container mx-auto px-4 sm:px-6 max-w-4xl pt-2 pb-4">
-            <div className="flex items-center justify-between border-b border-border/30 pb-3">
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                  Rubrique :
+          <div className="container mx-auto px-4 sm:px-6 max-w-4xl pt-3 pb-5">
+            <div className="border-b border-border/30 pb-4">
+              <nav
+                aria-label="Fil d’Ariane"
+                className="flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-muted-foreground flex-wrap"
+              >
+                <a href="/" className="hover:text-foreground transition-colors">
+                  Accueil
+                </a>
+                {activeCategoryParent && (
+                  <>
+                    <span aria-hidden="true" className="opacity-50">
+                      /
+                    </span>
+                    <a
+                      href={`/${activeCategoryParent.slug}`}
+                      className="hover:text-foreground transition-colors"
+                    >
+                      {activeCategoryParent.name}
+                    </a>
+                  </>
+                )}
+                <span aria-hidden="true" className="opacity-50">
+                  /
                 </span>
-                <span className="text-xs sm:text-sm font-bold text-foreground">
+                <span aria-current="page" className="text-foreground font-semibold">
                   {activeCategory.name}
                 </span>
-                {activeCategory.parentId && (
-                  <span className="text-[10px] text-muted-foreground font-mono bg-muted/40 px-1.5 py-0.5 rounded">
-                    sous-rubrique
-                  </span>
-                )}
+              </nav>
+
+              <div className="mt-3 flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+                <div className="min-w-0">
+                  <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+                    {activeCategory.name}
+                  </h1>
+                  {activeCategory.description && (
+                    <p className="mt-2 max-w-2xl text-sm text-muted-foreground leading-relaxed">
+                      {activeCategory.description}
+                    </p>
+                  )}
+                </div>
+                <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground shrink-0">
+                  {articles.length} article{articles.length > 1 ? 's' : ''}
+                </span>
               </div>
-              <a
-                href="/"
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1 font-medium group"
-                title="Afficher tous les articles"
-              >
-                <span className="group-hover:underline">✕ Voir tous les articles</span>
-              </a>
+
+              {activeCategoryChildren.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-2" aria-label="Sous-catégories">
+                  {activeCategoryChildren.map((sub) => (
+                    <a
+                      key={sub.id}
+                      href={`/${sub.slug}`}
+                      className="px-3 py-1.5 rounded-full border border-border/50 bg-muted/20 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                    >
+                      {sub.name}
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

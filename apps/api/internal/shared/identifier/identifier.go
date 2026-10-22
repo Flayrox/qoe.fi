@@ -20,6 +20,33 @@ var reserved = map[string]struct{}{
 	"uploads": {}, "web": {}, "www": {},
 }
 
+// reservedTenantRoutes contient tous les segments de premier niveau déjà
+// utilisés par une route statique d'un site tenant (ou par l'app elle-même).
+// Une catégorie portant l'un de ces slugs serait inaccessible : la route
+// statique gagne toujours sur le catch-all [categorySlug].
+//
+// ⚠️ Toute nouvelle route statique sous apps/tenants/src/app/tenant/[domain]
+// doit être ajoutée ici. Le test de parité côté tenants échoue sinon.
+var reservedTenantRoutes = map[string]struct{}{
+	// Routes éditoriales canoniques
+	"about": {}, "team": {}, "thoughts": {}, "author": {},
+	// Routes d'articles et de catégories
+	"article": {}, "articles": {},
+	// Routes système du tenant
+	"legal": {}, "search": {}, "support": {}, "sitemap": {}, "rss.xml": {},
+	// Alias historiques conservés en redirection
+	"a-propos": {}, "equipe": {}, "pensees": {}, "notes": {}, "auteur": {}, "categorie": {},
+	// Routes de l'app servies sur le même host
+	"api": {}, "auth": {}, "tenant": {}, "robots.txt": {}, "sitemap.xml": {}, "icon.svg": {},
+}
+
+// IsReservedTenantRoute indique si un slug de catégorie entrerait en collision
+// avec une route statique du site tenant.
+func IsReservedTenantRoute(raw string) bool {
+	_, ok := reservedTenantRoutes[strings.ToLower(strings.TrimSpace(strings.Trim(raw, "/")))]
+	return ok
+}
+
 func NormalizeUsername(raw string) string {
 	s := strings.TrimPrefix(strings.ToLower(strings.TrimSpace(raw)), "@")
 	return s

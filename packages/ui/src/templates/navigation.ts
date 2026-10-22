@@ -100,9 +100,11 @@ export function resolveTenantNavigation(input: TenantNavigationInput): ResolvedT
     })),
   }));
 
-  // 3. Liens externes additionnels configurés par le créateur
+  // 3. Liens externes additionnels configurés par le créateur. Une URL vide
+  // ou un simple schéma (« https:// ») ne doit jamais apparaître dans le menu
+  // public : c'est un lien mort, et next/link tente de le précharger.
   const externalNavItems: ResolvedTenantNavItem[] = (input.navigation || [])
-    .filter((n) => n.isExternal && !n.parentId)
+    .filter((n) => n.isExternal && !n.parentId && isConfiguredExternalUrl(n.url))
     .map((parent, idx) => ({
       id: parent.id || `ext-${idx}`,
       label: parent.label,
@@ -112,7 +114,7 @@ export function resolveTenantNavigation(input: TenantNavigationInput): ResolvedT
       publicationId: input.publicationId || '',
       isCategory: false,
       children: (input.navigation || [])
-        .filter((n) => n.parentId === parent.id)
+        .filter((n) => n.parentId === parent.id && isConfiguredExternalUrl(n.url))
         .map((child, cIdx) => ({
           id: child.id || `ext-sub-${cIdx}`,
           label: child.label,
@@ -158,9 +160,17 @@ export function resolveTenantNavigation(input: TenantNavigationInput): ResolvedT
     navItems,
     visibleCategories,
     rootCategories,
-    externalLinks: (input.navigation || []).filter((n) => n.isExternal && !n.parentId),
+    externalLinks: (input.navigation || []).filter(
+      (n) => n.isExternal && !n.parentId && isConfiguredExternalUrl(n.url)
+    ),
     getSubcategories,
   };
+}
+
+/** Une URL externe est exploitable seulement si elle est réellement renseignée. */
+function isConfiguredExternalUrl(url: string | null | undefined): boolean {
+  const value = (url || '').trim();
+  return value !== '' && value !== '#' && value !== 'https://' && value !== 'http://';
 }
 
 /**

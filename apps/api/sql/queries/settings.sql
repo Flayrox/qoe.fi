@@ -128,7 +128,7 @@ WHERE "publicationId" = $1
 ORDER BY "createdAt" DESC;
 
 -- name: ListCategoriesForPublication :many
-SELECT id, name, slug
+SELECT id, name, slug, description, "parentId"
 FROM "Category"
 WHERE "publicationId" = $1
 ORDER BY name ASC;
