@@ -34,7 +34,8 @@ export function NewArticleClient({ categories, capabilities }: NewArticleClientP
       id?: string;
     } & { id?: string }
   ): Promise<{ id?: string } | void> => {
-    if (isSaving) return;
+    // Le hook d'auto-save sérialise déjà les requêtes : ne pas jeter une
+    // sauvegarde manuelle au motif qu'une autre est en vol.
     // Si un id existe déjà (auto-save après création), on PATCH au lieu de POST
     const effectiveId = (data as { id?: string }).id || createdIdRef.current || undefined;
     const payload = effectiveId ? { ...data, id: effectiveId } : data;

@@ -7,62 +7,37 @@ import Underline from '@tiptap/extension-underline';
 import Image from '@tiptap/extension-image';
 import Collaboration from '@tiptap/extension-collaboration';
 import { CollaborationCaret } from '@tiptap/extension-collaboration-caret';
-import { HocuspocusProvider } from '@hocuspocus/provider';
-import * as Y from 'yjs';
-import { PaywallDivider } from '../extensions/PaywallDivider';
-import { AnnotationMark } from '../extensions/AnnotationMark';
 import { TextSelection } from '@tiptap/pm/state';
 import {
-  Bold,
-  Italic,
-  Underline as UnderlineIcon,
-  Strikethrough,
-  Heading1,
-  Heading2,
-  Heading3,
-  List,
-  ListOrdered,
-  Quote,
-  Code,
-  ArrowLeft,
-  ImageIcon,
-  Loader2,
-  Check,
-  Globe,
-  Lock,
-  Unlock,
-  Clock,
-  Send,
-  CheckCircle2,
-  Settings,
-  FolderOpen,
-  Search,
-  Highlighter,
-  BarChart3,
-  X,
-  ExternalLink,
-  MessageSquare,
-  UsersRound,
-  AlertCircle,
-  RotateCcw,
-  CalendarClock,
-  SlidersHorizontal,
-  Copy,
-  CopyCheck,
-  Trash2,
-  Download,
-} from 'lucide-react';
+  setArticleAllowDownloadAction,
+  unpublishArticleAction,
+  scheduleArticleAction,
+} from '@qoe/sdk/actions/articles';
 import { toast } from '@qoe/ui/toast';
-import { setArticleAllowDownloadAction } from '@qoe/sdk/actions/articles';
-import { cn } from '@qoe/utils';
-import { compressImage } from '@/lib/image-compressor';
-import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
-import { createClient as createSupabaseClient } from '@qoe/supabase';
 import { useAutoSaveArticle, type AutoSavePayload } from '@qoe/sdk';
 import type { EditorCapabilities } from '@qoe/sdk/actions/articles';
-import { ArticleInspectorModal } from '@/app/(creator)/analytics/components/ArticleInspectorModal';
 import { t } from '@lingui/core/macro';
-import { ArticleAttributionEditor, type ArticleAttributionDraft } from './ArticleAttributionEditor';
+import { ArticleInspectorModal } from '@/app/(creator)/analytics/components/ArticleInspectorModal';
+import { compressImage } from '@/lib/image-compressor';
+import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
+import { PaywallDivider } from '../extensions/PaywallDivider';
+import { AnnotationMark } from '../extensions/AnnotationMark';
+import { ImageGallery, GalleryImage } from '../extensions/ImageGallery';
+import { useCollaborationSession } from '../hooks/useCollaborationSession';
+import { computePayloadHash } from '../lib/payload-hash';
+import {
+  currentTimeZoneLabel,
+  parseDateTimeLocalValue,
+  toDateTimeLocalValue,
+} from '../lib/datetime';
+import type { ArticleAttributionDraft } from './ArticleAttributionEditor';
+import { EditorHeader } from './EditorHeader';
+import { EditorToolbar } from './EditorToolbar';
+import { buildPublicExcerpt } from '@qoe/utils';
+import { ContentVisibility } from '@qoe/config';
+import { EditorSettingsDrawer } from './EditorSettingsDrawer';
+import { CoverUploader } from './CoverUploader';
+import { AnnotationPopover } from './AnnotationPopover';
 import { PublishModal, type PublishOptions } from './PublishModal';
 
 function getErrorMessage(error: unknown, fallback: string): string {
@@ -74,33 +49,7 @@ function getErrorMessage(error: unknown, fallback: string): string {
   return fallback;
 }
 
-/**
- * 🎨 Couleur stable par utilisateur pour les curseurs de co-édition.
- * Hash simple du userId → palette contrastée (même id = même couleur).
- */
-const CURSOR_COLORS = [
-  '#ef4444',
-  '#f97316',
-  '#eab308',
-  '#22c55e',
-  '#14b8a6',
-  '#3b82f6',
-  '#8b5cf6',
-  '#ec4899',
-  '#06b6d4',
-  '#84cc16',
-];
-
-function colorForUserId(userId: string): string {
-  let hash = 0;
-  for (let i = 0; i < userId.length; i += 1) {
-    hash = (hash * 31 + userId.charCodeAt(i)) >>> 0;
-  }
-  return CURSOR_COLORS[hash % CURSOR_COLORS.length];
-}
-
-/** URL WebSocket du serveur de collaboration (Hocuspocus). */
-const COLLAB_URL = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_COLLAB_URL : undefined;
+const EMPTY_ATTRIBUTIONS: ArticleAttributionDraft[] = [];
 
 export interface EditorProps {
   initialTitle?: string;
@@ -138,6 +87,7 @@ export interface EditorProps {
     seoDescription: string | null;
     allowPublicAnnotations?: boolean;
     allowComments?: boolean;
+    allowDownload?: boolean;
     attributions?: ArticleAttributionDraft[];
   }) => Promise<{ id?: string } | void>;
   onBack?: () => void;
@@ -158,7 +108,7 @@ export function Editor({
   initialAllowPublicAnnotations = true,
   initialAllowComments = true,
   initialAllowDownload = true,
-  initialAttributions = [],
+  initialAttributions = EMPTY_ATTRIBUTIONS,
   collaborationRoomId,
   collaborationEnabled = true,
   subdomain,
@@ -173,11 +123,8 @@ export function Editor({
   const [imageUrl, setImageUrl] = useState<string | null>(initialImageUrl);
   const [published, setPublished] = useState(initialPublished);
   const [status, setStatus] = useState<string>(initialStatus || 'DRAFT');
-  // 📅 Programmation : date RFC3339 (API) ; le champ datetime-local gère sa
-  // propre valeur brouillon pour ne pas recalculer le format à chaque rendu.
   const [scheduledAt, setScheduledAt] = useState<string | null>(initialScheduledAt ?? null);
   const [scheduleDraft, setScheduleDraft] = useState('');
-  const [showSchedule, setShowSchedule] = useState(false);
   const [isPremium, setIsPremium] = useState(initialIsPremium);
   const [categoryId, setCategoryId] = useState<string | null>(initialCategoryId);
   const [seoTitle, setSeoTitle] = useState(initialSeoTitle || '');
@@ -192,26 +139,9 @@ export function Editor({
 
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadCount, setUploadCount] = useState(0);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-
-  // Organisation hiérarchique des catégories (Racine -> Sous-catégories) avec fallback sur slug si nom vide
-  const hierarchicalCategories = useMemo(() => {
-    const formatted = categories.map((c) => ({
-      ...c,
-      displayName: c.name?.trim() || c.slug || t`Catégorie sans titre`,
-    }));
-    const roots = formatted.filter((c) => !c.parentId);
-    const childrenMap = new Map<string, typeof formatted>();
-    for (const cat of formatted) {
-      if (cat.parentId) {
-        const list = childrenMap.get(cat.parentId) || [];
-        list.push(cat);
-        childrenMap.set(cat.parentId, list);
-      }
-    }
-    return { roots, childrenMap };
-  }, [categories]);
 
   const [showSettings, setShowSettings] = useState(false);
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
@@ -223,121 +153,42 @@ export function Editor({
   const [popoverPosition, setPopoverPosition] = useState<{ top: number; left: number } | null>(
     null
   );
-  const openAnnotationPopoverRef = useRef<(text?: string, existingNote?: string) => void>(() => {});
   const [isDocked, setIsDocked] = useState(false);
-  const [slugCopied, setSlugCopied] = useState(false);
-  const [isCoverDragOver, setIsCoverDragOver] = useState(false);
   const lastSavedHashRef = useRef<string>('');
+  const persistedIdRef = useRef<string | undefined>(collaborationRoomId);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const coverFileInputRef = useRef<HTMLInputElement>(null);
+  const bodyImageInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const toolbarSentinelRef = useRef<HTMLDivElement>(null);
+  const openAnnotationPopoverRef = useRef<(text?: string, existingNote?: string) => void>(() => {});
 
-  // Détection haute précision de l'amarrage de la barre d'outils au bas du header (56px)
+  const timeZoneLabel = useMemo(() => currentTimeZoneLabel(), []);
+
+  const {
+    collaborationDoc,
+    collaborationProvider,
+    collabUser,
+    peerCount,
+    connected: collaborationConnected,
+  } = useCollaborationSession({
+    enabled: collaborationEnabled,
+    roomId: collaborationRoomId,
+  });
+
+  // Détection de l'amarrage de la barre d'outils sous le header (56px).
   useEffect(() => {
     const sentinel = toolbarSentinelRef.current;
     if (!sentinel) return;
 
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        setIsDocked(!entry.isIntersecting);
-      },
-      {
-        // HeaderClient a une hauteur de 56px (h-14). rootMargin: -56px déclenche au pixel près
-        rootMargin: '-56px 0px 0px 0px',
-        threshold: 0,
-      }
-    );
-
+    const observer = new IntersectionObserver(([entry]) => setIsDocked(!entry.isIntersecting), {
+      rootMargin: '-56px 0px 0px 0px',
+      threshold: 0,
+    });
     observer.observe(sentinel);
     return () => observer.disconnect();
   }, []);
 
-  // ─── Collaboration temps réel (Hocuspocus/Yjs) ────────────────────────
-  // Document Yjs partagé + provider WebSocket vers apps/collab-server.
-  const collaborationDoc = useMemo(
-    () =>
-      collaborationEnabled && collaborationRoomId && COLLAB_URL && typeof window !== 'undefined'
-        ? new Y.Doc()
-        : null,
-    [collaborationEnabled, collaborationRoomId]
-  );
-  const collaborationProvider = useMemo(
-    () =>
-      collaborationDoc && collaborationRoomId && COLLAB_URL
-        ? new HocuspocusProvider({
-            url: COLLAB_URL,
-            name: `article:${collaborationRoomId}`,
-            document: collaborationDoc,
-            // JWT Supabase de la session courante — validé côté serveur par
-            // introspection `/auth/v1/user` (même source de vérité que l'API Go).
-            token: async () => {
-              const session = await createSupabaseClient().auth.getSession();
-              return session.data.session?.access_token ?? '';
-            },
-          })
-        : null,
-    [collaborationDoc, collaborationRoomId]
-  );
-
-  // Identité affichée sur les curseurs des co-éditeurs.
-  const [collabUser, setCollabUser] = useState<{ name: string; color: string } | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const session = await createSupabaseClient().auth.getSession();
-      const user = session.data.session?.user;
-      if (cancelled || !user) return;
-      const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
-      const name =
-        (typeof meta.name === 'string' && meta.name) ||
-        (typeof meta.full_name === 'string' && meta.full_name) ||
-        user.email?.split('@')[0] ||
-        'Éditeur';
-      setCollabUser({ name, color: colorForUserId(user.id) });
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  // Compteur de co-éditeurs (awareness Yjs — hors soi-même).
-  const [collaborationPeerCount, setCollaborationPeerCount] = useState(0);
-  const [collaborationConnected, setCollaborationConnected] = useState(false);
-  useEffect(() => {
-    const provider = collaborationProvider;
-    if (!provider) return;
-
-    const handleAwareness = () => {
-      const states = provider.awareness?.getStates() ?? new Map();
-      let editors = 0;
-      states.forEach((state) => {
-        const s = state as { user?: unknown };
-        if (s && s.user) editors += 1;
-      });
-      // On retire soi-même pour n'afficher que les co-éditeurs.
-      setCollaborationPeerCount(Math.max(0, editors - 1));
-    };
-    const handleStatus = ({ status }: { status: 'connecting' | 'connected' | 'disconnected' }) => {
-      setCollaborationConnected(status === 'connected');
-      if (status !== 'connected') setCollaborationPeerCount(0);
-    };
-
-    provider.awareness?.on('change', handleAwareness);
-    provider.on('status', handleStatus);
-    handleAwareness();
-    return () => {
-      provider.awareness?.off('change', handleAwareness);
-      provider.off('status', handleStatus);
-    };
-  }, [collaborationProvider]);
-
-  useEffect(() => () => collaborationProvider?.destroy(), [collaborationProvider]);
-
-  // ─── Refs d'état frais pour l'auto-save (évite les closures périmées) ───
-  // L'onUpdate de Tiptap et le onSave de l'auto-save peuvent être exécutés
-  // longtemps après le rendu : on lit TOUJOURS les dernières valeurs via ces
-  // refs plutôt que via les closures du rendu qui les a créés.
+  // ─── Refs d'état frais pour l'auto-save ────────────────────────────────
   const editorStateRef = useRef({
     title,
     slug,
@@ -351,6 +202,7 @@ export function Editor({
     imageUrl,
     allowPublicAnnotations,
     allowComments,
+    allowDownload,
     attributions,
   });
   editorStateRef.current = {
@@ -366,6 +218,7 @@ export function Editor({
     imageUrl,
     allowPublicAnnotations,
     allowComments,
+    allowDownload,
     attributions,
   };
   const scheduleAutoSaveRef = useRef<(p: AutoSavePayload) => void>(() => {});
@@ -381,6 +234,8 @@ export function Editor({
           class: 'rounded-2xl border border-border/40 my-10 max-w-full h-auto shadow-sm',
         },
       }),
+      ImageGallery,
+      GalleryImage,
       ...(collaborationDoc
         ? [
             Collaboration.configure({ document: collaborationDoc, field: 'default' }),
@@ -442,16 +297,22 @@ export function Editor({
         }
         return false;
       },
-      handleDrop: (view, event, slice, moved) => {
-        if (
-          !moved &&
-          event.dataTransfer &&
-          event.dataTransfer.files &&
-          event.dataTransfer.files[0]
-        ) {
+      handleDrop: (view, event) => {
+        const files = Array.from(event.dataTransfer?.files ?? []);
+        if (files.length > 0) {
           event.preventDefault();
-          const file = event.dataTransfer.files[0];
-          uploadImage(file);
+          void uploadFiles(files, files.length > 1 ? 'gallery' : 'single');
+          return true;
+        }
+        return false;
+      },
+      handlePaste: (_view, event) => {
+        const files = Array.from(event.clipboardData?.files ?? []).filter((file) =>
+          file.type.startsWith('image/')
+        );
+        if (files.length > 0) {
+          event.preventDefault();
+          void uploadFiles(files, files.length > 1 ? 'gallery' : 'single');
           return true;
         }
         return false;
@@ -459,9 +320,6 @@ export function Editor({
     },
     onUpdate: ({ editor: currentEditor }) => {
       setHasUnsavedChanges(true);
-      // Le contenu de l'éditeur déclenche AUSSI l'auto-save (debouncé) :
-      // avant, seuls les métadonnées (titre, slug…) déclenchaient la
-      // sauvegarde — taper uniquement dans le corps ne sauvait rien.
       const s = editorStateRef.current;
       if (s.title.trim()) {
         scheduleAutoSaveRef.current({
@@ -473,12 +331,77 @@ export function Editor({
           categoryId: s.categoryId,
           seoTitle: s.seoTitle,
           seoDescription: s.seoDescription,
+          imageUrl: s.imageUrl,
+          allowPublicAnnotations: s.allowPublicAnnotations,
+          allowComments: s.allowComments,
+          allowDownload: s.allowDownload,
         });
       }
     },
   });
 
-  // ─── Gestionnaire d'annotation d'auteur non-bloquant ───────────────────
+  const uploadFiles = useCallback(
+    async (files: File[], mode: 'single' | 'gallery') => {
+      if (!editor || files.length === 0) return;
+      const images = files.filter((file) => file.type.startsWith('image/'));
+      if (images.length !== files.length) {
+        setError(t`Certains fichiers ne sont pas des images valides.`);
+      }
+      if (images.length === 0) return;
+
+      try {
+        setIsUploading(true);
+        setUploadCount(images.length);
+        setError(null);
+
+        const urls: string[] = [];
+        for (const file of images) {
+          const compressedFile = await compressImage(file);
+          const url = await uploadImageToRoute(
+            compressedFile,
+            '/api/articles/upload',
+            IMAGE_FOLDERS.articles
+          );
+          urls.push(url);
+          setUploadCount((count) => Math.max(0, count - 1));
+        }
+
+        if (urls.length === 0) return;
+
+        if (mode === 'gallery' || urls.length > 1) {
+          editor
+            .chain()
+            .focus()
+            .insertContent({
+              type: 'imageGallery',
+              content: urls.map((url) => ({
+                type: 'galleryImage',
+                attrs: { src: url, alt: '' },
+              })),
+            })
+            .run();
+        } else {
+          editor.chain().focus().setImage({ src: urls[0] }).run();
+        }
+        setHasUnsavedChanges(true);
+      } catch (err: unknown) {
+        setError(getErrorMessage(err, t`Échec de l'upload de l'image.`));
+      } finally {
+        setIsUploading(false);
+        setUploadCount(0);
+      }
+    },
+    [editor]
+  );
+
+  const uploadImage = useCallback(
+    (file: File) => {
+      void uploadFiles([file], 'single');
+    },
+    [uploadFiles]
+  );
+
+  // ─── Annotation d'auteur ───────────────────────────────────────────────
   const openAnnotationPopover = useCallback(
     (text?: string, existingNote?: string) => {
       if (!editor) return;
@@ -545,16 +468,10 @@ export function Editor({
   };
 
   // ─── Seed du document partagé ──────────────────────────────────────────
-  // Après le PREMIER sync avec le serveur : si le document Yjs est encore
-  // vide (personne n'a jamais édité cet article) et qu'un contenu initial
-  // existe, on l'insère AVEC propagation (`emitUpdate: true`) pour que le
-  // serveur le persiste et que les co-éditeurs le reçoivent.
-  // Si le serveur a déjà un état, il gagne : on ne seed pas.
   useEffect(() => {
     const provider = collaborationProvider;
     if (!provider || !editor || !collaborationDoc || !initialContent) return;
 
-    // Le seed ne doit se produire qu'UNE fois, au tout premier sync.
     let seeded = false;
     const seedOnce = () => {
       if (seeded) return;
@@ -570,83 +487,33 @@ export function Editor({
     };
   }, [collaborationProvider, editor, collaborationDoc, initialContent]);
 
-  const computePayloadHash = useCallback(
-    (payload: {
-      title: string;
-      content: string;
-      slug?: string;
-      published?: boolean;
-      status?: string;
-      scheduledAt?: string | null;
-      isPremium?: boolean;
-      categoryId?: string | null;
-      seoTitle?: string | null;
-      seoDescription?: string | null;
-      imageUrl?: string | null;
-      allowComments?: boolean;
-      allowPublicAnnotations?: boolean;
-      attributions?: ArticleAttributionDraft[];
-    }) => {
-      return JSON.stringify({
-        t: (payload.title || '').trim(),
-        c: payload.content || '',
-        s: payload.slug || '',
-        pub: Boolean(payload.published),
-        st: payload.status || 'DRAFT',
-        sch: payload.scheduledAt || null,
-        prem: Boolean(payload.isPremium),
-        cat: payload.categoryId || null,
-        stitle: (payload.seoTitle || '').trim(),
-        sdesc: (payload.seoDescription || '').trim(),
-        img: payload.imageUrl || null,
-        comm: Boolean(payload.allowComments),
-        ann: Boolean(payload.allowPublicAnnotations),
-        attr: (payload.attributions || []).map((a) => ({
-          u: a.userId,
-          r: a.role,
-          o: a.order,
-          v: a.isVisible,
-        })),
-      });
-    },
+  // Hash initial calculé UNE seule fois : ne dépend plus de l'identité des
+  // tableaux de props (l'ancien effet réinitialisait le hash à chaque render).
+  const initialHash = useMemo(
+    () =>
+      computePayloadHash({
+        title: initialTitle,
+        content: initialContent || '',
+        slug: initialSlug,
+        published: initialPublished,
+        status: initialStatus,
+        scheduledAt: initialScheduledAt ?? null,
+        isPremium: initialIsPremium,
+        categoryId: initialCategoryId,
+        seoTitle: initialSeoTitle,
+        seoDescription: initialSeoDescription,
+        imageUrl: initialImageUrl,
+        allowComments: initialAllowComments,
+        allowPublicAnnotations: initialAllowPublicAnnotations,
+        attributions: initialAttributions,
+      }),
+    // Volontairement monté une fois : la page d'édition ne change pas d'article
+    // sans remonter le composant (navigation Next).
     []
   );
-
-  // Initialisation de l'empreinte au premier rendu
-  useEffect(() => {
-    lastSavedHashRef.current = computePayloadHash({
-      title: initialTitle,
-      content: initialContent || '',
-      slug: initialSlug,
-      published: initialPublished,
-      status: initialStatus,
-      scheduledAt: initialScheduledAt ?? null,
-      isPremium: initialIsPremium,
-      categoryId: initialCategoryId,
-      seoTitle: initialSeoTitle,
-      seoDescription: initialSeoDescription,
-      imageUrl: initialImageUrl,
-      allowComments: initialAllowComments,
-      allowPublicAnnotations: initialAllowPublicAnnotations,
-      attributions: initialAttributions,
-    });
-  }, [
-    computePayloadHash,
-    initialTitle,
-    initialContent,
-    initialSlug,
-    initialPublished,
-    initialStatus,
-    initialScheduledAt,
-    initialIsPremium,
-    initialCategoryId,
-    initialSeoTitle,
-    initialSeoDescription,
-    initialImageUrl,
-    initialAllowComments,
-    initialAllowPublicAnnotations,
-    initialAttributions,
-  ]);
+  if (lastSavedHashRef.current === '') {
+    lastSavedHashRef.current = initialHash;
+  }
 
   const {
     scheduleAutoSave,
@@ -655,7 +522,7 @@ export function Editor({
     saveNow,
   } = useAutoSaveArticle({
     delay: 2500,
-    enabled: !isSaving,
+    enabled: true,
     onSave: async (payload: AutoSavePayload) => {
       const s = editorStateRef.current;
       const res = (await onSave({
@@ -663,8 +530,8 @@ export function Editor({
         content: payload.content,
         imageUrl: s.imageUrl,
         slug: payload.slug || s.slug,
-        // 🔒 Ne jamais promouvoir automatiquement en direct lors de l'auto-save :
-        // les modifications restent isolées dans le draft de travail.
+        // 🔒 L'auto-save ne publie jamais : le Go isole les modifications
+        // dans draftContent dès que published=false, même si status=PUBLISHED.
         published: false,
         scheduledAt: s.scheduledAt,
         status: s.status,
@@ -674,8 +541,10 @@ export function Editor({
         seoDescription: payload.seoDescription ?? s.seoDescription,
         allowPublicAnnotations: s.allowPublicAnnotations,
         allowComments: s.allowComments,
+        allowDownload: s.allowDownload,
         attributions: s.attributions,
       })) as { id?: string } | void;
+      if (res?.id) persistedIdRef.current = res.id;
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
       lastSavedHashRef.current = computePayloadHash({
@@ -683,7 +552,7 @@ export function Editor({
         content: payload.content,
         imageUrl: s.imageUrl,
         slug: payload.slug || s.slug,
-        published: false,
+        published: s.published,
         scheduledAt: s.scheduledAt,
         status: s.status,
         isPremium: payload.isPremium ?? s.isPremium,
@@ -692,21 +561,15 @@ export function Editor({
         seoDescription: payload.seoDescription ?? s.seoDescription,
         allowPublicAnnotations: s.allowPublicAnnotations,
         allowComments: s.allowComments,
+        allowDownload: s.allowDownload,
         attributions: s.attributions,
       });
-      // Retourne le vrai id pour que useAutoSaveArticle le réutilise
-      // (PATCH au lieu de POST). Pas de placeholder 'new'/'existing' : si la
-      // réponse n'a pas d'id, le hook garde l'id précédent.
-      const realId =
-        (res as { id?: string })?.id || (collaborationRoomId as string | undefined) || undefined;
-      return { id: realId, updatedAt: new Date() };
+      return { id: persistedIdRef.current, updatedAt: new Date() };
     },
   });
 
-  // Référence toujours fraîche pour l'onUpdate de Tiptap (closures).
   scheduleAutoSaveRef.current = scheduleAutoSave;
 
-  // Réessaie la dernière sauvegarde après une erreur (rejoue le dernier état).
   const retryAutoSave = () => {
     const s = editorStateRef.current;
     if (!s.title.trim() || !editor) return;
@@ -724,7 +587,7 @@ export function Editor({
     });
   };
 
-  // Watch for state changes to trigger debounced auto-save ONLY if genuinely modified
+  // Déclenche l'auto-save sur les changements de métadonnées.
   useEffect(() => {
     if (!editor) return;
     const currentPayload = {
@@ -745,7 +608,6 @@ export function Editor({
     };
     const currentHash = computePayloadHash(currentPayload);
 
-    // 🔒 SILENCE RADIO : Si le hash correspond à ce qui a déjà été sauvegardé, zéro requête !
     if (currentHash === lastSavedHashRef.current) {
       setHasUnsavedChanges(false);
       return;
@@ -762,10 +624,13 @@ export function Editor({
         categoryId,
         seoTitle,
         seoDescription,
+        imageUrl,
+        allowPublicAnnotations,
+        allowComments,
+        allowDownload,
       });
     }
   }, [
-    computePayloadHash,
     editor,
     title,
     slug,
@@ -783,7 +648,7 @@ export function Editor({
     scheduleAutoSave,
   ]);
 
-  // Generate slug automatically
+  // Slug auto uniquement tant que l'auteur ne l'a jamais personnalisé.
   useEffect(() => {
     if (!initialSlug && title && !slug) {
       const generated = title
@@ -796,76 +661,56 @@ export function Editor({
     }
   }, [title, initialSlug, slug]);
 
-  const uploadImage = async (file: File) => {
-    if (!editor) return;
+  const buildSlug = useCallback(() => {
+    if (slug) return slug;
+    return title
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)+/g, '');
+  }, [slug, title]);
 
-    if (!file.type.startsWith('image/')) {
-      setError(t`Le fichier doit être une image valide.`);
-      return;
-    }
+  const baseSavePayload = useCallback(
+    (overrides: {
+      published: boolean;
+      status: string;
+      scheduledAt: string | null;
+      isPremium?: boolean;
+    }) => ({
+      title,
+      content: editor?.getHTML() || '',
+      imageUrl,
+      slug: buildSlug(),
+      published: overrides.published,
+      status: overrides.status,
+      scheduledAt: overrides.scheduledAt,
+      isPremium: overrides.isPremium ?? isPremium,
+      categoryId,
+      seoTitle: seoTitle || null,
+      seoDescription: seoDescription || null,
+      allowPublicAnnotations,
+      allowComments,
+      allowDownload,
+      attributions,
+    }),
+    [
+      title,
+      editor,
+      imageUrl,
+      buildSlug,
+      isPremium,
+      categoryId,
+      seoTitle,
+      seoDescription,
+      allowPublicAnnotations,
+      allowComments,
+      allowDownload,
+      attributions,
+    ]
+  );
 
-    try {
-      setIsUploading(true);
-      setError(null);
-
-      const compressedFile = await compressImage(file);
-      const url = await uploadImageToRoute(
-        compressedFile,
-        '/api/articles/upload',
-        IMAGE_FOLDERS.articles
-      );
-
-      editor.chain().focus().setImage({ src: url }).run();
-      setHasUnsavedChanges(true);
-    } catch (err: unknown) {
-      setError(getErrorMessage(err, "Une erreur est survenue lors de l'upload de l'image."));
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const uploadCoverFile = async (file: File) => {
-    if (!file.type.startsWith('image/')) {
-      setError(t`Le fichier doit être une image valide.`);
-      return;
-    }
-    try {
-      setIsUploading(true);
-      setError(null);
-      const compressedFile = await compressImage(file);
-      const url = await uploadImageToRoute(
-        compressedFile,
-        '/api/articles/upload',
-        IMAGE_FOLDERS.articles
-      );
-      setImageUrl(url);
-      setHasUnsavedChanges(true);
-    } catch (err: unknown) {
-      setError(getErrorMessage(err, t`Une erreur est survenue lors de l'upload de la couverture.`));
-    } finally {
-      setIsUploading(false);
-      if (coverFileInputRef.current) coverFileInputRef.current.value = '';
-    }
-  };
-
-  const handleCoverFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      uploadCoverFile(file);
-    }
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      uploadImage(file);
-    }
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const handleManualSave = async (statusOverride?: string) => {
+  const handleManualSave = useCallback(async () => {
     if (!title.trim()) {
       setError("Le titre de l'article est requis avant d'enregistrer.");
       return;
@@ -873,479 +718,305 @@ export function Editor({
 
     try {
       setError(null);
-      const htmlContent = editor?.getHTML() || '';
-      let finalSlug = slug;
-      if (!finalSlug) {
-        finalSlug = title
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/(^-|-$)+/g, '');
-        setSlug(finalSlug);
-      }
-
-      await onSave({
-        title,
-        content: htmlContent,
-        imageUrl,
-        slug: finalSlug,
-        published,
-        status: statusOverride ?? status,
-        scheduledAt,
-        isPremium,
-        categoryId,
-        seoTitle: seoTitle || null,
-        seoDescription: seoDescription || null,
-        allowPublicAnnotations,
-        allowComments,
-        attributions,
-      });
-      if (statusOverride) setStatus(statusOverride);
+      const finalSlug = buildSlug();
+      if (!slug && finalSlug) setSlug(finalSlug);
+      // Sur un article publié, « Enregistrer » ne doit pas publier en direct :
+      // published=false isole la version de travail dans draftContent.
+      const payload = baseSavePayload({ published: false, status, scheduledAt });
+      const localPayload = baseSavePayload({ published, status, scheduledAt });
+      const res = (await onSave(payload)) as { id?: string } | void;
+      if (res?.id) persistedIdRef.current = res.id;
+      lastSavedHashRef.current = computePayloadHash(localPayload);
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
     } catch (err: unknown) {
       setError(getErrorMessage(err, t`Échec de la sauvegarde.`));
     }
-  };
+  }, [title, buildSlug, slug, baseSavePayload, status, scheduledAt, onSave]);
 
-  const handleSubmitForReview = () => {
-    handleManualSave('SUBMITTED');
-  };
+  const handleSubmitForReview = useCallback(() => {
+    void (async () => {
+      try {
+        setError(null);
+        const payload = baseSavePayload({
+          published: false,
+          status: 'SUBMITTED',
+          scheduledAt: null,
+        });
+        const res = (await onSave(payload)) as { id?: string } | void;
+        if (res?.id) persistedIdRef.current = res.id;
+        setStatus('SUBMITTED');
+        setScheduledAt(null);
+        setPublished(false);
+        lastSavedHashRef.current = computePayloadHash(payload);
+        setLastSaved(new Date());
+        setHasUnsavedChanges(false);
+      } catch (err: unknown) {
+        setError(getErrorMessage(err, t`Échec de la soumission.`));
+      }
+    })();
+  }, [baseSavePayload, onSave]);
 
-  const handleConfirmPublish = async (options: PublishOptions) => {
-    setIsPremium(options.isPremium);
-    setPublished(true);
-    setStatus('PUBLISHED');
-    setScheduledAt(null);
+  const handleConfirmPublish = useCallback(
+    async (options: PublishOptions) => {
+      const previous = { published, status, scheduledAt, isPremium };
+      setIsPremium(options.isPremium);
+      setPublished(true);
+      setStatus('PUBLISHED');
+      setScheduledAt(null);
 
+      try {
+        setError(null);
+        const payload = baseSavePayload({
+          published: true,
+          status: 'PUBLISHED',
+          scheduledAt: null,
+          isPremium: options.isPremium,
+        });
+        const res = (await onSave(payload)) as { id?: string } | void;
+        if (res?.id) persistedIdRef.current = res.id;
+        lastSavedHashRef.current = computePayloadHash(payload);
+        setLastSaved(new Date());
+        setHasUnsavedChanges(false);
+      } catch (err: unknown) {
+        setError(getErrorMessage(err, t`Échec de la publication.`));
+        setPublished(previous.published);
+        setStatus(previous.status);
+        setScheduledAt(previous.scheduledAt);
+        setIsPremium(previous.isPremium);
+      }
+    },
+    [baseSavePayload, onSave, published, status, scheduledAt, isPremium]
+  );
+
+  const handleUpdateLive = useCallback(async () => {
     try {
       setError(null);
-      const htmlContent = editor?.getHTML() || '';
-      let finalSlug = slug;
-      if (!finalSlug) {
-        finalSlug = title
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/(^-|-$)+/g, '');
-        setSlug(finalSlug);
-      }
-
-      await onSave({
-        title,
-        content: htmlContent,
-        imageUrl,
-        slug: finalSlug,
-        published: true,
-        status: 'PUBLISHED',
-        scheduledAt: null,
-        isPremium: options.isPremium,
-        categoryId,
-        seoTitle: seoTitle || null,
-        seoDescription: seoDescription || null,
-        allowPublicAnnotations,
-        allowComments,
-        attributions,
-      });
-      setLastSaved(new Date());
-      setHasUnsavedChanges(false);
-    } catch (err: unknown) {
-      setError(getErrorMessage(err, t`Échec de la publication.`));
-      setPublished(false);
-      setStatus('DRAFT');
-    }
-  };
-
-  const handleUpdateLive = async () => {
-    try {
-      setError(null);
-      const htmlContent = editor?.getHTML() || '';
-      let finalSlug = slug;
-      if (!finalSlug) {
-        finalSlug = title
-          .toLowerCase()
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/(^-|-$)+/g, '');
-        setSlug(finalSlug);
-      }
-
-      await onSave({
-        title,
-        content: htmlContent,
-        imageUrl,
-        slug: finalSlug,
-        published: true, // Promeut les modifications du draft en direct
-        status: 'PUBLISHED',
-        scheduledAt: null,
-        isPremium,
-        categoryId,
-        seoTitle: seoTitle || null,
-        seoDescription: seoDescription || null,
-        allowPublicAnnotations,
-        allowComments,
-        attributions,
-      });
+      const payload = baseSavePayload({ published: true, status: 'PUBLISHED', scheduledAt: null });
+      const res = (await onSave(payload)) as { id?: string } | void;
+      if (res?.id) persistedIdRef.current = res.id;
+      lastSavedHashRef.current = computePayloadHash(payload);
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
     } catch (err: unknown) {
       setError(getErrorMessage(err, t`Échec de la mise à jour.`));
     }
-  };
+  }, [baseSavePayload, onSave]);
 
-  // Keyboard shortcut for saving (Cmd+S / Ctrl+S)
+  const handleUnpublish = useCallback(async () => {
+    const id = persistedIdRef.current;
+    if (!id) {
+      setPublished(false);
+      setStatus('DRAFT');
+      setScheduledAt(null);
+      return;
+    }
+    try {
+      setError(null);
+      const res = await unpublishArticleAction(id);
+      if (!res.ok) throw new Error(res.error.message);
+      setPublished(false);
+      setStatus('DRAFT');
+      setScheduledAt(null);
+      lastSavedHashRef.current = computePayloadHash(
+        baseSavePayload({ published: false, status: 'DRAFT', scheduledAt: null })
+      );
+      setLastSaved(new Date());
+      setHasUnsavedChanges(false);
+      toast.success(t`Article dépublié`);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, t`Échec de la dépublication.`));
+    }
+  }, [baseSavePayload]);
+
+  const handleSchedule = useCallback(async () => {
+    const date = parseDateTimeLocalValue(scheduleDraft);
+    if (!date) {
+      setError(t`Choisissez une date de programmation.`);
+      return;
+    }
+    if (date.getTime() <= Date.now()) {
+      setError(t`La date de programmation doit être dans le futur.`);
+      return;
+    }
+
+    try {
+      setError(null);
+      let id = persistedIdRef.current;
+      if (!id) {
+        const res = (await onSave(
+          baseSavePayload({ published: false, status, scheduledAt: null })
+        )) as { id?: string } | void;
+        id = res?.id;
+        if (!id) throw new Error(t`Enregistrez d'abord l'article avant de le programmer.`);
+        persistedIdRef.current = id;
+      }
+
+      const iso = date.toISOString();
+      const res = await scheduleArticleAction({ id, scheduledAt: iso });
+      if (!res.ok) throw new Error(res.error.message);
+
+      setScheduledAt(iso);
+      setStatus('SCHEDULED');
+      setPublished(false);
+      // Évite qu'un auto-save immédiat ne réécrive le statut SCHEDULED.
+      lastSavedHashRef.current = computePayloadHash(
+        baseSavePayload({ published: false, status: 'SCHEDULED', scheduledAt: iso })
+      );
+      setLastSaved(new Date());
+      setHasUnsavedChanges(false);
+      setShowSettings(false);
+      toast.success(t`Publication programmée`);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, t`Échec de la programmation.`));
+    }
+  }, [scheduleDraft, baseSavePayload, status, onSave]);
+
+  const handleClearSchedule = useCallback(async () => {
+    const id = persistedIdRef.current;
+    try {
+      if (id) {
+        const res = await scheduleArticleAction({ id, scheduledAt: null });
+        if (!res.ok) throw new Error(res.error.message);
+      }
+      setScheduledAt(null);
+      setStatus('DRAFT');
+      setPublished(false);
+      setScheduleDraft('');
+      lastSavedHashRef.current = computePayloadHash(
+        baseSavePayload({ published: false, status: 'DRAFT', scheduledAt: null })
+      );
+      setHasUnsavedChanges(false);
+      toast.success(t`Programmation annulée`);
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, t`Échec de l'annulation.`));
+    }
+  }, [baseSavePayload]);
+
+  const handleToggleDownload = useCallback((next: boolean) => {
+    const id = persistedIdRef.current;
+    if (!id) return;
+    setDownloadSaving(true);
+    void setArticleAllowDownloadAction({ articleId: id, allowDownload: next }).then((res) => {
+      setDownloadSaving(false);
+      if (res.ok) {
+        setAllowDownload(res.data.allowDownload);
+        toast.success(next ? t`Téléchargement autorisé` : t`Téléchargement refusé`);
+      } else {
+        toast.error(res.error.message || t`Action impossible`);
+      }
+    });
+  }, []);
+
+  // Cmd/Ctrl+S : ref stable → plus de closure périmée sur les métadonnées.
+  const manualSaveRef = useRef(handleManualSave);
+  manualSaveRef.current = handleManualSave;
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-        e.preventDefault();
-        handleManualSave();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
+        event.preventDefault();
+        void manualSaveRef.current();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [title, slug, published, isPremium, categoryId, seoTitle, seoDescription, editor]);
+  }, []);
 
-  // Garde-fou : alerte native du navigateur quand on quitte la page avec des
-  // changements non enregistrés (le flush du hook sauvegarde en parallèle,
-  // mais on prévient l'utilisateur avant de perdre ses dernières frappes).
   useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       if (hasUnsavedChanges) {
-        e.preventDefault();
-        e.returnValue = '';
+        event.preventDefault();
+        event.returnValue = '';
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasUnsavedChanges]);
 
+  const articlePath = useMemo(() => {
+    const selected = categories.find((category) => category.id === categoryId);
+    if (!selected?.slug) return '/uncategorized';
+    const parent = selected.parentId
+      ? categories.find((category) => category.id === selected.parentId)
+      : undefined;
+    return `/${parent?.slug ? `${parent.slug}/` : ''}${selected.slug}`;
+  }, [categories, categoryId]);
+
+  const previewHref = useMemo(() => {
+    if (!slug) return undefined;
+    const sub = subdomain || 'preview';
+    const path = `${articlePath}/${slug}`;
+    let previewUrl = `https://${sub}.qoe.fi${path}`;
+    if (typeof window !== 'undefined') {
+      const host = window.location.hostname;
+      const isCaddy = !window.location.port;
+      if (host.includes('lvh.me')) {
+        previewUrl = `http://${sub}.lvh.me${isCaddy ? '' : ':15403'}${path}`;
+      } else if (host.includes('qoe.test')) {
+        previewUrl = `http://${sub}.qoe.test${path}`;
+      } else if (host.includes('localhost')) {
+        previewUrl = `http://${sub}.lvh.me:15403${path}`;
+      }
+    }
+    return previewUrl;
+  }, [slug, subdomain, articlePath]);
+
+  const handleAnnotationButton = () => {
+    if (!editor) return;
+    if (editor.isActive('annotationMark')) {
+      const attrs = editor.getAttributes('annotationMark');
+      openAnnotationPopover(undefined, attrs.note || '');
+      return;
+    }
+    const selection = editor.state.selection;
+    if (selection.empty) {
+      setAnnotationToast(t`Sélectionnez d'abord un passage de texte à annoter.`);
+      setTimeout(() => setAnnotationToast(null), 3000);
+      return;
+    }
+    openAnnotationPopover();
+  };
+
   if (!editor) {
     return null;
   }
 
   return (
-    <div className="w-full space-y-10 pb-32 font-sans text-foreground">
-      {/* Sleek Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-6 border-b border-border/40">
-        <div className="flex items-center gap-4">
-          {onBack && (
-            <button
-              onClick={onBack}
-              className="h-8 w-8 rounded-full flex items-center justify-center border border-border/40 bg-card hover:bg-muted text-muted-foreground hover:text-foreground transition-all cursor-pointer"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </button>
-          )}
-          <div>
-            <h2 className="text-xl font-bold text-foreground font-sans tracking-tight flex items-center gap-3">
-              {initialTitle ? t`Édition` : t`Nouvel écrit`}
-              {collaborationProvider && (
-                <span
-                  className={cn(
-                    'inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-medium',
-                    collaborationConnected
-                      ? 'bg-primary/10 text-primary'
-                      : 'bg-muted text-muted-foreground'
-                  )}
-                  data-testid="collaboration-status"
-                >
-                  <UsersRound className="h-3 w-3" />
-                  {collaborationConnected
-                    ? collaborationPeerCount > 0
-                      ? `${collaborationPeerCount + 1} éditeurs en direct`
-                      : t`Co-édition en direct`
-                    : t`Co-édition · reconnexion…`}
-                </span>
-              )}
-              {/* Indicateur d'état d'enregistrement — chaîne priorisée :
-                  saving > error > saved > unsaved > idle. Avant, le cas
-                  'error' n'était pas affiché ET le badge « Sauvegardé à »
-                  restait visible en erreur (trompeur). */}
-              {isSaving || autoSaveStatus === 'saving' ? (
-                <span className="text-xs text-muted-foreground font-sans flex items-center gap-1.5">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />{' '}
-                  Enregistrement…
-                </span>
-              ) : autoSaveStatus === 'error' ? (
-                <span className="text-[11px] font-normal text-destructive bg-destructive/10 border border-destructive/30 px-2 py-0.5 rounded-md flex items-center gap-1.5 font-sans max-w-[320px]">
-                  <AlertCircle className="w-3 h-3 text-destructive shrink-0" />
-                  <span className="truncate">
-                    Échec de l'enregistrement{autoSaveError ? ` — ${autoSaveError}` : ''}
-                  </span>
-                  <button
-                    onClick={retryAutoSave}
-                    className="ml-1 inline-flex items-center gap-1 text-[10px] font-semibold text-destructive hover:underline cursor-pointer shrink-0"
-                    title={t`Réessayer la sauvegarde`}
-                  >
-                    <RotateCcw className="w-2.5 h-2.5" /> Réessayer
-                  </button>
-                </span>
-              ) : autoSaveStatus === 'saved' ? (
-                <span className="text-[11px] font-normal text-success bg-success/10 border border-success/20 px-2 py-0.5 rounded-md flex items-center gap-1.5 font-sans">
-                  <Check className="w-3 h-3 text-success" /> Brouillon auto-enregistré
-                  {lastSaved ? ` à ${lastSaved.toLocaleTimeString()}` : ''}
-                </span>
-              ) : hasUnsavedChanges ? (
-                <span className="text-[10px] font-medium text-highlight bg-highlight/10 border border-highlight/20 px-2 py-0.5 rounded-md font-sans">
-                  Modifications en cours… (Cmd+S)
-                </span>
-              ) : lastSaved ? (
-                <span className="text-[11px] font-normal text-muted-foreground flex items-center gap-1.5 font-sans">
-                  <Check className="w-3.5 h-3.5 text-muted-foreground" /> {t`Sauvegardé à`}{' '}
-                  {lastSaved.toLocaleTimeString()}
-                </span>
-              ) : null}
-            </h2>
-            <p className="text-xs text-muted-foreground font-sans mt-0.5">
-              Rédigez sans bruit ni distraction
-            </p>
-          </div>
-        </div>
-
-        {/* Action Controls */}
-        <div className="flex items-center gap-3 flex-wrap">
-          {/* Analytics Inspector Button */}
-          <button
-            onClick={() => setShowAnalyticsModal(true)}
-            className="h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-medium transition-all cursor-pointer border border-border/40 bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50"
-            title={t`Inspecter les statistiques réelles de cet article`}
-          >
-            <BarChart3 className="h-3.5 w-3.5 stroke-[1.5]" />
-            <span>Analyses</span>
-          </button>
-
-          {/* Options Button */}
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            className={cn(
-              'h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-medium transition-all cursor-pointer border border-border/40',
-              showSettings
-                ? 'bg-muted text-foreground font-semibold'
-                : 'bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50'
-            )}
-          >
-            <Settings className="h-3.5 w-3.5 stroke-[1.5]" />
-            <span>Options</span>
-          </button>
-
-          {/* Premium / Free Toggle */}
-          <button
-            onClick={() => {
-              setIsPremium(!isPremium);
-              setHasUnsavedChanges(true);
-            }}
-            className={cn(
-              'h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-medium transition-all cursor-pointer border border-border/40',
-              isPremium
-                ? 'bg-highlight/10 border-highlight/30 text-highlight font-semibold'
-                : 'bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50'
-            )}
-          >
-            {isPremium ? (
-              <Lock className="h-3 w-3 text-highlight" />
-            ) : (
-              <Unlock className="h-3 w-3" />
-            )}
-            <span>{isPremium ? 'Premium' : 'Gratuit'}</span>
-          </button>
-
-          {/* Workflow média : un rédacteur soumet, il ne publie pas */}
-          {capabilities?.isMedia && !capabilities.canPublish ? (
-            <>
-              {/* État En revue */}
-              <span
-                className={cn(
-                  'h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-medium border border-border/40',
-                  status === 'SUBMITTED'
-                    ? 'bg-highlight/10 border-highlight/30 text-highlight font-semibold'
-                    : 'bg-card text-muted-foreground'
-                )}
-              >
-                {status === 'SUBMITTED' ? (
-                  <CheckCircle2 className="h-3.5 w-3.5 text-highlight" />
-                ) : (
-                  <Clock className="h-3.5 w-3.5" />
-                )}
-                {status === 'SUBMITTED' ? 'En revue' : 'Brouillon'}
-              </span>
-
-              {/* Soumettre pour revue */}
-              {status !== 'SUBMITTED' && (
-                <button
-                  onClick={handleSubmitForReview}
-                  className="h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-semibold transition-all cursor-pointer bg-highlight text-highlight-foreground hover:opacity-90 border border-transparent"
-                  title={t`Soumettre cet article à l'approbation de votre équipe`}
-                >
-                  <Send className="h-3.5 w-3.5" strokeWidth={1.5} />
-                  Soumettre pour revue
-                </button>
-              )}
-            </>
-          ) : published ? (
-            /* Article en ligne : Mise à jour des modifications en direct + option de dépublication */
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={handleUpdateLive}
-                disabled={isSaving}
-                className={cn(
-                  'h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-semibold transition-all cursor-pointer shadow-xs',
-                  hasUnsavedChanges
-                    ? 'bg-primary text-primary-foreground hover:opacity-90'
-                    : 'bg-muted text-muted-foreground hover:text-foreground border border-border/60'
-                )}
-                title={t`Mettre à jour la version publique en ligne avec vos dernières modifications`}
-              >
-                <Send className="h-3.5 w-3.5" />
-                <span>
-                  {hasUnsavedChanges ? t`Mettre à jour l'article` : t`Publier modifications`}
-                </span>
-              </button>
-              <button
-                onClick={() => {
-                  setPublished(false);
-                  setStatus('DRAFT');
-                  setHasUnsavedChanges(true);
-                }}
-                className="h-8 px-2.5 rounded-lg flex items-center gap-1 font-sans text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 border border-border/40 transition-all cursor-pointer"
-                title={t`Remettre cet article en brouillon privé`}
-              >
-                <span>Dépublier</span>
-              </button>
-            </div>
-          ) : (
-            /* Article en brouillon : Bouton standard de publication avec modal */
-            <button
-              onClick={() => setIsPublishModalOpen(true)}
-              className="h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-semibold transition-all cursor-pointer bg-primary text-primary-foreground hover:opacity-90 shadow-xs"
-            >
-              <Send className="h-3.5 w-3.5" />
-              <span>{t`Publier`}</span>
-            </button>
-          )}
-
-          {/* 📅 Programmer la publication (statut SCHEDULED — publié automatiquement) */}
-          <div className="relative">
-            {showSchedule ? (
-              <div className="absolute right-0 top-10 z-50 flex flex-col gap-2 rounded-xl border border-border bg-card p-2.5 shadow-lg">
-                <input
-                  type="datetime-local"
-                  value={scheduleDraft}
-                  onChange={(e) => setScheduleDraft(e.target.value)}
-                  className="h-8 rounded-lg border border-border/60 bg-background px-2 text-xs text-foreground"
-                  aria-label="Date et heure de programmation"
-                />
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => {
-                      if (!scheduleDraft) {
-                        setError('Choisissez une date de programmation.');
-                        return;
-                      }
-                      const dt = new Date(scheduleDraft);
-                      if (isNaN(dt.getTime()) || dt.getTime() <= Date.now()) {
-                        setError('La date de programmation doit être dans le futur.');
-                        return;
-                      }
-                      setScheduledAt(dt.toISOString());
-                      setStatus('SCHEDULED');
-                      setPublished(false);
-                      setShowSchedule(false);
-                      setHasUnsavedChanges(true);
-                    }}
-                    className="h-8 flex-1 rounded-lg bg-highlight px-2 text-xs font-semibold text-highlight-foreground hover:opacity-90"
-                  >
-                    Programmer
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowSchedule(false);
-                      setScheduleDraft('');
-                    }}
-                    className="h-8 rounded-lg border border-border/60 px-2 text-xs text-muted-foreground hover:bg-muted"
-                  >
-                    Annuler
-                  </button>
-                </div>
-                {scheduledAt && (
-                  <button
-                    onClick={() => {
-                      setScheduledAt(null);
-                      setStatus('DRAFT');
-                      setPublished(false);
-                      setShowSchedule(false);
-                      setHasUnsavedChanges(true);
-                    }}
-                    className="h-8 rounded-lg border border-destructive/30 px-2 text-xs text-destructive hover:bg-destructive/5"
-                  >
-                    Effacer la programmation
-                  </button>
-                )}
-              </div>
-            ) : (
-              <button
-                onClick={() => {
-                  setScheduleDraft(
-                    scheduledAt ? new Date(scheduledAt).toISOString().slice(0, 16) : ''
-                  );
-                  setShowSchedule(true);
-                }}
-                className={cn(
-                  'h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-medium transition-all cursor-pointer border border-border/40',
-                  scheduledAt
-                    ? 'bg-highlight/10 border-highlight/30 text-highlight font-semibold'
-                    : 'bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                )}
-                title={t`Programmer la publication à une date ultérieure`}
-              >
-                <CalendarClock className="h-3.5 w-3.5" />
-                <span>{scheduledAt ? t`Programmé` : t`Programmer`}</span>
-              </button>
-            )}
-          </div>
-
-          {/* Public Article Page Preview Link */}
-          {slug &&
-            (() => {
-              const sub = subdomain || 'preview';
-              let previewUrl = `https://${sub}.qoe.fi/article/${slug}`;
-              if (typeof window !== 'undefined') {
-                const host = window.location.hostname;
-                const isCaddy = !window.location.port;
-                if (host.includes('lvh.me')) {
-                  previewUrl = `http://${sub}.lvh.me${isCaddy ? '' : ':15403'}/article/${slug}`;
-                } else if (host.includes('qoe.test')) {
-                  previewUrl = `http://${sub}.qoe.test/article/${slug}`;
-                } else if (host.includes('localhost')) {
-                  previewUrl = `http://${sub}.lvh.me:15403/article/${slug}`;
-                }
-              }
-              return (
-                <a
-                  href={previewUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-semibold bg-muted/50 text-foreground hover:bg-muted border border-border/40 transition-all cursor-pointer shadow-xs"
-                  title={t`Ouvrir la page publique ou la prévisualisation de l'écrit`}
-                >
-                  <ExternalLink className="h-3.5 w-3.5 text-primary" />
-                  <span>{t`Aperçu`}</span>
-                </a>
-              );
-            })()}
-
-          {/* Save Action */}
-          <button
-            onClick={() => handleManualSave()}
-            disabled={isSaving}
-            className="h-8 px-4 bg-primary text-primary-foreground font-sans text-xs font-bold rounded-lg flex items-center gap-1.5 hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:pointer-events-none cursor-pointer shadow-sm"
-          >
-            <span>{t`Enregistrer`}</span>
-          </button>
-        </div>
-      </div>
+    <div className="w-full space-y-8 pb-32 font-sans text-foreground">
+      <EditorHeader
+        isNew={!initialTitle}
+        isPremium={isPremium}
+        published={published}
+        status={status}
+        scheduledAt={scheduledAt}
+        previewHref={previewHref}
+        capabilities={capabilities}
+        collaborationConnected={collaborationConnected}
+        collaborationPeerCount={peerCount}
+        showCollaboration={Boolean(collaborationProvider)}
+        isSaving={isSaving}
+        autoSaveStatus={autoSaveStatus}
+        autoSaveError={autoSaveError}
+        hasUnsavedChanges={hasUnsavedChanges}
+        lastSaved={lastSaved}
+        settingsOpen={showSettings}
+        onBack={onBack}
+        onOpenAnalytics={() => setShowAnalyticsModal(true)}
+        onToggleSettings={() => setShowSettings((open) => !open)}
+        onOpenSchedule={() => {
+          setScheduleDraft(toDateTimeLocalValue(scheduledAt));
+          setShowSettings(true);
+        }}
+        onTogglePremium={() => {
+          setIsPremium((value) => !value);
+          setHasUnsavedChanges(true);
+        }}
+        onPublish={() => setIsPublishModalOpen(true)}
+        onUpdateLive={() => void handleUpdateLive()}
+        onSubmitReview={handleSubmitForReview}
+        onSave={() => void handleManualSave()}
+        onRetryAutoSave={retryAutoSave}
+      />
 
       {error && (
         <div className="bg-destructive/10 border border-destructive/20 text-destructive p-4 font-sans text-xs rounded-xl">
@@ -1353,14 +1024,12 @@ export function Editor({
         </div>
       )}
 
-      {/* Main Content Area — Centered Immersive Writing Layout */}
-      <div className="max-w-3xl mx-auto w-full space-y-8">
-        {/* Title Area */}
+      <div className="max-w-3xl mx-auto w-full space-y-6">
         <div className="space-y-3">
           <input
             type="text"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(event) => setTitle(event.target.value)}
             placeholder={t`Titre de votre article...`}
             className="w-full bg-transparent border-0 text-3xl md:text-4xl font-bold tracking-tight text-foreground focus:outline-none placeholder:text-muted-foreground/30 font-sans leading-tight"
           />
@@ -1372,835 +1041,198 @@ export function Editor({
             <input
               type="text"
               value={slug}
-              onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-'))}
+              onChange={(event) =>
+                setSlug(event.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-'))
+              }
               placeholder="slug-url"
               className="bg-transparent border-0 p-0 text-xs font-sans font-medium text-muted-foreground focus:outline-none flex-1 min-w-0"
             />
           </div>
         </div>
 
-        {/* Image de couverture principale — Placée directement sous le slug/titre avec glisser-déposer */}
-        <div className="space-y-2">
-          {imageUrl ? (
-            <div
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setIsCoverDragOver(true);
-              }}
-              onDragLeave={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setIsCoverDragOver(false);
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setIsCoverDragOver(false);
-                const file = e.dataTransfer.files?.[0];
-                if (file) uploadCoverFile(file);
-              }}
-              className={cn(
-                'group relative w-full aspect-[21/9] sm:aspect-[16/7] overflow-hidden rounded-2xl border bg-muted/20 shadow-sm transition-all',
-                isCoverDragOver
-                  ? 'border-primary ring-2 ring-primary/40 scale-[1.005]'
-                  : 'border-border/50'
-              )}
-            >
-              <img
-                src={imageUrl}
-                alt={title || t`Couverture de l'article`}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.01]"
-              />
+        <CoverUploader
+          imageUrl={imageUrl}
+          title={title}
+          isUploading={isUploading}
+          onUpload={(file) => {
+            void (async () => {
+              try {
+                setIsUploading(true);
+                setError(null);
+                const compressed = await compressImage(file);
+                const url = await uploadImageToRoute(
+                  compressed,
+                  '/api/articles/upload',
+                  IMAGE_FOLDERS.articles
+                );
+                setImageUrl(url);
+                setHasUnsavedChanges(true);
+              } catch (err: unknown) {
+                setError(getErrorMessage(err, t`Échec de l'upload de l'image.`));
+              } finally {
+                setIsUploading(false);
+              }
+            })();
+          }}
+          onRemove={() => {
+            setImageUrl(null);
+            setHasUnsavedChanges(true);
+          }}
+        />
 
-              {/* Overlay lors du glisser-déposer */}
-              {isCoverDragOver && (
-                <div className="absolute inset-0 bg-primary/25 backdrop-blur-xs flex items-center justify-center font-sans text-xs font-bold text-foreground">
-                  {t`Déposez l'image pour remplacer la couverture`}
-                </div>
-              )}
-
-              {/* Actions flottantes au survol */}
-              <div className="absolute inset-0 bg-background/30 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => coverFileInputRef.current?.click()}
-                  disabled={isUploading}
-                  className="px-3.5 py-1.5 rounded-xl bg-background/90 text-foreground font-sans text-xs font-semibold shadow-lg hover:bg-background transition-all flex items-center gap-1.5 cursor-pointer backdrop-blur-md border border-border/40"
-                >
-                  <ImageIcon className="w-3.5 h-3.5 text-primary" />
-                  <span>{t`Changer l'image`}</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setImageUrl(null);
-                    setHasUnsavedChanges(true);
-                  }}
-                  className="px-3.5 py-1.5 rounded-xl bg-background/90 text-destructive font-sans text-xs font-semibold shadow-lg hover:bg-destructive/10 hover:text-destructive transition-all flex items-center gap-1.5 cursor-pointer backdrop-blur-md border border-destructive/30"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>{t`Supprimer`}</span>
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div
-              onDragOver={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setIsCoverDragOver(true);
-              }}
-              onDragLeave={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setIsCoverDragOver(false);
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setIsCoverDragOver(false);
-                const file = e.dataTransfer.files?.[0];
-                if (file) uploadCoverFile(file);
-              }}
-              className="inline-block"
-            >
-              <button
-                type="button"
-                onClick={() => coverFileInputRef.current?.click()}
-                disabled={isUploading}
-                className={cn(
-                  'inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-dashed text-xs font-medium transition-all cursor-pointer shadow-2xs group',
-                  isCoverDragOver
-                    ? 'border-primary bg-primary/10 text-primary ring-2 ring-primary/30'
-                    : 'border-border/60 hover:border-primary/50 bg-muted/10 hover:bg-muted/30 text-muted-foreground hover:text-foreground'
-                )}
-              >
-                {isUploading ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
-                ) : (
-                  <ImageIcon className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
-                )}
-                <span>
-                  {isCoverDragOver
-                    ? t`Déposez votre image ici`
-                    : t`+ Ajouter une image de couverture (ou glisser-déposer)`}
-                </span>
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Text Editor Core */}
-        <div className="space-y-4">
-          {/* Sentinel invisible pour détection au pixel près de l'amarrage sous HeaderClient (56px) */}
+        <div className="space-y-3">
           <div
             ref={toolbarSentinelRef}
             className="h-px w-full pointer-events-none opacity-0 -mb-4"
           />
 
-          {/* Theme-agnostic Floating / Sticky Formatting Toolbar — Starship Cockpit 2026/2027 */}
-          <div
-            className={cn(
-              'sticky top-14 z-20 flex flex-wrap items-center gap-0.5 transition-all duration-300 py-1.5 px-3',
-              isDocked
-                ? 'bg-background/80 backdrop-blur-2xl border-x border-b border-border/80 dark:border-primary/25 rounded-2xl shadow-[0_16px_36px_-6px_rgba(0,0,0,0.18),0_0_15px_rgba(238,75,43,0.06)]'
-                : 'bg-card/60 backdrop-blur-md border border-border/40 rounded-2xl shadow-2xs'
-            )}
-          >
-            <ToolbarButton
-              active={editor.isActive('bold')}
-              onClick={() => editor.chain().focus().toggleBold().run()}
-              icon={<Bold className="h-3.5 w-3.5 stroke-[2]" />}
-              tooltip={t`Gras`}
-            />
-            <ToolbarButton
-              active={editor.isActive('italic')}
-              onClick={() => editor.chain().focus().toggleItalic().run()}
-              icon={<Italic className="h-3.5 w-3.5 stroke-[2]" />}
-              tooltip={t`Italique`}
-            />
-            <ToolbarButton
-              active={editor.isActive('underline')}
-              onClick={() => editor.chain().focus().toggleUnderline().run()}
-              icon={<UnderlineIcon className="h-3.5 w-3.5 stroke-[2]" />}
-              tooltip={t`Souligné`}
-            />
-            <ToolbarButton
-              active={editor.isActive('strike')}
-              onClick={() => editor.chain().focus().toggleStrike().run()}
-              icon={<Strikethrough className="h-3.5 w-3.5 stroke-[2]" />}
-              tooltip={t`Barré`}
-            />
+          <input
+            ref={bodyImageInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            aria-label={t`Insérer image`}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) uploadImage(file);
+              event.target.value = '';
+            }}
+          />
+          <input
+            ref={galleryInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            aria-label={t`Insérer une galerie`}
+            onChange={(event) => {
+              const files = Array.from(event.target.files ?? []);
+              if (files.length > 0) void uploadFiles(files, 'gallery');
+              event.target.value = '';
+            }}
+          />
 
-            <div className="h-4 w-[1px] bg-border/40 mx-1.5" />
+          <EditorToolbar
+            editor={editor}
+            docked={isDocked}
+            isUploading={isUploading}
+            uploadCount={uploadCount}
+            onPickImage={() => bodyImageInputRef.current?.click()}
+            onPickGallery={() => galleryInputRef.current?.click()}
+            onAnnotation={handleAnnotationButton}
+          />
 
-            <ToolbarButton
-              active={editor.isActive('heading', { level: 1 })}
-              onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-              icon={<Heading1 className="h-3.5 w-3.5 stroke-[2]" />}
-              tooltip={t`Titre 1`}
-            />
-            <ToolbarButton
-              active={editor.isActive('heading', { level: 2 })}
-              onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-              icon={<Heading2 className="h-3.5 w-3.5 stroke-[2]" />}
-              tooltip={t`Titre 2`}
-            />
-            <ToolbarButton
-              active={editor.isActive('heading', { level: 3 })}
-              onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-              icon={<Heading3 className="h-3.5 w-3.5 stroke-[2]" />}
-              tooltip={t`Titre 3`}
-            />
-
-            <div className="h-4 w-[1px] bg-border/40 mx-1.5" />
-
-            <ToolbarButton
-              active={editor.isActive('bulletList')}
-              onClick={() => editor.chain().focus().toggleBulletList().run()}
-              icon={<List className="h-3.5 w-3.5 stroke-[2]" />}
-              tooltip={t`Liste à puces`}
-            />
-            <ToolbarButton
-              active={editor.isActive('orderedList')}
-              onClick={() => editor.chain().focus().toggleOrderedList().run()}
-              icon={<ListOrdered className="h-3.5 w-3.5 stroke-[2]" />}
-              tooltip={t`Liste numérotée`}
-            />
-
-            <div className="h-4 w-[1px] bg-border/40 mx-1.5" />
-
-            <ToolbarButton
-              active={editor.isActive('blockquote')}
-              onClick={() => editor.chain().focus().toggleBlockquote().run()}
-              icon={<Quote className="h-3.5 w-3.5 stroke-[2]" />}
-              tooltip={t`Citation`}
-            />
-            <ToolbarButton
-              active={editor.isActive('codeBlock')}
-              onClick={() => editor.chain().focus().toggleCodeBlock().run()}
-              icon={<Code className="h-3.5 w-3.5 stroke-[2]" />}
-              tooltip={t`Bloc de Code`}
-            />
-
-            <div className="h-4 w-[1px] bg-border/40 mx-1.5" />
-
-            {/* Media Selection */}
-            <input
-              type="file"
-              ref={fileInputRef}
-              onChange={handleFileSelect}
-              accept="image/*"
-              className="hidden"
-              aria-label={t`Insérer image`}
-            />
-            <input
-              type="file"
-              ref={coverFileInputRef}
-              onChange={handleCoverFileSelect}
-              accept="image/*"
-              className="hidden"
-              aria-label={t`Choisir la couverture de l'article`}
-            />
-            <ToolbarButton
-              onClick={() => fileInputRef.current?.click()}
-              icon={
-                isUploading ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-                ) : (
-                  <ImageIcon className="h-3.5 w-3.5 stroke-[2]" />
-                )
-              }
-              tooltip={t`Insérer une Image`}
-              disabled={isUploading}
-            />
-
-            <div className="h-4 w-[1px] bg-border/40 mx-1.5" />
-
-            {/* Official Author Annotation Insertion & Edition */}
-            <ToolbarButton
-              active={editor.isActive('annotationMark')}
-              onClick={() => {
-                if (editor.isActive('annotationMark')) {
-                  const attrs = editor.getAttributes('annotationMark');
-                  openAnnotationPopover(undefined, attrs.note || '');
-                  return;
-                }
-                const selection = editor.state.selection;
-                if (selection.empty) {
-                  setAnnotationToast(t`Sélectionnez d'abord un passage de texte à annoter.`);
-                  setTimeout(() => setAnnotationToast(null), 3000);
-                  return;
-                }
-                openAnnotationPopover();
-              }}
-              icon={<Highlighter className="h-3.5 w-3.5 text-highlight stroke-[2]" />}
-              tooltip={
-                editor.isActive('annotationMark')
-                  ? t`Modifier / Supprimer la note d'auteur`
-                  : t`Ajouter une note d'auteur (⌘+Shift+A)`
-              }
-            />
-
-            <div className="h-4 w-[1px] bg-border/40 mx-1.5" />
-
-            {/* Paywall Divider Insertion */}
-            <ToolbarButton
-              onClick={() => editor.chain().focus().setPaywallDivider().run()}
-              icon={<Lock className="h-3.5 w-3.5 text-highlight stroke-[2]" />}
-              tooltip={t`Insérer la limite Paywall (Contenu Premium)`}
-            />
-          </div>
-
-          {/* TipTap Main Body */}
           <div className="py-4">
             <EditorContent editor={editor} />
           </div>
         </div>
       </div>
 
-      {/* Slide-over Drawer des Options — Standard Licorne 2026 */}
-      {showSettings && (
-        <div className="fixed inset-0 z-50 overflow-hidden font-sans">
-          <div
-            className="fixed inset-0 bg-background/50 backdrop-blur-xs transition-opacity duration-200"
-            onClick={() => setShowSettings(false)}
-          />
+      <EditorSettingsDrawer
+        open={showSettings}
+        onClose={() => setShowSettings(false)}
+        published={published}
+        status={status}
+        scheduledAt={scheduledAt}
+        scheduleDraft={scheduleDraft}
+        timeZoneLabel={timeZoneLabel}
+        onScheduleDraftChange={setScheduleDraft}
+        onSchedule={() => void handleSchedule()}
+        onClearSchedule={() => void handleClearSchedule()}
+        isPremium={isPremium}
+        onTogglePremium={(value) => {
+          setIsPremium(value);
+          setHasUnsavedChanges(true);
+        }}
+        categories={categories}
+        categoryId={categoryId}
+        onCategoryChange={(value) => {
+          setCategoryId(value);
+          setHasUnsavedChanges(true);
+        }}
+        slug={slug}
+        onSlugChange={(value) => {
+          setSlug(value);
+          setHasUnsavedChanges(true);
+        }}
+        subdomain={subdomain}
+        attributions={attributions}
+        onAttributionsChange={(value) => {
+          setAttributions(value);
+          setHasUnsavedChanges(true);
+        }}
+        articleId={persistedIdRef.current}
+        seoTitle={seoTitle}
+        seoDescription={seoDescription}
+        autoSeoTitle={title ?? ''}
+        autoSeoDescription={
+          buildPublicExcerpt(
+            editor?.getText() || '',
+            isPremium ? ContentVisibility.PAID_SUBSCRIBERS : ContentVisibility.PUBLIC,
+            null,
+            160
+          ) ?? ''
+        }
+        onSeoTitleChange={(value) => {
+          setSeoTitle(value);
+          setHasUnsavedChanges(true);
+        }}
+        onSeoDescriptionChange={(value) => {
+          setSeoDescription(value);
+          setHasUnsavedChanges(true);
+        }}
+        allowPublicAnnotations={allowPublicAnnotations}
+        allowComments={allowComments}
+        onTogglePublicAnnotations={(value) => {
+          setAllowPublicAnnotations(value);
+          setHasUnsavedChanges(true);
+        }}
+        onToggleComments={(value) => {
+          setAllowComments(value);
+          setHasUnsavedChanges(true);
+        }}
+        allowDownload={allowDownload}
+        downloadSaving={downloadSaving}
+        onToggleDownload={handleToggleDownload}
+        canPublish={capabilities?.canPublish ?? true}
+        onUnpublish={() => void handleUnpublish()}
+      />
 
-          <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-            <aside className="w-screen max-w-md bg-card border-l border-border/50 shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
-              {/* En-tête du volet */}
-              <div className="flex items-center justify-between px-6 py-4 border-b border-border/40 shrink-0">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-xs">
-                    <SlidersHorizontal className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-foreground font-sans">
-                      {t`Paramètres de l'article`}
-                    </h3>
-                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                      <span
-                        className={cn(
-                          'w-1.5 h-1.5 rounded-full',
-                          published
-                            ? 'bg-success'
-                            : scheduledAt
-                              ? 'bg-highlight'
-                              : 'bg-muted-foreground'
-                        )}
-                      />
-                      <span>
-                        {published
-                          ? t`En ligne (Publié)`
-                          : scheduledAt
-                            ? t`Programmé`
-                            : t`Brouillon privé`}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowSettings(false)}
-                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Corps avec défilement fluide et sections */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                {/* Section 1 : Taxonomie & Catégorie hiérarchique */}
-                <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider font-sans flex items-center gap-2">
-                    <FolderOpen className="h-3.5 w-3.5 text-primary stroke-[1.5]" />
-                    {t`Thématique & Catégorie`}
-                  </h4>
-
-                  <select
-                    value={categoryId || ''}
-                    onChange={(e) => {
-                      setCategoryId(e.target.value || null);
-                      setHasUnsavedChanges(true);
-                    }}
-                    className="w-full bg-background border border-border/40 rounded-xl p-2.5 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-sans cursor-pointer shadow-xs"
-                  >
-                    <option value="" className="bg-popover text-popover-foreground">
-                      {t`-- Sans catégorie (Général) --`}
-                    </option>
-                    {hierarchicalCategories.roots.map((root) => {
-                      const children = hierarchicalCategories.childrenMap.get(root.id) || [];
-                      if (children.length === 0) {
-                        return (
-                          <option
-                            key={root.id}
-                            value={root.id}
-                            className="bg-popover text-popover-foreground py-1"
-                          >
-                            {root.displayName}
-                          </option>
-                        );
-                      }
-                      return (
-                        <optgroup
-                          key={root.id}
-                          label={root.displayName}
-                          className="bg-popover text-popover-foreground font-semibold"
-                        >
-                          <option
-                            value={root.id}
-                            className="bg-popover text-popover-foreground py-1 font-normal"
-                          >
-                            {root.displayName} ({t`Général`})
-                          </option>
-                          {children.map((child) => (
-                            <option
-                              key={child.id}
-                              value={child.id}
-                              className="bg-popover text-popover-foreground py-1 font-normal"
-                            >
-                              &nbsp;&nbsp;↳ {child.displayName}
-                            </option>
-                          ))}
-                        </optgroup>
-                      );
-                    })}
-                  </select>
-                </div>
-
-                {/* Section 3 : URL & Slug avec Copie Rapide */}
-                <div className="space-y-3 pt-4 border-t border-border/40">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider font-sans flex items-center gap-2">
-                      <Globe className="h-3.5 w-3.5 text-primary stroke-[1.5]" />
-                      {t`Adresse URL de l'écrit`}
-                    </h4>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const fullUrl = `https://${subdomain ? `${subdomain}.qoe.fi` : 'qoe.fi'}/article/${slug || ''}`;
-                        navigator.clipboard.writeText(fullUrl);
-                        setSlugCopied(true);
-                        setTimeout(() => setSlugCopied(false), 2000);
-                      }}
-                      className="text-[11px] text-primary hover:underline flex items-center gap-1 cursor-pointer font-medium"
-                    >
-                      {slugCopied ? (
-                        <>
-                          <CopyCheck className="w-3 h-3 text-success" />
-                          <span className="text-success">{t`Copié !`}</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3 h-3" />
-                          <span>{t`Copier le lien`}</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-
-                  <div className="flex items-center bg-background border border-border/40 rounded-xl px-3 py-2 text-xs font-sans text-muted-foreground focus-within:border-primary transition-colors">
-                    <span className="text-muted-foreground/60 select-none">/article/</span>
-                    <input
-                      type="text"
-                      value={slug}
-                      onChange={(e) => {
-                        setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-'));
-                        setHasUnsavedChanges(true);
-                      }}
-                      placeholder="mon-titre-article"
-                      className="flex-1 bg-transparent border-0 p-0 text-xs font-sans font-medium text-foreground focus:outline-none ml-0.5"
-                    />
-                  </div>
-                </div>
-
-                {/* Section 4 : Attributions & Crédits */}
-                <div className="space-y-3 pt-4 border-t border-border/40">
-                  <ArticleAttributionEditor
-                    value={attributions}
-                    onChange={setAttributions}
-                    articleId={collaborationRoomId}
-                  />
-                </div>
-
-                {/* Section 5 : Référencement & Social (SEO Google Preview) */}
-                <div className="space-y-4 pt-4 border-t border-border/40">
-                  <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider font-sans flex items-center gap-2">
-                    <Search className="h-3.5 w-3.5 text-primary stroke-[1.5]" />
-                    {t`Référencement SEO & Social`}
-                  </h4>
-
-                  <div className="space-y-3">
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
-                        <label>{t`Titre SEO alternatif`}</label>
-                        <span
-                          className={cn(
-                            (seoTitle || title).length > 60
-                              ? 'text-highlight'
-                              : 'text-muted-foreground'
-                          )}
-                        >
-                          {(seoTitle || title).length}/60
-                        </span>
-                      </div>
-                      <input
-                        type="text"
-                        value={seoTitle}
-                        onChange={(e) => {
-                          setSeoTitle(e.target.value);
-                          setHasUnsavedChanges(true);
-                        }}
-                        placeholder={title || t`Titre de l'article`}
-                        className="w-full bg-background border border-border/40 rounded-xl p-2.5 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary transition-colors font-sans"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
-                        <label>{t`Description Meta SEO`}</label>
-                        <span
-                          className={cn(
-                            seoDescription.length > 160 ? 'text-highlight' : 'text-muted-foreground'
-                          )}
-                        >
-                          {seoDescription.length}/160
-                        </span>
-                      </div>
-                      <textarea
-                        rows={3}
-                        value={seoDescription}
-                        onChange={(e) => {
-                          setSeoDescription(e.target.value);
-                          setHasUnsavedChanges(true);
-                        }}
-                        placeholder={t`Une courte accroche percutante pour Google et les partages sociaux...`}
-                        className="w-full bg-background border border-border/40 rounded-xl p-2.5 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary transition-colors font-sans resize-none"
-                      />
-                    </div>
-
-                    {/* Google SERP Live Card Preview */}
-                    <div className="p-3.5 bg-muted/20 rounded-xl border border-border/40 space-y-1 font-sans">
-                      <span className="text-[9px] text-muted-foreground font-semibold tracking-wider block uppercase">
-                        {t`Aperçu du résultat Google`}
-                      </span>
-                      <span className="text-[11px] text-primary block truncate font-medium">
-                        qoe.fi/article/{slug || '...'}
-                      </span>
-                      <span className="text-xs font-semibold text-foreground block truncate hover:underline cursor-pointer">
-                        {seoTitle || title || t`Titre de l'article`}
-                      </span>
-                      <span className="text-[11px] text-muted-foreground block line-clamp-2 leading-relaxed">
-                        {seoDescription ||
-                          t`Aucune description SEO saisie. Google utilisera le premier paragraphe de votre article.`}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section 6 : Engagement & Droits de lecture */}
-                <div className="space-y-3 pt-4 border-t border-border/40">
-                  <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider font-sans flex items-center gap-2">
-                    <Lock className="h-3.5 w-3.5 text-primary stroke-[1.5]" />
-                    {t`Accès & Monétisation`}
-                  </h4>
-
-                  <div className="space-y-2.5">
-                    {/* Paywall Toggle */}
-                    <label className="flex items-center justify-between p-3 rounded-xl border border-border/40 bg-muted/15 hover:bg-muted/30 transition-colors cursor-pointer select-none">
-                      <div className="space-y-0.5 pr-2">
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                          <Lock className="w-3.5 h-3.5 text-highlight" />
-                          <span>{t`Article Paywall Premium`}</span>
-                        </div>
-                        <p className="text-[10px] text-muted-foreground leading-tight">
-                          {t`Réservé aux membres disposant d'un abonnement payant.`}
-                        </p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={isPremium}
-                        onChange={(e) => {
-                          setIsPremium(e.target.checked);
-                          setHasUnsavedChanges(true);
-                        }}
-                        className="w-4 h-4 rounded text-primary border-border/40 focus:ring-primary cursor-pointer shrink-0"
-                      />
-                    </label>
-
-                    {/* Annotations Toggle */}
-                    <label className="flex items-center justify-between p-3 rounded-xl border border-border/40 bg-muted/15 hover:bg-muted/30 transition-colors cursor-pointer select-none">
-                      <div className="space-y-0.5 pr-2">
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                          <Highlighter className="w-3.5 h-3.5 text-primary" />
-                          <span>{t`Annotations publiques`}</span>
-                        </div>
-                        <p className="text-[10px] text-muted-foreground leading-tight">
-                          {t`Permet aux lecteurs de surligner et d'annoter publiquement vos phrases.`}
-                        </p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={allowPublicAnnotations}
-                        onChange={(e) => {
-                          setAllowPublicAnnotations(e.target.checked);
-                          setHasUnsavedChanges(true);
-                        }}
-                        className="w-4 h-4 rounded text-primary border-border/40 focus:ring-primary cursor-pointer shrink-0"
-                      />
-                    </label>
-
-                    {/* Commentaires Toggle */}
-                    <label className="flex items-center justify-between p-3 rounded-xl border border-border/40 bg-muted/15 hover:bg-muted/30 transition-colors cursor-pointer select-none">
-                      <div className="space-y-0.5 pr-2">
-                        <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                          <MessageSquare className="w-3.5 h-3.5 text-primary" />
-                          <span>{t`Espace commentaires`}</span>
-                        </div>
-                        <p className="text-[10px] text-muted-foreground leading-tight">
-                          {t`Ouvre un espace de débat et d'échange sous l'article.`}
-                        </p>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={allowComments}
-                        onChange={(e) => {
-                          setAllowComments(e.target.checked);
-                          setHasUnsavedChanges(true);
-                        }}
-                        className="w-4 h-4 rounded text-primary border-border/40 focus:ring-primary cursor-pointer shrink-0"
-                      />
-                    </label>
-
-                    {/* Téléchargement hors-ligne (fiche Plus P1) : l'auteur
-                     * choisit — interrupteur immédiat (hors autosave),
-                     * même garde qu'édition côté Go. Sans article
-                     * existant (création), le défaut publication s'applique. */}
-                    {collaborationRoomId && (
-                      <label className="flex items-center justify-between p-3 rounded-xl border border-border/40 bg-muted/15 hover:bg-muted/30 transition-colors cursor-pointer select-none">
-                        <div className="space-y-0.5 pr-2">
-                          <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-                            <Download className="w-3.5 h-3.5 text-primary" />
-                            <span>{t`Téléchargement hors-ligne`}</span>
-                          </div>
-                          <p className="text-[10px] text-muted-foreground leading-tight">
-                            {t`Autorise les lecteurs Plus à mettre cet article hors-ligne et dans leur file d'écoute.`}
-                          </p>
-                        </div>
-                        <input
-                          type="checkbox"
-                          checked={allowDownload}
-                          disabled={downloadSaving}
-                          onChange={(e) => {
-                            const next = e.target.checked;
-                            setDownloadSaving(true);
-                            void setArticleAllowDownloadAction({
-                              articleId: collaborationRoomId,
-                              allowDownload: next,
-                            }).then((res) => {
-                              setDownloadSaving(false);
-                              if (res.ok) {
-                                setAllowDownload(res.data.allowDownload);
-                                toast.success(
-                                  next ? t`Téléchargement autorisé` : t`Téléchargement refusé`
-                                );
-                              } else {
-                                toast.error(
-                                  typeof res.error === 'string' ? res.error : t`Action impossible`
-                                );
-                              }
-                            });
-                          }}
-                          className="w-4 h-4 rounded text-primary border-border/40 focus:ring-primary cursor-pointer shrink-0 disabled:opacity-40"
-                        />
-                      </label>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </aside>
-          </div>
-        </div>
-      )}
-
-      {/* Article Inspector Drawer Modal */}
       {showAnalyticsModal && (
         <ArticleInspectorModal
-          urlPath={slug ? `/article/${slug}` : null}
+          urlPath={slug ? `${articlePath}/${slug}` : null}
           onClose={() => setShowAnalyticsModal(false)}
           onEdit={() => setShowAnalyticsModal(false)}
         />
       )}
 
-      {/* Toast Notification */}
       {annotationToast && (
         <div className="fixed bottom-6 right-6 z-50 bg-highlight text-highlight-foreground font-bold text-xs px-4 py-2.5 rounded-xl shadow-xl animate-in fade-in-50 slide-in-from-bottom-2 duration-200">
           {annotationToast}
         </div>
       )}
 
-      {/* Contextual Non-Blocking Floating Annotation Card — Standard Editorial Licorne 2026/2027 */}
-      {showAuthorAnnotationModal && (
-        <>
-          {/* Invisible Backdrop (click outside to dismiss, no darkening/blur) */}
-          <div
-            className="fixed inset-0 z-40 bg-transparent"
-            onClick={() => setShowAuthorAnnotationModal(false)}
-          />
+      <AnnotationPopover
+        open={showAuthorAnnotationModal}
+        position={popoverPosition}
+        quote={selectedQuoteForAnnotation}
+        note={authorNoteInput}
+        onChangeNote={setAuthorNoteInput}
+        onSave={handleSaveAnnotation}
+        onDelete={handleDeleteAnnotation}
+        onClose={() => setShowAuthorAnnotationModal(false)}
+        canDelete={Boolean(editor?.isActive('annotationMark'))}
+      />
 
-          <div
-            style={
-              popoverPosition
-                ? {
-                    position: 'fixed',
-                    top: `${popoverPosition.top}px`,
-                    left: `${popoverPosition.left}px`,
-                  }
-                : {
-                    position: 'fixed',
-                    top: '96px',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                  }
-            }
-            className="z-50 w-[380px] max-w-[calc(100vw-32px)] bg-card/95 backdrop-blur-xl border border-border/80 rounded-2xl p-4 shadow-[0_20px_50px_rgba(0,0,0,0.18)] animate-in fade-in-0 zoom-in-95 duration-150 font-sans space-y-3"
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
-                  <Highlighter className="w-3.5 h-3.5" strokeWidth={2} />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-foreground">{t`Note d'auteur`}</h4>
-                  <p className="text-[10px] text-muted-foreground">
-                    {t`Visible par les lecteurs en marge`}
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setShowAuthorAnnotationModal(false)}
-                className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer"
-                title={t`Fermer`}
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {/* Quoted Passage Preview */}
-            {selectedQuoteForAnnotation && (
-              <div className="bg-muted/30 border border-border/30 rounded-xl px-2.5 py-1.5">
-                <p className="text-[11px] text-muted-foreground italic font-sans line-clamp-2 leading-relaxed">
-                  « {selectedQuoteForAnnotation} »
-                </p>
-              </div>
-            )}
-
-            {/* Textarea */}
-            <div>
-              <textarea
-                autoFocus
-                rows={3}
-                value={authorNoteInput}
-                onChange={(e) => setAuthorNoteInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
-                    e.preventDefault();
-                    handleSaveAnnotation();
-                  } else if (e.key === 'Escape') {
-                    e.preventDefault();
-                    setShowAuthorAnnotationModal(false);
-                  }
-                }}
-                placeholder={t`Ajoutez une note, précision ou source...`}
-                className="w-full bg-background border border-border/60 rounded-xl p-2.5 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/30 resize-none font-sans leading-relaxed transition-all"
-              />
-              <div className="flex items-center justify-between text-[10px] text-muted-foreground/70 mt-1">
-                <span>{t`⌘ + Entrée pour enregistrer`}</span>
-                <span>{authorNoteInput.length} car.</span>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center justify-between pt-2 border-t border-border/30">
-              {editor?.isActive('annotationMark') ? (
-                <button
-                  type="button"
-                  onClick={handleDeleteAnnotation}
-                  className="px-2.5 py-1.5 rounded-lg border border-destructive/30 text-destructive hover:bg-destructive/10 text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5"
-                  title={t`Supprimer l'annotation`}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>{t`Supprimer`}</span>
-                </button>
-              ) : (
-                <div />
-              )}
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAuthorAnnotationModal(false)}
-                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 cursor-pointer transition-colors"
-                >
-                  {t`Annuler`}
-                </button>
-                <button
-                  type="button"
-                  disabled={!authorNoteInput.trim()}
-                  onClick={handleSaveAnnotation}
-                  className="px-3.5 py-1.5 rounded-lg bg-primary text-primary-foreground font-bold text-xs hover:opacity-90 cursor-pointer disabled:opacity-50 transition-all flex items-center gap-1.5 shadow-sm"
-                >
-                  <span>{t`Enregistrer`}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Modal de publication & diffusion multicanale */}
       <PublishModal
         isOpen={isPublishModalOpen}
         onClose={() => setIsPublishModalOpen(false)}
         onConfirm={handleConfirmPublish}
         articleTitle={title}
-        articleExcerpt={editor?.getText().slice(0, 180) || ''}
+        articleExcerpt={editor.getText().slice(0, 180)}
         publicationName={subdomain ? `${subdomain}.qoe.fi` : 'Votre site web'}
         initialIsPremium={isPremium}
       />
     </div>
-  );
-}
-
-interface ToolbarButtonProps {
-  active?: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  tooltip: string;
-  disabled?: boolean;
-}
-
-function ToolbarButton({ active, onClick, icon, tooltip, disabled }: ToolbarButtonProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      title={tooltip}
-      disabled={disabled}
-      className={cn(
-        'h-8 w-8 flex items-center justify-center rounded-lg transition-all duration-150 font-sans text-sm cursor-pointer active:scale-90 hover:scale-105',
-        active
-          ? 'bg-primary text-primary-foreground shadow-[0_0_12px_rgba(238,75,43,0.35)] font-semibold'
-          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
-        disabled && 'opacity-50 cursor-not-allowed hover:scale-100 active:scale-100'
-      )}
-    >
-      {icon}
-    </button>
   );
 }

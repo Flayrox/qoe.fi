@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { buildCategoryPath } from '@qoe/utils';
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { fetchTenantPublication } from '@/lib/tenant-data';
@@ -86,16 +87,18 @@ export default async function TenantSitemapPage({ params }: PageProps) {
                 Rubriques
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {publication.categories.map((cat) => (
-                  <Link
-                    key={cat.id}
-                    href={`/${cat.slug}`}
-                    className="p-3 rounded-[6px] border border-border/40 hover:bg-muted/40 text-sm font-medium text-foreground transition-colors flex items-center justify-between"
-                  >
-                    <span>{cat.name}</span>
-                    <span className="text-xs text-muted-foreground">Rubrique</span>
-                  </Link>
-                ))}
+                {publication.categories
+                  .filter((cat) => !cat.isDefault)
+                  .map((cat) => (
+                    <Link
+                      key={cat.id}
+                      href={buildCategoryPath(cat, publication.categories)}
+                      className="p-3 rounded-[6px] border border-border/40 hover:bg-muted/40 text-sm font-medium text-foreground transition-colors flex items-center justify-between"
+                    >
+                      <span>{cat.name}</span>
+                      <span className="text-xs text-muted-foreground">Rubrique</span>
+                    </Link>
+                  ))}
               </div>
             </div>
           )}

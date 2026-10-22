@@ -1,3 +1,1 @@
-import TenantArticlePage from '../../article/[slug]/page';
-
-export default TenantArticlePage;
+export { default } from '../../article/[slug]/page';

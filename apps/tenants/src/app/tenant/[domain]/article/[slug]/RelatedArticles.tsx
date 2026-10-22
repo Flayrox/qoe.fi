@@ -1,3 +1,4 @@
+import { buildArticlePath } from '@qoe/utils';
 import Link from 'next/link';
 import { fetchTenantPublication } from '@/lib/tenant-data';
 
@@ -35,7 +36,7 @@ export async function RelatedArticles({
         {picks.map((art) => (
           <Link
             key={art.id}
-            href={`/article/${art.slug}`}
+            href={buildArticlePath(art)}
             className="group rounded-lg border border-border p-4 transition-colors hover:border-foreground/30"
           >
             {art.category && (

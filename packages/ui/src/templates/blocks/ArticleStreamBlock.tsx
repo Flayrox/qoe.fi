@@ -29,7 +29,7 @@ import type {
 } from '../schema';
 import { BlockWrapper } from './BlockWrapper';
 import { NodeRenderer } from './NodeRenderer';
-import { cn } from '@qoe/utils';
+import { buildArticlePath, buildCategoryPath, cn } from '@qoe/utils';
 import { PublicationSidebar } from './PublicationSidebar';
 import { ArticleCard } from './ArticleCard';
 import { findCategoryBySlug, filterArticlesByCategory } from '../navigation';
@@ -314,7 +314,7 @@ export function ArticleStreamBlock({
                         <li key={art.id} className="py-4 first:pt-3" data-testid="trio-recent-item">
                           <div className="flex gap-3">
                             <Link
-                              href={`/article/${art.slug}`}
+                              href={buildArticlePath(art)}
                               onClick={(e) => context.mode === 'editable' && e.preventDefault()}
                               className="relative w-16 h-12 shrink-0 overflow-hidden rounded-[4px] border border-border/40 bg-muted"
                             >
@@ -331,7 +331,7 @@ export function ArticleStreamBlock({
                               </p>
                               <h4 className="mt-1 text-[13px] font-semibold leading-snug text-foreground line-clamp-2">
                                 <Link
-                                  href={`/article/${art.slug}`}
+                                  href={buildArticlePath(art)}
                                   onClick={(e) => context.mode === 'editable' && e.preventDefault()}
                                   className="hover:underline underline-offset-2"
                                 >
@@ -391,7 +391,7 @@ export function ArticleStreamBlock({
                             <div className="min-w-0">
                               <h4 className="text-[13px] font-semibold leading-snug text-foreground line-clamp-2">
                                 <Link
-                                  href={`/article/${art.slug}`}
+                                  href={buildArticlePath(art)}
                                   onClick={(e) => context.mode === 'editable' && e.preventDefault()}
                                   className="hover:underline underline-offset-2"
                                 >
@@ -596,7 +596,7 @@ export function ArticleStreamBlock({
                         article.category &&
                         (article.category.slug ? (
                           <Link
-                            href={`/${article.category.slug}`}
+                            href={buildCategoryPath(article.category)}
                             onClick={(e) => {
                               e.stopPropagation();
                               if (context.mode === 'editable') e.preventDefault();
@@ -633,7 +633,7 @@ export function ArticleStreamBlock({
 
                     <h3 className="text-xl md:text-2xl font-bold tracking-tight text-foreground">
                       <Link
-                        href={`/article/${article.slug}`}
+                        href={buildArticlePath(article)}
                         onClick={(e) => context.mode === 'editable' && e.preventDefault()}
                         className="after:absolute after:inset-0"
                       >
@@ -681,7 +681,7 @@ export function ArticleStreamBlock({
                           article.category &&
                           (article.category.slug ? (
                             <Link
-                              href={`/${article.category.slug}`}
+                              href={buildCategoryPath(article.category)}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 if (context.mode === 'editable') e.preventDefault();
@@ -702,7 +702,7 @@ export function ArticleStreamBlock({
 
                       <h3 className="font-bold text-lg text-foreground leading-snug">
                         <Link
-                          href={`/article/${article.slug}`}
+                          href={buildArticlePath(article)}
                           onClick={(e) => context.mode === 'editable' && e.preventDefault()}
                           className="after:absolute after:inset-0"
                         >

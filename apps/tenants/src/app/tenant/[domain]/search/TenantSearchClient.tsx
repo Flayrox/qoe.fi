@@ -7,7 +7,7 @@
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { Search, X, Clock, Calendar, ArrowRight, Sparkles } from 'lucide-react';
-import { cn } from '@qoe/utils';
+import { cn, buildArticlePath } from '@qoe/utils';
 
 export interface SearchArticleItem {
   id: string;
@@ -150,7 +150,7 @@ export function TenantSearchClient({
           {filteredResults.map((art) => (
             <Link
               key={art.id}
-              href={`/article/${art.slug}`}
+              href={buildArticlePath(art)}
               className="group block p-4 sm:p-5 rounded-2xl border border-border/50 hover:border-foreground/30 bg-card/60 hover:bg-card transition-all shadow-2xs hover:shadow-xs"
             >
               <div className="flex items-start justify-between gap-4">

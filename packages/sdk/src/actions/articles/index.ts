@@ -43,6 +43,20 @@ export interface Article {
   updatedAt: string;
   /** Droit de téléchargement (hors-ligne/file d'écoute) — l'auteur choisit. */
   allowDownload?: boolean;
+  /** Autorise les annotations publiques des lecteurs. */
+  allowPublicAnnotations?: boolean;
+  /** Autorise l'espace commentaires. */
+  allowComments?: boolean;
+  /** Image de couverture de l'article (null = repli sur celle de la publication). */
+  imageUrl?: string | null;
+  /** Titre SEO alternatif (fallback : title). */
+  seoTitle?: string | null;
+  /** Description SEO (fallback : teaser public zéro-fuite). */
+  seoDescription?: string | null;
+  /** Nombre total de likes (compteur à vie). */
+  likesCount?: number;
+  /** Nombre total de reposts (compteur à vie). */
+  repostsCount?: number;
 }
 
 /** 📥 Bascule le droit de téléchargement (hors-ligne + file d'écoute).
@@ -65,6 +79,8 @@ export interface Category {
   description: string | null;
   publicationId: string;
   parentId: string | null;
+  /** Catégorie technique « Non classé », non supprimable et masquée de la nav. */
+  isDefault?: boolean;
 }
 
 export type ArticleListPayload = Array<
@@ -136,6 +152,12 @@ export interface ArticleEditorPayload extends Article {
   seoTitle: string | null;
   seoDescription: string | null;
   category: Category | null;
+  publication?: {
+    id: string;
+    name: string;
+    slug: string;
+    subdomain?: string | null;
+  } | null;
   author: ArticleAuthorBrief;
   coAuthors: ArticleAuthorBrief[];
   attributions: Array<{
@@ -161,6 +183,30 @@ export const getArticleByIdAction = safeAction<string, ArticleEditorPayload | nu
   }
 });
 
+export interface BulkUpdateArticlesInput {
+  ids: string[];
+  isPremium?: boolean;
+  setCategory?: boolean;
+  categoryId?: string | null;
+  allowPublicAnnotations?: boolean;
+  allowComments?: boolean;
+  allowDownload?: boolean;
+  published?: boolean;
+}
+
+/** 🧩 Réglages/publication en masse, sans contenu ni édition complète. */
+export const bulkUpdateArticlesAction = safeAction<
+  BulkUpdateArticlesInput,
+  { updated: number; failed: string[] }
+>(async (input) => {
+  const res = await goFetch<{ updated: number; failed: string[] }>('/v1/articles/bulk', {
+    method: 'PATCH',
+    body: input,
+  });
+  revalidatePath('/articles');
+  return res;
+});
+
 export const saveArticleAction = safeAction<
   {
     id?: string;
@@ -172,6 +218,9 @@ export const saveArticleAction = safeAction<
     status?: string;
     scheduledAt?: string | null;
     isPremium?: boolean;
+    allowPublicAnnotations?: boolean;
+    allowComments?: boolean;
+    allowDownload?: boolean;
     categoryId?: string | null;
     seoTitle?: string | null;
     seoDescription?: string | null;
@@ -190,6 +239,9 @@ export const saveArticleAction = safeAction<
     status,
     scheduledAt = null,
     isPremium = false,
+    allowPublicAnnotations,
+    allowComments,
+    allowDownload,
     categoryId = null,
     seoTitle = null,
     seoDescription = null,
@@ -225,6 +277,9 @@ export const saveArticleAction = safeAction<
         status,
         scheduledAt,
         isPremium,
+        allowPublicAnnotations,
+        allowComments,
+        allowDownload,
         categoryId,
         seoTitle,
         seoDescription,
@@ -247,6 +302,9 @@ export const saveArticleAction = safeAction<
       status,
       scheduledAt,
       isPremium,
+      allowPublicAnnotations,
+      allowComments,
+      allowDownload,
       categoryId,
       seoTitle,
       seoDescription,
@@ -267,6 +325,20 @@ export const scheduleArticleAction = safeAction<
   const res = await goFetch<{ scheduled: boolean; scheduledAt: string | null }>(
     `/v1/articles/${encodeURIComponent(id)}/schedule`,
     { method: 'POST', body: { scheduledAt } }
+  );
+  revalidatePath('/articles');
+  return res;
+});
+
+/**
+ * 🔒 Dépublie un article (published=false, status=DRAFT) et efface la
+ * programmation. Route dédiée : un PATCH de contenu ne suffit pas, le Go
+ * protège l'article en ligne et isole les modifications dans draftContent.
+ */
+export const unpublishArticleAction = safeAction<string, { published: boolean }>(async (id) => {
+  const res = await goFetch<{ published: boolean }>(
+    `/v1/articles/${encodeURIComponent(id)}/unpublish`,
+    { method: 'POST' }
   );
   revalidatePath('/articles');
   return res;
@@ -318,28 +390,32 @@ export const reviewArticleAction = safeAction<{ id: string; approve: boolean }, 
 
 export type CategoryWithCount = Category & { _count: { articles: number } };
 
-export const getCategoriesAction = safeAction<void, CategoryWithCount[]>(async () => {
-  const publicationId = await getActivePublicationId();
-  const res = await goFetch<{
-    data: Array<{
-      id: string;
-      name: string;
-      slug: string;
-      description: string | null;
-      parentId: string | null;
-      articlesCount: number;
-    }>;
-  }>(`/v1/categories?publicationId=${publicationId}`);
-  return res.data.map((c) => ({
-    id: c.id,
-    name: c.name?.trim() || c.slug,
-    slug: c.slug,
-    description: c.description,
-    publicationId,
-    parentId: c.parentId ?? null,
-    _count: { articles: c.articlesCount },
-  }));
-});
+export const getCategoriesAction = safeAction<string | void, CategoryWithCount[]>(
+  async (requestedPublicationId) => {
+    // Un co-auteur peut éditer un article d'une autre publication : les
+    // catégories doivent être celles de l'article, pas celles du workspace actif.
+    const publicationId = requestedPublicationId || (await getActivePublicationId());
+    const res = await goFetch<{
+      data: Array<{
+        id: string;
+        name: string;
+        slug: string;
+        description: string | null;
+        parentId: string | null;
+        articlesCount: number;
+      }>;
+    }>(`/v1/categories?publicationId=${publicationId}`);
+    return res.data.map((c) => ({
+      id: c.id,
+      name: c.name?.trim() || c.slug,
+      slug: c.slug,
+      description: c.description,
+      publicationId,
+      parentId: c.parentId ?? null,
+      _count: { articles: c.articlesCount },
+    }));
+  }
+);
 
 export interface EditorCapabilities {
   isMedia: boolean;
@@ -353,10 +429,17 @@ export interface EditorCapabilities {
 /**
  * 🎛️ Capacités d'édition de l'utilisateur dans le workspace actif.
  * Utilisé par l'éditeur pour adapter les actions (Publier vs Soumettre).
+ * `articleId` permet à un co-auteur non-membre d'une publication média de
+ * récupérer ses droits réels sur l'article qu'il édite.
  */
-export const getEditorCapabilitiesAction = safeAction<void, EditorCapabilities>(async () => {
-  const publicationId = await getActivePublicationId();
-  return goFetch<EditorCapabilities>(`/v1/articles/capabilities?publicationId=${publicationId}`);
+export const getEditorCapabilitiesAction = safeAction<
+  { publicationId?: string; articleId?: string } | void,
+  EditorCapabilities
+>(async (request) => {
+  const publicationId = request?.publicationId || (await getActivePublicationId());
+  const qs = new URLSearchParams({ publicationId });
+  if (request?.articleId) qs.set('articleId', request.articleId);
+  return goFetch<EditorCapabilities>(`/v1/articles/capabilities?${qs.toString()}`);
 });
 
 export const saveCategoryAction = safeAction<

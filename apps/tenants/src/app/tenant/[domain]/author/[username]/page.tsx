@@ -1,3 +1,4 @@
+import { buildArticlePath } from '@qoe/utils';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
@@ -52,7 +53,7 @@ export default async function TenantAuthorPage({ params }: PageProps) {
       <div className="mt-8 divide-y divide-border">
         {items.map((art) => (
           <article key={art.id} className="py-5">
-            <Link href={`/article/${art.slug}`} className="group">
+            <Link href={buildArticlePath(art)} className="group">
               <h2 className="text-lg font-bold tracking-tight group-hover:text-[var(--tenant-accent)]">
                 {art.title}
               </h2>

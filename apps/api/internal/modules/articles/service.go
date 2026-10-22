@@ -31,39 +31,43 @@ var (
 
 // ArticleResponse est la forme API d'un article (contenu éventuellement tronqué).
 type ArticleResponse struct {
-	ID                    string            `json:"id"`
-	Title                 string            `json:"title"`
-	Slug                  string            `json:"slug"`
-	Content               string            `json:"content"`
-	DraftContent          *string           `json:"draftContent,omitempty"`
-	HasUnpublishedChanges bool              `json:"hasUnpublishedChanges"`
-	Published             bool              `json:"published"`
-	IsPremium             bool              `json:"isPremium"`
-	Visibility            string            `json:"visibility"`
-	ReadingTime           int               `json:"readingTime"`
-	Status                string            `json:"status"`
-	ScheduledAt           *string           `json:"scheduledAt"`
-	PublicationID         string            `json:"publicationId"`
-	AuthorID              string            `json:"authorId"`
-	CategoryID            *string           `json:"categoryId"`
-	TierID                *string           `json:"tierId"`
-	SeoTitle              *string           `json:"seoTitle"`
-	SeoDescription        *string           `json:"seoDescription"`
-	ImageUrl              *string           `json:"imageUrl"`
-	CreatedAt             string            `json:"createdAt"`
-	UpdatedAt             string            `json:"updatedAt"`
-	IsTruncated           bool              `json:"isTruncated"`
-	AccessGranted         bool              `json:"accessGranted"`
-	AllowDownload         bool              `json:"allowDownload"`
-	PaywallMeta           *PaywallMeta      `json:"paywallMeta"`
-	Author                AuthorInfo        `json:"author"`
-	Publication           *PublicationInfo  `json:"publication"`
-	Category              *CategoryInfo     `json:"category"`
-	CoAuthors             []AuthorInfo      `json:"coAuthors"`
-	Attributions          []AttributionInfo `json:"attributions"`
-	Views                 int               `json:"views"`
-	ViewsUnique           int               `json:"viewsUnique"`
-	CommentsCount         int               `json:"commentsCount"`
+	ID                     string            `json:"id"`
+	Title                  string            `json:"title"`
+	Slug                   string            `json:"slug"`
+	Content                string            `json:"content"`
+	DraftContent           *string           `json:"draftContent,omitempty"`
+	HasUnpublishedChanges  bool              `json:"hasUnpublishedChanges"`
+	Published              bool              `json:"published"`
+	IsPremium              bool              `json:"isPremium"`
+	Visibility             string            `json:"visibility"`
+	ReadingTime            int               `json:"readingTime"`
+	Status                 string            `json:"status"`
+	ScheduledAt            *string           `json:"scheduledAt"`
+	PublicationID          string            `json:"publicationId"`
+	AuthorID               string            `json:"authorId"`
+	CategoryID             *string           `json:"categoryId"`
+	TierID                 *string           `json:"tierId"`
+	SeoTitle               *string           `json:"seoTitle"`
+	SeoDescription         *string           `json:"seoDescription"`
+	ImageUrl               *string           `json:"imageUrl"`
+	CreatedAt              string            `json:"createdAt"`
+	UpdatedAt              string            `json:"updatedAt"`
+	IsTruncated            bool              `json:"isTruncated"`
+	AccessGranted          bool              `json:"accessGranted"`
+	AllowDownload          bool              `json:"allowDownload"`
+	AllowPublicAnnotations bool              `json:"allowPublicAnnotations"`
+	AllowComments          bool              `json:"allowComments"`
+	PaywallMeta            *PaywallMeta      `json:"paywallMeta"`
+	Author                 AuthorInfo        `json:"author"`
+	Publication            *PublicationInfo  `json:"publication"`
+	Category               *CategoryInfo     `json:"category"`
+	CoAuthors              []AuthorInfo      `json:"coAuthors"`
+	Attributions           []AttributionInfo `json:"attributions"`
+	Views                  int               `json:"views"`
+	ViewsUnique            int               `json:"viewsUnique"`
+	CommentsCount          int               `json:"commentsCount"`
+	LikesCount             int               `json:"likesCount"`
+	RepostsCount           int               `json:"repostsCount"`
 }
 
 // AttributionInfo est une attribution d'article pour l'éditeur (co-auteur).
@@ -103,20 +107,24 @@ type PublicationInfo struct {
 
 // CreateArticleInput est l'entrée de création d'un article.
 type CreateArticleInput struct {
-	PublicationID  string
-	Title          string
-	Slug           string
-	Content        string
-	ContentFormat  string
-	IsPremium      bool
-	Visibility     string
-	CategoryID     *string
-	TierID         *string
-	SeoTitle       *string
-	SeoDescription *string
-	ReadingTime    int
-	Published      bool
-	Status         string
+	PublicationID          string
+	Title                  string
+	Slug                   string
+	Content                string
+	ContentFormat          string
+	ImageURL               *string
+	IsPremium              bool
+	Visibility             string
+	CategoryID             *string
+	TierID                 *string
+	SeoTitle               *string
+	SeoDescription         *string
+	ReadingTime            int
+	AllowPublicAnnotations *bool
+	AllowComments          *bool
+	AllowDownload          *bool
+	Published              bool
+	Status                 string
 	// ScheduledAt programme la publication : futur + demande de publication →
 	// statut SCHEDULED (publié automatiquement par le scheduled publisher).
 	ScheduledAt  *time.Time
@@ -125,18 +133,22 @@ type CreateArticleInput struct {
 
 // UpdateArticleInput est l'entrée de mise à jour.
 type UpdateArticleInput struct {
-	Title               string
-	Content             string
-	ContentFormat       string
-	Slug                string
-	IsPremium           bool
-	CategoryID          *string
-	SeoTitle            *string
-	SeoDescription      *string
-	ReadingTime         int
-	Published           bool
-	Status              string
-	ActivePublicationID string
+	Title                  string
+	Content                string
+	ContentFormat          string
+	Slug                   string
+	ImageURL               *string
+	IsPremium              bool
+	CategoryID             *string
+	SeoTitle               *string
+	SeoDescription         *string
+	ReadingTime            int
+	AllowPublicAnnotations *bool
+	AllowComments          *bool
+	AllowDownload          *bool
+	Published              bool
+	Status                 string
+	ActivePublicationID    string
 	// ScheduledAt programme la publication ; nil = conserver l'existant.
 	ScheduledAt  *time.Time
 	Attributions []ArticleAttributionInput
@@ -381,6 +393,10 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateArticleInp
 	}
 
 	finalSlug := s.uniqueSlug(ctx, in.PublicationID, "", in.Slug)
+	categoryID, err := s.resolveCategoryID(ctx, in.PublicationID, in.CategoryID)
+	if err != nil {
+		return "", err
+	}
 
 	// Droit de téléchargement initial = défaut de la publication (opt-out :
 	// true par défaut — comportement actuel préservé, l'auteur restreint
@@ -389,6 +405,18 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateArticleInp
 	_ = s.pool.QueryRow(ctx,
 		`SELECT COALESCE("allowDownloadDefault", true) FROM "Publication" WHERE id = $1`,
 		in.PublicationID).Scan(&allowDownload)
+	if in.AllowDownload != nil {
+		allowDownload = *in.AllowDownload
+	}
+	allowAnnotations := true
+	if in.AllowPublicAnnotations != nil {
+		allowAnnotations = *in.AllowPublicAnnotations
+	}
+	allowComments := true
+	if in.AllowComments != nil {
+		allowComments = *in.AllowComments
+	}
+
 	id, err := s.q.CreateArticle(ctx, db.CreateArticleParams{
 		Title:                  in.Title,
 		Slug:                   finalSlug,
@@ -397,17 +425,18 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateArticleInp
 		IsPremium:              in.IsPremium,
 		Visibility:             db.ContentVisibility(in.Visibility),
 		ReadingTime:            int32(in.ReadingTime),
-		AllowPublicAnnotations: true,
-		AllowComments:          true,
+		AllowPublicAnnotations: allowAnnotations,
+		AllowComments:          allowComments,
 		AllowDownload:          allowDownload,
 		Status:                 status,
 		PublicationId:          in.PublicationID,
 		AuthorId:               toUUID(userID),
-		CategoryId:             textVal(in.CategoryID),
+		CategoryId:             textVal(categoryID),
 		TierId:                 textVal(in.TierID),
 		SeoTitle:               textVal(in.SeoTitle),
 		SeoDescription:         textVal(in.SeoDescription),
 		ScheduledAt:            timestampPtr(in.ScheduledAt),
+		ImageUrl:               imageVal(in.ImageURL),
 	})
 	if err != nil {
 		return "", err
@@ -444,12 +473,15 @@ func (s *Service) List(ctx context.Context, userID, publicationID string, limit,
 			ID: r.ID, Title: r.Title, Slug: r.Slug, Published: r.Published,
 			IsPremium: r.IsPremium, Visibility: string(r.Visibility), ReadingTime: int(r.ReadingTime),
 			Status: r.Status, PublicationID: r.PublicationId,
-			CategoryID:    textPtr(r.CategoryId),
-			CreatedAt:     r.CreatedAt.Time.Format(time.RFC3339),
-			UpdatedAt:     r.UpdatedAt.Time.Format(time.RFC3339),
-			AccessGranted: true,
-			CoAuthors:     []AuthorInfo{},
-			Attributions:  []AttributionInfo{},
+			AllowPublicAnnotations: r.AllowPublicAnnotations,
+			AllowComments:          r.AllowComments,
+			AllowDownload:          r.AllowDownload,
+			CategoryID:             textPtr(r.CategoryId),
+			CreatedAt:              r.CreatedAt.Time.Format(time.RFC3339),
+			UpdatedAt:              r.UpdatedAt.Time.Format(time.RFC3339),
+			AccessGranted:          true,
+			CoAuthors:              []AuthorInfo{},
+			Attributions:           []AttributionInfo{},
 		}
 		if r.CategoryName.Valid {
 			item.Category = &CategoryInfo{ID: r.CategoryID.String, Name: r.CategoryName.String, Slug: r.CategorySlug.String}
@@ -465,6 +497,8 @@ func (s *Service) List(ctx context.Context, userID, publicationID string, limit,
 		cutoff := periodCutoff(period)
 		views, uniques := s.fetchViewsBatch(ctx, ids, cutoff)
 		comments := s.fetchCommentsBatch(ctx, ids)
+		likes := s.fetchLikesBatch(ctx, ids)
+		reposts := s.fetchRepostsBatch(ctx, ids)
 		for i := range out {
 			if v, ok := views[out[i].ID]; ok {
 				out[i].Views = v
@@ -474,6 +508,12 @@ func (s *Service) List(ctx context.Context, userID, publicationID string, limit,
 			}
 			if c, ok := comments[out[i].ID]; ok {
 				out[i].CommentsCount = c
+			}
+			if l, ok := likes[out[i].ID]; ok {
+				out[i].LikesCount = l
+			}
+			if r, ok := reposts[out[i].ID]; ok {
+				out[i].RepostsCount = r
 			}
 		}
 	}
@@ -496,6 +536,106 @@ func (s *Service) SetAllowDownload(ctx context.Context, articleID, userID string
 		return false, err
 	}
 	return row.AllowDownload, nil
+}
+
+// BulkUpdateInput modifie plusieurs articles en une passe. Tous les champs
+// sont optionnels : seuls ceux fournis sont appliqués (jamais le contenu).
+type BulkUpdateInput struct {
+	IDs                    []string
+	IsPremium              *bool
+	SetCategory            bool
+	CategoryID             *string
+	AllowPublicAnnotations *bool
+	AllowComments          *bool
+	AllowDownload          *bool
+	Published              *bool
+}
+
+// BulkUpdateResult remonte les succès et les ids en échec (RBAC, catégorie…).
+type BulkUpdateResult struct {
+	Updated int      `json:"updated"`
+	Failed  []string `json:"failed"`
+}
+
+// BulkUpdate applique des réglages à plusieurs articles sans toucher au
+// contenu. Chaque article repasse par authorizeEdit (jamais de bypass RBAC) ;
+// une erreur sur un article n'annule pas les autres, le client reçoit la liste
+// des échecs pour rester honnête.
+func (s *Service) BulkUpdate(ctx context.Context, userID string, in BulkUpdateInput) (BulkUpdateResult, error) {
+	in.IDs = uniqueNonEmpty(in.IDs)
+	if len(in.IDs) == 0 {
+		return BulkUpdateResult{}, errors.New("aucun article sélectionné")
+	}
+	if len(in.IDs) > 100 {
+		return BulkUpdateResult{}, errors.New("100 articles maximum par modification groupée")
+	}
+	hasSettings := in.IsPremium != nil || in.SetCategory || in.AllowPublicAnnotations != nil ||
+		in.AllowComments != nil || in.AllowDownload != nil
+	if !hasSettings && in.Published == nil {
+		return BulkUpdateResult{}, errors.New("aucun réglage à appliquer")
+	}
+
+	result := BulkUpdateResult{Failed: []string{}}
+	for _, id := range in.IDs {
+		if err := s.bulkUpdateOne(ctx, id, userID, in, hasSettings); err != nil {
+			result.Failed = append(result.Failed, id)
+			continue
+		}
+		result.Updated++
+	}
+	return result, nil
+}
+
+func (s *Service) bulkUpdateOne(ctx context.Context, articleID, userID string, in BulkUpdateInput, hasSettings bool) error {
+	row, _, err := s.authorizeEdit(ctx, articleID, userID, "")
+	if err != nil {
+		return err
+	}
+	if hasSettings {
+		var categoryID *string
+		if in.SetCategory {
+			categoryID, err = s.resolveCategoryID(ctx, row.PublicationId, in.CategoryID)
+			if err != nil {
+				return err
+			}
+		}
+		if _, err := s.q.UpdateArticleSettings(ctx, db.UpdateArticleSettingsParams{
+			IsPremium:              boolVal(in.IsPremium),
+			SetCategory:            in.SetCategory,
+			CategoryID:             textVal(categoryID),
+			AllowPublicAnnotations: boolVal(in.AllowPublicAnnotations),
+			AllowComments:          boolVal(in.AllowComments),
+			AllowDownload:          boolVal(in.AllowDownload),
+			ID:                     articleID,
+		}); err != nil {
+			return err
+		}
+		s.queueSearchSync(articleID, "upsert")
+	}
+	if in.Published != nil {
+		if *in.Published {
+			return s.SetStatus(ctx, articleID, userID, "PUBLISHED", true, nil)
+		}
+		return s.Unpublish(ctx, articleID, userID)
+	}
+	return nil
+}
+
+func uniqueNonEmpty(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		out = append(out, value)
+	}
+	return out
 }
 
 // ErrOfflineForbidden : pack ou file refusés. Toujours WRAPPÉE dans une
@@ -716,6 +856,16 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 		return err
 	}
 
+	// Co-auteur non-membre d'une publication média : il peut éditer et
+	// sauvegarder un brouillon, jamais publier, programmer ou soumettre.
+	if !mc.isMedia {
+		if pub, err := s.q.GetPublicationTypeByID(ctx, row.PublicationId); err == nil &&
+			pub.Type == "MEDIA" &&
+			(in.Published || in.Status == "SCHEDULED" || in.Status == "SUBMITTED") {
+			return errForbidden
+		}
+	}
+
 	// Workflow média : état effectif de publication.
 	effectivePublished := in.Published
 	effectiveStatus := in.Status
@@ -755,7 +905,11 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 	// Programmation à la mise à jour : future + publication demandée → SCHEDULED.
 	scheduledAt := row.ScheduledAt
 	if in.ScheduledAt != nil && !in.ScheduledAt.IsZero() {
-		if in.ScheduledAt.After(time.Now()) && (effectivePublished || effectiveStatus == "PUBLISHED") {
+		// in.Status == "SCHEDULED" est indispensable : le workflow média a pu
+		// réécrire effectiveStatus en DRAFT avant ce bloc, ce qui faisait
+		// perdre la programmation à chaque auto-save.
+		if in.ScheduledAt.After(time.Now()) &&
+			(effectivePublished || effectiveStatus == "PUBLISHED" || in.Status == "SCHEDULED") {
 			if mc.isMedia && !mc.can(permissions.PermPublishAny) {
 				return errors.New("Vous n'avez pas la permission de programmer une publication.")
 			}
@@ -766,12 +920,35 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 	}
 
 	finalSlug := s.uniqueSlug(ctx, row.PublicationId, articleID, in.Slug)
+	categoryID, err := s.resolveCategoryID(ctx, row.PublicationId, in.CategoryID)
+	if err != nil {
+		return err
+	}
+	allowAnnotations := row.AllowPublicAnnotations
+	if in.AllowPublicAnnotations != nil {
+		allowAnnotations = *in.AllowPublicAnnotations
+	}
+	allowComments := row.AllowComments
+	if in.AllowComments != nil {
+		allowComments = *in.AllowComments
+	}
+	allowDownload := row.AllowDownload
+	if in.AllowDownload != nil {
+		allowDownload = *in.AllowDownload
+	}
+	imageURL := in.ImageURL
+	if imageURL == nil {
+		imageURL = s.fetchArticleImageUrl(ctx, articleID)
+	}
 
 	// 🛡️ Protection de l'article en ligne :
 	// Si l'article est déjà publié et que la requête ne demande PAS la publication directe
 	// (ex: auto-save en cours d'édition dans Studio), on ne touche JAMAIS au contenu public en direct.
 	// Les modifications sont isolées dans "draftContent".
-	if row.Published && !in.Published && effectiveStatus != "PUBLISHED" {
+	// ⚠️ Le critère est `in.Published`, PAS `effectiveStatus` : un auto-save peut
+	// conserver status=PUBLISHED tout en demandant published=false ; se fier au
+	// statut effectif laissait alors passer les modifications en direct.
+	if row.Published && !in.Published {
 		normalizedDraft := NormalizeContent(in.Content, in.ContentFormat)
 		if _, err := s.q.UpdateArticleDraft(ctx, db.UpdateArticleDraftParams{
 			ID:           articleID,
@@ -779,7 +956,30 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 		}); err != nil {
 			return err
 		}
+
+		// Les métadonnées (catégorie, SEO, attribution, image…) doivent tout
+		// de même être persistées : sinon un co-auteur qui choisit une
+		// catégorie sur un article publié voyait son choix silencieusement
+		// perdu. Le CONTENU public reste inchangé (row.Content).
+		preservedStatus := row.Status
+		if preservedStatus == "" {
+			preservedStatus = "PUBLISHED"
+		}
+		// Titre et slug publics sont conservés : leur modification ne
+		// s'appliquera qu'à la publication explicite (« Mettre à jour »).
+		if _, err := s.q.UpdateArticleFull(ctx, db.UpdateArticleFullParams{
+			ID: articleID, Title: row.Title, Content: row.Content, Slug: row.Slug,
+			Published: true, Status: preservedStatus,
+			IsPremium: in.IsPremium, CategoryId: textVal(categoryID),
+			SeoTitle: textVal(in.SeoTitle), SeoDescription: textVal(in.SeoDescription),
+			ReadingTime: row.ReadingTime, ScheduledAt: scheduledAt,
+			ImageUrl: imageVal(imageURL), AllowPublicAnnotations: allowAnnotations,
+			AllowComments: allowComments, AllowDownload: allowDownload,
+		}); err != nil {
+			return err
+		}
 		s.syncAttributions(ctx, articleID, uuidString(row.AuthorId), in.Attributions)
+		s.queueSearchSync(articleID, "upsert")
 		return nil
 	}
 
@@ -796,9 +996,11 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 	if _, err := s.q.UpdateArticleFull(ctx, db.UpdateArticleFullParams{
 		ID: articleID, Title: in.Title, Content: contentToSave, Slug: finalSlug,
 		Published: effectivePublished, Status: effectiveStatus,
-		IsPremium: in.IsPremium, CategoryId: textVal(in.CategoryID),
+		IsPremium: in.IsPremium, CategoryId: textVal(categoryID),
 		SeoTitle: textVal(in.SeoTitle), SeoDescription: textVal(in.SeoDescription),
 		ReadingTime: int32(in.ReadingTime), ScheduledAt: scheduledAt,
+		ImageUrl: imageVal(imageURL), AllowPublicAnnotations: allowAnnotations,
+		AllowComments: allowComments, AllowDownload: allowDownload,
 	}); err != nil {
 		return err
 	}
@@ -845,6 +1047,39 @@ func (s *Service) SetStatus(ctx context.Context, articleID, userID, status strin
 	s.queueSearchSync(articleID, "upsert")
 	if published {
 		s.emitPublished(ctx, row)
+	}
+	return nil
+}
+
+// Unpublish remet un article en ligne en brouillon privé et efface toute
+// programmation. Distinct de Update (qui isole les modifications dans
+// draftContent) et de Schedule (qui ne touche pas aux articles publiés).
+func (s *Service) Unpublish(ctx context.Context, articleID, userID string) error {
+	row, mc, err := s.authorizeEdit(ctx, articleID, userID, "")
+	if err != nil {
+		return err
+	}
+	// Dépublier est un acte de publication : un co-auteur sans droit de
+	// publication ne doit pas pouvoir retirer un article en ligne. Un
+	// co-auteur non-membre d'une publication média n'a pas de memberContext
+	// (isMedia=false) : on le rejette explicitement.
+	if row.Published {
+		if pub, err := s.q.GetPublicationTypeByID(ctx, row.PublicationId); err == nil &&
+			pub.Type == "MEDIA" && !mc.isMedia {
+			return errForbidden
+		}
+		if !mc.can(permissions.PermPublishAny) {
+			return errForbidden
+		}
+	}
+	if _, err := s.q.SetArticleStatus(ctx, db.SetArticleStatusParams{
+		ID: articleID, Status: "DRAFT", Published: false,
+		ScheduledAt: pgtype.Timestamp{Valid: false},
+	}); err != nil {
+		return err
+	}
+	if row.Published {
+		s.queueSearchSync(articleID, "upsert")
 	}
 	return nil
 }
@@ -953,6 +1188,34 @@ func (s *Service) Delete(ctx context.Context, articleID, userID, activePublicati
 }
 
 // uniqueSlug garantit l'unicité du slug dans la publication (fallback shortId).
+// resolveCategoryID valide la catégorie demandée (appartenance à la
+// publication) ou renvoie la catégorie par défaut « Non classé ».
+func (s *Service) resolveCategoryID(ctx context.Context, publicationID string, categoryID *string) (*string, error) {
+	if categoryID != nil && strings.TrimSpace(*categoryID) != "" {
+		cat, err := s.q.GetCategoryByID(ctx, *categoryID)
+		if err != nil || cat.PublicationId != publicationID {
+			return nil, errors.New("Catégorie introuvable pour cette publication.")
+		}
+		id := cat.ID
+		return &id, nil
+	}
+	def, err := s.q.EnsureDefaultCategory(ctx, publicationID)
+	if err != nil {
+		return nil, err
+	}
+	id := def.ID
+	return &id, nil
+}
+
+// imageVal distingue « champ absent » (nil = conserver) de « chaîne vide »
+// (= retirer l'image) pour les mises à jour.
+func imageVal(value *string) pgtype.Text {
+	if value == nil || strings.TrimSpace(*value) == "" {
+		return pgtype.Text{}
+	}
+	return pgtype.Text{String: *value, Valid: true}
+}
+
 func (s *Service) uniqueSlug(ctx context.Context, publicationID, articleID, base string) string {
 	final := base
 	if final == "" {
@@ -1282,11 +1545,23 @@ func (s *Service) fetchViewsBatch(ctx context.Context, ids []string, cutoff *tim
 }
 
 func (s *Service) fetchCommentsBatch(ctx context.Context, ids []string) map[string]int {
+	return s.fetchArticleCountBatch(ctx, ids, `SELECT "articleId", COUNT(*)::int FROM "ArticleComment" WHERE "articleId" = ANY($1) GROUP BY "articleId"`)
+}
+
+func (s *Service) fetchLikesBatch(ctx context.Context, ids []string) map[string]int {
+	return s.fetchArticleCountBatch(ctx, ids, `SELECT "articleId", COUNT(*)::int FROM "ContentFeedback" WHERE "articleId" = ANY($1) AND "type" = 'LIKE' GROUP BY "articleId"`)
+}
+
+func (s *Service) fetchRepostsBatch(ctx context.Context, ids []string) map[string]int {
+	return s.fetchArticleCountBatch(ctx, ids, `SELECT "quotedArticleId", COUNT(*)::int FROM "Post" WHERE "quotedArticleId" = ANY($1) GROUP BY "quotedArticleId"`)
+}
+
+func (s *Service) fetchArticleCountBatch(ctx context.Context, ids []string, query string) map[string]int {
 	m := map[string]int{}
 	if s.pool == nil || len(ids) == 0 {
 		return m
 	}
-	rows, err := s.pool.Query(ctx, `SELECT "articleId", COUNT(*)::int FROM "ArticleComment" WHERE "articleId" = ANY($1) GROUP BY "articleId"`, ids)
+	rows, err := s.pool.Query(ctx, query, ids)
 	if err != nil {
 		return m
 	}
@@ -1407,7 +1682,10 @@ type SimilarArticle struct {
 }
 
 // EditorCapabilities décrit les capacités d'édition dans le workspace actif.
-func (s *Service) EditorCapabilities(ctx context.Context, userID, publicationID string) (map[string]any, error) {
+// articleIDs permet de résoudre les droits d'un co-auteur qui n'est pas
+// membre de la publication média : il peut éditer l'article auquel il est
+// rattaché, sans pour autant hériter des droits de publication.
+func (s *Service) EditorCapabilities(ctx context.Context, userID, publicationID string, articleIDs ...string) (map[string]any, error) {
 	pub, err := s.q.GetPublicationTypeByID(ctx, publicationID)
 	if err != nil {
 		return nil, errNotFound
@@ -1437,6 +1715,22 @@ func (s *Service) EditorCapabilities(ctx context.Context, userID, publicationID 
 		PublicationId: publicationID, UserId: toUUID(userID),
 	})
 	if err != nil {
+		if len(articleIDs) > 0 && articleIDs[0] != "" {
+			var isCoAuthor bool
+			_ = s.pool.QueryRow(ctx, `
+				SELECT EXISTS (
+					SELECT 1 FROM "ArticleAttribution" aa
+					WHERE aa."articleId" = $1 AND aa."userId" = $2
+					  AND aa."consentStatus" IN ('PENDING', 'ACCEPTED')
+				)
+			`, articleIDs[0], toUUID(userID)).Scan(&isCoAuthor)
+			if isCoAuthor {
+				return map[string]any{
+					"isMedia": true, "canPublish": false, "canSubmit": false,
+					"canReview": false, "role": "co-author", "workspaceName": pub.Name,
+				}, nil
+			}
+		}
 		return nil, errForbidden
 	}
 	m := &permissions.MediaMember{Role: row.Role, Permissions: row.Permissions, Status: row.Status}
@@ -1472,8 +1766,9 @@ func (s *Service) articleResponseFromIDRow(row db.GetArticleByIDRow) ArticleResp
 		ID: row.ID, Title: row.Title, Slug: row.Slug, Content: content,
 		DraftContent: draftContent, HasUnpublishedChanges: hasUnpublishedChanges,
 		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),
-		AllowDownload: row.AllowDownload,
-		ReadingTime: int(row.ReadingTime), Status: row.Status, ScheduledAt: tsPtr(row.ScheduledAt),
+		AllowDownload: row.AllowDownload, AllowPublicAnnotations: row.AllowPublicAnnotations,
+		AllowComments: row.AllowComments,
+		ReadingTime:   int(row.ReadingTime), Status: row.Status, ScheduledAt: tsPtr(row.ScheduledAt),
 		PublicationID: row.PublicationId,
 		AuthorID:      row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
 		SeoTitle: textPtr(row.SeoTitle), SeoDescription: textPtr(row.SeoDescription),
@@ -1492,6 +1787,7 @@ func articleFromSlugRow(row db.GetArticleBySlugRow, cut PaywallCutResult) Articl
 		ID: row.ID, Title: row.Title, Slug: row.Slug, Content: cut.Content,
 		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),
 		ReadingTime: int(row.ReadingTime), Status: row.Status, ScheduledAt: tsPtr(row.ScheduledAt),
+		AllowPublicAnnotations: row.AllowPublicAnnotations, AllowComments: row.AllowComments,
 		PublicationID: row.PublicationId,
 		AuthorID:      row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
 		SeoTitle: textPtr(row.SeoTitle), SeoDescription: textPtr(row.SeoDescription),
@@ -1515,6 +1811,8 @@ func articleFromRow(row db.GetArticleByIDRow, cut PaywallCutResult) ArticleRespo
 		ID: row.ID, Title: row.Title, Slug: row.Slug, Content: cut.Content,
 		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),
 		ReadingTime: int(row.ReadingTime), Status: row.Status, ScheduledAt: tsPtr(row.ScheduledAt),
+		AllowDownload: row.AllowDownload, AllowPublicAnnotations: row.AllowPublicAnnotations,
+		AllowComments: row.AllowComments,
 		PublicationID: row.PublicationId,
 		AuthorID:      row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
 		SeoTitle: textPtr(row.SeoTitle), SeoDescription: textPtr(row.SeoDescription),
@@ -1672,6 +1970,13 @@ func textVal(p *string) pgtype.Text {
 		return pgtype.Text{}
 	}
 	return pgtype.Text{String: *p, Valid: true}
+}
+
+func boolVal(p *bool) pgtype.Bool {
+	if p == nil {
+		return pgtype.Bool{}
+	}
+	return pgtype.Bool{Bool: *p, Valid: true}
 }
 
 // tsPtr convertit un timestamp SQL en string RFC3339 (nil si absent).

@@ -19,17 +19,21 @@ export default async function ArticleEditPage({ params }: PageProps) {
   const { id } = await params;
 
   try {
-    const [articleRes, categoriesRes, capsRes] = await Promise.all([
-      getArticleByIdAction(id),
-      getCategoriesAction(),
-      getEditorCapabilitiesAction(),
-    ]);
-
+    const articleRes = await getArticleByIdAction(id);
     if (!articleRes.ok || !articleRes.data) {
       notFound();
     }
-
     const article = articleRes.data;
+
+    // Co-auteurs : catégories et capacités doivent être celles de la
+    // publication de l'article, pas celles du workspace actif.
+    const [categoriesRes, capsRes] = await Promise.all([
+      getCategoriesAction(article.publicationId),
+      getEditorCapabilitiesAction({
+        publicationId: article.publicationId,
+        articleId: article.id,
+      }),
+    ]);
     const categoriesList = categoriesRes.ok ? categoriesRes.data : [];
     const capabilities = capsRes.ok ? capsRes.data : undefined;
 

@@ -63,6 +63,7 @@ export default async function ArticlesPage({ searchParams }: ArticlesPageProps) 
         initialAboutArticleId={aboutArticleId}
         initialTab={initialTab}
         canReview={capabilities?.canReview ?? false}
+        canPublish={capabilities?.canPublish ?? false}
       />
     </div>
   );

@@ -697,6 +697,7 @@ type Category struct {
 	Description   pgtype.Text `json:"description"`
 	PublicationId string      `json:"publicationId"`
 	ParentId      pgtype.Text `json:"parentId"`
+	IsDefault     bool        `json:"isDefault"`
 }
 
 type CoAuthor struct {
@@ -826,6 +827,16 @@ type FeatureFlag struct {
 	TargetRoles []string         `json:"target_roles"`
 	CreatedAt   pgtype.Timestamp `json:"created_at"`
 	UpdatedAt   pgtype.Timestamp `json:"updated_at"`
+}
+
+type FeatureSignal struct {
+	ID            string           `json:"id"`
+	FeatureKey    string           `json:"featureKey"`
+	Kind          string           `json:"kind"`
+	Source        string           `json:"source"`
+	UserId        pgtype.Text      `json:"userId"`
+	PublicationId pgtype.Text      `json:"publicationId"`
+	CreatedAt     pgtype.Timestamp `json:"createdAt"`
 }
 
 type FeedImpression struct {

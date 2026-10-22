@@ -526,6 +526,7 @@ CREATE TABLE "Category" (
     "description" TEXT,
     "publicationId" TEXT NOT NULL,
     "parentId" TEXT,
+    "isDefault" BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT "Category_pkey" PRIMARY KEY ("id")
 );

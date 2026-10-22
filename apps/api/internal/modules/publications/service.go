@@ -60,6 +60,8 @@ type CategoryItem struct {
 	Slug        string  `json:"slug"`
 	Description *string `json:"description,omitempty"`
 	ParentID    *string `json:"parentId,omitempty"`
+	ParentSlug  *string `json:"parentSlug,omitempty"`
+	IsDefault   bool    `json:"isDefault"`
 }
 
 type ArticleSummary struct {
@@ -173,6 +175,9 @@ type ArticleDetail struct {
 	ReadingTime            int32         `json:"readingTime"`
 	AllowPublicAnnotations bool          `json:"allowPublicAnnotations"`
 	AllowComments          bool          `json:"allowComments"`
+	AllowDownload          bool          `json:"allowDownload"`
+	SeoTitle               *string       `json:"seoTitle"`
+	SeoDescription         *string       `json:"seoDescription"`
 	CreatedAt              string        `json:"createdAt"`
 	AuthorID               string        `json:"authorId"`
 	Category               *CategoryItem `json:"category"`
@@ -466,8 +471,8 @@ func (s *Service) socialLinks(ctx context.Context, pubID string) ([]SocialLinkIt
 
 func (s *Service) categories(ctx context.Context, pubID string) ([]CategoryItem, error) {
 	rows, err := s.pool.Query(ctx, `
-		SELECT id, name, slug, description, "parentId" FROM "Category"
-		WHERE "publicationId" = $1 ORDER BY name ASC`, pubID)
+		SELECT id, name, slug, description, "parentId", "isDefault" FROM "Category"
+		WHERE "publicationId" = $1 ORDER BY "isDefault" ASC, name ASC`, pubID)
 	if err != nil {
 		return nil, err
 	}
@@ -475,7 +480,7 @@ func (s *Service) categories(ctx context.Context, pubID string) ([]CategoryItem,
 	out := []CategoryItem{}
 	for rows.Next() {
 		var c CategoryItem
-		if err := rows.Scan(&c.ID, &c.Name, &c.Slug, &c.Description, &c.ParentID); err != nil {
+		if err := rows.Scan(&c.ID, &c.Name, &c.Slug, &c.Description, &c.ParentID, &c.IsDefault); err != nil {
 			return nil, err
 		}
 		out = append(out, c)
@@ -487,12 +492,13 @@ func (s *Service) publishedArticles(ctx context.Context, pubID string) ([]Articl
 	rows, err := s.pool.Query(ctx, `
 		SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium",
 		       a.visibility, a."readingTime", a."createdAt", a."categoryId",
-		       c.id, c.name, c.slug, a."imageUrl",
+		       c.id, c.name, c.slug, c."isDefault", cp.slug, a."imageUrl",
 		       (SELECT count(*) FROM "ContentFeedback" f WHERE f."articleId" = a.id AND f."type" = 'LIKE') AS likes,
 		       (SELECT count(*) FROM "ArticleComment" ac WHERE ac."articleId" = a.id) AS comments,
 		       (SELECT count(*) FROM "Post" p WHERE p."quotedArticleId" = a.id) AS reposts
 		FROM "Article" a
 		LEFT JOIN "Category" c ON c.id = a."categoryId"
+		LEFT JOIN "Category" cp ON cp.id = c."parentId"
 		WHERE a."publicationId" = $1 AND a.published = true
 		ORDER BY a."createdAt" DESC`, pubID)
 	if err != nil {
@@ -503,9 +509,11 @@ func (s *Service) publishedArticles(ctx context.Context, pubID string) ([]Articl
 	for rows.Next() {
 		var a ArticleSummary
 		var createdAt time.Time
-		var catID, catName, catSlug *string
+		var catID, catName, catSlug, catParentSlug *string
+		var catIsDefault bool
 		if err := rows.Scan(&a.ID, &a.Title, &a.Slug, &a.Content, &a.Published, &a.IsPremium,
-			&a.Visibility, &a.ReadingTime, &createdAt, &a.CategoryID, &catID, &catName, &catSlug, &a.ImageURL,
+			&a.Visibility, &a.ReadingTime, &createdAt, &a.CategoryID, &catID, &catName, &catSlug,
+			&catIsDefault, &catParentSlug, &a.ImageURL,
 			&a.LikesCount, &a.CommentsCount, &a.RepostsCount); err != nil {
 			return nil, err
 		}
@@ -518,7 +526,10 @@ func (s *Service) publishedArticles(ctx context.Context, pubID string) ([]Articl
 		).Content
 		a.CreatedAt = createdAt.Format(time.RFC3339)
 		if catID != nil {
-			a.Category = &CategoryItem{ID: *catID, Name: *catName, Slug: *catSlug}
+			a.Category = &CategoryItem{
+				ID: *catID, Name: *catName, Slug: *catSlug,
+				ParentSlug: catParentSlug, IsDefault: catIsDefault,
+			}
 		}
 		out = append(out, a)
 	}
@@ -545,21 +556,29 @@ func (s *Service) articleBySlugOrID(ctx context.Context, pubID, slug string, pub
 
 func scanArticleDetail(row pgx.Row) (*ArticleDetail, error) {
 	var a ArticleDetail
-	var catID, catName, catSlug *string
+	var catID, catName, catSlug, catParentSlug *string
+	var catIsDefault bool
 	var authorName, authorUsername, authorLogo *string
-	var imageURL *string
+	var imageURL, seoTitle, seoDescription *string
 	var createdAt time.Time
 	err := row.Scan(&a.ID, &a.Title, &a.Slug, &a.Content, &a.Published, &a.Status,
 		&a.IsPremium, &a.Visibility, &a.ReadingTime, &a.AllowPublicAnnotations,
-		&a.AllowComments, &createdAt, &a.AuthorID, &imageURL,
-		&catID, &catName, &catSlug, &authorName, &authorUsername, &authorLogo)
+		&a.AllowComments, &a.AllowDownload, &seoTitle, &seoDescription,
+		&createdAt, &a.AuthorID, &imageURL,
+		&catID, &catName, &catSlug, &catIsDefault, &catParentSlug,
+		&authorName, &authorUsername, &authorLogo)
 	if err != nil {
 		return nil, err
 	}
 	a.CreatedAt = createdAt.Format(time.RFC3339)
 	a.ImageURL = imageURL
+	a.SeoTitle = seoTitle
+	a.SeoDescription = seoDescription
 	if catID != nil {
-		a.Category = &CategoryItem{ID: *catID, Name: *catName, Slug: *catSlug}
+		a.Category = &CategoryItem{
+			ID: *catID, Name: *catName, Slug: *catSlug,
+			ParentSlug: catParentSlug, IsDefault: catIsDefault,
+		}
 	}
 	a.Author = &AuthorInfo{ID: a.AuthorID, Name: authorName, Username: authorUsername, LogoURL: authorLogo}
 	return &a, nil
@@ -568,10 +587,13 @@ func scanArticleDetail(row pgx.Row) (*ArticleDetail, error) {
 const articleSelect = `
 	SELECT a.id, a.title, a.slug, a.content, a.published, a.status,
 	       a."isPremium", a.visibility, a."readingTime",
-	       a."allowPublicAnnotations", a."allowComments", a."createdAt", a."authorId", a."imageUrl",
-	       c.id, c.name, c.slug, au.name, au.username, au."logoUrl"
+	       a."allowPublicAnnotations", a."allowComments", a."allowDownload",
+	       a."seoTitle", a."seoDescription", a."createdAt", a."authorId", a."imageUrl",
+	       c.id, c.name, c.slug, c."isDefault", cp.slug,
+	       au.name, au.username, au."logoUrl"
 		FROM "Article" a
 		LEFT JOIN "Category" c ON c.id = a."categoryId"
+		LEFT JOIN "Category" cp ON cp.id = c."parentId"
 		LEFT JOIN "User" au ON au.id = a."authorId"`
 
 func (s *Service) articleDirect(ctx context.Context, pubID, slug string) (*ArticleDetail, error) {

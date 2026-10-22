@@ -1,7 +1,7 @@
 import { headers } from 'next/headers';
 import { parseTenantHost } from '@qoe/config';
 import { fetchPublicTenantPublication } from '@/lib/tenant-data';
-import { buildPublicExcerpt } from '@qoe/utils';
+import { buildArticlePath, buildPublicExcerpt } from '@qoe/utils';
 import { ContentVisibility } from '@qoe/config';
 
 export const revalidate = 3600;
@@ -49,8 +49,8 @@ export async function GET(): Promise<Response> {
           ) || stripTags(art.content || '').slice(0, 300);
         return `    <item>
       <title>${escapeXml(art.title)}</title>
-      <link>${baseUrl}/article/${encodeURIComponent(art.slug)}</link>
-      <guid>${baseUrl}/article/${encodeURIComponent(art.slug)}</guid>
+      <link>${baseUrl}${buildArticlePath(art, pub.categories)}</link>
+      <guid>${baseUrl}${buildArticlePath(art, pub.categories)}</guid>
       <pubDate>${art.createdAt ? new Date(art.createdAt).toUTCString() : new Date().toUTCString()}</pubDate>
       <description>${escapeXml(description)}</description>
     </item>`;

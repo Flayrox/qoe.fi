@@ -39,6 +39,8 @@ export interface TenantCategory {
   slug: string;
   description?: string | null;
   parentId?: string | null;
+  parentSlug?: string | null;
+  isDefault?: boolean;
   parent?: {
     id: string;
     name: string;
@@ -144,6 +146,9 @@ export interface TenantArticle {
   readingTime: number;
   allowPublicAnnotations: boolean;
   allowComments: boolean;
+  allowDownload?: boolean;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
   createdAt: string;
   authorId: string;
   category?: TenantCategory | null;

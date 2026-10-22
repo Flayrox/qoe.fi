@@ -86,8 +86,9 @@ func (q *Queries) CountPublishedArticles(ctx context.Context) (int64, error) {
 const createArticle = `-- name: CreateArticle :one
 INSERT INTO "Article" (id, title, slug, content, published, "isPremium", visibility,
                        "readingTime", "allowPublicAnnotations", "allowComments", "allowDownload", status,
-                       "publicationId", "authorId", "categoryId", "tierId", "seoTitle", "seoDescription", "scheduledAt", "updatedAt")
-VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, now())
+                       "publicationId", "authorId", "categoryId", "tierId", "seoTitle", "seoDescription",
+                       "scheduledAt", "imageUrl", "updatedAt")
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, now())
 RETURNING id
 `
 
@@ -110,6 +111,7 @@ type CreateArticleParams struct {
 	SeoTitle               pgtype.Text       `json:"seoTitle"`
 	SeoDescription         pgtype.Text       `json:"seoDescription"`
 	ScheduledAt            pgtype.Timestamp  `json:"scheduledAt"`
+	ImageUrl               pgtype.Text       `json:"imageUrl"`
 }
 
 func (q *Queries) CreateArticle(ctx context.Context, arg CreateArticleParams) (string, error) {
@@ -132,6 +134,7 @@ func (q *Queries) CreateArticle(ctx context.Context, arg CreateArticleParams) (s
 		arg.SeoTitle,
 		arg.SeoDescription,
 		arg.ScheduledAt,
+		arg.ImageUrl,
 	)
 	var id string
 	err := row.Scan(&id)
@@ -651,6 +654,7 @@ func (q *Queries) GetUserPersonalPublication(ctx context.Context, id string) (pg
 const listArticlesWithCategory = `-- name: ListArticlesWithCategory :many
 SELECT a.id, a.title, a.slug, a.published, a."isPremium", a.visibility, a."readingTime",
        a.status, a."createdAt", a."updatedAt", a."categoryId", a."publicationId",
+       a."allowPublicAnnotations", a."allowComments", a."allowDownload",
        c.id  AS category_id,
        c.name AS category_name,
        c.slug AS category_slug
@@ -668,21 +672,24 @@ type ListArticlesWithCategoryParams struct {
 }
 
 type ListArticlesWithCategoryRow struct {
-	ID            string            `json:"id"`
-	Title         string            `json:"title"`
-	Slug          string            `json:"slug"`
-	Published     bool              `json:"published"`
-	IsPremium     bool              `json:"isPremium"`
-	Visibility    ContentVisibility `json:"visibility"`
-	ReadingTime   int32             `json:"readingTime"`
-	Status        string            `json:"status"`
-	CreatedAt     pgtype.Timestamp  `json:"createdAt"`
-	UpdatedAt     pgtype.Timestamp  `json:"updatedAt"`
-	CategoryId    pgtype.Text       `json:"categoryId"`
-	PublicationId string            `json:"publicationId"`
-	CategoryID    pgtype.Text       `json:"category_id"`
-	CategoryName  pgtype.Text       `json:"category_name"`
-	CategorySlug  pgtype.Text       `json:"category_slug"`
+	ID                     string            `json:"id"`
+	Title                  string            `json:"title"`
+	Slug                   string            `json:"slug"`
+	Published              bool              `json:"published"`
+	IsPremium              bool              `json:"isPremium"`
+	Visibility             ContentVisibility `json:"visibility"`
+	ReadingTime            int32             `json:"readingTime"`
+	Status                 string            `json:"status"`
+	CreatedAt              pgtype.Timestamp  `json:"createdAt"`
+	UpdatedAt              pgtype.Timestamp  `json:"updatedAt"`
+	CategoryId             pgtype.Text       `json:"categoryId"`
+	PublicationId          string            `json:"publicationId"`
+	AllowPublicAnnotations bool              `json:"allowPublicAnnotations"`
+	AllowComments          bool              `json:"allowComments"`
+	AllowDownload          bool              `json:"allowDownload"`
+	CategoryID             pgtype.Text       `json:"category_id"`
+	CategoryName           pgtype.Text       `json:"category_name"`
+	CategorySlug           pgtype.Text       `json:"category_slug"`
 }
 
 func (q *Queries) ListArticlesWithCategory(ctx context.Context, arg ListArticlesWithCategoryParams) ([]ListArticlesWithCategoryRow, error) {
@@ -707,6 +714,9 @@ func (q *Queries) ListArticlesWithCategory(ctx context.Context, arg ListArticles
 			&i.UpdatedAt,
 			&i.CategoryId,
 			&i.PublicationId,
+			&i.AllowPublicAnnotations,
+			&i.AllowComments,
+			&i.AllowDownload,
 			&i.CategoryID,
 			&i.CategoryName,
 			&i.CategorySlug,
@@ -1294,24 +1304,29 @@ const updateArticleFull = `-- name: UpdateArticleFull :one
 UPDATE "Article"
 SET title = $2, content = $3, slug = $4, published = $5, status = $6, "isPremium" = $7,
     "categoryId" = $8, "seoTitle" = $9, "seoDescription" = $10, "readingTime" = $11,
-    "scheduledAt" = $12, "updatedAt" = now()
+    "scheduledAt" = $12, "imageUrl" = $13, "allowPublicAnnotations" = $14,
+    "allowComments" = $15, "allowDownload" = $16, "updatedAt" = now()
 WHERE id = $1
 RETURNING id
 `
 
 type UpdateArticleFullParams struct {
-	ID             string           `json:"id"`
-	Title          string           `json:"title"`
-	Content        string           `json:"content"`
-	Slug           string           `json:"slug"`
-	Published      bool             `json:"published"`
-	Status         string           `json:"status"`
-	IsPremium      bool             `json:"isPremium"`
-	CategoryId     pgtype.Text      `json:"categoryId"`
-	SeoTitle       pgtype.Text      `json:"seoTitle"`
-	SeoDescription pgtype.Text      `json:"seoDescription"`
-	ReadingTime    int32            `json:"readingTime"`
-	ScheduledAt    pgtype.Timestamp `json:"scheduledAt"`
+	ID                     string           `json:"id"`
+	Title                  string           `json:"title"`
+	Content                string           `json:"content"`
+	Slug                   string           `json:"slug"`
+	Published              bool             `json:"published"`
+	Status                 string           `json:"status"`
+	IsPremium              bool             `json:"isPremium"`
+	CategoryId             pgtype.Text      `json:"categoryId"`
+	SeoTitle               pgtype.Text      `json:"seoTitle"`
+	SeoDescription         pgtype.Text      `json:"seoDescription"`
+	ReadingTime            int32            `json:"readingTime"`
+	ScheduledAt            pgtype.Timestamp `json:"scheduledAt"`
+	ImageUrl               pgtype.Text      `json:"imageUrl"`
+	AllowPublicAnnotations bool             `json:"allowPublicAnnotations"`
+	AllowComments          bool             `json:"allowComments"`
+	AllowDownload          bool             `json:"allowDownload"`
 }
 
 func (q *Queries) UpdateArticleFull(ctx context.Context, arg UpdateArticleFullParams) (string, error) {
@@ -1328,6 +1343,50 @@ func (q *Queries) UpdateArticleFull(ctx context.Context, arg UpdateArticleFullPa
 		arg.SeoDescription,
 		arg.ReadingTime,
 		arg.ScheduledAt,
+		arg.ImageUrl,
+		arg.AllowPublicAnnotations,
+		arg.AllowComments,
+		arg.AllowDownload,
+	)
+	var id string
+	err := row.Scan(&id)
+	return id, err
+}
+
+const updateArticleSettings = `-- name: UpdateArticleSettings :one
+UPDATE "Article"
+SET "isPremium" = COALESCE($1, "isPremium"),
+    "categoryId" = CASE
+      WHEN $2::boolean THEN $3
+      ELSE "categoryId"
+    END,
+    "allowPublicAnnotations" = COALESCE($4, "allowPublicAnnotations"),
+    "allowComments" = COALESCE($5, "allowComments"),
+    "allowDownload" = COALESCE($6, "allowDownload"),
+    "updatedAt" = now()
+WHERE id = $7
+RETURNING id
+`
+
+type UpdateArticleSettingsParams struct {
+	IsPremium              pgtype.Bool `json:"is_premium"`
+	SetCategory            bool        `json:"set_category"`
+	CategoryID             pgtype.Text `json:"category_id"`
+	AllowPublicAnnotations pgtype.Bool `json:"allow_public_annotations"`
+	AllowComments          pgtype.Bool `json:"allow_comments"`
+	AllowDownload          pgtype.Bool `json:"allow_download"`
+	ID                     string      `json:"id"`
+}
+
+func (q *Queries) UpdateArticleSettings(ctx context.Context, arg UpdateArticleSettingsParams) (string, error) {
+	row := q.db.QueryRow(ctx, updateArticleSettings,
+		arg.IsPremium,
+		arg.SetCategory,
+		arg.CategoryID,
+		arg.AllowPublicAnnotations,
+		arg.AllowComments,
+		arg.AllowDownload,
+		arg.ID,
 	)
 	var id string
 	err := row.Scan(&id)

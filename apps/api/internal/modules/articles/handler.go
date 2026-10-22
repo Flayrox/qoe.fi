@@ -65,6 +65,7 @@ func (h *Handler) RegisterProtected(r chi.Router, requireScope func(string) func
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/", h.create)
 	r.With(requireScope(middleware.ScopeRead)).Get("/v1/articles/by-id/{id}", h.getByID)
 	r.With(requireScope(middleware.ScopeRead)).Get("/v1/articles/capabilities", h.capabilities)
+	r.With(requireScope(middleware.ScopeWrite)).Patch("/v1/articles/bulk", h.bulkUpdate)
 	r.With(requireScope(middleware.ScopeWrite)).Patch("/v1/articles/{id}", h.update)
 	// Droit de téléchargement (hors-ligne/file d'écoute) : l'auteur choisit.
 	r.With(requireScope(middleware.ScopeWrite)).Patch("/v1/articles/{id}/download", h.setAllowDownload)
@@ -75,6 +76,7 @@ func (h *Handler) RegisterProtected(r chi.Router, requireScope func(string) func
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/me/listen-later", h.addListenLater)
 	r.With(requireScope(middleware.ScopeWrite)).Delete("/v1/me/listen-later/{articleId}", h.removeListenLater)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/publish", h.publish)
+	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/unpublish", h.unpublish)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/schedule", h.schedule)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/review", h.review)
 	r.With(requireScope(middleware.ScopeWrite)).Delete("/v1/articles/{id}", h.delete)
@@ -155,22 +157,26 @@ type ArticleAttributionInput struct {
 }
 
 type createInput struct {
-	PublicationID  string                    `json:"publicationId"`
-	Title          string                    `json:"title"`
-	Slug           string                    `json:"slug"`
-	Content        string                    `json:"content"`
-	ContentFormat  string                    `json:"contentFormat"`
-	IsPremium      bool                      `json:"isPremium"`
-	Visibility     string                    `json:"visibility"`
-	CategoryID     *string                   `json:"categoryId"`
-	TierID         *string                   `json:"tierId"`
-	SeoTitle       *string                   `json:"seoTitle"`
-	SeoDescription *string                   `json:"seoDescription"`
-	ReadingTime    int                       `json:"readingTime"`
-	Published      bool                      `json:"published"`
-	Status         string                    `json:"status"`
-	ScheduledAt    string                    `json:"scheduledAt"`
-	Attributions   []ArticleAttributionInput `json:"attributions"`
+	PublicationID          string                    `json:"publicationId"`
+	Title                  string                    `json:"title"`
+	Slug                   string                    `json:"slug"`
+	Content                string                    `json:"content"`
+	ContentFormat          string                    `json:"contentFormat"`
+	ImageURL               *string                   `json:"imageUrl"`
+	IsPremium              bool                      `json:"isPremium"`
+	Visibility             string                    `json:"visibility"`
+	CategoryID             *string                   `json:"categoryId"`
+	TierID                 *string                   `json:"tierId"`
+	SeoTitle               *string                   `json:"seoTitle"`
+	SeoDescription         *string                   `json:"seoDescription"`
+	ReadingTime            int                       `json:"readingTime"`
+	AllowPublicAnnotations *bool                     `json:"allowPublicAnnotations"`
+	AllowComments          *bool                     `json:"allowComments"`
+	AllowDownload          *bool                     `json:"allowDownload"`
+	Published              bool                      `json:"published"`
+	Status                 string                    `json:"status"`
+	ScheduledAt            string                    `json:"scheduledAt"`
+	Attributions           []ArticleAttributionInput `json:"attributions"`
 }
 
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
@@ -199,7 +205,10 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		ContentFormat: in.ContentFormat,
 		IsPremium:     in.IsPremium, Visibility: in.Visibility, CategoryID: in.CategoryID,
 		TierID: in.TierID, SeoTitle: in.SeoTitle, SeoDescription: in.SeoDescription,
-		ReadingTime: in.ReadingTime, Published: in.Published, Status: in.Status,
+		ImageURL:               in.ImageURL,
+		AllowPublicAnnotations: in.AllowPublicAnnotations, AllowComments: in.AllowComments,
+		AllowDownload: in.AllowDownload,
+		ReadingTime:   in.ReadingTime, Published: in.Published, Status: in.Status,
 		ScheduledAt:  scheduledAt,
 		Attributions: in.Attributions,
 	})
@@ -272,21 +281,58 @@ func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	response.OK(w, articles)
 }
 
+type bulkUpdateInput struct {
+	IDs                    []string `json:"ids"`
+	IsPremium              *bool    `json:"isPremium"`
+	SetCategory            bool     `json:"setCategory"`
+	CategoryID             *string  `json:"categoryId"`
+	AllowPublicAnnotations *bool    `json:"allowPublicAnnotations"`
+	AllowComments          *bool    `json:"allowComments"`
+	AllowDownload          *bool    `json:"allowDownload"`
+	Published              *bool    `json:"published"`
+}
+
+// PATCH /v1/articles/bulk — réglages et publication en masse, sans contenu.
+// Route statique déclarée avant /{id} : en chi, statique > param.
+func (h *Handler) bulkUpdate(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	var in bulkUpdateInput
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		response.BadRequest(w, "JSON invalide")
+		return
+	}
+	result, err := h.svc.BulkUpdate(r.Context(), userID, BulkUpdateInput{
+		IDs: in.IDs, IsPremium: in.IsPremium, SetCategory: in.SetCategory,
+		CategoryID: in.CategoryID, AllowPublicAnnotations: in.AllowPublicAnnotations,
+		AllowComments: in.AllowComments, AllowDownload: in.AllowDownload,
+		Published: in.Published,
+	})
+	if err != nil {
+		response.BadRequest(w, err.Error())
+		return
+	}
+	response.OK(w, result)
+}
+
 type updateInput struct {
-	Title               string                    `json:"title"`
-	Content             string                    `json:"content"`
-	ContentFormat       string                    `json:"contentFormat"`
-	Slug                string                    `json:"slug"`
-	IsPremium           bool                      `json:"isPremium"`
-	CategoryID          *string                   `json:"categoryId"`
-	SeoTitle            *string                   `json:"seoTitle"`
-	SeoDescription      *string                   `json:"seoDescription"`
-	ReadingTime         int                       `json:"readingTime"`
-	Published           bool                      `json:"published"`
-	Status              string                    `json:"status"`
-	ActivePublicationID string                    `json:"activePublicationId"`
-	ScheduledAt         string                    `json:"scheduledAt"`
-	Attributions        []ArticleAttributionInput `json:"attributions"`
+	Title                  string                    `json:"title"`
+	Content                string                    `json:"content"`
+	ContentFormat          string                    `json:"contentFormat"`
+	Slug                   string                    `json:"slug"`
+	ImageURL               *string                   `json:"imageUrl"`
+	IsPremium              bool                      `json:"isPremium"`
+	CategoryID             *string                   `json:"categoryId"`
+	SeoTitle               *string                   `json:"seoTitle"`
+	SeoDescription         *string                   `json:"seoDescription"`
+	ReadingTime            int                       `json:"readingTime"`
+	AllowPublicAnnotations *bool                     `json:"allowPublicAnnotations"`
+	AllowComments          *bool                     `json:"allowComments"`
+	AllowDownload          *bool                     `json:"allowDownload"`
+	Published              bool                      `json:"published"`
+	Status                 string                    `json:"status"`
+	ActivePublicationID    string                    `json:"activePublicationId"`
+	ScheduledAt            string                    `json:"scheduledAt"`
+	Attributions           []ArticleAttributionInput `json:"attributions"`
 }
 
 func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
@@ -308,8 +354,10 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := h.svc.Update(r.Context(), id, userID, UpdateArticleInput{
 		Title: in.Title, Content: in.Content, ContentFormat: in.ContentFormat, Slug: in.Slug, IsPremium: in.IsPremium,
-		CategoryID: in.CategoryID, SeoTitle: in.SeoTitle, SeoDescription: in.SeoDescription,
-		ReadingTime: in.ReadingTime, Published: in.Published, Status: in.Status,
+		ImageURL: in.ImageURL, CategoryID: in.CategoryID, SeoTitle: in.SeoTitle, SeoDescription: in.SeoDescription,
+		AllowPublicAnnotations: in.AllowPublicAnnotations, AllowComments: in.AllowComments,
+		AllowDownload: in.AllowDownload,
+		ReadingTime:   in.ReadingTime, Published: in.Published, Status: in.Status,
 		ActivePublicationID: in.ActivePublicationID, ScheduledAt: scheduledAt,
 		Attributions: in.Attributions,
 	}); err != nil {
@@ -332,6 +380,27 @@ func (h *Handler) publish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, map[string]bool{"published": true})
+}
+
+// POST /v1/articles/{id}/unpublish — repasse un article en brouillon privé
+// (published=false, status=DRAFT) et efface la programmation. Même garde
+// d'édition que Update (auteur, média autorisé ou co-auteur).
+func (h *Handler) unpublish(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	id := chi.URLParam(r, "id")
+	if err := h.svc.Unpublish(r.Context(), id, userID); err != nil {
+		if errors.Is(err, errNotFound) {
+			response.NotFound(w, "Article introuvable")
+			return
+		}
+		if errors.Is(err, errForbidden) {
+			response.Forbidden(w, "Accès refusé à cet article.")
+			return
+		}
+		response.BadRequest(w, err.Error())
+		return
+	}
+	response.OK(w, map[string]bool{"published": false})
 }
 
 // POST /v1/articles/{id}/schedule — programme (date future) ou annule
@@ -547,7 +616,8 @@ func (h *Handler) capabilities(w http.ResponseWriter, r *http.Request) {
 		response.BadRequest(w, "publicationId requis")
 		return
 	}
-	caps, err := h.svc.EditorCapabilities(r.Context(), userID, publicationID)
+	articleID := r.URL.Query().Get("articleId")
+	caps, err := h.svc.EditorCapabilities(r.Context(), userID, publicationID, articleID)
 	if err != nil {
 		if errors.Is(err, errForbidden) {
 			response.Forbidden(w, "Accès refusé à cette publication.")

@@ -82,6 +82,20 @@ describe('ArticleAttributionEditor', () => {
     expect(onChange).toHaveBeenCalledWith([primaryAuthor, { ...coAuthor, role: 'EDITOR' }]);
   });
 
+  it('toggles public visibility for accepted contributors only', () => {
+    const onChange = vi.fn();
+    const accepted = { ...coAuthor, consentStatus: 'ACCEPTED' as const, isVisible: true };
+    const { rerender } = render(
+      <ArticleAttributionEditor value={[primaryAuthor, accepted]} onChange={onChange} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Cité/ }));
+    expect(onChange).toHaveBeenCalledWith([primaryAuthor, { ...accepted, isVisible: false }]);
+
+    rerender(<ArticleAttributionEditor value={[primaryAuthor, coAuthor]} onChange={onChange} />);
+    expect(screen.getByRole('button', { name: /En attente/ })).toBeDisabled();
+  });
+
   it('calls onChange removing the secondary author when remove button is clicked', () => {
     const onChange = vi.fn();
     render(<ArticleAttributionEditor value={[primaryAuthor, coAuthor]} onChange={onChange} />);
@@ -126,7 +140,7 @@ describe('ArticleAttributionEditor', () => {
         username: 'charlie',
         role: 'CO_AUTHOR',
         order: 1,
-        isVisible: false,
+        isVisible: true,
         consentStatus: 'PENDING',
       }),
     ]);

@@ -360,6 +360,8 @@ export interface TemplateArticleItem {
   category?: {
     name: string;
     slug?: string;
+    parentSlug?: string | null;
+    isDefault?: boolean;
   } | null;
   author?: {
     name?: string | null;

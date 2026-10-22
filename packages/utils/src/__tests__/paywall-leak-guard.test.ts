@@ -176,8 +176,7 @@ describe('🔒 Métadonnées & JSON-LD publics — garde-fou statique', () => {
 
   it('les routes article publiques gardées existent toujours (le garde-fou ne peut pas s’évaporer)', () => {
     for (const relPath of [
-      'apps/tenants/src/app/tenant/[domain]/article/[slug]/page.tsx',
-      'apps/tenants/src/app/tenant/[domain]/[categorySlug]/[articleSlug]/page.tsx',
+      'apps/tenants/src/lib/tenant-article-route.tsx',
       'apps/core/src/app/(reader)/[username]/[tab]/page.tsx',
     ]) {
       const source = read(relPath);

@@ -96,7 +96,7 @@ export function MinimalCraftShell({
   const articleDrawerItems: CraftDrawerItem[] = articles.map((art) => {
     const artSlug = art.slug || art.id;
     const catSlug = art.category?.slug;
-    const href = catSlug ? `/${catSlug}/${artSlug}` : `/article/${artSlug}`;
+    const href = catSlug ? `/${catSlug}/${artSlug}` : `/uncategorized/${artSlug}`;
 
     return {
       id: art.id,

@@ -16,6 +16,7 @@ export interface TenantNavigationInput {
     name: string;
     slug: string;
     parentId?: string | null;
+    isDefault?: boolean;
   }>;
   navigation?: Array<{
     id?: string;
@@ -45,9 +46,21 @@ export interface ResolvedTenantNavigation {
   /** Tous les items de navigation hiérarchisés pour le menu (Rubriques + Liens externes) */
   navItems: ResolvedTenantNavItem[];
   /** Toutes les catégories non masquées du menu */
-  visibleCategories: Array<{ id: string; name: string; slug: string; parentId?: string | null }>;
+  visibleCategories: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    parentId?: string | null;
+    isDefault?: boolean;
+  }>;
   /** Catégories racines visibles (sans parent) */
-  rootCategories: Array<{ id: string; name: string; slug: string; parentId?: string | null }>;
+  rootCategories: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    parentId?: string | null;
+    isDefault?: boolean;
+  }>;
   /** Liens externes racine configurés */
   externalLinks: Array<{
     id?: string;
@@ -58,9 +71,13 @@ export interface ResolvedTenantNavigation {
     parentId?: string | null;
   }>;
   /** Helper pour récupérer les sous-catégories visibles d'un parent */
-  getSubcategories: (
-    parentId: string
-  ) => Array<{ id: string; name: string; slug: string; parentId?: string | null }>;
+  getSubcategories: (parentId: string) => Array<{
+    id: string;
+    name: string;
+    slug: string;
+    parentId?: string | null;
+    isDefault?: boolean;
+  }>;
 }
 
 /**
@@ -73,7 +90,11 @@ export function resolveTenantNavigation(input: TenantNavigationInput): ResolvedT
   );
 
   // 1. Filtrage des catégories visibles (celles qui sont des rubriques dans l'en-tête)
-  const visibleCategories = (input.categories || []).filter((c) => !hiddenCatIds.has(c.id));
+  // La catégorie par défaut (« Non classé ») est un conteneur technique :
+  // elle ne doit jamais apparaître dans la navigation publique.
+  const visibleCategories = (input.categories || []).filter(
+    (c) => !hiddenCatIds.has(c.id) && c.isDefault !== true
+  );
   // Les données historiques peuvent contenir plusieurs catégories homonymes
   // (« Sport » x3) : on n'affiche que la première dans le menu, sans supprimer
   // les autres catégories (leurs pages restent accessibles par URL).
@@ -103,7 +124,7 @@ export function resolveTenantNavigation(input: TenantNavigationInput): ResolvedT
     children: getSubcategories(cat.id).map((sub, sIdx) => ({
       id: sub.id,
       label: sub.name,
-      url: `/${sub.slug}`,
+      url: `/${cat.slug}/${sub.slug}`,
       order: sIdx,
       isExternal: false,
       publicationId: input.publicationId || '',

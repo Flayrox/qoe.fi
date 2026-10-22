@@ -7,6 +7,8 @@ import {
   Check,
   Clock,
   Copy,
+  Eye,
+  EyeOff,
   Link2,
   Loader2,
   Search,
@@ -210,7 +212,7 @@ export function ArticleAttributionEditor({
         ...person,
         role: 'CO_AUTHOR',
         order: value.length,
-        isVisible: false,
+        isVisible: true,
         consentStatus: 'PENDING',
       },
     ]);
@@ -293,22 +295,40 @@ export function ArticleAttributionEditor({
                 ))}
               </select>
               {person.role !== 'PRIMARY_AUTHOR' && (
-                <span
+                <button
+                  type="button"
+                  onClick={() => update(index, { isVisible: !person.isVisible })}
+                  disabled={person.consentStatus !== 'ACCEPTED'}
+                  aria-pressed={person.isVisible}
+                  title={
+                    person.consentStatus !== 'ACCEPTED'
+                      ? 'En attente du consentement du contributeur'
+                      : person.isVisible
+                        ? 'Masquer de la signature publique'
+                        : 'Afficher dans la signature publique'
+                  }
                   className={cn(
-                    'rounded-md px-1.5 py-1 text-[10px]',
-                    person.consentStatus === 'ACCEPTED'
-                      ? person.isVisible
-                        ? 'bg-success/10 text-success'
-                        : 'bg-muted text-muted-foreground'
-                      : 'bg-highlight/10 text-highlight'
+                    'flex items-center gap-1 rounded-md px-1.5 py-1 text-[10px] transition-colors',
+                    person.consentStatus !== 'ACCEPTED'
+                      ? 'bg-highlight/10 text-highlight opacity-70'
+                      : person.isVisible
+                        ? 'bg-success/10 text-success hover:bg-success/20'
+                        : 'bg-muted text-muted-foreground hover:bg-muted/70'
                   )}
                 >
-                  {person.consentStatus === 'ACCEPTED'
-                    ? person.isVisible
+                  {person.consentStatus !== 'ACCEPTED' ? (
+                    <Clock className="h-3 w-3" />
+                  ) : person.isVisible ? (
+                    <Eye className="h-3 w-3" />
+                  ) : (
+                    <EyeOff className="h-3 w-3" />
+                  )}
+                  {person.consentStatus !== 'ACCEPTED'
+                    ? 'En attente'
+                    : person.isVisible
                       ? 'Cité'
-                      : 'Non cité'
-                    : 'En attente'}
-                </span>
+                      : 'Non cité'}
+                </button>
               )}
               <div className="flex shrink-0 items-center">
                 <button

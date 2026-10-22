@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { headers } from 'next/headers';
 import { SubscribeForm, JsonLd, buildArticleSchema, SafeAvatar } from '@qoe/ui';
+import { buildArticlePath } from '@qoe/utils';
 import { type AnnotationItem, type HighlightItem } from '@qoe/ui/annotations';
 import { TenantArticleHighlighter } from './TenantArticleHighlighter';
 import { TenantArticleReadingTracker } from './TenantArticleReadingTracker';
@@ -239,6 +240,7 @@ export async function TenantArticleRenderer({
     : null;
 
   const jsonLdData = buildArticleSchema({
+    path: buildArticlePath(article),
     title: article.title,
     description: buildPublicDescription(paywallCutResult.content),
     slug: article.slug,
