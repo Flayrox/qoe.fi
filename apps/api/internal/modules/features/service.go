@@ -10,6 +10,8 @@ import (
 	"errors"
 	"regexp"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -40,6 +42,15 @@ const (
 	viewDedupWindow = "24 hours"
 	// Fenêtre d'agrégation : l'intérêt se lit sur les 90 derniers jours.
 	summaryWindow = "90 days"
+	// Rétention : au-delà, le signal ne sert plus à rien. Purgé au plus une
+	// fois par jour, en tâche de fond (jamais sur le chemin de la réponse).
+	retentionWindow = "180 days"
+	purgeInterval   = 24 * time.Hour
+)
+
+var (
+	lastPurge   time.Time
+	lastPurgeMu sync.Mutex
 )
 
 type Service struct {
@@ -113,6 +124,9 @@ func (s *Service) Record(ctx context.Context, userID string, in SignalInput) (bo
 		return true, nil
 	}
 
+	// Purge opportuniste : la table ne doit pas croître indéfiniment.
+	s.purgeIfStale(ctx)
+
 	// Vue : au plus une par utilisateur et par fonctionnalité sur 24 h.
 	_, err = s.pool.Exec(ctx, `
 		INSERT INTO "FeatureSignal" ("featureKey", "kind", "source", "userId", "publicationId")
@@ -127,6 +141,56 @@ func (s *Service) Record(ctx context.Context, userID string, in SignalInput) (bo
 		return false, err
 	}
 	return false, nil
+}
+
+// purgeIfStale supprime les signaux trop anciens, au plus une fois par
+// processus et par jour. Best-effort : un échec ne bloque jamais l'écriture.
+func (s *Service) purgeIfStale(ctx context.Context) {
+	lastPurgeMu.Lock()
+	if time.Since(lastPurge) < purgeInterval {
+		lastPurgeMu.Unlock()
+		return
+	}
+	lastPurge = time.Now()
+	lastPurgeMu.Unlock()
+
+	if _, err := s.pool.Exec(ctx,
+		`DELETE FROM "FeatureSignal" WHERE "createdAt" < now() - $1::interval`,
+		retentionWindow,
+	); err != nil {
+		// On relâche la garde pour réessayer au prochain signal.
+		lastPurgeMu.Lock()
+		lastPurge = time.Time{}
+		lastPurgeMu.Unlock()
+	}
+}
+
+// NotifiedFeatures liste les fonctionnalités pour lesquelles l'utilisateur a
+// demandé à être prévenu — l'intention est globale au compte, pas par
+// publication (cf. index unique userId + featureKey).
+func (s *Service) NotifiedFeatures(ctx context.Context, userID string) ([]string, error) {
+	if userID == "" {
+		return nil, ErrInvalidSignal
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT DISTINCT "featureKey"
+		  FROM "FeatureSignal"
+		 WHERE "userId" = $1 AND "kind" = 'notify'
+		 ORDER BY "featureKey"`, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]string, 0, 4)
+	for rows.Next() {
+		var key string
+		if err := rows.Scan(&key); err != nil {
+			return nil, err
+		}
+		out = append(out, key)
+	}
+	return out, rows.Err()
 }
 
 // Summary agrège les signaux d'une publication sur 90 jours.

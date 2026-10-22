@@ -26,6 +26,7 @@ func (h *Handler) RegisterProtected(r chi.Router) {
 	r.Route("/v1/features", func(r chi.Router) {
 		r.Post("/signals", h.record)
 		r.Get("/signals/summary", h.summary)
+		r.Get("/signals/state", h.state)
 	})
 }
 
@@ -66,6 +67,23 @@ func (h *Handler) record(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, map[string]any{"success": true, "notified": notified})
+}
+
+// state renvoie les fonctionnalités déjà demandées par l'appelant, pour que
+// l'annonce n'affiche pas « me prévenir » après un rechargement de page.
+func (h *Handler) state(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	if userID == "" {
+		response.Unauthorized(w, "Authentification requise")
+		return
+	}
+	features, err := h.svc.NotifiedFeatures(r.Context(), userID)
+	if err != nil {
+		log.Printf("[features] state: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, map[string]any{"features": features})
 }
 
 func (h *Handler) summary(w http.ResponseWriter, r *http.Request) {

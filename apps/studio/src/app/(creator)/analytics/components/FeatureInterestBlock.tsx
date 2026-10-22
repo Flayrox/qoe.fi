@@ -32,6 +32,10 @@ export function FeatureInterestBlock({
 }) {
   const announcement = useFeatureAnnouncement();
   const t = (fr: string, en: string) => (locale === 'en' ? en : fr);
+  // Pluriel localisé : le français garde le singulier à zéro (« 0 vue »),
+  // l'anglais non (« 0 views »).
+  const count = (n: number, one: string, many: string) =>
+    `${n} ${locale === 'en' ? (n === 1 ? one : many) : n > 1 ? many : one}`;
 
   return (
     <div className="rounded-xl border border-border/30 bg-card p-6 space-y-4">
@@ -78,10 +82,10 @@ export function FeatureInterestBlock({
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <span className="text-[11px] text-muted-foreground tabular-nums">
-                    {signal.views} {t('vues', 'views')}
+                    {count(signal.views, t('vue', 'view'), t('vues', 'views'))}
                   </span>
                   <span className="text-[11px] font-semibold text-foreground tabular-nums">
-                    {signal.notifies} {t('demandes', 'requests')}
+                    {count(signal.notifies, t('demande', 'request'), t('demandes', 'requests'))}
                   </span>
                   {knownKey ? (
                     <button

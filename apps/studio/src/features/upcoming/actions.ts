@@ -60,6 +60,26 @@ export async function recordFeatureSignalAction(
 }
 
 /**
+ * Fonctionnalités déjà demandées par l'utilisateur connecté.
+ * Une intention est globale au compte (cf. index unique côté Go) : elle
+ * survit donc au rechargement et au changement d'espace.
+ */
+export async function getFeatureNotifiedAction(): Promise<string[]> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const res = await goFetch<{ features: string[] }>('/v1/features/signals/state');
+    return res.features ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/**
  * Agrégat des signaux de l'espace actif sur 90 jours (bloc analytics).
  * Retourne un tableau vide si l'API est indisponible : les statistiques
  * secondaires ne doivent jamais casser la page analytics.

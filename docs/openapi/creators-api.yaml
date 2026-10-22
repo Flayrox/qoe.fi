@@ -840,6 +840,102 @@ paths:
                 properties:
                   apiKey: { type: string, example: qoe_live_abc123 }
         '403': { $ref: '#/components/responses/Forbidden' }
+  /v1/features/signals:
+    post:
+      tags: [analytics]
+      operationId: recordFeatureSignal
+      summary: Signale l'intérêt pour une fonctionnalité à venir / Pro
+      description: >-
+        Attribué à l'espace actif de l'appelant (publication personnelle du
+        créateur ou média) quand publicationId est fourni, sinon à sa
+        publication personnelle. Les vues sont dédupliquées sur 24 h ; une
+        demande « me prévenir » est unique par utilisateur et fonctionnalité.
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [feature, kind]
+              properties:
+                feature:
+                  type: string
+                  pattern: '^[a-z0-9]+(-[a-z0-9]+)*$'
+                  example: custom-domain
+                kind:
+                  type: string
+                  enum: [view, notify]
+                source:
+                  type: string
+                  enum: [studio, site]
+                  default: studio
+                publicationId:
+                  type: string
+                  description: Publication ciblée ; contrôlée (owner/editor) côté serveur.
+      responses:
+        '200':
+          description: Signal enregistré (idempotent).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+                  notified: { type: boolean, example: true }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '429': { description: Limiteur dédié (30 signaux/min). }
+  /v1/features/signals/summary:
+    get:
+      tags: [analytics]
+      operationId: getFeatureSignalSummary
+      summary: Intérêt par fonctionnalité pour une publication (90 jours)
+      security:
+        - jwtAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: publicationId
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  signals:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        feature: { type: string, example: custom-domain }
+                        views: { type: integer, example: 12 }
+                        notifies: { type: integer, example: 3 }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /v1/features/signals/state:
+    get:
+      tags: [analytics]
+      operationId: getFeatureSignalState
+      summary: Fonctionnalités déjà demandées par l'appelant
+      security:
+        - jwtAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  features:
+                    type: array
+                    items: { type: string, example: custom-domain }
+
 components:
   securitySchemes:
     apiKeyAuth:
