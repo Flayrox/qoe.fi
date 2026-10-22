@@ -278,7 +278,7 @@ export function MinimalCraftShell({
               onClick={(e) => {
                 if (!supportLink && authContext?.openAuthModal) {
                   e.preventDefault();
-                  authContext.openAuthModal({ mode: 'signup', actionContext: 'subscribe' });
+                  authContext.openAuthModal({ mode: 'signup', actionContext: 'follow' });
                 }
               }}
               className="px-3 sm:px-4 py-1.5 rounded-full text-xs font-semibold text-white hover:opacity-90 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-2xs shrink-0 cursor-pointer"

@@ -88,7 +88,7 @@ export function TenantHeader({
 
         <div className="flex items-center gap-6">
           <nav className="hidden md:flex items-center gap-6 font-medium text-sm text-muted-foreground">
-            {nestedNav.map((nav: NavItemWithChildren) => {
+            {nestedNav.map((nav) => {
               const hasChildren = nav.children && nav.children.length > 0;
 
               if (hasChildren) {
@@ -103,7 +103,7 @@ export function TenantHeader({
                       <div
                         className={`flex flex-col overflow-hidden ${isBrutalist ? 'border-2 border-foreground bg-background shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]' : 'bg-card border rounded-xl shadow-lg'}`}
                       >
-                        {nav.children!.map((child: NavigationItem) => (
+                        {nav.children!.map((child) => (
                           <Link
                             key={child.id}
                             href={child.url || '/'}

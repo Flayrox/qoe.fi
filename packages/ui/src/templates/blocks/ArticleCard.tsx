@@ -28,7 +28,7 @@ export type ArticleCardVariant = 'hero-center' | 'secondary' | 'row';
 export interface ArticleCardProps {
   article: TemplateArticleItem;
   variant?: ArticleCardVariant;
-  publicationName?: string;
+  publicationName?: string | null;
   showExcerpts?: boolean;
   showReadingTime?: boolean;
   showCategories?: boolean;

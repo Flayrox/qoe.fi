@@ -400,6 +400,16 @@ export interface TemplateRecommendationItem {
   subscribersCount?: number;
 }
 
+export interface TemplateTeamMember {
+  id: string;
+  name: string;
+  username?: string | null;
+  logoUrl?: string | null;
+  bio?: string | null;
+  role: string;
+  isCertified: boolean;
+}
+
 /** Shape minimale de la publication requise pour l'affichage */
 export interface TemplatePublicationContext {
   id?: string;
@@ -409,6 +419,7 @@ export interface TemplatePublicationContext {
   subdomain?: string | null;
   customDomain?: string | null;
   logoUrl?: string | null;
+  bio?: string | null;
   heroText?: string | null;
   headerImageUrl?: string | null;
   footerText?: string | null;
@@ -425,6 +436,7 @@ export interface TemplatePublicationContext {
   layoutStyle?: string | null;
   siteOptions?: Record<string, unknown> | null;
   recommendations?: TemplateRecommendationItem[] | null;
+  team?: TemplateTeamMember[];
   author?: {
     name?: string | null;
     username?: string | null;
