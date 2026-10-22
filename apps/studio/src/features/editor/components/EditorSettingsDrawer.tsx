@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   CalendarClock,
   Copy,
@@ -9,6 +9,7 @@ import {
   FolderOpen,
   Globe,
   Highlighter,
+  Loader2,
   Lock,
   MessageSquare,
   Search,
@@ -19,6 +20,7 @@ import {
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
 import { ArticleAttributionEditor, type ArticleAttributionDraft } from './ArticleAttributionEditor';
+import { resolveArticleCategoryPath } from '../lib/article-settings';
 import { formatScheduledAt } from '../lib/datetime';
 
 export interface EditorSettingsDrawerProps {
@@ -32,6 +34,7 @@ export interface EditorSettingsDrawerProps {
   onScheduleDraftChange: (value: string) => void;
   onSchedule: () => void;
   onClearSchedule: () => void;
+  schedulePending?: boolean;
   isPremium: boolean;
   onTogglePremium: (value: boolean) => void;
   categories: { id: string; name: string; parentId?: string | null; slug?: string }[];
@@ -118,6 +121,7 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
     onScheduleDraftChange,
     onSchedule,
     onClearSchedule,
+    schedulePending = false,
     isPremium,
     onTogglePremium,
     categories,
@@ -150,14 +154,10 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
   const [slugCopied, setSlugCopied] = useState(false);
   const [seoAdvancedOpen, setSeoAdvancedOpen] = useState(Boolean(seoTitle || seoDescription));
 
-  const articlePath = useMemo(() => {
-    const selected = categories.find((category) => category.id === categoryId);
-    if (!selected?.slug) return '/uncategorized';
-    const parent = selected.parentId
-      ? categories.find((category) => category.id === selected.parentId)
-      : undefined;
-    return `/${parent?.slug ? `${parent.slug}/` : ''}${selected.slug}`;
-  }, [categories, categoryId]);
+  const articlePath = useMemo(
+    () => resolveArticleCategoryPath(categories, categoryId),
+    [categories, categoryId]
+  );
 
   const hierarchicalCategories = useMemo(() => {
     const formatted = categories.map((category) => ({
@@ -178,6 +178,25 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
 
   const scheduledLabel = formatScheduledAt(scheduledAt);
 
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [open, onClose]);
+
   if (!open) return null;
 
   return (
@@ -188,7 +207,12 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
       />
 
       <div className="fixed inset-y-0 right-0 max-w-full flex pl-6 sm:pl-10">
-        <aside className="w-screen max-w-md bg-card border-l border-border/50 shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
+        <aside
+          role="dialog"
+          aria-modal="true"
+          aria-label={t`Paramètres de l'article`}
+          className="w-screen max-w-md bg-card border-l border-border/50 shadow-2xl flex flex-col animate-in slide-in-from-right duration-200"
+        >
           <div className="flex items-center justify-between px-5 py-4 border-b border-border/40 shrink-0">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-xs">
@@ -242,7 +266,7 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
                 className="w-full bg-background border border-border/40 rounded-xl p-2.5 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-sans cursor-pointer shadow-xs"
               >
                 <option value="" className="bg-popover text-popover-foreground">
-                  {t`-- Sans catégorie (Général) --`}
+                  {t`Non catégorisé`}
                 </option>
                 {hierarchicalCategories.roots.map((root) => {
                   const children = hierarchicalCategories.childrenMap.get(root.id) || [];
@@ -332,22 +356,26 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
                     type="datetime-local"
                     value={scheduleDraft}
                     onChange={(event) => onScheduleDraftChange(event.target.value)}
-                    className="h-8 min-w-0 flex-1 rounded-lg border border-border/60 bg-background px-2 text-xs text-foreground"
+                    disabled={schedulePending}
+                    className="h-8 min-w-0 flex-1 rounded-lg border border-border/60 bg-background px-2 text-xs text-foreground disabled:opacity-50"
                     aria-label={t`Date et heure de programmation`}
                   />
                   <button
                     type="button"
                     onClick={onSchedule}
-                    className="h-8 shrink-0 rounded-lg bg-highlight px-2.5 text-xs font-semibold text-highlight-foreground hover:opacity-90"
+                    disabled={schedulePending}
+                    className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-highlight px-2.5 text-xs font-semibold text-highlight-foreground hover:opacity-90 disabled:opacity-50"
                   >
-                    {t`Programmer`}
+                    {schedulePending && <Loader2 className="h-3 w-3 animate-spin" />}
+                    {schedulePending ? t`Programmation…` : t`Programmer`}
                   </button>
                 </div>
                 {scheduledAt && (
                   <button
                     type="button"
                     onClick={onClearSchedule}
-                    className="text-[11px] text-destructive hover:underline"
+                    disabled={schedulePending}
+                    className="text-[11px] text-destructive hover:underline disabled:opacity-50"
                   >
                     {t`Effacer la programmation`}
                   </button>
