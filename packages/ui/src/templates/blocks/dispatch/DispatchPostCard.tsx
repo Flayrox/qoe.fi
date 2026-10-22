@@ -90,7 +90,7 @@ export function DispatchPostCard({
               <span className="flex items-center gap-1 text-highlight font-medium">
                 <span>•</span>
                 <Lock className="w-3 h-3" />
-                Réservé
+                Payant
               </span>
             )}
           </div>
@@ -170,7 +170,7 @@ export function DispatchPostCard({
             <span className="flex items-center gap-1 text-highlight font-medium">
               <span>•</span>
               <Lock className="w-3 h-3" />
-              Réservé
+              Payant
             </span>
           )}
           <span className="ml-auto hidden sm:flex items-center gap-3 text-muted-foreground/60">

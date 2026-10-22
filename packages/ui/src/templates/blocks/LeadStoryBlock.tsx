@@ -157,7 +157,7 @@ export function LeadStoryBlock({
                     ))}
                   {displayArticle.isPremium && (
                     <span className="px-2 py-1 rounded-md text-[11px] font-medium border border-border bg-background text-muted-foreground flex items-center gap-1">
-                      <Lock className="w-3 h-3" /> Réservé
+                      <Lock className="w-3 h-3" /> Payant
                     </span>
                   )}
                 </div>

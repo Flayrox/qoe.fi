@@ -195,7 +195,7 @@ export function BentoGridBlock({
                         ))}
                       {item.isPremium && (
                         <span className="px-2 py-0.5 rounded-md text-[10px] font-medium border border-border bg-background text-muted-foreground flex items-center gap-1">
-                          <Lock className="w-2.5 h-2.5" /> Réservé
+                          <Lock className="w-2.5 h-2.5" /> Payant
                         </span>
                       )}
                     </div>

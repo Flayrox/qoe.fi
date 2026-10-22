@@ -164,7 +164,7 @@ export function FeedSidebarWidgets({
                               </span>
                             )}
                         </div>
-                        <span className="text-[10px] text-muted-foreground block truncate font-mono">
+                        <span className="text-[10px] text-muted-foreground block truncate font-sans">
                           @{creator.username || creator.subdomain}
                         </span>
                       </div>
