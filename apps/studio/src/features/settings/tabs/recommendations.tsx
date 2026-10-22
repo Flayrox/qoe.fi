@@ -117,7 +117,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
         setNoteInput('');
         await loadRecs();
       } else {
-        toast.error(res.error || t`Impossible d'ajouter la recommandation.`);
+        toast.error(res.error?.message || t`Impossible d'ajouter la recommandation.`);
       }
     } catch {
       toast.error(t`Une erreur est survenue lors de l'ajout.`);
@@ -138,7 +138,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
         );
         await loadRecs();
       } else {
-        toast.error(res.error || t`Impossible de supprimer la recommandation.`);
+        toast.error(res.error?.message || t`Impossible de supprimer la recommandation.`);
       }
     } catch {
       toast.error(t`Impossible de supprimer la recommandation.`);

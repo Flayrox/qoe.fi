@@ -130,7 +130,7 @@ export {
   type CraftDrawerItem,
 } from './ui/craft-sidebar-drawer';
 
-// 📰 Substack Pencraft Components (About & People)
+// 📰 Qoefi Template Components (About & People)
 export { PersonCard, type PersonCardProps } from './templates/blocks/PersonCard';
 export { PeopleSection, type PeopleSectionProps } from './templates/blocks/PeopleSection';
 export {

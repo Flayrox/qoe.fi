@@ -40,4 +40,28 @@ describe('AboutPageContent', () => {
     expect(html).toContain('Membres fondateurs');
     expect(html).toContain('Rose Florence');
   });
+
+  it('affiche le corps rédigé d’un article riche quand articleContent est renseigné', () => {
+    const mockPublication = {
+      id: 'pub-2',
+      name: 'Les Chroniques',
+      slug: 'les-chroniques',
+      isCertified: false,
+    };
+
+    const richHtml = '<h2>Notre Mission</h2><p>Une rédaction indépendante et libre.</p>';
+
+    const html = renderToStaticMarkup(
+      <AboutPageContent
+        publication={mockPublication}
+        articleContent={richHtml}
+        articleTitle="À propos de notre revue"
+      />
+    );
+
+    expect(html).toContain('data-testid="about-article-body"');
+    expect(html).toContain('<h2>Notre Mission</h2>');
+    expect(html).toContain('Une rédaction indépendante et libre.');
+    expect(html).toContain('À propos de notre revue');
+  });
 });

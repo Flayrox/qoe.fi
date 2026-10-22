@@ -362,3 +362,133 @@ export async function fetchTenantRecommendations(domain: string): Promise<Recomm
     return [];
   }
 }
+
+export interface TenantThoughtItem {
+  id: string;
+  content: string;
+  createdAt: string;
+  imageUrl?: string | null;
+  likeCount?: number;
+  repostCount?: number;
+  replyCount?: number;
+  isPinned?: boolean;
+  author: {
+    id: string;
+    name: string | null;
+    username: string | null;
+    logoUrl?: string | null;
+    isCertified?: boolean;
+  };
+  attachments?: Array<{ id?: string; url: string; type?: string; altText?: string | null }> | null;
+  poll?: unknown;
+  articleQuote?: {
+    id: string;
+    title: string;
+    slug: string;
+    isPremium: boolean;
+    publication: {
+      name: string;
+      slug: string;
+      logoUrl?: string | null;
+    };
+    author: {
+      name?: string | null;
+      username?: string | null;
+    };
+  } | null;
+}
+
+/** Pensées (micro-posts) réelles d'une publication / auteur */
+export async function fetchTenantThoughts(
+  identifier: string,
+  limit = 20,
+  offset = 0
+): Promise<{ items: TenantThoughtItem[]; hasMore: boolean }> {
+  try {
+    const res = await goFetch<{
+      items: Array<{
+        id: string;
+        targetPost?: {
+          id: string;
+          content: string;
+          createdAt: string;
+          imageUrl?: string | null;
+          likeCount?: number;
+          repostCount?: number;
+          replyCount?: number;
+          isPinned?: boolean;
+          author?: {
+            id: string;
+            name: string | null;
+            username: string | null;
+            logo?: string | null;
+            logoUrl?: string | null;
+            isCertified?: boolean;
+          };
+          attachments?: Array<{
+            id?: string;
+            url: string;
+            type?: string;
+            altText?: string | null;
+          }> | null;
+          poll?: unknown;
+          quotedArticle?: {
+            id: string;
+            title: string;
+            slug: string;
+            isPremium: boolean;
+            publication: {
+              name: string;
+              slug: string;
+              logoUrl?: string | null;
+            };
+            author: {
+              name?: string | null;
+              username?: string | null;
+            };
+          };
+        };
+      }>;
+      hasMore: boolean;
+    }>(`/v1/users/${encodeURIComponent(identifier)}/posts?limit=${limit}&offset=${offset}`);
+
+    const rawList = res?.items || [];
+    const items: TenantThoughtItem[] = rawList
+      .filter((slice) => Boolean(slice?.targetPost?.id || slice?.id))
+      .map((slice) => {
+        const p = slice.targetPost || (slice as unknown as NonNullable<typeof slice.targetPost>);
+        const author = p?.author || {
+          id: '',
+          name: null,
+          username: null,
+          logoUrl: null,
+          isCertified: false,
+        };
+        return {
+          id: p.id,
+          content: p.content,
+          createdAt: p.createdAt,
+          imageUrl: p.imageUrl ?? null,
+          likeCount: p.likeCount ?? 0,
+          repostCount: p.repostCount ?? 0,
+          replyCount: p.replyCount ?? 0,
+          isPinned: !!p.isPinned,
+          author: {
+            id: author.id,
+            name: author.name ?? null,
+            username: author.username ?? null,
+            logoUrl: author.logoUrl ?? author.logo ?? null,
+            isCertified: !!author.isCertified,
+          },
+          attachments: p.attachments ?? null,
+          poll: p.poll ?? null,
+          articleQuote: p.quotedArticle ?? null,
+        };
+      });
+
+    return { items, hasMore: !!res?.hasMore };
+  } catch (err) {
+    console.warn('[tenant-data] fetchTenantThoughts error:', err);
+    return { items: [], hasMore: false };
+  }
+}

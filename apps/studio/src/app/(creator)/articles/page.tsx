@@ -23,6 +23,7 @@ export default async function ArticlesPage() {
   } = await supabase.auth.getUser();
 
   let pinnedArticleId: string | null = null;
+  let aboutArticleId: string | null = null;
   if (user) {
     try {
       const workspace = await getActiveWorkspace(user.id);
@@ -30,6 +31,7 @@ export default async function ArticlesPage() {
         `/v1/settings/publication?publicationId=${encodeURIComponent(workspace.publicationId)}`
       );
       pinnedArticleId = (pub.siteOptions?.pinnedArticleId as string) || null;
+      aboutArticleId = (pub.siteOptions?.aboutArticleId as string) || null;
     } catch {
       // Ignorer si indisponible
     }
@@ -52,6 +54,7 @@ export default async function ArticlesPage() {
         initialArticles={articles}
         initialCategories={categories}
         initialPinnedArticleId={pinnedArticleId}
+        initialAboutArticleId={aboutArticleId}
         canReview={capabilities?.canReview ?? false}
       />
     </div>

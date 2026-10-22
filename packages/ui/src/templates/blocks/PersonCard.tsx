@@ -1,7 +1,7 @@
 'use client';
 
 // =====================================================================
-// PersonCard.tsx — Carte Contributeur / Créateur (Standard Pencraft Substack)
+// PersonCard.tsx — Carte Contributeur / Créateur (Standard Éditorial Qoefi)
 // =====================================================================
 // - Largeur compacte maîtrisée (max 340px, idéalement 320px)
 // - Avatar rond 48px avec bordure fine et fallback initiales
