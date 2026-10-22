@@ -42,6 +42,7 @@ import {
   moveCategoryAction,
 } from '@qoe/sdk/actions/articles';
 import { updateCreatorProfileAction } from '@qoe/sdk/actions/dashboard';
+import { toast } from '@qoe/ui/toast';
 import { t } from '@lingui/core/macro';
 
 import { ArticleInspectorModal } from '../analytics/components/ArticleInspectorModal';
@@ -117,8 +118,11 @@ export function ArticlesClient({
           pinnedArticleId: nextPinned,
         },
       });
+      toast.success(nextPinned ? t`Article épinglé à la une !` : t`Article retiré de la une.`);
     } catch (err) {
       console.error('Failed to pin article', err);
+      setPinnedArticleId(pinnedArticleId);
+      toast.error(t`Impossible de modifier l'épinglage.`);
     }
   };
 
