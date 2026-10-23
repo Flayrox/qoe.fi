@@ -138,6 +138,12 @@ export function ArticleSettingsSheet({
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (document.querySelector('[data-slot="dialog-content"]')) return;
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        requestClose();
+        return;
+      }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
         event.preventDefault();
         if (dirty && !saving && loadState === 'ready') void save();
@@ -145,7 +151,7 @@ export function ArticleSettingsSheet({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [dirty, loadState, save, saving]);
+  }, [dirty, loadState, requestClose, save, saving]);
 
   const autoSeoDescription = useMemo(
     () => (draft ? computeAutoSeoDescription(draft.content, draft.isPremium) : ''),
