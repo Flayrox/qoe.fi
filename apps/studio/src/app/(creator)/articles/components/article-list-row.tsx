@@ -8,6 +8,7 @@ import {
   Clock,
   Edit3,
   Eye,
+  GitCompare,
   Heart,
   Lock,
   MessageSquare,
@@ -37,6 +38,7 @@ export function ArticleListRow({
   onToggleAbout,
   onReview,
   onDelete,
+  onOpenDiff,
 }: {
   article: ArticleWithCategory;
   columns: ListColumnPrefs;
@@ -52,6 +54,7 @@ export function ArticleListRow({
   onToggleAbout: (id: string) => void;
   onReview: (article: ArticleWithCategory, approve: boolean) => void;
   onDelete: (article: ArticleWithCategory) => void;
+  onOpenDiff?: (article: ArticleWithCategory) => void;
 }) {
   const interactionsCount =
     (article._count?.bookmarks || 0) +
@@ -90,19 +93,30 @@ export function ArticleListRow({
             (article.status === 'SUBMITTED' ? (
               <span className="inline-flex shrink-0 items-center gap-1 rounded border border-highlight/20 bg-highlight/10 px-1.5 py-0.5 text-[10px] font-semibold text-highlight">
                 <Clock className="h-2.5 w-2.5" />
-                {t`En revue`}
+                {article.published ? t`En revue (modifications)` : t`En revue`}
               </span>
             ) : (
-              <span
-                className={cn(
-                  'shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold',
-                  article.published
-                    ? 'bg-primary/10 text-primary'
-                    : 'bg-muted text-muted-foreground'
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span
+                  className={cn(
+                    'shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold',
+                    article.published
+                      ? 'bg-primary/10 text-primary'
+                      : 'bg-muted text-muted-foreground'
+                  )}
+                >
+                  {article.published ? t`Publié` : t`Brouillon`}
+                </span>
+                {article.published && article.hasUnpublishedChanges && (
+                  <span
+                    className="inline-flex shrink-0 items-center gap-1 rounded border border-highlight/30 bg-highlight/10 px-1.5 py-0.5 text-[10px] font-medium text-highlight"
+                    title={t`Brouillon avec des modifications non publiées`}
+                  >
+                    <GitCompare className="h-2.5 w-2.5" />
+                    {t`Modifications en attente`}
+                  </span>
                 )}
-              >
-                {article.published ? t`Publié` : t`Brouillon`}
-              </span>
+              </div>
             ))}
           {columns.premium && article.isPremium && (
             <Lock className="h-3 w-3 shrink-0 text-highlight" />
@@ -185,6 +199,19 @@ export function ArticleListRow({
       >
         <Pin className="h-4 w-4 stroke-[1.5]" />
       </button>
+      {(article.hasUnpublishedChanges || article.status === 'SUBMITTED') && onOpenDiff && (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            onOpenDiff(article);
+          }}
+          className="rounded p-1.5 text-highlight opacity-80 transition-colors hover:text-highlight hover:opacity-100 group-hover:opacity-100 focus:opacity-100"
+          title={t`Comparer les versions (Diff)`}
+        >
+          <GitCompare className="h-4 w-4 stroke-[1.5]" />
+        </button>
+      )}
       <button
         type="button"
         onClick={(event) => {
@@ -205,6 +232,21 @@ export function ArticleListRow({
           <MoreHorizontal className="h-4 w-4" />
         </summary>
         <div className="absolute right-0 top-full z-40 mt-1 w-52 rounded-xl border border-border/40 bg-card p-1 shadow-xl">
+          {(article.hasUnpublishedChanges || article.status === 'SUBMITTED') && onOpenDiff && (
+            <button
+              onClick={(event) => {
+                event.stopPropagation();
+                (
+                  event.currentTarget.closest('details') as HTMLDetailsElement | null
+                )?.removeAttribute('open');
+                onOpenDiff(article);
+              }}
+              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-foreground transition-colors hover:bg-muted/60"
+            >
+              <GitCompare className="h-3.5 w-3.5 text-highlight" />
+              {t`Comparer les versions (Diff)`}
+            </button>
+          )}
           <button
             onClick={(event) => {
               event.stopPropagation();

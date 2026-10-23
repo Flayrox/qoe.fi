@@ -20,7 +20,7 @@ CREATE TYPE "Gender" AS ENUM ('FEMALE', 'MALE', 'NON_BINARY', 'OTHER', 'PREFER_N
 CREATE TYPE "AgeRange" AS ENUM ('UNDER_18', 'AGE_18_24', 'AGE_25_34', 'AGE_35_44', 'AGE_45_54', 'AGE_55_64', 'AGE_65_PLUS', 'PREFER_NOT_TO_SAY');
 
 -- CreateEnum
-CREATE TYPE "NotificationType" AS ENUM ('LIKE', 'REPOST', 'REPLY', 'COMMENT', 'MENTION', 'FOLLOW', 'MEDIA_INVITE', 'MEDIA_MEMBER_JOINED', 'MEDIA_ARTICLE_PUBLISHED', 'MEDIA_ARTICLE_SUBMITTED', 'ARTICLE_CONTRIBUTOR_INVITED', 'ARTICLE_CONTRIBUTOR_ACCEPTED', 'ARTICLE_CONTRIBUTOR_DECLINED', 'ARTICLE_CONTRIBUTOR_REMOVED');
+CREATE TYPE "NotificationType" AS ENUM ('LIKE', 'REPOST', 'REPLY', 'COMMENT', 'MENTION', 'FOLLOW', 'MEDIA_INVITE', 'MEDIA_MEMBER_JOINED', 'MEDIA_ARTICLE_PUBLISHED', 'MEDIA_ARTICLE_SUBMITTED', 'MEDIA_ARTICLE_APPROVED', 'MEDIA_ARTICLE_REJECTED', 'ARTICLE_CONTRIBUTOR_INVITED', 'ARTICLE_CONTRIBUTOR_ACCEPTED', 'ARTICLE_CONTRIBUTOR_DECLINED', 'ARTICLE_CONTRIBUTOR_REMOVED');
 
 -- CreateEnum
 CREATE TYPE "MediaAssetStatus" AS ENUM ('DRAFT_ORPHAN', 'ATTACHED', 'SOFT_DELETED', 'PURGED');
@@ -929,9 +929,24 @@ CREATE TABLE "Notification" (
     "commentId" TEXT,
     "publicationId" TEXT,
     "isRead" BOOLEAN NOT NULL DEFAULT false,
+    "metadata" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ArticleReviewLog" (
+    "id" TEXT NOT NULL,
+    "articleId" TEXT NOT NULL,
+    "publicationId" TEXT NOT NULL,
+    "reviewerId" UUID NOT NULL,
+    "action" TEXT NOT NULL,
+    "comment" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ArticleReviewLog_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "ArticleReviewLog_action_check" CHECK ("action" IN ('SUBMITTED', 'APPROVED', 'REJECTED', 'WITHDRAWN'))
 );
 
 -- CreateTable
@@ -2820,3 +2835,13 @@ CREATE INDEX "FeatureSignal_created_idx"
 -- CreateIndex
 CREATE INDEX "FeatureSignal_publication_created_idx"
     ON "FeatureSignal" ("publicationId", "createdAt" DESC);
+
+-- CreateIndex
+CREATE INDEX "ArticleReviewLog_articleId_createdAt_idx" ON "ArticleReviewLog"("articleId", "createdAt" DESC);
+CREATE INDEX "ArticleReviewLog_publicationId_createdAt_idx" ON "ArticleReviewLog"("publicationId", "createdAt" DESC);
+
+-- AddForeignKey
+ALTER TABLE "ArticleReviewLog" ADD CONSTRAINT "ArticleReviewLog_articleId_fkey" FOREIGN KEY ("articleId") REFERENCES "Article"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "ArticleReviewLog" ADD CONSTRAINT "ArticleReviewLog_publicationId_fkey" FOREIGN KEY ("publicationId") REFERENCES "Publication"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "ArticleReviewLog" ADD CONSTRAINT "ArticleReviewLog_reviewerId_fkey" FOREIGN KEY ("reviewerId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+

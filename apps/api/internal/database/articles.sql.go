@@ -151,6 +151,20 @@ func (q *Queries) DeleteArticle(ctx context.Context, id string) error {
 	return err
 }
 
+const discardArticleDraft = `-- name: DiscardArticleDraft :one
+UPDATE "Article"
+SET "draftContent" = NULL, "updatedAt" = now()
+WHERE id = $1
+RETURNING id
+`
+
+func (q *Queries) DiscardArticleDraft(ctx context.Context, id string) (string, error) {
+	row := q.db.QueryRow(ctx, discardArticleDraft, id)
+	var id_2 string
+	err := row.Scan(&id_2)
+	return id_2, err
+}
+
 const getArticleByID = `-- name: GetArticleByID :one
 SELECT a.id, a.title, a.slug, a.content, a."draftContent", a.published, a."isPremium", a.visibility,
        a."readingTime", a."allowPublicAnnotations", a."allowComments", a."allowDownload", a."scheduledAt",
@@ -591,6 +605,47 @@ func (q *Queries) GetCreatorArticleBySlug(ctx context.Context, arg GetCreatorArt
 	return i, err
 }
 
+const getLatestArticleReviewFeedback = `-- name: GetLatestArticleReviewFeedback :one
+SELECT r.id, r."articleId", r."publicationId", r."reviewerId", r.action, r.comment, r."createdAt",
+       u.name AS reviewer_name, u.username AS reviewer_username, u."logoUrl" AS reviewer_logo
+FROM "ArticleReviewLog" r
+JOIN "User" u ON u.id = r."reviewerId"
+WHERE r."articleId" = $1
+ORDER BY r."createdAt" DESC
+LIMIT 1
+`
+
+type GetLatestArticleReviewFeedbackRow struct {
+	ID               string           `json:"id"`
+	ArticleId        string           `json:"articleId"`
+	PublicationId    string           `json:"publicationId"`
+	ReviewerId       pgtype.UUID      `json:"reviewerId"`
+	Action           string           `json:"action"`
+	Comment          pgtype.Text      `json:"comment"`
+	CreatedAt        pgtype.Timestamp `json:"createdAt"`
+	ReviewerName     pgtype.Text      `json:"reviewer_name"`
+	ReviewerUsername pgtype.Text      `json:"reviewer_username"`
+	ReviewerLogo     pgtype.Text      `json:"reviewer_logo"`
+}
+
+func (q *Queries) GetLatestArticleReviewFeedback(ctx context.Context, articleid string) (GetLatestArticleReviewFeedbackRow, error) {
+	row := q.db.QueryRow(ctx, getLatestArticleReviewFeedback, articleid)
+	var i GetLatestArticleReviewFeedbackRow
+	err := row.Scan(
+		&i.ID,
+		&i.ArticleId,
+		&i.PublicationId,
+		&i.ReviewerId,
+		&i.Action,
+		&i.Comment,
+		&i.CreatedAt,
+		&i.ReviewerName,
+		&i.ReviewerUsername,
+		&i.ReviewerLogo,
+	)
+	return i, err
+}
+
 const getMediaRoleForUser = `-- name: GetMediaRoleForUser :one
 SELECT m.role
 FROM "MediaMember" m
@@ -651,10 +706,35 @@ func (q *Queries) GetUserPersonalPublication(ctx context.Context, id string) (pg
 	return id_2, err
 }
 
+const insertArticleReviewLog = `-- name: InsertArticleReviewLog :exec
+INSERT INTO "ArticleReviewLog" (id, "articleId", "publicationId", "reviewerId", action, comment)
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5)
+`
+
+type InsertArticleReviewLogParams struct {
+	ArticleId     string      `json:"articleId"`
+	PublicationId string      `json:"publicationId"`
+	ReviewerId    pgtype.UUID `json:"reviewerId"`
+	Action        string      `json:"action"`
+	Comment       pgtype.Text `json:"comment"`
+}
+
+func (q *Queries) InsertArticleReviewLog(ctx context.Context, arg InsertArticleReviewLogParams) error {
+	_, err := q.db.Exec(ctx, insertArticleReviewLog,
+		arg.ArticleId,
+		arg.PublicationId,
+		arg.ReviewerId,
+		arg.Action,
+		arg.Comment,
+	)
+	return err
+}
+
 const listArticlesWithCategory = `-- name: ListArticlesWithCategory :many
 SELECT a.id, a.title, a.slug, a.published, a."isPremium", a.visibility, a."readingTime",
        a.status, a."createdAt", a."updatedAt", a."categoryId", a."publicationId",
        a."allowPublicAnnotations", a."allowComments", a."allowDownload",
+       (a."draftContent" IS NOT NULL AND a."draftContent" <> '') AS has_unpublished_changes,
        c.id  AS category_id,
        c.name AS category_name,
        c.slug AS category_slug
@@ -687,6 +767,7 @@ type ListArticlesWithCategoryRow struct {
 	AllowPublicAnnotations bool              `json:"allowPublicAnnotations"`
 	AllowComments          bool              `json:"allowComments"`
 	AllowDownload          bool              `json:"allowDownload"`
+	HasUnpublishedChanges  pgtype.Bool       `json:"has_unpublished_changes"`
 	CategoryID             pgtype.Text       `json:"category_id"`
 	CategoryName           pgtype.Text       `json:"category_name"`
 	CategorySlug           pgtype.Text       `json:"category_slug"`
@@ -717,6 +798,7 @@ func (q *Queries) ListArticlesWithCategory(ctx context.Context, arg ListArticles
 			&i.AllowPublicAnnotations,
 			&i.AllowComments,
 			&i.AllowDownload,
+			&i.HasUnpublishedChanges,
 			&i.CategoryID,
 			&i.CategoryName,
 			&i.CategorySlug,

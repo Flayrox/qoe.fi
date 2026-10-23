@@ -3,6 +3,7 @@ package articles
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -35,9 +36,11 @@ type ArticleResponse struct {
 	Title                  string            `json:"title"`
 	Slug                   string            `json:"slug"`
 	Content                string            `json:"content"`
-	DraftContent           *string           `json:"draftContent,omitempty"`
-	HasUnpublishedChanges  bool              `json:"hasUnpublishedChanges"`
-	Published              bool              `json:"published"`
+	LiveContent            *string                        `json:"liveContent,omitempty"`
+	DraftContent           *string                        `json:"draftContent,omitempty"`
+	HasUnpublishedChanges  bool                           `json:"hasUnpublishedChanges"`
+	ReviewFeedback         *ArticleReviewFeedbackResponse `json:"reviewFeedback,omitempty"`
+	Published              bool                           `json:"published"`
 	IsPremium              bool              `json:"isPremium"`
 	Visibility             string            `json:"visibility"`
 	ReadingTime            int               `json:"readingTime"`
@@ -77,6 +80,18 @@ type AttributionInfo struct {
 	Order         int        `json:"order"`
 	IsVisible     bool       `json:"isVisible"`
 	ConsentStatus string     `json:"consentStatus"`
+}
+
+// ArticleReviewFeedbackResponse représente le dernier retour éditorial sur l'article.
+type ArticleReviewFeedbackResponse struct {
+	ID               string  `json:"id"`
+	ArticleID        string  `json:"articleId"`
+	Action           string  `json:"action"`
+	Comment          *string `json:"comment,omitempty"`
+	CreatedAt        string  `json:"createdAt"`
+	ReviewerName     *string `json:"reviewerName,omitempty"`
+	ReviewerUsername *string `json:"reviewerUsername,omitempty"`
+	ReviewerLogo     *string `json:"reviewerLogo,omitempty"`
 }
 
 // CategoryInfo est la catégorie dénormalisée d'un article.
@@ -471,6 +486,7 @@ func (s *Service) List(ctx context.Context, userID, publicationID string, limit,
 	for _, r := range rows {
 		item := ArticleResponse{
 			ID: r.ID, Title: r.Title, Slug: r.Slug, Published: r.Published,
+			HasUnpublishedChanges:  r.HasUnpublishedChanges.Valid && r.HasUnpublishedChanges.Bool,
 			IsPremium: r.IsPremium, Visibility: string(r.Visibility), ReadingTime: int(r.ReadingTime),
 			Status: r.Status, PublicationID: r.PublicationId,
 			AllowPublicAnnotations: r.AllowPublicAnnotations,
@@ -880,11 +896,12 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 		switch {
 		case effectiveStatus == "SUBMITTED":
 			if row.Published {
-				return errors.New("Impossible de soumettre un article déjà publié.")
+				effectivePublished = true
+			} else {
+				effectivePublished = false
 			}
-			effectivePublished = false
 		case row.Published:
-			// Un rédacteur éditant un article déjà publié ne peut pas changer son état.
+			// Un rédacteur éditant un article déjà publié ne peut pas changer son état sans permission.
 			effectivePublished = true
 			effectiveStatus = row.Status
 			if effectiveStatus == "" {
@@ -961,7 +978,10 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 		// de même être persistées : sinon un co-auteur qui choisit une
 		// catégorie sur un article publié voyait son choix silencieusement
 		// perdu. Le CONTENU public reste inchangé (row.Content).
-		preservedStatus := row.Status
+		preservedStatus := effectiveStatus
+		if preservedStatus == "" || preservedStatus == "DRAFT" {
+			preservedStatus = row.Status
+		}
 		if preservedStatus == "" {
 			preservedStatus = "PUBLISHED"
 		}
@@ -980,6 +1000,16 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 		}
 		s.syncAttributions(ctx, articleID, uuidString(row.AuthorId), in.Attributions)
 		s.queueSearchSync(articleID, "upsert")
+		if preservedStatus == "SUBMITTED" && row.Status != "SUBMITTED" {
+			s.notifyReviewers(ctx, row.PublicationId, articleID, userID)
+			_ = s.q.InsertArticleReviewLog(ctx, db.InsertArticleReviewLogParams{
+				ArticleId:     articleID,
+				PublicationId: row.PublicationId,
+				ReviewerId:    toUUID(userID),
+				Action:        "SUBMITTED",
+				Comment:       pgtype.Text{String: "", Valid: false},
+			})
+		}
 		return nil
 	}
 
@@ -1007,6 +1037,17 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 	s.syncAttributions(ctx, articleID, uuidString(row.AuthorId), in.Attributions)
 	s.queueSearchSync(articleID, "upsert")
 	s.emitArticleLifecycle(queue.TaskArticleUpdated, row, in.Title, in.Slug)
+
+	if effectiveStatus == "SUBMITTED" && row.Status != "SUBMITTED" {
+		s.notifyReviewers(ctx, row.PublicationId, articleID, userID)
+		_ = s.q.InsertArticleReviewLog(ctx, db.InsertArticleReviewLogParams{
+			ArticleId:     articleID,
+			PublicationId: row.PublicationId,
+			ReviewerId:    toUUID(userID),
+			Action:        "SUBMITTED",
+			Comment:       pgtype.Text{String: "", Valid: false},
+		})
+	}
 
 	// Fan-out + événement à la transition draft→publié.
 	if effectivePublished && !row.Published {
@@ -1286,6 +1327,19 @@ func (s *Service) GetByID(ctx context.Context, articleID, userID string) (Articl
 	if row.CategoryId.Valid {
 		if cat := s.fetchCategory(ctx, row.CategoryId.String); cat != nil {
 			resp.Category = cat
+		}
+	}
+	// Dernier retour éditorial si présent
+	if fb, err := s.q.GetLatestArticleReviewFeedback(ctx, articleID); err == nil {
+		resp.ReviewFeedback = &ArticleReviewFeedbackResponse{
+			ID:               fb.ID,
+			ArticleID:        fb.ArticleId,
+			Action:           fb.Action,
+			Comment:          textPtr(fb.Comment),
+			CreatedAt:        fb.CreatedAt.Time.Format(time.RFC3339),
+			ReviewerName:     textPtr(fb.ReviewerName),
+			ReviewerUsername: textPtr(fb.ReviewerUsername),
+			ReviewerLogo:     textPtr(fb.ReviewerLogo),
 		}
 	}
 	return resp, nil
@@ -1577,7 +1631,7 @@ func (s *Service) fetchArticleCountBatch(ctx context.Context, ids []string, quer
 }
 
 // Review approuve ou rejette un article soumis (RBAC media:review).
-func (s *Service) Review(ctx context.Context, articleID, userID string, approve bool) error {
+func (s *Service) Review(ctx context.Context, articleID, userID string, approve bool, comment string) error {
 	row, err := s.q.GetArticleByID(ctx, articleID)
 	if err != nil {
 		return errNotFound
@@ -1598,17 +1652,118 @@ func (s *Service) Review(ctx context.Context, articleID, userID string, approve 
 	if approve {
 		status = "PUBLISHED"
 		published = true
+		if row.DraftContent.Valid && row.DraftContent.String != "" {
+			if _, err := s.q.PublishArticleDraft(ctx, articleID); err != nil {
+				return err
+			}
+		}
+	} else if row.Published {
+		// Rejet des modifications sur un article déjà en ligne : l'article reste publié
+		// pour les lecteurs, le brouillon est maintenu pour retouches par l'auteur.
+		published = true
+		status = "DRAFT"
 	}
+
 	if _, err := s.q.SetArticleStatus(ctx, db.SetArticleStatusParams{
 		ID: articleID, Status: status, Published: published,
 	}); err != nil {
 		return err
 	}
-	s.queueSearchSync(articleID, "upsert")
+
+	action := "REJECTED"
+	notifType := db.NotificationTypeMEDIAARTICLEREJECTED
 	if approve {
+		action = "APPROVED"
+		notifType = db.NotificationTypeMEDIAARTICLEAPPROVED
+	}
+
+	_ = s.q.InsertArticleReviewLog(ctx, db.InsertArticleReviewLogParams{
+		ArticleId:     articleID,
+		PublicationId: row.PublicationId,
+		ReviewerId:    toUUID(userID),
+		Action:        action,
+		Comment:       pgtype.Text{String: comment, Valid: comment != ""},
+	})
+
+	meta := map[string]any{
+		"articleId":    articleID,
+		"articleTitle": row.Title,
+	}
+	if comment != "" {
+		meta["comment"] = comment
+	}
+	metaBytes, _ := json.Marshal(meta)
+	_ = s.q.InsertArticleReviewNotification(ctx, db.InsertArticleReviewNotificationParams{
+		RecipientID:   toUUID(row.AuthorID),
+		SenderID:      toUUID(userID),
+		Type:          notifType,
+		ArticleID:     pgtype.Text{String: articleID, Valid: true},
+		PublicationID: pgtype.Text{String: row.PublicationId, Valid: true},
+		Metadata:      metaBytes,
+	})
+
+	s.queueSearchSync(articleID, "upsert")
+	if approve && !row.Published {
 		s.emitPublished(ctx, row)
 	}
 	return nil
+}
+
+// DiscardDraft abandonne le brouillon en cours pour revenir à la version publiée en ligne.
+func (s *Service) DiscardDraft(ctx context.Context, articleID, userID string) error {
+	row, _, err := s.authorizeEdit(ctx, articleID, userID, "")
+	if err != nil {
+		return err
+	}
+	if !row.DraftContent.Valid || row.DraftContent.String == "" {
+		return nil
+	}
+	if _, err := s.q.DiscardArticleDraft(ctx, articleID); err != nil {
+		return err
+	}
+	if row.Published && row.Status == "SUBMITTED" {
+		_, _ = s.q.SetArticleStatus(ctx, db.SetArticleStatusParams{
+			ID: articleID, Status: "PUBLISHED", Published: true,
+		})
+	}
+	_ = s.q.InsertArticleReviewLog(ctx, db.InsertArticleReviewLogParams{
+		ArticleId:     articleID,
+		PublicationId: row.PublicationId,
+		ReviewerId:    toUUID(userID),
+		Action:        "WITHDRAWN",
+		Comment:       pgtype.Text{String: "Brouillon abandonné", Valid: true},
+	})
+	return nil
+}
+
+// GetLatestReviewFeedback retourne le dernier feedback éditorial d'un article.
+func (s *Service) GetLatestReviewFeedback(ctx context.Context, articleID, userID string) (*ArticleReviewFeedbackResponse, error) {
+	row, err := s.q.GetArticleByID(ctx, articleID)
+	if err != nil {
+		return nil, errNotFound
+	}
+	if row.AuthorID != userID {
+		if _, err := s.resolveMember(ctx, userID, row.PublicationId); err != nil {
+			return nil, errForbidden
+		}
+	}
+	fb, err := s.q.GetLatestArticleReviewFeedback(ctx, articleID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &ArticleReviewFeedbackResponse{
+		ID:               fb.ID,
+		ArticleID:        fb.ArticleId,
+		Action:           fb.Action,
+		Comment:          textPtr(fb.Comment),
+		CreatedAt:        fb.CreatedAt.Time.Format(time.RFC3339),
+		ReviewerName:     textPtr(fb.ReviewerName),
+		ReviewerUsername: textPtr(fb.ReviewerUsername),
+		ReviewerLogo:     textPtr(fb.ReviewerLogo),
+	}, nil
 }
 
 // SimilarArticles retourne les articles publiés les plus proches sémantiquement
@@ -1753,10 +1908,16 @@ func (s *Service) articleResponseFromIDRow(row db.GetArticleByIDRow) ArticleResp
 	content := row.Content
 	hasUnpublishedChanges := false
 	var draftContent *string
+	var liveContent *string
+	if row.Published {
+		live := row.Content
+		liveContent = &live
+	}
 	if row.DraftContent.Valid && row.DraftContent.String != "" {
 		draftContent = &row.DraftContent.String
 		if row.Published {
 			// Pour un article déjà publié, l'éditeur charge le brouillon en cours de travail
+			// et expose la version publiée en ligne via liveContent pour la comparaison
 			content = row.DraftContent.String
 			hasUnpublishedChanges = true
 		}
@@ -1764,7 +1925,7 @@ func (s *Service) articleResponseFromIDRow(row db.GetArticleByIDRow) ArticleResp
 
 	return ArticleResponse{
 		ID: row.ID, Title: row.Title, Slug: row.Slug, Content: content,
-		DraftContent: draftContent, HasUnpublishedChanges: hasUnpublishedChanges,
+		DraftContent: draftContent, LiveContent: liveContent, HasUnpublishedChanges: hasUnpublishedChanges,
 		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),
 		AllowDownload: row.AllowDownload, AllowPublicAnnotations: row.AllowPublicAnnotations,
 		AllowComments: row.AllowComments,

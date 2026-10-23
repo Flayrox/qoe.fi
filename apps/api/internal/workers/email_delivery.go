@@ -167,6 +167,10 @@ func notificationTypeLabel(t string) string {
 		return "a publié un article dans le Média"
 	case "MEDIA_ARTICLE_SUBMITTED":
 		return "a soumis un article pour revue"
+	case "MEDIA_ARTICLE_APPROVED":
+		return "a approuvé votre article"
+	case "MEDIA_ARTICLE_REJECTED":
+		return "a demandé des retouches sur votre article"
 	case "ARTICLE_CONTRIBUTOR_INVITED":
 		return "vous a invité à contribuer"
 	case "ARTICLE_CONTRIBUTOR_ACCEPTED":

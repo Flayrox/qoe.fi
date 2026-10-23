@@ -15,7 +15,8 @@ import {
 } from '@qoe/sdk/actions/articles';
 import { toast } from '@qoe/ui/toast';
 import { useAutoSaveArticle, type AutoSavePayload } from '@qoe/sdk';
-import type { EditorCapabilities } from '@qoe/sdk/actions/articles';
+import type { EditorCapabilities, ArticleReviewFeedback } from '@qoe/sdk/actions/articles';
+import { MessageSquare } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 import { ArticleInspectorModal } from '@/app/(creator)/analytics/components/ArticleInspectorModal';
 import { compressImage } from '@/lib/image-compressor';
@@ -38,6 +39,7 @@ import { EditorSettingsDrawer } from './EditorSettingsDrawer';
 import { CoverUploader } from './CoverUploader';
 import { AnnotationPopover } from './AnnotationPopover';
 import { PublishModal, type PublishOptions } from './PublishModal';
+import { ArticleDiffModal } from './ArticleDiffModal';
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error) return error.message;
@@ -54,6 +56,9 @@ export interface EditorProps {
   initialTitle?: string;
   initialSlug?: string;
   initialContent?: string;
+  initialLiveContent?: string | null;
+  initialHasUnpublishedChanges?: boolean;
+  initialReviewFeedback?: ArticleReviewFeedback | null;
   initialImageUrl?: string | null;
   initialPublished?: boolean;
   initialScheduledAt?: string | null;
@@ -89,6 +94,8 @@ export interface EditorProps {
     allowDownload?: boolean;
     attributions?: ArticleAttributionDraft[];
   }) => Promise<{ id?: string } | void>;
+  onDiscardDraft?: () => Promise<void> | void;
+  onReview?: (approve: boolean, comment?: string) => Promise<void> | void;
   onBack?: () => void;
 }
 
@@ -96,6 +103,9 @@ export function Editor({
   initialTitle = '',
   initialSlug = '',
   initialContent = '',
+  initialLiveContent = null,
+  initialHasUnpublishedChanges = false,
+  initialReviewFeedback = null,
   initialImageUrl = null,
   initialPublished = false,
   initialStatus = 'DRAFT',
@@ -115,12 +125,22 @@ export function Editor({
   isSaving = false,
   capabilities,
   onSave,
+  onDiscardDraft,
+  onReview,
   onBack,
 }: EditorProps) {
   const [title, setTitle] = useState(initialTitle);
   const [slug, setSlug] = useState(initialSlug);
   const [imageUrl, setImageUrl] = useState<string | null>(initialImageUrl);
   const [published, setPublished] = useState(initialPublished);
+  const [liveContent, setLiveContent] = useState<string | null>(initialLiveContent);
+  const [hasUnpublishedChanges, setHasUnpublishedChanges] = useState<boolean>(
+    initialHasUnpublishedChanges
+  );
+  const [reviewFeedback, setReviewFeedback] = useState<ArticleReviewFeedback | null>(
+    initialReviewFeedback
+  );
+  const [showDiffModal, setShowDiffModal] = useState(false);
   const [status, setStatus] = useState<string>(initialStatus || 'DRAFT');
   const [scheduledAt, setScheduledAt] = useState<string | null>(initialScheduledAt ?? null);
   const [scheduleDraft, setScheduleDraft] = useState(() =>
@@ -549,6 +569,9 @@ export function Editor({
       if (res?.id) persistedIdRef.current = res.id;
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
+      if (s.published) {
+        setHasUnpublishedChanges(true);
+      }
       lastSavedHashRef.current = computePayloadHash({
         title: payload.title,
         content: payload.content,
@@ -731,17 +754,20 @@ export function Editor({
       lastSavedHashRef.current = computePayloadHash(localPayload);
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
+      if (published) {
+        setHasUnpublishedChanges(true);
+      }
     } catch (err: unknown) {
       setError(getErrorMessage(err, t`Échec de la sauvegarde.`));
     }
-  }, [title, buildSlug, slug, baseSavePayload, status, scheduledAt, onSave]);
+  }, [title, buildSlug, slug, baseSavePayload, status, scheduledAt, published, onSave]);
 
   const handleSubmitForReview = useCallback(() => {
     void (async () => {
       try {
         setError(null);
         const payload = baseSavePayload({
-          published: false,
+          published: published,
           status: 'SUBMITTED',
           scheduledAt: null,
         });
@@ -749,7 +775,11 @@ export function Editor({
         if (res?.id) persistedIdRef.current = res.id;
         setStatus('SUBMITTED');
         setScheduledAt(null);
-        setPublished(false);
+        if (published) {
+          setHasUnpublishedChanges(true);
+        } else {
+          setPublished(false);
+        }
         lastSavedHashRef.current = computePayloadHash(payload);
         setLastSaved(new Date());
         setHasUnsavedChanges(false);
@@ -757,7 +787,7 @@ export function Editor({
         setError(getErrorMessage(err, t`Échec de la soumission.`));
       }
     })();
-  }, [baseSavePayload, onSave]);
+  }, [baseSavePayload, onSave, published]);
 
   const handleConfirmPublish = useCallback(
     async (options: PublishOptions) => {
@@ -780,6 +810,11 @@ export function Editor({
         lastSavedHashRef.current = computePayloadHash(payload);
         setLastSaved(new Date());
         setHasUnsavedChanges(false);
+        setHasUnpublishedChanges(false);
+        if (editor) {
+          setLiveContent(editor.getHTML());
+        }
+        setReviewFeedback(null);
       } catch (err: unknown) {
         setError(getErrorMessage(err, t`Échec de la publication.`));
         setPublished(previous.published);
@@ -788,7 +823,7 @@ export function Editor({
         setIsPremium(previous.isPremium);
       }
     },
-    [baseSavePayload, onSave, published, status, scheduledAt, isPremium]
+    [baseSavePayload, onSave, published, status, scheduledAt, isPremium, editor]
   );
 
   const handleUpdateLive = useCallback(async () => {
@@ -800,10 +835,60 @@ export function Editor({
       lastSavedHashRef.current = computePayloadHash(payload);
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
+      setHasUnpublishedChanges(false);
+      if (editor) {
+        setLiveContent(editor.getHTML());
+      }
+      setReviewFeedback(null);
     } catch (err: unknown) {
       setError(getErrorMessage(err, t`Échec de la mise à jour.`));
     }
-  }, [baseSavePayload, onSave]);
+  }, [baseSavePayload, onSave, editor]);
+
+  const handleDiscardDraft = useCallback(async () => {
+    if (!onDiscardDraft) return;
+    try {
+      await onDiscardDraft();
+      if (liveContent && editor) {
+        editor.commands.setContent(liveContent);
+      }
+      setHasUnpublishedChanges(false);
+      setShowDiffModal(false);
+      toast.success(t`Brouillon abandonné, version en ligne restaurée.`);
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, t`Échec de l'abandon du brouillon.`));
+    }
+  }, [onDiscardDraft, liveContent, editor]);
+
+  const handleDiffApprove = useCallback(
+    async (comment?: string) => {
+      if (!onReview) return;
+      try {
+        await onReview(true, comment);
+        setHasUnpublishedChanges(false);
+        if (editor) {
+          setLiveContent(editor.getHTML());
+        }
+        setShowDiffModal(false);
+      } catch (err: unknown) {
+        toast.error(getErrorMessage(err, t`Échec de l'approbation.`));
+      }
+    },
+    [onReview, editor]
+  );
+
+  const handleDiffReject = useCallback(
+    async (comment: string) => {
+      if (!onReview) return;
+      try {
+        await onReview(false, comment);
+        setShowDiffModal(false);
+      } catch (err: unknown) {
+        toast.error(getErrorMessage(err, t`Échec de la demande de retouches.`));
+      }
+    },
+    [onReview]
+  );
 
   const handleUnpublish = useCallback(async () => {
     const id = persistedIdRef.current;
@@ -1005,6 +1090,7 @@ export function Editor({
         autoSaveStatus={autoSaveStatus}
         autoSaveError={autoSaveError}
         hasUnsavedChanges={hasUnsavedChanges}
+        hasUnpublishedChanges={hasUnpublishedChanges}
         lastSaved={lastSaved}
         settingsOpen={showSettings}
         onBack={onBack}
@@ -1028,6 +1114,7 @@ export function Editor({
         onPublish={() => setIsPublishModalOpen(true)}
         onUpdateLive={() => void handleUpdateLive()}
         onSubmitReview={handleSubmitForReview}
+        onOpenDiff={() => setShowDiffModal(true)}
         onSave={() => void handleManualSave()}
         onRetryAutoSave={retryAutoSave}
       />
@@ -1039,6 +1126,35 @@ export function Editor({
       )}
 
       <div className="max-w-3xl mx-auto w-full space-y-6">
+        {reviewFeedback && reviewFeedback.action === 'REJECTED' && (
+          <div className="rounded-xl border border-highlight/30 bg-highlight/5 p-4 text-xs font-sans text-foreground space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="font-semibold text-highlight flex items-center gap-2">
+                <MessageSquare className="w-4 h-4 shrink-0" />
+                {t`Retouches demandées par le comité éditorial`}
+              </span>
+              <span className="text-[11px] text-muted-foreground">
+                {reviewFeedback.reviewerName || reviewFeedback.reviewerUsername
+                  ? `${reviewFeedback.reviewerName || reviewFeedback.reviewerUsername} • `
+                  : ''}
+                {new Date(reviewFeedback.createdAt).toLocaleDateString(undefined, {
+                  day: 'numeric',
+                  month: 'short',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </span>
+            </div>
+            {reviewFeedback.comment && (
+              <blockquote className="border-l-2 border-highlight/40 pl-3 py-0.5 text-muted-foreground italic text-xs leading-relaxed">
+                « {reviewFeedback.comment} »
+              </blockquote>
+            )}
+            <p className="text-[11px] text-muted-foreground">
+              {t`Effectuez les ajustements demandés ci-dessous, puis soumettez à nouveau votre article.`}
+            </p>
+          </div>
+        )}
         <div className="space-y-3">
           <input
             type="text"
@@ -1203,7 +1319,9 @@ export function Editor({
         downloadSaving={downloadSaving}
         onToggleDownload={handleToggleDownload}
         canPublish={capabilities?.canPublish ?? true}
+        hasUnpublishedChanges={hasUnpublishedChanges}
         onUnpublish={() => void handleUnpublish()}
+        onDiscardDraft={onDiscardDraft ? () => void handleDiscardDraft() : undefined}
       />
 
       {showAnalyticsModal && (
@@ -1240,6 +1358,22 @@ export function Editor({
         articleExcerpt={editor.getText().slice(0, 180)}
         publicationName={subdomain ? `${subdomain}.qoe.fi` : 'Votre site web'}
         initialIsPremium={isPremium}
+      />
+
+      <ArticleDiffModal
+        open={showDiffModal}
+        onClose={() => setShowDiffModal(false)}
+        articleTitle={title}
+        draftTitle={title}
+        liveContent={liveContent || ''}
+        draftContent={editor.getHTML() || ''}
+        isPublished={published}
+        canReview={capabilities?.canReview ?? false}
+        canPublish={capabilities?.canPublish ?? true}
+        status={status}
+        onApprove={capabilities?.canReview && onReview ? handleDiffApprove : undefined}
+        onReject={capabilities?.canReview && onReview ? handleDiffReject : undefined}
+        onDiscardDraft={onDiscardDraft ? handleDiscardDraft : undefined}
       />
     </div>
   );

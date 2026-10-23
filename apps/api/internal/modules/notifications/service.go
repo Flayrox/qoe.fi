@@ -3,6 +3,7 @@ package notifications
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -52,6 +53,7 @@ type Notification struct {
 	Thought         *ThoughtRef     `json:"thought"`
 	Article         *ArticleRef     `json:"article"`
 	Publication     *PublicationRef `json:"publication"`
+	Metadata        json.RawMessage `json:"metadata,omitempty"`
 	Senders         []Sender        `json:"senders"`
 	TotalCount      int             `json:"totalCount"`
 	createdAtTime   time.Time
@@ -112,6 +114,8 @@ func typeFilter(filter string) []string {
 			"MEDIA_INVITE",
 			"MEDIA_MEMBER_JOINED",
 			"MEDIA_ARTICLE_SUBMITTED",
+			"MEDIA_ARTICLE_APPROVED",
+			"MEDIA_ARTICLE_REJECTED",
 			"MEDIA_ARTICLE_PUBLISHED",
 		}
 	}
@@ -347,6 +351,9 @@ func notificationFromRow(r *db.GetNotificationsRow) Notification {
 	}
 	if r.PublicationId.Valid {
 		n.Publication = &PublicationRef{ID: r.PublicationId.String, Name: textPtr(r.PublicationName), Slug: textPtr(r.PublicationSlug)}
+	}
+	if len(r.Metadata) > 0 && string(r.Metadata) != "null" {
+		n.Metadata = json.RawMessage(r.Metadata)
 	}
 	return n
 }

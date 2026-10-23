@@ -1,7 +1,7 @@
 -- Centre de notifications : liste groupée, non-lus, lecture, préférences.
 
 -- name: GetNotifications :many
-SELECT n.id, n.type, n."isRead", n."createdAt", n."thoughtId", n."articleId", n."commentId", n."publicationId",
+SELECT n.id, n.type, n."isRead", n."createdAt", n."thoughtId", n."articleId", n."commentId", n."publicationId", n.metadata,
        u.id::text      AS sender_id,
        u.name          AS sender_name,
        u.username      AS sender_username,

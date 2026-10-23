@@ -52,6 +52,8 @@ func TestTypeFilter(t *testing.T) {
 				"MEDIA_INVITE",
 				"MEDIA_MEMBER_JOINED",
 				"MEDIA_ARTICLE_SUBMITTED",
+				"MEDIA_ARTICLE_APPROVED",
+				"MEDIA_ARTICLE_REJECTED",
 				"MEDIA_ARTICLE_PUBLISHED",
 			},
 		},

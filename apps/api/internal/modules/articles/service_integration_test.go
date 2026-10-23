@@ -470,7 +470,7 @@ func TestService_Review_EditorApproves(t *testing.T) {
 	}
 
 	// L'editor (media:review) approuve → PUBLISHED.
-	if err := svc.Review(ctx, id, fx.EditorID, true); err != nil {
+	if err := svc.Review(ctx, id, fx.EditorID, true, "Bravo pour l'article !"); err != nil {
 		t.Fatalf("Review(approve): %v", err)
 	}
 
@@ -501,7 +501,7 @@ func TestService_Review_RejectBackToDraft(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 
-	if err := svc.Review(ctx, id, fx.EditorID, false); err != nil {
+	if err := svc.Review(ctx, id, fx.EditorID, false, "Merci de corriger la conclusion."); err != nil {
 		t.Fatalf("Review(reject): %v", err)
 	}
 
@@ -531,7 +531,7 @@ func TestService_Review_NonSubmittedError(t *testing.T) {
 	}
 
 	// On ne peut revoir qu'un article SUBMITTED.
-	if err := svc.Review(ctx, id, fx.EditorID, true); err == nil {
+	if err := svc.Review(ctx, id, fx.EditorID, true, ""); err == nil {
 		t.Fatal("Review(DRAFT) = nil, attendu erreur")
 	}
 }

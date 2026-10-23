@@ -251,7 +251,7 @@ func TestService_Update_MediaWorkflow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create(writer): %v", err)
 	}
-	if err := svc.Review(ctx, subID, fx.EditorID, true); err != nil {
+	if err := svc.Review(ctx, subID, fx.EditorID, true, ""); err != nil {
 		t.Fatalf("Review(approve): %v", err)
 	}
 	pubID := subID
@@ -280,12 +280,19 @@ func TestService_Update_MediaWorkflow(t *testing.T) {
 		t.Fatalf("article = %q/%v, attendu PUBLISHED conservé", status, published)
 	}
 
-	// Soumission d'un article déjà publié → refus.
+	// Soumission d'un article déjà publié → accepté (brouillon en révision, article reste publié en ligne).
 	if err := svc.Update(ctx, pubID, fx.WriterID, UpdateArticleInput{
 		Title: "T", Content: "c", ContentFormat: "markdown", Status: "SUBMITTED",
 		ActivePublicationID: fx.PublicationID,
-	}); err == nil || !strings.Contains(err.Error(), "déjà publié") {
-		t.Fatalf("Update(SUBMITTED sur publié) = %v, attendu refus", err)
+	}); err != nil {
+		t.Fatalf("Update(SUBMITTED sur publié) = %v, attendu succès", err)
+	}
+	var hasDraft bool
+	if err := poolTest.QueryRow(ctx, `SELECT status, published, ("draftContent" IS NOT NULL AND "draftContent" <> '') FROM "Article" WHERE id=$1`, pubID).Scan(&status, &published, &hasDraft); err != nil {
+		t.Fatalf("select: %v", err)
+	}
+	if status != "SUBMITTED" || !published || !hasDraft {
+		t.Fatalf("article = %q published=%v hasDraft=%v, attendu SUBMITTED, published=true, draftContent présent", status, published, hasDraft)
 	}
 
 	// Le writer (sans publish:any) ne peut pas publier un brouillon.
@@ -355,11 +362,11 @@ func TestService_Review_DeniedForViewer(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 	// Le viewer n'a pas media:review.
-	if err := svc.Review(ctx, id, fx.ViewerID, true); err == nil || !strings.Contains(err.Error(), "revoir") {
+	if err := svc.Review(ctx, id, fx.ViewerID, true, ""); err == nil || !strings.Contains(err.Error(), "revoir") {
 		t.Fatalf("Review(viewer) = %v, attendu permission refusée", err)
 	}
 	// Le writer non plus (pas media:review).
-	if err := svc.Review(ctx, id, fx.WriterID, true); err == nil {
+	if err := svc.Review(ctx, id, fx.WriterID, true, ""); err == nil {
 		t.Fatal("Review(writer) = nil, attendu refus")
 	}
 }

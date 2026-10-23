@@ -244,6 +244,32 @@ func (q *Queries) GetPublicationOwner(ctx context.Context, id string) (string, e
 	return owner_id, err
 }
 
+const insertArticleReviewNotification = `-- name: InsertArticleReviewNotification :exec
+INSERT INTO "Notification" (id, "recipientId", "senderId", type, "articleId", "publicationId", metadata)
+VALUES (gen_random_uuid()::text, $1::uuid, $2::uuid, $3::"NotificationType", $4, $5, $6)
+`
+
+type InsertArticleReviewNotificationParams struct {
+	RecipientID   pgtype.UUID      `json:"recipient_id"`
+	SenderID      pgtype.UUID      `json:"sender_id"`
+	Type          NotificationType `json:"type"`
+	ArticleID     pgtype.Text      `json:"article_id"`
+	PublicationID pgtype.Text      `json:"publication_id"`
+	Metadata      []byte           `json:"metadata"`
+}
+
+func (q *Queries) InsertArticleReviewNotification(ctx context.Context, arg InsertArticleReviewNotificationParams) error {
+	_, err := q.db.Exec(ctx, insertArticleReviewNotification,
+		arg.RecipientID,
+		arg.SenderID,
+		arg.Type,
+		arg.ArticleID,
+		arg.PublicationID,
+		arg.Metadata,
+	)
+	return err
+}
+
 const insertCommentNotification = `-- name: InsertCommentNotification :exec
 INSERT INTO "Notification" (id, "recipientId", "senderId", type, "articleId", "commentId", "publicationId")
 VALUES (gen_random_uuid()::text, $1, $2, 'COMMENT', $3, $4, $5)

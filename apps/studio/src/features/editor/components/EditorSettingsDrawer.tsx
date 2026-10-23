@@ -12,6 +12,7 @@ import {
   Loader2,
   Lock,
   MessageSquare,
+  RotateCcw,
   Search,
   SlidersHorizontal,
   Trash2,
@@ -60,7 +61,9 @@ export interface EditorSettingsDrawerProps {
   downloadSaving: boolean;
   onToggleDownload: (value: boolean) => void;
   canPublish: boolean;
+  hasUnpublishedChanges?: boolean;
   onUnpublish: () => void;
+  onDiscardDraft?: () => void;
   /** Pied optionnel (ex. Enregistrer/Fermer depuis la liste d'articles). */
   footer?: React.ReactNode;
 }
@@ -147,7 +150,9 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
     downloadSaving,
     onToggleDownload,
     canPublish,
+    hasUnpublishedChanges,
     onUnpublish,
+    onDiscardDraft,
     footer,
   } = props;
 
@@ -504,6 +509,25 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
                 />
               )}
             </section>
+
+            {published && hasUnpublishedChanges && onDiscardDraft && (
+              <section className="space-y-2 pt-4 border-t border-destructive/20">
+                <SectionTitle icon={<RotateCcw className="h-3.5 w-3.5 text-destructive" />}>
+                  {t`Modifications non publiées`}
+                </SectionTitle>
+                <p className="text-[10px] text-muted-foreground leading-relaxed">
+                  {t`Abandonner le brouillon réinitialise l'éditeur à la version actuellement visible par vos lecteurs.`}
+                </p>
+                <button
+                  type="button"
+                  onClick={onDiscardDraft}
+                  className="h-8 px-3 rounded-lg border border-destructive/30 text-destructive text-xs font-semibold hover:bg-destructive/10 transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  <RotateCcw className="size-3.5" />
+                  {t`Abandonner les modifications`}
+                </button>
+              </section>
+            )}
 
             {published && canPublish && (
               <section className="space-y-2 pt-4 border-t border-destructive/20">
