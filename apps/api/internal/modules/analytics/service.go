@@ -255,11 +255,21 @@ type ReadingSessionCounts map[string]int
 
 // ArticleDetailStats est la réponse pour un article individuel (reading-sessions endpoint).
 type ArticleDetailStats struct {
-	ArticleID  string             `json:"articleId"`
-	TotalViews int                `json:"totalViews"`
-	Timeseries []DailySeriesPoint `json:"timeseries"`
-	ByHostname []ProvenanceBucket `json:"byHostname"`
-	BySource   []ProvenanceBucket `json:"bySource"`
+	ArticleID         string             `json:"articleId"`
+	TotalViews        int                `json:"totalViews"`
+	Timeseries        []DailySeriesPoint `json:"timeseries"`
+	ByHostname        []ProvenanceBucket `json:"byHostname"`
+	BySource          []ProvenanceBucket `json:"bySource"`
+	Likes             int                `json:"likes"`
+	Bookmarks         int                `json:"bookmarks"`
+	Comments          int                `json:"comments"`
+	Highlights        int                `json:"highlights"`
+	HighlightsPublic  int                `json:"highlightsPublic"`
+	HighlightsPrivate int                `json:"highlightsPrivate"`
+	Annotations       int                `json:"annotations"`
+	Reposts           int                `json:"reposts"`
+	TotalInteractions int                `json:"totalInteractions"`
+	CompletionRate    float64            `json:"completionRate"`
 }
 
 // CreatorReadingStats est la réponse pour le dashboard créateur (creator endpoint).
@@ -623,12 +633,45 @@ func (s *Service) GetArticleReadingStats(ctx context.Context, userID, articleID 
 	if err != nil {
 		return ArticleDetailStats{}, err
 	}
+
+	var completionRate float64
+	var likes, bookmarks, comments, highlights, highlightsPublic, annotations, reposts int
+	_ = s.pool.QueryRow(ctx, `
+		SELECT 
+			COALESCE(a."completionRate", 0),
+			(SELECT COUNT(*)::int FROM "ContentFeedback" cf WHERE cf."articleId" = a.id AND cf."type" = 'LIKE') AS likes,
+			(SELECT COUNT(*)::int FROM "Bookmark" b WHERE b."articleId" = a.id) AS bookmarks,
+			(SELECT COUNT(*)::int FROM "ArticleComment" ac WHERE ac."articleId" = a.id) AS comments,
+			(SELECT COUNT(*)::int FROM "Highlight" h WHERE h."articleId" = a.id) AS highlights,
+			(SELECT COUNT(*)::int FROM "Highlight" hp WHERE hp."articleId" = a.id AND hp."isPublic" = true) AS highlights_public,
+			(SELECT COUNT(*)::int FROM "AnnotationComment" anc
+			   JOIN "Highlight" h2 ON h2.id = anc."highlightId"
+			  WHERE h2."articleId" = a.id) AS annotations,
+			(SELECT COUNT(*)::int FROM "Post" p WHERE p."quotedArticleId" = a.id AND p."deletedAt" IS NULL) +
+			(SELECT COUNT(*)::int FROM "ContentFeedback" cf WHERE cf."articleId" = a.id AND cf."type" = 'REPOST') AS reposts
+		FROM "Article" a
+		WHERE a.id = $1
+	`, articleID).Scan(&completionRate, &likes, &bookmarks, &comments, &highlights, &highlightsPublic, &annotations, &reposts)
+
+	highlightsPrivate := highlights - highlightsPublic
+	totalInteractions := likes + bookmarks + comments + highlights + annotations + reposts
+
 	return ArticleDetailStats{
-		ArticleID:  articleID,
-		TotalViews: total,
-		Timeseries: series,
-		ByHostname: byHost,
-		BySource:   bySource,
+		ArticleID:         articleID,
+		TotalViews:        total,
+		Timeseries:        series,
+		ByHostname:        byHost,
+		BySource:          bySource,
+		Likes:             likes,
+		Bookmarks:         bookmarks,
+		Comments:          comments,
+		Highlights:        highlights,
+		HighlightsPublic:  highlightsPublic,
+		HighlightsPrivate: highlightsPrivate,
+		Annotations:       annotations,
+		Reposts:           reposts,
+		TotalInteractions: totalInteractions,
+		CompletionRate:    round2(completionRate),
 	}, nil
 }
 
@@ -807,6 +850,8 @@ type AnalyticsArticleMetric struct {
 	HighlightsPublic  int       `json:"highlightsPublic"`
 	HighlightsPrivate int       `json:"highlightsPrivate"`
 	Annotations       int       `json:"annotations"`
+	Likes             int       `json:"likes"`
+	Reposts           int       `json:"reposts"`
 	Interactions      int       `json:"interactions"`
 	PublishedAt       time.Time `json:"publishedAt"`
 	CategoryName      *string   `json:"categoryName"`
@@ -824,15 +869,27 @@ type ReadingQuality struct {
 }
 
 type ProductMetrics struct {
-	SubscriberCount   int                      `json:"subscriberCount"`
-	SubscriberDelta7d int                      `json:"subscriberDelta7d"`
-	TotalBookmarks    int                      `json:"totalBookmarks"`
-	TotalHighlights   int                      `json:"totalHighlights"`
-	TotalInteractions int                      `json:"totalInteractions"`
-	AvgCompletionRate float64                  `json:"avgCompletionRate"`
-	ReadingQuality    ReadingQuality           `json:"readingQuality"`
-	TopCategories     []AnalyticsCategoryCount `json:"topCategories"`
-	TopArticles       []AnalyticsArticleMetric `json:"topArticles"`
+	SubscriberCount           int                      `json:"subscriberCount"`
+	SubscriberDelta7d         int                      `json:"subscriberDelta7d"`
+	TotalArticles             int                      `json:"totalArticles"`
+	TotalLikes                int                      `json:"totalLikes"`
+	TotalBookmarks            int                      `json:"totalBookmarks"`
+	TotalHighlights           int                      `json:"totalHighlights"`
+	TotalHighlightsPublic     int                      `json:"totalHighlightsPublic"`
+	TotalHighlightsPrivate    int                      `json:"totalHighlightsPrivate"`
+	TotalComments             int                      `json:"totalComments"`
+	TotalAnnotations          int                      `json:"totalAnnotations"`
+	TotalReposts              int                      `json:"totalReposts"`
+	TotalInteractions         int                      `json:"totalInteractions"`
+	AvgLikesPerArticle        float64                  `json:"avgLikesPerArticle"`
+	AvgBookmarksPerArticle    float64                  `json:"avgBookmarksPerArticle"`
+	AvgCommentsPerArticle     float64                  `json:"avgCommentsPerArticle"`
+	AvgHighlightsPerArticle   float64                  `json:"avgHighlightsPerArticle"`
+	AvgInteractionsPerArticle float64                  `json:"avgInteractionsPerArticle"`
+	AvgCompletionRate         float64                  `json:"avgCompletionRate"`
+	ReadingQuality            ReadingQuality           `json:"readingQuality"`
+	TopCategories             []AnalyticsCategoryCount `json:"topCategories"`
+	TopArticles               []AnalyticsArticleMetric `json:"topArticles"`
 }
 
 // ── Dashboard accueil (migration Prisma → Go) ────────────────────────────────
@@ -1065,7 +1122,10 @@ func (s *Service) ProductMetrics(ctx context.Context, userID, publicationID stri
 		       (SELECT COUNT(*)::int FROM "Highlight" hp WHERE hp."articleId" = a.id AND hp."isPublic" = true) AS highlights_public,
 		       (SELECT COUNT(*)::int FROM "AnnotationComment" anc
 		         JOIN "Highlight" h2 ON h2.id = anc."highlightId"
-		        WHERE h2."articleId" = a.id) AS annotations
+		        WHERE h2."articleId" = a.id) AS annotations,
+		       (SELECT COUNT(*)::int FROM "ContentFeedback" cf WHERE cf."articleId" = a.id AND cf."type" = 'LIKE') AS likes,
+		       (SELECT COUNT(*)::int FROM "Post" p WHERE p."quotedArticleId" = a.id AND p."deletedAt" IS NULL) +
+		       (SELECT COUNT(*)::int FROM "ContentFeedback" cf WHERE cf."articleId" = a.id AND cf."type" = 'REPOST') AS reposts
 		FROM "Article" a
 		LEFT JOIN "Category" c ON c.id = a."categoryId"
 		WHERE a.published = true AND (
@@ -1086,16 +1146,44 @@ func (s *Service) ProductMetrics(ctx context.Context, userID, publicationID stri
 		var a AnalyticsArticleMetric
 		var cat pgtype.Text
 		if err := rows.Scan(&a.ID, &a.Slug, &a.Title, &a.CompletionRate, &a.PublishedAt,
-			&cat, &a.Bookmarks, &a.Comments, &a.Highlights, &a.HighlightsPublic, &a.Annotations); err != nil {
+			&cat, &a.Bookmarks, &a.Comments, &a.Highlights, &a.HighlightsPublic, &a.Annotations,
+			&a.Likes, &a.Reposts); err != nil {
 			continue
 		}
 		a.HighlightsPrivate = a.Highlights - a.HighlightsPublic
-		a.Interactions = a.Bookmarks + a.Comments + a.Highlights + a.Annotations
+		a.Interactions = a.Likes + a.Bookmarks + a.Comments + a.Highlights + a.Annotations + a.Reposts
 		if cat.Valid {
 			a.CategoryName = &cat.String
 			categoryCounts[cat.String]++
 		}
 		articles = append(articles, a)
+	}
+
+	totArticles := len(articles)
+	totLikes, totBookmarks, totHighlights, totHighlightsPublic, totComments, totAnnotations, totReposts, totInteractions := 0, 0, 0, 0, 0, 0, 0, 0
+	for _, a := range articles {
+		totLikes += a.Likes
+		totBookmarks += a.Bookmarks
+		totHighlights += a.Highlights
+		totHighlightsPublic += a.HighlightsPublic
+		totComments += a.Comments
+		totAnnotations += a.Annotations
+		totReposts += a.Reposts
+		totInteractions += a.Interactions
+	}
+	totHighlightsPrivate := totHighlights - totHighlightsPublic
+
+	avgLikes := 0.0
+	avgBookmarks := 0.0
+	avgComments := 0.0
+	avgHighlights := 0.0
+	avgInteractions := 0.0
+	if totArticles > 0 {
+		avgLikes = round2(float64(totLikes) / float64(totArticles))
+		avgBookmarks = round2(float64(totBookmarks) / float64(totArticles))
+		avgComments = round2(float64(totComments) / float64(totArticles))
+		avgHighlights = round2(float64(totHighlights) / float64(totArticles))
+		avgInteractions = round2(float64(totInteractions) / float64(totArticles))
 	}
 
 	// Top 5 par interactions (tri stable, parité TS : sort().slice(0,5)).
@@ -1138,22 +1226,27 @@ func (s *Service) ProductMetrics(ctx context.Context, userID, publicationID stri
 		bounceRate = max(0, 100-deepRate-skimRate)
 	}
 
-	totB, totH, totI := 0, 0, 0
-	for _, a := range top5 {
-		totB += a.Bookmarks
-		totH += a.Highlights
-		totI += a.Interactions
-	}
-
 	return ProductMetrics{
-		SubscriberCount:   subTotal,
-		SubscriberDelta7d: subDelta,
-		TotalBookmarks:    totB,
-		TotalHighlights:   totH,
-		TotalInteractions: totI,
-		AvgCompletionRate: avg,
-		ReadingQuality:    ReadingQuality{DeepReadsRate: deepRate, SkimsRate: skimRate, BouncesRate: bounceRate},
-		TopCategories:     topCategories,
-		TopArticles:       top5,
+		SubscriberCount:           subTotal,
+		SubscriberDelta7d:         subDelta,
+		TotalArticles:             totArticles,
+		TotalLikes:                totLikes,
+		TotalBookmarks:            totBookmarks,
+		TotalHighlights:           totHighlights,
+		TotalHighlightsPublic:     totHighlightsPublic,
+		TotalHighlightsPrivate:    totHighlightsPrivate,
+		TotalComments:             totComments,
+		TotalAnnotations:          totAnnotations,
+		TotalReposts:              totReposts,
+		TotalInteractions:         totInteractions,
+		AvgLikesPerArticle:        avgLikes,
+		AvgBookmarksPerArticle:    avgBookmarks,
+		AvgCommentsPerArticle:     avgComments,
+		AvgHighlightsPerArticle:   avgHighlights,
+		AvgInteractionsPerArticle: avgInteractions,
+		AvgCompletionRate:         avg,
+		ReadingQuality:            ReadingQuality{DeepReadsRate: deepRate, SkimsRate: skimRate, BouncesRate: bounceRate},
+		TopCategories:             topCategories,
+		TopArticles:               top5,
 	}, nil
 }

@@ -4,9 +4,7 @@ import { createClient } from '@qoe/supabase/server';
 import { getActiveWorkspace } from '@/lib/active-workspace';
 import {
   fetchUmamiWebsiteStats,
-  fetchUmamiTopPages,
   fetchUmamiReferrers,
-  fetchUmamiPageviewsSeries,
   fetchUmamiMetrics,
   UmamiStats,
   UmamiPageMetric,
@@ -54,15 +52,37 @@ export interface ArticleDetailData {
   timeseries: UmamiTimeseriesPoint[];
   referrers: UmamiPageMetric[];
   totalViews: number;
+  likes: number;
+  bookmarks: number;
+  comments: number;
+  highlights: number;
+  highlightsPublic: number;
+  highlightsPrivate: number;
+  annotations: number;
+  reposts: number;
+  totalInteractions: number;
+  completionRate: number;
 }
 
 // Contrat Go GET /v1/analytics/product-metrics (source primaire de productMetrics)
 export interface GoProductMetrics {
   subscriberCount: number;
   subscriberDelta7d: number;
+  totalArticles: number;
+  totalLikes: number;
   totalBookmarks: number;
   totalHighlights: number;
+  totalHighlightsPublic: number;
+  totalHighlightsPrivate: number;
+  totalComments: number;
+  totalAnnotations: number;
+  totalReposts: number;
   totalInteractions: number;
+  avgLikesPerArticle: number;
+  avgBookmarksPerArticle: number;
+  avgCommentsPerArticle: number;
+  avgHighlightsPerArticle: number;
+  avgInteractionsPerArticle: number;
   avgCompletionRate: number;
   readingQuality: {
     deepReadsRate: number;
@@ -71,6 +91,7 @@ export interface GoProductMetrics {
   };
   topCategories: { name: string; count: number }[];
   topArticles: {
+    id?: string;
     slug: string;
     title: string;
     completionRate: number;
@@ -80,6 +101,8 @@ export interface GoProductMetrics {
     highlightsPublic: number;
     highlightsPrivate: number;
     annotations: number;
+    likes: number;
+    reposts: number;
     interactions: number;
     publishedAt: string | null;
   }[];
@@ -88,9 +111,21 @@ export interface GoProductMetrics {
 export interface ProductMetrics {
   subscriberCount: number;
   subscriberDelta7d: number;
+  totalArticles: number;
+  totalLikes: number;
   totalBookmarks: number;
   totalHighlights: number;
+  totalHighlightsPublic: number;
+  totalHighlightsPrivate: number;
+  totalComments: number;
+  totalAnnotations: number;
+  totalReposts: number;
   totalInteractions: number;
+  avgLikesPerArticle: number;
+  avgBookmarksPerArticle: number;
+  avgCommentsPerArticle: number;
+  avgHighlightsPerArticle: number;
+  avgInteractionsPerArticle: number;
   avgCompletionRate: number | null;
   readingQuality: {
     deepReadsRate: number;
@@ -105,6 +140,7 @@ export interface ProductMetrics {
   };
   topCategories: { name: string; count: number }[];
   topArticles: {
+    id?: string;
     slug: string;
     title: string;
     completionRate: number;
@@ -114,6 +150,8 @@ export interface ProductMetrics {
     highlightsPublic: number;
     highlightsPrivate: number;
     annotations: number;
+    likes: number;
+    reposts: number;
     interactions: number;
     publishedAt: Date | null;
   }[];
@@ -216,6 +254,16 @@ interface ArticleReadingStats {
   timeseries: { day: string; count: number }[];
   byHostname: { key: string; count: number }[];
   bySource: { key: string; count: number }[];
+  likes?: number;
+  bookmarks?: number;
+  comments?: number;
+  highlights?: number;
+  highlightsPublic?: number;
+  highlightsPrivate?: number;
+  annotations?: number;
+  reposts?: number;
+  totalInteractions?: number;
+  completionRate?: number;
 }
 
 export async function getCreatorAnalyticsData(
@@ -261,9 +309,21 @@ export async function getCreatorAnalyticsData(
     const productMetrics: ProductMetrics = {
       subscriberCount: go.subscriberCount,
       subscriberDelta7d: go.subscriberDelta7d,
+      totalArticles: go.totalArticles ?? 0,
+      totalLikes: go.totalLikes ?? 0,
       totalBookmarks: go.totalBookmarks,
       totalHighlights: go.totalHighlights,
+      totalHighlightsPublic: go.totalHighlightsPublic ?? 0,
+      totalHighlightsPrivate: go.totalHighlightsPrivate ?? 0,
+      totalComments: go.totalComments ?? 0,
+      totalAnnotations: go.totalAnnotations ?? 0,
+      totalReposts: go.totalReposts ?? 0,
       totalInteractions: go.totalInteractions,
+      avgLikesPerArticle: go.avgLikesPerArticle ?? 0,
+      avgBookmarksPerArticle: go.avgBookmarksPerArticle ?? 0,
+      avgCommentsPerArticle: go.avgCommentsPerArticle ?? 0,
+      avgHighlightsPerArticle: go.avgHighlightsPerArticle ?? 0,
+      avgInteractionsPerArticle: go.avgInteractionsPerArticle ?? 0,
       avgCompletionRate: go.avgCompletionRate,
       readingQuality: go.readingQuality,
       trafficSources: {
@@ -274,6 +334,7 @@ export async function getCreatorAnalyticsData(
       },
       topCategories: go.topCategories,
       topArticles: go.topArticles.map((a) => ({
+        id: a.id,
         slug: a.slug,
         title: a.title,
         completionRate: a.completionRate,
@@ -283,6 +344,8 @@ export async function getCreatorAnalyticsData(
         highlightsPublic: a.highlightsPublic,
         highlightsPrivate: a.highlightsPrivate,
         annotations: a.annotations,
+        likes: a.likes ?? 0,
+        reposts: a.reposts ?? 0,
         interactions: a.interactions,
         publishedAt: a.publishedAt ? new Date(a.publishedAt) : null,
       })),
@@ -319,20 +382,17 @@ export async function getCreatorAnalyticsData(
 
     const now = Date.now();
     let startAt = now - 30 * 24 * 60 * 60 * 1000;
-    let unit: 'hour' | 'day' = 'day';
 
     if (period === '24h') {
       startAt = now - 24 * 60 * 60 * 1000;
-      unit = 'hour';
     } else if (period === '7d') {
       startAt = now - 7 * 24 * 60 * 60 * 1000;
-      unit = 'day';
     } else if (period === '90d') {
       startAt = now - 90 * 24 * 60 * 60 * 1000;
-      unit = 'day';
     } else if (period === 'all') {
-      startAt = 0;
-      unit = 'day';
+      // Pour l'historique complet ('all'), on garde les 90 derniers jours sur le graphique
+      // temporel afin d'éviter d'itérer sur un demi-siècle, tout en conservant le total réel.
+      startAt = now - 90 * 24 * 60 * 60 * 1000;
     }
 
     // 🎯 Vues PLEIN : agrégation par articleId (canonique) via ReadingSession — Go-only
@@ -495,6 +555,16 @@ export async function getArticleAnalyticsDetail(
           timeseries: [],
           referrers: [],
           totalViews: 0,
+          likes: 0,
+          bookmarks: 0,
+          comments: 0,
+          highlights: 0,
+          highlightsPublic: 0,
+          highlightsPrivate: 0,
+          annotations: 0,
+          reposts: 0,
+          totalInteractions: 0,
+          completionRate: 0,
         },
       };
     }
@@ -539,6 +609,16 @@ export async function getArticleAnalyticsDetail(
         timeseries,
         referrers,
         totalViews,
+        likes: stats.likes ?? 0,
+        bookmarks: stats.bookmarks ?? 0,
+        comments: stats.comments ?? 0,
+        highlights: stats.highlights ?? 0,
+        highlightsPublic: stats.highlightsPublic ?? 0,
+        highlightsPrivate: stats.highlightsPrivate ?? 0,
+        annotations: stats.annotations ?? 0,
+        reposts: stats.reposts ?? 0,
+        totalInteractions: stats.totalInteractions ?? 0,
+        completionRate: stats.completionRate ?? 0,
       },
     };
   } catch (err: unknown) {
