@@ -213,6 +213,7 @@ WHERE a."publicationId" = sqlc.arg('publicationId')
 SELECT a.id, a.title, a.slug, a.published, a."isPremium", a.visibility, a."readingTime",
        a.status, a."createdAt", a."updatedAt", a."categoryId", a."publicationId",
        a."allowPublicAnnotations", a."allowComments", a."allowDownload",
+       (a."draftContent" IS NOT NULL AND a."draftContent" <> '') AS has_unpublished_changes,
        c.id  AS category_id,
        c.name AS category_name,
        c.slug AS category_slug
@@ -377,3 +378,23 @@ ORDER BY l."position", l."createdAt";
 
 -- name: RemoveListenLater :execrows
 DELETE FROM "ListenLater" WHERE "userId" = sqlc.arg('user_id')::uuid AND "articleId" = sqlc.arg('article_id');
+
+-- name: DiscardArticleDraft :one
+UPDATE "Article"
+SET "draftContent" = NULL, "updatedAt" = now()
+WHERE id = $1
+RETURNING id;
+
+-- name: InsertArticleReviewLog :exec
+INSERT INTO "ArticleReviewLog" (id, "articleId", "publicationId", "reviewerId", action, comment)
+VALUES (gen_random_uuid()::text, $1, $2, $3, $4, $5);
+
+-- name: GetLatestArticleReviewFeedback :one
+SELECT r.id, r."articleId", r."publicationId", r."reviewerId", r.action, r.comment, r."createdAt",
+       u.name AS reviewer_name, u.username AS reviewer_username, u."logoUrl" AS reviewer_logo
+FROM "ArticleReviewLog" r
+JOIN "User" u ON u.id = r."reviewerId"
+WHERE r."articleId" = $1
+ORDER BY r."createdAt" DESC
+LIMIT 1;
+

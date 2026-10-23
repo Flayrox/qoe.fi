@@ -5,7 +5,13 @@ import { t } from '@lingui/core/macro';
 import { useRouter } from 'next/navigation';
 import { Editor } from '@/features/editor/components/Editor';
 import type { ArticleAttributionDraft } from '@/features/editor/components/ArticleAttributionEditor';
-import { saveArticleAction } from '@qoe/sdk/actions/articles';
+import {
+  saveArticleAction,
+  discardArticleDraftAction,
+  reviewArticleAction,
+  type ArticleReviewFeedback,
+} from '@qoe/sdk/actions/articles';
+import { toast } from '@qoe/ui/toast';
 import { buildAttributionDrafts } from '@/features/editor/lib/article-settings';
 import type { EditorCapabilities } from '@qoe/sdk/actions/articles';
 
@@ -13,6 +19,10 @@ interface ArticleData {
   id: string;
   title: string;
   content: string;
+  liveContent?: string | null;
+  draftContent?: string | null;
+  hasUnpublishedChanges?: boolean;
+  reviewFeedback?: ArticleReviewFeedback | null;
   author: {
     id: string;
     name: string | null;
@@ -101,6 +111,25 @@ export function EditArticleClient({ article, categories, capabilities }: EditArt
     }
   };
 
+  const handleDiscardDraft = async () => {
+    const res = await discardArticleDraftAction({ id: article.id });
+    if (!res.ok) {
+      throw new Error(res.error?.message || t`Impossible d'abandonner le brouillon.`);
+    }
+    router.refresh();
+  };
+
+  const handleReview = async (approve: boolean, comment?: string) => {
+    const res = await reviewArticleAction({ id: article.id, approve, comment });
+    if (!res.ok) {
+      throw new Error(res.error?.message || t`Échec de la revue.`);
+    }
+    toast.success(
+      approve ? t`Article approuvé et publié.` : t`Demande de retouches transmise à l'auteur.`
+    );
+    router.refresh();
+  };
+
   const initialAttributions = React.useMemo(() => buildAttributionDrafts(article), [article]);
 
   return (
@@ -109,6 +138,9 @@ export function EditArticleClient({ article, categories, capabilities }: EditArt
         initialTitle={article.title}
         initialSlug={article.slug}
         initialContent={article.content}
+        initialLiveContent={article.liveContent}
+        initialHasUnpublishedChanges={article.hasUnpublishedChanges}
+        initialReviewFeedback={article.reviewFeedback}
         initialImageUrl={article.imageUrl}
         initialPublished={article.published}
         initialStatus={article.status}
@@ -126,6 +158,8 @@ export function EditArticleClient({ article, categories, capabilities }: EditArt
         isSaving={isSaving}
         capabilities={capabilities}
         onSave={handleSave}
+        onDiscardDraft={handleDiscardDraft}
+        onReview={capabilities?.canReview ? handleReview : undefined}
         onBack={() => router.push('/articles')}
       />
     </div>

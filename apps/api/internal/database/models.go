@@ -254,6 +254,8 @@ const (
 	NotificationTypeMEDIAMEMBERJOINED          NotificationType = "MEDIA_MEMBER_JOINED"
 	NotificationTypeMEDIAARTICLEPUBLISHED      NotificationType = "MEDIA_ARTICLE_PUBLISHED"
 	NotificationTypeMEDIAARTICLESUBMITTED      NotificationType = "MEDIA_ARTICLE_SUBMITTED"
+	NotificationTypeMEDIAARTICLEAPPROVED       NotificationType = "MEDIA_ARTICLE_APPROVED"
+	NotificationTypeMEDIAARTICLEREJECTED       NotificationType = "MEDIA_ARTICLE_REJECTED"
 	NotificationTypeARTICLECONTRIBUTORINVITED  NotificationType = "ARTICLE_CONTRIBUTOR_INVITED"
 	NotificationTypeARTICLECONTRIBUTORACCEPTED NotificationType = "ARTICLE_CONTRIBUTOR_ACCEPTED"
 	NotificationTypeARTICLECONTRIBUTORDECLINED NotificationType = "ARTICLE_CONTRIBUTOR_DECLINED"
@@ -646,6 +648,16 @@ type ArticleReleaseDelivery struct {
 	CreatedAt    pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt    pgtype.Timestamp `json:"updatedAt"`
 	SentAt       pgtype.Timestamp `json:"sentAt"`
+}
+
+type ArticleReviewLog struct {
+	ID            string           `json:"id"`
+	ArticleId     string           `json:"articleId"`
+	PublicationId string           `json:"publicationId"`
+	ReviewerId    pgtype.UUID      `json:"reviewerId"`
+	Action        string           `json:"action"`
+	Comment       pgtype.Text      `json:"comment"`
+	CreatedAt     pgtype.Timestamp `json:"createdAt"`
 }
 
 type ArticleSlug struct {
@@ -1257,6 +1269,7 @@ type Notification struct {
 	CommentId     pgtype.Text      `json:"commentId"`
 	PublicationId pgtype.Text      `json:"publicationId"`
 	IsRead        bool             `json:"isRead"`
+	Metadata      []byte           `json:"metadata"`
 	CreatedAt     pgtype.Timestamp `json:"createdAt"`
 }
 

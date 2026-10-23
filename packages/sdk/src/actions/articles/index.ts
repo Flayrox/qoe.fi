@@ -32,6 +32,7 @@ export interface Article {
   slug: string;
   content: string;
   published: boolean;
+  hasUnpublishedChanges?: boolean;
   status: string;
   scheduledAt?: string | null;
   isPremium: boolean;
@@ -147,7 +148,21 @@ export interface ArticleAuthorBrief {
   isCertified: boolean;
 }
 
+export interface ArticleReviewFeedback {
+  id: string;
+  articleId: string;
+  action: string;
+  comment?: string | null;
+  createdAt: string;
+  reviewerName?: string | null;
+  reviewerUsername?: string | null;
+  reviewerLogo?: string | null;
+}
+
 export interface ArticleEditorPayload extends Article {
+  liveContent?: string | null;
+  draftContent?: string | null;
+  reviewFeedback?: ArticleReviewFeedback | null;
   imageUrl: string | null;
   seoTitle: string | null;
   seoDescription: string | null;
@@ -377,16 +392,46 @@ export const deleteArticleAction = safeAction<string, { success: boolean }>(asyn
  * 📋 Approuver ou rejeter un article soumis pour revue (workflow média).
  * RBAC : media:review.
  */
-export const reviewArticleAction = safeAction<{ id: string; approve: boolean }, Article>(
-  async (data) => {
-    const res = await goFetch<Article>(`/v1/articles/${data.id}/review`, {
-      method: 'POST',
-      body: { approve: data.approve },
-    });
-    revalidatePath('/articles');
-    return res;
+export const reviewArticleAction = safeAction<
+  { id: string; approve: boolean; comment?: string },
+  Article
+>(async (data) => {
+  const res = await goFetch<Article>(`/v1/articles/${data.id}/review`, {
+    method: 'POST',
+    body: { approve: data.approve, comment: data.comment || '' },
+  });
+  revalidatePath('/articles');
+  return res;
+});
+
+/**
+ * 🗑️ Abandonne le brouillon en cours pour revenir à la version publiée en ligne.
+ */
+export const discardArticleDraftAction = safeAction<{ id: string }, Article>(async ({ id }) => {
+  const res = await goFetch<Article>(`/v1/articles/${id}/discard-draft`, {
+    method: 'POST',
+  });
+  revalidatePath('/articles');
+  return res;
+});
+
+/**
+ * 💬 Récupère le dernier retour éditorial sur l'article (si rejeté ou revu).
+ */
+export const getArticleReviewFeedbackAction = safeAction<
+  { id: string },
+  ArticleReviewFeedback | null
+>(async ({ id }) => {
+  try {
+    const res = await goFetch<ArticleReviewFeedback | { feedback: null }>(
+      `/v1/articles/${id}/review-feedback`
+    );
+    if ('feedback' in res && res.feedback === null) return null;
+    return res as ArticleReviewFeedback;
+  } catch {
+    return null;
   }
-);
+});
 
 export type CategoryWithCount = Category & { _count: { articles: number } };
 

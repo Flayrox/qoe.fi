@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Clock,
   ExternalLink,
+  GitCompare,
   Loader2,
   Lock,
   RotateCcw,
@@ -38,6 +39,7 @@ export interface EditorHeaderProps {
   autoSaveStatus: AutoSaveStatus;
   autoSaveError: string | null;
   hasUnsavedChanges: boolean;
+  hasUnpublishedChanges?: boolean;
   lastSaved: Date | null;
   settingsOpen: boolean;
   onBack?: () => void;
@@ -48,6 +50,7 @@ export interface EditorHeaderProps {
   onPublish: () => void;
   onUpdateLive: () => void;
   onSubmitReview: () => void;
+  onOpenDiff?: () => void;
   onSave: () => void;
   onRetryAutoSave: () => void;
 }
@@ -300,17 +303,32 @@ export function EditorHeader(props: EditorHeaderProps) {
             {t`Enregistrer`}
           </button>
 
+          {published &&
+            (props.hasUnpublishedChanges || props.hasUnsavedChanges) &&
+            props.onOpenDiff && (
+              <button
+                type="button"
+                onClick={props.onOpenDiff}
+                className="h-8 px-2.5 rounded-lg flex items-center gap-1.5 font-sans text-xs font-medium border border-border/40 bg-card text-highlight hover:bg-highlight/10 transition-all cursor-pointer"
+                title={t`Comparer le brouillon actuel avec la version publiée en ligne`}
+              >
+                <GitCompare className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{t`Diff`}</span>
+              </button>
+            )}
+
           {isSubmitter ? (
-            !published &&
             status !== 'SUBMITTED' && (
               <button
                 type="button"
                 onClick={onSubmitReview}
-                className="h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-semibold transition-all cursor-pointer bg-highlight text-highlight-foreground hover:opacity-90 border border-transparent"
+                className="h-8 px-3 rounded-lg flex items-center gap-1.5 font-sans text-xs font-semibold transition-all cursor-pointer bg-highlight text-highlight-foreground hover:opacity-90 border border-transparent shadow-xs"
                 title={t`Soumettre cet article à l'approbation de votre équipe`}
               >
                 <Send className="h-3.5 w-3.5" strokeWidth={1.5} />
-                <span className="hidden sm:inline">{t`Soumettre`}</span>
+                <span className="hidden sm:inline">
+                  {published ? t`Soumettre les modifications` : t`Soumettre`}
+                </span>
               </button>
             )
           ) : published ? (

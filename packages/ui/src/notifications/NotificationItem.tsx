@@ -10,6 +10,8 @@ import {
   Newspaper,
   Clock,
   UsersRound,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
@@ -29,6 +31,8 @@ export type GroupedNotificationLike = {
     | 'MEDIA_MEMBER_JOINED'
     | 'MEDIA_ARTICLE_PUBLISHED'
     | 'MEDIA_ARTICLE_SUBMITTED'
+    | 'MEDIA_ARTICLE_APPROVED'
+    | 'MEDIA_ARTICLE_REJECTED'
     | 'ARTICLE_CONTRIBUTOR_INVITED'
     | 'ARTICLE_CONTRIBUTOR_ACCEPTED'
     | 'ARTICLE_CONTRIBUTOR_DECLINED'
@@ -38,6 +42,7 @@ export type GroupedNotificationLike = {
   thoughtId?: string | null;
   articleId?: string | null;
   commentId?: string | null;
+  metadata?: Record<string, unknown> | null;
   thought?: { id: string; content: string; createdAt: string | Date } | null;
   article?: { id: string; title: string; slug: string } | null;
   publication?: { id: string; name: string | null; slug?: string | null } | null;
@@ -157,6 +162,20 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
         ? t`a soumis un article pour revue dans le Média`
         : t`a soumis un article pour revue`;
       break;
+    case 'MEDIA_ARTICLE_APPROVED':
+      Icon = CheckCircle2;
+      iconColorClass = 'text-success bg-success/10';
+      actionText = notification.article?.title
+        ? t`a approuvé votre article « ${notification.article.title} » et l'a publié`
+        : t`a approuvé votre article`;
+      break;
+    case 'MEDIA_ARTICLE_REJECTED':
+      Icon = XCircle;
+      iconColorClass = 'text-destructive bg-destructive/10';
+      actionText = notification.article?.title
+        ? t`a demandé des retouches sur « ${notification.article.title} »`
+        : t`a demandé des retouches sur votre article`;
+      break;
     case 'ARTICLE_CONTRIBUTOR_INVITED':
       Icon = UsersRound;
       iconColorClass = 'text-primary bg-primary/10';
@@ -202,21 +221,25 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
   }
 
   const targetLink =
-    type === 'ARTICLE_CONTRIBUTOR_INVITED'
-      ? '/advanced'
-      : type === 'MEDIA_INVITE'
-        ? '/media'
-        : type === 'FOLLOW' && notification.publication?.slug
-          ? `/${notification.publication.slug}`
-          : notification.thoughtId
-            ? `/thought/${notification.thoughtId}`
-            : notification.article
-              ? `/article/${notification.article.slug}`
-              : notification.publication
-                ? `/m/${notification.publication.id}`
-                : firstSender?.username
-                  ? `/@${firstSender.username}`
-                  : '#';
+    type === 'MEDIA_ARTICLE_REJECTED'
+      ? notification.articleId
+        ? `/articles/${notification.articleId}`
+        : '/articles'
+      : type === 'ARTICLE_CONTRIBUTOR_INVITED'
+        ? '/advanced'
+        : type === 'MEDIA_INVITE'
+          ? '/media'
+          : type === 'FOLLOW' && notification.publication?.slug
+            ? `/${notification.publication.slug}`
+            : notification.thoughtId
+              ? `/thought/${notification.thoughtId}`
+              : notification.article
+                ? `/article/${notification.article.slug}`
+                : notification.publication
+                  ? `/m/${notification.publication.id}`
+                  : firstSender?.username
+                    ? `/@${firstSender.username}`
+                    : '#';
 
   return (
     <Link
@@ -281,6 +304,13 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
               {article.title}
             </p>
           )}
+          {type === 'MEDIA_ARTICLE_REJECTED' &&
+            typeof notification.metadata?.comment === 'string' &&
+            notification.metadata.comment && (
+              <p className="mt-2 text-xs text-foreground bg-destructive/5 p-2.5 rounded-lg border border-destructive/20 italic">
+                « {notification.metadata.comment} »
+              </p>
+            )}
         </div>
       </div>
     </Link>

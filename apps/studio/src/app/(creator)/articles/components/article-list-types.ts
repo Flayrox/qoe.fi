@@ -4,6 +4,7 @@ export interface ArticleWithCategory {
   slug: string;
   content: string;
   published: boolean;
+  hasUnpublishedChanges?: boolean;
   status?: string;
   isPremium: boolean;
   readingTime: number;

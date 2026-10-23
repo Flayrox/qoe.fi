@@ -79,6 +79,8 @@ func (h *Handler) RegisterProtected(r chi.Router, requireScope func(string) func
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/unpublish", h.unpublish)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/schedule", h.schedule)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/review", h.review)
+	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/discard-draft", h.discardDraft)
+	r.With(requireScope(middleware.ScopeRead)).Get("/v1/articles/{id}/review-feedback", h.getReviewFeedback)
 	r.With(requireScope(middleware.ScopeWrite)).Delete("/v1/articles/{id}", h.delete)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/comments", h.createComment)
 	r.With(requireScope(middleware.ScopeWrite)).Delete("/v1/articles/comments/{commentId}", h.deleteComment)
@@ -586,13 +588,14 @@ func (h *Handler) review(w http.ResponseWriter, r *http.Request) {
 	userID, _ := middleware.UserID(r.Context())
 	id := chi.URLParam(r, "id")
 	var in struct {
-		Approve bool `json:"approve"`
+		Approve bool   `json:"approve"`
+		Comment string `json:"comment"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		response.BadRequest(w, "JSON invalide")
 		return
 	}
-	if err := h.svc.Review(r.Context(), id, userID, in.Approve); err != nil {
+	if err := h.svc.Review(r.Context(), id, userID, in.Approve, in.Comment); err != nil {
 		if errors.Is(err, errNotFound) {
 			response.NotFound(w, "Article introuvable")
 			return
@@ -606,6 +609,46 @@ func (h *Handler) review(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, article)
+}
+
+// POST /v1/articles/{id}/discard-draft — abandonne le brouillon non publié.
+func (h *Handler) discardDraft(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	id := chi.URLParam(r, "id")
+	if err := h.svc.DiscardDraft(r.Context(), id, userID); err != nil {
+		if errors.Is(err, errNotFound) {
+			response.NotFound(w, "Article introuvable")
+			return
+		}
+		response.Forbidden(w, err.Error())
+		return
+	}
+	article, err := h.svc.GetByID(r.Context(), id, userID)
+	if err != nil {
+		response.OK(w, map[string]bool{"success": true})
+		return
+	}
+	response.OK(w, article)
+}
+
+// GET /v1/articles/{id}/review-feedback — récupère le dernier retour de révision.
+func (h *Handler) getReviewFeedback(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	id := chi.URLParam(r, "id")
+	fb, err := h.svc.GetLatestReviewFeedback(r.Context(), id, userID)
+	if err != nil {
+		if errors.Is(err, errNotFound) {
+			response.NotFound(w, "Article introuvable")
+			return
+		}
+		response.Forbidden(w, err.Error())
+		return
+	}
+	if fb == nil {
+		response.OK(w, map[string]any{"feedback": nil})
+		return
+	}
+	response.OK(w, fb)
 }
 
 // GET /v1/articles/capabilities?publicationId= — capacités d'édition.

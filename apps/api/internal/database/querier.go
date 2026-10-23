@@ -171,6 +171,7 @@ type Querier interface {
 	DeleteSystemConfig(ctx context.Context, key string) error
 	DeleteTrend(ctx context.Context, id string) error
 	DeleteWebhook(ctx context.Context, id string) error
+	DiscardArticleDraft(ctx context.Context, id string) (string, error)
 	DismissLegalReview(ctx context.Context, arg DismissLegalReviewParams) (LegalReview, error)
 	// Crée (ou récupère) la catégorie « Non classé » d'une publication.
 	// Idempotent grâce à l'index unique partiel sur ("publicationId") WHERE "isDefault".
@@ -255,6 +256,7 @@ type Querier interface {
 	// visibilité publique, upvotes et commentaires d'annotation.
 	// Tables : Highlight, AnnotationComment, AnnotationUpvote.
 	GetHighlightByID(ctx context.Context, id string) (GetHighlightByIDRow, error)
+	GetLatestArticleReviewFeedback(ctx context.Context, articleid string) (GetLatestArticleReviewFeedbackRow, error)
 	GetLatestLegalConsentExport(ctx context.Context) (LegalConsentExport, error)
 	GetLegalAcceptance(ctx context.Context, arg GetLegalAcceptanceParams) (LegalAcceptance, error)
 	// ─── Rappels aux superadmins ─────────────────────────────────────────
@@ -432,6 +434,8 @@ type Querier interface {
 	// Import bulk d'articles — jobs asynq + rapports d'erreurs.
 	InsertArticleImportJob(ctx context.Context, arg InsertArticleImportJobParams) (string, error)
 	InsertArticleReleaseDeliveries(ctx context.Context, arg InsertArticleReleaseDeliveriesParams) error
+	InsertArticleReviewLog(ctx context.Context, arg InsertArticleReviewLogParams) error
+	InsertArticleReviewNotification(ctx context.Context, arg InsertArticleReviewNotificationParams) error
 	InsertBlock(ctx context.Context, arg InsertBlockParams) error
 	InsertBookmark(ctx context.Context, arg InsertBookmarkParams) error
 	InsertCommentNotification(ctx context.Context, arg InsertCommentNotificationParams) error

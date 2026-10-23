@@ -41,6 +41,7 @@
     "browser-image-compression": "^2.0.2",
     "bullmq": "^5.34.0",
     "clsx": "^2.1.1",
+    "diff": "^9.0.0",
     "framer-motion": "^12.39.0",
     "ioredis": "^5.4.1",
     "isomorphic-dompurify": "^3.22.0",
@@ -59,6 +60,7 @@
   "devDependencies": {
     "@qoe/tsconfig": "workspace:*",
     "@tailwindcss/postcss": "^4",
+    "@types/diff": "^8.0.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

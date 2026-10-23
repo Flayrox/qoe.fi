@@ -65,7 +65,7 @@ func (q *Queries) GetNotificationPreferences(ctx context.Context, userid pgtype.
 
 const getNotifications = `-- name: GetNotifications :many
 
-SELECT n.id, n.type, n."isRead", n."createdAt", n."thoughtId", n."articleId", n."commentId", n."publicationId",
+SELECT n.id, n.type, n."isRead", n."createdAt", n."thoughtId", n."articleId", n."commentId", n."publicationId", n.metadata,
        u.id::text      AS sender_id,
        u.name          AS sender_name,
        u.username      AS sender_username,
@@ -106,6 +106,7 @@ type GetNotificationsRow struct {
 	ArticleId        pgtype.Text      `json:"articleId"`
 	CommentId        pgtype.Text      `json:"commentId"`
 	PublicationId    pgtype.Text      `json:"publicationId"`
+	Metadata         []byte           `json:"metadata"`
 	SenderID         string           `json:"sender_id"`
 	SenderName       pgtype.Text      `json:"sender_name"`
 	SenderUsername   pgtype.Text      `json:"sender_username"`
@@ -144,6 +145,7 @@ func (q *Queries) GetNotifications(ctx context.Context, arg GetNotificationsPara
 			&i.ArticleId,
 			&i.CommentId,
 			&i.PublicationId,
+			&i.Metadata,
 			&i.SenderID,
 			&i.SenderName,
 			&i.SenderUsername,

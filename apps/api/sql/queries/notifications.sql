@@ -197,3 +197,8 @@ WHERE md."publicationId" = sqlc.arg('publication_id')
       AND n."isRead" = false
   )
 LIMIT 500;
+
+-- name: InsertArticleReviewNotification :exec
+INSERT INTO "Notification" (id, "recipientId", "senderId", type, "articleId", "publicationId", metadata)
+VALUES (gen_random_uuid()::text, sqlc.arg('recipient_id')::uuid, sqlc.arg('sender_id')::uuid, sqlc.arg('type')::"NotificationType", sqlc.arg('article_id'), sqlc.arg('publication_id'), sqlc.narg('metadata'));
+

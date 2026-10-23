@@ -27,6 +27,8 @@ export type GroupedNotificationType =
   | 'MEDIA_MEMBER_JOINED'
   | 'MEDIA_ARTICLE_PUBLISHED'
   | 'MEDIA_ARTICLE_SUBMITTED'
+  | 'MEDIA_ARTICLE_APPROVED'
+  | 'MEDIA_ARTICLE_REJECTED'
   | 'ARTICLE_CONTRIBUTOR_INVITED'
   | 'ARTICLE_CONTRIBUTOR_ACCEPTED'
   | 'ARTICLE_CONTRIBUTOR_DECLINED'
@@ -46,6 +48,7 @@ export interface GroupedNotification {
   article?: { id: string; title: string; slug: string } | null;
   comment?: { id: string; content: string } | null;
   publication?: { id: string; name: string | null; slug?: string | null } | null;
+  metadata?: Record<string, unknown> | null;
   senders: Array<{
     id: string;
     name: string | null;

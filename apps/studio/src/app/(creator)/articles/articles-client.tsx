@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { cn, slugify } from '@qoe/utils';
 import { isReservedTenantRoute } from '@qoe/config';
+import { useRouter } from 'next/navigation';
 import {
   deleteArticleAction,
   saveCategoryAction,
@@ -34,6 +35,8 @@ import {
   reviewArticleAction,
   getArticlesAction,
   moveCategoryAction,
+  getArticleByIdAction,
+  discardArticleDraftAction,
 } from '@qoe/sdk/actions/articles';
 import { updateCreatorProfileAction } from '@qoe/sdk/actions/dashboard';
 import { toast } from '@qoe/ui/toast';
@@ -43,6 +46,7 @@ import { ArticleInspectorModal } from '../analytics/components/ArticleInspectorM
 import { ArticleBulkSettingsDialog } from './components/article-bulk-settings-dialog';
 import { ArticleListRow } from './components/article-list-row';
 import { ArticleSettingsSheet } from './components/article-settings-sheet';
+import { ArticleDiffModal } from '@/features/editor/components/ArticleDiffModal';
 import { ConfirmActionDialog, type ConfirmAction } from './components/confirm-action-dialog';
 import type {
   AccessFilter,
@@ -156,7 +160,60 @@ export function ArticlesClient({
   const [settingsArticleId, setSettingsArticleId] = useState<string | null>(null);
   const [bulkSettingsOpen, setBulkSettingsOpen] = useState(false);
 
+  const router = useRouter();
+  const [diffTarget, setDiffTarget] = useState<{
+    article: ArticleWithCategory;
+    liveContent: string;
+    draftContent: string;
+    draftTitle?: string;
+  } | null>(null);
+
   const closeArticleSettings = React.useCallback(() => setSettingsArticleId(null), []);
+
+  const handleOpenDiff = async (article: ArticleWithCategory) => {
+    try {
+      const res = await getArticleByIdAction(article.id);
+      if (res.ok && res.data) {
+        setDiffTarget({
+          article,
+          liveContent: res.data.liveContent || res.data.content,
+          draftContent: res.data.draftContent || res.data.content,
+          draftTitle: res.data.title,
+        });
+      } else {
+        toast.error(t`Impossible de charger les versions de l'article.`);
+      }
+    } catch {
+      toast.error(t`Erreur lors de la récupération des versions.`);
+    }
+  };
+
+  const handleDiscardDraft = async (id: string) => {
+    try {
+      const res = await discardArticleDraftAction({ id });
+      if (res.ok) {
+        setArticles((prev) =>
+          prev.map((a) =>
+            a.id === id
+              ? {
+                  ...a,
+                  hasUnpublishedChanges: false,
+                  status: a.published ? 'PUBLISHED' : a.status,
+                }
+              : a
+          )
+        );
+        toast.success(t`Brouillon abandonné. Version en ligne restaurée.`);
+        if (diffTarget?.article.id === id) {
+          setDiffTarget(null);
+        }
+      } else {
+        toast.error(t`Impossible d'abandonner le brouillon.`);
+      }
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : t`Erreur lors de l'abandon.`);
+    }
+  };
 
   const refreshArticles = async () => {
     const res = await getArticlesAction(period);
@@ -791,19 +848,24 @@ export function ArticlesClient({
   };
 
   // Handle review (approve / reject)
-  const handleReview = async (id: string, approve: boolean) => {
+  const handleReview = async (id: string, approve: boolean, comment?: string) => {
     try {
-      await reviewArticleAction({ id, approve });
+      await reviewArticleAction({ id, approve, comment });
       setArticles((prev) =>
         prev.map((a) =>
           a.id === id
             ? approve
-              ? { ...a, published: true, status: 'PUBLISHED' }
-              : { ...a, published: false, status: 'DRAFT' }
+              ? { ...a, published: true, status: 'PUBLISHED', hasUnpublishedChanges: false }
+              : { ...a, status: 'DRAFT' }
             : a
         )
       );
-      toast.success(approve ? t`Article approuvé et publié.` : t`Article rejeté.`);
+      toast.success(
+        approve ? t`Article approuvé et publié.` : t`Demande de retouches transmise à l'auteur.`
+      );
+      if (diffTarget?.article.id === id) {
+        setDiffTarget(null);
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : t`Échec de la revue.`;
       toast.error(message);
@@ -1386,6 +1448,7 @@ export function ArticlesClient({
                       requestReview(article.id, approve, article.title)
                     }
                     onDelete={(article) => requestDeleteArticle(article.id, article.title)}
+                    onOpenDiff={handleOpenDiff}
                   />
                 ))}
               </section>
@@ -2112,6 +2175,25 @@ export function ArticlesClient({
           onEdit={() => {
             window.location.href = `/articles/${inspectingArticle.id}`;
           }}
+        />
+      )}
+
+      {/* Article Diff Modal — Comparaison version en ligne vs brouillon */}
+      {diffTarget && (
+        <ArticleDiffModal
+          open={Boolean(diffTarget)}
+          onClose={() => setDiffTarget(null)}
+          articleTitle={diffTarget.article.title}
+          draftTitle={diffTarget.draftTitle}
+          liveContent={diffTarget.liveContent}
+          draftContent={diffTarget.draftContent}
+          isPublished={diffTarget.article.published}
+          canReview={canReview}
+          status={diffTarget.article.status}
+          onApprove={() => handleReview(diffTarget.article.id, true)}
+          onReject={(comment) => handleReview(diffTarget.article.id, false, comment)}
+          onDiscardDraft={() => handleDiscardDraft(diffTarget.article.id)}
+          onEdit={() => router.push(`/articles/${diffTarget.article.id}`)}
         />
       )}
     </div>
