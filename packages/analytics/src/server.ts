@@ -27,6 +27,11 @@ export interface UmamiTimeseriesPoint {
 let cachedToken: string | null = null;
 let cachedAt = 0;
 
+function getApiUrl(): string {
+  const url = process.env.UMAMI_API_URL || 'https://api.umami.is/v1';
+  return url.replace(/\/+$/, '');
+}
+
 async function getUmamiToken(): Promise<string | null> {
   const apiKey = process.env.UMAMI_API_KEY;
   if (apiKey) return apiKey;
@@ -39,7 +44,7 @@ async function getUmamiToken(): Promise<string | null> {
     return cachedToken;
   }
   try {
-    const apiUrl = process.env.UMAMI_API_URL || 'https://api.umami.is/v1';
+    const apiUrl = getApiUrl();
     const res = await fetch(`${apiUrl}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -81,7 +86,7 @@ export async function fetchUmamiWebsiteStats(
   startAt: number,
   endAt: number
 ): Promise<UmamiStats | null> {
-  const apiUrl = process.env.UMAMI_API_URL || 'https://api.umami.is/v1';
+  const apiUrl = getApiUrl();
   const token = await getUmamiToken();
 
   if (!websiteId || !token) {
@@ -125,7 +130,7 @@ export async function fetchUmamiPageviewsSeries(
   unit: 'hour' | 'day' = 'day',
   url?: string
 ): Promise<UmamiTimeseriesPoint[]> {
-  const apiUrl = process.env.UMAMI_API_URL || 'https://api.umami.is/v1';
+  const apiUrl = getApiUrl();
   const token = await getUmamiToken();
 
   if (!websiteId || !token) {
@@ -193,7 +198,7 @@ export async function fetchUmamiMetrics(
   limit: number = 10,
   url?: string
 ): Promise<UmamiPageMetric[]> {
-  const apiUrl = process.env.UMAMI_API_URL || 'https://api.umami.is/v1';
+  const apiUrl = getApiUrl();
   const token = await getUmamiToken();
 
   if (!websiteId || !token) {

@@ -219,7 +219,10 @@ export function AnalyticsDashboardClient({
       </div>
 
       {/* ─── Product Metrics: Subscribers & Top Articles ────────── */}
-      <ProductMetricsBlock metrics={data.productMetrics} />
+      <ProductMetricsBlock
+        metrics={data.productMetrics}
+        onSelectArticle={(url) => setSelectedArticleUrl(url)}
+      />
 
       {/* ─── Intérêt pour les fonctionnalités à venir / Pro ─────── */}
       <FeatureInterestBlock signals={data.featureInterest} locale={locale} />

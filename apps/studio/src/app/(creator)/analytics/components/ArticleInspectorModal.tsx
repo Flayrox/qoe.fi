@@ -1,7 +1,16 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { X, FileText, Loader2, Edit3 } from 'lucide-react';
+import {
+  X,
+  FileText,
+  Loader2,
+  Edit3,
+  Heart,
+  Bookmark,
+  Highlighter,
+  MessageSquare,
+} from 'lucide-react';
 import { getArticleAnalyticsDetail, ArticleDetailData, TimePeriod } from '../actions';
 import { TimeseriesChart } from './TimeseriesChart';
 import { ReferrersBlock } from './ReferrersBlock';
@@ -149,6 +158,91 @@ export function ArticleInspectorModal({
                   <option value="all">Tout l'historique</option>
                 </select>
               </div>
+            </div>
+
+            {/* Engagement Metrics Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {/* Likes & Reposts */}
+              <div className="p-3.5 rounded-xl border border-border/30 bg-card">
+                <div className="flex items-center justify-between text-muted-foreground mb-1">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider">
+                    J'aime & Reposts
+                  </span>
+                  <Heart className="h-3.5 w-3.5 stroke-[1.5]" />
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xl font-bold text-foreground">
+                    {detail.likes.toLocaleString()}
+                  </span>
+                  {detail.reposts > 0 && (
+                    <span className="text-xs text-muted-foreground" title="Republications">
+                      · {detail.reposts} partages
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Bookmarks */}
+              <div className="p-3.5 rounded-xl border border-border/30 bg-card">
+                <div className="flex items-center justify-between text-muted-foreground mb-1">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider">
+                    Marque-pages
+                  </span>
+                  <Bookmark className="h-3.5 w-3.5 stroke-[1.5]" />
+                </div>
+                <p className="text-xl font-bold text-foreground">
+                  {detail.bookmarks.toLocaleString()}
+                </p>
+              </div>
+
+              {/* Surlignages */}
+              <div className="p-3.5 rounded-xl border border-border/30 bg-card">
+                <div className="flex items-center justify-between text-muted-foreground mb-1">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider">
+                    Surlignages
+                  </span>
+                  <Highlighter className="h-3.5 w-3.5 stroke-[1.5]" />
+                </div>
+                <div className="flex items-baseline gap-1.5">
+                  <span className="text-xl font-bold text-foreground">
+                    {detail.highlights.toLocaleString()}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    ({detail.highlightsPublic} pub.)
+                  </span>
+                </div>
+              </div>
+
+              {/* Commentaires & Complétion */}
+              <div className="p-3.5 rounded-xl border border-border/30 bg-card">
+                <div className="flex items-center justify-between text-muted-foreground mb-1">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider">
+                    Commentaires
+                  </span>
+                  <MessageSquare className="h-3.5 w-3.5 stroke-[1.5]" />
+                </div>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-xl font-bold text-foreground">
+                    {detail.comments.toLocaleString()}
+                  </span>
+                  {detail.completionRate > 0 && (
+                    <span
+                      className="text-xs text-muted-foreground font-medium"
+                      title="Complétion de lecture certifiée"
+                    >
+                      · {Math.round(detail.completionRate * 100)}% lu
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Total Interaction Bar */}
+            <div className="flex items-center justify-between px-4 py-2.5 rounded-lg border border-border/30 bg-muted/15 text-xs">
+              <span className="text-muted-foreground">Score d'engagement total sur cet écrit</span>
+              <span className="font-semibold text-foreground">
+                {detail.totalInteractions.toLocaleString()} interactions
+              </span>
             </div>
 
             {/* Dedicated Article Timeseries */}
