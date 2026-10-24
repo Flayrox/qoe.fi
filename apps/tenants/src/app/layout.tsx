@@ -28,8 +28,6 @@ import {
 
 // CSS global unifié — source unique dans @qoe/theme
 import '@qoe/theme/styles';
-// Rendu du corps d'article (liens, figures légendées, crédits photo).
-import './article-body.css';
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
 const inter = Inter({ variable: '--font-body', subsets: ['latin'] });

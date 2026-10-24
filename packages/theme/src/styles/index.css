@@ -28,6 +28,7 @@
 @import './tokens.css';
 @import './themes.css';
 @import './base.css';
+@import './article.css';
 
 /* ─── @theme : expose les fonts + neural colors à Tailwind v4 ─── */
 @theme {

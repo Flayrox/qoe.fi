@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Lock, Wallet, Loader2, AlertCircle } from 'lucide-react';
+import { Lock, Wallet, Loader2, AlertCircle, ArrowRight } from 'lucide-react';
 import {
   unlockArticleWithWalletAction as unlockArticleWithWallet,
   getCurrentUserWalletAction as getCurrentUser,
@@ -10,6 +10,15 @@ import {
 
 import { sanitizeHtml } from '@/lib/sanitize';
 import { t } from '@lingui/core/macro';
+
+/** Prix de l'achat à l'unité, en centimes (source unique pour l'UI et l'API). */
+const ARTICLE_UNLOCK_PRICE_CENTS = 200;
+/** Abonnement mensuel complet, en centimes. */
+const MEMBERSHIP_PRICE_CENTS = 500;
+
+function formatEuro(cents: number): string {
+  return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(cents / 100);
+}
 
 export interface PaywallCutProps {
   contentHtml: string;
@@ -45,7 +54,7 @@ export function PaywallCut({
   // Render the teaser HTML and the PaywallOverlay directly.
   return (
     <>
-      <div dangerouslySetInnerHTML={{ __html: safeHtml }} />
+      <div className="article-prose" dangerouslySetInnerHTML={{ __html: safeHtml }} />
       <PaywallOverlay
         name={name}
         isBrutalist={isBrutalist}
@@ -112,7 +121,10 @@ export function PaywallOverlay({
     setErrorMessage(null);
 
     try {
-      const res = await unlockArticleWithWallet({ creatorId, costCents: 200 }); // 2.00 € = 200 cents
+      const res = await unlockArticleWithWallet({
+        creatorId,
+        costCents: ARTICLE_UNLOCK_PRICE_CENTS,
+      });
       if (res.ok) {
         // Reload to reveal full content
         window.location.reload();
@@ -133,149 +145,172 @@ export function PaywallOverlay({
     }
   };
 
-  return (
-    <div className="relative mt-12 w-full">
-      {/* Smooth fade-out gradient over teaser */}
-      <div className="absolute -top-36 left-0 w-full h-36 bg-gradient-to-t from-background via-background/80 to-transparent pointer-events-none" />
+  const loginHref = `${mainAppUrl}/login?redirect=${encodeURIComponent(
+    typeof window !== 'undefined' ? window.location.href : ''
+  )}`;
 
-      {/* Frosted Glass Paywall Container */}
-      <div
-        className={`p-6 sm:p-10 md:p-12 mx-auto max-w-3xl text-center not-prose relative z-10 ${
+  return (
+    <div className="relative mt-16 w-full">
+      {/* Fondu progressif sur la fin du teaser */}
+      <div className="pointer-events-none absolute -top-44 left-0 h-44 w-full bg-gradient-to-t from-background via-background to-transparent" />
+
+      <section
+        className={`not-prose relative z-10 mx-auto max-w-2xl overflow-hidden ${
           isBrutalist
-            ? 'bg-background border-4 border-foreground shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]'
-            : 'bg-card/90 backdrop-blur-xl border border-border/80 rounded-3xl shadow-2xl'
+            ? 'border-4 border-foreground bg-background shadow-[10px_10px_0px_0px_rgba(0,0,0,1)]'
+            : 'rounded-2xl border border-border/70 bg-card shadow-[0_24px_60px_-20px_rgba(0,0,0,0.25)]'
         }`}
       >
-        <div className="w-14 h-14 rounded-2xl bg-[var(--tenant-accent)]/10 text-[var(--tenant-accent)] flex items-center justify-center mx-auto mb-5 border border-[var(--tenant-accent)]/20">
-          <Lock className="w-6 h-6" />
-        </div>
+        {/* Filet d'accent : rappelle la couleur de la publication */}
+        <div
+          className="h-1 w-full"
+          style={{ backgroundColor: accentColor || 'var(--tenant-accent)' }}
+        />
 
-        <h3
-          className={`text-2xl sm:text-3xl tracking-tight mb-3 ${
-            isBrutalist ? 'font-black uppercase' : 'font-bold'
-          }`}
-        >
-          {t`Accéder à la suite de l'article`}
-        </h3>
-        <p className="text-muted-foreground mb-8 text-sm sm:text-base max-w-xl mx-auto leading-relaxed">
-          {t`Cet écrit approfondi est une exclusivité pour les soutiens et abonnés de `}
-          <strong className="text-foreground">{name}</strong>.
-        </p>
+        <div className="px-5 py-7 sm:px-8 sm:py-9">
+          <header className="text-center">
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] ${
+                isBrutalist
+                  ? 'border-2 border-foreground'
+                  : 'border border-[var(--tenant-accent)]/25 bg-[var(--tenant-accent)]/10 text-[var(--tenant-accent)]'
+              }`}
+            >
+              <Lock className="h-3 w-3" />
+              {t`Article réservé`}
+            </span>
 
-        {errorMessage && (
-          <div className="p-4 mb-6 bg-destructive/10 border border-destructive/20 text-destructive text-xs font-medium rounded-xl flex items-start gap-2 text-left max-w-md mx-auto animate-in fade-in slide-in-from-top-1">
-            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            <span>{errorMessage}</span>
-          </div>
-        )}
+            <h3
+              className={`mt-4 tracking-tight ${
+                isBrutalist ? 'text-2xl font-black uppercase' : 'text-xl font-bold sm:text-2xl'
+              }`}
+            >
+              {t`Accéder à la suite de l'article`}
+            </h3>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
+              {t`Cet écrit approfondi est une exclusivité pour les soutiens et abonnés de `}
+              <strong className="font-semibold text-foreground">{name}</strong>.
+            </p>
+          </header>
 
-        {/* Triptyque Monetization Options */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8 text-left max-w-xl mx-auto">
-          {/* Option 1: Instant Article Unlock via Wallet */}
-          <div
-            onClick={handleUnlock}
-            className={`p-5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
-              isBrutalist
-                ? 'border-2 border-foreground hover:bg-muted'
-                : 'border-border/80 bg-background/60 hover:border-[var(--tenant-accent)] hover:shadow-md'
-            }`}
-          >
-            <div>
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-[var(--tenant-accent)]">
-                  {t`À la carte`}
-                </span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-muted font-medium text-foreground">
-                  {t`1 clic`}
-                </span>
-              </div>
-              <h4 className="font-bold text-lg text-foreground mb-1">{t`Débloquer cet article`}</h4>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                {t`Accès permanent et illimité à cette publication sans engagement.`}
-              </p>
-            </div>
-
-            <div className="mt-4 pt-3 border-t border-border/40 flex items-center justify-between">
-              <span className="font-extrabold text-xl text-foreground">2,00 €</span>
-              <button
-                disabled={unlocking}
-                className="px-4 py-2 rounded-full font-medium text-xs text-white transition-all flex items-center gap-1.5"
-                style={{ backgroundColor: accentColor || 'var(--tenant-accent)' }}
-              >
-                {unlocking ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <>
-                    <Wallet className="w-3.5 h-3.5" />
-                    <span>{t`Débloquer`}</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* Option 2: Full Membership Subscription */}
-          <Link
-            href="#subscribe"
-            className={`p-5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between relative overflow-hidden group ${
-              isBrutalist
-                ? 'border-2 border-foreground hover:bg-muted'
-                : 'border-border/80 bg-background/60 hover:border-foreground/40 hover:shadow-md'
-            }`}
-          >
-            <div>
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  {t`Abonnement`}
-                </span>
-                <span className="text-xs px-2 py-0.5 rounded-full bg-success/10 text-success font-medium">
-                  {t`Illimité`}
-                </span>
-              </div>
-              <h4 className="font-bold text-lg text-foreground mb-1">{t`Membre Premium`}</h4>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                {t`Accédez à l'intégralité des archives et soutenez l'auteur chaque mois.`}
-              </p>
-            </div>
-
-            <div className="mt-4 pt-3 border-t border-border/40 flex items-center justify-between">
-              <span className="font-extrabold text-xl text-foreground">
-                5,00 €<span className="text-xs font-normal text-muted-foreground">/mois</span>
-              </span>
-              <span className="px-4 py-2 rounded-full font-medium text-xs bg-foreground text-background group-hover:opacity-90 transition-opacity">
-                {t`S'abonner`}
-              </span>
-            </div>
-          </Link>
-        </div>
-
-        {/* User Session Info / Quick Login */}
-        <div className="text-xs text-muted-foreground pt-4 border-t border-border/40 max-w-md mx-auto">
-          {user ? (
-            <div className="flex items-center justify-between">
-              <span>
-                {t`Connecté en tant que `}
-                <strong className="text-foreground">{user.name || user.email}</strong>
-              </span>
-              <span className="font-medium text-foreground">
-                {t`Solde : ${((user.walletBalanceCents || 0) / 100).toFixed(2)} €`}
-              </span>
-            </div>
-          ) : (
-            <div>
-              <span>{t`Vous avez déjà un compte ou êtes déjà abonné ?`} </span>
-              <button
-                onClick={() =>
-                  (window.location.href = `${mainAppUrl}/login?redirect=${encodeURIComponent(window.location.href)}`)
-                }
-                className="underline font-semibold hover:text-[var(--tenant-accent)] cursor-pointer bg-transparent border-0 p-0 text-foreground"
-              >
-                {t`Se connecter avec qoefi`}
-              </button>
+          {errorMessage && (
+            <div className="mx-auto mt-5 flex max-w-md items-start gap-2 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-left text-xs font-medium text-destructive animate-in fade-in slide-in-from-top-1">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>{errorMessage}</span>
             </div>
           )}
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            {/* Achat à l'unité */}
+            <button
+              type="button"
+              onClick={handleUnlock}
+              disabled={unlocking}
+              className={`group flex flex-col justify-between rounded-xl p-4 text-left transition-all disabled:opacity-70 ${
+                isBrutalist
+                  ? 'border-2 border-foreground hover:bg-muted'
+                  : 'border border-border/70 bg-background hover:-translate-y-0.5 hover:border-[var(--tenant-accent)]/50 hover:shadow-md'
+              }`}
+            >
+              <div>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--tenant-accent)]">
+                  {t`À la carte`}
+                </span>
+                <h4 className="mt-1 text-base font-semibold text-foreground">
+                  {t`Débloquer cet article`}
+                </h4>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  {t`Accès permanent et illimité à cette publication sans engagement.`}
+                </p>
+              </div>
+
+              <div className="mt-4 flex items-center justify-between border-t border-border/50 pt-3">
+                <span className="text-lg font-bold tabular-nums text-foreground">
+                  {formatEuro(ARTICLE_UNLOCK_PRICE_CENTS)}
+                </span>
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-white"
+                  style={{ backgroundColor: accentColor || 'var(--tenant-accent)' }}
+                >
+                  {unlocking ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <>
+                      <Wallet className="h-3.5 w-3.5" />
+                      <span>{t`Débloquer`}</span>
+                    </>
+                  )}
+                </span>
+              </div>
+            </button>
+
+            {/* Abonnement */}
+            <Link
+              href="#subscribe"
+              className={`group flex flex-col justify-between rounded-xl p-4 transition-all ${
+                isBrutalist
+                  ? 'border-2 border-foreground hover:bg-muted'
+                  : 'border border-border/70 bg-background hover:-translate-y-0.5 hover:border-foreground/30 hover:shadow-md'
+              }`}
+            >
+              <div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                    {t`Abonnement`}
+                  </span>
+                  <span className="rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-medium text-success">
+                    {t`Illimité`}
+                  </span>
+                </div>
+                <h4 className="mt-1 text-base font-semibold text-foreground">{t`Membre Premium`}</h4>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  {t`Accédez à l'intégralité des archives et soutenez l'auteur chaque mois.`}
+                </p>
+              </div>
+
+              <div className="mt-4 flex items-center justify-between border-t border-border/50 pt-3">
+                <span className="text-lg font-bold tabular-nums text-foreground">
+                  {formatEuro(MEMBERSHIP_PRICE_CENTS)}
+                  <span className="ml-0.5 text-xs font-normal text-muted-foreground">
+                    {t`/mois`}
+                  </span>
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-foreground px-3 py-1.5 text-xs font-semibold text-background transition-opacity group-hover:opacity-90">
+                  {t`S'abonner`}
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </span>
+              </div>
+            </Link>
+          </div>
+
+          <div className="mt-6 border-t border-border/50 pt-4 text-center text-xs text-muted-foreground">
+            {user ? (
+              <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+                <span>
+                  {t`Connecté en tant que `}
+                  <strong className="font-semibold text-foreground">
+                    {user.name || user.email}
+                  </strong>
+                </span>
+                <span className="text-border">•</span>
+                <span className="font-medium text-foreground">
+                  {t`Solde : ${((user.walletBalanceCents || 0) / 100).toFixed(2)} €`}
+                </span>
+              </div>
+            ) : (
+              <span>
+                {t`Vous avez déjà un compte ou êtes déjà abonné ?`}{' '}
+                <a
+                  href={loginHref}
+                  className="font-semibold text-foreground underline decoration-foreground/30 underline-offset-2 transition-colors hover:text-[var(--tenant-accent)]"
+                >
+                  {t`Se connecter avec qoefi`}
+                </a>
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 }
