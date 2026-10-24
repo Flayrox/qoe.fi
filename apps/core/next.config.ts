@@ -53,7 +53,7 @@ const nextConfig: NextConfig = {
     return [
       { source: '/recours', destination: '/appeals', permanent: true },
       { source: '/legal', destination: `${landingUrl}/legal`, permanent: true },
-      { source: '/legal/:slug', destination: `${landingUrl}/legal/:slug`, permanent: true },
+      { source: '/legal/:slug*', destination: `${landingUrl}/legal/:slug*`, permanent: true },
     ];
   },
   images: {

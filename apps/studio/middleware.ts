@@ -47,7 +47,7 @@ export async function middleware(request: NextRequest) {
     const safeHost = isBindAddress ? '' : rawHost;
     const currentTarget = safeHost
       ? `${proto}://${safeHost}${request.nextUrl.pathname}${request.nextUrl.search}`
-      : `${getMonorepoUrl('dashboard')}${request.nextUrl.pathname}${request.nextUrl.search}`;
+      : `${getMonorepoUrl('studio')}${request.nextUrl.pathname}${request.nextUrl.search}`;
     const redirectTarget = `${loginBase}?redirect=${encodeURIComponent(currentTarget)}`;
     return NextResponse.redirect(new URL(redirectTarget));
   }

@@ -16,8 +16,8 @@ export async function GET(request: Request) {
   if (search) {
     redirectTarget = `${loginBase}${search}`;
   } else {
-    const dashboardBase = getMonorepoUrl('dashboard', host);
-    redirectTarget = `${loginBase}?redirect=${encodeURIComponent(`${dashboardBase}/`)}`;
+    const studioBase = getMonorepoUrl('studio', host);
+    redirectTarget = `${loginBase}?redirect=${encodeURIComponent(`${studioBase}/`)}`;
   }
 
   return NextResponse.redirect(new URL(redirectTarget));
