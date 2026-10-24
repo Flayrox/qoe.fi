@@ -1,0 +1,2245 @@
+{
+  "generatedAt": "2026-10-24T21:02:16.638Z",
+  "total": 310,
+  "signals": {
+    "primitivesNeverImported": 19,
+    "primitivesTotal": 43,
+    "rawButtons": 731,
+    "rawButtonFiles": 139,
+    "nativeSelectFiles": 27,
+    "rawInputFiles": 80,
+    "handRolledOverlays": 29
+  },
+  "families": [
+    {
+      "id": "contract",
+      "label": "Primitives du contrat (@qoe/ui)",
+      "items": [
+        {
+          "name": "button-group",
+          "path": "packages/ui/src/primitives/button/button-group.tsx",
+          "lines": 53,
+          "source": "primitives",
+          "usages": 0
+        },
+        {
+          "name": "button",
+          "path": "packages/ui/src/primitives/button/button.tsx",
+          "lines": 116,
+          "source": "primitives",
+          "usages": 4
+        },
+        {
+          "name": "card",
+          "path": "packages/ui/src/primitives/card/card.tsx",
+          "lines": 99,
+          "source": "primitives",
+          "usages": 0
+        },
+        {
+          "name": "field-error",
+          "path": "packages/ui/src/primitives/field/field-error.tsx",
+          "lines": 42,
+          "source": "primitives",
+          "usages": 1
+        },
+        {
+          "name": "input",
+          "path": "packages/ui/src/primitives/input/input.tsx",
+          "lines": 144,
+          "source": "primitives",
+          "usages": 3
+        },
+        {
+          "name": "separator",
+          "path": "packages/ui/src/primitives/separator/separator.tsx",
+          "lines": 43,
+          "source": "primitives",
+          "usages": 0
+        },
+        {
+          "name": "surface",
+          "path": "packages/ui/src/primitives/surface/surface.tsx",
+          "lines": 46,
+          "source": "primitives",
+          "usages": 0
+        }
+      ]
+    },
+    {
+      "id": "primitives",
+      "label": "Primitives héritées (@qoe/ui/ui)",
+      "items": [
+        {
+          "name": "AccessibilityMenu",
+          "path": "packages/ui/src/ui/AccessibilityMenu.tsx",
+          "lines": 119,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "AnimatedBentoCard",
+          "path": "packages/ui/src/ui/AnimatedBentoCard.tsx",
+          "lines": 37,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "AskQoeBar",
+          "path": "packages/ui/src/ui/AskQoeBar.tsx",
+          "lines": 242,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "AuthorAvatar",
+          "path": "packages/ui/src/ui/AuthorAvatar.tsx",
+          "lines": 6,
+          "source": "ui",
+          "usages": 3
+        },
+        {
+          "name": "avatar",
+          "path": "packages/ui/src/ui/avatar.tsx",
+          "lines": 94,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "BentoPlateau",
+          "path": "packages/ui/src/ui/BentoPlateau.tsx",
+          "lines": 96,
+          "source": "ui",
+          "usages": 1
+        },
+        {
+          "name": "button",
+          "path": "packages/ui/src/ui/button.tsx",
+          "lines": 74,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "calendar",
+          "path": "packages/ui/src/ui/calendar.tsx",
+          "lines": 213,
+          "source": "ui",
+          "usages": 1
+        },
+        {
+          "name": "CertifiedBadge",
+          "path": "packages/ui/src/ui/CertifiedBadge.tsx",
+          "lines": 23,
+          "source": "ui",
+          "usages": 7
+        },
+        {
+          "name": "color-picker",
+          "path": "packages/ui/src/ui/color-picker.tsx",
+          "lines": 479,
+          "source": "ui",
+          "usages": 1
+        },
+        {
+          "name": "craft-indicator",
+          "path": "packages/ui/src/ui/craft-indicator.tsx",
+          "lines": 151,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "craft-sidebar-drawer",
+          "path": "packages/ui/src/ui/craft-sidebar-drawer.tsx",
+          "lines": 440,
+          "source": "ui",
+          "usages": 1
+        },
+        {
+          "name": "dialog",
+          "path": "packages/ui/src/ui/dialog.tsx",
+          "lines": 120,
+          "source": "ui",
+          "usages": 7
+        },
+        {
+          "name": "dropdown-menu",
+          "path": "packages/ui/src/ui/dropdown-menu.tsx",
+          "lines": 259,
+          "source": "ui",
+          "usages": 1
+        },
+        {
+          "name": "exit-interstitial",
+          "path": "packages/ui/src/ui/exit-interstitial.tsx",
+          "lines": 347,
+          "source": "ui",
+          "usages": 3
+        },
+        {
+          "name": "feature-catalog",
+          "path": "packages/ui/src/ui/feature-catalog.ts",
+          "lines": 202,
+          "source": "ui",
+          "usages": 2
+        },
+        {
+          "name": "feature-interstitial",
+          "path": "packages/ui/src/ui/feature-interstitial.tsx",
+          "lines": 370,
+          "source": "ui",
+          "usages": 3
+        },
+        {
+          "name": "feature-teaser",
+          "path": "packages/ui/src/ui/feature-teaser.tsx",
+          "lines": 282,
+          "source": "ui",
+          "usages": 3
+        },
+        {
+          "name": "hover-card",
+          "path": "packages/ui/src/ui/hover-card.tsx",
+          "lines": 47,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "ImageUploader",
+          "path": "packages/ui/src/ui/ImageUploader.tsx",
+          "lines": 416,
+          "source": "ui",
+          "usages": 6
+        },
+        {
+          "name": "input",
+          "path": "packages/ui/src/ui/input.tsx",
+          "lines": 21,
+          "source": "ui",
+          "usages": 1
+        },
+        {
+          "name": "label",
+          "path": "packages/ui/src/ui/label.tsx",
+          "lines": 19,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "period-select",
+          "path": "packages/ui/src/ui/period-select.tsx",
+          "lines": 65,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "popover",
+          "path": "packages/ui/src/ui/popover.tsx",
+          "lines": 78,
+          "source": "ui",
+          "usages": 3
+        },
+        {
+          "name": "PreviewableUserAvatar",
+          "path": "packages/ui/src/ui/PreviewableUserAvatar.tsx",
+          "lines": 52,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "progressive-blur",
+          "path": "packages/ui/src/ui/progressive-blur.tsx",
+          "lines": 96,
+          "source": "ui",
+          "usages": 1
+        },
+        {
+          "name": "ReadingProgressBar",
+          "path": "packages/ui/src/ui/ReadingProgressBar.tsx",
+          "lines": 74,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "Reveal",
+          "path": "packages/ui/src/ui/Reveal.tsx",
+          "lines": 40,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "select",
+          "path": "packages/ui/src/ui/select.tsx",
+          "lines": 191,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "separator",
+          "path": "packages/ui/src/ui/separator.tsx",
+          "lines": 22,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "sheet",
+          "path": "packages/ui/src/ui/sheet.tsx",
+          "lines": 126,
+          "source": "ui",
+          "usages": 1
+        },
+        {
+          "name": "skeleton",
+          "path": "packages/ui/src/ui/skeleton.tsx",
+          "lines": 14,
+          "source": "ui",
+          "usages": 1
+        },
+        {
+          "name": "TabErrorBoundary",
+          "path": "packages/ui/src/ui/TabErrorBoundary.tsx",
+          "lines": 102,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "table",
+          "path": "packages/ui/src/ui/table.tsx",
+          "lines": 88,
+          "source": "ui",
+          "usages": 1
+        },
+        {
+          "name": "TextParser",
+          "path": "packages/ui/src/ui/TextParser.tsx",
+          "lines": 45,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "ThemeToggle",
+          "path": "packages/ui/src/ui/ThemeToggle.tsx",
+          "lines": 31,
+          "source": "ui",
+          "usages": 1
+        },
+        {
+          "name": "time-picker-demo",
+          "path": "packages/ui/src/ui/time-picker-demo.tsx",
+          "lines": 63,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "time-picker-input",
+          "path": "packages/ui/src/ui/time-picker-input.tsx",
+          "lines": 127,
+          "source": "ui",
+          "usages": 1
+        },
+        {
+          "name": "time-picker-utils",
+          "path": "packages/ui/src/ui/time-picker-utils.ts",
+          "lines": 192,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "toast",
+          "path": "packages/ui/src/ui/toast.tsx",
+          "lines": 250,
+          "source": "ui",
+          "usages": 60
+        },
+        {
+          "name": "tooltip",
+          "path": "packages/ui/src/ui/tooltip.tsx",
+          "lines": 55,
+          "source": "ui",
+          "usages": 4
+        },
+        {
+          "name": "Typewriter",
+          "path": "packages/ui/src/ui/Typewriter.tsx",
+          "lines": 55,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "UserAvatar",
+          "path": "packages/ui/src/ui/UserAvatar.tsx",
+          "lines": 90,
+          "source": "ui",
+          "usages": 1
+        }
+      ]
+    },
+    {
+      "id": "composed",
+      "label": "Composés partagés (@qoe/ui)",
+      "items": [
+        {
+          "name": "ArticleCard",
+          "path": "packages/ui/src/ArticleCard.tsx",
+          "lines": 520,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "AuthModalContext",
+          "path": "packages/ui/src/auth/AuthModalContext.tsx",
+          "lines": 142,
+          "source": "ui",
+          "usages": 3
+        },
+        {
+          "name": "GlobalAuthModalProvider",
+          "path": "packages/ui/src/auth/GlobalAuthModalProvider.tsx",
+          "lines": 34,
+          "source": "ui",
+          "usages": 2
+        },
+        {
+          "name": "ClientDate",
+          "path": "packages/ui/src/ClientDate.tsx",
+          "lines": 70,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "CommandMenu",
+          "path": "packages/ui/src/cmdk/CommandMenu.tsx",
+          "lines": 234,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "CommandPrimitives",
+          "path": "packages/ui/src/cmdk/CommandPrimitives.tsx",
+          "lines": 173,
+          "source": "ui",
+          "usages": 1
+        },
+        {
+          "name": "useCommandMenu",
+          "path": "packages/ui/src/cmdk/useCommandMenu.ts",
+          "lines": 44,
+          "source": "ui",
+          "usages": 2
+        },
+        {
+          "name": "DevtoolsPanel",
+          "path": "packages/ui/src/devtools/DevtoolsPanel.tsx",
+          "lines": 1393,
+          "source": "ui",
+          "usages": 5
+        },
+        {
+          "name": "GuestFloatingBar",
+          "path": "packages/ui/src/GuestFloatingBar.tsx",
+          "lines": 64,
+          "source": "ui",
+          "usages": 1
+        },
+        {
+          "name": "action-menu",
+          "path": "packages/ui/src/heroui/action-menu.tsx",
+          "lines": 115,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "scope",
+          "path": "packages/ui/src/heroui/scope.tsx",
+          "lines": 43,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "use-mobile",
+          "path": "packages/ui/src/hooks/use-mobile.ts",
+          "lines": 22,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "useOptimisticMutation",
+          "path": "packages/ui/src/hooks/useOptimisticMutation.ts",
+          "lines": 60,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "AnalyticsNotice",
+          "path": "packages/ui/src/legal/AnalyticsNotice.tsx",
+          "lines": 175,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "cookie-consent-storage",
+          "path": "packages/ui/src/legal/cookie-consent-storage.ts",
+          "lines": 104,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "CookieConsentBanner",
+          "path": "packages/ui/src/legal/CookieConsentBanner.tsx",
+          "lines": 516,
+          "source": "ui",
+          "usages": 3
+        },
+        {
+          "name": "CookiePreferencesButton",
+          "path": "packages/ui/src/legal/CookiePreferencesButton.tsx",
+          "lines": 26,
+          "source": "ui",
+          "usages": 3
+        },
+        {
+          "name": "LegalConsentGate",
+          "path": "packages/ui/src/legal/LegalConsentGate.tsx",
+          "lines": 203,
+          "source": "ui",
+          "usages": 2
+        },
+        {
+          "name": "motion-profiles",
+          "path": "packages/ui/src/lib/animations/motion-profiles.ts",
+          "lines": 2,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "motion-profiles",
+          "path": "packages/ui/src/lib/motion-profiles.ts",
+          "lines": 54,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "LoginFormBento",
+          "path": "packages/ui/src/LoginFormBento.tsx",
+          "lines": 888,
+          "source": "ui",
+          "usages": 1
+        },
+        {
+          "name": "LoginModal",
+          "path": "packages/ui/src/LoginModal.tsx",
+          "lines": 83,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "Logo",
+          "path": "packages/ui/src/Logo.tsx",
+          "lines": 9,
+          "source": "ui",
+          "usages": 5
+        },
+        {
+          "name": "NotFoundView",
+          "path": "packages/ui/src/NotFoundView.tsx",
+          "lines": 355,
+          "source": "ui",
+          "usages": 6
+        },
+        {
+          "name": "InvertedCurveBanner",
+          "path": "packages/ui/src/notifications/InvertedCurveBanner.tsx",
+          "lines": 235,
+          "source": "ui",
+          "usages": 3
+        },
+        {
+          "name": "NotificationItem",
+          "path": "packages/ui/src/notifications/NotificationItem.tsx",
+          "lines": 319,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "NotificationList",
+          "path": "packages/ui/src/notifications/NotificationList.tsx",
+          "lines": 157,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "UnreadBadge",
+          "path": "packages/ui/src/notifications/UnreadBadge.tsx",
+          "lines": 37,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "useRealtimeNotificationSync",
+          "path": "packages/ui/src/notifications/useRealtimeNotificationSync.ts",
+          "lines": 128,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "OnboardingFlow",
+          "path": "packages/ui/src/onboarding/OnboardingFlow.tsx",
+          "lines": 690,
+          "source": "ui",
+          "usages": 1
+        },
+        {
+          "name": "OnboardingModal",
+          "path": "packages/ui/src/onboarding/OnboardingModal.tsx",
+          "lines": 97,
+          "source": "ui",
+          "usages": 2
+        },
+        {
+          "name": "button-group",
+          "path": "packages/ui/src/primitives/button/button-group.tsx",
+          "lines": 53,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "button",
+          "path": "packages/ui/src/primitives/button/button.tsx",
+          "lines": 116,
+          "source": "ui",
+          "usages": 4
+        },
+        {
+          "name": "card",
+          "path": "packages/ui/src/primitives/card/card.tsx",
+          "lines": 99,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "field-error",
+          "path": "packages/ui/src/primitives/field/field-error.tsx",
+          "lines": 42,
+          "source": "ui",
+          "usages": 1
+        },
+        {
+          "name": "input",
+          "path": "packages/ui/src/primitives/input/input.tsx",
+          "lines": 144,
+          "source": "ui",
+          "usages": 3
+        },
+        {
+          "name": "separator",
+          "path": "packages/ui/src/primitives/separator/separator.tsx",
+          "lines": 43,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "surface",
+          "path": "packages/ui/src/primitives/surface/surface.tsx",
+          "lines": 46,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "RecommendationModal",
+          "path": "packages/ui/src/RecommendationModal.tsx",
+          "lines": 222,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "SafeAvatar",
+          "path": "packages/ui/src/SafeAvatar.tsx",
+          "lines": 129,
+          "source": "ui",
+          "usages": 17
+        },
+        {
+          "name": "SafeImage",
+          "path": "packages/ui/src/SafeImage.tsx",
+          "lines": 89,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "JsonLd",
+          "path": "packages/ui/src/seo/JsonLd.tsx",
+          "lines": 151,
+          "source": "ui",
+          "usages": 8
+        },
+        {
+          "name": "HotkeyHelpModal",
+          "path": "packages/ui/src/shortcuts/HotkeyHelpModal.tsx",
+          "lines": 89,
+          "source": "ui",
+          "usages": 1
+        },
+        {
+          "name": "sidebar",
+          "path": "packages/ui/src/sidebar.tsx",
+          "lines": 608,
+          "source": "ui",
+          "usages": 5
+        },
+        {
+          "name": "ConfirmDeleteModal",
+          "path": "packages/ui/src/social/ConfirmDeleteModal.tsx",
+          "lines": 82,
+          "source": "ui",
+          "usages": 1
+        },
+        {
+          "name": "KnownLikers",
+          "path": "packages/ui/src/social/KnownLikers.tsx",
+          "lines": 143,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "LinkPreview",
+          "path": "packages/ui/src/social/LinkPreview.tsx",
+          "lines": 188,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "MediaLightbox",
+          "path": "packages/ui/src/social/MediaLightbox.tsx",
+          "lines": 210,
+          "source": "ui",
+          "usages": 1
+        },
+        {
+          "name": "ProfileHoverCard",
+          "path": "packages/ui/src/social/ProfileHoverCard.tsx",
+          "lines": 374,
+          "source": "ui",
+          "usages": 3
+        },
+        {
+          "name": "QuotedArticleCard",
+          "path": "packages/ui/src/social/QuotedArticleCard.tsx",
+          "lines": 177,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "QuotedThoughtCard",
+          "path": "packages/ui/src/social/QuotedThoughtCard.tsx",
+          "lines": 87,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "ReportModal",
+          "path": "packages/ui/src/social/ReportModal.tsx",
+          "lines": 154,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "ShareMenu",
+          "path": "packages/ui/src/social/ShareMenu.tsx",
+          "lines": 186,
+          "source": "ui",
+          "usages": 1
+        },
+        {
+          "name": "ThoughtActions",
+          "path": "packages/ui/src/social/ThoughtActions.tsx",
+          "lines": 237,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "ThoughtBody",
+          "path": "packages/ui/src/social/ThoughtBody.tsx",
+          "lines": 186,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "ThoughtCard",
+          "path": "packages/ui/src/social/ThoughtCard.tsx",
+          "lines": 526,
+          "source": "ui",
+          "usages": 2
+        },
+        {
+          "name": "ThoughtHeader",
+          "path": "packages/ui/src/social/ThoughtHeader.tsx",
+          "lines": 271,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "usePostShadow",
+          "path": "packages/ui/src/social/usePostShadow.ts",
+          "lines": 104,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "ZoomableLightbox",
+          "path": "packages/ui/src/social/ZoomableLightbox.tsx",
+          "lines": 475,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "SocialIcon",
+          "path": "packages/ui/src/SocialIcon.tsx",
+          "lines": 7,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "SubscribeForm",
+          "path": "packages/ui/src/SubscribeForm.tsx",
+          "lines": 445,
+          "source": "ui",
+          "usages": 2
+        },
+        {
+          "name": "TenantHeader",
+          "path": "packages/ui/src/TenantHeader.tsx",
+          "lines": 297,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "theme-provider",
+          "path": "packages/ui/src/theme-provider.tsx",
+          "lines": 9,
+          "source": "ui",
+          "usages": 5
+        },
+        {
+          "name": "ThoughtCard",
+          "path": "packages/ui/src/ThoughtCard.tsx",
+          "lines": 2,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "tokens",
+          "path": "packages/ui/src/tokens.ts",
+          "lines": 83,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "WidgetErrorBoundary",
+          "path": "packages/ui/src/WidgetErrorBoundary.tsx",
+          "lines": 45,
+          "source": "ui",
+          "usages": 0
+        }
+      ]
+    },
+    {
+      "id": "reading",
+      "label": "Lecture & annotations",
+      "items": [
+        {
+          "name": "AnnotationFilterPill",
+          "path": "packages/ui/src/annotations/AnnotationFilterPill.tsx",
+          "lines": 84,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "AnnotationSideDrawer",
+          "path": "packages/ui/src/annotations/AnnotationSideDrawer.tsx",
+          "lines": 746,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "callbacks",
+          "path": "packages/ui/src/annotations/callbacks.ts",
+          "lines": 119,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "canonical-document",
+          "path": "packages/ui/src/annotations/canonical-document.ts",
+          "lines": 139,
+          "source": "ui",
+          "usages": 1
+        },
+        {
+          "name": "CanonicalArticleBody",
+          "path": "packages/ui/src/annotations/CanonicalArticleBody.tsx",
+          "lines": 424,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "quote-anchor",
+          "path": "packages/ui/src/annotations/quote-anchor.ts",
+          "lines": 66,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "TextHighlighter",
+          "path": "packages/ui/src/annotations/TextHighlighter.tsx",
+          "lines": 1187,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "TextSelectionPopover",
+          "path": "packages/ui/src/annotations/TextSelectionPopover.tsx",
+          "lines": 243,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "types",
+          "path": "packages/ui/src/annotations/types.ts",
+          "lines": 261,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "ArticleReaderShell",
+          "path": "packages/ui/src/reader/ArticleReaderShell.tsx",
+          "lines": 119,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "bionic",
+          "path": "packages/ui/src/reader/bionic.ts",
+          "lines": 84,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "FloatingAudioPlayer",
+          "path": "packages/ui/src/reader/FloatingAudioPlayer.tsx",
+          "lines": 207,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "ReadingPreferencesContext",
+          "path": "packages/ui/src/reader/ReadingPreferencesContext.tsx",
+          "lines": 322,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "ReadingProgressBar",
+          "path": "packages/ui/src/reader/ReadingProgressBar.tsx",
+          "lines": 61,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "ReadingRuler",
+          "path": "packages/ui/src/reader/ReadingRuler.tsx",
+          "lines": 51,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "ReadingSettingsSheet",
+          "path": "packages/ui/src/reader/ReadingSettingsSheet.tsx",
+          "lines": 301,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "TextToSpeechContext",
+          "path": "packages/ui/src/reader/TextToSpeechContext.tsx",
+          "lines": 581,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "TextToSpeechPlayer",
+          "path": "packages/ui/src/reader/TextToSpeechPlayer.tsx",
+          "lines": 149,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "types",
+          "path": "packages/ui/src/reader/types.ts",
+          "lines": 54,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "useBionicReading",
+          "path": "packages/ui/src/reader/useBionicReading.ts",
+          "lines": 31,
+          "source": "ui",
+          "usages": 0
+        }
+      ]
+    },
+    {
+      "id": "templates",
+      "label": "Templates & blocs de page",
+      "items": [
+        {
+          "name": "MinimalCraftShell",
+          "path": "packages/ui/src/templates/archetypes/minimal/MinimalCraftShell.tsx",
+          "lines": 558,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "MinimalDock",
+          "path": "packages/ui/src/templates/archetypes/minimal/MinimalDock.tsx",
+          "lines": 208,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "MinimalSidebarDrawer",
+          "path": "packages/ui/src/templates/archetypes/minimal/MinimalSidebarDrawer.tsx",
+          "lines": 277,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "AboutPageContent",
+          "path": "packages/ui/src/templates/blocks/AboutPageContent.tsx",
+          "lines": 294,
+          "source": "ui",
+          "usages": 1
+        },
+        {
+          "name": "ArticleCard",
+          "path": "packages/ui/src/templates/blocks/ArticleCard.tsx",
+          "lines": 305,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "ArticleContentBlock",
+          "path": "packages/ui/src/templates/blocks/ArticleContentBlock.tsx",
+          "lines": 279,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "ArticleEngagementBar",
+          "path": "packages/ui/src/templates/blocks/ArticleEngagementBar.tsx",
+          "lines": 611,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "ArticleStreamBlock",
+          "path": "packages/ui/src/templates/blocks/ArticleStreamBlock.tsx",
+          "lines": 731,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "BentoGridBlock",
+          "path": "packages/ui/src/templates/blocks/BentoGridBlock.tsx",
+          "lines": 246,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "BlockWrapper",
+          "path": "packages/ui/src/templates/blocks/BlockWrapper.tsx",
+          "lines": 197,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "CategorySpotlightBlock",
+          "path": "packages/ui/src/templates/blocks/CategorySpotlightBlock.tsx",
+          "lines": 170,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "EditableText",
+          "path": "packages/ui/src/templates/blocks/EditableText.tsx",
+          "lines": 68,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "FooterBlock",
+          "path": "packages/ui/src/templates/blocks/FooterBlock.tsx",
+          "lines": 220,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "HeroBlock",
+          "path": "packages/ui/src/templates/blocks/HeroBlock.tsx",
+          "lines": 250,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "LeadStoryBlock",
+          "path": "packages/ui/src/templates/blocks/LeadStoryBlock.tsx",
+          "lines": 235,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "NavbarBlock",
+          "path": "packages/ui/src/templates/blocks/NavbarBlock.tsx",
+          "lines": 273,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "NewsletterWallBlock",
+          "path": "packages/ui/src/templates/blocks/NewsletterWallBlock.tsx",
+          "lines": 181,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "NodeRenderer",
+          "path": "packages/ui/src/templates/blocks/NodeRenderer.tsx",
+          "lines": 169,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "PeopleSection",
+          "path": "packages/ui/src/templates/blocks/PeopleSection.tsx",
+          "lines": 90,
+          "source": "ui",
+          "usages": 1
+        },
+        {
+          "name": "PersonCard",
+          "path": "packages/ui/src/templates/blocks/PersonCard.tsx",
+          "lines": 256,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "PublicationSidebar",
+          "path": "packages/ui/src/templates/blocks/PublicationSidebar.tsx",
+          "lines": 313,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "defaults",
+          "path": "packages/ui/src/templates/defaults.ts",
+          "lines": 903,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "minimal",
+          "path": "packages/ui/src/templates/defaults/minimal.ts",
+          "lines": 136,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "demo",
+          "path": "packages/ui/src/templates/demo.ts",
+          "lines": 44,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "navigation",
+          "path": "packages/ui/src/templates/navigation.ts",
+          "lines": 506,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "parser",
+          "path": "packages/ui/src/templates/parser.ts",
+          "lines": 418,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "placeholders",
+          "path": "packages/ui/src/templates/placeholders.ts",
+          "lines": 16,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "types",
+          "path": "packages/ui/src/templates/registry/types.ts",
+          "lines": 59,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "schema",
+          "path": "packages/ui/src/templates/schema.ts",
+          "lines": 449,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "style",
+          "path": "packages/ui/src/templates/style.ts",
+          "lines": 145,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "TemplateRenderer",
+          "path": "packages/ui/src/templates/TemplateRenderer.tsx",
+          "lines": 315,
+          "source": "ui",
+          "usages": 0
+        }
+      ]
+    },
+    {
+      "id": "studio",
+      "label": "Patterns Studio",
+      "items": [
+        {
+          "name": "app-sidebar",
+          "path": "apps/studio/src/features/dashboard/components/app-sidebar.tsx",
+          "lines": 199,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "DashboardLayoutContent",
+          "path": "apps/studio/src/features/dashboard/components/DashboardLayoutContent.tsx",
+          "lines": 15,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "GlobalCommandMenu",
+          "path": "apps/studio/src/features/dashboard/components/GlobalCommandMenu.tsx",
+          "lines": 241,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "HeaderClient",
+          "path": "apps/studio/src/features/dashboard/components/HeaderClient.tsx",
+          "lines": 98,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "HeaderWorkspaceSwitcher",
+          "path": "apps/studio/src/features/dashboard/components/HeaderWorkspaceSwitcher.tsx",
+          "lines": 130,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "developer-client",
+          "path": "apps/studio/src/features/developer/components/developer-client.tsx",
+          "lines": 1319,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "developer-nav",
+          "path": "apps/studio/src/features/developer/components/developer-nav.tsx",
+          "lines": 88,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "actions",
+          "path": "apps/studio/src/features/devtools/actions.ts",
+          "lines": 57,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "AnnotationPopover",
+          "path": "apps/studio/src/features/editor/components/AnnotationPopover.tsx",
+          "lines": 145,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "ArticleAttributionEditor",
+          "path": "apps/studio/src/features/editor/components/ArticleAttributionEditor.tsx",
+          "lines": 622,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "ArticleDiffModal",
+          "path": "apps/studio/src/features/editor/components/ArticleDiffModal.tsx",
+          "lines": 439,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "ArticleHistoryModal",
+          "path": "apps/studio/src/features/editor/components/ArticleHistoryModal.tsx",
+          "lines": 303,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "CoverUploader",
+          "path": "apps/studio/src/features/editor/components/CoverUploader.tsx",
+          "lines": 137,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "Editor",
+          "path": "apps/studio/src/features/editor/components/Editor.tsx",
+          "lines": 1615,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "EditorHeader",
+          "path": "apps/studio/src/features/editor/components/EditorHeader.tsx",
+          "lines": 394,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "EditorSettingsDrawer",
+          "path": "apps/studio/src/features/editor/components/EditorSettingsDrawer.tsx",
+          "lines": 649,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "EditorStatusBar",
+          "path": "apps/studio/src/features/editor/components/EditorStatusBar.tsx",
+          "lines": 57,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "EditorToolbar",
+          "path": "apps/studio/src/features/editor/components/EditorToolbar.tsx",
+          "lines": 397,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "ImageDetailsPopover",
+          "path": "apps/studio/src/features/editor/components/ImageDetailsPopover.tsx",
+          "lines": 165,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "LinkPopover",
+          "path": "apps/studio/src/features/editor/components/LinkPopover.tsx",
+          "lines": 139,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "PublishModal",
+          "path": "apps/studio/src/features/editor/components/PublishModal.tsx",
+          "lines": 355,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "SelectionToolbar",
+          "path": "apps/studio/src/features/editor/components/SelectionToolbar.tsx",
+          "lines": 128,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "AnnotationMark",
+          "path": "apps/studio/src/features/editor/extensions/AnnotationMark.ts",
+          "lines": 73,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "ArticleImage",
+          "path": "apps/studio/src/features/editor/extensions/ArticleImage.ts",
+          "lines": 94,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "ImageGallery",
+          "path": "apps/studio/src/features/editor/extensions/ImageGallery.ts",
+          "lines": 66,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "PaywallDivider",
+          "path": "apps/studio/src/features/editor/extensions/PaywallDivider.ts",
+          "lines": 75,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "PaywallDividerComponent",
+          "path": "apps/studio/src/features/editor/extensions/PaywallDividerComponent.tsx",
+          "lines": 33,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "useArticleSettings",
+          "path": "apps/studio/src/features/editor/hooks/useArticleSettings.ts",
+          "lines": 278,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "useCollaborationSession",
+          "path": "apps/studio/src/features/editor/hooks/useCollaborationSession.ts",
+          "lines": 146,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "accessibility",
+          "path": "apps/studio/src/features/editor/lib/accessibility.ts",
+          "lines": 26,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "article-settings",
+          "path": "apps/studio/src/features/editor/lib/article-settings.ts",
+          "lines": 198,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "datetime",
+          "path": "apps/studio/src/features/editor/lib/datetime.ts",
+          "lines": 51,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "link",
+          "path": "apps/studio/src/features/editor/lib/link.ts",
+          "lines": 44,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "payload-hash",
+          "path": "apps/studio/src/features/editor/lib/payload-hash.ts",
+          "lines": 54,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "wizard",
+          "path": "apps/studio/src/features/onboarding/components/wizard.tsx",
+          "lines": 526,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "step-up",
+          "path": "apps/studio/src/features/security/step-up.tsx",
+          "lines": 296,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "totp-enrollment",
+          "path": "apps/studio/src/features/security/totp-enrollment.tsx",
+          "lines": 223,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "actions",
+          "path": "apps/studio/src/features/settings/actions.ts",
+          "lines": 188,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "account-security",
+          "path": "apps/studio/src/features/settings/components/account-security.tsx",
+          "lines": 303,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "email-templates",
+          "path": "apps/studio/src/features/settings/components/email-templates.tsx",
+          "lines": 562,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "MediaProfilePreviewEditor",
+          "path": "apps/studio/src/features/settings/components/MediaProfilePreviewEditor.tsx",
+          "lines": 369,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "mfa-panel",
+          "path": "apps/studio/src/features/settings/components/mfa-panel.tsx",
+          "lines": 182,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "publication-live-preview",
+          "path": "apps/studio/src/features/settings/components/publication-live-preview.tsx",
+          "lines": 14,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "publication-settings",
+          "path": "apps/studio/src/features/settings/components/publication-settings.tsx",
+          "lines": 12,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "seo-preview",
+          "path": "apps/studio/src/features/settings/components/seo-preview.tsx",
+          "lines": 209,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "settingsTree",
+          "path": "apps/studio/src/features/settings/config/settingsTree.ts",
+          "lines": 322,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "preview",
+          "path": "apps/studio/src/features/settings/preview.tsx",
+          "lines": 362,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "settings",
+          "path": "apps/studio/src/features/settings/settings.tsx",
+          "lines": 586,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "domain",
+          "path": "apps/studio/src/features/settings/tabs/domain.tsx",
+          "lines": 125,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "emails",
+          "path": "apps/studio/src/features/settings/tabs/emails.tsx",
+          "lines": 26,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "general",
+          "path": "apps/studio/src/features/settings/tabs/general.tsx",
+          "lines": 523,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "navigation",
+          "path": "apps/studio/src/features/settings/tabs/navigation.tsx",
+          "lines": 826,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "recommendations",
+          "path": "apps/studio/src/features/settings/tabs/recommendations.tsx",
+          "lines": 476,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "seo",
+          "path": "apps/studio/src/features/settings/tabs/seo.tsx",
+          "lines": 291,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "types",
+          "path": "apps/studio/src/features/settings/types.ts",
+          "lines": 167,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "BottomBar",
+          "path": "apps/studio/src/features/stage/bottom-bar/BottomBar.tsx",
+          "lines": 114,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "DevicePill",
+          "path": "apps/studio/src/features/stage/canvas/DevicePill.tsx",
+          "lines": 39,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "StageOverlays",
+          "path": "apps/studio/src/features/stage/canvas/overlay/StageOverlays.tsx",
+          "lines": 205,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "StageCanvas",
+          "path": "apps/studio/src/features/stage/canvas/StageCanvas.tsx",
+          "lines": 535,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "useStageHotkeys",
+          "path": "apps/studio/src/features/stage/canvas/useStageHotkeys.ts",
+          "lines": 76,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "StageEngineContext",
+          "path": "apps/studio/src/features/stage/context/StageEngineContext.tsx",
+          "lines": 1020,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "ContextualEditorBar",
+          "path": "apps/studio/src/features/stage/editor-bar/ContextualEditorBar.tsx",
+          "lines": 242,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "dropdowns",
+          "path": "apps/studio/src/features/stage/editor-bar/controls/dropdowns.tsx",
+          "lines": 268,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "inputs",
+          "path": "apps/studio/src/features/stage/editor-bar/controls/inputs.tsx",
+          "lines": 197,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "text-controls",
+          "path": "apps/studio/src/features/stage/editor-bar/controls/text-controls.tsx",
+          "lines": 115,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "useQoefiStyle",
+          "path": "apps/studio/src/features/stage/editor-bar/useQoefiStyle.ts",
+          "lines": 52,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "canvas-manager",
+          "path": "apps/studio/src/features/stage/engine/canvas-manager.ts",
+          "lines": 79,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "constants",
+          "path": "apps/studio/src/features/stage/engine/constants.ts",
+          "lines": 35,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "frames-manager",
+          "path": "apps/studio/src/features/stage/engine/frames-manager.ts",
+          "lines": 92,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "history-manager",
+          "path": "apps/studio/src/features/stage/engine/history-manager.ts",
+          "lines": 85,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "models",
+          "path": "apps/studio/src/features/stage/engine/models.ts",
+          "lines": 25,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "overlay-managers",
+          "path": "apps/studio/src/features/stage/engine/overlay-managers.ts",
+          "lines": 51,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "selection-utils",
+          "path": "apps/studio/src/features/stage/engine/selection-utils.ts",
+          "lines": 15,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "stage-editor-engine",
+          "path": "apps/studio/src/features/stage/engine/stage-editor-engine.ts",
+          "lines": 44,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "state-manager",
+          "path": "apps/studio/src/features/stage/engine/state-manager.ts",
+          "lines": 48,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "LeftPanelFull",
+          "path": "apps/studio/src/features/stage/left-panel/LeftPanelFull.tsx",
+          "lines": 920,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "RightPanel",
+          "path": "apps/studio/src/features/stage/right-panel/RightPanel.tsx",
+          "lines": 819,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "SidebarDrawer",
+          "path": "apps/studio/src/features/stage/sidebar-drawer/SidebarDrawer.tsx",
+          "lines": 63,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "StageClient",
+          "path": "apps/studio/src/features/stage/StageClient.tsx",
+          "lines": 143,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "TopBar",
+          "path": "apps/studio/src/features/stage/top-bar/TopBar.tsx",
+          "lines": 235,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "types",
+          "path": "apps/studio/src/features/stage/types.ts",
+          "lines": 46,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "actions",
+          "path": "apps/studio/src/features/upcoming/actions.ts",
+          "lines": 104,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "provider",
+          "path": "apps/studio/src/features/upcoming/provider.tsx",
+          "lines": 74,
+          "source": "studio",
+          "usages": null
+        }
+      ]
+    },
+    {
+      "id": "feed",
+      "label": "Patterns Feed",
+      "items": [
+        {
+          "name": "AnalyticsGate",
+          "path": "apps/core/src/components/AnalyticsGate.tsx",
+          "lines": 29,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "DynamicBannerSlot",
+          "path": "apps/core/src/components/banners/DynamicBannerSlot.tsx",
+          "lines": 73,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "DossierThread",
+          "path": "apps/core/src/components/dossiers/DossierThread.tsx",
+          "lines": 82,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "RealtimeFeedPill",
+          "path": "apps/core/src/components/feed/RealtimeFeedPill.tsx",
+          "lines": 36,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "VirtualizedFeedList",
+          "path": "apps/core/src/components/feed/VirtualizedFeedList.tsx",
+          "lines": 99,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "AppSidebar",
+          "path": "apps/core/src/components/layout/AppSidebar.tsx",
+          "lines": 117,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "MainContentWrapper",
+          "path": "apps/core/src/components/layout/MainContentWrapper.tsx",
+          "lines": 13,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "ReaderNavOverlay",
+          "path": "apps/core/src/components/layout/ReaderNavOverlay.tsx",
+          "lines": 112,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "ReaderPageLayout",
+          "path": "apps/core/src/components/layout/ReaderPageLayout.tsx",
+          "lines": 67,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "MessagesApp",
+          "path": "apps/core/src/components/messages/MessagesApp.tsx",
+          "lines": 495,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "NotificationSettingsForm",
+          "path": "apps/core/src/components/notifications/NotificationSettingsForm.tsx",
+          "lines": 165,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "InAppPlacement",
+          "path": "apps/core/src/components/placements/InAppPlacement.tsx",
+          "lines": 180,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "EditProfileModal",
+          "path": "apps/core/src/components/profile/EditProfileModal.tsx",
+          "lines": 302,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "profile-edit-actions",
+          "path": "apps/core/src/components/profile/profile-edit-actions.ts",
+          "lines": 50,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "QueryProvider",
+          "path": "apps/core/src/components/providers/QueryProvider.tsx",
+          "lines": 22,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "ReadingPreferencesProvider",
+          "path": "apps/core/src/components/providers/ReadingPreferencesProvider.tsx",
+          "lines": 88,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "ArticleAnnotatorView",
+          "path": "apps/core/src/components/social/ArticleAnnotatorView.tsx",
+          "lines": 745,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "ArticleCard",
+          "path": "apps/core/src/components/social/ArticleCard.tsx",
+          "lines": 179,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "ArticleReaderDrawer",
+          "path": "apps/core/src/components/social/ArticleReaderDrawer.tsx",
+          "lines": 233,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "ArticleSummary",
+          "path": "apps/core/src/components/social/ArticleSummary.tsx",
+          "lines": 108,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "DockedReaderToolbar",
+          "path": "apps/core/src/components/social/DockedReaderToolbar.tsx",
+          "lines": 138,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "HiddenReplyCard",
+          "path": "apps/core/src/components/social/HiddenReplyCard.tsx",
+          "lines": 110,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "ModerationReportModal",
+          "path": "apps/core/src/components/social/ModerationReportModal.tsx",
+          "lines": 174,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "PollCard",
+          "path": "apps/core/src/components/social/PollCard.tsx",
+          "lines": 206,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "QuotedThoughtCard",
+          "path": "apps/core/src/components/social/QuotedThoughtCard.tsx",
+          "lines": 2,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "ReaderToolbarContext",
+          "path": "apps/core/src/components/social/ReaderToolbarContext.tsx",
+          "lines": 95,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "SearchFeed",
+          "path": "apps/core/src/components/social/SearchFeed.tsx",
+          "lines": 249,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "SimilarArticlesSection",
+          "path": "apps/core/src/components/social/SimilarArticlesSection.tsx",
+          "lines": 88,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "ThoughtCard",
+          "path": "apps/core/src/components/social/ThoughtCard.tsx",
+          "lines": 204,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "ThoughtCardContainer",
+          "path": "apps/core/src/components/social/ThoughtCardContainer.tsx",
+          "lines": 68,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "ThoughtCardSkeleton",
+          "path": "apps/core/src/components/social/ThoughtCardSkeleton.tsx",
+          "lines": 31,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "ThreadgateBadge",
+          "path": "apps/core/src/components/social/ThreadgateBadge.tsx",
+          "lines": 61,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "TrendingWidget",
+          "path": "apps/core/src/components/social/TrendingWidget.tsx",
+          "lines": 64,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "StaleServerActionBanner",
+          "path": "apps/core/src/components/StaleServerActionBanner.tsx",
+          "lines": 64,
+          "source": "core",
+          "usages": null
+        }
+      ]
+    },
+    {
+      "id": "tenants",
+      "label": "Patterns Tenants",
+      "items": [
+        {
+          "name": "AnalyticsGate",
+          "path": "apps/tenants/src/components/AnalyticsGate.tsx",
+          "lines": 32,
+          "source": "tenants",
+          "usages": null
+        },
+        {
+          "name": "LegalFooterLinks",
+          "path": "apps/tenants/src/components/legal/LegalFooterLinks.tsx",
+          "lines": 55,
+          "source": "tenants",
+          "usages": null
+        },
+        {
+          "name": "PaywallCut",
+          "path": "apps/tenants/src/components/paywall/PaywallCut.tsx",
+          "lines": 151,
+          "source": "tenants",
+          "usages": null
+        },
+        {
+          "name": "ReadingProgressBar",
+          "path": "apps/tenants/src/components/ReadingProgressBar.tsx",
+          "lines": 46,
+          "source": "tenants",
+          "usages": null
+        },
+        {
+          "name": "RecommendedSection",
+          "path": "apps/tenants/src/components/RecommendedSection.tsx",
+          "lines": 180,
+          "source": "tenants",
+          "usages": null
+        },
+        {
+          "name": "TenantPageRenderer",
+          "path": "apps/tenants/src/components/TenantPageRenderer.tsx",
+          "lines": 245,
+          "source": "tenants",
+          "usages": null
+        },
+        {
+          "name": "TenantPageShell",
+          "path": "apps/tenants/src/components/TenantPageShell.tsx",
+          "lines": 117,
+          "source": "tenants",
+          "usages": null
+        }
+      ]
+    },
+    {
+      "id": "admin",
+      "label": "Patterns Admin",
+      "items": [
+        {
+          "name": "AdminHeader",
+          "path": "apps/admin/src/components/admin/AdminHeader.tsx",
+          "lines": 3,
+          "source": "admin",
+          "usages": null
+        },
+        {
+          "name": "Footer",
+          "path": "apps/admin/src/components/layout/Footer.tsx",
+          "lines": 143,
+          "source": "admin",
+          "usages": null
+        },
+        {
+          "name": "QueueEmpty",
+          "path": "apps/admin/src/components/queue/QueueEmpty.tsx",
+          "lines": 19,
+          "source": "admin",
+          "usages": null
+        },
+        {
+          "name": "QueuePageHeader",
+          "path": "apps/admin/src/components/queue/QueuePageHeader.tsx",
+          "lines": 32,
+          "source": "admin",
+          "usages": null
+        },
+        {
+          "name": "StatusPill",
+          "path": "apps/admin/src/components/queue/StatusPill.tsx",
+          "lines": 26,
+          "source": "admin",
+          "usages": null
+        },
+        {
+          "name": "useStaffAction",
+          "path": "apps/admin/src/components/queue/useStaffAction.ts",
+          "lines": 64,
+          "source": "admin",
+          "usages": null
+        },
+        {
+          "name": "step-up",
+          "path": "apps/admin/src/components/security/step-up.tsx",
+          "lines": 465,
+          "source": "admin",
+          "usages": null
+        }
+      ]
+    },
+    {
+      "id": "marketing",
+      "label": "Patterns Marketing",
+      "items": [
+        {
+          "name": "ArticlePreviewModal",
+          "path": "apps/hi/src/components/landing/ArticlePreviewModal.tsx",
+          "lines": 161,
+          "source": "hi",
+          "usages": null
+        },
+        {
+          "name": "BentoFeatures",
+          "path": "apps/hi/src/components/landing/BentoFeatures.tsx",
+          "lines": 116,
+          "source": "hi",
+          "usages": null
+        },
+        {
+          "name": "ComparisonTable",
+          "path": "apps/hi/src/components/landing/ComparisonTable.tsx",
+          "lines": 170,
+          "source": "hi",
+          "usages": null
+        },
+        {
+          "name": "CreatorHub",
+          "path": "apps/hi/src/components/landing/CreatorHub.tsx",
+          "lines": 342,
+          "source": "hi",
+          "usages": null
+        },
+        {
+          "name": "CTA",
+          "path": "apps/hi/src/components/landing/CTA.tsx",
+          "lines": 123,
+          "source": "hi",
+          "usages": null
+        },
+        {
+          "name": "FeaturedPublications",
+          "path": "apps/hi/src/components/landing/FeaturedPublications.tsx",
+          "lines": 315,
+          "source": "hi",
+          "usages": null
+        },
+        {
+          "name": "FormatPreview",
+          "path": "apps/hi/src/components/landing/FormatPreview.tsx",
+          "lines": 185,
+          "source": "hi",
+          "usages": null
+        },
+        {
+          "name": "Hero",
+          "path": "apps/hi/src/components/landing/Hero.tsx",
+          "lines": 944,
+          "source": "hi",
+          "usages": null
+        },
+        {
+          "name": "Marquee",
+          "path": "apps/hi/src/components/landing/Marquee.tsx",
+          "lines": 39,
+          "source": "hi",
+          "usages": null
+        },
+        {
+          "name": "ProductPreview",
+          "path": "apps/hi/src/components/landing/ProductPreview.tsx",
+          "lines": 177,
+          "source": "hi",
+          "usages": null
+        },
+        {
+          "name": "TrustedCreators",
+          "path": "apps/hi/src/components/landing/TrustedCreators.tsx",
+          "lines": 150,
+          "source": "hi",
+          "usages": null
+        },
+        {
+          "name": "Footer",
+          "path": "apps/hi/src/components/layout/Footer.tsx",
+          "lines": 214,
+          "source": "hi",
+          "usages": null
+        }
+      ]
+    }
+  ]
+}

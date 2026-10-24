@@ -4,7 +4,8 @@ import * as React from 'react';
 import { DayPicker, getDefaultClassNames, type DayButton, type Locale } from 'react-day-picker';
 
 import { cn } from '@qoe/utils';
-import { Button, buttonVariants } from './button';
+import { Button } from '../primitives/button/button';
+import type { Variant } from '../primitives/contract';
 import { ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from 'lucide-react';
 
 // cast des props spread pour éviter la collision de types CSSProperties
@@ -14,6 +15,23 @@ function spreadDayPickerProps<P extends Record<string, unknown>>(
   props: P
 ): Record<string, unknown> {
   return props as Record<string, unknown>;
+}
+
+/**
+ * Classes des flèches de navigation du calendrier.
+ *
+ * react-day-picker rend ses propres `<button>` : on ne passe pas par le
+ * composant `Button`, mais on réutilise ses tokens (rayon et couleurs) pour
+ * que les flèches ne détonnent pas à côté des autres contrôles.
+ */
+function navButtonClasses(variant: Variant = 'ghost') {
+  const tones: Record<Variant, string> = {
+    solid: 'bg-foreground text-background hover:bg-foreground/90',
+    soft: 'bg-secondary text-secondary-foreground hover:bg-secondary/70',
+    outline: 'border border-border bg-transparent text-foreground hover:bg-secondary',
+    ghost: 'bg-transparent text-foreground hover:bg-secondary',
+  };
+  return cn('inline-flex items-center justify-center rounded-control', tones[variant]);
 }
 
 function Calendar({
@@ -55,12 +73,12 @@ function Calendar({
           defaultClassNames.nav
         ),
         button_previous: cn(
-          buttonVariants({ variant: buttonVariant }),
+          navButtonClasses(buttonVariant),
           'size-(--cell-size) p-0 select-none aria-disabled:opacity-50',
           defaultClassNames.button_previous
         ),
         button_next: cn(
-          buttonVariants({ variant: buttonVariant }),
+          navButtonClasses(buttonVariant),
           'size-(--cell-size) p-0 select-none aria-disabled:opacity-50',
           defaultClassNames.button_next
         ),
@@ -188,7 +206,8 @@ function CalendarDayButton({
   return (
     <Button
       variant="ghost"
-      size="icon"
+      size="sm"
+      shape="icon"
       data-day={day.date.toLocaleDateString(locale?.code)}
       data-selected-single={
         modifiers.selected &&

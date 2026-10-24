@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import Link from 'next/link';
+import { Input } from '@qoe/ui/input';
 import {
   Plus,
   Trash2,
@@ -602,7 +603,7 @@ export function NavigationTab({
                   className="p-3 bg-muted/20 border border-border/40 rounded-xl space-y-2"
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                    <input
+                    <Input
                       type="text"
                       value={nav.label}
                       onChange={(e) => {
@@ -611,10 +612,11 @@ export function NavigationTab({
                         setCurrent((prev) => ({ ...prev, navigation: updated }));
                       }}
                       placeholder="Intitulé (ex. Contact, Mon Podcast, Boutique...)"
-                      className="w-full sm:w-1/3 px-3 py-1.5 bg-background border border-border/40 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80"
+                      size="sm"
+                      className="w-full sm:w-1/3"
                     />
 
-                    <input
+                    <Input
                       type="text"
                       value={nav.url || ''}
                       onChange={(e) => {
@@ -639,7 +641,8 @@ export function NavigationTab({
                         setCurrent((prev) => ({ ...prev, navigation: updated }));
                       }}
                       placeholder="contact@mondomaine.fr ou https://mon-podcast.com"
-                      className="flex-1 px-3 py-1.5 bg-background border border-border/40 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80"
+                      size="sm"
+                      className="flex-1"
                     />
 
                     {isMail ? (

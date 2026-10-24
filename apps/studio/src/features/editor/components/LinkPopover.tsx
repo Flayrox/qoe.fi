@@ -3,6 +3,8 @@
 import React from 'react';
 import { Link2, Trash2, X } from 'lucide-react';
 import { t } from '@lingui/core/macro';
+import { FieldError } from '@qoe/ui/field-error';
+import { Input } from '@qoe/ui/input';
 
 export interface LinkPopoverProps {
   open: boolean;
@@ -73,10 +75,11 @@ export function LinkPopover({
           </button>
         </div>
 
-        <input
+        <Input
           autoFocus
           type="text"
           inputMode="url"
+          size="sm"
           value={value}
           onChange={(event) => onChange(event.target.value)}
           onKeyDown={(event) => {
@@ -89,10 +92,13 @@ export function LinkPopover({
             }
           }}
           placeholder={t`https://exemple.com ou /rubrique/article`}
-          className="w-full bg-background border border-border/60 rounded-xl px-2.5 py-2 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus:border-primary/60 focus:ring-1 focus:ring-primary/30 font-sans transition-all"
+          invalid={Boolean(error)}
+          aria-describedby={error ? 'link-url-error' : undefined}
         />
 
-        {error && <p className="text-[11px] text-destructive font-sans">{error}</p>}
+        {/* L'erreur s'annonce (role=alert) et le champ la référence :
+            sans `aria-describedby`, elle n'existe que pour les voyants. */}
+        <FieldError id="link-url-error">{error}</FieldError>
 
         <div className="flex items-center justify-between pt-2 border-t border-border/30">
           {canRemove ? (

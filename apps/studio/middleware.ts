@@ -30,6 +30,17 @@ export async function middleware(request: NextRequest) {
   // Chemin courant pour les composants serveur (ex: badge notifications)
   supabaseResponse.headers.set('x-pathname', request.nextUrl.pathname);
 
+  // 1bis. UI Lab de développement (packages/ui + patterns) : accessible sans
+  // session en local, sinon la page de revue serait derrière le login créateur.
+  // La route elle-même renvoie 404 en production.
+  const isDev = process.env.NODE_ENV !== 'production';
+  if (
+    isDev &&
+    (request.nextUrl.pathname === '/dev' || request.nextUrl.pathname.startsWith('/dev/'))
+  ) {
+    return supabaseResponse;
+  }
+
   // 2. Protection de l'espace créateur avec résolution universelle getMonorepoUrl
   if (!user) {
     const loginBase = `${getMonorepoUrl('feed', host)}/login`;

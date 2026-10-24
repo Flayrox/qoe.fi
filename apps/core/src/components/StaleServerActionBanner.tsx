@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { isStaleServerActionError } from '@qoe/utils';
+import { Button } from '@qoe/ui/button';
 
 // =====================================================================
 // 🛰️ StaleServerActionBanner — sessions ouvertes pendant un déploiement
@@ -49,13 +50,14 @@ export function StaleServerActionBanner() {
       <p className="mt-1 text-sm text-muted-foreground">
         Cette page utilise encore l’ancienne version. Rechargez pour continuer sans erreur.
       </p>
-      <button
-        type="button"
+      <Button
+        variant="solid"
+        tone="brand"
+        className="mt-3"
         onClick={() => window.location.reload()}
-        className="mt-3 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
       >
         Recharger
-      </button>
+      </Button>
     </div>
   );
 }

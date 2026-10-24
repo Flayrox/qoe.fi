@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { summarizeArticleAction } from '@qoe/sdk';
 import { useFlag } from '@qoe/flags';
+import { Button } from '@qoe/ui/button';
 
 // =====================================================================
 // ✨ Résumé IA d'article (fiche Plus P1)
@@ -67,26 +68,30 @@ export function ArticleSummary({ articleId }: { articleId: string }) {
 
   return (
     <div className="rounded-xl border border-border/40 bg-muted/30 px-4 py-3">
-      <button
-        type="button"
+      {/* Le `-ml-2` annule le padding du ghost : le libellé reste aligné
+          sur le bord du bloc parent. La densité, le rayon et l'anneau de
+          focus viennent du contrat, plus de ce fichier. */}
+      <Button
+        variant="ghost"
+        size="sm"
         onClick={() => void run()}
         disabled={loading}
-        className="flex items-center gap-2 text-xs font-semibold cursor-pointer disabled:opacity-60"
+        className="-ml-2"
       >
         {loading ? (
-          <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
+          <Loader2 className="animate-spin text-primary" />
         ) : (
-          <Sparkles className="w-3.5 h-3.5 text-primary" />
+          <Sparkles className="text-primary" />
         )}
         <span>
           {summary ? (open ? 'Masquer le résumé' : 'Voir le résumé') : 'Résumer cet article'}
         </span>
         {usage && (
-          <span className="text-[10px] font-normal text-muted-foreground">
+          <span className="type-control-xs font-normal text-muted-foreground">
             ({usage.remaining}/{usage.limit} ce mois-ci)
           </span>
         )}
-      </button>
+      </Button>
       {open && !loading && summary && (
         <div className="mt-2 space-y-1.5">
           <p className="text-[10px] font-bold uppercase tracking-wider text-primary flex items-center gap-1">

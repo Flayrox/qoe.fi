@@ -13,6 +13,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { t } from '@lingui/core/macro';
 import { ColorPicker } from '@qoe/ui';
+import { Input } from '@qoe/ui/input';
 import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
 import { cn } from '@qoe/utils';
@@ -141,12 +142,11 @@ export function GeneralTab({
                 <label className="text-xs font-semibold text-foreground block">
                   Nom du site web
                 </label>
-                <input
+                <Input
                   type="text"
                   value={current.name || ''}
                   onChange={(e) => setCurrent((prev) => ({ ...prev, name: e.target.value }))}
                   placeholder="Ex. Carnet d'Éphémère"
-                  className="w-full px-3 py-2 bg-background border border-border/40 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80 transition-colors"
                 />
               </div>
 

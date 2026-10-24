@@ -90,6 +90,7 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -112,6 +113,62 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Hauteurs de contrôle : lisent l'échelle de densité de tokens.css.
+     `h-control-md` remplace `h-8` et, surtout, devient modifiable en un
+     seul point (mode compact, densité par plateforme). */
+  --height-control-xs: var(--control-h-xs);
+  --height-control-sm: var(--control-h-sm);
+  --height-control-md: var(--control-h-md);
+  --height-control-lg: var(--control-h-lg);
+  --height-control-xl: var(--control-h-xl);
+}
+
+/* ─── Utilitaires sémantiques : le bon chemin doit être le chemin court ───
+   Les tokens `--radius-button`, `--radius-card` et `--radius-chip`
+   existaient déjà mais n'étaient pas exposés en utilitaires. Conséquence
+   mesurée : 19 endroits écrivaient `rounded-[var(--radius-button)]` et 455
+   écrivaient `rounded-lg` — d'où 12 rayons différents dans les apps.
+
+   ⚠️ Le nom de l'utilitaire est volontairement différent du nom du token :
+   avec `--radius-button` comme clé de thème, Tailwind émet
+   `--radius-button: var(--radius-button)` dans `@layer theme`, une
+   auto-référence qu'il faudrait arbitrer par l'ordre des couches. Ici,
+   aucun conflit possible. */
+@utility rounded-control {
+  border-radius: var(--radius-button);
+}
+@utility rounded-panel {
+  border-radius: var(--radius-card);
+}
+@utility rounded-tag {
+  border-radius: var(--radius-chip);
+}
+
+/* Typographie des contrôles : `type-control-md` remplace `text-[13px]`.
+   Une seule échelle pour les boutons, champs, onglets et badges.
+
+   ⚠️ Préfixe `type-` et non `text-` : `cn()` passe par tailwind-merge, qui
+   range tout `text-<valeur-inconnue>` dans le groupe « couleur de texte ».
+   `text-control-md` était donc silencieusement supprimé dès qu'une couleur
+   comme `text-primary-foreground` était aussi présente — vérifié :
+   twMerge('text-control-md text-primary-foreground') ne garde que la couleur.
+   `type-` n'appartient à aucun groupe, donc il survit à la fusion. */
+@utility type-control-xs {
+  font-size: var(--text-control-xs);
+  line-height: var(--text-control-xs-lh);
+}
+@utility type-control-sm {
+  font-size: var(--text-control-sm);
+  line-height: var(--text-control-sm-lh);
+}
+@utility type-control-md {
+  font-size: var(--text-control-md);
+  line-height: var(--text-control-md-lh);
+}
+@utility type-control-lg {
+  font-size: var(--text-control-lg);
+  line-height: var(--text-control-lg-lh);
 }
 
 /* ─── Tiptap / ProseMirror editor styles (partagés dashboard + feed) ─── */

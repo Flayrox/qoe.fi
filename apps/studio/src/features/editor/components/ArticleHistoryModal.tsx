@@ -18,6 +18,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
+import { Button } from '@qoe/ui/button';
 import { t } from '@lingui/core/macro';
 import {
   getArticleEventsAction,
@@ -195,14 +196,16 @@ export function ArticleHistoryModal({ open, articleId, onClose }: ArticleHistory
               </p>
             </div>
           </div>
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="sm"
+            shape="icon"
             onClick={onClose}
             aria-label={t`Fermer`}
-            className="grid size-7 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+            className="text-muted-foreground"
           >
-            <X className="h-3.5 w-3.5" />
-          </button>
+            <X />
+          </Button>
         </header>
 
         <div className="max-h-[55vh] overflow-y-auto p-5">

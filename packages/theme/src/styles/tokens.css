@@ -83,6 +83,9 @@
   --accent-foreground: var(--zinc-950);
 
   --destructive: var(--vermillion-600);
+  /* Texte sur fond destructif. Manquait : les composants étaient obligés
+     d'emprunter `--primary-foreground` (ou pire, `text-white`). */
+  --destructive-foreground: var(--zinc-0);
 
   --border: var(--zinc-200);
   --input: var(--zinc-200);
@@ -162,6 +165,27 @@
   --radius-chip: 2px;
   --radius-button: 4px;
   --radius-icon: 2px;
+
+  /* Échelle de densité — hauteurs de contrôle (bouton, champ, sélecteur).
+     Une seule source : changer une valeur ici change TOUS les composants
+     qui la lisent, dans tous les thèmes, sans toucher un seul écran. */
+  --control-h-xs: 24px;
+  --control-h-sm: 28px;
+  --control-h-md: 32px;
+  --control-h-lg: 36px;
+  --control-h-xl: 40px;
+
+  /* Échelle typographique des contrôles — 4 pas, pas un de plus.
+     Remplace les 14 tailles arbitraires (`text-[13px]`…) relevées dans les
+     apps : la densité se décide ici, pas dans chaque écran. */
+  --text-control-xs: 11px;
+  --text-control-xs-lh: 16px;
+  --text-control-sm: 12px;
+  --text-control-sm-lh: 16px;
+  --text-control-md: 13px;
+  --text-control-md-lh: 18px;
+  --text-control-lg: 14px;
+  --text-control-lg-lh: 20px;
 
   /* Easings */
   --spring-snappy: cubic-bezier(0.16, 1, 0.3, 1);

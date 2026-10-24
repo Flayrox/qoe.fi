@@ -5,7 +5,7 @@ import { t } from '@lingui/core/macro';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@qoe/utils';
 import { Logo } from '../Logo';
-import { Button } from '../ui/button';
+import { Button } from '../primitives/button/button';
 import { Input } from '../ui/input';
 import { SafeAvatar } from '../SafeAvatar';
 import {
@@ -456,17 +456,15 @@ export function OnboardingFlow({
                               </div>
                             </div>
 
+                            {/* Le vermillon était écrit en dur ici (`#EE4B2B`) :
+                                il vient maintenant de `--primary` via le ton `brand`. */}
                             <Button
                               type="button"
-                              size="sm"
-                              variant={isFollowed ? 'secondary' : 'default'}
+                              size="xs"
+                              variant={isFollowed ? 'soft' : 'solid'}
+                              tone={isFollowed ? 'neutral' : 'brand'}
                               onClick={() => handleToggleCreator(creator.id)}
-                              className={cn(
-                                'h-7 px-2.5 rounded-xl text-[11px] shrink-0 font-medium',
-                                isFollowed
-                                  ? 'bg-muted text-foreground'
-                                  : 'bg-[#EE4B2B] hover:bg-[#d63d20] text-white'
-                              )}
+                              className="shrink-0"
                             >
                               {isFollowed ? (
                                 <UserCheck className="w-3 h-3 text-primary" />
@@ -526,8 +524,9 @@ export function OnboardingFlow({
                       />
                       <Button
                         type="submit"
-                        variant="secondary"
-                        className="rounded-xl text-xs px-4 h-10 shrink-0 font-sans"
+                        variant="soft"
+                        size="lg"
+                        className="h-control-xl shrink-0"
                       >
                         {t`Ajouter`}
                       </Button>
@@ -606,8 +605,9 @@ export function OnboardingFlow({
                 <Button
                   onClick={handleBack}
                   variant="ghost"
+                  size="sm"
                   disabled={loading}
-                  className="rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground"
+                  className="font-semibold text-muted-foreground"
                 >
                   {t`Retour`}
                 </Button>
@@ -618,23 +618,24 @@ export function OnboardingFlow({
               {step < 4 ? (
                 <Button
                   onClick={handleNext}
-                  className="rounded-xl px-5 bg-[#EE4B2B] hover:bg-[#d63d20] text-white font-semibold text-xs transition-all shadow-sm flex items-center gap-1"
+                  variant="solid"
+                  tone="brand"
+                  size="sm"
+                  className="font-semibold"
                 >
                   <span>{t`Continuer`}</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
+                  <ChevronRight />
                 </Button>
               ) : (
                 <div className="flex items-center gap-2">
                   <Button
                     onClick={handleSubmit}
                     disabled={loading}
-                    className="rounded-xl px-6 bg-[#EE4B2B] hover:bg-[#d63d20] text-white font-semibold text-xs transition-all shadow-md flex items-center gap-1.5"
+                    variant="solid"
+                    tone="brand"
+                    className="font-semibold"
                   >
-                    {loading ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Sparkles className="w-3.5 h-3.5" />
-                    )}
+                    {loading ? <Loader2 className="animate-spin" /> : <Sparkles />}
                     {t`Accéder à mon Sanctuaire`}
                   </Button>
                 </div>
