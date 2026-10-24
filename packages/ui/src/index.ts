@@ -15,6 +15,33 @@ export { Button, type ButtonProps } from './primitives/button/button';
 // historiques de `ui/` (Sheet, toast.*), qui restent exportés séparément.
 export { Select, type SelectOption, type SelectProps } from './primitives/select/select';
 export {
+  Avatar,
+  AvatarGroup,
+  AvatarStack,
+  type AvatarProps,
+  type AvatarSize,
+} from './primitives/avatar/avatar';
+export {
+  Accordion,
+  AccordionItem,
+  type AccordionItemProps,
+  type AccordionProps,
+} from './primitives/accordion/accordion';
+export {
+  ToggleButton,
+  ToggleGroup,
+  type ToggleButtonPrimitiveProps,
+  type ToggleButtonGroupPrimitiveProps,
+} from './primitives/toggle/toggle-button';
+export {
+  ScrollShadow,
+  Toolbar,
+  ToolbarGroup,
+  ToolbarSeparator,
+  type ScrollShadowProps,
+  type ToolbarPrimitiveProps,
+} from './primitives/toolbar/toolbar';
+export {
   Drawer,
   DrawerBody,
   DrawerClose,

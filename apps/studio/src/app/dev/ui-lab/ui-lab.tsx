@@ -17,6 +17,7 @@ import { ButtonSpecimen } from './specimens/08-button';
 import { FieldsSpecimen } from './specimens/09-fields';
 import { OverlaysSpecimen } from './specimens/10-overlays';
 import { DatesSpecimen } from './specimens/11-dates';
+import { CompositionSpecimen } from './specimens/12-composition';
 
 const SPECIMENS = [
   {
@@ -128,6 +129,20 @@ const SPECIMENS = [
       'packages/ui/src/primitives/date/date-picker.tsx',
     ],
     Component: DatesSpecimen,
+  },
+  {
+    id: '12-composition',
+    index: '12',
+    title: 'Composition — avatars, accordéon, bascules, barre',
+    question:
+      'Les pièces qui composent un écran sans le structurer : une personne, une section repliable, un état enfoncé, une barre d’outils. Chacune a une sémantique, pas seulement un style.',
+    sources: [
+      'packages/ui/src/primitives/avatar/avatar.tsx',
+      'packages/ui/src/primitives/accordion/accordion.tsx',
+      'packages/ui/src/primitives/toggle/toggle-button.tsx',
+      'packages/ui/src/primitives/toolbar/toolbar.tsx',
+    ],
+    Component: CompositionSpecimen,
   },
 ];
 

@@ -90,6 +90,16 @@ test.describe('primitives — rendu de référence', () => {
     await expect(dates).toHaveScreenshot('dates.png');
   });
 
+  test('composition : avatars, accordéon, bascules, barre d’outils', async ({ page }) => {
+    const composition = await section(page, '12-composition');
+    // Le groupe de bascules porte `role="group"` : sans lui, trois boutons
+    // enfoncés ne disent pas qu'ils répondent à une seule question.
+    await expect(composition.getByRole('group').first()).toBeVisible();
+    await expect(composition.getByRole('toolbar')).toBeVisible();
+
+    await expect(composition).toHaveScreenshot('composition.png');
+  });
+
   test('overlays — menu ouvert', async ({ page }) => {
     const overlays = await section(page, '10-overlays');
 
