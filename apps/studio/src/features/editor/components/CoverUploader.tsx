@@ -67,6 +67,12 @@ export function CoverUploader({
             isDragOver ? 'border-primary ring-2 ring-primary/40 scale-[1.005]' : 'border-border/50'
           )}
         >
+          {/* `next/image` exigerait de lister le domaine Supabase Storage dans
+              `images.remotePatterns` et de connaître les dimensions exactes :
+              pour une couverture dont l'auteur vient de choisir le fichier,
+              une balise native (déjà chargée depuis le blob local) est le bon
+              outil. Le LCP de l'éditeur n'est pas en jeu. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={imageUrl}
             alt={title || t`Couverture de l'article`}

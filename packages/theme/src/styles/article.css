@@ -95,12 +95,46 @@
   list-style: decimal;
 }
 
+/* Sous-niveaux : la puce change de forme au lieu de répéter le même disque. */
+.article-prose ul ul {
+  list-style: circle;
+}
+.article-prose ul ul ul {
+  list-style: square;
+}
+.article-prose ol ol {
+  list-style: lower-alpha;
+}
+.article-prose ol ol ol {
+  list-style: lower-roman;
+}
+
+/* Le marqueur reste un repère, pas un élément de texte. */
+.article-prose li::marker {
+  color: color-mix(in oklch, var(--foreground) 45%, transparent);
+}
+
+/* Les numéros s'alignent quel que soit le nombre de chiffres. */
+.article-prose ol > li::marker {
+  font-variant-numeric: tabular-nums;
+}
+
 .article-prose li + li {
   margin-top: 0.4rem;
 }
 
+/* Un item qui contient plusieurs paragraphes (saut de ligne, collage) garde
+   un rythme serré : il ne doit pas se comporter comme deux blocs. */
 .article-prose li > p {
   margin: 0;
+}
+
+.article-prose li > p + p {
+  margin-top: 0.5rem;
+}
+
+.article-prose li > br + * {
+  margin-top: 0.5rem;
 }
 
 .article-prose li > ul,
@@ -268,6 +302,13 @@
 @media (min-width: 640px) {
   .article-prose {
     font-size: 1.125rem;
+  }
+  .article-prose ul,
+  .article-prose ol {
+    padding-left: 1.6rem;
+  }
+  .article-prose li + li {
+    margin-top: 0.5rem;
   }
   .article-prose h1 {
     font-size: 2.25rem;

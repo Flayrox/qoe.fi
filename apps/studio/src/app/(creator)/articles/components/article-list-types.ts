@@ -6,6 +6,8 @@ export interface ArticleWithCategory {
   published: boolean;
   hasUnpublishedChanges?: boolean;
   status?: string;
+  /** Date de publication automatique (IS0 8601) quand `status = 'SCHEDULED'`. */
+  scheduledAt?: Date | string | null;
   isPremium: boolean;
   readingTime: number;
   categoryId: string | null;
@@ -47,7 +49,7 @@ export type SortField =
   'updatedAt' | 'createdAt' | 'title' | 'readingTime' | 'likes' | 'reposts' | 'engagement';
 export type SortDirection = 'desc' | 'asc';
 export type AccessFilter = 'all' | 'free' | 'premium';
-export type StatusFilter = 'all' | 'published' | 'draft' | 'review';
+export type StatusFilter = 'all' | 'published' | 'scheduled' | 'draft' | 'review';
 export type Density = 'comfortable' | 'compact';
 
 export interface ListColumnPrefs {

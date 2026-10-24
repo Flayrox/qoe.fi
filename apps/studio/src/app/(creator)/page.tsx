@@ -17,6 +17,8 @@ import {
   MessageSquare,
   Edit3,
   Building2,
+  Feather,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 // ─── Données du dashboard (miroir Go GET /v1/analytics/dashboard) ───────────
@@ -26,6 +28,9 @@ interface DashboardArticle {
   published: boolean;
   updatedAt: string;
   categoryName: string | null;
+  /** Couverture de l'article (absente = carte avec repli typographique). */
+  imageUrl?: string | null;
+  readingTime?: number;
 }
 
 interface DashboardThought {
@@ -42,6 +47,13 @@ interface DashboardLatestArticle {
   _count: { bookmarks: number; highlights: number; letters: number };
 }
 
+interface DashboardScheduledArticle {
+  id: string;
+  title: string;
+  scheduledAt: string;
+  imageUrl?: string | null;
+}
+
 interface DashboardData {
   publicationWebsiteId: string;
   publishedCount: number;
@@ -50,6 +62,8 @@ interface DashboardData {
   mrrCents: number;
   recentArticles: DashboardArticle[];
   draftArticles: DashboardArticle[];
+  /** Articles dont la publication partira automatiquement (worker). */
+  scheduledArticles?: DashboardScheduledArticle[];
   scheduledThoughts: DashboardThought[];
   latestPublishedArticle: DashboardLatestArticle | null;
   pageviews30d: number;
@@ -99,8 +113,23 @@ export default async function CreatorDashboardPage() {
     );
   }
 
-  // Combine scheduled thoughts & draft articles into unified schedule items
+  // Combine scheduled articles, scheduled thoughts & draft articles into
+  // unified schedule items. Les articles programmés passent en premier : ce
+  // sont les seuls qui partent sans intervention de l'auteur.
   const scheduleItems = [
+    ...(dashboard.scheduledArticles ?? []).map((article) => ({
+      id: article.id,
+      title: article.title,
+      type: t`Article programmé`,
+      date: new Date(article.scheduledAt).toLocaleString(undefined, {
+        day: 'numeric',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+      isScheduled: true,
+      href: `/articles/${article.id}`,
+    })),
     ...dashboard.scheduledThoughts.map((thought) => ({
       id: thought.id,
       title: thought.content.substring(0, 40) + '...',
@@ -127,7 +156,6 @@ export default async function CreatorDashboardPage() {
   const realPageviews = dashboard.pageviews30d || 0;
   const realVisitors = dashboard.visitors30d || 0;
   const mrrEur = (dashboard.mrrCents / 100).toFixed(2);
-  const topArticle = dashboard.recentArticles.find((a) => a.published);
 
   const getRelativeTimeString = (date: string) => {
     const diffMs = Date.now() - new Date(date).getTime();
@@ -140,6 +168,95 @@ export default async function CreatorDashboardPage() {
     if (diffDays < 7) return t`Modifié il y a ${diffDays}j`;
     return new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
   };
+
+  // ─── Conseils calculés sur les vraies données ───────────────────────────
+  // Chaque conseil est déclenché par un fait observable dans le workspace :
+  // pas de liste générique copiée pour tous les créateurs.
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const dormantDrafts = dashboard.draftArticles.filter(
+    (art) => Date.now() - new Date(art.updatedAt).getTime() > 14 * DAY_MS
+  );
+  const publishedWithoutCover = dashboard.recentArticles.filter(
+    (art) => art.published && !art.imageUrl
+  );
+  const shortReads = dashboard.recentArticles.filter(
+    (art) => art.published && (art.readingTime ?? 0) > 0 && (art.readingTime ?? 0) <= 2
+  );
+
+  const advice: Array<{
+    id: string;
+    icon: React.ReactNode;
+    title: string;
+    body: string;
+    href?: string;
+    cta?: string;
+  }> = [];
+
+  if (dashboard.publishedCount === 0) {
+    advice.push({
+      id: 'first-publish',
+      icon: <Feather className="w-5 h-5 stroke-[1.5]" />,
+      title: t`Publier un premier écrit`,
+      body: t`Votre espace n'a encore aucun article public : c'est la première brique d'audience, et la seule qui fasse fonctionner les recommandations.`,
+      href: '/articles/new',
+      cta: t`Écrire`,
+    });
+  }
+
+  if (publishedWithoutCover.length > 0) {
+    const count = publishedWithoutCover.length;
+    advice.push({
+      id: 'missing-cover',
+      icon: <ImageIcon className="w-5 h-5 stroke-[1.5]" />,
+      title:
+        count > 1
+          ? t`${count} articles sans image de couverture`
+          : t`Un article sans image de couverture`,
+      body: t`Une couverture change nettement le taux de clic dans le fil et les recommandations. Ces articles s'affichent aujourd'hui avec un simple gabarit.`,
+      href: `/articles/${publishedWithoutCover[0].id}`,
+      cta: t`Ajouter une image`,
+    });
+  }
+
+  if (dormantDrafts.length > 0) {
+    const count = dormantDrafts.length;
+    advice.push({
+      id: 'dormant-drafts',
+      icon: <Edit3 className="w-5 h-5 stroke-[1.5]" />,
+      title:
+        count > 1 ? t`${count} brouillons dormants` : t`Un brouillon dort depuis deux semaines`,
+      body: t`Inutile de repartir de zéro : relisez l'introduction, coupez le premier paragraphe et finissez-le. Un brouillon oublié ne rapporte jamais rien.`,
+      href: `/articles/${dormantDrafts[0].id}`,
+      cta: t`Reprendre`,
+    });
+  }
+
+  if (dashboard.subscribersCount === 0) {
+    advice.push({
+      id: 'no-subscribers',
+      icon: <Users className="w-5 h-5 stroke-[1.5]" />,
+      title: t`Aucun abonné pour l'instant`,
+      body: t`Publiez le lien de votre publication dans votre premier article : c'est là que le lecteur décide de s'abonner.`,
+    });
+  }
+
+  if (shortReads.length >= 2 && advice.length < 3) {
+    advice.push({
+      id: 'short-reads',
+      icon: <Zap className="w-5 h-5 stroke-[1.5]" />,
+      title: t`Des formats très courts se répètent`,
+      body: t`Plusieurs de vos derniers écrits font 2 minutes ou moins. Un format long de temps en temps donne de la profondeur à votre archive — et pèse plus lourd en référencement.`,
+    });
+  }
+
+  if (advice.length === 0) {
+    advice.push({
+      id: 'share',
+      icon: <MessageSquare className="w-5 h-5 stroke-[1.5]" />,
+      title: t`Tout est en ordre`,
+      body: t`Couvertures, brouillons, publication : rien à signaler. Le prochain levier, c'est le partage — un article lu dans les 48 h de sa sortie performe bien mieux.`,
+    });
+  }
 
   const latestPublishedArticle = dashboard.latestPublishedArticle;
   const latestReactionsCount = latestPublishedArticle
@@ -269,7 +386,17 @@ export default async function CreatorDashboardPage() {
             dashboard.recentArticles.map((art) => (
               <a key={art.id} href={`/articles/${art.id}`} className="group cursor-pointer block">
                 <div className="aspect-video bg-muted/40 rounded-xl border border-border/40 overflow-hidden relative mb-3 flex items-center justify-center group-hover:border-border/80 transition-all">
-                  <FileText className="w-10 h-10 text-muted-foreground/50 stroke-[1.5]" />
+                  {art.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- URL distante arbitraire (Supabase Storage), pas de domaine configurable.
+                    <img
+                      src={art.imageUrl}
+                      alt=""
+                      loading="lazy"
+                      className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                    />
+                  ) : (
+                    <FileText className="w-10 h-10 text-muted-foreground/50 stroke-[1.5]" />
+                  )}
                 </div>
                 <h4 className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
                   {art.title}
@@ -312,36 +439,30 @@ export default async function CreatorDashboardPage() {
           <BarChart3 className="w-5 h-5 text-primary stroke-[1.5]" />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-card rounded-xl border border-border/40 p-6 flex items-start gap-4 hover:border-border/80 transition-colors">
-            <div className="p-2.5 bg-primary/10 text-primary rounded-lg shrink-0">
-              <FileText className="w-5 h-5 stroke-[1.5]" />
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {advice.slice(0, 3).map((item) => (
+            <div
+              key={item.id}
+              className="bg-card rounded-xl border border-border/40 p-6 flex items-start gap-4 hover:border-border/80 transition-colors"
+            >
+              <div className="p-2.5 bg-primary/10 text-primary rounded-lg shrink-0">
+                {item.icon}
+              </div>
+              <div className="min-w-0">
+                <h4 className="text-sm font-semibold text-foreground">{item.title}</h4>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{item.body}</p>
+                {item.href && item.cta && (
+                  <a
+                    href={item.href}
+                    className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
+                  >
+                    {item.cta}
+                    <ArrowUpRight className="w-3.5 h-3.5" />
+                  </a>
+                )}
+              </div>
             </div>
-            <div>
-              <h4 className="text-sm font-semibold text-foreground">
-                {topArticle ? t`Dernier article phare` : t`Prêt à publier ?`}
-              </h4>
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                {topArticle
-                  ? t`Votre article "${topArticle.title}" est en ligne. Pensez à le partager sur vos réseaux.`
-                  : t`Vous n'avez pas encore d'article publié. Rédigez votre premier contenu pour attirer vos premiers lecteurs.`}
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-card rounded-xl border border-border/40 p-6 flex items-start gap-4 hover:border-border/80 transition-colors">
-            <div className="p-2.5 bg-primary/10 text-primary rounded-lg shrink-0">
-              <Users className="w-5 h-5 stroke-[1.5]" />
-            </div>
-            <div>
-              <h4 className="text-sm font-semibold text-foreground">
-                {t`Engagement de votre communauté`}
-              </h4>
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                {t`Vous comptez actuellement ${dashboard.subscribersCount} abonnés inscrits. Proposez du contenu exclusif pour augmenter vos abonnements payants.`}
-              </p>
-            </div>
-          </div>
+          ))}
         </div>
       </section>
 

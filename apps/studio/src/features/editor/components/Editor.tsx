@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import { CharacterCount, Placeholder } from '@tiptap/extensions';
 import Collaboration from '@tiptap/extension-collaboration';
 import { CollaborationCaret } from '@tiptap/extension-collaboration-caret';
 import { TextSelection } from '@tiptap/pm/state';
@@ -35,6 +36,8 @@ import { normalizeLinkUrl } from '../lib/link';
 import { countImagesWithoutAlt } from '../lib/accessibility';
 import type { ArticleAttributionDraft } from './ArticleAttributionEditor';
 import { EditorHeader } from './EditorHeader';
+import { EditorStatusBar } from './EditorStatusBar';
+import { SelectionToolbar } from './SelectionToolbar';
 import { EditorToolbar } from './EditorToolbar';
 import { EditorSettingsDrawer } from './EditorSettingsDrawer';
 import { CoverUploader } from './CoverUploader';
@@ -43,6 +46,7 @@ import { LinkPopover } from './LinkPopover';
 import { ImageDetailsPopover, type ImageDetails } from './ImageDetailsPopover';
 import { PublishModal, type PublishOptions } from './PublishModal';
 import { ArticleDiffModal } from './ArticleDiffModal';
+import { ArticleHistoryModal } from './ArticleHistoryModal';
 
 function getErrorMessage(error: unknown, fallback: string): string {
   if (error instanceof Error) return error.message;
@@ -122,7 +126,12 @@ export function Editor({
   initialAllowDownload = true,
   initialAttributions = EMPTY_ATTRIBUTIONS,
   collaborationRoomId,
-  collaborationEnabled = true,
+  // ⚠️ Désactivé par défaut tant que l'échange de jeton avec le serveur de
+  // collaboration n'est pas fiable : avec Yjs actif, le corps de l'article
+  // venait du document partagé — vide quand la connexion était refusée — et
+  // l'éditeur s'ouvrait donc sur une page blanche malgré un contenu en base.
+  // Une fois l'auth temps réel validée, repasser ce défaut à `true`.
+  collaborationEnabled = false,
   subdomain,
   categories = [],
   isSaving = false,
@@ -144,6 +153,7 @@ export function Editor({
     initialReviewFeedback
   );
   const [showDiffModal, setShowDiffModal] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [status, setStatus] = useState<string>(initialStatus || 'DRAFT');
   const [scheduledAt, setScheduledAt] = useState<string | null>(initialScheduledAt ?? null);
   const [scheduleDraft, setScheduleDraft] = useState(() =>
@@ -192,6 +202,12 @@ export function Editor({
     null
   );
   const [isDocked, setIsDocked] = useState(false);
+  // Garde-fou de chargement. Tant que le document de l'article n'est pas
+  // réellement dans l'éditeur, aucune sauvegarde ne doit partir : un éditeur
+  // encore vide renvoyait un corps vide au serveur et écrasait le brouillon
+  // (l'indicateur annonçait « enregistré » alors que le contenu était perdu).
+  const [contentReady, setContentReady] = useState(false);
+  const contentReadyRef = useRef(false);
   const lastSavedHashRef = useRef<string>('');
   const persistedIdRef = useRef<string | undefined>(collaborationRoomId);
 
@@ -263,6 +279,10 @@ export function Editor({
   const scheduleAutoSaveRef = useRef<(p: AutoSavePayload) => void>(() => {});
 
   const editor = useEditor({
+    // Éditeur monté côté client uniquement (contenu chargé depuis les props) :
+    // l'option explicite coupe l'avertissement SSR de Tiptap et évite une
+    // double construction du document.
+    immediatelyRender: false,
     extensions: [
       // StarterKit v3 fournit déjà Underline : l'importer en plus créait un
       // doublon d'extension (« Duplicate extension names found: ['underline'] »).
@@ -283,6 +303,15 @@ export function Editor({
           isAllowedUri: (url) => normalizeLinkUrl(url) !== null,
         },
       }),
+      // Invite affichée dans un corps vide : sans elle, le document neuf
+      // s'ouvrait sur un rectangle blanc sans aucune indication.
+      Placeholder.configure({
+        placeholder: () => t`Commencez à écrire votre article…`,
+        emptyEditorClass: 'is-editor-empty',
+      }),
+      // Compteurs officiels Tiptap : ils suivent les transactions sans
+      // reparcourir tout le document à chaque frappe.
+      CharacterCount,
       PaywallDivider,
       AnnotationMark,
       ArticleImage.configure({
@@ -309,8 +338,10 @@ export function Editor({
     content: collaborationDoc ? '' : initialContent,
     editorProps: {
       attributes: {
-        class:
-          'prose prose-zinc dark:prose-invert max-w-none focus:outline-none min-h-[500px] text-foreground text-[17px] leading-relaxed placeholder:text-muted-foreground/40 font-sans',
+        // `.article-prose` = la feuille de la page publiée. L'éditeur perdait
+        // ses puces et ses numéros (le reset Tailwind les supprime) : les
+        // listes apparaissaient comme des lignes de texte sans repère.
+        class: 'qoe-editor article-prose max-w-none text-foreground font-sans',
       },
       handleClick: (view, pos) => {
         const $pos = view.state.doc.resolve(pos);
@@ -384,6 +415,9 @@ export function Editor({
       },
     },
     onUpdate: ({ editor: currentEditor }) => {
+      // Un `setContent` de chargement ou de seed ne doit jamais déclencher
+      // d'auto-save : le contenu n'est pas encore celui de l'auteur.
+      if (!contentReadyRef.current) return;
       setHasUnsavedChanges(true);
       const s = editorStateRef.current;
       if (!s.title.trim()) return;
@@ -616,23 +650,66 @@ export function Editor({
     setShowAuthorAnnotationModal(false);
   };
 
-  // ─── Seed du document partagé ──────────────────────────────────────────
+  // ─── Chargement du document (local ou partagé) ─────────────────────────
+  // Sans collaboration, le contenu initial est déjà dans l'éditeur. Avec
+  // collaboration, il vient du document Yjs : vide au premier chargement, il
+  // faut y injecter l'article — et si le serveur ne répond pas (auth, réseau),
+  // ne pas laisser l'auteur devant une page blanche en attendant.
   useEffect(() => {
-    const provider = collaborationProvider;
-    if (!provider || !editor || !collaborationDoc || !initialContent) return;
+    if (!editor) return;
 
-    let seeded = false;
-    const seedOnce = () => {
-      if (seeded) return;
-      seeded = true;
-      if (collaborationDoc.getXmlFragment('default').length === 0) {
-        editor.commands.setContent(initialContent);
-      }
+    const settle = () => {
+      if (contentReadyRef.current) return;
+      lastSavedHashRef.current = computePayloadHash({
+        ...editorStateRef.current,
+        content: editor.getHTML(),
+      });
+      contentReadyRef.current = true;
+      setContentReady(true);
     };
-    provider.on('synced', seedOnce);
-    if (provider.isSynced) seedOnce();
+
+    if (!collaborationDoc) {
+      settle();
+      return;
+    }
+
+    const fragment = collaborationDoc.getXmlFragment('default');
+    const seedIfEmpty = () => {
+      if (fragment.length === 0 && initialContent) {
+        editor.commands.setContent(initialContent, { emitUpdate: false });
+      }
+      settle();
+    };
+
+    const provider = collaborationProvider;
+    if (!provider) {
+      seedIfEmpty();
+      return;
+    }
+    if (provider.isSynced) {
+      seedIfEmpty();
+      return;
+    }
+
+    let settled = false;
+    const onSynced = () => {
+      if (settled) return;
+      settled = true;
+      seedIfEmpty();
+    };
+    provider.on('synced', onSynced);
+    // Filet de sécurité : au-delà de 4 s sans synchro, on charge le contenu
+    // local. Le serveur ne pourra plus le remplacer (risque de doublons
+    // uniquement si une synchro tardive arrive sur une salle déjà remplie).
+    const fallback = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      seedIfEmpty();
+    }, 4000);
+
     return () => {
-      provider.off('synced', seedOnce);
+      provider.off('synced', onSynced);
+      clearTimeout(fallback);
     };
   }, [collaborationProvider, editor, collaborationDoc, initialContent]);
 
@@ -713,7 +790,8 @@ export function Editor({
     saveNow,
   } = useAutoSaveArticle({
     delay: 2500,
-    enabled: true,
+    // Rien ne part tant que le contenu n'est pas chargé.
+    enabled: contentReady,
     onSave: async (payload: AutoSavePayload) => {
       const s = editorStateRef.current;
       const request = {
@@ -765,7 +843,7 @@ export function Editor({
   // identique à la dernière sauvegarde réussie. `scheduleAutoSave` est lu via
   // une ref pour ne pas relancer le debounce à chaque rendu.
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || !contentReady) return;
     const snapshot = draftSnapshot();
 
     if (computePayloadHash(snapshot) === lastSavedHashRef.current) {
@@ -777,7 +855,7 @@ export function Editor({
     if (snapshot.title.trim()) {
       scheduleAutoSaveRef.current(snapshot);
     }
-  }, [editor, draftSnapshot]);
+  }, [editor, draftSnapshot, contentReady]);
 
   // Slug auto uniquement tant que l'auteur ne l'a jamais personnalisé.
   useEffect(() => {
@@ -1214,6 +1292,7 @@ export function Editor({
         settingsOpen={showSettings}
         onBack={onBack}
         onOpenAnalytics={() => setShowAnalyticsModal(true)}
+        onOpenHistory={() => setShowHistoryModal(true)}
         onToggleSettings={() =>
           setShowSettings((open) => {
             if (!open && !scheduleDraft && scheduledAt) {
@@ -1375,6 +1454,12 @@ export function Editor({
 
           <div className="py-4">
             <EditorContent editor={editor} />
+            <SelectionToolbar
+              editor={editor}
+              onLink={openLinkPopover}
+              onAnnotation={handleAnnotationButton}
+            />
+            <EditorStatusBar editor={editor} />
           </div>
         </div>
       </div>
@@ -1501,6 +1586,12 @@ export function Editor({
         publicationName={subdomain ? `${subdomain}.qoe.fi` : 'Votre site web'}
         initialIsPremium={isPremium}
         warnings={publishWarnings}
+      />
+
+      <ArticleHistoryModal
+        open={showHistoryModal}
+        articleId={persistedIdRef.current ?? null}
+        onClose={() => setShowHistoryModal(false)}
       />
 
       <ArticleDiffModal

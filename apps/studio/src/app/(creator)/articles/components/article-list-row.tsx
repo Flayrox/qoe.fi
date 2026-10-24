@@ -4,6 +4,7 @@ import React from 'react';
 import {
   BarChart3,
   BookOpen,
+  CalendarClock,
   CheckCircle2,
   Clock,
   Edit3,
@@ -22,6 +23,19 @@ import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
 
 import type { ArticleWithCategory, ListColumnPrefs } from './article-list-types';
+
+/** « 25 oct. 09:00 » — date de programmation, ou null si invalide/absente. */
+function formatScheduleDate(value: string | Date | null | undefined): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
 
 export function ArticleListRow({
   article,
@@ -60,6 +74,7 @@ export function ArticleListRow({
     (article._count?.bookmarks || 0) +
     (article._count?.highlights || 0) +
     (article._count?.letters || 0);
+  const scheduledLabel = formatScheduleDate(article.scheduledAt);
 
   return (
     <div
@@ -90,7 +105,19 @@ export function ArticleListRow({
             {article.title}
           </a>
           {columns.status &&
-            (article.status === 'SUBMITTED' ? (
+            (article.status === 'SCHEDULED' ? (
+              // Un article programmé n'est PAS un brouillon : il partira seul.
+              <span
+                className="inline-flex shrink-0 items-center gap-1 rounded border border-success/25 bg-success/10 px-1.5 py-0.5 text-[10px] font-semibold text-success"
+                title={t`Publication automatique programmée`}
+              >
+                <CalendarClock className="h-2.5 w-2.5" />
+                {t`Programmé`}
+                {scheduledLabel && (
+                  <span className="font-normal opacity-80">· {scheduledLabel}</span>
+                )}
+              </span>
+            ) : article.status === 'SUBMITTED' ? (
               <span className="inline-flex shrink-0 items-center gap-1 rounded border border-highlight/20 bg-highlight/10 px-1.5 py-0.5 text-[10px] font-semibold text-highlight">
                 <Clock className="h-2.5 w-2.5" />
                 {article.published ? t`En revue (modifications)` : t`En revue`}

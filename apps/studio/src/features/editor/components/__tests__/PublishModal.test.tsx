@@ -74,17 +74,47 @@ describe('PublishModal', () => {
     });
   });
 
-  it('déclenche l’envoi d’un email test', () => {
-    vi.useFakeTimers();
+  it('ne prétend pas envoyer un email de test : renvoie vers le vrai test des réglages', () => {
     render(<PublishModal {...baseProps} />);
 
-    const testEmailBtn = screen.getByText('Envoyer un test');
+    // Le bouton factice a disparu : plus de « Envoyé ! » sans envoi réel.
+    expect(screen.queryByText('Envoyer un test')).toBeNull();
+    expect(screen.queryByText('Envoyé !')).toBeNull();
+    expect(screen.getByText(/Réglages → Emails & Abonnés/)).toBeDefined();
+  });
+
+  it('se ferme avec Échap et s’annonce comme une boîte de dialogue', () => {
+    render(<PublishModal {...baseProps} />);
+
+    expect(screen.getByRole('dialog').getAttribute('aria-modal')).toBe('true');
+
     act(() => {
-      fireEvent.click(testEmailBtn);
-      vi.advanceTimersByTime(1200);
+      fireEvent.keyDown(window, { key: 'Escape' });
     });
 
-    expect(screen.getByText('Envoyé !')).toBeDefined();
-    vi.useRealTimers();
+    expect(baseProps.onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignore un second clic sur Publier pendant l’envoi', async () => {
+    let resolveConfirm: () => void = () => {};
+    const onConfirm = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveConfirm = resolve;
+        })
+    );
+    render(<PublishModal {...baseProps} onConfirm={onConfirm} />);
+    const user = userEvent.setup();
+
+    const first = screen.getByRole('button', { name: /Publier & Envoyer maintenant/i });
+    await user.click(first);
+    // Le bouton est désormais désactivé : impossible de publier deux fois.
+    expect((first as HTMLButtonElement).disabled).toBe(true);
+    await user.click(first);
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveConfirm();
+    });
   });
 });
