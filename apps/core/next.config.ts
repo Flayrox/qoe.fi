@@ -42,8 +42,19 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ['@sentry/nextjs', '@sentry/node', 'dotenv'],
   // Slugs EN (l'app démarre en FR mais les routes sont anglaises) :
   // /recours → /appeals (301 — bookmarks et liens en vol préservés).
+  //
+  // Les documents légaux vivent sur la vitrine publique (apps/hi) : les
+  // anciennes URL de l'app lecteur y renvoient définitivement.
   async redirects() {
-    return [{ source: '/recours', destination: '/appeals', permanent: true }];
+    const landingUrl = (process.env.NEXT_PUBLIC_LANDING_URL || 'https://hi.qoe.fi').replace(
+      /\/$/,
+      ''
+    );
+    return [
+      { source: '/recours', destination: '/appeals', permanent: true },
+      { source: '/legal', destination: `${landingUrl}/legal`, permanent: true },
+      { source: '/legal/:slug', destination: `${landingUrl}/legal/:slug`, permanent: true },
+    ];
   },
   images: {
     dangerouslyAllowSVG: true,

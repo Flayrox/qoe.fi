@@ -25,6 +25,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { BarChart3, Check, ShieldOff, X } from 'lucide-react';
 import { recordCookieConsentAction } from '@qoe/sdk/actions/legal';
+import { getLegalDocumentUrl } from '@qoe/config/legal';
 import {
   COOKIE_POLICY_SLUG,
   COOKIE_CONSENT_VERSION,
@@ -126,7 +127,7 @@ export function AnalyticsNotice({
               <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
                 {l(copy.body)}{' '}
                 <Link
-                  href={policyHref ?? `/legal/${COOKIE_POLICY_SLUG}`}
+                  href={policyHref ?? getLegalDocumentUrl(COOKIE_POLICY_SLUG)}
                   className="underline transition-colors hover:text-primary"
                 >
                   {l(copy.learnMore)}

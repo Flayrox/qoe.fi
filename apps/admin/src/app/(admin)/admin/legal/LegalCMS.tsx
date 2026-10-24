@@ -11,6 +11,7 @@
 import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { findLegalPlaceholders, markdownToHtml } from '@qoe/utils';
+import { getLegalDocumentUrl } from '@qoe/config/legal';
 import {
   AlertTriangle,
   Archive,
@@ -984,7 +985,7 @@ function DocumentMeta({ document, pending, onSave, onDelete }: DocumentMetaProps
         </div>
         <div className="flex items-center gap-2">
           <a
-            href={`/legal/${document.slug}`}
+            href={getLegalDocumentUrl(document.slug)}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-semibold text-foreground hover:bg-muted"
@@ -1007,7 +1008,7 @@ function DocumentMeta({ document, pending, onSave, onDelete }: DocumentMetaProps
           </span>
           <input value={slug} onChange={(e) => setSlug(e.target.value)} className={inputClass()} />
           <span className="block text-[11px] text-muted-foreground">
-            URL : /legal/{slug || '…'}
+            URL : hi.qoe.fi/legal/{slug || '…'}
           </span>
         </label>
 

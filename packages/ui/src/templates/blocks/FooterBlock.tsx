@@ -10,7 +10,7 @@
 import React from 'react';
 import Link from 'next/link';
 import type { SocialLink } from '@qoe/sdk/types';
-import { getMainAppUrl } from '@qoe/config';
+import { getLegalDocumentUrl } from '@qoe/config';
 import { COOKIE_POLICY_SLUG } from '@qoe/utils/cookie-consent';
 import { SocialIcon } from '../../SocialIcon';
 import type {
@@ -55,9 +55,10 @@ export function FooterBlock({
   const { name, domain, socialLinks = [], footerText } = publication;
   const displayName = name || domain || 'Mon Site Web';
   const year = new Date().getFullYear();
-  // Les documents légaux sont ceux de la plateforme : ils vivent sur qoe.fi,
-  // jamais sur le sous-domaine de la publication.
-  const platformUrl = publication.mainAppUrl || getMainAppUrl(domain ?? '');
+  // Les documents légaux sont ceux de la plateforme : ils vivent uniquement
+  // sur la vitrine publique (hi.qoe.fi), jamais sur le sous-domaine de la
+  // publication ni dans une copie locale.
+  const legalDocumentUrl = (slug: string) => getLegalDocumentUrl(slug, domain ?? '');
 
   return (
     <BlockWrapper
@@ -140,7 +141,7 @@ export function FooterBlock({
                   ) : (
                     <>
                       <a
-                        href={`${platformUrl}/legal/mentions-legales`}
+                        href={legalDocumentUrl('mentions-legales')}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => context.mode === 'editable' && e.preventDefault()}
@@ -149,7 +150,7 @@ export function FooterBlock({
                         Mentions légales
                       </a>
                       <a
-                        href={`${platformUrl}/legal/politique-confidentialite`}
+                        href={legalDocumentUrl('politique-confidentialite')}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => context.mode === 'editable' && e.preventDefault()}
@@ -158,7 +159,7 @@ export function FooterBlock({
                         Confidentialité
                       </a>
                       <a
-                        href={`${platformUrl}/legal/${COOKIE_POLICY_SLUG}`}
+                        href={legalDocumentUrl(COOKIE_POLICY_SLUG)}
                         target="_blank"
                         rel="noopener noreferrer"
                         onClick={(e) => context.mode === 'editable' && e.preventDefault()}
