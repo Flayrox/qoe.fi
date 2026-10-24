@@ -9,7 +9,7 @@
 // =====================================================================
 
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
-import { ArrowUpRight, Lock, ArrowLeft } from 'lucide-react';
+import { ArrowUpRight, ArrowLeft } from 'lucide-react';
 
 interface ParsedUrlInfo {
   isValid: boolean;
@@ -105,14 +105,9 @@ export function ExitInterstitialModal({
           </div>
         </div>
 
-        {/* Barre d'URL discrète (façon barre d'adresse Safari) */}
-        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-muted/30 border border-border/40 text-[11px] font-mono text-muted-foreground">
-          {parsed.isHttps ? (
-            <Lock className="w-3 h-3 text-muted-foreground shrink-0" />
-          ) : (
-            <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 shrink-0" />
-          )}
-          <span className="truncate select-all text-foreground/80">{parsed.displayUrl}</span>
+        {/* Barre d'URL discrète */}
+        <div className="px-3 py-1.5 rounded-lg bg-muted/30 border border-border/40 text-xs text-muted-foreground truncate select-all">
+          <span className="text-foreground/90">{parsed.displayUrl}</span>
         </div>
 
         {/* Actions ergonomiques Apple : Annuler à gauche, Action à droite */}
@@ -290,7 +285,7 @@ export function ExitCard({ targetUrl, publicationName, onBackUrl = '/' }: ExitCa
     <div className="mx-auto w-full max-w-lg py-16 sm:py-24 select-none text-left">
       <div className="space-y-6">
         {/* Kicker typographique */}
-        <div className="flex items-center gap-2 text-[11px] font-mono tracking-widest uppercase text-muted-foreground">
+        <div className="flex items-center gap-2 text-[11px] font-medium tracking-wider uppercase text-muted-foreground">
           <ArrowUpRight className="w-3.5 h-3.5 text-foreground" />
           <span>Redirection externe</span>
         </div>
@@ -312,19 +307,10 @@ export function ExitCard({ targetUrl, publicationName, onBackUrl = '/' }: ExitCa
           </p>
         </div>
 
-        {/* Ligne d'URL d'orfèvre */}
+        {/* Ligne d'URL épurée */}
         {parsed.isValid ? (
-          <div className="p-3.5 rounded-xl bg-muted/20 border border-border/40 flex items-center justify-between gap-3 text-xs font-mono text-foreground select-all">
-            <span className="truncate text-foreground/90">{parsed.displayUrl}</span>
-            {parsed.isHttps ? (
-              <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground shrink-0 font-sans">
-                <Lock className="w-3 h-3" /> Chiffré
-              </span>
-            ) : (
-              <span className="text-[10px] text-muted-foreground shrink-0 font-sans">
-                Non chiffré
-              </span>
-            )}
+          <div className="p-3.5 rounded-xl bg-muted/20 border border-border/40 text-xs text-foreground/90 select-all break-all">
+            {parsed.displayUrl}
           </div>
         ) : (
           <div className="p-3.5 rounded-xl bg-muted/20 border border-border/40 text-xs text-muted-foreground">
