@@ -37,7 +37,6 @@ export const RESERVED_TENANT_ROUTES = [
   'author',
   'article',
   'articles',
-  'legal',
   'search',
   'support',
   'sitemap',

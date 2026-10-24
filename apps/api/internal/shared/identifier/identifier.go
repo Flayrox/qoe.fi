@@ -33,7 +33,7 @@ var reservedTenantRoutes = map[string]struct{}{
 	// Routes d'articles et de catégories
 	"article": {}, "articles": {},
 	// Routes système du tenant
-	"legal": {}, "search": {}, "support": {}, "sitemap": {}, "rss.xml": {},
+	"search": {}, "support": {}, "sitemap": {}, "rss.xml": {},
 	// Routes de l'app servies sur le même host
 	"api": {}, "auth": {}, "tenant": {}, "robots.txt": {}, "sitemap.xml": {}, "icon.svg": {},
 }
