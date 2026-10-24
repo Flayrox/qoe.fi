@@ -1,10 +1,14 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useAutoSaveArticle } from '../useAutoSaveArticle';
 
 describe('useAutoSaveArticle module', () => {
   beforeEach(() => {
+    vi.useRealTimers();
+  });
+
+  afterEach(() => {
     vi.useRealTimers();
   });
 
@@ -104,5 +108,55 @@ describe('useAutoSaveArticle module', () => {
     });
     await act(async () => {});
     expect(onSave.mock.calls[1][0]).toMatchObject({ id: 'art-100', title: 'Titre de Test' });
+  });
+
+  it('5. Un onSave recréé à chaque rendu ne casse pas le debounce', async () => {
+    vi.useFakeTimers();
+    const versions: number[] = [];
+
+    const { result, rerender } = renderHook(
+      ({ version }: { version: number }) =>
+        useAutoSaveArticle({
+          delay: 1000,
+          onSave: async () => {
+            versions.push(version);
+            return { id: 'art-1' };
+          },
+        }),
+      { initialProps: { version: 1 } }
+    );
+
+    act(() => {
+      result.current.scheduleAutoSave({ title: 'Titre', content: '<p>a</p>' });
+    });
+
+    // Chaque rendu fournit une nouvelle closure `onSave` : l'ancien hook
+    // déclenchait ici la sauvegarde immédiatement (flush du démontage).
+    act(() => rerender({ version: 2 }));
+    act(() => rerender({ version: 3 }));
+    await act(async () => {});
+    expect(versions).toEqual([]);
+
+    // Le debounce s'applique réellement, avec la dernière version du callback.
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
+    await act(async () => {});
+    expect(versions).toEqual([3]);
+  });
+
+  it('6. Un payload identique à la dernière sauvegarde réussie n’est pas renvoyé', async () => {
+    const onSave = vi.fn().mockResolvedValue({ id: 'art-1' });
+    const { result } = renderHook(() => useAutoSaveArticle({ delay: 1000, onSave }));
+
+    const payload = { title: 'Titre', content: '<p>a</p>', slug: 'titre' };
+    await act(async () => {
+      await result.current.saveNow(payload);
+    });
+    await act(async () => {
+      await result.current.saveNow({ ...payload });
+    });
+
+    expect(onSave).toHaveBeenCalledTimes(1);
   });
 });
