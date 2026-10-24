@@ -7,7 +7,12 @@ import { MainContentWrapper } from '@/components/layout/MainContentWrapper';
 import { Toaster } from '@qoe/ui/toast';
 import { getLanguage } from '@qoe/i18n/server';
 import { fetchPendingAcceptances } from '@qoe/sdk/actions/legal';
-import { LegalConsentGate, type ConsentItem } from '@qoe/ui';
+import {
+  LegalConsentGate,
+  type ConsentItem,
+  ExitInterstitialProvider,
+  ExternalLinkInterceptor,
+} from '@qoe/ui';
 import { logout } from '@/app/login/actions';
 
 export default async function MainLayout({ children }: { children: React.ReactNode }) {
@@ -59,7 +64,11 @@ export default async function MainLayout({ children }: { children: React.ReactNo
         userRole={dbUser?.role}
         onLogout={logout}
       />
-      <MainContentWrapper>{children}</MainContentWrapper>
+      <MainContentWrapper>
+        <ExitInterstitialProvider sourceName="Qoefi">
+          <ExternalLinkInterceptor sourceName="Qoefi">{children}</ExternalLinkInterceptor>
+        </ExitInterstitialProvider>
+      </MainContentWrapper>
       <LegalConsentGate pending={pendingConsents} locale={locale} />
       <Toaster />
     </div>

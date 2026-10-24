@@ -170,3 +170,17 @@ export {
   type ColorPickerProps,
   type ColorPreset,
 } from './ui/color-picker';
+
+// 🧭 Interstitiel de redirection externe & intercepteur de liens
+export {
+  ExitInterstitialModal,
+  ExitInterstitialProvider,
+  ExternalLinkInterceptor,
+  ExitCard,
+  useExitInterstitial,
+  parseExternalUrl,
+  type ExitInterstitialModalProps,
+  type ExitInterstitialProviderProps,
+  type ExternalLinkInterceptorProps,
+  type ExitCardProps,
+} from './ui/exit-interstitial';
