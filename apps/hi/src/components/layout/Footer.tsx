@@ -37,23 +37,32 @@ const getDefaultSections = (locale: string): FooterSection[] => {
         ],
       },
       {
-        title: 'Legal & Privacy',
+        title: 'Terms & Policies',
+        links: [
+          { label: 'Terms of Service', href: '/legal/conditions-generales-utilisation' },
+          { label: 'Terms of Sale (CGV)', href: '/legal/conditions-generales-de-vente' },
+          { label: 'Creator Agreement', href: '/legal/accord-createur' },
+          { label: 'Acceptable Use Policy', href: '/legal/politique-utilisation-acceptable' },
+          { label: 'Accessibility Commitment', href: '/legal/engagement-accessibilite' },
+        ],
+      },
+      {
+        title: 'Privacy & Legal',
         links: [
           { label: 'Legal Notice', href: '/legal/mentions-legales' },
-          { label: 'Terms of Service', href: '/legal/conditions-generales-utilisation' },
           { label: 'Privacy Policy', href: '/legal/politique-confidentialite' },
           { label: 'GDPR & Data Processing', href: '/legal/accord-traitement-donnees' },
-          { label: 'Terms of Sale (CGV)', href: '/legal/conditions-generales-de-vente' },
+          { label: 'Cookie Policy', href: '/legal/politique-cookies' },
+          { label: 'Sub-processors', href: '/legal/sous-traitants' },
           { label: 'All Legal Documents', href: '/legal' },
         ],
       },
       {
-        title: 'Connect & Ecosystem',
+        title: 'Connect',
         links: [
           { label: 'X (Twitter)', href: 'https://x.com/qoefi', isExternal: true },
           { label: 'LinkedIn', href: 'https://www.linkedin.com/company/qoefi', isExternal: true },
-          { label: 'GitHub (Open Source)', href: 'https://github.com/qoefi', isExternal: true },
-          { label: 'RSS Feed', href: `${URLS.APP}/home`, isExternal: true },
+          { label: 'GitHub', href: 'https://github.com/qoefi', isExternal: true },
         ],
       },
     ];
@@ -71,23 +80,32 @@ const getDefaultSections = (locale: string): FooterSection[] => {
       ],
     },
     {
-      title: 'Légal & Conformité',
+      title: 'Conditions & Vente',
       links: [
-        { label: 'Mentions légales', href: '/legal/mentions-legales' },
         { label: "Conditions d'utilisation", href: '/legal/conditions-generales-utilisation' },
-        { label: 'Politique de confidentialité', href: '/legal/politique-confidentialite' },
-        { label: 'Conformité RGPD', href: '/legal/accord-traitement-donnees' },
         { label: 'Conditions de vente (CGV)', href: '/legal/conditions-generales-de-vente' },
-        { label: 'Tous les documents légaux', href: '/legal' },
+        { label: 'Accord créateur', href: '/legal/accord-createur' },
+        { label: 'Utilisation acceptable', href: '/legal/politique-utilisation-acceptable' },
+        { label: 'Accessibilité', href: '/legal/engagement-accessibilite' },
       ],
     },
     {
-      title: 'Réseaux & Écosystème',
+      title: 'Confidentialité & Légal',
+      links: [
+        { label: 'Mentions légales', href: '/legal/mentions-legales' },
+        { label: 'Politique de confidentialité', href: '/legal/politique-confidentialite' },
+        { label: 'Conformité RGPD', href: '/legal/accord-traitement-donnees' },
+        { label: 'Politique des cookies', href: '/legal/politique-cookies' },
+        { label: 'Liste des sous-traitants', href: '/legal/sous-traitants' },
+        { label: 'Tous les documents', href: '/legal' },
+      ],
+    },
+    {
+      title: 'Réseaux',
       links: [
         { label: 'X (Twitter)', href: 'https://x.com/qoefi', isExternal: true },
         { label: 'LinkedIn', href: 'https://www.linkedin.com/company/qoefi', isExternal: true },
-        { label: 'GitHub (Open Source)', href: 'https://github.com/qoefi', isExternal: true },
-        { label: 'Flux RSS', href: `${URLS.APP}/home`, isExternal: true },
+        { label: 'GitHub', href: 'https://github.com/qoefi', isExternal: true },
       ],
     },
   ];
@@ -121,39 +139,23 @@ export const Footer = async ({ config, locale }: FooterProps) => {
 
   return (
     <footer className="mt-20 border-t border-border/30 bg-muted/30 backdrop-blur-sm">
-      <div className="max-w-5xl mx-auto px-6 pt-16 pb-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 text-foreground dark:text-muted-foreground">
-        {/* Brand, Status & Description */}
-        <div className="flex flex-col gap-5">
+      <div className="max-w-6xl mx-auto px-6 pt-16 pb-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-10 text-foreground dark:text-muted-foreground">
+        {/* Brand */}
+        <div className="flex flex-col gap-4 col-span-2 md:col-span-1">
           <Link
             href="/"
             className="font-display text-2xl font-medium tracking-tight text-foreground dark:text-muted-foreground w-fit"
           >
             QOEFI
           </Link>
-          <p className="font-body text-xs text-muted-foreground leading-relaxed max-w-[260px] whitespace-pre-wrap">
+          <p className="font-body text-xs text-muted-foreground leading-relaxed max-w-[240px] whitespace-pre-wrap">
             {copyrightText}
           </p>
-
-          {/* Live system status indicator */}
-          <a
-            href="https://status.qoe.fi"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-success/10 border border-success/20 text-[11px] font-medium text-success w-fit hover:bg-success/15 transition-colors"
-          >
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-success" />
-            </span>
-            {resolvedLocale === 'en'
-              ? 'All systems operational'
-              : 'Tous les systèmes opérationnels'}
-          </a>
         </div>
 
         {/* Dynamic Link columns */}
         {footerSections.map((section, idx) => (
-          <div key={idx} className="flex flex-col gap-4">
+          <div key={idx} className="flex flex-col gap-3">
             <h4 className="font-sans text-[11px] font-semibold tracking-wider text-muted-foreground uppercase mb-2">
               {section.title}
             </h4>
@@ -176,19 +178,10 @@ export const Footer = async ({ config, locale }: FooterProps) => {
       </div>
 
       {/* Sub-footer bar */}
-      <div className="max-w-5xl mx-auto px-6 pb-12 pt-8 mt-4 border-t border-border/20 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
-        <div className="flex items-center gap-2 flex-wrap text-[11px]">
-          <span>
-            🇪🇺{' '}
-            {resolvedLocale === 'en'
-              ? 'Sovereign European Cloud (Hetzner, Germany)'
-              : 'Hébergement souverain européen (Hetzner Allemagne)'}
-          </span>
-          <span>·</span>
-          <span>
-            🔒 {resolvedLocale === 'en' ? 'Zero ad tracking' : 'Zéro pistage publicitaire'}
-          </span>
-        </div>
+      <div className="max-w-6xl mx-auto px-6 pb-12 pt-8 mt-4 border-t border-border/20 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
+          © {new Date().getFullYear()} QOEFI. Tous droits réservés.
+        </p>
         <div className="flex items-center gap-3 text-xs">
           <Link
             href="?lang=fr"

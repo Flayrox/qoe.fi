@@ -44,7 +44,7 @@ export const CreatorHub = ({ config }: CreatorHubProps) => {
         t`Sous-domaine media.qoe.fi ou votre propre domaine`,
         t`Éditeur WYSIWYG + Markdown — auto-sauvegarde`,
         t`Paywall & abonnements via Stripe Connect`,
-        t`Newsletter via Brevo (API française)`,
+        t`Distribution newsletter intégrée`,
         t`Analytics éthiques, sans cookies (Umami)`,
         t`Hébergement zéro coût jusqu'à 1 000 abonnés`,
       ],
