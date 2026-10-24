@@ -42,6 +42,7 @@ export const RESERVED_TENANT_ROUTES = [
   'search',
   'support',
   'sitemap',
+  'exit',
   'rss.xml',
   'api',
   'auth',
