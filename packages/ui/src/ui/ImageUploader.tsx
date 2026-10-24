@@ -19,7 +19,7 @@ import { ImagePlus, Loader2, RefreshCcw, Trash2, UploadCloud } from 'lucide-reac
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './dialog';
-import { Button } from './button';
+import { Button } from '../primitives/button/button';
 
 const MAX_ZOOM = 4;
 
@@ -285,14 +285,8 @@ export function ImageUploader({
               )}
               {t`Remplacer`}
             </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={handleRemove}
-              className="text-xs text-destructive hover:text-destructive"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
+            <Button type="button" variant="ghost" tone="danger" size="sm" onClick={handleRemove}>
+              <Trash2 />
               {t`Supprimer`}
             </Button>
           </div>

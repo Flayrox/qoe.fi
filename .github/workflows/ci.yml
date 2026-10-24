@@ -53,6 +53,14 @@ jobs:
       - name: Lint Workspace
         run: pnpm lint
 
+      # Ratchet de dette UI : `<button>` bruts, `<input>` bruts, overlays
+      # faits main, primitives réinventées, imports Base UI/HeroUI hors du
+      # package. Les plafonds vivent dans ui-budget.json et ne peuvent que
+      # descendre (une hausse exige --allow-increase). Objectif : empêcher
+      # la dette de remonter pendant la migration vers @qoe/ui.
+      - name: Guard UI debt (ratchet)
+        run: pnpm ui:audit
+
       - name: Run Unit & Integration Tests
         run: pnpm test
         env:

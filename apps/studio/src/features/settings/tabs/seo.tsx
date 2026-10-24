@@ -7,6 +7,8 @@
 import React from 'react';
 import { t } from '@lingui/core/macro';
 import { toast } from '@qoe/ui/toast';
+import { Button } from '@qoe/ui/button';
+import { Input } from '@qoe/ui/input';
 import { Globe, Terminal, Share2, Trash2 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import type { CreatorProfile } from '../types';
@@ -98,12 +100,11 @@ export function SeoTab({
                   {current.seoTitle?.length || 0}/60 car.
                 </span>
               </div>
-              <input
+              <Input
                 type="text"
                 value={current.seoTitle || ''}
                 onChange={(e) => setCurrent((prev) => ({ ...prev, seoTitle: e.target.value }))}
                 placeholder={t`Ex. Le Carnet de Sarah — Écrits & Analyses`}
-                className="w-full px-3.5 py-2.5 bg-muted/20 border border-border/40 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80 transition-colors"
               />
               <span className="text-[11px] text-muted-foreground block">
                 Remplace le titre automatique généré par Qoefi sur Google.
@@ -236,8 +237,9 @@ export function SeoTab({
                     <span className="text-xs font-semibold text-foreground w-24 px-1 truncate">
                       {platformLabel}
                     </span>
-                    <input
+                    <Input
                       type="url"
+                      size="sm"
                       value={s.url}
                       aria-label={`URL du profil ${platformLabel}`}
                       placeholder="https://..."
@@ -246,17 +248,20 @@ export function SeoTab({
                         updated[idx] = { ...updated[idx], url: e.target.value };
                         setCurrent((prev) => ({ ...prev, socialLinks: updated }));
                       }}
-                      className="flex-1 px-3 py-1.5 bg-background border border-border/40 rounded text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80"
+                      className="flex-1"
                     />
-                    <button
-                      type="button"
+                    <Button
+                      variant="ghost"
+                      tone="danger"
+                      size="xs"
+                      shape="icon"
                       onClick={() => removeSocialLink(idx)}
                       title={`Retirer ${platformLabel}`}
                       aria-label={`Retirer ${platformLabel}`}
-                      className="p-1.5 text-destructive hover:bg-destructive/10 rounded transition-colors cursor-pointer shrink-0"
+                      className="shrink-0"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                      <Trash2 />
+                    </Button>
                   </div>
                 );
               })}

@@ -7,7 +7,10 @@
 // =====================================================================
 
 export * from './tokens';
-export { Button, buttonVariants } from './ui/button';
+// Le Button public est celui du contrat (`@qoe/ui/button`). L'ancienne
+// primitive Base UI (`./ui/button`) a été supprimée une fois ses trois
+// derniers consommateurs migrés (calendar, LoginFormBento, OnboardingFlow).
+export { Button, type ButtonProps } from './primitives/button/button';
 export { ImageUploader } from './ui/ImageUploader';
 export { CertifiedBadge, type CertifiedBadgeProps } from './ui/CertifiedBadge';
 export { CookieConsentBanner, CookiePreferencesCenter } from './legal/CookieConsentBanner';

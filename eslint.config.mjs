@@ -142,6 +142,41 @@ const eslintConfig = defineConfig([
     },
   },
 
+  // ---- Frontière des moteurs UI ----
+  // Les primitives @qoe/ui sont écrites sur notre contrat (`primitives/`),
+  // pas sur le code d'un vendor. HeroUI a servi de référence de design puis
+  // a été retiré : le réintroduire, ou exposer Base UI à un écran, ferait
+  // revivre le problème d'origine (trois générations de composants).
+  {
+    files: ['apps/**/*.{ts,tsx}', 'packages/ui/src/**/*.{ts,tsx}'],
+    // Le UI Lab est le banc de comparaison : il montre l'état actuel, y
+    // compris les primitives héritées qui parlent encore au moteur.
+    ignores: [
+      'packages/ui/src/ui/**',
+      'packages/ui/src/primitives/**',
+      'apps/studio/src/app/dev/**',
+    ],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['@heroui/*'],
+              message:
+                'HeroUI n’est plus une dépendance : écrire la primitive dans @qoe/ui/primitives sur le contrat partagé.',
+            },
+            {
+              group: ['@base-ui/react/*'],
+              message:
+                'Base UI est en cours de retrait : passer par @qoe/ui/<composant>, les écrans ne dépendent pas du moteur.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+
   // ---- Ignored paths (kept in sync with .prettierignore) ----
   globalIgnores([
     // Build outputs (at any nesting level, e.g. apps/core/.next)

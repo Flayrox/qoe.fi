@@ -54,6 +54,8 @@
     "intl:extract": "lingui extract",
     "intl:compile": "lingui compile && prettier --write messages/*.js",
     "intl:build": "lingui extract && pnpm intl:compile",
+    "ui:catalog": "node scripts/ui-catalog.mjs",
+    "ui:audit": "node scripts/ui-audit.mjs",
     "clean": "turbo run clean && rm -rf node_modules .turbo",
     "docker:dev": "docker compose -f docker-compose.dev.yml up",
     "docker:dev:build": "docker compose -f docker-compose.dev.yml up --build",

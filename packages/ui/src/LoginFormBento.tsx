@@ -12,7 +12,7 @@ import { cn } from '@qoe/utils';
 import { buildSignupConsent, type ConsentDocument } from '@qoe/utils/legal-consent';
 import { BentoPlateau, BentoItem } from './ui/BentoPlateau';
 import { Logo } from './Logo';
-import { Button } from './ui/button';
+import { Button } from './primitives/button/button';
 import type { AuthActionContext } from './GuestFloatingBar';
 
 export interface LoginFormBentoProps {
@@ -394,7 +394,8 @@ export function LoginFormBento({
                 <Button
                   onClick={() => setMagicLinkSent(false)}
                   variant="outline"
-                  className="mt-4 text-xs font-mono border-border text-muted-foreground hover:text-foreground"
+                  size="sm"
+                  className="mt-4 font-mono text-muted-foreground"
                 >
                   {t`Retour`}
                 </Button>
@@ -513,7 +514,10 @@ export function LoginFormBento({
                       <Button
                         type="submit"
                         disabled={loading}
-                        className="w-full h-10 font-sans font-bold mt-2 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-all text-xs cursor-pointer shadow-md shadow-primary/20"
+                        variant="solid"
+                        tone="brand"
+                        size="lg"
+                        className="mt-2 h-control-xl w-full font-semibold"
                       >
                         {loading ? t`Chargement...` : t`Recevoir un lien magique`}
                       </Button>
@@ -559,7 +563,10 @@ export function LoginFormBento({
                       <Button
                         type="submit"
                         disabled={loading}
-                        className="w-full h-10 font-sans font-bold mt-3 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-all text-xs cursor-pointer shadow-md shadow-primary/20"
+                        variant="solid"
+                        tone="brand"
+                        size="lg"
+                        className="mt-3 h-control-xl w-full font-semibold"
                       >
                         {loading ? t`Chargement...` : t`Se connecter`}
                       </Button>
@@ -762,7 +769,10 @@ export function LoginFormBento({
                       <Button
                         type="submit"
                         disabled={loading}
-                        className="w-full h-10 font-sans font-bold mt-1 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-all text-xs cursor-pointer shadow-md shadow-primary/20"
+                        variant="solid"
+                        tone="brand"
+                        size="lg"
+                        className="mt-1 h-control-xl w-full font-semibold"
                       >
                         {loading ? t`Chargement...` : t`S'inscrire`}
                       </Button>
