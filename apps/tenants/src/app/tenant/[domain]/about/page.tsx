@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { headers } from 'next/headers';
 import type { Metadata } from 'next';
 import { fetchTenantPublication, fetchTenantArticle, type TenantArticle } from '@/lib/tenant-data';
 import { TenantPageShell } from '@/components/TenantPageShell';
@@ -54,6 +55,9 @@ export default async function TenantAboutPage({ params }: PageProps) {
   const publication = await fetchTenantPublication(decodedDomain);
   if (!publication) notFound();
 
+  const headersList = await headers();
+  const host = headersList.get('x-forwarded-host') || headersList.get('host') || decodedDomain;
+
   const aboutArticleId = (publication.siteOptions?.aboutArticleId as string) || null;
   const aboutArticle = await resolveAboutArticle(decodedDomain, aboutArticleId);
 
@@ -62,7 +66,7 @@ export default async function TenantAboutPage({ params }: PageProps) {
     : null;
 
   return (
-    <TenantPageShell publication={publication} domain={decodedDomain}>
+    <TenantPageShell publication={publication} domain={decodedDomain} host={host}>
       <AboutPageContent
         publication={publication}
         members={publication.team}

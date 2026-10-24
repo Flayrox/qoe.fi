@@ -11,4 +11,6 @@ export * from './routes';
 export * from './schemas';
 export * from './tenant';
 export * from './legal';
+export * from './domain-hub';
+export { getLandingAppUrl, getMainAppUrl } from './domain-hub';
 export { env, parseEnv } from './env';

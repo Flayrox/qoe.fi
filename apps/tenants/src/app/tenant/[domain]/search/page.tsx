@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { headers } from 'next/headers';
 import type { Metadata } from 'next';
 import { fetchTenantPublication } from '@/lib/tenant-data';
 import { TenantPageShell } from '@/components/TenantPageShell';
@@ -38,6 +39,9 @@ export default async function TenantSearchPage({ params, searchParams }: PagePro
 
   const publication = await fetchTenantPublication(decodedDomain);
   if (!publication) notFound();
+
+  const headersList = await headers();
+  const host = headersList.get('x-forwarded-host') || headersList.get('host') || decodedDomain;
 
   const categories = new Map((publication.categories || []).map((c) => [c.id, c.name]));
 
@@ -90,6 +94,8 @@ export default async function TenantSearchPage({ params, searchParams }: PagePro
   }));
 
   if (isMinimal) {
+    templatePublication.domain = host;
+
     return (
       <MinimalCraftShell publication={templatePublication}>
         <div className="container mx-auto px-4 lg:px-8 max-w-3xl pt-2 sm:pt-4">
@@ -105,7 +111,7 @@ export default async function TenantSearchPage({ params, searchParams }: PagePro
   }
 
   return (
-    <TenantPageShell publication={publication} domain={decodedDomain}>
+    <TenantPageShell publication={publication} domain={decodedDomain} host={host}>
       <div className="max-w-3xl mx-auto">
         <TenantSearchClient
           initialQuery={query}

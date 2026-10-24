@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { headers } from 'next/headers';
 import { buildCategoryPath } from '@qoe/utils';
 import Link from 'next/link';
 import type { Metadata } from 'next';
@@ -28,6 +29,9 @@ export default async function TenantSitemapPage({ params }: PageProps) {
   const publication = await fetchTenantPublication(decodedDomain);
   if (!publication) notFound();
 
+  const headersList = await headers();
+  const host = headersList.get('x-forwarded-host') || headersList.get('host') || decodedDomain;
+
   // Regrouper les articles par année
   const articlesByYear = new Map<number, typeof publication.articles>();
   for (const art of publication.articles || []) {
@@ -41,7 +45,7 @@ export default async function TenantSitemapPage({ params }: PageProps) {
   const sortedYears = [...articlesByYear.keys()].sort((a, b) => b - a);
 
   return (
-    <TenantPageShell publication={publication} domain={decodedDomain}>
+    <TenantPageShell publication={publication} domain={decodedDomain} host={host}>
       <div className="mx-auto w-full max-w-[624px] space-y-8 py-4">
         <div className="space-y-2 border-b border-border/40 pb-4">
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">

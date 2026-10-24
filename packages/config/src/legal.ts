@@ -13,7 +13,8 @@
 // importé par des composants clients.
 // =====================================================================
 
-const DEFAULT_LANDING_URL = 'https://hi.qoe.fi';
+import { getLandingAppUrl as resolveLandingUrl } from './domain-hub';
+
 /** Port de `apps/hi` en développement. */
 const LANDING_DEV_PORT = 15401;
 
@@ -66,28 +67,14 @@ export function toPublicLegalSlug(slug: string): string {
 /**
  * 🏝️ Origine de la vitrine publique.
  *
- * 1. `NEXT_PUBLIC_LANDING_URL` fait foi quand il est défini ;
- * 2. sinon on déduit l'URL locale de l'hôte fourni (`localhost`, `lvh.me`,
- *    `qoe.test`) — utile côté serveur où l'hôte est connue ;
- * 3. sinon, en développement, on vise `apps/hi` sur son port de dev ;
- * 4. sinon la prod.
+ * Délégué au Domain Hub pour garantir la symétrie absolue des environnements :
+ * - *.lvh.me     -> http://lvh.me:15401
+ * - *.qoe.test   -> http://qoe.test:15401
+ * - localhost    -> http://localhost:15401
+ * - Production   -> https://hi.qoe.fi
  */
 export function getLandingAppUrl(hostname?: string, port = LANDING_DEV_PORT): string {
-  const explicit = process.env.NEXT_PUBLIC_LANDING_URL?.trim();
-  if (explicit) return explicit.replace(/\/+$/, '');
-
-  const hostWithoutPort = (hostname ?? '').split(':')[0].toLowerCase();
-
-  if (hostWithoutPort) {
-    if (hostWithoutPort.endsWith('lvh.me')) return `http://lvh.me:${port}`;
-    if (hostWithoutPort.endsWith('qoe.test')) return `http://qoe.test:${port}`;
-    if (hostWithoutPort === 'localhost' || hostWithoutPort.endsWith('.localhost')) {
-      return `http://localhost:${port}`;
-    }
-  }
-
-  if (process.env.NODE_ENV === 'development') return `http://localhost:${port}`;
-  return DEFAULT_LANDING_URL;
+  return resolveLandingUrl(hostname, port);
 }
 
 /** 📚 Sommaire des documents légaux. */

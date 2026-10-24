@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { headers } from 'next/headers';
 import type { Metadata } from 'next';
 import { fetchTenantPublication, fetchTenantThoughts } from '@/lib/tenant-data';
 import { TenantPageShell } from '@/components/TenantPageShell';
@@ -27,6 +28,9 @@ export default async function TenantThoughtsPage({ params }: PageProps) {
   const decodedDomain = decodeURIComponent(domain);
   const publication = await fetchTenantPublication(decodedDomain);
   if (!publication) notFound();
+
+  const headersList = await headers();
+  const host = headersList.get('x-forwarded-host') || headersList.get('host') || decodedDomain;
 
   const authorName = publication.name || 'L’Auteur';
   const authorUsername =
@@ -57,7 +61,7 @@ export default async function TenantThoughtsPage({ params }: PageProps) {
   }));
 
   return (
-    <TenantPageShell publication={publication} domain={decodedDomain}>
+    <TenantPageShell publication={publication} domain={decodedDomain} host={host}>
       <div className="mx-auto w-full max-w-[600px] space-y-6 py-4">
         {/* En-tête du flux de pensées */}
         <div className="border-b border-border/40 pb-4 space-y-1">
