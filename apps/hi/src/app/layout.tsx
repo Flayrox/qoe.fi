@@ -56,6 +56,31 @@ export async function generateMetadata(): Promise<Metadata> {
       template: '%s | qoefi',
     },
     description,
+    keywords: isFr
+      ? [
+          'qoefi',
+          'plateforme créateurs',
+          'médias indépendants',
+          'alternative substack',
+          'newsletter souveraine',
+          'espace lecteur',
+          'infrastructure européenne',
+          'journalisme indépendant',
+          'monétisation créateur',
+        ]
+      : [
+          'qoefi',
+          'creator platform',
+          'independent media',
+          'substack alternative',
+          'sovereign newsletter',
+          'reader experience',
+          'european infrastructure',
+          'creator monetization',
+        ],
+    authors: [{ name: 'qoefi' }],
+    creator: 'qoefi',
+    publisher: 'qoefi',
     applicationName: 'qoefi',
     alternates: {
       canonical: landingUrl,
@@ -84,6 +109,14 @@ export async function generateMetadata(): Promise<Metadata> {
       siteName: 'qoefi',
       title,
       description,
+      images: [
+        {
+          url: `${landingUrl}/sahara-4-3.jpeg`,
+          width: 1200,
+          height: 900,
+          alt: title,
+        },
+      ],
     },
     twitter: {
       card: 'summary_large_image',
@@ -91,6 +124,7 @@ export async function generateMetadata(): Promise<Metadata> {
       creator: '@qoefi',
       title,
       description,
+      images: [`${landingUrl}/sahara-4-3.jpeg`],
     },
     icons: {
       icon: [{ url: '/icon.svg', type: 'image/svg+xml' }],
@@ -138,16 +172,31 @@ export default async function RootLayout({
       suppressHydrationWarning
     >
       <head>
-        {/* Marque + organisation : associe "qoefi" (et l'ancien nom) au
-            domaine pour le Knowledge Graph et la désambiguïsation. */}
+        {/* Marque + organisation + site web : graphe schema.org */}
         <JsonLd
           data={{
             '@context': 'https://schema.org',
-            '@type': 'Organization',
-            name: 'qoefi',
-            alternateName: 'qoe.fi',
-            url: landingUrl,
-            logo: `${landingUrl}/icon.svg`,
+            '@graph': [
+              {
+                '@type': 'Organization',
+                '@id': `${landingUrl}/#organization`,
+                name: 'qoefi',
+                alternateName: ['qoe.fi', 'qoefi platform'],
+                url: landingUrl,
+                logo: `${landingUrl}/icon.svg`,
+                sameAs: ['https://x.com/qoefi'],
+              },
+              {
+                '@type': 'WebSite',
+                '@id': `${landingUrl}/#website`,
+                url: landingUrl,
+                name: 'qoefi',
+                publisher: {
+                  '@id': `${landingUrl}/#organization`,
+                },
+                inLanguage: locale,
+              },
+            ],
           }}
         />
         <ThemeSeedScript />

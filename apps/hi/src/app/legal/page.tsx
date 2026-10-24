@@ -12,6 +12,7 @@ import { FileText } from 'lucide-react';
 import { getLanguage } from '@qoe/i18n/server';
 import { fetchLegalDocuments } from '@qoe/sdk/actions/legal';
 import { CookiePreferencesButton } from '@qoe/ui';
+import { toPublicLegalSlug } from '@qoe/config/legal';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,12 +31,27 @@ export async function generateMetadata(): Promise<Metadata> {
   const lang = await getLanguage();
   const isFr = !lang.startsWith('en');
   return {
-    title: isFr ? 'Informations légales' : 'Legal information',
+    title: isFr ? 'Informations légales | qoefi' : 'Legal Information | qoefi',
     description: isFr
       ? 'Conditions générales, confidentialité, cookies et informations légales de la plateforme qoefi.'
       : 'Terms of service, privacy, cookies and legal information for the qoefi platform.',
     alternates: { canonical: `${LANDING_URL}/legal` },
     robots: { index: true, follow: true },
+    openGraph: {
+      type: 'website',
+      title: isFr ? 'Informations légales | qoefi' : 'Legal Information | qoefi',
+      description: isFr
+        ? 'Règles du service, politique de confidentialité, RGPD et engagements de la plateforme qoefi.'
+        : 'Terms of service, privacy policy, GDPR compliance and commitments of the qoefi platform.',
+      url: `${LANDING_URL}/legal`,
+    },
+    twitter: {
+      card: 'summary',
+      title: isFr ? 'Informations légales | qoefi' : 'Legal Information | qoefi',
+      description: isFr
+        ? 'Règles du service et conformité légale de la plateforme qoefi.'
+        : 'Terms of service and legal compliance for the qoefi platform.',
+    },
   };
 }
 
@@ -79,7 +95,7 @@ export default async function LegalIndexPage() {
               {docs.map((doc) => (
                 <Link
                   key={doc.id}
-                  href={`/legal/${doc.slug}`}
+                  href={`/legal/${toPublicLegalSlug(doc.slug)}`}
                   className="group rounded-2xl border border-border bg-card p-5 transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-sm"
                 >
                   <div className="flex items-start gap-3">

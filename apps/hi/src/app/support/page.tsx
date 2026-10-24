@@ -6,14 +6,37 @@
 // hi). Le cas « compte perdu » : sans compte, on peut quand même demander.
 // =====================================================================
 
+import type { Metadata } from 'next';
 import { URLS } from '@qoe/config';
 import { HelpCenter } from './components/help-center';
 import type { ManagedArticle } from './components/help-faq';
 
-export const metadata = {
-  title: "Centre d'aide / Help center | qoefi",
+const landingUrl = (process.env.NEXT_PUBLIC_LANDING_URL || 'https://hi.qoe.fi').replace(/\/$/, '');
+
+export const metadata: Metadata = {
+  title: "Centre d'aide & Support — qoefi",
   description:
-    'Réponses immédiates (compte, confirmation, désabonnement…) puis formulaire de contact — avec ou sans compte.',
+    'Assistance, réponses immédiates (compte, confirmation, désabonnement, recours) et formulaire de contact direct avec l’équipe qoefi.',
+  alternates: {
+    canonical: `${landingUrl}/support`,
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  openGraph: {
+    type: 'website',
+    title: "Centre d'aide & Support — qoefi",
+    description:
+      'Assistance, réponses immédiates et formulaire de contact direct avec l’équipe qoefi.',
+    url: `${landingUrl}/support`,
+  },
+  twitter: {
+    card: 'summary',
+    title: "Centre d'aide & Support — qoefi",
+    description:
+      'Assistance, réponses immédiates et formulaire de contact direct avec l’équipe qoefi.',
+  },
 };
 
 // Articles gérés (console staff) : publiés, ordre voulu. Injoignable =
