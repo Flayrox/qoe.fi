@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Loader2, Plus, Search } from 'lucide-react';
 import { grantRoleAction } from '@/lib/admin-access-actions';
 import { useStaffAction } from '@/components/queue/useStaffAction';
+import { Select } from '@qoe/ui/select';
 import type { AccessPersonSummary, AccessRoleRow } from '@/lib/admin-access-data';
 
 const inputCls =
@@ -101,34 +102,31 @@ export function AccessGrantForm({ people, roles, canGrant }: AccessGrantFormProp
           <div className="grid gap-3 md:grid-cols-3">
             <label className="text-[11px] text-muted-foreground space-y-1 block">
               Personne
-              <select
+              <Select
+                label="Personne"
+                hideLabel
+                testId="access-grant-person"
                 value={userId}
-                onChange={(e) => setUserId(e.target.value)}
-                className={inputCls}
-                data-testid="access-grant-person"
-              >
-                {people.map((person) => (
-                  <option key={person.userId} value={person.userId}>
-                    {person.email}
-                    {person.roles.length > 0 ? ` (${person.roles.join(', ')})` : ''}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setUserId}
+                options={people.map((person) => ({
+                  id: person.userId,
+                  label: `${person.email}${person.roles.length > 0 ? ` (${person.roles.join(', ')})` : ''}`,
+                }))}
+              />
             </label>
             <label className="text-[11px] text-muted-foreground space-y-1 block">
               Rôle
-              <select
+              <Select
+                label="Rôle"
+                hideLabel
+                testId="access-grant-role"
                 value={roleKey}
-                onChange={(e) => setRoleKey(e.target.value)}
-                className={inputCls}
-                data-testid="access-grant-role"
-              >
-                {roles.map((role) => (
-                  <option key={role.key} value={role.key}>
-                    {role.label} — {role.capabilities.length} capacité(s)
-                  </option>
-                ))}
-              </select>
+                onValueChange={setRoleKey}
+                options={roles.map((role) => ({
+                  id: role.key,
+                  label: `${role.label} — ${role.capabilities.length} capacité(s)`,
+                }))}
+              />
             </label>
             <label className="text-[11px] text-muted-foreground space-y-1 block">
               Échéance (vide = sans fin)

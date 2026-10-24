@@ -14,6 +14,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { setSystemConfigAction } from '@/lib/admin-aux-actions';
+import { Select } from '@qoe/ui/select';
 
 interface TranslationOverrides {
   fr: Record<string, string>;
@@ -392,18 +393,21 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
         {/* Namespace Select */}
         <div className="flex items-center gap-1.5 w-full md:w-auto shrink-0">
           <Filter className="w-3.5 h-3.5 text-muted-foreground hidden md:block" />
-          <select
+          <Select
+            label="Module"
+            hideLabel
+            size="sm"
+            className="w-full md:w-40"
             value={selectedNamespace}
-            onChange={(e) => setSelectedNamespace(e.target.value)}
-            className="w-full md:w-40 bg-muted border border-border rounded-lg px-2.5 py-1.5 text-xs font-bold focus:ring-1 focus:ring-[#EE4B2B] focus:border-[#EE4B2B] outline-none cursor-pointer"
-          >
-            <option value="all">Tous les modules</option>
-            {namespaces.map((ns) => (
-              <option key={ns} value={ns}>
-                {ns.toUpperCase()}
-              </option>
-            ))}
-          </select>
+            onValueChange={setSelectedNamespace}
+            options={[
+              { id: 'all', label: 'Tous les modules' },
+              ...namespaces.map((namespace) => ({
+                id: namespace,
+                label: namespace.toUpperCase(),
+              })),
+            ]}
+          />
         </div>
 
         {/* Untranslated Filter Toggle */}

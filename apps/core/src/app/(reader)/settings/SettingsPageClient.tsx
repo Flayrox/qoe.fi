@@ -6,6 +6,7 @@ import { t } from '@lingui/core/macro';
 import { useI18n } from '@qoe/i18n';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
+import { Select } from '@qoe/ui/select';
 import {
   Accessibility,
   Bell,
@@ -396,17 +397,18 @@ export default function AccountSettingsPage({
             </Link>
             <h1 className="mt-2 text-lg sm:text-xl font-bold tracking-tight text-foreground">{t`Réglages`}</h1>
           </div>
-          <select
+          <Select
+            label={t`Section des réglages`}
+            hideLabel
+            size="sm"
+            className="w-44"
             value={activeSection}
-            onChange={(event) => navigateToSection(event.target.value as SettingsSection)}
-            className="rounded-lg border border-border bg-background px-2 py-2 text-xs"
-          >
-            {sections.map((section) => (
-              <option key={section.id} value={section.id}>
-                {section.label()}
-              </option>
-            ))}
-          </select>
+            onValueChange={(value) => navigateToSection(value as SettingsSection)}
+            options={sections.map((section) => ({
+              id: section.id,
+              label: section.label(),
+            }))}
+          />
         </div>
 
         {message && (
@@ -1183,20 +1185,18 @@ function SelectRow({
           {description}
         </span>
       </span>
-      <select
-        aria-label={label}
+      <Select
+        label={label}
+        hideLabel
+        size="sm"
+        className="w-[170px] shrink-0"
         value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="max-w-[170px] rounded-lg border border-border bg-background px-2 py-2 text-xs"
-      >
-        <>
-          {options.map(([option, label]) => (
-            <option key={option} value={option}>
-              {label}
-            </option>
-          ))}
-        </>
-      </select>
+        onValueChange={onChange}
+        options={options.map(([option, optionLabel]) => ({
+          id: option,
+          label: optionLabel,
+        }))}
+      />
     </label>
   );
 }

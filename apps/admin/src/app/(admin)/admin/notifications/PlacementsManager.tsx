@@ -10,6 +10,7 @@
 import React, { useState, useTransition } from 'react';
 import { Sparkles, Layers, Plus, Trash2, Eye, EyeOff, Target } from 'lucide-react';
 import { toast } from '@qoe/ui/toast';
+import { Select } from '@qoe/ui/select';
 import {
   createPlacementAdminAction,
   updatePlacementAdminAction,
@@ -154,18 +155,19 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
               <label className="block text-xs font-semibold text-foreground mb-1">
                 Emplacement (Slot)
               </label>
-              <select
+              <Select
+                label="Emplacement"
+                hideLabel
                 value={slot}
-                onChange={(e) => setSlot(e.target.value)}
-                className="w-full rounded-xl border border-border bg-white px-3 py-2 text-xs focus:border-primary focus:outline-none"
-              >
-                {PREDEFINED_SLOTS.map((s) => (
-                  <option key={s.value} value={s.value}>
-                    {s.label}
-                  </option>
-                ))}
-                <option value="custom">Autre slot personnalisé...</option>
-              </select>
+                onValueChange={setSlot}
+                options={[
+                  ...PREDEFINED_SLOTS.map((predefined) => ({
+                    id: predefined.value,
+                    label: predefined.label,
+                  })),
+                  { id: 'custom', label: 'Autre slot personnalisé...' },
+                ]}
+              />
             </div>
 
             {slot === 'custom' && (
@@ -187,55 +189,59 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
               <label className="block text-xs font-semibold text-foreground mb-1">
                 Format d'affichage
               </label>
-              <select
+              <Select
+                label="Format"
+                hideLabel
                 value={format}
-                onChange={(e) =>
-                  setFormat(e.target.value as 'notch_banner' | 'card' | 'callout' | 'modal')
+                onValueChange={(value) =>
+                  setFormat(value as 'notch_banner' | 'card' | 'callout' | 'modal')
                 }
-                className="w-full rounded-xl border border-border bg-white px-3 py-2 text-xs"
-              >
-                <option value="notch_banner">Bandeau Notch (Courbure inversée)</option>
-                <option value="card">Carte in-page (Card)</option>
-                <option value="callout">Encart discret (Callout)</option>
-              </select>
+                options={[
+                  { id: 'notch_banner', label: 'Bandeau Notch (Courbure inversée)' },
+                  { id: 'card', label: 'Carte in-page (Card)' },
+                  { id: 'callout', label: 'Encart discret (Callout)' },
+                ]}
+              />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-foreground mb-1">
                 Audience ciblée
               </label>
-              <select
+              <Select
+                label="Audience ciblée"
+                hideLabel
                 value={targetAudience}
-                onChange={(e) =>
-                  setTargetAudience(
-                    e.target.value as 'all' | 'free_only' | 'plus_only' | 'pro_only'
-                  )
+                onValueChange={(value) =>
+                  setTargetAudience(value as 'all' | 'free_only' | 'plus_only' | 'pro_only')
                 }
-                className="w-full rounded-xl border border-border bg-white px-3 py-2 text-xs font-medium"
-              >
-                <option value="all">Tous les visiteurs (Connectés + Invités)</option>
-                <option value="free_only">Lecteurs Free uniquement (Non abonnés)</option>
-                <option value="plus_only">Abonnés Plus uniquement</option>
-                <option value="pro_only">Créateurs Pro uniquement</option>
-              </select>
+                options={[
+                  { id: 'all', label: 'Tous les visiteurs (Connectés + Invités)' },
+                  { id: 'free_only', label: 'Lecteurs Free uniquement (Non abonnés)' },
+                  { id: 'plus_only', label: 'Abonnés Plus uniquement' },
+                  { id: 'pro_only', label: 'Créateurs Pro uniquement' },
+                ]}
+              />
             </div>
 
             <div>
               <label className="block text-xs font-semibold text-foreground mb-1">
                 Type / Thème visuel
               </label>
-              <select
+              <Select
+                label="Ton"
+                hideLabel
                 value={type}
-                onChange={(e) =>
-                  setType(e.target.value as 'promo' | 'info' | 'warning' | 'critical')
+                onValueChange={(value) =>
+                  setType(value as 'promo' | 'info' | 'warning' | 'critical')
                 }
-                className="w-full rounded-xl border border-border bg-white px-3 py-2 text-xs"
-              >
-                <option value="promo">Promo (Violet / Hostinger)</option>
-                <option value="info">Information (Bleu)</option>
-                <option value="warning">Alerte (Ambre)</option>
-                <option value="critical">Critique (Rouge)</option>
-              </select>
+                options={[
+                  { id: 'promo', label: 'Promo (Violet / Hostinger)' },
+                  { id: 'info', label: 'Information (Bleu)' },
+                  { id: 'warning', label: 'Alerte (Ambre)' },
+                  { id: 'critical', label: 'Critique (Rouge)' },
+                ]}
+              />
             </div>
 
             <div>

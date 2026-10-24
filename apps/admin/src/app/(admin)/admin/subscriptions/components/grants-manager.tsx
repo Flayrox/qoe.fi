@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, Plus } from 'lucide-react';
 import { grantSubscriptionAction, revokeSubscriptionGrantAction } from '@qoe/sdk/actions/admin';
+import { Select } from '@qoe/ui/select';
 import { QueueEmpty } from '@/components/queue/QueueEmpty';
 import { StatusPill } from '@/components/queue/StatusPill';
 import { useStaffAction } from '@/components/queue/useStaffAction';
@@ -83,18 +84,28 @@ export function GrantsManager({ initialItems }: GrantsManagerProps) {
         {showNew && (
           <div className="mt-3 bg-white border border-border rounded-3xl p-5 shadow-sm space-y-2">
             <div className="grid gap-2 md:grid-cols-2">
-              <select
+              <Select
+                label="Type de sujet"
+                hideLabel
+                size="sm"
                 value={subjectType}
-                onChange={(e) => setSubjectType(e.target.value)}
-                className={inputCls}
-              >
-                <option value="publication">Média (publication)</option>
-                <option value="user">Lecteur (compte)</option>
-              </select>
-              <select value={plan} onChange={(e) => setPlan(e.target.value)} className={inputCls}>
-                <option value="pro">Pro (médias + avantages lecteur)</option>
-                <option value="plus">Plus (lecteur)</option>
-              </select>
+                onValueChange={setSubjectType}
+                options={[
+                  { id: 'publication', label: 'Média (publication)' },
+                  { id: 'user', label: 'Lecteur (compte)' },
+                ]}
+              />
+              <Select
+                label="Formule offerte"
+                hideLabel
+                size="sm"
+                value={plan}
+                onValueChange={setPlan}
+                options={[
+                  { id: 'pro', label: 'Pro (médias + avantages lecteur)' },
+                  { id: 'plus', label: 'Plus (lecteur)' },
+                ]}
+              />
             </div>
             <input
               value={subjectId}

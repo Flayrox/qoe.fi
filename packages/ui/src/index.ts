@@ -11,6 +11,23 @@ export * from './tokens';
 // primitive Base UI (`./ui/button`) a été supprimée une fois ses trois
 // derniers consommateurs migrés (calendar, LoginFormBento, OnboardingFlow).
 export { Button, type ButtonProps } from './primitives/button/button';
+// Overlays du contrat : ces noms ne collisionnent pas avec les composants
+// historiques de `ui/` (Sheet, toast.*), qui restent exportés séparément.
+export { Select, type SelectOption, type SelectProps } from './primitives/select/select';
+export {
+  Drawer,
+  DrawerBody,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+  type DrawerProps,
+  type DrawerSide,
+  type DrawerWidth,
+} from './primitives/drawer/drawer';
 export { ImageUploader } from './ui/ImageUploader';
 export { CertifiedBadge, type CertifiedBadgeProps } from './ui/CertifiedBadge';
 export { CookieConsentBanner, CookiePreferencesCenter } from './legal/CookieConsentBanner';

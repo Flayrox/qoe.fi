@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
+import { Select } from '@qoe/ui/select';
 import { ArticleAttributionEditor, type ArticleAttributionDraft } from './ArticleAttributionEditor';
 import { resolveArticleCategoryPath } from '../lib/article-settings';
 import { formatScheduledAt } from '../lib/datetime';
@@ -312,35 +313,37 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
               <SectionTitle icon={<FolderOpen className="h-3.5 w-3.5 text-primary stroke-[1.5]" />}>
                 {t`Thématique & Catégorie`}
               </SectionTitle>
-              <select
+              <Select
+                label={t`Catégorie`}
+                hideLabel
+                size="sm"
                 value={categoryId || ''}
-                onChange={(event) => onCategoryChange(event.target.value || null)}
-                className="w-full bg-background border border-border/40 rounded-xl p-2.5 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-sans cursor-pointer shadow-xs"
-              >
-                <option value="" className="bg-popover text-popover-foreground">
-                  {t`Non catégorisé`}
-                </option>
-                {hierarchicalCategories.roots.map((root) => {
-                  const children = hierarchicalCategories.childrenMap.get(root.id) || [];
-                  if (children.length === 0) {
-                    return (
-                      <option key={root.id} value={root.id}>
-                        {root.displayName}
-                      </option>
-                    );
-                  }
-                  return (
-                    <optgroup key={root.id} label={root.displayName}>
-                      <option value={root.id}>{root.displayName}</option>
-                      {children.map((child) => (
-                        <option key={child.id} value={child.id}>
-                          ↳ {child.displayName}
-                        </option>
-                      ))}
-                    </optgroup>
-                  );
-                })}
-              </select>
+                onValueChange={(value) => onCategoryChange(value || null)}
+                options={[
+                  { id: '', label: t`Non catégorisé` },
+                  // Les rubriques sans sous-rubrique n'ont pas besoin d'un
+                  // groupe : un en-tête pour un seul item est du bruit.
+                  ...hierarchicalCategories.roots
+                    .filter(
+                      (root) => (hierarchicalCategories.childrenMap.get(root.id) || []).length === 0
+                    )
+                    .map((root) => ({ id: root.id, label: root.displayName })),
+                ]}
+                groups={hierarchicalCategories.roots
+                  .filter(
+                    (root) => (hierarchicalCategories.childrenMap.get(root.id) || []).length > 0
+                  )
+                  .map((root) => ({
+                    label: root.displayName,
+                    options: [
+                      { id: root.id, label: root.displayName },
+                      ...(hierarchicalCategories.childrenMap.get(root.id) || []).map((child) => ({
+                        id: child.id,
+                        label: child.displayName,
+                      })),
+                    ],
+                  }))}
+              />
             </section>
 
             <section className="space-y-3 pt-4 border-t border-border/40">

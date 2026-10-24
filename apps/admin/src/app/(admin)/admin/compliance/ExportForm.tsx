@@ -22,6 +22,7 @@
 import { useRef, useState } from 'react';
 import { Download, Loader2 } from 'lucide-react';
 import { toast } from '@qoe/ui/toast';
+import { Select } from '@qoe/ui/select';
 import { attemptWithStepUp, readMessage } from '@/lib/authz-feedback';
 
 interface ExportOutcome {
@@ -121,21 +122,21 @@ export function ExportForm({ documents }: { documents: { slug: string; title?: s
           className="mt-1 w-full rounded-lg border border-border bg-background px-2 py-1.5 text-xs font-normal text-foreground"
         />
       </label>
-      <label className="text-[11px] font-semibold text-muted-foreground">
-        Document (optionnel)
-        <select
+      <div className="text-[11px] font-semibold text-muted-foreground">
+        <span>Document (optionnel)</span>
+        <Select
+          label="Document à exporter"
+          hideLabel
+          size="sm"
+          className="mt-1"
           name="slug"
           defaultValue=""
-          className="mt-1 w-full rounded-lg border border-border bg-background px-2 py-1.5 text-xs font-normal text-foreground"
-        >
-          <option value="">Tous les documents</option>
-          {documents.map((doc) => (
-            <option key={doc.slug} value={doc.slug}>
-              {doc.title || doc.slug}
-            </option>
-          ))}
-        </select>
-      </label>
+          options={[
+            { id: '', label: 'Tous les documents' },
+            ...documents.map((doc) => ({ id: doc.slug, label: doc.title || doc.slug })),
+          ]}
+        />
+      </div>
       <label className="text-[11px] font-semibold text-muted-foreground">
         Depuis (optionnel)
         <input

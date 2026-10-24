@@ -1,13 +1,13 @@
 {
-  "generatedAt": "2026-10-24T21:02:16.638Z",
-  "total": 310,
+  "generatedAt": "2026-10-24T21:54:37.726Z",
+  "total": 319,
   "signals": {
-    "primitivesNeverImported": 19,
-    "primitivesTotal": 43,
-    "rawButtons": 731,
+    "primitivesNeverImported": 18,
+    "primitivesTotal": 42,
+    "rawButtons": 730,
     "rawButtonFiles": 139,
-    "nativeSelectFiles": 27,
-    "rawInputFiles": 80,
+    "nativeSelectFiles": 1,
+    "rawInputFiles": 79,
     "handRolledOverlays": 29
   },
   "families": [
@@ -25,9 +25,9 @@
         {
           "name": "button",
           "path": "packages/ui/src/primitives/button/button.tsx",
-          "lines": 116,
+          "lines": 144,
           "source": "primitives",
-          "usages": 4
+          "usages": 5
         },
         {
           "name": "card",
@@ -37,9 +37,37 @@
           "usages": 0
         },
         {
+          "name": "calendar",
+          "path": "packages/ui/src/primitives/date/calendar.tsx",
+          "lines": 159,
+          "source": "primitives",
+          "usages": 0
+        },
+        {
+          "name": "date-picker",
+          "path": "packages/ui/src/primitives/date/date-picker.tsx",
+          "lines": 212,
+          "source": "primitives",
+          "usages": 0
+        },
+        {
+          "name": "drawer",
+          "path": "packages/ui/src/primitives/drawer/drawer.tsx",
+          "lines": 218,
+          "source": "primitives",
+          "usages": 0
+        },
+        {
+          "name": "dropdown",
+          "path": "packages/ui/src/primitives/dropdown/dropdown.tsx",
+          "lines": 141,
+          "source": "primitives",
+          "usages": 1
+        },
+        {
           "name": "field-error",
           "path": "packages/ui/src/primitives/field/field-error.tsx",
-          "lines": 42,
+          "lines": 38,
           "source": "primitives",
           "usages": 1
         },
@@ -48,7 +76,14 @@
           "path": "packages/ui/src/primitives/input/input.tsx",
           "lines": 144,
           "source": "primitives",
-          "usages": 3
+          "usages": 4
+        },
+        {
+          "name": "select",
+          "path": "packages/ui/src/primitives/select/select.tsx",
+          "lines": 201,
+          "source": "primitives",
+          "usages": 27
         },
         {
           "name": "separator",
@@ -61,6 +96,13 @@
           "name": "surface",
           "path": "packages/ui/src/primitives/surface/surface.tsx",
           "lines": 46,
+          "source": "primitives",
+          "usages": 0
+        },
+        {
+          "name": "toast",
+          "path": "packages/ui/src/primitives/toast/toast.tsx",
+          "lines": 162,
           "source": "primitives",
           "usages": 0
         }
@@ -113,16 +155,9 @@
           "usages": 1
         },
         {
-          "name": "button",
-          "path": "packages/ui/src/ui/button.tsx",
-          "lines": 74,
-          "source": "ui",
-          "usages": 0
-        },
-        {
           "name": "calendar",
           "path": "packages/ui/src/ui/calendar.tsx",
-          "lines": 213,
+          "lines": 232,
           "source": "ui",
           "usages": 1
         },
@@ -206,7 +241,7 @@
         {
           "name": "ImageUploader",
           "path": "packages/ui/src/ui/ImageUploader.tsx",
-          "lines": 416,
+          "lines": 410,
           "source": "ui",
           "usages": 6
         },
@@ -283,7 +318,7 @@
         {
           "name": "sheet",
           "path": "packages/ui/src/ui/sheet.tsx",
-          "lines": 126,
+          "lines": 128,
           "source": "ui",
           "usages": 1
         },
@@ -318,7 +353,7 @@
         {
           "name": "ThemeToggle",
           "path": "packages/ui/src/ui/ThemeToggle.tsx",
-          "lines": 31,
+          "lines": 32,
           "source": "ui",
           "usages": 1
         },
@@ -346,7 +381,7 @@
         {
           "name": "toast",
           "path": "packages/ui/src/ui/toast.tsx",
-          "lines": 250,
+          "lines": 77,
           "source": "ui",
           "usages": 60
         },
@@ -441,20 +476,6 @@
           "usages": 1
         },
         {
-          "name": "action-menu",
-          "path": "packages/ui/src/heroui/action-menu.tsx",
-          "lines": 115,
-          "source": "ui",
-          "usages": 0
-        },
-        {
-          "name": "scope",
-          "path": "packages/ui/src/heroui/scope.tsx",
-          "lines": 43,
-          "source": "ui",
-          "usages": 0
-        },
-        {
           "name": "use-mobile",
           "path": "packages/ui/src/hooks/use-mobile.ts",
           "lines": 22,
@@ -520,7 +541,7 @@
         {
           "name": "LoginFormBento",
           "path": "packages/ui/src/LoginFormBento.tsx",
-          "lines": 888,
+          "lines": 898,
           "source": "ui",
           "usages": 1
         },
@@ -583,7 +604,7 @@
         {
           "name": "OnboardingFlow",
           "path": "packages/ui/src/onboarding/OnboardingFlow.tsx",
-          "lines": 690,
+          "lines": 691,
           "source": "ui",
           "usages": 1
         },
@@ -604,9 +625,9 @@
         {
           "name": "button",
           "path": "packages/ui/src/primitives/button/button.tsx",
-          "lines": 116,
+          "lines": 144,
           "source": "ui",
-          "usages": 4
+          "usages": 5
         },
         {
           "name": "card",
@@ -616,9 +637,37 @@
           "usages": 0
         },
         {
+          "name": "calendar",
+          "path": "packages/ui/src/primitives/date/calendar.tsx",
+          "lines": 159,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "date-picker",
+          "path": "packages/ui/src/primitives/date/date-picker.tsx",
+          "lines": 212,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "drawer",
+          "path": "packages/ui/src/primitives/drawer/drawer.tsx",
+          "lines": 218,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "dropdown",
+          "path": "packages/ui/src/primitives/dropdown/dropdown.tsx",
+          "lines": 141,
+          "source": "ui",
+          "usages": 1
+        },
+        {
           "name": "field-error",
           "path": "packages/ui/src/primitives/field/field-error.tsx",
-          "lines": 42,
+          "lines": 38,
           "source": "ui",
           "usages": 1
         },
@@ -627,7 +676,14 @@
           "path": "packages/ui/src/primitives/input/input.tsx",
           "lines": 144,
           "source": "ui",
-          "usages": 3
+          "usages": 4
+        },
+        {
+          "name": "select",
+          "path": "packages/ui/src/primitives/select/select.tsx",
+          "lines": 201,
+          "source": "ui",
+          "usages": 27
         },
         {
           "name": "separator",
@@ -640,6 +696,13 @@
           "name": "surface",
           "path": "packages/ui/src/primitives/surface/surface.tsx",
           "lines": 46,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "toast",
+          "path": "packages/ui/src/primitives/toast/toast.tsx",
+          "lines": 162,
           "source": "ui",
           "usages": 0
         },
@@ -1043,7 +1106,7 @@
         {
           "name": "ArticleStreamBlock",
           "path": "packages/ui/src/templates/blocks/ArticleStreamBlock.tsx",
-          "lines": 731,
+          "lines": 732,
           "source": "ui",
           "usages": 0
         },
@@ -1280,7 +1343,7 @@
         {
           "name": "ArticleAttributionEditor",
           "path": "apps/studio/src/features/editor/components/ArticleAttributionEditor.tsx",
-          "lines": 622,
+          "lines": 629,
           "source": "studio",
           "usages": null
         },
@@ -1322,7 +1385,7 @@
         {
           "name": "EditorSettingsDrawer",
           "path": "apps/studio/src/features/editor/components/EditorSettingsDrawer.tsx",
-          "lines": 649,
+          "lines": 650,
           "source": "studio",
           "usages": null
         },
@@ -1574,7 +1637,7 @@
         {
           "name": "navigation",
           "path": "apps/studio/src/features/settings/tabs/navigation.tsx",
-          "lines": 826,
+          "lines": 829,
           "source": "studio",
           "usages": null
         },
@@ -1644,7 +1707,7 @@
         {
           "name": "ContextualEditorBar",
           "path": "apps/studio/src/features/stage/editor-bar/ContextualEditorBar.tsx",
-          "lines": 242,
+          "lines": 247,
           "source": "studio",
           "usages": null
         },
@@ -1665,7 +1728,7 @@
         {
           "name": "text-controls",
           "path": "apps/studio/src/features/stage/editor-bar/controls/text-controls.tsx",
-          "lines": 115,
+          "lines": 114,
           "source": "studio",
           "usages": null
         },
@@ -1749,7 +1812,7 @@
         {
           "name": "RightPanel",
           "path": "apps/studio/src/features/stage/right-panel/RightPanel.tsx",
-          "lines": 819,
+          "lines": 826,
           "source": "studio",
           "usages": null
         },

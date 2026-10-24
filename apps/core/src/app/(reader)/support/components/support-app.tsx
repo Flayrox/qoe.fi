@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { toast } from '@qoe/ui/toast';
+import { Select } from '@qoe/ui/select';
 import { Loader2, LifeBuoy, ShieldCheck } from 'lucide-react';
 import { DossierThread } from '@/components/dossiers/DossierThread';
 import { URLS } from '@qoe/config';
@@ -121,17 +122,18 @@ export function SupportApp({ initialItems }: SupportAppProps) {
       <div className="bg-muted/40 border border-border/40 rounded-xl p-4 space-y-2">
         <h2 className="text-sm font-semibold">Ouvrir un dossier</h2>
         <div className="flex gap-2">
-          <select
+          <Select
+            label="Type de demande"
+            hideLabel
+            size="sm"
+            className="w-48"
             value={kind}
-            onChange={(e) => setKind(e.target.value)}
-            className="text-xs px-3 py-2 rounded-xl border border-border bg-background"
-          >
-            {SUPPORT_KINDS.map((k) => (
-              <option key={k.id} value={k.id}>
-                {k.label}
-              </option>
-            ))}
-          </select>
+            onValueChange={setKind}
+            options={SUPPORT_KINDS.map((supportKind) => ({
+              id: supportKind.id,
+              label: supportKind.label,
+            }))}
+          />
           <input
             value={subject}
             onChange={(e) => setSubject(e.target.value)}

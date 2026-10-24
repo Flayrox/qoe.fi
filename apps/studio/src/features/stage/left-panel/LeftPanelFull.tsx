@@ -34,6 +34,7 @@ import {
   Copy,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Select } from '@qoe/ui/select';
 import { useStageEngine, StageEditorMode } from '../context/StageEngineContext';
 import { ARTICLE_VARIANTS, type BlockType, type TemplateBlock } from '@qoe/ui/templates';
 
@@ -337,17 +338,14 @@ function BrandTab() {
         <div className="px-1 text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
           Typographie globale
         </div>
-        <select
+        <Select
+          label="Typographie globale"
+          hideLabel
+          size="xs"
           value={font}
-          onChange={(e) => engine.updateTokens({ fontFamily: e.target.value })}
-          className="w-full rounded-lg border border-border/60 bg-muted/50 px-2 py-1.5 text-xs"
-        >
-          {FONT_OPTIONS.map((f) => (
-            <option key={f} value={f}>
-              {f}
-            </option>
-          ))}
-        </select>
+          onValueChange={(fontFamily) => engine.updateTokens({ fontFamily })}
+          options={FONT_OPTIONS.map((name) => ({ id: name, label: name }))}
+        />
       </div>
       <div className="space-y-1.5 border-t border-border/40 pt-2">
         <span className="text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
@@ -474,18 +472,20 @@ function PagesTab() {
           <div className="px-1 text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
             Rubrique
           </div>
-          <select
+          <Select
+            label="Rubrique"
+            hideLabel
+            size="xs"
             value={engine.articleCategory ?? ''}
-            onChange={(e) => engine.setArticleCategory(e.target.value || null)}
-            className="w-full rounded-lg border border-border/60 bg-muted/50 px-2 py-1.5 text-xs"
-          >
-            <option value="">Toutes les rubriques</option>
-            {(engine.publication.categories || []).map((c) => (
-              <option key={c.slug} value={c.slug}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+            onValueChange={(category) => engine.setArticleCategory(category || null)}
+            options={[
+              { id: '', label: 'Toutes les rubriques' },
+              ...(engine.publication.categories || []).map((category) => ({
+                id: category.slug,
+                label: category.name,
+              })),
+            ]}
+          />
           <div className="px-1 text-[10px] font-semibold tracking-wider text-muted-foreground/70 uppercase">
             Type de vue article
           </div>

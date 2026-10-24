@@ -24,6 +24,7 @@ import {
 } from '@qoe/sdk';
 import { TextToSpeechProvider, useTextToSpeech } from '@qoe/ui/reader';
 import { toast } from '@qoe/ui/toast';
+import { Select } from '@qoe/ui/select';
 import { cn } from '@qoe/utils';
 import {
   browserOfflineStorage,
@@ -512,18 +513,18 @@ function EbookReaderInner({
           <span>Précédent</span>
         </button>
 
-        <select
-          value={index}
-          onChange={(e) => setIndex(Number(e.target.value))}
-          className="text-xs bg-muted/50 border border-border/50 rounded-xl px-2 py-1.5 max-w-[50%] truncate cursor-pointer"
-          aria-label="Choisir un chapitre"
-        >
-          {chapters.map((c, i) => (
-            <option key={i} value={i}>
-              {i + 1}. {c.title || `Chapitre ${i + 1}`}
-            </option>
-          ))}
-        </select>
+        <Select
+          label="Choisir un chapitre"
+          hideLabel
+          size="xs"
+          className="w-56"
+          value={String(index)}
+          onValueChange={(value) => setIndex(Number(value))}
+          options={chapters.map((chapter, chapterIndex) => ({
+            id: String(chapterIndex),
+            label: `${chapterIndex + 1}. ${chapter.title || `Chapitre ${chapterIndex + 1}`}`,
+          }))}
+        />
 
         <button
           type="button"

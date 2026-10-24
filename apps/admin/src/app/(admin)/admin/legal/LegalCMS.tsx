@@ -12,6 +12,7 @@ import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { findLegalPlaceholders, markdownToHtml } from '@qoe/utils';
 import { getLegalDocumentUrl } from '@qoe/config/legal';
+import { Select } from '@qoe/ui/select';
 import {
   AlertTriangle,
   Archive,
@@ -1024,39 +1025,33 @@ function DocumentMeta({ document, pending, onSave, onDelete }: DocumentMetaProps
           />
         </label>
 
-        <label className="space-y-1.5">
+        <div className="space-y-1.5">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Catégorie
           </span>
-          <select
+          <Select
+            label="Catégorie"
+            hideLabel
+            size="sm"
             value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className={inputClass()}
-          >
-            {CATEGORIES.map((value) => (
-              <option key={value} value={value}>
-                {CATEGORY_LABELS[value]}
-              </option>
-            ))}
-          </select>
-        </label>
+            onValueChange={setCategory}
+            options={CATEGORIES.map((value) => ({ id: value, label: CATEGORY_LABELS[value] }))}
+          />
+        </div>
 
-        <label className="space-y-1.5">
+        <div className="space-y-1.5">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Audience
           </span>
-          <select
+          <Select
+            label="Audience"
+            hideLabel
+            size="sm"
             value={audience}
-            onChange={(e) => setAudience(e.target.value)}
-            className={inputClass()}
-          >
-            {AUDIENCES.map((value) => (
-              <option key={value} value={value}>
-                {AUDIENCE_LABELS[value]}
-              </option>
-            ))}
-          </select>
-        </label>
+            onValueChange={setAudience}
+            options={AUDIENCES.map((value) => ({ id: value, label: AUDIENCE_LABELS[value] }))}
+          />
+        </div>
 
         <label className="flex items-start gap-3 rounded-xl border border-border px-4 py-3">
           <input
@@ -1154,20 +1149,23 @@ function VersionEditorModal({
         </div>
 
         <div className="grid flex-1 gap-4 overflow-y-auto p-5 sm:grid-cols-2">
-          <label className="space-y-1.5">
+          <div className="space-y-1.5">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Locale
             </span>
-            <select
+            <Select
+              label="Locale"
+              hideLabel
+              size="sm"
               value={draft.locale}
               disabled={isEdit}
-              onChange={(e) => onChange({ ...draft, locale: e.target.value })}
-              className={inputClass('disabled:opacity-60')}
-            >
-              <option value="fr">Français</option>
-              <option value="en">English</option>
-            </select>
-          </label>
+              onValueChange={(locale) => onChange({ ...draft, locale })}
+              options={[
+                { id: 'fr', label: 'Français' },
+                { id: 'en', label: 'English' },
+              ]}
+            />
+          </div>
 
           <label className="space-y-1.5">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -1344,38 +1342,32 @@ function NewDocumentModal({ pending, onClose, onCreate }: NewDocumentModalProps)
               className={inputClass()}
             />
           </label>
-          <label className="space-y-1.5">
+          <div className="space-y-1.5">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Catégorie
             </span>
-            <select
+            <Select
+              label="Catégorie"
+              hideLabel
+              size="sm"
               value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className={inputClass()}
-            >
-              {CATEGORIES.map((value) => (
-                <option key={value} value={value}>
-                  {CATEGORY_LABELS[value]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="space-y-1.5">
+              onValueChange={setCategory}
+              options={CATEGORIES.map((value) => ({ id: value, label: CATEGORY_LABELS[value] }))}
+            />
+          </div>
+          <div className="space-y-1.5">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Audience
             </span>
-            <select
+            <Select
+              label="Audience"
+              hideLabel
+              size="sm"
               value={audience}
-              onChange={(e) => setAudience(e.target.value)}
-              className={inputClass()}
-            >
-              {AUDIENCES.map((value) => (
-                <option key={value} value={value}>
-                  {AUDIENCE_LABELS[value]}
-                </option>
-              ))}
-            </select>
-          </label>
+              onValueChange={setAudience}
+              options={AUDIENCES.map((value) => ({ id: value, label: AUDIENCE_LABELS[value] }))}
+            />
+          </div>
           <label className="space-y-1.5 sm:col-span-2">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Résumé
