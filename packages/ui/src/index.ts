@@ -162,3 +162,11 @@ export {
   type AboutPageContentProps,
   type AboutCustomConfig,
 } from './templates/blocks/AboutPageContent';
+
+// 🎨 Color Picker moderne & haute performance
+export {
+  ColorPicker,
+  EDITORIAL_BACKGROUND_PRESETS,
+  type ColorPickerProps,
+  type ColorPreset,
+} from './ui/color-picker';

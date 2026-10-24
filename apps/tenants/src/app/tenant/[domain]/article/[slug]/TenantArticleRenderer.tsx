@@ -24,6 +24,7 @@ import {
 import { buildPublicDescription, sliceContentAtPaywall } from '@qoe/utils';
 import { ContentVisibility, getLegalDocumentUrl, getMainAppUrl } from '@qoe/config';
 import { t } from '@lingui/core/macro';
+import { buildCreatorVars } from '@qoe/theme';
 import {
   fetchCanonicalDocument,
   type TenantPublication,
@@ -96,10 +97,23 @@ export async function TenantArticleRenderer({
     siteLayouts.home?.tokens?.fontFamily ||
     'sans';
 
+  const siteOpts = (publication.siteOptions ??
+    (publication as unknown as { site_options?: Record<string, unknown> | null }).site_options ??
+    {}) as Record<string, unknown>;
+  const backgroundColor = (siteOpts.backgroundColor as string) || null;
+
+  const creatorThemeVars = buildCreatorVars({
+    accentColor,
+    backgroundColor,
+    fontFamily: effectiveFontFamily,
+    themeMode,
+  });
+
   const customStyle = {
     '--tenant-accent': accentColor || '#C04328',
     fontFamily: resolveFontFamily(effectiveFontFamily),
     ...(themeMode === 'dark' && { colorScheme: 'dark' }),
+    ...creatorThemeVars,
   } as React.CSSProperties;
 
   const plainText = (article.content || '').replace(/<[^>]*>?/gm, '');

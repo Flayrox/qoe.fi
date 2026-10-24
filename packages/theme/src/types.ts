@@ -19,6 +19,8 @@ export type AccentVariant = 'none' | 'vermillion';
 export interface CreatorTheme {
   /** Couleur d'accent HEX (ex: "#EE4B2B"). Override --primary sur le sous-arbre. */
   accentColor?: string | null;
+  /** Couleur de fond personnalisée HEX (ex: "#FAF8F5", "#E0F2FE"). Override --background et adapte le contraste. */
+  backgroundColor?: string | null;
   /** Famille de police active (clé de registre, ex: "sans" | "serif" | "mono"). */
   fontFamily?: string | null;
   /** URL du logo créateur. */

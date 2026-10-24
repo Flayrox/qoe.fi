@@ -12,6 +12,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { t } from '@lingui/core/macro';
+import { ColorPicker } from '@qoe/ui';
 import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
 import { cn } from '@qoe/utils';
@@ -258,6 +259,34 @@ export function GeneralTab({
                     </span>
                   </div>
                 </div>
+              </div>
+
+              {/* Couleur de fond du site (sur-mesure) */}
+              <div className="space-y-1.5 pt-2 border-t border-border/30">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-foreground block">
+                    Couleur de fond du site
+                  </label>
+                  <span className="text-[10px] text-muted-foreground font-medium">
+                    {(current.siteOptions?.backgroundColor as string)
+                      ? 'Personnalisé'
+                      : 'Par défaut (Neutre)'}
+                  </span>
+                </div>
+
+                <ColorPicker
+                  value={(current.siteOptions?.backgroundColor as string) || null}
+                  onChange={(hex) =>
+                    setCurrent((prev) => ({
+                      ...prev,
+                      siteOptions: {
+                        ...(prev.siteOptions || {}),
+                        backgroundColor: hex,
+                      },
+                    }))
+                  }
+                  defaultLabel="Thème neutre standard"
+                />
               </div>
             </div>
           </div>
