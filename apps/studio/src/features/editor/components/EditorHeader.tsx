@@ -57,6 +57,18 @@ export interface EditorHeaderProps {
   onRetryAutoSave: () => void;
 }
 
+/** « 25 oct. 09:00 » — date de programmation lisible dans le badge d'état. */
+function formatScheduleDate(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleString(undefined, {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 function SaveState({
   isSaving,
   autoSaveStatus,
@@ -215,7 +227,9 @@ export function EditorHeader(props: EditorHeaderProps) {
                   : status === 'SUBMITTED'
                     ? t`En revue`
                     : status === 'SCHEDULED' || scheduledAt
-                      ? t`Programmé`
+                      ? scheduledAt
+                        ? t`Programmé · ${formatScheduleDate(scheduledAt)}`
+                        : t`Programmé`
                       : t`Brouillon privé`}
               </span>
               <span className="hidden sm:inline">{t`Rédigez sans bruit ni distraction`}</span>

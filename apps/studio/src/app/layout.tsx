@@ -37,6 +37,8 @@ import {
 
 // CSS global unifié — source unique dans @qoe/theme
 import '@qoe/theme/styles';
+// Ajustements propres au corps d'article dans l'éditeur
+import './editor.css';
 
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
 const inter = Inter({ variable: '--font-body', subsets: ['latin'] });

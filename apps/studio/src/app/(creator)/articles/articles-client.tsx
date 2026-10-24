@@ -968,8 +968,16 @@ export function ArticlesClient({
       if (!matchesSearch) return false;
 
       // 2. Status filter
+      // Un article programmé n'est ni publié ni brouillon : il a son propre
+      // onglet, sinon il se cacherait dans « Brouillons » alors qu'il partira
+      // tout seul à la date prévue.
       if (statusFilter === 'published' && !art.published) return false;
-      if (statusFilter === 'draft' && (art.published || art.status === 'SUBMITTED')) return false;
+      if (statusFilter === 'scheduled' && art.status !== 'SCHEDULED') return false;
+      if (
+        statusFilter === 'draft' &&
+        (art.published || art.status === 'SUBMITTED' || art.status === 'SCHEDULED')
+      )
+        return false;
       if (statusFilter === 'review' && art.status !== 'SUBMITTED') return false;
 
       // 3. Category filter (matches parent or sub-categories, or uncategorized)
@@ -1019,7 +1027,10 @@ export function ArticlesClient({
     });
 
   const countPublished = articles.filter((a) => a.published).length;
-  const countDrafts = articles.filter((a) => !a.published && a.status !== 'SUBMITTED').length;
+  const countScheduled = articles.filter((a) => a.status === 'SCHEDULED').length;
+  const countDrafts = articles.filter(
+    (a) => !a.published && a.status !== 'SUBMITTED' && a.status !== 'SCHEDULED'
+  ).length;
   const countReview = articles.filter((a) => a.status === 'SUBMITTED').length;
 
   return (
@@ -1113,6 +1124,9 @@ export function ArticlesClient({
                     [
                       ['all', t`Tous`, articles.length],
                       ['published', t`Publiés`, countPublished],
+                      ...(countScheduled > 0
+                        ? ([['scheduled', t`Programmés`, countScheduled]] as const)
+                        : []),
                       ['draft', t`Brouillons`, countDrafts],
                       ...(canReview && countReview > 0
                         ? ([['review', t`En revue`, countReview]] as const)

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { t } from '@lingui/core/macro';
 import {
   Globe,
@@ -48,23 +48,25 @@ export function PublishModal({
   const [isPremium, setIsPremium] = useState(initialIsPremium);
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSendingTest, setIsSendingTest] = useState(false);
-  const [testSent, setTestSent] = useState(false);
+
+  // Échap ferme la modale — sauf pendant l'envoi, où une fermeture brutale
+  // laisserait l'utilisateur croire que rien n'a été publié.
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !isSubmitting) {
+        event.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, isSubmitting, onClose]);
 
   if (!isOpen) return null;
 
-  const handleSendTest = async () => {
-    setIsSendingTest(true);
-    setTestSent(false);
-    // Simulate/trigger test email to author
-    setTimeout(() => {
-      setIsSendingTest(false);
-      setTestSent(true);
-      setTimeout(() => setTestSent(false), 3000);
-    }, 800);
-  };
-
   const handlePublish = async () => {
+    if (isSubmitting) return;
     setIsSubmitting(true);
     try {
       await onConfirm({ sendEmail, isPremium });
@@ -79,11 +81,18 @@ export function PublishModal({
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/60 backdrop-blur-md transition-opacity"
-        onClick={onClose}
+        onClick={() => {
+          if (!isSubmitting) onClose();
+        }}
       />
 
       {/* Modal Dialog */}
-      <div className="relative w-full max-w-2xl bg-background text-foreground rounded-3xl border border-border shadow-2xl overflow-hidden z-10 flex flex-col max-h-[92vh]">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={t`Prêt pour la publication`}
+        className="relative w-full max-w-2xl bg-background text-foreground rounded-3xl border border-border shadow-2xl overflow-hidden z-10 flex flex-col max-h-[92vh]"
+      >
         {/* Header */}
         <div className="p-6 border-b border-border/60 relative flex items-start justify-between">
           <div>
@@ -100,7 +109,8 @@ export function PublishModal({
           </div>
           <button
             onClick={onClose}
-            className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+            disabled={isSubmitting}
+            className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors disabled:opacity-40"
             aria-label={t`Fermer`}
           >
             <X className="w-4 h-4" />
@@ -284,31 +294,12 @@ export function PublishModal({
                 </div>
               </div>
 
-              {/* Send test email bar */}
-              <div className="p-3 bg-muted/40 border-t border-border/40 flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">
-                  {t`Vérifiez le rendu dans votre messagerie avant d'envoyer.`}
-                </span>
-                <button
-                  type="button"
-                  onClick={handleSendTest}
-                  disabled={isSendingTest}
-                  className="px-3 py-1.5 rounded-lg border border-border bg-background hover:bg-muted font-medium transition-all flex items-center gap-1.5"
-                >
-                  {isSendingTest ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : testSent ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-success" />
-                      <span>{t`Envoyé !`}</span>
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-3.5 h-3.5" />
-                      <span>{t`Envoyer un test`}</span>
-                    </>
-                  )}
-                </button>
+              {/* Ce bloc était un faux envoi (une minuterie affichait « Envoyé ! »
+                  sans rien expédier). Un test d'envoi réel existe dans
+                  Réglages → Emails & Abonnés : on renvoie vers lui plutôt que
+                  de simuler un succès. */}
+              <div className="p-3 bg-muted/40 border-t border-border/40 text-xs text-muted-foreground">
+                {t`Cet aperçu est local (titre + extrait). Pour recevoir un vrai test dans votre boîte : Réglages → Emails & Abonnés → « Envoyer un test à mon adresse ».`}
               </div>
             </div>
           )}

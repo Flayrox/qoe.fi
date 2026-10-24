@@ -33,6 +33,29 @@ interface UseCollaborationSessionOptions {
   roomId?: string;
 }
 
+/**
+ * Jeton d'accès Supabase prêt à l'emploi.
+ *
+ * `getSession()` renvoie la session **telle qu'elle est stockée** : si son
+ * jeton a expiré (une heure, et la session est rafraîchie côté serveur par le
+ * middleware), on envoyait un jeton mort au serveur de collaboration, qui
+ * refusait chaque connexion — d'où la boucle « token invalide ». On rafraîchit
+ * donc avant de connecter.
+ */
+async function getAccessToken(): Promise<string> {
+  const supabase = createSupabaseClient();
+  const { data } = await supabase.auth.getSession();
+  const session = data.session;
+  const nowSeconds = Math.floor(Date.now() / 1000);
+
+  if (session && (!session.expires_at || session.expires_at - 60 > nowSeconds)) {
+    return session.access_token;
+  }
+
+  const { data: refreshed } = await supabase.auth.refreshSession();
+  return refreshed.session?.access_token ?? session?.access_token ?? '';
+}
+
 export function useCollaborationSession({
   enabled = true,
   roomId,
@@ -50,10 +73,7 @@ export function useCollaborationSession({
             name: `article:${roomId}`,
             document: collaborationDoc,
             // JWT Supabase de la session courante — validé côté serveur.
-            token: async () => {
-              const session = await createSupabaseClient().auth.getSession();
-              return session.data.session?.access_token ?? '';
-            },
+            token: () => getAccessToken(),
           })
         : null,
     [collaborationDoc, roomId]
@@ -63,6 +83,10 @@ export function useCollaborationSession({
   useEffect(() => {
     let cancelled = false;
     (async () => {
+      // Même précaution que pour la connexion : on lit un jeton frais, donc
+      // une session utilisable.
+      const token = await getAccessToken();
+      if (!token) return;
       const session = await createSupabaseClient().auth.getSession();
       const user = session.data.session?.user;
       if (cancelled || !user) return;

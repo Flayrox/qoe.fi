@@ -1,0 +1,57 @@
+/* ═══════════════════════════════════════════════════════════════════
+   apps/studio — editor.css
+   Ajustements du seul corps d'article *dans l'éditeur*.
+
+   L'éditeur utilise la même feuille que la page publiée (.article-prose) :
+   ce que l'auteur voit est ce que le lecteur verra (puces, numéros,
+   citations, code, légendes). Ce fichier n'ajoute que ce qui n'a de sens
+   qu'en édition.
+   ═══════════════════════════════════════════════════════════════════ */
+
+.qoe-editor {
+  outline: none;
+  caret-color: var(--primary);
+  min-height: 60vh;
+}
+
+/* Les liens ne s'ouvrent pas au clic dans l'éditeur : le curseur texte
+   annonce qu'on édite, pas qu'on navigue. */
+.qoe-editor a {
+  cursor: text;
+}
+
+/* Puces et numéros plus discrets que le texte : ils guident sans crier. */
+.qoe-editor li::marker {
+  color: color-mix(in oklch, var(--foreground) 45%, transparent);
+}
+
+/* Invite du corps vide (extension Placeholder). */
+.qoe-editor p.is-editor-empty:first-child::before,
+.qoe-editor p.is-empty[data-placeholder]:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: color-mix(in oklch, var(--foreground) 30%, transparent);
+  font-weight: 400;
+}
+
+/* Une ligne vide doit rester cliquable et respirer comme une ligne pleine. */
+.qoe-editor p.is-empty::after,
+.qoe-editor p:has(> br.ProseMirror-trailingBreak)::after {
+  content: '';
+  display: inline-block;
+  height: 1em;
+}
+
+/* Les images sélectionnées montrent leur poignée sans casser le rythme. */
+.qoe-editor img.ProseMirror-selectednode {
+  outline: 2px solid color-mix(in oklch, var(--primary) 55%, transparent);
+  outline-offset: 3px;
+}
+
+/* Le nœud paywall reste sélectionnable au clic, mais sans halo de focus. */
+.qoe-editor .paywall-divider-component:focus,
+.qoe-editor .paywall-divider-component:focus-visible {
+  outline: none;
+}

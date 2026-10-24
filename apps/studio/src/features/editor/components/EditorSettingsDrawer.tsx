@@ -68,6 +68,53 @@ export interface EditorSettingsDrawerProps {
   footer?: React.ReactNode;
 }
 
+/** Valeur `datetime-local` (heure locale, sans secondes) pour un Date. */
+function toLocalInputValue(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
+    date.getHours()
+  )}:${pad(date.getMinutes())}`;
+}
+
+/** Raccourcis de programmation : les trois moments réellement demandés. */
+function schedulePresets(): { label: string; value: string }[] {
+  const now = new Date();
+
+  const nextHour = new Date(now.getTime() + 60 * 60 * 1000);
+  nextHour.setMinutes(0, 0, 0);
+
+  const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 9, 0, 0, 0);
+
+  const daysUntilMonday = (8 - now.getDay()) % 7 || 7;
+  const monday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + daysUntilMonday,
+    9,
+    0,
+    0,
+    0
+  );
+
+  return [
+    { label: t`Dans 1 h`, value: toLocalInputValue(nextHour) },
+    { label: t`Demain 9 h`, value: toLocalInputValue(tomorrow) },
+    { label: t`Lundi 9 h`, value: toLocalInputValue(monday) },
+  ];
+}
+
+/** « dans 3 h », « dans 2 j » — null si la date est passée ou invalide. */
+function scheduleCountdown(iso: string): string | null {
+  const target = new Date(iso).getTime();
+  if (Number.isNaN(target)) return null;
+  const diffMinutes = Math.round((target - Date.now()) / 60000);
+  if (diffMinutes <= 0) return null;
+  if (diffMinutes < 60) return t`Publication dans ${diffMinutes} min.`;
+  const hours = Math.round(diffMinutes / 60);
+  if (hours < 24) return t`Publication dans ${hours} h.`;
+  return t`Publication dans ${Math.round(hours / 24)} j.`;
+}
+
 function SectionTitle({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
   return (
     <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider font-sans flex items-center gap-2">
@@ -346,44 +393,90 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
                 <SectionTitle
                   icon={<CalendarClock className="h-3.5 w-3.5 text-primary stroke-[1.5]" />}
                 >
-                  {t`Programmation`}
+                  {t`Date de publication`}
                 </SectionTitle>
-                <p className="text-[10px] text-muted-foreground leading-relaxed">
-                  {t`Heure locale (${timeZoneLabel}). La publication est déclenchée automatiquement.`}
-                </p>
-                {scheduledLabel && (
-                  <p className="text-[11px] font-medium text-highlight">
-                    {t`Prévu le`} {scheduledLabel}
+
+                {status === 'PUBLISHED' && !scheduledAt ? (
+                  // Programmer un article en ligne le retirerait du site : le
+                  // serveur refuse (errAlreadyPublished). On l'explique ici
+                  // plutôt que d'afficher un formulaire qui échouera.
+                  <p className="text-[10px] text-muted-foreground leading-relaxed">
+                    {t`Cet article est en ligne. Le programmer le rendrait invisible jusqu'à la date choisie : dépubliez-le d'abord si vous voulez le repositionner dans le temps.`}
                   </p>
-                )}
-                <div className="flex items-center gap-1.5">
-                  <input
-                    type="datetime-local"
-                    value={scheduleDraft}
-                    onChange={(event) => onScheduleDraftChange(event.target.value)}
-                    disabled={schedulePending}
-                    className="h-8 min-w-0 flex-1 rounded-lg border border-border/60 bg-background px-2 text-xs text-foreground disabled:opacity-50"
-                    aria-label={t`Date et heure de programmation`}
-                  />
-                  <button
-                    type="button"
-                    onClick={onSchedule}
-                    disabled={schedulePending}
-                    className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-highlight px-2.5 text-xs font-semibold text-highlight-foreground hover:opacity-90 disabled:opacity-50"
-                  >
-                    {schedulePending && <Loader2 className="h-3 w-3 animate-spin" />}
-                    {schedulePending ? t`Programmation…` : t`Programmer`}
-                  </button>
-                </div>
-                {scheduledAt && (
-                  <button
-                    type="button"
-                    onClick={onClearSchedule}
-                    disabled={schedulePending}
-                    className="text-[11px] text-destructive hover:underline disabled:opacity-50"
-                  >
-                    {t`Effacer la programmation`}
-                  </button>
+                ) : (
+                  <>
+                    {scheduledAt && scheduledLabel ? (
+                      <div className="rounded-xl border border-highlight/30 bg-highlight/5 p-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-highlight">
+                          {t`Programmé`}
+                        </p>
+                        <p className="mt-0.5 text-sm font-medium text-foreground">
+                          {scheduledLabel}
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground">
+                          {scheduleCountdown(scheduledAt) ??
+                            t`Publication automatique à cette heure (${timeZoneLabel}).`}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-[10px] text-muted-foreground leading-relaxed">
+                        {t`Choisissez une date : l'article sera publié automatiquement à ce moment (heure locale ${timeZoneLabel}).`}
+                      </p>
+                    )}
+
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {schedulePresets().map((preset) => (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => onScheduleDraftChange(preset.value)}
+                          disabled={schedulePending}
+                          className="rounded-full border border-border/60 bg-muted/30 px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="datetime-local"
+                        value={scheduleDraft}
+                        onChange={(event) => onScheduleDraftChange(event.target.value)}
+                        disabled={schedulePending}
+                        className="h-8 min-w-0 flex-1 rounded-lg border border-border/60 bg-background px-2 text-xs text-foreground disabled:opacity-50"
+                        aria-label={t`Date et heure de programmation`}
+                      />
+                      <button
+                        type="button"
+                        onClick={onSchedule}
+                        disabled={schedulePending}
+                        className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg bg-highlight px-2.5 text-xs font-semibold text-highlight-foreground hover:opacity-90 disabled:opacity-50"
+                      >
+                        {schedulePending && <Loader2 className="h-3 w-3 animate-spin" />}
+                        {schedulePending
+                          ? t`Programmation…`
+                          : scheduledAt
+                            ? t`Reporter`
+                            : t`Programmer`}
+                      </button>
+                    </div>
+
+                    <p className="text-[10px] text-muted-foreground/80 leading-relaxed">
+                      {t`Tant que la date n'est pas passée, vous pouvez la déplacer autant de fois que nécessaire : chaque report est conservé dans l'historique.`}
+                    </p>
+
+                    {scheduledAt && (
+                      <button
+                        type="button"
+                        onClick={onClearSchedule}
+                        disabled={schedulePending}
+                        className="text-[11px] text-destructive hover:underline disabled:opacity-50"
+                      >
+                        {t`Annuler la programmation`}
+                      </button>
+                    )}
+                  </>
                 )}
               </section>
             )}
