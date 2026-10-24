@@ -18,6 +18,7 @@ import { FieldsSpecimen } from './specimens/09-fields';
 import { OverlaysSpecimen } from './specimens/10-overlays';
 import { DatesSpecimen } from './specimens/11-dates';
 import { CompositionSpecimen } from './specimens/12-composition';
+import { InputsComplexSpecimen } from './specimens/13-inputs-complexes';
 
 const SPECIMENS = [
   {
@@ -143,6 +144,19 @@ const SPECIMENS = [
       'packages/ui/src/primitives/toolbar/toolbar.tsx',
     ],
     Component: CompositionSpecimen,
+  },
+  {
+    id: '13-inputs-complexes',
+    index: '13',
+    title: 'Saisies longues — recherche, table, couleur',
+    question:
+      'Les contrôles qui demandent plus qu’une valeur : filtrer une liste, trier un tableau, choisir une couleur. Chacun doit rester utilisable au clavier seul.',
+    sources: [
+      'packages/ui/src/primitives/combobox/combobox.tsx',
+      'packages/ui/src/primitives/table/table.tsx',
+      'packages/ui/src/primitives/color/color.tsx',
+    ],
+    Component: InputsComplexSpecimen,
   },
 ];
 

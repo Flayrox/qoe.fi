@@ -9,7 +9,7 @@ import {
 } from 'react';
 import { cn } from '@qoe/utils';
 
-import { DISABLED, type Size } from '../contract';
+import { DISABLED, FIELD_SIZES, type Size } from '../contract';
 
 /**
  * Le `size` natif d'un `<input>` est un nombre de caractères — on le retire
@@ -29,13 +29,6 @@ export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 
  * — et l'oubli est silencieux pour les lecteurs d'écran.
  */
 const InputGroupContext = createContext<{ invalid: boolean } | null>(null);
-
-const FIELD_SIZES: Record<Size, string> = {
-  xs: 'h-control-xs px-2 type-control-xs',
-  sm: 'h-control-sm px-2.5 type-control-sm',
-  md: 'h-control-md px-3 type-control-md',
-  lg: 'h-control-lg px-3.5 type-control-lg',
-};
 
 /**
  * Champ de saisie.

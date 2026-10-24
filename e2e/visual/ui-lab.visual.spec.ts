@@ -100,6 +100,16 @@ test.describe('primitives — rendu de référence', () => {
     await expect(composition).toHaveScreenshot('composition.png');
   });
 
+  test('saisies longues : recherche, table, couleur', async ({ page }) => {
+    const inputs = await section(page, '13-inputs-complexes');
+    // La table est une grille react-aria : si le rôle disparaît, la capture
+    // ne montrera pas la régression de navigation au clavier.
+    await expect(inputs.getByRole('grid').first()).toBeVisible();
+    await expect(inputs.getByRole('combobox').first()).toBeVisible();
+
+    await expect(inputs).toHaveScreenshot('inputs-complexes.png');
+  });
+
   test('overlays — menu ouvert', async ({ page }) => {
     const overlays = await section(page, '10-overlays');
 

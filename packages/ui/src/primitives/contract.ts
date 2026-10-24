@@ -43,6 +43,19 @@ export const SIZE_CLASSES: Record<Size, string> = {
 };
 
 /**
+ * Champ de saisie (input, combobox, champ de couleur, zone de texte) :
+ * hauteur, gouttière et typographie par densité. Le bouton et le champ
+ * partagent les mêmes hauteurs, pas les mêmes paddings — un bouton a un
+ * libellé centré, un champ a du texte qui commence au bord.
+ */
+export const FIELD_SIZES: Record<Size, string> = {
+  xs: 'h-control-xs px-2 type-control-xs',
+  sm: 'h-control-sm px-2.5 type-control-sm',
+  md: 'h-control-md px-3 type-control-md',
+  lg: 'h-control-lg px-3.5 type-control-lg',
+};
+
+/**
  * Anneau de focus : identique partout, visible au clavier uniquement.
  * Un anneau qui diffère d'un composant à l'autre est le premier signe
  * d'un design system qui se délite.
