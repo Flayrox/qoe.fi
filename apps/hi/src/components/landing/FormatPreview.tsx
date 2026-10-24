@@ -38,7 +38,7 @@ export const FormatPreview = ({ config }: FormatPreviewProps) => {
       content: {
         title: t`Le Courrier de la Souveraineté`,
         badge: t`NEWSLETTER HEBDOMADAIRE`,
-        preview: t`Envoyez directement vos travaux à vos abonnés par e-mail en un clic via notre API Brevo intégrée. Les e-mails reprennent fidèlement votre style, votre logo, et vos couleurs d'accentuation, sans publicité additionnelle.`,
+        preview: t`Envoyez directement vos travaux à vos abonnés par e-mail en un clic via notre infrastructure intégrée. Les e-mails reprennent fidèlement votre style, votre logo, et vos couleurs d'accentuation, sans publicité additionnelle.`,
         meta: t`Lu par 14,000 abonnés`,
       },
     },
