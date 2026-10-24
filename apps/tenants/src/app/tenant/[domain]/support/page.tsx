@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { headers } from 'next/headers';
 import type { Metadata } from 'next';
 import { Heart } from 'lucide-react';
 import { fetchTenantPublication } from '@/lib/tenant-data';
@@ -27,8 +28,11 @@ export default async function TenantSupportPage({ params }: PageProps) {
   const publication = await fetchTenantPublication(decodedDomain);
   if (!publication) notFound();
 
+  const headersList = await headers();
+  const host = headersList.get('x-forwarded-host') || headersList.get('host') || decodedDomain;
+
   return (
-    <TenantPageShell publication={publication} domain={decodedDomain}>
+    <TenantPageShell publication={publication} domain={decodedDomain} host={host}>
       <div className="flex items-center gap-3">
         <span className="rounded-lg bg-muted p-2.5">
           <Heart className="h-5 w-5" />

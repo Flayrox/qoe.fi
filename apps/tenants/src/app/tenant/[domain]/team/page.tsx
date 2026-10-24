@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { headers } from 'next/headers';
 import Link from 'next/link';
 import type { Metadata } from 'next';
 import { ArrowLeft } from 'lucide-react';
@@ -29,8 +30,11 @@ export default async function TenantTeamPage({ params }: PageProps) {
   const publication = await fetchTenantPublication(decodedDomain);
   if (!publication) notFound();
 
+  const headersList = await headers();
+  const host = headersList.get('x-forwarded-host') || headersList.get('host') || decodedDomain;
+
   return (
-    <TenantPageShell publication={publication} domain={decodedDomain}>
+    <TenantPageShell publication={publication} domain={decodedDomain} host={host}>
       <div className="mx-auto w-full max-w-[680px] space-y-8 py-4">
         <div className="space-y-2">
           <Link

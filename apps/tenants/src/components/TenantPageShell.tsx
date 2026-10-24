@@ -10,6 +10,7 @@ import type { TenantPublication } from '@/lib/tenant-data';
 interface TenantPageShellProps {
   publication: TenantPublication;
   domain: string;
+  host?: string;
   backLabel?: string;
   children: React.ReactNode;
 }
@@ -17,6 +18,7 @@ interface TenantPageShellProps {
 export function TenantPageShell({
   publication,
   domain,
+  host,
   backLabel,
   children,
 }: TenantPageShellProps) {
@@ -51,7 +53,7 @@ export function TenantPageShell({
     id: publication.id,
     name: publication.name,
     slug: publication.slug,
-    domain,
+    domain: host || domain,
     subdomain: publication.subdomain,
     customDomain: publication.customDomain,
     logoUrl: publication.logoUrl,

@@ -1,6 +1,7 @@
 import { buildArticlePath } from '@qoe/utils';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { headers } from 'next/headers';
 import type { Metadata } from 'next';
 import { fetchTenantPublication } from '@/lib/tenant-data';
 import { TenantPageShell } from '@/components/TenantPageShell';
@@ -43,8 +44,11 @@ export default async function TenantAuthorPage({ params }: PageProps) {
 
   if (items.length === 0) notFound();
 
+  const headersList = await headers();
+  const host = headersList.get('x-forwarded-host') || headersList.get('host') || decodedDomain;
+
   return (
-    <TenantPageShell publication={publication} domain={decodedDomain}>
+    <TenantPageShell publication={publication} domain={decodedDomain} host={host}>
       <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
         Auteur
       </p>

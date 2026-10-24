@@ -60,7 +60,7 @@ export function SubscribeForm({
     }
   }, []);
 
-  const mainApp = getMainAppUrl(currentHostname || 'qoe.fi');
+  const mainApp = getMainAppUrl(currentHostname || undefined);
   const qoefiSubscribeUrl = `${mainApp}/subscribe-with-qoefi?publication=${encodeURIComponent(
     publicationId
   )}${currentUrl ? `&return=${encodeURIComponent(currentUrl)}` : ''}`;
