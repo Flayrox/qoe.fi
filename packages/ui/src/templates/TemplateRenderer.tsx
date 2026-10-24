@@ -42,6 +42,7 @@ import { CategorySpotlightBlock } from './blocks/CategorySpotlightBlock';
 import { DEMO_ARTICLES } from './demo';
 import { resolveTheme } from './registry';
 import { resolveFontFamily } from './style';
+import { buildCreatorVars } from '@qoe/theme';
 
 export interface TemplateRendererProps {
   config: LayoutConfig;
@@ -104,10 +105,20 @@ export function TemplateRenderer({
   const rawFontFamily = config.tokens?.fontFamily || publication.fontFamily || 'inherit';
   const resolvedFont = resolveFontFamily(rawFontFamily);
 
+  const rawSiteOptions = (publication.siteOptions ?? {}) as Record<string, unknown>;
+  const backgroundColor = (rawSiteOptions.backgroundColor as string) || null;
+  const creatorThemeVars = buildCreatorVars({
+    accentColor: config.tokens?.accentColor || publication.accentColor || null,
+    backgroundColor,
+    fontFamily: rawFontFamily,
+    themeMode: publication.themeMode,
+  });
+
   const customStyle: React.CSSProperties = {
     '--tenant-accent': accentColor,
     fontFamily: resolvedFont,
     ...(publication.themeMode === 'dark' && { colorScheme: 'dark' }),
+    ...creatorThemeVars,
   } as React.CSSProperties;
 
   const cardShape = config.tokens?.cardShape || 'rounded-xl';

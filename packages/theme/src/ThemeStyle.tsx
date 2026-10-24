@@ -12,7 +12,7 @@
 
 import * as React from 'react';
 import type { CreatorTheme } from './types';
-import { buildBackgroundVariables } from './colors';
+import { buildBackgroundVariables, isColorDark } from './colors';
 
 interface ThemeStyleProps {
   /** Données de branding créateur (depuis la DB). */
@@ -35,6 +35,7 @@ export function buildCreatorVars(creator: CreatorTheme): Record<string, string> 
 
   if (creator.accentColor) {
     vars['--primary'] = creator.accentColor;
+    vars['--primary-foreground'] = isColorDark(creator.accentColor) ? '#ffffff' : '#09090b';
     vars['--ring'] = creator.accentColor;
     vars['--sidebar-primary'] = creator.accentColor;
     vars['--sidebar-ring'] = creator.accentColor;

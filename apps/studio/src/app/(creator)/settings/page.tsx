@@ -32,7 +32,7 @@ interface SettingsPublicationDTO {
   seoDescription: string | null;
   allowIndexing: boolean;
   supportUrl: string | null;
-  siteOptions?: Record<string, boolean> | null;
+  siteOptions?: Record<string, unknown> | null;
   navigation: {
     id: string;
     label: string;

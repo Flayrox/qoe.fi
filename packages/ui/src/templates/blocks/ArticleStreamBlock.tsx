@@ -559,8 +559,8 @@ export function ArticleStreamBlock({
                     </div>
                   </div>
                 ) : items.length === 0 ? (
-                  <div className="py-16 text-center border border-dashed border-border/40 rounded-[4px] p-8 space-y-3">
-                    <p className="text-sm text-muted-foreground">
+                  <div className="py-16 text-center border border-dashed border-border/60 bg-card/50 rounded-2xl p-8 space-y-3 backdrop-blur-xs">
+                    <p className="text-sm font-medium text-muted-foreground">
                       Aucun article dans cette rubrique pour le moment.
                     </p>
                     <a
@@ -575,12 +575,14 @@ export function ArticleStreamBlock({
 
               {/* Colonne Latérale (~35%) Sticky : Auteur + Recommandations Réseau + Newsletter + Top Lectures */}
               <div className="lg:col-span-4 lg:sticky lg:top-24">
-                <PublicationSidebar
-                  publication={publication}
-                  articles={items}
-                  context={context}
-                  showTopArticles={!isTrioMode}
-                />
+                <div className="rounded-2xl border border-border/50 bg-card/60 p-6 backdrop-blur-xs shadow-2xs">
+                  <PublicationSidebar
+                    publication={publication}
+                    articles={items}
+                    context={context}
+                    showTopArticles={!isTrioMode}
+                  />
+                </div>
               </div>
             </div>
           </div>

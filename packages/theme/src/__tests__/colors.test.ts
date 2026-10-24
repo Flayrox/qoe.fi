@@ -47,6 +47,8 @@ describe('@qoe/theme colors', () => {
       expect(isColorDark('#E0F2FE')).toBe(false);
       // Soft sage
       expect(isColorDark('#E8F5E9')).toBe(false);
+      // Vivid lime (#91BD39, luminance 0.426) -> light background requiring dark text!
+      expect(isColorDark('#91BD39')).toBe(false);
     });
 
     it('accurately identifies dark backgrounds (requiring light text)', () => {
@@ -66,7 +68,7 @@ describe('@qoe/theme colors', () => {
       const vars = buildBackgroundVariables('#FAF8F5');
       expect(vars['--background']).toBe('#faf8f5');
       expect(vars['--foreground']).toBe('#09090b');
-      expect(vars['--muted-foreground']).toBe('#71717a');
+      expect(vars['--muted-foreground']).toBe('#3f3f46');
       expect(vars['--card']).toContain('color-mix(in oklab');
       expect(vars['color-scheme']).toBe('light');
     });

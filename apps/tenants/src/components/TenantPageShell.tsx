@@ -2,7 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { TenantHeader } from '@qoe/ui';
-import { buildCreatorVars } from '@qoe/theme';
+import { buildCreatorVars, ThemeStyle } from '@qoe/theme';
 import type { TenantPublication } from '@/lib/tenant-data';
 import { LegalFooterLinks } from './legal/LegalFooterLinks';
 
@@ -57,6 +57,7 @@ export function TenantPageShell({
       className={`min-h-screen ${themeMode === 'dark' ? 'dark bg-foreground text-background' : 'bg-background text-foreground'} selection:bg-[var(--tenant-accent)] selection:text-white transition-colors duration-300`}
       style={customStyle}
     >
+      <ThemeStyle creator={{ accentColor, backgroundColor, fontFamily, themeMode }} scope=":root" />
       <TenantHeader
         name={name}
         domain={domain}
