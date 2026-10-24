@@ -187,6 +187,40 @@ export interface ArticleEditorPayload extends Article {
   commentsCount: number;
 }
 
+/** Entrée de la chronologie de publication d'un article (append-only). */
+export type ArticleEventType =
+  | 'CREATED'
+  | 'PUBLISHED'
+  | 'LIVE_UPDATED'
+  | 'UNPUBLISHED'
+  | 'SCHEDULED'
+  | 'RESCHEDULED'
+  | 'SCHEDULE_CANCELLED'
+  | 'SCHEDULED_PUBLISHED'
+  | 'SUBMITTED'
+  | 'APPROVED'
+  | 'REJECTED';
+
+export interface ArticleEvent {
+  id: string;
+  type: ArticleEventType;
+  fromStatus?: string;
+  toStatus?: string;
+  scheduledAt?: string | null;
+  actorId?: string;
+  actorName?: string;
+  actorUsername?: string;
+  createdAt: string;
+}
+
+/**
+ * 📜 Historique de publication d'un article, le plus récent d'abord.
+ * Même visibilité que l'édition (auteur, média autorisé, co-auteur).
+ */
+export const getArticleEventsAction = safeAction<string, ArticleEvent[]>(async (articleId) => {
+  return goFetch<ArticleEvent[]>(`/v1/articles/${encodeURIComponent(articleId)}/events`);
+});
+
 export const getArticleByIdAction = safeAction<string, ArticleEditorPayload | null>(async (id) => {
   // ✅ Go-only : l'auth (auteur / membre de la publication) est vérifiée côté Go.
   try {

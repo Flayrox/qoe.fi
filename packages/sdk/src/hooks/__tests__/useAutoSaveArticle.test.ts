@@ -159,4 +159,37 @@ describe('useAutoSaveArticle module', () => {
 
     expect(onSave).toHaveBeenCalledTimes(1);
   });
+
+  it("7. Tant que le contenu n'est pas chargé, aucune sauvegarde ne part", async () => {
+    // Régression : l'éditeur déclenchait un auto-save au montage, avant même
+    // que le document de l'article soit dans l'éditeur. Le corps encore vide
+    // écrasait alors le brouillon — l'indicateur affichait « enregistré »
+    // alors que le contenu venait d'être perdu.
+    vi.useFakeTimers();
+    const onSave = vi.fn().mockResolvedValue({ id: 'art-1' });
+    const { result, rerender } = renderHook(
+      ({ ready }: { ready: boolean }) =>
+        useAutoSaveArticle({ delay: 1000, enabled: ready, onSave }),
+      { initialProps: { ready: false } }
+    );
+
+    act(() => {
+      result.current.scheduleAutoSave({ title: 'Titre', content: '', slug: 'titre' });
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(5000);
+    });
+    expect(onSave).not.toHaveBeenCalled();
+
+    // Une fois le contenu prêt, la sauvegarde reprend son cours.
+    rerender({ ready: true });
+    act(() => {
+      result.current.scheduleAutoSave({ title: 'Titre', content: '<p>a</p>', slug: 'titre' });
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(1000);
+    });
+    await act(async () => {});
+    expect(onSave).toHaveBeenCalledTimes(1);
+  });
 });

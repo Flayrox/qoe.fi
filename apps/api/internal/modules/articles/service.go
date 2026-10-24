@@ -28,49 +28,52 @@ var (
 	errNotFound             = errors.New("article introuvable")
 	errForbidden            = errors.New("permission insuffisante")
 	errInvalidContentFormat = errors.New("contentFormat invalide (markdown|html)")
+	// errAlreadyPublished protège les articles en ligne : une programmation ne
+	// doit jamais retirer un article publié du site en attendant sa date.
+	errAlreadyPublished = errors.New("Un article publié ne peut pas être programmé : retirez-le du site (ou partez d'un brouillon) avant de fixer une date.")
 )
 
 // ArticleResponse est la forme API d'un article (contenu éventuellement tronqué).
 type ArticleResponse struct {
-	ID                     string            `json:"id"`
-	Title                  string            `json:"title"`
-	Slug                   string            `json:"slug"`
-	Content                string            `json:"content"`
+	ID                     string                         `json:"id"`
+	Title                  string                         `json:"title"`
+	Slug                   string                         `json:"slug"`
+	Content                string                         `json:"content"`
 	LiveContent            *string                        `json:"liveContent,omitempty"`
 	DraftContent           *string                        `json:"draftContent,omitempty"`
 	HasUnpublishedChanges  bool                           `json:"hasUnpublishedChanges"`
 	ReviewFeedback         *ArticleReviewFeedbackResponse `json:"reviewFeedback,omitempty"`
 	Published              bool                           `json:"published"`
-	IsPremium              bool              `json:"isPremium"`
-	Visibility             string            `json:"visibility"`
-	ReadingTime            int               `json:"readingTime"`
-	Status                 string            `json:"status"`
-	ScheduledAt            *string           `json:"scheduledAt"`
-	PublicationID          string            `json:"publicationId"`
-	AuthorID               string            `json:"authorId"`
-	CategoryID             *string           `json:"categoryId"`
-	TierID                 *string           `json:"tierId"`
-	SeoTitle               *string           `json:"seoTitle"`
-	SeoDescription         *string           `json:"seoDescription"`
-	ImageUrl               *string           `json:"imageUrl"`
-	CreatedAt              string            `json:"createdAt"`
-	UpdatedAt              string            `json:"updatedAt"`
-	IsTruncated            bool              `json:"isTruncated"`
-	AccessGranted          bool              `json:"accessGranted"`
-	AllowDownload          bool              `json:"allowDownload"`
-	AllowPublicAnnotations bool              `json:"allowPublicAnnotations"`
-	AllowComments          bool              `json:"allowComments"`
-	PaywallMeta            *PaywallMeta      `json:"paywallMeta"`
-	Author                 AuthorInfo        `json:"author"`
-	Publication            *PublicationInfo  `json:"publication"`
-	Category               *CategoryInfo     `json:"category"`
-	CoAuthors              []AuthorInfo      `json:"coAuthors"`
-	Attributions           []AttributionInfo `json:"attributions"`
-	Views                  int               `json:"views"`
-	ViewsUnique            int               `json:"viewsUnique"`
-	CommentsCount          int               `json:"commentsCount"`
-	LikesCount             int               `json:"likesCount"`
-	RepostsCount           int               `json:"repostsCount"`
+	IsPremium              bool                           `json:"isPremium"`
+	Visibility             string                         `json:"visibility"`
+	ReadingTime            int                            `json:"readingTime"`
+	Status                 string                         `json:"status"`
+	ScheduledAt            *string                        `json:"scheduledAt"`
+	PublicationID          string                         `json:"publicationId"`
+	AuthorID               string                         `json:"authorId"`
+	CategoryID             *string                        `json:"categoryId"`
+	TierID                 *string                        `json:"tierId"`
+	SeoTitle               *string                        `json:"seoTitle"`
+	SeoDescription         *string                        `json:"seoDescription"`
+	ImageUrl               *string                        `json:"imageUrl"`
+	CreatedAt              string                         `json:"createdAt"`
+	UpdatedAt              string                         `json:"updatedAt"`
+	IsTruncated            bool                           `json:"isTruncated"`
+	AccessGranted          bool                           `json:"accessGranted"`
+	AllowDownload          bool                           `json:"allowDownload"`
+	AllowPublicAnnotations bool                           `json:"allowPublicAnnotations"`
+	AllowComments          bool                           `json:"allowComments"`
+	PaywallMeta            *PaywallMeta                   `json:"paywallMeta"`
+	Author                 AuthorInfo                     `json:"author"`
+	Publication            *PublicationInfo               `json:"publication"`
+	Category               *CategoryInfo                  `json:"category"`
+	CoAuthors              []AuthorInfo                   `json:"coAuthors"`
+	Attributions           []AttributionInfo              `json:"attributions"`
+	Views                  int                            `json:"views"`
+	ViewsUnique            int                            `json:"viewsUnique"`
+	CommentsCount          int                            `json:"commentsCount"`
+	LikesCount             int                            `json:"likesCount"`
+	RepostsCount           int                            `json:"repostsCount"`
 }
 
 // AttributionInfo est une attribution d'article pour l'éditeur (co-auteur).
@@ -459,12 +462,22 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateArticleInp
 	s.syncAttributions(ctx, id, userID, in.Attributions)
 	s.queueSearchSync(id, "upsert")
 
+	// Premier jalon de la chronologie de l'article.
+	s.recordEvent(ctx, EventInput{
+		ArticleID: id, PublicationID: in.PublicationID, ActorID: userID,
+		Type: EventCreated, ToStatus: statusOrDraft(status),
+	})
+
 	switch {
 	case status == "SUBMITTED":
 		s.notifyReviewers(ctx, in.PublicationID, id, userID)
 	case published:
 		if row, err := s.q.GetArticleByID(ctx, id); err == nil {
 			s.emitPublished(ctx, row)
+			s.recordEvent(ctx, EventInput{
+				ArticleID: id, PublicationID: in.PublicationID, ActorID: userID,
+				Type: EventPublished, FromStatus: "DRAFT", ToStatus: statusOrDraft(status),
+			})
 		}
 	}
 	return id, nil
@@ -486,8 +499,8 @@ func (s *Service) List(ctx context.Context, userID, publicationID string, limit,
 	for _, r := range rows {
 		item := ArticleResponse{
 			ID: r.ID, Title: r.Title, Slug: r.Slug, Published: r.Published,
-			HasUnpublishedChanges:  r.HasUnpublishedChanges.Valid && r.HasUnpublishedChanges.Bool,
-			IsPremium: r.IsPremium, Visibility: string(r.Visibility), ReadingTime: int(r.ReadingTime),
+			HasUnpublishedChanges: r.HasUnpublishedChanges.Valid && r.HasUnpublishedChanges.Bool,
+			IsPremium:             r.IsPremium, Visibility: string(r.Visibility), ReadingTime: int(r.ReadingTime),
 			Status: r.Status, PublicationID: r.PublicationId,
 			AllowPublicAnnotations: r.AllowPublicAnnotations,
 			AllowComments:          r.AllowComments,
@@ -515,6 +528,7 @@ func (s *Service) List(ctx context.Context, userID, publicationID string, limit,
 		comments := s.fetchCommentsBatch(ctx, ids)
 		likes := s.fetchLikesBatch(ctx, ids)
 		reposts := s.fetchRepostsBatch(ctx, ids)
+		scheduled := s.fetchScheduledBatch(ctx, ids)
 		for i := range out {
 			if v, ok := views[out[i].ID]; ok {
 				out[i].Views = v
@@ -530,6 +544,11 @@ func (s *Service) List(ctx context.Context, userID, publicationID string, limit,
 			}
 			if r, ok := reposts[out[i].ID]; ok {
 				out[i].RepostsCount = r
+			}
+			// La liste du studio affiche la date de programmation : sans elle,
+			// un article « Programm\u00e9 » ne dit pas quand il partira.
+			if at, ok := scheduled[out[i].ID]; ok {
+				out[i].ScheduledAt = &at
 			}
 		}
 	}
@@ -1021,6 +1040,12 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 			ID:           articleID,
 			DraftContent: pgtype.Text{Valid: false},
 		})
+		// Le brouillon vient d'être promu en public : c'est une mise à jour
+		// de la version en ligne, pas une nouvelle publication.
+		s.recordEvent(ctx, EventInput{
+			ArticleID: articleID, PublicationID: row.PublicationId, ActorID: userID,
+			Type: EventLiveUpdated, FromStatus: statusOrDraft(row.Status), ToStatus: statusOrDraft(effectiveStatus),
+		})
 	}
 
 	if _, err := s.q.UpdateArticleFull(ctx, db.UpdateArticleFullParams{
@@ -1047,11 +1072,19 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 			Action:        "SUBMITTED",
 			Comment:       pgtype.Text{String: "", Valid: false},
 		})
+		s.recordEvent(ctx, EventInput{
+			ArticleID: articleID, PublicationID: row.PublicationId, ActorID: userID,
+			Type: EventSubmitted, FromStatus: statusOrDraft(row.Status), ToStatus: "SUBMITTED",
+		})
 	}
 
 	// Fan-out + événement à la transition draft→publié.
 	if effectivePublished && !row.Published {
 		s.emitPublished(ctx, row)
+		s.recordEvent(ctx, EventInput{
+			ArticleID: articleID, PublicationID: row.PublicationId, ActorID: userID,
+			Type: EventPublished, FromStatus: statusOrDraft(row.Status), ToStatus: statusOrDraft(effectiveStatus),
+		})
 	}
 	return nil
 }
@@ -1088,6 +1121,15 @@ func (s *Service) SetStatus(ctx context.Context, articleID, userID, status strin
 	s.queueSearchSync(articleID, "upsert")
 	if published {
 		s.emitPublished(ctx, row)
+		s.recordEvent(ctx, EventInput{
+			ArticleID: articleID, PublicationID: row.PublicationId, ActorID: userID,
+			Type: EventPublished, FromStatus: statusOrDraft(row.Status), ToStatus: statusOrDraft(status),
+		})
+	} else if status == "SCHEDULED" && scheduledAt != nil {
+		s.recordEvent(ctx, EventInput{
+			ArticleID: articleID, PublicationID: row.PublicationId, ActorID: userID,
+			Type: EventScheduled, FromStatus: statusOrDraft(row.Status), ToStatus: "SCHEDULED", ScheduledAt: scheduledAt,
+		})
 	}
 	return nil
 }
@@ -1121,6 +1163,10 @@ func (s *Service) Unpublish(ctx context.Context, articleID, userID string) error
 	}
 	if row.Published {
 		s.queueSearchSync(articleID, "upsert")
+		s.recordEvent(ctx, EventInput{
+			ArticleID: articleID, PublicationID: row.PublicationId, ActorID: userID,
+			Type: EventUnpublished, FromStatus: statusOrDraft(row.Status), ToStatus: "DRAFT",
+		})
 	}
 	return nil
 }
@@ -1137,21 +1183,36 @@ func (s *Service) Schedule(ctx context.Context, articleID, userID string, schedu
 		return err
 	}
 	if scheduledAt == nil {
-		// Annulation : retour au brouillon, plus de date.
-		status := row.Status
-		if status == "SCHEDULED" {
-			status = "DRAFT"
+		// Annulation : uniquement pour un article réellement programmé. Sans
+		// cette garde, appeler l'annulation sur un article publié (ou même un
+		// brouillon) le forçait à `published = false` : le site perdait
+		// silencieusement un article en ligne.
+		if row.Status != "SCHEDULED" {
+			return nil
 		}
+		status := "DRAFT"
 		if _, err := s.q.SetArticleStatus(ctx, db.SetArticleStatusParams{
 			ID: articleID, Status: status, Published: false,
+			ScheduledAt: pgtype.Timestamp{Valid: false},
 		}); err != nil {
 			return err
 		}
 		s.queueSearchSync(articleID, "upsert")
+		s.recordEvent(ctx, EventInput{
+			ArticleID: articleID, PublicationID: row.PublicationId, ActorID: userID,
+			Type: EventScheduleCancelled, FromStatus: statusOrDraft(row.Status), ToStatus: statusOrDraft(status),
+		})
 		return nil
 	}
 	if !scheduledAt.After(time.Now()) {
 		return errors.New("La date de programmation doit être dans le futur.")
+	}
+	// Programmer un article EN LIGNE le retirerait du site jusqu'à la date
+	// choisie (`published = false`), alors que « reporter » ne signifie jamais
+	// « dépublier ». Aucune mise à jour programmée n'existe : on refuse, et
+	// l'article reste en ligne.
+	if row.Published {
+		return errAlreadyPublished
 	}
 	if !mc.can(permissions.PermPublishAny) {
 		return errForbidden
@@ -1163,6 +1224,18 @@ func (s *Service) Schedule(ctx context.Context, articleID, userID string, schedu
 		return err
 	}
 	s.queueSearchSync(articleID, "upsert")
+	// Une date déjà programmée qui change est un report, pas une première
+	// programmation : la chronologie doit le dire.
+	wasScheduled := row.Status == "SCHEDULED" && row.ScheduledAt.Valid
+	eventType := EventScheduled
+	if wasScheduled {
+		eventType = EventRescheduled
+	}
+	s.recordEvent(ctx, EventInput{
+		ArticleID: articleID, PublicationID: row.PublicationId, ActorID: userID,
+		Type: eventType, FromStatus: statusOrDraft(row.Status), ToStatus: "SCHEDULED",
+		ScheduledAt: scheduledAt,
+	})
 	return nil
 }
 
@@ -1610,6 +1683,32 @@ func (s *Service) fetchRepostsBatch(ctx context.Context, ids []string) map[strin
 	return s.fetchArticleCountBatch(ctx, ids, `SELECT "quotedArticleId", COUNT(*)::int FROM "Post" WHERE "quotedArticleId" = ANY($1) GROUP BY "quotedArticleId"`)
 }
 
+// fetchScheduledBatch rend la date de programmation (RFC 3339, UTC) des
+// articles concern\u00e9s. Une seule requ\u00eate par page, et rien du tout quand
+// aucun article n'est programm\u00e9 : la colonne n'est pas dans le SELECT de
+// ListArticlesWithCategory (sqlc), on l'enrichit ici sans r\u00e9g\u00e9n\u00e9rer le code.
+func (s *Service) fetchScheduledBatch(ctx context.Context, ids []string) map[string]string {
+	m := map[string]string{}
+	if s.pool == nil || len(ids) == 0 {
+		return m
+	}
+	rows, err := s.pool.Query(ctx,
+		`SELECT id, "scheduledAt" FROM "Article"
+		 WHERE id = ANY($1) AND "scheduledAt" IS NOT NULL`, ids)
+	if err != nil {
+		return m
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		var at pgtype.Timestamp
+		if err := rows.Scan(&id, &at); err == nil && at.Valid {
+			m[id] = at.Time.UTC().Format(time.RFC3339)
+		}
+	}
+	return m
+}
+
 func (s *Service) fetchArticleCountBatch(ctx context.Context, ids []string, query string) map[string]int {
 	m := map[string]int{}
 	if s.pool == nil || len(ids) == 0 {
@@ -1706,6 +1805,14 @@ func (s *Service) Review(ctx context.Context, articleID, userID string, approve 
 	if approve && !row.Published {
 		s.emitPublished(ctx, row)
 	}
+	eventType := EventRejected
+	if approve {
+		eventType = EventApproved
+	}
+	s.recordEvent(ctx, EventInput{
+		ArticleID: articleID, PublicationID: row.PublicationId, ActorID: userID,
+		Type: eventType, FromStatus: "SUBMITTED", ToStatus: statusOrDraft(status),
+	})
 	return nil
 }
 

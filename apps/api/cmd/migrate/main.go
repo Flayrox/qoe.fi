@@ -22,6 +22,7 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -29,7 +30,52 @@ import (
 	"github.com/pressly/goose/v3"
 )
 
+// loadEnvFile lit `apps/api/.env` quand DATABASE_URL n'est pas déjà exporté.
+//
+// Sans cela, `pnpm db:migrate` (qui lance simplement `go run ./cmd/migrate up`)
+// échouait avec « DATABASE_URL non definie » : le processus Go ne lit aucun
+// fichier d'environnement, contrairement à Next.js. Les variables déjà
+// présentes dans le processus restent prioritaires (en CI/prod, l'environnement
+// réel gagne toujours).
+func loadEnvFile() {
+	if strings.TrimSpace(os.Getenv("DATABASE_URL")) != "" {
+		return
+	}
+	candidates := []string{".env"}
+	if exe, err := os.Executable(); err == nil {
+		candidates = append(candidates, filepath.Join(filepath.Dir(exe), "..", ".env"))
+	}
+	for _, path := range candidates {
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		for _, line := range strings.Split(string(raw), "\n") {
+			trimmed := strings.TrimSpace(strings.TrimSuffix(line, "\r"))
+			if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+				continue
+			}
+			key, value, found := strings.Cut(trimmed, "=")
+			if !found {
+				continue
+			}
+			key = strings.TrimSpace(strings.TrimPrefix(key, "export "))
+			value = strings.TrimSpace(value)
+			value = strings.Trim(value, "\"'")
+			if key == "" || os.Getenv(key) != "" {
+				continue
+			}
+			_ = os.Setenv(key, value)
+		}
+		if strings.TrimSpace(os.Getenv("DATABASE_URL")) != "" {
+			return
+		}
+	}
+}
+
 func main() {
+	loadEnvFile()
+
 	dir := flag.String("dir", "sql/migrations", "repertoire des migrations SQL")
 	allowDestructive := flag.Bool("allow-destructive", false, "autorise down/down-to uniquement sur une base *_test")
 	flag.Parse()

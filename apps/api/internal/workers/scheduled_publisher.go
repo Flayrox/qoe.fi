@@ -25,6 +25,10 @@ type ScheduledArticle struct {
 	Title         string
 	Slug          string
 	Visibility    string
+	// ScheduledAt est conservé pour l'historique : la colonne est effacée
+	// après publication (plus rien à programmer), l'événement garde la date
+	// réellement demandée par l'auteur.
+	ScheduledAt time.Time
 }
 
 // PublishScheduledArticlePayload construit le payload asynq article.published
@@ -82,7 +86,7 @@ func runScheduledPublisherOnce(ctx context.Context, pool *pgxpool.Pool, ac *asyn
 	defer func() { _ = tx.Rollback(ctx) }() // no-op après commit
 
 	rows, err := tx.Query(ctx, `
-		SELECT id, "publicationId", "authorId", title, slug, visibility
+		SELECT id, "publicationId", "authorId", title, slug, visibility, "scheduledAt"
 		FROM "Article"
 		WHERE status = 'SCHEDULED' AND "scheduledAt" IS NOT NULL AND "scheduledAt" <= now()
 		ORDER BY "scheduledAt" ASC
@@ -94,7 +98,7 @@ func runScheduledPublisherOnce(ctx context.Context, pool *pgxpool.Pool, ac *asyn
 	var due []ScheduledArticle
 	for rows.Next() {
 		var a ScheduledArticle
-		if err := rows.Scan(&a.ID, &a.PublicationID, &a.AuthorID, &a.Title, &a.Slug, &a.Visibility); err != nil {
+		if err := rows.Scan(&a.ID, &a.PublicationID, &a.AuthorID, &a.Title, &a.Slug, &a.Visibility, &a.ScheduledAt); err != nil {
 			rows.Close()
 			return 0, fmt.Errorf("scan: %w", err)
 		}
@@ -110,8 +114,13 @@ func runScheduledPublisherOnce(ctx context.Context, pool *pgxpool.Pool, ac *asyn
 	}
 
 	for _, a := range due {
+		// `scheduledAt` est remis à NULL : la programmation est consommée. Sans
+		// cela, l'article publié gardait une date de programmation passée, que
+		// l'éditeur réaffichait comme une programmation encore active.
 		if _, err := tx.Exec(ctx,
-			`UPDATE "Article" SET status = 'PUBLISHED', published = true WHERE id = $1`, a.ID); err != nil {
+			`UPDATE "Article"
+			    SET status = 'PUBLISHED', published = true, "scheduledAt" = NULL, "updatedAt" = now()
+			  WHERE id = $1`, a.ID); err != nil {
 			return 0, fmt.Errorf("update %s: %w", a.ID, err)
 		}
 	}
@@ -122,6 +131,14 @@ func runScheduledPublisherOnce(ctx context.Context, pool *pgxpool.Pool, ac *asyn
 	// Fanout asynq APRÈS le commit : les handlers (webhooks, newsletter)
 	// lisent l'article déjà PUBLISHED en base.
 	for _, a := range due {
+		// Trace dans la chronologie de l'article. Après le commit : un échec
+		// d'audit ne doit pas annuler une publication déjà acquise.
+		if _, err := pool.Exec(ctx, `
+			INSERT INTO "ArticleEvent" ("articleId", "publicationId", "type", "fromStatus", "toStatus", "scheduledAt")
+			VALUES ($1, $2, 'SCHEDULED_PUBLISHED', 'SCHEDULED', 'PUBLISHED', $3)`, a.ID, a.PublicationID, a.ScheduledAt); err != nil {
+			log.Printf("scheduled publisher: historique article %s: %v", a.ID, err)
+		}
+
 		// Ré-ancrage des surlignages sur le contenu final avant exposition +
 		// annotations officielles du studio → entités ancrées (auteur lu en
 		// base par SyncOfficialMarks).
