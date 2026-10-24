@@ -11,6 +11,7 @@ import {
   ArrowUp,
   ArrowDown,
   FileText,
+  Shield,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { isReservedTenantRoute } from '@qoe/config';
@@ -499,6 +500,16 @@ export function NavigationTab({
                     placeholder="/about ou https://mon-podcast.com"
                     className="flex-1 px-3 py-1.5 bg-background border border-border/40 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80"
                   />
+
+                  {nav.isExternal && (
+                    <span
+                      className="inline-flex items-center gap-1 text-[10px] font-medium text-warning bg-warning/10 px-2 py-1 rounded-md border border-warning/20 shrink-0 select-none"
+                      title="Ce lien externe sera sécurisé par la page d'avertissement avant redirection hors de la publication."
+                    >
+                      <Shield className="w-3 h-3" />
+                      <span className="hidden sm:inline">Sortie sécurisée</span>
+                    </span>
+                  )}
 
                   <button
                     type="button"

@@ -471,11 +471,13 @@ export function MinimalCraftShell({
                   nav.url?.startsWith('https://') ||
                   nav.url?.startsWith('//'));
               const isCustomActive = !isExt && nav.url && currentPath === nav.url;
+              const targetHref =
+                isExt && nav.url ? `/exit?url=${encodeURIComponent(nav.url)}` : nav.url || '#';
 
               return (
                 <a
                   key={nav.id || nIdx}
-                  href={nav.url || '#'}
+                  href={targetHref}
                   target={isExt ? '_blank' : undefined}
                   rel={isExt ? 'noopener noreferrer' : undefined}
                   className={cn(
