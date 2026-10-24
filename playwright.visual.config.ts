@@ -32,10 +32,11 @@ export default defineConfig({
   expect: {
     timeout: 15_000,
     toHaveScreenshot: {
-      // 0,1 % de la surface : de quoi absorber l'anti-crénelage, pas assez
-      // pour laisser passer une ligne de texte qui apparaît. Sur une section
-      // de 1 400 px de haut, cela représente une zone d'environ 60 × 60 px.
-      maxDiffPixelRatio: 0.001,
+      // 0,02 % de la surface : de quoi absorber l'anti-crénelage, pas assez
+      // pour laisser passer une régression localisée. À 0,1 % une section
+      // haute de 1 500 px tolérait encore 1 400 pixels de différence, et un
+      // avatar cassé (48 px de côté) passait sans que le test bronche.
+      maxDiffPixelRatio: 0.0002,
       animations: 'disabled',
       caret: 'hide',
       scale: 'css',

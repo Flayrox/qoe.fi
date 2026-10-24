@@ -157,14 +157,23 @@
     0 32px 64px rgba(0, 0, 0, 0.04);
   --shadow-sidebar: 2px 0 24px rgba(0, 0, 0, 0.03);
 
-  /* Radii imbriqués */
+  /* Radii — échelle unique, pas de 4 px entre les niveaux.
+
+     L'ancienne échelle (2 / 4 px) donnait des angles presque droits : les
+     contrôles ressemblaient à des rectangles posés sur la page, et un
+     panneau de 12 px de rayon collé à un bouton de 4 px jurait. À l'inverse,
+     tout arrondir à 16 px transforme les barres d'outils en pilules.
+
+     Le juste milieu retenu : 4 px pour les étiquettes (elles restent
+     carrées, c'est lisible à cette taille), 8 px pour ce qu'on manipule,
+     12 px pour les panneaux, 16 px pour les grandes surfaces. */
   --radius: var(--radius-base);
-  --radius-plateau: 4px;
-  --radius-card: 4px;
-  --radius-element: 2px;
-  --radius-chip: 2px;
-  --radius-button: 4px;
-  --radius-icon: 2px;
+  --radius-plateau: 16px;
+  --radius-card: 12px;
+  --radius-element: 6px;
+  --radius-chip: 4px;
+  --radius-button: 8px;
+  --radius-icon: 6px;
 
   /* Échelle de densité — hauteurs de contrôle (bouton, champ, sélecteur).
      Une seule source : changer une valeur ici change TOUS les composants

@@ -13,6 +13,7 @@ import { I18nClientProvider } from '@qoe/i18n/provider';
 import { getStaticTranslations, initI18n } from '@qoe/i18n/server';
 import { TooltipProvider } from '@qoe/ui/ui/tooltip';
 import { Toaster } from '@qoe/ui/toast';
+import { LocaleProvider } from '@qoe/ui/locale';
 import { cn } from '@qoe/utils';
 import { CookieConsentBanner, DevtoolsPanel, ThemeProvider, ThemeSeedScript } from '@qoe/ui';
 import { AnalyticsGate } from '@/components/AnalyticsGate';
@@ -119,18 +120,22 @@ export default async function RootLayout({
       >
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
           <I18nClientProvider language={locale} staticData={staticData}>
-            <QueryProvider>
-              <TooltipProvider>
-                {children}
-                <Toaster />
-                {/* Vérification de facteur fort (step-up) : monté une fois,
+            {/* La locale du serveur, pas celle du navigateur : react-aria
+                formate les dates avec la même langue des deux côtés. */}
+            <LocaleProvider locale={locale}>
+              <QueryProvider>
+                <TooltipProvider>
+                  {children}
+                  <Toaster />
+                  {/* Vérification de facteur fort (step-up) : monté une fois,
                     appelable via requestStepUp depuis les actions sensibles. */}
-                <StepUpGate />
-                {process.env.NODE_ENV === 'development' && (
-                  <DevtoolsPanel actions={devtoolsActions} />
-                )}
-              </TooltipProvider>
-            </QueryProvider>
+                  <StepUpGate />
+                  {process.env.NODE_ENV === 'development' && (
+                    <DevtoolsPanel actions={devtoolsActions} />
+                  )}
+                </TooltipProvider>
+              </QueryProvider>
+            </LocaleProvider>
           </I18nClientProvider>
         </ThemeProvider>
 
