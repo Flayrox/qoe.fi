@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next';
 import { linguiMacroSwcPlugin } from '@lingui/swc-plugin/options';
 import { withSentryConfig } from '@sentry/nextjs';
+import { LEGACY_TENANT_REDIRECTS } from './src/lib/legacy-redirects';
 
 /**
  * ⚙️ apps/tenants — Config Next.js pour le site public
@@ -56,6 +57,15 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'cdn.qoe.fi' },
       { protocol: 'https', hostname: '**.r2.dev' },
     ],
+  },
+  // Alias historiques (français) → routes canoniques anglaises. Déclarés ici
+  // plutôt qu'en dossiers de routes : une seule source, pas de duplication.
+  async redirects() {
+    return LEGACY_TENANT_REDIRECTS.map(({ source, destination }) => ({
+      source,
+      destination,
+      permanent: true,
+    }));
   },
   async headers() {
     return [

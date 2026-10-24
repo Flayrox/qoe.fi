@@ -26,7 +26,8 @@ export const RESERVED_SUBDOMAINS = [
  * tenant. Une catégorie avec l'un de ces slugs serait inaccessible : la route
  * statique gagne toujours sur le catch-all [categorySlug].
  *
- * Source : apps/tenants/src/app/tenant/[domain] + routes racine de l'app.
+ * Source : apps/tenants/src/app/tenant/[domain], les alias de
+ * `apps/tenants/src/lib/legacy-redirects.ts` + routes racine de l'app.
  * Le test de parité `reserved-routes.test.ts` échoue si une route est ajoutée
  * sans être réservée ici (et dans identifier.go côté Go).
  */
@@ -42,12 +43,13 @@ export const RESERVED_TENANT_ROUTES = [
   'support',
   'sitemap',
   'rss.xml',
+  // Anciennes URLs françaises, servies par les redirections déclaratives
+  // (`legacy-redirects.ts`) : elles occupent toujours leur segment.
   'a-propos',
   'equipe',
   'pensees',
   'notes',
   'auteur',
-  'categorie',
   'api',
   'auth',
   'tenant',

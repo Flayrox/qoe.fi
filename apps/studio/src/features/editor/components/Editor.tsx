@@ -3,7 +3,6 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import Link from '@tiptap/extension-link';
 import Collaboration from '@tiptap/extension-collaboration';
 import { CollaborationCaret } from '@tiptap/extension-collaboration-caret';
 import { TextSelection } from '@tiptap/pm/state';
@@ -268,16 +267,19 @@ export function Editor({
       // Son UndoRedo est incompatible avec l'historique Yjs : on le désactive
       // dès que la collaboration est active (c'est Collaboration qui fournit
       // alors undo/redo).
-      StarterKit.configure({ undoRedo: collaborationDoc ? false : undefined }),
-      // Liens : jamais ouverts au clic dans l'éditeur (on veut pouvoir éditer
-      // le texte), et uniquement des schémas sûrs en sortie HTML.
-      Link.configure({
-        openOnClick: false,
-        autolink: true,
-        linkOnPaste: true,
-        defaultProtocol: 'https',
-        HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' },
-        isAllowedUri: (url) => normalizeLinkUrl(url) !== null,
+      StarterKit.configure({
+        undoRedo: collaborationDoc ? false : undefined,
+        // Liens fournis par StarterKit v3 : jamais ouverts au clic dans
+        // l'éditeur (on veut pouvoir éditer le texte), et uniquement des
+        // schémas sûrs en sortie HTML.
+        link: {
+          openOnClick: false,
+          autolink: true,
+          linkOnPaste: true,
+          defaultProtocol: 'https',
+          HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' },
+          isAllowedUri: (url) => normalizeLinkUrl(url) !== null,
+        },
       }),
       PaywallDivider,
       AnnotationMark,
