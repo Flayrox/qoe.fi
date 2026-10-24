@@ -4,6 +4,8 @@
 
 'use client';
 
+import { Select } from '@qoe/ui/select';
+
 import { InputRadio, InputRange, ColorField } from './inputs';
 import { useQoefiStyle } from '../useQoefiStyle';
 
@@ -16,17 +18,14 @@ export function FontControls() {
     <div className="space-y-2">
       <label className="block space-y-1">
         <span className="text-[10px] font-medium text-muted-foreground">Police</span>
-        <select
+        <Select
+          label="Police"
+          hideLabel
+          size="xs"
           value={f.family ?? 'Inter'}
-          onChange={(e) => patch({ font: { ...f, family: e.target.value } })}
-          className="w-full rounded-lg border border-border/60 bg-muted/50 px-2 py-1.5 text-xs"
-        >
-          {FONT_STACKS.map((name) => (
-            <option key={name} value={name}>
-              {name}
-            </option>
-          ))}
-        </select>
+          onValueChange={(family) => patch({ font: { ...f, family } })}
+          options={FONT_STACKS.map((name) => ({ id: name, label: name }))}
+        />
       </label>
       <InputRange
         label="Taille"
@@ -38,17 +37,17 @@ export function FontControls() {
       />
       <label className="block space-y-1">
         <span className="text-[10px] font-medium text-muted-foreground">Graisse</span>
-        <select
+        <Select
+          label="Graisse"
+          hideLabel
+          size="xs"
           value={String(f.weight ?? 400)}
-          onChange={(e) => patch({ font: { ...f, weight: Number(e.target.value) } })}
-          className="w-full rounded-lg border border-border/60 bg-muted/50 px-2 py-1.5 text-xs"
-        >
-          {[300, 400, 500, 600, 700, 800].map((w) => (
-            <option key={w} value={w}>
-              {w}
-            </option>
-          ))}
-        </select>
+          onValueChange={(weight) => patch({ font: { ...f, weight: Number(weight) } })}
+          options={[300, 400, 500, 600, 700, 800].map((weight) => ({
+            id: String(weight),
+            label: String(weight),
+          }))}
+        />
       </label>
       <ColorField
         label="Couleur texte"

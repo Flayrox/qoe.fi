@@ -9,6 +9,7 @@
 import React, { useState } from 'react';
 import { Copy, Trash2, ArrowUp, ArrowDown, Eye, EyeOff, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Select } from '@qoe/ui/select';
 import { useStageEngine, StageEditorMode } from '../context/StageEngineContext';
 import {
   BackgroundControl,
@@ -173,18 +174,19 @@ export function ContextualEditorBar() {
                       <span className="text-[10px] font-medium text-muted-foreground">
                         Variante visuelle
                       </span>
-                      <select
+                      <Select
+                        label="Variante visuelle"
+                        hideLabel
+                        size="xs"
                         value={(props.style as string) || 'cinematic-banner'}
-                        onChange={(e) =>
-                          engine.updateBlockProps(selected.id, { style: e.target.value })
-                        }
-                        className="w-full cursor-pointer rounded-lg border border-border/40 bg-muted/60 px-2 py-1 text-[11px] font-medium text-foreground"
-                      >
-                        <option value="cinematic-banner">Bannière</option>
-                        <option value="typographic-minimal">Typographique</option>
-                        <option value="split-featured">Deux Colonnes</option>
-                        <option value="floating-card">Carte Flottante</option>
-                      </select>
+                        onValueChange={(style) => engine.updateBlockProps(selected.id, { style })}
+                        options={[
+                          { id: 'cinematic-banner', label: 'Bannière' },
+                          { id: 'typographic-minimal', label: 'Typographique' },
+                          { id: 'split-featured', label: 'Deux Colonnes' },
+                          { id: 'floating-card', label: 'Carte Flottante' },
+                        ]}
+                      />
                     </label>
                   )}
                   {selected.type === 'bento-grid' && (
@@ -210,17 +212,20 @@ export function ContextualEditorBar() {
                       <span className="text-[10px] font-medium text-muted-foreground">
                         Présentation
                       </span>
-                      <select
+                      <Select
+                        label="Présentation"
+                        hideLabel
+                        size="xs"
                         value={(props.displayMode as string) || 'grid-3'}
-                        onChange={(e) =>
-                          engine.updateBlockProps(selected.id, { displayMode: e.target.value })
+                        onValueChange={(displayMode) =>
+                          engine.updateBlockProps(selected.id, { displayMode })
                         }
-                        className="w-full cursor-pointer rounded-lg border border-border/40 bg-muted/60 px-2 py-1 text-[11px] font-medium text-foreground"
-                      >
-                        <option value="list">Lignes</option>
-                        <option value="grid-2">Grille 2</option>
-                        <option value="grid-3">Grille 3</option>
-                      </select>
+                        options={[
+                          { id: 'list', label: 'Lignes' },
+                          { id: 'grid-2', label: 'Grille 2' },
+                          { id: 'grid-3', label: 'Grille 3' },
+                        ]}
+                      />
                     </label>
                   )}
                   {(selected.type === 'navbar' ||

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, Flame, Plus, TrendingUp } from 'lucide-react';
 import { openAbuseIncidentAction, updateAbuseIncidentAction } from '@qoe/sdk/actions/admin';
+import { Select } from '@qoe/ui/select';
 import type { AbuseIncidentKind } from '@qoe/sdk';
 import { QueueEmpty } from '@/components/queue/QueueEmpty';
 import { useStaffAction } from '@/components/queue/useStaffAction';
@@ -168,17 +169,18 @@ export function IncidentsQueue({ initialItems, metrics }: IncidentsQueueProps) {
               className="w-full text-xs px-3 py-2 rounded-xl border border-border outline-none"
             />
             <div className="flex gap-2">
-              <select
+              <Select
+                label="Type d'incident"
+                hideLabel
+                size="sm"
+                className="w-56"
                 value={kind}
-                onChange={(e) => setKind(e.target.value)}
-                className="text-xs px-3 py-2 rounded-xl border border-border bg-white"
-              >
-                {Object.entries(KIND_LABELS).map(([k, label]) => (
-                  <option key={k} value={k}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setKind}
+                options={Object.entries(KIND_LABELS).map(([value, label]) => ({
+                  id: value,
+                  label,
+                }))}
+              />
               <input
                 value={scope}
                 onChange={(e) => setScope(e.target.value)}

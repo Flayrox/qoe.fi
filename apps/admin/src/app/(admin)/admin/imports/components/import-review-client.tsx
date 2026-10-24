@@ -17,6 +17,7 @@
 
 import React, { useState } from 'react';
 import { toast } from '@qoe/ui/toast';
+import { Select } from '@qoe/ui/select';
 import { Loader2 } from 'lucide-react';
 import {
   cancelSendWaveAction,
@@ -252,19 +253,21 @@ export function ImportReviewClient({ initial }: { initial: ImportReview }) {
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="space-y-1 text-xs">
               <span className="text-muted-foreground">Décision</span>
-              <select
+              <Select
+                label="Décision"
+                hideLabel
                 value={decision}
-                onChange={(e) => setDecision(e.target.value)}
-                className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
-              >
-                <option value="needs_info">Complément demandé (aucun envoi)</option>
-                <option value="rejected">Refusé (aucun envoi)</option>
-                <option value="approved_reconfirm">Accepté avec reconfirmation</option>
-                <option value="approved_direct">Accepté pour envoi encadré</option>
-                <option value="suspended">Suspendu</option>
-                <option value="resumed">Reprise</option>
-                <option value="cancelled">Annulé</option>
-              </select>
+                onValueChange={setDecision}
+                options={[
+                  { id: 'needs_info', label: 'Complément demandé (aucun envoi)' },
+                  { id: 'rejected', label: 'Refusé (aucun envoi)' },
+                  { id: 'approved_reconfirm', label: 'Accepté avec reconfirmation' },
+                  { id: 'approved_direct', label: 'Accepté pour envoi encadré' },
+                  { id: 'suspended', label: 'Suspendu' },
+                  { id: 'resumed', label: 'Reprise' },
+                  { id: 'cancelled', label: 'Annulé' },
+                ]}
+              />
             </label>
             <label className="space-y-1 text-xs">
               <span className="text-muted-foreground">Expire le (optionnel)</span>

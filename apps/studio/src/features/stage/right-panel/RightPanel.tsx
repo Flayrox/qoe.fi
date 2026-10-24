@@ -7,6 +7,7 @@
 import React from 'react';
 import { Copy, Trash2, ArrowLeft, ArrowUp, ArrowDown, Plus, X } from 'lucide-react';
 import type { LayoutConfig, TemplateBlock, TemplateNode } from '@qoe/ui/templates';
+import { Select } from '@qoe/ui/select';
 
 interface RightPanelProps {
   layout: LayoutConfig;
@@ -317,16 +318,19 @@ export function RightPanel({
 
             <div className="space-y-1">
               <label className="text-muted-foreground text-[11px]">Variante Visuelle</label>
-              <select
+              <Select
+                label="Variante visuelle"
+                hideLabel
+                size="xs"
                 value={(props.style as string) || 'cinematic-banner'}
-                onChange={(e) => handlePropChange('style', e.target.value)}
-                className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
-              >
-                <option value="cinematic-banner">Bannière</option>
-                <option value="typographic-minimal">Typographique</option>
-                <option value="split-featured">Deux Colonnes (Split)</option>
-                <option value="floating-card">Carte</option>
-              </select>
+                onValueChange={(style) => handlePropChange('style', style)}
+                options={[
+                  { id: 'cinematic-banner', label: 'Bannière' },
+                  { id: 'typographic-minimal', label: 'Typographique' },
+                  { id: 'split-featured', label: 'Deux Colonnes (Split)' },
+                  { id: 'floating-card', label: 'Carte' },
+                ]}
+              />
             </div>
 
             <div className="space-y-1">
@@ -579,15 +583,18 @@ export function RightPanel({
 
             <div className="space-y-1">
               <label className="text-muted-foreground text-[11px]">Format de Présentation</label>
-              <select
+              <Select
+                label="Format de présentation"
+                hideLabel
+                size="xs"
                 value={(props.displayMode as string) || 'grid-3'}
-                onChange={(e) => handlePropChange('displayMode', e.target.value)}
-                className="w-full bg-muted/50 border border-border/60 rounded-lg px-2.5 py-1.5 text-foreground text-xs"
-              >
-                <option value="list">Lignes Compactes</option>
-                <option value="grid-2">Grille 2 Colonnes</option>
-                <option value="grid-3">Grille 3 Colonnes</option>
-              </select>
+                onValueChange={(displayMode) => handlePropChange('displayMode', displayMode)}
+                options={[
+                  { id: 'list', label: 'Lignes Compactes' },
+                  { id: 'grid-2', label: 'Grille 2 Colonnes' },
+                  { id: 'grid-3', label: 'Grille 3 Colonnes' },
+                ]}
+              />
             </div>
 
             <div className="space-y-1">

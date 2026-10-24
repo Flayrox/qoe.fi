@@ -18,6 +18,7 @@ import {
   type SubscriberImportStats,
 } from './actions';
 import { t } from '@lingui/core/macro';
+import { Select } from '@qoe/ui/select';
 
 export default function CreatorImportPage() {
   const [rssUrl, setRssUrl] = useState('');
@@ -225,22 +226,24 @@ export default function CreatorImportPage() {
         <div className="mb-6 space-y-3 rounded-2xl border border-border/60 bg-muted/20 p-4">
           <p className="text-sm font-semibold">{t`Provenance de la liste`}</p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="space-y-1 text-xs">
+            <div className="space-y-1 text-xs">
               <span className="text-muted-foreground">{t`Plateforme d'origine`}</span>
-              <select
+              <Select
+                label={t`Plateforme d'origine`}
+                hideLabel
                 value={source}
-                onChange={(e) => setSource(e.target.value)}
-                className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
-              >
-                <option value="substack">Substack</option>
-                <option value="ghost">Ghost</option>
-                <option value="beehiiv">Beehiiv</option>
-                <option value="mailchimp">Mailchimp</option>
-                <option value="cms_export">Export de mon CMS</option>
-                <option value="csv_manual">Fichier constitué à la main</option>
-                <option value="other">Autre</option>
-              </select>
-            </label>
+                onValueChange={setSource}
+                options={[
+                  { id: 'substack', label: 'Substack' },
+                  { id: 'ghost', label: 'Ghost' },
+                  { id: 'beehiiv', label: 'Beehiiv' },
+                  { id: 'mailchimp', label: 'Mailchimp' },
+                  { id: 'cms_export', label: t`Export de mon CMS` },
+                  { id: 'csv_manual', label: t`Fichier constitué à la main` },
+                  { id: 'other', label: t`Autre` },
+                ]}
+              />
+            </div>
             <label className="space-y-1 text-xs">
               <span className="text-muted-foreground">{t`Précisions (facultatif)`}</span>
               <input

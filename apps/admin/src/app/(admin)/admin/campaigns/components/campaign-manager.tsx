@@ -13,6 +13,7 @@
 // =====================================================================
 
 import React, { useState } from 'react';
+import { Select } from '@qoe/ui/select';
 import { useRouter } from 'next/navigation';
 import { Loader2, Megaphone, Plus } from 'lucide-react';
 import {
@@ -132,33 +133,31 @@ export function CampaignManager({ initialCampaigns, canWrite }: CampaignManagerP
           <div className="grid gap-3 md:grid-cols-2">
             <label className="text-[11px] text-muted-foreground space-y-1 block">
               Catégorie
-              <select
+              <Select
+                label="Type de campagne"
+                hideLabel
+                testId="campaign-type"
                 value={type}
-                onChange={(e) => setType(e.target.value)}
-                className={inputCls}
-                data-testid="campaign-type"
-              >
-                {CAMPAIGN_TYPES.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setType}
+                options={CAMPAIGN_TYPES.map((option) => ({
+                  id: option.value,
+                  label: option.label,
+                }))}
+              />
             </label>
             <label className="text-[11px] text-muted-foreground space-y-1 block">
               Audience
-              <select
+              <Select
+                label="Audience"
+                hideLabel
+                testId="campaign-audience"
                 value={audienceType}
-                onChange={(e) => setAudienceType(e.target.value)}
-                className={inputCls}
-                data-testid="campaign-audience"
-              >
-                {CAMPAIGN_AUDIENCES.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+                onValueChange={setAudienceType}
+                options={CAMPAIGN_AUDIENCES.map((option) => ({
+                  id: option.value,
+                  label: option.label,
+                }))}
+              />
             </label>
           </div>
           {audienceType === 'PUBLICATION_SUBSCRIBERS' && (

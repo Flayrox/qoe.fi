@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { Select } from '@qoe/ui/select';
 import { submitPublicTicket } from '@/lib/support-actions';
 
 const KINDS = [
@@ -92,13 +93,13 @@ export function SupportForm() {
         />
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <select value={kind} onChange={(e) => setKind(e.target.value)} className={inputCls}>
-          {KINDS.map((k) => (
-            <option key={k.id} value={k.id}>
-              {k.label}
-            </option>
-          ))}
-        </select>
+        <Select
+          label="Type de demande / Request type"
+          hideLabel
+          value={kind}
+          onValueChange={setKind}
+          options={KINDS.map((supportKind) => ({ id: supportKind.id, label: supportKind.label }))}
+        />
         <input
           value={subject}
           onChange={(e) => setSubject(e.target.value)}

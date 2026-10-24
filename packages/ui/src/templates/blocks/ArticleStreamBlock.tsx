@@ -14,6 +14,7 @@ import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { SafeImage } from '../../SafeImage';
 import { Clock } from 'lucide-react';
+import { Select } from '../../primitives/select/select';
 import {
   PLACEHOLDER_COVER_1,
   PLACEHOLDER_COVER_2,
@@ -466,24 +467,24 @@ export function ArticleStreamBlock({
                           tous les articles tiennent déjà dans la une. */}
                       {(!isTrioMode || streamArticles.length > 0) && (
                         <div className="flex items-center gap-1.5 pl-2 ml-1 border-l border-border/50">
-                          <label
-                            htmlFor={`stream-sort-${id}`}
-                            className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground/60"
-                          >
+                          <span className="text-[11px] font-medium uppercase tracking-widest text-muted-foreground/60">
                             Tri
-                          </label>
-                          <select
-                            id={`stream-sort-${id}`}
+                          </span>
+                          <Select
+                            label="Trier le flux"
+                            hideLabel
+                            size="xs"
+                            className="w-32"
                             value={sortBy}
-                            onChange={(e) =>
-                              setSortBy(e.target.value as 'recent' | 'popular' | 'discussed')
+                            onValueChange={(value) =>
+                              setSortBy(value as 'recent' | 'popular' | 'discussed')
                             }
-                            className="bg-transparent text-xs font-medium text-foreground cursor-pointer focus:outline-none"
-                          >
-                            <option value="recent">Récents</option>
-                            <option value="popular">Populaires</option>
-                            <option value="discussed">Commentés</option>
-                          </select>
+                            options={[
+                              { id: 'recent', label: 'Récents' },
+                              { id: 'popular', label: 'Populaires' },
+                              { id: 'discussed', label: 'Commentés' },
+                            ]}
+                          />
                         </div>
                       )}
                     </div>

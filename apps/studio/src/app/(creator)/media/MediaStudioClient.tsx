@@ -33,6 +33,7 @@ import {
 import { SafeAvatar } from '@qoe/ui';
 import { searchArticleContributorsAction } from '@qoe/sdk/actions/articles';
 import { toast } from '@qoe/ui/toast';
+import { Select } from '@qoe/ui/select';
 import { cn } from '@qoe/utils';
 import { attemptWithStepUp } from '@/lib/authz-feedback';
 import { PendingInvites } from './PendingInvites';
@@ -119,6 +120,10 @@ const ROLE_META: Record<
   writer: { label: () => t`Rédacteur`, color: 'text-foreground', icon: PenLine },
   viewer: { label: () => t`Lecteur`, color: 'text-muted-foreground', icon: Eye },
 };
+
+// Rôles qu'on peut attribuer : le propriétaire ne se donne pas, il se
+// transfère (ou reste unique).
+const ASSIGNABLE_ROLES = Object.keys(ROLE_META).filter((role) => role !== MEDIA_ROLES.OWNER);
 
 const PERMISSION_LABELS: Record<string, () => string> = {
   'media:manage_members': () => t`Gérer les membres`,
@@ -773,19 +778,18 @@ export function MediaStudioClient({
                   )}
                   {canManageMembers && member.role !== MEDIA_ROLES.OWNER && (
                     <>
-                      <select
+                      <Select
+                        label={t`Rôle de ${member.user.name || member.user.username || t`ce membre`}`}
+                        hideLabel
+                        size="sm"
+                        className="w-36"
                         value={member.role}
-                        onChange={(e) => handleRoleChange(member.user.id, e.target.value)}
-                        className="text-xs font-medium bg-transparent border border-border/30 rounded-lg px-2 py-1.5 cursor-pointer focus:outline-none focus:border-primary/50"
-                      >
-                        {Object.keys(ROLE_META)
-                          .filter((r) => r !== MEDIA_ROLES.OWNER)
-                          .map((r) => (
-                            <option key={r} value={r}>
-                              {ROLE_META[r].label()}
-                            </option>
-                          ))}
-                      </select>
+                        onValueChange={(role) => handleRoleChange(member.user.id, role)}
+                        options={ASSIGNABLE_ROLES.map((role) => ({
+                          id: role,
+                          label: ROLE_META[role].label(),
+                        }))}
+                      />
                       <button
                         onClick={() =>
                           handleRemoveMember(
@@ -878,19 +882,16 @@ export function MediaStudioClient({
                     </>
                   )}
                 </div>
-                <select
+                <Select
+                  label={t`Rôle à accorder`}
+                  hideLabel
                   value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value)}
-                  className="px-3 py-2.5 bg-transparent border-b border-border/40 text-sm font-medium cursor-pointer focus:outline-none focus:border-primary transition-colors"
-                >
-                  {Object.keys(ROLE_META)
-                    .filter((r) => r !== MEDIA_ROLES.OWNER)
-                    .map((r) => (
-                      <option key={r} value={r}>
-                        {ROLE_META[r].label()}
-                      </option>
-                    ))}
-                </select>
+                  onValueChange={setInviteRole}
+                  options={ASSIGNABLE_ROLES.map((role) => ({
+                    id: role,
+                    label: ROLE_META[role].label(),
+                  }))}
+                />
                 <button
                   type="submit"
                   disabled={inviting || !selectedMember}
@@ -968,45 +969,46 @@ export function MediaStudioClient({
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className={labelCls}>Rôle accordé</label>
-                  <select
+                  <Select
+                    label={t`Rôle accordé`}
+                    hideLabel
                     value={linkRole}
-                    onChange={(e) => setLinkRole(e.target.value)}
-                    className="w-full px-3 py-2 bg-transparent border-b border-border/40 text-sm font-medium cursor-pointer focus:outline-none focus:border-primary transition-colors"
-                  >
-                    {Object.keys(ROLE_META)
-                      .filter((r) => r !== MEDIA_ROLES.OWNER)
-                      .map((r) => (
-                        <option key={r} value={r}>
-                          {ROLE_META[r].label()}
-                        </option>
-                      ))}
-                  </select>
+                    onValueChange={setLinkRole}
+                    options={ASSIGNABLE_ROLES.map((role) => ({
+                      id: role,
+                      label: ROLE_META[role].label(),
+                    }))}
+                  />
                 </div>
                 <div>
                   <label className={labelCls}>Durée de validité</label>
-                  <select
-                    value={linkExpiresIn}
-                    onChange={(e) => setLinkExpiresIn(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-transparent border-b border-border/40 text-sm font-medium cursor-pointer focus:outline-none focus:border-primary transition-colors"
-                  >
-                    <option value={24}>24 heures</option>
-                    <option value={168}>7 jours</option>
-                    <option value={720}>30 jours</option>
-                    <option value={0}>Permanent</option>
-                  </select>
+                  <Select
+                    label={t`Durée de validité`}
+                    hideLabel
+                    value={String(linkExpiresIn)}
+                    onValueChange={(value) => setLinkExpiresIn(Number(value))}
+                    options={[
+                      { id: '24', label: t`24 heures` },
+                      { id: '168', label: t`7 jours` },
+                      { id: '720', label: t`30 jours` },
+                      { id: '0', label: t`Permanent` },
+                    ]}
+                  />
                 </div>
                 <div>
                   <label className={labelCls}>Utilisations max</label>
-                  <select
-                    value={linkMaxUses}
-                    onChange={(e) => setLinkMaxUses(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-transparent border-b border-border/40 text-sm font-medium cursor-pointer focus:outline-none focus:border-primary transition-colors"
-                  >
-                    <option value={1}>1 seule fois</option>
-                    <option value={5}>5 utilisations</option>
-                    <option value={10}>10 utilisations</option>
-                    <option value={0}>Illimité</option>
-                  </select>
+                  <Select
+                    label={t`Utilisations max`}
+                    hideLabel
+                    value={String(linkMaxUses)}
+                    onValueChange={(value) => setLinkMaxUses(Number(value))}
+                    options={[
+                      { id: '1', label: t`1 seule fois` },
+                      { id: '5', label: t`5 utilisations` },
+                      { id: '10', label: t`10 utilisations` },
+                      { id: '0', label: t`Illimité` },
+                    ]}
+                  />
                 </div>
               </div>
 
@@ -1311,16 +1313,18 @@ function MediaSettingsForm({
           </div>
           <div>
             <label className={labelCls}>Police</label>
-            <select
-              className={cn(inputCls, 'cursor-pointer')}
+            <Select
+              label={t`Police du média`}
+              hideLabel
               value={form.fontFamily ?? 'sans'}
-              onChange={(e) => set('fontFamily', e.target.value)}
-            >
-              <option value="sans">Inter (Sans-serif)</option>
-              <option value="outfit">Outfit (Moderne)</option>
-              <option value="space-grotesk">Space Grotesk (Tech)</option>
-              <option value="serif">Playfair Display (Serif)</option>
-            </select>
+              onValueChange={(fontFamily) => set('fontFamily', fontFamily)}
+              options={[
+                { id: 'sans', label: 'Inter (Sans-serif)' },
+                { id: 'outfit', label: 'Outfit (Moderne)' },
+                { id: 'space-grotesk', label: 'Space Grotesk (Tech)' },
+                { id: 'serif', label: 'Playfair Display (Serif)' },
+              ]}
+            />
           </div>
           <div>
             <label className={labelCls}>Bio / Présentation</label>

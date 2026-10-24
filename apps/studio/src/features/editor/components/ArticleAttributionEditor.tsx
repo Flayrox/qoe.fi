@@ -26,6 +26,7 @@ import {
 } from '@qoe/sdk/actions/articles';
 import { cn } from '@qoe/utils';
 import { SafeAvatar } from '@qoe/ui';
+import { Select } from '@qoe/ui/select';
 
 export type ArticleAttributionDraft = {
   userId: string;
@@ -281,19 +282,16 @@ export function ArticleAttributionEditor({
                   </div>
                 )}
               </div>
-              <select
-                aria-label={`Rôle de ${person.name || person.username || 'contributeur'}`}
+              <Select
+                label={`Rôle de ${person.name || person.username || 'contributeur'}`}
+                hideLabel
+                size="xs"
+                className="max-w-[130px]"
                 value={person.role}
                 disabled={person.role === 'PRIMARY_AUTHOR'}
-                onChange={(event) => update(index, { role: event.target.value })}
-                className="max-w-[130px] rounded-md border border-border/40 bg-card px-1.5 py-1 text-[10px] text-foreground"
-              >
-                {ROLE_OPTIONS.map((role) => (
-                  <option key={role.value} value={role.value}>
-                    {role.label}
-                  </option>
-                ))}
-              </select>
+                onValueChange={(role) => update(index, { role })}
+                options={ROLE_OPTIONS.map((role) => ({ id: role.value, label: role.label }))}
+              />
               {person.role !== 'PRIMARY_AUTHOR' && (
                 <button
                   type="button"
@@ -446,47 +444,56 @@ export function ArticleAttributionEditor({
                   <label className="block text-[11px] font-medium text-muted-foreground mb-1">
                     Rôle accordé
                   </label>
-                  <select
+                  <Select
+                    label="Rôle accordé"
+                    hideLabel
+                    size="sm"
                     value={linkRole}
-                    onChange={(e) => setLinkRole(e.target.value)}
-                    className="w-full rounded-lg border border-border/40 bg-card px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
-                  >
-                    <option value="CONTRIBUTOR">Contributeur</option>
-                    <option value="CO_AUTHOR">Co-auteur</option>
-                    <option value="EDITOR">Éditeur</option>
-                  </select>
+                    onValueChange={setLinkRole}
+                    options={[
+                      { id: 'CONTRIBUTOR', label: 'Contributeur' },
+                      { id: 'CO_AUTHOR', label: 'Co-auteur' },
+                      { id: 'EDITOR', label: 'Éditeur' },
+                    ]}
+                  />
                 </div>
 
                 <div>
                   <label className="block text-[11px] font-medium text-muted-foreground mb-1">
                     Durée de validité
                   </label>
-                  <select
-                    value={linkExpiresIn}
-                    onChange={(e) => setLinkExpiresIn(Number(e.target.value))}
-                    className="w-full rounded-lg border border-border/40 bg-card px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
-                  >
-                    <option value={24}>24 heures</option>
-                    <option value={168}>7 jours</option>
-                    <option value={720}>30 jours</option>
-                    <option value={0}>Permanent</option>
-                  </select>
+                  <Select
+                    label="Durée de validité"
+                    hideLabel
+                    size="sm"
+                    value={String(linkExpiresIn)}
+                    onValueChange={(value) => setLinkExpiresIn(Number(value))}
+                    options={[
+                      { id: '24', label: '24 heures' },
+                      { id: '168', label: '7 jours' },
+                      { id: '720', label: '30 jours' },
+                      { id: '0', label: 'Permanent' },
+                    ]}
+                  />
                 </div>
 
                 <div>
                   <label className="block text-[11px] font-medium text-muted-foreground mb-1">
                     Utilisations max
                   </label>
-                  <select
-                    value={linkMaxUses}
-                    onChange={(e) => setLinkMaxUses(Number(e.target.value))}
-                    className="w-full rounded-lg border border-border/40 bg-card px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
-                  >
-                    <option value={1}>1 seule fois</option>
-                    <option value={5}>5 utilisations</option>
-                    <option value={10}>10 utilisations</option>
-                    <option value={0}>Illimité</option>
-                  </select>
+                  <Select
+                    label="Utilisations max"
+                    hideLabel
+                    size="sm"
+                    value={String(linkMaxUses)}
+                    onValueChange={(value) => setLinkMaxUses(Number(value))}
+                    options={[
+                      { id: '1', label: '1 seule fois' },
+                      { id: '5', label: '5 utilisations' },
+                      { id: '10', label: '10 utilisations' },
+                      { id: '0', label: 'Illimité' },
+                    ]}
+                  />
                 </div>
               </div>
 

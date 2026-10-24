@@ -5,6 +5,7 @@ import { AlertTriangle, Loader2 } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 import { toast } from '@qoe/ui/toast';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@qoe/ui';
+import { Select } from '@qoe/ui/select';
 import { bulkUpdateArticlesAction, type BulkUpdateArticlesInput } from '@qoe/sdk/actions/articles';
 
 import type { CategoryWithCount } from './article-list-types';
@@ -47,15 +48,19 @@ function BulkTriRow({
         <p className="text-xs font-semibold text-foreground">{label}</p>
         <p className="text-[10px] leading-tight text-muted-foreground">{description}</p>
       </div>
-      <select
+      <Select
+        label={label}
+        hideLabel
+        size="sm"
+        className="w-36 shrink-0"
         value={value}
-        onChange={(event) => onChange(event.target.value as TriState)}
-        className="h-8 shrink-0 rounded-lg border border-border/40 bg-background px-2 text-xs text-foreground focus:border-primary focus:outline-none"
-      >
-        <option value="keep">{t`Ne pas modifier`}</option>
-        <option value="on">{t`Activer`}</option>
-        <option value="off">{t`Désactiver`}</option>
-      </select>
+        onValueChange={(next) => onChange(next as TriState)}
+        options={[
+          { id: 'keep', label: t`Ne pas modifier` },
+          { id: 'on', label: t`Activer` },
+          { id: 'off', label: t`Désactiver` },
+        ]}
+      />
     </div>
   );
 }
@@ -178,34 +183,23 @@ export function ArticleBulkSettingsDialog({
         </DialogHeader>
 
         <div className="space-y-3 pt-1">
-          <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {t`Catégorie`}
-            </label>
-            <select
-              value={settings.category}
-              onChange={(event) =>
-                setSettings((prev) => ({ ...prev, category: event.target.value }))
-              }
-              className="w-full rounded-xl border border-border/40 bg-background p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
-            >
-              <option value="keep">{t`Ne pas modifier`}</option>
-              <option value="default">{t`Non catégorisé`}</option>
-              {rootCategories.map((root) => {
-                const subs = categories.filter((category) => category.parentId === root.id);
-                return (
-                  <React.Fragment key={root.id}>
-                    <option value={root.id}>{root.name?.trim() || root.slug}</option>
-                    {subs.map((sub) => (
-                      <option key={sub.id} value={sub.id}>
-                        ↳ {sub.name?.trim() || sub.slug}
-                      </option>
-                    ))}
-                  </React.Fragment>
-                );
-              })}
-            </select>
-          </div>
+          <Select
+            label={t`Catégorie`}
+            hideLabel
+            size="sm"
+            value={settings.category}
+            onValueChange={(category) => setSettings((prev) => ({ ...prev, category }))}
+            options={[
+              { id: 'keep', label: t`Ne pas modifier` },
+              { id: 'default', label: t`Non catégorisé` },
+              ...rootCategories.flatMap((root) => [
+                { id: root.id, label: root.name?.trim() || root.slug },
+                ...categories
+                  .filter((category) => category.parentId === root.id)
+                  .map((sub) => ({ id: sub.id, label: `↳ ${sub.name?.trim() || sub.slug}` })),
+              ]),
+            ]}
+          />
 
           <BulkTriRow
             label={t`Article Premium`}
@@ -233,23 +227,23 @@ export function ArticleBulkSettingsDialog({
           />
 
           <div className="space-y-1.5">
-            <label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-              {t`Publication`}
-            </label>
-            <select
+            <Select
+              label={t`Publication`}
+              hideLabel
+              size="sm"
               value={settings.publication}
-              onChange={(event) =>
+              onValueChange={(publication) =>
                 setSettings((prev) => ({
                   ...prev,
-                  publication: event.target.value as BulkSettingsDraft['publication'],
+                  publication: publication as BulkSettingsDraft['publication'],
                 }))
               }
-              className="w-full rounded-xl border border-border/40 bg-background p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
-            >
-              <option value="keep">{t`Ne pas modifier`}</option>
-              <option value="publish">{t`Publier`}</option>
-              <option value="unpublish">{t`Dépublier (brouillon)`}</option>
-            </select>
+              options={[
+                { id: 'keep', label: t`Ne pas modifier` },
+                { id: 'publish', label: t`Publier` },
+                { id: 'unpublish', label: t`Dépublier (brouillon)` },
+              ]}
+            />
             {settings.publication !== 'keep' && (
               <p className="flex items-start gap-1.5 rounded-lg border border-highlight/20 bg-highlight/10 p-2 text-[10px] text-highlight">
                 <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />

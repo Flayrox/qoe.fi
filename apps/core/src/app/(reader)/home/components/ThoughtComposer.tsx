@@ -34,6 +34,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@qoe/ui/ui/popover';
 import { Calendar } from '@qoe/ui/ui/calendar';
 import { TimePickerInput } from '@qoe/ui/ui/time-picker-input';
 import { toast } from '@qoe/ui/toast';
+import { Select } from '@qoe/ui/select';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@qoe/ui/ui/sheet';
 import { ProfileHoverCard } from '@qoe/ui/social/ProfileHoverCard';
 
@@ -1754,17 +1755,21 @@ export function ThoughtComposer({
 
                     <div className="flex items-center gap-1 text-muted-foreground text-[11px]">
                       <span>{t`Durée :`}</span>
-                      <select
-                        value={pollDurationHours}
-                        onChange={(e) => setPollDurationHours(Number(e.target.value))}
-                        className="bg-background border border-border/60 rounded px-1.5 py-0.5 text-xs text-foreground focus:outline-none cursor-pointer"
-                      >
-                        <option value={1}>1 heure</option>
-                        <option value={6}>6 heures</option>
-                        <option value={24}>1 jour</option>
-                        <option value={72}>3 jours</option>
-                        <option value={168}>7 jours</option>
-                      </select>
+                      <Select
+                        label={t`Durée du vote`}
+                        hideLabel
+                        size="xs"
+                        className="w-28"
+                        value={String(pollDurationHours)}
+                        onValueChange={(value) => setPollDurationHours(Number(value))}
+                        options={[
+                          { id: '1', label: t`1 heure` },
+                          { id: '6', label: t`6 heures` },
+                          { id: '24', label: t`1 jour` },
+                          { id: '72', label: t`3 jours` },
+                          { id: '168', label: t`7 jours` },
+                        ]}
+                      />
                     </div>
                   </div>
                 </div>

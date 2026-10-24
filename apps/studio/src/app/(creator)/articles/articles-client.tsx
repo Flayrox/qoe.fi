@@ -56,6 +56,9 @@ import {
 } from '@qoe/sdk/actions/articles';
 import { updateCreatorProfileAction } from '@qoe/sdk/actions/dashboard';
 import { toast } from '@qoe/ui/toast';
+import { Button } from '@qoe/ui/button';
+import { Dropdown } from '@qoe/ui/dropdown';
+import { Select } from '@qoe/ui/select';
 import { t } from '@lingui/core/macro';
 
 import { ArticleInspectorModal } from '../analytics/components/ArticleInspectorModal';
@@ -1149,19 +1152,23 @@ export function ArticlesClient({
                 </div>
 
                 <div className="ml-auto flex flex-wrap items-center gap-2">
-                  <select
+                  <Select
+                    label={t`Trier par`}
+                    hideLabel
+                    size="sm"
+                    className="w-40"
                     value={sortField}
-                    onChange={(e) => setSortField(e.target.value as SortField)}
-                    className="bg-background border border-border/30 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground focus:outline-none focus:border-border/60 transition-colors cursor-pointer font-sans"
-                  >
-                    <option value="updatedAt">{t`Récents`}</option>
-                    <option value="createdAt">{t`Création`}</option>
-                    <option value="title">{t`Titre A-Z`}</option>
-                    <option value="readingTime">{t`Durée`}</option>
-                    <option value="likes">{t`Plus aimés`}</option>
-                    <option value="reposts">{t`Plus repartagés`}</option>
-                    <option value="engagement">{t`Meilleur engagement`}</option>
-                  </select>
+                    onValueChange={(value) => setSortField(value as SortField)}
+                    options={[
+                      { id: 'updatedAt', label: t`Récents` },
+                      { id: 'createdAt', label: t`Création` },
+                      { id: 'title', label: t`Titre A-Z` },
+                      { id: 'readingTime', label: t`Durée` },
+                      { id: 'likes', label: t`Plus aimés` },
+                      { id: 'reposts', label: t`Plus repartagés` },
+                      { id: 'engagement', label: t`Meilleur engagement` },
+                    ]}
+                  />
                   <button
                     onClick={() => setSortDirection((prev) => (prev === 'desc' ? 'asc' : 'desc'))}
                     className="p-1.5 rounded-lg bg-background border border-border/30 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
@@ -1191,53 +1198,61 @@ export function ArticlesClient({
                       )}
                     </summary>
                     <div className="absolute right-0 top-full mt-1 z-30 w-64 rounded-xl border border-border/40 bg-card p-3 shadow-xl space-y-3">
-                      <select
+                      <Select
+                        label={t`Catégorie`}
+                        hideLabel
+                        size="sm"
                         value={selectedCategory}
-                        onChange={(e) => setSelectedCategory(e.target.value)}
-                        className="w-full bg-background border border-border/30 rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
-                      >
-                        <option value="all">{t`Toutes les catégories`}</option>
-                        {uncategorizedCount > 0 && (
-                          <option value="uncategorized">
-                            {t`Non catégorisé`} ({uncategorizedCount})
-                          </option>
-                        )}
-                        {rootCategories.map((root) => {
-                          const subs = categories.filter((c) => c.parentId === root.id);
-                          return (
-                            <React.Fragment key={root.id}>
-                              <option value={root.id}>
-                                {root.name?.trim() || root.slug} ({root._count.articles})
-                              </option>
-                              {subs.map((sub) => (
-                                <option key={sub.id} value={sub.id}>
-                                  ↳ {sub.name?.trim() || sub.slug} ({sub._count.articles})
-                                </option>
-                              ))}
-                            </React.Fragment>
-                          );
-                        })}
-                      </select>
-                      <select
+                        onValueChange={setSelectedCategory}
+                        options={[
+                          { id: 'all', label: t`Toutes les catégories` },
+                          ...(uncategorizedCount > 0
+                            ? [
+                                {
+                                  id: 'uncategorized',
+                                  label: `${t`Non catégorisé`} (${uncategorizedCount})`,
+                                },
+                              ]
+                            : []),
+                          ...rootCategories.flatMap((root) => [
+                            {
+                              id: root.id,
+                              label: `${root.name?.trim() || root.slug} (${root._count.articles})`,
+                            },
+                            ...categories
+                              .filter((category) => category.parentId === root.id)
+                              .map((sub) => ({
+                                id: sub.id,
+                                label: `↳ ${sub.name?.trim() || sub.slug} (${sub._count.articles})`,
+                              })),
+                          ]),
+                        ]}
+                      />
+                      <Select
+                        label={t`Accès`}
+                        hideLabel
+                        size="sm"
                         value={accessFilter}
-                        onChange={(e) => setAccessFilter(e.target.value as AccessFilter)}
-                        className="w-full bg-background border border-border/30 rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
-                      >
-                        <option value="all">{t`Tous les accès`}</option>
-                        <option value="free">{t`Gratuits`}</option>
-                        <option value="premium">{t`Premium Paywall`}</option>
-                      </select>
-                      <select
+                        onValueChange={(value) => setAccessFilter(value as AccessFilter)}
+                        options={[
+                          { id: 'all', label: t`Tous les accès` },
+                          { id: 'free', label: t`Gratuits` },
+                          { id: 'premium', label: t`Premium Paywall` },
+                        ]}
+                      />
+                      <Select
+                        label={t`Période des vues`}
+                        hideLabel
+                        size="sm"
                         value={period}
-                        onChange={(e) => setPeriod(e.target.value as '7d' | '30d' | '90d' | 'all')}
-                        className="w-full bg-background border border-border/30 rounded-lg px-2.5 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
-                        title={t`Période des vues`}
-                      >
-                        <option value="7d">{t`Vues sur 7 jours`}</option>
-                        <option value="30d">{t`Vues sur 30 jours`}</option>
-                        <option value="90d">{t`Vues sur 90 jours`}</option>
-                        <option value="all">{t`Toutes les vues`}</option>
-                      </select>
+                        onValueChange={(value) => setPeriod(value as '7d' | '30d' | '90d' | 'all')}
+                        options={[
+                          { id: '7d', label: t`Vues sur 7 jours` },
+                          { id: '30d', label: t`Vues sur 30 jours` },
+                          { id: '90d', label: t`Vues sur 90 jours` },
+                          { id: 'all', label: t`Toutes les vues` },
+                        ]}
+                      />
                       {hasActiveFilters && (
                         <button
                           onClick={resetFilters}
@@ -1308,43 +1323,47 @@ export function ArticlesClient({
                         ))}
                       </div>
                       <div className="pt-2 border-t border-border/30 space-y-2">
-                        <select
-                          value=""
-                          onChange={(event) => applySavedView(event.target.value)}
-                          className="w-full bg-background border border-border/30 rounded-lg px-2 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
-                        >
-                          <option value="">{t`Vues sauvegardées…`}</option>
-                          {Object.keys(savedViews).map((name) => (
-                            <option key={name} value={name}>
-                              {name}
-                            </option>
-                          ))}
-                          <option value="__save">{t`Enregistrer la vue actuelle…`}</option>
-                        </select>
+                        {/* Un `<select value="">` qui ne sert qu'à déclencher des
+                            actions : c'est un menu, pas une sélection. */}
+                        <Dropdown
+                          label={t`Vues sauvegardées`}
+                          ariaLabel={t`Vues sauvegardées`}
+                          size="sm"
+                          className="w-full justify-between"
+                          items={[
+                            ...Object.keys(savedViews).map((name) => ({
+                              id: name,
+                              label: name,
+                              onAction: () => applySavedView(name),
+                            })),
+                            {
+                              id: '__save',
+                              label: t`Enregistrer la vue actuelle…`,
+                              onAction: saveCurrentView,
+                            },
+                          ]}
+                        />
                         <div className="flex items-center gap-2">
                           {Object.keys(savedViews).length > 0 && (
-                            <select
-                              value=""
-                              onChange={(event) => {
-                                if (event.target.value) deleteSavedView(event.target.value);
-                              }}
-                              className="flex-1 bg-background border border-border/30 rounded-lg px-2 py-1.5 text-xs text-muted-foreground focus:outline-none"
-                            >
-                              <option value="">{t`Supprimer une vue…`}</option>
-                              {Object.keys(savedViews).map((name) => (
-                                <option key={name} value={name}>
-                                  {name}
-                                </option>
-                              ))}
-                            </select>
+                            <Dropdown
+                              label={t`Supprimer une vue`}
+                              ariaLabel={t`Supprimer une vue sauvegardée`}
+                              size="sm"
+                              tone="danger"
+                              variant="ghost"
+                              className="flex-1 justify-between"
+                              items={Object.keys(savedViews).map((name) => ({
+                                id: name,
+                                label: name,
+                                tone: 'danger' as const,
+                                onAction: () => deleteSavedView(name),
+                              }))}
+                            />
                           )}
-                          <button
-                            onClick={saveCurrentView}
-                            className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
-                          >
-                            <Save className="w-3.5 h-3.5" />
+                          <Button size="sm" variant="ghost" tone="brand" onClick={saveCurrentView}>
+                            <Save />
                             {t`Sauver`}
-                          </button>
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -2056,26 +2075,20 @@ export function ArticlesClient({
                       <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans font-semibold">
                         {t`Catégorie parente`}
                       </label>
-                      <select
+                      <Select
+                        label={t`Catégorie parente`}
+                        hideLabel
+                        size="sm"
                         value={editCatParentId}
-                        onChange={(e) => setEditCatParentId(e.target.value)}
+                        onValueChange={setEditCatParentId}
                         disabled={hasChildren(editingCat.id)}
-                        className={cn(
-                          'w-full bg-background border border-border/40 rounded-lg p-2 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-sans',
-                          hasChildren(editingCat.id)
-                            ? 'opacity-50 cursor-not-allowed'
-                            : 'cursor-pointer'
-                        )}
-                      >
-                        <option value="">{t`-- Aucune (catégorie principale) --`}</option>
-                        {rootCategories
-                          .filter((rc) => rc.id !== editingCat.id)
-                          .map((rc) => (
-                            <option key={rc.id} value={rc.id}>
-                              {rc.name}
-                            </option>
-                          ))}
-                      </select>
+                        options={[
+                          { id: '', label: t`Aucune (catégorie principale)` },
+                          ...rootCategories
+                            .filter((rc) => rc.id !== editingCat.id)
+                            .map((rc) => ({ id: rc.id, label: rc.name })),
+                        ]}
+                      />
                       {hasChildren(editingCat.id) && (
                         <p className="text-[10px] text-muted-foreground/80 italic">
                           {t`Cette catégorie possède déjà des sous-catégories et doit rester une catégorie principale.`}

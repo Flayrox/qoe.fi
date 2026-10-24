@@ -14,6 +14,7 @@
   "dependencies": {
     "@base-ui/react": "^1.4.1",
     "@hocuspocus/provider": "^4.6.0",
+    "@internationalized/date": "3.12.4",
     "@lingui/core": "6.6.0",
     "@qoe/analytics": "workspace:*",
     "@qoe/auth": "workspace:*",

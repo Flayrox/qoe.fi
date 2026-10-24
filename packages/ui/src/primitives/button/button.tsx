@@ -48,6 +48,45 @@ const SURFACES: Record<Variant, Record<Tone, string>> = {
   },
 };
 
+export interface ButtonStyleOptions {
+  variant?: Variant;
+  tone?: Tone;
+  size?: Size;
+  shape?: 'default' | 'icon';
+  block?: boolean;
+  className?: string;
+}
+
+/**
+ * Les classes d'un bouton, sans le rendu.
+ *
+ * Utile quand le bouton doit être fourni par un autre moteur : les triggers
+ * de react-aria (MenuTrigger, Select) exigent leur propre `<Button>` pour
+ * recevoir la presse et le clavier. On garde alors exactement la même peau,
+ * sans dupliquer la matrice variante × ton.
+ */
+export function buttonClasses({
+  variant = 'soft',
+  tone = 'neutral',
+  size = 'md',
+  shape = 'default',
+  block = false,
+  className,
+}: ButtonStyleOptions = {}) {
+  return cn(
+    'inline-flex select-none items-center justify-center whitespace-nowrap',
+    'rounded-control font-medium transition-colors duration-150',
+    SIZE_CLASSES[size],
+    shape === 'icon' && 'aspect-square px-0',
+    SURFACES[variant][tone],
+    FOCUS_RING,
+    DISABLED,
+    ICON_SLOT,
+    block && 'w-full',
+    className
+  );
+}
+
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   /** Poids visuel. Défaut `soft` : l'action courante, pas l'action principale. */
   variant?: Variant;
@@ -97,18 +136,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     <button
       ref={ref}
       type={type}
-      className={cn(
-        'inline-flex select-none items-center justify-center whitespace-nowrap',
-        'rounded-control font-medium transition-colors duration-150',
-        SIZE_CLASSES[size],
-        shape === 'icon' && 'aspect-square px-0',
-        SURFACES[variant][tone],
-        FOCUS_RING,
-        DISABLED,
-        ICON_SLOT,
-        block && 'w-full',
-        className
-      )}
+      className={buttonClasses({ variant, tone, size, shape, block, className })}
       {...props}
     />
   );

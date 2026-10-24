@@ -15,6 +15,8 @@ import { MultiSelectSpecimen } from './specimens/05-multi-select';
 import { SwitchSpecimen } from './specimens/06-switch';
 import { ButtonSpecimen } from './specimens/08-button';
 import { FieldsSpecimen } from './specimens/09-fields';
+import { OverlaysSpecimen } from './specimens/10-overlays';
+import { DatesSpecimen } from './specimens/11-dates';
 
 const SPECIMENS = [
   {
@@ -100,6 +102,32 @@ const SPECIMENS = [
       'packages/ui/src/primitives/field/field-error.tsx',
     ],
     Component: FieldsSpecimen,
+  },
+  {
+    id: '10-overlays',
+    index: '10',
+    title: 'Overlays — menu, sélection, panneau, notification',
+    question:
+      'Les quatre surfaces flottantes du produit. Le menu maison tient-il encore, et que gagne-t-on à passer sur react-aria ?',
+    sources: [
+      'packages/ui/src/primitives/dropdown/dropdown.tsx',
+      'packages/ui/src/primitives/select/select.tsx',
+      'packages/ui/src/primitives/drawer/drawer.tsx',
+      'packages/ui/src/primitives/toast/toast.tsx',
+    ],
+    Component: OverlaysSpecimen,
+  },
+  {
+    id: '11-dates',
+    index: '11',
+    title: 'Dates et calendrier',
+    question:
+      'Trois saisies de date coexistent, aucune ne dit son format. On unifie sur des segments typés, avec un calendrier réellement utilisable au clavier ?',
+    sources: [
+      'packages/ui/src/primitives/date/calendar.tsx',
+      'packages/ui/src/primitives/date/date-picker.tsx',
+    ],
+    Component: DatesSpecimen,
   },
 ];
 

@@ -17,6 +17,7 @@ import {
 import { saveMultipleFrontendConfigs } from '@/lib/admin-aux-actions';
 import { ALL_LANGUAGES, type Language } from '@qoe/i18n';
 import { t } from '@lingui/core/macro';
+import { Select } from '@qoe/ui/select';
 
 // Default presets for fallback and reset buttons
 const PRESETS = {
@@ -310,18 +311,22 @@ function ReaderSimulationBuilder({
               className="flex items-start p-3 gap-3 hover:bg-white/60 transition-colors group"
             >
               {/* Type Select */}
-              <select
+              <Select
+                label={t`Type de bloc`}
+                hideLabel
+                size="xs"
+                className="w-40 shrink-0"
                 value={item.type}
-                onChange={(e) => updateItemField(idx, 'type', e.target.value)}
-                className="bg-white border border-border rounded-lg py-1 px-2 text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-[#EE4B2B]/40 focus:border-[#EE4B2B] shrink-0"
-              >
-                <option value="label">{t`Surtitre / Label`}</option>
-                <option value="title">{t`Titre`}</option>
-                <option value="section">{t`Section`}</option>
-                <option value="body">{t`Paragraphe`}</option>
-                <option value="quote">{t`Citation`}</option>
-                <option value="divider">{t`Séparateur`}</option>
-              </select>
+                onValueChange={(value) => updateItemField(idx, 'type', value)}
+                options={[
+                  { id: 'label', label: t`Surtitre / Label` },
+                  { id: 'title', label: t`Titre` },
+                  { id: 'section', label: t`Section` },
+                  { id: 'body', label: t`Paragraphe` },
+                  { id: 'quote', label: t`Citation` },
+                  { id: 'divider', label: t`Séparateur` },
+                ]}
+              />
 
               {/* Text Input (hidden if divider) */}
               {item.type !== 'divider' ? (

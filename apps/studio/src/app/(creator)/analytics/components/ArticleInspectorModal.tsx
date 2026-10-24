@@ -15,6 +15,7 @@ import { getArticleAnalyticsDetail, ArticleDetailData, TimePeriod } from '../act
 import { TimeseriesChart } from './TimeseriesChart';
 import { ReferrersBlock } from './ReferrersBlock';
 import { t } from '@lingui/core/macro';
+import { Select } from '@qoe/ui/select';
 
 interface ArticleInspectorModalProps {
   urlPath: string | null;
@@ -146,17 +147,21 @@ export function ArticleInspectorModal({
                 <p className="text-xs font-sans font-medium text-foreground mt-2 truncate">
                   {detail.url}
                 </p>
-                <select
+                <Select
+                  label={t`Période`}
+                  hideLabel
+                  size="sm"
+                  className="mt-3"
                   value={period}
-                  onChange={(e) => setPeriod(e.target.value as TimePeriod)}
-                  className="mt-3 w-full bg-background border border-border/30 rounded-lg px-2 py-1.5 text-xs text-muted-foreground"
-                >
-                  <option value="7d">7 derniers jours</option>
-                  <option value="30d">30 derniers jours</option>
-                  <option value="90d">90 derniers jours</option>
-                  <option value="24h">24 heures</option>
-                  <option value="all">Tout l'historique</option>
-                </select>
+                  onValueChange={(value) => setPeriod(value as TimePeriod)}
+                  options={[
+                    { id: '7d', label: t`7 derniers jours` },
+                    { id: '30d', label: t`30 derniers jours` },
+                    { id: '90d', label: t`90 derniers jours` },
+                    { id: '24h', label: t`24 heures` },
+                    { id: 'all', label: t`Tout l'historique` },
+                  ]}
+                />
               </div>
             </div>
 

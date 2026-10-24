@@ -11,6 +11,7 @@ import React, { useState, useTransition } from 'react';
 import { Sparkles, Megaphone, Send, CheckCircle2, Globe, Eye, EyeOff } from 'lucide-react';
 import { toast } from '@qoe/ui/toast';
 import { InvertedCurveBanner, type AnnouncementType } from '@qoe/ui';
+import { Select } from '@qoe/ui/select';
 import {
   saveGlobalAnnouncementAction,
   type GlobalAnnouncementPayload,
@@ -140,16 +141,18 @@ export function BroadcastAnnouncementConsole({
               <label className="block text-xs font-semibold text-foreground mb-1.5">
                 Style / Thème
               </label>
-              <select
+              <Select
+                label="Type d'annonce"
+                hideLabel
                 value={type}
-                onChange={(e) => setType(e.target.value as AnnouncementType)}
-                className="w-full rounded-xl border border-border bg-muted/20 px-3.5 py-2 text-xs text-foreground focus:border-[#EE4B2B] focus:outline-none transition-all cursor-pointer"
-              >
-                <option value="promo">Promo (Violet Hostinger)</option>
-                <option value="info">Info (Bleu nuit)</option>
-                <option value="warning">Alerte (Ambre)</option>
-                <option value="critical">Urgent (Carmin)</option>
-              </select>
+                onValueChange={(value) => setType(value as AnnouncementType)}
+                options={[
+                  { id: 'promo', label: 'Promo (Violet Hostinger)' },
+                  { id: 'info', label: 'Info (Bleu nuit)' },
+                  { id: 'warning', label: 'Alerte (Ambre)' },
+                  { id: 'critical', label: 'Urgent (Carmin)' },
+                ]}
+              />
             </div>
 
             <div>
