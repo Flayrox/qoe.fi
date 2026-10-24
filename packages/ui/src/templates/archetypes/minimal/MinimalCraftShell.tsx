@@ -28,6 +28,7 @@ import { SafeAvatar } from '../../../SafeAvatar';
 import type { TemplatePublicationContext, TemplateArticleItem } from '../../schema';
 import { AuthModalContext } from '../../../auth/AuthModalContext';
 import { resolveTenantNavigation } from '../../navigation';
+import { ExitInterstitialProvider, ExternalLinkInterceptor } from '../../../ui/exit-interstitial';
 
 export interface MinimalCraftShellProps {
   publication: TemplatePublicationContext;
@@ -182,427 +183,432 @@ export function MinimalCraftShell({
   };
 
   return (
-    <div
-      style={style}
-      data-sidebar-open={isSidebarOpen ? 'true' : 'false'}
-      className={cn(
-        'platform_root min-h-screen bg-background text-foreground transition-colors selection:bg-[var(--tenant-accent)] selection:text-white pb-32 relative',
-        hasCategoryBar ? 'pt-28 sm:pt-36' : 'pt-20 sm:pt-28',
-        className
-      )}
-    >
-      {/* ── 1. EN-TÊTE FIXE SUPÉRIEUR DEVOURING DETAILS (top-4 sm:top-6 z-40) ── */}
-      <header
-        data-header="true"
-        className="platform_header fixed top-5 sm:top-7 left-6 right-6 z-40 flex items-center justify-between select-none pointer-events-auto text-muted-foreground"
-      >
-        {/* Côté Gauche : Logo classique + Contrôles de navigation (Sidebar + Retour si mode article) */}
-        <div className="flex items-center gap-2.5 shrink-0 z-10 min-w-0">
-          {/* Marque : logo configuré dans les réglages, sinon l'avatar de la
+    <ExitInterstitialProvider sourceName={displayName}>
+      <ExternalLinkInterceptor sourceName={displayName}>
+        <div
+          style={style}
+          data-sidebar-open={isSidebarOpen ? 'true' : 'false'}
+          className={cn(
+            'platform_root min-h-screen bg-background text-foreground transition-colors selection:bg-[var(--tenant-accent)] selection:text-white pb-32 relative',
+            hasCategoryBar ? 'pt-28 sm:pt-36' : 'pt-20 sm:pt-28',
+            className
+          )}
+        >
+          {/* ── 1. EN-TÊTE FIXE SUPÉRIEUR DEVOURING DETAILS (top-4 sm:top-6 z-40) ── */}
+          <header
+            data-header="true"
+            className="platform_header fixed top-5 sm:top-7 left-6 right-6 z-40 flex items-center justify-between select-none pointer-events-auto text-muted-foreground"
+          >
+            {/* Côté Gauche : Logo classique + Contrôles de navigation (Sidebar + Retour si mode article) */}
+            <div className="flex items-center gap-2.5 shrink-0 z-10 min-w-0">
+              {/* Marque : logo configuré dans les réglages, sinon l'avatar de la
               personne, sinon l'avatar de repli déterministe (jamais une lettre
               générique). */}
-          {showLogo && (
-            <a
-              href="/"
-              className="inline-flex items-center justify-center shrink-0 transition-transform hover:scale-105"
-              title={displayName}
-            >
-              <SafeAvatar
-                src={publication.logoUrl || publication.author?.avatarUrl || null}
-                name={publication.author?.name || displayName}
-                username={publication.author?.username || publication.subdomain}
-                size={42}
-                shape={isLogoSquare ? 'squircle' : 'circle'}
-                className="border border-border/50 shadow-2xs"
-              />
-            </a>
-          )}
-
-          {showCraftIndex && (
-            <button
-              type="button"
-              onClick={() => setIsSidebarOpen((prev) => !prev)}
-              className="hover:bg-muted active:bg-muted/80 m-[-6px] cursor-pointer rounded-md p-1.5 transition-colors shrink-0"
-              aria-label="Basculer la sidebar"
-              title={isSidebarOpen ? 'Replier la sidebar' : 'Déplier la sidebar'}
-            >
-              <SidebarToggleIcon isOpen={isSidebarOpen} size={16} />
-            </button>
-          )}
-
-          {isArticleMode && (
-            <a
-              href="/"
-              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-muted/60 group"
-              title="Retour à l'accueil"
-            >
-              <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-0.5" />
-              <span className="hidden md:inline text-[11px] font-medium">Accueil</span>
-            </a>
-          )}
-        </div>
-
-        {/* Centre : Wordmark typographique dédié ou Nom de la publication */}
-        <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center max-w-[42vw] sm:max-w-[48vw] text-center z-10 pointer-events-auto">
-          <a
-            href="/"
-            className="min-w-0 transition-opacity hover:opacity-85 inline-flex items-center justify-center max-w-full"
-            title={displayName}
-          >
-            {wordmarkUrl ? (
-              <img
-                src={wordmarkUrl}
-                alt={displayName}
-                className="h-7 sm:h-8 md:h-9 w-auto max-w-full object-contain object-center"
-              />
-            ) : (
-              <p
-                data-breadcrumb="true"
-                aria-label="Nom de la publication"
-                className="truncate text-lg sm:text-xl md:text-2xl font-semibold tracking-tight text-foreground text-center"
-              >
-                {displayName}
-              </p>
-            )}
-          </a>
-        </div>
-
-        {/* Côté Droit : Recherche, Partage, S'abonner, Se connecter */}
-        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 z-10 pointer-events-auto">
-          {/* Recherche */}
-          <a
-            href="/search"
-            className="p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
-            title="Rechercher"
-            aria-label="Rechercher"
-          >
-            <Search className="w-4 h-4" />
-          </a>
-
-          {/* Partage */}
-          <button
-            type="button"
-            onClick={handleShare}
-            className="hidden sm:inline-flex p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer"
-            title="Partager cette publication"
-            aria-label="Partager"
-          >
-            {copiedShare ? (
-              <Check className="w-4 h-4 text-primary" />
-            ) : (
-              <Share2 className="w-4 h-4" />
-            )}
-          </button>
-
-          {/* Bouton S'abonner (Pill plein coloré) */}
-          {allowSupport && (
-            <a
-              href={supportLink || '#subscribe'}
-              onClick={(e) => {
-                if (!supportLink && authContext?.openAuthModal) {
-                  e.preventDefault();
-                  authContext.openAuthModal({ mode: 'signup', actionContext: 'follow' });
-                }
-              }}
-              className="px-3 sm:px-4 py-1.5 rounded-full text-xs font-semibold text-white hover:opacity-90 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-2xs shrink-0 cursor-pointer"
-              style={{ backgroundColor: publication.accentColor || '#C04328' }}
-            >
-              S'abonner
-            </a>
-          )}
-
-          {/* Se connecter */}
-          <button
-            type="button"
-            onClick={handleLogin}
-            className="hidden sm:inline-block text-xs font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer shrink-0 px-1 py-1.5"
-          >
-            Se connecter
-          </button>
-        </div>
-      </header>
-
-      {/* ── 1.5. NAVIGATION CENTRÉE ÉPURÉE SANS PILULE (Catégories, Sous-catégories & Liens créateur) ── */}
-      {hasCategoryBar && (
-        <nav
-          aria-label="Navigation des rubriques et pages"
-          className="fixed top-[4.25rem] sm:top-[4.75rem] left-0 right-0 z-35 flex justify-center pointer-events-none px-4"
-        >
-          <div className="pointer-events-auto flex items-center justify-center gap-4 sm:gap-6 max-w-[94vw] flex-wrap select-none">
-            {/* Onglet Tous les articles / Accueil */}
-            <a
-              href="/"
-              className={cn(
-                'text-xs sm:text-[13px] font-medium tracking-tight transition-colors shrink-0',
-                isHomeActive
-                  ? 'text-foreground font-semibold underline underline-offset-4 decoration-2 decoration-[var(--tenant-accent)]'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              Accueil
-            </a>
-
-            {/* Rubriques principales et leurs sous-catégories */}
-            {rootCategories.map((cat) => {
-              const subs = getSubcategories(cat.id);
-              const hasSubs = subs.length > 0;
-              const isCatActive =
-                activeCategorySlug === cat.slug || subs.some((s) => s.slug === activeCategorySlug);
-              const isDropdownOpen = activeDropdownCatId === cat.id;
-
-              if (!hasSubs) {
-                return (
-                  <a
-                    key={cat.id}
-                    href={`/${cat.slug}`}
-                    className={cn(
-                      'text-xs sm:text-[13px] font-medium tracking-tight transition-colors shrink-0',
-                      isCatActive
-                        ? 'text-foreground font-semibold underline underline-offset-4 decoration-2 decoration-[var(--tenant-accent)]'
-                        : 'text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    {cat.name}
-                  </a>
-                );
-              }
-
-              return (
-                <div key={cat.id} className="relative shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setActiveDropdownCatId(isDropdownOpen ? null : cat.id)}
-                    className={cn(
-                      'flex items-center gap-1 text-xs sm:text-[13px] font-medium tracking-tight transition-colors select-none cursor-pointer',
-                      isCatActive
-                        ? 'text-foreground font-semibold underline underline-offset-4 decoration-2 decoration-[var(--tenant-accent)]'
-                        : isDropdownOpen
-                          ? 'text-foreground font-semibold'
-                          : 'text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    <span>{cat.name}</span>
-                    <ChevronDown
-                      className={cn(
-                        'w-3 h-3 transition-transform opacity-60',
-                        isDropdownOpen && 'rotate-180'
-                      )}
-                    />
-                  </button>
-
-                  {isDropdownOpen && (
-                    <>
-                      <div
-                        className="fixed inset-0 z-40"
-                        onClick={() => setActiveDropdownCatId(null)}
-                      />
-                      <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 min-w-[170px] rounded-xl border border-border/60 bg-background/95 backdrop-blur-xl p-1.5 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150 space-y-0.5 text-left">
-                        <a
-                          href={`/${cat.slug}`}
-                          onClick={() => setActiveDropdownCatId(null)}
-                          className={cn(
-                            'flex items-center justify-between px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
-                            activeCategorySlug === cat.slug
-                              ? 'bg-muted text-foreground font-semibold'
-                              : 'text-foreground hover:bg-muted/70'
-                          )}
-                        >
-                          <span>Tout voir dans {cat.name}</span>
-                        </a>
-                        <div className="h-px bg-border/40 my-1" />
-                        {subs.map((sub) => (
-                          <a
-                            key={sub.id}
-                            href={`/${sub.slug}`}
-                            onClick={() => setActiveDropdownCatId(null)}
-                            className={cn(
-                              'flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-colors',
-                              activeCategorySlug === sub.slug
-                                ? 'bg-muted text-foreground font-semibold'
-                                : 'text-muted-foreground hover:text-foreground hover:bg-muted/70'
-                            )}
-                          >
-                            <span className="opacity-40 font-sans text-[10px]">↳</span>
-                            <span>{sub.name}</span>
-                          </a>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                </div>
-              );
-            })}
-
-            {/* Onglet Pensées (flux de réflexions / notes) */}
-            {showThoughtsInNav && (
-              <a
-                href="/thoughts"
-                className={cn(
-                  'text-xs sm:text-[13px] font-medium tracking-tight transition-colors shrink-0',
-                  isThoughtsActive
-                    ? 'text-foreground font-semibold underline underline-offset-4 decoration-2 decoration-[var(--tenant-accent)]'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                Pensées
-              </a>
-            )}
-
-            {/* Onglet À propos (présentation & mission) */}
-            {showAboutInNav && (
-              <a
-                href="/about"
-                className={cn(
-                  'text-xs sm:text-[13px] font-medium tracking-tight transition-colors shrink-0',
-                  isAboutActive
-                    ? 'text-foreground font-semibold underline underline-offset-4 decoration-2 decoration-[var(--tenant-accent)]'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                À propos
-              </a>
-            )}
-
-            {/* Liens de navigation additionnels configurés (Podcast, Boutique, etc.) */}
-            {externalLinks.map((nav, nIdx) => {
-              const isExt =
-                nav.isExternal ??
-                (nav.url?.startsWith('http://') ||
-                  nav.url?.startsWith('https://') ||
-                  nav.url?.startsWith('//'));
-              const isCustomActive = !isExt && nav.url && currentPath === nav.url;
-              const targetHref =
-                isExt && nav.url ? `/exit?url=${encodeURIComponent(nav.url)}` : nav.url || '#';
-
-              return (
+              {showLogo && (
                 <a
-                  key={nav.id || nIdx}
-                  href={targetHref}
-                  target={isExt ? '_blank' : undefined}
-                  rel={isExt ? 'noopener noreferrer' : undefined}
+                  href="/"
+                  className="inline-flex items-center justify-center shrink-0 transition-transform hover:scale-105"
+                  title={displayName}
+                >
+                  <SafeAvatar
+                    src={publication.logoUrl || publication.author?.avatarUrl || null}
+                    name={publication.author?.name || displayName}
+                    username={publication.author?.username || publication.subdomain}
+                    size={42}
+                    shape={isLogoSquare ? 'squircle' : 'circle'}
+                    className="border border-border/50 shadow-2xs"
+                  />
+                </a>
+              )}
+
+              {showCraftIndex && (
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarOpen((prev) => !prev)}
+                  className="hover:bg-muted active:bg-muted/80 m-[-6px] cursor-pointer rounded-md p-1.5 transition-colors shrink-0"
+                  aria-label="Basculer la sidebar"
+                  title={isSidebarOpen ? 'Replier la sidebar' : 'Déplier la sidebar'}
+                >
+                  <SidebarToggleIcon isOpen={isSidebarOpen} size={16} />
+                </button>
+              )}
+
+              {isArticleMode && (
+                <a
+                  href="/"
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors p-1 rounded-md hover:bg-muted/60 group"
+                  title="Retour à l'accueil"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-0.5" />
+                  <span className="hidden md:inline text-[11px] font-medium">Accueil</span>
+                </a>
+              )}
+            </div>
+
+            {/* Centre : Wordmark typographique dédié ou Nom de la publication */}
+            <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center max-w-[42vw] sm:max-w-[48vw] text-center z-10 pointer-events-auto">
+              <a
+                href="/"
+                className="min-w-0 transition-opacity hover:opacity-85 inline-flex items-center justify-center max-w-full"
+                title={displayName}
+              >
+                {wordmarkUrl ? (
+                  <img
+                    src={wordmarkUrl}
+                    alt={displayName}
+                    className="h-7 sm:h-8 md:h-9 w-auto max-w-full object-contain object-center"
+                  />
+                ) : (
+                  <p
+                    data-breadcrumb="true"
+                    aria-label="Nom de la publication"
+                    className="truncate text-lg sm:text-xl md:text-2xl font-semibold tracking-tight text-foreground text-center"
+                  >
+                    {displayName}
+                  </p>
+                )}
+              </a>
+            </div>
+
+            {/* Côté Droit : Recherche, Partage, S'abonner, Se connecter */}
+            <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 z-10 pointer-events-auto">
+              {/* Recherche */}
+              <a
+                href="/search"
+                className="p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors"
+                title="Rechercher"
+                aria-label="Rechercher"
+              >
+                <Search className="w-4 h-4" />
+              </a>
+
+              {/* Partage */}
+              <button
+                type="button"
+                onClick={handleShare}
+                className="hidden sm:inline-flex p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer"
+                title="Partager cette publication"
+                aria-label="Partager"
+              >
+                {copiedShare ? (
+                  <Check className="w-4 h-4 text-primary" />
+                ) : (
+                  <Share2 className="w-4 h-4" />
+                )}
+              </button>
+
+              {/* Bouton S'abonner (Pill plein coloré) */}
+              {allowSupport && (
+                <a
+                  href={supportLink || '#subscribe'}
+                  onClick={(e) => {
+                    if (!supportLink && authContext?.openAuthModal) {
+                      e.preventDefault();
+                      authContext.openAuthModal({ mode: 'signup', actionContext: 'follow' });
+                    }
+                  }}
+                  className="px-3 sm:px-4 py-1.5 rounded-full text-xs font-semibold text-white hover:opacity-90 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-2xs shrink-0 cursor-pointer"
+                  style={{ backgroundColor: publication.accentColor || '#C04328' }}
+                >
+                  S'abonner
+                </a>
+              )}
+
+              {/* Se connecter */}
+              <button
+                type="button"
+                onClick={handleLogin}
+                className="hidden sm:inline-block text-xs font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer shrink-0 px-1 py-1.5"
+              >
+                Se connecter
+              </button>
+            </div>
+          </header>
+
+          {/* ── 1.5. NAVIGATION CENTRÉE ÉPURÉE SANS PILULE (Catégories, Sous-catégories & Liens créateur) ── */}
+          {hasCategoryBar && (
+            <nav
+              aria-label="Navigation des rubriques et pages"
+              className="fixed top-[4.25rem] sm:top-[4.75rem] left-0 right-0 z-35 flex justify-center pointer-events-none px-4"
+            >
+              <div className="pointer-events-auto flex items-center justify-center gap-4 sm:gap-6 max-w-[94vw] flex-wrap select-none">
+                {/* Onglet Tous les articles / Accueil */}
+                <a
+                  href="/"
                   className={cn(
                     'text-xs sm:text-[13px] font-medium tracking-tight transition-colors shrink-0',
-                    isCustomActive
+                    isHomeActive
                       ? 'text-foreground font-semibold underline underline-offset-4 decoration-2 decoration-[var(--tenant-accent)]'
                       : 'text-muted-foreground hover:text-foreground'
                   )}
                 >
-                  {nav.label}
-                </a>
-              );
-            })}
-          </div>
-        </nav>
-      )}
-
-      {/* ── 2. FLOU PROGRESSIF DISCRET SOUS L'EN-TÊTE (z-20) ── */}
-      {showProgressiveBlur && (
-        <ProgressiveBlur
-          direction="top"
-          className="h-16 sm:h-20 fixed top-0 left-0 right-0 z-20 pointer-events-none"
-        />
-      )}
-
-      {/* ── 3. CONTENU PRINCIPAL DE L'ARTICLE (z-10) ── */}
-      <main
-        className={cn(
-          'relative z-10 transition-transform duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]',
-          isSidebarOpen ? 'sm:translate-x-[240px] md:translate-x-[280px]' : 'translate-x-0'
-        )}
-      >
-        {activeCategory && !isArticleMode && (
-          <div className="container mx-auto px-4 sm:px-6 max-w-4xl pt-3 pb-5">
-            <div className="border-b border-border/30 pb-4">
-              <nav
-                aria-label="Fil d’Ariane"
-                className="flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-muted-foreground flex-wrap"
-              >
-                <a href="/" className="hover:text-foreground transition-colors">
                   Accueil
                 </a>
-                {activeCategoryParent && (
-                  <>
+
+                {/* Rubriques principales et leurs sous-catégories */}
+                {rootCategories.map((cat) => {
+                  const subs = getSubcategories(cat.id);
+                  const hasSubs = subs.length > 0;
+                  const isCatActive =
+                    activeCategorySlug === cat.slug ||
+                    subs.some((s) => s.slug === activeCategorySlug);
+                  const isDropdownOpen = activeDropdownCatId === cat.id;
+
+                  if (!hasSubs) {
+                    return (
+                      <a
+                        key={cat.id}
+                        href={`/${cat.slug}`}
+                        className={cn(
+                          'text-xs sm:text-[13px] font-medium tracking-tight transition-colors shrink-0',
+                          isCatActive
+                            ? 'text-foreground font-semibold underline underline-offset-4 decoration-2 decoration-[var(--tenant-accent)]'
+                            : 'text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        {cat.name}
+                      </a>
+                    );
+                  }
+
+                  return (
+                    <div key={cat.id} className="relative shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setActiveDropdownCatId(isDropdownOpen ? null : cat.id)}
+                        className={cn(
+                          'flex items-center gap-1 text-xs sm:text-[13px] font-medium tracking-tight transition-colors select-none cursor-pointer',
+                          isCatActive
+                            ? 'text-foreground font-semibold underline underline-offset-4 decoration-2 decoration-[var(--tenant-accent)]'
+                            : isDropdownOpen
+                              ? 'text-foreground font-semibold'
+                              : 'text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        <span>{cat.name}</span>
+                        <ChevronDown
+                          className={cn(
+                            'w-3 h-3 transition-transform opacity-60',
+                            isDropdownOpen && 'rotate-180'
+                          )}
+                        />
+                      </button>
+
+                      {isDropdownOpen && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-40"
+                            onClick={() => setActiveDropdownCatId(null)}
+                          />
+                          <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 min-w-[170px] rounded-xl border border-border/60 bg-background/95 backdrop-blur-xl p-1.5 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150 space-y-0.5 text-left">
+                            <a
+                              href={`/${cat.slug}`}
+                              onClick={() => setActiveDropdownCatId(null)}
+                              className={cn(
+                                'flex items-center justify-between px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
+                                activeCategorySlug === cat.slug
+                                  ? 'bg-muted text-foreground font-semibold'
+                                  : 'text-foreground hover:bg-muted/70'
+                              )}
+                            >
+                              <span>Tout voir dans {cat.name}</span>
+                            </a>
+                            <div className="h-px bg-border/40 my-1" />
+                            {subs.map((sub) => (
+                              <a
+                                key={sub.id}
+                                href={`/${sub.slug}`}
+                                onClick={() => setActiveDropdownCatId(null)}
+                                className={cn(
+                                  'flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-colors',
+                                  activeCategorySlug === sub.slug
+                                    ? 'bg-muted text-foreground font-semibold'
+                                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/70'
+                                )}
+                              >
+                                <span className="opacity-40 font-sans text-[10px]">↳</span>
+                                <span>{sub.name}</span>
+                              </a>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* Onglet Pensées (flux de réflexions / notes) */}
+                {showThoughtsInNav && (
+                  <a
+                    href="/thoughts"
+                    className={cn(
+                      'text-xs sm:text-[13px] font-medium tracking-tight transition-colors shrink-0',
+                      isThoughtsActive
+                        ? 'text-foreground font-semibold underline underline-offset-4 decoration-2 decoration-[var(--tenant-accent)]'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    Pensées
+                  </a>
+                )}
+
+                {/* Onglet À propos (présentation & mission) */}
+                {showAboutInNav && (
+                  <a
+                    href="/about"
+                    className={cn(
+                      'text-xs sm:text-[13px] font-medium tracking-tight transition-colors shrink-0',
+                      isAboutActive
+                        ? 'text-foreground font-semibold underline underline-offset-4 decoration-2 decoration-[var(--tenant-accent)]'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    À propos
+                  </a>
+                )}
+
+                {/* Liens de navigation additionnels configurés (Podcast, Boutique, etc.) */}
+                {externalLinks.map((nav, nIdx) => {
+                  const isExt =
+                    nav.isExternal ??
+                    (nav.url?.startsWith('http://') ||
+                      nav.url?.startsWith('https://') ||
+                      nav.url?.startsWith('//'));
+                  const isCustomActive = !isExt && nav.url && currentPath === nav.url;
+                  const targetHref =
+                    isExt && nav.url ? `/exit?url=${encodeURIComponent(nav.url)}` : nav.url || '#';
+
+                  return (
+                    <a
+                      key={nav.id || nIdx}
+                      href={targetHref}
+                      target={isExt ? '_blank' : undefined}
+                      rel={isExt ? 'noopener noreferrer' : undefined}
+                      className={cn(
+                        'text-xs sm:text-[13px] font-medium tracking-tight transition-colors shrink-0',
+                        isCustomActive
+                          ? 'text-foreground font-semibold underline underline-offset-4 decoration-2 decoration-[var(--tenant-accent)]'
+                          : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      {nav.label}
+                    </a>
+                  );
+                })}
+              </div>
+            </nav>
+          )}
+
+          {/* ── 2. FLOU PROGRESSIF DISCRET SOUS L'EN-TÊTE (z-20) ── */}
+          {showProgressiveBlur && (
+            <ProgressiveBlur
+              direction="top"
+              className="h-16 sm:h-20 fixed top-0 left-0 right-0 z-20 pointer-events-none"
+            />
+          )}
+
+          {/* ── 3. CONTENU PRINCIPAL DE L'ARTICLE (z-10) ── */}
+          <main
+            className={cn(
+              'relative z-10 transition-transform duration-300 ease-[cubic-bezier(0.23,1,0.32,1)]',
+              isSidebarOpen ? 'sm:translate-x-[240px] md:translate-x-[280px]' : 'translate-x-0'
+            )}
+          >
+            {activeCategory && !isArticleMode && (
+              <div className="container mx-auto px-4 sm:px-6 max-w-4xl pt-3 pb-5">
+                <div className="border-b border-border/30 pb-4">
+                  <nav
+                    aria-label="Fil d’Ariane"
+                    className="flex items-center gap-1.5 text-[11px] font-medium tracking-wide text-muted-foreground flex-wrap"
+                  >
+                    <a href="/" className="hover:text-foreground transition-colors">
+                      Accueil
+                    </a>
+                    {activeCategoryParent && (
+                      <>
+                        <span aria-hidden="true" className="opacity-50">
+                          /
+                        </span>
+                        <a
+                          href={`/${activeCategoryParent.slug}`}
+                          className="hover:text-foreground transition-colors"
+                        >
+                          {activeCategoryParent.name}
+                        </a>
+                      </>
+                    )}
                     <span aria-hidden="true" className="opacity-50">
                       /
                     </span>
-                    <a
-                      href={`/${activeCategoryParent.slug}`}
-                      className="hover:text-foreground transition-colors"
-                    >
-                      {activeCategoryParent.name}
-                    </a>
-                  </>
-                )}
-                <span aria-hidden="true" className="opacity-50">
-                  /
-                </span>
-                <span aria-current="page" className="text-foreground font-semibold">
-                  {activeCategory.name}
-                </span>
-              </nav>
+                    <span aria-current="page" className="text-foreground font-semibold">
+                      {activeCategory.name}
+                    </span>
+                  </nav>
 
-              <div className="mt-3 flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
-                <div className="min-w-0">
-                  <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
-                    {activeCategory.name}
-                  </h1>
-                  {activeCategory.description && (
-                    <p className="mt-2 max-w-2xl text-sm text-muted-foreground leading-relaxed">
-                      {activeCategory.description}
-                    </p>
+                  <div className="mt-3 flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+                    <div className="min-w-0">
+                      <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+                        {activeCategory.name}
+                      </h1>
+                      {activeCategory.description && (
+                        <p className="mt-2 max-w-2xl text-sm text-muted-foreground leading-relaxed">
+                          {activeCategory.description}
+                        </p>
+                      )}
+                    </div>
+                    <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground shrink-0">
+                      {articles.length} article{articles.length > 1 ? 's' : ''}
+                    </span>
+                  </div>
+
+                  {activeCategoryChildren.length > 0 && (
+                    <div className="mt-4 flex flex-wrap gap-2" aria-label="Sous-catégories">
+                      {activeCategoryChildren.map((sub) => (
+                        <a
+                          key={sub.id}
+                          href={`/${sub.slug}`}
+                          className="px-3 py-1.5 rounded-full border border-border/50 bg-muted/20 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                        >
+                          {sub.name}
+                        </a>
+                      ))}
+                    </div>
                   )}
                 </div>
-                <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground shrink-0">
-                  {articles.length} article{articles.length > 1 ? 's' : ''}
-                </span>
               </div>
+            )}
+            {children}
+          </main>
 
-              {activeCategoryChildren.length > 0 && (
-                <div className="mt-4 flex flex-wrap gap-2" aria-label="Sous-catégories">
-                  {activeCategoryChildren.map((sub) => (
-                    <a
-                      key={sub.id}
-                      href={`/${sub.slug}`}
-                      className="px-3 py-1.5 rounded-full border border-border/50 bg-muted/20 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                    >
-                      {sub.name}
-                    </a>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-        {children}
-      </main>
+          {/* ── 4. RÉGLETTE LATÉRALE EXACTE DEVOURING DETAILS ── */}
+          {showCraftIndex && (
+            <CraftSidebarDrawer
+              isOpen={isSidebarOpen}
+              onClose={() => setIsSidebarOpen(false)}
+              onToggle={() => setIsSidebarOpen((prev) => !prev)}
+              publication={publication}
+              items={drawerItems}
+              activeId={article?.id}
+              indicatorColor={accentColor}
+              side="left"
+            />
+          )}
 
-      {/* ── 4. RÉGLETTE LATÉRALE EXACTE DEVOURING DETAILS ── */}
-      {showCraftIndex && (
-        <CraftSidebarDrawer
-          isOpen={isSidebarOpen}
-          onClose={() => setIsSidebarOpen(false)}
-          onToggle={() => setIsSidebarOpen((prev) => !prev)}
-          publication={publication}
-          items={drawerItems}
-          activeId={article?.id}
-          indicatorColor={accentColor}
-          side="left"
-        />
-      )}
-
-      {/* ── 5. DOCK FLOTTANT INFÉRIEUR ARRONDI ── */}
-      {showCraftIndex && (
-        <MinimalDock
-          mode={isArticleMode ? 'article' : 'home'}
-          articleTitle={article?.title}
-          itemsCount={drawerItems.length}
-          readingTimeMinutes={article?.readingTime || 4}
-          indicatorColor={accentColor}
-          isDrawerOpen={isSidebarOpen}
-          onToggleDrawer={() => setIsSidebarOpen((prev) => !prev)}
-          supportUrl={publication.supportUrl}
-        />
-      )}
-    </div>
+          {/* ── 5. DOCK FLOTTANT INFÉRIEUR ARRONDI ── */}
+          {showCraftIndex && (
+            <MinimalDock
+              mode={isArticleMode ? 'article' : 'home'}
+              articleTitle={article?.title}
+              itemsCount={drawerItems.length}
+              readingTimeMinutes={article?.readingTime || 4}
+              indicatorColor={accentColor}
+              isDrawerOpen={isSidebarOpen}
+              onToggleDrawer={() => setIsSidebarOpen((prev) => !prev)}
+              supportUrl={publication.supportUrl}
+            />
+          )}
+        </div>
+      </ExternalLinkInterceptor>
+    </ExitInterstitialProvider>
   );
 }
