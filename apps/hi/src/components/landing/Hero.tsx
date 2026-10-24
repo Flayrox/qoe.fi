@@ -20,6 +20,7 @@ import { useI18n } from '@qoe/i18n';
 import { ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
 import { cn } from '@qoe/utils';
+import { URLS } from '@qoe/config';
 
 interface HeroProps {
   config: Record<string, string>;
@@ -621,7 +622,7 @@ function PlateauPreview({
                           {t`${typedBody.split(' ').filter(Boolean).length.toString()} mots`}
                         </span>
                         <Link
-                          href="/login"
+                          href={URLS.STUDIO}
                           className="inline-flex items-center gap-1 bg-[#EE4B2B] hover:bg-[#d63d20] text-white text-[10px] font-semibold px-3 py-1.5 rounded-md transition-colors"
                         >
                           {t`Publier`} <ArrowUpRight className="w-3 h-3" />
@@ -677,10 +678,16 @@ function PlateauPreview({
                     style={{ opacity: scrollOrigin === 'reader' ? contentFade : 1 }}
                     className="w-full h-full flex flex-col"
                   >
-                    <div className="px-5 pt-4 pb-3 border-b border-border shrink-0">
+                    <div className="px-5 pt-4 pb-3 border-b border-border shrink-0 flex items-center justify-between">
                       <p className="text-[9px] text-[#EE4B2B] font-semibold tracking-widest uppercase">
                         {t`qoefi — Lecture`}
                       </p>
+                      <Link
+                        href={`${URLS.APP}/home`}
+                        className="inline-flex items-center gap-1 text-[10px] text-muted-foreground hover:text-[#EE4B2B] font-medium transition-colors"
+                      >
+                        {t`Explorer le flux (/home)`} <ArrowUpRight className="w-3 h-3" />
+                      </Link>
                     </div>
                     <div className="relative flex-1 overflow-hidden">
                       <div className="absolute top-0 inset-x-0 h-6 bg-gradient-to-b from-white to-transparent z-10 pointer-events-none" />
@@ -702,7 +709,7 @@ function PlateauPreview({
                   <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
                     <span className="text-[10px] text-muted-foreground">{t`Brouillon`}</span>
                     <Link
-                      href="/login"
+                      href={URLS.STUDIO}
                       className="bg-[#EE4B2B] text-white text-[10px] font-semibold px-2.5 py-1 rounded-md"
                     >
                       {t`Publier`}

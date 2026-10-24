@@ -6,6 +6,7 @@ import { t } from '@lingui/core/macro';
 import { useI18n } from '@qoe/i18n';
 import Link from 'next/link';
 import { ArrowUpRight } from 'lucide-react';
+import { URLS } from '@qoe/config';
 
 interface CTAProps {
   config: Record<string, string>;
@@ -91,14 +92,14 @@ export const CTA = ({ config }: CTAProps) => {
           className="flex flex-col sm:flex-row gap-3 justify-center items-center"
         >
           <Link
-            href="/login"
+            href={`${URLS.APP}/home`}
             className="inline-flex items-center gap-2 bg-white text-[#EE4B2B] font-semibold px-7 py-3.5 rounded-xl hover:bg-muted transition-colors shadow-lg text-sm"
           >
             {btnPrimary}
             <ArrowUpRight className="w-4 h-4" />
           </Link>
           <Link
-            href="/login"
+            href={`${URLS.APP}/home`}
             className="inline-flex items-center gap-2 text-white/80 hover:text-white font-medium px-7 py-3.5 rounded-xl border border-white/20 hover:border-white/40 transition-all text-sm"
           >
             {btnSecondary}

@@ -66,7 +66,7 @@ export default async function StartLanding() {
 
       <CTA config={config} />
 
-      <Footer />
+      <Footer config={config} />
     </main>
   );
 }

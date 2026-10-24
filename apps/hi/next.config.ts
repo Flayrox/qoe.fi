@@ -28,6 +28,7 @@ const nextConfig: NextConfig = {
     '@qoe/db',
     '@qoe/flags',
     '@qoe/i18n',
+    '@qoe/sdk',
     '@qoe/supabase',
     '@qoe/ui',
     '@qoe/utils',

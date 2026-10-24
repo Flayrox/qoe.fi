@@ -5,18 +5,48 @@
 // =====================================================================
 
 import type { MetadataRoute } from 'next';
+import { fetchLegalDocuments } from '@qoe/sdk/actions/legal';
 
 export const revalidate = 86400; // Cache 24 heures
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = (process.env.NEXT_PUBLIC_LANDING_URL || 'https://hi.qoe.fi').replace(/\/$/, '');
+  const now = new Date();
 
-  return [
+  const entries: MetadataRoute.Sitemap = [
     {
       url: `${baseUrl}/`,
-      lastModified: new Date(),
+      lastModified: now,
       changeFrequency: 'weekly',
       priority: 1.0,
     },
+    {
+      url: `${baseUrl}/support`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
+    {
+      url: `${baseUrl}/legal`,
+      lastModified: now,
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
   ];
+
+  try {
+    const docs = await fetchLegalDocuments('fr');
+    for (const doc of docs) {
+      entries.push({
+        url: `${baseUrl}/legal/${encodeURIComponent(doc.slug)}`,
+        lastModified: doc.updatedAt ? new Date(doc.updatedAt) : now,
+        changeFrequency: 'monthly',
+        priority: 0.6,
+      });
+    }
+  } catch {
+    // Repli silencieux si l'API est indisponible
+  }
+
+  return entries;
 }

@@ -104,7 +104,8 @@ export const LIMITS = {
   MAX_PAGE_SIZE: 100,
 } as const;
 
-export type MonorepoApp = 'feed' | 'dashboard' | 'admin' | 'landing' | 'api' | 'tenant';
+export type MonorepoApp =
+  'feed' | 'dashboard' | 'studio' | 'admin' | 'landing' | 'api' | 'tenant' | 'docs';
 
 export function getMonorepoUrl(
   app: MonorepoApp,
@@ -124,14 +125,17 @@ export function getMonorepoUrl(
     switch (app) {
       case 'feed':
         return `https://${rootDomain}`;
+      case 'studio':
       case 'dashboard':
-        return `https://dashboard.${rootDomain}`;
+        return `https://studio.${rootDomain}`;
       case 'admin':
         return `https://admin.${rootDomain}`;
       case 'landing':
-        return `https://start.${rootDomain}`;
+        return `https://hi.${rootDomain}`;
       case 'api':
         return `https://api.${rootDomain}`;
+      case 'docs':
+        return `https://docs.${rootDomain}`;
       case 'tenant':
         return `https://${tenantSubdomain || 'demo'}.${rootDomain}`;
     }
@@ -161,6 +165,7 @@ export function getMonorepoUrl(
   switch (app) {
     case 'feed':
       return `http://${devBase}${feedPort}`;
+    case 'studio':
     case 'dashboard':
       return `http://studio.${devBase}${dashboardPort}`;
     case 'admin':
@@ -169,6 +174,8 @@ export function getMonorepoUrl(
       return `http://start.${devBase}${landingPort}`;
     case 'api':
       return `http://api.${devBase}${apiPort}`;
+    case 'docs':
+      return 'https://docs.qoe.fi';
     case 'tenant':
       return `http://${tenantSubdomain || 'climat'}.${devBase}${tenantPort}`;
   }
@@ -178,20 +185,30 @@ export const URLS = {
   get APP(): string {
     return getMonorepoUrl('feed');
   },
+  get APP_HOME(): string {
+    return `${getMonorepoUrl('feed')}/home`;
+  },
   get CONSOLE(): string {
     return getMonorepoUrl('feed');
   },
   get ADMIN(): string {
     return getMonorepoUrl('admin');
   },
+  get STUDIO(): string {
+    return getMonorepoUrl('studio');
+  },
+  /** @deprecated Utiliser `URLS.STUDIO` */
   get DASHBOARD(): string {
-    return getMonorepoUrl('dashboard');
+    return getMonorepoUrl('studio');
   },
   get API(): string {
     return getMonorepoUrl('api');
   },
   get LANDING(): string {
     return getMonorepoUrl('landing');
+  },
+  get DOCS(): string {
+    return getMonorepoUrl('docs');
   },
 };
 
