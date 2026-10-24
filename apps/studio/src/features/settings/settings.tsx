@@ -215,7 +215,7 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
         JSON.stringify(current.siteOptions ?? {}) !== JSON.stringify(original.siteOptions ?? {});
 
       if (profileFieldsChanged || siteOptionsChanged) {
-        await updateCreatorProfileAction({
+        const profileResult = await updateCreatorProfileAction({
           name: current.name,
           heroText: current.heroText,
           accentColor: current.accentColor,
@@ -230,6 +230,9 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
           supportUrl: current.supportUrl,
           siteOptions: current.siteOptions ?? {},
         });
+        if (!profileResult.ok) {
+          throw new Error(profileResult.error.message || 'Erreur de sauvegarde.');
+        }
       }
 
       if (current.subdomain !== original.subdomain) {
