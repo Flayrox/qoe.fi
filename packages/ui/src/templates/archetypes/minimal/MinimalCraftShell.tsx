@@ -14,7 +14,7 @@
 // 5. Dock contextuel inférieur arrondi (platform_footer)
 // =====================================================================
 
-import React, { useState, useContext } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { ChevronDown, ArrowLeft, Search, Share2, Check } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { ProgressiveBlur } from '../../../ui/progressive-blur';
@@ -34,6 +34,7 @@ export interface MinimalCraftShellProps {
   article?: TemplateArticleItem | null;
   articles?: TemplateArticleItem[];
   activeCategory?: import('../../schema').TemplateCategoryItem | null;
+  currentPath?: string;
   children: React.ReactNode;
   className?: string;
   style?: React.CSSProperties;
@@ -44,6 +45,7 @@ export function MinimalCraftShell({
   article,
   articles = [],
   activeCategory: propActiveCategory,
+  currentPath: propCurrentPath,
   children,
   className = '',
   style,
@@ -51,6 +53,16 @@ export function MinimalCraftShell({
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [activeDropdownCatId, setActiveDropdownCatId] = useState<string | null>(null);
   const [copiedShare, setCopiedShare] = useState(false);
+  const [currentPath, setCurrentPath] = useState(propCurrentPath || '');
+
+  useEffect(() => {
+    if (propCurrentPath) {
+      setCurrentPath(propCurrentPath);
+    } else if (typeof window !== 'undefined') {
+      setCurrentPath(window.location.pathname);
+    }
+  }, [propCurrentPath]);
+
   const authContext = useContext(AuthModalContext);
 
   const accentColor = publication.accentColor || '#F97316';
@@ -61,8 +73,7 @@ export function MinimalCraftShell({
   // 📌 Sidebar mise de côté pour notre to-do future : désactivée par défaut
   const showCraftIndex = Boolean(siteOptions.showCraftIndex);
   const showProgressiveBlur = (siteOptions.showProgressiveBlur ?? true) !== false;
-  // Wordmark : logo typographique dédié (image), distinct de la bannière
-  // d'en-tête qui reste utilisée par le hero et les partages.
+  // Wordmark : logo typographique dédié (image), centré dans l'en-tête
   const wordmarkUrl =
     typeof siteOptions.wordmarkUrl === 'string' && siteOptions.wordmarkUrl.trim().length > 0
       ? siteOptions.wordmarkUrl
@@ -70,6 +81,8 @@ export function MinimalCraftShell({
   const isLogoSquare = siteOptions.logoShape === 'square' || Boolean(siteOptions.logoShapeSquare);
   const showLogo = (siteOptions.showLogo ?? true) !== false;
   const showCategoryTabs = (siteOptions.showCategoryTabs ?? true) !== false;
+  const showAboutInNav = (siteOptions.showAboutInNav ?? true) !== false;
+  const showThoughtsInNav = (siteOptions.showThoughtsInNav ?? true) !== false;
 
   // Résolution souveraine et unifiée de la navigation (rubriques + liens externes)
   const { rootCategories, getSubcategories, externalLinks } = resolveTenantNavigation({
@@ -118,9 +131,21 @@ export function MinimalCraftShell({
     ...articleDrawerItems,
   ];
 
+  const isAboutActive = currentPath === '/about' || currentPath.startsWith('/about/');
+  const isThoughtsActive = currentPath === '/thoughts' || currentPath.startsWith('/thoughts/');
+  const isHomeActive =
+    !isArticleMode &&
+    !activeCategorySlug &&
+    !isAboutActive &&
+    !isThoughtsActive &&
+    (currentPath === '/' || currentPath === '');
+
   const hasCategoryBar =
     showCategoryTabs &&
-    (rootCategories.length > 0 || (publication.navigation && publication.navigation.length > 0));
+    (rootCategories.length > 0 ||
+      showAboutInNav ||
+      showThoughtsInNav ||
+      (publication.navigation && publication.navigation.length > 0));
 
   const supportLink = publication.stripeAccountId ? '/support' : publication.supportUrl || null;
   const allowSupport = (siteOptions.showSubscribeButton ?? true) !== false;
@@ -193,30 +218,6 @@ export function MinimalCraftShell({
             </a>
           )}
 
-          {/* Marque typographique : wordmark dédié, sinon le nom. Alignée à
-              gauche comme sur Substack, jamais au centre au-dessus des actions. */}
-          <a
-            href="/"
-            className="min-w-0 max-w-[36vw] sm:max-w-[38vw] transition-opacity hover:opacity-85"
-            title={displayName}
-          >
-            {wordmarkUrl ? (
-              <img
-                src={wordmarkUrl}
-                alt={displayName}
-                className="h-7 sm:h-8 md:h-9 w-auto max-w-full object-contain object-left"
-              />
-            ) : (
-              <p
-                data-breadcrumb="true"
-                aria-label="Nom de la publication"
-                className="truncate text-lg sm:text-xl md:text-2xl font-semibold tracking-tight text-foreground"
-              >
-                {displayName}
-              </p>
-            )}
-          </a>
-
           {showCraftIndex && (
             <button
               type="button"
@@ -239,6 +240,31 @@ export function MinimalCraftShell({
               <span className="hidden md:inline text-[11px] font-medium">Accueil</span>
             </a>
           )}
+        </div>
+
+        {/* Centre : Wordmark typographique dédié ou Nom de la publication */}
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center max-w-[42vw] sm:max-w-[48vw] text-center z-10 pointer-events-auto">
+          <a
+            href="/"
+            className="min-w-0 transition-opacity hover:opacity-85 inline-flex items-center justify-center max-w-full"
+            title={displayName}
+          >
+            {wordmarkUrl ? (
+              <img
+                src={wordmarkUrl}
+                alt={displayName}
+                className="h-7 sm:h-8 md:h-9 w-auto max-w-full object-contain object-center"
+              />
+            ) : (
+              <p
+                data-breadcrumb="true"
+                aria-label="Nom de la publication"
+                className="truncate text-lg sm:text-xl md:text-2xl font-semibold tracking-tight text-foreground text-center"
+              >
+                {displayName}
+              </p>
+            )}
+          </a>
         </div>
 
         {/* Côté Droit : Recherche, Partage, S'abonner, Se connecter */}
@@ -308,7 +334,7 @@ export function MinimalCraftShell({
               href="/"
               className={cn(
                 'text-xs sm:text-[13px] font-medium tracking-tight transition-colors shrink-0',
-                !isArticleMode && !activeCategorySlug
+                isHomeActive
                   ? 'text-foreground font-semibold underline underline-offset-4 decoration-2 decoration-[var(--tenant-accent)]'
                   : 'text-muted-foreground hover:text-foreground'
               )}
@@ -407,18 +433,62 @@ export function MinimalCraftShell({
               );
             })}
 
-            {/* Liens de navigation externes configurés ("Podcast", "Boutique", etc.) */}
-            {externalLinks.map((nav, nIdx) => (
+            {/* Onglet Pensées (flux de réflexions / notes) */}
+            {showThoughtsInNav && (
               <a
-                key={nav.id || nIdx}
-                href={nav.url || '#'}
-                target={nav.isExternal ? '_blank' : undefined}
-                rel={nav.isExternal ? 'noopener noreferrer' : undefined}
-                className="text-xs sm:text-[13px] font-medium tracking-tight text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                href="/thoughts"
+                className={cn(
+                  'text-xs sm:text-[13px] font-medium tracking-tight transition-colors shrink-0',
+                  isThoughtsActive
+                    ? 'text-foreground font-semibold underline underline-offset-4 decoration-2 decoration-[var(--tenant-accent)]'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
               >
-                {nav.label}
+                Pensées
               </a>
-            ))}
+            )}
+
+            {/* Onglet À propos (présentation & mission) */}
+            {showAboutInNav && (
+              <a
+                href="/about"
+                className={cn(
+                  'text-xs sm:text-[13px] font-medium tracking-tight transition-colors shrink-0',
+                  isAboutActive
+                    ? 'text-foreground font-semibold underline underline-offset-4 decoration-2 decoration-[var(--tenant-accent)]'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                À propos
+              </a>
+            )}
+
+            {/* Liens de navigation additionnels configurés (Podcast, Boutique, etc.) */}
+            {externalLinks.map((nav, nIdx) => {
+              const isExt =
+                nav.isExternal ??
+                (nav.url?.startsWith('http://') ||
+                  nav.url?.startsWith('https://') ||
+                  nav.url?.startsWith('//'));
+              const isCustomActive = !isExt && nav.url && currentPath === nav.url;
+
+              return (
+                <a
+                  key={nav.id || nIdx}
+                  href={nav.url || '#'}
+                  target={isExt ? '_blank' : undefined}
+                  rel={isExt ? 'noopener noreferrer' : undefined}
+                  className={cn(
+                    'text-xs sm:text-[13px] font-medium tracking-tight transition-colors shrink-0',
+                    isCustomActive
+                      ? 'text-foreground font-semibold underline underline-offset-4 decoration-2 decoration-[var(--tenant-accent)]'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  {nav.label}
+                </a>
+              );
+            })}
           </div>
         </nav>
       )}

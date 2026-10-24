@@ -10,6 +10,7 @@ import {
   EyeOff,
   ArrowUp,
   ArrowDown,
+  FileText,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { isReservedTenantRoute } from '@qoe/config';
@@ -135,16 +136,29 @@ export function NavigationTab({
     return ordered;
   })();
 
-  // Liens externes uniquement (isExternal === true)
-  const externalLinks = current.navigation.filter((n) => n.isExternal);
+  // Pages de la publication (À propos, Pensées)
+  const showAboutInNav = (current.siteOptions?.showAboutInNav ?? true) !== false;
+  const showThoughtsInNav = (current.siteOptions?.showThoughtsInNav ?? true) !== false;
 
-  const addExternalLink = () => {
+  const togglePageInNav = (pageKey: 'showAboutInNav' | 'showThoughtsInNav') => {
+    setCurrent((prev) => ({
+      ...prev,
+      siteOptions: {
+        ...(prev.siteOptions || {}),
+        [pageKey]: !(((prev.siteOptions || {})[pageKey] ?? true) !== false),
+      },
+    }));
+  };
+
+  // Liens additionnels du créateur (externes ou internes)
+  const customLinks = current.navigation.filter((n) => !n.parentId);
+
+  const addCustomLink = () => {
     const newLink: ClientNavigationItem = {
       label: 'Nouveau lien',
-      // Pas de "https://" pré-rempli : une URL incomplète finit dans le menu public.
       url: '',
       order: current.navigation.length,
-      isExternal: true,
+      isExternal: false,
       parentId: null,
     };
     setCurrent((prev) => ({ ...prev, navigation: [...prev.navigation, newLink] }));
@@ -152,7 +166,117 @@ export function NavigationTab({
 
   return (
     <div className="max-w-4xl space-y-6">
-      {/* ── 1. CATÉGORIES & VISIBILITÉ DANS LE MENU ── */}
+      {/* ── 1. PAGES DE LA PUBLICATION DANS LE MENU ── */}
+      <div
+        id="publication-pages"
+        className="rounded-xl border border-border/50 bg-card p-5 space-y-4 shadow-2xs"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-border/30">
+          <div>
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-primary" />
+              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Pages de la publication
+              </h3>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              Choisissez les pages intégrées affichées dans la barre de navigation de votre site.
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-2.5">
+          {/* Page À propos */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 bg-muted/20 border border-border/40 rounded-xl transition-all">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-2 h-2 rounded-full bg-primary/70 shrink-0" />
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-foreground">À propos</span>
+                  <span className="text-[10px] font-mono text-muted-foreground">/about</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Présentation de la publication, de votre équipe et de votre mission.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => togglePageInNav('showAboutInNav')}
+              className={cn(
+                'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer shrink-0 self-start sm:self-auto',
+                showAboutInNav
+                  ? 'border-primary/50 bg-primary/10 text-primary shadow-2xs'
+                  : 'border-border/40 bg-muted/40 text-muted-foreground hover:text-foreground'
+              )}
+              title={
+                showAboutInNav
+                  ? 'Visible dans le menu du site (cliquez pour masquer)'
+                  : 'Masquée du menu du site (cliquez pour afficher)'
+              }
+            >
+              {showAboutInNav ? (
+                <>
+                  <Eye className="w-3 h-3 text-primary" />
+                  <span className="text-[11px]">Dans le menu</span>
+                </>
+              ) : (
+                <>
+                  <EyeOff className="w-3 h-3 opacity-60" />
+                  <span className="text-[11px]">Masquée</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Page Pensées */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-3 bg-muted/20 border border-border/40 rounded-xl transition-all">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-2 h-2 rounded-full bg-primary/70 shrink-0" />
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-foreground">Pensées</span>
+                  <span className="text-[10px] font-mono text-muted-foreground">/thoughts</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Flux chronologique de vos réflexions courtes, citations et micro-publications.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => togglePageInNav('showThoughtsInNav')}
+              className={cn(
+                'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer shrink-0 self-start sm:self-auto',
+                showThoughtsInNav
+                  ? 'border-primary/50 bg-primary/10 text-primary shadow-2xs'
+                  : 'border-border/40 bg-muted/40 text-muted-foreground hover:text-foreground'
+              )}
+              title={
+                showThoughtsInNav
+                  ? 'Visible dans le menu du site (cliquez pour masquer)'
+                  : 'Masquée du menu du site (cliquez pour afficher)'
+              }
+            >
+              {showThoughtsInNav ? (
+                <>
+                  <Eye className="w-3 h-3 text-primary" />
+                  <span className="text-[11px]">Dans le menu</span>
+                </>
+              ) : (
+                <>
+                  <EyeOff className="w-3 h-3 opacity-60" />
+                  <span className="text-[11px]">Masquée</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── 2. CATÉGORIES & VISIBILITÉ DANS LE MENU ── */}
       <div
         id="categories"
         className="rounded-xl border border-border/50 bg-card p-5 space-y-4 shadow-2xs"
@@ -277,7 +401,7 @@ export function NavigationTab({
         )}
       </div>
 
-      {/* ── 2. LIENS EXTERNES DU MENU (PODCAST, BOUTIQUE...) ── */}
+      {/* ── 3. LIENS ADDITIONNELS DU MENU (PAGES & EXTERNES) ── */}
       <div
         id="links"
         className="rounded-xl border border-border/50 bg-card p-5 space-y-4 shadow-2xs"
@@ -287,33 +411,33 @@ export function NavigationTab({
             <div className="flex items-center gap-2">
               <ExternalLink className="w-4 h-4 text-primary" />
               <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Liens externes du menu
+                Liens additionnels du menu
               </h3>
             </div>
             <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-              Ajoutez des raccourcis vers vos autres espaces (Podcast, Boutique, Substack,
-              YouTube...) qui s’afficheront directement dans la barre du haut aux côtés de vos
-              catégories.
+              Ajoutez des raccourcis vers d’autres pages de votre publication (/about, /team...) ou
+              des espaces externes (Podcast, Boutique, YouTube...) qui s’afficheront directement
+              dans la barre du haut.
             </p>
           </div>
           <button
             type="button"
-            onClick={addExternalLink}
+            onClick={addCustomLink}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold transition-all active:scale-95 cursor-pointer shadow-xs shrink-0"
           >
             <Plus className="w-3.5 h-3.5" />
-            <span>Ajouter un lien externe</span>
+            <span>Ajouter un lien</span>
           </button>
         </div>
 
-        {externalLinks.length === 0 ? (
+        {customLinks.length === 0 ? (
           <div className="py-6 text-center border border-dashed border-border/40 rounded-lg text-xs text-muted-foreground">
-            Aucun lien externe configuré. Seules vos catégories visibles apparaîtront dans la barre
-            du haut.
+            Aucun lien additionnel configuré. Seules vos rubriques et pages actives apparaîtront
+            dans la barre du haut.
           </div>
         ) : (
           <div className="space-y-2">
-            {externalLinks.map((nav, extIdx) => {
+            {customLinks.map((nav, extIdx) => {
               const globalIndex = current.navigation.findIndex((n) => n === nav);
               return (
                 <div
@@ -332,7 +456,7 @@ export function NavigationTab({
                     </button>
                     <button
                       type="button"
-                      disabled={extIdx === externalLinks.length - 1}
+                      disabled={extIdx === customLinks.length - 1}
                       onClick={() => reorderNavigationLink(globalIndex, 'down')}
                       className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed rounded transition-colors"
                       title="Descendre ce lien"
@@ -349,19 +473,30 @@ export function NavigationTab({
                       updated[globalIndex] = { ...updated[globalIndex], label: e.target.value };
                       setCurrent((prev) => ({ ...prev, navigation: updated }));
                     }}
-                    placeholder="Intitulé (ex. Mon Podcast)"
+                    placeholder="Intitulé (ex. Mon Podcast, Contact...)"
                     className="w-full sm:w-1/3 px-3 py-1.5 bg-background border border-border/40 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80"
                   />
 
                   <input
-                    type="url"
+                    type="text"
                     value={nav.url || ''}
                     onChange={(e) => {
+                      const urlVal = e.target.value;
+                      const isExt = Boolean(
+                        urlVal &&
+                        (urlVal.startsWith('http://') ||
+                          urlVal.startsWith('https://') ||
+                          urlVal.startsWith('//'))
+                      );
                       const updated = [...current.navigation];
-                      updated[globalIndex] = { ...updated[globalIndex], url: e.target.value };
+                      updated[globalIndex] = {
+                        ...updated[globalIndex],
+                        url: urlVal,
+                        isExternal: isExt,
+                      };
                       setCurrent((prev) => ({ ...prev, navigation: updated }));
                     }}
-                    placeholder="https://mon-podcast.com"
+                    placeholder="/about ou https://mon-podcast.com"
                     className="flex-1 px-3 py-1.5 bg-background border border-border/40 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80"
                   />
 

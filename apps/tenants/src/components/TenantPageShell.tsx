@@ -12,6 +12,7 @@ interface TenantPageShellProps {
   domain: string;
   host?: string;
   backLabel?: string;
+  currentPath?: string;
   children: React.ReactNode;
 }
 
@@ -20,6 +21,7 @@ export function TenantPageShell({
   domain,
   host,
   backLabel,
+  currentPath,
   children,
 }: TenantPageShellProps) {
   const {
@@ -83,7 +85,11 @@ export function TenantPageShell({
   return (
     <>
       <ThemeStyle creator={{ accentColor, backgroundColor, fontFamily, themeMode }} scope=":root" />
-      <MinimalCraftShell publication={templatePublication} style={customStyle}>
+      <MinimalCraftShell
+        publication={templatePublication}
+        style={customStyle}
+        currentPath={currentPath}
+      >
         <div className="container mx-auto max-w-4xl px-4 py-8 lg:px-8">
           <Link
             href="/"

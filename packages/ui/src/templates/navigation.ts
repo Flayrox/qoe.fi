@@ -193,9 +193,20 @@ export function resolveTenantNavigation(input: TenantNavigationInput): ResolvedT
     navItems,
     visibleCategories,
     rootCategories,
-    externalLinks: (input.navigation || []).filter(
-      (n) => n.isExternal && !n.parentId && isConfiguredExternalUrl(n.url)
-    ),
+    externalLinks: (input.navigation || [])
+      .filter((n) => !n.parentId && isConfiguredExternalUrl(n.url))
+      .map((n) => ({
+        ...n,
+        isExternal:
+          typeof n.isExternal === 'boolean'
+            ? n.isExternal
+            : Boolean(
+                n.url &&
+                (n.url.startsWith('http://') ||
+                  n.url.startsWith('https://') ||
+                  n.url.startsWith('//'))
+              ),
+      })),
     getSubcategories,
   };
 }
