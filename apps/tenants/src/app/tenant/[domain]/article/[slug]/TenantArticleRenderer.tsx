@@ -294,7 +294,7 @@ export async function TenantArticleRenderer({
               articleAuthorId={article.authorId}
               mainAppUrl={mainAppUrl}
               canonicalDocument={canonicalDocument}
-              contentClassName="prose prose-zinc dark:prose-invert max-w-none text-base md:text-lg leading-relaxed space-y-6"
+              contentClassName="article-prose max-w-none"
             />
             <TemplateRenderer
               config={articleLayout}
@@ -425,7 +425,7 @@ export async function TenantArticleRenderer({
               articleAuthorId={article.authorId}
               mainAppUrl={mainAppUrl}
               canonicalDocument={canonicalDocument}
-              contentClassName="prose prose-zinc dark:prose-invert max-w-none text-base md:text-lg leading-relaxed space-y-6"
+              contentClassName="article-prose max-w-none"
             />
 
             {/* Corps de l'article de secours (HTML tronqué) + Paywall si document non canonique (article restreint/payant) */}
@@ -433,7 +433,7 @@ export async function TenantArticleRenderer({
               <>
                 <div
                   id="article-content"
-                  className="prose prose-zinc dark:prose-invert max-w-none text-base md:text-lg leading-relaxed space-y-6"
+                  className="article-prose max-w-none"
                   dangerouslySetInnerHTML={{ __html: sanitizeHtml(paywallCutResult.content) }}
                 />
                 {article.isPremium && !paywallCutResult.accessGranted && (

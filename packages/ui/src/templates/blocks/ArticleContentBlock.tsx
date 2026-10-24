@@ -248,7 +248,7 @@ export function ArticleContentBlock({
         {safeHtml && (
           <div
             id="article-content"
-            className="prose-custom mt-8 leading-relaxed text-foreground/90 font-sans text-base sm:text-[17px] [&>p]:mb-6 [&>p]:leading-relaxed [&>h2]:mt-12 [&>h2]:mb-4 [&>h2]:text-xl sm:[&>h2]:text-2xl [&>h2]:font-bold [&>h2]:tracking-tight [&>h3]:mt-8 [&>h3]:mb-3 [&>h3]:text-lg [&>h3]:font-semibold [&>ul]:mb-6 [&>ul]:list-disc [&>ul]:pl-6 [&>blockquote]:border-l-2 [&>blockquote]:border-[var(--tenant-accent)] [&>blockquote]:pl-4 [&>blockquote]:italic [&>blockquote]:text-muted-foreground [&>code]:bg-muted/70 [&>code]:px-1.5 [&>code]:py-0.5 [&>code]:rounded [&>code]:text-xs [&>code]:font-sans"
+            className="article-prose mt-8 font-sans"
             dangerouslySetInnerHTML={{ __html: safeHtml }}
           />
         )}
