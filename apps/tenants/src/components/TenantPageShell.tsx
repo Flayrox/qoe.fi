@@ -1,10 +1,11 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-import { TenantHeader } from '@qoe/ui';
+import { MinimalCraftShell, FooterBlock, type TemplatePublicationContext } from '@qoe/ui/templates';
 import { buildCreatorVars, ThemeStyle } from '@qoe/theme';
 import type { TenantPublication } from '@/lib/tenant-data';
-import { LegalFooterLinks } from './legal/LegalFooterLinks';
 
 interface TenantPageShellProps {
   publication: TenantPublication;
@@ -24,13 +25,8 @@ export function TenantPageShell({
     accentColor,
     fontFamily,
     themeMode,
-    layoutStyle,
-    logoUrl,
-    navigation,
-    socialLinks,
-    stripeAccountId,
-    supportUrl,
-    footerText,
+    navigation = [],
+    socialLinks = [],
   } = publication;
 
   const siteOpts = (publication.siteOptions ??
@@ -45,53 +41,68 @@ export function TenantPageShell({
     themeMode,
   });
 
-  const customStyle = {
-    '--tenant-accent': accentColor || 'hsl(var(--primary))',
-    fontFamily: fontFamily ? `var(--font-${fontFamily})` : 'inherit',
-    ...(themeMode === 'dark' && { colorScheme: 'dark' }),
+  const customStyle: React.CSSProperties = {
     ...creatorThemeVars,
-  } as React.CSSProperties;
+    fontFamily: fontFamily ? `var(--font-${fontFamily})` : 'inherit',
+    ['--tenant-accent' as string]: accentColor || 'hsl(var(--primary))',
+  };
+
+  const templatePublication: TemplatePublicationContext = {
+    id: publication.id,
+    name: publication.name,
+    slug: publication.slug,
+    domain,
+    subdomain: publication.subdomain,
+    customDomain: publication.customDomain,
+    logoUrl: publication.logoUrl,
+    heroText: publication.heroText,
+    headerImageUrl: publication.headerImageUrl,
+    footerText: publication.footerText,
+    accentColor: publication.accentColor || undefined,
+    fontFamily: publication.fontFamily,
+    themeMode: (publication.themeMode as 'light' | 'dark' | 'system') || undefined,
+    stripeAccountId: publication.stripeAccountId,
+    supportUrl: publication.supportUrl,
+    categories: publication.categories,
+    siteOptions: siteOpts,
+    navigation,
+    socialLinks,
+    author: publication.user
+      ? {
+          name: publication.user.name ?? null,
+          username: publication.user.username ?? null,
+          avatarUrl: publication.user.logoUrl ?? null,
+          bio: publication.bio ?? null,
+        }
+      : undefined,
+    team: publication.team,
+  };
 
   return (
-    <div
-      className={`min-h-screen ${themeMode === 'dark' ? 'dark bg-foreground text-background' : 'bg-background text-foreground'} selection:bg-[var(--tenant-accent)] selection:text-white transition-colors duration-300`}
-      style={customStyle}
-    >
+    <>
       <ThemeStyle creator={{ accentColor, backgroundColor, fontFamily, themeMode }} scope=":root" />
-      <TenantHeader
-        name={name}
-        domain={domain}
-        logoUrl={logoUrl}
-        avatarUrl={publication.user?.logoUrl ?? null}
-        username={publication.user?.username ?? publication.subdomain ?? null}
-        layoutStyle={layoutStyle}
-        stripeAccountId={stripeAccountId}
-        supportUrl={supportUrl}
-        navigation={navigation}
-        categories={publication.categories}
-        siteOptions={
-          publication.siteOptions ||
-          (publication as unknown as { site_options?: Record<string, unknown> }).site_options
-        }
-        socialLinks={socialLinks}
-      />
-
-      <main className="container mx-auto max-w-4xl px-4 py-12 lg:px-8 lg:py-16">
-        <Link
-          href="/"
-          className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" /> {backLabel || `Retour à ${name || domain}`}
-        </Link>
-        {children}
-      </main>
-
-      <footer className="border-t border-border">
-        <div className="container mx-auto max-w-4xl px-4 py-10 lg:px-8">
-          {footerText && <p className="mb-6 text-sm text-muted-foreground">{footerText}</p>}
-          <LegalFooterLinks />
+      <MinimalCraftShell publication={templatePublication} style={customStyle}>
+        <div className="container mx-auto max-w-4xl px-4 py-8 lg:px-8">
+          <Link
+            href="/"
+            className="mb-8 inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" /> {backLabel || `Retour à ${name || domain}`}
+          </Link>
+          {children}
         </div>
-      </footer>
-    </div>
+        <FooterBlock
+          id="tenant-page-footer"
+          props={{
+            showLegalLinks: true,
+            showSocialLinks: true,
+            customCopyright: '',
+            layout: 'minimal-row',
+          }}
+          publication={templatePublication}
+          context={{ mode: 'live' }}
+        />
+      </MinimalCraftShell>
+    </>
   );
 }

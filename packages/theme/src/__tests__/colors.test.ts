@@ -70,7 +70,7 @@ describe('@qoe/theme colors', () => {
       expect(vars['--foreground']).toBe('#09090b');
       expect(vars['--muted-foreground']).toBe('#3f3f46');
       expect(vars['--card']).toContain('color-mix(in oklab');
-      expect(vars['color-scheme']).toBe('light');
+      expect(vars['colorScheme']).toBe('light');
     });
 
     it('builds coherent CSS variables for a dark background', () => {
@@ -79,7 +79,7 @@ describe('@qoe/theme colors', () => {
       expect(vars['--foreground']).toBe('#fafafa');
       expect(vars['--muted-foreground']).toBe('#a1a1aa');
       expect(vars['--card']).toContain('color-mix(in oklab');
-      expect(vars['color-scheme']).toBe('dark');
+      expect(vars['colorScheme']).toBe('dark');
     });
 
     it('returns empty object on invalid hex', () => {

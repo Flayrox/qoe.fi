@@ -60,7 +60,10 @@ export function ThemeStyle({ creator, scope = ':root' }: ThemeStyleProps) {
   if (Object.keys(vars).length === 0) return null;
 
   const css = Object.entries(vars)
-    .map(([k, v]) => `${k}: ${v};`)
+    .map(([k, v]) => {
+      const prop = k === 'colorScheme' ? 'color-scheme' : k;
+      return `${prop}: ${v};`;
+    })
     .join(' ');
 
   return <style dangerouslySetInnerHTML={{ __html: `${scope} { ${css} }` }} />;
