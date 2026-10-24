@@ -9,6 +9,7 @@ import { ArrowLeft, History } from 'lucide-react';
 import { markdownHeadings, markdownToHtml } from '@qoe/utils';
 import { getLanguage } from '@qoe/i18n/server';
 import { JsonLd, CookiePreferencesButton } from '@qoe/ui';
+import { resolveLegalDbSlug, toPublicLegalSlug } from '@qoe/config/legal';
 import {
   fetchLegalDocument,
   fetchLegalDocuments,
@@ -41,33 +42,42 @@ function formatDate(value: string | undefined, isFr: boolean): string {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
+  const dbSlug = resolveLegalDbSlug(slug);
+  const publicSlug = toPublicLegalSlug(dbSlug);
   const locale = await getLanguage();
-  const doc = await fetchLegalDocument(slug, locale).catch(() => null);
+  const doc = await fetchLegalDocument(dbSlug, locale).catch(() => null);
   if (!doc) return { title: 'Document introuvable' };
 
   return {
     title: doc.title,
     description: doc.summary,
-    alternates: { canonical: `${LANDING_URL}/legal/${doc.slug}` },
+    alternates: { canonical: `${LANDING_URL}/legal/${publicSlug}` },
     robots: { index: true, follow: true },
     openGraph: {
       type: 'article',
       title: `${doc.title} — qoefi`,
       description: doc.summary,
-      url: `${LANDING_URL}/legal/${doc.slug}`,
+      url: `${LANDING_URL}/legal/${publicSlug}`,
       modifiedTime: doc.updatedAt,
+    },
+    twitter: {
+      card: 'summary',
+      title: `${doc.title} — qoefi`,
+      description: doc.summary,
     },
   };
 }
 
 export default async function LegalDocumentPage({ params }: PageProps) {
   const { slug } = await params;
+  const dbSlug = resolveLegalDbSlug(slug);
+  const publicSlug = toPublicLegalSlug(dbSlug);
   const locale = await getLanguage();
   const isFr = !locale.startsWith('en');
 
   const [documents, doc] = await Promise.all([
     fetchLegalDocuments(locale).catch(() => []),
-    fetchLegalDocument(slug, locale).catch(() => null),
+    fetchLegalDocument(dbSlug, locale).catch(() => null),
   ]);
 
   if (!doc) notFound();
@@ -85,7 +95,7 @@ export default async function LegalDocumentPage({ params }: PageProps) {
     '@type': 'WebPage',
     name: doc.title,
     description: doc.summary,
-    url: `${LANDING_URL}/legal/${doc.slug}`,
+    url: `${LANDING_URL}/legal/${publicSlug}`,
     inLanguage: locale,
     version: doc.version,
     dateModified: doc.updatedAt,
@@ -111,20 +121,24 @@ export default async function LegalDocumentPage({ params }: PageProps) {
             {isFr ? 'Informations légales' : 'Legal information'}
           </p>
           <ul className="space-y-1.5 border-l border-border pl-3">
-            {documents.map((item) => (
-              <li key={item.id}>
-                <Link
-                  href={`/legal/${item.slug}`}
-                  className={`block text-sm leading-snug transition-colors ${
-                    item.slug === doc.slug
-                      ? 'font-semibold text-primary'
-                      : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  {item.title}
-                </Link>
-              </li>
-            ))}
+            {documents.map((item) => {
+              const itemPublicSlug = toPublicLegalSlug(item.slug);
+              const isActive = itemPublicSlug === publicSlug || item.slug === dbSlug;
+              return (
+                <li key={item.id}>
+                  <Link
+                    href={`/legal/${itemPublicSlug}`}
+                    className={`block text-sm leading-snug transition-colors ${
+                      isActive
+                        ? 'font-semibold text-primary'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {item.title}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </nav>
 
