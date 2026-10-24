@@ -3,13 +3,13 @@
 // =====================================================================
 // 🧭 exit-interstitial.tsx — Apple-esque External Redirection Interstitial
 // =====================================================================
-// Design ultra-minimaliste inspiré des standards d'Apple (Human Interface Guidelines).
-// Intercepte de manière fluide et déclarative les liens externes dans les articles,
-// les menus, et les bios, sans rompre la position de lecture de l'utilisateur.
+// Design de haute précision inspiré des dialogues macOS/iOS et de l'artisanat
+// de Rauno Freiberg (rauno.me).
+// Compact, élégant, flou en verre, typographie chirurgicale.
 // =====================================================================
 
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
-import { Compass, ExternalLink, Lock, ArrowLeft } from 'lucide-react';
+import { ArrowUpRight, Lock, ArrowLeft } from 'lucide-react';
 
 interface ParsedUrlInfo {
   isValid: boolean;
@@ -46,7 +46,7 @@ export function parseExternalUrl(rawUrl?: string | null): ParsedUrlInfo {
   }
 }
 
-// ── 1. MODAL APPLE-ESQUE ÉPURÉE ──────────────────────────────────────
+// ── 1. MODALE IN-SITU STYLE APPLE / MACOS HUD ────────────────────────
 
 export interface ExitInterstitialModalProps {
   isOpen: boolean;
@@ -76,69 +76,61 @@ export function ExitInterstitialModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="exit-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 select-none animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 select-none animate-in fade-in duration-150"
     >
-      {/* Arrière-plan flou translucide Apple */}
+      {/* Voile flou en verre liquide sombre */}
       <div
-        className="fixed inset-0 bg-black/40 backdrop-blur-md transition-opacity"
+        className="fixed inset-0 bg-black/30 dark:bg-black/50 backdrop-blur-md transition-opacity"
         onClick={onClose}
         aria-hidden="true"
       />
 
-      {/* Carte flottante épurée */}
-      <div className="relative w-full max-w-sm rounded-3xl bg-card/95 backdrop-blur-2xl border border-border/50 shadow-2xl p-6 sm:p-7 text-center space-y-5 animate-in zoom-in-95 duration-200">
-        {/* Icône Boussole discrète dans son squircle monochrome */}
-        <div className="mx-auto w-12 h-12 rounded-2xl bg-muted/60 border border-border/40 flex items-center justify-center text-foreground/80 shadow-2xs">
-          <Compass className="w-5 h-5 transition-transform duration-500 hover:rotate-45" />
+      {/* Boîtier flottant compact (format HUD Apple / Linear) */}
+      <div className="relative w-full max-w-[360px] rounded-2xl bg-card/95 backdrop-blur-2xl border border-border/60 shadow-[0_20px_50px_rgba(0,0,0,0.18)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-5 text-left space-y-3.5 animate-in zoom-in-95 duration-150">
+        {/* En-tête horizontal épuré */}
+        <div className="flex items-start gap-3">
+          <div className="p-2 rounded-xl bg-muted/60 border border-border/40 text-foreground shrink-0 mt-0.5">
+            <ArrowUpRight className="w-4 h-4" />
+          </div>
+          <div className="space-y-0.5 min-w-0 flex-1">
+            <h3
+              id="exit-modal-title"
+              className="text-[13px] font-semibold text-foreground tracking-tight leading-tight truncate"
+            >
+              Ouvrir {parsed.hostname} ?
+            </h3>
+            <p className="text-[11px] text-muted-foreground leading-normal line-clamp-2">
+              Lien externe vers un site tiers hors de {sourceName || 'cette publication'}.
+            </p>
+          </div>
         </div>
 
-        {/* Typographie de précision */}
-        <div className="space-y-1.5">
-          <h2
-            id="exit-modal-title"
-            className="text-base sm:text-lg font-semibold tracking-tight text-foreground"
-          >
-            Redirection externe
-          </h2>
-          <p className="text-xs sm:text-[13px] text-muted-foreground leading-relaxed px-2">
-            {sourceName ? (
-              <>
-                Vous quittez <span className="font-medium text-foreground">{sourceName}</span> vers
-                un site tiers indépendant.
-              </>
-            ) : (
-              'Vous vous apprêtez à ouvrir un lien vers un site externe.'
-            )}
-          </p>
-        </div>
-
-        {/* Capsule du nom de domaine */}
-        <div className="inline-flex items-center gap-2 max-w-full px-3.5 py-1.5 rounded-full bg-muted/40 border border-border/40 font-mono text-xs text-foreground">
+        {/* Barre d'URL discrète (façon barre d'adresse Safari) */}
+        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-muted/30 border border-border/40 text-[11px] font-mono text-muted-foreground">
           {parsed.isHttps ? (
             <Lock className="w-3 h-3 text-muted-foreground shrink-0" />
           ) : (
-            <ExternalLink className="w-3 h-3 text-muted-foreground shrink-0" />
+            <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 shrink-0" />
           )}
-          <span className="font-semibold truncate">{parsed.hostname}</span>
+          <span className="truncate select-all text-foreground/80">{parsed.displayUrl}</span>
         </div>
 
-        {/* Boutons style Apple : Pilule contrastée + Annuler discret */}
-        <div className="flex flex-col gap-2 pt-2">
-          <button
-            type="button"
-            onClick={handleProceed}
-            className="w-full inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-full text-xs font-semibold bg-foreground text-background hover:opacity-90 active:scale-[0.98] transition-all shadow-xs cursor-pointer"
-          >
-            <span>Ouvrir {parsed.hostname}</span>
-            <ExternalLink className="w-3.5 h-3.5 opacity-70" />
-          </button>
-
+        {/* Actions ergonomiques Apple : Annuler à gauche, Action à droite */}
+        <div className="flex items-center justify-end gap-2 pt-1">
           <button
             type="button"
             onClick={onClose}
-            className="w-full px-4 py-2 rounded-full text-xs font-medium text-muted-foreground hover:text-foreground active:scale-[0.98] transition-colors cursor-pointer"
+            className="h-8 px-3 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
           >
             Annuler
+          </button>
+          <button
+            type="button"
+            onClick={handleProceed}
+            className="h-8 px-3.5 rounded-lg text-xs font-medium bg-foreground text-background hover:opacity-90 active:scale-[0.98] transition-all inline-flex items-center gap-1 shadow-2xs cursor-pointer"
+          >
+            <span>Ouvrir</span>
+            <ArrowUpRight className="w-3 h-3 opacity-70" />
           </button>
         </div>
       </div>
@@ -158,7 +150,6 @@ const ExitInterstitialContext = createContext<ExitInterstitialContextValue | nul
 export function useExitInterstitial() {
   const ctx = useContext(ExitInterstitialContext);
   if (!ctx) {
-    // Repli gracieux si le composant est utilisé sans provider : redirection directe
     return {
       openExitWarning: (url: string) => {
         if (typeof window !== 'undefined') window.open(url, '_blank', 'noopener,noreferrer');
@@ -229,11 +220,6 @@ export interface ExternalLinkInterceptorProps {
   children: React.ReactNode;
 }
 
-/**
- * Enveloppe un conteneur (ex. corps d'article markdown, flux de pensées, page publique)
- * et intercepte instantanément les clics sur n'importe quel lien externe `<a>`
- * pour déclencher l'interstitiel sans recharger ni perdre la position de lecture.
- */
 export function ExternalLinkInterceptor({
   sourceName,
   className,
@@ -289,7 +275,7 @@ export function ExternalLinkInterceptor({
   );
 }
 
-// ── 4. CARTE DE SORTIE POUR PAGE STANDALONE (/exit) ─────────────────
+// ── 4. CARTE DE SORTIE ÉDITORIALE POUR PAGE STANDALONE (/exit) ───────
 
 export interface ExitCardProps {
   targetUrl?: string | null;
@@ -301,74 +287,71 @@ export function ExitCard({ targetUrl, publicationName, onBackUrl = '/' }: ExitCa
   const parsed = parseExternalUrl(targetUrl);
 
   return (
-    <div className="mx-auto w-full max-w-md py-12 sm:py-20 select-none">
-      <div className="rounded-3xl bg-card/95 backdrop-blur-2xl border border-border/50 shadow-2xl p-7 sm:p-9 text-center space-y-6">
-        {/* Icône Boussole discrète */}
-        <div className="mx-auto w-14 h-14 rounded-2xl bg-muted/60 border border-border/40 flex items-center justify-center text-foreground/80 shadow-2xs">
-          <Compass className="w-6 h-6" />
+    <div className="mx-auto w-full max-w-lg py-16 sm:py-24 select-none text-left">
+      <div className="space-y-6">
+        {/* Kicker typographique */}
+        <div className="flex items-center gap-2 text-[11px] font-mono tracking-widest uppercase text-muted-foreground">
+          <ArrowUpRight className="w-3.5 h-3.5 text-foreground" />
+          <span>Redirection externe</span>
         </div>
 
-        {/* Titre & Sous-titre */}
+        {/* Titre & Sous-titre éditoriaux */}
         <div className="space-y-2">
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-            Redirection externe
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-foreground">
+            {parsed.isValid ? `Ouvrir ${parsed.hostname}` : 'Redirection introuvable'}
           </h1>
-          <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+          <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed max-w-md">
             {publicationName ? (
               <>
-                Vous quittez{' '}
-                <span className="font-semibold text-foreground">{publicationName}</span> vers une
-                ressource extérieure.
+                Ce lien vous redirige vers un site tiers hors de{' '}
+                <span className="font-medium text-foreground">{publicationName}</span>.
               </>
             ) : (
-              'Vous vous apprêtez à accéder à un site extérieur.'
+              'Ce lien ouvre une ressource extérieure.'
             )}
           </p>
         </div>
 
-        {/* Capsule du nom de domaine / URL */}
+        {/* Ligne d'URL d'orfèvre */}
         {parsed.isValid ? (
-          <div className="p-3.5 rounded-2xl bg-muted/30 border border-border/40 space-y-1.5 text-left">
-            <div className="flex items-center justify-between text-[11px] text-muted-foreground font-medium">
-              <span>Destination</span>
-              {parsed.isHttps ? (
-                <span className="inline-flex items-center gap-1 text-muted-foreground">
-                  <Lock className="w-2.5 h-2.5" /> Chiffré
-                </span>
-              ) : (
-                <span>Non chiffré</span>
-              )}
-            </div>
-            <div className="font-mono text-xs font-semibold text-foreground truncate select-all">
-              {parsed.displayUrl}
-            </div>
+          <div className="p-3.5 rounded-xl bg-muted/20 border border-border/40 flex items-center justify-between gap-3 text-xs font-mono text-foreground select-all">
+            <span className="truncate text-foreground/90">{parsed.displayUrl}</span>
+            {parsed.isHttps ? (
+              <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground shrink-0 font-sans">
+                <Lock className="w-3 h-3" /> Chiffré
+              </span>
+            ) : (
+              <span className="text-[10px] text-muted-foreground shrink-0 font-sans">
+                Non chiffré
+              </span>
+            )}
           </div>
         ) : (
-          <div className="p-3.5 rounded-2xl bg-destructive/5 border border-destructive/20 text-xs text-destructive text-left">
-            L’adresse fournie est incomplète, absente ou utilise un protocole non reconnu.
+          <div className="p-3.5 rounded-xl bg-muted/20 border border-border/40 text-xs text-muted-foreground">
+            L’adresse fournie est incomplète ou utilise un protocole non reconnu.
           </div>
         )}
 
-        {/* Actions principales Apple */}
-        <div className="flex flex-col gap-2.5 pt-2">
+        {/* Actions horizontales Apple */}
+        <div className="flex items-center gap-3 pt-2">
           {parsed.isValid && (
             <a
               href={parsed.displayUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full text-xs font-semibold bg-foreground text-background hover:opacity-90 active:scale-[0.98] transition-all shadow-xs"
+              className="inline-flex items-center justify-center gap-1.5 h-9 px-4 rounded-xl text-xs font-medium bg-foreground text-background hover:opacity-90 active:scale-[0.98] transition-all shadow-2xs"
             >
-              <span>Continuer vers {parsed.hostname}</span>
-              <ExternalLink className="w-3.5 h-3.5 opacity-70" />
+              <span>Continuer vers le site</span>
+              <ArrowUpRight className="w-3.5 h-3.5 opacity-70" />
             </a>
           )}
 
           <a
             href={onBackUrl}
-            className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-full text-xs font-medium text-muted-foreground hover:text-foreground active:scale-[0.98] transition-colors"
+            className="inline-flex items-center justify-center gap-1.5 h-9 px-3.5 rounded-xl text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
           >
-            <ArrowLeft className="w-3 h-3" />
-            <span>Retourner sur {publicationName || 'le site'}</span>
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Retourner</span>
           </a>
         </div>
       </div>

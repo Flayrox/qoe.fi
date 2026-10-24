@@ -44,10 +44,11 @@ describe('ExitCard — Rendu Apple-esque de la carte de sortie', () => {
     );
 
     expect(html).toContain('Redirection externe');
+    expect(html).toContain('Ouvrir substack.com');
     expect(html).toContain('Le Carnet');
     expect(html).toContain('https://substack.com/@creator');
-    expect(html).toContain('Continuer vers substack.com');
-    expect(html).toContain('Retourner sur Le Carnet');
+    expect(html).toContain('Continuer vers le site');
+    expect(html).toContain('Retourner');
   });
 
   it('affiche un message de sécurité élégant si l’URL est absente ou invalide', () => {
@@ -55,9 +56,7 @@ describe('ExitCard — Rendu Apple-esque de la carte de sortie', () => {
       <ExitCard targetUrl="javascript:void(0)" publicationName="Le Carnet" onBackUrl="/" />
     );
 
-    expect(html).toContain(
-      'L’adresse fournie est incomplète, absente ou utilise un protocole non reconnu.'
-    );
+    expect(html).toContain('L’adresse fournie est incomplète ou utilise un protocole non reconnu.');
     expect(html).not.toContain('Continuer vers');
   });
 });
