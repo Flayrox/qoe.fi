@@ -32,10 +32,10 @@ export default defineConfig({
   expect: {
     timeout: 15_000,
     toHaveScreenshot: {
-      // Un anti-crénelage peut bouger de quelques pixels d'une machine à
-      // l'autre ; 0,2 % de la surface est toléré, au-delà c'est un
-      // changement de rendu et le test doit échouer.
-      maxDiffPixelRatio: 0.002,
+      // 0,1 % de la surface : de quoi absorber l'anti-crénelage, pas assez
+      // pour laisser passer une ligne de texte qui apparaît. Sur une section
+      // de 1 400 px de haut, cela représente une zone d'environ 60 × 60 px.
+      maxDiffPixelRatio: 0.001,
       animations: 'disabled',
       caret: 'hide',
       scale: 'css',

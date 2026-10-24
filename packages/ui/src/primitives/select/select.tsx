@@ -171,9 +171,19 @@ export function Select({
             .join(' '),
         })}
       >
-        {/* `SelectValue` affiche le libellé de l'option active, ou le
-            placeholder quand rien n'est choisi. */}
-        <SelectValue className="truncate data-[placeholder]:text-muted-foreground" />
+        {/* `SelectValue` rend, par défaut, le contenu complet de l'option
+            sélectionnée — description comprise — dans un contrôle de hauteur
+            fixe. On ne garde que le `textValue` : le déclencheur reste sur
+            une ligne, la description vit dans la liste. */}
+        <SelectValue className="truncate">
+          {({ selectedText, isPlaceholder }) => (
+            <span className={cn('truncate', isPlaceholder && 'text-muted-foreground')}>
+              {/* `selectedText` est vide sans sélection : le placeholder
+                  n'existe que dans le rendu par défaut de react-aria. */}
+              {isPlaceholder ? placeholder : selectedText}
+            </span>
+          )}
+        </SelectValue>
         <ChevronDown className="shrink-0 text-muted-foreground" strokeWidth={1.5} />
       </AriaButton>
 

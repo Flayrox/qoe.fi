@@ -104,6 +104,25 @@ test.describe('primitives — rendu de référence', () => {
     });
   });
 
+  test('overlays — notification', async ({ page }) => {
+    const overlays = await section(page, '10-overlays');
+
+    await overlays.getByRole('button', { name: 'Erreur avec description' }).click();
+
+    const region = page.getByRole('region', { name: 'Notifications' });
+    await expect(region).toBeVisible();
+    await expect(region).toHaveScreenshot('toast.png');
+  });
+
+  test('overlays — panneau latéral ouvert', async ({ page }) => {
+    const overlays = await section(page, '10-overlays');
+
+    await overlays.getByRole('button', { name: 'Ouvrir le panneau' }).click();
+    await expect(page.getByRole('dialog', { name: 'Réglages de la publication' })).toBeVisible();
+
+    await expect(page).toHaveScreenshot('overlays-drawer.png');
+  });
+
   test('overlays — liste de sélection ouverte', async ({ page }) => {
     const overlays = await section(page, '10-overlays');
 
