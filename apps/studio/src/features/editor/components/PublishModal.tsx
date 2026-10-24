@@ -14,6 +14,7 @@ import {
   Users,
   Smartphone,
   Monitor,
+  AlertTriangle,
 } from 'lucide-react';
 
 export interface PublishOptions {
@@ -29,6 +30,8 @@ interface PublishModalProps {
   articleExcerpt?: string;
   publicationName: string;
   initialIsPremium?: boolean;
+  /** Points à vérifier avant publication (non bloquants). */
+  warnings?: string[];
 }
 
 export function PublishModal({
@@ -39,6 +42,7 @@ export function PublishModal({
   articleExcerpt = '',
   publicationName,
   initialIsPremium = false,
+  warnings = [],
 }: PublishModalProps) {
   const [sendEmail, setSendEmail] = useState(true);
   const [isPremium, setIsPremium] = useState(initialIsPremium);
@@ -309,6 +313,20 @@ export function PublishModal({
             </div>
           )}
         </div>
+
+        {warnings.length > 0 && (
+          <div className="px-4 sm:px-6 py-3 border-t border-highlight/30 bg-highlight/5 space-y-1">
+            {warnings.map((warning) => (
+              <p
+                key={warning}
+                className="flex items-start gap-2 text-[11px] font-sans text-foreground/80"
+              >
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-highlight mt-0.5" />
+                <span>{warning}</span>
+              </p>
+            ))}
+          </div>
+        )}
 
         {/* Footer */}
         <div className="p-4 sm:p-6 border-t border-border/60 bg-muted/20 flex flex-col sm:flex-row items-center justify-between gap-3">

@@ -32,6 +32,7 @@ import {
 } from '../lib/article-settings';
 import { currentTimeZoneLabel, toDateTimeLocalValue } from '../lib/datetime';
 import { normalizeLinkUrl } from '../lib/link';
+import { countImagesWithoutAlt } from '../lib/accessibility';
 import type { ArticleAttributionDraft } from './ArticleAttributionEditor';
 import { EditorHeader } from './EditorHeader';
 import { EditorToolbar } from './EditorToolbar';
@@ -169,6 +170,7 @@ export function Editor({
 
   const [showSettings, setShowSettings] = useState(false);
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
+  const [publishWarnings, setPublishWarnings] = useState<string[]>([]);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [showAuthorAnnotationModal, setShowAuthorAnnotationModal] = useState(false);
   const [linkPopover, setLinkPopover] = useState<{ top: number; left: number } | null>(null);
@@ -893,6 +895,19 @@ export function Editor({
     })();
   }, [baseSavePayload, onSave, published]);
 
+  // Contrôles non bloquants affichés dans la modale de publication.
+  const openPublishModal = useCallback(() => {
+    const { missing } = countImagesWithoutAlt(editor?.getHTML() ?? '');
+    setPublishWarnings(
+      missing > 0
+        ? [
+            `${missing} image${missing > 1 ? 's' : ''} sans description alternative (alt) : elles resteront invisibles pour les lecteurs d'écran et les moteurs de recherche.`,
+          ]
+        : []
+    );
+    setIsPublishModalOpen(true);
+  }, [editor]);
+
   const handleConfirmPublish = useCallback(
     async (options: PublishOptions) => {
       const previous = { published, status, scheduledAt, isPremium };
@@ -1215,7 +1230,7 @@ export function Editor({
           setIsPremium((value) => !value);
           setHasUnsavedChanges(true);
         }}
-        onPublish={() => setIsPublishModalOpen(true)}
+        onPublish={openPublishModal}
         onUpdateLive={() => void handleUpdateLive()}
         onSubmitReview={handleSubmitForReview}
         onOpenDiff={() => setShowDiffModal(true)}
@@ -1485,6 +1500,7 @@ export function Editor({
         articleExcerpt={editor.getText().slice(0, 180)}
         publicationName={subdomain ? `${subdomain}.qoe.fi` : 'Votre site web'}
         initialIsPremium={isPremium}
+        warnings={publishWarnings}
       />
 
       <ArticleDiffModal
