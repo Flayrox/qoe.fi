@@ -22,6 +22,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Check, ChevronDown, Cookie, Lock, Settings2, ShieldCheck, X } from 'lucide-react';
 import { recordCookieConsentAction } from '@qoe/sdk/actions/legal';
+import { getLegalDocumentUrl } from '@qoe/config/legal';
 import {
   COOKIE_POLICY_SLUG,
   COOKIE_CATEGORIES,
@@ -232,7 +233,7 @@ export function CookieConsentBanner({
                 <p className="mt-1 text-sm text-muted-foreground">
                   {copy.body}{' '}
                   <Link
-                    href={`/legal/${COOKIE_POLICY_SLUG}`}
+                    href={getLegalDocumentUrl(COOKIE_POLICY_SLUG)}
                     className="underline transition-colors hover:text-primary"
                   >
                     {copy.policy}
@@ -479,7 +480,7 @@ export function CookiePreferencesCenter({
 
           <p className="pt-1 text-[11px] leading-relaxed text-muted-foreground">
             <Link
-              href={`/legal/${COOKIE_POLICY_SLUG}`}
+              href={getLegalDocumentUrl(COOKIE_POLICY_SLUG)}
               className="font-semibold text-primary underline"
             >
               {copy.policy}

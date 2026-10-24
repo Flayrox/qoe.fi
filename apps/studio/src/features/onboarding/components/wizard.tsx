@@ -8,6 +8,7 @@ import {
   completeOnboardingAction,
 } from '@qoe/sdk/actions/dashboard';
 import { acceptLegalConsentsAction } from '@qoe/sdk/actions/legal';
+import { getLegalDocumentUrl } from '@qoe/config/legal';
 import type { ConsentDocument } from '@qoe/utils/legal-consent';
 
 import { useRouter } from 'next/navigation';
@@ -378,7 +379,7 @@ export function OnboardingWizard({
                             {consentDocuments.map((doc, index) => (
                               <span key={doc.slug}>
                                 <a
-                                  href={`${process.env.NEXT_PUBLIC_APP_URL ?? 'https://qoe.fi'}/legal/${doc.slug}`}
+                                  href={getLegalDocumentUrl(doc.slug)}
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   className="font-semibold text-[#EE4B2B] underline"

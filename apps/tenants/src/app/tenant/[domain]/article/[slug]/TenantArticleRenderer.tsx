@@ -22,7 +22,7 @@ import {
   type TemplateArticleItem,
 } from '@qoe/ui/templates';
 import { buildPublicDescription, sliceContentAtPaywall } from '@qoe/utils';
-import { ContentVisibility, getMainAppUrl } from '@qoe/config';
+import { ContentVisibility, getLegalDocumentUrl, getMainAppUrl } from '@qoe/config';
 import { t } from '@lingui/core/macro';
 import {
   fetchCanonicalDocument,
@@ -521,7 +521,7 @@ export async function TenantArticleRenderer({
               RSS
             </a>
             <a
-              href={`${mainAppUrl}/legal/mentions-legales`}
+              href={getLegalDocumentUrl('mentions-legales', host)}
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-foreground transition-colors"
@@ -529,7 +529,7 @@ export async function TenantArticleRenderer({
               {t`Mentions légales`}
             </a>
             <a
-              href={`${mainAppUrl}/legal/politique-confidentialite`}
+              href={getLegalDocumentUrl('politique-confidentialite', host)}
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-foreground transition-colors"
@@ -537,7 +537,7 @@ export async function TenantArticleRenderer({
               {t`Confidentialité`}
             </a>
             <a
-              href={`${mainAppUrl}/legal/politique-cookies`}
+              href={getLegalDocumentUrl('politique-cookies', host)}
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-foreground transition-colors"

@@ -27,6 +27,8 @@
 // AnalyticsGate. La persistance vit dans `@qoe/ui/legal/cookie-consent-storage`.
 // =====================================================================
 
+import { getLegalDocumentUrl } from '@qoe/config/legal';
+
 export const COOKIE_POLICY_SLUG = 'politique-cookies';
 export const COOKIE_CONSENT_KEY = 'qoe.cookie-consent';
 export const COOKIE_CONSENT_COOKIE = 'qoe_cookie_consent';
@@ -214,7 +216,7 @@ export const TRACKER_REGISTRY: readonly TrackerEntry[] = [
       en: 'Keep the session signed in and verify identity on every request.',
     },
     retention: { fr: 'Session, puis 1 an au maximum', en: 'Session, then up to 1 year' },
-    href: '/legal/sous-traitants',
+    href: getLegalDocumentUrl('sous-traitants'),
   },
   {
     name: 'qoe_cookie_consent',
@@ -227,7 +229,7 @@ export const TRACKER_REGISTRY: readonly TrackerEntry[] = [
       en: 'Remember your possible objection to audience measurement so we do not ask again on every visit.',
     },
     retention: { fr: '6 mois', en: '6 months' },
-    href: '/legal/politique-cookies',
+    href: getLegalDocumentUrl('politique-cookies'),
   },
   {
     name: 'qoe.theme / qoe.locale',
@@ -256,7 +258,7 @@ export const TRACKER_REGISTRY: readonly TrackerEntry[] = [
       fr: 'Aucun cookie et aucun accès au stockage du navigateur ; l’adresse IP est anonymisée par hachage salé à sens unique avant tout enregistrement et n’est jamais conservée ; les paramètres de requête et les fragments d’URL ne sont pas collectés ; le réglage « Do Not Track » est respecté ; les données ne sont ni croisées avec un autre traitement ni transmises à un tiers.',
       en: 'No cookie and no access to browser storage; the IP address is one-way salted-hashed before any recording and is never kept; query parameters and URL fragments are not collected; the “Do Not Track” setting is honoured; data is never crossed with another processing nor shared with a third party.',
     },
-    href: '/legal/sous-traitants',
+    href: getLegalDocumentUrl('sous-traitants'),
   },
 ];
 

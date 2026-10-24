@@ -7,6 +7,7 @@ import { createClient } from '@qoe/supabase/client';
 import { t } from '@lingui/core/macro';
 // Sous-chemin constants : évite la validation d'env (Zod) déclenchée par le barrel.
 import { URLS } from '@qoe/config/constants';
+import { getLegalDocumentUrl } from '@qoe/config/legal';
 import { cn } from '@qoe/utils';
 import { buildSignupConsent, type ConsentDocument } from '@qoe/utils/legal-consent';
 import { BentoPlateau, BentoItem } from './ui/BentoPlateau';
@@ -745,7 +746,7 @@ export function LoginFormBento({
                           {consentDocuments.map((doc, index) => (
                             <span key={doc.slug}>
                               <a
-                                href={`/legal/${doc.slug}`}
+                                href={getLegalDocumentUrl(doc.slug)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="font-medium text-foreground underline hover:text-primary"

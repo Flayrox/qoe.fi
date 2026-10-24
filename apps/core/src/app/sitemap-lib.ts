@@ -25,6 +25,8 @@ export const SHARD_SIZE = 1000;
 // sitemaps par index).
 export const MAX_SHARDS = 1000;
 
+import { getLandingAppUrl } from '@qoe/config';
+
 const GO_API_URL = (process.env.QOE_API_URL || 'http://localhost:8090').replace(/\/$/, '');
 
 export function siteBaseUrl(): string {
@@ -89,7 +91,9 @@ export async function thoughtShardCount(): Promise<number> {
 export async function legalUrls(): Promise<
   Array<{ loc: string; lastmod: string; changefreq: string; priority: string }>
 > {
-  const base = siteBaseUrl();
+  // Les documents légaux sont servis par la vitrine publique (apps/hi) :
+  // leurs URLs doivent donc pointer vers elle, pas vers l'app lecteur.
+  const base = getLandingAppUrl();
   const now = new Date().toISOString();
   const urls = [{ loc: `${base}/legal`, lastmod: now, changefreq: 'monthly', priority: '0.5' }];
   try {

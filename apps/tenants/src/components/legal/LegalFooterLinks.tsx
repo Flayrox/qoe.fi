@@ -1,7 +1,7 @@
 import { headers } from 'next/headers';
 import { getLanguage } from '@qoe/i18n/server';
 import { fetchLegalDocuments } from '@qoe/sdk/actions/legal';
-import { getMainAppUrl } from '@qoe/config';
+import { getLegalDocumentUrl } from '@qoe/config';
 import { CookiePreferencesButton } from '@qoe/ui';
 
 // =====================================================================
@@ -12,7 +12,8 @@ import { CookiePreferencesButton } from '@qoe/ui';
 // avec une porte de sortie pour changer d'avis sur les cookies.
 //
 // Ces documents sont ceux de la plateforme, pas ceux de la publication :
-// les liens ouvrent donc l'app principale qoefi.
+// ils vivent uniquement sur la vitrine publique (apps/hi) et les liens
+// ouvrent donc cette dernière, jamais une copie locale.
 // =====================================================================
 
 export async function LegalFooterLinks({ className }: { className?: string }) {
@@ -30,14 +31,13 @@ export async function LegalFooterLinks({ className }: { className?: string }) {
 
   const headersList = await headers();
   const host = headersList.get('x-forwarded-host') || headersList.get('host') || '';
-  const platformUrl = getMainAppUrl(host);
 
   return (
     <nav className={className ?? 'flex flex-wrap items-center justify-center gap-x-5 gap-y-2'}>
       {documents.map((doc) => (
         <a
           key={doc.id}
-          href={`${platformUrl}/legal/${doc.slug}`}
+          href={getLegalDocumentUrl(doc.slug, host)}
           target="_blank"
           rel="noopener noreferrer"
           className="text-sm text-muted-foreground transition-colors hover:text-[var(--tenant-accent)]"
