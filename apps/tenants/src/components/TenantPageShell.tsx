@@ -2,6 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { TenantHeader } from '@qoe/ui';
+import { buildCreatorVars } from '@qoe/theme';
 import type { TenantPublication } from '@/lib/tenant-data';
 import { LegalFooterLinks } from './legal/LegalFooterLinks';
 
@@ -32,10 +33,23 @@ export function TenantPageShell({
     footerText,
   } = publication;
 
+  const siteOpts = (publication.siteOptions ??
+    (publication as unknown as { site_options?: Record<string, unknown> | null }).site_options ??
+    {}) as Record<string, unknown>;
+  const backgroundColor = (siteOpts.backgroundColor as string) || null;
+
+  const creatorThemeVars = buildCreatorVars({
+    accentColor,
+    backgroundColor,
+    fontFamily,
+    themeMode,
+  });
+
   const customStyle = {
     '--tenant-accent': accentColor || 'hsl(var(--primary))',
     fontFamily: fontFamily ? `var(--font-${fontFamily})` : 'inherit',
     ...(themeMode === 'dark' && { colorScheme: 'dark' }),
+    ...creatorThemeVars,
   } as React.CSSProperties;
 
   return (

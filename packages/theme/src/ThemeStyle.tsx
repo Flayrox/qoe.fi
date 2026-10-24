@@ -12,6 +12,7 @@
 
 import * as React from 'react';
 import type { CreatorTheme } from './types';
+import { buildBackgroundVariables } from './colors';
 
 interface ThemeStyleProps {
   /** Données de branding créateur (depuis la DB). */
@@ -26,6 +27,11 @@ interface ThemeStyleProps {
  */
 export function buildCreatorVars(creator: CreatorTheme): Record<string, string> {
   const vars: Record<string, string> = {};
+
+  if (creator.backgroundColor) {
+    const bgVars = buildBackgroundVariables(creator.backgroundColor);
+    Object.assign(vars, bgVars);
+  }
 
   if (creator.accentColor) {
     vars['--primary'] = creator.accentColor;

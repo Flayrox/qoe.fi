@@ -11,6 +11,7 @@ import {
   Clock,
   ExternalLink,
   GitCompare,
+  History,
   Loader2,
   Lock,
   RotateCcw,
@@ -44,6 +45,7 @@ export interface EditorHeaderProps {
   settingsOpen: boolean;
   onBack?: () => void;
   onOpenAnalytics: () => void;
+  onOpenHistory?: () => void;
   onToggleSettings: () => void;
   onOpenSchedule: () => void;
   onTogglePremium: () => void;
@@ -139,6 +141,7 @@ export function EditorHeader(props: EditorHeaderProps) {
     settingsOpen,
     onBack,
     onOpenAnalytics,
+    onOpenHistory,
     onToggleSettings,
     onOpenSchedule,
     onTogglePremium,
@@ -229,6 +232,16 @@ export function EditorHeader(props: EditorHeaderProps) {
             className="h-8 w-8 rounded-lg flex items-center justify-center border border-border/40 bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all cursor-pointer"
           >
             <BarChart3 className="h-3.5 w-3.5 stroke-[1.5]" />
+          </button>
+
+          <button
+            type="button"
+            onClick={onOpenHistory}
+            aria-label={t`Historique de publication`}
+            title={t`Voir l'historique de publication (publications, reports, dépublications)`}
+            className="h-8 w-8 rounded-lg flex items-center justify-center border border-border/40 bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all cursor-pointer"
+          >
+            <History className="h-3.5 w-3.5 stroke-[1.5]" />
           </button>
 
           <button
