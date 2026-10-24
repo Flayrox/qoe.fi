@@ -7,7 +7,15 @@
 // - debounce (défaut 2s) avant chaque sauvegarde ;
 // - sérialisation : si une sauvegarde est en cours, la suivante est
 //   « pending » et rejouée dès la fin (pas de chevauchement de requêtes) ;
+// - déduplication : un payload identique à la dernière sauvegarde réussie
+//   n'est jamais renvoyé au serveur ;
 // - `saveNow` pour les sauvegardes explicites (bouton, raccourci).
+//
+// ⚠️ Robustesse aux identités instables : `onSave` est presque toujours une
+// closure inline recréée à chaque rendu. On la lit via une ref pour que
+// `triggerSave` / `scheduleAutoSave` gardent une identité stable — sinon
+// l'effet de flush (démontage) se rejouait à chaque rendu et court-circuitait
+// le debounce, provoquant des PATCH en boucle.
 // ⚠️ Spécifique au dashboard web (éditeur Tiptap) — pas utilisé par le mobile.
 // =====================================================================
 
@@ -46,6 +54,32 @@ export interface UseAutoSaveArticleOptions {
   onError?: (error: Error) => void;
 }
 
+/** Empreinte stable du payload : sert uniquement à éviter les requêtes inutiles. */
+function payloadSignature(payload: AutoSavePayload): string {
+  return JSON.stringify({
+    t: payload.title ?? '',
+    c: payload.content ?? '',
+    s: payload.slug ?? '',
+    pub: payload.published ?? null,
+    st: payload.status ?? null,
+    sch: payload.scheduledAt ?? null,
+    prem: payload.isPremium ?? null,
+    img: payload.imageUrl ?? null,
+    cat: payload.categoryId ?? null,
+    stitle: payload.seoTitle ?? null,
+    sdesc: payload.seoDescription ?? null,
+    comm: payload.allowComments ?? null,
+    ann: payload.allowPublicAnnotations ?? null,
+    dl: payload.allowDownload ?? null,
+    attr: (payload.attributions ?? []).map((a) => ({
+      u: a.userId,
+      r: a.role ?? null,
+      o: a.order ?? null,
+      v: a.isVisible ?? null,
+    })),
+  });
+}
+
 export function useAutoSaveArticle({
   delay = 2000,
   enabled = true,
@@ -57,53 +91,75 @@ export function useAutoSaveArticle({
   const [articleId, setArticleId] = useState<string | undefined>(undefined);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestPayloadRef = useRef<AutoSavePayload | null>(null);
   const isSavingRef = useRef<boolean>(false);
   const pendingSaveRef = useRef<boolean>(false);
+  const articleIdRef = useRef<string | undefined>(undefined);
+  const savedSignatureRef = useRef<string | null>(null);
 
-  const triggerSave = useCallback(
-    async (payload: AutoSavePayload) => {
-      if (isSavingRef.current) {
-        pendingSaveRef.current = true;
-        return;
-      }
+  // Refs toujours à jour, mais identité figée pour les callbacks ci-dessous.
+  const onSaveRef = useRef(onSave);
+  const onErrorRef = useRef(onError);
+  useEffect(() => {
+    onSaveRef.current = onSave;
+    onErrorRef.current = onError;
+  });
 
-      if (!payload.title.trim()) return;
+  const triggerSave = useCallback(async (payload: AutoSavePayload) => {
+    if (!payload.title.trim()) return;
 
-      try {
-        isSavingRef.current = true;
+    if (isSavingRef.current) {
+      latestPayloadRef.current = payload;
+      pendingSaveRef.current = true;
+      return;
+    }
+
+    isSavingRef.current = true;
+
+    try {
+      let current: AutoSavePayload | null = payload;
+
+      // Boucle sérialisée : on enchaîne les payloads arrivés pendant un vol,
+      // sans jamais lancer deux requêtes en parallèle.
+      while (current) {
+        const signature = payloadSignature(current);
+        latestPayloadRef.current = null;
         pendingSaveRef.current = false;
-        setStatus('saving');
-        setErrorMessage(null);
 
-        const result = await onSave({
-          ...payload,
-          id: payload.id || articleId,
-        });
+        if (signature === savedSignatureRef.current) {
+          // Rien n'a changé depuis la dernière sauvegarde réussie.
+          setStatus('saved');
+        } else {
+          setStatus('saving');
+          setErrorMessage(null);
 
-        if (result.id) {
-          setArticleId(result.id);
+          const result = await onSaveRef.current({
+            ...current,
+            id: current.id || articleIdRef.current,
+          });
+
+          if (result?.id) {
+            articleIdRef.current = result.id;
+            setArticleId(result.id);
+          }
+          savedSignatureRef.current = signature;
+          setLastSavedAt(result?.updatedAt ? new Date(result.updatedAt) : new Date());
+          setStatus('saved');
         }
 
-        const savedDate = result.updatedAt ? new Date(result.updatedAt) : new Date();
-        setLastSavedAt(savedDate);
-        setStatus('saved');
-      } catch (err: unknown) {
-        const error = err instanceof Error ? err : new Error('Auto-save failed');
-        setErrorMessage(error.message);
-        setStatus('error');
-        onError?.(error);
-      } finally {
-        isSavingRef.current = false;
-        if (pendingSaveRef.current && latestPayloadRef.current) {
-          pendingSaveRef.current = false;
-          triggerSave(latestPayloadRef.current);
-        }
+        current = pendingSaveRef.current ? latestPayloadRef.current : null;
       }
-    },
-    [articleId, onSave, onError]
-  );
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err : new Error('Auto-save failed');
+      setErrorMessage(error.message);
+      setStatus('error');
+      onErrorRef.current?.(error);
+    } finally {
+      isSavingRef.current = false;
+      pendingSaveRef.current = false;
+    }
+  }, []);
 
   const scheduleAutoSave = useCallback(
     (payload: AutoSavePayload) => {
@@ -119,7 +175,7 @@ export function useAutoSaveArticle({
       timeoutRef.current = setTimeout(() => {
         timeoutRef.current = null;
         if (latestPayloadRef.current) {
-          triggerSave(latestPayloadRef.current);
+          void triggerSave(latestPayloadRef.current);
         }
       }, delay);
     },
@@ -127,16 +183,16 @@ export function useAutoSaveArticle({
   );
 
   // Au démontage (navigation, fermeture de l'onglet), on flushe le debounce
-  // en cours pour ne pas perdre les dernières frappes (triggerSave ignore
-  // les titres vides ; isSavingRef évite de chevaucher une sauvegarde).
+  // en cours pour ne pas perdre les dernières frappes. `triggerSave` est
+  // stable : cet effet ne tourne donc qu'une fois, au vrai démontage.
   useEffect(() => {
     return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-        if (latestPayloadRef.current && !isSavingRef.current) {
-          triggerSave(latestPayloadRef.current);
-        }
+      const timeout = timeoutRef.current;
+      if (!timeout) return;
+      clearTimeout(timeout);
+      timeoutRef.current = null;
+      if (latestPayloadRef.current && !isSavingRef.current) {
+        void triggerSave(latestPayloadRef.current);
       }
     };
   }, [triggerSave]);
@@ -150,8 +206,6 @@ export function useAutoSaveArticle({
     saveNow: (payload: AutoSavePayload) => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
-      // Le replay de la file (pending) lit latestPayloadRef : une sauvegarde
-      // explicite pendant qu'une autre est en vol doit aussi être rejouée.
       latestPayloadRef.current = payload;
       return triggerSave(payload);
     },

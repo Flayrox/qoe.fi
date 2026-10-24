@@ -343,22 +343,10 @@ export function Editor({
     onUpdate: ({ editor: currentEditor }) => {
       setHasUnsavedChanges(true);
       const s = editorStateRef.current;
-      if (s.title.trim()) {
-        scheduleAutoSaveRef.current({
-          title: s.title,
-          content: currentEditor.getHTML(),
-          slug: s.slug,
-          published: s.published,
-          isPremium: s.isPremium,
-          categoryId: s.categoryId,
-          seoTitle: s.seoTitle,
-          seoDescription: s.seoDescription,
-          imageUrl: s.imageUrl,
-          allowPublicAnnotations: s.allowPublicAnnotations,
-          allowComments: s.allowComments,
-          allowDownload: s.allowDownload,
-        });
-      }
+      if (!s.title.trim()) return;
+      // Même forme de payload que `draftSnapshot()` côté rendu : la
+      // déduplication du hook compare des objets équivalents.
+      scheduleAutoSaveRef.current({ ...s, content: currentEditor.getHTML() });
     },
   });
 
@@ -509,6 +497,47 @@ export function Editor({
     };
   }, [collaborationProvider, editor, collaborationDoc, initialContent]);
 
+  // 🧭 Snapshot unique du brouillon : source de vérité partagée par l'auto-save
+  // et par le calcul d'empreinte. Une seule description des champs ⇒ plus de
+  // divergence entre le payload envoyé et le hash mémorisé (la cause de la
+  // sauvegarde en boucle : `allowDownload` manquait d'un côté).
+  const draftSnapshot = useCallback(
+    (overrides: { title?: string; content?: string; slug?: string } = {}) => ({
+      title: overrides.title ?? title,
+      content: overrides.content ?? editor?.getHTML() ?? '',
+      slug: overrides.slug ?? slug,
+      published,
+      status,
+      scheduledAt,
+      isPremium,
+      categoryId,
+      seoTitle,
+      seoDescription,
+      imageUrl,
+      allowComments,
+      allowPublicAnnotations,
+      allowDownload,
+      attributions,
+    }),
+    [
+      editor,
+      title,
+      slug,
+      published,
+      status,
+      scheduledAt,
+      isPremium,
+      categoryId,
+      seoTitle,
+      seoDescription,
+      imageUrl,
+      allowComments,
+      allowPublicAnnotations,
+      allowDownload,
+      attributions,
+    ]
+  );
+
   // Hash initial calculé UNE seule fois : ne dépend plus de l'identité des
   // tableaux de props (l'ancien effet réinitialisait le hash à chaque render).
   const initialHash = useMemo(
@@ -527,6 +556,7 @@ export function Editor({
         imageUrl: initialImageUrl,
         allowComments: initialAllowComments,
         allowPublicAnnotations: initialAllowPublicAnnotations,
+        allowDownload: initialAllowDownload,
         attributions: initialAttributions,
       }),
     // Volontairement monté une fois : la page d'édition ne change pas d'article
@@ -547,7 +577,7 @@ export function Editor({
     enabled: true,
     onSave: async (payload: AutoSavePayload) => {
       const s = editorStateRef.current;
-      const res = (await onSave({
+      const request = {
         title: payload.title,
         content: payload.content,
         imageUrl: s.imageUrl,
@@ -565,30 +595,19 @@ export function Editor({
         allowComments: s.allowComments,
         allowDownload: s.allowDownload,
         attributions: s.attributions,
-      })) as { id?: string } | void;
+      };
+      // L'empreinte mémorisée décrit exactement l'état envoyé au serveur :
+      // toute divergence (même un champ oublié) relançait l'auto-save.
+      const savedHash = computePayloadHash({ ...request, published: s.published });
+
+      const res = (await onSave(request)) as { id?: string } | void;
       if (res?.id) persistedIdRef.current = res.id;
+      lastSavedHashRef.current = savedHash;
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
       if (s.published) {
         setHasUnpublishedChanges(true);
       }
-      lastSavedHashRef.current = computePayloadHash({
-        title: payload.title,
-        content: payload.content,
-        imageUrl: s.imageUrl,
-        slug: payload.slug || s.slug,
-        published: s.published,
-        scheduledAt: s.scheduledAt,
-        status: s.status,
-        isPremium: payload.isPremium ?? s.isPremium,
-        categoryId: payload.categoryId ?? s.categoryId,
-        seoTitle: payload.seoTitle ?? s.seoTitle,
-        seoDescription: payload.seoDescription ?? s.seoDescription,
-        allowPublicAnnotations: s.allowPublicAnnotations,
-        allowComments: s.allowComments,
-        allowDownload: s.allowDownload,
-        attributions: s.attributions,
-      });
       return { id: persistedIdRef.current, updatedAt: new Date() };
     },
   });
@@ -596,82 +615,30 @@ export function Editor({
   scheduleAutoSaveRef.current = scheduleAutoSave;
 
   const retryAutoSave = () => {
-    const s = editorStateRef.current;
-    if (!s.title.trim() || !editor) return;
-    saveNow({
-      title: s.title,
-      content: editor.getHTML(),
-      slug: s.slug,
-      published: s.published,
-      scheduledAt: s.scheduledAt,
-      status: s.status,
-      isPremium: s.isPremium,
-      categoryId: s.categoryId,
-      seoTitle: s.seoTitle,
-      seoDescription: s.seoDescription,
-    });
+    if (!editor) return;
+    const snapshot = draftSnapshot();
+    if (!snapshot.title.trim()) return;
+    void saveNow(snapshot);
   };
 
-  // Déclenche l'auto-save sur les changements de métadonnées.
+  // Déclenche l'auto-save sur les changements de métadonnées. La comparaison
+  // se fait sur l'empreinte du snapshot : aucune sauvegarde si l'état est
+  // identique à la dernière sauvegarde réussie. `scheduleAutoSave` est lu via
+  // une ref pour ne pas relancer le debounce à chaque rendu.
   useEffect(() => {
     if (!editor) return;
-    const currentPayload = {
-      title,
-      content: editor.getHTML(),
-      slug,
-      published,
-      status,
-      scheduledAt,
-      isPremium,
-      categoryId,
-      seoTitle,
-      seoDescription,
-      imageUrl,
-      allowComments,
-      allowPublicAnnotations,
-      attributions,
-    };
-    const currentHash = computePayloadHash(currentPayload);
+    const snapshot = draftSnapshot();
 
-    if (currentHash === lastSavedHashRef.current) {
+    if (computePayloadHash(snapshot) === lastSavedHashRef.current) {
       setHasUnsavedChanges(false);
       return;
     }
 
     setHasUnsavedChanges(true);
-    if (title.trim()) {
-      scheduleAutoSave({
-        title,
-        content: currentPayload.content,
-        slug,
-        published,
-        isPremium,
-        categoryId,
-        seoTitle,
-        seoDescription,
-        imageUrl,
-        allowPublicAnnotations,
-        allowComments,
-        allowDownload,
-      });
+    if (snapshot.title.trim()) {
+      scheduleAutoSaveRef.current(snapshot);
     }
-  }, [
-    editor,
-    title,
-    slug,
-    categoryId,
-    seoTitle,
-    seoDescription,
-    published,
-    status,
-    scheduledAt,
-    isPremium,
-    imageUrl,
-    allowPublicAnnotations,
-    allowComments,
-    attributions,
-    scheduleAutoSave,
-  ]);
+  }, [editor, draftSnapshot]);
 
   // Slug auto uniquement tant que l'auteur ne l'a jamais personnalisé.
   useEffect(() => {
