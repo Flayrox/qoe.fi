@@ -19,6 +19,8 @@ import {
   Highlighter,
   Lock,
   Images,
+  Undo2,
+  Redo2,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
@@ -89,6 +91,19 @@ export function EditorToolbar({
       )}
     >
       <div className="flex items-center gap-0.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <ToolbarButton
+          onClick={() => editor.chain().focus().undo().run()}
+          icon={<Undo2 className="h-3.5 w-3.5 stroke-[2]" />}
+          tooltip={t`Annuler (⌘Z)`}
+        />
+        <ToolbarButton
+          onClick={() => editor.chain().focus().redo().run()}
+          icon={<Redo2 className="h-3.5 w-3.5 stroke-[2]" />}
+          tooltip={t`Rétablir (⌘⇧Z)`}
+        />
+
+        <Separator />
+
         <ToolbarButton
           active={editor.isActive('bold')}
           onClick={() => editor.chain().focus().toggleBold().run()}
