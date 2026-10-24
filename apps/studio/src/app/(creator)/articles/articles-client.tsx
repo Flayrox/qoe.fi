@@ -25,6 +25,22 @@ import {
   Rows3,
   Save,
 } from 'lucide-react';
+
+/** Slug canonique de l'article « À propos » (page publique : /about). */
+const ABOUT_ARTICLE_SLUG = 'about';
+/** Valeur héritée encore présente dans des articles existants — lecture seule. */
+const LEGACY_ABOUT_ARTICLE_SLUGS = ['a-propos'];
+
+function isAboutArticle(
+  article: { id: string; slug: string },
+  aboutArticleId: string | null
+): boolean {
+  return (
+    aboutArticleId === article.id ||
+    article.slug === ABOUT_ARTICLE_SLUG ||
+    LEGACY_ABOUT_ARTICLE_SLUGS.includes(article.slug)
+  );
+}
 import { cn, slugify } from '@qoe/utils';
 import { isReservedTenantRoute } from '@qoe/config';
 import { useRouter } from 'next/navigation';
@@ -1016,15 +1032,13 @@ export function ArticlesClient({
           <div className="flex items-center gap-2">
             {/* Shortcut: Page À propos */}
             {(() => {
-              const targetAbout = articles.find(
-                (a) => a.id === aboutArticleId || a.slug === 'a-propos' || a.slug === 'about'
-              );
+              const targetAbout = articles.find((a) => isAboutArticle(a, aboutArticleId));
               return (
                 <a
                   href={
                     targetAbout
                       ? `/articles/${targetAbout.id}`
-                      : '/articles/new?slug=a-propos&title=%C3%80%20propos'
+                      : `/articles/new?slug=${ABOUT_ARTICLE_SLUG}&title=%C3%80%20propos`
                   }
                   className={cn(
                     'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors font-sans',
@@ -1433,9 +1447,7 @@ export function ArticlesClient({
                       Boolean((art as unknown as { isPinned?: boolean }).isPinned) ||
                       pinnedArticleId === art.id
                     }
-                    about={
-                      aboutArticleId === art.id || art.slug === 'a-propos' || art.slug === 'about'
-                    }
+                    about={isAboutArticle(art, aboutArticleId)}
                     canReview={canReview}
                     onToggleSelect={toggleSelected}
                     onOpenAnalytics={(article) =>

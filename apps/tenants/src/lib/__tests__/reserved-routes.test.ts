@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { RESERVED_TENANT_ROUTES } from '@qoe/config';
+import { LEGACY_TENANT_REDIRECTS, legacyRedirectRootSegment } from '../legacy-redirects';
 
 // =====================================================================
 // 🛡️ Garde de parité — routes statiques tenant vs slugs réservés
@@ -70,8 +71,14 @@ function readGoReservedRoutes(): Set<string> {
   return new Set([...block[1].matchAll(/"([^"]+)"\s*:/g)].map((match) => match[1]));
 }
 
+// Les alias historiques ne sont plus des routes du filesystem : ils sont
+// servis par les redirections de `next.config.ts` et occupent donc aussi
+// leur segment de premier niveau.
 describe('slugs réservés des routes tenant', () => {
-  const discovered = collectTenantRouteSegments(tenantRoutesDir);
+  const discovered = new Set([
+    ...collectTenantRouteSegments(tenantRoutesDir),
+    ...LEGACY_TENANT_REDIRECTS.map(legacyRedirectRootSegment),
+  ]);
   const reserved: string[] = [...RESERVED_TENANT_ROUTES];
 
   it('réserve chaque route statique réellement présente', () => {
