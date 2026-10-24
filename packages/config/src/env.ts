@@ -49,7 +49,8 @@ const envSchema = z.object({
   NEXT_PUBLIC_LANDING_URL: z.string().url().default('http://localhost:3000/start'),
   NEXT_PUBLIC_API_URL: z.string().url().default('http://localhost:3001'),
   NEXT_PUBLIC_ADMIN_URL: z.string().url().default('http://admin.localhost'),
-  NEXT_PUBLIC_DASHBOARD_URL: z.string().url().default('http://dashboard.localhost'),
+  NEXT_PUBLIC_STUDIO_URL: z.string().url().default('http://studio.localhost'),
+  NEXT_PUBLIC_DASHBOARD_URL: z.string().url().default('http://studio.localhost'),
 
   // ─── Analytics ─────────────────────────────────────────
   NEXT_PUBLIC_UMAMI_WEBSITE_ID: z.string().optional(),
@@ -96,7 +97,8 @@ export function parseEnv() {
       NEXT_PUBLIC_LANDING_URL: z.string().url().default('http://localhost:3000/start'),
       NEXT_PUBLIC_API_URL: z.string().url().default('http://localhost:3001'),
       NEXT_PUBLIC_ADMIN_URL: z.string().url().default('http://admin.localhost'),
-      NEXT_PUBLIC_DASHBOARD_URL: z.string().url().default('http://dashboard.localhost'),
+      NEXT_PUBLIC_STUDIO_URL: z.string().url().default('http://studio.localhost'),
+      NEXT_PUBLIC_DASHBOARD_URL: z.string().url().default('http://studio.localhost'),
       NEXT_PUBLIC_UMAMI_WEBSITE_ID: z.string().optional(),
       NEXT_PUBLIC_UMAMI_SCRIPT_URL: z.string().url().optional(),
     });
