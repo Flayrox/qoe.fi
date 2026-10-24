@@ -122,7 +122,7 @@ export function buildBackgroundVariables(rawHex: string): Record<string, string>
       '--border': `color-mix(in oklab, ${normalizedHex} 68%, white 32%)`,
       '--input': `color-mix(in oklab, ${normalizedHex} 82%, white 18%)`,
       '--ring': '#fafafa',
-      'color-scheme': 'dark',
+      colorScheme: 'dark',
     };
   }
 
@@ -143,6 +143,6 @@ export function buildBackgroundVariables(rawHex: string): Record<string, string>
     '--border': `color-mix(in oklab, ${normalizedHex} 68%, black 32%)`,
     '--input': `color-mix(in oklab, white 94%, ${normalizedHex} 6%)`,
     '--ring': '#09090b',
-    'color-scheme': 'light',
+    colorScheme: 'light',
   };
 }
