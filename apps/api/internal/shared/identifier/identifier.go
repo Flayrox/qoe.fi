@@ -34,8 +34,6 @@ var reservedTenantRoutes = map[string]struct{}{
 	"article": {}, "articles": {},
 	// Routes système du tenant
 	"legal": {}, "search": {}, "support": {}, "sitemap": {}, "rss.xml": {},
-	// Alias historiques conservés en redirection
-	"a-propos": {}, "equipe": {}, "pensees": {}, "notes": {}, "auteur": {},
 	// Routes de l'app servies sur le même host
 	"api": {}, "auth": {}, "tenant": {}, "robots.txt": {}, "sitemap.xml": {}, "icon.svg": {},
 }
