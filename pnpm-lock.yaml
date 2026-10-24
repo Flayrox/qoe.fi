@@ -352,6 +352,9 @@ importers:
       '@qoe/observability':
         specifier: workspace:^
         version: link:../../packages/observability
+      '@qoe/sdk':
+        specifier: workspace:*
+        version: link:../../packages/sdk
       '@qoe/supabase':
         specifier: workspace:*
         version: link:../../packages/supabase

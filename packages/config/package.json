@@ -12,7 +12,8 @@
     "./features": "./src/features.ts",
     "./routes": "./src/routes.ts",
     "./schemas": "./src/schemas.ts",
-    "./tenant": "./src/tenant.ts"
+    "./tenant": "./src/tenant.ts",
+    "./legal": "./src/legal.ts"
   },
   "scripts": {
     "lint": "eslint .",

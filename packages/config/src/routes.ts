@@ -8,6 +8,21 @@
 
 import { getMonorepoUrl } from './constants';
 
+const studioRoutes = {
+  home: () => '/',
+  articles: {
+    list: () => '/articles',
+    new: () => '/articles/new',
+    edit: (id: string) => `/articles/${encodeURIComponent(id)}`,
+  },
+  analytics: () => '/analytics',
+  audience: () => '/audience',
+  newsletters: () => '/newsletters',
+  settings: () => '/settings',
+  developer: () => '/developer',
+  onboarding: () => '/onboarding',
+} as const;
+
 export const routes = {
   /** 📖 Reader Core App (`apps/core`) */
   feed: {
@@ -49,23 +64,13 @@ export const routes = {
       `/${encodeURIComponent(username.replace(/^@/, ''))}/thought/${encodeURIComponent(id)}`,
     notifications: () => '/notifications',
     search: () => '/search',
+    legal: (slug?: string) => (slug ? `/legal/${encodeURIComponent(slug)}` : '/legal'),
   },
 
   /** 🎨 Creator Studio App (`apps/studio`) */
-  dashboard: {
-    home: () => '/',
-    articles: {
-      list: () => '/articles',
-      new: () => '/articles/new',
-      edit: (id: string) => `/articles/${encodeURIComponent(id)}`,
-    },
-    analytics: () => '/analytics',
-    audience: () => '/audience',
-    newsletters: () => '/newsletters',
-    settings: () => '/settings',
-    developer: () => '/developer',
-    onboarding: () => '/onboarding',
-  },
+  studio: studioRoutes,
+  /** @deprecated Utiliser `routes.studio` */
+  dashboard: studioRoutes,
 
   /** 🛡️ Superadmin Dashboard App (`apps/admin`) */
   admin: {
@@ -84,10 +89,8 @@ export const routes = {
   /** 🌐 Page d'exposition Hi (`apps/hi`) */
   landing: {
     home: () => '/',
-    start: () => '/start',
-    pricing: () => '/pricing',
-    privacy: () => '/privacy',
-    terms: () => '/terms',
+    support: () => '/support',
+    legal: (slug?: string) => (slug ? `/legal/${encodeURIComponent(slug)}` : '/legal'),
   },
 
   /** 🌐 Multi-Tenant Creator Sites (`apps/tenants`) */

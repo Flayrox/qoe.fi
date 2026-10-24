@@ -10,4 +10,5 @@ export * from './features';
 export * from './routes';
 export * from './schemas';
 export * from './tenant';
+export * from './legal';
 export { env, parseEnv } from './env';

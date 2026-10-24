@@ -6,6 +6,7 @@ import { t } from '@lingui/core/macro';
 import { useI18n } from '@qoe/i18n';
 import Link from 'next/link';
 import { ArrowUpRight, Check } from 'lucide-react';
+import { URLS } from '@qoe/config';
 
 interface CreatorHubProps {
   config: Record<string, string>;
@@ -48,7 +49,7 @@ export const CreatorHub = ({ config }: CreatorHubProps) => {
         t`Hébergement zéro coût jusqu'à 1 000 abonnés`,
       ],
       cta: t`Créer mon média`,
-      ctaHref: '/login',
+      ctaHref: URLS.STUDIO,
     },
     'Médias & CMS': {
       eyebrow: t`Rédactions, titres indépendants`,
@@ -63,7 +64,7 @@ export const CreatorHub = ({ config }: CreatorHubProps) => {
         t`Dashboard éditorial centralisé`,
       ],
       cta: t`Rejoindre l'écosystème`,
-      ctaHref: '/login',
+      ctaHref: URLS.STUDIO,
     },
     API: {
       eyebrow: t`Développeurs, intégrateurs`,
@@ -78,7 +79,7 @@ export const CreatorHub = ({ config }: CreatorHubProps) => {
         t`SLA 99.9% — hébergement Hetzner (Allemagne)`,
       ],
       cta: t`Lire la documentation`,
-      ctaHref: '/docs',
+      ctaHref: URLS.DOCS,
     },
   };
 
@@ -327,7 +328,7 @@ export const CreatorHub = ({ config }: CreatorHubProps) => {
             <p className="text-sm text-muted-foreground">{convictionSubtitle}</p>
           </div>
           <Link
-            href="/login"
+            href={`${URLS.APP}/login`}
             className="inline-flex items-center gap-2 border border-border text-muted-foreground font-medium px-5 py-2.5 rounded-lg hover:border-border transition-colors text-sm flex-shrink-0"
           >
             {manifestoText}

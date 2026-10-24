@@ -1,3 +1,5 @@
+import { URLS } from '@qoe/config';
+
 export const landingConfig = {
   hero: {
     badge: "L'INFRASTRUCTURE SOUVERAINE DES MÉDIAS INDÉPENDANTS",
@@ -7,11 +9,13 @@ export const landingConfig = {
       "Reprenez le contrôle de votre attention. Une plateforme sans distraction, conçue pour le temps long, la réflexion profonde et l'indépendance absolue.",
     primaryCta: {
       text: 'Rejoindre le Sanctuaire',
-      href: '/login',
+      get href() {
+        return `${URLS.APP}/home`;
+      },
     },
     secondaryCta: {
       text: 'Découvrir les voix',
-      href: '#feed',
+      href: '#featured',
     },
   },
   marquee: [

@@ -20,61 +20,71 @@ interface FooterProps {
   locale?: string;
 }
 
-const DEFAULT_SECTIONS_FR: FooterSection[] = [
-  {
-    title: 'Légal',
-    links: [
-      { label: 'Conformité RGPD', href: '#' },
-      { label: 'Politique de confidentialité', href: '#' },
-      { label: "Conditions d'utilisation", href: '#' },
-    ],
-  },
-  {
-    title: 'Plateforme',
-    links: [
-      { label: 'Studio Créateur', href: URLS.DASHBOARD },
-      { label: 'Espace Lecteur', href: URLS.APP },
-      { label: 'Support / Nous contacter', href: '/support' },
-      { label: 'Docs API', href: `${URLS.API}/health`, isExternal: true },
-    ],
-  },
-  {
-    title: 'Réseaux',
-    links: [
-      { label: 'Twitter', href: '#' },
-      { label: 'Substack', href: '#' },
-      { label: 'LinkedIn', href: '#' },
-    ],
-  },
-];
+const getDefaultSections = (locale: string): FooterSection[] => {
+  const isEn = locale === 'en';
 
-const DEFAULT_SECTIONS_EN: FooterSection[] = [
-  {
-    title: 'Legal',
-    links: [
-      { label: 'GDPR Compliance', href: '#' },
-      { label: 'Privacy Policy', href: '#' },
-      { label: 'Terms of Service', href: '#' },
-    ],
-  },
-  {
-    title: 'Platform',
-    links: [
-      { label: 'Creator Studio', href: URLS.DASHBOARD },
-      { label: 'Reader Experience', href: URLS.APP },
-      { label: 'Support / Contact us', href: '/support' },
-      { label: 'API Docs', href: `${URLS.API}/health`, isExternal: true },
-    ],
-  },
-  {
-    title: 'Connect',
-    links: [
-      { label: 'Twitter', href: '#' },
-      { label: 'Substack', href: '#' },
-      { label: 'LinkedIn', href: '#' },
-    ],
-  },
-];
+  if (isEn) {
+    return [
+      {
+        title: 'Legal',
+        links: [
+          { label: 'Legal Notice', href: '/legal/mentions-legales' },
+          { label: 'Terms of Service', href: '/legal/conditions-generales-utilisation' },
+          { label: 'Privacy Policy', href: '/legal/politique-confidentialite' },
+          { label: 'GDPR Compliance', href: '/legal/accord-traitement-donnees' },
+          { label: 'Legal Center', href: '/legal' },
+        ],
+      },
+      {
+        title: 'Platform',
+        links: [
+          { label: 'Reader Experience (/home)', href: `${URLS.APP}/home` },
+          { label: 'Creator Studio', href: URLS.STUDIO },
+          { label: 'Support / Contact us', href: '/support' },
+          { label: 'API Documentation', href: URLS.DOCS, isExternal: true },
+        ],
+      },
+      {
+        title: 'Connect',
+        links: [
+          { label: 'X (Twitter)', href: 'https://x.com/qoefi', isExternal: true },
+          { label: 'LinkedIn', href: 'https://www.linkedin.com/company/qoefi', isExternal: true },
+          { label: 'GitHub', href: 'https://github.com/qoefi', isExternal: true },
+        ],
+      },
+    ];
+  }
+
+  return [
+    {
+      title: 'Légal',
+      links: [
+        { label: 'Mentions légales', href: '/legal/mentions-legales' },
+        { label: "Conditions d'utilisation", href: '/legal/conditions-generales-utilisation' },
+        { label: 'Politique de confidentialité', href: '/legal/politique-confidentialite' },
+        { label: 'Conformité RGPD', href: '/legal/accord-traitement-donnees' },
+        { label: 'Centre légal', href: '/legal' },
+      ],
+    },
+    {
+      title: 'Plateforme',
+      links: [
+        { label: 'Espace Lecteur (/home)', href: `${URLS.APP}/home` },
+        { label: 'Studio Créateur', href: URLS.STUDIO },
+        { label: 'Support / Nous contacter', href: '/support' },
+        { label: 'Documentation API', href: URLS.DOCS, isExternal: true },
+      ],
+    },
+    {
+      title: 'Réseaux',
+      links: [
+        { label: 'X (Twitter)', href: 'https://x.com/qoefi', isExternal: true },
+        { label: 'LinkedIn', href: 'https://www.linkedin.com/company/qoefi', isExternal: true },
+        { label: 'GitHub', href: 'https://github.com/qoefi', isExternal: true },
+      ],
+    },
+  ];
+};
 
 export const Footer = async ({ config, locale }: FooterProps) => {
   // Resolve locale if not passed
@@ -88,7 +98,7 @@ export const Footer = async ({ config, locale }: FooterProps) => {
   // Get sections based on active language
   const customSectionsJson =
     config?.[`footer_sections_${resolvedLocale}`] || config?.['footer_sections'];
-  let footerSections = resolvedLocale === 'en' ? DEFAULT_SECTIONS_EN : DEFAULT_SECTIONS_FR;
+  let footerSections = getDefaultSections(resolvedLocale);
 
   if (customSectionsJson) {
     try {

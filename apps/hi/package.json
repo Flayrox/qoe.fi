@@ -18,6 +18,7 @@
     "@qoe/flags": "workspace:*",
     "@qoe/i18n": "workspace:*",
     "@qoe/observability": "workspace:^",
+    "@qoe/sdk": "workspace:*",
     "@qoe/supabase": "workspace:*",
     "@qoe/theme": "workspace:*",
     "@qoe/ui": "workspace:*",
