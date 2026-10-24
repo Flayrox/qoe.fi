@@ -3,7 +3,6 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import Underline from '@tiptap/extension-underline';
 import Image from '@tiptap/extension-image';
 import Collaboration from '@tiptap/extension-collaboration';
 import { CollaborationCaret } from '@tiptap/extension-collaboration-caret';
@@ -247,8 +246,12 @@ export function Editor({
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
-      Underline,
+      // StarterKit v3 fournit déjà Underline : l'importer en plus créait un
+      // doublon d'extension (« Duplicate extension names found: ['underline'] »).
+      // Son UndoRedo est incompatible avec l'historique Yjs : on le désactive
+      // dès que la collaboration est active (c'est Collaboration qui fournit
+      // alors undo/redo).
+      StarterKit.configure({ undoRedo: collaborationDoc ? false : undefined }),
       PaywallDivider,
       AnnotationMark,
       Image.configure({
