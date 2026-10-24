@@ -61,7 +61,12 @@ export default async function TenantThoughtsPage({ params }: PageProps) {
   }));
 
   return (
-    <TenantPageShell publication={publication} domain={decodedDomain} host={host}>
+    <TenantPageShell
+      publication={publication}
+      domain={decodedDomain}
+      host={host}
+      currentPath="/thoughts"
+    >
       <div className="mx-auto w-full max-w-[600px] space-y-6 py-4">
         {/* En-tête du flux de pensées */}
         <div className="border-b border-border/40 pb-4 space-y-1">

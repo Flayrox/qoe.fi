@@ -368,40 +368,7 @@ export function GeneralTab({
                     maxDimension={1600}
                   />
                   <p className="text-[10px] text-muted-foreground text-center">
-                    Logo texte PNG/SVG, remplace le nom dans l'en-tête
-                  </p>
-                </div>
-
-                {/* Bannière / Image d'en-tête */}
-                <div className="sm:col-span-3 p-3 rounded-lg border border-border/40 bg-muted/10 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold text-foreground">
-                      Bannière d'en-tête
-                    </label>
-                    {current.headerImageUrl && (
-                      <button
-                        type="button"
-                        onClick={() => setCurrent((prev) => ({ ...prev, headerImageUrl: null }))}
-                        className="text-[11px] text-destructive hover:underline cursor-pointer"
-                      >
-                        Supprimer
-                      </button>
-                    )}
-                  </div>
-                  <div className="w-full">
-                    <ImageUploader
-                      value={current.headerImageUrl}
-                      onChange={(url) => setCurrent((prev) => ({ ...prev, headerImageUrl: url }))}
-                      upload={(file) =>
-                        uploadImageToRoute(file, '/api/articles/upload', IMAGE_FOLDERS.banners)
-                      }
-                      aspect={16 / 9}
-                      shape="square"
-                      maxDimension={1920}
-                    />
-                  </div>
-                  <p className="text-[10px] text-muted-foreground text-center">
-                    En-tête horizontal
+                    Logo texte PNG/SVG centré dans l'en-tête (remplace le nom textuel)
                   </p>
                 </div>
               </div>
@@ -423,7 +390,6 @@ export function GeneralTab({
 
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { key: 'showBanner', label: 'Bannière d’en-tête' },
                   { key: 'showLogo', label: 'Logo / Avatar' },
                   { key: 'showTagline', label: 'Slogan éditorial' },
                   { key: 'showSubscribeButton', label: 'Bouton S’abonner' },

@@ -66,7 +66,12 @@ export default async function TenantAboutPage({ params }: PageProps) {
     : null;
 
   return (
-    <TenantPageShell publication={publication} domain={decodedDomain} host={host}>
+    <TenantPageShell
+      publication={publication}
+      domain={decodedDomain}
+      host={host}
+      currentPath="/about"
+    >
       <AboutPageContent
         publication={publication}
         members={publication.team}
