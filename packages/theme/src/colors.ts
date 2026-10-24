@@ -71,19 +71,35 @@ export function getRelativeLuminance(rgb: RgbColor): number {
 }
 
 /**
- * Indique si une couleur est sombre (luminance relative < 0.45).
- * Permet d'adapter automatiquement le texte et les contrastes.
+ * Indique si une couleur est sombre selon le standard WCAG 2.1.
+ * Le point d'équilibre exact où le texte noir (#000000) offre un meilleur contraste
+ * que le texte blanc (#ffffff) est L ≈ 0.179 :
+ * (1 + 0.05)/(L + 0.05) = (L + 0.05)/(0 + 0.05) => L = sqrt(1.05 * 0.05) - 0.05 ≈ 0.1791
  */
 export function isColorDark(hex: string): boolean {
   const rgb = parseHexColor(hex);
   if (!rgb) return false;
-  return getRelativeLuminance(rgb) < 0.45;
+  return getRelativeLuminance(rgb) <= 0.1791;
+}
+
+/**
+ * Calcule le ratio de contraste standard WCAG 2.1 entre deux couleurs HEX (entre 1.0 et 21.0).
+ */
+export function getContrastRatio(hex1: string, hex2: string): number {
+  const rgb1 = parseHexColor(hex1);
+  const rgb2 = parseHexColor(hex2);
+  if (!rgb1 || !rgb2) return 1;
+  const l1 = getRelativeLuminance(rgb1);
+  const l2 = getRelativeLuminance(rgb2);
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+  return (lighter + 0.05) / (darker + 0.05);
 }
 
 /**
  * Construit les variables CSS dérivées dynamiquement d'une couleur de fond créateur.
- * Utilise CSS color-mix(in oklab, ...) natif pour garantir un rendu harmonieux
- * et perceptuellement uniforme des cartes, bordures et surfaces.
+ * Utilise CSS color-mix(in oklab, ...) natif pour garantir un rendu harmonieux,
+ * perceptuellement uniforme et doté d'une hiérarchie d'élévation nette (surfaces/cartes/bordures).
  */
 export function buildBackgroundVariables(rawHex: string): Record<string, string> {
   const normalizedHex = normalizeHexColor(rawHex);
@@ -97,30 +113,35 @@ export function buildBackgroundVariables(rawHex: string): Record<string, string>
       '--tenant-bg': normalizedHex,
       '--foreground': '#fafafa',
       '--muted-foreground': '#a1a1aa',
-      '--card': `color-mix(in oklab, ${normalizedHex} 88%, white 12%)`,
+      // En fond sombre, les cartes sont surélevées par un mix lumineux discret
+      '--card': `color-mix(in oklab, ${normalizedHex} 82%, white 18%)`,
       '--card-foreground': '#fafafa',
-      '--popover': `color-mix(in oklab, ${normalizedHex} 90%, white 10%)`,
+      '--popover': `color-mix(in oklab, ${normalizedHex} 86%, white 14%)`,
       '--popover-foreground': '#fafafa',
-      '--muted': `color-mix(in oklab, ${normalizedHex} 85%, white 15%)`,
-      '--border': `color-mix(in oklab, ${normalizedHex} 82%, white 18%)`,
-      '--input': `color-mix(in oklab, ${normalizedHex} 80%, white 20%)`,
+      '--muted': `color-mix(in oklab, ${normalizedHex} 76%, white 24%)`,
+      '--border': `color-mix(in oklab, ${normalizedHex} 68%, white 32%)`,
+      '--input': `color-mix(in oklab, ${normalizedHex} 82%, white 18%)`,
       '--ring': '#fafafa',
       'color-scheme': 'dark',
     };
   }
 
+  // En fond clair ou moyennement saturé (beige, ciel, lime, pêche, pastel) :
+  // Le texte DOIT être encre sombre (#09090b) pour respecter WCAG AAA (> 7:1).
+  // Les cartes deviennent des surfaces de papier nettes et surélevées (88% blanc + 12% teinte),
+  // éliminant la sensation "bouillie monochrome" et rendant les articles ultra lisibles.
   return {
     '--background': normalizedHex,
     '--tenant-bg': normalizedHex,
     '--foreground': '#09090b',
-    '--muted-foreground': '#71717a',
-    '--card': `color-mix(in oklab, ${normalizedHex} 92%, white 8%)`,
+    '--muted-foreground': '#3f3f46',
+    '--card': `color-mix(in oklab, white 88%, ${normalizedHex} 12%)`,
     '--card-foreground': '#09090b',
-    '--popover': `color-mix(in oklab, ${normalizedHex} 96%, white 4%)`,
+    '--popover': `color-mix(in oklab, white 94%, ${normalizedHex} 6%)`,
     '--popover-foreground': '#09090b',
-    '--muted': `color-mix(in oklab, ${normalizedHex} 90%, black 10%)`,
-    '--border': `color-mix(in oklab, ${normalizedHex} 86%, black 14%)`,
-    '--input': `color-mix(in oklab, ${normalizedHex} 84%, black 16%)`,
+    '--muted': `color-mix(in oklab, white 72%, ${normalizedHex} 28%)`,
+    '--border': `color-mix(in oklab, ${normalizedHex} 68%, black 32%)`,
+    '--input': `color-mix(in oklab, white 94%, ${normalizedHex} 6%)`,
     '--ring': '#09090b',
     'color-scheme': 'light',
   };

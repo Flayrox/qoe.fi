@@ -24,7 +24,7 @@ import {
 import { buildPublicDescription, sliceContentAtPaywall } from '@qoe/utils';
 import { ContentVisibility, getLegalDocumentUrl, getMainAppUrl } from '@qoe/config';
 import { t } from '@lingui/core/macro';
-import { buildCreatorVars } from '@qoe/theme';
+import { buildCreatorVars, ThemeStyle } from '@qoe/theme';
 import {
   fetchCanonicalDocument,
   type TenantPublication,
@@ -581,6 +581,15 @@ export async function TenantArticleRenderer({
       }}
     >
       <JsonLd data={breadcrumbJsonLd ? [jsonLdData, breadcrumbJsonLd] : jsonLdData} />
+      <ThemeStyle
+        creator={{
+          accentColor,
+          backgroundColor,
+          fontFamily: effectiveFontFamily,
+          themeMode,
+        }}
+        scope=":root"
+      />
 
       <MinimalCraftShell
         publication={templatePublication}

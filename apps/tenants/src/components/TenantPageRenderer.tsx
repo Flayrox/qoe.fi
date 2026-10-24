@@ -2,7 +2,7 @@ import React from 'react';
 import { headers } from 'next/headers';
 import { getMainAppUrl } from '@qoe/config';
 import { JsonLd, buildWebSiteSchema } from '@qoe/ui';
-import { buildCreatorVars } from '@qoe/theme';
+import { buildCreatorVars, ThemeStyle } from '@qoe/theme';
 import {
   TemplateRenderer,
   parseSiteLayouts,
@@ -224,6 +224,7 @@ export async function TenantPageRenderer(props: TenantPageRendererProps) {
       className="min-h-screen bg-background text-foreground transition-colors selection:bg-[var(--tenant-accent)] selection:text-white"
       style={creatorThemeVars as React.CSSProperties}
     >
+      <ThemeStyle creator={{ accentColor, backgroundColor, fontFamily, themeMode }} scope=":root" />
       <JsonLd data={jsonLdData} />
       <TemplateRenderer
         config={siteLayouts.home}
