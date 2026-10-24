@@ -52,6 +52,13 @@ export async function generateMetadata(): Promise<Metadata> {
   const isFr = lang === 'fr';
 
   return {
+    metadataBase: new URL(
+      process.env.NEXT_PUBLIC_ROOT_DOMAIN
+        ? `https://${process.env.NEXT_PUBLIC_ROOT_DOMAIN}`
+        : process.env.NODE_ENV === 'development'
+          ? 'http://localhost:15403'
+          : 'https://qoe.fi'
+    ),
     title: isFr
       ? 'qoefi — Publications et blogs indépendants'
       : 'qoefi — Independent Publications & Blogs',

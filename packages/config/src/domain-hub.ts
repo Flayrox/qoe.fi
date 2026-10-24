@@ -102,8 +102,8 @@ export function parseHostContext(hostname?: string): HostContext {
   const isDevEnv =
     isDevHost || process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
 
-  // Si on est en dev sans port explicite, on est probablement derrière un reverse-proxy local (Caddy)
-  const isCaddy = isDevEnv && !port;
+  // Seul qoe.test utilise Caddy en local sans port explicite. localhost et lvh.me utilisent toujours leurs ports dédiés.
+  const isCaddy = (isQoeTest || hostWithoutPort.endsWith('qoe.test')) && !port;
 
   let rootDomain = 'qoe.fi';
   let isDev = false;

@@ -149,6 +149,7 @@ export function NewsletterWallBlock({
                 buttonText={buttonText}
                 disabled={context.mode === 'editable'}
                 className="w-full"
+                mainAppUrl={publication?.mainAppUrl}
               />
               {slots?.actions && (
                 <div className="mt-3 flex flex-wrap gap-2">

@@ -175,7 +175,7 @@ export async function TenantArticleRenderer({
   const templatePublication: TemplatePublicationContext = {
     id: publication.id,
     name: publication.name,
-    domain: decodedDomain,
+    domain: host,
     mainAppUrl,
     logoUrl: publication.logoUrl,
     heroText: publication.heroText,
@@ -514,6 +514,7 @@ export async function TenantArticleRenderer({
                 isBrutalist={false}
                 userEmail={user?.email || null}
                 authorName={name}
+                mainAppUrl={mainAppUrl}
               />
             </div>
           </div>
