@@ -44,9 +44,20 @@ const DrawerVariantContext = createContext<DrawerVariant>({
   isDismissable: true,
 });
 
-const SIDE_CLASSES: Record<DrawerSide, string> = {
-  right: 'justify-end border-l',
-  left: 'justify-start border-r',
+/**
+ * Le côté se joue à deux endroits : l'alignement sur le conteneur (`Modal`),
+ * et la bordure + le sens d'entrée sur le panneau (`Dialog`). Mettre
+ * `justify-end` sur le panneau ne l'aurait pas déplacé — un enfant ne se
+ * positionne pas lui-même dans un conteneur qu'il ignore.
+ */
+const OVERLAY_SIDE: Record<DrawerSide, string> = {
+  right: 'justify-end',
+  left: 'justify-start',
+};
+
+const PANEL_SIDE: Record<DrawerSide, string> = {
+  right: 'border-l starting:translate-x-3',
+  left: 'border-r starting:-translate-x-3',
 };
 
 /** Une seule dimension de largeur : sinon les écrans divergent encore. */
@@ -134,15 +145,22 @@ export function DrawerContent({
   return (
     <Modal
       isDismissable={isDismissable}
-      className="fixed inset-0 z-50 flex bg-background/60 backdrop-blur-xs"
+      className={cn(
+        'fixed inset-0 z-50 flex',
+        // Voile sombre : `background` est clair dans le thème clair et
+        // laisserait l'arrière-plan lisible, donc rien ne signalerait que
+        // la page est inerte.
+        'bg-foreground/25 backdrop-blur-xs',
+        OVERLAY_SIDE[side]
+      )}
     >
       <Dialog
         aria-label={ariaLabel}
         className={cn(
           'flex h-full flex-col border-border bg-popover text-popover-foreground shadow-xl outline-hidden',
           // Entrée sans JS : `starting:` couvre le premier rendu.
-          'transition duration-200 ease-out starting:translate-x-3 starting:opacity-0',
-          SIDE_CLASSES[side],
+          'transition duration-200 ease-out starting:opacity-0',
+          PANEL_SIDE[side],
           WIDTH_CLASSES[width],
           rootClassName,
           className
