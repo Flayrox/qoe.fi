@@ -21,6 +21,8 @@ import {
   Images,
   Undo2,
   Redo2,
+  Link2,
+  TextQuote,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
@@ -66,6 +68,8 @@ export interface EditorToolbarProps {
   onPickImage: () => void;
   onPickGallery: () => void;
   onAnnotation: () => void;
+  onLink: () => void;
+  onImageDetails: () => void;
 }
 
 /**
@@ -80,6 +84,8 @@ export function EditorToolbar({
   onPickImage,
   onPickGallery,
   onAnnotation,
+  onLink,
+  onImageDetails,
 }: EditorToolbarProps) {
   return (
     <div
@@ -127,6 +133,17 @@ export function EditorToolbar({
           onClick={() => editor.chain().focus().toggleStrike().run()}
           icon={<Strikethrough className="h-3.5 w-3.5 stroke-[2]" />}
           tooltip={t`Barré`}
+        />
+        <ToolbarButton
+          active={editor.isActive('link')}
+          onClick={onLink}
+          icon={<Link2 className="h-3.5 w-3.5 stroke-[2]" />}
+          tooltip={t`Lien (⌘K)`}
+        />
+        <ToolbarButton
+          onClick={onImageDetails}
+          icon={<TextQuote className="h-3.5 w-3.5 stroke-[2]" />}
+          tooltip={t`Légende et crédit de l'image`}
         />
 
         <Separator />

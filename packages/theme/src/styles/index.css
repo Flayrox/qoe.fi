@@ -175,3 +175,18 @@
   font-family: var(--font-mono);
   font-size: 0.875rem;
 }
+
+/* Images légendées (nœud ArticleImage) — même rendu dans l'éditeur */
+.ProseMirror figure {
+  margin: 2rem 0;
+}
+.ProseMirror figcaption {
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--muted-foreground);
+}
+.ProseMirror .image-credit {
+  display: block;
+  font-size: 0.75rem;
+  opacity: 0.8;
+}

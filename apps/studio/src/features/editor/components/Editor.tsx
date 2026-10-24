@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import Image from '@tiptap/extension-image';
+import Link from '@tiptap/extension-link';
 import Collaboration from '@tiptap/extension-collaboration';
 import { CollaborationCaret } from '@tiptap/extension-collaboration-caret';
 import { TextSelection } from '@tiptap/pm/state';
@@ -21,6 +21,7 @@ import { ArticleInspectorModal } from '@/app/(creator)/analytics/components/Arti
 import { compressImage } from '@/lib/image-compressor';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
 import { PaywallDivider } from '../extensions/PaywallDivider';
+import { ArticleImage } from '../extensions/ArticleImage';
 import { AnnotationMark } from '../extensions/AnnotationMark';
 import { ImageGallery, GalleryImage } from '../extensions/ImageGallery';
 import { useCollaborationSession } from '../hooks/useCollaborationSession';
@@ -31,12 +32,15 @@ import {
   resolveArticleCategoryPath,
 } from '../lib/article-settings';
 import { currentTimeZoneLabel, toDateTimeLocalValue } from '../lib/datetime';
+import { normalizeLinkUrl } from '../lib/link';
 import type { ArticleAttributionDraft } from './ArticleAttributionEditor';
 import { EditorHeader } from './EditorHeader';
 import { EditorToolbar } from './EditorToolbar';
 import { EditorSettingsDrawer } from './EditorSettingsDrawer';
 import { CoverUploader } from './CoverUploader';
 import { AnnotationPopover } from './AnnotationPopover';
+import { LinkPopover } from './LinkPopover';
+import { ImageDetailsPopover, type ImageDetails } from './ImageDetailsPopover';
 import { PublishModal, type PublishOptions } from './PublishModal';
 import { ArticleDiffModal } from './ArticleDiffModal';
 
@@ -168,6 +172,18 @@ export function Editor({
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   const [showAuthorAnnotationModal, setShowAuthorAnnotationModal] = useState(false);
+  const [linkPopover, setLinkPopover] = useState<{ top: number; left: number } | null>(null);
+  const [linkUrl, setLinkUrl] = useState('');
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [imageDetailsPosition, setImageDetailsPosition] = useState<{
+    top: number;
+    left: number;
+  } | null>(null);
+  const [imageDetails, setImageDetails] = useState<ImageDetails>({
+    alt: '',
+    caption: '',
+    credit: '',
+  });
   const [authorNoteInput, setAuthorNoteInput] = useState('');
   const [selectedQuoteForAnnotation, setSelectedQuoteForAnnotation] = useState('');
   const [annotationToast, setAnnotationToast] = useState<string | null>(null);
@@ -182,6 +198,7 @@ export function Editor({
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const toolbarSentinelRef = useRef<HTMLDivElement>(null);
   const openAnnotationPopoverRef = useRef<(text?: string, existingNote?: string) => void>(() => {});
+  const openLinkPopoverRef = useRef<() => void>(() => {});
 
   const timeZoneLabel = useMemo(() => currentTimeZoneLabel(), []);
 
@@ -252,9 +269,19 @@ export function Editor({
       // dès que la collaboration est active (c'est Collaboration qui fournit
       // alors undo/redo).
       StarterKit.configure({ undoRedo: collaborationDoc ? false : undefined }),
+      // Liens : jamais ouverts au clic dans l'éditeur (on veut pouvoir éditer
+      // le texte), et uniquement des schémas sûrs en sortie HTML.
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
+        linkOnPaste: true,
+        defaultProtocol: 'https',
+        HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' },
+        isAllowedUri: (url) => normalizeLinkUrl(url) !== null,
+      }),
       PaywallDivider,
       AnnotationMark,
-      Image.configure({
+      ArticleImage.configure({
         HTMLAttributes: {
           class: 'rounded-2xl border border-border/40 my-10 max-w-full h-auto shadow-sm',
         },
@@ -311,6 +338,15 @@ export function Editor({
         return false;
       },
       handleKeyDown: (view, event) => {
+        if (
+          (event.metaKey || event.ctrlKey) &&
+          !event.shiftKey &&
+          event.key.toLowerCase() === 'k'
+        ) {
+          event.preventDefault();
+          openLinkPopoverRef.current();
+          return true;
+        }
         if (
           (event.metaKey || event.ctrlKey) &&
           event.shiftKey &&
@@ -463,6 +499,102 @@ export function Editor({
   useEffect(() => {
     openAnnotationPopoverRef.current = openAnnotationPopover;
   }, [openAnnotationPopover]);
+
+  // ─── Liens ─────────────────────────────────────────────────────────────
+  const openLinkPopover = useCallback(() => {
+    if (!editor) return;
+    setLinkUrl((editor.getAttributes('link').href as string) || '');
+    setLinkError(null);
+
+    const { from } = editor.state.selection;
+    const coords = editor.view.coordsAtPos(from);
+    const width = 380;
+    const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
+    const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 900;
+    setLinkPopover({
+      top: Math.min(coords.bottom + 10, viewportHeight - 240),
+      left: Math.max(16, Math.min(viewportWidth - width - 16, coords.left)),
+    });
+  }, [editor]);
+
+  useEffect(() => {
+    openLinkPopoverRef.current = openLinkPopover;
+  }, [openLinkPopover]);
+
+  const applyLink = useCallback(() => {
+    if (!editor) return;
+    const href = normalizeLinkUrl(linkUrl);
+    if (!href) {
+      setLinkError(t`Lien invalide. Utilisez https://…, /chemin ou une adresse e-mail.`);
+      return;
+    }
+
+    // Sans sélection, on insère l'URL comme texte cliquable ; sur un texte
+    // (ou un lien existant), on applique simplement le mark.
+    if (editor.state.selection.empty && !editor.isActive('link')) {
+      editor
+        .chain()
+        .focus()
+        .insertContent({
+          type: 'text',
+          text: linkUrl.trim(),
+          marks: [{ type: 'link', attrs: { href } }],
+        })
+        .run();
+    } else {
+      editor.chain().focus().extendMarkRange('link').setLink({ href }).run();
+    }
+
+    setLinkPopover(null);
+    setLinkError(null);
+  }, [editor, linkUrl]);
+
+  const removeLink = useCallback(() => {
+    if (!editor) return;
+    editor.chain().focus().extendMarkRange('link').unsetLink().run();
+    setLinkPopover(null);
+    setLinkError(null);
+  }, [editor]);
+
+  // ─── Détails d'image (alt, légende, crédit) ────────────────────────────
+  const openImageDetails = useCallback(() => {
+    if (!editor) return;
+    if (!editor.isActive('image')) {
+      setAnnotationToast(t`Sélectionnez une image pour renseigner sa légende.`);
+      setTimeout(() => setAnnotationToast(null), 3000);
+      return;
+    }
+
+    const attributes = editor.getAttributes('image');
+    setImageDetails({
+      alt: (attributes.alt as string) || '',
+      caption: (attributes.caption as string) || '',
+      credit: (attributes.credit as string) || '',
+    });
+
+    const coords = editor.view.coordsAtPos(editor.state.selection.from);
+    const width = 380;
+    const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1200;
+    const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 900;
+    setImageDetailsPosition({
+      top: Math.max(80, Math.min(coords.top, viewportHeight - 420)),
+      left: Math.max(16, Math.min(viewportWidth - width - 16, coords.left)),
+    });
+  }, [editor]);
+
+  const saveImageDetails = useCallback(() => {
+    if (!editor) return;
+    editor
+      .chain()
+      .focus()
+      .updateAttributes('image', {
+        alt: imageDetails.alt.trim(),
+        caption: imageDetails.caption.trim(),
+        credit: imageDetails.credit.trim(),
+      })
+      .run();
+    setImageDetailsPosition(null);
+  }, [editor, imageDetails]);
 
   const handleSaveAnnotation = () => {
     if (!authorNoteInput.trim() || !editor) return;
@@ -1220,6 +1352,8 @@ export function Editor({
             onPickImage={() => bodyImageInputRef.current?.click()}
             onPickGallery={() => galleryInputRef.current?.click()}
             onAnnotation={handleAnnotationButton}
+            onLink={openLinkPopover}
+            onImageDetails={openImageDetails}
           />
 
           <div className="py-4">
@@ -1318,6 +1452,27 @@ export function Editor({
         onDelete={handleDeleteAnnotation}
         onClose={() => setShowAuthorAnnotationModal(false)}
         canDelete={Boolean(editor?.isActive('annotationMark'))}
+      />
+
+      <LinkPopover
+        open={Boolean(linkPopover)}
+        position={linkPopover}
+        value={linkUrl}
+        onChange={setLinkUrl}
+        onApply={applyLink}
+        onRemove={removeLink}
+        onClose={() => setLinkPopover(null)}
+        canRemove={Boolean(editor?.isActive('link'))}
+        error={linkError}
+      />
+
+      <ImageDetailsPopover
+        open={Boolean(imageDetailsPosition)}
+        position={imageDetailsPosition}
+        value={imageDetails}
+        onChange={setImageDetails}
+        onSave={saveImageDetails}
+        onClose={() => setImageDetailsPosition(null)}
       />
 
       <PublishModal
