@@ -160,6 +160,96 @@ describe('resolveTenantNavigation — Moteur souverain de navigation Tenant', ()
     expect(res.navItems[0].label).toBe('À propos');
     expect(res.navItems[0].url).toBe('/a-propos');
   });
+
+  it('respecte scrupuleusement l’ordre personnalisé du menu (siteOptions.navOrder)', () => {
+    const res = resolveTenantNavigation({
+      includePages: true,
+      categories: [
+        { id: 'cat_tech', name: 'Technologie', slug: 'tech', parentId: null },
+        { id: 'cat_culture', name: 'Culture', slug: 'culture', parentId: null },
+      ],
+      navigation: [
+        {
+          id: 'ext_podcast',
+          label: 'Podcast',
+          url: 'https://podcast.com',
+          order: 0,
+          isExternal: true,
+          parentId: null,
+        },
+      ],
+      siteOptions: {
+        showHomeInNav: true,
+        showAboutInNav: true,
+        showThoughtsInNav: true,
+        navOrder: [
+          'cat:cat_culture',
+          'home',
+          'page:about',
+          'ext_podcast',
+          'cat:cat_tech',
+          'page:thoughts',
+        ],
+      },
+    });
+
+    const labels = res.navItems.map((n) => n.label);
+    expect(labels).toEqual(['Culture', 'Accueil', 'À propos', 'Podcast', 'Technologie', 'Pensées']);
+  });
+
+  it('gère intuitivement les liens email bruts et les préfixe automatiquement avec mailto:', () => {
+    const res = resolveTenantNavigation({
+      categories: [],
+      navigation: [
+        {
+          id: 'ext_mail_raw',
+          label: 'Contact',
+          url: 'redaction@qoefi.com',
+          order: 0,
+          isExternal: false,
+          parentId: null,
+        },
+        {
+          id: 'ext_mail_proto',
+          label: 'Presse',
+          url: 'mailto:presse@qoefi.com',
+          order: 1,
+          isExternal: true,
+          parentId: null,
+        },
+      ],
+      siteOptions: {},
+    });
+
+    const contact = res.navItems.find((n) => n.id === 'ext_mail_raw');
+    expect(contact).toBeDefined();
+    expect(contact?.url).toBe('mailto:redaction@qoefi.com');
+    expect(contact?.isMail).toBe(true);
+
+    const presse = res.navItems.find((n) => n.id === 'ext_mail_proto');
+    expect(presse).toBeDefined();
+    expect(presse?.url).toBe('mailto:presse@qoefi.com');
+    expect(presse?.isMail).toBe(true);
+  });
+
+  it('permet de masquer sélectivement Accueil, À propos et Pensées de la barre publique', () => {
+    const res = resolveTenantNavigation({
+      includePages: true,
+      categories: [{ id: 'cat_tech', name: 'Technologie', slug: 'tech', parentId: null }],
+      navigation: [],
+      siteOptions: {
+        showHomeInNav: false,
+        showAboutInNav: false,
+        showThoughtsInNav: false,
+      },
+    });
+
+    const ids = res.navItems.map((n) => n.id);
+    expect(ids).not.toContain('home');
+    expect(ids).not.toContain('page:about');
+    expect(ids).not.toContain('page:thoughts');
+    expect(ids).toEqual(['cat_tech']);
+  });
 });
 
 describe('Taxonomie — Normalisation, recherche et filtrage récursif des articles', () => {

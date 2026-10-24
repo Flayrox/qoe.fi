@@ -61,6 +61,7 @@ export function TenantHeader({
     categories,
     navigation,
     siteOptions,
+    includePages: true,
   });
 
   return (
@@ -123,14 +124,15 @@ export function TenantHeader({
                       >
                         {nav.children!.map((child) => {
                           const childClass = `block px-4 py-3 hover:bg-[var(--tenant-accent)]/10 hover:text-[var(--tenant-accent)] transition-colors ${isBrutalist ? 'border-b-2 border-foreground last:border-0 font-bold uppercase text-xs' : ''}`;
+                          const isMail = child.isMail || child.url?.startsWith('mailto:');
                           // Un lien externe doit rester une ancre : next/link tente
                           // de le précharger et échoue sur une URL incomplète.
                           return child.isExternal ? (
                             <a
                               key={child.id}
                               href={child.url || '#'}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                              target={isMail ? undefined : '_blank'}
+                              rel={isMail ? undefined : 'noopener noreferrer'}
                               className={childClass}
                             >
                               {child.label}
@@ -149,12 +151,13 @@ export function TenantHeader({
 
               const linkClass =
                 'hover:text-foreground hover:text-[var(--tenant-accent)] transition-colors py-2 block';
+              const isMail = nav.isMail || nav.url?.startsWith('mailto:');
               return nav.isExternal ? (
                 <a
                   key={nav.id}
                   href={nav.url || '#'}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  target={isMail ? undefined : '_blank'}
+                  rel={isMail ? undefined : 'noopener noreferrer'}
                   className={linkClass}
                 >
                   {nav.label}
@@ -226,52 +229,56 @@ export function TenantHeader({
             aria-label={t`Navigation mobile`}
             className="container mx-auto px-4 py-3 flex flex-col gap-1 text-sm font-medium"
           >
-            {nestedNav.map((nav) => (
-              <div key={nav.id}>
-                {nav.isExternal ? (
-                  <a
-                    href={nav.url || '#'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={() => setMobileOpen(false)}
-                    className="block py-2 text-muted-foreground hover:text-foreground"
-                  >
-                    {nav.label}
-                  </a>
-                ) : (
-                  <Link
-                    href={nav.url || '/'}
-                    onClick={() => setMobileOpen(false)}
-                    className="block py-2 text-muted-foreground hover:text-foreground"
-                  >
-                    {nav.label}
-                  </Link>
-                )}
-                {nav.children?.map((child) =>
-                  child.isExternal ? (
+            {nestedNav.map((nav) => {
+              const isMail = nav.isMail || nav.url?.startsWith('mailto:');
+              return (
+                <div key={nav.id}>
+                  {nav.isExternal ? (
                     <a
-                      key={child.id}
-                      href={child.url || '#'}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                      href={nav.url || '#'}
+                      target={isMail ? undefined : '_blank'}
+                      rel={isMail ? undefined : 'noopener noreferrer'}
                       onClick={() => setMobileOpen(false)}
-                      className="block py-1.5 pl-4 text-xs text-muted-foreground hover:text-foreground"
+                      className="block py-2 text-muted-foreground hover:text-foreground"
                     >
-                      {child.label}
+                      {nav.label}
                     </a>
                   ) : (
                     <Link
-                      key={child.id}
-                      href={child.url || '/'}
+                      href={nav.url || '/'}
                       onClick={() => setMobileOpen(false)}
-                      className="block py-1.5 pl-4 text-xs text-muted-foreground hover:text-foreground"
+                      className="block py-2 text-muted-foreground hover:text-foreground"
                     >
-                      {child.label}
+                      {nav.label}
                     </Link>
-                  )
-                )}
-              </div>
-            ))}
+                  )}
+                  {nav.children?.map((child) => {
+                    const childIsMail = child.isMail || child.url?.startsWith('mailto:');
+                    return child.isExternal ? (
+                      <a
+                        key={child.id}
+                        href={child.url || '#'}
+                        target={childIsMail ? undefined : '_blank'}
+                        rel={childIsMail ? undefined : 'noopener noreferrer'}
+                        onClick={() => setMobileOpen(false)}
+                        className="block py-1.5 pl-4 text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        {child.label}
+                      </a>
+                    ) : (
+                      <Link
+                        key={child.id}
+                        href={child.url || '/'}
+                        onClick={() => setMobileOpen(false)}
+                        className="block py-1.5 pl-4 text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        {child.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              );
+            })}
 
             <a
               href="#subscribe"

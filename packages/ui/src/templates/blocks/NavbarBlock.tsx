@@ -79,12 +79,13 @@ export function NavbarBlock({
   const displayName = name || domain || subdomain || 'Mon Site Web';
   const supportLink = stripeAccountId ? '/support' : supportUrl || null;
 
-  // Résolution souveraine et unifiée de la navigation (rubriques + liens externes)
+  // Résolution souveraine et unifiée de la navigation (rubriques + liens externes + pages)
   const { navItems: nestedNav } = resolveTenantNavigation({
     categories: publication.categories,
     navigation,
     siteOptions,
     publicationId: publication.id,
+    includePages: true,
   });
 
   const containerClasses = [
@@ -161,29 +162,35 @@ export function NavbarBlock({
                     {/* Menu Déroulant Enfant */}
                     <div className="absolute top-full left-0 pt-1.5 opacity-0 translate-y-2 pointer-events-none group-hover/menu:opacity-100 group-hover/menu:translate-y-0 group-hover/menu:pointer-events-auto transition-all duration-200 z-50 min-w-[200px]">
                       <div className="bg-popover border border-border rounded-lg shadow-md p-1.5">
-                        {item.children?.map((child) => (
-                          <Link
-                            key={child.id}
-                            href={child.url || '/'}
-                            target={child.isExternal ? '_blank' : '_self'}
-                            onClick={(e) => context.mode === 'editable' && e.preventDefault()}
-                            className="flex items-center justify-between px-3 py-2 text-xs font-medium rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                          >
-                            <span>{child.label}</span>
-                            {child.isExternal && <ArrowUpRight className="w-3 h-3 opacity-60" />}
-                          </Link>
-                        ))}
+                        {item.children?.map((child) => {
+                          const isMail = child.isMail || child.url?.startsWith('mailto:');
+                          return (
+                            <Link
+                              key={child.id}
+                              href={child.url || '/'}
+                              target={child.isExternal && !isMail ? '_blank' : undefined}
+                              onClick={(e) => context.mode === 'editable' && e.preventDefault()}
+                              className="flex items-center justify-between px-3 py-2 text-xs font-medium rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                            >
+                              <span>{child.label}</span>
+                              {child.isExternal && !isMail && (
+                                <ArrowUpRight className="w-3 h-3 opacity-60" />
+                              )}
+                            </Link>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
                 );
               }
 
+              const isMail = item.isMail || item.url?.startsWith('mailto:');
               return (
                 <Link
                   key={item.id}
                   href={item.url || '/'}
-                  target={item.isExternal ? '_blank' : '_self'}
+                  target={item.isExternal && !isMail ? '_blank' : undefined}
                   onClick={(e) => context.mode === 'editable' && e.preventDefault()}
                   className="px-3 py-1.5 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
                 >

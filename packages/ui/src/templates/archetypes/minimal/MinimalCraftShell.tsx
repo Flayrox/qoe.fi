@@ -82,15 +82,14 @@ export function MinimalCraftShell({
   const isLogoSquare = siteOptions.logoShape === 'square' || Boolean(siteOptions.logoShapeSquare);
   const showLogo = (siteOptions.showLogo ?? true) !== false;
   const showCategoryTabs = (siteOptions.showCategoryTabs ?? true) !== false;
-  const showAboutInNav = (siteOptions.showAboutInNav ?? true) !== false;
-  const showThoughtsInNav = (siteOptions.showThoughtsInNav ?? true) !== false;
 
-  // Résolution souveraine et unifiée de la navigation (rubriques + liens externes)
-  const { rootCategories, getSubcategories, externalLinks } = resolveTenantNavigation({
+  // Résolution souveraine et unifiée de la navigation (rubriques + liens externes + pages)
+  const { navItems } = resolveTenantNavigation({
     categories: publication.categories,
     navigation: publication.navigation,
     siteOptions,
     publicationId: publication.id,
+    includePages: true,
   });
 
   const activeCategory = propActiveCategory || publication.activeCategory || null;
@@ -141,12 +140,7 @@ export function MinimalCraftShell({
     !isThoughtsActive &&
     (currentPath === '/' || currentPath === '');
 
-  const hasCategoryBar =
-    showCategoryTabs &&
-    (rootCategories.length > 0 ||
-      showAboutInNav ||
-      showThoughtsInNav ||
-      (publication.navigation && publication.navigation.length > 0));
+  const hasCategoryBar = showCategoryTabs && navItems.length > 0;
 
   const supportLink = publication.stripeAccountId ? '/support' : publication.supportUrl || null;
   const allowSupport = (siteOptions.showSubscribeButton ?? true) !== false;
@@ -332,60 +326,68 @@ export function MinimalCraftShell({
               className="fixed top-[4.25rem] sm:top-[4.75rem] left-0 right-0 z-35 flex justify-center pointer-events-none px-4"
             >
               <div className="pointer-events-auto flex items-center justify-center gap-4 sm:gap-6 max-w-[94vw] flex-wrap select-none">
-                {/* Onglet Tous les articles / Accueil */}
-                <a
-                  href="/"
-                  className={cn(
-                    'text-xs sm:text-[13px] font-medium tracking-tight transition-colors shrink-0',
-                    isHomeActive
-                      ? 'text-foreground font-semibold underline underline-offset-4 decoration-2 decoration-[var(--tenant-accent)]'
-                      : 'text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  Accueil
-                </a>
+                {navItems.map((item) => {
+                  const hasSubs = item.children && item.children.length > 0;
+                  const isHome = item.id === 'home' || item.url === '/';
+                  const isAbout = item.id === 'page:about' || item.url === '/about';
+                  const isThoughts = item.id === 'page:thoughts' || item.url === '/thoughts';
+                  const isCat = item.isCategory;
+                  const isMail = item.isMail || item.url.startsWith('mailto:');
+                  const isExt = item.isExternal && !isMail;
 
-                {/* Rubriques principales et leurs sous-catégories */}
-                {rootCategories.map((cat) => {
-                  const subs = getSubcategories(cat.id);
-                  const hasSubs = subs.length > 0;
                   const isCatActive =
-                    activeCategorySlug === cat.slug ||
-                    subs.some((s) => s.slug === activeCategorySlug);
-                  const isDropdownOpen = activeDropdownCatId === cat.id;
+                    isCat &&
+                    (activeCategorySlug === item.categorySlug ||
+                      Boolean(item.children?.some((s) => s.categorySlug === activeCategorySlug)));
+                  const isActive = isHome
+                    ? isHomeActive
+                    : isAbout
+                      ? isAboutActive
+                      : isThoughts
+                        ? isThoughtsActive
+                        : isCat
+                          ? isCatActive
+                          : !isExt && !isMail && currentPath === item.url;
+
+                  const isDropdownOpen = activeDropdownCatId === item.id;
 
                   if (!hasSubs) {
+                    const targetHref = isExt
+                      ? `/exit?url=${encodeURIComponent(item.url)}`
+                      : item.url;
                     return (
                       <a
-                        key={cat.id}
-                        href={`/${cat.slug}`}
+                        key={item.id}
+                        href={targetHref}
+                        target={isExt ? '_blank' : undefined}
+                        rel={isExt ? 'noopener noreferrer' : undefined}
                         className={cn(
                           'text-xs sm:text-[13px] font-medium tracking-tight transition-colors shrink-0',
-                          isCatActive
+                          isActive
                             ? 'text-foreground font-semibold underline underline-offset-4 decoration-2 decoration-[var(--tenant-accent)]'
                             : 'text-muted-foreground hover:text-foreground'
                         )}
                       >
-                        {cat.name}
+                        {item.label}
                       </a>
                     );
                   }
 
                   return (
-                    <div key={cat.id} className="relative shrink-0">
+                    <div key={item.id} className="relative shrink-0">
                       <button
                         type="button"
-                        onClick={() => setActiveDropdownCatId(isDropdownOpen ? null : cat.id)}
+                        onClick={() => setActiveDropdownCatId(isDropdownOpen ? null : item.id)}
                         className={cn(
                           'flex items-center gap-1 text-xs sm:text-[13px] font-medium tracking-tight transition-colors select-none cursor-pointer',
-                          isCatActive
+                          isActive
                             ? 'text-foreground font-semibold underline underline-offset-4 decoration-2 decoration-[var(--tenant-accent)]'
                             : isDropdownOpen
                               ? 'text-foreground font-semibold'
                               : 'text-muted-foreground hover:text-foreground'
                         )}
                       >
-                        <span>{cat.name}</span>
+                        <span>{item.label}</span>
                         <ChevronDown
                           className={cn(
                             'w-3 h-3 transition-transform opacity-60',
@@ -402,97 +404,38 @@ export function MinimalCraftShell({
                           />
                           <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 min-w-[170px] rounded-xl border border-border/60 bg-background/95 backdrop-blur-xl p-1.5 shadow-xl z-50 animate-in fade-in zoom-in-95 duration-150 space-y-0.5 text-left">
                             <a
-                              href={`/${cat.slug}`}
+                              href={item.url}
                               onClick={() => setActiveDropdownCatId(null)}
                               className={cn(
                                 'flex items-center justify-between px-3 py-1.5 text-xs font-medium rounded-lg transition-colors',
-                                activeCategorySlug === cat.slug
+                                activeCategorySlug === item.categorySlug
                                   ? 'bg-muted text-foreground font-semibold'
                                   : 'text-foreground hover:bg-muted/70'
                               )}
                             >
-                              <span>Tout voir dans {cat.name}</span>
+                              <span>Tout voir dans {item.label}</span>
                             </a>
                             <div className="h-px bg-border/40 my-1" />
-                            {subs.map((sub) => (
+                            {item.children?.map((sub) => (
                               <a
                                 key={sub.id}
-                                href={`/${sub.slug}`}
+                                href={sub.url}
                                 onClick={() => setActiveDropdownCatId(null)}
                                 className={cn(
                                   'flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-colors',
-                                  activeCategorySlug === sub.slug
+                                  activeCategorySlug === sub.categorySlug
                                     ? 'bg-muted text-foreground font-semibold'
                                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/70'
                                 )}
                               >
                                 <span className="opacity-40 font-sans text-[10px]">↳</span>
-                                <span>{sub.name}</span>
+                                <span>{sub.label}</span>
                               </a>
                             ))}
                           </div>
                         </>
                       )}
                     </div>
-                  );
-                })}
-
-                {/* Onglet Pensées (flux de réflexions / notes) */}
-                {showThoughtsInNav && (
-                  <a
-                    href="/thoughts"
-                    className={cn(
-                      'text-xs sm:text-[13px] font-medium tracking-tight transition-colors shrink-0',
-                      isThoughtsActive
-                        ? 'text-foreground font-semibold underline underline-offset-4 decoration-2 decoration-[var(--tenant-accent)]'
-                        : 'text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    Pensées
-                  </a>
-                )}
-
-                {/* Onglet À propos (présentation & mission) */}
-                {showAboutInNav && (
-                  <a
-                    href="/about"
-                    className={cn(
-                      'text-xs sm:text-[13px] font-medium tracking-tight transition-colors shrink-0',
-                      isAboutActive
-                        ? 'text-foreground font-semibold underline underline-offset-4 decoration-2 decoration-[var(--tenant-accent)]'
-                        : 'text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    À propos
-                  </a>
-                )}
-
-                {/* Liens de navigation additionnels configurés (Podcast, Boutique, etc.) */}
-                {externalLinks.map((nav, nIdx) => {
-                  const isExt =
-                    nav.isExternal ??
-                    (nav.url?.startsWith('http://') ||
-                      nav.url?.startsWith('https://') ||
-                      nav.url?.startsWith('//'));
-                  const isCustomActive = !isExt && nav.url && currentPath === nav.url;
-                  const targetHref =
-                    isExt && nav.url ? `/exit?url=${encodeURIComponent(nav.url)}` : nav.url || '#';
-
-                  return (
-                    <a
-                      key={nav.id || nIdx}
-                      href={targetHref}
-                      target={isExt ? '_blank' : undefined}
-                      rel={isExt ? 'noopener noreferrer' : undefined}
-                      className={cn(
-                        'text-xs sm:text-[13px] font-medium tracking-tight transition-colors shrink-0',
-                        isCustomActive
-                          ? 'text-foreground font-semibold underline underline-offset-4 decoration-2 decoration-[var(--tenant-accent)]'
-                          : 'text-muted-foreground hover:text-foreground'
-                      )}
-                    >
-                      {nav.label}
-                    </a>
                   );
                 })}
               </div>
