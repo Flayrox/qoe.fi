@@ -163,6 +163,7 @@ export function HeroBlock({
                   disabled={context.mode === 'editable'}
                   size="compact"
                   className="max-w-md mx-0"
+                  mainAppUrl={publication?.mainAppUrl}
                 />
               </div>
             </div>

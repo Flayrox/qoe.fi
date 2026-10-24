@@ -102,7 +102,7 @@ export async function TenantPageRenderer(props: TenantPageRendererProps) {
     id: publication.id,
     name,
     slug: publication.slug,
-    domain: decodedDomain,
+    domain: host,
     mainAppUrl,
     subdomain: publication.subdomain,
     customDomain: publication.customDomain,

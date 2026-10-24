@@ -1,12 +1,12 @@
 // =====================================================================
-// 🔄 apps/tenants/src/middleware.ts — Auth + Session Refresh & Multi-tenancy
+// 🔄 apps/tenants/src/proxy.ts — Auth + Session Refresh & Multi-tenancy
 // =====================================================================
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { updateSession } from '@qoe/supabase/middleware';
 import { parseTenantHost, getMainAppUrl } from '@qoe/config';
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const url = request.nextUrl.clone();
   const pathname = url.pathname;
 
@@ -89,3 +89,5 @@ export async function middleware(request: NextRequest) {
 export const config = {
   matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 };
+
+export { proxy as middleware };

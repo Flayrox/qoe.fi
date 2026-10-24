@@ -271,6 +271,7 @@ export function PublicationSidebar({
             buttonText="S’abonner"
             size="compact"
             disabled={context.mode === 'editable'}
+            mainAppUrl={publication?.mainAppUrl}
           />
         </div>
       </section>

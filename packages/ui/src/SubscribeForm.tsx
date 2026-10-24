@@ -21,6 +21,7 @@ export interface SubscribeFormProps {
   helperText?: string;
   disabled?: boolean;
   size?: 'default' | 'compact';
+  mainAppUrl?: string;
 }
 
 export function SubscribeForm({
@@ -36,6 +37,7 @@ export function SubscribeForm({
   helperText,
   disabled = false,
   size = 'default',
+  mainAppUrl,
 }: SubscribeFormProps) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
@@ -60,7 +62,7 @@ export function SubscribeForm({
     }
   }, []);
 
-  const mainApp = getMainAppUrl(currentHostname || undefined);
+  const mainApp = mainAppUrl || getMainAppUrl(currentHostname || undefined);
   const qoefiSubscribeUrl = `${mainApp}/subscribe-with-qoefi?publication=${encodeURIComponent(
     publicationId
   )}${currentUrl ? `&return=${encodeURIComponent(currentUrl)}` : ''}`;
