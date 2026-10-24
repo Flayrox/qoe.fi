@@ -28,6 +28,8 @@ export interface TenantNavigationInput {
   }>;
   siteOptions?: Record<string, unknown> | null;
   publicationId?: string;
+  /** Inclut les pages intégrées (Accueil, À propos, Pensées) dans navItems. */
+  includePages?: boolean;
 }
 
 export interface ResolvedTenantNavItem {
@@ -39,6 +41,9 @@ export interface ResolvedTenantNavItem {
   publicationId: string;
   isCategory: boolean;
   categorySlug?: string;
+  isHome?: boolean;
+  isPage?: boolean;
+  isMail?: boolean;
   children?: ResolvedTenantNavItem[];
 }
 
@@ -133,37 +138,46 @@ export function resolveTenantNavigation(input: TenantNavigationInput): ResolvedT
     })),
   }));
 
-  // 3. Liens externes additionnels configurés par le créateur. Une URL vide
-  // ou un simple schéma (« https:// ») ne doit jamais apparaître dans le menu
-  // public : c'est un lien mort, et next/link tente de le précharger.
+  // 3. Liens externes additionnels & emails configurés par le créateur.
+  // Une URL vide ou un simple schéma (« https:// ») ne doit jamais apparaître dans le menu public.
   const externalNavItems: ResolvedTenantNavItem[] = (input.navigation || [])
-    .filter((n) => n.isExternal && !n.parentId && isConfiguredExternalUrl(n.url))
-    .map((parent, idx) => ({
-      id: parent.id || `ext-${idx}`,
-      label: parent.label,
-      url: parent.url || '#',
-      order: parent.order ?? 100 + idx,
-      isExternal: true,
-      publicationId: input.publicationId || '',
-      isCategory: false,
-      children: (input.navigation || [])
-        .filter((n) => n.parentId === parent.id && isConfiguredExternalUrl(n.url))
-        .map((child, cIdx) => ({
-          id: child.id || `ext-sub-${cIdx}`,
-          label: child.label,
-          url: child.url || '#',
-          order: child.order ?? cIdx,
-          isExternal: true,
-          publicationId: input.publicationId || '',
-          isCategory: false,
-        })),
-    }));
+    .filter(
+      (n) => (n.isExternal || isMailtoUrl(n.url)) && !n.parentId && isConfiguredExternalUrl(n.url)
+    )
+    .map((parent, idx) => {
+      const normalized = normalizeNavigationUrl(parent.url);
+      return {
+        id: parent.id || `ext-${idx}`,
+        label: parent.label,
+        url: normalized.url || '#',
+        order: parent.order ?? 100 + idx,
+        isExternal: normalized.isExternal,
+        isMail: normalized.isMail,
+        publicationId: input.publicationId || '',
+        isCategory: false,
+        children: (input.navigation || [])
+          .filter((n) => n.parentId === parent.id && isConfiguredExternalUrl(n.url))
+          .map((child, cIdx) => {
+            const childNorm = normalizeNavigationUrl(child.url);
+            return {
+              id: child.id || `ext-sub-${cIdx}`,
+              label: child.label,
+              url: childNorm.url || '#',
+              order: child.order ?? cIdx,
+              isExternal: childNorm.isExternal,
+              isMail: childNorm.isMail,
+              publicationId: input.publicationId || '',
+              isCategory: false,
+            };
+          }),
+      };
+    });
 
   // 4. Repli hérité pour liens internes manuels existants (si aucune catégorie)
   const legacyInternalNav: ResolvedTenantNavItem[] =
     categoryNavItems.length === 0
       ? (input.navigation || [])
-          .filter((n) => !n.isExternal && !n.parentId)
+          .filter((n) => !n.isExternal && !isMailtoUrl(n.url) && !n.parentId)
           .map((parent, idx) => ({
             id: parent.id || `leg-${idx}`,
             label: parent.label,
@@ -187,7 +201,90 @@ export function resolveTenantNavigation(input: TenantNavigationInput): ResolvedT
           .sort((a, b) => a.order - b.order)
       : [];
 
-  const navItems = [...categoryNavItems, ...legacyInternalNav, ...externalNavItems];
+  // 5. Pages intégrées de la publication (Accueil, À propos, Pensées)
+  const shouldIncludePages = Boolean(
+    input.includePages ??
+    (input.siteOptions &&
+      ('showAboutInNav' in input.siteOptions ||
+        'showThoughtsInNav' in input.siteOptions ||
+        'showHomeInNav' in input.siteOptions ||
+        'navOrder' in input.siteOptions))
+  );
+
+  const systemPageItems: ResolvedTenantNavItem[] = [];
+  if (shouldIncludePages) {
+    const showHome = (input.siteOptions?.showHomeInNav ?? true) !== false;
+    const showThoughts = (input.siteOptions?.showThoughtsInNav ?? true) !== false;
+    const showAbout = (input.siteOptions?.showAboutInNav ?? true) !== false;
+
+    if (showHome) {
+      systemPageItems.push({
+        id: 'home',
+        label: 'Accueil',
+        url: '/',
+        order: -10,
+        isExternal: false,
+        publicationId: input.publicationId || '',
+        isCategory: false,
+        isHome: true,
+      });
+    }
+
+    if (showThoughts) {
+      systemPageItems.push({
+        id: 'page:thoughts',
+        label: 'Pensées',
+        url: '/thoughts',
+        order: 80,
+        isExternal: false,
+        publicationId: input.publicationId || '',
+        isCategory: false,
+        isPage: true,
+      });
+    }
+
+    if (showAbout) {
+      systemPageItems.push({
+        id: 'page:about',
+        label: 'À propos',
+        url: '/about',
+        order: 90,
+        isExternal: false,
+        publicationId: input.publicationId || '',
+        isCategory: false,
+        isPage: true,
+      });
+    }
+  }
+
+  // 6. Assemblage & tri unifié selon siteOptions.navOrder (Navbar Organizer)
+  const rawItems = shouldIncludePages
+    ? [
+        ...systemPageItems.filter((p) => p.id === 'home'),
+        ...categoryNavItems,
+        ...systemPageItems.filter((p) => p.id !== 'home'),
+        ...legacyInternalNav,
+        ...externalNavItems,
+      ]
+    : [...categoryNavItems, ...legacyInternalNav, ...externalNavItems];
+
+  const rawNavOrder = input.siteOptions?.navOrder;
+  const navOrder = Array.isArray(rawNavOrder) ? (rawNavOrder as string[]) : null;
+
+  const navItems =
+    navOrder && navOrder.length > 0
+      ? [...rawItems].sort((a, b) => {
+          const getRank = (item: ResolvedTenantNavItem) => {
+            const keys = getItemOrderKeys(item);
+            for (const k of keys) {
+              const idx = navOrder.indexOf(k);
+              if (idx !== -1) return idx;
+            }
+            return 1000 + item.order;
+          };
+          return getRank(a) - getRank(b);
+        })
+      : rawItems;
 
   return {
     navItems,
@@ -195,26 +292,94 @@ export function resolveTenantNavigation(input: TenantNavigationInput): ResolvedT
     rootCategories,
     externalLinks: (input.navigation || [])
       .filter((n) => !n.parentId && isConfiguredExternalUrl(n.url))
-      .map((n) => ({
-        ...n,
-        isExternal:
-          typeof n.isExternal === 'boolean'
-            ? n.isExternal
-            : Boolean(
-                n.url &&
-                (n.url.startsWith('http://') ||
-                  n.url.startsWith('https://') ||
-                  n.url.startsWith('//'))
-              ),
-      })),
+      .map((n) => {
+        const norm = normalizeNavigationUrl(n.url);
+        return {
+          ...n,
+          url: norm.url,
+          isExternal: norm.isExternal,
+        };
+      }),
     getSubcategories,
   };
+}
+
+/** Vérifie si une chaîne correspond à un lien email (préfixé par mailto: ou adresse brute). */
+export function isMailtoUrl(url: string | null | undefined): boolean {
+  if (!url) return false;
+  const trimmed = url.trim().toLowerCase();
+  return trimmed.startsWith('mailto:') || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+}
+
+/**
+ * Normalise une URL saisie par le créateur :
+ * - Détecte les adresses email et applique automatiquement le préfixe mailto:
+ * - Détecte les liens externes (http://, https://, //)
+ */
+export function normalizeNavigationUrl(rawUrl: string | null | undefined): {
+  url: string;
+  isMail: boolean;
+  isExternal: boolean;
+} {
+  const trimmed = (rawUrl || '').trim();
+  if (!trimmed) {
+    return { url: '', isMail: false, isExternal: false };
+  }
+
+  // Cas Email (ex: contact@journal.fr ou mailto:contact@journal.fr)
+  if (trimmed.toLowerCase().startsWith('mailto:')) {
+    return { url: trimmed, isMail: true, isExternal: true };
+  }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (emailRegex.test(trimmed)) {
+    return { url: `mailto:${trimmed}`, isMail: true, isExternal: true };
+  }
+
+  // Cas URL externe classique
+  const isExt =
+    trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('//');
+
+  return { url: trimmed, isMail: false, isExternal: isExt };
+}
+
+/**
+ * Retourne l'ensemble des clés d'identification d'un item pour la comparaison avec siteOptions.navOrder.
+ */
+export function getItemOrderKeys(item: {
+  id: string;
+  url?: string | null;
+  categorySlug?: string;
+  isCategory?: boolean;
+}): string[] {
+  const keys: string[] = [item.id];
+  if (item.id === 'home' || item.url === '/') {
+    keys.push('home', 'system:home', '/');
+  } else if (item.id === 'page:about' || item.url === '/about') {
+    keys.push('page:about', 'about', '/about');
+  } else if (item.id === 'page:thoughts' || item.url === '/thoughts') {
+    keys.push('page:thoughts', 'thoughts', '/thoughts');
+  } else if (item.isCategory) {
+    keys.push(`cat:${item.id}`, `category:${item.id}`);
+    if (item.categorySlug) {
+      keys.push(`cat:${item.categorySlug}`, `category:${item.categorySlug}`, item.categorySlug);
+    }
+  } else {
+    keys.push(`link:${item.id}`);
+  }
+  return keys;
 }
 
 /** Une URL externe est exploitable seulement si elle est réellement renseignée. */
 function isConfiguredExternalUrl(url: string | null | undefined): boolean {
   const value = (url || '').trim();
-  return value !== '' && value !== '#' && value !== 'https://' && value !== 'http://';
+  if (value === '' || value === '#' || value === 'https://' || value === 'http://') {
+    return false;
+  }
+  if (value.toLowerCase().startsWith('mailto:')) {
+    const email = value.slice(7).trim();
+    return email.length > 0 && email.includes('@');
+  }
+  return true;
 }
 
 /**
