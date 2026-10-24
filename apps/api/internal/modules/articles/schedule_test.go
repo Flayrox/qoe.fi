@@ -129,6 +129,42 @@ func TestService_Schedule_Guards(t *testing.T) {
 	}
 }
 
+// TestService_Schedule_RefusesPublished — programmer un article EN LIGNE ne
+// doit jamais le retirer du site (published = false) en attendant la date :
+// Schedule refuse, et l'annulation sur un article non programmé est un no-op.
+func TestService_Schedule_RefusesPublished(t *testing.T) {
+	fx := seed(t)
+	svc := newService()
+	ctx := context.Background()
+
+	// art_test_001 est publié dans le seed.
+	beforeStatus, beforePublished, _ := articleState(t, ctx, "art_test_001")
+	if !beforePublished {
+		t.Fatalf("pré-requis : art_test_001 doit être publié (état %s/%v)", beforeStatus, beforePublished)
+	}
+
+	future := time.Now().Add(2 * time.Hour).UTC()
+	if err := svc.Schedule(ctx, "art_test_001", fx.AuthorID, &future); err == nil {
+		t.Fatal("Schedule(article publié) = nil, attendu un refus explicite")
+	}
+	status, published, scheduledAt := articleState(t, ctx, "art_test_001")
+	if !published || status != beforeStatus {
+		t.Fatalf("article publié modifié par un refus : %s/%v, attendu %s/true", status, published, beforeStatus)
+	}
+	if scheduledAt != nil {
+		t.Fatalf("scheduledAt = %v, attendu nil (aucune date posée)", scheduledAt)
+	}
+
+	// Annulation sur un article en ligne non programmé : no-op, il reste en ligne.
+	if err := svc.Schedule(ctx, "art_test_001", fx.AuthorID, nil); err != nil {
+		t.Fatalf("Schedule(nil) sur article en ligne = %v, attendu no-op", err)
+	}
+	status, published, _ = articleState(t, ctx, "art_test_001")
+	if !published || status != beforeStatus {
+		t.Fatalf("après annulation = %s/%v, attendu %s/true", status, published, beforeStatus)
+	}
+}
+
 // TestService_SetStatus_Scheduled — SetStatus exige une date future pour
 // SCHEDULED et la persiste.
 func TestService_SetStatus_Scheduled(t *testing.T) {

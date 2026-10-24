@@ -81,6 +81,8 @@ func (h *Handler) RegisterProtected(r chi.Router, requireScope func(string) func
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/review", h.review)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/discard-draft", h.discardDraft)
 	r.With(requireScope(middleware.ScopeRead)).Get("/v1/articles/{id}/review-feedback", h.getReviewFeedback)
+	// Chronologie de publication (publication, dépublication, programmation…).
+	r.With(requireScope(middleware.ScopeRead)).Get("/v1/articles/{id}/events", h.events)
 	r.With(requireScope(middleware.ScopeWrite)).Delete("/v1/articles/{id}", h.delete)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/comments", h.createComment)
 	r.With(requireScope(middleware.ScopeWrite)).Delete("/v1/articles/comments/{commentId}", h.deleteComment)
@@ -372,6 +374,35 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, article)
+}
+
+// GET /v1/articles/{id}/events — historique de publication, le plus récent
+// d'abord. Même visibilité que l'édition : auteur, média autorisé, co-auteur.
+func (h *Handler) events(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	id := chi.URLParam(r, "id")
+	limit := int32(100)
+	if v := r.URL.Query().Get("limit"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			limit = int32(n)
+		}
+	}
+
+	eventsList, err := h.svc.ListEvents(r.Context(), id, userID, limit)
+	if err != nil {
+		if errors.Is(err, errNotFound) {
+			response.NotFound(w, "Article introuvable")
+			return
+		}
+		if errors.Is(err, errForbidden) {
+			response.Forbidden(w, "Accès refusé à cet article.")
+			return
+		}
+		log.Printf("[articles] events: %v", err)
+		response.Internal(w)
+		return
+	}
+	response.OK(w, eventsList)
 }
 
 func (h *Handler) publish(w http.ResponseWriter, r *http.Request) {

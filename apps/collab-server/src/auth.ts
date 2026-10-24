@@ -40,7 +40,17 @@ export function createSupabaseVerifier(
   }
   return {
     async verify(token: string): Promise<CollabUser | null> {
-      if (!token || !supabaseUrl) return null;
+      // Diagnostic explicite : « token invalide » couvrait trois causes très
+      // différentes (jeton absent, mauvaise URL, jeton expiré) et rendait le
+      // dépannage impossible depuis les logs.
+      if (!token) {
+        console.warn('[collab-server] Jeton absent : le client n’a envoyé aucun JWT.');
+        return null;
+      }
+      if (!supabaseUrl) {
+        console.warn('[collab-server] SUPABASE_URL absente : introspection impossible.');
+        return null;
+      }
 
       const response = await fetchFn(`${supabaseUrl.replace(/\/$/, '')}/auth/v1/user`, {
         headers: {
@@ -49,7 +59,13 @@ export function createSupabaseVerifier(
         },
       });
 
-      if (!response.ok) return null;
+      if (!response.ok) {
+        console.warn(
+          `[collab-server] Introspection refusée (HTTP ${response.status}) — ` +
+            `jeton de ${token.length} caractères.`
+        );
+        return null;
+      }
 
       let payload: Record<string, unknown>;
       try {

@@ -7,6 +7,10 @@ import (
 )
 
 func TestAccessReview_WorkerExecution(t *testing.T) {
+	// La boucle sort immédiatement quand le pool est nil (garde de sécurité),
+	// donc sans base de test le test ne peut pas prouver l'invocation.
+	requirePool(t)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 

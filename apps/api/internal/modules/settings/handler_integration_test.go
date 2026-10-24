@@ -138,6 +138,9 @@ func TestHandler_UpdateProfile_Owner(t *testing.T) {
 		"publicationId": fx.PubID,
 		"name":          "Nouveau nom",
 		"heroText":      "Nouveau héros",
+		"siteOptions": map[string]any{
+			"backgroundColor": "#91BD39",
+		},
 	})
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, body = %s", w.Code, w.Body.String())
@@ -145,13 +148,17 @@ func TestHandler_UpdateProfile_Owner(t *testing.T) {
 
 	// La publication a bien été mise à jour (le profil retourné est l'utilisateur).
 	var name, heroText string
+	var rawSiteOptions []byte
 	if err := poolTest.QueryRow(context.Background(),
-		`SELECT name, "heroText" FROM "Publication" WHERE id = $1`, fx.PubID,
-	).Scan(&name, &heroText); err != nil {
+		`SELECT name, "heroText", "siteOptions" FROM "Publication" WHERE id = $1`, fx.PubID,
+	).Scan(&name, &heroText, &rawSiteOptions); err != nil {
 		t.Fatalf("select publication: %v", err)
 	}
 	if name != "Nouveau nom" || heroText != "Nouveau héros" {
 		t.Fatalf("publication = %q / %q", name, heroText)
+	}
+	if !strings.Contains(string(rawSiteOptions), "#91BD39") {
+		t.Fatalf("siteOptions attendu avec #91BD39, reçu: %s", string(rawSiteOptions))
 	}
 }
 

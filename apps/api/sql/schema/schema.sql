@@ -950,6 +950,30 @@ CREATE TABLE "ArticleReviewLog" (
 );
 
 -- CreateTable
+CREATE TABLE "ArticleEvent" (
+    "id"            TEXT NOT NULL DEFAULT gen_random_uuid()::text,
+    "articleId"     TEXT NOT NULL,
+    "publicationId" TEXT,
+    "actorId"       UUID,
+    "type"          TEXT NOT NULL,
+    "fromStatus"    TEXT,
+    "toStatus"      TEXT,
+    "scheduledAt"   TIMESTAMP(3),
+    "createdAt"     TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ArticleEvent_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "ArticleEvent_articleId_fkey" FOREIGN KEY ("articleId") REFERENCES "Article"("id") ON UPDATE CASCADE ON DELETE CASCADE,
+    CONSTRAINT "ArticleEvent_type_check" CHECK ("type" IN (
+        'CREATED', 'PUBLISHED', 'LIVE_UPDATED', 'UNPUBLISHED', 'SCHEDULED',
+        'RESCHEDULED', 'SCHEDULE_CANCELLED', 'SCHEDULED_PUBLISHED',
+        'SUBMITTED', 'APPROVED', 'REJECTED'
+    ))
+);
+
+CREATE INDEX "ArticleEvent_articleId_createdAt_idx" ON "ArticleEvent" ("articleId", "createdAt" DESC);
+CREATE INDEX "ArticleEvent_publicationId_createdAt_idx" ON "ArticleEvent" ("publicationId", "createdAt" DESC);
+
+-- CreateTable
 CREATE TABLE "UserSettings" (
     "id" TEXT NOT NULL,
     "userId" UUID NOT NULL,

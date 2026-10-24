@@ -902,6 +902,21 @@ type DashboardArticle struct {
 	Published bool    `json:"published"`
 	UpdatedAt string  `json:"updatedAt"`
 	Category  *string `json:"categoryName"`
+	// ImageURL est la couverture de l'article, affichée dans les cartes du
+	// dashboard : sans elle, « Publications récentes » n'affichait qu'une
+	// icône générique à la place de l'image choisie par l'auteur.
+	ImageURL    *string `json:"imageUrl"`
+	ReadingTime int32   `json:"readingTime"`
+}
+
+// DashboardScheduledArticle est un article dont la publication est programmée.
+// Sans lui, le dashboard n'affichait que les pensées programmées : un article
+// prêt à partir à 9 h demain était invisible depuis l'accueil du studio.
+type DashboardScheduledArticle struct {
+	ID          string  `json:"id"`
+	Title       string  `json:"title"`
+	ScheduledAt string  `json:"scheduledAt"`
+	ImageURL    *string `json:"imageUrl"`
 }
 
 // DashboardThought est une pensée programmée du dashboard.
@@ -929,17 +944,18 @@ type DashboardLatestArticle struct {
 
 // DashboardOverview est la réponse complète de la page d'accueil du studio.
 type DashboardOverview struct {
-	PublicationWebsiteID    string                  `json:"publicationWebsiteId"`
-	PublishedCount          int                     `json:"publishedCount"`
-	SubscribersCount        int                     `json:"subscribersCount"`
-	PremiumSubscribersCount int                     `json:"premiumSubscribersCount"`
-	MRRCents                int                     `json:"mrrCents"`
-	RecentArticles          []DashboardArticle      `json:"recentArticles"`
-	DraftArticles           []DashboardArticle      `json:"draftArticles"`
-	ScheduledThoughts       []DashboardThought      `json:"scheduledThoughts"`
-	LatestPublishedArticle  *DashboardLatestArticle `json:"latestPublishedArticle"`
-	Pageviews30d            int                     `json:"pageviews30d"`
-	Visitors30d             int                     `json:"visitors30d"`
+	PublicationWebsiteID    string                      `json:"publicationWebsiteId"`
+	PublishedCount          int                         `json:"publishedCount"`
+	SubscribersCount        int                         `json:"subscribersCount"`
+	PremiumSubscribersCount int                         `json:"premiumSubscribersCount"`
+	MRRCents                int                         `json:"mrrCents"`
+	RecentArticles          []DashboardArticle          `json:"recentArticles"`
+	DraftArticles           []DashboardArticle          `json:"draftArticles"`
+	ScheduledArticles       []DashboardScheduledArticle `json:"scheduledArticles"`
+	ScheduledThoughts       []DashboardThought          `json:"scheduledThoughts"`
+	LatestPublishedArticle  *DashboardLatestArticle     `json:"latestPublishedArticle"`
+	Pageviews30d            int                         `json:"pageviews30d"`
+	Visitors30d             int                         `json:"visitors30d"`
 }
 
 // canViewDashboard vérifie que l'utilisateur peut consulter le dashboard de la
@@ -959,6 +975,7 @@ func (s *Service) canViewDashboard(ctx context.Context, userID, publicationID st
 //   - MEDIA → tous les articles de la publication ;
 //   - PERSONAL → les articles du créateur (publication personnelle OU co-signés
 //     via ArticleAttribution ACCEPTED + visible) — vues PLEIN par attribution.
+//
 // $1 = publicationId, $2 = userId (uuid).
 func articleScopeSQL(media bool) string {
 	if media {
@@ -979,6 +996,7 @@ func (s *Service) DashboardOverview(ctx context.Context, userID, publicationID, 
 	out := DashboardOverview{
 		RecentArticles:    []DashboardArticle{},
 		DraftArticles:     []DashboardArticle{},
+		ScheduledArticles: []DashboardScheduledArticle{},
 		ScheduledThoughts: []DashboardThought{},
 	}
 	if !s.canViewDashboard(ctx, userID, publicationID) {
@@ -1012,7 +1030,7 @@ func (s *Service) DashboardOverview(ctx context.Context, userID, publicationID, 
 		recentWhere = `a."authorId" = $1`
 		recentArgs = []any{userUUID}
 	}
-	rows, err := s.pool.Query(ctx, `SELECT a.id, a.title, a.published, a."updatedAt", c.name
+	rows, err := s.pool.Query(ctx, `SELECT a.id, a.title, a.published, a."updatedAt", c.name, a."imageUrl", a."readingTime"
 		FROM "Article" a LEFT JOIN "Category" c ON c.id = a."categoryId"
 		WHERE `+recentWhere+`
 		ORDER BY a."updatedAt" DESC LIMIT 4`, recentArgs...)
@@ -1021,15 +1039,42 @@ func (s *Service) DashboardOverview(ctx context.Context, userID, publicationID, 
 			var a DashboardArticle
 			var cat pgtype.Text
 			var updated pgtype.Timestamp
-			if err := rows.Scan(&a.ID, &a.Title, &a.Published, &updated, &cat); err != nil {
+			var image pgtype.Text
+			if err := rows.Scan(&a.ID, &a.Title, &a.Published, &updated, &cat, &image, &a.ReadingTime); err != nil {
 				continue
 			}
 			a.UpdatedAt = updated.Time.Format(time.RFC3339)
 			a.Category = textPtr(cat)
+			if image.Valid && image.String != "" {
+				a.ImageURL = &image.String
+			}
 			out.RecentArticles = append(out.RecentArticles, a)
 		}
 		rows.Close()
 	}
+	// Articles programmés : le créateur doit voir ce qui va partir tout seul,
+	// avec la date exacte (le worker publie à échéance).
+	rows, err = s.pool.Query(ctx, `SELECT a.id, a.title, a."scheduledAt", a."imageUrl"
+		FROM "Article" a
+		WHERE `+recentWhere+` AND a.status = 'SCHEDULED' AND a."scheduledAt" IS NOT NULL
+		ORDER BY a."scheduledAt" ASC LIMIT 5`, recentArgs...)
+	if err == nil {
+		for rows.Next() {
+			var a DashboardScheduledArticle
+			var scheduled pgtype.Timestamp
+			var image pgtype.Text
+			if err := rows.Scan(&a.ID, &a.Title, &scheduled, &image); err != nil {
+				continue
+			}
+			a.ScheduledAt = scheduled.Time.Format(time.RFC3339)
+			if image.Valid && image.String != "" {
+				a.ImageURL = &image.String
+			}
+			out.ScheduledArticles = append(out.ScheduledArticles, a)
+		}
+		rows.Close()
+	}
+
 	rows, err = s.pool.Query(ctx, `SELECT a.id, a.title, a.published, a."updatedAt"
 		FROM "Article" a
 		WHERE `+recentWhere+` AND a.published = false
