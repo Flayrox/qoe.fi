@@ -356,8 +356,17 @@ func (s *Service) updatePublication(ctx context.Context, publicationID string, f
 	args := make([]any, 0, len(keys)+1)
 	args = append(args, publicationID)
 	for _, k := range keys {
-		sets = append(sets, fmt.Sprintf("%q = $%d", k, len(args)+1))
-		args = append(args, fields[k])
+		switch v := fields[k].(type) {
+		case []byte:
+			// Le pool tourne en QueryExecModeExec (PgBouncer) : pgx encoderait un
+			// []byte en bytea → 22P02 sur une colonne JSONB. On passe donc le JSON
+			// en texte et on le caste côté SQL.
+			sets = append(sets, fmt.Sprintf("%q = $%d::jsonb", k, len(args)+1))
+			args = append(args, string(v))
+		default:
+			sets = append(sets, fmt.Sprintf("%q = $%d", k, len(args)+1))
+			args = append(args, fields[k])
+		}
 	}
 	query := fmt.Sprintf(
 		`UPDATE "Publication" SET %s, "updatedAt" = now() WHERE id = $1`,
