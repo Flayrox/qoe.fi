@@ -259,7 +259,7 @@ export function FeedSidebarWidgets({
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-[10px] font-semibold text-success bg-success/10 px-2 py-0.5 rounded-full whitespace-nowrap">
+                  <span className="text-[10px] font-semibold text-success-text bg-success/10 px-2 py-0.5 rounded-full whitespace-nowrap">
                     {topic.growthRate}
                   </span>
                   <ArrowUpRight className="w-3.5 h-3.5 text-muted-foreground group-hover:text-primary transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />

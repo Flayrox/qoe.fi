@@ -97,7 +97,7 @@ export default async function CreatorSettingsPage() {
   if (!publication) {
     return (
       <div className="flex flex-col items-center justify-center p-12 text-center border rounded-2xl bg-destructive/5 border-destructive/10">
-        <h2 className="text-lg font-bold text-destructive">Publication introuvable</h2>
+        <h2 className="text-lg font-bold text-destructive-text">Publication introuvable</h2>
         <p className="text-sm text-muted-foreground mt-1">
           Veuillez contacter le support si l'erreur persiste.
         </p>

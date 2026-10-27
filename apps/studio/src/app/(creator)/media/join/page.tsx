@@ -122,7 +122,7 @@ export default function MediaJoinPage() {
     return (
       <div className="flex min-h-[70vh] items-center justify-center p-4 font-sans">
         <div className="w-full max-w-md rounded-2xl border border-destructive/20 bg-card p-6 shadow-xl space-y-4 text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive-text">
             <AlertCircle className="h-6 w-6" />
           </div>
           <div className="space-y-1">
@@ -224,7 +224,7 @@ export default function MediaJoinPage() {
         {/* Bouton d'action */}
         <div className="space-y-3">
           {joinSuccess ? (
-            <div className="flex items-center justify-center gap-2 rounded-xl bg-success/15 py-3 px-4 text-xs font-semibold text-success animate-in fade-in">
+            <div className="flex items-center justify-center gap-2 rounded-xl bg-success/15 py-3 px-4 text-xs font-semibold text-success-text animate-in fade-in">
               <CheckCircle2 className="h-4 w-4" />
               <span>Vous avez rejoint le média ! Redirection en cours…</span>
             </div>

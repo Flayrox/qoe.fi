@@ -224,7 +224,7 @@ export function TopBar({
           </span>
         )}
         {saveError && (
-          <span className="truncate text-[11px] text-destructive" role="alert">
+          <span className="truncate text-[11px] text-destructive-text" role="alert">
             {saveError}
           </span>
         )}

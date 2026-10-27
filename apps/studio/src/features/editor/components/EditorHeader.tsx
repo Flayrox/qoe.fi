@@ -95,8 +95,8 @@ function SaveState({
   }
   if (autoSaveStatus === 'error') {
     return (
-      <span className="text-[11px] font-normal text-destructive bg-destructive/10 border border-destructive/30 px-2 py-0.5 rounded-md flex items-center gap-1.5 font-sans max-w-[320px]">
-        <AlertCircle className="w-3 h-3 text-destructive shrink-0" />
+      <span className="text-[11px] font-normal text-destructive-text bg-destructive/10 border border-destructive/30 px-2 py-0.5 rounded-md flex items-center gap-1.5 font-sans max-w-[320px]">
+        <AlertCircle className="w-3 h-3 text-destructive-text shrink-0" />
         <span className="truncate">
           {t`Échec de l'enregistrement`}
           {autoSaveError ? ` — ${autoSaveError}` : ''}
@@ -104,7 +104,7 @@ function SaveState({
         <button
           type="button"
           onClick={onRetryAutoSave}
-          className="ml-1 inline-flex items-center gap-1 text-[10px] font-semibold text-destructive hover:underline cursor-pointer shrink-0"
+          className="ml-1 inline-flex items-center gap-1 text-[10px] font-semibold text-destructive-text hover:underline cursor-pointer shrink-0"
           title={t`Réessayer la sauvegarde`}
         >
           <RotateCcw className="w-2.5 h-2.5" /> {t`Réessayer`}
@@ -114,8 +114,8 @@ function SaveState({
   }
   if (autoSaveStatus === 'saved') {
     return (
-      <span className="text-[11px] font-normal text-success bg-success/10 border border-success/20 px-2 py-0.5 rounded-md flex items-center gap-1.5 font-sans">
-        <Check className="w-3 h-3 text-success" /> {t`Brouillon auto-enregistré`}
+      <span className="text-[11px] font-normal text-success-text bg-success/10 border border-success/20 px-2 py-0.5 rounded-md flex items-center gap-1.5 font-sans">
+        <Check className="w-3 h-3 text-success-text" /> {t`Brouillon auto-enregistré`}
         {lastSaved ? ` à ${lastSaved.toLocaleTimeString()}` : ''}
       </span>
     );
@@ -207,7 +207,7 @@ export function EditorHeader(props: EditorHeaderProps) {
                 className={cn(
                   'inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5',
                   published
-                    ? 'border-success/25 bg-success/10 text-success'
+                    ? 'border-success/25 bg-success/10 text-success-text'
                     : status === 'SCHEDULED' || scheduledAt
                       ? 'border-highlight/25 bg-highlight/10 text-highlight'
                       : status === 'SUBMITTED'

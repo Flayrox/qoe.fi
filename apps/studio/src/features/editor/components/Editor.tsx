@@ -1318,7 +1318,7 @@ export function Editor({
       />
 
       {error && (
-        <div className="bg-destructive/10 border border-destructive/20 text-destructive p-4 font-sans text-xs rounded-xl">
+        <div className="bg-destructive/10 border border-destructive/20 text-destructive-text p-4 font-sans text-xs rounded-xl">
           {error}
         </div>
       )}

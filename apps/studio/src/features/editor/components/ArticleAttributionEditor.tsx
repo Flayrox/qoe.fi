@@ -310,7 +310,7 @@ export function ArticleAttributionEditor({
                     person.consentStatus !== 'ACCEPTED'
                       ? 'bg-highlight/10 text-highlight opacity-70'
                       : person.isVisible
-                        ? 'bg-success/10 text-success hover:bg-success/20'
+                        ? 'bg-success/10 text-success-text hover:bg-success/20'
                         : 'bg-muted text-muted-foreground hover:bg-muted/70'
                   )}
                 >
@@ -352,7 +352,7 @@ export function ArticleAttributionEditor({
                     type="button"
                     onClick={() => removeContributor(index)}
                     aria-label={`Retirer ${person.name || 'le contributeur'}`}
-                    className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                    className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive-text"
                   >
                     <X className="h-3 w-3" />
                   </button>
@@ -515,7 +515,7 @@ export function ArticleAttributionEditor({
             {/* Bannière du dernier lien créé */}
             {latestCreatedUrl && (
               <div className="rounded-xl border border-success/30 bg-success/10 p-3 space-y-1.5 animate-in fade-in">
-                <div className="flex items-center justify-between text-xs font-semibold text-success">
+                <div className="flex items-center justify-between text-xs font-semibold text-success-text">
                   <span className="flex items-center gap-1.5">
                     <Check className="h-3.5 w-3.5" />
                     Lien prêt à être partagé !
@@ -523,7 +523,7 @@ export function ArticleAttributionEditor({
                   <button
                     type="button"
                     onClick={() => copyToClipboard(latestCreatedUrl, 'latest')}
-                    className="flex items-center gap-1 rounded bg-success/20 px-2 py-0.5 text-[11px] font-medium text-success hover:bg-success/30 transition-colors"
+                    className="flex items-center gap-1 rounded bg-success/20 px-2 py-0.5 text-[11px] font-medium text-success-text hover:bg-success/30 transition-colors"
                   >
                     {copiedId === 'latest' ? (
                       <Check className="h-3 w-3" />
@@ -599,7 +599,7 @@ export function ArticleAttributionEditor({
                             title="Copier le lien"
                           >
                             {copiedId === link.id ? (
-                              <Check className="h-3.5 w-3.5 text-success" />
+                              <Check className="h-3.5 w-3.5 text-success-text" />
                             ) : (
                               <Copy className="h-3.5 w-3.5" />
                             )}
@@ -607,7 +607,7 @@ export function ArticleAttributionEditor({
                           <button
                             type="button"
                             onClick={() => handleRevokeLink(link.id)}
-                            className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                            className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive-text transition-colors"
                             aria-label="Révoquer le lien"
                             title="Révoquer le lien"
                           >

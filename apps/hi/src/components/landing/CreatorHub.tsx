@@ -278,7 +278,7 @@ export const CreatorHub = ({ config }: CreatorHubProps) => {
                       <p className="text-sm font-semibold text-foreground">{t`Mon Média`}</p>
                       <p className="text-[10px] text-muted-foreground">monmedia.qoe.fi</p>
                     </div>
-                    <span className="ml-auto text-[9px] text-success font-semibold border border-success bg-success/10 px-2 py-0.5 rounded-full">
+                    <span className="ml-auto text-[9px] text-success-text font-semibold border border-success bg-success/10 px-2 py-0.5 rounded-full">
                       {t`Actif`}
                     </span>
                   </div>

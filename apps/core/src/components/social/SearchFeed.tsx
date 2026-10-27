@@ -153,7 +153,7 @@ export function SearchFeed({ initialQuery = '' }: { initialQuery?: string }) {
 
       {/* State: Error */}
       {isError && (
-        <div className="p-4 bg-destructive/10 text-destructive text-xs font-semibold rounded-2xl border border-destructive/20 text-center">
+        <div className="p-4 bg-destructive/10 text-destructive-text text-xs font-semibold rounded-2xl border border-destructive/20 text-center">
           Une erreur est survenue lors de la recherche.
         </div>
       )}

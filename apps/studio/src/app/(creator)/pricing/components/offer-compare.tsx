@@ -59,7 +59,7 @@ const ROWS: OfferRow[] = [
 function Cell({ level }: { level: Level }) {
   if (level === 'free')
     return (
-      <span className="inline-flex items-center gap-1 text-xs font-bold text-success">
+      <span className="inline-flex items-center gap-1 text-xs font-bold text-success-text">
         <Check className="w-4 h-4" /> Inclus
       </span>
     );

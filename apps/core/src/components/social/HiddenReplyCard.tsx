@@ -50,7 +50,7 @@ export function HiddenReplyCard({
             onClick={handleToggleHide}
             disabled={isToggling}
             title="Masquer cette réponse pour tous les lecteurs"
-            className="opacity-0 group-hover:opacity-100 transition-opacity absolute top-2 right-2 p-1.5 rounded-full bg-muted/80 hover:bg-destructive/10 hover:text-destructive text-muted-foreground text-xs font-medium flex items-center gap-1"
+            className="opacity-0 group-hover:opacity-100 transition-opacity absolute top-2 right-2 p-1.5 rounded-full bg-muted/80 hover:bg-destructive/10 hover:text-destructive-text text-muted-foreground text-xs font-medium flex items-center gap-1"
           >
             {isToggling ? (
               <Loader2 className="w-3 h-3 animate-spin" />

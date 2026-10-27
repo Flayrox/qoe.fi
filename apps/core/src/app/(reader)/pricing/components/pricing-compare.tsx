@@ -81,7 +81,7 @@ const ROWS: PricingRow[] = [
 function Cell({ level }: { level: Level }) {
   if (level === 'free') {
     return (
-      <span className="inline-flex items-center gap-1 text-xs font-bold text-success">
+      <span className="inline-flex items-center gap-1 text-xs font-bold text-success-text">
         <Check className="w-4 h-4" /> Inclus
       </span>
     );
@@ -114,7 +114,7 @@ export function PricingCompare({ supportUrl }: { supportUrl: string }) {
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Lecteur Gratuit
               </span>
-              <span className="text-[10px] font-semibold text-success bg-success/10 px-2 py-0.5 rounded-full border border-success/20">
+              <span className="text-[10px] font-semibold text-success-text bg-success/10 px-2 py-0.5 rounded-full border border-success/20">
                 Actif
               </span>
             </div>

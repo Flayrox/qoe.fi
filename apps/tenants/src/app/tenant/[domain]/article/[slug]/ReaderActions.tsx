@@ -11,9 +11,9 @@ import {
 } from 'lucide-react';
 import { toggleFollowCreatorAction, toggleBookmarkArticleAction } from '@qoe/sdk/actions/tenant';
 
-import { cn } from '@qoe/utils';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import { useRequireAuth } from '@qoe/ui';
+import { Button } from '@qoe/ui/button';
 import { ReadingSettingsSheet, TextToSpeechPlayer } from '@qoe/ui/reader';
 import { t } from '@lingui/core/macro';
 
@@ -28,6 +28,22 @@ interface ReaderActionsProps {
   articleTitle?: string;
 }
 
+/**
+ * La barre d'actions de lecture d'un tenant — le « pop » en bas d'écran.
+ *
+ * 🎯 Trois corrections :
+ *    1. **Les boutons sont ceux du contrat.** La suivre était peinte avec
+ *       `#EE4B2B` en dur : la barre ne suivait ni le thème ni l'accent de la
+ *       publication, et le jour où le vermillon change, un écran reste
+ *       rouge. Elle lit maintenant `tone="brand"`.
+ *    2. **Les icônes ont un nom.** Les trois boutons-icônes ne portaient
+ *       qu'un `title` : invisible au toucher, ignoré par la plupart des
+ *       lecteurs d'écran. Ils ont un `aria-label`, et les deux bascules
+ *       exposent `aria-pressed`.
+ *    3. **Le mouvement et l'encoche.** L'entrée animée respecte
+ *       `prefers-reduced-motion`, et la barre remonte au-dessus de la barre
+ *       de geste des iPhone (`env(safe-area-inset-bottom)`).
+ */
 export function ReaderActions({
   articleId,
   publicationId,
@@ -38,6 +54,7 @@ export function ReaderActions({
   articleTitle,
 }: ReaderActionsProps) {
   const { openAuthModal } = useRequireAuth();
+  const reduceMotion = useReducedMotion();
   const [bookmarked, setBookmarked] = useState(initialBookmarked);
   const [followed, setFollowed] = useState(initialFollowed);
   const [loadingBookmark, setLoadingBookmark] = useState(false);
@@ -88,90 +105,102 @@ export function ReaderActions({
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30 }}
+      role="group"
+      aria-label={t`Actions de lecture`}
+      initial={reduceMotion ? false : { opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.8, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-card/90 backdrop-blur-md border border-border/80 shadow-2xl rounded-2xl p-2 flex items-center gap-2 transition-all duration-300 pointer-events-auto select-none max-w-[95%] sm:max-w-fit font-sans"
+      transition={
+        reduceMotion ? { duration: 0 } : { delay: 0.8, duration: 0.6, ease: [0.16, 1, 0.3, 1] }
+      }
+      className="pointer-events-auto fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom,0px))] left-1/2 z-40 flex max-w-[95%] -translate-x-1/2 items-center gap-1 rounded-panel border border-border/80 bg-card/90 p-1.5 font-sans shadow-xl backdrop-blur-md select-none sm:max-w-fit"
     >
-      {/* Bookmark Action */}
-      <button
+      <Button
+        variant="ghost"
+        shape="icon"
+        size="sm"
         onClick={handleBookmark}
+        aria-pressed={bookmarked}
+        aria-busy={loadingBookmark}
         disabled={loadingBookmark}
-        className={cn(
-          'w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer shrink-0',
-          bookmarked
-            ? 'bg-highlight/10 text-highlight'
-            : 'hover:bg-muted text-muted-foreground hover:text-foreground'
-        )}
         title={t`Sauvegarder cet écrit`}
+        aria-label={bookmarked ? t`Retirer des sauvegardes` : t`Sauvegarder cet écrit`}
+        className={bookmarked ? 'text-brand-vivid-strong' : 'text-muted-foreground'}
       >
-        {bookmarked ? <BookmarkCheck className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
-      </button>
+        {bookmarked ? (
+          <BookmarkCheck className="size-4" strokeWidth={1.75} />
+        ) : (
+          <Bookmark className="size-4" strokeWidth={1.75} />
+        )}
+      </Button>
 
-      {/* Comment Scroll Action */}
-      <button
+      <Button
+        variant="ghost"
+        shape="icon"
+        size="sm"
         onClick={scrollToComments}
-        className="w-9 h-9 rounded-xl flex items-center justify-center transition-all cursor-pointer hover:bg-muted text-muted-foreground hover:text-foreground shrink-0"
         title={t`Voir & laisser un commentaire`}
+        aria-label={t`Voir les commentaires`}
+        className="text-muted-foreground"
       >
-        <MessageSquare className="w-4 h-4" />
-      </button>
+        <MessageSquare className="size-4" strokeWidth={1.75} />
+      </Button>
 
-      <div className="w-px h-4 bg-border shrink-0" />
+      <span aria-hidden className="h-4 w-px shrink-0 bg-border" />
 
-      {/* Reading Accessibility & Preferences "Aa" */}
-      <ReadingSettingsSheet className="w-9 h-9 !px-0 !py-0 rounded-xl justify-center border-0 bg-transparent hover:bg-muted text-muted-foreground hover:text-foreground shadow-none" />
+      {/* Réglages de lecture « Aa » et synthèse vocale : deux composants du
+          reader qui gardent leur propre peau. */}
+      <ReadingSettingsSheet className="h-control-sm w-7 justify-center rounded-control border-0 bg-transparent px-0 py-0 text-muted-foreground shadow-none hover:bg-secondary hover:text-foreground" />
 
-      {/* Text-To-Speech Audio Player */}
       <TextToSpeechPlayer
         articleTitle={articleTitle || creatorName}
         articleContentSelector="#article-content"
-        className="h-9 px-2.5 rounded-xl border-0 bg-transparent hover:bg-muted text-muted-foreground hover:text-foreground shadow-none"
+        className="h-control-sm rounded-control border-0 bg-transparent px-2.5 text-muted-foreground shadow-none hover:bg-secondary hover:text-foreground"
       />
 
-      <div className="w-px h-4 bg-border shrink-0" />
+      <span aria-hidden className="h-4 w-px shrink-0 bg-border" />
 
-      {/* Follow Action */}
-      <button
+      <Button
+        variant={followed ? 'ghost' : 'solid'}
+        tone={followed ? 'neutral' : 'brand'}
+        size="sm"
         onClick={handleFollow}
         disabled={loadingFollow}
-        className={cn(
-          'px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0',
-          followed
-            ? 'bg-muted text-muted-foreground hover:text-foreground'
-            : 'bg-[#EE4B2B] text-white hover:bg-[#d63d20] shadow-sm shadow-[#EE4B2B]/20'
-        )}
+        aria-pressed={followed}
+        aria-busy={loadingFollow}
+        className={followed ? 'text-muted-foreground' : undefined}
       >
         {followed ? (
           <>
-            <UserCheck className="w-3.5 h-3.5" /> <span>{t`Abonné`}</span>
+            <UserCheck className="size-3.5" strokeWidth={1.75} /> <span>{t`Abonné`}</span>
           </>
         ) : (
           <>
-            <UserPlus className="w-3.5 h-3.5" /> <span>{t`Suivre ${creatorName}`}</span>
+            <UserPlus className="size-3.5" strokeWidth={1.75} />{' '}
+            <span>{t`Suivre ${creatorName}`}</span>
           </>
         )}
-      </button>
+      </Button>
 
-      {/* S'inscrire sur qoefi CTA when not authenticated */}
       {!isAuthenticated && (
         <>
-          <div className="w-px h-4 bg-border shrink-0" />
-          <button
+          <span aria-hidden className="h-4 w-px shrink-0 bg-border" />
+          <Button
+            variant="solid"
+            tone="brand"
+            size="sm"
             onClick={() => openAuthModal({ mode: 'signup' })}
-            className="px-3.5 py-2 rounded-xl text-xs font-bold bg-primary text-primary-foreground hover:opacity-90 transition-all flex items-center cursor-pointer shadow-sm shrink-0"
             title={t`Créer un compte sur qoefi`}
           >
             <span className="whitespace-nowrap">{t`S'inscrire sur qoefi`}</span>
-          </button>
+          </Button>
         </>
       )}
 
       {isAuthenticated && (
         <>
-          <div className="w-px h-4 bg-border hidden sm:block shrink-0" />
-          <div className="hidden sm:flex items-center gap-1 text-[10px] text-muted-foreground px-1 font-medium whitespace-nowrap">
-            <HelpCircle className="w-3 h-3 text-muted-foreground shrink-0" />
+          <span aria-hidden className="hidden h-4 w-px shrink-0 bg-border sm:block" />
+          <div className="hidden items-center gap-1 px-1 text-[10px] font-medium whitespace-nowrap text-muted-foreground sm:flex">
+            <HelpCircle className="size-3 shrink-0" strokeWidth={1.75} />
             <span>{t`Surlignez du texte pour annoter`}</span>
           </div>
         </>

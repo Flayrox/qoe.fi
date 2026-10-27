@@ -185,7 +185,7 @@ export function ProductMetricsBlock({ metrics, onSelectArticle }: ProductMetrics
               </span>
               <span
                 className={`text-xs font-medium ${
-                  subscriberDelta7d > 0 ? 'text-success' : 'text-muted-foreground'
+                  subscriberDelta7d > 0 ? 'text-success-text' : 'text-muted-foreground'
                 }`}
               >
                 {subscriberDelta7d > 0 ? `+${subscriberDelta7d}` : subscriberDelta7d} sur 7j
@@ -216,7 +216,7 @@ export function ProductMetricsBlock({ metrics, onSelectArticle }: ProductMetrics
             {readingQuality && (
               <div className="mt-4 pt-3 border-t border-border/30 space-y-2">
                 <div className="flex justify-between text-[11px]">
-                  <span className="text-success font-medium">
+                  <span className="text-success-text font-medium">
                     Lectures complètes ({readingQuality.deepReadsRate}%)
                   </span>
                   <span className="text-warning font-medium">

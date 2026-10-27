@@ -123,7 +123,7 @@ export function RightPanel({
               onDeleteBlock(selectedBlock.id);
               onSelectBlock(null);
             }}
-            className="p-1 hover:text-destructive text-muted-foreground rounded transition-colors"
+            className="p-1 hover:text-destructive-text text-muted-foreground rounded transition-colors"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -205,7 +205,7 @@ export function RightPanel({
             <button
               type="button"
               onClick={() => onRemoveNode(selectedBlock.id, selectedOid)}
-              className="flex w-full items-center justify-center gap-1 rounded-lg border border-destructive/40 py-1.5 text-[11px] text-destructive hover:bg-destructive/10"
+              className="flex w-full items-center justify-center gap-1 rounded-lg border border-destructive/40 py-1.5 text-[11px] text-destructive-text hover:bg-destructive/10"
             >
               <Trash2 className="h-3 w-3" />
               <span>Supprimer l&apos;élément</span>
@@ -274,7 +274,7 @@ export function RightPanel({
                       <button
                         type="button"
                         onClick={() => onRemoveNode(selectedBlock.id, n.oid)}
-                        className="rounded p-0.5 text-muted-foreground hover:text-destructive"
+                        className="rounded p-0.5 text-muted-foreground hover:text-destructive-text"
                         title="Supprimer"
                       >
                         <X className="h-3 w-3" />

@@ -63,7 +63,7 @@ export function SeoPreview({
               Indexable
             </span>
           ) : (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-destructive/10 text-destructive text-[10px] font-bold tracking-wider uppercase border border-destructive/20">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-destructive/10 text-destructive-text text-[10px] font-bold tracking-wider uppercase border border-destructive/20">
               <ShieldAlert className="w-3 h-3" />
               Non indexé
             </span>

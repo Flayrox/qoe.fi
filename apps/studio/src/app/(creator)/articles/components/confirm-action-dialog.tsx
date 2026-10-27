@@ -50,7 +50,7 @@ export function ConfirmActionDialog({
             className={cn(
               'flex h-11 w-11 items-center justify-center rounded-full border',
               action?.destructive
-                ? 'border-destructive/30 bg-destructive/10 text-destructive'
+                ? 'border-destructive/30 bg-destructive/10 text-destructive-text'
                 : 'border-primary/20 bg-primary/10 text-primary'
             )}
           >

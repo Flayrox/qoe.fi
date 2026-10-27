@@ -5,7 +5,7 @@ import { ChevronDown } from 'lucide-react';
 import { Button as AriaButton, Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-components';
 
 import { buttonClasses } from '../button/button';
-import type { Size, Tone, Variant } from '../contract';
+import { MENU_POPOVER_WIDTH, MENU_SIZES, type Size, type Tone, type Variant } from '../contract';
 
 export interface DropdownItem {
   id: string;
@@ -83,7 +83,7 @@ export function Dropdown({
       <Popover
         placement={align === 'end' ? 'bottom end' : 'bottom start'}
         offset={4}
-        className="min-w-56 rounded-panel border border-border bg-popover p-1 text-popover-foreground shadow-lg outline-hidden"
+        className={`${MENU_POPOVER_WIDTH} rounded-panel border border-border bg-popover p-1 text-popover-foreground shadow-lg outline-hidden`}
       >
         <Menu aria-label={ariaLabel} onAction={handleAction} className="outline-hidden">
           {items.map((item) => (
@@ -94,11 +94,12 @@ export function Dropdown({
               isDisabled={item.disabled}
               className={({ isFocused, isDisabled }) =>
                 [
-                  'flex h-8 cursor-default items-center gap-2 rounded-control px-2 type-control-md outline-hidden select-none',
+                  MENU_SIZES[size],
+                  'flex cursor-default items-center gap-2 rounded-control outline-hidden select-none',
                   'transition-colors',
                   isDisabled && 'pointer-events-none opacity-50',
                   isFocused && (item.tone === 'danger' ? 'bg-destructive/10' : 'bg-secondary'),
-                  item.tone === 'danger' ? 'text-destructive' : 'text-foreground',
+                  item.tone === 'danger' ? 'text-destructive-text' : 'text-foreground',
                 ]
                   .filter(Boolean)
                   .join(' ')
@@ -108,7 +109,7 @@ export function Dropdown({
                 <span
                   className={
                     item.tone === 'danger'
-                      ? 'flex size-4 shrink-0 items-center justify-center text-destructive [&_svg]:size-3.5'
+                      ? 'flex size-4 shrink-0 items-center justify-center text-destructive-text [&_svg]:size-3.5'
                       : 'flex size-4 shrink-0 items-center justify-center text-muted-foreground [&_svg]:size-3.5'
                   }
                 >

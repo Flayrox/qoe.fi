@@ -212,7 +212,7 @@ function LayersTab() {
                     {block.visible ? (
                       <Eye className="h-3 w-3" />
                     ) : (
-                      <EyeOff className="h-3 w-3 text-destructive" />
+                      <EyeOff className="h-3 w-3 text-destructive-text" />
                     )}
                   </button>
                   <button
@@ -258,7 +258,7 @@ function LayersTab() {
                       e.stopPropagation();
                       engine.deleteBlock(block.id);
                     }}
-                    className="rounded p-1 hover:text-destructive disabled:opacity-20"
+                    className="rounded p-1 hover:text-destructive-text disabled:opacity-20"
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>

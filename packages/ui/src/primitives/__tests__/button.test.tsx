@@ -41,7 +41,7 @@ describe('Button', () => {
       </Button>
     );
     const className = screen.getByRole('button').className;
-    expect(className).toContain('text-destructive');
+    expect(className).toContain('text-destructive-text');
     expect(className).toContain('bg-transparent');
   });
 

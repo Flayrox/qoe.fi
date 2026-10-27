@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { FocusScope } from 'react-aria';
 import {
   X,
   Sparkles,
@@ -77,6 +78,23 @@ export function AnnotationSideDrawer({
       setCurrentIndex(0);
     }
   }, [annotation, allArticleAnnotations]);
+
+  // Échap ferme le tiroir, et l'arrière-plan ne défile plus pendant la
+  // lecture : sinon la molette déplace l'article sous un panneau qu'on ne
+  // voit pas, et on ferme en perdant sa place.
+  useEffect(() => {
+    if (!activeAnnotation) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [activeAnnotation, onClose]);
 
   // Spotlight glow animation & smooth scroll to active mark in DOM
   useEffect(() => {
@@ -376,368 +394,388 @@ export function AnnotationSideDrawer({
     <AnimatePresence>
       {activeAnnotation && (
         <div className="fixed inset-y-0 right-0 z-50 flex pointer-events-none font-sans select-text">
-          <motion.div
-            initial={{ x: '100%', opacity: 0.8 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: '100%', opacity: 0 }}
-            transition={{ type: 'spring', damping: 28, stiffness: 220 }}
-            className="w-screen max-w-sm sm:max-w-md bg-popover/90 text-popover-foreground border-l border-border/30 backdrop-blur-2xl shadow-2xl rounded-l-3xl flex flex-col justify-between pointer-events-auto h-full overflow-hidden"
-          >
-            {/* Header with multi-annotation switcher */}
-            <div className="p-4 border-b border-border/20 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {activeAnnotation.isOfficial ? (
-                  <span className="px-2.5 py-0.5 rounded-full bg-highlight/10 text-highlight border border-highlight/20 text-xs font-medium flex items-center gap-1">
-                    <Sparkles className="w-3 h-3" />
-                    Annotation officielle
-                  </span>
-                ) : (
-                  <span className="text-xs font-medium text-foreground/80">Annotation</span>
-                )}
-
-                {/* Sequential article-wide annotation pagination switcher */}
-                {totalAnnotations > 1 && (
-                  <div className="flex items-center gap-1 ml-2 pl-2 border-l border-border/30">
-                    <button
-                      onClick={handlePrev}
-                      disabled={currentIndex === 0}
-                      className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
-                      title={t`Annotation précédente (Flèche gauche)`}
-                    >
-                      <ChevronLeft className="w-3.5 h-3.5" />
-                    </button>
-                    <span className="text-[11px] text-muted-foreground font-medium px-1">
-                      {currentIndex + 1} / {totalAnnotations}
+          {/* Le tiroir était un panneau visuel sans sémantique : le focus
+              restait derrière, dans l'article, et un lecteur d'écran ne
+              savait pas qu'une surface s'était ouverte. `FocusScope`
+              confine le focus (Tab ne sort plus) et le rend au déclencheur
+              à la fermeture. */}
+          <FocusScope contain restoreFocus autoFocus>
+            <motion.div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="annotation-drawer-title"
+              initial={{ x: '100%', opacity: 0.8 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: '100%', opacity: 0 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 220 }}
+              className="w-screen max-w-sm sm:max-w-md bg-popover/90 text-popover-foreground border-l border-border/30 backdrop-blur-2xl shadow-2xl rounded-l-3xl flex flex-col justify-between pointer-events-auto h-full overflow-hidden"
+            >
+              {/* Header with multi-annotation switcher */}
+              <div className="p-4 border-b border-border/20 flex items-center justify-between">
+                <h2 id="annotation-drawer-title" className="sr-only">
+                  {t`Annotation`}
+                </h2>
+                <div className="flex items-center gap-2">
+                  {activeAnnotation.isOfficial ? (
+                    <span className="px-2.5 py-0.5 rounded-full bg-highlight/10 text-highlight border border-highlight/20 text-xs font-medium flex items-center gap-1">
+                      <Sparkles className="w-3 h-3" />
+                      Annotation officielle
                     </span>
-                    <button
-                      onClick={handleNext}
-                      disabled={currentIndex === totalAnnotations - 1}
-                      className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer"
-                      title={t`Annotation suivante (Flèche droite)`}
-                    >
-                      <ChevronRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
-              </div>
+                  ) : (
+                    <span className="text-xs font-medium text-foreground/80">Annotation</span>
+                  )}
 
-              <button
-                onClick={onClose}
-                className="p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Main Scrollable Content */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {/* Quoted Passage */}
-              <div className="space-y-1 py-1">
-                <span className="text-[11px] font-medium text-muted-foreground">Passage cité</span>
-                <p className="text-xs sm:text-sm text-foreground/90 font-sans italic leading-relaxed pl-3 border-l-2 border-primary/40">
-                  « {activeAnnotation.text} »
-                </p>
-              </div>
-
-              {/* Author / Note Details */}
-              <div className="space-y-3.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center overflow-hidden shrink-0 border border-border/40 font-semibold text-xs">
-                      {activeAnnotation.reader.logoUrl ? (
-                        <img
-                          src={activeAnnotation.reader.logoUrl}
-                          alt={activeAnnotation.reader.name || 'Auteur'}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        (activeAnnotation.reader.name || activeAnnotation.reader.username || 'A')[0]
-                      )}
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-medium text-foreground flex items-center gap-1.5">
-                        <span>
-                          {activeAnnotation.reader.name ||
-                            activeAnnotation.reader.username ||
-                            'Lecteur'}
-                        </span>
-                        {activeAnnotation.isOfficial && (
-                          <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded-full bg-highlight text-highlight-foreground">
-                            Auteur
-                          </span>
-                        )}
-                      </h4>
-
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-muted-foreground">
-                          {new Date(activeAnnotation.createdAt).toLocaleDateString('fr-FR', {
-                            day: 'numeric',
-                            month: 'short',
-                          })}
-                        </span>
-
-                        {isEdited && (
-                          <span
-                            className="text-[10px] text-muted-foreground/80 flex items-center gap-1 italic"
-                            title={`Édité le ${formattedEditTime}`}
-                          >
-                            <span>•</span>
-                            <Pencil className="w-2.5 h-2.5 text-muted-foreground" />
-                            <span>Modifié le {formattedEditTime}</span>
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    {Boolean(
-                      currentUserId &&
-                      activeAnnotation.reader?.id &&
-                      currentUserId === activeAnnotation.reader.id
-                    ) && (
+                  {/* Sequential article-wide annotation pagination switcher */}
+                  {totalAnnotations > 1 && (
+                    <div className="flex items-center gap-1 ml-2 pl-2 border-l border-border/30">
                       <button
-                        onClick={() => setIsEditingNote(!isEditingNote)}
-                        className="p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
-                        title="Modifier cette annotation"
+                        onClick={handlePrev}
+                        disabled={currentIndex === 0}
+                        className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
+                        aria-label={t`Annotation précédente`}
+                        title={t`Annotation précédente (Flèche gauche)`}
                       >
-                        <Pencil className="w-3.5 h-3.5" />
+                        <ChevronLeft className="w-3.5 h-3.5" />
                       </button>
-                    )}
-
-                    {Boolean(
-                      currentUserId &&
-                      ((activeAnnotation.reader?.id &&
-                        currentUserId === activeAnnotation.reader.id) ||
-                        (articleAuthorId && currentUserId === articleAuthorId))
-                    ) && (
+                      <span className="text-[11px] text-muted-foreground font-medium px-1">
+                        {currentIndex + 1} / {totalAnnotations}
+                      </span>
                       <button
-                        onClick={handleDeleteAnnotation}
-                        className="p-1 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
-                        title="Supprimer cette annotation"
+                        onClick={handleNext}
+                        disabled={currentIndex === totalAnnotations - 1}
+                        className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
+                        aria-label={t`Annotation suivante`}
+                        title={t`Annotation suivante (Flèche droite)`}
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
+                        <ChevronRight className="w-3.5 h-3.5" />
                       </button>
-                    )}
-
-                    {currentUserId === activeAnnotation.reader.id &&
-                      !activeAnnotation.isOfficial && (
-                        <button
-                          onClick={handleTogglePrivacy}
-                          disabled={togglingPrivacy}
-                          className={cn(
-                            'flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all cursor-pointer',
-                            isPublicState
-                              ? 'bg-success/10 text-success border-success/20 hover:bg-success/20'
-                              : 'bg-muted text-muted-foreground border-border/30 hover:text-foreground'
-                          )}
-                          title={
-                            isPublicState ? t`Rendre privée` : t`Rendre publique sur l'article`
-                          }
-                        >
-                          {togglingPrivacy ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : isPublicState ? (
-                            <>
-                              <Globe className="w-3 h-3" />
-                              <span>Publique</span>
-                            </>
-                          ) : (
-                            <>
-                              <Lock className="w-3 h-3" />
-                              <span>{t`Privée`}</span>
-                            </>
-                          )}
-                        </button>
-                      )}
-                  </div>
+                    </div>
+                  )}
                 </div>
 
-                {privacyError && (
-                  <div className="bg-destructive/10 border border-destructive/20 text-destructive p-2.5 rounded-xl text-xs flex gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>{privacyError}</span>
+                <button
+                  onClick={onClose}
+                  aria-label={t`Fermer l’annotation`}
+                  className="p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Main Scrollable Content */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {/* Quoted Passage */}
+                <div className="space-y-1 py-1">
+                  <span className="text-[11px] font-medium text-muted-foreground">
+                    Passage cité
+                  </span>
+                  <p className="text-xs sm:text-sm text-foreground/90 font-sans italic leading-relaxed pl-3 border-l-2 border-primary/40">
+                    « {activeAnnotation.text} »
+                  </p>
+                </div>
+
+                {/* Author / Note Details */}
+                <div className="space-y-3.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center overflow-hidden shrink-0 border border-border/40 font-semibold text-xs">
+                        {activeAnnotation.reader.logoUrl ? (
+                          <img
+                            src={activeAnnotation.reader.logoUrl}
+                            alt={activeAnnotation.reader.name || 'Auteur'}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          (activeAnnotation.reader.name ||
+                            activeAnnotation.reader.username ||
+                            'A')[0]
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                          <span>
+                            {activeAnnotation.reader.name ||
+                              activeAnnotation.reader.username ||
+                              'Lecteur'}
+                          </span>
+                          {activeAnnotation.isOfficial && (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded-full bg-highlight text-highlight-foreground">
+                              Auteur
+                            </span>
+                          )}
+                        </h4>
+
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] text-muted-foreground">
+                            {new Date(activeAnnotation.createdAt).toLocaleDateString('fr-FR', {
+                              day: 'numeric',
+                              month: 'short',
+                            })}
+                          </span>
+
+                          {isEdited && (
+                            <span
+                              className="text-[10px] text-muted-foreground/80 flex items-center gap-1 italic"
+                              title={`Édité le ${formattedEditTime}`}
+                            >
+                              <span>•</span>
+                              <Pencil className="w-2.5 h-2.5 text-muted-foreground" />
+                              <span>Modifié le {formattedEditTime}</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      {Boolean(
+                        currentUserId &&
+                        activeAnnotation.reader?.id &&
+                        currentUserId === activeAnnotation.reader.id
+                      ) && (
+                        <button
+                          onClick={() => setIsEditingNote(!isEditingNote)}
+                          className="p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
+                          title="Modifier cette annotation"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+
+                      {Boolean(
+                        currentUserId &&
+                        ((activeAnnotation.reader?.id &&
+                          currentUserId === activeAnnotation.reader.id) ||
+                          (articleAuthorId && currentUserId === articleAuthorId))
+                      ) && (
+                        <button
+                          onClick={handleDeleteAnnotation}
+                          className="p-1 rounded-full text-muted-foreground hover:text-destructive-text hover:bg-destructive/10 transition-colors cursor-pointer"
+                          title="Supprimer cette annotation"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+
+                      {currentUserId === activeAnnotation.reader.id &&
+                        !activeAnnotation.isOfficial && (
+                          <button
+                            onClick={handleTogglePrivacy}
+                            disabled={togglingPrivacy}
+                            className={cn(
+                              'flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all cursor-pointer',
+                              isPublicState
+                                ? 'bg-success/10 text-success-text border-success/20 hover:bg-success/20'
+                                : 'bg-muted text-muted-foreground border-border/30 hover:text-foreground'
+                            )}
+                            title={
+                              isPublicState ? t`Rendre privée` : t`Rendre publique sur l'article`
+                            }
+                          >
+                            {togglingPrivacy ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : isPublicState ? (
+                              <>
+                                <Globe className="w-3 h-3" />
+                                <span>Publique</span>
+                              </>
+                            ) : (
+                              <>
+                                <Lock className="w-3 h-3" />
+                                <span>{t`Privée`}</span>
+                              </>
+                            )}
+                          </button>
+                        )}
+                    </div>
+                  </div>
+
+                  {privacyError && (
+                    <div className="bg-destructive/10 border border-destructive/20 text-destructive-text p-2.5 rounded-xl text-xs flex gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{privacyError}</span>
+                    </div>
+                  )}
+
+                  {/* Inline Note Editor Form or Note Display */}
+                  {isEditingNote ? (
+                    <form onSubmit={handleSaveNoteEdit} className="space-y-2.5">
+                      <textarea
+                        autoFocus
+                        rows={3}
+                        value={editNoteContent}
+                        onChange={(e) => setEditNoteContent(e.target.value)}
+                        placeholder={t`Modifier votre réflexion...`}
+                        className="w-full p-3 rounded-2xl bg-background border border-border/30 text-xs text-foreground focus:outline-none focus:border-primary font-sans resize-none leading-relaxed"
+                      />
+                      <div className="flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsEditingNote(false)}
+                          className="px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground cursor-pointer"
+                        >
+                          Annuler
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={savingEdit}
+                          className="px-3 py-1 rounded-xl bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                        >
+                          {savingEdit ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Check className="w-3 h-3" />
+                          )}
+                          <span>Enregistrer</span>
+                        </button>
+                      </div>
+                    </form>
+                  ) : activeAnnotation.note ? (
+                    <p className="text-xs text-foreground leading-relaxed whitespace-pre-line bg-muted/40 p-3.5 rounded-2xl border border-border/20 font-sans">
+                      {activeAnnotation.note}
+                    </p>
+                  ) : (
+                    <p className="text-xs italic text-muted-foreground">
+                      Aucune note attachée à ce surlignage.
+                    </p>
+                  )}
+                </div>
+
+                {/* Action Bar */}
+                <div className="flex items-center justify-between pt-2.5 border-t border-border/20">
+                  <button
+                    onClick={handleUpvote}
+                    className={cn(
+                      'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer',
+                      hasUpvoted
+                        ? 'bg-primary/10 text-primary border-primary/20'
+                        : 'bg-muted/40 text-muted-foreground border-border/30 hover:text-foreground'
+                    )}
+                  >
+                    <ThumbsUp className={cn('w-3.5 h-3.5', hasUpvoted && 'fill-primary')} />
+                    <span>{upvotes > 0 ? `${upvotes} Utile` : 'Utile'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => setShowCrosspostForm(!showCrosspostForm)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-all cursor-pointer shadow-xs"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>Citer sur le Feed</span>
+                  </button>
+                </div>
+
+                {/* Crosspost Success Alert */}
+                {crosspostSuccess && (
+                  <div className="bg-success/10 border border-success/20 text-success-text p-3 rounded-2xl text-xs flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Check className="w-4 h-4" />
+                      <span>{t`Passage cité avec succès sur votre fil Feed !`}</span>
+                    </div>
+                    <a href="/feed" className="font-medium underline">
+                      Voir
+                    </a>
                   </div>
                 )}
 
-                {/* Inline Note Editor Form or Note Display */}
-                {isEditingNote ? (
-                  <form onSubmit={handleSaveNoteEdit} className="space-y-2.5">
+                {/* Crosspost Form */}
+                {showCrosspostForm && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="p-3 rounded-2xl bg-muted/30 border border-border/30 space-y-2.5"
+                  >
+                    <label className="text-[11px] font-medium text-muted-foreground">
+                      Ajouter un commentaire sur le Feed (optionnel)
+                    </label>
                     <textarea
-                      autoFocus
-                      rows={3}
-                      value={editNoteContent}
-                      onChange={(e) => setEditNoteContent(e.target.value)}
-                      placeholder={t`Modifier votre réflexion...`}
-                      className="w-full p-3 rounded-2xl bg-background border border-border/30 text-xs text-foreground focus:outline-none focus:border-primary font-sans resize-none leading-relaxed"
+                      rows={2}
+                      value={crosspostCommentary}
+                      onChange={(e) => setCrosspostCommentary(e.target.value)}
+                      placeholder="Qu'en pensez-vous ?"
+                      className="w-full p-2.5 rounded-xl bg-background border border-border/30 text-xs text-foreground focus:outline-none focus:border-primary resize-none font-sans"
                     />
                     <div className="flex justify-end gap-2">
                       <button
-                        type="button"
-                        onClick={() => setIsEditingNote(false)}
+                        onClick={() => setShowCrosspostForm(false)}
                         className="px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground cursor-pointer"
                       >
                         Annuler
                       </button>
                       <button
-                        type="submit"
-                        disabled={savingEdit}
-                        className="px-3 py-1 rounded-xl bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                        disabled={isCrossposting}
+                        onClick={handleCrosspostToFeed}
+                        className="px-3 py-1 rounded-xl bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 cursor-pointer disabled:opacity-50"
                       >
-                        {savingEdit ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
+                        {isCrossposting ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         ) : (
-                          <Check className="w-3 h-3" />
+                          'Publier sur le Feed'
                         )}
-                        <span>Enregistrer</span>
                       </button>
                     </div>
-                  </form>
-                ) : activeAnnotation.note ? (
-                  <p className="text-xs text-foreground leading-relaxed whitespace-pre-line bg-muted/40 p-3.5 rounded-2xl border border-border/20 font-sans">
-                    {activeAnnotation.note}
-                  </p>
-                ) : (
-                  <p className="text-xs italic text-muted-foreground">
-                    Aucune note attachée à ce surlignage.
-                  </p>
+                  </motion.div>
+                )}
+
+                {/* Annotation Discussion Thread (Comments) */}
+                {(activeAnnotation.isPublic || activeAnnotation.isOfficial) && (
+                  <div className="pt-3.5 border-t border-border/20 space-y-3.5">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
+                      <h5 className="text-xs font-medium text-muted-foreground">
+                        Discussion ({comments.length})
+                      </h5>
+                    </div>
+
+                    {/* Add comment input */}
+                    <form onSubmit={handleAddComment} className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newCommentText}
+                        onChange={(e) => setNewCommentText(e.target.value)}
+                        placeholder={t`Réagir à cette annotation...`}
+                        className="flex-1 bg-background border border-border/30 rounded-xl px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary font-sans"
+                      />
+                      <button
+                        type="submit"
+                        disabled={submittingComment || !newCommentText.trim()}
+                        className="px-3 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50"
+                      >
+                        {submittingComment ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Send className="w-3 h-3" />
+                        )}
+                      </button>
+                    </form>
+
+                    {/* Comments list */}
+                    <div className="space-y-2.5">
+                      {comments.map((cmt) => (
+                        <div
+                          key={cmt.id}
+                          className="p-3 rounded-2xl bg-muted/30 border border-border/20 space-y-1"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-foreground">
+                              {cmt.author?.name || cmt.author?.username || 'Lecteur'}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {new Date(cmt.createdAt).toLocaleDateString('fr-FR', {
+                                month: 'short',
+                                day: 'numeric',
+                              })}
+                            </span>
+                          </div>
+                          <p className="text-xs text-foreground leading-relaxed">{cmt.content}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
-
-              {/* Action Bar */}
-              <div className="flex items-center justify-between pt-2.5 border-t border-border/20">
-                <button
-                  onClick={handleUpvote}
-                  className={cn(
-                    'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer',
-                    hasUpvoted
-                      ? 'bg-primary/10 text-primary border-primary/20'
-                      : 'bg-muted/40 text-muted-foreground border-border/30 hover:text-foreground'
-                  )}
-                >
-                  <ThumbsUp className={cn('w-3.5 h-3.5', hasUpvoted && 'fill-primary')} />
-                  <span>{upvotes > 0 ? `${upvotes} Utile` : 'Utile'}</span>
-                </button>
-
-                <button
-                  onClick={() => setShowCrosspostForm(!showCrosspostForm)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-all cursor-pointer shadow-xs"
-                >
-                  <Share2 className="w-3.5 h-3.5" />
-                  <span>Citer sur le Feed</span>
-                </button>
-              </div>
-
-              {/* Crosspost Success Alert */}
-              {crosspostSuccess && (
-                <div className="bg-success/10 border border-success/20 text-success p-3 rounded-2xl text-xs flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Check className="w-4 h-4" />
-                    <span>{t`Passage cité avec succès sur votre fil Feed !`}</span>
-                  </div>
-                  <a href="/feed" className="font-medium underline">
-                    Voir
-                  </a>
-                </div>
-              )}
-
-              {/* Crosspost Form */}
-              {showCrosspostForm && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  className="p-3 rounded-2xl bg-muted/30 border border-border/30 space-y-2.5"
-                >
-                  <label className="text-[11px] font-medium text-muted-foreground">
-                    Ajouter un commentaire sur le Feed (optionnel)
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={crosspostCommentary}
-                    onChange={(e) => setCrosspostCommentary(e.target.value)}
-                    placeholder="Qu'en pensez-vous ?"
-                    className="w-full p-2.5 rounded-xl bg-background border border-border/30 text-xs text-foreground focus:outline-none focus:border-primary resize-none font-sans"
-                  />
-                  <div className="flex justify-end gap-2">
-                    <button
-                      onClick={() => setShowCrosspostForm(false)}
-                      className="px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground cursor-pointer"
-                    >
-                      Annuler
-                    </button>
-                    <button
-                      disabled={isCrossposting}
-                      onClick={handleCrosspostToFeed}
-                      className="px-3 py-1 rounded-xl bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 cursor-pointer disabled:opacity-50"
-                    >
-                      {isCrossposting ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        'Publier sur le Feed'
-                      )}
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-
-              {/* Annotation Discussion Thread (Comments) */}
-              {(activeAnnotation.isPublic || activeAnnotation.isOfficial) && (
-                <div className="pt-3.5 border-t border-border/20 space-y-3.5">
-                  <div className="flex items-center gap-2">
-                    <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
-                    <h5 className="text-xs font-medium text-muted-foreground">
-                      Discussion ({comments.length})
-                    </h5>
-                  </div>
-
-                  {/* Add comment input */}
-                  <form onSubmit={handleAddComment} className="flex gap-2">
-                    <input
-                      type="text"
-                      value={newCommentText}
-                      onChange={(e) => setNewCommentText(e.target.value)}
-                      placeholder={t`Réagir à cette annotation...`}
-                      className="flex-1 bg-background border border-border/30 rounded-xl px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary font-sans"
-                    />
-                    <button
-                      type="submit"
-                      disabled={submittingComment || !newCommentText.trim()}
-                      className="px-3 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50"
-                    >
-                      {submittingComment ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <Send className="w-3 h-3" />
-                      )}
-                    </button>
-                  </form>
-
-                  {/* Comments list */}
-                  <div className="space-y-2.5">
-                    {comments.map((cmt) => (
-                      <div
-                        key={cmt.id}
-                        className="p-3 rounded-2xl bg-muted/30 border border-border/20 space-y-1"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-medium text-foreground">
-                            {cmt.author?.name || cmt.author?.username || 'Lecteur'}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground">
-                            {new Date(cmt.createdAt).toLocaleDateString('fr-FR', {
-                              month: 'short',
-                              day: 'numeric',
-                            })}
-                          </span>
-                        </div>
-                        <p className="text-xs text-foreground leading-relaxed">{cmt.content}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </motion.div>
+            </motion.div>
+          </FocusScope>
         </div>
       )}
     </AnimatePresence>

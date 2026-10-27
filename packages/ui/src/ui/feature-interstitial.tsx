@@ -195,7 +195,7 @@ export function FeatureInterstitial({
         {/* Pied : une action principale, une sortie discrète. */}
         <div className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2 px-5 pb-5 pt-1">
           {failed && (
-            <p className="text-[11px] text-destructive sm:mr-auto" role="status">
+            <p className="text-[11px] text-destructive-text sm:mr-auto" role="status">
               {localize(
                 {
                   fr: 'Enregistrement impossible. Réessayez dans un instant.',
@@ -231,7 +231,7 @@ export function FeatureInterstitial({
               className={cn(
                 'inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all active:scale-95 cursor-pointer',
                 isNotified
-                  ? 'bg-success/10 text-success border border-success/30 cursor-default'
+                  ? 'bg-success/10 text-success-text border border-success/30 cursor-default'
                   : 'bg-primary text-primary-foreground hover:opacity-90',
                 pending && 'opacity-70 cursor-wait'
               )}

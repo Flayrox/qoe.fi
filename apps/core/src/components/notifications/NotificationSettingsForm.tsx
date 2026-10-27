@@ -37,7 +37,7 @@ export function NotificationSettingsForm() {
     {
       title: t`J'aime & Réactions`,
       icon: Heart,
-      iconColor: 'text-destructive',
+      iconColor: 'text-destructive-text',
       emailKey: 'emailLikes',
       pushKey: 'pushLikes',
       description: t`Alertes lorsque quelqu'un aime l'une de vos pensées ou publications.`,
@@ -69,7 +69,7 @@ export function NotificationSettingsForm() {
     {
       title: t`Repartages / Reposts`,
       icon: Repeat,
-      iconColor: 'text-success',
+      iconColor: 'text-success-text',
       emailKey: 'emailReposts',
       pushKey: 'pushReposts',
       description: t`Alertes lorsqu'un membre republie votre pensée sur son fil.`,

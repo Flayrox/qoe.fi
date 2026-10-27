@@ -47,6 +47,10 @@ function DialogContent({
       <DialogOverlay />
       <DialogPrimitive.Popup
         data-slot="dialog-content"
+        // Base UI pose `role="dialog"` et piège le focus, mais ne déclare
+        // pas `aria-modal`. Les lecteurs d'écran qui naviguent par landmarks
+        // continuent alors à parcourir la page derrière.
+        aria-modal="true"
         className={cn(
           'fixed z-50 flex flex-col gap-3 bg-popover text-popover-foreground shadow-2xl border border-border/40 font-sans transition-all duration-200 ease-out',
           // Mobile: Bottom Sheet

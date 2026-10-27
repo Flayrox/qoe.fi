@@ -98,7 +98,7 @@ export const columns: ColumnDef<AdminUser>[] = [
       const user = row.original;
       if (user.isSuspended)
         return (
-          <span className="text-destructive text-[10px] font-bold uppercase tracking-wider bg-destructive/10 px-2 py-1 rounded-md">
+          <span className="text-destructive-text text-[10px] font-bold uppercase tracking-wider bg-destructive/10 px-2 py-1 rounded-md">
             Banni
           </span>
         );
@@ -115,7 +115,7 @@ export const columns: ColumnDef<AdminUser>[] = [
           </span>
         );
       return (
-        <span className="text-success text-[10px] font-bold uppercase tracking-wider bg-success/10 px-2 py-1 rounded-md">
+        <span className="text-success-text text-[10px] font-bold uppercase tracking-wider bg-success/10 px-2 py-1 rounded-md">
           Actif
         </span>
       );
@@ -197,7 +197,7 @@ export const columns: ColumnDef<AdminUser>[] = [
                   }
                 }}
 
-                className="cursor-pointer hover:bg-destructive/10 focus:bg-destructive/10 text-destructive focus:text-destructive rounded-xl px-3 py-2 text-sm font-medium"
+                className="cursor-pointer hover:bg-destructive/10 focus:bg-destructive/10 text-destructive-text focus:text-destructive-text rounded-xl px-3 py-2 text-sm font-medium"
               >
                 {user.isSuspended ? (
                   <>

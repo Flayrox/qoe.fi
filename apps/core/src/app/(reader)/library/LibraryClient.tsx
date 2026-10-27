@@ -636,11 +636,11 @@ export function LibraryClient({
                             <button
                               type="button"
                               onClick={() => handleRemoveBookmark(b)}
-                              className="p-1 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors cursor-pointer"
+                              className="p-1 text-muted-foreground/60 hover:text-destructive-text hover:bg-destructive/10 rounded-md transition-colors cursor-pointer"
                               title={t`Retirer des signets`}
                             >
                               <BookmarkCheck className="w-3.5 h-3.5 text-primary group-hover:hidden" />
-                              <Trash2 className="w-3.5 h-3.5 text-destructive hidden group-hover:block" />
+                              <Trash2 className="w-3.5 h-3.5 text-destructive-text hidden group-hover:block" />
                             </button>
                           </div>
                         </div>
@@ -772,7 +772,7 @@ export function LibraryClient({
                         <button
                           type="button"
                           onClick={() => handleRemoveBookmark(b)}
-                          className="p-1 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors cursor-pointer"
+                          className="p-1 text-muted-foreground/60 hover:text-destructive-text hover:bg-destructive/10 rounded-md transition-colors cursor-pointer"
                           title={t`Retirer`}
                         >
                           <Trash2 className="w-3.5 h-3.5" />
@@ -954,7 +954,7 @@ export function LibraryClient({
                               title={t`Copier la citation`}
                             >
                               {isCopied ? (
-                                <Check className="w-3 h-3 text-success" />
+                                <Check className="w-3 h-3 text-success-text" />
                               ) : (
                                 <Copy className="w-3 h-3" />
                               )}
@@ -975,7 +975,7 @@ export function LibraryClient({
                             <button
                               type="button"
                               onClick={() => handleDeleteHighlight(h.id)}
-                              className="p-1 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors cursor-pointer"
+                              className="p-1 text-muted-foreground/60 hover:text-destructive-text hover:bg-destructive/10 rounded-md transition-colors cursor-pointer"
                               title={t`Supprimer ce surlignage`}
                             >
                               <Trash2 className="w-3.5 h-3.5" />

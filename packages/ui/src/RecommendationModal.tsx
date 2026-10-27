@@ -198,7 +198,7 @@ export function RecommendationModal({
               </>
             ) : completed ? (
               <>
-                <Check className="w-4 h-4 text-success" />
+                <Check className="w-4 h-4 text-success-text" />
                 <span>{t`Abonné !`}</span>
               </>
             ) : selectedIds.size > 0 ? (

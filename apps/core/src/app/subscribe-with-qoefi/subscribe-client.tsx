@@ -145,7 +145,7 @@ export function SubscribeWithQoeFiClient({
         <br />
         Le site tiers ne recevra ni votre session, ni votre adresse — seulement le résultat.
       </p>
-      {status === 'error' && <p className="mt-3 text-sm text-destructive">{message}</p>}
+      {status === 'error' && <p className="mt-3 text-sm text-destructive-text">{message}</p>}
       <div className="mt-6 flex gap-3">
         <button
           type="button"

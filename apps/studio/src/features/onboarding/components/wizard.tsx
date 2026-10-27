@@ -170,7 +170,7 @@ function MockDashboard() {
               >
                 <span className="text-xs text-muted-foreground font-medium">{card.label}</span>
                 <span className="text-2xl font-bold text-foreground">{card.value}</span>
-                <span className="text-[10px] text-success font-bold bg-success/10 self-start px-2 py-0.5 rounded">
+                <span className="text-[10px] text-success-text font-bold bg-success/10 self-start px-2 py-0.5 rounded">
                   {card.change}
                 </span>
               </div>

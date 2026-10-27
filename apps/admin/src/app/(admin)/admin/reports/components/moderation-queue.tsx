@@ -148,7 +148,7 @@ export function ModerationQueue({ initialItems, initialPending }: ModerationQueu
                           {typeMeta.icon}
                           {typeMeta.label}
                         </span>
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-destructive/10 text-destructive border border-destructive/40">
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-destructive/10 text-destructive-text border border-destructive/40">
                           <Flag className="w-3 h-3" />
                           {REASON_LABELS[report.reason] ?? report.reason}
                         </span>
@@ -209,7 +209,7 @@ export function ModerationQueue({ initialItems, initialPending }: ModerationQueu
                               {report.targetType === 'thought' && (
                                 <button
                                   onClick={() => run(report, 'hide_post')}
-                                  className="flex items-center justify-center gap-1.5 bg-destructive/10 hover:bg-destructive/15 text-destructive font-semibold px-3 py-2 rounded-xl text-xs transition-all cursor-pointer"
+                                  className="flex items-center justify-center gap-1.5 bg-destructive/10 hover:bg-destructive/15 text-destructive-text font-semibold px-3 py-2 rounded-xl text-xs transition-all cursor-pointer"
                                 >
                                   <EyeOff className="w-3.5 h-3.5" />
                                   Masquer la pensée
@@ -218,7 +218,7 @@ export function ModerationQueue({ initialItems, initialPending }: ModerationQueu
                               {report.targetType === 'article' && (
                                 <button
                                   onClick={() => run(report, 'hide_article')}
-                                  className="flex items-center justify-center gap-1.5 bg-destructive/10 hover:bg-destructive/15 text-destructive font-semibold px-3 py-2 rounded-xl text-xs transition-all cursor-pointer"
+                                  className="flex items-center justify-center gap-1.5 bg-destructive/10 hover:bg-destructive/15 text-destructive-text font-semibold px-3 py-2 rounded-xl text-xs transition-all cursor-pointer"
                                 >
                                   <EyeOff className="w-3.5 h-3.5" />
                                   Masquer l'article
@@ -229,7 +229,7 @@ export function ModerationQueue({ initialItems, initialPending }: ModerationQueu
                                   onClick={() =>
                                     setSuspendNoteId(suspendNoteId === report.id ? null : report.id)
                                   }
-                                  className="flex items-center justify-center gap-1.5 bg-muted hover:bg-destructive/10 hover:text-destructive border border-border text-muted-foreground font-semibold px-3 py-2 rounded-xl text-xs transition-all cursor-pointer"
+                                  className="flex items-center justify-center gap-1.5 bg-muted hover:bg-destructive/10 hover:text-destructive-text border border-border text-muted-foreground font-semibold px-3 py-2 rounded-xl text-xs transition-all cursor-pointer"
                                 >
                                   <Ban className="w-3.5 h-3.5" />
                                   Suspendre l'auteur
@@ -257,7 +257,7 @@ export function ModerationQueue({ initialItems, initialPending }: ModerationQueu
                               <div className="grid grid-cols-2 gap-2">
                                 <button
                                   onClick={() => run(report, 'resolve')}
-                                  className="flex items-center justify-center gap-1.5 bg-success/10 hover:bg-success/20 text-success font-semibold px-3 py-2 rounded-xl text-xs transition-all cursor-pointer"
+                                  className="flex items-center justify-center gap-1.5 bg-success/10 hover:bg-success/20 text-success-text font-semibold px-3 py-2 rounded-xl text-xs transition-all cursor-pointer"
                                 >
                                   <Check className="w-3.5 h-3.5" />
                                   Résoudre
@@ -285,7 +285,7 @@ export function ModerationQueue({ initialItems, initialPending }: ModerationQueu
                                       : 'unhide_article'
                                   )
                                 }
-                                className="flex items-center justify-center gap-1.5 bg-muted hover:bg-success/10 hover:text-success border border-border text-muted-foreground font-semibold px-3 py-2 rounded-xl text-xs transition-all cursor-pointer"
+                                className="flex items-center justify-center gap-1.5 bg-muted hover:bg-success/10 hover:text-success-text border border-border text-muted-foreground font-semibold px-3 py-2 rounded-xl text-xs transition-all cursor-pointer"
                               >
                                 <Eye className="w-3.5 h-3.5" />
                                 Restaurer le contenu

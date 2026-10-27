@@ -471,7 +471,7 @@ export function ArticleCard({
                 onClick={toggleRepost}
                 className={cn(
                   'flex items-center gap-1 rounded-full p-1.5 hover:bg-muted transition-colors cursor-pointer',
-                  reposted && 'text-success'
+                  reposted && 'text-success-text'
                 )}
                 title={t`Reposter`}
               >

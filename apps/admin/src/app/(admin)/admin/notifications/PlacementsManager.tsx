@@ -377,7 +377,7 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
                     disabled={isPending}
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
                       p.isActive
-                        ? 'bg-success/10 text-success border border-success/30 hover:bg-success/20'
+                        ? 'bg-success/10 text-success-text border border-success/30 hover:bg-success/20'
                         : 'bg-muted text-muted-foreground hover:bg-muted/80'
                     }`}
                   >
@@ -396,7 +396,7 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
                     type="button"
                     onClick={() => handleDelete(p.id!)}
                     disabled={isPending}
-                    className="p-1.5 rounded-lg text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                    className="p-1.5 rounded-lg text-muted-foreground/60 hover:text-destructive-text hover:bg-destructive/10 transition-colors cursor-pointer"
                     aria-label="Supprimer"
                   >
                     <Trash2 className="w-4 h-4" />

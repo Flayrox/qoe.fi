@@ -170,7 +170,7 @@ export function LegalConsentGate({ pending, locale, hrefBase = '/legal' }: Legal
         </ul>
 
         {error && (
-          <p role="alert" className="px-5 pb-2 text-xs text-destructive">
+          <p role="alert" className="px-5 pb-2 text-xs text-destructive-text">
             {error}
           </p>
         )}

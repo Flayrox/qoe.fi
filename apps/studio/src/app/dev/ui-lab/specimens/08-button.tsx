@@ -12,11 +12,11 @@ import { DefectList, Variant } from '../specimen-frame';
  * l'ait décidé — c'est ce que le contrat supprime.
  */
 const LEGACY_BUTTONS = [
-  'p-1.5 text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer',
-  'p-1.5 text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer shrink-0 ml-auto',
+  'p-1.5 text-destructive-text hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer',
+  'p-1.5 text-destructive-text hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer shrink-0 ml-auto',
   'shrink-0 rounded-lg border border-destructive/30 px-2.5 py-1 font-semibold hover:bg-destructive/10 transition-colors cursor-pointer',
   'px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground rounded-lg transition-colors cursor-pointer',
-  'p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer shrink-0',
+  'p-2 text-muted-foreground hover:text-destructive-text hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer shrink-0',
   'inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50',
 ];
 
@@ -47,6 +47,39 @@ export function ButtonSpecimen() {
       </Variant>
 
       <Variant
+        label="Deux oranges, deux rouges, deux verts"
+        kind="candidat"
+        hint="`brand` (vermillon) est la maison ; `vivid` est le même orange poussé d’un cran, pour une action qu’on veut voir. `danger` et `success` sont fluorescents : le fond monte en luminance, donc c’est le texte qui s’inverse (5,4:1 sur le rouge, 11,8:1 sur le vert). En texte seul — une étiquette, un compteur — on passe par `--destructive-text` et `--success-text`, qui restent à 5,8:1 et 5,4:1 sur blanc."
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="flex items-center gap-3">
+            <Button variant="solid" tone="brand">
+              Marque
+            </Button>
+            <span className="font-mono text-[10.5px] text-muted-foreground">--primary</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button variant="solid" tone="vivid">
+              Vif
+            </Button>
+            <span className="font-mono text-[10.5px] text-muted-foreground">--brand-vivid</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button variant="solid" tone="danger">
+              Danger
+            </Button>
+            <span className="font-mono text-[10.5px] text-muted-foreground">--destructive</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button variant="solid" tone="success">
+              Succès
+            </Button>
+            <span className="font-mono text-[10.5px] text-muted-foreground">--success</span>
+          </div>
+        </div>
+      </Variant>
+
+      <Variant
         label="La primitive — variantes et tons"
         kind="candidat"
         hint="Une seule implémentation. La hauteur vient de --control-h-*, le rayon de --radius-button, chaque couleur d’un token sémantique. Aucune valeur en dur."
@@ -57,7 +90,7 @@ export function ButtonSpecimen() {
               <span className="w-16 shrink-0 font-mono text-[10.5px] text-muted-foreground">
                 {variant}
               </span>
-              {(['neutral', 'brand', 'danger', 'success'] as const).map((tone) => (
+              {(['neutral', 'brand', 'vivid', 'danger', 'success'] as const).map((tone) => (
                 <Button key={tone} variant={variant} tone={tone}>
                   {tone}
                 </Button>
@@ -72,7 +105,8 @@ export function ButtonSpecimen() {
         <DefectList
           items={[
             '`type="button"` par défaut : plus de submit accidentel',
-            'Anneau de focus identique sur les 16 combinaisons, visible au clavier seulement',
+            'Anneau de focus identique sur les 20 combinaisons, visible au clavier seulement',
+            '`vivid` : le second orange de la marque, texte presque noir dessus (7,6:1)',
             'L’état désactivé est identique partout (opacité 50 %, aucun événement)',
           ]}
         />
@@ -97,7 +131,7 @@ export function ButtonSpecimen() {
         </div>
 
         <div className="mt-6 flex flex-wrap items-center gap-2">
-          <Button tone="brand">
+          <Button variant="solid" tone="brand">
             <Plus /> Nouveau
           </Button>
           <Button variant="outline" tone="danger">

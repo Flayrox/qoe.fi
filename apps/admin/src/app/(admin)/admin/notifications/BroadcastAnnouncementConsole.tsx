@@ -74,7 +74,7 @@ export function BroadcastAnnouncementConsole({
             <h2 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
               Bannière d'annonce globale
               {active && (
-                <span className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-success/15 text-success border border-success/30">
+                <span className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-success/15 text-success-text border border-success/30">
                   <Globe className="w-3 h-3 animate-pulse" /> En ligne
                 </span>
               )}
@@ -210,8 +210,8 @@ export function BroadcastAnnouncementConsole({
 
           <div className="flex items-center justify-between text-[11px] text-muted-foreground pt-3 border-t border-border/40">
             <span className="flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5 text-success" /> Auto-mémorisé en localStorage
-              lors de la fermeture
+              <CheckCircle2 className="w-3.5 h-3.5 text-success-text" /> Auto-mémorisé en
+              localStorage lors de la fermeture
             </span>
             <span className="font-mono text-[10px]">{type.toUpperCase()}</span>
           </div>

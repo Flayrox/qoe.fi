@@ -133,7 +133,7 @@ export const ComparisonTable = ({ config }: ComparisonTableProps) => {
                   <span className="md:hidden font-sans text-[10px] uppercase font-semibold tracking-wider text-muted-foreground/60 mt-1">
                     {t`Substack:`}
                   </span>
-                  <X className="w-4 h-4 text-destructive/60 mt-0.5 flex-shrink-0" />
+                  <X className="w-4 h-4 text-destructive-text/60 mt-0.5 flex-shrink-0" />
                   <span className="leading-relaxed">{row.substack}</span>
                 </div>
 

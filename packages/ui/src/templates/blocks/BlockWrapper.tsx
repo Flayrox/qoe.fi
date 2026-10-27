@@ -180,7 +180,7 @@ export function BlockWrapper({
                   e.stopPropagation();
                   onDeleteBlock(id);
                 }}
-                className="p-1 hover:text-destructive hover:bg-destructive/10 rounded transition-colors"
+                className="p-1 hover:text-destructive-text hover:bg-destructive/10 rounded transition-colors"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>

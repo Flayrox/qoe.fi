@@ -348,12 +348,13 @@ export function MediaStudioClient({
   };
 
   const linkStatus = (link: MediaInviteLinkDTO) => {
-    if (link.isRevoked) return { label: t`Révoqué`, tone: 'text-destructive bg-destructive/10' };
+    if (link.isRevoked)
+      return { label: t`Révoqué`, tone: 'text-destructive-text bg-destructive/10' };
     if (link.expiresAt && new Date(link.expiresAt).getTime() < Date.now())
       return { label: t`Expiré`, tone: 'text-muted-foreground bg-muted' };
     if (link.maxUses > 0 && link.usedCount >= link.maxUses)
       return { label: t`Épuisé`, tone: 'text-muted-foreground bg-muted' };
-    return { label: t`Actif`, tone: 'text-success bg-success/10' };
+    return { label: t`Actif`, tone: 'text-success-text bg-success/10' };
   };
 
   const handleCreateInviteLink = async () => {
@@ -797,7 +798,7 @@ export function MediaStudioClient({
                             member.user.name || member.user.username || 'ce membre'
                           )
                         }
-                        className="p-1.5 text-muted-foreground hover:text-destructive rounded-lg transition-colors cursor-pointer"
+                        className="p-1.5 text-muted-foreground hover:text-destructive-text rounded-lg transition-colors cursor-pointer"
                         title={t`Retirer du Média`}
                       >
                         <Trash2 className="w-4 h-4" strokeWidth={1.5} />
@@ -1095,7 +1096,7 @@ export function MediaStudioClient({
                               aria-label={t`Copier le lien`}
                             >
                               {copiedLinkId === link.id ? (
-                                <Check className="w-4 h-4 text-success" strokeWidth={1.5} />
+                                <Check className="w-4 h-4 text-success-text" strokeWidth={1.5} />
                               ) : (
                                 <Copy className="w-4 h-4" strokeWidth={1.5} />
                               )}
@@ -1104,7 +1105,7 @@ export function MediaStudioClient({
                               <button
                                 type="button"
                                 onClick={() => handleRevokeInviteLink(link.id)}
-                                className="p-1.5 text-muted-foreground hover:text-destructive rounded-lg transition-colors cursor-pointer"
+                                className="p-1.5 text-muted-foreground hover:text-destructive-text rounded-lg transition-colors cursor-pointer"
                                 title={t`Révoquer le lien`}
                                 aria-label={t`Révoquer le lien`}
                               >
@@ -1150,7 +1151,7 @@ export function MediaStudioClient({
                             className="text-[11px] text-muted-foreground flex items-start gap-1.5"
                           >
                             <Check
-                              className="w-3 h-3 text-success mt-0.5 shrink-0"
+                              className="w-3 h-3 text-success-text mt-0.5 shrink-0"
                               strokeWidth={1.5}
                             />
                             {PERMISSION_LABELS[p] ? PERMISSION_LABELS[p]() : p}

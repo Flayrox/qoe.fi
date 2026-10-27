@@ -207,7 +207,7 @@ export function CookieConsentBanner({
           className="fixed bottom-4 left-1/2 z-[65] -translate-x-1/2 rounded-xl border border-border bg-card/95 px-4 py-2.5 text-xs font-medium shadow-lg backdrop-blur-md"
         >
           <span className="inline-flex items-center gap-2">
-            <Check className="h-3.5 w-3.5 text-success" />
+            <Check className="h-3.5 w-3.5 text-success-text" />
             {copy.saved}
             <span className="text-muted-foreground">
               · {optionalCount === 0 ? copy.summaryNone : copy.summaryCount(optionalCount)}
@@ -402,7 +402,7 @@ export function CookiePreferencesCenter({
                         </span>
                       )}
                       {!category.locked && !category.consentRequired && (
-                        <span className="rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-success">
+                        <span className="rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-success-text">
                           {copy.exemptBadge}
                         </span>
                       )}

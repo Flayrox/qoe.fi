@@ -304,7 +304,7 @@ export function ThoughtCard({
           {/* Pure Repost Banner */}
           {isPureRepost && (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground pb-0.5 font-sans">
-              <Repeat className="w-3.5 h-3.5 text-success" />
+              <Repeat className="w-3.5 h-3.5 text-success-text" />
               <span>
                 {currentUserId && post.author.id === currentUserId ? (
                   t`Vous avez repartagé`

@@ -409,7 +409,7 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
         {/* Sauvegarde */}
         <div className="py-5 flex items-center justify-end gap-3">
           {saved && (
-            <span className="flex items-center gap-1 text-xs text-success font-medium">
+            <span className="flex items-center gap-1 text-xs text-success-text font-medium">
               <Check className="w-3.5 h-3.5" /> {t`Enregistré`}
             </span>
           )}

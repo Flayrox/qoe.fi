@@ -25,14 +25,14 @@ export interface OAuthClientAdmin {
 
 const STATUS_META: Record<string, { label: string; className: string }> = {
   PENDING: { label: 'Pending', className: 'bg-highlight/10 text-highlight border-highlight/50' },
-  APPROVED: { label: 'Approved', className: 'bg-success/10 text-success border-success/50' },
+  APPROVED: { label: 'Approved', className: 'bg-success/10 text-success-text border-success/50' },
   REJECTED: {
     label: 'Rejected',
-    className: 'bg-destructive/10 text-destructive border-destructive/50',
+    className: 'bg-destructive/10 text-destructive-text border-destructive/50',
   },
   REVOKED: {
     label: 'Revoked',
-    className: 'bg-destructive/10 text-destructive border-destructive/50',
+    className: 'bg-destructive/10 text-destructive-text border-destructive/50',
   },
 };
 
@@ -199,7 +199,7 @@ export function OAuthAppsClient({ initialClients }: { initialClients: OAuthClien
                             {c.status === 'PENDING' && (
                               <button
                                 onClick={() => handleStatus(c.id, 'REJECTED')}
-                                className="bg-destructive/10 hover:bg-destructive/20 text-destructive font-semibold px-3 py-1.5 rounded-xl transition-all cursor-pointer"
+                                className="bg-destructive/10 hover:bg-destructive/20 text-destructive-text font-semibold px-3 py-1.5 rounded-xl transition-all cursor-pointer"
                               >
                                 Rejeter
                               </button>
@@ -207,7 +207,7 @@ export function OAuthAppsClient({ initialClients }: { initialClients: OAuthClien
                             {c.status === 'APPROVED' && (
                               <button
                                 onClick={() => handleStatus(c.id, 'REVOKED')}
-                                className="bg-muted hover:bg-destructive/10 hover:text-destructive border border-border text-muted-foreground font-semibold px-3 py-1.5 rounded-xl transition-all cursor-pointer"
+                                className="bg-muted hover:bg-destructive/10 hover:text-destructive-text border border-border text-muted-foreground font-semibold px-3 py-1.5 rounded-xl transition-all cursor-pointer"
                               >
                                 Révoquer
                               </button>

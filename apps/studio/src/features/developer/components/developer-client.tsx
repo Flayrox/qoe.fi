@@ -73,7 +73,7 @@ const GRANT_META: Record<string, { label: string; badgeClass: string }> = {
     badgeClass: 'bg-highlight/10 border-highlight/20 text-highlight',
   },
   webhooks: { label: 'Webhooks', badgeClass: 'bg-highlight/10 border-highlight/20 text-highlight' },
-  oauth: { label: 'OAuth', badgeClass: 'bg-success/10 border-success/20 text-success' },
+  oauth: { label: 'OAuth', badgeClass: 'bg-success/10 border-success/20 text-success-text' },
 };
 
 const APPLICATION_PRESETS = [
@@ -120,7 +120,7 @@ const SCOPE_META: Record<ApiKeyScope, { label: string; desc: () => string; badge
   WRITE: {
     label: 'WRITE',
     desc: () => t`Création, modification et publication de contenus`,
-    badgeClass: 'bg-success/10 border-success/20 text-success',
+    badgeClass: 'bg-success/10 border-success/20 text-success-text',
   },
   ANALYTICS: {
     label: 'ANALYTICS',
@@ -491,7 +491,7 @@ print(articles)`,
                 </span>
               )}
               {status === 'approved' && (
-                <span className="font-semibold text-success flex items-center gap-1.5">
+                <span className="font-semibold text-success-text flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-success" />
                   Accès Actif
                 </span>
@@ -513,10 +513,10 @@ print(articles)`,
                 </span>
               )}
               {status === 'rejected' && (
-                <span className="font-semibold text-destructive">Rejeté</span>
+                <span className="font-semibold text-destructive-text">Rejeté</span>
               )}
               {status === 'revoked' && (
-                <span className="font-semibold text-destructive">Accès Révoqué</span>
+                <span className="font-semibold text-destructive-text">Accès Révoqué</span>
               )}
             </div>
           </div>
@@ -654,7 +654,7 @@ print(articles)`,
                           className={cn(
                             'text-[11px]',
                             reason.trim().length >= 10
-                              ? 'text-success font-medium'
+                              ? 'text-success-text font-medium'
                               : 'text-muted-foreground'
                           )}
                         >
@@ -799,8 +799,8 @@ print(articles)`,
               {/* Steps */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-border/60">
                 <div className="p-4 rounded-xl border border-success/30 bg-success/5 space-y-1.5 text-left">
-                  <div className="flex items-center gap-2 text-xs font-bold text-success">
-                    <CheckCircle className="w-4 h-4 text-success" />
+                  <div className="flex items-center gap-2 text-xs font-bold text-success-text">
+                    <CheckCircle className="w-4 h-4 text-success-text" />
                     <span>1. Demande envoyée</span>
                   </div>
                   <p className="text-[11px] text-muted-foreground">
@@ -1118,7 +1118,7 @@ print(articles)`,
                                   <button
                                     onClick={() => setConfirmDeleteId(key.id)}
                                     title={t`Révoquer cette clé d'API`}
-                                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 p-1.5 rounded-lg transition-colors inline-flex cursor-pointer"
+                                    className="text-muted-foreground hover:text-destructive-text hover:bg-destructive/10 p-1.5 rounded-lg transition-colors inline-flex cursor-pointer"
                                   >
                                     <Trash2 className="w-4 h-4" />
                                   </button>
@@ -1186,7 +1186,7 @@ print(articles)`,
                   title="Copier l'extrait de code"
                 >
                   {snippetCopied ? (
-                    <Check className="w-3.5 h-3.5 text-success" />
+                    <Check className="w-3.5 h-3.5 text-success-text" />
                   ) : (
                     <Copy className="w-3.5 h-3.5" />
                   )}
@@ -1200,7 +1200,7 @@ print(articles)`,
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                 <div className="border border-border/80 rounded-xl p-4 space-y-1.5 bg-muted/20">
                   <h4 className="font-bold text-foreground flex items-center gap-1 text-xs">
-                    <span className="bg-success/10 text-success border border-success/20 px-1.5 py-0.5 rounded text-[9px] font-black mr-1">
+                    <span className="bg-success/10 text-success-text border border-success/20 px-1.5 py-0.5 rounded text-[9px] font-black mr-1">
                       GET
                     </span>
                     /v1/articles
@@ -1213,7 +1213,7 @@ print(articles)`,
 
                 <div className="border border-border/80 rounded-xl p-4 space-y-1.5 bg-muted/20">
                   <h4 className="font-bold text-foreground flex items-center gap-1 text-xs">
-                    <span className="bg-success/10 text-success border border-success/20 px-1.5 py-0.5 rounded text-[9px] font-black mr-1">
+                    <span className="bg-success/10 text-success-text border border-success/20 px-1.5 py-0.5 rounded text-[9px] font-black mr-1">
                       GET
                     </span>
                     /v1/articles/:slug
@@ -1257,7 +1257,7 @@ print(articles)`,
               className="bg-card border border-border shadow-xl rounded-2xl p-6 md:p-8 max-w-xl w-full space-y-6 text-foreground"
             >
               <div className="text-center space-y-2">
-                <div className="w-12 h-12 bg-success/10 text-success border border-success/20 rounded-2xl flex items-center justify-center mx-auto mb-2">
+                <div className="w-12 h-12 bg-success/10 text-success-text border border-success/20 rounded-2xl flex items-center justify-center mx-auto mb-2">
                   <CheckCircle className="w-6 h-6" />
                 </div>
                 <h3 className="text-lg font-bold text-foreground">

@@ -50,11 +50,11 @@ const STATUS_META: Record<OAuthClientDTO['status'], { label: () => string; class
   },
   APPROVED: {
     label: () => t`Approuvée`,
-    className: 'bg-success/10 text-success border-success/20',
+    className: 'bg-success/10 text-success-text border-success/20',
   },
   REJECTED: {
     label: () => t`Rejetée`,
-    className: 'bg-destructive/10 text-destructive border-destructive/20',
+    className: 'bg-destructive/10 text-destructive-text border-destructive/20',
   },
   REVOKED: { label: () => t`Révoquée`, className: 'bg-muted text-muted-foreground border-border' },
 };
@@ -251,7 +251,7 @@ export function OAuthAppsClient({
       </div>
 
       {error && (
-        <div className="flex items-start gap-3 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive">
+        <div className="flex items-start gap-3 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive-text">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
           <span>{error}</span>
         </div>
@@ -525,7 +525,7 @@ export function OAuthAppsClient({
                         title="Copier le Client ID"
                       >
                         {copied ? (
-                          <Check className="w-3.5 h-3.5 text-success" />
+                          <Check className="w-3.5 h-3.5 text-success-text" />
                         ) : (
                           <Copy className="w-3.5 h-3.5" />
                         )}
@@ -574,7 +574,7 @@ export function OAuthAppsClient({
                     <button
                       onClick={() => handleDelete(client)}
                       disabled={busyId === client.id}
-                      className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
+                      className="p-1.5 text-muted-foreground hover:text-destructive-text hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
                       title="Supprimer cette application"
                     >
                       <Trash2 className="w-4 h-4" />

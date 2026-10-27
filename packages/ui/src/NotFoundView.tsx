@@ -264,7 +264,7 @@ export function NotFoundView({
           <div className="mt-6 pt-5 border-t border-border/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div className="text-xs text-muted-foreground">
               {isRepaired ? (
-                <span className="text-success font-medium inline-flex items-center gap-1.5">
+                <span className="text-success-text font-medium inline-flex items-center gap-1.5">
                   <Check className="w-4 h-4" />
                   {t.repaired}
                 </span>
@@ -284,7 +284,7 @@ export function NotFoundView({
               disabled={isRepairing || isRepaired}
               className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium transition-all duration-300 cursor-pointer ${
                 isRepaired
-                  ? 'bg-success/15 text-success border border-success/30'
+                  ? 'bg-success/15 text-success-text border border-success/30'
                   : 'bg-foreground/5 hover:bg-primary/10 text-foreground hover:text-primary border border-border hover:border-primary/30'
               } disabled:cursor-not-allowed`}
             >

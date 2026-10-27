@@ -311,7 +311,7 @@ export function GeneralTab({
                       <button
                         type="button"
                         onClick={() => setCurrent((prev) => ({ ...prev, logoUrl: null }))}
-                        className="text-[11px] text-destructive hover:underline cursor-pointer"
+                        className="text-[11px] text-destructive-text hover:underline cursor-pointer"
                       >
                         Supprimer
                       </button>
@@ -347,7 +347,7 @@ export function GeneralTab({
                             siteOptions: { ...(prev.siteOptions || {}), wordmarkUrl: null },
                           }))
                         }
-                        className="text-[11px] text-destructive hover:underline cursor-pointer"
+                        className="text-[11px] text-destructive-text hover:underline cursor-pointer"
                       >
                         Supprimer
                       </button>

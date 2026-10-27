@@ -212,7 +212,7 @@ export function ThoughtHeader({
                   setShowPopover(false);
                   onDeleteClick(e);
                 }}
-                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-2 cursor-pointer font-medium"
+                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-destructive-text hover:bg-destructive/10 transition-colors flex items-center gap-2 cursor-pointer font-medium"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>{t`Supprimer`}</span>
@@ -226,7 +226,7 @@ export function ThoughtHeader({
                   setShowPopover(false);
                   onBlockUserToggle(e);
                 }}
-                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-destructive hover:bg-destructive/10 transition-colors flex items-center gap-2 cursor-pointer font-medium"
+                className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-destructive-text hover:bg-destructive/10 transition-colors flex items-center gap-2 cursor-pointer font-medium"
               >
                 <Ban className="w-3.5 h-3.5" />
                 <span>

@@ -148,7 +148,7 @@ export default function CreatorImportPage() {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="p-4 mb-8 bg-success/10 border border-success/20 text-success rounded-2xl flex items-start gap-3"
+          className="p-4 mb-8 bg-success/10 border border-success/20 text-success-text rounded-2xl flex items-start gap-3"
         >
           <CheckCircle2 className="w-5 h-5 shrink-0 mt-0.5" />
           <span className="text-sm font-medium">{successMsg}</span>
@@ -159,7 +159,7 @@ export default function CreatorImportPage() {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="p-4 mb-8 bg-destructive/10 border border-destructive/20 text-destructive rounded-2xl flex items-start gap-3"
+          className="p-4 mb-8 bg-destructive/10 border border-destructive/20 text-destructive-text rounded-2xl flex items-start gap-3"
         >
           <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
           <span className="text-sm font-medium">{errorMsg}</span>
@@ -211,7 +211,7 @@ export default function CreatorImportPage() {
 
       {/* CSV Subscribers Import */}
       <div className="mt-8 bg-card border border-border/40 rounded-3xl p-8 shadow-sm">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-success/10 text-success text-xs font-medium mb-4">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-success/10 text-success-text text-xs font-medium mb-4">
           <Users className="w-3.5 h-3.5" />
           <span>{t`Importation de la liste d'abonnés`}</span>
         </div>
@@ -334,7 +334,7 @@ export default function CreatorImportPage() {
               <li>{t`Non exploitables : ${importStats.invalid}`}</li>
             </ul>
             {importStats.truncated && (
-              <p className="mt-2 text-destructive">
+              <p className="mt-2 text-destructive-text">
                 {t`Fichier tronqué : seule une partie des lignes a été analysée.`}
               </p>
             )}

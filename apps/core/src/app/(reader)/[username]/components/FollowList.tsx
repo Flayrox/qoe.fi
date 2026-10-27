@@ -134,7 +134,7 @@ export function FollowList({ handle, initialTab, currentUserId }: FollowListProp
         })}
       </div>
 
-      {error && <div className="py-8 text-center text-xs text-destructive">{error}</div>}
+      {error && <div className="py-8 text-center text-xs text-destructive-text">{error}</div>}
 
       {items.length === 0 && !loading && !error && (
         <div className="py-12 text-center text-xs text-muted-foreground italic bg-card/40 border border-border/30 rounded-xl">
@@ -188,7 +188,7 @@ export function FollowList({ handle, initialTab, currentUserId }: FollowListProp
                 className={cn(
                   'px-4 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer shrink-0',
                   actor.viewerFollows
-                    ? 'border border-border/60 bg-card hover:bg-destructive/10 hover:text-destructive text-foreground'
+                    ? 'border border-border/60 bg-card hover:bg-destructive/10 hover:text-destructive-text text-foreground'
                     : 'bg-foreground text-background hover:opacity-90'
                 )}
               >

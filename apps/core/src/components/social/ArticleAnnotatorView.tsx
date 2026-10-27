@@ -600,7 +600,7 @@ function ArticleAnnotatorViewInner({
               title={activeCopied ? t`Lien copié !` : t`Partager l'article`}
             >
               {activeCopied ? (
-                <Check className="w-4 h-4 text-success" />
+                <Check className="w-4 h-4 text-success-text" />
               ) : (
                 <Share2 className="w-4 h-4" />
               )}

@@ -72,7 +72,7 @@ const KIND_STYLES: Record<VariantKind, string> = {
   actuel: 'border-border/60 bg-muted/40 text-muted-foreground',
   candidat: 'border-primary/30 bg-primary/10 text-primary',
   variante: 'border-border/60 bg-transparent text-foreground',
-  ecart: 'border-destructive/30 bg-destructive/10 text-destructive',
+  ecart: 'border-destructive/30 bg-destructive/10 text-destructive-text',
 };
 
 const KIND_LABEL: Record<VariantKind, string> = {

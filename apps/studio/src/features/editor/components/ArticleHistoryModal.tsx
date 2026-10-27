@@ -130,10 +130,10 @@ function visualFor(event: ArticleEvent): EventVisual {
 }
 
 const TONE_CLASSES: Record<EventVisual['tone'], string> = {
-  positive: 'bg-success/10 text-success border-success/25',
+  positive: 'bg-success/10 text-success-text border-success/25',
   neutral: 'bg-muted/60 text-muted-foreground border-border/60',
   warning: 'bg-highlight/10 text-highlight border-highlight/30',
-  negative: 'bg-destructive/10 text-destructive border-destructive/25',
+  negative: 'bg-destructive/10 text-destructive-text border-destructive/25',
 };
 
 /**
@@ -223,7 +223,7 @@ export function ArticleHistoryModal({ open, articleId, onClose }: ArticleHistory
           )}
 
           {error && (
-            <div className="flex items-start gap-2 rounded-lg border border-destructive/25 bg-destructive/10 p-3 text-xs text-destructive">
+            <div className="flex items-start gap-2 rounded-lg border border-destructive/25 bg-destructive/10 p-3 text-xs text-destructive-text">
               <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               {error}
             </div>

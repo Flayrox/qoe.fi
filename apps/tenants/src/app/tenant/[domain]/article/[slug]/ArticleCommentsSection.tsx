@@ -292,7 +292,7 @@ export function ArticleCommentsSection({
                   <button
                     onClick={() => handleDeleteComment(comment.id)}
                     disabled={deletingId === comment.id}
-                    className="p-1 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+                    className="p-1 text-muted-foreground hover:text-destructive-text transition-colors cursor-pointer"
                     title={t`Supprimer`}
                   >
                     {deletingId === comment.id ? (
@@ -398,7 +398,7 @@ export function ArticleCommentsSection({
                         {currentUserId === reply.author.id && (
                           <button
                             onClick={() => handleDeleteComment(reply.id, comment.id)}
-                            className="p-1 text-muted-foreground hover:text-destructive cursor-pointer"
+                            className="p-1 text-muted-foreground hover:text-destructive-text cursor-pointer"
                           >
                             <Trash2 className="w-3 h-3 stroke-[1.5]" />
                           </button>

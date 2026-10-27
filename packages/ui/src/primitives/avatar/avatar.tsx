@@ -34,7 +34,7 @@ const SHAPE = 'rounded-full';
  */
 const FALLBACK_TONES = [
   'bg-primary/15 text-primary',
-  'bg-success/15 text-success',
+  'bg-success/15 text-success-text',
   'bg-neural-blue/15 text-neural-blue',
   'bg-neural-amber/15 text-neural-amber',
   'bg-muted text-foreground',

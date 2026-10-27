@@ -119,14 +119,14 @@ export function ContextualEditorBar() {
                 {selected.visible ? (
                   <Eye className="h-3.5 w-3.5" />
                 ) : (
-                  <EyeOff className="h-3.5 w-3.5 text-destructive" />
+                  <EyeOff className="h-3.5 w-3.5 text-destructive-text" />
                 )}
               </button>
               <button
                 type="button"
                 onClick={() => engine.deleteBlock(selected.id)}
                 title="Supprimer (⌫)"
-                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive-text"
               >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>

@@ -4,6 +4,7 @@ import React from 'react';
 import { EyeOff } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
+import { ToggleButton, ToggleGroup } from '../primitives/toggle/toggle-button';
 import type { AnnotationFilterMode } from './types';
 
 export interface AnnotationFilterPillProps {
@@ -14,6 +15,17 @@ export interface AnnotationFilterPillProps {
   size?: 'sm' | 'md';
 }
 
+/**
+ * Filtre d'affichage des annotations.
+ *
+ * 🎯 Trois boutons qui se ressemblent ne disent pas qu'ils forment une seule
+ *    question. L'ancienne version était trois `<button>` avec une classe
+ *    conditionnelle : rien n'indiquait à un lecteur d'écran que « Toutes »
+ *    était le choix actif, ni qu'il fallait en choisir un seul.
+ *
+ *    Le groupe porte maintenant `aria-pressed` sur chaque bascule et un nom
+ *    accessible sur le groupe : « Toutes, enfoncé » se lit.
+ */
 export function AnnotationFilterPill({
   filterMode,
   onChangeFilterMode,
@@ -23,61 +35,42 @@ export function AnnotationFilterPill({
 }: AnnotationFilterPillProps) {
   const isSm = size === 'sm';
 
+  const buttonClass = cn(
+    'h-auto rounded-full border-0 bg-transparent px-2.5 py-0.5 type-control-xs font-medium',
+    'text-muted-foreground hover:text-foreground',
+    'data-[selected]:bg-foreground data-[selected]:font-semibold data-[selected]:text-background',
+    isSm ? 'text-[11px]' : 'px-3 py-1'
+  );
+
   return (
-    <div
+    <ToggleGroup
+      aria-label={t`Afficher les annotations`}
+      selectionMode="single"
+      disallowEmptySelection
+      selectedKeys={[filterMode]}
+      onSelectionChange={(keys) => {
+        const [next] = keys;
+        if (next) onChangeFilterMode(next as AnnotationFilterMode);
+      }}
       className={cn(
-        'flex items-center gap-1 p-0.5 rounded-full bg-muted/40 border border-border/30 font-sans select-none',
-        isSm ? 'text-[11px]' : 'text-xs',
+        'gap-1 rounded-full border border-border/30 bg-muted/40 p-0.5 font-sans select-none',
         className
       )}
     >
       {allowPublicAnnotations && (
-        <button
-          type="button"
-          onClick={() => onChangeFilterMode('all')}
-          className={cn(
-            'rounded-full font-medium transition-all cursor-pointer',
-            isSm ? 'px-2.5 py-0.5' : 'px-3 py-1',
-            filterMode === 'all'
-              ? 'bg-foreground text-background dark:bg-white dark:text-black shadow-xs font-semibold'
-              : 'text-muted-foreground hover:text-foreground'
-          )}
-          title={t`Afficher toutes les annotations (publiques, officielles et privées)`}
-        >
+        <ToggleButton id="all" className={buttonClass}>
           {t`Toutes`}
-        </button>
+        </ToggleButton>
       )}
 
-      <button
-        type="button"
-        onClick={() => onChangeFilterMode('official')}
-        className={cn(
-          'rounded-full font-medium transition-all cursor-pointer flex items-center gap-1',
-          isSm ? 'px-2.5 py-0.5' : 'px-3 py-1',
-          filterMode === 'official'
-            ? 'bg-foreground text-background dark:bg-white dark:text-black shadow-xs font-semibold'
-            : 'text-muted-foreground hover:text-foreground'
-        )}
-        title={t`Afficher uniquement les annotations officielles de l'auteur`}
-      >
+      <ToggleButton id="official" className={buttonClass}>
         <span>{t`Officielles`}</span>
-      </button>
+      </ToggleButton>
 
-      <button
-        type="button"
-        onClick={() => onChangeFilterMode('none')}
-        className={cn(
-          'rounded-full font-medium transition-all cursor-pointer flex items-center gap-1',
-          isSm ? 'px-2.5 py-0.5' : 'px-3 py-1',
-          filterMode === 'none'
-            ? 'bg-foreground text-background dark:bg-white dark:text-black shadow-xs font-semibold'
-            : 'text-muted-foreground hover:text-foreground'
-        )}
-        title={t`Masquer toutes les annotations pour une lecture épurée sans interruption`}
-      >
-        <EyeOff className={isSm ? 'w-2.5 h-2.5' : 'w-3 h-3'} />
+      <ToggleButton id="none" className={cn(buttonClass, 'gap-1')}>
+        <EyeOff className={isSm ? 'size-2.5' : 'size-3'} strokeWidth={1.75} />
         <span>{t`Aucune`}</span>
-      </button>
-    </div>
+      </ToggleButton>
+    </ToggleGroup>
   );
 }

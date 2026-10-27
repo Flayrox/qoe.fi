@@ -40,7 +40,21 @@
   --accent-foreground: #fafafa;
 
   /* Destructif éclairci en dark pour rester lisible sur fond sombre */
-  --destructive: var(--vermillion-400);
+  --destructive: var(--danger-400);
+  --destructive-foreground: var(--zinc-950);
+  /* Sur fond noir, le rouge fluo du thème clair (#cc0027) disparaît : le
+     jumeau texte s'éclaircit d'un cran. */
+  --destructive-text: var(--danger-300);
+
+  /* Le vert s'éclaire : un vert sombre sur fond noir disparaît. */
+  --success: var(--ok-400);
+  --success-foreground: var(--zinc-950);
+  --success-text: var(--ok-400);
+
+  /* L'orange vif reste lisible sur le fond sombre, en clair. */
+  --brand-vivid: var(--brand-vivid-400);
+  --brand-vivid-foreground: var(--zinc-950);
+  --brand-vivid-strong: var(--brand-vivid-300);
 
   --border: rgba(255, 255, 255, 0.06);
   --input: rgba(255, 255, 255, 0.08);

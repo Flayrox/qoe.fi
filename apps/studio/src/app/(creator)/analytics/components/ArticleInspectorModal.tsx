@@ -121,7 +121,7 @@ export function ArticleInspectorModal({
             <p className="text-xs text-muted-foreground">Chargement des données de l'article...</p>
           </div>
         ) : error ? (
-          <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive text-center">
+          <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive-text text-center">
             {error}
           </div>
         ) : detail ? (

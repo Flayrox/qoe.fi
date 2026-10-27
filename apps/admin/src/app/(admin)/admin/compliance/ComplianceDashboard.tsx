@@ -20,7 +20,7 @@ const STATUS_STYLES: Record<
   string,
   { label: string; className: string; icon: typeof CheckCircle2 }
 > = {
-  ok: { label: 'Conforme', className: 'text-success bg-success/10', icon: CheckCircle2 },
+  ok: { label: 'Conforme', className: 'text-success-text bg-success/10', icon: CheckCircle2 },
   warning: {
     label: 'À surveiller',
     className: 'text-highlight bg-highlight/10',
@@ -28,13 +28,13 @@ const STATUS_STYLES: Record<
   },
   critical: {
     label: 'Critique',
-    className: 'text-destructive bg-destructive/10',
+    className: 'text-destructive-text bg-destructive/10',
     icon: ShieldAlert,
   },
   soon: { label: 'Bientôt', className: 'text-highlight bg-highlight/10', icon: CalendarClock },
   overdue: {
     label: 'Dépassée',
-    className: 'text-destructive bg-destructive/10',
+    className: 'text-destructive-text bg-destructive/10',
     icon: ShieldAlert,
   },
   unknown: { label: 'Non suivi', className: 'text-muted-foreground bg-muted', icon: CalendarClock },
@@ -82,11 +82,11 @@ function Metric({
 }) {
   const toneClass =
     tone === 'danger'
-      ? 'text-destructive'
+      ? 'text-destructive-text'
       : tone === 'warning'
         ? 'text-highlight'
         : tone === 'success'
-          ? 'text-success'
+          ? 'text-success-text'
           : 'text-foreground';
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
@@ -245,7 +245,7 @@ export function ComplianceDashboard({ snapshot }: { snapshot: ComplianceSnapshot
                     </p>
                   </td>
                   <td className="px-3 py-3 text-[12px] text-muted-foreground">
-                    {doc.publishedVersion || <span className="text-destructive">aucune</span>}
+                    {doc.publishedVersion || <span className="text-destructive-text">aucune</span>}
                     {doc.draftsCount > 0 && (
                       <span className="ml-1 text-[10px]">({doc.draftsCount} brouillon)</span>
                     )}
@@ -303,9 +303,9 @@ export function ComplianceDashboard({ snapshot }: { snapshot: ComplianceSnapshot
                 </p>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
                   {formatDate(notice.createdAt)} · {notice.deliveries} destinataire(s) ·{' '}
-                  <span className="text-success">{notice.sent} envoyé(s)</span>
+                  <span className="text-success-text">{notice.sent} envoyé(s)</span>
                   {notice.failed > 0 && (
-                    <span className="text-destructive"> · {notice.failed} en échec</span>
+                    <span className="text-destructive-text"> · {notice.failed} en échec</span>
                   )}
                 </p>
                 {notice.changelog && (

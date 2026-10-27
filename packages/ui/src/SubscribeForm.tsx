@@ -170,10 +170,10 @@ export function SubscribeForm({
               : 'bg-success/10 border border-success/20 rounded-xl'
           }`}
         >
-          <div className="w-10 h-10 rounded-full bg-success/20 text-success flex items-center justify-center mx-auto mb-3">
+          <div className="w-10 h-10 rounded-full bg-success/20 text-success-text flex items-center justify-center mx-auto mb-3">
             <Check className="w-5 h-5 stroke-[2.5]" />
           </div>
-          <h4 className="text-lg font-bold text-success mb-1">
+          <h4 className="text-lg font-bold text-success-text mb-1">
             {isDirectActive ? t`Abonnement confirmé !` : t`Plus qu'une étape !`}
           </h4>
           <p className="text-sm text-muted-foreground">{message}</p>
@@ -438,7 +438,9 @@ export function SubscribeForm({
 
       {helperText && <p className="mt-2 text-[12px] text-muted-foreground/70">{helperText}</p>}
 
-      {status === 'error' && <p className="mt-3 text-sm text-destructive text-center">{message}</p>}
+      {status === 'error' && (
+        <p className="mt-3 text-sm text-destructive-text text-center">{message}</p>
+      )}
     </div>
   );
 }

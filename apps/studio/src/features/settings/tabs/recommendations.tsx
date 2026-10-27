@@ -283,7 +283,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
           </div>
 
           {searchError && (
-            <p className="text-xs text-destructive flex items-center gap-1.5 pt-1">
+            <p className="text-xs text-destructive-text flex items-center gap-1.5 pt-1">
               <AlertCircle className="w-3.5 h-3.5" />
               <span>{searchError}</span>
             </p>
@@ -370,7 +370,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
             <span>Chargement des recommandations...</span>
           </div>
         ) : error ? (
-          <div className="p-4 rounded-xl border border-destructive/20 bg-destructive/5 text-destructive text-xs flex items-center justify-between gap-3">
+          <div className="p-4 rounded-xl border border-destructive/20 bg-destructive/5 text-destructive-text text-xs flex items-center justify-between gap-3">
             <span>{error}</span>
             <button
               type="button"
@@ -458,7 +458,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
                     <button
                       type="button"
                       onClick={() => setConfirmDeleteId(rec.id)}
-                      className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer shrink-0"
+                      className="p-2 text-muted-foreground hover:text-destructive-text hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer shrink-0"
                       title={t`Retirer la recommandation`}
                     >
                       <Trash2 className="w-4 h-4 stroke-[1.5]" />

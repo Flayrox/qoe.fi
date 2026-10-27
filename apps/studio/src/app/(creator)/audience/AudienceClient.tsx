@@ -126,7 +126,7 @@ export function AudienceClient({ initialSubscribers }: AudienceClientProps) {
             <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
               Revenu LTV Cumulé
             </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-success/10 text-success">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-success/10 text-success-text">
               <CreditCard className="h-4 w-4 stroke-[1.5]" />
             </div>
           </div>

@@ -267,7 +267,7 @@ export function StepUpGate() {
             </label>
 
             {errorMessage && (
-              <p className="text-xs leading-relaxed text-destructive">{errorMessage}</p>
+              <p className="text-xs leading-relaxed text-destructive-text">{errorMessage}</p>
             )}
 
             <div className="flex items-center justify-end gap-2">

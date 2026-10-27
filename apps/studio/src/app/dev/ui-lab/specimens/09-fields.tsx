@@ -29,7 +29,7 @@ export function FieldsSpecimen() {
               className={className}
             />
           ))}
-          <p className="text-[11px] text-destructive">Adresse invalide</p>
+          <p className="text-[11px] text-destructive-text">Adresse invalide</p>
         </div>
 
         <DefectList

@@ -112,7 +112,7 @@ export function ApiAccessModulesToggles({ initialModules }: { initialModules: Ap
                           className={cn(
                             'rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider',
                             enabled
-                              ? 'bg-success/15 text-success'
+                              ? 'bg-success/15 text-success-text'
                               : 'bg-muted text-muted-foreground'
                           )}
                         >
@@ -139,7 +139,7 @@ export function ApiAccessModulesToggles({ initialModules }: { initialModules: Ap
           <span
             className={cn(
               'font-medium',
-              message.includes('enregistrés') ? 'text-success' : 'text-destructive'
+              message.includes('enregistrés') ? 'text-success-text' : 'text-destructive-text'
             )}
           >
             {message}

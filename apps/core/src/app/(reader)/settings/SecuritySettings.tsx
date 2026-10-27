@@ -133,7 +133,7 @@ export default function SecuritySettings() {
         <p className="mt-1 text-sm text-muted-foreground">{t`Protégez votre compte et contrôlez vos accès.`}</p>
       </header>
       {message && (
-        <p className="flex items-center gap-2 rounded-xl bg-success/10 px-4 py-3 text-sm text-success">
+        <p className="flex items-center gap-2 rounded-xl bg-success/10 px-4 py-3 text-sm text-success-text">
           <Check className="h-4 w-4" />
           {message}
         </p>
@@ -141,7 +141,7 @@ export default function SecuritySettings() {
       {error && (
         <p
           role="alert"
-          className="rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+          className="rounded-xl border border-destructive/20 bg-destructive/10 px-4 py-3 text-sm text-destructive-text"
         >
           {error}
         </p>
@@ -167,13 +167,13 @@ export default function SecuritySettings() {
                 >
                   <span>
                     {factor.friendly_name || 'TOTP'}{' '}
-                    <span className="text-xs text-success">{t`Vérifié`}</span>
+                    <span className="text-xs text-success-text">{t`Vérifié`}</span>
                   </span>
                   <button
                     type="button"
                     disabled={busy}
                     onClick={() => removeFactor(factor.id)}
-                    className="text-destructive"
+                    className="text-destructive-text"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -205,7 +205,7 @@ export default function SecuritySettings() {
                     aria-label={t`Copier le secret TOTP`}
                   >
                     {copied ? (
-                      <Check className="h-4 w-4 text-success" />
+                      <Check className="h-4 w-4 text-success-text" />
                     ) : (
                       <Copy className="h-4 w-4" />
                     )}
@@ -259,9 +259,9 @@ export default function SecuritySettings() {
           </div>
           <div className="rounded-xl border border-destructive/25 bg-destructive/[0.03] p-4">
             <div className="flex items-start gap-3">
-              <LogOut className="mt-0.5 h-5 w-5 text-destructive" />
+              <LogOut className="mt-0.5 h-5 w-5 text-destructive-text" />
               <div>
-                <h3 className="font-semibold text-destructive">{t`Sessions natives Supabase`}</h3>
+                <h3 className="font-semibold text-destructive-text">{t`Sessions natives Supabase`}</h3>
                 <p className="mt-1 text-xs text-muted-foreground">{t`Déconnecte tous les appareils gérés par Supabase Auth.`}</p>
               </div>
             </div>
@@ -269,7 +269,7 @@ export default function SecuritySettings() {
               type="button"
               disabled={busy}
               onClick={globalSignOut}
-              className="mt-4 rounded-lg border border-destructive/30 px-3 py-2 text-sm font-semibold text-destructive disabled:opacity-50"
+              className="mt-4 rounded-lg border border-destructive/30 px-3 py-2 text-sm font-semibold text-destructive-text disabled:opacity-50"
             >{t`Déconnecter tous les appareils`}</button>
           </div>
         </>
