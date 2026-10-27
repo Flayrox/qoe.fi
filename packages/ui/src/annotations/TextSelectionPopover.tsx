@@ -24,7 +24,8 @@ export function TextSelectionPopover({
   onSelectionChange,
   children,
   className,
-}: TextSelectionPopoverProps) {
+  ariaLabel = 'Annoter la sélection',
+}: TextSelectionPopoverProps & { ariaLabel?: string }) {
   const [selectedText, setSelectedText] = useState<string>('');
   const [selectionRange, setSelectionRange] = useState<Range | null>(null);
   const [virtualElement, setVirtualElement] = useState<{
@@ -35,6 +36,11 @@ export function TextSelectionPopover({
 
   const popoverRef = useRef<HTMLDivElement>(null);
   const shouldReduceMotion = useReducedMotion();
+  // Une sélection faite au clavier n'a aucun moyen d'atteindre la barre :
+  // elle est portée dans un portail, après la fin du document. On ne vole
+  // donc le focus que dans ce cas (jamais après une sélection à la souris,
+  // où il casserait le geste).
+  const focusOnOpenRef = useRef(false);
   const isScrollingRef = useRef(false);
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -165,6 +171,7 @@ export function TextSelectionPopover({
 
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.shiftKey || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        focusOnOpenRef.current = true;
         requestAnimationFrame(evaluateSelection);
       }
     };
@@ -189,6 +196,23 @@ export function TextSelectionPopover({
     };
   }, [evaluateSelection, isLocked]);
 
+  // Le focus est posé après le rendu de la barre, une fois qu'elle existe.
+  useEffect(() => {
+    if (!selectedText || !focusOnOpenRef.current) return;
+    focusOnOpenRef.current = false;
+    popoverRef.current?.focus();
+  }, [selectedText]);
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      clearSelection();
+      // Rendre le focus au document plutôt qu'au néant : sans ça, le focus
+      // reste sur un élément qui vient d'être démonté.
+      (document.activeElement as HTMLElement | null)?.blur();
+    }
+  };
+
   if (!virtualElement || !selectedText || !selectionRange) return null;
 
   const isHidden = Boolean(middlewareData.hide?.referenceHidden);
@@ -203,6 +227,10 @@ export function TextSelectionPopover({
           pointerEvents: isHidden ? 'none' : 'auto',
           transition: 'opacity 0.15s ease-out',
         }}
+        role="toolbar"
+        aria-label={ariaLabel}
+        aria-orientation="horizontal"
+        onKeyDown={handleKeyDown}
         className={cn(
           'z-50 pointer-events-auto select-none font-sans flex items-center justify-center',
           className
@@ -215,7 +243,11 @@ export function TextSelectionPopover({
           }
         }}
       >
-        <div ref={popoverRef} className="flex items-center justify-center">
+        <div
+          ref={popoverRef}
+          tabIndex={-1}
+          className="flex items-center justify-center outline-none"
+        >
           <AnimatePresence>
             <motion.div
               key="apple-selection-popover"

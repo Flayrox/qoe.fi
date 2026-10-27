@@ -150,7 +150,7 @@ export function AnalyticsDashboardClient({
             <span className="text-3xl font-bold tracking-tight text-foreground">
               {pageviews.toLocaleString()}
             </span>
-            <span className="text-xs font-medium text-success flex items-center gap-0.5">
+            <span className="text-xs font-medium text-success-text flex items-center gap-0.5">
               <TrendingUp className="h-3 w-3 stroke-[1.5]" />
               +14%
             </span>

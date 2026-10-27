@@ -39,7 +39,7 @@ function formatDateTime(value?: string) {
 const REVIEW_STATUS: Record<string, { label: string; className: string }> = {
   OPEN: { label: 'Ouverte', className: 'text-highlight bg-highlight/10' },
   DRAFTED: { label: 'Brouillon prêt', className: 'text-primary bg-primary/10' },
-  PUBLISHED: { label: 'Faite', className: 'text-success bg-success/10' },
+  PUBLISHED: { label: 'Faite', className: 'text-success-text bg-success/10' },
   DISMISSED: { label: 'Close sans publication', className: 'text-muted-foreground bg-muted' },
 };
 
@@ -200,8 +200,8 @@ export function ComplianceLifecycle({
             <span
               className={`ml-auto inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
                 verification.broken.length === 0
-                  ? 'text-success bg-success/10'
-                  : 'text-destructive bg-destructive/10'
+                  ? 'text-success-text bg-success/10'
+                  : 'text-destructive-text bg-destructive/10'
               }`}
             >
               {verification.broken.length === 0 ? (
@@ -234,7 +234,7 @@ export function ComplianceLifecycle({
               {verification.broken.map((item) => (
                 <li
                   key={item.exportId}
-                  className="inline-flex items-center gap-1.5 text-[11px] text-destructive"
+                  className="inline-flex items-center gap-1.5 text-[11px] text-destructive-text"
                 >
                   <AlertTriangle className="h-3 w-3" />
                   Export #{item.seq} : {item.reason}
@@ -273,8 +273,8 @@ export function ComplianceLifecycle({
                 className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                   verification
                     ? verification.broken.some((b) => b.exportId === record.id)
-                      ? 'text-destructive bg-destructive/10'
-                      : 'text-success bg-success/10'
+                      ? 'text-destructive-text bg-destructive/10'
+                      : 'text-success-text bg-success/10'
                     : 'text-muted-foreground bg-muted'
                 }`}
               >

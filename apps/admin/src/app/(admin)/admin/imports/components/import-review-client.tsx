@@ -457,7 +457,7 @@ export function ImportReviewClient({ initial }: { initial: ImportReview }) {
                         cancelSendWaveAction({ batchId: batch.id, waveId: w.id })
                       )
                     }
-                    className="mt-2 rounded-lg border border-destructive/50 px-2.5 py-1.5 text-xs font-semibold text-destructive disabled:opacity-50"
+                    className="mt-2 rounded-lg border border-destructive/50 px-2.5 py-1.5 text-xs font-semibold text-destructive-text disabled:opacity-50"
                   >
                     {busy === `cancel-${w.id}` ? '…' : 'Annuler la vague'}
                   </button>

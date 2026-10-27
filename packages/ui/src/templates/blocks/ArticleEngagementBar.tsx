@@ -377,7 +377,7 @@ export function ArticleEngagementBar({
           'group/btn flex items-center gap-1.5 rounded-full px-2 py-1 transition-all border border-transparent font-medium',
           interactiveClass,
           isLiked
-            ? 'text-destructive bg-destructive/10 border-destructive/20'
+            ? 'text-destructive-text bg-destructive/10 border-destructive/20'
             : 'hover:text-foreground hover:bg-muted/60'
         )}
         title={isLiked ? t`Je n'aime plus` : t`J'aime cet écrit`}
@@ -386,7 +386,7 @@ export function ArticleEngagementBar({
         <Heart
           className={cn(
             isSmall ? 'w-3.5 h-3.5' : 'w-4 h-4',
-            isLiked ? 'fill-destructive text-destructive scale-105' : 'transition-transform'
+            isLiked ? 'fill-destructive text-destructive-text scale-105' : 'transition-transform'
           )}
         />
         {renderCount(likes)}
@@ -442,7 +442,10 @@ export function ArticleEngagementBar({
               className="w-full flex items-center gap-2.5 px-3 py-2 text-xs sm:text-sm font-medium text-foreground hover:bg-muted/80 rounded-[3px] transition-colors cursor-pointer text-left"
             >
               <Repeat
-                className={cn('w-4 h-4 shrink-0', isReposted ? 'text-destructive' : 'text-primary')}
+                className={cn(
+                  'w-4 h-4 shrink-0',
+                  isReposted ? 'text-destructive-text' : 'text-primary'
+                )}
               />
               <div className="flex flex-col">
                 <span>

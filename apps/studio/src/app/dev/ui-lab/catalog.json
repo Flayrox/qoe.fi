@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-10-24T21:54:37.726Z",
-  "total": 319,
+  "generatedAt": "2026-10-27T12:23:40.124Z",
+  "total": 349,
   "signals": {
     "primitivesNeverImported": 18,
     "primitivesTotal": 42,
@@ -16,6 +16,34 @@
       "label": "Primitives du contrat (@qoe/ui)",
       "items": [
         {
+          "name": "accordion",
+          "path": "packages/ui/src/primitives/accordion/accordion.tsx",
+          "lines": 100,
+          "source": "primitives",
+          "usages": 0
+        },
+        {
+          "name": "annotation-mark",
+          "path": "packages/ui/src/primitives/annotation-mark/annotation-mark.tsx",
+          "lines": 225,
+          "source": "primitives",
+          "usages": 0
+        },
+        {
+          "name": "avatar",
+          "path": "packages/ui/src/primitives/avatar/avatar.tsx",
+          "lines": 177,
+          "source": "primitives",
+          "usages": 0
+        },
+        {
+          "name": "bevel-button",
+          "path": "packages/ui/src/primitives/bevel-button/bevel-button.tsx",
+          "lines": 116,
+          "source": "primitives",
+          "usages": 0
+        },
+        {
           "name": "button-group",
           "path": "packages/ui/src/primitives/button/button-group.tsx",
           "lines": 53,
@@ -25,7 +53,7 @@
         {
           "name": "button",
           "path": "packages/ui/src/primitives/button/button.tsx",
-          "lines": 144,
+          "lines": 150,
           "source": "primitives",
           "usages": 5
         },
@@ -37,30 +65,65 @@
           "usages": 0
         },
         {
+          "name": "checkbox",
+          "path": "packages/ui/src/primitives/checkbox/checkbox.tsx",
+          "lines": 247,
+          "source": "primitives",
+          "usages": 0
+        },
+        {
+          "name": "color",
+          "path": "packages/ui/src/primitives/color/color.tsx",
+          "lines": 355,
+          "source": "primitives",
+          "usages": 1
+        },
+        {
+          "name": "autocomplete",
+          "path": "packages/ui/src/primitives/combobox/autocomplete.tsx",
+          "lines": 25,
+          "source": "primitives",
+          "usages": 0
+        },
+        {
+          "name": "combobox",
+          "path": "packages/ui/src/primitives/combobox/combobox.tsx",
+          "lines": 337,
+          "source": "primitives",
+          "usages": 0
+        },
+        {
+          "name": "copy-button",
+          "path": "packages/ui/src/primitives/copy-button/copy-button.tsx",
+          "lines": 141,
+          "source": "primitives",
+          "usages": 0
+        },
+        {
           "name": "calendar",
           "path": "packages/ui/src/primitives/date/calendar.tsx",
-          "lines": 159,
+          "lines": 206,
           "source": "primitives",
           "usages": 0
         },
         {
           "name": "date-picker",
           "path": "packages/ui/src/primitives/date/date-picker.tsx",
-          "lines": 212,
+          "lines": 214,
           "source": "primitives",
           "usages": 0
         },
         {
           "name": "drawer",
           "path": "packages/ui/src/primitives/drawer/drawer.tsx",
-          "lines": 218,
+          "lines": 245,
           "source": "primitives",
           "usages": 0
         },
         {
           "name": "dropdown",
           "path": "packages/ui/src/primitives/dropdown/dropdown.tsx",
-          "lines": 141,
+          "lines": 132,
           "source": "primitives",
           "usages": 1
         },
@@ -72,16 +135,30 @@
           "usages": 1
         },
         {
+          "name": "hold-to-delete-button",
+          "path": "packages/ui/src/primitives/hold-to-delete/hold-to-delete-button.tsx",
+          "lines": 202,
+          "source": "primitives",
+          "usages": 0
+        },
+        {
           "name": "input",
           "path": "packages/ui/src/primitives/input/input.tsx",
-          "lines": 144,
+          "lines": 137,
           "source": "primitives",
           "usages": 4
         },
         {
+          "name": "save-button",
+          "path": "packages/ui/src/primitives/save-button/save-button.tsx",
+          "lines": 111,
+          "source": "primitives",
+          "usages": 0
+        },
+        {
           "name": "select",
           "path": "packages/ui/src/primitives/select/select.tsx",
-          "lines": 201,
+          "lines": 210,
           "source": "primitives",
           "usages": 27
         },
@@ -100,9 +177,30 @@
           "usages": 0
         },
         {
+          "name": "table",
+          "path": "packages/ui/src/primitives/table/table.tsx",
+          "lines": 351,
+          "source": "primitives",
+          "usages": 0
+        },
+        {
           "name": "toast",
           "path": "packages/ui/src/primitives/toast/toast.tsx",
-          "lines": 162,
+          "lines": 169,
+          "source": "primitives",
+          "usages": 0
+        },
+        {
+          "name": "toggle-button",
+          "path": "packages/ui/src/primitives/toggle/toggle-button.tsx",
+          "lines": 83,
+          "source": "primitives",
+          "usages": 0
+        },
+        {
+          "name": "toolbar",
+          "path": "packages/ui/src/primitives/toolbar/toolbar.tsx",
+          "lines": 160,
           "source": "primitives",
           "usages": 0
         }
@@ -616,6 +714,34 @@
           "usages": 2
         },
         {
+          "name": "accordion",
+          "path": "packages/ui/src/primitives/accordion/accordion.tsx",
+          "lines": 100,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "annotation-mark",
+          "path": "packages/ui/src/primitives/annotation-mark/annotation-mark.tsx",
+          "lines": 225,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "avatar",
+          "path": "packages/ui/src/primitives/avatar/avatar.tsx",
+          "lines": 177,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "bevel-button",
+          "path": "packages/ui/src/primitives/bevel-button/bevel-button.tsx",
+          "lines": 116,
+          "source": "ui",
+          "usages": 0
+        },
+        {
           "name": "button-group",
           "path": "packages/ui/src/primitives/button/button-group.tsx",
           "lines": 53,
@@ -625,7 +751,7 @@
         {
           "name": "button",
           "path": "packages/ui/src/primitives/button/button.tsx",
-          "lines": 144,
+          "lines": 150,
           "source": "ui",
           "usages": 5
         },
@@ -637,30 +763,65 @@
           "usages": 0
         },
         {
+          "name": "checkbox",
+          "path": "packages/ui/src/primitives/checkbox/checkbox.tsx",
+          "lines": 247,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "color",
+          "path": "packages/ui/src/primitives/color/color.tsx",
+          "lines": 355,
+          "source": "ui",
+          "usages": 1
+        },
+        {
+          "name": "autocomplete",
+          "path": "packages/ui/src/primitives/combobox/autocomplete.tsx",
+          "lines": 25,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "combobox",
+          "path": "packages/ui/src/primitives/combobox/combobox.tsx",
+          "lines": 337,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "copy-button",
+          "path": "packages/ui/src/primitives/copy-button/copy-button.tsx",
+          "lines": 141,
+          "source": "ui",
+          "usages": 0
+        },
+        {
           "name": "calendar",
           "path": "packages/ui/src/primitives/date/calendar.tsx",
-          "lines": 159,
+          "lines": 206,
           "source": "ui",
           "usages": 0
         },
         {
           "name": "date-picker",
           "path": "packages/ui/src/primitives/date/date-picker.tsx",
-          "lines": 212,
+          "lines": 214,
           "source": "ui",
           "usages": 0
         },
         {
           "name": "drawer",
           "path": "packages/ui/src/primitives/drawer/drawer.tsx",
-          "lines": 218,
+          "lines": 245,
           "source": "ui",
           "usages": 0
         },
         {
           "name": "dropdown",
           "path": "packages/ui/src/primitives/dropdown/dropdown.tsx",
-          "lines": 141,
+          "lines": 132,
           "source": "ui",
           "usages": 1
         },
@@ -672,16 +833,30 @@
           "usages": 1
         },
         {
+          "name": "hold-to-delete-button",
+          "path": "packages/ui/src/primitives/hold-to-delete/hold-to-delete-button.tsx",
+          "lines": 202,
+          "source": "ui",
+          "usages": 0
+        },
+        {
           "name": "input",
           "path": "packages/ui/src/primitives/input/input.tsx",
-          "lines": 144,
+          "lines": 137,
           "source": "ui",
           "usages": 4
         },
         {
+          "name": "save-button",
+          "path": "packages/ui/src/primitives/save-button/save-button.tsx",
+          "lines": 111,
+          "source": "ui",
+          "usages": 0
+        },
+        {
           "name": "select",
           "path": "packages/ui/src/primitives/select/select.tsx",
-          "lines": 201,
+          "lines": 210,
           "source": "ui",
           "usages": 27
         },
@@ -700,11 +875,39 @@
           "usages": 0
         },
         {
-          "name": "toast",
-          "path": "packages/ui/src/primitives/toast/toast.tsx",
-          "lines": 162,
+          "name": "table",
+          "path": "packages/ui/src/primitives/table/table.tsx",
+          "lines": 351,
           "source": "ui",
           "usages": 0
+        },
+        {
+          "name": "toast",
+          "path": "packages/ui/src/primitives/toast/toast.tsx",
+          "lines": 169,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "toggle-button",
+          "path": "packages/ui/src/primitives/toggle/toggle-button.tsx",
+          "lines": 83,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "toolbar",
+          "path": "packages/ui/src/primitives/toolbar/toolbar.tsx",
+          "lines": 160,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "locale",
+          "path": "packages/ui/src/providers/locale.tsx",
+          "lines": 29,
+          "source": "ui",
+          "usages": 1
         },
         {
           "name": "RecommendationModal",
@@ -1385,7 +1588,7 @@
         {
           "name": "EditorSettingsDrawer",
           "path": "apps/studio/src/features/editor/components/EditorSettingsDrawer.tsx",
-          "lines": 650,
+          "lines": 652,
           "source": "studio",
           "usages": null
         },
@@ -2257,6 +2460,13 @@
           "name": "FeaturedPublications",
           "path": "apps/hi/src/components/landing/FeaturedPublications.tsx",
           "lines": 315,
+          "source": "hi",
+          "usages": null
+        },
+        {
+          "name": "FlexCarousel",
+          "path": "apps/hi/src/components/landing/FlexCarousel/FlexCarousel.tsx",
+          "lines": 1405,
           "source": "hi",
           "usages": null
         },

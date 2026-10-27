@@ -53,7 +53,11 @@ export function DockedReaderToolbar({ articleTitle, className = '' }: DockedRead
           className="p-2 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
           title={copied ? t`Lien copié !` : t`Partager l'article`}
         >
-          {copied ? <Check className="w-4 h-4 text-success" /> : <Share2 className="w-4 h-4" />}
+          {copied ? (
+            <Check className="w-4 h-4 text-success-text" />
+          ) : (
+            <Share2 className="w-4 h-4" />
+          )}
         </button>
 
         {/* 3. Écouter (TTS, Plus — verrouillé sinon, upsell informatif) */}
@@ -119,7 +123,7 @@ export function DockedReaderToolbar({ articleTitle, className = '' }: DockedRead
               className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl text-left font-medium text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
             >
               {copied ? (
-                <Check className="w-4 h-4 text-success" />
+                <Check className="w-4 h-4 text-success-text" />
               ) : (
                 <Share className="w-4 h-4 text-muted-foreground" />
               )}

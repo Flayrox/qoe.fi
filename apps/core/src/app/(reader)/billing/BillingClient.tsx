@@ -68,7 +68,7 @@ export function BillingClient({ billing, userEmail, userName }: BillingClientPro
             <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
               Portefeuille & abonnements
             </h1>
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-success/10 text-success border border-success/20">
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-md bg-success/10 text-success-text border border-success/20">
               <span className="w-1.5 h-1.5 rounded-full bg-success" />
               Actif
             </span>
@@ -252,7 +252,7 @@ export function BillingClient({ billing, userEmail, userName }: BillingClientPro
                       <span className="text-xs font-bold block truncate group-hover:text-primary transition-colors text-foreground">
                         {pubName}
                       </span>
-                      <span className="inline-flex items-center gap-1 text-[10px] text-success font-semibold mt-0.5">
+                      <span className="inline-flex items-center gap-1 text-[10px] text-success-text font-semibold mt-0.5">
                         <span className="w-1 h-1 rounded-full bg-success" />
                         Premium • Renouvellement auto
                       </span>
@@ -262,7 +262,7 @@ export function BillingClient({ billing, userEmail, userName }: BillingClientPro
                   <button
                     type="button"
                     onClick={() => handleCancelSub(pubName)}
-                    className="text-[11px] font-semibold text-muted-foreground hover:text-destructive hover:bg-destructive/10 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 border border-border/60 hover:border-destructive/30 shrink-0 cursor-pointer"
+                    className="text-[11px] font-semibold text-muted-foreground hover:text-destructive-text hover:bg-destructive/10 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 border border-border/60 hover:border-destructive/30 shrink-0 cursor-pointer"
                   >
                     <ShieldX className="w-3.5 h-3.5" />
                     Gérer
@@ -347,7 +347,7 @@ export function BillingClient({ billing, userEmail, userName }: BillingClientPro
                       className={cn(
                         'w-9 h-9 rounded-xl flex items-center justify-center shrink-0',
                         isCredit
-                          ? 'bg-success/10 text-success border border-success/20'
+                          ? 'bg-success/10 text-success-text border border-success/20'
                           : 'bg-muted text-muted-foreground border border-border/40'
                       )}
                     >
@@ -371,7 +371,7 @@ export function BillingClient({ billing, userEmail, userName }: BillingClientPro
                     <span
                       className={cn(
                         'text-sm font-bold font-sans block',
-                        isCredit ? 'text-success' : 'text-foreground'
+                        isCredit ? 'text-success-text' : 'text-foreground'
                       )}
                     >
                       {formattedAmount}

@@ -348,7 +348,7 @@ function EbookReaderInner({
                 </>
               )}
               {state === 'error' && (
-                <span className="text-destructive">Hors ligne — non enregistré</span>
+                <span className="text-destructive-text">Hors ligne — non enregistré</span>
               )}
             </span>
             <Link

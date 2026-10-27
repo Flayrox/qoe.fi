@@ -228,7 +228,7 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
                     e.stopPropagation();
                     setCurrent((prev) => ({ ...prev, logoUrl: null }));
                   }}
-                  className="absolute -top-1 -right-1 p-1 rounded-full bg-background border border-border/60 text-muted-foreground hover:text-destructive shadow-xs cursor-pointer opacity-0 group-hover/logo:opacity-100 transition-opacity"
+                  className="absolute -top-1 -right-1 p-1 rounded-full bg-background border border-border/60 text-muted-foreground hover:text-destructive-text shadow-xs cursor-pointer opacity-0 group-hover/logo:opacity-100 transition-opacity"
                   title="Supprimer le logo"
                 >
                   <Trash2 className="w-3 h-3" />

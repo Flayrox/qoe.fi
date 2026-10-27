@@ -92,7 +92,7 @@ export function MfaPanel() {
               className="flex items-center justify-between gap-3 rounded-lg border border-border/60 px-3 py-2 text-sm"
             >
               <span className="flex items-center gap-2 truncate">
-                <Check className="h-4 w-4 text-success" />
+                <Check className="h-4 w-4 text-success-text" />
                 {factor.friendly_name || 'Facteur'} · {factor.factor_type ?? 'totp'}
               </span>
               <button

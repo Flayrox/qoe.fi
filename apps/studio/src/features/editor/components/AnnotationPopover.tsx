@@ -110,7 +110,7 @@ export function AnnotationPopover({
             <button
               type="button"
               onClick={onDelete}
-              className="px-2.5 py-1.5 rounded-lg border border-destructive/30 text-destructive hover:bg-destructive/10 text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5"
+              className="px-2.5 py-1.5 rounded-lg border border-destructive/30 text-destructive-text hover:bg-destructive/10 text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5"
               title={t`Supprimer l'annotation`}
             >
               <Trash2 className="w-3.5 h-3.5" />

@@ -167,7 +167,7 @@ export function EbooksClient({ initialEbooks, plus }: EbooksClientProps) {
 
       {error && (
         <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3">
-          <p className="text-xs text-destructive">{error}</p>
+          <p className="text-xs text-destructive-text">{error}</p>
         </div>
       )}
 
@@ -246,7 +246,7 @@ export function EbooksClient({ initialEbooks, plus }: EbooksClientProps) {
                         disabled={pendingDelete}
                         className={cn(
                           'text-[11px] font-semibold px-2 py-0.5 rounded-md',
-                          'bg-destructive/10 text-destructive hover:bg-destructive/20 cursor-pointer'
+                          'bg-destructive/10 text-destructive-text hover:bg-destructive/20 cursor-pointer'
                         )}
                       >
                         Confirmer
@@ -255,7 +255,7 @@ export function EbooksClient({ initialEbooks, plus }: EbooksClientProps) {
                       <button
                         type="button"
                         onClick={() => setConfirmId(book.id)}
-                        className="text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+                        className="text-muted-foreground hover:text-destructive-text transition-colors cursor-pointer"
                         title="Supprimer ce livre"
                       >
                         <Trash2 className="w-3.5 h-3.5" />

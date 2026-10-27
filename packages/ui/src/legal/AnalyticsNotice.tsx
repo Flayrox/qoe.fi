@@ -106,7 +106,7 @@ export function AnalyticsNotice({
           className="fixed bottom-4 left-1/2 z-[65] -translate-x-1/2 rounded-xl border border-border bg-card/95 px-4 py-2.5 text-xs font-medium shadow-lg backdrop-blur-md"
         >
           <span className="inline-flex items-center gap-2">
-            <Check className="h-3.5 w-3.5 text-success" />
+            <Check className="h-3.5 w-3.5 text-success-text" />
             {toast}
           </span>
         </div>

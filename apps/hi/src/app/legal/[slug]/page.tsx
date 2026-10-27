@@ -219,7 +219,7 @@ export default async function LegalDocumentPage({ params }: PageProps) {
                       <span
                         className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
                           version.status === 'PUBLISHED'
-                            ? 'bg-success/10 text-success'
+                            ? 'bg-success/10 text-success-text'
                             : 'bg-muted text-muted-foreground'
                         }`}
                       >

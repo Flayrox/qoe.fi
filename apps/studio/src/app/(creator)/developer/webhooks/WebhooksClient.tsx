@@ -157,9 +157,9 @@ export function WebhooksClient({
 
   const deliveryStatusIcon = (status: string) => {
     if (status === 'SUCCESS')
-      return <CheckCircle2 className="w-3.5 h-3.5 text-success" strokeWidth={1.5} />;
+      return <CheckCircle2 className="w-3.5 h-3.5 text-success-text" strokeWidth={1.5} />;
     if (status === 'FAILED')
-      return <XCircle className="w-3.5 h-3.5 text-destructive" strokeWidth={1.5} />;
+      return <XCircle className="w-3.5 h-3.5 text-destructive-text" strokeWidth={1.5} />;
     return <Clock className="w-3.5 h-3.5 text-muted-foreground" strokeWidth={1.5} />;
   };
 
@@ -390,7 +390,7 @@ export function WebhooksClient({
                       className={cn(
                         'text-[10px] font-semibold px-2 py-0.5 rounded-full border',
                         webhook.active
-                          ? 'bg-success/10 text-success border-success/20'
+                          ? 'bg-success/10 text-success-text border-success/20'
                           : 'bg-muted text-muted-foreground border-border'
                       )}
                     >
@@ -443,7 +443,7 @@ export function WebhooksClient({
                 <button
                   onClick={() => handleDelete(webhook.id, webhook.name)}
                   disabled={busyId === webhook.id}
-                  className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
+                  className="p-1.5 text-muted-foreground hover:text-destructive-text hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
                   title="Supprimer ce webhook"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -487,8 +487,8 @@ export function WebhooksClient({
                             className={cn(
                               'px-1.5 py-0.5 rounded text-[10px] font-sans tabular-nums font-bold',
                               d.httpStatus >= 200 && d.httpStatus < 300
-                                ? 'bg-success/10 text-success'
-                                : 'bg-destructive/10 text-destructive'
+                                ? 'bg-success/10 text-success-text'
+                                : 'bg-destructive/10 text-destructive-text'
                             )}
                           >
                             HTTP {d.httpStatus}

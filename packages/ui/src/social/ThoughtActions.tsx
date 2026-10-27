@@ -166,7 +166,7 @@ export function ThoughtActions({
               }}
               className={cn(
                 'flex items-center gap-1.5 transition-colors cursor-pointer outline-none group/repost',
-                reposted ? 'text-success font-semibold' : 'hover:text-success'
+                reposted ? 'text-success-text font-semibold' : 'hover:text-success-text'
               )}
               title="Repartager ou citer"
               aria-label="Repartager"
@@ -194,7 +194,7 @@ export function ThoughtActions({
             }}
             className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-foreground hover:bg-muted rounded-lg transition-colors cursor-pointer"
           >
-            <Repeat className="w-3.5 h-3.5 text-success" />
+            <Repeat className="w-3.5 h-3.5 text-success-text" />
             <span>{reposted ? 'Annuler le repartage' : 'Repartager'}</span>
           </button>
 

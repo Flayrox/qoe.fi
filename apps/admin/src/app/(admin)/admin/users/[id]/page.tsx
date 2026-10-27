@@ -70,11 +70,11 @@ export default async function UserProfilePage({ params }: PageProps) {
             <div className="flex justify-between items-center text-sm">
               <span className="text-muted-foreground">Statut</span>
               {user.isSuspended ? (
-                <span className="font-semibold text-destructive">Banni</span>
+                <span className="font-semibold text-destructive-text">Banni</span>
               ) : user.isShadowbanned ? (
                 <span className="font-semibold text-highlight">Shadowbanned</span>
               ) : (
-                <span className="font-semibold text-success">Actif</span>
+                <span className="font-semibold text-success-text">Actif</span>
               )}
             </div>
             <div className="flex justify-between items-center text-sm">

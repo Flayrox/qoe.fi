@@ -110,6 +110,40 @@ test.describe('primitives — rendu de référence', () => {
     await expect(inputs).toHaveScreenshot('inputs-complexes.png');
   });
 
+  test('sélection : cases, colonne de sélection, tables denses', async ({ page }) => {
+    const selection = await section(page, '14-selection-tables');
+    // Trois choses doivent être vraies pour que la capture ait un sens :
+    // la case indéterminée est bien « mixed » pour le lecteur d'écran, la
+    // colonne de sélection est une case, et la table compacte reste une
+    // grille.
+    //
+    // ⚠️ Sur un `input[type=checkbox]` natif, react-aria ne pose pas
+    // `aria-checked` : il met la propriété DOM `indeterminate`, que la
+    // couche d'accessibilité traduit en « mixed ». C'est elle qu'on lit —
+    // `toBeChecked({ checked: 'mixed' })` ne regarde qu'`aria-checked` et
+    // conclurait « unchecked » sur une case pourtant annoncée partielle.
+    await expect
+      .poll(() =>
+        selection
+          .getByRole('checkbox', { name: /indéterminé/i })
+          .evaluate((element) => (element as HTMLInputElement).indeterminate)
+      )
+      .toBe(true);
+    await expect(selection.getByRole('grid').first()).toBeVisible();
+
+    await expect(selection).toHaveScreenshot('selection-tables.png');
+  });
+
+  test('pièces rapportées : annotation, biseau, maintien', async ({ page }) => {
+    const ported = await section(page, '15-ported-pieces');
+    // Le bouton de maintien doit être là : c'est la seule pièce dont le
+    // rendu dépend d'un état (repos), et un `data-state` perdu le
+    // figerait en « done » sans que la capture le dise.
+    await expect(ported.locator('button[data-state="idle"]')).toBeVisible();
+
+    await expect(ported).toHaveScreenshot('ported-pieces.png');
+  });
+
   test('overlays — menu ouvert', async ({ page }) => {
     const overlays = await section(page, '10-overlays');
 

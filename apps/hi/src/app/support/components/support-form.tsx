@@ -115,7 +115,7 @@ export function SupportForm() {
         rows={5}
         className={inputCls}
       />
-      {error && <p className="text-xs text-destructive">{error}</p>}
+      {error && <p className="text-xs text-destructive-text">{error}</p>}
       <button
         disabled={sending || !valid}
         onClick={() => void submit()}

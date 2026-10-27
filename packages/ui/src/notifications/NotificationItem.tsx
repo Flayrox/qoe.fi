@@ -72,13 +72,13 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
   const otherSendersCount = totalCount - 1;
 
   let Icon = Heart;
-  let iconColorClass = 'text-destructive bg-destructive/10';
+  let iconColorClass = 'text-destructive-text bg-destructive/10';
   let actionText = '';
 
   switch (type) {
     case 'LIKE':
       Icon = Heart;
-      iconColorClass = 'text-destructive bg-destructive/10';
+      iconColorClass = 'text-destructive-text bg-destructive/10';
       actionText = article
         ? otherSendersCount > 0
           ? t`ont aimé votre article`
@@ -89,7 +89,7 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
       break;
     case 'REPOST':
       Icon = Repeat;
-      iconColorClass = 'text-success bg-success/10';
+      iconColorClass = 'text-success-text bg-success/10';
       actionText = article
         ? otherSendersCount > 0
           ? t`ont repartagé votre article`
@@ -139,7 +139,7 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
       break;
     case 'MEDIA_MEMBER_JOINED':
       Icon = UserPlus;
-      iconColorClass = 'text-success bg-success/10';
+      iconColorClass = 'text-success-text bg-success/10';
       actionText = notification.publication?.name
         ? otherSendersCount > 0
           ? t`ont rejoint le Média`
@@ -164,14 +164,14 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
       break;
     case 'MEDIA_ARTICLE_APPROVED':
       Icon = CheckCircle2;
-      iconColorClass = 'text-success bg-success/10';
+      iconColorClass = 'text-success-text bg-success/10';
       actionText = notification.article?.title
         ? t`a approuvé votre article « ${notification.article.title} » et l'a publié`
         : t`a approuvé votre article`;
       break;
     case 'MEDIA_ARTICLE_REJECTED':
       Icon = XCircle;
-      iconColorClass = 'text-destructive bg-destructive/10';
+      iconColorClass = 'text-destructive-text bg-destructive/10';
       actionText = notification.article?.title
         ? t`a demandé des retouches sur « ${notification.article.title} »`
         : t`a demandé des retouches sur votre article`;
@@ -183,7 +183,7 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
       break;
     case 'ARTICLE_CONTRIBUTOR_ACCEPTED':
       Icon = UsersRound;
-      iconColorClass = 'text-success bg-success/10';
+      iconColorClass = 'text-success-text bg-success/10';
       actionText =
         otherSendersCount > 0
           ? t`ont accepté votre invitation de contribution`
@@ -191,7 +191,7 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
       break;
     case 'ARTICLE_CONTRIBUTOR_DECLINED':
       Icon = UsersRound;
-      iconColorClass = 'text-destructive bg-destructive/10';
+      iconColorClass = 'text-destructive-text bg-destructive/10';
       actionText =
         otherSendersCount > 0
           ? t`ont refusé votre invitation de contribution`

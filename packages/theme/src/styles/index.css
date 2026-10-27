@@ -65,11 +65,15 @@
 
   --color-brand: var(--accent-brand);
   --color-brand-foreground: var(--accent-brand-fg);
+  --color-brand-vivid: var(--brand-vivid);
+  --color-brand-vivid-foreground: var(--brand-vivid-foreground);
+  --color-brand-vivid-strong: var(--brand-vivid-strong);
 
   --color-highlight: var(--highlight);
   --color-highlight-foreground: var(--highlight-foreground);
   --color-success: var(--success);
   --color-success-foreground: var(--success-foreground);
+  --color-success-text: var(--success-text);
 
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -91,6 +95,7 @@
   --color-border: var(--border);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-text: var(--destructive-text);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);

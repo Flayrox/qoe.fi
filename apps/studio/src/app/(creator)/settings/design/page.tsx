@@ -106,7 +106,7 @@ export default async function SettingsDesignPage() {
   if (!publication) {
     return (
       <div className="fixed inset-0 z-50 flex flex-col items-center justify-center p-8 bg-background text-center">
-        <h2 className="text-xl font-bold text-destructive">Site web introuvable</h2>
+        <h2 className="text-xl font-bold text-destructive-text">Site web introuvable</h2>
         <p className="text-sm text-muted-foreground mt-2">
           Impossible de charger les paramètres de mise en page.
         </p>

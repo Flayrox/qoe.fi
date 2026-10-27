@@ -17,7 +17,7 @@ import {
 } from 'react-aria-components';
 
 import { buttonClasses } from '../button/button';
-import type { Size } from '../contract';
+import { MENU_POPOVER_WIDTH, MENU_SIZES, type Size } from '../contract';
 
 export interface SelectGroup {
   label: string;
@@ -71,7 +71,7 @@ export interface SelectProps {
  * dessinée par le système d'exploitation.
  */
 /** Un item de liste, identique dans les options simples et les groupes. */
-function renderOption(option: SelectOption) {
+function renderOption(option: SelectOption, size: Size) {
   return (
     <ListBoxItem
       key={option.id}
@@ -80,7 +80,8 @@ function renderOption(option: SelectOption) {
       isDisabled={option.disabled}
       className={({ isFocused, isSelected, isDisabled }) =>
         [
-          'flex cursor-default items-center gap-2 rounded-control px-2 py-1.5 type-control-md outline-hidden select-none',
+          MENU_SIZES[size],
+          'flex cursor-default items-center gap-2 rounded-control outline-hidden select-none',
           isDisabled && 'pointer-events-none opacity-50',
           isFocused && 'bg-secondary',
           isSelected && 'font-medium',
@@ -189,16 +190,16 @@ export function Select({
 
       <Popover
         offset={4}
-        className="w-[--trigger-width] rounded-panel border border-border bg-popover p-1 text-popover-foreground shadow-lg outline-hidden"
+        className={`${MENU_POPOVER_WIDTH} rounded-panel border border-border bg-popover p-1 text-popover-foreground shadow-lg outline-hidden`}
       >
         <ListBox className="max-h-72 overflow-auto outline-hidden">
-          {options.map(renderOption)}
+          {options.map((option) => renderOption(option, size))}
           {groups?.map((group) => (
             <ListBoxSection key={group.label} className="pt-1">
               <Header className="px-2 py-1 type-control-xs font-medium text-muted-foreground">
                 {group.label}
               </Header>
-              {group.options.map(renderOption)}
+              {group.options.map((option) => renderOption(option, size))}
             </ListBoxSection>
           ))}
         </ListBox>

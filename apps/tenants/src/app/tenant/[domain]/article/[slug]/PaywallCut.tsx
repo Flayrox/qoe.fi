@@ -145,9 +145,21 @@ export function PaywallOverlay({
     }
   };
 
-  const loginHref = `${mainAppUrl}/login?redirect=${encodeURIComponent(
-    typeof window !== 'undefined' ? window.location.href : ''
-  )}`;
+  // ⚠️ `window.location` n'existe pas au rendu serveur : calculer le `href`
+  //    pendant le rendu donnait deux valeurs différentes (une au serveur,
+  //    une après hydratation) et React le signalait. Le lien reste donc
+  //    stable — il ne porte que le chemin de connexion — et le `redirect`
+  //    est ajouté au clic, quand l'URL courante existe vraiment.
+  const loginHref = `${mainAppUrl}/login`;
+  const handleLoginClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    // On laisse le navigateur gérer les clics modifiés (nouvel onglet,
+    // téléchargement…) : les détourner casserait un usage normal.
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) {
+      return;
+    }
+    event.preventDefault();
+    window.location.href = `${loginHref}?redirect=${encodeURIComponent(window.location.href)}`;
+  };
 
   return (
     <div className="relative mt-16 w-full">
@@ -155,6 +167,7 @@ export function PaywallOverlay({
       <div className="pointer-events-none absolute -top-44 left-0 h-44 w-full bg-gradient-to-t from-background via-background to-transparent" />
 
       <section
+        aria-labelledby="paywall-heading"
         className={`not-prose relative z-10 mx-auto max-w-2xl overflow-hidden ${
           isBrutalist
             ? 'border-4 border-foreground bg-background shadow-[10px_10px_0px_0px_rgba(0,0,0,1)]'
@@ -181,6 +194,7 @@ export function PaywallOverlay({
             </span>
 
             <h3
+              id="paywall-heading"
               className={`mt-4 tracking-tight ${
                 isBrutalist ? 'text-2xl font-black uppercase' : 'text-xl font-bold sm:text-2xl'
               }`}
@@ -194,7 +208,12 @@ export function PaywallOverlay({
           </header>
 
           {errorMessage && (
-            <div className="mx-auto mt-5 flex max-w-md items-start gap-2 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-left text-xs font-medium text-destructive animate-in fade-in slide-in-from-top-1">
+            // `role="alert"` : le refus du paiement doit être annoncé tout
+            // de suite. Sans lui, l'erreur n'existait que pour les yeux.
+            <div
+              role="alert"
+              className="mx-auto mt-5 flex max-w-md items-start gap-2 rounded-xl border border-destructive/20 bg-destructive/10 p-3 text-left text-xs font-medium text-destructive-text animate-in fade-in slide-in-from-top-1"
+            >
               <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
               <span>{errorMessage}</span>
             </div>
@@ -206,7 +225,8 @@ export function PaywallOverlay({
               type="button"
               onClick={handleUnlock}
               disabled={unlocking}
-              className={`group flex flex-col justify-between rounded-xl p-4 text-left transition-all disabled:opacity-70 ${
+              aria-busy={unlocking}
+              className={`group flex flex-col justify-between rounded-xl p-4 text-left transition-all focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none disabled:opacity-70 ${
                 isBrutalist
                   ? 'border-2 border-foreground hover:bg-muted'
                   : 'border border-border/70 bg-background hover:-translate-y-0.5 hover:border-[var(--tenant-accent)]/50 hover:shadow-md'
@@ -247,7 +267,7 @@ export function PaywallOverlay({
             {/* Abonnement */}
             <Link
               href="#subscribe"
-              className={`group flex flex-col justify-between rounded-xl p-4 transition-all ${
+              className={`group flex flex-col justify-between rounded-xl p-4 transition-all focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none ${
                 isBrutalist
                   ? 'border-2 border-foreground hover:bg-muted'
                   : 'border border-border/70 bg-background hover:-translate-y-0.5 hover:border-foreground/30 hover:shadow-md'
@@ -258,7 +278,7 @@ export function PaywallOverlay({
                   <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                     {t`Abonnement`}
                   </span>
-                  <span className="rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-medium text-success">
+                  <span className="rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-medium text-success-text">
                     {t`Illimité`}
                   </span>
                 </div>
@@ -302,7 +322,8 @@ export function PaywallOverlay({
                 {t`Vous avez déjà un compte ou êtes déjà abonné ?`}{' '}
                 <a
                   href={loginHref}
-                  className="font-semibold text-foreground underline decoration-foreground/30 underline-offset-2 transition-colors hover:text-[var(--tenant-accent)]"
+                  onClick={handleLoginClick}
+                  className="font-semibold text-foreground underline decoration-foreground/30 underline-offset-2 transition-colors hover:text-[var(--tenant-accent)] focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
                 >
                   {t`Se connecter avec qoefi`}
                 </a>

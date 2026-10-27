@@ -260,7 +260,7 @@ export function MessagesApp() {
       </div>
 
       {error && (
-        <div className="mb-3 text-sm text-destructive bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2">
+        <div className="mb-3 text-sm text-destructive-text bg-destructive/5 border border-destructive/20 rounded-lg px-3 py-2">
           {error}
         </div>
       )}

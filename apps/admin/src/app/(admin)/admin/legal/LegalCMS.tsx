@@ -81,7 +81,7 @@ const AUDIENCE_LABELS: Record<string, string> = {
 };
 
 const STATUS_STYLES: Record<string, string> = {
-  PUBLISHED: 'bg-success/10 text-success ring-success/20',
+  PUBLISHED: 'bg-success/10 text-success-text ring-success/20',
   DRAFT: 'bg-highlight/15 text-foreground ring-highlight/40',
   ARCHIVED: 'bg-muted text-muted-foreground ring-border',
 };
@@ -504,8 +504,8 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
           role="status"
           className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm ${
             feedback.tone === 'ok'
-              ? 'border-success/20 bg-success/5 text-success'
-              : 'border-destructive/20 bg-destructive/5 text-destructive'
+              ? 'border-success/20 bg-success/5 text-success-text'
+              : 'border-destructive/20 bg-destructive/5 text-destructive-text'
           }`}
         >
           <span>{feedback.text}</span>
@@ -568,7 +568,7 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
                       {!doc.isActive && (
                         <>
                           <span>·</span>
-                          <span className="text-destructive">inactif</span>
+                          <span className="text-destructive-text">inactif</span>
                         </>
                       )}
                     </div>
@@ -760,7 +760,7 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
                               </button>
                               <button
                                 onClick={() => removeDraft(version)}
-                                className="rounded-lg border border-border p-1 text-destructive hover:bg-destructive/5"
+                                className="rounded-lg border border-border p-1 text-destructive-text hover:bg-destructive/5"
                                 aria-label="Supprimer le brouillon"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
@@ -995,7 +995,7 @@ function DocumentMeta({ document, pending, onSave, onDelete }: DocumentMetaProps
           </a>
           <button
             onClick={onDelete}
-            className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-semibold text-destructive hover:bg-destructive/5"
+            className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-[11px] font-semibold text-destructive-text hover:bg-destructive/5"
           >
             <Trash2 className="h-3 w-3" /> Supprimer
           </button>

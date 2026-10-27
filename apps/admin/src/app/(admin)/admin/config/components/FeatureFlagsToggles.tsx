@@ -159,7 +159,7 @@ export function FeatureFlagsToggles({ initialFlags }: { initialFlags: FeatureFla
       </div>
 
       {errorMsg && (
-        <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
+        <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive-text">
           {errorMsg}
         </div>
       )}
@@ -189,7 +189,7 @@ export function FeatureFlagsToggles({ initialFlags }: { initialFlags: FeatureFla
                     className={cn(
                       'rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider shrink-0',
                       flag.is_enabled
-                        ? 'bg-success/15 text-success'
+                        ? 'bg-success/15 text-success-text'
                         : 'bg-muted text-muted-foreground'
                     )}
                   >

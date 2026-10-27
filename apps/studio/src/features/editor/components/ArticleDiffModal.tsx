@@ -150,7 +150,7 @@ export function ArticleDiffModal({
                 {t`Comparaison des versions`}
               </DialogTitle>
               {isPublished && (
-                <span className="inline-flex items-center rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-medium text-success">
+                <span className="inline-flex items-center rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-medium text-success-text">
                   {t`Version en ligne vs Brouillon`}
                 </span>
               )}
@@ -208,9 +208,9 @@ export function ArticleDiffModal({
         {hasTitleChanged && (
           <div className="px-6 py-2.5 bg-muted/20 border-b border-border/30 text-xs flex items-center gap-3">
             <span className="font-medium text-muted-foreground shrink-0">{t`Titre :`}</span>
-            <span className="text-destructive line-through truncate">{articleTitle}</span>
+            <span className="text-destructive-text line-through truncate">{articleTitle}</span>
             <span className="text-muted-foreground">→</span>
-            <span className="text-success font-medium truncate">{draftTitle}</span>
+            <span className="text-success-text font-medium truncate">{draftTitle}</span>
           </div>
         )}
 
@@ -218,7 +218,7 @@ export function ArticleDiffModal({
         {rejectMode && (
           <div className="p-4 bg-destructive/5 border-b border-destructive/20 space-y-3 shrink-0 animate-in fade-in duration-150">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-destructive flex items-center gap-1.5">
+              <span className="text-xs font-semibold text-destructive-text flex items-center gap-1.5">
                 <MessageSquare className="size-3.5" />
                 {t`Demander des retouches à l'auteur`}
               </span>
@@ -274,7 +274,7 @@ export function ArticleDiffModal({
                   </span>
                   <span className="text-[10px] text-muted-foreground">
                     {stats.deletions > 0 && (
-                      <span className="text-destructive font-medium">
+                      <span className="text-destructive-text font-medium">
                         -{stats.deletions} {t`mots supprimés`}
                       </span>
                     )}
@@ -287,7 +287,7 @@ export function ArticleDiffModal({
                       return (
                         <span
                           key={index}
-                          className="bg-destructive/15 text-destructive line-through rounded-xs px-0.5"
+                          className="bg-destructive/15 text-destructive-text line-through rounded-xs px-0.5"
                         >
                           {part.value}
                         </span>
@@ -306,7 +306,7 @@ export function ArticleDiffModal({
                   </span>
                   <span className="text-[10px]">
                     {stats.additions > 0 && (
-                      <span className="text-success font-medium">
+                      <span className="text-success-text font-medium">
                         +{stats.additions} {t`mots ajoutés`}
                       </span>
                     )}
@@ -319,7 +319,7 @@ export function ArticleDiffModal({
                       return (
                         <span
                           key={index}
-                          className="bg-success/15 text-success font-medium rounded-xs px-0.5"
+                          className="bg-success/15 text-success-text font-medium rounded-xs px-0.5"
                         >
                           {part.value}
                         </span>
@@ -339,7 +339,7 @@ export function ArticleDiffModal({
                     return (
                       <span
                         key={index}
-                        className="bg-success/15 text-success font-medium rounded-xs px-0.5"
+                        className="bg-success/15 text-success-text font-medium rounded-xs px-0.5"
                       >
                         {part.value}
                       </span>
@@ -349,7 +349,7 @@ export function ArticleDiffModal({
                     return (
                       <span
                         key={index}
-                        className="bg-destructive/15 text-destructive line-through rounded-xs px-0.5"
+                        className="bg-destructive/15 text-destructive-text line-through rounded-xs px-0.5"
                       >
                         {part.value}
                       </span>
@@ -370,7 +370,7 @@ export function ArticleDiffModal({
                 type="button"
                 onClick={handleDiscard}
                 disabled={isActionPending}
-                className="h-8 px-2.5 rounded-lg border border-border/40 text-muted-foreground hover:text-destructive hover:border-destructive/30 text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
+                className="h-8 px-2.5 rounded-lg border border-border/40 text-muted-foreground hover:text-destructive-text hover:border-destructive/30 text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
                 title={t`Abandonner le brouillon et réinitialiser à la version en ligne`}
               >
                 <RotateCcw className="size-3.5" />
@@ -399,7 +399,7 @@ export function ArticleDiffModal({
                 type="button"
                 onClick={() => setRejectMode(true)}
                 disabled={isActionPending}
-                className="h-8 px-3 rounded-lg border border-destructive/30 text-destructive hover:bg-destructive/10 text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
+                className="h-8 px-3 rounded-lg border border-destructive/30 text-destructive-text hover:bg-destructive/10 text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
               >
                 <XCircle className="size-3.5" />
                 <span>{t`Demander des retouches`}</span>

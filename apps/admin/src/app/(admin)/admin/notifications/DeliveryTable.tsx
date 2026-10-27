@@ -20,8 +20,8 @@ export type DeliveryRow = {
 const statusMeta: Record<string, { label: string; className: string; icon: typeof Clock3 }> = {
   QUEUED: { label: 'En attente', className: 'text-highlight bg-highlight/10', icon: Clock3 },
   PROCESSING: { label: 'En cours', className: 'text-primary bg-primary/10', icon: Loader2 },
-  SENT: { label: 'Envoyé', className: 'text-success bg-success/10', icon: CheckCircle2 },
-  FAILED: { label: 'Échec', className: 'text-destructive bg-destructive/10', icon: XCircle },
+  SENT: { label: 'Envoyé', className: 'text-success-text bg-success/10', icon: CheckCircle2 },
+  FAILED: { label: 'Échec', className: 'text-destructive-text bg-destructive/10', icon: XCircle },
   DISABLED: { label: 'Désactivé', className: 'text-muted-foreground bg-muted', icon: XCircle },
 };
 
@@ -51,7 +51,7 @@ export function DeliveryTable({ rows }: { rows: DeliveryRow[] }) {
       {error && (
         <div
           role="alert"
-          className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+          className="rounded-xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm text-destructive-text"
         >
           {error}
         </div>
@@ -97,7 +97,7 @@ export function DeliveryTable({ rows }: { rows: DeliveryRow[] }) {
                       </span>
                       {row.lastError && (
                         <p
-                          className="mt-1 max-w-xs truncate text-[11px] text-destructive"
+                          className="mt-1 max-w-xs truncate text-[11px] text-destructive-text"
                           title={row.lastError}
                         >
                           {row.lastError}

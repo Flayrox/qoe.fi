@@ -373,7 +373,7 @@ export function LoginFormBento({
 
             {/* Error display */}
             {localError && (
-              <div className="p-3 mb-4 bg-destructive/10 border border-destructive/30 text-destructive text-xs font-mono rounded-xl flex items-start gap-2">
+              <div className="p-3 mb-4 bg-destructive/10 border border-destructive/30 text-destructive-text text-xs font-mono rounded-xl flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <div className="flex-1">{localError}</div>
               </div>
@@ -382,11 +382,11 @@ export function LoginFormBento({
             {/* Magic Link Success */}
             {magicLinkSent ? (
               <div className="text-center py-6 space-y-4 animate-in fade-in-0 duration-150">
-                <div className="w-16 h-16 bg-success/10 border border-success/30 rounded-full flex items-center justify-center mx-auto text-success text-2xl shadow-[0_0_20px_rgba(16,185,129,0.1)]">
+                <div className="w-16 h-16 bg-success/10 border border-success/30 rounded-full flex items-center justify-center mx-auto text-success-text text-2xl shadow-[0_0_20px_rgba(16,185,129,0.1)]">
                   ✓
                 </div>
                 <div className="space-y-2">
-                  <h3 className="text-lg font-bold text-success">{t`Lien magique envoyé`}</h3>
+                  <h3 className="text-lg font-bold text-success-text">{t`Lien magique envoyé`}</h3>
                   <p className="text-muted-foreground text-xs leading-relaxed px-4">
                     {t`Consultez votre boîte mail et cliquez sur le lien pour vous connecter.`}
                   </p>

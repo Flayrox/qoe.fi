@@ -63,12 +63,12 @@ const VARIANT_META: Record<
 > = {
   success: {
     icon: CircleCheckIcon,
-    chip: 'bg-success/15 text-success',
+    chip: 'bg-success/15 text-success-text',
     rail: 'before:bg-success/70',
   },
   error: {
     icon: OctagonXIcon,
-    chip: 'bg-destructive/15 text-destructive',
+    chip: 'bg-destructive/15 text-destructive-text',
     rail: 'before:bg-destructive/70',
   },
   info: {

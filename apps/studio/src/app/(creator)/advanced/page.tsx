@@ -186,9 +186,9 @@ export default function CreatorAdvancedPage() {
                     <span
                       className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
                         req.status === 'ACCEPTED'
-                          ? 'bg-success/10 text-success'
+                          ? 'bg-success/10 text-success-text'
                           : req.status === 'DECLINED'
-                            ? 'bg-destructive/10 text-destructive'
+                            ? 'bg-destructive/10 text-destructive-text'
                             : 'bg-highlight/10 text-highlight'
                       }`}
                     >

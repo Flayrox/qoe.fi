@@ -289,7 +289,7 @@ export function WidgetsCMS({
                               className={cn(
                                 'inline-block text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded',
                                 art.published
-                                  ? 'bg-success/10 text-success'
+                                  ? 'bg-success/10 text-success-text'
                                   : 'bg-muted text-muted-foreground'
                               )}
                             >
@@ -418,7 +418,7 @@ export function WidgetsCMS({
                           <td className="py-3 text-right align-middle">
                             <button
                               onClick={() => handleDeleteTrend(t.id)}
-                              className="text-xs font-bold text-muted-foreground hover:text-destructive p-1.5 rounded transition-colors cursor-pointer"
+                              className="text-xs font-bold text-muted-foreground hover:text-destructive-text p-1.5 rounded transition-colors cursor-pointer"
                               title="Supprimer"
                             >
                               <Trash2 className="w-4 h-4" />
@@ -563,7 +563,7 @@ export function WidgetsCMS({
                                 title={p.isActive ? 'Désactiver' : 'Activer'}
                               >
                                 {p.isActive ? (
-                                  <ToggleRight className="w-6 h-6 text-success" />
+                                  <ToggleRight className="w-6 h-6 text-success-text" />
                                 ) : (
                                   <ToggleLeft className="w-6 h-6 text-muted-foreground" />
                                 )}
@@ -572,7 +572,7 @@ export function WidgetsCMS({
                               {/* Delete button */}
                               <button
                                 onClick={() => handleDeletePromo(p.id)}
-                                className="text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+                                className="text-muted-foreground hover:text-destructive-text transition-colors cursor-pointer"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>

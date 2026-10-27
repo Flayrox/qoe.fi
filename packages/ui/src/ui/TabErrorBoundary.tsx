@@ -65,7 +65,7 @@ function TabErrorFallback({
 
   return (
     <div className="bg-card border border-border/50 rounded-xl p-8 shadow-xs flex flex-col items-center justify-center text-center gap-4 py-16 animate-fadeIn">
-      <div className="p-3 bg-destructive/10 text-destructive rounded-full border border-destructive/20">
+      <div className="p-3 bg-destructive/10 text-destructive-text rounded-full border border-destructive/20">
         <AlertTriangle className="w-6 h-6" />
       </div>
       <div className="space-y-1">

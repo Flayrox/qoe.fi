@@ -28,6 +28,42 @@ export {
   type AccordionProps,
 } from './primitives/accordion/accordion';
 export {
+  Checkbox,
+  type CheckboxIndicator,
+  type CheckboxProps,
+  type CheckboxPrimitiveProps,
+} from './primitives/checkbox/checkbox';
+export {
+  AnnotationMark,
+  type AnnotationMarkProps,
+  type AnnotationVariant,
+} from './primitives/annotation-mark/annotation-mark';
+export { BevelButton, type BevelButtonProps } from './primitives/bevel-button/bevel-button';
+export {
+  HoldToDeleteButton,
+  type HoldToDeleteButtonProps,
+} from './primitives/hold-to-delete/hold-to-delete-button';
+export { CopyButton, type CopyButtonProps } from './primitives/copy-button/copy-button';
+export { SaveButton, type SaveButtonProps } from './primitives/save-button/save-button';
+export {
+  Table,
+  TableBody,
+  TableCell,
+  TableColumn,
+  TableHeader,
+  TablePersonCell,
+  TableRow,
+  TableSelectAllCell,
+  TableSelectionCell,
+  type TableBodyProps,
+  type TableCellProps,
+  type TableColumnProps,
+  type TableHeaderProps,
+  type TablePersonCellProps,
+  type TableProps,
+  type TableRowProps,
+} from './primitives/table/table';
+export {
   ToggleButton,
   ToggleGroup,
   type ToggleButtonPrimitiveProps,

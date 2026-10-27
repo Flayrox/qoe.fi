@@ -62,12 +62,12 @@ export function DomainTab({
               </span>
             )}
             {!subdomainCheck.loading && subdomainCheck.available === true && (
-              <span className="text-xs text-success font-medium flex items-center gap-1">
+              <span className="text-xs text-success-text font-medium flex items-center gap-1">
                 <CheckCircle className="w-3.5 h-3.5" /> Sous-domaine disponible.
               </span>
             )}
             {!subdomainCheck.loading && subdomainCheck.available === false && (
-              <span className="text-xs text-destructive font-medium flex items-center gap-1">
+              <span className="text-xs text-destructive-text font-medium flex items-center gap-1">
                 <AlertCircle className="w-3.5 h-3.5" /> {subdomainCheck.error || 'Indisponible.'}
               </span>
             )}

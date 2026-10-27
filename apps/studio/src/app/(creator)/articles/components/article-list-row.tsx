@@ -108,7 +108,7 @@ export function ArticleListRow({
             (article.status === 'SCHEDULED' ? (
               // Un article programmé n'est PAS un brouillon : il partira seul.
               <span
-                className="inline-flex shrink-0 items-center gap-1 rounded border border-success/25 bg-success/10 px-1.5 py-0.5 text-[10px] font-semibold text-success"
+                className="inline-flex shrink-0 items-center gap-1 rounded border border-success/25 bg-success/10 px-1.5 py-0.5 text-[10px] font-semibold text-success-text"
                 title={t`Publication automatique programmée`}
               >
                 <CalendarClock className="h-2.5 w-2.5" />
@@ -297,7 +297,7 @@ export function ArticleListRow({
                   )?.removeAttribute('open');
                   onReview(article, true);
                 }}
-                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-success transition-colors hover:bg-success/10"
+                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-success-text transition-colors hover:bg-success/10"
               >
                 <CheckCircle2 className="h-3.5 w-3.5" />
                 {t`Approuver et publier`}
@@ -310,7 +310,7 @@ export function ArticleListRow({
                   )?.removeAttribute('open');
                   onReview(article, false);
                 }}
-                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-destructive transition-colors hover:bg-destructive/10"
+                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-destructive-text transition-colors hover:bg-destructive/10"
               >
                 <XCircle className="h-3.5 w-3.5" />
                 {t`Rejeter`}
@@ -325,7 +325,7 @@ export function ArticleListRow({
               )?.removeAttribute('open');
               onDelete(article);
             }}
-            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-destructive transition-colors hover:bg-destructive/10"
+            className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-xs text-destructive-text transition-colors hover:bg-destructive/10"
           >
             <Trash2 className="h-3.5 w-3.5" />
             {t`Supprimer`}

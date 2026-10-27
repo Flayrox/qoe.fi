@@ -343,18 +343,18 @@ export function ApiRequestsClient({ initialApplicants, modules }: ApiRequestsCli
                             </span>
                           )}
                           {app.apiAccessStatus === 'approved' && (
-                            <span className="bg-success/10 text-success border border-success/50 px-2 py-0.5 rounded-full font-bold text-[10px] flex items-center gap-1 inline-flex">
+                            <span className="bg-success/10 text-success-text border border-success/50 px-2 py-0.5 rounded-full font-bold text-[10px] flex items-center gap-1 inline-flex">
                               <span className="w-1 h-1 rounded-full bg-success" />
                               Approved
                             </span>
                           )}
                           {app.apiAccessStatus === 'rejected' && (
-                            <span className="bg-destructive/10 text-destructive border border-destructive/50 px-2 py-0.5 rounded-full font-bold text-[10px]">
+                            <span className="bg-destructive/10 text-destructive-text border border-destructive/50 px-2 py-0.5 rounded-full font-bold text-[10px]">
                               Rejected
                             </span>
                           )}
                           {app.apiAccessStatus === 'revoked' && (
-                            <span className="bg-destructive/10 text-destructive border border-destructive/50 px-2 py-0.5 rounded-full font-bold text-[10px] flex items-center gap-1 inline-flex">
+                            <span className="bg-destructive/10 text-destructive-text border border-destructive/50 px-2 py-0.5 rounded-full font-bold text-[10px] flex items-center gap-1 inline-flex">
                               Revoked
                             </span>
                           )}
@@ -380,7 +380,7 @@ export function ApiRequestsClient({ initialApplicants, modules }: ApiRequestsCli
                                 </button>
                                 <button
                                   onClick={() => handleUpdateStatus(app.id, 'rejected')}
-                                  className="bg-destructive/10 hover:bg-destructive/10 text-destructive font-semibold px-3 py-1.5 rounded-xl transition-all"
+                                  className="bg-destructive/10 hover:bg-destructive/10 text-destructive-text font-semibold px-3 py-1.5 rounded-xl transition-all"
                                 >
                                   Refuser
                                 </button>
@@ -391,7 +391,7 @@ export function ApiRequestsClient({ initialApplicants, modules }: ApiRequestsCli
                             {app.apiAccessStatus === 'approved' && (
                               <button
                                 onClick={() => handleUpdateStatus(app.id, 'revoked')}
-                                className="bg-muted hover:bg-destructive/10 hover:text-destructive border border-border text-muted-foreground font-semibold px-3 py-1.5 rounded-xl transition-all"
+                                className="bg-muted hover:bg-destructive/10 hover:text-destructive-text border border-border text-muted-foreground font-semibold px-3 py-1.5 rounded-xl transition-all"
                               >
                                 Révoquer l'accès
                               </button>

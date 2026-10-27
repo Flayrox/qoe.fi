@@ -25,26 +25,32 @@ const SURFACES: Record<Variant, Record<Tone, string>> = {
   solid: {
     neutral: 'bg-foreground text-background hover:bg-foreground/90',
     brand: 'bg-primary text-primary-foreground hover:bg-primary/90',
+    vivid: 'bg-brand-vivid text-brand-vivid-foreground hover:bg-brand-vivid/90',
     danger: 'bg-destructive text-destructive-foreground hover:bg-destructive/90',
-    success: 'bg-success text-foreground hover:bg-success/90',
+    success: 'bg-success text-success-foreground hover:bg-success/90',
   },
   soft: {
     neutral: 'bg-secondary text-secondary-foreground hover:bg-secondary/70',
     brand: 'bg-primary/10 text-primary hover:bg-primary/15',
-    danger: 'bg-destructive/10 text-destructive hover:bg-destructive/15',
-    success: 'bg-success/15 text-foreground hover:bg-success/25',
+    vivid: 'bg-brand-vivid/15 text-brand-vivid-strong hover:bg-brand-vivid/20',
+    danger: 'bg-destructive/10 text-destructive-text hover:bg-destructive/15',
+    success: 'bg-success/15 text-success-text hover:bg-success/25',
   },
   outline: {
     neutral: 'border border-border bg-transparent text-foreground hover:bg-secondary',
     brand: 'border border-primary/40 bg-transparent text-primary hover:bg-primary/10',
-    danger: 'border border-destructive/40 bg-transparent text-destructive hover:bg-destructive/10',
-    success: 'border border-success/40 bg-transparent text-foreground hover:bg-success/10',
+    vivid:
+      'border border-brand-vivid/50 bg-transparent text-brand-vivid-strong hover:bg-brand-vivid/10',
+    danger:
+      'border border-destructive/40 bg-transparent text-destructive-text hover:bg-destructive/10',
+    success: 'border border-success/40 bg-transparent text-success-text hover:bg-success/10',
   },
   ghost: {
     neutral: 'bg-transparent text-foreground hover:bg-secondary',
     brand: 'bg-transparent text-primary hover:bg-primary/10',
-    danger: 'bg-transparent text-destructive hover:bg-destructive/10',
-    success: 'bg-transparent text-foreground hover:bg-success/10',
+    vivid: 'bg-transparent text-brand-vivid-strong hover:bg-brand-vivid/10',
+    danger: 'bg-transparent text-destructive-text hover:bg-destructive/10',
+    success: 'bg-transparent text-success-text hover:bg-success/10',
   },
 };
 

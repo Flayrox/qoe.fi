@@ -300,7 +300,7 @@ export function ProfileHoverCard({
             className={cn(
               'px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-150 cursor-pointer flex items-center gap-1.5 shadow-2xs',
               isFollowing
-                ? 'bg-secondary text-secondary-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 border border-border/60'
+                ? 'bg-secondary text-secondary-foreground hover:bg-destructive/10 hover:text-destructive-text hover:border-destructive/30 border border-border/60'
                 : 'bg-primary text-primary-foreground hover:opacity-90'
             )}
           >

@@ -39,13 +39,13 @@ export default async function AdminNotificationsPage() {
       label: 'Envoyées',
       value: counts.SENT || 0,
       icon: CheckCircle2,
-      className: 'text-success bg-success/10',
+      className: 'text-success-text bg-success/10',
     },
     {
       label: 'En échec',
       value: counts.FAILED || 0,
       icon: AlertTriangle,
-      className: 'text-destructive bg-destructive/10',
+      className: 'text-destructive-text bg-destructive/10',
     },
     {
       label: 'Total',

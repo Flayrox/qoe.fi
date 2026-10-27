@@ -15,7 +15,7 @@ import {
   Popover,
 } from 'react-aria-components';
 
-import { DISABLED, FIELD_SIZES, type Size } from '../contract';
+import { DISABLED, FIELD_SIZES, MENU_POPOVER_WIDTH, MENU_SIZES, type Size } from '../contract';
 import { FieldError } from '../field/field-error';
 
 // =====================================================================
@@ -286,7 +286,7 @@ export function ComboBox({
 
           <Popover
             offset={4}
-            className="w-[--trigger-width] rounded-panel border border-border bg-popover p-1 text-popover-foreground shadow-lg outline-hidden"
+            className={`${MENU_POPOVER_WIDTH} rounded-panel border border-border bg-popover p-1 text-popover-foreground shadow-lg outline-hidden`}
           >
             <ListBox
               items={filtered}
@@ -304,7 +304,8 @@ export function ComboBox({
                   isDisabled={option.disabled}
                   className={({ isFocused, isSelected, isDisabled }) =>
                     cn(
-                      'flex cursor-default items-center gap-2 rounded-control px-2 py-1.5 type-control-md outline-hidden select-none',
+                      MENU_SIZES[size],
+                      'flex cursor-default items-center gap-2 rounded-control outline-hidden select-none',
                       isDisabled && 'pointer-events-none opacity-50',
                       isFocused && 'bg-secondary',
                       isSelected && 'font-medium'

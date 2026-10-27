@@ -19,6 +19,8 @@ import { OverlaysSpecimen } from './specimens/10-overlays';
 import { DatesSpecimen } from './specimens/11-dates';
 import { CompositionSpecimen } from './specimens/12-composition';
 import { InputsComplexSpecimen } from './specimens/13-inputs-complexes';
+import { SelectionTablesSpecimen } from './specimens/14-selection-tables';
+import { PortedPiecesSpecimen } from './specimens/15-ported-pieces';
 
 const SPECIMENS = [
   {
@@ -157,6 +159,34 @@ const SPECIMENS = [
       'packages/ui/src/primitives/color/color.tsx',
     ],
     Component: InputsComplexSpecimen,
+  },
+  {
+    id: '14-selection-tables',
+    index: '14',
+    title: 'Sélection & tables du Studio',
+    question:
+      'Cocher, sélectionner une ligne, trier une liste dense : quatre tables réelles du Studio, et une case dont on règle la marque — coche, point ou plein — sans quitter la page.',
+    sources: [
+      'packages/ui/src/primitives/checkbox/checkbox.tsx',
+      'packages/ui/src/primitives/table/table.tsx',
+      'packages/ui/src/primitives/contract.ts',
+    ],
+    Component: SelectionTablesSpecimen,
+  },
+  {
+    id: '15-ported-pieces',
+    index: '15',
+    title: 'Pièces rapportées — opensourceui',
+    question:
+      'Ce qui mérite d’être repris d’un composant qu’on copie-colle : le trait tracé à la main, la touche qu’on sent sous le doigt, le geste de maintien. Qu’est-ce qui reste du caractère une fois passé aux tokens ?',
+    sources: [
+      'packages/ui/src/primitives/annotation-mark/annotation-mark.tsx',
+      'packages/ui/src/primitives/bevel-button/bevel-button.tsx',
+      'packages/ui/src/primitives/hold-to-delete/hold-to-delete-button.tsx',
+      'packages/ui/src/primitives/copy-button/copy-button.tsx',
+      'packages/ui/src/primitives/save-button/save-button.tsx',
+    ],
+    Component: PortedPiecesSpecimen,
   },
 ];
 
@@ -438,7 +468,7 @@ export function UiLab({ catalog }: { catalog: Catalog }) {
                             className={cn(
                               'shrink-0 rounded px-1 py-px font-mono text-[9.5px] tabular-nums',
                               item.usages === 0
-                                ? 'bg-destructive/10 text-destructive'
+                                ? 'bg-destructive/10 text-destructive-text'
                                 : 'bg-muted/50 text-muted-foreground'
                             )}
                           >

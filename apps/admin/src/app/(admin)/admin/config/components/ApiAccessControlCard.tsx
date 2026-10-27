@@ -103,7 +103,9 @@ export function ApiAccessControlCard({
           <span
             className={cn(
               'mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center shrink-0',
-              disabled ? 'bg-destructive/15 text-destructive' : 'bg-muted text-muted-foreground'
+              disabled
+                ? 'bg-destructive/15 text-destructive-text'
+                : 'bg-muted text-muted-foreground'
             )}
           >
             <Power className="w-4 h-4" />
@@ -126,8 +128,8 @@ export function ApiAccessControlCard({
           className={cn(
             'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50',
             disabled
-              ? 'bg-success/15 text-success hover:bg-success/25'
-              : 'bg-destructive/10 text-destructive hover:bg-destructive/20'
+              ? 'bg-success/15 text-success-text hover:bg-success/25'
+              : 'bg-destructive/10 text-destructive-text hover:bg-destructive/20'
           )}
         >
           {savingKill ? '…' : disabled ? 'Réactiver l’API' : 'Couper l’API'}
@@ -137,7 +139,7 @@ export function ApiAccessControlCard({
         <p
           className={cn(
             'text-xs font-medium',
-            killMsg.includes('ACTIVÉE') ? 'text-destructive' : 'text-success'
+            killMsg.includes('ACTIVÉE') ? 'text-destructive-text' : 'text-success-text'
           )}
         >
           {killMsg}
@@ -179,7 +181,7 @@ export function ApiAccessControlCard({
             <span
               className={cn(
                 'text-xs font-medium',
-                endpointsMsg.includes('Erreur') ? 'text-destructive' : 'text-success'
+                endpointsMsg.includes('Erreur') ? 'text-destructive-text' : 'text-success-text'
               )}
             >
               {endpointsMsg}
@@ -187,7 +189,7 @@ export function ApiAccessControlCard({
           )}
         </div>
         {endpointsText.split('\n').some((p) => p.trim() && !p.trim().startsWith('/')) && (
-          <p className="flex items-center gap-1.5 text-xs text-destructive">
+          <p className="flex items-center gap-1.5 text-xs text-destructive-text">
             <AlertTriangle className="w-3.5 h-3.5" />
             Les chemins doivent commencer par « / » (les lignes invalides seront ignorées).
           </p>

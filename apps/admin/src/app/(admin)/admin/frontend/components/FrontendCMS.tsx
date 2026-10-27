@@ -362,7 +362,7 @@ function ReaderSimulationBuilder({
                 <button
                   type="button"
                   onClick={() => deleteItem(idx)}
-                  className="p-1 rounded text-muted-foreground hover:text-destructive transition-colors"
+                  className="p-1 rounded text-muted-foreground hover:text-destructive-text transition-colors"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -558,7 +558,7 @@ function CreatorHubTabsBuilder({
                 <button
                   type="button"
                   onClick={() => deleteFeature(activeTabIdx, featIdx)}
-                  className="p-1.5 rounded text-muted-foreground hover:text-destructive transition-colors"
+                  className="p-1.5 rounded text-muted-foreground hover:text-destructive-text transition-colors"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
@@ -728,7 +728,7 @@ function FooterColumnsBuilder({
               <button
                 type="button"
                 onClick={() => deleteColumn(colIdx)}
-                className="p-1 rounded text-muted-foreground hover:text-destructive opacity-0 group-hover/column:opacity-100 transition-opacity"
+                className="p-1 rounded text-muted-foreground hover:text-destructive-text opacity-0 group-hover/column:opacity-100 transition-opacity"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -769,7 +769,7 @@ function FooterColumnsBuilder({
                     <button
                       type="button"
                       onClick={() => deleteLinkFromCol(colIdx, linkIdx)}
-                      className="p-1.5 rounded text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                      className="p-1.5 rounded text-muted-foreground hover:text-destructive-text transition-colors shrink-0"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -896,7 +896,7 @@ function OnboardingInterestsBuilder({
               <button
                 type="button"
                 onClick={() => handleDelete(idx)}
-                className="text-muted-foreground hover:text-destructive transition-colors"
+                className="text-muted-foreground hover:text-destructive-text transition-colors"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -1509,7 +1509,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0 }}
-                    className="text-xs font-semibold text-success flex items-center gap-1.5"
+                    className="text-xs font-semibold text-success-text flex items-center gap-1.5"
                   >
                     ✓ {t`Changements enregistrés et cache régénéré instantanément !`}
                   </motion.p>
@@ -1519,7 +1519,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0 }}
-                    className="text-xs font-medium text-destructive flex items-start gap-1.5"
+                    className="text-xs font-medium text-destructive-text flex items-start gap-1.5"
                   >
                     <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                     <span>{errorMessage}</span>

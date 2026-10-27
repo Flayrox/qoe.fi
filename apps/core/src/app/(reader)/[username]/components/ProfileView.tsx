@@ -300,7 +300,7 @@ export function ProfileView({
                   className={cn(
                     'px-5 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer shadow-xs',
                     isFollowing
-                      ? 'border border-border/60 bg-card hover:bg-destructive/10 hover:text-destructive text-foreground'
+                      ? 'border border-border/60 bg-card hover:bg-destructive/10 hover:text-destructive-text text-foreground'
                       : 'bg-foreground text-background hover:opacity-90'
                   )}
                 >

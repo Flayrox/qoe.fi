@@ -297,7 +297,8 @@ export function Editor({
               )}
               {lastSaved && !isSaving && !isAutoSaving && (
                 <span className="text-[10px] font-normal text-muted-foreground flex items-center gap-1">
-                  <Check className="w-3 h-3 text-success" /> Saved {lastSaved.toLocaleTimeString()}
+                  <Check className="w-3 h-3 text-success-text" /> Saved{' '}
+                  {lastSaved.toLocaleTimeString()}
                 </span>
               )}
             </h2>
@@ -346,7 +347,7 @@ export function Editor({
             className={cn(
               'h-9 px-3 rounded-lg flex items-center gap-2 border border-border font-sans text-xs font-medium transition-colors cursor-pointer',
               published
-                ? 'bg-success/10 border-success/80 text-success hover:bg-success/20'
+                ? 'bg-success/10 border-success/80 text-success-text hover:bg-success/20'
                 : 'bg-muted text-muted-foreground hover:bg-secondary'
             )}
           >
@@ -388,7 +389,7 @@ export function Editor({
       </div>
 
       {error && (
-        <div className="bg-destructive/30 border border-destructive/50 text-destructive p-4 font-mono text-xs rounded-lg">
+        <div className="bg-destructive/30 border border-destructive/50 text-destructive-text p-4 font-mono text-xs rounded-lg">
           {error}
         </div>
       )}

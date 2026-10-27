@@ -291,7 +291,7 @@ export function OnboardingFlow({
                 <motion.div
                   initial={{ opacity: 0, y: -8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="p-3 mb-4 bg-destructive/10 border border-destructive/30 text-destructive text-xs rounded-xl flex items-center gap-2"
+                  className="p-3 mb-4 bg-destructive/10 border border-destructive/30 text-destructive-text text-xs rounded-xl flex items-center gap-2"
                 >
                   <ShieldAlert className="w-4 h-4 shrink-0" />
                   <span>{error}</span>
@@ -498,7 +498,7 @@ export function OnboardingFlow({
                             className={cn(
                               'px-3 py-1.5 rounded-full text-xs border transition-all flex items-center gap-1.5',
                               isMuted
-                                ? 'bg-destructive/15 border-destructive text-destructive font-medium'
+                                ? 'bg-destructive/15 border-destructive text-destructive-text font-medium'
                                 : 'bg-muted/40 border-border/60 text-muted-foreground hover:text-foreground'
                             )}
                           >

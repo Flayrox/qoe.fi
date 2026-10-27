@@ -92,7 +92,7 @@ export function ModerationReportModal({
 
           {submitted ? (
             <div className="py-8 text-center space-y-3">
-              <div className="w-12 h-12 rounded-full bg-success/10 border border-success/30 text-success flex items-center justify-center mx-auto text-xl font-bold">
+              <div className="w-12 h-12 rounded-full bg-success/10 border border-success/30 text-success-text flex items-center justify-center mx-auto text-xl font-bold">
                 <Check className="w-6 h-6" />
               </div>
               <h3 className="text-base font-bold text-foreground">{t`Signalement envoyé`}</h3>

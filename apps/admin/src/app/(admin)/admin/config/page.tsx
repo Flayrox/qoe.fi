@@ -334,7 +334,7 @@ export default async function AdminConfig() {
                       <input type="hidden" name="key" value={c.key} />
                       <button
                         type="submit"
-                        className="text-xs font-medium text-muted-foreground hover:text-destructive px-2 py-1"
+                        className="text-xs font-medium text-muted-foreground hover:text-destructive-text px-2 py-1"
                       >
                         Delete
                       </button>

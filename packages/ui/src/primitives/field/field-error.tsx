@@ -30,7 +30,7 @@ export function FieldError({ children, id, className }: FieldErrorProps) {
   }
 
   return (
-    <p id={id} role="alert" className={cn('type-control-xs text-destructive', className)}>
+    <p id={id} role="alert" className={cn('type-control-xs text-destructive-text', className)}>
       {children}
     </p>
   );

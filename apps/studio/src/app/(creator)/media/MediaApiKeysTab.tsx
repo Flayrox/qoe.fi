@@ -40,7 +40,7 @@ const SCOPE_META: Record<MediaScope, { label: string; desc: () => string; badgeC
   WRITE: {
     label: 'WRITE',
     desc: () => t`Création et publication de contenus au nom du média`,
-    badgeClass: 'bg-success/10 border-success/20 text-success',
+    badgeClass: 'bg-success/10 border-success/20 text-success-text',
   },
   ANALYTICS: {
     label: 'ANALYTICS',
@@ -397,7 +397,7 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
                             <button
                               onClick={() => setConfirmRevokeId(key.id)}
                               title={t`Révoquer cette clé d'API`}
-                              className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 p-1.5 rounded-lg transition-colors inline-flex cursor-pointer"
+                              className="text-muted-foreground hover:text-destructive-text hover:bg-destructive/10 p-1.5 rounded-lg transition-colors inline-flex cursor-pointer"
                             >
                               <Trash2 className="w-4 h-4" />
                             </button>
@@ -585,7 +585,7 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
               className="bg-card border border-border shadow-xl rounded-2xl p-6 md:p-8 max-w-xl w-full space-y-6 text-foreground"
             >
               <div className="text-center space-y-2">
-                <div className="w-12 h-12 bg-success/10 text-success border border-success/20 rounded-2xl flex items-center justify-center mx-auto mb-2">
+                <div className="w-12 h-12 bg-success/10 text-success-text border border-success/20 rounded-2xl flex items-center justify-center mx-auto mb-2">
                   <CheckCircle className="w-6 h-6" />
                 </div>
                 <h3 className="text-lg font-bold text-foreground">

@@ -412,7 +412,7 @@ export default function AccountSettingsPage({
         </div>
 
         {message && (
-          <div className="mb-5 flex items-center gap-2 rounded-xl border border-success/20 bg-success/10 px-4 py-3 text-sm text-success">
+          <div className="mb-5 flex items-center gap-2 rounded-xl border border-success/20 bg-success/10 px-4 py-3 text-sm text-success-text">
             <Check className="h-4 w-4" /> {message}
           </div>
         )}
@@ -491,7 +491,7 @@ export default function AccountSettingsPage({
               {unMessage && (
                 <p
                   className={`mt-2 text-xs ${
-                    unMessage.type === 'ok' ? 'text-success' : 'text-destructive'
+                    unMessage.type === 'ok' ? 'text-success-text' : 'text-destructive-text'
                   }`}
                 >
                   {unMessage.text}
@@ -548,7 +548,7 @@ export default function AccountSettingsPage({
               {emMessage && (
                 <p
                   className={`mt-3 text-xs ${
-                    emMessage.type === 'ok' ? 'text-success' : 'text-destructive'
+                    emMessage.type === 'ok' ? 'text-success-text' : 'text-destructive-text'
                   }`}
                 >
                   {emMessage.text}
@@ -625,7 +625,7 @@ export default function AccountSettingsPage({
                       key={label}
                       className={`rounded-full border px-2 py-0.5 text-[11px] ${
                         ok
-                          ? 'border-success/30 bg-success/10 text-success'
+                          ? 'border-success/30 bg-success/10 text-success-text'
                           : 'border-border bg-muted text-muted-foreground'
                       }`}
                     >
@@ -638,7 +638,7 @@ export default function AccountSettingsPage({
               {pwMessage && (
                 <p
                   className={`mt-3 text-xs ${
-                    pwMessage.type === 'ok' ? 'text-success' : 'text-destructive'
+                    pwMessage.type === 'ok' ? 'text-success-text' : 'text-destructive-text'
                   }`}
                 >
                   {pwMessage.text}
@@ -664,7 +664,7 @@ export default function AccountSettingsPage({
                 </p>
               </div>
               <form action={logoutAccountAction}>
-                <button className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-destructive hover:bg-destructive/10">
+                <button className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-destructive-text hover:bg-destructive/10">
                   <LogOut className="h-3.5 w-3.5" /> {t`Se déconnecter`}
                 </button>
               </form>
@@ -824,7 +824,7 @@ export default function AccountSettingsPage({
                         }
                       })
                     }
-                    className="rounded-full border border-destructive/30 px-3 py-1.5 text-xs text-destructive"
+                    className="rounded-full border border-destructive/30 px-3 py-1.5 text-xs text-destructive-text"
                   >
                     {user.name || user.username || user.id} ×
                   </button>
@@ -904,7 +904,7 @@ export default function AccountSettingsPage({
                         aria-label={t`Retirer ${word}`}
                         onClick={() => removeMutedWord(word)}
                         disabled={isPending}
-                        className="text-muted-foreground hover:text-destructive"
+                        className="text-muted-foreground hover:text-destructive-text"
                       >
                         <X className="h-3.5 w-3.5" />
                       </button>
@@ -1043,9 +1043,9 @@ export default function AccountSettingsPage({
             )}
             <div className="rounded-xl border border-destructive/25 bg-destructive/[0.03] p-4">
               <div className="flex items-start gap-3">
-                <Trash2 className="mt-0.5 h-4 w-4 text-destructive" />
+                <Trash2 className="mt-0.5 h-4 w-4 text-destructive-text" />
                 <div>
-                  <h3 className="text-sm font-semibold text-destructive">
+                  <h3 className="text-sm font-semibold text-destructive-text">
                     {t`Supprimer le compte`}
                   </h3>
                   <p className="mt-1 text-xs leading-relaxed text-muted-foreground">

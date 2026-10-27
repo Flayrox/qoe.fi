@@ -94,7 +94,7 @@ export function RegistrationsControl({
           <span
             className={cn(
               'rounded-full px-2.5 py-0.5 text-xs font-semibold',
-              open ? 'bg-success/15 text-success' : 'bg-highlight/10 text-highlight'
+              open ? 'bg-success/15 text-success-text' : 'bg-highlight/10 text-highlight'
             )}
           >
             {open ? 'Ouvertes' : 'Privées (sur invitation)'}
@@ -107,7 +107,7 @@ export function RegistrationsControl({
       </div>
 
       {errorMsg && (
-        <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive">
+        <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-sm text-destructive-text">
           {errorMsg}
         </div>
       )}
@@ -209,7 +209,7 @@ export function RegistrationsControl({
                 <button
                   type="button"
                   onClick={() => handleDelete(e.email)}
-                  className="text-muted-foreground hover:text-destructive transition-colors cursor-pointer p-1.5"
+                  className="text-muted-foreground hover:text-destructive-text transition-colors cursor-pointer p-1.5"
                   title="Retirer l'invitation"
                 >
                   <Trash2 className="w-4 h-4" />

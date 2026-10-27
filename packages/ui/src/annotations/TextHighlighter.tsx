@@ -860,7 +860,7 @@ export function TextHighlighter({
                         {saving ? (
                           <Loader2 className="w-3.5 h-3.5 animate-spin" />
                         ) : savedSuccess ? (
-                          <span className="text-success font-bold">{t`Cité !`}</span>
+                          <span className="text-success-text font-bold">{t`Cité !`}</span>
                         ) : (
                           t`Citer`
                         )}
@@ -916,7 +916,7 @@ export function TextHighlighter({
                         title={t`Copier l'extrait`}
                       >
                         {copiedSuccess ? (
-                          <span className="text-success font-bold">{t`Copié !`}</span>
+                          <span className="text-success-text font-bold">{t`Copié !`}</span>
                         ) : (
                           t`Copier`
                         )}
@@ -1093,7 +1093,7 @@ export function TextHighlighter({
                       )}
 
                       {errorMessage && (
-                        <p className="text-[11px] text-destructive font-medium text-center">
+                        <p className="text-[11px] text-destructive-text font-medium text-center">
                           {errorMessage}
                         </p>
                       )}

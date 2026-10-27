@@ -136,8 +136,8 @@ export function MinimalDock({
             >
               {copied ? (
                 <>
-                  <Check className="w-3.5 h-3.5 text-success" />
-                  <span className="text-[11px] font-medium text-success">Copié</span>
+                  <Check className="w-3.5 h-3.5 text-success-text" />
+                  <span className="text-[11px] font-medium text-success-text">Copié</span>
                 </>
               ) : (
                 <>

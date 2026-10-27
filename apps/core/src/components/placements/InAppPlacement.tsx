@@ -48,8 +48,8 @@ const TYPE_STYLES = {
   },
   critical: {
     bg: 'border-destructive/30 bg-gradient-to-r from-destructive/15 via-destructive/5 to-transparent',
-    iconBg: 'bg-destructive/15 text-destructive',
-    badge: 'bg-destructive/10 text-destructive border-destructive/30',
+    iconBg: 'bg-destructive/15 text-destructive-text',
+    badge: 'bg-destructive/10 text-destructive-text border-destructive/30',
     btn: 'bg-destructive text-destructive-foreground hover:opacity-90',
     icon: AlertCircle,
   },

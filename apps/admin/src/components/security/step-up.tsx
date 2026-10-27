@@ -253,7 +253,7 @@ export function StepUpGate() {
             </label>
 
             {errorMessage && (
-              <p className="text-xs leading-relaxed text-destructive">{errorMessage}</p>
+              <p className="text-xs leading-relaxed text-destructive-text">{errorMessage}</p>
             )}
 
             <div className="flex items-center justify-end gap-2">
@@ -371,7 +371,7 @@ function TotpEnrollment({
   if (phase === 'error') {
     return (
       <div className="mt-4 space-y-3">
-        <p className="text-xs leading-relaxed text-destructive">{errorMessage}</p>
+        <p className="text-xs leading-relaxed text-destructive-text">{errorMessage}</p>
         <div className="flex gap-2">
           <button
             type="button"
@@ -440,7 +440,9 @@ function TotpEnrollment({
         />
       </label>
 
-      {errorMessage && <p className="text-xs leading-relaxed text-destructive">{errorMessage}</p>}
+      {errorMessage && (
+        <p className="text-xs leading-relaxed text-destructive-text">{errorMessage}</p>
+      )}
 
       <div className="flex items-center gap-2">
         <button

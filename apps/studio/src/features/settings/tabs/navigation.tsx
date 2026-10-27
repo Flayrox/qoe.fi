@@ -513,7 +513,7 @@ export function NavigationTab({
                     <button
                       type="button"
                       onClick={item.onDelete}
-                      className="p-1.5 text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
+                      className="p-1.5 text-destructive-text hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
                       title="Supprimer définitivement ce lien"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -663,7 +663,7 @@ export function NavigationTab({
                     <button
                       type="button"
                       onClick={() => removeNavigationLink(globalIndex)}
-                      className="p-1.5 text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer shrink-0 ml-auto"
+                      className="p-1.5 text-destructive-text hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer shrink-0 ml-auto"
                       title="Supprimer ce lien"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -776,7 +776,7 @@ export function NavigationTab({
                       <span
                         className={cn(
                           'text-[10px] font-mono text-muted-foreground',
-                          slugReserved && 'text-destructive'
+                          slugReserved && 'text-destructive-text'
                         )}
                         title={
                           slugReserved

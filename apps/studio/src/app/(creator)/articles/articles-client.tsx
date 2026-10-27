@@ -1256,7 +1256,7 @@ export function ArticlesClient({
                       {hasActiveFilters && (
                         <button
                           onClick={resetFilters}
-                          className="w-full flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-destructive/10 border border-destructive/20 text-xs font-semibold text-destructive hover:bg-destructive/20 transition-colors"
+                          className="w-full flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-destructive/10 border border-destructive/20 text-xs font-semibold text-destructive-text hover:bg-destructive/20 transition-colors"
                         >
                           <FilterX className="w-3 h-3" />
                           {t`Réinitialiser`}
@@ -1420,7 +1420,7 @@ export function ArticlesClient({
                     })()}
                   <button
                     onClick={requestBulkDelete}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-destructive/10 text-destructive border border-destructive/20 text-xs font-semibold hover:bg-destructive/20 transition-colors"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-destructive/10 text-destructive-text border border-destructive/20 text-xs font-semibold hover:bg-destructive/20 transition-colors"
                   >
                     <Trash2 className="w-3 h-3" />
                     {t`Supprimer`}
@@ -1755,7 +1755,7 @@ export function ArticlesClient({
                                 </button>
                                 <button
                                   onClick={() => handleDeleteCategory(root.id, root.name)}
-                                  className="p-1.5 text-muted-foreground hover:text-destructive rounded-lg hover:bg-muted/60 transition-colors cursor-pointer"
+                                  className="p-1.5 text-muted-foreground hover:text-destructive-text rounded-lg hover:bg-muted/60 transition-colors cursor-pointer"
                                   title={t`Supprimer`}
                                 >
                                   <Trash2 className="w-3.5 h-3.5 stroke-[1.5]" />
@@ -1890,7 +1890,7 @@ export function ArticlesClient({
                                 </button>
                                 <button
                                   onClick={() => handleDeleteCategory(sub.id, sub.name)}
-                                  className="p-1 text-muted-foreground hover:text-destructive rounded hover:bg-muted transition-colors cursor-pointer"
+                                  className="p-1 text-muted-foreground hover:text-destructive-text rounded hover:bg-muted transition-colors cursor-pointer"
                                   title={t`Supprimer`}
                                 >
                                   <Trash2 className="w-3.5 h-3.5 stroke-[1.5]" />
@@ -2125,7 +2125,7 @@ export function ArticlesClient({
                     </div>
 
                     {editError && (
-                      <div className="bg-destructive/10 border border-destructive/20 text-destructive p-2.5 rounded-lg text-[11px] flex gap-2 font-sans">
+                      <div className="bg-destructive/10 border border-destructive/20 text-destructive-text p-2.5 rounded-lg text-[11px] flex gap-2 font-sans">
                         <AlertCircle className="h-4 w-4 shrink-0" />
                         <span>{editError}</span>
                       </div>

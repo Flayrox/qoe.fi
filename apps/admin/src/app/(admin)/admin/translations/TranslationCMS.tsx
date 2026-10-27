@@ -348,7 +348,7 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
             <button
               type="button"
               onClick={handleResetAll}
-              className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-destructive font-bold border border-border px-3 py-1.5 rounded-lg hover:bg-destructive/10 hover:border-destructive transition-all cursor-pointer"
+              className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-destructive-text font-bold border border-border px-3 py-1.5 rounded-lg hover:bg-destructive/10 hover:border-destructive transition-all cursor-pointer"
             >
               <Trash2 className="w-3.5 h-3.5" /> Réinitialiser tout
             </button>
@@ -439,7 +439,7 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
         <div
           className={`p-3 rounded-lg border flex items-center gap-2 text-[11px] font-bold ${
             saveStatus === 'success'
-              ? 'bg-success/10 border-success text-success'
+              ? 'bg-success/10 border-success text-success-text'
               : 'bg-destructive/10 border-destructive text-[#EE4B2B]'
           }`}
         >
@@ -589,7 +589,7 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
                         type="button"
                         onClick={() => handleClearKey(key)}
                         title="Réinitialiser"
-                        className="p-1 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all cursor-pointer"
+                        className="p-1 rounded-md text-muted-foreground hover:text-destructive-text hover:bg-destructive/10 transition-all cursor-pointer"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>

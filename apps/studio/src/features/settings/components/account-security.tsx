@@ -221,7 +221,7 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
               }
             }}
             disabled={mfaBusy || sessions.length === 0}
-            className="rounded-lg border px-3 py-2 text-left text-sm text-destructive disabled:opacity-50"
+            className="rounded-lg border px-3 py-2 text-left text-sm text-destructive-text disabled:opacity-50"
           >
             Révoquer toutes les sessions OAuth
           </button>
@@ -279,7 +279,7 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
       </div>
 
       <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 space-y-3">
-        <h3 className="font-semibold text-destructive">Zone dangereuse</h3>
+        <h3 className="font-semibold text-destructive-text">Zone dangereuse</h3>
         <p className="text-sm text-muted-foreground">
           La suppression est différée et peut être annulée pendant le délai de grâce.
         </p>

@@ -2,9 +2,10 @@
 
 import React from 'react';
 import { Bookmark, UserPlus, LogIn } from 'lucide-react';
-import { motion } from 'framer-motion';
-import { cn } from '@qoe/utils';
+import { motion, useReducedMotion } from 'framer-motion';
 import { t } from '@lingui/core/macro';
+
+import { Button } from './primitives/button/button';
 
 export type AuthActionContext = 'like' | 'follow' | 'bookmark' | 'comment' | 'repost' | 'delete';
 
@@ -17,47 +18,70 @@ interface GuestFloatingBarProps {
   };
 }
 
+/**
+ * La barre qui invite un visiteur non connecté à rejoindre qoefi.
+ *
+ * 🎯 Trois corrections par rapport à la version précédente, toutes visibles
+ *    au clavier ou au lecteur d'écran :
+ *
+ *    1. **Les boutons sont ceux du contrat.** L'ancienne barre avait trois
+ *       `<button>` bruts, hauteurs 40 px et 32 px, sans anneau de focus : au
+ *       clavier, on ne savait pas où on était.
+ *    2. **Un nom accessible, pas une infobulle.** Le seul bouton-icône
+ *       s'appuyait sur `title`, qui n'est pas lu par tous les lecteurs
+ *       d'écran et n'apparaît qu'au survol. Il a maintenant un `aria-label`
+ *       explicite, et `title` reste en complément visuel.
+ *    3. **Le mouvement respecte la préférence système.** L'entrée animée
+ *       (300 ms de délai, 30 px de translation) est supprimée si
+ *       `prefers-reduced-motion` est actif.
+ *
+ * 📐 `env(safe-area-inset-bottom)` : sur un iPhone à encoche, une barre
+ *    collée à `bottom-6` passe sous la barre de geste.
+ */
 export function GuestFloatingBar({ onOpenAuth, labels }: GuestFloatingBarProps) {
+  const reduceMotion = useReducedMotion();
+  const bookmarkLabel = labels?.bookmarkTooltip || t`Enregistrer dans le sanctuaire`;
+
   return (
     <motion.div
-      initial={{ opacity: 0, y: 30 }}
+      role="group"
+      aria-label={t`Rejoindre qoefi`}
+      initial={reduceMotion ? false : { opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.3, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-card/90 dark:bg-card/90 backdrop-blur-md border border-border/80 shadow-2xl rounded-2xl p-2.5 flex items-center gap-3 transition-all duration-300 pointer-events-auto select-none max-w-[90%] sm:max-w-md"
+      transition={
+        reduceMotion ? { duration: 0 } : { delay: 0.3, duration: 0.5, ease: [0.16, 1, 0.3, 1] }
+      }
+      className="pointer-events-auto fixed bottom-[calc(1.5rem+env(safe-area-inset-bottom,0px))] left-1/2 z-40 flex max-w-[92%] -translate-x-1/2 items-center gap-2 rounded-panel border border-border/80 bg-card/90 p-2 shadow-xl backdrop-blur-md select-none sm:max-w-md"
     >
-      {/* Bookmark Action Trigger */}
-      <button
+      <Button
+        variant="ghost"
+        shape="icon"
+        size="sm"
+        aria-label={bookmarkLabel}
+        title={bookmarkLabel}
         onClick={() => onOpenAuth({ mode: 'signup', actionContext: 'bookmark' })}
-        className="w-10 h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer hover:bg-muted text-muted-foreground hover:text-foreground"
-        title={labels?.bookmarkTooltip || t`Enregistrer dans le sanctuaire`}
       >
-        <Bookmark className="w-5 h-5" />
-      </button>
+        <Bookmark className="size-4" strokeWidth={1.75} />
+      </Button>
 
-      <div className="w-px h-5 bg-border/60" />
+      <span aria-hidden className="h-5 w-px bg-border/60" />
 
-      {/* Main Signup Vermilion Action */}
-      <button
+      <Button
+        variant="solid"
+        tone="brand"
+        size="sm"
         onClick={() => onOpenAuth({ mode: 'signup', actionContext: 'follow' })}
-        className={cn(
-          'px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer',
-          'bg-primary text-primary-foreground hover:opacity-90 shadow-sm'
-        )}
       >
-        <UserPlus className="w-3.5 h-3.5" />
-        <span>{labels?.signupBtn || t`Rejoindre qoefi`}</span>
-      </button>
+        <UserPlus className="size-3.5" strokeWidth={1.75} />
+        {labels?.signupBtn || t`Rejoindre qoefi`}
+      </Button>
 
-      <div className="w-px h-5 bg-border/60" />
+      <span aria-hidden className="h-5 w-px bg-border/60" />
 
-      {/* Login Action */}
-      <button
-        onClick={() => onOpenAuth({ mode: 'login' })}
-        className="px-3 py-2 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted transition-all flex items-center gap-1.5 cursor-pointer"
-      >
-        <LogIn className="w-3.5 h-3.5" />
-        <span>{labels?.loginBtn || t`Connexion`}</span>
-      </button>
+      <Button variant="ghost" size="sm" onClick={() => onOpenAuth({ mode: 'login' })}>
+        <LogIn className="size-3.5" strokeWidth={1.75} />
+        {labels?.loginBtn || t`Connexion`}
+      </Button>
     </motion.div>
   );
 }

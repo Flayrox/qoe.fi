@@ -40,11 +40,54 @@
   --vermillion-500: #ee4b2b;
   --vermillion-600: #c7331a;
 
+  /* Orange vif — le second cran de la marque.
+
+     Le vermillon est chaud mais sourd : il passe pour une alerte. Ce
+     second orange est franc, il sert aux actions qu'on veut voir (CTA,
+     états actifs d'un parcours), jamais aux erreurs. Texte sombre dessus
+     (7,6:1) : un blanc ne tiendrait pas le contraste.
+
+     `#ff7a00` plutôt que `#ff5c00` : à luminance égale un orange qui tire
+     vers le jaune paraît fluorescent, l'autre paraît simplement saturé.
+     C'est la seule façon d'obtenir l'effet sans halo (un `box-shadow`
+     coloré se voit sur les captures et jure en thème sombre). */
+  --brand-vivid-300: #ffb066;
+  --brand-vivid-400: #ff9a33;
+  --brand-vivid-500: #ff7a00;
+  --brand-vivid-600: #e05f00;
+  --brand-vivid-text: #b83c00;
+
+  /* Rouge et vert d'état — fluorescents.
+
+     L'ancien rouge était un vermillon assombri (indiscernable de la
+     marque) et le vert un émeraude délavé. À l'écran, le fluo ne s'obtient
+     pas en saturant une teinte sombre : il faut monter la luminance. On
+     accepte donc le prix — sur ces deux fonds, le texte est presque noir
+     (5,4:1 sur le rouge, 11,8:1 sur le vert). Un blanc y serait illisible,
+     ce qui est exactement le compromis d'un surligneur.
+
+     `-600` est le jumeau lisible en texte seul : 5,8:1 (rouge) et 5,4:1
+     (vert) sur blanc. Il ne sert JAMAIS de fond. */
+  --danger-300: #ff8a9c;
+  --danger-400: #ff5468;
+  --danger-500: #ff2d3f;
+  --danger-600: #cc0027;
+  --ok-300: #7dffc2;
+  --ok-400: #4dffab;
+  --ok-500: #00e57a;
+  --ok-600: #007a45;
+
   /* Semantic accents (functional states, always available) */
   --highlight: oklch(0.78 0.13 75); /* amber — author highlights, quotes */
   --highlight-foreground: #ffffff;
-  --success: oklch(0.72 0.15 155); /* emerald — success, reposts, citations */
-  --success-foreground: #ffffff;
+  --success: var(--ok-500);
+  /* Texte sombre sur le vert : du blanc sur #00e57a plafonne à 1,7:1. Le
+     vert reste fluorescent, c'est le texte qui s'inverse (11,8:1) — même
+     arbitrage que sur `--brand-vivid`. */
+  --success-foreground: var(--zinc-950);
+  /* En texte seul (ton `soft`, `outline`, `ghost`, un compteur d'erreurs),
+     il faut le jumeau sombre : 5,4:1 sur blanc. */
+  --success-text: var(--ok-600);
 
   /* Legacy neural accents (conservés pour rétro-compat, mappés sainement) */
   --neural-emerald: oklch(0.68 0.15 152);
@@ -82,10 +125,21 @@
   --accent: var(--zinc-100);
   --accent-foreground: var(--zinc-950);
 
-  --destructive: var(--vermillion-600);
+  --destructive: var(--danger-500);
   /* Texte sur fond destructif. Manquait : les composants étaient obligés
-     d'emprunter `--primary-foreground` (ou pire, `text-white`). */
-  --destructive-foreground: var(--zinc-0);
+     d'emprunter `--primary-foreground` (ou pire, `text-white`). Il est
+     maintenant presque noir — le rouge fluo ne porte plus de blanc. */
+  --destructive-foreground: var(--zinc-950);
+  /* Jumeau lisible pour le rouge en texte seul (5,8:1 sur blanc). Utiliser
+     `text-destructive` sur une étiquette de 12 px donnerait 3,7:1. */
+  --destructive-text: var(--danger-600);
+
+  /* Orange vif : fond = teinte 500, texte = presque noir. Le cramoisi de
+     la marque reste `--primary` ; ici c'est un cran d'intensité, pas une
+     autre intention. */
+  --brand-vivid: var(--brand-vivid-500);
+  --brand-vivid-foreground: var(--zinc-950);
+  --brand-vivid-strong: var(--brand-vivid-text);
 
   --border: var(--zinc-200);
   --input: var(--zinc-200);

@@ -105,7 +105,7 @@ export function LinkPopover({
             <button
               type="button"
               onClick={onRemove}
-              className="px-2.5 py-1.5 rounded-lg border border-destructive/30 text-destructive hover:bg-destructive/10 text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5"
+              className="px-2.5 py-1.5 rounded-lg border border-destructive/30 text-destructive-text hover:bg-destructive/10 text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5"
               title={t`Retirer le lien`}
             >
               <Trash2 className="w-3.5 h-3.5" />

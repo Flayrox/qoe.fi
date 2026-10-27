@@ -300,7 +300,7 @@ export default async function CreatorDashboardPage() {
             <div className="text-3xl font-bold text-foreground leading-tight tracking-tight">
               {realPageviews.toLocaleString()}
             </div>
-            <div className="text-xs text-success flex items-center gap-1 mt-1 font-medium">
+            <div className="text-xs text-success-text flex items-center gap-1 mt-1 font-medium">
               <TrendingUp className="w-3.5 h-3.5 stroke-[1.5]" />
               <span>
                 {realVisitors.toLocaleString()} {t`lecteurs uniques`}
@@ -403,7 +403,9 @@ export default async function CreatorDashboardPage() {
                 </h4>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1 font-sans">
                   <span
-                    className={art.published ? 'text-success font-medium' : 'text-muted-foreground'}
+                    className={
+                      art.published ? 'text-success-text font-medium' : 'text-muted-foreground'
+                    }
                   >
                     {art.published ? t`Publié` : t`Brouillon`}
                   </span>
@@ -500,7 +502,7 @@ export default async function CreatorDashboardPage() {
               >
                 <div className="flex items-center justify-between mb-2">
                   <span
-                    className={`text-[10px] font-bold uppercase tracking-wider ${item.isScheduled ? 'text-success' : 'text-primary'}`}
+                    className={`text-[10px] font-bold uppercase tracking-wider ${item.isScheduled ? 'text-success-text' : 'text-primary'}`}
                   >
                     {item.date}
                   </span>
@@ -561,7 +563,7 @@ export default async function CreatorDashboardPage() {
                 </span>
                 <div className="flex items-center gap-1.5 mt-1.5">
                   <span className="h-2 w-2 rounded-full bg-success" />
-                  <span className="text-sm font-bold text-success">{t`En ligne`}</span>
+                  <span className="text-sm font-bold text-success-text">{t`En ligne`}</span>
                 </div>
               </div>
 

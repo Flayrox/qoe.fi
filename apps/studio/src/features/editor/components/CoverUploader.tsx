@@ -98,7 +98,7 @@ export function CoverUploader({
             <button
               type="button"
               onClick={onRemove}
-              className="px-3.5 py-1.5 rounded-xl bg-background/90 text-destructive font-sans text-xs font-semibold shadow-lg hover:bg-destructive/10 hover:text-destructive transition-all flex items-center gap-1.5 cursor-pointer backdrop-blur-md border border-destructive/30"
+              className="px-3.5 py-1.5 rounded-xl bg-background/90 text-destructive-text font-sans text-xs font-semibold shadow-lg hover:bg-destructive/10 hover:text-destructive-text transition-all flex items-center gap-1.5 cursor-pointer backdrop-blur-md border border-destructive/30"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>{t`Supprimer`}</span>

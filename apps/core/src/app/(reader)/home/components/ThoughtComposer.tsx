@@ -1514,7 +1514,7 @@ export function ThoughtComposer({
                   <button
                     type="button"
                     onClick={() => removeThreadNode(node.id)}
-                    className="p-1.5 rounded-full text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 cursor-pointer shrink-0 self-start mt-0.5 transition-all outline-none"
+                    className="p-1.5 rounded-full text-muted-foreground/50 hover:text-destructive-text hover:bg-destructive/10 cursor-pointer shrink-0 self-start mt-0.5 transition-all outline-none"
                     title={t`Supprimer cette pensée du fil`}
                   >
                     <Trash2 className="w-4 h-4" />
@@ -1542,7 +1542,7 @@ export function ThoughtComposer({
             >
               {/* Submit Error message */}
               {submitError && (
-                <div className="bg-destructive/10 text-destructive text-[11px] font-semibold p-3 rounded-lg flex items-center gap-2 border border-destructive/20">
+                <div className="bg-destructive/10 text-destructive-text text-[11px] font-semibold p-3 rounded-lg flex items-center gap-2 border border-destructive/20">
                   <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                   <span>{submitError}</span>
                 </div>
@@ -1730,7 +1730,7 @@ export function ThoughtComposer({
                           <button
                             type="button"
                             onClick={() => setPollOptions(pollOptions.filter((_, i) => i !== idx))}
-                            className="p-1.5 text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+                            className="p-1.5 text-muted-foreground hover:text-destructive-text transition-colors cursor-pointer"
                             title="Supprimer cette option"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -2136,7 +2136,7 @@ export function ThoughtComposer({
                         <span
                           className={cn(
                             'text-[10px] font-mono font-bold transition-colors',
-                            isOverLimit ? 'text-destructive' : 'text-highlight'
+                            isOverLimit ? 'text-destructive-text' : 'text-highlight'
                           )}
                         >
                           {charsRemaining}
@@ -2317,7 +2317,7 @@ export function ThoughtComposer({
                         },
                       ]);
                     }}
-                    className="text-[10px] font-semibold text-muted-foreground hover:text-destructive hover:bg-destructive/10 px-2 py-1 rounded-[var(--radius-button)] transition-colors cursor-pointer"
+                    className="text-[10px] font-semibold text-muted-foreground hover:text-destructive-text hover:bg-destructive/10 px-2 py-1 rounded-[var(--radius-button)] transition-colors cursor-pointer"
                   >
                     Effacer
                   </button>

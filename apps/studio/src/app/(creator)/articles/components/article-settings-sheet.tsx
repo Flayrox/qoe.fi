@@ -170,7 +170,7 @@ export function ArticleSettingsSheet({
     return (
       <SettingsOverlay onClose={onClose} subtitle={t`Une erreur est survenue`}>
         <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full border border-destructive/25 bg-destructive/10 text-destructive">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full border border-destructive/25 bg-destructive/10 text-destructive-text">
             <AlertTriangle className="h-5 w-5" />
           </div>
           <div className="space-y-1.5">
@@ -257,8 +257,8 @@ export function ArticleSettingsSheet({
             <div className="flex items-center gap-1.5">
               {error ? (
                 <>
-                  <AlertTriangle className="h-3 w-3 shrink-0 text-destructive" />
-                  <span className="line-clamp-2 text-destructive">{error}</span>
+                  <AlertTriangle className="h-3 w-3 shrink-0 text-destructive-text" />
+                  <span className="line-clamp-2 text-destructive-text">{error}</span>
                 </>
               ) : dirty ? (
                 <>
@@ -269,7 +269,7 @@ export function ArticleSettingsSheet({
                 </>
               ) : (
                 <>
-                  <Check className="h-3 w-3 shrink-0 text-success" />
+                  <Check className="h-3 w-3 shrink-0 text-success-text" />
                   <span className="text-muted-foreground">{savedLabel}</span>
                 </>
               )}

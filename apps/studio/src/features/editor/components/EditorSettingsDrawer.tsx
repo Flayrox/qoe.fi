@@ -363,8 +363,8 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
                 >
                   {slugCopied ? (
                     <>
-                      <CopyCheck className="w-3 h-3 text-success" />
-                      <span className="text-success">{t`Copié !`}</span>
+                      <CopyCheck className="w-3 h-3 text-success-text" />
+                      <span className="text-success-text">{t`Copié !`}</span>
                     </>
                   ) : (
                     <>
@@ -474,7 +474,7 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
                         type="button"
                         onClick={onClearSchedule}
                         disabled={schedulePending}
-                        className="text-[11px] text-destructive hover:underline disabled:opacity-50"
+                        className="text-[11px] text-destructive-text hover:underline disabled:opacity-50"
                       >
                         {t`Annuler la programmation`}
                       </button>
@@ -608,7 +608,7 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
 
             {published && hasUnpublishedChanges && onDiscardDraft && (
               <section className="space-y-2 pt-4 border-t border-destructive/20">
-                <SectionTitle icon={<RotateCcw className="h-3.5 w-3.5 text-destructive" />}>
+                <SectionTitle icon={<RotateCcw className="h-3.5 w-3.5 text-destructive-text" />}>
                   {t`Modifications non publiées`}
                 </SectionTitle>
                 <p className="text-[10px] text-muted-foreground leading-relaxed">
@@ -617,7 +617,7 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
                 <button
                   type="button"
                   onClick={onDiscardDraft}
-                  className="h-8 px-3 rounded-lg border border-destructive/30 text-destructive text-xs font-semibold hover:bg-destructive/10 transition-colors flex items-center gap-1.5 cursor-pointer"
+                  className="h-8 px-3 rounded-lg border border-destructive/30 text-destructive-text text-xs font-semibold hover:bg-destructive/10 transition-colors flex items-center gap-1.5 cursor-pointer"
                 >
                   <RotateCcw className="size-3.5" />
                   {t`Abandonner les modifications`}
@@ -627,7 +627,7 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
 
             {published && canPublish && (
               <section className="space-y-2 pt-4 border-t border-destructive/20">
-                <SectionTitle icon={<Trash2 className="h-3.5 w-3.5 text-destructive" />}>
+                <SectionTitle icon={<Trash2 className="h-3.5 w-3.5 text-destructive-text" />}>
                   {t`Zone sensible`}
                 </SectionTitle>
                 <p className="text-[10px] text-muted-foreground leading-relaxed">
@@ -636,7 +636,7 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
                 <button
                   type="button"
                   onClick={onUnpublish}
-                  className="h-8 px-3 rounded-lg border border-destructive/30 text-destructive text-xs font-semibold hover:bg-destructive/10 transition-colors"
+                  className="h-8 px-3 rounded-lg border border-destructive/30 text-destructive-text text-xs font-semibold hover:bg-destructive/10 transition-colors"
                 >
                   {t`Dépublier l'article`}
                 </button>

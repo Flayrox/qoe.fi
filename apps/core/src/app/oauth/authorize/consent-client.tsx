@@ -57,7 +57,7 @@ export function OAuthConsentClient({
     return (
       <main className="min-h-screen flex items-center justify-center bg-background px-4 py-12 text-foreground">
         <div className="w-full max-w-md bg-card border border-border rounded-3xl p-8 shadow-2xl space-y-5 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-destructive/10 text-destructive flex items-center justify-center mx-auto border border-destructive/20">
+          <div className="w-14 h-14 rounded-2xl bg-destructive/10 text-destructive-text flex items-center justify-center mx-auto border border-destructive/20">
             <AlertTriangle className="w-6 h-6" />
           </div>
           <h1 className="text-xl font-bold">Demande d&apos;autorisation invalide</h1>
@@ -137,7 +137,7 @@ export function OAuthConsentClient({
               <div
                 className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
                   publication.isMember
-                    ? 'bg-success/20 text-success'
+                    ? 'bg-success/20 text-success-text'
                     : 'bg-highlight/20 text-highlight'
                 }`}
               >
@@ -152,7 +152,7 @@ export function OAuthConsentClient({
                 </div>
                 {publication.isMember ? (
                   <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1.5 font-medium">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-success shrink-0" />
+                    <CheckCircle2 className="w-3.5 h-3.5 text-success-text shrink-0" />
                     <span>
                       Vous êtes connecté en tant que{' '}
                       <strong className="text-foreground capitalize">

@@ -112,7 +112,7 @@ export function AuthMethodsToggles({ initialValue }: { initialValue?: string }) 
                 <span
                   className={cn(
                     'rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider',
-                    enabled ? 'bg-success/15 text-success' : 'bg-muted text-muted-foreground'
+                    enabled ? 'bg-success/15 text-success-text' : 'bg-muted text-muted-foreground'
                   )}
                 >
                   {enabled ? 'Activé' : 'Désactivé'}
@@ -133,7 +133,7 @@ export function AuthMethodsToggles({ initialValue }: { initialValue?: string }) 
           <span
             className={cn(
               'font-medium',
-              message.includes('enregistrées') ? 'text-success' : 'text-destructive'
+              message.includes('enregistrées') ? 'text-success-text' : 'text-destructive-text'
             )}
           >
             {message}

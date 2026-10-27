@@ -586,7 +586,7 @@ export function Sidebar({
                           >
                             <button
                               type="submit"
-                              className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-destructive rounded-[8px] hover:bg-destructive/10 transition-colors text-left"
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-destructive-text rounded-[8px] hover:bg-destructive/10 transition-colors text-left"
                             >
                               <LogOut className="w-4 h-4" />
                               <span>{t`Se déconnecter`}</span>

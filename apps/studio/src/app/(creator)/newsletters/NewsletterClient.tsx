@@ -33,8 +33,8 @@ interface NewsletterClientProps {
 const STATUS_META: Record<string, { label: string; cls: string }> = {
   DRAFT: { label: 'Brouillon', cls: 'bg-muted text-muted-foreground' },
   SENDING: { label: 'En cours d’envoi…', cls: 'bg-primary/10 text-primary animate-pulse' },
-  SENT: { label: 'Envoyée', cls: 'bg-success/10 text-success' },
-  FAILED: { label: 'Échec', cls: 'bg-destructive/10 text-destructive' },
+  SENT: { label: 'Envoyée', cls: 'bg-success/10 text-success-text' },
+  FAILED: { label: 'Échec', cls: 'bg-destructive/10 text-destructive-text' },
 };
 
 export function NewsletterClient({ initialIssues }: NewsletterClientProps) {
@@ -175,7 +175,7 @@ export function NewsletterClient({ initialIssues }: NewsletterClientProps) {
             <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
               Emails envoyés
             </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-success/10 text-success">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-success/10 text-success-text">
               <Send className="h-4 w-4 stroke-[1.5]" />
             </div>
           </div>
@@ -337,7 +337,7 @@ export function NewsletterClient({ initialIssues }: NewsletterClientProps) {
                         }`}
                     </p>
                     {issue.failedCount > 0 && (
-                      <p className="flex items-center gap-1 text-[11px] text-destructive mt-1">
+                      <p className="flex items-center gap-1 text-[11px] text-destructive-text mt-1">
                         <AlertTriangle className="h-3 w-3" /> Certains emails n'ont pas pu être
                         envoyés — consultez les logs worker.
                       </p>
@@ -369,7 +369,7 @@ export function NewsletterClient({ initialIssues }: NewsletterClientProps) {
                             <button
                               onClick={() => remove(issue.id)}
                               title="Supprimer"
-                              className="p-2 rounded-lg border border-border/30 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                              className="p-2 rounded-lg border border-border/30 text-muted-foreground hover:text-destructive-text hover:bg-destructive/10 transition-colors"
                             >
                               <Trash2 className="h-3.5 w-3.5 stroke-[1.5]" />
                             </button>

@@ -252,7 +252,7 @@ export function EbookNotes({
                     type="button"
                     onClick={() => void remove(note.id)}
                     disabled={pendingId === note.id}
-                    className="text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+                    className="text-muted-foreground hover:text-destructive-text transition-colors cursor-pointer"
                     title="Supprimer la note"
                   >
                     <Trash2 className="w-3 h-3" />
