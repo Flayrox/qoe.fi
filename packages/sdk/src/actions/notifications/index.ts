@@ -55,6 +55,8 @@ export interface GroupedNotification {
     username: string | null;
     logoUrl: string | null;
     isCertified: boolean;
+    /** Nature publique du compte (PERSONAL | MEDIA) — décide de l'avatar. */
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
   }>;
   totalCount: number;
 }

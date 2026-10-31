@@ -35,6 +35,7 @@ import {
   deleteHighlightAction,
   createAnnotationCommentAction,
   quotePassageToFeedAction,
+  citeAnnotationAction,
   unlockArticleWithWalletAction,
   getCurrentUserWalletAction,
 } from '../actions/tenant';
@@ -188,6 +189,33 @@ describe('🖍️ Surlignages & annotations', () => {
     await createAnnotationCommentAction({ highlightId: 'hl_1', content: 'Bravo' });
     expect(calls()[0][0]).toBe('/v1/highlights/hl_1/comments');
     expect(calls()[0][1]?.body).toEqual({ content: 'Bravo' });
+  });
+});
+
+describe('🧾 citeAnnotationAction', () => {
+  it('ne poste que l’identifiant de l’annotation, avec un chemin vers la citation', async () => {
+    goFetch.mockResolvedValueOnce({ id: 'post_9', author: { username: 'camille' } });
+
+    const res = await citeAnnotationAction({
+      annotationId: 'hl_9',
+      commentary: '  Ce passage m’a arrêté.  ',
+    });
+
+    expect(calls()[0][0]).toBe('/v1/posts');
+    expect(calls()[0][1]?.method).toBe('POST');
+    expect(calls()[0][1]?.body).toEqual({
+      content: 'Ce passage m’a arrêté.',
+      quotedAnnotationId: 'hl_9',
+    });
+    expect(res).toMatchObject({ postId: 'post_9', url: '/camille/thought/post_9' });
+  });
+
+  it('retombe sur /home quand l’auteur n’a pas de handle', async () => {
+    goFetch.mockResolvedValueOnce({ id: 'post_9', author: null });
+
+    const res = await citeAnnotationAction({ annotationId: 'hl_9' });
+
+    expect(res).toMatchObject({ postId: 'post_9', url: '/home' });
   });
 });
 

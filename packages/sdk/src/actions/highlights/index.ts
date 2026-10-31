@@ -28,7 +28,14 @@ export interface HighlightDTO {
   canonicalStart?: number;
   canonicalEnd?: number;
   contentSha?: string;
-  reader: { id: string; name: string | null; username: string | null; logoUrl: string | null };
+  reader: {
+    id: string;
+    name: string | null;
+    username: string | null;
+    logoUrl: string | null;
+    /** Nature publique du compte (PERSONAL | MEDIA) — décide de l'avatar. */
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
+  };
   viewerUpvoted: boolean;
   commentsCount: number;
 }
@@ -38,7 +45,13 @@ export interface AnnotationCommentDTO {
   content: string;
   createdAt: string;
   highlightId: string;
-  author: { id: string; name: string | null; username: string | null; logoUrl: string | null };
+  author: {
+    id: string;
+    name: string | null;
+    username: string | null;
+    logoUrl: string | null;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
+  };
 }
 
 export const getArticleHighlightsAction = safeAction<
@@ -140,7 +153,14 @@ export const deleteHighlightAction = safeAction<{ highlightId: string }, { succe
 
 import { quotePassageToFeedAction as quotePassageToFeedActionImpl } from '../tenant';
 import type { QuotePassageInput } from '../tenant';
+import { citeAnnotationAction as citeAnnotationActionImpl } from '../tenant';
+import type { CiteAnnotationInput } from '../tenant';
 
 export async function quotePassageToFeedAction(input: QuotePassageInput) {
   return quotePassageToFeedActionImpl(input);
+}
+
+// 🧾 Publier une annotation comme citation (et non comme commentaire libre).
+export async function citeAnnotationAction(input: CiteAnnotationInput) {
+  return citeAnnotationActionImpl(input);
 }

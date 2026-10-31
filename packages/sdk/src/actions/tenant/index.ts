@@ -204,6 +204,49 @@ export const quotePassageToFeedAction = safeAction<QuotePassageInput, QuotePassa
   }
 );
 
+export interface CiteAnnotationInput {
+  annotationId: string;
+  commentary?: string;
+}
+
+export interface CiteAnnotationOutput {
+  postId: string;
+  /** Chemin relatif de la citation publiée (préfixé par l'origine Qoefi). */
+  url: string;
+}
+
+/**
+ * Publie une annotation comme citation sur Qoefi.
+ *
+ * C'est l'ANNOTATION qui est citée : le serveur recharge son texte, sa note,
+ * son auteur et ses ancres canoniques, puis les copie dans le post. Le
+ * client n'envoie que l'identifiant — jamais une identité ou un extrait
+ * qu'il pourrait inventer — et le serveur refuse une annotation privée ou
+ * un surlignage sans note.
+ */
+export const citeAnnotationAction = safeAction<CiteAnnotationInput, CiteAnnotationOutput>(
+  async (data) => {
+    const post = await goFetch<{
+      id: string;
+      author?: { username?: string | null } | null;
+    }>('/v1/posts', {
+      method: 'POST',
+      body: {
+        content: data.commentary?.trim() ?? '',
+        quotedAnnotationId: data.annotationId,
+      },
+    });
+
+    const handle = post.author?.username ?? null;
+    return {
+      postId: post.id,
+      url: handle
+        ? `/${encodeURIComponent(handle)}/thought/${encodeURIComponent(post.id)}`
+        : '/home',
+    };
+  }
+);
+
 export const unlockArticleWithWalletAction = safeAction<
   { creatorId: string; costCents?: number },
   { success: boolean }
