@@ -33,6 +33,7 @@ import type {
   ArticleFeedResult as ApiArticleFeedResult,
   PublicProfileData,
   FollowActor as ApiFollowActor,
+  QuoteContext,
 } from '../../types';
 
 /** Résultat du découpage paywall (shape Go GET /v1/articles/{slug}). */
@@ -47,6 +48,150 @@ export interface PaywallCutResult {
     totalLengthBytes: number;
     previewLengthBytes: number;
   } | null;
+}
+
+/** Annotation citée brute (shape Go `QuotedAnnotation`). */
+export interface RawQuotedAnnotation {
+  id: string;
+  note: string;
+  excerpt: string;
+  quoteOrdinal?: number | null;
+  canonicalStart?: number | null;
+  canonicalEnd?: number | null;
+  contentSha?: string | null;
+  reader?: {
+    id?: string | null;
+    name?: string | null;
+    username?: string | null;
+    logoUrl?: string | null;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
+  } | null;
+}
+
+/** Article cité brut (shape Go `QuotedArticle`). */
+export interface RawQuotedArticle {
+  id: string;
+  title: string;
+  slug: string;
+  content?: string | null;
+  isPremium?: boolean;
+  quoteContext?: {
+    before: string;
+    highlight: string;
+    after: string;
+    start: number;
+    end: number;
+    sha: string;
+  } | null;
+  publication?: {
+    name?: string | null;
+    slug?: string | null;
+    subdomain?: string | null;
+    customDomain?: string | null;
+    type?: string | null;
+    logoUrl?: string | null;
+    isCertified?: boolean;
+  } | null;
+  author?: {
+    id?: string;
+    name?: string | null;
+    username?: string | null;
+    logoUrl?: string | null;
+    isCertified?: boolean;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
+  } | null;
+}
+
+export type MappedQuotedAnnotation = {
+  id: string;
+  note: string;
+  excerpt: string;
+  quoteOrdinal: number;
+  canonicalStart?: number;
+  canonicalEnd?: number;
+  contentSha?: string;
+  reader: {
+    id: string;
+    name: string | null;
+    username: string | null;
+    logoUrl: string | null;
+    type?: string;
+  };
+} | null;
+
+export type MappedQuotedArticle = {
+  id: string;
+  title: string;
+  slug: string;
+  content: string | null;
+  isPremium: boolean;
+  quoteContext: QuoteContext | null;
+  author: {
+    id: string;
+    name: string | null;
+    username: string | null;
+    subdomain: string | null;
+    logoUrl: string | null;
+    isCertified: boolean;
+    type?: string;
+  };
+  publication: {
+    name: string | null;
+    subdomain: string | null;
+    customDomain: string | null;
+  } | null;
+} | null;
+
+function mapQuotedAnnotationForCard(
+  citation: RawQuotedAnnotation | null | undefined
+): MappedQuotedAnnotation {
+  if (!citation || !citation.id) return null;
+  return {
+    id: citation.id,
+    note: citation.note,
+    excerpt: citation.excerpt,
+    quoteOrdinal: citation.quoteOrdinal ?? 0,
+    canonicalStart: citation.canonicalStart ?? undefined,
+    canonicalEnd: citation.canonicalEnd ?? undefined,
+    contentSha: citation.contentSha ?? undefined,
+    reader: {
+      id: citation.reader?.id ?? '',
+      name: citation.reader?.name ?? null,
+      username: citation.reader?.username ?? null,
+      logoUrl: citation.reader?.logoUrl ?? null,
+      type: citation.reader?.type ?? undefined,
+    },
+  };
+}
+
+function mapQuotedArticleForCard(
+  article: RawQuotedArticle | null | undefined
+): MappedQuotedArticle {
+  if (!article || !article.id) return null;
+  return {
+    id: article.id,
+    title: article.title,
+    slug: article.slug,
+    content: article.content ?? null,
+    isPremium: Boolean(article.isPremium),
+    quoteContext: article.quoteContext ?? null,
+    author: {
+      id: article.author?.id ?? '',
+      name: article.author?.name ?? null,
+      username: article.author?.username ?? null,
+      subdomain: article.publication?.subdomain ?? null,
+      logoUrl: article.publication?.logoUrl ?? article.author?.logoUrl ?? null,
+      isCertified: Boolean(article.author?.isCertified ?? article.publication?.isCertified),
+      type: article.author?.type ?? article.publication?.type ?? undefined,
+    },
+    publication: article.publication
+      ? {
+          name: article.publication.name ?? null,
+          subdomain: article.publication.subdomain ?? null,
+          customDomain: article.publication.customDomain ?? null,
+        }
+      : null,
+  };
 }
 
 /** Pensée web (shape thread reconstruit côté web depuis l'API Go). */
@@ -106,6 +251,9 @@ export interface WebThreadPost {
   tags: string[];
   replyRestriction: string;
   replies: WebThreadPost[];
+  quotedExcerpt?: string | null;
+  annotationQuote?: MappedQuotedAnnotation;
+  articleQuote?: MappedQuotedArticle;
 }
 
 type ThoughtThreadPost = WebThreadPost;
@@ -339,9 +487,7 @@ export const toggleLikePostAction = safeAction<string, { liked: boolean }>(async
 
 type RawPostPayload = Record<string, unknown>;
 
-function mapFeedPostToThreadThought(
-  p: RawPostPayload | null | undefined
-): Record<string, unknown> | null {
+function mapFeedPostToThreadThought(p: RawPostPayload | null | undefined): WebThreadPost | null {
   if (!p) return null;
   const author = (p.author || {}) as Record<string, unknown>;
   const counts = (p._count || {}) as Record<string, unknown>;
@@ -373,6 +519,7 @@ function mapFeedPostToThreadThought(
   return {
     id: p.id as string,
     content: (p.content as string) ?? '',
+    authorId: (p.authorId as string) ?? (author.id as string) ?? '',
     imageUrl: (p.imageUrl as string | null) ?? null,
     createdAt: p.createdAt as string,
     triggerWarning: (p.triggerWarning as string | null) ?? null,
@@ -395,28 +542,41 @@ function mapFeedPostToThreadThought(
     likesCount,
     repliesCount,
     repostsCount,
+    likeCount: likesCount,
+    replyCount: repliesCount,
+    repostCount: repostsCount,
     liked: Boolean(p.liked),
     reposted: Boolean(p.reposted),
-    likes: (p.likes as unknown[]) ?? (p.liked ? [{ userId: (author.id as string) || '' }] : []),
+    likes:
+      (p.likes as Array<{ userId: string }>) ??
+      (p.liked ? [{ userId: (author.id as string) || '' }] : []),
     _count: {
       likes: likesCount,
       replies: repliesCount,
       reposts: repostsCount,
     },
-    attachments: (p.attachments as unknown[]) ?? [],
-    poll: p.poll ?? null,
+    attachments:
+      (p.attachments as Array<{
+        id?: string;
+        url: string;
+        type?: string;
+        altText?: string | null;
+      }>) ?? [],
+    poll: (p.poll as WebThreadPost['poll']) ?? null,
     tags: (p.tags as string[]) ?? [],
     replyRestriction: (p.replyRestriction as string) ?? 'everyone',
-    replies: [] as Record<string, unknown>[],
+    replies: [] as WebThreadPost[],
+    quotedExcerpt: (p.quotedExcerpt as string | null | undefined) ?? null,
+    annotationQuote: mapQuotedAnnotationForCard(
+      p.quotedAnnotation as RawQuotedAnnotation | null | undefined
+    ),
+    articleQuote: mapQuotedArticleForCard(p.quotedArticle as RawQuotedArticle | null | undefined),
   };
 }
 
-function buildThreadTree(
-  rootPostId: string,
-  flatReplies: RawPostPayload[]
-): Record<string, unknown>[] {
-  const nodesMap = new Map<string, Record<string, unknown>>();
-  const directReplies: Record<string, unknown>[] = [];
+function buildThreadTree(rootPostId: string, flatReplies: RawPostPayload[]): WebThreadPost[] {
+  const nodesMap = new Map<string, WebThreadPost>();
+  const directReplies: WebThreadPost[] = [];
 
   for (const r of flatReplies) {
     const node = mapFeedPostToThreadThought(r);
@@ -446,7 +606,7 @@ function buildThreadTree(
 
 function mapGoThreadToWebThread(
   rawThread: RawPostPayload | null | undefined
-): Record<string, unknown> | null {
+): WebThreadPost | null {
   if (!rawThread) return null;
   const root = mapFeedPostToThreadThought(rawThread);
   if (!root) return null;
@@ -467,7 +627,7 @@ export const replyToPostAction = safeAction<{ postId: string; content: string },
       body: { content },
     });
     const reply = mapFeedPostToThreadThought(replyRaw);
-    return { reply: reply as unknown as Reply };
+    return { reply: reply as Reply };
   }
 );
 
@@ -476,7 +636,7 @@ export const getPostThreadAction = safeAction<string, { post: ThreadPost }>(
     // ✅ Go-only : thread (racine + réponses + chaîne parent/repost).
     const res = await goFetch<{ post: RawPostPayload }>(`/v1/posts/${postId}/thread`);
     const mapped = mapGoThreadToWebThread(res.post);
-    return { post: mapped as unknown as ThreadPost };
+    return { post: mapped as ThreadPost };
   },
   { requireAuth: false }
 );

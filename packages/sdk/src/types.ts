@@ -43,6 +43,8 @@ export interface FeedAuthor {
   username: string | null;
   logoUrl: string | null;
   isCertified: boolean;
+  /** Nature publique du compte (PERSONAL | MEDIA) — décide de l'avatar. */
+  type?: 'PERSONAL' | 'MEDIA' | string | null;
   /** Le viewer suit-il la publication de l'auteur ? (état réel, GO 2026) */
   isFollowing?: boolean;
 }
@@ -93,6 +95,7 @@ export interface QuotedAuthor {
   username: string | null;
   logoUrl: string | null;
   isCertified: boolean;
+  type?: 'PERSONAL' | 'MEDIA' | string | null;
 }
 
 /** Publication de l'article cité (miroir Go `QuotedPublication`). */
@@ -135,6 +138,29 @@ export interface QuotedArticle {
 }
 
 /**
+ * Annotation citée par une pensée (miroir Go `QuotedAnnotation`).
+ * Snapshot écrit par le serveur au moment de la publication : la note, le
+ * passage annoté et son auteur sont figés — une citation ne change pas
+ * quand l'annotation d'origine est modifiée.
+ */
+export interface QuotedAnnotation {
+  id: string;
+  note: string;
+  excerpt: string;
+  quoteOrdinal: number;
+  canonicalStart?: number | null;
+  canonicalEnd?: number | null;
+  contentSha?: string | null;
+  reader: {
+    id: string;
+    name: string | null;
+    username: string | null;
+    logoUrl: string | null;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
+  };
+}
+
+/**
  * Pensée complète telle que servie dans le feed (shape Go `FeedPost`).
  * ⚠️ `liked`/`reposted` = état du viewer ; `author` n'a PAS de subdomain.
  */
@@ -156,6 +182,7 @@ export interface FeedPost {
   isHiddenByAuthor: boolean;
   // `omitempty` côté Go → absents quand null, d'où l'optionnalité.
   quotedExcerpt?: string | null;
+  quotedAnnotation?: QuotedAnnotation | null;
   quotedArticle?: QuotedArticle | null;
   author: FeedAuthor;
   parent: FeedPost | null;
@@ -333,6 +360,8 @@ export interface HighlightAuthor {
   name: string | null;
   username: string | null;
   logoUrl: string | null;
+  /** Nature publique du compte (PERSONAL | MEDIA) — décide de l'avatar. */
+  type?: 'PERSONAL' | 'MEDIA' | string | null;
 }
 
 /** Surlignage d'article (shape Go `Highlight`). */
@@ -528,6 +557,7 @@ export interface FeedArticle {
     username: string | null;
     logoUrl: string | null;
     isCertified: boolean;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
   };
   publication: {
     id: string;
@@ -697,6 +727,8 @@ export interface NotificationSender {
   username: string | null;
   logoUrl: string | null;
   isCertified: boolean;
+  /** Nature publique du compte (PERSONAL | MEDIA) — décide de l'avatar. */
+  type?: 'PERSONAL' | 'MEDIA' | string | null;
 }
 
 export interface NotificationThoughtRef {
@@ -889,6 +921,7 @@ export interface ThoughtData {
     customDomain?: string | null;
     logoUrl?: string | null;
     isCertified?: boolean;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
   };
   createdAt: string;
   likeCount: number;
