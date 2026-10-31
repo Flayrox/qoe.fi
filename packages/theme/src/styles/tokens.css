@@ -145,6 +145,14 @@
   --input: var(--zinc-200);
   --ring: var(--zinc-950);
 
+  /* Accents d'annotation — la marque et le tiroir lisent les mêmes teintes.
+     `--annotation-highlight` est neutre par choix : un passage marqué sans
+     texte n'est pas encore une annotation colorée. */
+  --annotation-official: var(--highlight);
+  --annotation-public: var(--primary);
+  --annotation-private: var(--neural-blue);
+  --annotation-highlight: var(--muted-foreground);
+
   /* Brand accent — opt-in, NON actif par défaut.
      Activé via [data-accent="vermillion"] (voir themes.css). */
   --accent-brand: var(--vermillion-500);

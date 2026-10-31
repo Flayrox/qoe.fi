@@ -29,6 +29,9 @@
 @import './themes.css';
 @import './base.css';
 @import './article.css';
+/* Le trait des surlignages : peint dans le DOM par le moteur d'annotation,
+   donc en CSS pur (voir marks.css). */
+@import './marks.css';
 
 /* ─── @theme : expose les fonts + neural colors à Tailwind v4 ─── */
 @theme {

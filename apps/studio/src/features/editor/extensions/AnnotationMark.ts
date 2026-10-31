@@ -1,4 +1,5 @@
 import { Mark, mergeAttributes } from '@tiptap/core';
+import { markSkin } from '@qoe/ui/mark-skin';
 
 export interface AnnotationMarkOptions {
   HTMLAttributes: Record<string, string | number | boolean | null>;
@@ -20,8 +21,10 @@ export const AnnotationMark = Mark.create<AnnotationMarkOptions>({
   addOptions() {
     return {
       HTMLAttributes: {
-        class:
-          'bg-highlight/20 text-foreground border-b-2 border-highlight font-medium cursor-pointer rounded-xs px-1',
+        // Même peau que la marque officielle de lecture : double trait ambre,
+        // et `font: inherit` côté CSS. L'éditeur ne doit pas être le seul
+        // endroit où une annotation change la police du texte annoté.
+        class: markSkin('official'),
       },
     };
   },

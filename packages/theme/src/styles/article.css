@@ -261,7 +261,14 @@
   border-top: 1px solid color-mix(in oklch, var(--border) 90%, transparent);
 }
 
-.article-prose mark {
+/* Marques d'auteur servies dans le HTML avant l'hydratation : cette peau
+ * générique ne s'applique QUE tant que le moteur n'a pas posé `qoe-mark`.
+ *
+ * ⚠️ Sans le `:not(.qoe-mark)`, cette règle (0,1,1) écrasait la teinte, le
+ * tracé SVG et le padding de TOUTES les marques d'article (`.qoe-mark` vaut
+ * 0,1,0) : dans le corps réel, officielle, publique, privée et surlignage
+ * nu redevenaient le même ambre, et la peau du spécimen mentait. */
+.article-prose mark:not(.qoe-mark) {
   background: color-mix(in oklch, var(--highlight, var(--article-accent)) 22%, transparent);
   color: inherit;
   padding: 0.05em 0.2em;
@@ -295,8 +302,23 @@
   font-weight: 650;
 }
 
+/* La sélection appartient au corps d'article, et à lui seul.
+ *
+ * ⚠️ Le fond seul ne suffisait pas : les shells posaient `selection:text-white`
+ * sur un fond d'accent à 28 %, soit du blanc sur du pêche (contraste ~1,6:1).
+ * On pose donc AUSSI la couleur du texte : `--article-selection-ink`, qui
+ * vaut le texte du thème par défaut et la couleur d'encre des thèmes papier
+ * (sépia, nuit chaude). Un lien garde ainsi une encre lisible au lieu de son
+ * vermillon sur un fond vermillon. La teinte est à 38 % pour rester visible
+ * par-dessus une marque déjà peinte.
+ *
+ * Cette règle est hors couche (`article.css`), donc elle gagne sur les
+ * utilitaires Tailwind `selection:*` des ancêtres. */
+.article-prose::selection,
 .article-prose ::selection {
-  background: color-mix(in oklch, var(--article-accent) 28%, transparent);
+  background-color: color-mix(in oklch, var(--article-accent) 38%, transparent);
+  color: var(--article-selection-ink, var(--foreground));
+  -webkit-text-fill-color: var(--article-selection-ink, var(--foreground));
 }
 
 @media (min-width: 640px) {
