@@ -143,7 +143,9 @@ SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."quoteOrdinal", h."
        u.id::text AS reader_id,
        u.name     AS reader_name,
        u.username AS reader_username,
-       u."logoUrl" AS reader_logo
+       u."logoUrl" AS reader_logo,
+       EXISTS (SELECT 1 FROM "MediaMember" mm
+               WHERE mm."userId" = u.id AND mm.status = 'active') AS reader_is_media
 FROM "Highlight" h
 JOIN "User" u ON u.id = h."readerId"
 WHERE h.id = $1
@@ -167,6 +169,7 @@ type GetHighlightByIDRow struct {
 	ReaderName     pgtype.Text      `json:"reader_name"`
 	ReaderUsername pgtype.Text      `json:"reader_username"`
 	ReaderLogo     pgtype.Text      `json:"reader_logo"`
+	ReaderIsMedia  bool             `json:"reader_is_media"`
 }
 
 // Highlights & annotations : surlignage de passages d'articles, notes,
@@ -193,6 +196,7 @@ func (q *Queries) GetHighlightByID(ctx context.Context, id string) (GetHighlight
 		&i.ReaderName,
 		&i.ReaderUsername,
 		&i.ReaderLogo,
+		&i.ReaderIsMedia,
 	)
 	return i, err
 }
@@ -202,7 +206,9 @@ SELECT ac.id, ac.content, ac."createdAt", ac."highlightId",
        u.id::text AS author_id,
        u.name     AS author_name,
        u.username AS author_username,
-       u."logoUrl" AS author_logo
+       u."logoUrl" AS author_logo,
+       EXISTS (SELECT 1 FROM "MediaMember" mm
+               WHERE mm."userId" = u.id AND mm.status = 'active') AS author_is_media
 FROM "AnnotationComment" ac
 JOIN "User" u ON u.id = ac."authorId"
 WHERE ac."highlightId" = $1
@@ -218,6 +224,7 @@ type ListAnnotationCommentsRow struct {
 	AuthorName     pgtype.Text      `json:"author_name"`
 	AuthorUsername pgtype.Text      `json:"author_username"`
 	AuthorLogo     pgtype.Text      `json:"author_logo"`
+	AuthorIsMedia  bool             `json:"author_is_media"`
 }
 
 // Commentaires d'un surlignage, avec auteur.
@@ -239,6 +246,7 @@ func (q *Queries) ListAnnotationComments(ctx context.Context, highlightid string
 			&i.AuthorName,
 			&i.AuthorUsername,
 			&i.AuthorLogo,
+			&i.AuthorIsMedia,
 		); err != nil {
 			return nil, err
 		}
@@ -258,6 +266,8 @@ SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."quoteOrdinal", h."
        u.name     AS reader_name,
        u.username AS reader_username,
        u."logoUrl" AS reader_logo,
+       EXISTS (SELECT 1 FROM "MediaMember" mm
+               WHERE mm."userId" = u.id AND mm.status = 'active') AS reader_is_media,
        EXISTS (
          SELECT 1 FROM "AnnotationUpvote" au
          WHERE au."highlightId" = h.id AND au."userId" = $2
@@ -294,6 +304,7 @@ type ListHighlightsByArticleRow struct {
 	ReaderName     pgtype.Text      `json:"reader_name"`
 	ReaderUsername pgtype.Text      `json:"reader_username"`
 	ReaderLogo     pgtype.Text      `json:"reader_logo"`
+	ReaderIsMedia  bool             `json:"reader_is_media"`
 	ViewerUpvoted  bool             `json:"viewer_upvoted"`
 	CommentsCount  int32            `json:"comments_count"`
 }
@@ -326,6 +337,7 @@ func (q *Queries) ListHighlightsByArticle(ctx context.Context, arg ListHighlight
 			&i.ReaderName,
 			&i.ReaderUsername,
 			&i.ReaderLogo,
+			&i.ReaderIsMedia,
 			&i.ViewerUpvoted,
 			&i.CommentsCount,
 		); err != nil {

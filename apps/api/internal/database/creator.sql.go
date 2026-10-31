@@ -387,7 +387,9 @@ SELECT b.id                 AS bookmark_id,
        u.id::text           AS author_id,
        u.name               AS author_name,
        u.username           AS author_username,
-       u."logoUrl"          AS author_logo
+       u."logoUrl"          AS author_logo,
+       EXISTS (SELECT 1 FROM "MediaMember" mm
+               WHERE mm."userId" = u.id AND mm.status = 'active') AS author_is_media
 FROM "Bookmark" b
 JOIN "Article" a ON a.id = b."articleId" AND a.published = true
 JOIN "Publication" p ON p.id = a."publicationId"
@@ -425,6 +427,7 @@ type ListBookmarksByReaderRow struct {
 	AuthorName              pgtype.Text      `json:"author_name"`
 	AuthorUsername          pgtype.Text      `json:"author_username"`
 	AuthorLogo              pgtype.Text      `json:"author_logo"`
+	AuthorIsMedia           bool             `json:"author_is_media"`
 }
 
 // Articles sauvegardés (bookmarks) d'un lecteur, avec titre/slug/publication
@@ -459,6 +462,7 @@ func (q *Queries) ListBookmarksByReader(ctx context.Context, arg ListBookmarksBy
 			&i.AuthorName,
 			&i.AuthorUsername,
 			&i.AuthorLogo,
+			&i.AuthorIsMedia,
 		); err != nil {
 			return nil, err
 		}

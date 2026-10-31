@@ -3,7 +3,21 @@ package notifications
 import (
 	"reflect"
 	"testing"
+
+	db "github.com/qoefi/api/internal/database"
 )
+
+func TestNotificationFromRowKeepsSenderType(t *testing.T) {
+	media := notificationFromRow(&db.GetNotificationsRow{SenderIsMedia: true})
+	if got := media.Senders[0].Type; got != "MEDIA" {
+		t.Fatalf("sender média type = %q, attendu MEDIA", got)
+	}
+
+	personal := notificationFromRow(&db.GetNotificationsRow{SenderIsMedia: false})
+	if got := personal.Senders[0].Type; got != "PERSONAL" {
+		t.Fatalf("sender personnel type = %q, attendu PERSONAL", got)
+	}
+}
 
 func TestMarkReadIDs(t *testing.T) {
 	tests := []struct {

@@ -7,6 +7,8 @@ SELECT n.id, n.type, n."isRead", n."createdAt", n."thoughtId", n."articleId", n.
        u.username      AS sender_username,
        u."logoUrl"     AS sender_logo,
        u."isCertified" AS sender_certified,
+       EXISTS (SELECT 1 FROM "MediaMember" mm
+               WHERE mm."userId" = u.id AND mm.status = 'active') AS sender_is_media,
        t.content       AS thought_content,
        t."createdAt"   AS thought_created_at,
        a.title         AS article_title,

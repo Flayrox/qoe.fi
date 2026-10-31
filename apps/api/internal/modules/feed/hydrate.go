@@ -14,6 +14,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/identity"
 	"github.com/qoefi/api/internal/modules/posts"
 )
 
@@ -24,6 +25,9 @@ type HydrateAuthor struct {
 	Username    *string `json:"username"`
 	LogoURL     *string `json:"logoUrl"`
 	IsCertified bool    `json:"isCertified"`
+	// Type (PERSONAL | MEDIA) est la nature de l'identité. Le feed la transmet
+	// telle quelle pour que l'avatar soit dérivé des données, pas du composant.
+	Type string `json:"type"`
 }
 
 // HydratePublication est la publication dénormalisée complète (parité
@@ -99,6 +103,8 @@ func (s *Service) HydrateArticles(ctx context.Context, articleIDs []string) ([]H
 		       a."publicationId", a."authorId", a."categoryId", a."tierId",
 		       a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
 		       u.id::text, u.name, u.username, u."logoUrl", u."isCertified",
+		       EXISTS (SELECT 1 FROM "MediaMember" mm
+		               WHERE mm."userId" = u.id AND mm.status = 'active'),
 		       p.id, p.type, p.name, p.slug, p.subdomain, p."customDomain", p."logoUrl", p."heroText", p."isCertified"
 		FROM "Article" a
 		JOIN "User" u ON u.id = a."authorId"
@@ -117,6 +123,7 @@ func (s *Service) HydrateArticles(ctx context.Context, articleIDs []string) ([]H
 		var scheduled pgtype.Timestamp
 		var createdAt, updatedAt pgtype.Timestamp
 		var authorName, authorUsername, authorLogo *string
+		var authorIsMedia bool
 		var pubSubdomain, pubCustomDomain, pubLogo, pubHero *string
 		if err := rows.Scan(
 			&a.ID, &a.Title, &a.Slug, &a.Content, &img, &a.Published, &a.IsPremium,
@@ -124,7 +131,7 @@ func (s *Service) HydrateArticles(ctx context.Context, articleIDs []string) ([]H
 			&a.AllowPublicAnnotations, &a.AllowComments, &scheduled,
 			&a.PublicationID, &a.AuthorID, &cat, &tier,
 			&seoTitle, &seoDesc, &createdAt, &updatedAt,
-			&a.Author.ID, &authorName, &authorUsername, &authorLogo, &a.Author.IsCertified,
+			&a.Author.ID, &authorName, &authorUsername, &authorLogo, &a.Author.IsCertified, &authorIsMedia,
 			&a.Publication.ID, &a.Publication.Type, &a.Publication.Name, &a.Publication.Slug,
 			&pubSubdomain, &pubCustomDomain, &pubLogo, &pubHero, &a.Publication.IsCertified,
 		); err != nil {
@@ -147,6 +154,7 @@ func (s *Service) HydrateArticles(ctx context.Context, articleIDs []string) ([]H
 		a.Author.Name = authorName
 		a.Author.Username = authorUsername
 		a.Author.LogoURL = authorLogo
+		a.Author.Type = identity.Type(authorIsMedia)
 		a.Publication.Subdomain = pubSubdomain
 		a.Publication.CustomDomain = pubCustomDomain
 		a.Publication.LogoURL = pubLogo
@@ -162,13 +170,17 @@ func (s *Service) HydrateArticles(ctx context.Context, articleIDs []string) ([]H
 
 	// Co-auteurs (batch).
 	if crows, err := s.pool.Query(ctx, `
-		SELECT ca."A", u.id::text, u.name, u.username, u."logoUrl", u."isCertified"
+		SELECT ca."A", u.id::text, u.name, u.username, u."logoUrl", u."isCertified",
+		       EXISTS (SELECT 1 FROM "MediaMember" mm
+		               WHERE mm."userId" = u.id AND mm.status = 'active')
 		FROM "_CoAuthors" ca JOIN "User" u ON u.id = ca."B"
 		WHERE ca."A" = ANY($1::text[])`, articleIDs); err == nil {
 		for crows.Next() {
 			var artID string
 			var au HydrateAuthor
-			if err := crows.Scan(&artID, &au.ID, &au.Name, &au.Username, &au.LogoURL, &au.IsCertified); err == nil {
+			var isMedia bool
+			if err := crows.Scan(&artID, &au.ID, &au.Name, &au.Username, &au.LogoURL, &au.IsCertified, &isMedia); err == nil {
+				au.Type = identity.Type(isMedia)
 				if a, ok := articles[artID]; ok {
 					a.CoAuthors = append(a.CoAuthors, au)
 				}
@@ -180,15 +192,19 @@ func (s *Service) HydrateArticles(ctx context.Context, articleIDs []string) ([]H
 	// Attributions (batch, ordre asc).
 	if arows, err := s.pool.Query(ctx, `
 		SELECT aa."articleId", aa.role, aa."order", aa."isVisible", aa."consentStatus",
-		       u.id::text, u.name, u.username, u."logoUrl", u."isCertified"
+		       u.id::text, u.name, u.username, u."logoUrl", u."isCertified",
+		       EXISTS (SELECT 1 FROM "MediaMember" mm
+		               WHERE mm."userId" = u.id AND mm.status = 'active')
 		FROM "ArticleAttribution" aa JOIN "User" u ON u.id = aa."userId"
 		WHERE aa."articleId" = ANY($1::text[])
 		ORDER BY aa."order" ASC`, articleIDs); err == nil {
 		for arows.Next() {
 			var artID string
 			var att HydrateAttribution
+			var isMedia bool
 			if err := arows.Scan(&artID, &att.Role, &att.Order, &att.IsVisible, &att.ConsentStatus,
-				&att.User.ID, &att.User.Name, &att.User.Username, &att.User.LogoURL, &att.User.IsCertified); err == nil {
+				&att.User.ID, &att.User.Name, &att.User.Username, &att.User.LogoURL, &att.User.IsCertified, &isMedia); err == nil {
+				att.User.Type = identity.Type(isMedia)
 				if a, ok := articles[artID]; ok {
 					a.Attributions = append(a.Attributions, att)
 				}

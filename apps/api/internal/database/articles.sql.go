@@ -967,6 +967,8 @@ SELECT a.id,
        u.username       AS author_username,
        u."logoUrl"      AS author_logo,
        u."isCertified"  AS author_certified,
+       EXISTS (SELECT 1 FROM "MediaMember" mm
+               WHERE mm."userId" = u.id AND mm.status = 'active') AS author_is_media,
        p.name           AS publication_name,
        p.slug           AS publication_slug,
        p.subdomain      AS publication_subdomain,
@@ -1017,6 +1019,7 @@ type ListPublishedArticlesByPublicationRow struct {
 	AuthorUsername       pgtype.Text       `json:"author_username"`
 	AuthorLogo           pgtype.Text       `json:"author_logo"`
 	AuthorCertified      bool              `json:"author_certified"`
+	AuthorIsMedia        bool              `json:"author_is_media"`
 	PublicationName      string            `json:"publication_name"`
 	PublicationSlug      string            `json:"publication_slug"`
 	PublicationSubdomain pgtype.Text       `json:"publication_subdomain"`
@@ -1055,6 +1058,7 @@ func (q *Queries) ListPublishedArticlesByPublication(ctx context.Context, arg Li
 			&i.AuthorUsername,
 			&i.AuthorLogo,
 			&i.AuthorCertified,
+			&i.AuthorIsMedia,
 			&i.PublicationName,
 			&i.PublicationSlug,
 			&i.PublicationSubdomain,
@@ -1091,6 +1095,8 @@ SELECT a.id,
        u.username       AS author_username,
        u."logoUrl"      AS author_logo,
        u."isCertified"  AS author_certified,
+       EXISTS (SELECT 1 FROM "MediaMember" mm
+               WHERE mm."userId" = u.id AND mm.status = 'active') AS author_is_media,
        p.name           AS publication_name,
        p.slug           AS publication_slug,
        p.subdomain      AS publication_subdomain,
@@ -1133,6 +1139,7 @@ type ListRecentPublishedArticlesRow struct {
 	AuthorUsername       pgtype.Text       `json:"author_username"`
 	AuthorLogo           pgtype.Text       `json:"author_logo"`
 	AuthorCertified      bool              `json:"author_certified"`
+	AuthorIsMedia        bool              `json:"author_is_media"`
 	PublicationName      string            `json:"publication_name"`
 	PublicationSlug      string            `json:"publication_slug"`
 	PublicationSubdomain pgtype.Text       `json:"publication_subdomain"`
@@ -1171,6 +1178,7 @@ func (q *Queries) ListRecentPublishedArticles(ctx context.Context, arg ListRecen
 			&i.AuthorUsername,
 			&i.AuthorLogo,
 			&i.AuthorCertified,
+			&i.AuthorIsMedia,
 			&i.PublicationName,
 			&i.PublicationSlug,
 			&i.PublicationSubdomain,
