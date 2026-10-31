@@ -329,6 +329,30 @@ function TableRowCheckboxInner({
  * recopiée des listes du Studio (abonnés, co-auteurs, éditeurs) — et la
  * plus souvent recopiée avec un avatar de 48 px dans une ligne de 40.
  */
+/* ---------------------------------------------------------------------
+   Tri
+   --------------------------------------------------------------------- */
+
+/**
+ * Le tri vit dans `sort.ts` : une colonne déclare la NATURE de sa valeur
+ * (texte, nombre, date, rang) et `sortRows` s'y adapte.
+ *
+ * ⚠️ `allowsSorting` ne fait que rendre l'en-tête pressable et annoncer
+ * `aria-sort` ; il ne classe rien. Sans cette spécification, un tableau
+ * « triable » lève sur des nombres comparés comme du texte (« 9 » après
+ * « 10 ») et sur des rôles classés par ordre alphabétique.
+ */
+export {
+  compareCell,
+  sortRows,
+  type ColumnSort,
+  type SortCell,
+  type SortDescriptorLike,
+  type SortDirection,
+  type SortKind,
+  type SortSpec,
+} from './sort';
+
 export interface TablePersonCellProps {
   name: string;
   src?: string | null;

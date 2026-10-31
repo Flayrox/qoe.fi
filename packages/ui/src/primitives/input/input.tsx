@@ -6,6 +6,7 @@ import {
   useContext,
   type InputHTMLAttributes,
   type ReactNode,
+  type TextareaHTMLAttributes,
 } from 'react';
 import { cn } from '@qoe/utils';
 
@@ -55,6 +56,60 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         'focus-visible:outline-none',
         'aria-invalid:border-destructive aria-invalid:ring-destructive/20',
         FIELD_SIZES[size],
+        DISABLED,
+        className
+      )}
+      {...props}
+    />
+  );
+});
+
+/* ---------------------------------------------------------------------
+   Zone de texte
+   --------------------------------------------------------------------- */
+
+/**
+ * Hauteur MINIMALE par densité, puis croissance libre.
+ *
+ * Un `<textarea rows={4}>` fait 4 lignes quelle que soit la densité du
+ * reste du formulaire ; ici la densité règle la typographie et le padding,
+ * et `rows` garde la main sur le nombre de lignes.
+ */
+const TEXTAREA_SIZES: Record<Size, string> = {
+  xs: 'px-2 py-1 type-control-xs',
+  sm: 'px-2.5 py-1.5 type-control-sm',
+  md: 'px-3 py-2 type-control-md',
+  lg: 'px-3.5 py-2.5 type-control-lg',
+};
+
+export interface TextareaProps extends Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'size'> {
+  size?: Size;
+  invalid?: boolean;
+}
+
+/**
+ * Zone de texte multiligne.
+ *
+ * Même peau que `Input`, mais `resize-none` par défaut : une poignée de
+ * redimensionnement dans une carte de 320 px sert surtout à casser la mise
+ * en page. L'appelant peut la rendre (`resize-y`) s'il en a besoin.
+ */
+export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function Textarea(
+  { size = 'md', invalid, className, rows = 3, ...props },
+  ref
+) {
+  return (
+    <textarea
+      ref={ref}
+      rows={rows}
+      aria-invalid={invalid || props['aria-invalid'] || undefined}
+      className={cn(
+        'w-full min-w-0 resize-none rounded-control border border-input bg-background text-foreground',
+        'transition-colors placeholder:text-muted-foreground/70',
+        'focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25',
+        'focus-visible:outline-none',
+        'aria-invalid:border-destructive aria-invalid:ring-destructive/20',
+        TEXTAREA_SIZES[size],
         DISABLED,
         className
       )}

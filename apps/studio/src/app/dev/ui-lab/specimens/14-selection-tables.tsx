@@ -16,6 +16,9 @@ import {
   TableRow,
   TableSelectAllCell,
   TableSelectionCell,
+  sortRows,
+  type SortDescriptorLike,
+  type SortSpec,
 } from '@qoe/ui/table';
 import { ToggleButton, ToggleGroup } from '@qoe/ui/toggle';
 import { DefectList, Variant } from '../specimen-frame';
@@ -46,10 +49,38 @@ const ARTICLES = [
 ];
 
 const SUBSCRIBERS = [
-  { id: 'a', name: 'Camille Petit', email: 'camille@exemple.fr', plan: 'Payant', since: '12 mars' },
-  { id: 'b', name: 'Noé Lambert', email: 'noe@exemple.fr', plan: 'Essai', since: '14 mars' },
-  { id: 'c', name: 'Awa Traoré', email: 'awa@exemple.fr', plan: 'Payant', since: '2 avril' },
-  { id: 'd', name: 'Inès Moreau', email: 'ines@exemple.fr', plan: 'Gratuit', since: '28 avril' },
+  {
+    id: 'a',
+    name: 'Camille Petit',
+    email: 'camille@exemple.fr',
+    role: 'Propriétaire',
+    plan: 'Payant',
+    since: '12 mars',
+  },
+  {
+    id: 'b',
+    name: 'Noé Lambert',
+    email: 'noe@exemple.fr',
+    role: 'Éditeur',
+    plan: 'Essai',
+    since: '14 mars',
+  },
+  {
+    id: 'c',
+    name: 'Awa Traoré',
+    email: 'awa@exemple.fr',
+    role: 'Contributeur',
+    plan: 'Payant',
+    since: '2 avril',
+  },
+  {
+    id: 'd',
+    name: 'Inès Moreau',
+    email: 'ines@exemple.fr',
+    role: 'Lecteur',
+    plan: 'Gratuit',
+    since: '28 avril',
+  },
 ];
 
 const COMMENTS = [
@@ -124,6 +155,40 @@ const STATE_STYLE: Record<PublicationState, string> = {
   draft: 'bg-muted text-muted-foreground',
 };
 
+/* Le tri ne se devine pas : chaque colonne DÉCLARE ce qu'elle contient.
+   « Publié » se classe avant « Relu » (ordre éditorial), jamais après
+   « Brouillon » par ordre alphabétique, et « 1 420 » est un nombre. */
+const ARTICLE_SORT: SortSpec<(typeof ARTICLES)[number]> = {
+  title: { kind: 'text', value: (row) => row.title },
+  author: { kind: 'text', value: (row) => row.author },
+  status: { kind: 'rank', rank: ['Publié', 'Relu', 'Brouillon'], value: (row) => row.status },
+  views: { kind: 'number', value: (row) => row.views },
+};
+
+const SUBSCRIBER_SORT: SortSpec<(typeof SUBSCRIBERS)[number]> = {
+  person: { kind: 'text', value: (row) => row.name },
+  role: {
+    kind: 'rank',
+    rank: ['Propriétaire', 'Éditeur', 'Contributeur', 'Lecteur'],
+    value: (row) => row.role,
+  },
+  plan: { kind: 'rank', rank: ['Payant', 'Essai', 'Gratuit'], value: (row) => row.plan },
+  since: { kind: 'text', value: (row) => row.since },
+};
+
+const DRAFT_SORT: SortSpec<(typeof DRAFTS)[number]> = {
+  title: { kind: 'text', value: (row) => row.title },
+  author: { kind: 'text', value: (row) => row.author },
+  state: { kind: 'rank', rank: ['published', 'scheduled', 'draft'], value: (row) => row.state },
+  when: { kind: 'text', value: (row) => row.when },
+};
+
+const COMMENT_SORT: SortSpec<(typeof COMMENTS)[number]> = {
+  author: { kind: 'text', value: (row) => row.author },
+  body: { kind: 'text', value: (row) => row.body },
+  flags: { kind: 'number', value: (row) => row.flags },
+};
+
 const INDICATORS: CheckboxIndicator[] = ['check', 'dot', 'none'];
 const SIZES = ['xs', 'sm', 'md', 'lg'] as const;
 const TONES = ['neutral', 'brand', 'vivid', 'danger', 'success'] as const;
@@ -145,7 +210,24 @@ export function SelectionTablesSpecimen() {
   const [subscriberKeys, setSubscriberKeys] = useState<Set<string>>(new Set());
   const [commentKeys, setCommentKeys] = useState<Set<string>>(new Set(['k2']));
   const [draftKeys, setDraftKeys] = useState<Set<string>>(new Set());
-  const [sort, setSort] = useState<'ascending' | 'descending'>('descending');
+  // Un descripteur par table : trier les abonnés par rôle ne doit pas
+  // réordonner la liste des écrits.
+  const [articleSort, setArticleSort] = useState<SortDescriptorLike>({
+    column: 'views',
+    direction: 'descending',
+  });
+  const [subscriberSort, setSubscriberSort] = useState<SortDescriptorLike>({
+    column: 'role',
+    direction: 'ascending',
+  });
+  const [draftSort, setDraftSort] = useState<SortDescriptorLike>({
+    column: 'state',
+    direction: 'ascending',
+  });
+  const [commentSort, setCommentSort] = useState<SortDescriptorLike>({
+    column: 'flags',
+    direction: 'descending',
+  });
 
   // Réglages du spécimen : ils pilotent la case d'aperçu ET la colonne de
   // sélection des tables plus bas, ce qui est le point — une variante qu'on
@@ -156,9 +238,10 @@ export function SelectionTablesSpecimen() {
   const [checks, setChecks] = useState<Set<string>>(new Set());
   const [checked, setChecked] = useState(true);
 
-  const sortedArticles = [...ARTICLES].sort((a, b) =>
-    sort === 'ascending' ? a.views - b.views : b.views - a.views
-  );
+  const sortedArticles = sortRows(ARTICLES, articleSort, ARTICLE_SORT);
+  const sortedSubscribers = sortRows(SUBSCRIBERS, subscriberSort, SUBSCRIBER_SORT);
+  const sortedDrafts = sortRows(DRAFTS, draftSort, DRAFT_SORT);
+  const sortedComments = sortRows(COMMENTS, commentSort, COMMENT_SORT);
 
   return (
     <div className="grid gap-10">
@@ -322,25 +405,27 @@ export function SelectionTablesSpecimen() {
       <Variant
         label="Table des écrits — sélection multiple"
         kind="candidat"
-        hint="La case d’en-tête coche tout et passe à `mixed` quand une partie seulement est sélectionnée. Les plages (Maj+clic) et la sélection qui survit au tri viennent de react-aria. La marque de la case est celle réglée en haut."
+        hint="Tous les en-têtes trient, chacun selon ce que la colonne CONTIENT : les vues se comparent comme des nombres (« 1 420 » après « 999 »), les auteurs par alphabet français (accents et casse ignorés), et l’état dans l’ordre éditorial Publié → Relu → Brouillon, jamais par ordre alphabétique. La case d’en-tête coche tout et passe à `mixed` quand une partie seulement est sélectionnée ; la sélection survit au tri."
       >
         <Table
           aria-label="Écrits"
           selectionMode="multiple"
           selectedKeys={articleKeys}
           onSelectionChange={(keys) => setArticleKeys(new Set(keys as Set<string>))}
-          sortDescriptor={{ column: 'views', direction: sort }}
-          onSortChange={(descriptor) =>
-            setSort(descriptor.direction === 'ascending' ? 'ascending' : 'descending')
-          }
+          sortDescriptor={articleSort}
+          onSortChange={setArticleSort}
         >
           <TableHeader>
             <TableSelectAllCell indicator={indicator} />
-            <TableColumn id="title" isRowHeader>
+            <TableColumn id="title" isRowHeader allowsSorting>
               Écrit
             </TableColumn>
-            <TableColumn id="author">Auteur</TableColumn>
-            <TableColumn id="status">État</TableColumn>
+            <TableColumn id="author" allowsSorting>
+              Auteur
+            </TableColumn>
+            <TableColumn id="status" allowsSorting>
+              État
+            </TableColumn>
             <TableColumn id="views" allowsSorting>
               Vues
             </TableColumn>
@@ -375,7 +460,7 @@ export function SelectionTablesSpecimen() {
       <Variant
         label="Abonnés — sélection unique, marque « point »"
         kind="candidat"
-        hint="Même table, densité `sm`, et la marque « point » sur la colonne de sélection : elle se lit comme un choix unique sans qu’on ait besoin d’une primitive radio parallèle. C’est ce qu’un écran de gestion consulte, pas ce qu’il lit."
+        hint="Même table, densité `sm`, et la marque « point » sur la colonne de sélection : elle se lit comme un choix unique sans qu’on ait besoin d’une primitive radio parallèle. Le rôle se trie par hiérarchie (Propriétaire → Éditeur → Contributeur → Lecteur) et l’offre par valeur (Payant → Essai → Gratuit), pas par ordre alphabétique."
       >
         <Table
           aria-label="Abonnés"
@@ -383,22 +468,32 @@ export function SelectionTablesSpecimen() {
           selectionMode="single"
           selectedKeys={subscriberKeys}
           onSelectionChange={(keys) => setSubscriberKeys(new Set(keys as Set<string>))}
+          sortDescriptor={subscriberSort}
+          onSortChange={setSubscriberSort}
         >
           <TableHeader>
             <TableSelectAllCell />
-            <TableColumn id="person" isRowHeader>
+            <TableColumn id="person" isRowHeader allowsSorting>
               Personne
             </TableColumn>
-            <TableColumn id="plan">Offre</TableColumn>
-            <TableColumn id="since">Abonné depuis</TableColumn>
+            <TableColumn id="role" allowsSorting>
+              Rôle
+            </TableColumn>
+            <TableColumn id="plan" allowsSorting>
+              Offre
+            </TableColumn>
+            <TableColumn id="since" allowsSorting>
+              Abonné depuis
+            </TableColumn>
           </TableHeader>
-          <TableBody items={SUBSCRIBERS} emptyState="Aucun abonné">
+          <TableBody items={sortedSubscribers} emptyState="Aucun abonné">
             {(subscriber) => (
               <TableRow id={subscriber.id}>
                 <TableSelectionCell rowId={subscriber.id} indicator="dot" />
                 <TableCell>
                   <TablePersonCell name={subscriber.name} meta={subscriber.email} />
                 </TableCell>
+                <TableCell className="text-muted-foreground">{subscriber.role}</TableCell>
                 <TableCell>
                   <span className="rounded-chip bg-muted px-1.5 py-0.5 type-control-xs">
                     {subscriber.plan}
@@ -421,20 +516,28 @@ export function SelectionTablesSpecimen() {
           selectionMode="multiple"
           selectedKeys={draftKeys}
           onSelectionChange={(keys) => setDraftKeys(new Set(keys as Set<string>))}
+          sortDescriptor={draftSort}
+          onSortChange={setDraftSort}
         >
           <TableHeader>
             <TableSelectAllCell indicator={indicator} />
-            <TableColumn id="title" isRowHeader>
+            <TableColumn id="title" isRowHeader allowsSorting>
               Écrit
             </TableColumn>
-            <TableColumn id="author">Auteur</TableColumn>
-            <TableColumn id="state">Publication</TableColumn>
-            <TableColumn id="when">Quand</TableColumn>
+            <TableColumn id="author" allowsSorting>
+              Auteur
+            </TableColumn>
+            <TableColumn id="state" allowsSorting>
+              Publication
+            </TableColumn>
+            <TableColumn id="when" allowsSorting>
+              Quand
+            </TableColumn>
             <TableColumn id="actions">
               <span className="sr-only">Actions</span>
             </TableColumn>
           </TableHeader>
-          <TableBody items={DRAFTS} emptyState="Aucun brouillon">
+          <TableBody items={sortedDrafts} emptyState="Aucun brouillon">
             {(draft) => (
               <TableRow id={draft.id}>
                 <TableSelectionCell rowId={draft.id} indicator={indicator} />
@@ -488,16 +591,22 @@ export function SelectionTablesSpecimen() {
           selectionMode="multiple"
           selectedKeys={commentKeys}
           onSelectionChange={(keys) => setCommentKeys(new Set(keys as Set<string>))}
+          sortDescriptor={commentSort}
+          onSortChange={setCommentSort}
         >
           <TableHeader>
             <TableSelectAllCell />
-            <TableColumn id="author" isRowHeader>
+            <TableColumn id="author" isRowHeader allowsSorting>
               Auteur
             </TableColumn>
-            <TableColumn id="body">Commentaire</TableColumn>
-            <TableColumn id="flags">Signalements</TableColumn>
+            <TableColumn id="body" allowsSorting>
+              Commentaire
+            </TableColumn>
+            <TableColumn id="flags" allowsSorting>
+              Signalements
+            </TableColumn>
           </TableHeader>
-          <TableBody items={COMMENTS} emptyState="Rien à modérer">
+          <TableBody items={sortedComments} emptyState="Rien à modérer">
             {(comment) => (
               <TableRow id={comment.id}>
                 <TableSelectionCell rowId={comment.id} />
