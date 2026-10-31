@@ -1,13 +1,13 @@
 {
-  "generatedAt": "2026-10-27T12:23:40.124Z",
-  "total": 349,
+  "generatedAt": "2026-10-31T10:17:36.680Z",
+  "total": 360,
   "signals": {
     "primitivesNeverImported": 18,
     "primitivesTotal": 42,
-    "rawButtons": 730,
-    "rawButtonFiles": 139,
+    "rawButtons": 725,
+    "rawButtonFiles": 137,
     "nativeSelectFiles": 1,
-    "rawInputFiles": 79,
+    "rawInputFiles": 78,
     "handRolledOverlays": 29
   },
   "families": [
@@ -25,7 +25,7 @@
         {
           "name": "annotation-mark",
           "path": "packages/ui/src/primitives/annotation-mark/annotation-mark.tsx",
-          "lines": 225,
+          "lines": 228,
           "source": "primitives",
           "usages": 0
         },
@@ -39,7 +39,7 @@
         {
           "name": "bevel-button",
           "path": "packages/ui/src/primitives/bevel-button/bevel-button.tsx",
-          "lines": 116,
+          "lines": 109,
           "source": "primitives",
           "usages": 0
         },
@@ -55,7 +55,7 @@
           "path": "packages/ui/src/primitives/button/button.tsx",
           "lines": 150,
           "source": "primitives",
-          "usages": 5
+          "usages": 6
         },
         {
           "name": "card",
@@ -67,7 +67,7 @@
         {
           "name": "checkbox",
           "path": "packages/ui/src/primitives/checkbox/checkbox.tsx",
-          "lines": 247,
+          "lines": 242,
           "source": "primitives",
           "usages": 0
         },
@@ -95,7 +95,7 @@
         {
           "name": "copy-button",
           "path": "packages/ui/src/primitives/copy-button/copy-button.tsx",
-          "lines": 141,
+          "lines": 139,
           "source": "primitives",
           "usages": 0
         },
@@ -137,21 +137,21 @@
         {
           "name": "hold-to-delete-button",
           "path": "packages/ui/src/primitives/hold-to-delete/hold-to-delete-button.tsx",
-          "lines": 202,
+          "lines": 206,
           "source": "primitives",
           "usages": 0
         },
         {
           "name": "input",
           "path": "packages/ui/src/primitives/input/input.tsx",
-          "lines": 137,
+          "lines": 192,
           "source": "primitives",
           "usages": 4
         },
         {
           "name": "save-button",
           "path": "packages/ui/src/primitives/save-button/save-button.tsx",
-          "lines": 111,
+          "lines": 113,
           "source": "primitives",
           "usages": 0
         },
@@ -177,9 +177,16 @@
           "usages": 0
         },
         {
+          "name": "sort",
+          "path": "packages/ui/src/primitives/table/sort.ts",
+          "lines": 175,
+          "source": "primitives",
+          "usages": 0
+        },
+        {
           "name": "table",
           "path": "packages/ui/src/primitives/table/table.tsx",
-          "lines": 351,
+          "lines": 375,
           "source": "primitives",
           "usages": 0
         },
@@ -290,7 +297,7 @@
         {
           "name": "dialog",
           "path": "packages/ui/src/ui/dialog.tsx",
-          "lines": 120,
+          "lines": 124,
           "source": "ui",
           "usages": 7
         },
@@ -416,7 +423,7 @@
         {
           "name": "sheet",
           "path": "packages/ui/src/ui/sheet.tsx",
-          "lines": 128,
+          "lines": 129,
           "source": "ui",
           "usages": 1
         },
@@ -569,7 +576,7 @@
         {
           "name": "GuestFloatingBar",
           "path": "packages/ui/src/GuestFloatingBar.tsx",
-          "lines": 64,
+          "lines": 88,
           "source": "ui",
           "usages": 1
         },
@@ -646,7 +653,7 @@
         {
           "name": "LoginModal",
           "path": "packages/ui/src/LoginModal.tsx",
-          "lines": 83,
+          "lines": 93,
           "source": "ui",
           "usages": 0
         },
@@ -674,7 +681,7 @@
         {
           "name": "NotificationItem",
           "path": "packages/ui/src/notifications/NotificationItem.tsx",
-          "lines": 319,
+          "lines": 338,
           "source": "ui",
           "usages": 0
         },
@@ -723,7 +730,7 @@
         {
           "name": "annotation-mark",
           "path": "packages/ui/src/primitives/annotation-mark/annotation-mark.tsx",
-          "lines": 225,
+          "lines": 228,
           "source": "ui",
           "usages": 0
         },
@@ -737,7 +744,7 @@
         {
           "name": "bevel-button",
           "path": "packages/ui/src/primitives/bevel-button/bevel-button.tsx",
-          "lines": 116,
+          "lines": 109,
           "source": "ui",
           "usages": 0
         },
@@ -753,7 +760,7 @@
           "path": "packages/ui/src/primitives/button/button.tsx",
           "lines": 150,
           "source": "ui",
-          "usages": 5
+          "usages": 6
         },
         {
           "name": "card",
@@ -765,7 +772,7 @@
         {
           "name": "checkbox",
           "path": "packages/ui/src/primitives/checkbox/checkbox.tsx",
-          "lines": 247,
+          "lines": 242,
           "source": "ui",
           "usages": 0
         },
@@ -793,7 +800,7 @@
         {
           "name": "copy-button",
           "path": "packages/ui/src/primitives/copy-button/copy-button.tsx",
-          "lines": 141,
+          "lines": 139,
           "source": "ui",
           "usages": 0
         },
@@ -835,21 +842,21 @@
         {
           "name": "hold-to-delete-button",
           "path": "packages/ui/src/primitives/hold-to-delete/hold-to-delete-button.tsx",
-          "lines": 202,
+          "lines": 206,
           "source": "ui",
           "usages": 0
         },
         {
           "name": "input",
           "path": "packages/ui/src/primitives/input/input.tsx",
-          "lines": 137,
+          "lines": 192,
           "source": "ui",
           "usages": 4
         },
         {
           "name": "save-button",
           "path": "packages/ui/src/primitives/save-button/save-button.tsx",
-          "lines": 111,
+          "lines": 113,
           "source": "ui",
           "usages": 0
         },
@@ -875,9 +882,16 @@
           "usages": 0
         },
         {
+          "name": "sort",
+          "path": "packages/ui/src/primitives/table/sort.ts",
+          "lines": 175,
+          "source": "ui",
+          "usages": 0
+        },
+        {
           "name": "table",
           "path": "packages/ui/src/primitives/table/table.tsx",
-          "lines": 351,
+          "lines": 375,
           "source": "ui",
           "usages": 0
         },
@@ -919,7 +933,7 @@
         {
           "name": "SafeAvatar",
           "path": "packages/ui/src/SafeAvatar.tsx",
-          "lines": 129,
+          "lines": 153,
           "source": "ui",
           "usages": 17
         },
@@ -947,7 +961,7 @@
         {
           "name": "sidebar",
           "path": "packages/ui/src/sidebar.tsx",
-          "lines": 608,
+          "lines": 611,
           "source": "ui",
           "usages": 5
         },
@@ -961,7 +975,7 @@
         {
           "name": "KnownLikers",
           "path": "packages/ui/src/social/KnownLikers.tsx",
-          "lines": 143,
+          "lines": 144,
           "source": "ui",
           "usages": 0
         },
@@ -982,21 +996,21 @@
         {
           "name": "ProfileHoverCard",
           "path": "packages/ui/src/social/ProfileHoverCard.tsx",
-          "lines": 374,
+          "lines": 451,
           "source": "ui",
-          "usages": 3
+          "usages": 4
         },
         {
           "name": "QuotedArticleCard",
           "path": "packages/ui/src/social/QuotedArticleCard.tsx",
-          "lines": 177,
+          "lines": 288,
           "source": "ui",
           "usages": 0
         },
         {
           "name": "QuotedThoughtCard",
           "path": "packages/ui/src/social/QuotedThoughtCard.tsx",
-          "lines": 87,
+          "lines": 89,
           "source": "ui",
           "usages": 0
         },
@@ -1031,14 +1045,14 @@
         {
           "name": "ThoughtCard",
           "path": "packages/ui/src/social/ThoughtCard.tsx",
-          "lines": 526,
+          "lines": 538,
           "source": "ui",
           "usages": 2
         },
         {
           "name": "ThoughtHeader",
           "path": "packages/ui/src/social/ThoughtHeader.tsx",
-          "lines": 271,
+          "lines": 272,
           "source": "ui",
           "usages": 0
         },
@@ -1066,7 +1080,7 @@
         {
           "name": "SubscribeForm",
           "path": "packages/ui/src/SubscribeForm.tsx",
-          "lines": 445,
+          "lines": 447,
           "source": "ui",
           "usages": 2
         },
@@ -1112,23 +1126,37 @@
       "label": "Lecture & annotations",
       "items": [
         {
+          "name": "annotation-kind",
+          "path": "packages/ui/src/annotations/annotation-kind.ts",
+          "lines": 43,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "annotation-list",
+          "path": "packages/ui/src/annotations/annotation-list.ts",
+          "lines": 53,
+          "source": "ui",
+          "usages": 0
+        },
+        {
           "name": "AnnotationFilterPill",
           "path": "packages/ui/src/annotations/AnnotationFilterPill.tsx",
-          "lines": 84,
+          "lines": 82,
           "source": "ui",
           "usages": 0
         },
         {
           "name": "AnnotationSideDrawer",
           "path": "packages/ui/src/annotations/AnnotationSideDrawer.tsx",
-          "lines": 746,
+          "lines": 767,
           "source": "ui",
           "usages": 0
         },
         {
           "name": "callbacks",
           "path": "packages/ui/src/annotations/callbacks.ts",
-          "lines": 119,
+          "lines": 134,
           "source": "ui",
           "usages": 0
         },
@@ -1142,9 +1170,72 @@
         {
           "name": "CanonicalArticleBody",
           "path": "packages/ui/src/annotations/CanonicalArticleBody.tsx",
-          "lines": 424,
+          "lines": 475,
           "source": "ui",
           "usages": 0
+        },
+        {
+          "name": "citation",
+          "path": "packages/ui/src/annotations/citation.ts",
+          "lines": 109,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "AnnotationDrawerActions",
+          "path": "packages/ui/src/annotations/drawer/AnnotationDrawerActions.tsx",
+          "lines": 193,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "AnnotationDrawerDiscussion",
+          "path": "packages/ui/src/annotations/drawer/AnnotationDrawerDiscussion.tsx",
+          "lines": 120,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "AnnotationDrawerFooter",
+          "path": "packages/ui/src/annotations/drawer/AnnotationDrawerFooter.tsx",
+          "lines": 67,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "AnnotationDrawerHeader",
+          "path": "packages/ui/src/annotations/drawer/AnnotationDrawerHeader.tsx",
+          "lines": 100,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "AnnotationDrawerIdentity",
+          "path": "packages/ui/src/annotations/drawer/AnnotationDrawerIdentity.tsx",
+          "lines": 177,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "AnnotationDrawerNote",
+          "path": "packages/ui/src/annotations/drawer/AnnotationDrawerNote.tsx",
+          "lines": 111,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "AnnotationDrawerQuote",
+          "path": "packages/ui/src/annotations/drawer/AnnotationDrawerQuote.tsx",
+          "lines": 24,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "mark-skin",
+          "path": "packages/ui/src/annotations/mark-skin.ts",
+          "lines": 107,
+          "source": "ui",
+          "usages": 1
         },
         {
           "name": "quote-anchor",
@@ -1156,21 +1247,21 @@
         {
           "name": "TextHighlighter",
           "path": "packages/ui/src/annotations/TextHighlighter.tsx",
-          "lines": 1187,
+          "lines": 1376,
           "source": "ui",
           "usages": 0
         },
         {
           "name": "TextSelectionPopover",
           "path": "packages/ui/src/annotations/TextSelectionPopover.tsx",
-          "lines": 243,
+          "lines": 306,
           "source": "ui",
           "usages": 0
         },
         {
           "name": "types",
           "path": "packages/ui/src/annotations/types.ts",
-          "lines": 261,
+          "lines": 287,
           "source": "ui",
           "usages": 0
         },
@@ -1260,7 +1351,7 @@
         {
           "name": "MinimalCraftShell",
           "path": "packages/ui/src/templates/archetypes/minimal/MinimalCraftShell.tsx",
-          "lines": 558,
+          "lines": 588,
           "source": "ui",
           "usages": 0
         },
@@ -1295,14 +1386,14 @@
         {
           "name": "ArticleContentBlock",
           "path": "packages/ui/src/templates/blocks/ArticleContentBlock.tsx",
-          "lines": 279,
+          "lines": 285,
           "source": "ui",
           "usages": 0
         },
         {
           "name": "ArticleEngagementBar",
           "path": "packages/ui/src/templates/blocks/ArticleEngagementBar.tsx",
-          "lines": 611,
+          "lines": 614,
           "source": "ui",
           "usages": 0
         },
@@ -1456,7 +1547,7 @@
         {
           "name": "schema",
           "path": "packages/ui/src/templates/schema.ts",
-          "lines": 449,
+          "lines": 452,
           "source": "ui",
           "usages": 0
         },
@@ -1637,7 +1728,7 @@
         {
           "name": "AnnotationMark",
           "path": "apps/studio/src/features/editor/extensions/AnnotationMark.ts",
-          "lines": 73,
+          "lines": 76,
           "source": "studio",
           "usages": null
         },
@@ -1735,7 +1826,7 @@
         {
           "name": "totp-enrollment",
           "path": "apps/studio/src/features/security/totp-enrollment.tsx",
-          "lines": 223,
+          "lines": 225,
           "source": "studio",
           "usages": null
         },
@@ -2105,7 +2196,7 @@
         {
           "name": "AppSidebar",
           "path": "apps/core/src/components/layout/AppSidebar.tsx",
-          "lines": 117,
+          "lines": 120,
           "source": "core",
           "usages": null
         },
@@ -2119,7 +2210,7 @@
         {
           "name": "ReaderNavOverlay",
           "path": "apps/core/src/components/layout/ReaderNavOverlay.tsx",
-          "lines": 112,
+          "lines": 133,
           "source": "core",
           "usages": null
         },
@@ -2182,7 +2273,7 @@
         {
           "name": "ArticleAnnotatorView",
           "path": "apps/core/src/components/social/ArticleAnnotatorView.tsx",
-          "lines": 745,
+          "lines": 759,
           "source": "core",
           "usages": null
         },
@@ -2196,7 +2287,7 @@
         {
           "name": "ArticleReaderDrawer",
           "path": "apps/core/src/components/social/ArticleReaderDrawer.tsx",
-          "lines": 233,
+          "lines": 237,
           "source": "core",
           "usages": null
         },
@@ -2210,7 +2301,7 @@
         {
           "name": "DockedReaderToolbar",
           "path": "apps/core/src/components/social/DockedReaderToolbar.tsx",
-          "lines": 138,
+          "lines": 142,
           "source": "core",
           "usages": null
         },
@@ -2326,13 +2417,6 @@
           "usages": null
         },
         {
-          "name": "PaywallCut",
-          "path": "apps/tenants/src/components/paywall/PaywallCut.tsx",
-          "lines": 151,
-          "source": "tenants",
-          "usages": null
-        },
-        {
           "name": "ReadingProgressBar",
           "path": "apps/tenants/src/components/ReadingProgressBar.tsx",
           "lines": 46,
@@ -2349,14 +2433,14 @@
         {
           "name": "TenantPageRenderer",
           "path": "apps/tenants/src/components/TenantPageRenderer.tsx",
-          "lines": 245,
+          "lines": 246,
           "source": "tenants",
           "usages": null
         },
         {
           "name": "TenantPageShell",
           "path": "apps/tenants/src/components/TenantPageShell.tsx",
-          "lines": 117,
+          "lines": 120,
           "source": "tenants",
           "usages": null
         }
@@ -2411,7 +2495,7 @@
         {
           "name": "step-up",
           "path": "apps/admin/src/components/security/step-up.tsx",
-          "lines": 465,
+          "lines": 467,
           "source": "admin",
           "usages": null
         }
@@ -2460,13 +2544,6 @@
           "name": "FeaturedPublications",
           "path": "apps/hi/src/components/landing/FeaturedPublications.tsx",
           "lines": 315,
-          "source": "hi",
-          "usages": null
-        },
-        {
-          "name": "FlexCarousel",
-          "path": "apps/hi/src/components/landing/FlexCarousel/FlexCarousel.tsx",
-          "lines": 1405,
           "source": "hi",
           "usages": null
         },
