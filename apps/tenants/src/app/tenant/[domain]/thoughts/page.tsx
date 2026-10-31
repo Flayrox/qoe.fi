@@ -54,6 +54,7 @@ export default async function TenantThoughtsPage({ params }: PageProps) {
       username: item.author.username,
       logoUrl: item.author.logoUrl,
       isCertified: item.author.isCertified,
+      type: item.author.type,
     },
     attachments: item.attachments,
     poll: item.poll as ThoughtData['poll'],

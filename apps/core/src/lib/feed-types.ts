@@ -12,6 +12,8 @@ export interface FeedAuthor {
   username: string | null;
   logoUrl: string | null;
   isCertified: boolean;
+  /** Nature publique du compte (PERSONAL | MEDIA) — décide de l'avatar. */
+  type?: 'PERSONAL' | 'MEDIA' | string | null;
 }
 
 export interface FeedPublication {
@@ -76,6 +78,22 @@ export interface FeedPost {
   } | null;
   repost?: FeedPost | null;
   quotedExcerpt?: string | null;
+  quotedAnnotation?: {
+    id: string;
+    note: string;
+    excerpt: string;
+    quoteOrdinal?: number;
+    canonicalStart?: number | null;
+    canonicalEnd?: number | null;
+    contentSha?: string | null;
+    reader: {
+      id: string;
+      name: string | null;
+      username: string | null;
+      logoUrl: string | null;
+      type?: 'PERSONAL' | 'MEDIA' | string | null;
+    };
+  } | null;
   quotedArticle?: {
     id: string;
     title: string;
@@ -163,6 +181,7 @@ export interface FeedJournalist {
   username: string | null;
   logoUrl: string | null;
   isCertified: boolean;
+  type?: 'PERSONAL' | 'MEDIA' | string | null;
   role?: string;
   order?: number;
   isVisible?: boolean;

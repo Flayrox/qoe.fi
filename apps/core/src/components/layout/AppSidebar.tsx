@@ -16,6 +16,7 @@ interface AppSidebarProps {
   userUsername?: string | null;
   userEmail?: string;
   userAvatar?: string | null;
+  userType?: 'PERSONAL' | 'MEDIA' | string | null;
   userRole?: string;
   onLogout?: () => void | Promise<void>;
 }
@@ -26,6 +27,7 @@ export function AppSidebar({
   userUsername = null,
   userEmail = '',
   userAvatar = null,
+  userType = null,
   onLogout,
 }: AppSidebarProps) {
   const userFallback = userName.slice(0, 2).toUpperCase();
@@ -106,6 +108,7 @@ export function AppSidebar({
       userEmail={userEmail}
       userFallback={userFallback}
       userAvatar={userAvatar}
+      userType={userType}
       onLogout={onLogout}
       primaryAction={{
         label: t`Publier une pensée`,

@@ -52,7 +52,7 @@ interface Author {
   logoUrl: string | null;
   heroText?: string | null;
   isCertified?: boolean;
-  type?: 'PERSONAL' | 'MEDIA';
+  type?: 'PERSONAL' | 'MEDIA' | string | null;
   authorName?: string | null;
   journalist?: {
     id: string;
@@ -60,6 +60,7 @@ interface Author {
     username: string | null;
     logoUrl: string | null;
     isCertified?: boolean;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
   } | null;
   coAuthors?: Array<{
     id: string;
@@ -67,6 +68,7 @@ interface Author {
     username: string | null;
     logoUrl: string | null;
     isCertified?: boolean;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
   }>;
   contributors?: Array<{
     id: string;
@@ -74,6 +76,7 @@ interface Author {
     username: string | null;
     logoUrl: string | null;
     isCertified?: boolean;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
     role?: string;
     order?: number;
     isVisible?: boolean;
@@ -182,6 +185,7 @@ interface FeedDashboardProps {
     role: string;
     logoUrl: string | null;
     username: string | null;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
   } | null;
   followingArticles: FeedItem[];
   recommendationArticles: FeedItem[];
@@ -1096,6 +1100,17 @@ export function FeedDashboard({
         onClose={handleCloseArticle}
         initialSource={activeArticleSource}
         spotlight={activeArticleSpotlight}
+        currentUserProfile={
+          dbUser
+            ? {
+                id: dbUser.id,
+                name: dbUser.name,
+                username: dbUser.username,
+                logoUrl: dbUser.logoUrl,
+                type: dbUser.type,
+              }
+            : null
+        }
       />
 
       <ComposerModal

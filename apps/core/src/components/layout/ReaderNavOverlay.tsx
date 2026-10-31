@@ -2,9 +2,9 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Menu, Bell, Mail } from 'lucide-react';
-import { Logo, SafeAvatar } from '@qoe/ui';
+import { Logo, SafeAvatar, ProfileHoverCard } from '@qoe/ui';
 import { useUnreadNotificationCount } from '@qoe/ui/notifications';
 import { useUnreadConversationCountQuery } from '@qoe/sdk';
 import { t } from '@lingui/core/macro';
@@ -15,6 +15,7 @@ interface ReaderNavOverlayProps {
   userUsername?: string | null;
   userEmail?: string;
   userAvatar?: string | null;
+  userType?: 'PERSONAL' | 'MEDIA' | string | null;
   userRole?: string;
   onLogout?: () => void | Promise<void>;
 }
@@ -24,8 +25,10 @@ export function ReaderNavOverlay({
   userName = t`Lecteur`,
   userUsername = null,
   userAvatar = null,
+  userType = null,
 }: ReaderNavOverlayProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const unreadCount = useUnreadNotificationCount();
   const { data: unreadMessages = 0 } = useUnreadConversationCountQuery();
 
@@ -97,13 +100,31 @@ export function ReaderNavOverlay({
           className="p-1 rounded-full hover:ring-2 hover:ring-primary/20 active:scale-95 transition-all outline-none ml-1"
           aria-label={t`Mon profil`}
         >
-          <SafeAvatar
-            id={userId}
-            username={userUsername}
-            src={userAvatar}
-            name={userName}
-            className="w-6 h-6 rounded-full text-[10px] font-semibold"
-          />
+          <ProfileHoverCard
+            user={{
+              id: userId ?? undefined,
+              name: userName,
+              username: userUsername,
+              logoUrl: userAvatar,
+              type: userType,
+            }}
+            username={userUsername ?? undefined}
+            // L'avatar est dans le <Link> parent : la carte ne l'intercepte
+            // pas, Next garde donc la navigation client (prefetch et clics
+            // modifiés compris). Le nom et le handle du popover, eux, vivent
+            // hors du lien et passent par le routeur.
+            onOpenProfile={() => router.push(profileHref)}
+          >
+            <SafeAvatar
+              id={userId}
+              username={userUsername}
+              src={userAvatar}
+              name={userName}
+              type={userType}
+              size={24}
+              className="text-[10px] font-semibold"
+            />
+          </ProfileHoverCard>
         </Link>
       </div>
     </header>

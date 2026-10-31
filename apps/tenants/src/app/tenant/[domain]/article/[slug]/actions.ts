@@ -10,6 +10,7 @@ import {
   deleteHighlightAction,
   createAnnotationCommentAction,
   quotePassageToFeedAction,
+  citeAnnotationAction,
   unlockArticleWithWalletAction,
   getCurrentUserWalletAction,
 } from '@qoe/sdk/actions/tenant';
@@ -22,6 +23,7 @@ export {
   deleteHighlightAction,
   createAnnotationCommentAction,
   quotePassageToFeedAction,
+  citeAnnotationAction,
 };
 import {
   postArticleCommentAction as rawPostArticleComment,

@@ -77,6 +77,9 @@ export function TenantPageShell({
           username: publication.user.username ?? null,
           avatarUrl: publication.user.logoUrl ?? null,
           bio: publication.bio ?? null,
+          // La carte de survol de l'en-tête lit ce type : sans lui, un média
+          // s'y présentait comme une personne (pastille ronde, pas de badge).
+          type: publication.type,
         }
       : undefined,
     team: publication.team,

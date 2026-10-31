@@ -26,6 +26,7 @@ const baseAuthor = {
   username: 'alice',
   logoUrl: 'alice.png',
   isCertified: true,
+  type: 'MEDIA' as const,
 };
 
 const basePublication = {
@@ -381,6 +382,70 @@ describe('mapPostToFeedItem', () => {
     expect(fromRepost.articleQuote?.id).toBe('qa1');
   });
 
+  it('annotation citée mappée avec sa note, son auteur et ses ancres', () => {
+    const citation = {
+      id: 'hl-1',
+      note: 'Ici la formule revient comme une conclusion.',
+      excerpt: 'ce qu’il relirait deux fois',
+      quoteOrdinal: 1,
+      canonicalStart: 420,
+      canonicalEnd: 450,
+      contentSha: 'sha-1',
+      reader: { id: 'reader-2', name: 'Camille', username: 'camille', logoUrl: null },
+    } as NonNullable<FeedPostRecord['quotedAnnotation']>;
+
+    const fromPost = mapPostToFeedItem(
+      post({
+        content: '',
+        quotedAnnotation: citation,
+        quotedArticle: {
+          id: 'qa1',
+          title: 'Titre cité',
+          slug: 'titre-cite',
+          content: '…',
+          isPremium: false,
+          publication: { ...basePublication },
+          author: { ...baseAuthor },
+        },
+      })
+    );
+
+    expect(fromPost.annotationQuote).toMatchObject({
+      id: 'hl-1',
+      note: 'Ici la formule revient comme une conclusion.',
+      excerpt: 'ce qu’il relirait deux fois',
+      quoteOrdinal: 1,
+      canonicalStart: 420,
+      canonicalEnd: 450,
+      contentSha: 'sha-1',
+      reader: { username: 'camille' },
+    });
+    // La carte a toujours son article : la citation et le passage voyagent
+    // ensemble.
+    expect(fromPost.articleQuote?.id).toBe('qa1');
+  });
+
+  it('annotation citée du repost canonique reprise quand le post n’en a pas', () => {
+    const out = mapPostToFeedItem(
+      post({
+        quotedAnnotation: null,
+        repost: post({
+          id: 'r1',
+          content: '',
+          quotedAnnotation: {
+            id: 'hl-2',
+            note: 'Une note',
+            excerpt: 'un passage',
+            quoteOrdinal: 0,
+            reader: { id: 'u2', name: 'Noé', username: 'noe', logoUrl: null },
+          },
+        }),
+      })
+    );
+
+    expect(out.annotationQuote?.id).toBe('hl-2');
+  });
+
   it('poll formaté (canonique d’abord) avec le vote de l’utilisateur courant', () => {
     const p = pollFixture();
     const onPost = mapPostToFeedItem(post({ poll: p }), 'u1');
@@ -401,6 +466,24 @@ describe('mapPostToFeedItem', () => {
     expect(mapPostToFeedItem(post({ tags: null })).tags).toEqual([]);
     expect(mapPostToFeedItem(post({ tags: ['a'] })).tags).toEqual(['a']);
   });
+
+  it('transmet la nature média de l’auteur (pensée, parent et repost)', () => {
+    expect(mapPostToFeedItem(post()).author.type).toBe('MEDIA');
+
+    const threaded = mapPostToFeedItem(
+      post({
+        parent: {
+          id: 'p_parent',
+          content: 'parent',
+          createdAt: '2026-08-01T09:00:00Z',
+          author: { ...baseAuthor, id: 'u_parent', type: 'PERSONAL' },
+        },
+        repost: post({ id: 'p_repost', author: { ...baseAuthor, type: 'PERSONAL' } }),
+      })
+    );
+    expect(threaded.parent?.author.type).toBe('PERSONAL');
+    expect(threaded.repost?.author.type).toBe('PERSONAL');
+  });
 });
 
 // ── mapArticleToFeedItem ────────────────────────────────────────────────────
@@ -418,7 +501,7 @@ describe('mapArticleToFeedItem', () => {
     });
     expect(out.author.username).toBe('la-gazette');
     expect(out.author.logoUrl).toBe('gazette.png');
-    expect(out.author.journalist).toEqual({ ...baseAuthor });
+    expect(out.author.journalist).toEqual({ ...baseAuthor, type: 'MEDIA' });
     expect(out.author.contributors).toEqual([]);
     expect(out.author.coAuthors).toEqual([]);
   });
@@ -444,8 +527,22 @@ describe('mapArticleToFeedItem', () => {
   });
 
   it('coAuthors : gardés quand aucune attribution, filtrés sinon (ACCEPTED + visible)', () => {
-    const ca1 = { id: 'ca1', name: 'CoA', username: 'coa', logoUrl: null, isCertified: false };
-    const ca2 = { id: 'ca2', name: 'CoB', username: 'cob', logoUrl: null, isCertified: false };
+    const ca1 = {
+      id: 'ca1',
+      name: 'CoA',
+      username: 'coa',
+      logoUrl: null,
+      isCertified: false,
+      type: 'PERSONAL' as const,
+    };
+    const ca2 = {
+      id: 'ca2',
+      name: 'CoB',
+      username: 'cob',
+      logoUrl: null,
+      isCertified: false,
+      type: 'PERSONAL' as const,
+    };
     const noAttributions = mapArticleToFeedItem(article({ coAuthors: [ca1, ca2] }));
     expect(noAttributions.author.coAuthors).toHaveLength(2);
 
@@ -471,6 +568,7 @@ describe('mapArticleToFeedItem', () => {
       })
     );
     expect(withAttributions.author.coAuthors.map((c) => c.id)).toEqual(['ca1']);
+    expect(withAttributions.author.coAuthors[0].type).toBe('PERSONAL');
   });
 
   it('contributors : seulement ACCEPTED + isVisible, avec rôle et ordre', () => {

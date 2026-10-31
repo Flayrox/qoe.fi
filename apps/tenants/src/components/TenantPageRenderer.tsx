@@ -170,6 +170,7 @@ export async function TenantPageRenderer(props: TenantPageRendererProps) {
       username: publication.user?.username ?? publication.subdomain ?? null,
       avatarUrl: publication.user?.logoUrl ?? null,
       bio: publication.heroText ?? publication.bio ?? null,
+      type: publication.type,
     },
   };
 
@@ -221,7 +222,7 @@ export async function TenantPageRenderer(props: TenantPageRendererProps) {
 
   return (
     <div
-      className="min-h-screen bg-background text-foreground transition-colors selection:bg-[var(--tenant-accent)] selection:text-white"
+      className="min-h-screen bg-background text-foreground transition-colors"
       style={creatorThemeVars as React.CSSProperties}
     >
       <ThemeStyle creator={{ accentColor, backgroundColor, fontFamily, themeMode }} scope=":root" />

@@ -16,6 +16,7 @@ import {
   updateHighlightNoteAction,
   deleteHighlightAction,
   quotePassageToFeedAction,
+  citeAnnotationAction,
 } from './actions';
 
 export interface TenantArticleHighlighterProps {
@@ -31,6 +32,7 @@ export interface TenantArticleHighlighterProps {
     name: string | null;
     username: string | null;
     logoUrl: string | null;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
   } | null;
   articleAuthorId: string;
   mainAppUrl: string;
@@ -64,6 +66,7 @@ export function TenantArticleHighlighter({
         updateHighlightNoteAction,
         deleteHighlightAction,
         quotePassageToFeedAction,
+        citeAnnotationAction,
       }),
     [articleId]
   );
