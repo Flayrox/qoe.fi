@@ -99,16 +99,22 @@ export function ArticleContentBlock({
   const safeHtml = sanitizeArticleHtml(article.content || '');
 
   const rawAuthors = article.authors;
-  const authorsList: Array<{ name: string; logoUrl?: string | null }> =
+  const authorsList: Array<{
+    name: string;
+    logoUrl?: string | null;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
+  }> =
     rawAuthors && rawAuthors.length > 0
       ? rawAuthors.map((a) => ({
           name: a.name || a.username || 'Auteur',
           logoUrl: a.logoUrl || null,
+          type: a.type,
         }))
       : [
           {
             name: authorName || 'Auteur',
             logoUrl: article.author?.logoUrl || publication.logoUrl || null,
+            type: article.author?.type,
           },
         ];
 
@@ -174,7 +180,7 @@ export function ArticleContentBlock({
                   src={auth.logoUrl}
                   name={auth.name}
                   size={40}
-                  shape="circle"
+                  type={auth.type}
                   className="border-2 border-background ring-1 ring-border/40 shrink-0 shadow-2xs"
                 />
               ))}

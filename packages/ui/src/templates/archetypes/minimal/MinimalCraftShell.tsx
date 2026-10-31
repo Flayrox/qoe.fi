@@ -25,6 +25,8 @@ import {
 } from '../../../ui/craft-sidebar-drawer';
 import { MinimalDock } from './MinimalDock';
 import { SafeAvatar } from '../../../SafeAvatar';
+import { ProfileHoverCard } from '../../../social/ProfileHoverCard';
+import { getMainAppUrl } from '@qoe/config';
 import type { TemplatePublicationContext, TemplateArticleItem } from '../../schema';
 import { AuthModalContext } from '../../../auth/AuthModalContext';
 import { resolveTenantNavigation } from '../../navigation';
@@ -145,6 +147,19 @@ export function MinimalCraftShell({
   const supportLink = publication.stripeAccountId ? '/support' : publication.supportUrl || null;
   const allowSupport = (siteOptions.showSubscribeButton ?? true) !== false;
 
+  /**
+   * L'identité de l'en-tête est la publication (logo + nom), mais son profil
+   * vit sur Core, pas sur le domaine tenant. On y renvoie explicitement :
+   * sans cela, la carte de survol pointerait vers `/handle` sur le tenant.
+   */
+  const openPublicationProfile = (handle: string) => {
+    const base =
+      publication.mainAppUrl ||
+      (typeof window !== 'undefined' ? getMainAppUrl(window.location.host) : '');
+    if (!base || typeof window === 'undefined') return;
+    window.location.href = `${base.replace(/\/+$/, '')}/${encodeURIComponent(handle.replace(/^@/, ''))}`;
+  };
+
   const handleShare = async () => {
     if (typeof navigator !== 'undefined' && navigator.share) {
       try {
@@ -183,7 +198,7 @@ export function MinimalCraftShell({
           style={style}
           data-sidebar-open={isSidebarOpen ? 'true' : 'false'}
           className={cn(
-            'platform_root min-h-screen bg-background text-foreground transition-colors selection:bg-[var(--tenant-accent)] selection:text-white pb-32 relative',
+            'platform_root min-h-screen bg-background text-foreground transition-colors pb-32 relative',
             hasCategoryBar ? 'pt-28 sm:pt-36' : 'pt-20 sm:pt-28',
             className
           )}
@@ -199,20 +214,35 @@ export function MinimalCraftShell({
               personne, sinon l'avatar de repli déterministe (jamais une lettre
               générique). */}
               {showLogo && (
-                <a
-                  href="/"
-                  className="inline-flex items-center justify-center shrink-0 transition-transform hover:scale-105"
-                  title={displayName}
+                <ProfileHoverCard
+                  user={{
+                    id: publication.id,
+                    name: publication.author?.name || publication.name || displayName,
+                    username:
+                      publication.author?.username || publication.subdomain || publication.slug,
+                    logoUrl: publication.logoUrl || publication.author?.avatarUrl || null,
+                    headerImageUrl: publication.headerImageUrl,
+                    heroText: publication.bio || publication.heroText,
+                    isMedia: publication.author?.type === 'MEDIA',
+                    type: publication.author?.type,
+                  }}
+                  onOpenProfile={openPublicationProfile}
                 >
-                  <SafeAvatar
-                    src={publication.logoUrl || publication.author?.avatarUrl || null}
-                    name={publication.author?.name || displayName}
-                    username={publication.author?.username || publication.subdomain}
-                    size={42}
-                    shape={isLogoSquare ? 'squircle' : 'circle'}
-                    className="border border-border/50 shadow-2xs"
-                  />
-                </a>
+                  <a
+                    href="/"
+                    className="inline-flex items-center justify-center shrink-0 transition-opacity hover:opacity-80"
+                    title={displayName}
+                  >
+                    <SafeAvatar
+                      src={publication.logoUrl || publication.author?.avatarUrl || null}
+                      name={publication.author?.name || displayName}
+                      username={publication.author?.username || publication.subdomain}
+                      size={42}
+                      shape={isLogoSquare ? 'squircle' : 'circle'}
+                      className="border border-border/50 shadow-2xs"
+                    />
+                  </a>
+                </ProfileHoverCard>
               )}
 
               {showCraftIndex && (

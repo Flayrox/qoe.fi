@@ -93,6 +93,8 @@ export interface SidebarProps {
   userFallback?: string;
   /** User avatar image URL */
   userAvatar?: string | null;
+  /** Nature du compte : un média garde un carré à coins arrondis. */
+  userType?: 'PERSONAL' | 'MEDIA' | string | null;
   /** Logout handler function */
   onLogout?: () => void | Promise<void>;
   /** Primary CTA action */
@@ -290,6 +292,7 @@ export function Sidebar({
   userName,
   userEmail,
   userAvatar,
+  userType = null,
   onLogout,
   primaryAction,
   onSearchChange,
@@ -511,7 +514,7 @@ export function Sidebar({
                       src={userAvatar}
                       name={userName}
                       size={28}
-                      shape="circle"
+                      type={userType}
                       className="border border-sidebar-primary/20 shrink-0"
                     />
                     <div className="flex-1 text-left truncate min-w-0">
