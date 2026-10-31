@@ -1,0 +1,142 @@
+/* =====================================================================
+   marks.css — la peau des surlignages d'annotation
+   =====================================================================
+
+   📖 Les surlignages sont peints dans le DOM par le moteur d'annotation
+      (`<mark>` insérés par découpe de nœuds texte), pas rendus par React.
+      Leur peau doit donc être du CSS pur, applicable par `className`.
+
+   🎯 Pourquoi un tracé SVG « cuit » et pas un filtre :
+
+      - un `filter: url(#…)` ne s'applique pas à un `background-image` ;
+      - un filtre SVG embarqué dans un data-URI n'est pas rendu de façon
+        fiable par Safari, et une marque qui disparaît sur une plateforme
+        n'est pas une option.
+
+      On dessine donc l'ondulation une fois, à la main, et on la pose en
+      image de fond. Le tracé est répété sur CHAQUE fragment de ligne via
+      `box-decoration-break: clone` : une citation sur trois lignes reçoit
+      trois traits, sans mesure JavaScript, sans décalage de mise en page,
+      et sans survol à recalculer au redimensionnement.
+
+   🎨 QUATRE ÉTATS, QUATRE PEAUX — la discrimination ne tient pas qu'à la
+      teinte, qui échoue pour un lecteur daltonien ou sur un écran délavé :
+
+      - officielle : DOUBLE TRAIT ambre + fond ambre ;
+      - publique   : trait PLEIN FIN vermillon + fond vermillon ;
+      - privée     : trait POINTILLÉ bleu + fond bleu ;
+      - surlignage : trait POINTILLÉ FIN neutre, AUCUN fond — un passage
+                     marqué sans texte, qui n'est pas encore une annotation.
+
+      Les teintes viennent des tokens du thème. Les tracés sont des tons
+      moyens, lisibles sur fond clair comme sur fond sombre.
+
+   ✍️ La marque ne touche JAMAIS à la typographie : `font: inherit` et
+      `color: inherit` annulent le style utilisateur de `<mark>` (fond
+      jaune, texte noir) et toute classe de police qu'un ancêtre pourrait
+      poser. Un paragraphe surligné se lit exactement comme un paragraphe
+      nu, à la marque près.
+   ===================================================================== */
+
+.qoe-mark {
+  /* Le navigateur peint `<mark>` en jaune avec un texte noir : on reprend
+     la couleur du passage, pas celle de l'agent utilisateur. */
+  color: inherit;
+  /* Verrou typographique : la marque hérite de la police, de la graisse,
+     du style, de la taille et de l'interligne du passage. */
+  font: inherit;
+  background-color: var(--qoe-mark-tint, transparent);
+  background-image: var(--qoe-mark-stroke, none);
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  background-size: 100% 0.52em;
+  /* Chaque fragment de ligne reçoit son propre trait. */
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  transition: background-color 150ms ease-out;
+}
+
+/* Le survol éclaircit la teinte, jamais le trait ni le texte. */
+.qoe-mark:hover {
+  background-color: var(--qoe-mark-tint-hover, var(--qoe-mark-tint, transparent));
+}
+
+/* Une marque est un contrôle : son focus clavier doit se voir, et il ne
+   peut pas être l'anneau global (l'élément est en ligne, au milieu d'un
+   paragraphe). */
+.qoe-mark:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Auteur — double trait ambre. Le rythme double le distingue du trait
+   simple d'une annotation publique même sans percevoir la teinte : c'est
+   la voix du créateur dans son propre texte. */
+.qoe-mark-official {
+  --qoe-mark-tint: color-mix(in oklch, var(--annotation-official) 18%, transparent);
+  --qoe-mark-tint-hover: color-mix(in oklch, var(--annotation-official) 28%, transparent);
+  --qoe-mark-stroke: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 8' preserveAspectRatio='none'%3E%3Cpath d='M2 4.4C19 2.7 38 2.6 58 3.7S96 5.2 118 3.1' fill='none' stroke='%23d97706' stroke-width='1.3' stroke-linecap='round'/%3E%3Cpath d='M2 7.3C19 5.6 38 7.3 58 6.6S96 7.5 118 6' fill='none' stroke='%23d97706' stroke-width='0.9' stroke-linecap='round' opacity='0.8'/%3E%3C/svg%3E");
+}
+
+/* Lecteur, visible par tous — plein fin, vermillon. */
+.qoe-mark-public {
+  --qoe-mark-tint: color-mix(in oklch, var(--annotation-public) 12%, transparent);
+  --qoe-mark-tint-hover: color-mix(in oklch, var(--annotation-public) 20%, transparent);
+  --qoe-mark-stroke: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 8' preserveAspectRatio='none'%3E%3Cpath d='M2 5.4C22 3.2 40 5.2 60 5.6S98 4.2 118 6' fill='none' stroke='%23ee4b2b' stroke-width='1.8' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+/* Lecteur, pour lui seul — pointillé bleu. La couleur et le rythme du trait
+   sont différents de l'annotation publique, pas seulement plus pâles. */
+.qoe-mark-private {
+  --qoe-mark-tint: color-mix(in oklch, var(--annotation-private) 14%, transparent);
+  --qoe-mark-tint-hover: color-mix(in oklch, var(--annotation-private) 22%, transparent);
+  --qoe-mark-stroke: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 8' preserveAspectRatio='none'%3E%3Cpath d='M2 6C20 4.2 40 6 58 5.4S96 6.2 118 4.6' fill='none' stroke='%234f7cff' stroke-width='1.9' stroke-linecap='round' stroke-dasharray='3.5 3'/%3E%3C/svg%3E");
+}
+
+/* Surlignage seul — aucun fond, un trait pointillé neutre. C'est l'état
+   antérieur à l'annotation : le passage a été marqué, pas encore commenté.
+   Le survol donne un fond discret pour montrer qu'il est cliquable. */
+.qoe-mark-highlight {
+  --qoe-mark-tint: transparent;
+  --qoe-mark-tint-hover: color-mix(in oklch, var(--annotation-highlight) 20%, transparent);
+  --qoe-mark-stroke: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 8' preserveAspectRatio='none'%3E%3Cpath d='M2 6C20 4.2 40 6 58 5.4S96 6.2 118 4.6' fill='none' stroke='%2371717a' stroke-width='1.7' stroke-linecap='round' stroke-dasharray='1.2 3.8'/%3E%3C/svg%3E");
+}
+
+/* La marque temporaire sous le curseur pendant la saisie de la note. */
+.qoe-mark-selection {
+  --qoe-mark-tint: color-mix(in oklch, var(--brand-vivid) 22%, transparent);
+  --qoe-mark-tint-hover: var(--qoe-mark-tint);
+  --qoe-mark-stroke: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 8' preserveAspectRatio='none'%3E%3Cpath d='M2 5.2C20 2.8 42 4 62 5.4S98 5.8 118 3.8' fill='none' stroke='%23ff7a00' stroke-width='2.6' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+
+/* ─────────────────────────────────────────────
+   Le tiroir lit le MÊME accent que la marque. `AnnotationSideDrawer`
+   pose `--qoe-annotation-accent` à partir de `MARK_ACCENT_TOKENS` ;
+   ces deux surfaces n'ont donc aucune couleur à choisir elles-mêmes.
+
+   Une pastille et un filet de citation : c'est toute la décoration dont
+   le panneau a besoin. Pas de liseré dégradé, pas de halo.
+   ───────────────────────────────────────────── */
+
+.qoe-annotation-dot {
+  background-color: var(--qoe-annotation-accent);
+}
+
+.qoe-annotation-quote {
+  border-color: color-mix(in oklch, var(--qoe-annotation-accent) 55%, var(--border));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qoe-mark {
+    transition: none;
+  }
+}
+
+/* Le trait est une information de lecture : il doit sortir à l'impression,
+   même quand le navigateur économise les fonds. */
+@media print {
+  .qoe-mark {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

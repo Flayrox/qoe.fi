@@ -9,6 +9,7 @@
     ".": "./src/index.ts",
     "./annotations": "./src/annotations/index.ts",
     "./annotations/*": "./src/annotations/*",
+    "./mark-skin": "./src/annotations/mark-skin.ts",
     "./ui/*": "./src/ui/*",
     "./notifications": "./src/notifications/index.ts",
     "./button": "./src/primitives/button/button.tsx",
