@@ -82,6 +82,15 @@ export interface PaywallOverlayProps {
   creatorId: string;
   initialAuthenticated?: boolean;
   initialUser?: WalletUser | null;
+  /** Prix de l'achat à l'unité. Défaut local, à remplacer par le tarif
+   *  publié par le serveur dès qu'il est disponible. */
+  unlockPriceCents?: number;
+  /** Abonnement mensuel. Même remarque. */
+  membershipPriceCents?: number;
+  /** Portail Stripe du créateur : « gérer mon abonnement » pour un lecteur
+   *  déjà abonné. Absent = pas de lien (on ne promet pas une page qui
+   *  n'existe pas). */
+  manageSubscriptionUrl?: string;
 }
 
 export function PaywallOverlay({
@@ -92,6 +101,9 @@ export function PaywallOverlay({
   creatorId,
   initialAuthenticated,
   initialUser,
+  unlockPriceCents = ARTICLE_UNLOCK_PRICE_CENTS,
+  membershipPriceCents = MEMBERSHIP_PRICE_CENTS,
+  manageSubscriptionUrl,
 }: PaywallOverlayProps) {
   const [user, setUser] = useState<WalletUser | null>(initialUser ?? null);
   const [unlocking, setUnlocking] = useState(false);
@@ -123,7 +135,7 @@ export function PaywallOverlay({
     try {
       const res = await unlockArticleWithWallet({
         creatorId,
-        costCents: ARTICLE_UNLOCK_PRICE_CENTS,
+        costCents: unlockPriceCents,
       });
       if (res.ok) {
         // Reload to reveal full content
@@ -246,7 +258,7 @@ export function PaywallOverlay({
 
               <div className="mt-4 flex items-center justify-between border-t border-border/50 pt-3">
                 <span className="text-lg font-bold tabular-nums text-foreground">
-                  {formatEuro(ARTICLE_UNLOCK_PRICE_CENTS)}
+                  {formatEuro(unlockPriceCents)}
                 </span>
                 <span
                   className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-white"
@@ -290,7 +302,7 @@ export function PaywallOverlay({
 
               <div className="mt-4 flex items-center justify-between border-t border-border/50 pt-3">
                 <span className="text-lg font-bold tabular-nums text-foreground">
-                  {formatEuro(MEMBERSHIP_PRICE_CENTS)}
+                  {formatEuro(membershipPriceCents)}
                   <span className="ml-0.5 text-xs font-normal text-muted-foreground">
                     {t`/mois`}
                   </span>
@@ -316,6 +328,17 @@ export function PaywallOverlay({
                 <span className="font-medium text-foreground">
                   {t`Solde : ${((user.walletBalanceCents || 0) / 100).toFixed(2)} €`}
                 </span>
+                {manageSubscriptionUrl && (
+                  <>
+                    <span className="text-border">•</span>
+                    <a
+                      href={manageSubscriptionUrl}
+                      className="font-semibold text-foreground underline decoration-foreground/30 underline-offset-2 transition-colors hover:text-[var(--tenant-accent)] focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
+                    >
+                      {t`Gérer mon abonnement`}
+                    </a>
+                  </>
+                )}
               </div>
             ) : (
               <span>
