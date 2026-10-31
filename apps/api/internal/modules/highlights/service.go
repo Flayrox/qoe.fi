@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/qoefi/api/internal/canon"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/identity"
 	"github.com/qoefi/api/internal/subscriptions"
 	"github.com/qoefi/api/internal/vectorfeed"
 )
@@ -24,6 +25,8 @@ type Author struct {
 	Name     *string `json:"name"`
 	Username *string `json:"username"`
 	LogoURL  *string `json:"logoUrl"`
+	// Type (PERSONAL | MEDIA) décide de la forme de l'avatar côté UI.
+	Type string `json:"type"`
 }
 
 // Highlight est un surlignage d'article (shape API).
@@ -125,6 +128,18 @@ func textPtr(t pgtype.Text) *string {
 	return &v
 }
 
+// authorFrom construit l'identité publique d'un lecteur / commentateur. Le
+// type vient de sa membership média active — jamais de la surface d'affichage.
+func authorFrom(id string, name, username, logo pgtype.Text, isMedia bool) Author {
+	return Author{
+		ID:       id,
+		Name:     textPtr(name),
+		Username: textPtr(username),
+		LogoURL:  textPtr(logo),
+		Type:     identity.Type(isMedia),
+	}
+}
+
 func tsString(t pgtype.Timestamp) string {
 	return t.Time.Format(time.RFC3339)
 }
@@ -171,14 +186,9 @@ func (s *Service) ListByArticle(ctx context.Context, articleID, viewerID string)
 			ReaderID:       r.ReaderID,
 			ArticleID:      r.ArticleId,
 			CreatedAt:      tsString(r.CreatedAt),
-			Reader: Author{
-				ID:       r.ReaderID,
-				Name:     textPtr(r.ReaderName),
-				Username: textPtr(r.ReaderUsername),
-				LogoURL:  textPtr(r.ReaderLogo),
-			},
-			ViewerUpvoted: r.ViewerUpvoted,
-			CommentsCount: int(r.CommentsCount),
+			Reader:         authorFrom(r.ReaderID, r.ReaderName, r.ReaderUsername, r.ReaderLogo, r.ReaderIsMedia),
+			ViewerUpvoted:  r.ViewerUpvoted,
+			CommentsCount:  int(r.CommentsCount),
 		})
 	}
 	return out, nil
@@ -265,14 +275,9 @@ func (s *Service) Create(ctx context.Context, articleID, readerID, text string, 
 		ReaderID:       row.ReaderID,
 		ArticleID:      row.ArticleId,
 		CreatedAt:      tsString(row.CreatedAt),
-		Reader: Author{
-			ID:       row.ReaderID,
-			Name:     textPtr(row.ReaderName),
-			Username: textPtr(row.ReaderUsername),
-			LogoURL:  textPtr(row.ReaderLogo),
-		},
-		ViewerUpvoted: false,
-		CommentsCount: 0,
+		Reader:         authorFrom(row.ReaderID, row.ReaderName, row.ReaderUsername, row.ReaderLogo, row.ReaderIsMedia),
+		ViewerUpvoted:  false,
+		CommentsCount:  0,
 	}, nil
 }
 
@@ -322,21 +327,16 @@ func (s *Service) Update(ctx context.Context, highlightID, readerID string, note
 		return Highlight{}, err
 	}
 	return Highlight{
-		ID:           row.ID,
-		Text:         row.Text,
-		Note:         textPtr(row.Note),
-		IsPublic:     row.IsPublic,
-		IsOfficial:   row.IsOfficial,
-		UpvotesCount: int(row.UpvotesCount),
-		ReaderID:     row.ReaderID,
-		ArticleID:    row.ArticleId,
-		CreatedAt:    tsString(row.CreatedAt),
-		Reader: Author{
-			ID:       row.ReaderID,
-			Name:     textPtr(row.ReaderName),
-			Username: textPtr(row.ReaderUsername),
-			LogoURL:  textPtr(row.ReaderLogo),
-		},
+		ID:            row.ID,
+		Text:          row.Text,
+		Note:          textPtr(row.Note),
+		IsPublic:      row.IsPublic,
+		IsOfficial:    row.IsOfficial,
+		UpvotesCount:  int(row.UpvotesCount),
+		ReaderID:      row.ReaderID,
+		ArticleID:     row.ArticleId,
+		CreatedAt:     tsString(row.CreatedAt),
+		Reader:        authorFrom(row.ReaderID, row.ReaderName, row.ReaderUsername, row.ReaderLogo, row.ReaderIsMedia),
 		ViewerUpvoted: false,
 		CommentsCount: 0,
 	}, nil
@@ -388,12 +388,7 @@ func (s *Service) ListComments(ctx context.Context, highlightID string) ([]Annot
 			Content:     r.Content,
 			CreatedAt:   tsString(r.CreatedAt),
 			HighlightID: r.HighlightId,
-			Author: Author{
-				ID:       r.AuthorID,
-				Name:     textPtr(r.AuthorName),
-				Username: textPtr(r.AuthorUsername),
-				LogoURL:  textPtr(r.AuthorLogo),
-			},
+			Author:      authorFrom(r.AuthorID, r.AuthorName, r.AuthorUsername, r.AuthorLogo, r.AuthorIsMedia),
 		})
 	}
 	return out, nil
@@ -420,12 +415,7 @@ func (s *Service) CreateComment(ctx context.Context, highlightID, authorID, cont
 				Content:     r.Content,
 				CreatedAt:   tsString(r.CreatedAt),
 				HighlightID: r.HighlightId,
-				Author: Author{
-					ID:       r.AuthorID,
-					Name:     textPtr(r.AuthorName),
-					Username: textPtr(r.AuthorUsername),
-					LogoURL:  textPtr(r.AuthorLogo),
-				},
+				Author:      authorFrom(r.AuthorID, r.AuthorName, r.AuthorUsername, r.AuthorLogo, r.AuthorIsMedia),
 			}, nil
 		}
 	}
@@ -513,12 +503,7 @@ func (s *Service) Bookmarks(ctx context.Context, readerID string, limit, offset 
 			PublicationLogo:         textPtr(r.PublicationLogo),
 			ArticleContent:          r.ArticleContent,
 			CategoryName:            textPtr(r.CategoryName),
-			Author: Author{
-				ID:       r.AuthorID,
-				Name:     textPtr(r.AuthorName),
-				Username: textPtr(r.AuthorUsername),
-				LogoURL:  textPtr(r.AuthorLogo),
-			},
+			Author:                  authorFrom(r.AuthorID, r.AuthorName, r.AuthorUsername, r.AuthorLogo, r.AuthorIsMedia),
 		})
 	}
 	return out, nil

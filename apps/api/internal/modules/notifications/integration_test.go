@@ -26,6 +26,7 @@ func TestMain(m *testing.M) {
 	}
 	os.Exit(code)
 }
+
 // requirePool skippe les tests DB quand Docker/testcontainers est absent.
 func requirePool(t *testing.T) {
 	t.Helper()
@@ -33,7 +34,6 @@ func requirePool(t *testing.T) {
 		t.Skip("DB indisponible (Docker/testcontainers requis)")
 	}
 }
-
 
 // insertNotification helper : insertion brute pour préparer les états.
 func insertNotification(t *testing.T, recipientID, senderID, ntype, thoughtID string, isRead bool) {
@@ -304,6 +304,30 @@ func TestPreferencesDefaultsThenPartialUpdate(t *testing.T) {
 	}
 	if reloaded.PushLikes || reloaded.EmailCollaborations {
 		t.Fatal("pushLikes=false et emailCollaborations=false non persisté")
+	}
+}
+
+// Le type du sender vient de l'adhésion Média active, pas du client : la
+// carte de survol doit savoir qu'un compte média garde un avatar carré.
+func TestListSenderTypeFromMediaMembership(t *testing.T) {
+	requirePool(t)
+	fx, err := testutil.SeedMedia(context.Background(), poolTest)
+	if err != nil {
+		t.Fatalf("seed media: %v", err)
+	}
+	svc := NewService(poolTest)
+
+	insertNotification(t, fx.OwnerID, fx.EditorID, "FOLLOW", "", false)
+
+	res, err := svc.List(context.Background(), fx.OwnerID, "", 30, 0)
+	if err != nil {
+		t.Fatalf("List: %v", err)
+	}
+	if len(res.Notifications) != 1 || len(res.Notifications[0].Senders) != 1 {
+		t.Fatalf("notifications = %d, attendu 1 avec 1 sender", len(res.Notifications))
+	}
+	if got := res.Notifications[0].Senders[0].Type; got != "MEDIA" {
+		t.Fatalf("sender type = %q, attendu MEDIA", got)
 	}
 }
 

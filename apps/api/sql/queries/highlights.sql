@@ -9,7 +9,9 @@ SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."quoteOrdinal", h."
        u.id::text AS reader_id,
        u.name     AS reader_name,
        u.username AS reader_username,
-       u."logoUrl" AS reader_logo
+       u."logoUrl" AS reader_logo,
+       EXISTS (SELECT 1 FROM "MediaMember" mm
+               WHERE mm."userId" = u.id AND mm.status = 'active') AS reader_is_media
 FROM "Highlight" h
 JOIN "User" u ON u.id = h."readerId"
 WHERE h.id = $1;
@@ -23,6 +25,8 @@ SELECT h.id, h.text, h.note, h."isPublic", h."isOfficial", h."quoteOrdinal", h."
        u.name     AS reader_name,
        u.username AS reader_username,
        u."logoUrl" AS reader_logo,
+       EXISTS (SELECT 1 FROM "MediaMember" mm
+               WHERE mm."userId" = u.id AND mm.status = 'active') AS reader_is_media,
        EXISTS (
          SELECT 1 FROM "AnnotationUpvote" au
          WHERE au."highlightId" = h.id AND au."userId" = sqlc.arg('viewerId')
@@ -98,7 +102,9 @@ SELECT ac.id, ac.content, ac."createdAt", ac."highlightId",
        u.id::text AS author_id,
        u.name     AS author_name,
        u.username AS author_username,
-       u."logoUrl" AS author_logo
+       u."logoUrl" AS author_logo,
+       EXISTS (SELECT 1 FROM "MediaMember" mm
+               WHERE mm."userId" = u.id AND mm.status = 'active') AS author_is_media
 FROM "AnnotationComment" ac
 JOIN "User" u ON u.id = ac."authorId"
 WHERE ac."highlightId" = $1

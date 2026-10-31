@@ -18,6 +18,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/identity"
 	"github.com/qoefi/api/internal/modules/articles"
 )
 
@@ -155,6 +156,9 @@ type AuthorInfo struct {
 	Name     *string `json:"name"`
 	Username *string `json:"username"`
 	LogoURL  *string `json:"logoUrl"`
+	// Type est la NATURE de l'identité (PERSONAL | MEDIA), pas le type de la
+	// publication : c'est elle qui décide de la forme de l'avatar.
+	Type string `json:"type"`
 }
 
 type ArticleDetail struct {
@@ -559,6 +563,7 @@ func scanArticleDetail(row pgx.Row) (*ArticleDetail, error) {
 	var catID, catName, catSlug, catParentSlug *string
 	var catIsDefault bool
 	var authorName, authorUsername, authorLogo *string
+	var authorIsMedia bool
 	var imageURL, seoTitle, seoDescription *string
 	var createdAt time.Time
 	err := row.Scan(&a.ID, &a.Title, &a.Slug, &a.Content, &a.Published, &a.Status,
@@ -566,7 +571,7 @@ func scanArticleDetail(row pgx.Row) (*ArticleDetail, error) {
 		&a.AllowComments, &a.AllowDownload, &seoTitle, &seoDescription,
 		&createdAt, &a.AuthorID, &imageURL,
 		&catID, &catName, &catSlug, &catIsDefault, &catParentSlug,
-		&authorName, &authorUsername, &authorLogo)
+		&authorName, &authorUsername, &authorLogo, &authorIsMedia)
 	if err != nil {
 		return nil, err
 	}
@@ -580,7 +585,10 @@ func scanArticleDetail(row pgx.Row) (*ArticleDetail, error) {
 			ParentSlug: catParentSlug, IsDefault: catIsDefault,
 		}
 	}
-	a.Author = &AuthorInfo{ID: a.AuthorID, Name: authorName, Username: authorUsername, LogoURL: authorLogo}
+	a.Author = &AuthorInfo{
+		ID: a.AuthorID, Name: authorName, Username: authorUsername, LogoURL: authorLogo,
+		Type: identity.Type(authorIsMedia),
+	}
 	return &a, nil
 }
 
@@ -590,7 +598,9 @@ const articleSelect = `
 	       a."allowPublicAnnotations", a."allowComments", a."allowDownload",
 	       a."seoTitle", a."seoDescription", a."createdAt", a."authorId", a."imageUrl",
 	       c.id, c.name, c.slug, c."isDefault", cp.slug,
-	       au.name, au.username, au."logoUrl"
+	       au.name, au.username, au."logoUrl",
+	       EXISTS (SELECT 1 FROM "MediaMember" mm
+	               WHERE mm."userId" = au.id AND mm.status = 'active')
 		FROM "Article" a
 		LEFT JOIN "Category" c ON c.id = a."categoryId"
 		LEFT JOIN "Category" cp ON cp.id = c."parentId"

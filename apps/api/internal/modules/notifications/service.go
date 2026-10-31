@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/identity"
 )
 
 // Sender est l'auteur d'une notification.
@@ -20,6 +21,9 @@ type Sender struct {
 	Username    *string `json:"username"`
 	LogoURL     *string `json:"logoUrl"`
 	IsCertified bool    `json:"isCertified"`
+	// Type (PERSONAL | MEDIA) est la nature publique du compte : la carte de
+	// survol et l'avatar carré d'un média en dépendent.
+	Type string `json:"type"`
 }
 
 type ThoughtRef struct {
@@ -320,6 +324,7 @@ func notificationFromRow(r *db.GetNotificationsRow) Notification {
 			Username:    textPtr(r.SenderUsername),
 			LogoURL:     textPtr(r.SenderLogo),
 			IsCertified: r.SenderCertified,
+			Type:        identity.Type(r.SenderIsMedia),
 		}},
 		TotalCount: 1,
 	}

@@ -11,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/qoefi/api/internal/cache"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/identity"
 	"github.com/qoefi/api/internal/modules/articles"
 	"github.com/qoefi/api/internal/modules/posts"
 	"github.com/redis/go-redis/v9"
@@ -220,6 +221,7 @@ type FeedArticleAuthor struct {
 	Username    *string `json:"username"`
 	LogoURL     *string `json:"logoUrl"`
 	IsCertified bool    `json:"isCertified"`
+	Type        string  `json:"type"`
 }
 
 // FeedArticlePub est la publication dénormalisée d'un article du feed.
@@ -424,6 +426,7 @@ type publishedArticleRow struct {
 	AuthorUsername       pgtype.Text
 	AuthorLogo           pgtype.Text
 	AuthorCertified      bool
+	AuthorIsMedia        bool
 	PublicationName      string
 	PublicationSlug      string
 	PublicationSubdomain pgtype.Text
@@ -467,6 +470,7 @@ func buildFeedArticle(r *publishedArticleRow) FeedArticle {
 			Username:    pgtypeTextPtr(r.AuthorUsername),
 			LogoURL:     pgtypeTextPtr(r.AuthorLogo),
 			IsCertified: r.AuthorCertified,
+			Type:        identity.Type(r.AuthorIsMedia),
 		},
 		Publication: FeedArticlePub{
 			ID:        r.PublicationID,
@@ -582,6 +586,7 @@ func (s *Service) RecentArticles(ctx context.Context, limit, offset int) (Articl
 			AuthorUsername:       r.AuthorUsername,
 			AuthorLogo:           r.AuthorLogo,
 			AuthorCertified:      r.AuthorCertified,
+			AuthorIsMedia:        r.AuthorIsMedia,
 			PublicationName:      r.PublicationName,
 			PublicationSlug:      r.PublicationSlug,
 			PublicationSubdomain: r.PublicationSubdomain,
@@ -644,6 +649,7 @@ func (s *Service) PublicationArticles(ctx context.Context, username string, limi
 			AuthorUsername:       r.AuthorUsername,
 			AuthorLogo:           r.AuthorLogo,
 			AuthorCertified:      r.AuthorCertified,
+			AuthorIsMedia:        r.AuthorIsMedia,
 			PublicationName:      r.PublicationName,
 			PublicationSlug:      r.PublicationSlug,
 			PublicationSubdomain: r.PublicationSubdomain,
