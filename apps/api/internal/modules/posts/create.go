@@ -2,6 +2,7 @@ package posts
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"regexp"
 	"strings"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgtype"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/identity"
 	"github.com/qoefi/api/internal/queue"
 )
 
@@ -42,6 +44,9 @@ type CreateFullInput struct {
 	TriggerWarning   *string
 	QuotedArticleID  *string
 	QuotedExcerpt    *string
+	// QuotedAnnotationID cite une annotation : le serveur recharge son
+	// texte, sa note, son auteur et ses ancres, et les fige dans le post.
+	QuotedAnnotationID *string
 }
 
 var urlRe = regexp.MustCompile(`https?://[^\s]+`)
@@ -114,6 +119,33 @@ func (s *Service) CreateFull(ctx context.Context, authorID string, in CreateFull
 		quotedExcerpt = pgtype.Text{String: *in.QuotedExcerpt, Valid: true}
 	}
 
+	// 🧾 Citation d'annotation : le client ne fournit qu'un identifiant. Le
+	// serveur lit l'annotation, vérifie qu'elle est réellement publiable
+	// (note non vide, publique ou officielle) et fige le snapshot. Le texte
+	// et l'article ne viennent donc jamais du client.
+	var quotedAnnotationJSON []byte
+	if in.QuotedAnnotationID != nil && *in.QuotedAnnotationID != "" {
+		highlight, err := s.q.GetHighlightByID(ctx, *in.QuotedAnnotationID)
+		if err != nil {
+			return FeedPost{}, errors.New("ANNOTATION_NOT_FOUND")
+		}
+		snapshot, err := citationSnapshot(highlight)
+		if err != nil {
+			return FeedPost{}, err
+		}
+		encoded, err := json.Marshal(snapshot)
+		if err != nil {
+			return FeedPost{}, err
+		}
+		quotedAnnotationJSON = encoded
+		// L'article et le passage cités sont ceux de l'annotation, pas ceux
+		// qu'un client aurait pu glisser dans la requête.
+		if highlight.ArticleId != "" {
+			quotedArticleID = pgtype.Text{String: highlight.ArticleId, Valid: true}
+		}
+		quotedExcerpt = pgtype.Text{String: highlight.Text, Valid: highlight.Text != ""}
+	}
+
 	created, err := s.q.CreateThought(ctx, db.CreateThoughtParams{
 		Content:           in.Content,
 		AuthorId:          authorID,
@@ -129,6 +161,7 @@ func (s *Service) CreateFull(ctx context.Context, authorID string, in CreateFull
 		RepostId:          repostText,
 		QuotedArticleId:   quotedArticleID,
 		QuotedExcerpt:     quotedExcerpt,
+		QuotedAnnotation:  quotedAnnotationJSON,
 		ReplyRestriction:  restriction,
 	})
 	if err != nil {
@@ -204,6 +237,43 @@ func (s *Service) CreateFull(ctx context.Context, authorID string, in CreateFull
 	}
 
 	return s.Get(ctx, created.ID, authorID)
+}
+
+// citationSnapshot construit le snapshot publiable d'une annotation, ou
+// refuse. C'est LA règle, partagée par l'API : un surlignage nu (pas de
+// note) et une annotation privée ne se publient pas.
+func citationSnapshot(h db.GetHighlightByIDRow) (QuotedAnnotation, error) {
+	note := strings.TrimSpace(textVal(h.Note))
+	if note == "" || (!h.IsPublic && !h.IsOfficial) {
+		return QuotedAnnotation{}, errors.New("ANNOTATION_NOT_CITABLE")
+	}
+
+	snapshot := QuotedAnnotation{
+		ID:           h.ID,
+		Note:         note,
+		Excerpt:      h.Text,
+		QuoteOrdinal: int(h.QuoteOrdinal),
+		Reader: QuotedAnnotationReader{
+			ID:       h.ReaderID,
+			Name:     textPtr(h.ReaderName),
+			Username: textPtr(h.ReaderUsername),
+			LogoURL:  textPtr(h.ReaderLogo),
+			Type:     identity.Type(h.ReaderIsMedia),
+		},
+	}
+	if h.CanonicalStart.Valid {
+		v := int(h.CanonicalStart.Int32)
+		snapshot.CanonicalStart = &v
+	}
+	if h.CanonicalEnd.Valid {
+		v := int(h.CanonicalEnd.Int32)
+		snapshot.CanonicalEnd = &v
+	}
+	if h.ContentSha.Valid {
+		v := h.ContentSha.String
+		snapshot.ContentSha = &v
+	}
+	return snapshot, nil
 }
 
 func int4Ptr(v *int) pgtype.Int4 {

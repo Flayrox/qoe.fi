@@ -624,6 +624,18 @@ type ArticleComment struct {
 	ParentId  pgtype.Text      `json:"parentId"`
 }
 
+type ArticleEvent struct {
+	ID            string           `json:"id"`
+	ArticleId     string           `json:"articleId"`
+	PublicationId pgtype.Text      `json:"publicationId"`
+	ActorId       pgtype.UUID      `json:"actorId"`
+	Type          string           `json:"type"`
+	FromStatus    pgtype.Text      `json:"fromStatus"`
+	ToStatus      pgtype.Text      `json:"toStatus"`
+	ScheduledAt   pgtype.Timestamp `json:"scheduledAt"`
+	CreatedAt     pgtype.Timestamp `json:"createdAt"`
+}
+
 type ArticleImportJob struct {
 	ID            string           `json:"id"`
 	UserId        pgtype.UUID      `json:"userId"`
@@ -1431,6 +1443,7 @@ type Post struct {
 	RepostId            pgtype.Text       `json:"repostId"`
 	QuotedArticleId     pgtype.Text       `json:"quotedArticleId"`
 	QuotedExcerpt       pgtype.Text       `json:"quotedExcerpt"`
+	QuotedAnnotation    []byte            `json:"quotedAnnotation"`
 	Embedding           pgvector.Vector   `json:"embedding"`
 }
 

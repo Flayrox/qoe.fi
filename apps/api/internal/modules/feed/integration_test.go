@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/qoefi/api/internal/canon"
+	"github.com/qoefi/api/internal/modules/posts"
 	"github.com/qoefi/api/internal/testutil"
 )
 
@@ -155,6 +157,231 @@ func TestThread_AncestorChain(t *testing.T) {
 	// La racine (Alice) n'a pas de parent.
 	if thread.Parent.Parent != nil {
 		t.Fatalf("thread.Parent.Parent = %+v, attendu nil", thread.Parent.Parent)
+	}
+}
+
+// TestThread_PreservesAnnotationCitationsAcrossAncestorsAndReplies vérifie que
+// svc.Thread() hydrate correctement QuotedAnnotation (avec Reader.Type == "MEDIA"
+// et ancres canoniques) et QuotedArticle sur la racine, les ancêtres/parents, et
+// les réponses directes et imbriquées.
+func TestThread_PreservesAnnotationCitationsAcrossAncestorsAndReplies(t *testing.T) {
+	requirePool(t)
+	ctx := context.Background()
+	fx, err := testutil.SeedPosts(ctx, poolTest)
+	if err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+
+	// Article cible avec contenu réaliste
+	articleBody := `<p>Les sciences marines étudient les abysses profonds avec précision. La biodiversité y est foisonnante mais fragile. Protégeons les écosystèmes océaniques pour l'avenir de notre planète bleue.</p>`
+	if _, err := poolTest.Exec(ctx,
+		`UPDATE "Article" SET content = $1, published = true, "scheduledAt" = NULL WHERE id = $2`,
+		articleBody, fx.ArticleID,
+	); err != nil {
+		t.Fatalf("update article: %v", err)
+	}
+	doc := canon.Parse(articleBody)
+
+	strPtr := func(s string) *string { return &s }
+
+	type postSeed struct {
+		id       string
+		content  string
+		parentID *string
+		rootID   *string
+		excerpt  string
+		note     string
+	}
+
+	rootID := "post_annot_root"
+	parentID := "post_annot_parent"
+	directReplyID := "post_annot_direct"
+	nestedReplyID := "post_annot_nested"
+
+	seeds := []postSeed{
+		{
+			id:       rootID,
+			content:  "Pensée racine citant l'annotation",
+			parentID: nil,
+			rootID:   nil,
+			excerpt:  "sciences marines étudient",
+			note:     "Note racine sur les sciences marines",
+		},
+		{
+			id:       parentID,
+			content:  "Pensée ancêtre/parent citant l'annotation",
+			parentID: &rootID,
+			rootID:   &rootID,
+			excerpt:  "abysses profonds avec précision",
+			note:     "Note parent sur les abysses",
+		},
+		{
+			id:       directReplyID,
+			content:  "Réponse directe citant l'annotation",
+			parentID: &parentID,
+			rootID:   &rootID,
+			excerpt:  "biodiversité y est foisonnante",
+			note:     "Note directe sur la biodiversité",
+		},
+		{
+			id:       nestedReplyID,
+			content:  "Réponse imbriquée citant l'annotation",
+			parentID: &directReplyID,
+			rootID:   &rootID,
+			excerpt:  "écosystèmes océaniques",
+			note:     "Note imbriquée sur les écosystèmes",
+		},
+	}
+
+	expectedExcerpts := make(map[string]string)
+
+	for _, s := range seeds {
+		expectedExcerpts[s.id] = s.excerpt
+		start, end, ok := doc.Find(s.excerpt, 0)
+		if !ok {
+			t.Fatalf("extrait %q introuvable", s.excerpt)
+		}
+
+		annot := posts.QuotedAnnotation{
+			ID:             "annot_" + s.id,
+			Note:           s.note,
+			Excerpt:        s.excerpt,
+			QuoteOrdinal:   0,
+			CanonicalStart: &start,
+			CanonicalEnd:   &end,
+			ContentSha:     &doc.Sha,
+			Reader: posts.QuotedAnnotationReader{
+				ID:       fx.ViewerID,
+				Name:     strPtr("Média Spécialisé"),
+				Username: strPtr("mediaspec"),
+				LogoURL:  strPtr("https://cdn.qoe.fi/media-logo.png"),
+				Type:     "MEDIA",
+			},
+		}
+		annotJSON, err := json.Marshal(annot)
+		if err != nil {
+			t.Fatalf("marshal annotation %s: %v", s.id, err)
+		}
+
+		if _, err := poolTest.Exec(ctx,
+			`INSERT INTO "Post" (id, content, "authorId", "createdAt", "updatedAt", tags,
+			                    visibility, "contentVisibility", "isDraft", "replyRestriction",
+			                    "likeCount", "repostCount", "replyCount",
+			                    "parentId", "rootId",
+			                    "quotedArticleId", "quotedExcerpt", "quotedAnnotation")
+			 VALUES ($1, $2, $3, now(), now(), ARRAY[]::text[],
+			         'public', 'PUBLIC', false, 'everyone',
+			         0, 0, 0,
+			         $4, $5,
+			         $6, $7, $8)`,
+			s.id, s.content, fx.AuthorID,
+			s.parentID, s.rootID,
+			fx.ArticleID, s.excerpt, annotJSON,
+		); err != nil {
+			t.Fatalf("insert post %s: %v", s.id, err)
+		}
+	}
+
+	assertCitation := func(label string, p *posts.FeedPost) {
+		t.Helper()
+		if p == nil {
+			t.Fatalf("[%s] post est nil", label)
+		}
+		expectedExcerpt, ok := expectedExcerpts[p.ID]
+		if !ok {
+			t.Fatalf("[%s] aucun extrait attendu pour post %s", label, p.ID)
+		}
+
+		// 1. QuotedAnnotation snapshot
+		if p.QuotedAnnotation == nil {
+			t.Fatalf("[%s] QuotedAnnotation est nil pour post %s", label, p.ID)
+		}
+		if p.QuotedAnnotation.Reader.Type != "MEDIA" {
+			t.Errorf("[%s] Reader.Type = %q, attendu MEDIA", label, p.QuotedAnnotation.Reader.Type)
+		}
+		if p.QuotedAnnotation.CanonicalStart == nil || p.QuotedAnnotation.CanonicalEnd == nil {
+			t.Fatalf("[%s] ancres canoniques manquantes sur QuotedAnnotation", label)
+		}
+		if p.QuotedAnnotation.ContentSha == nil || *p.QuotedAnnotation.ContentSha != doc.Sha {
+			t.Errorf("[%s] ContentSha = %v, attendu %q", label, p.QuotedAnnotation.ContentSha, doc.Sha)
+		}
+		if p.QuotedAnnotation.Excerpt != expectedExcerpt {
+			t.Errorf("[%s] QuotedAnnotation.Excerpt = %q, attendu %q", label, p.QuotedAnnotation.Excerpt, expectedExcerpt)
+		}
+
+		// 2. QuotedArticle
+		if p.QuotedArticle == nil {
+			t.Fatalf("[%s] QuotedArticle est nil pour post %s", label, p.ID)
+		}
+		if p.QuotedArticle.ID != fx.ArticleID {
+			t.Errorf("[%s] QuotedArticle.ID = %q, attendu %q", label, p.QuotedArticle.ID, fx.ArticleID)
+		}
+		if p.QuotedArticle.QuoteContext == nil {
+			t.Fatalf("[%s] QuotedArticle.QuoteContext est nil pour post %s", label, p.ID)
+		}
+		if p.QuotedArticle.QuoteContext.Highlight != expectedExcerpt {
+			t.Errorf("[%s] Highlight = %q, attendu %q", label, p.QuotedArticle.QuoteContext.Highlight, expectedExcerpt)
+		}
+		if p.QuotedArticle.QuoteContext.Start != *p.QuotedAnnotation.CanonicalStart ||
+			p.QuotedArticle.QuoteContext.End != *p.QuotedAnnotation.CanonicalEnd {
+			t.Errorf("[%s] offsets QuoteContext [%d:%d] != ancres [%d:%d]",
+				label, p.QuotedArticle.QuoteContext.Start, p.QuotedArticle.QuoteContext.End,
+				*p.QuotedAnnotation.CanonicalStart, *p.QuotedAnnotation.CanonicalEnd)
+		}
+	}
+
+	svc := newTestService()
+
+	// 1) Charger le thread de directReplyID : vérifie ancêtres (parent -> root) et réponses descendantes (nested)
+	threadDirect, err := svc.Thread(ctx, directReplyID, fx.ViewerID)
+	if err != nil {
+		t.Fatalf("Thread(directReply): %v", err)
+	}
+
+	assertCitation("direct target", &threadDirect.FeedPost)
+
+	if threadDirect.Parent == nil {
+		t.Fatal("directReply.Parent est nil")
+	}
+	assertCitation("parent ancestor", threadDirect.Parent)
+
+	if threadDirect.Parent.Parent == nil {
+		t.Fatal("directReply.Parent.Parent (root) est nil")
+	}
+	assertCitation("root ancestor", threadDirect.Parent.Parent)
+
+	var nestedFound *posts.FeedPost
+	for i := range threadDirect.Replies {
+		if threadDirect.Replies[i].ID == nestedReplyID {
+			nestedFound = &threadDirect.Replies[i]
+			break
+		}
+	}
+	if nestedFound == nil {
+		t.Fatalf("réponse imbriquée %s non trouvée dans les replies de %s", nestedReplyID, directReplyID)
+	}
+	assertCitation("nested reply under direct", nestedFound)
+
+	// 2) Charger le thread de rootID : vérifie root en cible et l'arbre complet des réponses (directes et imbriquées)
+	threadRoot, err := svc.Thread(ctx, rootID, fx.ViewerID)
+	if err != nil {
+		t.Fatalf("Thread(root): %v", err)
+	}
+
+	assertCitation("root target", &threadRoot.FeedPost)
+
+	repliesByID := make(map[string]*posts.FeedPost)
+	for i := range threadRoot.Replies {
+		repliesByID[threadRoot.Replies[i].ID] = &threadRoot.Replies[i]
+	}
+
+	for _, replyID := range []string{parentID, directReplyID, nestedReplyID} {
+		r, ok := repliesByID[replyID]
+		if !ok {
+			t.Errorf("reply %s absente des réponses du root", replyID)
+			continue
+		}
+		assertCitation("reply under root: "+replyID, r)
 	}
 }
 

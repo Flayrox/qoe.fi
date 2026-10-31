@@ -35,6 +35,9 @@ type createThoughtInput struct {
 	TriggerWarning   *string           `json:"triggerWarning,omitempty"`
 	QuotedArticleID  *string           `json:"quotedArticleId,omitempty"`
 	QuotedExcerpt    *string           `json:"quotedExcerpt,omitempty"`
+	// Cite une annotation : le serveur en dérive l'article, l'extrait, la
+	// note et l'attribution. Voir CreateFull.
+	QuotedAnnotationID *string `json:"quotedAnnotationId,omitempty"`
 }
 
 func (h *Handler) Register(r chi.Router) {
@@ -88,19 +91,20 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	post, err := h.svc.CreateFull(r.Context(), userID, CreateFullInput{
-		Content:          in.Content,
-		Tags:             in.Tags,
-		ImageURL:         in.ImageURL,
-		ParentID:         in.ParentID,
-		RepostID:         in.RepostID,
-		ReplyRestriction: in.ReplyRestriction,
-		Attachments:      in.Attachments,
-		Poll:             in.Poll,
-		IsDraft:          in.IsDraft,
-		ScheduledAt:      in.ScheduledAt,
-		TriggerWarning:   in.TriggerWarning,
-		QuotedArticleID:  in.QuotedArticleID,
-		QuotedExcerpt:    in.QuotedExcerpt,
+		Content:            in.Content,
+		Tags:               in.Tags,
+		ImageURL:           in.ImageURL,
+		ParentID:           in.ParentID,
+		RepostID:           in.RepostID,
+		ReplyRestriction:   in.ReplyRestriction,
+		Attachments:        in.Attachments,
+		Poll:               in.Poll,
+		IsDraft:            in.IsDraft,
+		ScheduledAt:        in.ScheduledAt,
+		TriggerWarning:     in.TriggerWarning,
+		QuotedArticleID:    in.QuotedArticleID,
+		QuotedExcerpt:      in.QuotedExcerpt,
+		QuotedAnnotationID: in.QuotedAnnotationID,
 	})
 	if err != nil {
 		response.BadRequest(w, err.Error())

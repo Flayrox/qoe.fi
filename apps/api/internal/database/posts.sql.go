@@ -95,8 +95,8 @@ func (q *Queries) CreateModerationReport(ctx context.Context, arg CreateModerati
 }
 
 const createThought = `-- name: CreateThought :one
-INSERT INTO "Post" (id, "content", "authorId", "updatedAt", tags, "imageUrl", visibility, "contentVisibility", "isDraft", "scheduledAt", "triggerWarning", "parentId", "rootId", "repostId", "quotedArticleId", "quotedExcerpt", "replyRestriction", "isPinned", "likeCount", "repostCount", "replyCount")
-VALUES (gen_random_uuid()::text, $1, $2, now(), $3, $4, $5, $6, $7, $8, $9, NULLIF($10, ''), NULLIF($11, ''), NULLIF($12, ''), NULLIF($13, ''), NULLIF($14, ''), $15, false, 0, 0, 0)
+INSERT INTO "Post" (id, "content", "authorId", "updatedAt", tags, "imageUrl", visibility, "contentVisibility", "isDraft", "scheduledAt", "triggerWarning", "parentId", "rootId", "repostId", "quotedArticleId", "quotedExcerpt", "quotedAnnotation", "replyRestriction", "isPinned", "likeCount", "repostCount", "replyCount")
+VALUES (gen_random_uuid()::text, $1, $2, now(), $3, $4, $5, $6, $7, $8, $9, NULLIF($10, ''), NULLIF($11, ''), NULLIF($12, ''), NULLIF($13, ''), NULLIF($14, ''), $15, $16, false, 0, 0, 0)
 RETURNING id, "content", "authorId", "createdAt", tags, "parentId", "rootId", "repostId", "isDraft", "visibility", "contentVisibility"
 `
 
@@ -115,6 +115,7 @@ type CreateThoughtParams struct {
 	RepostId          interface{}       `json:"repostId"`
 	QuotedArticleId   interface{}       `json:"quotedArticleId"`
 	QuotedExcerpt     interface{}       `json:"quotedExcerpt"`
+	QuotedAnnotation  []byte            `json:"quotedAnnotation"`
 	ReplyRestriction  string            `json:"replyRestriction"`
 }
 
@@ -148,6 +149,7 @@ func (q *Queries) CreateThought(ctx context.Context, arg CreateThoughtParams) (C
 		arg.RepostId,
 		arg.QuotedArticleId,
 		arg.QuotedExcerpt,
+		arg.QuotedAnnotation,
 		arg.ReplyRestriction,
 	)
 	var i CreateThoughtRow
@@ -598,6 +600,8 @@ SELECT u.id::text     AS user_id,
        u.username     AS user_username,
        u."logoUrl"    AS user_logo,
        u."isCertified" AS user_certified,
+       EXISTS (SELECT 1 FROM "MediaMember" mm
+               WHERE mm."userId" = u.id AND mm.status = 'active') AS user_is_media,
        l."createdAt"  AS liked_at
 FROM "Like" l
 JOIN "User" u ON u.id = l."userId"
@@ -620,6 +624,7 @@ type ListLikesForPostRow struct {
 	UserUsername  pgtype.Text      `json:"user_username"`
 	UserLogo      pgtype.Text      `json:"user_logo"`
 	UserCertified bool             `json:"user_certified"`
+	UserIsMedia   bool             `json:"user_is_media"`
 	LikedAt       pgtype.Timestamp `json:"liked_at"`
 }
 
@@ -638,6 +643,7 @@ func (q *Queries) ListLikesForPost(ctx context.Context, arg ListLikesForPostPara
 			&i.UserUsername,
 			&i.UserLogo,
 			&i.UserCertified,
+			&i.UserIsMedia,
 			&i.LikedAt,
 		); err != nil {
 			return nil, err
@@ -693,6 +699,8 @@ SELECT u.id::text     AS user_id,
        u.username     AS user_username,
        u."logoUrl"    AS user_logo,
        u."isCertified" AS user_certified,
+       EXISTS (SELECT 1 FROM "MediaMember" mm
+               WHERE mm."userId" = u.id AND mm.status = 'active') AS user_is_media,
        r."createdAt"  AS reposted_at
 FROM "Post" r
 JOIN "User" u ON u.id = r."authorId"
@@ -715,6 +723,7 @@ type ListRepostsForPostRow struct {
 	UserUsername  pgtype.Text      `json:"user_username"`
 	UserLogo      pgtype.Text      `json:"user_logo"`
 	UserCertified bool             `json:"user_certified"`
+	UserIsMedia   bool             `json:"user_is_media"`
 	RepostedAt    pgtype.Timestamp `json:"reposted_at"`
 }
 
@@ -733,6 +742,7 @@ func (q *Queries) ListRepostsForPost(ctx context.Context, arg ListRepostsForPost
 			&i.UserUsername,
 			&i.UserLogo,
 			&i.UserCertified,
+			&i.UserIsMedia,
 			&i.RepostedAt,
 		); err != nil {
 			return nil, err

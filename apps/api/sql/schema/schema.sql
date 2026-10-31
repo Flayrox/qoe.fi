@@ -788,6 +788,7 @@ CREATE TABLE "Post" (
     "repostId" TEXT,
     "quotedArticleId" TEXT,
     "quotedExcerpt" TEXT,
+    "quotedAnnotation" JSONB,
     "embedding" vector(512),
 
     CONSTRAINT "Post_pkey" PRIMARY KEY ("id")
