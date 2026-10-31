@@ -23,6 +23,17 @@
     scroll-behavior: smooth;
     scrollbar-gutter: stable;
   }
+
+  /* Sélection par défaut, une seule fois pour toutes les apps.
+   *
+   * Le texte garde `currentColor` : une coquille peut changer le fond, elle
+   * ne peut plus imposer un texte blanc sur une teinte claire. Les surfaces
+   * qui ont un vrai besoin (corps d'article, tableau admin) gardent leur
+   * règle locale, mais aucune n'a besoin de repeindre le texte en blanc. */
+  ::selection {
+    background-color: color-mix(in oklch, var(--primary) 30%, transparent);
+    color: currentColor;
+  }
 }
 
 @layer components {

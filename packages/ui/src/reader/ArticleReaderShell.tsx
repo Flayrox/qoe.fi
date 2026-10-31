@@ -104,7 +104,7 @@ function ArticleReaderShellInner({
   return (
     <div
       className={cn(
-        'min-h-screen transition-colors duration-300 relative selection:bg-highlight selection:text-white',
+        'min-h-screen transition-colors duration-300 relative',
         activeThemeClass,
         className
       )}
