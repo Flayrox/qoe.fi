@@ -6,6 +6,8 @@ import { Flag, Loader2, Check } from 'lucide-react';
 import { reportTargetAction } from '@qoe/sdk/actions/feed';
 import { toast } from '@qoe/ui/toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
+import { Button } from '../primitives/button/button';
+import { Textarea } from '../primitives/input/input';
 
 export interface ReportModalProps {
   isOpen: boolean;
@@ -120,31 +122,36 @@ export function ReportModal({
 
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-foreground">{t`Précisions (optionnel)`}</label>
-            <textarea
+            <Textarea
               value={details}
               onChange={(e) => setDetails(e.target.value)}
               placeholder={t`Expliquez brièvement le problème...`}
               rows={3}
-              className="w-full p-2.5 rounded-xl border border-border/40 bg-background text-xs text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-highlight resize-none"
+              size="sm"
             />
           </div>
 
           <div className="flex items-center justify-end gap-2 pt-2">
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={onClose}
-              className="px-3.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+              disabled={isSubmitting}
             >
               {t`Annuler`}
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
+              variant="solid"
+              tone="brand"
+              size="sm"
               disabled={isSubmitting}
-              className="px-4 py-1.5 rounded-xl bg-highlight text-black text-xs font-semibold hover:bg-highlight/90 transition-colors disabled:opacity-50 flex items-center gap-1.5 cursor-pointer shadow-xs"
+              aria-busy={isSubmitting}
             >
               {isSubmitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               <span>{t`Envoyer`}</span>
-            </button>
+            </Button>
           </div>
         </form>
       </DialogContent>

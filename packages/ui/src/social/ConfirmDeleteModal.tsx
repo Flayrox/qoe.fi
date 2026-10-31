@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { t } from '@lingui/core/macro';
 import { Trash2, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
+import { Button } from '../primitives/button/button';
 
 export interface ConfirmDeleteModalProps {
   isOpen: boolean;
@@ -57,23 +58,21 @@ export function ConfirmDeleteModal({
         </DialogHeader>
 
         <div className="flex items-center justify-end gap-2 pt-2">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={pending}
-            className="px-4 py-2 rounded-xl text-xs font-medium text-muted-foreground hover:bg-muted transition-colors cursor-pointer disabled:opacity-50"
-          >
+          <Button type="button" variant="ghost" size="sm" onClick={onClose} disabled={pending}>
             {cancelLabel}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="solid"
+            tone="danger"
+            size="sm"
             onClick={handleConfirm}
             disabled={pending}
-            className="px-4 py-2 rounded-xl bg-destructive text-white font-semibold text-xs hover:bg-destructive/90 transition-colors flex items-center gap-2 cursor-pointer disabled:opacity-50 shadow-sm"
+            aria-busy={pending}
           >
             {pending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
             <span>{confirmLabel}</span>
-          </button>
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

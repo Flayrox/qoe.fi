@@ -5,6 +5,7 @@ import { cn } from '@qoe/utils';
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '../ui/hover-card';
 import { SafeAvatar } from '../SafeAvatar';
 import { CertifiedBadge } from '../ui/CertifiedBadge';
+import { Button } from '../primitives/button/button';
 import { routes } from '@qoe/config/routes';
 import { t } from '@lingui/core/macro';
 import { toggleFollowCreatorHomeAction, resolveProfileAction } from '@qoe/sdk/actions/feed';
@@ -336,7 +337,7 @@ export function ProfileHoverCard({
       <HoverCardContent
         side="top"
         data-profile-hover-content
-        onClick={(event) => event.stopPropagation()}
+        onClick={(event: React.MouseEvent) => event.stopPropagation()}
         align="start"
         sideOffset={6}
         className="w-80 p-0 overflow-hidden rounded-2xl bg-popover/95 backdrop-blur-xl border border-border/50 shadow-2xl z-50 font-sans select-none"
@@ -370,16 +371,15 @@ export function ProfileHoverCard({
             type={isMedia ? 'MEDIA' : 'PERSONAL'}
             className="ring-4 ring-popover shrink-0 shadow-md"
           />
-          <button
+          <Button
             type="button"
+            size="xs"
+            variant={isFollowing ? 'soft' : 'solid'}
+            tone={isFollowing ? 'neutral' : 'brand'}
             onClick={handleToggleFollow}
             disabled={isFollowLoading}
-            className={cn(
-              'px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-150 cursor-pointer flex items-center gap-1.5 shadow-2xs',
-              isFollowing
-                ? 'bg-secondary text-secondary-foreground hover:bg-destructive/10 hover:text-destructive-text hover:border-destructive/30 border border-border/60'
-                : 'bg-primary text-primary-foreground hover:opacity-90'
-            )}
+            aria-busy={isFollowLoading}
+            className="rounded-full gap-1.5"
           >
             {isFollowLoading ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -394,7 +394,7 @@ export function ProfileHoverCard({
                 <span>{t`Suivre`}</span>
               </>
             )}
-          </button>
+          </Button>
         </div>
 
         {/* ── IDENTITÉ ── */}

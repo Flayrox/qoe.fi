@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { Menu as MenuPrimitive } from '@base-ui/react/menu';
 import {
   Building2,
   Check,
@@ -16,6 +15,7 @@ import {
   User,
 } from 'lucide-react';
 import { Button } from '@qoe/ui/button';
+import { Dropdown } from '@qoe/ui/dropdown';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -166,64 +166,46 @@ function HandRolledWorkspaceMenu() {
   );
 }
 
-/** Proposition : Base UI + tokens uniquement, aucun style de marque en état. */
+/** Proposition : Dropdown react-aria + tokens uniquement, aucun style de marque en état. */
 function CandidateMenu() {
   return (
-    <MenuPrimitive.Root>
-      <MenuPrimitive.Trigger
-        render={<Button variant="outline" size="sm" />}
-        className="aria-expanded:bg-muted"
-      >
-        <Settings className="size-3.5" strokeWidth={1.5} />
-        Options
-        <ChevronDown className="size-3.5 text-muted-foreground" strokeWidth={1.5} />
-      </MenuPrimitive.Trigger>
-
-      <MenuPrimitive.Portal>
-        <MenuPrimitive.Positioner sideOffset={6} align="start" className="isolate z-50">
-          <MenuPrimitive.Popup className="w-56 origin-(--transform-origin) rounded-lg border border-border/60 bg-popover/95 p-1 text-popover-foreground shadow-lg ring-1 ring-foreground/5 backdrop-blur-xl duration-100 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0">
-            <MenuPrimitive.Group>
-              <MenuPrimitive.GroupLabel className="px-2 py-1 text-[11px] font-medium tracking-wider text-muted-foreground uppercase">
-                Article
-              </MenuPrimitive.GroupLabel>
-
-              <MenuItem icon={<Pencil className="size-4" strokeWidth={1.5} />} shortcut="E">
-                Modifier
-              </MenuItem>
-              <MenuItem icon={<Copy className="size-4" strokeWidth={1.5} />}>Dupliquer</MenuItem>
-              <MenuItem icon={<Share2 className="size-4" strokeWidth={1.5} />}>Partager</MenuItem>
-            </MenuPrimitive.Group>
-
-            <MenuPrimitive.Separator className="my-1 h-px bg-border/60" />
-
-            <MenuItem icon={<LogOut className="size-4" strokeWidth={1.5} />}>
-              Déplacer vers brouillon
-            </MenuItem>
-          </MenuPrimitive.Popup>
-        </MenuPrimitive.Positioner>
-      </MenuPrimitive.Portal>
-    </MenuPrimitive.Root>
-  );
-}
-
-function MenuItem({
-  icon,
-  shortcut,
-  children,
-}: {
-  icon: React.ReactNode;
-  shortcut?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <MenuPrimitive.Item className="group flex h-8 cursor-default items-center gap-2 rounded-md px-2 text-[13px] text-foreground outline-hidden select-none focus:bg-accent focus:text-accent-foreground data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:shrink-0">
-      <span className="text-muted-foreground group-focus:text-accent-foreground">{icon}</span>
-      <span className="flex-1 truncate">{children}</span>
-      {shortcut && (
-        <kbd className="font-mono text-[10.5px] text-muted-foreground group-focus:text-accent-foreground/80">
-          {shortcut}
-        </kbd>
-      )}
-    </MenuPrimitive.Item>
+    <Dropdown
+      label={
+        <>
+          <Settings className="size-3.5" strokeWidth={1.5} />
+          <span>Options</span>
+        </>
+      }
+      ariaLabel="Options"
+      variant="outline"
+      size="sm"
+      items={[
+        {
+          id: 'edit',
+          label: 'Modifier',
+          icon: <Pencil className="size-4" strokeWidth={1.5} />,
+          shortcut: 'E',
+          onAction: () => {},
+        },
+        {
+          id: 'duplicate',
+          label: 'Dupliquer',
+          icon: <Copy className="size-4" strokeWidth={1.5} />,
+          onAction: () => {},
+        },
+        {
+          id: 'share',
+          label: 'Partager',
+          icon: <Share2 className="size-4" strokeWidth={1.5} />,
+          onAction: () => {},
+        },
+        {
+          id: 'draft',
+          label: 'Déplacer vers brouillon',
+          icon: <LogOut className="size-4" strokeWidth={1.5} />,
+          onAction: () => {},
+        },
+      ]}
+    />
   );
 }
