@@ -1,7 +1,20 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
-import { Check, Loader2, X, Plus, Globe, Lock, Quote, Eye, Volume2, Sparkles } from 'lucide-react';
+import {
+  Check,
+  Loader2,
+  X,
+  Plus,
+  Globe,
+  Lock,
+  Quote,
+  Eye,
+  Volume2,
+  Sparkles,
+  Highlighter,
+  PenLine,
+} from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { AnimatePresence, motion } from 'framer-motion';
 import { TextSelectionPopover } from './TextSelectionPopover';
@@ -11,18 +24,109 @@ import { AnnotationFilterPill } from './AnnotationFilterPill';
 import type { CanonicalDocument } from './canonical-document';
 import { findQuoteOccurrence } from './quote-anchor';
 import { toast } from '@qoe/ui/toast';
+import { Button } from '../primitives/button/button';
+import { BevelButton } from '../primitives/bevel-button/bevel-button';
+import { CopyButton } from '../primitives/copy-button/copy-button';
+import { Textarea } from '../primitives/input/input';
+import { ToggleButton, ToggleGroup } from '../primitives/toggle/toggle-button';
 import { useTextToSpeech } from '../reader/TextToSpeechContext';
 import {
   AnnotationFilterMode,
   AnnotationItem,
   HighlightItem,
   TextHighlighterProps,
-  MARK_STYLE_CLASSES,
   type AnnotationReader,
 } from './types';
+import { markSkin, markSkinFor } from './mark-skin';
+import { appendAnnotation, dedupeAnnotations } from './annotation-list';
 import { t } from '@lingui/core/macro';
 
 export type { AnnotationFilterMode };
+
+/**
+ * Une action de la barre de sélection.
+ *
+ * ⚠️ Les deux libellés (repos / confirmation) occupent la MÊME cellule de
+ * grille : « Citer » ne devient pas « Cité ! » en élargissant le bouton.
+ * La barre est centrée sur la sélection ; chaque changement de largeur la
+ * faisait glisser sous le curseur au moment même du clic.
+ */
+function CalloutAction({
+  icon: Icon,
+  label,
+  done = false,
+  doneLabel,
+  busy = false,
+  disabled = false,
+  describedBy,
+  onClick,
+  title,
+}: {
+  icon: typeof Highlighter;
+  label: string;
+  done?: boolean;
+  doneLabel?: string;
+  busy?: boolean;
+  disabled?: boolean;
+  /** Décrit pourquoi l'action est indisponible (lecteurs d'écran). */
+  describedBy?: string;
+  onClick: () => void;
+  title?: string;
+}) {
+  return (
+    <Button
+      variant="ghost"
+      size="xs"
+      onClick={disabled ? undefined : onClick}
+      disabled={busy}
+      aria-disabled={disabled || busy || undefined}
+      aria-describedby={disabled ? describedBy : undefined}
+      aria-busy={busy || undefined}
+      title={title}
+      className={cn(
+        'px-3 font-semibold text-foreground/90 hover:text-foreground',
+        disabled && 'text-muted-foreground'
+      )}
+    >
+      <span className="relative size-3.5 shrink-0" aria-hidden>
+        <span
+          className={cn(
+            'absolute inset-0 grid place-items-center transition-opacity duration-150',
+            busy && 'opacity-0'
+          )}
+        >
+          <Icon className="size-3.5" strokeWidth={1.75} />
+        </span>
+        <span
+          className={cn(
+            'absolute inset-0 grid place-items-center transition-opacity duration-150',
+            busy ? 'opacity-100' : 'opacity-0'
+          )}
+        >
+          <Loader2 className="size-3.5 animate-spin" />
+        </span>
+      </span>
+
+      <span className="grid">
+        <span
+          aria-hidden={done}
+          className={cn('col-start-1 row-start-1 transition-opacity', done && 'opacity-0')}
+        >
+          {label}
+        </span>
+        <span
+          aria-hidden={!done}
+          className={cn(
+            'col-start-1 row-start-1 font-semibold text-success-text transition-opacity',
+            !done && 'opacity-0'
+          )}
+        >
+          {doneLabel ?? label}
+        </span>
+      </span>
+    </Button>
+  );
+}
 
 export function TextHighlighter({
   articleId,
@@ -51,18 +155,22 @@ export function TextHighlighter({
   const documentRef = canonicalDocument as CanonicalDocument | undefined;
   const defaultReader = {
     id: currentUserId || 'anon',
-    name: currentUserProfile?.name || currentUserProfile?.username || 'Lecteur',
+    name: currentUserProfile?.name || currentUserProfile?.username || t`Lecteur`,
     username: currentUserProfile?.username || 'lecteur',
     logoUrl: currentUserProfile?.logoUrl || null,
     subdomain: null,
+    type: currentUserProfile?.type ?? 'PERSONAL',
   };
 
   const tts = useTextToSpeech();
 
   const [highlights, setHighlights] = useState<HighlightItem[]>(
-    initialHighlights as HighlightItem[]
+    dedupeAnnotations(initialHighlights as HighlightItem[])
   );
-  const [allPublic, setAllPublic] = useState<AnnotationItem[]>(publicHighlights);
+  // Les deux listes viennent du parent et ne sont pas garanties uniques : un
+  // id en double peindrait deux `<mark>` superposés, invisibles à l'œil mais
+  // bien présents dans le DOM (et dans les tests de comptage).
+  const [allPublic, setAllPublic] = useState<AnnotationItem[]>(dedupeAnnotations(publicHighlights));
   const [internalFilterMode, setInternalFilterMode] = useState<AnnotationFilterMode>('all');
   const filterMode = externalFilterMode ?? internalFilterMode;
 
@@ -80,16 +188,26 @@ export function TextHighlighter({
     setHighlights((prev) => {
       if (
         prev.length === initialHighlights.length &&
-        prev.every(
-          (h, i) =>
-            h.id === initialHighlights[i]?.id &&
-            h.note === initialHighlights[i]?.note &&
-            h.isPublic === initialHighlights[i]?.isPublic
-        )
+        prev.every((h, i) => {
+          const next = initialHighlights[i];
+          return (
+            h.id === next?.id &&
+            h.note === next?.note &&
+            h.isPublic === next?.isPublic &&
+            // ⚠️ Les ancres font partie de l’identité : une ré-ancrage
+            // serveur (article ré-édité, offsets recalculés) doit repeindre
+            // la marque au bon endroit. Comparer la seule note laissait la
+            // marque sur l’ancien passage.
+            h.canonicalStart === next?.canonicalStart &&
+            h.canonicalEnd === next?.canonicalEnd &&
+            h.quoteOrdinal === next?.quoteOrdinal &&
+            h.contentSha === next?.contentSha
+          );
+        })
       ) {
         return prev;
       }
-      return initialHighlights as HighlightItem[];
+      return dedupeAnnotations(initialHighlights as HighlightItem[]);
     });
   }, [initialHighlights]);
 
@@ -97,16 +215,23 @@ export function TextHighlighter({
     setAllPublic((prev) => {
       if (
         prev.length === publicHighlights.length &&
-        prev.every(
-          (p, i) =>
-            p.id === publicHighlights[i]?.id &&
-            p.note === publicHighlights[i]?.note &&
-            p.isPublic === publicHighlights[i]?.isPublic
-        )
+        prev.every((p, i) => {
+          const next = publicHighlights[i];
+          return (
+            p.id === next?.id &&
+            p.note === next?.note &&
+            p.isPublic === next?.isPublic &&
+            p.isOfficial === next?.isOfficial &&
+            p.canonicalStart === next?.canonicalStart &&
+            p.canonicalEnd === next?.canonicalEnd &&
+            p.quoteOrdinal === next?.quoteOrdinal &&
+            p.contentSha === next?.contentSha
+          );
+        })
       ) {
         return prev;
       }
-      return publicHighlights;
+      return dedupeAnnotations(publicHighlights);
     });
   }, [publicHighlights]);
 
@@ -117,11 +242,19 @@ export function TextHighlighter({
   const [isPublicChoice, setIsPublicChoice] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
-  const [copiedSuccess, setCopiedSuccess] = useState(false);
+  // ⚠️ Deux succès distincts, deux boutons distincts : le « Cité ! » du
+  // bouton Citer ne doit pas s'allumer parce qu'un surlignage vient d'être
+  // créé ailleurs dans la barre (et inversement).
+  const [quoteSuccess, setQuoteSuccess] = useState(false);
+  // ⚠️ Un état par action. « Surligner » et « Citer » partageaient `saving` :
+  // cliquer sur l'un faisait tourner la roue de l'autre, et la barre
+  // changeait de largeur pendant le clic.
+  const [highlighting, setHighlighting] = useState(false);
+  const [quoting, setQuoting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  // IA Expliquer (fiche Plus P1) : explication en cours + texte reçu.
-  const [explaining, setExplaining] = useState(false);
-  const [explanation, setExplanation] = useState<string | null>(null);
+  // L'affordance « Expliquer » reste dans la barre, mais la fonction n'est
+  // pas branchée. Le bouton est désactivé et décrit, jamais simulé.
+  const explainDisabledId = React.useId();
 
   // Drawer state for clicked highlight
   const [selectedAnnotationForDrawer, setSelectedAnnotationForDrawer] =
@@ -146,6 +279,31 @@ export function TextHighlighter({
     }
   }, [allowPublicAnnotations, onFilterModeChange]);
 
+  /**
+   * Rend une marque activable au clavier.
+   *
+   * ⚠️ Une `<mark>` cliquable n'est pas un bouton : sans `role`, sans
+   * `tabindex` et sans réponse à Entrée/Espace, l'annotation n'existe que
+   * pour la souris. On pose donc la sémantique sur l'élément lui-même — il
+   * est déjà dans le flux du texte, un `<button>` autour casserait la
+   * sélection et le copier-coller.
+   */
+  const makeMarkInteractive = (mark: HTMLElement, label: string, open: () => void) => {
+    mark.setAttribute('role', 'button');
+    mark.tabIndex = 0;
+    mark.setAttribute('aria-label', label);
+    mark.onclick = (event) => {
+      event.stopPropagation();
+      open();
+    };
+    mark.onkeydown = (event: KeyboardEvent) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        open();
+      }
+    };
+  };
+
   // Attach interactivity to HTML-embedded <mark data-annotation-note="..."> author marks
   const setupHtmlMarksInDOM = () => {
     const articleEl = document.getElementById(containerId);
@@ -159,7 +317,7 @@ export function TextHighlighter({
       const generatedId = existingId || `official-html-mark-${index}`;
 
       mark.setAttribute('data-highlight-id', generatedId);
-      mark.className = MARK_STYLE_CLASSES.official;
+      mark.className = markSkin('official');
 
       const officialAnnot: AnnotationItem = {
         id: generatedId,
@@ -178,17 +336,20 @@ export function TextHighlighter({
         },
       };
 
-      setAllPublic((prev) => {
-        if (!prev.some((p) => p.id === generatedId || (p.isOfficial && p.text === text))) {
-          return [...prev, officialAnnot];
-        }
-        return prev;
-      });
+      // Une marque officielle du HTML peut déjà avoir été servie avec ses
+      // ancres : on ajoute par identité, et on ne double pas un officiel de
+      // même texte (les marques du HTML n'ont pas d'id stable).
+      setAllPublic((prev) =>
+        prev.some((p) => p.isOfficial && p.text === text)
+          ? prev
+          : appendAnnotation(prev, officialAnnot)
+      );
 
-      (mark as HTMLElement).onclick = (e) => {
-        e.stopPropagation();
-        setSelectedAnnotationForDrawer(officialAnnot);
-      };
+      makeMarkInteractive(
+        mark as HTMLElement,
+        `${t`Annotation officielle`} : ${text.slice(0, 80)}`,
+        () => setSelectedAnnotationForDrawer(officialAnnot)
+      );
     });
   };
 
@@ -247,17 +408,27 @@ export function TextHighlighter({
     setNoteText('');
     setIsPublicChoice(false);
     setSavedSuccess(false);
+    setQuoteSuccess(false);
     setErrorMessage(null);
   };
 
   // Create temporary active visual mark in DOM so text stays highlighted while typing note
   const applyTempDraftMark = (range: Range) => {
+    // ⚠️ En mode document, le corps est rendu par React : y insérer une
+    // marque à la main (`extractContents` + `insertNode`) découpe ses nœuds
+    // texte derrière son dos. Au rendu suivant il recompose ce qu’il croit
+    // être le texte et le passage se retrouve DUPLIQUÉ dans l’article —
+    // vérifié en cliquant « Annoter » puis en refermant le formulaire.
+    // La sélection native reste visible pendant la saisie : elle suffit.
+    if (documentMode) return;
     removeTempDraftMark();
     try {
       const mark = document.createElement('mark');
       mark.id = 'temp-draft-annotation-mark';
-      mark.className =
-        'bg-highlight/25 text-foreground border-b-2 border-highlight transition-all rounded-xs font-medium animate-pulse';
+      // Même peau que les marques persistées, en variante « sélection » :
+      // la marque temporaire ne doit pas être la seule à ne pas avoir de
+      // trait, sinon elle saute aux yeux comme un bug de rendu.
+      mark.className = `${markSkin('selection')} animate-pulse motion-reduce:animate-none`;
 
       const contents = range.extractContents();
       mark.appendChild(contents);
@@ -270,6 +441,10 @@ export function TextHighlighter({
 
   // Remove temporary active mark from DOM
   const removeTempDraftMark = () => {
+    // Symétrique du garde d’`applyTempDraftMark` : en mode document, on n’a
+    // jamais inséré cette marque, et la retirer reviendrait à démonter un
+    // nœud que React possède.
+    if (documentMode) return;
     const el = document.getElementById('temp-draft-annotation-mark');
     if (el && el.parentNode) {
       const fragment = document.createDocumentFragment();
@@ -310,11 +485,17 @@ export function TextHighlighter({
     // Ensure DOM text nodes are normalized before scanning
     articleEl.normalize();
 
+    // 🛡️ Un identifiant n'est peint qu'une fois : deux listes (privée,
+    // publique) peuvent porter la même annotation après une mise à jour,
+    // et deux marques imbriquées se lisent comme un surlignage qui bave.
+    const painted = new Set<string>();
+
     if (filterMode === 'official') {
       // Render ONLY official creator highlights
       allPublic
-        .filter((pub) => pub.isOfficial)
+        .filter((pub) => pub.isOfficial && !painted.has(pub.id))
         .forEach((pub) => {
+          painted.add(pub.id);
           applyHighlightToDOM(
             articleEl,
             pub.text,
@@ -330,32 +511,45 @@ export function TextHighlighter({
     }
 
     // Render all (private + public + official)
-    // 1. Reader private highlights
-    highlights.forEach((hl) => {
-      applyHighlightToDOM(
-        articleEl,
-        hl.text,
-        hl.note || undefined,
-        false,
-        false,
-        hl.id,
-        undefined,
-        hl.quoteOrdinal
-      );
-    });
+    // 1. Reader highlights — sauf ceux déjà présents dans `allPublic`,
+    //    sinon la même annotation se peignait deux fois (une fois privée).
+    const publicIds = new Set(allPublic.map((p) => p.id));
+    highlights
+      .filter((hl) => !painted.has(hl.id) && !publicIds.has(hl.id))
+      .forEach((hl) => {
+        painted.add(hl.id);
+        applyHighlightToDOM(
+          articleEl,
+          hl.text,
+          hl.note || undefined,
+          Boolean(hl.isPublic),
+          false,
+          hl.id,
+          undefined,
+          hl.quoteOrdinal
+        );
+      });
 
     // 2. Public & official creator highlights
-    allPublic.forEach((pub) => {
-      applyHighlightToDOM(
-        articleEl,
-        pub.text,
-        pub.note || undefined,
-        pub.isPublic,
-        pub.isOfficial,
-        pub.id,
-        pub
-      );
-    });
+    allPublic
+      .filter((pub) => !painted.has(pub.id))
+      .forEach((pub) => {
+        painted.add(pub.id);
+        applyHighlightToDOM(
+          articleEl,
+          pub.text,
+          pub.note || undefined,
+          pub.isPublic,
+          pub.isOfficial,
+          pub.id,
+          pub,
+          // ⚠️ L'ordinal compte aussi pour les marques publiques : un passage
+          // qui se répète (une formule reprise, un titre cité) se peignait
+          // toujours sur sa PREMIÈRE occurrence, en désaccord avec la note
+          // affichée dans le tiroir.
+          pub.quoteOrdinal ?? 0
+        );
+      });
   };
 
   const applyHighlightToDOM = (
@@ -402,32 +596,41 @@ export function TextHighlighter({
 
         const mark = document.createElement('mark');
 
-        if (isOfficial) {
-          mark.className = MARK_STYLE_CLASSES.official;
-        } else if (isPublic) {
-          mark.className = MARK_STYLE_CLASSES.public;
-        } else {
-          mark.className = MARK_STYLE_CLASSES.private;
-        }
+        // ⚠️ La peau se décide sur la NATURE, pas sur la liste d'où vient
+        // la marque : un surlignage public sans texte reste un surlignage,
+        // et un surlignage privé avec une note est une annotation privée.
+        const hasNote = Boolean((note ?? fullAnnotation?.note ?? '').trim());
+        mark.className = markSkinFor({ isOfficial, isPublic, hasNote });
 
         mark.textContent = text;
         mark.setAttribute('data-highlight-text', text);
         if (id) mark.setAttribute('data-highlight-id', id);
 
-        mark.onclick = (e) => {
-          e.stopPropagation();
-          const targetAnnot = fullAnnotation || {
-            id: id || Math.random().toString(),
-            text,
-            note: note || null,
-            isPublic,
-            isOfficial,
-            upvotesCount: 0,
-            createdAt: new Date(),
-            reader: defaultReader,
-          };
-          openDrawerForAnnotation(targetAnnot);
+        const targetAnnot = fullAnnotation || {
+          id: id || Math.random().toString(),
+          text,
+          note: note || null,
+          isPublic,
+          isOfficial,
+          upvotesCount: 0,
+          createdAt: new Date(),
+          reader: defaultReader,
         };
+        // Le nom annoncé dit la NATURE : un trait sans texte n’est pas une
+        // annotation, et un lecteur d’écran ne doit pas l’apprendre de travers.
+        const natureLabel = isOfficial
+          ? t`Annotation officielle`
+          : isPublic
+            ? note
+              ? t`Annotation publique`
+              : t`Surlignage public`
+            : note
+              ? t`Annotation privée`
+              : t`Surlignage privé`;
+
+        makeMarkInteractive(mark, `${natureLabel} : ${text.slice(0, 80)}`, () =>
+          openDrawerForAnnotation(targetAnnot)
+        );
 
         if (note) {
           mark.title = `${isOfficial ? t`Annotation officielle` : isPublic ? t`Annotation publique` : t`Note privée`} : ${note}`;
@@ -452,6 +655,14 @@ export function TextHighlighter({
    * canonique (onMarkClick de CanonicalArticleBody).
    */
   const openDrawerForAnnotation = (targetAnnot: AnnotationItem) => {
+    // Un clic sur une marque ne laisse pas derrière lui la sélection qui a
+    // servi à la créer : la barre restait ouverte au-dessus du voile, sur un
+    // passage que le tiroir était en train de reprendre.
+    window.getSelection()?.removeAllRanges();
+    // Un formulaire de note resté ouvert réapparaîtrait après la fermeture
+    // du tiroir, sur une sélection qui n'existe plus.
+    if (showNoteInput) clearForm();
+
     // Gather all annotations in the article
     const rawList: AnnotationItem[] = [];
     const allMarks = document.querySelectorAll(`#${containerId} mark[data-highlight-id]`);
@@ -471,11 +682,17 @@ export function TextHighlighter({
           id: prvMatch.id,
           text: prvMatch.text,
           note: prvMatch.note,
-          isPublic: false,
-          isOfficial: false,
-          upvotesCount: 0,
+          // ⚠️ La visibilité se lit sur l'objet. Elle était figée à `false` :
+          // un surlignage passé public se rouvrait aussitôt comme privé, sans
+          // discussion ni vote, alors que sa marque était déjà peinte en
+          // public.
+          isPublic: Boolean(prvMatch.isPublic),
+          isOfficial: Boolean(prvMatch.isOfficial),
+          upvotesCount: prvMatch.upvotesCount ?? 0,
           createdAt: prvMatch.createdAt || new Date(),
-          reader: defaultReader,
+          // Le profil réel prime : sinon l'avatar et le nom de l'auteur
+          // étaient remplacés par ceux du lecteur courant.
+          reader: prvMatch.reader || defaultReader,
         });
       }
     });
@@ -487,23 +704,29 @@ export function TextHighlighter({
     const articleElText = document.getElementById(containerId)?.textContent || '';
 
     // 🎯 LOGIQUE DE TRI DÉTERMINISTE :
-    // 1. Commence le plus tôt (DOM offset)
+    // 1. Commence le plus tôt dans le texte CANONIQUE quand l’ancre existe
+    //    (sinon DOM offset — mode hérité)
     // 2. Finit le plus tôt
     // 3. La plus courte
     // 4. La plus ancienne puis la plus récente (createdAt ascendant)
+    //
+    // ⚠️ `indexOf` sur le texte du DOM retombe toujours sur la PREMIÈRE
+    // occurrence : deux annotations du même passage répété pouvaient donc
+    // permuter dans le paginateur. L’offset canonique, lui, distingue les
+    // deux occurrences.
     const sortedList = rawList.sort((a, b) => {
       const cleanA = a.text.trim();
       const cleanB = b.text.trim();
 
-      const startA = articleElText.indexOf(cleanA);
-      const startB = articleElText.indexOf(cleanB);
+      const startA = a.canonicalStart ?? articleElText.indexOf(cleanA);
+      const startB = b.canonicalStart ?? articleElText.indexOf(cleanB);
       const validStartA = startA !== -1 ? startA : 999999;
       const validStartB = startB !== -1 ? startB : 999999;
 
       if (validStartA !== validStartB) return validStartA - validStartB;
 
-      const endA = validStartA + cleanA.length;
-      const endB = validStartB + cleanB.length;
+      const endA = a.canonicalEnd ?? validStartA + cleanA.length;
+      const endB = b.canonicalEnd ?? validStartB + cleanB.length;
       if (endA !== endB) return endA - endB;
 
       if (cleanA.length !== cleanB.length) return cleanA.length - cleanB.length;
@@ -563,7 +786,7 @@ export function TextHighlighter({
       return;
     }
 
-    setSaving(true);
+    setHighlighting(true);
     try {
       const quoteOrdinal = computeQuoteOrdinal(selectedText);
       const res = callbacks?.onHighlightCreate
@@ -577,8 +800,18 @@ export function TextHighlighter({
         : { ok: true, data: { id: `hl-${Date.now()}`, text: selectedText, note: null } };
 
       if (res?.ok && res.data) {
-        const createdData = res.data as { id: string };
-        setHighlights((prev) => [...prev, { ...(res.data as HighlightItem), quoteOrdinal }]);
+        const createdData = res.data as { id: string; reader?: AnnotationReader | null };
+        // Le parent peut avoir déjà ajouté le surlignage (mode document
+        // canonique) : on ajoute par identité, jamais en double. Le profil
+        // par défaut complète la réponse serveur (elle ne porte pas le type
+        // de compte, donc un média perdait son carré arrondi à la création).
+        setHighlights((prev) =>
+          appendAnnotation(prev, {
+            ...(res.data as HighlightItem),
+            quoteOrdinal,
+            reader: { ...defaultReader, ...(createdData.reader ?? {}) },
+          })
+        );
         // Mode document : le corps React se repeint via les ancres renvoyées
         // par le serveur (canonicalStart/End) — pas de mutation DOM.
         if (!documentMode) {
@@ -596,7 +829,10 @@ export function TextHighlighter({
             );
           }
         }
-        setSavedSuccess(true);
+        // ⚠️ Pas de `setSavedSuccess` ici : ce drapeau appartient au
+        // FORMULAIRE. L’allumer depuis le surlignage instantané laissait le
+        // bouton « Enregistrer l’annotation » en vert « Enregistré ! » si
+        // l’on ouvrait le formulaire dans la foulée.
         setTimeout(() => {
           clearSelection();
           clearForm();
@@ -606,7 +842,7 @@ export function TextHighlighter({
     } catch (e) {
       console.error(e);
     } finally {
-      setSaving(false);
+      setHighlighting(false);
     }
   };
 
@@ -659,13 +895,19 @@ export function TextHighlighter({
           isOfficial: false,
           upvotesCount: 0,
           createdAt: new Date().toISOString(),
-          reader: createdData.reader || defaultReader,
+          // Même raison : la réponse serveur peut omettre `type` alors que
+          // le profil courant le connaît. On complète, on ne remplace pas.
+          reader: { ...defaultReader, ...(createdData.reader ?? {}) },
         };
 
+        // ⚠️ Une annotation publique vit dans `allPublic` UNIQUEMENT. La
+        // mettre aussi dans `highlights` la faisait peindre en privé par le
+        // corps canonique (première marque de même id gagnante).
         if (isPublicChoice) {
-          setAllPublic((prev) => [...prev, createdItem]);
+          setAllPublic((prev) => appendAnnotation(prev, createdItem));
+        } else {
+          setHighlights((prev) => appendAnnotation(prev, res.data as HighlightItem));
         }
-        setHighlights((prev) => [...prev, res.data as HighlightItem]);
 
         setSavedSuccess(true);
         setTimeout(() => {
@@ -689,14 +931,14 @@ export function TextHighlighter({
       return;
     }
 
-    setSaving(true);
+    setQuoting(true);
     try {
       const res = callbacks?.onCrosspost
         ? await callbacks.onCrosspost({ articleId, text: selectedText })
         : { ok: true };
 
       if (res?.ok) {
-        setSavedSuccess(true);
+        setQuoteSuccess(true);
         toast.success(t`Passage cité avec succès sur le Feed !`);
         setTimeout(() => {
           clearSelection();
@@ -710,56 +952,7 @@ export function TextHighlighter({
       console.error(e);
       toast.error(t`Une erreur est survenue`);
     } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleCopy = async (selectedText: string, clearSelection: () => void) => {
-    try {
-      await navigator.clipboard.writeText(selectedText);
-      setCopiedSuccess(true);
-      toast.success(t`Extrait copié dans le presse-papiers`);
-      setTimeout(() => {
-        setCopiedSuccess(false);
-        clearSelection();
-      }, 700);
-    } catch {
-      toast.error(t`Impossible de copier l'extrait`);
-      clearSelection();
-    }
-  };
-
-  // IA Expliquer (fiche Plus P1) : appelle onExplain (branché par le parent
-  // avec l'action IA + Plus) et affiche le texte reçu — TOUJOURS présenté
-  // comme IA (jamais confondu avec l'éditorial). Les codes d'erreur du
-  // backend deviennent des messages actionnables (quota, Plus, panne).
-  const handleExplain = async (selectedText: string) => {
-    if (!callbacks?.onExplain || explaining) return;
-    setExplaining(true);
-    setExplanation(null);
-    setErrorMessage(null);
-    try {
-      const res = await callbacks.onExplain({ text: selectedText });
-      if (res?.ok && res.data && typeof res.data.explanation === 'string') {
-        setExplanation(res.data.explanation);
-      } else {
-        const code = res?.error?.code;
-        if (code === 'AI_QUOTA_EXCEEDED') {
-          setErrorMessage(t`Quota IA du mois épuisé — il revient le mois prochain.`);
-        } else if (code === 'AI_PLUS_REQUIRED') {
-          setErrorMessage(t`Explication IA réservée aux abonnés Plus (bientôt).`);
-        } else if (code === 'AI_UNAVAILABLE') {
-          setErrorMessage(t`IA momentanément indisponible — réessayez plus tard.`);
-        } else if (code === 'AI_BUSY') {
-          setErrorMessage(t`Trop de demandes en ce moment — réessayez dans quelques minutes.`);
-        } else {
-          setErrorMessage(t`Explication impossible pour le moment.`);
-        }
-      }
-    } catch {
-      setErrorMessage(t`Explication impossible pour le moment.`);
-    } finally {
-      setExplaining(false);
+      setQuoting(false);
     }
   };
 
@@ -802,15 +995,11 @@ export function TextHighlighter({
         containerId={containerId}
         minSelectionLength={1}
         isLocked={showNoteInput || saving}
+        // Le tiroir ouvert est une autre surface : la barre de sélection ne
+        // doit pas rester posée sur l'article derrière le voile.
+        isDismissed={Boolean(selectedAnnotationForDrawer)}
       >
-        {({ text: selectedText, range, placement, clearSelection: clearSel }) => {
-          // L'explication IA appartient à LA sélection courante : la
-          // refermer avec elle (jamais d'explication orpheline affichée
-          // sur un autre passage).
-          const clearSelection = () => {
-            setExplanation(null);
-            clearSel();
-          };
+        {({ text: selectedText, range, placement, clearSelection }) => {
           return (
             /* 🍏 APPLE CALLOUT MENU (Inspiré du callout menu natif d'Apple) */
             <div className="relative flex flex-col items-center">
@@ -821,7 +1010,11 @@ export function TextHighlighter({
 
               <div
                 className={cn(
-                  'bg-popover/95 text-popover-foreground border border-border/40 backdrop-blur-xl shadow-2xl font-sans transition-all duration-150 ease-out',
+                  // Une surface pleine et une ombre franche : à 95 % sur une
+                  // page blanche, la barre n'avait ni bord ni fond visibles et
+                  // les libellés semblaient posés sur l'article.
+                  'bg-card text-card-foreground border border-border/70 ring-1 ring-foreground/5 font-sans transition-all duration-150 ease-out',
+                  'shadow-[0_18px_45px_-12px_rgba(0,0,0,0.30)] dark:shadow-[0_18px_45px_-12px_rgba(0,0,0,0.65)]',
                   showNoteInput ? 'rounded-2xl w-80 sm:w-84 p-4 space-y-3' : 'rounded-xl py-1 px-1'
                 )}
               >
@@ -836,41 +1029,34 @@ export function TextHighlighter({
                       transition={{ duration: 0.1 }}
                       className="flex items-center text-xs font-semibold select-none"
                     >
-                      {/* 1-Click Instant Highlight */}
-                      <button
-                        type="button"
+                      {/* Surligner : pose un TRAIT, pas une annotation.
+                       * Le tiroir le dira (« Surlignage ») et proposera d'y
+                       * ajouter une note pour en faire une annotation. */}
+                      <CalloutAction
+                        icon={Highlighter}
+                        label={t`Surligner`}
+                        busy={highlighting}
                         onClick={() => handleInstantHighlight(selectedText, clearSelection)}
-                        disabled={saving}
-                        className="px-3.5 py-1.5 rounded-lg text-foreground/90 hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer"
                         title={t`Surligner ce passage`}
-                      >
-                        {t`Surligner`}
-                      </button>
+                      />
 
-                      <div className="w-px h-3.5 bg-border/40 shrink-0" />
+                      <span aria-hidden className="mx-0.5 h-3.5 w-px shrink-0 bg-border/40" />
 
-                      {/* 1-Click Feed Crosspost */}
-                      <button
-                        type="button"
+                      <CalloutAction
+                        icon={Quote}
+                        label={t`Citer`}
+                        done={quoteSuccess}
+                        doneLabel={t`Cité !`}
+                        busy={quoting}
                         onClick={() => handleDirectCrosspostToFeed(selectedText, clearSelection)}
-                        disabled={saving}
-                        className="px-3.5 py-1.5 rounded-lg text-foreground/90 hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
                         title={t`Citer ce passage sur le Feed`}
-                      >
-                        {saving ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : savedSuccess ? (
-                          <span className="text-success-text font-bold">{t`Cité !`}</span>
-                        ) : (
-                          t`Citer`
-                        )}
-                      </button>
+                      />
 
-                      <div className="w-px h-3.5 bg-border/40 shrink-0" />
+                      <span aria-hidden className="mx-0.5 h-3.5 w-px shrink-0 bg-border/40" />
 
-                      {/* Add Note Trigger (Morph to State B) */}
-                      <button
-                        type="button"
+                      <CalloutAction
+                        icon={PenLine}
+                        label={t`Annoter`}
                         onClick={() => {
                           if (!isAuthenticated) {
                             handleLoginRedirect();
@@ -880,82 +1066,53 @@ export function TextHighlighter({
                             setShowNoteInput(true);
                           }
                         }}
-                        className="px-3.5 py-1.5 rounded-lg text-foreground/90 hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer"
                         title={t`Ajouter une note ou annotation publique`}
-                      >
-                        {t`Annoter`}
-                      </button>
+                      />
 
-                      <div className="w-px h-3.5 bg-border/40 shrink-0" />
+                      <span aria-hidden className="mx-0.5 h-3.5 w-px shrink-0 bg-border/40" />
 
-                      {/* Écouter la sélection */}
                       {tts && (
                         <>
-                          <button
-                            type="button"
+                          <CalloutAction
+                            icon={Volume2}
+                            label={t`Écouter`}
                             onClick={() => {
                               clearSelection();
                               tts.openAndPlay({ customText: selectedText });
                             }}
-                            className="px-3.5 py-1.5 rounded-lg text-foreground/90 hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer flex items-center gap-1.5"
                             title={t`Écouter ce passage`}
-                          >
-                            <Volume2 className="w-3.5 h-3.5 text-primary" />
-                            <span>{t`Écouter`}</span>
-                          </button>
-
-                          <div className="w-px h-3.5 bg-border/40 shrink-0" />
+                          />
+                          <span aria-hidden className="mx-0.5 h-3.5 w-px shrink-0 bg-border/40" />
                         </>
                       )}
 
-                      {/* Copy to Clipboard */}
-                      <button
-                        type="button"
-                        onClick={() => handleCopy(selectedText, clearSelection)}
-                        className="px-3.5 py-1.5 rounded-lg text-foreground/90 hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer"
+                      {/* Copier : la primitive confirme dans la MÊME largeur
+                       * et annonce le résultat en `aria-live`. */}
+                      <CopyButton
+                        value={selectedText}
+                        label={t`Copier`}
+                        copiedLabel={t`Copié`}
+                        variant="ghost"
+                        size="xs"
                         title={t`Copier l'extrait`}
-                      >
-                        {copiedSuccess ? (
-                          <span className="text-success-text font-bold">{t`Copié !`}</span>
-                        ) : (
-                          t`Copier`
-                        )}
-                      </button>
+                        className="px-3 font-semibold text-foreground/90 hover:text-foreground"
+                      />
 
-                      {/* Expliquer (IA, fiche Plus P1) : visible seulement si
-                       * le parent branche onExplain (moteur neutre sinon). */}
-                      {callbacks?.onExplain && (
-                        <>
-                          <div className="w-px h-3.5 bg-border/40 shrink-0" />
-                          <button
-                            type="button"
-                            disabled={explaining}
-                            onClick={() => void handleExplain(selectedText)}
-                            className="px-3.5 py-1.5 rounded-lg text-foreground/90 hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-                            title={t`Expliquer ce passage (IA)`}
-                          >
-                            {explaining ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ) : (
-                              <Sparkles className="w-3.5 h-3.5 text-primary" />
-                            )}
-                            <span>{t`Expliquer`}</span>
-                          </button>
-                        </>
-                      )}
-                      {/* Explication reçue : TOUJOURS présentée comme IA (fiche :
-                       * jamais confondue avec l'éditorial). */}
-                      {explanation && (
-                        <div className="px-3.5 pb-2 pt-1 text-left max-w-xs">
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-primary flex items-center gap-1">
-                            <Sparkles className="w-3 h-3" />
-                            {t`Expliqué par IA`}
-                          </p>
-                          <p className="text-xs text-foreground/90 leading-relaxed mt-1 whitespace-pre-wrap">
-                            {explanation}
-                          </p>
-                        </div>
-                      )}
+                      {/* Expliquer (IA) : l'affordance reste visible, la
+                       * fonction n'est pas branchée. Le bouton est annoncé
+                       * désactivé et décrit ; aucune réponse n'est fabriquée. */}
+                      <span aria-hidden className="mx-0.5 h-3.5 w-px shrink-0 bg-border/40" />
+                      <CalloutAction
+                        icon={Sparkles}
+                        label={t`Expliquer`}
+                        disabled
+                        describedBy={explainDisabledId}
+                        onClick={() => undefined}
+                        title={t`Bientôt disponible — l’explication par IA n’est pas encore branchée`}
+                      />
+                      <span id={explainDisabledId} className="sr-only">
+                        {t`L’explication par IA n’est pas encore disponible.`}
+                      </span>
                     </motion.div>
                   ) : (
                     /* STATE B: Expanded Card with Unified Quoted Block & Separator */
@@ -997,27 +1154,33 @@ export function TextHighlighter({
                               strokeWidth="2"
                             />
                           </svg>
-                          <span>Nouvelle annotation</span>
+                          <span>{t`Nouvelle annotation`}</span>
                         </span>
-                        <button
-                          type="button"
+                        <Button
+                          size="xs"
+                          shape="icon"
+                          variant="ghost"
                           onClick={() => {
                             clearForm();
                             clearSelection();
                           }}
-                          className="w-6 h-6 rounded-full bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
+                          aria-label={t`Fermer`}
+                          title={t`Fermer (Échap)`}
                         >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
+                          <X />
+                        </Button>
                       </div>
 
                       {/* Single Unified Card: Quoted Block + Capillary Line + Textarea */}
                       <div className="rounded-2xl border border-border/30 bg-gradient-to-b from-muted/60 via-muted/20 to-transparent overflow-hidden shadow-xs">
                         {/* Top Quoted Passage */}
                         <div className="p-3 text-xs text-foreground/90 flex items-center gap-2.5">
-                          <Quote className="w-4 h-4 fill-muted-foreground/30 text-muted-foreground shrink-0" />
-                          <p className="font-sans italic text-xs font-medium truncate text-foreground/90">
-                            “ "{activeDraftText || selectedText}" ”
+                          <Quote
+                            className="size-4 shrink-0 fill-muted-foreground/30 text-muted-foreground"
+                            aria-hidden
+                          />
+                          <p className="min-w-0 font-sans text-xs font-medium italic leading-relaxed text-foreground/90 line-clamp-2">
+                            « {activeDraftText || selectedText} »
                           </p>
                         </div>
 
@@ -1025,105 +1188,107 @@ export function TextHighlighter({
                         <div className="w-full h-px bg-border/25" />
 
                         {/* Bottom Textarea Input */}
-                        <textarea
+                        <Textarea
                           autoFocus
+                          rows={4}
+                          size="sm"
                           value={noteText}
                           onChange={(e) => setNoteText(e.target.value)}
                           placeholder={t`Écrivez votre réflexion sur ce passage...`}
-                          className="w-full bg-transparent p-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none font-sans resize-none h-20 leading-relaxed border-none"
+                          aria-label={t`Votre note`}
+                          className="rounded-none border-0 bg-transparent focus-visible:ring-0"
                         />
                       </div>
 
-                      {/* Apple-Style Segmented Pill Control with Sliding Active Background */}
-                      <div className="p-1 rounded-full bg-muted/60 border border-border/20 flex items-center relative select-none">
-                        <button
-                          type="button"
-                          onClick={() => setIsPublicChoice(false)}
-                          className={cn(
-                            'relative z-10 flex-1 py-1.5 rounded-full text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer',
-                            !isPublicChoice
-                              ? 'text-primary-foreground'
-                              : 'text-muted-foreground hover:text-foreground'
-                          )}
-                        >
-                          <span>{t`Privée`}</span>
-                          <Lock className="w-3.5 h-3.5" />
-                          {!isPublicChoice && (
-                            <motion.div
-                              layoutId="privacy-pill-indicator"
-                              className="absolute inset-0 bg-primary rounded-full shadow-xs -z-10"
-                              transition={{ type: 'spring', stiffness: 450, damping: 32 }}
-                            />
-                          )}
-                        </button>
-
-                        <button
-                          type="button"
-                          disabled={!allowPublicAnnotations}
-                          onClick={() => setIsPublicChoice(true)}
-                          className={cn(
-                            'relative z-10 flex-1 py-1.5 rounded-full text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer',
-                            !allowPublicAnnotations && 'opacity-40 cursor-not-allowed',
-                            isPublicChoice
-                              ? 'text-primary-foreground'
-                              : 'text-muted-foreground hover:text-foreground'
-                          )}
-                          title={
-                            !allowPublicAnnotations
-                              ? t`Les annotations publiques sont désactivées par l'auteur`
-                              : t`Annotation publique`
+                      {/* Visibilité : deux bascules du groupe, `aria-pressed`
+                       * sur chacune. L’ancienne pastille glissante n’était
+                       * qu’un bouton peint — un lecteur d’écran n’apprenait
+                       * jamais laquelle était active. */}
+                      <ToggleGroup
+                        aria-label={t`Visibilité de l’annotation`}
+                        selectionMode="single"
+                        disallowEmptySelection
+                        selectedKeys={[isPublicChoice ? 'public' : 'private']}
+                        onSelectionChange={(keys) =>
+                          setIsPublicChoice(Array.from(keys).includes('public'))
+                        }
+                        className="grid w-full grid-cols-2"
+                      >
+                        <ToggleButton id="private" size="xs" className="justify-center">
+                          <Lock aria-hidden />
+                          {t`Privée`}
+                        </ToggleButton>
+                        <ToggleButton
+                          id="public"
+                          size="xs"
+                          isDisabled={!allowPublicAnnotations}
+                          className="justify-center"
+                          aria-label={
+                            allowPublicAnnotations
+                              ? t`Annotation publique`
+                              : t`Les annotations publiques sont désactivées par l'auteur`
                           }
                         >
-                          <Globe className="w-3.5 h-3.5" />
-                          <span>{t`Publique`}</span>
-                          {isPublicChoice && (
-                            <motion.div
-                              layoutId="privacy-pill-indicator"
-                              className="absolute inset-0 bg-primary rounded-full shadow-xs -z-10"
-                              transition={{ type: 'spring', stiffness: 450, damping: 32 }}
-                            />
-                          )}
-                        </button>
-                      </div>
+                          <Globe aria-hidden />
+                          {t`Publique`}
+                        </ToggleButton>
+                      </ToggleGroup>
 
                       {!allowPublicAnnotations && (
                         <p className="text-[10px] text-muted-foreground italic text-center">
-                          Les annotations publiques sont désactivées par l'auteur.
+                          {t`Les annotations publiques sont désactivées par l'auteur.`}
                         </p>
                       )}
 
                       {errorMessage && (
-                        <p className="text-[11px] text-destructive-text font-medium text-center">
+                        // `role="alert"` : l'erreur doit être annoncée, pas
+                        // seulement peinte — elle apparaît après un envoi, donc
+                        // hors du parcours de tabulation.
+                        <p
+                          role="alert"
+                          className="text-[11px] text-destructive-text font-medium text-center"
+                        >
                           {errorMessage}
                         </p>
                       )}
 
-                      {/* Primary Action Button */}
-                      <button
+                      {/* Action principale : le biseau rend l’épaisseur du
+                       * contrôle, et l’état pressé se voit. */}
+                      <BevelButton
                         type="submit"
+                        variant="solid"
+                        tone={savedSuccess ? 'success' : 'brand'}
+                        size="sm"
                         disabled={saving || savedSuccess}
-                        className={cn(
-                          'w-full py-2.5 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs',
-                          savedSuccess
-                            ? 'bg-success text-success-foreground'
-                            : 'bg-primary text-primary-foreground hover:opacity-90'
-                        )}
+                        className="w-full"
                       >
                         {saving ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <Loader2 className="animate-spin" aria-hidden />
                         ) : savedSuccess ? (
-                          <>
-                            <Check className="w-3.5 h-3.5 text-white" /> Enregistré !
-                          </>
+                          <Check aria-hidden />
                         ) : (
-                          <>
-                            <Plus className="w-3.5 h-3.5" /> Enregistrer l'annotation
-                          </>
+                          <Plus aria-hidden />
                         )}
-                      </button>
+                        {saving
+                          ? t`Enregistrement…`
+                          : savedSuccess
+                            ? t`Enregistré !`
+                            : t`Enregistrer l'annotation`}
+                      </BevelButton>
                     </motion.form>
                   )}
                 </AnimatePresence>
+
+                {/* Une erreur d'action n'avait aucun endroit où s'afficher
+                    dans la barre : elle n'existait que dans le formulaire. */}
+                {errorMessage && !showNoteInput && (
+                  <p
+                    role="alert"
+                    className="w-80 max-w-full px-3.5 pt-1 pb-2 text-[11px] font-medium text-destructive-text"
+                  >
+                    {errorMessage}
+                  </p>
+                )}
               </div>
 
               {/* Directional Caret (flèche vers le bas si le menu est au-dessus de la sélection) */}
@@ -1146,6 +1311,7 @@ export function TextHighlighter({
         currentUserId={currentUserId}
         articleAuthorId={articleAuthorId}
         mainAppUrl={mainAppUrl}
+        containerId={containerId}
         callbacks={callbacks}
         onRequireAuth={onRequireAuth}
         onClose={() => {
@@ -1161,24 +1327,47 @@ export function TextHighlighter({
                 : h
             )
           );
+          // ⚠️ Le tiroir resynchronise sa liste sur `articleAnnotations` :
+          // sans cette mise à jour, il reprenait l'ancienne version à chaque
+          // rendu (visibilité qui revient en arrière, note qui disparaît).
+          setArticleAnnotations((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
           setSelectedAnnotationForDrawer(updated);
         }}
         onDeleteAnnotation={(deletedId) => {
+          // 1. Les deux listes qui peignent le corps.
           setAllPublic((prev) => prev.filter((a) => a.id !== deletedId));
           setHighlights((prev) => prev.filter((h) => h.id !== deletedId));
-          const marks = document.querySelectorAll(`mark[data-highlight-id="${deletedId}"]`);
-          marks.forEach((mark) => {
-            const parent = mark.parentNode;
-            if (parent) {
-              while (mark.firstChild) {
-                parent.insertBefore(mark.firstChild, mark);
-              }
-              if (parent.contains(mark)) {
-                parent.removeChild(mark);
-              }
-            }
-          });
+
+          // 2. Le tiroir se ferme : son annotation n'existe plus.
+          //    `articleAnnotations` est la liste qu'il resynchronise à chaque
+          //    rendu ; la laisser en place le rouvrait sur la suivante avec
+          //    un compteur faux (« 1 / 4 » pour trois annotations restantes).
+          setArticleAnnotations([]);
           setSelectedAnnotationForDrawer(null);
+
+          // 3. Moteur hérité seulement : ses marques sont du DOM écrit à la
+          //    main, personne ne les retirera pour nous. En mode document,
+          //    c'est React qui possède le corps : démancher la marque ici
+          //    (insérer ses enfants dans le parent, puis la retirer) laisse
+          //    React avec un nœud dont il croit encore être le propriétaire.
+          //    Au commit suivant il tente de le retirer et lève « Failed to
+          //    execute 'removeChild' on 'Node' » — la page entière tombe.
+          //    Les deux retraits d'état ci-dessus suffisent : le corps est
+          //    repeint sans cette marque.
+          if (!documentMode) {
+            const marks = document.querySelectorAll(`mark[data-highlight-id="${deletedId}"]`);
+            marks.forEach((mark) => {
+              const parent = mark.parentNode;
+              if (parent) {
+                while (mark.firstChild) {
+                  parent.insertBefore(mark.firstChild, mark);
+                }
+                if (parent.contains(mark)) {
+                  parent.removeChild(mark);
+                }
+              }
+            });
+          }
         }}
       />
     </>

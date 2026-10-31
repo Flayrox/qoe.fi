@@ -11,6 +11,16 @@ class ResizeObserverStub {
 
 globalThis.ResizeObserver ??= ResizeObserverStub as unknown as typeof ResizeObserver;
 
+// jsdom n'implémente pas le défilement : `Element.scrollIntoView` n'existe
+// pas du tout. Les composants qui recentrent la marque active (tiroir
+// d'annotation, deep-link de citation) lèvent alors un TypeError au montage
+// d'un effet — un échec de test qui ne dit rien du composant.
+// Certains fichiers de test tournent en environnement `node` (helpers purs) :
+// là, `Element` n'existe pas du tout.
+if (typeof Element !== 'undefined') {
+  Element.prototype.scrollIntoView ??= function scrollIntoView() {};
+}
+
 // Mock des macros Lingui pour les tests (le transformateur Babel/SWC n'est pas
 // appliqué par Vitest dans packages/ui). t`Hello ${x}` → template string concaténé.
 vi.mock('@lingui/core/macro', () => {

@@ -9,6 +9,7 @@ import { ThoughtHeader } from './ThoughtHeader';
 import { ThoughtBody } from './ThoughtBody';
 import { QuotedThoughtCard } from './QuotedThoughtCard';
 import { QuotedArticleCard, type QuotedArticleData } from './QuotedArticleCard';
+import type { AnnotationCitation } from '../annotations/citation';
 import { LinkPreview, type UnfurlPreview } from './LinkPreview';
 import { ThoughtActions } from './ThoughtActions';
 
@@ -47,6 +48,7 @@ export interface ThoughtData {
       name: string | null;
       username: string | null;
       subdomain?: string | null;
+      type?: 'PERSONAL' | 'MEDIA' | string | null;
     };
   } | null;
   repost?: {
@@ -61,6 +63,7 @@ export interface ThoughtData {
       subdomain?: string | null;
       logoUrl?: string | null;
       isCertified?: boolean;
+      type?: 'PERSONAL' | 'MEDIA' | string | null;
     };
   } | null;
   author: {
@@ -70,10 +73,13 @@ export interface ThoughtData {
     subdomain?: string | null;
     logoUrl?: string | null;
     isCertified?: boolean;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
   };
   tags?: string[];
   attachments?: Array<{ id?: string; url: string; type?: string; altText?: string | null }> | null;
   articleQuote?: QuotedArticleData | null;
+  /** Annotation citée (note + passage + auteur), snapshot serveur. */
+  annotationQuote?: AnnotationCitation | null;
   quotedExcerpt?: string | null;
   poll?: {
     id: string;
@@ -111,6 +117,8 @@ export interface ThoughtCardProps {
     username: string | null;
     subdomain?: string | null;
     logoUrl?: string | null;
+    isCertified?: boolean;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
   }>;
   knownLikersTotal?: number;
   isFollowingAuthor?: boolean;
@@ -172,7 +180,10 @@ export function ThoughtCard({
   className,
 }: ThoughtCardProps) {
   const isPureThoughtRepost = !!post.repost && !post.content?.trim();
-  const isPureArticleRepost = !post.repost && !post.content?.trim() && !!post.articleQuote;
+  // Une citation d'annotation est un post à part entière, même sans mot
+  // ajouté : ce n'est pas un simple repartage d'article.
+  const isPureArticleRepost =
+    !post.repost && !post.content?.trim() && !!post.articleQuote && !post.annotationQuote;
   const isPureRepost = isPureThoughtRepost || isPureArticleRepost;
   const isQuotePost = !!post.repost && !!post.content?.trim();
 
@@ -339,7 +350,7 @@ export function ThoughtCard({
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground pb-0.5 font-sans">
               <CornerDownRight className="w-3.5 h-3.5 text-brand" />
               <span>
-                En réponse à{' '}
+                {t`En réponse à`}{' '}
                 <strong className="font-semibold text-foreground">
                   @
                   {post.parent.author.username ||
@@ -353,7 +364,7 @@ export function ThoughtCard({
           {/* Sub-reply target indicator (In thread view when replying to a nested reply) */}
           {post.parent && (variant === 'reply' || isFocus) && depth > 0 && (
             <div className="text-[11px] text-muted-foreground font-sans">
-              En réponse à{' '}
+              {t`En réponse à`}{' '}
               <span className="text-brand font-medium">
                 @
                 {post.parent.author.username ||
@@ -417,16 +428,17 @@ export function ThoughtCard({
           )}
 
           {/* Quoted Article Card (Explicit prop) */}
-          {post.articleQuote && (
+          {(post.articleQuote || post.annotationQuote) && (
             <QuotedArticleCard
               article={post.articleQuote}
               quotedExcerpt={quotedExcerpt || undefined}
+              citation={post.annotationQuote ?? undefined}
               onOpenArticle={onOpenArticle}
             />
           )}
 
           {/* Unfurled Link Preview (Apple Reader Highlight if article link, or external link preview) */}
-          {!post.articleQuote && urls.length > 0 && (
+          {!post.articleQuote && !post.annotationQuote && urls.length > 0 && (
             <LinkPreview
               urls={urls}
               quotedExcerpt={quotedExcerpt || undefined}
@@ -460,53 +472,51 @@ export function ThoughtCard({
           )}
           {/* Detailed stats & KnownLikers in Focus mode */}
           {isFocus &&
-            ((post.repostsCount ?? post.repostCount ?? post._count?.reposts ?? 0) > 0 ||
-              (post.likesCount ?? post.likeCount ?? post._count?.likes ?? 0) > 0 ||
-              (knownLikers && knownLikers.length > 0)) && (
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5 px-1 border-b border-border/40 text-xs text-muted-foreground font-sans">
-                <div className="flex items-center gap-4">
-                  {(post.repostsCount ?? post.repostCount ?? post._count?.reposts ?? 0) > 0 && (
-                    <span>
-                      <strong className="font-semibold text-foreground">
-                        {post.repostsCount ?? post.repostCount ?? post._count?.reposts ?? 0}
-                      </strong>{' '}
-                      repost
-                      {(post.repostsCount ?? post.repostCount ?? post._count?.reposts ?? 0) > 1
-                        ? 's'
-                        : ''}
-                    </span>
-                  )}
-                  {(post.likesCount ?? post.likeCount ?? post._count?.likes ?? 0) > 0 && (
-                    <span>
-                      <strong className="font-semibold text-foreground">
-                        {post.likesCount ?? post.likeCount ?? post._count?.likes ?? 0}
-                      </strong>{' '}
-                      j'aime
-                    </span>
-                  )}
-                </div>
+            (() => {
+              const repostsCount =
+                post.repostsCount ?? post.repostCount ?? post._count?.reposts ?? 0;
+              const likesCount = post.likesCount ?? post.likeCount ?? post._count?.likes ?? 0;
+              const hasStats = repostsCount > 0 || likesCount > 0;
+              const hasLikers = Boolean(knownLikers && knownLikers.length > 0);
 
-                {/* Dot Separator if there are both stats and known likers */}
-                {((post.repostsCount ?? post.repostCount ?? post._count?.reposts ?? 0) > 0 ||
-                  (post.likesCount ?? post.likeCount ?? post._count?.likes ?? 0) > 0) &&
-                  knownLikers &&
-                  knownLikers.length > 0 && (
+              if (!hasStats && !hasLikers) return null;
+
+              return (
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2.5 px-1 border-b border-border/40 text-xs text-muted-foreground font-sans">
+                  <div className="flex items-center gap-4">
+                    {repostsCount > 0 && (
+                      <span>
+                        <strong className="font-semibold text-foreground">{repostsCount}</strong>{' '}
+                        {repostsCount > 1 ? t`reposts` : t`repost`}
+                      </span>
+                    )}
+                    {likesCount > 0 && (
+                      <span>
+                        <strong className="font-semibold text-foreground">{likesCount}</strong>{' '}
+                        {likesCount > 1 ? t`j'aimes` : t`j'aime`}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Dot Separator if there are both stats and known likers */}
+                  {hasStats && hasLikers && (
                     <span className="text-muted-foreground/30 font-sans select-none shrink-0">
                       •
                     </span>
                   )}
 
-                {knownLikers && knownLikers.length > 0 && (
-                  <KnownLikers
-                    likers={knownLikers}
-                    totalCount={knownLikersTotal ?? knownLikers.length}
-                    onOpenProfile={onOpenProfile}
-                    variant="inline"
-                    className="shrink-0"
-                  />
-                )}
-              </div>
-            )}
+                  {knownLikers && knownLikers.length > 0 && (
+                    <KnownLikers
+                      likers={knownLikers}
+                      totalCount={knownLikersTotal ?? knownLikers.length}
+                      onOpenProfile={onOpenProfile}
+                      variant="inline"
+                      className="shrink-0"
+                    />
+                  )}
+                </div>
+              );
+            })()}
 
           {/* Centralized Action Bar */}
           <ThoughtActions

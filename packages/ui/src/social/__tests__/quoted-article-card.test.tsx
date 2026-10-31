@@ -63,6 +63,44 @@ describe('QuotedArticleCard', () => {
     expect(html).toContain('extrait seul');
   });
 
+  it('rend la couche annotation citée — auteur, note, et passage ancré', () => {
+    const article: QuotedArticleData = {
+      ...baseArticle,
+      quoteContext: {
+        before: '',
+        highlight: 'ce qu’il relirait deux fois',
+        after: '',
+        start: 420,
+        end: 450,
+        sha: 'sha-1',
+      },
+    };
+    const html = renderToStaticMarkup(
+      <QuotedArticleCard
+        article={article}
+        quotedExcerpt="ce qu’il relirait deux fois"
+        citation={{
+          id: 'hl-1',
+          note: 'Ici la formule revient comme une conclusion.',
+          excerpt: 'ce qu’il relirait deux fois',
+          quoteOrdinal: 1,
+          canonicalStart: 420,
+          canonicalEnd: 450,
+          contentSha: 'sha-1',
+          reader: { id: 'reader-2', name: 'Camille', username: 'camille', logoUrl: null },
+        }}
+      />
+    );
+
+    expect(html).toContain('Annotation de Camille');
+    expect(html).toContain('@camille');
+    expect(html).toContain('Ici la formule revient comme une conclusion.');
+    expect(html).toContain('Citation');
+    expect(html).toContain('data-quoted-annotation="hl-1"');
+    // La note citée ne remplace PAS le passage : les deux sont présents.
+    expect(html).toContain('ce qu’il relirait deux fois');
+  });
+
   it('filet final : ni contexte ni extrait → début du contenu (composeur)', () => {
     const article: QuotedArticleData = {
       ...baseArticle,
@@ -71,5 +109,29 @@ describe('QuotedArticleCard', () => {
     const html = renderToStaticMarkup(<QuotedArticleCard article={article} />);
     expect(html).toContain('Premier paragraphe');
     expect(html).not.toContain('<p>');
+  });
+
+  it('rend une carte de citation dégradée quand l’article est supprimé/indisponible', () => {
+    const citation = {
+      id: 'hl-deleted',
+      note: 'Note orpheline d’un article effacé.',
+      excerpt: 'un passage d’un texte disparu',
+      quoteOrdinal: 1,
+      canonicalStart: 10,
+      canonicalEnd: 40,
+      contentSha: 'sha-del',
+      reader: { id: 'reader-del', name: 'Lila', username: 'lila', logoUrl: null },
+    };
+    const html = renderToStaticMarkup(<QuotedArticleCard article={null} citation={citation} />);
+
+    expect(html).toContain('Citation');
+    expect(html).toContain('Annotation de Lila');
+    expect(html).toContain('Note orpheline d’un article effacé.');
+    expect(html).toContain('un passage d’un texte disparu');
+    expect(html).toContain('Article indisponible');
+    expect(html).toContain('data-quoted-annotation="hl-deleted"');
+    // Sans navigation cliquable vers l'article supprimé
+    expect(html).not.toContain('Ouvrir');
+    expect(html).not.toContain('Lire l&#x27;article');
   });
 });
