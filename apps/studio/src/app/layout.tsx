@@ -115,7 +115,7 @@ export default async function RootLayout({
         <ThemeSeedScript />
       </head>
       <body
-        className={`${inter.variable} ${displayFont.variable} ${newsreader.variable} ${outfit.variable} ${spaceGrotesk.variable} antialiased selection:bg-primary selection:text-primary-foreground`}
+        className={`${inter.variable} ${displayFont.variable} ${newsreader.variable} ${outfit.variable} ${spaceGrotesk.variable} antialiased`}
         suppressHydrationWarning
       >
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
