@@ -9,10 +9,12 @@ package posts
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/identity"
 )
 
 // ParentIDOf renvoie l'ID parent d'une ligne (nil si aucun).
@@ -51,6 +53,7 @@ func AuthorOf(r *db.GetPostsByIDsRow, following map[string]bool) Author {
 		LogoURL:     pgtypeTextPtr(r.AuthorLogo),
 		IsCertified: r.AuthorCertified,
 		IsFollowing: following[r.AuthorID],
+		Type:        identity.Type(r.AuthorIsMedia),
 	}
 }
 
@@ -96,6 +99,12 @@ func BuildFeedPost(r *db.GetPostsByIDsRow, all map[string]*db.GetPostsByIDsRow, 
 	}
 	if r.QuotedExcerpt.Valid && r.QuotedExcerpt.String != "" {
 		fp.QuotedExcerpt = textPtr(r.QuotedExcerpt)
+	}
+	if len(r.QuotedAnnotation) > 0 {
+		var citation QuotedAnnotation
+		if err := json.Unmarshal(r.QuotedAnnotation, &citation); err == nil && citation.Note != "" {
+			fp.QuotedAnnotation = &citation
+		}
 	}
 	return fp
 }

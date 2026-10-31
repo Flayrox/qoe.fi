@@ -547,11 +547,14 @@ SELECT p.id,
        p."isHiddenByAuthor",
        p."quotedArticleId",
        p."quotedExcerpt",
+       p."quotedAnnotation",
        u.id::text      AS author_id,
        u.name          AS author_name,
        u.username      AS author_username,
        u."logoUrl"     AS author_logo,
        u."isCertified" AS author_certified,
+       EXISTS (SELECT 1 FROM "MediaMember" mm
+               WHERE mm."userId" = u.id AND mm.status = 'active') AS author_is_media,
        (CASE WHEN l."userId" IS NOT NULL THEN true ELSE false END) AS viewer_liked,
        (CASE WHEN r.id IS NOT NULL THEN true ELSE false END)      AS viewer_reposted
 FROM "Post" p
@@ -586,11 +589,13 @@ type GetPostsByIDsRow struct {
 	IsHiddenByAuthor bool             `json:"isHiddenByAuthor"`
 	QuotedArticleId  pgtype.Text      `json:"quotedArticleId"`
 	QuotedExcerpt    pgtype.Text      `json:"quotedExcerpt"`
+	QuotedAnnotation []byte           `json:"quotedAnnotation"`
 	AuthorID         string           `json:"author_id"`
 	AuthorName       pgtype.Text      `json:"author_name"`
 	AuthorUsername   pgtype.Text      `json:"author_username"`
 	AuthorLogo       pgtype.Text      `json:"author_logo"`
 	AuthorCertified  bool             `json:"author_certified"`
+	AuthorIsMedia    bool             `json:"author_is_media"`
 	ViewerLiked      bool             `json:"viewer_liked"`
 	ViewerReposted   bool             `json:"viewer_reposted"`
 }
@@ -622,11 +627,13 @@ func (q *Queries) GetPostsByIDs(ctx context.Context, arg GetPostsByIDsParams) ([
 			&i.IsHiddenByAuthor,
 			&i.QuotedArticleId,
 			&i.QuotedExcerpt,
+			&i.QuotedAnnotation,
 			&i.AuthorID,
 			&i.AuthorName,
 			&i.AuthorUsername,
 			&i.AuthorLogo,
 			&i.AuthorCertified,
+			&i.AuthorIsMedia,
 			&i.ViewerLiked,
 			&i.ViewerReposted,
 		); err != nil {
@@ -658,11 +665,15 @@ SELECT a.id,
        u.name         AS author_name,
        u.username     AS author_username,
        u."logoUrl"    AS author_logo,
-       u."isCertified" AS author_certified
+       u."isCertified" AS author_certified,
+       EXISTS (SELECT 1 FROM "MediaMember" mm
+               WHERE mm."userId" = u.id AND mm.status = 'active') AS author_is_media
 FROM "Article" a
 JOIN "Publication" p ON p.id = a."publicationId"
 JOIN "User" u ON u.id = a."authorId"
 WHERE a.id = ANY($1::text[])
+  AND a.published = true
+  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now())
 `
 
 type GetQuotedArticlesByIDsRow struct {
@@ -684,6 +695,7 @@ type GetQuotedArticlesByIDsRow struct {
 	AuthorUsername  pgtype.Text     `json:"author_username"`
 	AuthorLogo      pgtype.Text     `json:"author_logo"`
 	AuthorCertified bool            `json:"author_certified"`
+	AuthorIsMedia   bool            `json:"author_is_media"`
 }
 
 func (q *Queries) GetQuotedArticlesByIDs(ctx context.Context, ids []string) ([]GetQuotedArticlesByIDsRow, error) {
@@ -714,6 +726,7 @@ func (q *Queries) GetQuotedArticlesByIDs(ctx context.Context, ids []string) ([]G
 			&i.AuthorUsername,
 			&i.AuthorLogo,
 			&i.AuthorCertified,
+			&i.AuthorIsMedia,
 		); err != nil {
 			return nil, err
 		}

@@ -71,6 +71,7 @@ type QuotedAuthor struct {
 	Username    *string `json:"username"`
 	LogoURL     *string `json:"logoUrl"`
 	IsCertified bool    `json:"isCertified"`
+	Type        string  `json:"type"`
 }
 
 // QuotedPublication est la publication de l'article cité (parité TS).
@@ -110,6 +111,32 @@ type QuotedArticle struct {
 	Author       QuotedAuthor      `json:"author"`
 }
 
+// QuotedAnnotationReader est l'auteur de l'annotation citée.
+type QuotedAnnotationReader struct {
+	ID       string  `json:"id"`
+	Name     *string `json:"name"`
+	Username *string `json:"username"`
+	LogoURL  *string `json:"logoUrl"`
+	// Type (PERSONAL | MEDIA) fige la nature de l'identité au moment de la
+	// citation : un compte média garde son avatar carré dans le feed.
+	Type string `json:"type"`
+}
+
+// QuotedAnnotation est le SNAPSHOT d'une annotation citée, écrit au moment
+// de la publication : la note, le passage qu'elle annote, son auteur et ses
+// ancres canoniques. Une citation est une copie datée — elle survit à
+// l'édition ou à la suppression de l'annotation d'origine.
+type QuotedAnnotation struct {
+	ID             string                 `json:"id"`
+	Note           string                 `json:"note"`
+	Excerpt        string                 `json:"excerpt"`
+	QuoteOrdinal   int                    `json:"quoteOrdinal"`
+	CanonicalStart *int                   `json:"canonicalStart,omitempty"`
+	CanonicalEnd   *int                   `json:"canonicalEnd,omitempty"`
+	ContentSha     *string                `json:"contentSha,omitempty"`
+	Reader         QuotedAnnotationReader `json:"reader"`
+}
+
 // PostCounts est le `_count` de Prisma.
 type PostCounts struct {
 	Likes   int `json:"likes"`
@@ -119,33 +146,34 @@ type PostCounts struct {
 
 // FeedPost est la sérialisation complète d'une pensée dans le feed (miroir Prisma).
 type FeedPost struct {
-	ID               string         `json:"id"`
-	Content          string         `json:"content"`
-	AuthorID         string         `json:"authorId"`
-	CreatedAt        string         `json:"createdAt"`
-	Tags             []string       `json:"tags"`
-	ImageURL         *string        `json:"imageUrl"`
-	LikeCount        int            `json:"likeCount"`
-	RepostCount      int            `json:"repostCount"`
-	ReplyCount       int            `json:"replyCount"`
-	ParentID         *string        `json:"parentId"`
-	RootID           *string        `json:"rootId"`
-	RepostID         *string        `json:"repostId"`
-	ReplyRestriction string         `json:"replyRestriction"`
-	IsPinned         bool           `json:"isPinned"`
-	IsHiddenByAuthor bool           `json:"isHiddenByAuthor"`
-	QuotedExcerpt    *string        `json:"quotedExcerpt,omitempty"`
-	QuotedArticle    *QuotedArticle `json:"quotedArticle,omitempty"`
-	Author           Author         `json:"author"`
-	Parent           *FeedPost      `json:"parent"`
-	Repost           *FeedPost      `json:"repost"`
-	Attachments      []Attachment   `json:"attachments"`
-	Poll             *Poll          `json:"poll"`
-	Likes            []PostActor    `json:"likes"`
-	Reposts          []PostActor    `json:"reposts"`
-	Counts           PostCounts     `json:"_count"`
-	Liked            bool           `json:"liked"`
-	Reposted         bool           `json:"reposted"`
+	ID               string            `json:"id"`
+	Content          string            `json:"content"`
+	AuthorID         string            `json:"authorId"`
+	CreatedAt        string            `json:"createdAt"`
+	Tags             []string          `json:"tags"`
+	ImageURL         *string           `json:"imageUrl"`
+	LikeCount        int               `json:"likeCount"`
+	RepostCount      int               `json:"repostCount"`
+	ReplyCount       int               `json:"replyCount"`
+	ParentID         *string           `json:"parentId"`
+	RootID           *string           `json:"rootId"`
+	RepostID         *string           `json:"repostId"`
+	ReplyRestriction string            `json:"replyRestriction"`
+	IsPinned         bool              `json:"isPinned"`
+	IsHiddenByAuthor bool              `json:"isHiddenByAuthor"`
+	QuotedExcerpt    *string           `json:"quotedExcerpt,omitempty"`
+	QuotedAnnotation *QuotedAnnotation `json:"quotedAnnotation,omitempty"`
+	QuotedArticle    *QuotedArticle    `json:"quotedArticle,omitempty"`
+	Author           Author            `json:"author"`
+	Parent           *FeedPost         `json:"parent"`
+	Repost           *FeedPost         `json:"repost"`
+	Attachments      []Attachment      `json:"attachments"`
+	Poll             *Poll             `json:"poll"`
+	Likes            []PostActor       `json:"likes"`
+	Reposts          []PostActor       `json:"reposts"`
+	Counts           PostCounts        `json:"_count"`
+	Liked            bool              `json:"liked"`
+	Reposted         bool              `json:"reposted"`
 }
 
 // PostActor est l'état viewer pour likes/reposts.

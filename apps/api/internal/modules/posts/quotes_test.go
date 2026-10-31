@@ -14,7 +14,7 @@ import (
 
 func TestResolveOne_HighlightsExactPassage(t *testing.T) {
 	doc := canon.Parse(`<p>Bonjour le monde 👋, ceci est un <strong>passage cité</strong> avec du contenu.</p><p>Suite de l'article.</p>`)
-	ctx := resolveOne(doc, "un passage cité")
+	ctx := resolveOne(doc, QuoteRef{Excerpt: "un passage cité"})
 	if ctx == nil {
 		t.Fatal("résolution attendue")
 	}
@@ -44,7 +44,7 @@ func TestResolveOne_NormalizesWhitespaceAndEntities(t *testing.T) {
 	// L'extrait du client peut contenir des espaces insécables réels (U+00A0)
 	// et des blancs multiples — le HTML source, lui, porte l'entité &nbsp;.
 	doc := canon.Parse(`<p>Premier&nbsp;mot et&nbsp;second</p>`)
-	ctx := resolveOne(doc, "Premier\u00a0mot   et\u00a0second")
+	ctx := resolveOne(doc, QuoteRef{Excerpt: "Premier\u00a0mot   et\u00a0second"})
 	if ctx == nil {
 		t.Fatal("résolution attendue malgré entités + blancs multiples")
 	}
@@ -57,7 +57,7 @@ func TestResolveOne_FallbackTolerantTrimmedExcerpt(t *testing.T) {
 	// Citation tronquée côté client (« … » en fin, casse exacte de la sélection)
 	// : canon.Find retire l'ellipse de bord.
 	doc := canon.Parse(`<p>Le chat noir dort sur le canapé rouge.</p>`)
-	ctx := resolveOne(doc, "Le chat noir dort…")
+	ctx := resolveOne(doc, QuoteRef{Excerpt: "Le chat noir dort…"})
 	if ctx == nil {
 		t.Fatal("résolution attendue via ellipse retirée")
 	}
@@ -68,7 +68,7 @@ func TestResolveOne_FallbackTolerantTrimmedExcerpt(t *testing.T) {
 
 func TestResolveOne_MissingReturnsNil(t *testing.T) {
 	doc := canon.Parse(`<p>Un article sans rapport.</p>`)
-	if ctx := resolveOne(doc, "passage inexistant dans le texte"); ctx != nil {
+	if ctx := resolveOne(doc, QuoteRef{Excerpt: "passage inexistant dans le texte"}); ctx != nil {
 		t.Errorf("résolution inattendue : %+v", ctx)
 	}
 }
@@ -178,3 +178,32 @@ func TestQuotedArticlesFor_UnknownArticle(t *testing.T) {
 		t.Errorf("quoted = %d, attendu 0 (article introuvable)", len(quoted))
 	}
 }
+
+// TestQuotedArticlesFor_UnpublishedArticleExcluded vérifie qu'un article
+// non publié (published = false) est proprement exclu de QuotedArticlesFor
+// sans casser la requête ni lever d'erreur.
+func TestQuotedArticlesFor_UnpublishedArticleExcluded(t *testing.T) {
+	requirePool(t)
+	svc := newTestService()
+	ctx := context.Background()
+	fx := seedPosts(t)
+
+	// Rend l'article non publié (published = false).
+	if _, err := poolTest.Exec(ctx,
+		`UPDATE "Article" SET published = false WHERE id = $1`,
+		fx.ArticleID,
+	); err != nil {
+		t.Fatalf("update article: %v", err)
+	}
+
+	quoted, err := QuotedArticlesFor(ctx, svc.q, []QuoteRef{
+		{PostID: "p_unpub", ArticleID: fx.ArticleID, Excerpt: "Test"},
+	})
+	if err != nil {
+		t.Fatalf("QuotedArticlesFor: %v", err)
+	}
+	if len(quoted) != 0 {
+		t.Errorf("quoted = %d, attendu 0 (article non publié exclu)", len(quoted))
+	}
+}
+

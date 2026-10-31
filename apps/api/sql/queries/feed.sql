@@ -183,11 +183,14 @@ SELECT p.id,
        p."isHiddenByAuthor",
        p."quotedArticleId",
        p."quotedExcerpt",
+       p."quotedAnnotation",
        u.id::text      AS author_id,
        u.name          AS author_name,
        u.username      AS author_username,
        u."logoUrl"     AS author_logo,
        u."isCertified" AS author_certified,
+       EXISTS (SELECT 1 FROM "MediaMember" mm
+               WHERE mm."userId" = u.id AND mm.status = 'active') AS author_is_media,
        (CASE WHEN l."userId" IS NOT NULL THEN true ELSE false END) AS viewer_liked,
        (CASE WHEN r.id IS NOT NULL THEN true ELSE false END)      AS viewer_reposted
 FROM "Post" p
@@ -216,11 +219,15 @@ SELECT a.id,
        u.name         AS author_name,
        u.username     AS author_username,
        u."logoUrl"    AS author_logo,
-       u."isCertified" AS author_certified
+       u."isCertified" AS author_certified,
+       EXISTS (SELECT 1 FROM "MediaMember" mm
+               WHERE mm."userId" = u.id AND mm.status = 'active') AS author_is_media
 FROM "Article" a
 JOIN "Publication" p ON p.id = a."publicationId"
 JOIN "User" u ON u.id = a."authorId"
-WHERE a.id = ANY(@ids::text[]);
+WHERE a.id = ANY(@ids::text[])
+  AND a.published = true
+  AND (a."scheduledAt" IS NULL OR a."scheduledAt" <= now());
 
 -- name: GetReplyIDsForThought :many
 SELECT id

@@ -17,6 +17,7 @@ import (
 	"github.com/qoefi/api/internal/abuse"
 	"github.com/qoefi/api/internal/cache"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/identity"
 	"github.com/qoefi/api/internal/vectorfeed"
 	"github.com/redis/go-redis/v9"
 )
@@ -38,6 +39,8 @@ type Author struct {
 	LogoURL     *string `json:"logoUrl"`
 	IsCertified bool    `json:"isCertified"`
 	IsFollowing bool    `json:"isFollowing"`
+	// Type (PERSONAL | MEDIA) décide de la forme de l'avatar côté UI.
+	Type string `json:"type"`
 }
 
 type Service struct {
@@ -732,6 +735,7 @@ type Actor struct {
 	Username    *string `json:"username"`
 	LogoURL     *string `json:"logoUrl"`
 	IsCertified bool    `json:"isCertified"`
+	Type        string  `json:"type"`
 	FollowedAt  string  `json:"followedAt"`
 }
 
@@ -749,6 +753,7 @@ func actorFromLike(r db.ListLikesForPostRow) Actor {
 		Username:    textPtr(r.UserUsername),
 		LogoURL:     textPtr(r.UserLogo),
 		IsCertified: r.UserCertified,
+		Type:        identity.Type(r.UserIsMedia),
 		FollowedAt:  r.LikedAt.Time.Format(time.RFC3339),
 	}
 }
@@ -760,6 +765,7 @@ func actorFromRepost(r db.ListRepostsForPostRow) Actor {
 		Username:    textPtr(r.UserUsername),
 		LogoURL:     textPtr(r.UserLogo),
 		IsCertified: r.UserCertified,
+		Type:        identity.Type(r.UserIsMedia),
 		FollowedAt:  r.RepostedAt.Time.Format(time.RFC3339),
 	}
 }

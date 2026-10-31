@@ -11,16 +11,22 @@ package posts
 
 import (
 	"context"
+	"encoding/json"
+	"strings"
 
 	"github.com/qoefi/api/internal/canon"
 	db "github.com/qoefi/api/internal/database"
+	"github.com/qoefi/api/internal/identity"
 )
 
 // QuoteRef est la référence de citation d'une ligne de post.
+// `Annotation` est le snapshot d'une annotation citée (nil pour une
+// citation d'article classique) : il porte l'occurrence et les ancres.
 type QuoteRef struct {
-	PostID    string
-	ArticleID string
-	Excerpt   string
+	PostID     string
+	ArticleID  string
+	Excerpt    string
+	Annotation *QuotedAnnotation
 }
 
 // QuoteRefsFrom extrait les références de citation d'un ensemble de lignes
@@ -31,11 +37,18 @@ func QuoteRefsFrom(all map[string]*db.GetPostsByIDsRow) []QuoteRef {
 		if !r.QuotedArticleId.Valid || r.QuotedArticleId.String == "" {
 			continue
 		}
-		refs = append(refs, QuoteRef{
+		ref := QuoteRef{
 			PostID:    r.ID,
 			ArticleID: r.QuotedArticleId.String,
 			Excerpt:   textVal(r.QuotedExcerpt),
-		})
+		}
+		if len(r.QuotedAnnotation) > 0 {
+			var citation QuotedAnnotation
+			if err := json.Unmarshal(r.QuotedAnnotation, &citation); err == nil {
+				ref.Annotation = &citation
+			}
+		}
+		refs = append(refs, ref)
 	}
 	return refs
 }
@@ -93,6 +106,7 @@ func QuotedArticlesFor(ctx context.Context, q db.Querier, refs []QuoteRef) (map[
 				Username:    textPtr(row.AuthorUsername),
 				LogoURL:     textPtr(row.AuthorLogo),
 				IsCertified: row.AuthorCertified,
+				Type:        identity.Type(row.AuthorIsMedia),
 			},
 		}
 		docs[row.ID] = canon.Parse(row.Content)
@@ -106,24 +120,51 @@ func QuotedArticlesFor(ctx context.Context, q db.Querier, refs []QuoteRef) (map[
 			continue
 		}
 		qa := *base
-		qa.QuoteContext = resolveOne(docs[r.ArticleID], r.Excerpt)
+		qa.QuoteContext = resolveOne(docs[r.ArticleID], r)
 		out[r.PostID] = &qa
 	}
 	return out, nil
 }
 
-func resolveOne(doc *canon.Document, excerpt string) *QuoteContext {
-	start, end, ok := doc.Find(excerpt, 0)
+func resolveOne(doc *canon.Document, ref QuoteRef) *QuoteContext {
+	// 🎯 Une annotation citée apporte ses propres ancres : on slice le texte
+	// canonique à l'endroit EXACT qu'elle désignait. Un passage répété ne
+	// dépend plus d'une recherche de texte — l'empreinte doit correspondre
+	// (document ré-édité → repli tolérant par extrait + occurrence).
+	if anchor := ref.Annotation; anchor != nil && anchor.ContentSha != nil &&
+		*anchor.ContentSha == doc.Sha && anchor.CanonicalStart != nil && anchor.CanonicalEnd != nil {
+		if ctx := contextAt(doc, *anchor.CanonicalStart, *anchor.CanonicalEnd); ctx != nil {
+			return ctx
+		}
+	}
+
+	ordinal := 0
+	if ref.Annotation != nil {
+		ordinal = ref.Annotation.QuoteOrdinal
+	}
+	start, end, ok := doc.Find(ref.Excerpt, ordinal)
+	if !ok && ordinal != 0 {
+		// L'occurrence a disparu (contenu ré-édité) : la première reste une
+		// preuve plus utile qu'une carte sans passage.
+		start, end, ok = doc.Find(ref.Excerpt, 0)
+	}
 	if !ok {
 		return nil
 	}
-	// Les offsets de Find sont des code points — le découpage passe par
-	// []rune, jamais un slice d'octets (accents/émoticônes multi-octets).
+	return contextAt(doc, start, end)
+}
+
+// contextAt découpe un contexte autour d'offsets en CODE POINTS — jamais un
+// slice d'octets (accents/émoticônes multi-octets).
+func contextAt(doc *canon.Document, start, end int) *QuoteContext {
 	textR := []rune(doc.Text)
-	if end > len(textR) {
+	if start < 0 || end > len(textR) || end <= start {
 		return nil
 	}
-	highlight := string(textR[start:end])
+	highlight := strings.TrimSpace(string(textR[start:end]))
+	if highlight == "" {
+		return nil
+	}
 	ctx := &QuoteContext{
 		Before:    canon.ContextWindow(doc.Text, start, -1),
 		Highlight: highlight,
@@ -132,7 +173,7 @@ func resolveOne(doc *canon.Document, excerpt string) *QuoteContext {
 		End:       end,
 		Sha:       doc.Sha,
 	}
-	if highlight == "" && ctx.Before == "" && ctx.After == "" {
+	if ctx.Before == "" && ctx.Highlight == "" && ctx.After == "" {
 		return nil
 	}
 	return ctx
