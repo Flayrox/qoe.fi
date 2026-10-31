@@ -45,6 +45,13 @@ const PEOPLE: LabIdentity[] = [
     type: 'MEDIA',
   },
   {
+    id: 'media-gazette',
+    name: 'La Gazette Locale',
+    username: 'gazette',
+    logoUrl: null,
+    type: 'MEDIA',
+  },
+  {
     id: 'person-noe',
     name: 'Noé Lambert',
     username: 'noe',
@@ -159,8 +166,9 @@ export function CompositionSpecimen() {
           <Identity person={PEOPLE[0]} size={28} />
           <Identity person={PEOPLE[0]} size={40} showName />
           <Identity person={PEOPLE[1]} size={40} showName />
-          <Identity person={PEOPLE[4]} size={48} showName />
+          <Identity person={PEOPLE[2]} size={48} showName />
           <Identity person={PEOPLE[5]} size={48} showName />
+          <Identity person={PEOPLE[6]} size={48} showName />
           <Identity person={PEOPLE[1]} size={80} showName />
         </div>
 
@@ -173,6 +181,7 @@ export function CompositionSpecimen() {
           items={[
             'La forme est une donnée : `data-avatar-shape` et `data-avatar-entity` la rendent lisible sans inspecter les classes',
             'Un média reste carré à toutes les tailles — le rayon ne suit pas la taille',
+            'Un média sans image (ex. La Gazette) déploie l’emblème vectoriel de publication dans son carré déterministe',
             'Le compteur « +N » est doublé d’un texte lu par les lecteurs d’écran',
             'Une URL morte bascule sur le repli, sans boucle de rechargement',
           ]}
