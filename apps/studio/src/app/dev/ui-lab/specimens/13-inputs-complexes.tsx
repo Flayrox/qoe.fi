@@ -4,7 +4,17 @@ import { useState } from 'react';
 import { Autocomplete } from '@qoe/ui/autocomplete';
 import { ComboBox } from '@qoe/ui/combobox';
 import { ColorArea, ColorField, ColorPicker } from '@qoe/ui/color';
-import { Table, TableBody, TableCell, TableColumn, TableHeader, TableRow } from '@qoe/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableColumn,
+  TableHeader,
+  TableRow,
+  sortRows,
+  type SortDescriptorLike,
+  type SortSpec,
+} from '@qoe/ui/table';
 import { DefectList, Variant } from '../specimen-frame';
 
 const TAGS = [
@@ -43,15 +53,25 @@ const ARTICLES = [
   },
 ];
 
+const ARTICLE_SORT: SortSpec<(typeof ARTICLES)[number]> = {
+  title: { kind: 'text', value: (row) => row.title },
+  author: { kind: 'text', value: (row) => row.author },
+  status: { kind: 'rank', rank: ['Publié', 'Relu', 'Brouillon'], value: (row) => row.status },
+  views: { kind: 'number', value: (row) => row.views },
+};
+
 export function InputsComplexSpecimen() {
   const [tag, setTag] = useState<string | null>('essai');
   const [author, setAuthor] = useState('');
   const [color, setColor] = useState('#c2410c');
-  const [sort, setSort] = useState<'ascending' | 'descending'>('descending');
+  const [sort, setSort] = useState<SortDescriptorLike>({
+    column: 'views',
+    direction: 'descending',
+  });
 
-  const rows = [...ARTICLES].sort((a, b) =>
-    sort === 'ascending' ? a.views - b.views : b.views - a.views
-  );
+  // Chaque en-tête trie selon la NATURE de sa colonne (texte / nombre /
+  // rang), pas selon la représentation affichée.
+  const rows = sortRows(ARTICLES, sort, ARTICLE_SORT);
 
   return (
     <div className="grid gap-10">
@@ -120,21 +140,19 @@ export function InputsComplexSpecimen() {
       <Variant
         label="Table — tri annoncé, navigation au clavier"
         kind="candidat"
-        hint="L’en-tête trié porte `aria-sort` ; la flèche n’est que la conséquence. Et le tri reste piloté par l’écran, pas par un état interne au tableau."
+        hint="L’en-tête trié porte `aria-sort` ; la flèche n’est que la conséquence. Et le tri reste piloté par l’écran, pas par un état interne au tableau. Chaque colonne déclare ce qu’elle contient : les vues sont des nombres (pas du texte, sinon « 999 » passerait après « 1 420 »), l’état suit l’ordre éditorial, l’auteur l’alphabet français."
       >
-        <Table
-          aria-label="Écrits"
-          sortDescriptor={{ column: 'views', direction: sort }}
-          onSortChange={(descriptor) =>
-            setSort(descriptor.direction === 'ascending' ? 'ascending' : 'descending')
-          }
-        >
+        <Table aria-label="Écrits" sortDescriptor={sort} onSortChange={setSort}>
           <TableHeader>
-            <TableColumn id="title" isRowHeader>
+            <TableColumn id="title" isRowHeader allowsSorting>
               Écrit
             </TableColumn>
-            <TableColumn id="author">Auteur</TableColumn>
-            <TableColumn id="status">État</TableColumn>
+            <TableColumn id="author" allowsSorting>
+              Auteur
+            </TableColumn>
+            <TableColumn id="status" allowsSorting>
+              État
+            </TableColumn>
             <TableColumn id="views" allowsSorting>
               Vues
             </TableColumn>
@@ -160,6 +178,7 @@ export function InputsComplexSpecimen() {
         <DefectList
           items={[
             '`aria-sort` sur la colonne, flèche en décoration',
+            'Tri par nature : nombre pour les vues, alphabet français pour l’auteur, rang éditorial pour l’état',
             'Cellules navigables aux flèches, ligne et colonne annoncées',
             'Vide : un message dans le corps, pas une table de zéro ligne',
           ]}

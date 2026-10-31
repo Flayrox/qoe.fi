@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import {
   ArticleAttributionEditor,
   type ArticleAttributionDraft,
@@ -72,12 +73,15 @@ describe('ArticleAttributionEditor', () => {
     expect(screen.getByLabelText('Retirer Bob Martin')).toBeInTheDocument();
   });
 
-  it('calls onChange with updated role when changing secondary author role', () => {
+  it('calls onChange with updated role when changing secondary author role', async () => {
+    const user = userEvent.setup();
     const onChange = vi.fn();
     render(<ArticleAttributionEditor value={[primaryAuthor, coAuthor]} onChange={onChange} />);
 
-    const bobSelect = screen.getByLabelText('Rôle de Bob Martin');
-    fireEvent.change(bobSelect, { target: { value: 'EDITOR' } });
+    // `Select` est un listbox react-aria, pas un <select> natif : on ouvre le
+    // déclencheur puis on choisit l'option, comme un lecteur au clavier/souris.
+    await user.click(screen.getByLabelText('Rôle de Bob Martin'));
+    await user.click(await screen.findByRole('option', { name: 'Éditeur' }));
 
     expect(onChange).toHaveBeenCalledWith([primaryAuthor, { ...coAuthor, role: 'EDITOR' }]);
   });

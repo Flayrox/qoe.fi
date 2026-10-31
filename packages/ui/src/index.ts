@@ -11,6 +11,13 @@ export * from './tokens';
 // primitive Base UI (`./ui/button`) a été supprimée une fois ses trois
 // derniers consommateurs migrés (calendar, LoginFormBento, OnboardingFlow).
 export { Button, type ButtonProps } from './primitives/button/button';
+export {
+  Input,
+  InputGroup,
+  Textarea,
+  type InputProps,
+  type TextareaProps,
+} from './primitives/input/input';
 // Overlays du contrat : ces noms ne collisionnent pas avec les composants
 // historiques de `ui/` (Sheet, toast.*), qui restent exportés séparément.
 export { Select, type SelectOption, type SelectProps } from './primitives/select/select';
@@ -55,6 +62,14 @@ export {
   TableRow,
   TableSelectAllCell,
   TableSelectionCell,
+  compareCell,
+  sortRows,
+  type ColumnSort,
+  type SortCell,
+  type SortDescriptorLike,
+  type SortDirection,
+  type SortKind,
+  type SortSpec,
   type TableBodyProps,
   type TableCellProps,
   type TableColumnProps,
