@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { cn } from '@qoe/utils';
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '../ui/hover-card';
 import { SafeAvatar } from '../SafeAvatar';
@@ -117,6 +117,10 @@ export function ProfileHoverCard({
   );
   const [isFollowLoading, setIsFollowLoading] = useState(false);
   const [hasFetched, setHasFetched] = useState(false);
+  // La carte est contrôlée : le focus clavier et le tap tactile doivent
+  // pouvoir l'ouvrir sans dépendre du survol (impossible au doigt).
+  const [isOpen, setIsOpen] = useState(false);
+  const pointerTypeRef = useRef<string | null>(null);
 
   // Sync props when user prop updates
   useEffect(() => {
@@ -204,11 +208,55 @@ export function ProfileHoverCard({
   );
 
   const handleClick = (e: React.MouseEvent) => {
+    // Un lien parent (ex. un <Link> Next) est déjà la source de vérité : il
+    // gère la navigation client, le prefetch et les clics modifiés (Ctrl/Maj).
+    // Intercepter ici laisserait le navigateur suivre le href de l'ancre en
+    // plus de la navigation SPA — donc un rechargement complet de la page.
+    if ((e.target as Element | null)?.closest?.('a[href]')) return;
+
     e.stopPropagation();
     if (onOpenProfile) {
       onOpenProfile(cleanHandle);
     } else {
       window.location.href = routes.feed.profile(cleanHandle);
+    }
+  };
+
+  const handleCardOpenChange = useCallback(
+    (nextOpen: boolean) => {
+      setIsOpen(nextOpen);
+      void handleOpenChange(nextOpen);
+    },
+    [handleOpenChange]
+  );
+
+  const handleTriggerClick = (e: React.MouseEvent<HTMLSpanElement>) => {
+    const target = e.target as Element | null;
+    const childAnchor = e.currentTarget.querySelector('a[href]');
+    const tappedChildAnchor = Boolean(childAnchor && target && childAnchor.contains(target));
+    const isTouch = pointerTypeRef.current === 'touch' || pointerTypeRef.current === 'pen';
+
+    // Au doigt, le survol n'existe pas : le premier tap ouvre la carte et ne
+    // doit pas suivre le lien de la ligne. Un lien enfant (logo tenant) garde
+    // sa navigation ; seul le déclencheur lui-même capture le tap.
+    if (isTouch && !tappedChildAnchor) {
+      e.preventDefault();
+      e.stopPropagation();
+      handleCardOpenChange(true);
+      return;
+    }
+
+    handleClick(e);
+  };
+
+  const handleTriggerKeyDown = (e: React.KeyboardEvent<HTMLSpanElement>) => {
+    // Les événements d'un lien enfant (logo tenant) ne doivent pas être
+    // détournés : Entrée y déclenche la navigation, pas la carte.
+    if (e.target !== e.currentTarget) return;
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      e.stopPropagation();
+      handleCardOpenChange(true);
     }
   };
 
@@ -249,17 +297,46 @@ export function ProfileHoverCard({
     }
   };
 
+  // Le contenu de la carte est portailé, mais React fait remonter les
+  // événements par l'arbre React : sans barrière, un clic sur la bio ou les
+  // statistiques suivrait le <Link> de la notification parente.
   return (
-    <HoverCard onOpenChange={handleOpenChange}>
+    <HoverCard open={isOpen} onOpenChange={handleCardOpenChange}>
       <HoverCardTrigger
         render={
-          <span onClick={handleClick} className={cn('inline-block cursor-pointer', className)}>
+          <span
+            tabIndex={0}
+            aria-label={name}
+            data-profile-hover-trigger
+            onClick={handleTriggerClick}
+            onPointerDown={(event) => {
+              pointerTypeRef.current = event.pointerType;
+            }}
+            onFocus={() => handleCardOpenChange(true)}
+            onBlur={(event) => {
+              // Le focus clavier quitte le déclencheur : refermer la carte,
+              // sauf si le focus entre dans son contenu (bouton Suivre). Un
+              // blur sans cible (clic dans le contenu) est laissé au survol.
+              const next = event.relatedTarget;
+              if (!next) return;
+              const content = document.querySelector('[data-profile-hover-content]');
+              if (content && next instanceof Node && content.contains(next)) return;
+              handleCardOpenChange(false);
+            }}
+            onKeyDown={handleTriggerKeyDown}
+            className={cn(
+              'inline-block cursor-pointer rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
+              className
+            )}
+          >
             {children}
           </span>
         }
       />
       <HoverCardContent
         side="top"
+        data-profile-hover-content
+        onClick={(event) => event.stopPropagation()}
         align="start"
         sideOffset={6}
         className="w-80 p-0 overflow-hidden rounded-2xl bg-popover/95 backdrop-blur-xl border border-border/50 shadow-2xl z-50 font-sans select-none"
@@ -289,7 +366,7 @@ export function ProfileHoverCard({
             name={name}
             username={cleanHandle}
             size={56}
-            shape={isMedia ? 'squircle' : 'circle'}
+            shape={isMedia ? 'square' : 'circle'}
             type={isMedia ? 'MEDIA' : 'PERSONAL'}
             className="ring-4 ring-popover shrink-0 shadow-md"
           />

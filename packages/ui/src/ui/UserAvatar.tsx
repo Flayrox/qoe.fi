@@ -3,7 +3,7 @@
 import React from 'react';
 import { cn } from '@qoe/utils';
 import { CertifiedBadge } from './CertifiedBadge';
-import { SafeAvatar } from '../SafeAvatar';
+import { SafeAvatar, type AvatarShape } from '../SafeAvatar';
 
 export type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
 
@@ -18,7 +18,7 @@ export interface UserAvatarProps {
     type?: 'PERSONAL' | 'MEDIA' | string | null;
   } | null;
   size?: AvatarSize;
-  shape?: 'circle' | 'squircle';
+  shape?: AvatarShape | 'squircle';
   type?: 'PERSONAL' | 'MEDIA' | string | null;
   className?: string;
   showBadge?: boolean;

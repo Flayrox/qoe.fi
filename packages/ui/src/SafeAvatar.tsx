@@ -6,7 +6,7 @@ import { cn } from '@qoe/utils';
 import { getAvatarTheme } from '@qoe/theme';
 import { UserSilhouette, MediaEmblem } from '@qoe/brand';
 
-export type AvatarShape = 'circle' | 'squircle';
+export type AvatarShape = 'circle' | 'square';
 export type AvatarAccountType = 'PERSONAL' | 'MEDIA';
 
 export interface SafeAvatarProps {
@@ -16,7 +16,10 @@ export interface SafeAvatarProps {
   name?: string | null;
   username?: string | null;
   size?: number;
-  shape?: AvatarShape;
+  /** Forme explicite. Sans elle, elle se déduit de `type` : personne = rond,
+   *  média = carré à petits coins arrondis. `squircle` reste accepté comme
+   *  alias historique de `square` (même rendu). */
+  shape?: AvatarShape | 'squircle';
   type?: AvatarAccountType | string | null;
   className?: string;
   fallbackClass?: string;
@@ -24,19 +27,19 @@ export interface SafeAvatarProps {
 }
 
 /**
- * Calcule la classe de courbure adéquate selon la forme et la taille.
+ * Une seule courbure par nature d'identité : le cercle pour une personne,
+ * le carré à petits coins pour un média. Le rayon ne dépend pas de la taille
+ * (un média de 24 px et un média de 96 px restent le même carré).
  */
-function getShapeClass(shape: AvatarShape, size: number): string {
-  if (shape === 'circle') return 'rounded-full';
-  if (size >= 80) return 'rounded-2xl';
-  if (size >= 40) return 'rounded-xl';
-  return 'rounded-lg';
+function getShapeClass(shape: AvatarShape): string {
+  return shape === 'circle' ? 'rounded-full' : 'rounded-[var(--radius-sm)]';
 }
 
 /**
  * 🛡️ SafeAvatar — Avatar résilient universel (Web 2026)
  * - Thèmes déterministes persistants au rechargement (Sakura, Matcha, Astral, etc.)
- * - Distinction stricte : Cercle pour Utilisateur vs Squircle pour Média
+ * - Distinction stricte : cercle pour une personne, carré à petits coins
+ *   arrondis pour un média
  * - Fallback vectoriel ultra-premium style Discord / Twitter
  */
 export function SafeAvatar({
@@ -55,10 +58,19 @@ export function SafeAvatar({
   const [hasError, setHasError] = useState(false);
   const displayName = name || alt || username || 'Utilisateur';
 
-  // Résolution de la forme : un média est toujours squircle par défaut
+  // Résolution de la forme : un média est toujours un carré à coins
+  // arrondis par défaut ; une personne, un cercle. `squircle` est l'alias
+  // historique de `square`.
   const isMedia = type === 'MEDIA';
-  const resolvedShape: AvatarShape = shape || (isMedia ? 'squircle' : 'circle');
-  const shapeClass = getShapeClass(resolvedShape, size);
+  const resolvedShape: AvatarShape =
+    shape === 'square' || shape === 'squircle'
+      ? 'square'
+      : shape === 'circle'
+        ? 'circle'
+        : isMedia
+          ? 'square'
+          : 'circle';
+  const shapeClass = getShapeClass(resolvedShape);
 
   // Thème déterministe basé en priorité sur le handle public unique (username / slug),
   // puis sur l'identifiant immuable (id / UUID), puis le nom
@@ -77,9 +89,12 @@ export function SafeAvatar({
           'bg-[var(--avatar-bg-light)] dark:bg-[var(--avatar-bg-dark)]',
           'text-[var(--avatar-icon-light)] dark:text-[var(--avatar-icon-dark)]',
           'border border-[var(--avatar-border-light)] dark:border-[var(--avatar-border-dark)]',
-          shapeClass,
           fallbackClass,
-          className
+          className,
+          // La forme passe EN DERNIER : un appelant peut encore styler
+          // l'avatar (taille, anneau, ombre) mais pas contredire la règle
+          // personne = cercle / média = carré avec un `rounded-full` oublié.
+          shapeClass
         )}
         style={
           {
@@ -93,8 +108,13 @@ export function SafeAvatar({
             '--avatar-border-dark': theme.borderDark,
           } as React.CSSProperties
         }
+        role="img"
         aria-label={displayName}
         title={displayName}
+        data-avatar
+        data-avatar-shape={resolvedShape}
+        data-avatar-entity={isMedia ? 'media' : 'person'}
+        data-account-type={isMedia ? 'MEDIA' : 'PERSONAL'}
       >
         {isMedia ? (
           <MediaEmblem size={Math.round(size * 0.5)} />
@@ -109,10 +129,14 @@ export function SafeAvatar({
     <span
       className={cn(
         'relative inline-block overflow-hidden shrink-0 bg-muted/40 shadow-xs',
-        shapeClass,
-        className
+        className,
+        shapeClass
       )}
       style={{ width: size, height: size }}
+      data-avatar
+      data-avatar-shape={resolvedShape}
+      data-avatar-entity={isMedia ? 'media' : 'person'}
+      data-account-type={isMedia ? 'MEDIA' : 'PERSONAL'}
     >
       <Image
         src={cleanSrc}

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { cn } from '@qoe/utils';
+import { t } from '@lingui/core/macro';
 import { AuthorAvatar } from '../ui/AuthorAvatar';
 import { CertifiedBadge } from '../ui/CertifiedBadge';
 import { TextParser } from '../ui/TextParser';
@@ -19,6 +20,7 @@ export interface QuotedThoughtData {
     subdomain?: string | null;
     logoUrl?: string | null;
     isCertified?: boolean;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
   };
 }
 
@@ -58,7 +60,7 @@ export function QuotedThoughtCard({ post, onOpenPost, className }: QuotedThought
         <div className="flex items-center gap-1.5 min-w-0 flex-1">
           <ProfileHoverCard user={post.author} username={authorHandle}>
             <span className="font-bold text-xs text-foreground hover:text-brand transition-colors cursor-pointer truncate">
-              {post.author.name || 'Auteur'}
+              {post.author.name || t`Auteur`}
             </span>
           </ProfileHoverCard>
           {post.author.isCertified && <CertifiedBadge />}

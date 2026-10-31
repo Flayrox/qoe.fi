@@ -15,6 +15,7 @@ export interface ThoughtAuthor {
   subdomain?: string | null;
   logoUrl?: string | null;
   isCertified?: boolean;
+  type?: 'PERSONAL' | 'MEDIA' | string | null;
 }
 
 export interface ThoughtHeaderProps {

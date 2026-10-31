@@ -367,12 +367,14 @@ export interface TemplateArticleItem {
     name?: string | null;
     username?: string | null;
     logoUrl?: string | null;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
   } | null;
   authors?: Array<{
     id?: string;
     name?: string | null;
     username?: string | null;
     logoUrl?: string | null;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
   }> | null;
 }
 
@@ -444,5 +446,6 @@ export interface TemplatePublicationContext {
     username?: string | null;
     avatarUrl?: string | null;
     bio?: string | null;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
   } | null;
 }

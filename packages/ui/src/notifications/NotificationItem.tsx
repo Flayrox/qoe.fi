@@ -16,6 +16,7 @@ import {
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
 import { SafeAvatar } from '../SafeAvatar';
+import { ProfileHoverCard } from '../social/ProfileHoverCard';
 
 export type GroupedNotificationLike = {
   id: string;
@@ -52,6 +53,8 @@ export type GroupedNotificationLike = {
     username: string | null;
     logoUrl: string | null;
     isCertified: boolean;
+    /** Nature publique du compte (PERSONAL | MEDIA) — décide de la forme. */
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
   }>;
   totalCount: number;
 };
@@ -265,16 +268,32 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
           {/* Avatar stack */}
           <div className="flex items-center gap-1.5 mb-2 overflow-hidden">
             {senders.slice(0, 5).map((sender, idx) => (
-              <SafeAvatar
+              // La carte de survol est posée sur l'avatar, pas sur la ligne :
+              // la ligne entière reste un lien de notification. À la souris,
+              // ProfileHoverCard laisse le clic à l'ancre parente
+              // (`closest('a[href]')`) ; au doigt, le premier tap ouvre la
+              // carte sans suivre la ligne.
+              <ProfileHoverCard
                 key={sender.id || idx}
-                id={sender.id}
-                src={sender.logoUrl}
-                name={sender.name}
-                username={sender.username}
-                size={32}
-                shape="circle"
-                className="border-2 border-background shrink-0"
-              />
+                user={{
+                  id: sender.id,
+                  name: sender.name,
+                  username: sender.username,
+                  logoUrl: sender.logoUrl,
+                  isCertified: sender.isCertified,
+                  type: sender.type,
+                }}
+              >
+                <SafeAvatar
+                  id={sender.id}
+                  src={sender.logoUrl}
+                  name={sender.name}
+                  username={sender.username}
+                  type={sender.type}
+                  size={32}
+                  className="border-2 border-background shrink-0"
+                />
+              </ProfileHoverCard>
             ))}
           </div>
 
@@ -308,7 +327,7 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
             typeof notification.metadata?.comment === 'string' &&
             notification.metadata.comment && (
               <p className="mt-2 text-xs text-foreground bg-destructive/5 p-2.5 rounded-lg border border-destructive/20 italic">
-                « {notification.metadata.comment} »
+                {t`« ${notification.metadata.comment} »`}
               </p>
             )}
         </div>

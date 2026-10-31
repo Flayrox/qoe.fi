@@ -12,6 +12,7 @@ export interface KnownLiker {
   subdomain?: string | null;
   logoUrl?: string | null;
   isCertified?: boolean;
+  type?: 'PERSONAL' | 'MEDIA' | string | null;
 }
 
 export interface KnownLikersProps {
@@ -71,7 +72,7 @@ export function KnownLikers({
 
           {secondLiker && (
             <>
-              <span> et </span>
+              <span> {t`et`} </span>
               <ProfileHoverCard user={secondLiker} onOpenProfile={onOpenProfile}>
                 <strong className="font-semibold text-foreground hover:underline hover:text-brand cursor-pointer">
                   @{getHandle(secondLiker)}
@@ -83,7 +84,7 @@ export function KnownLikers({
           {remainingCount > 0 && (
             <span>
               {' '}
-              et {remainingCount} autre{remainingCount > 1 ? 's' : ''}
+              {remainingCount > 1 ? t`et ${remainingCount} autres` : t`et ${remainingCount} autre`}
             </span>
           )}
         </div>
@@ -120,7 +121,7 @@ export function KnownLikers({
 
         {secondLiker && (
           <>
-            <span> et </span>
+            <span> {t`et`} </span>
             <ProfileHoverCard user={secondLiker} onOpenProfile={onOpenProfile}>
               <strong className="font-semibold text-foreground hover:underline hover:text-brand cursor-pointer">
                 @{getHandle(secondLiker)}
@@ -132,8 +133,9 @@ export function KnownLikers({
         {remainingCount > 0 && (
           <span>
             {' '}
-            et {remainingCount} autre{remainingCount > 1 ? 's' : ''} personne
-            {remainingCount > 1 ? 's' : ''} que vous suivez
+            {remainingCount > 1
+              ? t`et ${remainingCount} autres personnes que vous suivez`
+              : t`et ${remainingCount} autre personne que vous suivez`}
           </span>
         )}
       </div>
