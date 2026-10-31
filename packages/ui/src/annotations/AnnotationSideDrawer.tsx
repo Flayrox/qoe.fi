@@ -1,37 +1,93 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FocusScope } from 'react-aria';
-import {
-  X,
-  Sparkles,
-  Share2,
-  ThumbsUp,
-  MessageSquare,
-  Lock,
-  Globe,
-  Send,
-  Loader2,
-  Check,
-  AlertCircle,
-  ChevronLeft,
-  ChevronRight,
-  Pencil,
-  Trash2,
-} from 'lucide-react';
-import { cn } from '@qoe/utils';
-import type { AnnotationItem, CommentItem, AnnotationSideDrawerProps } from './types';
+import { AlertCircle } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 
+import {
+  SPOTLIGHT_PULSE_CLASSES,
+  type AnnotationItem,
+  type CommentItem,
+  type AnnotationSideDrawerProps,
+} from './types';
+import { annotationKind } from './annotation-kind';
+import { citationFromAnnotation } from './citation';
+import { markKindFor, MARK_ACCENT_TOKENS } from './mark-skin';
+import { AnnotationDrawerHeader } from './drawer/AnnotationDrawerHeader';
+import { AnnotationDrawerIdentity } from './drawer/AnnotationDrawerIdentity';
+import { AnnotationDrawerQuote } from './drawer/AnnotationDrawerQuote';
+import { AnnotationDrawerNote } from './drawer/AnnotationDrawerNote';
+import { AnnotationDrawerDiscussion } from './drawer/AnnotationDrawerDiscussion';
+import {
+  AnnotationDrawerCitation,
+  AnnotationDrawerCitationHint,
+  AnnotationDrawerDeleteConfirmation,
+} from './drawer/AnnotationDrawerActions';
+import { AnnotationDrawerFooter } from './drawer/AnnotationDrawerFooter';
+
+/**
+ * Liste vide partagée.
+ *
+ * ⚠️ Un `= []` en valeur par défaut crée un NOUVEAU tableau à chaque rendu,
+ * si bien que l'effet qui dépend de cette prop se relance à chaque rendu,
+ * remet l'état, provoque un rendu, et ainsi de suite : le tiroir ne
+ * s'affichait plus du tout (boucle de rendu infinie, écran figé).
+ * Une constante de module a une identité stable pour toute la vie du module.
+ */
+const NO_ANNOTATIONS: AnnotationItem[] = [];
+
+/**
+ * Libellés de la nature, dérivés de la note (jamais stockés).
+ *
+ * ⚠️ Ils sont calculés au RENDU, pas à l'import du module : ce fichier est
+ * chargé par le layout racine de Core, parfois avant que Lingui n'active sa
+ * locale. Un `t` au niveau module y levait « Attempted to call a translation
+ * function without setting a locale » et faisait tomber la page entière.
+ */
+const kindLabel = (kind: 'highlight' | 'annotation') =>
+  kind === 'highlight' ? t`Surlignage` : t`Annotation`;
+
+/**
+ * Extrait l’annotation de la réponse serveur.
+ *
+ * Les actions rendent `{ highlight }` ; un callback direct peut rendre
+ * l’annotation elle-même. Les deux formes sont acceptées, mais une réponse
+ * sans annotation identifiable est un échec — jamais un succès optimiste.
+ */
+function serverAnnotationFromResult(payload: unknown): AnnotationItem | null {
+  if (!payload || typeof payload !== 'object') return null;
+  const candidate = (
+    'highlight' in payload ? (payload as { highlight?: unknown }).highlight : payload
+  ) as Partial<AnnotationItem> | null | undefined;
+  if (!candidate || typeof candidate !== 'object') return null;
+  if (typeof candidate.id !== 'string' || typeof candidate.text !== 'string') return null;
+  return candidate as AnnotationItem;
+}
+
+/**
+ * Tiroir d'annotation — une seule ossature, quatre accents.
+ *
+ * 📐 L'en-tête (nature, pagination, fermeture) ne défile pas et garde les
+ *    mêmes contrôles occupés quelle que soit la nature du passage. En
+ *    dessous : identité, citation, note, discussion. Changer d'annotation
+ *    ne change ni la position des flèches, ni la colonne de lecture — la
+ *    teinte et les libellés suffisent.
+ *
+ * 🎨 L'accent vient de `markKindFor`, la même décision que la marque
+ *    peinte dans l'article. Aucune couleur n'est choisie ici.
+ */
 export function AnnotationSideDrawer({
   articleId,
   annotation,
-  allArticleAnnotations = [],
+  allArticleAnnotations = NO_ANNOTATIONS,
+  allowPublicAnnotations = true,
   isAuthenticated = false,
   currentUserId,
   articleAuthorId,
   mainAppUrl = '',
+  containerId,
   onClose,
   callbacks,
   onRequireAuth,
@@ -49,33 +105,67 @@ export function AnnotationSideDrawer({
   const [togglingPrivacy, setTogglingPrivacy] = useState(false);
   const [privacyError, setPrivacyError] = useState<string | null>(null);
 
+  // Suppression : confirmation posée DANS le tiroir. `window.confirm()`
+  // bloque le fil principal, ignore le thème, et son bouton « OK » ne dit
+  // pas ce qu'on supprime.
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   // Inline note editing state
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [editNoteContent, setEditNoteContent] = useState(activeAnnotation?.note || '');
   const [savingEdit, setSavingEdit] = useState(false);
+  const [noteError, setNoteError] = useState<string | null>(null);
 
   // Comment thread state
   const [comments, setComments] = useState<CommentItem[]>(activeAnnotation?.comments || []);
   const [newCommentText, setNewCommentText] = useState('');
   const [submittingComment, setSubmittingComment] = useState(false);
 
-  // Crosspost to feed state
-  const [crosspostCommentary, setCrosspostCommentary] = useState('');
-  const [isCrossposting, setIsCrossposting] = useState(false);
-  const [crosspostSuccess, setCrosspostSuccess] = useState(false);
-  const [showCrosspostForm, setShowCrosspostForm] = useState(false);
+  // Publication en citation sur Qoefi (une annotation, pas un commentaire).
+  const [citationCommentary, setCitationCommentary] = useState('');
+  const [isCiting, setIsCiting] = useState(false);
+  const [citationPublished, setCitationPublished] = useState(false);
+  const [citationError, setCitationError] = useState<string | null>(null);
+  const [citationPostHref, setCitationPostHref] = useState<string | null>(null);
+  const [showCitationForm, setShowCitationForm] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   // Synchronize annotations list and set initial index to clicked annotation
   useEffect(() => {
     const list =
-      allArticleAnnotations.length > 0 ? allArticleAnnotations : annotation ? [annotation] : [];
-    setAnnotationsList(list);
+      allArticleAnnotations.length > 0
+        ? allArticleAnnotations
+        : annotation
+          ? [annotation]
+          : NO_ANNOTATIONS;
+
+    // On ne remplace l'état que si la COMPOSITION ou le CONTENU a changé :
+    // renvoyer un tableau neuf à chaque passage relancerait un rendu pour
+    // rien. Mais comparer les seuls identifiants laissait le tiroir périmé :
+    // une note ajoutée par le parent (ou une visibilité changée) n'était
+    // jamais reprise, et la discussion restait fermée sur une annotation
+    // devenue publique.
+    const sameContent = (a: AnnotationItem, b: AnnotationItem) =>
+      a.id === b.id &&
+      a.note === b.note &&
+      a.isPublic === b.isPublic &&
+      a.upvotesCount === b.upvotesCount &&
+      Boolean(a.hasUpvoted) === Boolean(b.hasUpvoted) &&
+      a.updatedAt === b.updatedAt &&
+      (a.comments?.length ?? 0) === (b.comments?.length ?? 0);
+
+    setAnnotationsList((prev) =>
+      prev.length === list.length && prev.every((item, i) => list[i] && sameContent(item, list[i]))
+        ? prev
+        : list
+    );
 
     if (annotation) {
       const idx = list.findIndex((a) => a.id === annotation.id);
-      setCurrentIndex(idx !== -1 ? idx : 0);
+      setCurrentIndex((prev) => (prev === (idx !== -1 ? idx : 0) ? prev : idx !== -1 ? idx : 0));
     } else {
-      setCurrentIndex(0);
+      setCurrentIndex((prev) => (prev === 0 ? prev : 0));
     }
   }, [annotation, allArticleAnnotations]);
 
@@ -104,39 +194,41 @@ export function AnnotationSideDrawer({
       setComments(activeAnnotation.comments || []);
       setEditNoteContent(activeAnnotation.note || '');
       setIsEditingNote(false);
+      setNoteError(null);
       setHasUpvoted(Boolean(activeAnnotation.hasUpvoted));
       setPrivacyError(null);
-      setShowCrosspostForm(false);
+      setShowCitationForm(false);
+      setConfirmingDelete(false);
+      // Ces états appartiennent à UNE annotation : sans ce reset, la
+      // « Citation publiée » et le brouillon de réponse du précédent
+      // passage s’affichaient sur le suivant.
+      setCitationPublished(false);
+      setCitationError(null);
+      setCitationPostHref(null);
+      setCitationCommentary('');
+      setNewCommentText('');
 
-      const mark = document.querySelector(`mark[data-highlight-id="${activeAnnotation.id}"]`);
+      // Le spotlight reste DANS l'article concerné : `document` pouvait
+      // désigner la marque d'un autre article monté ailleurs dans la page.
+      const scope = containerId ? document.getElementById(containerId) : document;
+      const mark = Array.from(
+        scope?.querySelectorAll<HTMLElement>('mark[data-highlight-id]') ?? []
+      ).find((candidate) => candidate.getAttribute('data-highlight-id') === activeAnnotation.id);
       if (mark) {
         mark.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
         // Apply spotlight light pulse effect on document mark
-        mark.classList.add(
-          'ring-2',
-          'ring-primary/80',
-          'bg-highlight/40',
-          'shadow-lg',
-          'shadow-highlight/30',
-          'transition-all',
-          'duration-500'
-        );
+        // Une seule liste de classes (celle des types) : recopiée ici, elle
+        // finissait par diverger de celle du deep-link, et le pulse du
+        // tiroir n'était plus le même selon le chemin d'ouverture.
+        mark.classList.add(...SPOTLIGHT_PULSE_CLASSES.split(' '));
         const timer = setTimeout(() => {
-          mark.classList.remove(
-            'ring-2',
-            'ring-primary/80',
-            'bg-highlight/40',
-            'shadow-lg',
-            'shadow-highlight/30',
-            'transition-all',
-            'duration-500'
-          );
+          mark.classList.remove(...SPOTLIGHT_PULSE_CLASSES.split(' '));
         }, 1200);
         return () => clearTimeout(timer);
       }
     }
-  }, [currentIndex, activeAnnotation?.id]);
+  }, [currentIndex, activeAnnotation?.id, containerId]);
 
   const totalAnnotations = annotationsList.length;
 
@@ -174,7 +266,53 @@ export function AnnotationSideDrawer({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeAnnotation, isEditingNote, handlePrev, handleNext]);
 
+  // Le formulaire de citation vit dans la zone qui défile : l'ouvrir depuis
+  // la barre ancrée doit amener jusqu'à lui, pas le laisser hors écran.
+  // ⚠️ Cet effet vit AVANT le retour anticipé : sinon le nombre de hooks
+  // change entre « tiroir fermé » et « tiroir ouvert » (React interdit).
+  useEffect(() => {
+    if (!showCitationForm && !citationPublished) return;
+    const el = contentRef.current;
+    el?.scrollTo?.({ top: el.scrollHeight, behavior: 'smooth' });
+  }, [showCitationForm, citationPublished]);
+
+  // Le profil vit dans l'application principale : sur un domaine de blog,
+  // `/<handle>` est une rubrique, pas une personne. La carte de survol
+  // n'invente donc pas sa destination, le tiroir la fournit. Ce hook vit
+  // avant le retour anticipé, sinon l'ordre des hooks change entre tiroir
+  // fermé et tiroir ouvert.
+  const openProfile = useCallback(
+    (handle: string) => {
+      const clean = handle.replace(/^@/, '').trim();
+      if (!clean) return;
+      const origin = mainAppUrl ? mainAppUrl.replace(/\/+$/, '') : '';
+      window.location.href = `${origin}/${encodeURIComponent(clean)}`;
+    },
+    [mainAppUrl]
+  );
+
   if (!activeAnnotation) return null;
+
+  // ✍️ La nature se LIT sur l'objet, elle ne se stocke pas : une note ajoutée
+  // promeut le surlignage, une note vidée le ramène à un trait. Aucun champ
+  // `kind` à maintenir en cohérence avec `note`.
+  const kind = annotationKind(activeAnnotation);
+  const hasNote = kind === 'annotation';
+  const isOfficial = activeAnnotation.isOfficial;
+  const isOwner = Boolean(currentUserId && currentUserId === activeAnnotation.reader.id);
+  const canDelete = isOwner || Boolean(articleAuthorId && currentUserId === articleAuthorId);
+  // Un surlignage nu n'a rien à discuter ; et une annotation PRIVÉE non plus :
+  // personne d'autre ne la voit, il n'y a pas de fil à tenir. La discussion
+  // naît d'une annotation partagée (publique ou officielle).
+  const hasDiscussion = isOfficial || (hasNote && (activeAnnotation.isPublic || isPublicState));
+
+  // 🧾 La citation n'existe que pour une annotation partagée : le payload
+  // porte la note, l'extrait et les ancres. `null` ⇒ pas de bouton, et le
+  // corps explique pourquoi (voir AnnotationDrawerCitationHint).
+  const citation = citationFromAnnotation(activeAnnotation, { isPublic: isPublicState });
+  const canCite = citation !== null;
+
+  const authorName = activeAnnotation.reader.name || activeAnnotation.reader.username || t`Lecteur`;
 
   const handleLoginRedirect = () => {
     if (onRequireAuth) {
@@ -195,32 +333,72 @@ export function AnnotationSideDrawer({
       return;
     }
 
+    // Le bouton est déjà désactivé sur un texte vide ; on garde la garde
+    // ici aussi pour les envois au clavier (Entrée dans un textarea).
+    const nextNote = editNoteContent.trim();
+    if (!nextNote) return;
+
     setSavingEdit(true);
+    setNoteError(null);
     try {
       const res = callbacks?.onUpdateNote
         ? await callbacks.onUpdateNote({
             highlightId: activeAnnotation.id,
-            note: editNoteContent || null,
+            note: nextNote,
           })
-        : { ok: true };
+        : null;
 
-      if (res?.ok) {
-        const updated: AnnotationItem = {
-          ...activeAnnotation,
-          note: editNoteContent || null,
-          updatedAt: new Date().toISOString(),
-        };
-        const newList = [...annotationsList];
-        newList[currentIndex] = updated;
-        setAnnotationsList(newList);
-        setIsEditingNote(false);
-        if (onUpdateAnnotation) onUpdateAnnotation(updated);
+      const serverAnnotation = res?.ok ? serverAnnotationFromResult(res.data) : null;
+      if (!serverAnnotation) {
+        setNoteError(
+          res && !res.ok
+            ? res.error?.message || t`La note n’a pas pu être enregistrée.`
+            : t`La note n’a pas pu être enregistrée.`
+        );
+        return;
       }
+
+      // La réponse serveur est la seule vérité : elle peut avoir trimmé la
+      // note, changé sa visibilité ou refusé silencieusement une valeur. On
+      // n’invente ni date ni contenu, on rend l’annotation reçue.
+      const updated: AnnotationItem = {
+        ...activeAnnotation,
+        ...serverAnnotation,
+        reader: { ...activeAnnotation.reader, ...(serverAnnotation.reader ?? {}) },
+        comments: serverAnnotation.comments ?? comments,
+        hasUpvoted: serverAnnotation.hasUpvoted ?? activeAnnotation.hasUpvoted,
+      };
+      patchActiveAnnotation(updated);
+      setEditNoteContent(updated.note ?? '');
+      setIsEditingNote(false);
     } catch (err) {
       console.error(err);
+      setNoteError(t`La note n’a pas pu être enregistrée.`);
     } finally {
       setSavingEdit(false);
     }
+  };
+
+  const startWritingNote = () => {
+    setNoteError(null);
+    setEditNoteContent(hasNote ? (activeAnnotation.note ?? '') : '');
+    setIsEditingNote(true);
+  };
+
+  /**
+   * Remplace l'annotation courante dans la liste ET prévient le parent.
+   *
+   * ⚠️ Sans cette propagation, une réponse ou un vote restait local :
+   * passer au passage suivant puis revenir le faisait disparaître, et la
+   * puce de vote se remettait à zéro (le parent ne le savait pas).
+   */
+  const patchActiveAnnotation = (next: AnnotationItem) => {
+    setAnnotationsList((prev) => {
+      const copy = [...prev];
+      copy[currentIndex] = next;
+      return copy;
+    });
+    onUpdateAnnotation?.(next);
   };
 
   // Handle privacy toggle (Private <-> Public)
@@ -245,11 +423,7 @@ export function AnnotationSideDrawer({
 
       if (res?.ok) {
         setIsPublicState(targetPublic);
-        const updated: AnnotationItem = { ...activeAnnotation, isPublic: targetPublic };
-        const newList = [...annotationsList];
-        newList[currentIndex] = updated;
-        setAnnotationsList(newList);
-        if (onUpdateAnnotation) onUpdateAnnotation(updated);
+        patchActiveAnnotation({ ...activeAnnotation, isPublic: targetPublic });
       } else if (res && !res.ok && res.error?.code === 'PUBLIC_ANNOTATIONS_DISABLED') {
         setPrivacyError(t`Le créateur a désactivé les annotations publiques sur cet écrit.`);
       }
@@ -269,30 +443,42 @@ export function AnnotationSideDrawer({
     }
 
     const nextState = !hasUpvoted;
+    const nextCount = nextState ? upvotes + 1 : Math.max(0, upvotes - 1);
     setHasUpvoted(nextState);
-    setUpvotes((prev) => (nextState ? prev + 1 : Math.max(0, prev - 1)));
+    setUpvotes(nextCount);
+    patchActiveAnnotation({
+      ...activeAnnotation,
+      upvotesCount: nextCount,
+      hasUpvoted: nextState,
+    });
 
     try {
       const res = callbacks?.onUpvote ? await callbacks.onUpvote(activeAnnotation.id) : null;
       if (res?.ok && res.data?.upvotesCount !== undefined) {
-        setUpvotes(res.data.upvotesCount);
-        setHasUpvoted(Boolean(res.data.hasUpvoted));
+        const confirmed = {
+          ...activeAnnotation,
+          upvotesCount: res.data.upvotesCount,
+          hasUpvoted: Boolean(res.data.hasUpvoted),
+        };
+        setUpvotes(confirmed.upvotesCount);
+        setHasUpvoted(Boolean(confirmed.hasUpvoted));
+        patchActiveAnnotation(confirmed);
       }
     } catch (e) {
       console.error(e);
     }
   };
 
-  // Handle deletion of annotation
+  // Handle deletion of annotation — après confirmation DANS le tiroir
+  // (`confirmingDelete`), jamais par un `window.confirm()` bloquant.
   const handleDeleteAnnotation = async () => {
-    if (!activeAnnotation) return;
+    if (!activeAnnotation || deleting) return;
     if (!isAuthenticated) {
       handleLoginRedirect();
       return;
     }
 
-    if (!confirm('Voulez-vous vraiment supprimer cette annotation ?')) return;
-
+    setDeleting(true);
     try {
       const res = callbacks?.onDelete
         ? await callbacks.onDelete(activeAnnotation.id)
@@ -301,6 +487,7 @@ export function AnnotationSideDrawer({
         const deletedId = activeAnnotation.id;
         const newList = annotationsList.filter((a) => a.id !== deletedId);
         setAnnotationsList(newList);
+        setConfirmingDelete(false);
         if (onDeleteAnnotation) onDeleteAnnotation(deletedId);
 
         if (newList.length === 0) {
@@ -311,6 +498,8 @@ export function AnnotationSideDrawer({
       }
     } catch (err) {
       console.error(err);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -332,8 +521,13 @@ export function AnnotationSideDrawer({
         : null;
 
       if (res?.ok && res.data) {
-        setComments((prev) => [...prev, res.data as CommentItem]);
+        const comment = res.data as CommentItem;
+        const nextComments = [...comments, comment];
+        setComments(nextComments);
         setNewCommentText('');
+        // La réponse fait partie de l'annotation : sans cette mise à jour,
+        // elle s'affichait puis disparaissait dès qu'on changeait de passage.
+        patchActiveAnnotation({ ...activeAnnotation, comments: nextComments });
       }
     } catch (err) {
       console.error(err);
@@ -342,58 +536,99 @@ export function AnnotationSideDrawer({
     }
   };
 
-  // Handle 1-click Quote to Feed Crossposting
-  const handleCrosspostToFeed = async () => {
+  /**
+   * Publie l'annotation comme citation : la note est le texte cité, le
+   * passage et son auteur l'accompagnent. La règle de publication est
+   * recalculée ici avec l'état de visibilité VISIBLE (la bascule peut
+   * n'être pas encore confirmée par le parent).
+   */
+  const handleCiteAnnotation = async () => {
     if (!activeAnnotation) return;
     if (!isAuthenticated) {
       handleLoginRedirect();
       return;
     }
 
-    setIsCrossposting(true);
-    setCrosspostSuccess(false);
+    const citation = citationFromAnnotation(activeAnnotation, { isPublic: isPublicState });
+    // Un surlignage nu n'a pas de texte à citer ; une annotation privée
+    // n'est partagée avec personne. Aucune des deux ne part sur le feed.
+    if (!citation) return;
+
+    setIsCiting(true);
+    setCitationPublished(false);
+    setCitationError(null);
     try {
-      const res = callbacks?.onCrosspost
-        ? await callbacks.onCrosspost({
+      const res = callbacks?.onCiteAnnotation
+        ? await callbacks.onCiteAnnotation({
             articleId,
-            text: activeAnnotation.text,
-            commentary: crosspostCommentary,
+            citation,
+            commentary: citationCommentary,
           })
-        : { ok: true };
+        : { ok: false };
+
+      if (!res?.ok) {
+        // Le refus a une raison utile : le serveur revérifie la nature et
+        // la visibilité, et peut refuser ce que l'écran croyait possible.
+        setCitationError(
+          res?.error?.code === 'ANNOTATION_NOT_CITABLE'
+            ? t`Cette annotation ne peut pas être citée : elle est privée ou ne porte pas de note.`
+            : res?.error?.message || t`La citation n’a pas pu être publiée.`
+        );
+      }
 
       if (res?.ok) {
-        setCrosspostSuccess(true);
-        setShowCrosspostForm(false);
-        setCrosspostCommentary('');
+        const path = res.data?.url ?? null;
+        const origin = mainAppUrl ? mainAppUrl.replace(/\/+$/, '') : '';
+        const href = path
+          ? path.startsWith('http')
+            ? path
+            : `${origin}${path}`
+          : `${origin}/home`;
+        setCitationPostHref(href || '/home');
+        setCitationPublished(true);
+        setShowCitationForm(false);
+        setCitationCommentary('');
       }
     } catch (err) {
       console.error(err);
     } finally {
-      setIsCrossposting(false);
+      setIsCiting(false);
     }
   };
 
-  const isEdited = Boolean(
-    activeAnnotation.updatedAt &&
-    new Date(activeAnnotation.updatedAt).getTime() -
-      new Date(activeAnnotation.createdAt).getTime() >
-      3000
-  );
-
-  const formattedEditTime =
-    isEdited && activeAnnotation.updatedAt
-      ? new Date(activeAnnotation.updatedAt).toLocaleDateString('fr-FR', {
-          day: 'numeric',
-          month: 'long',
-          hour: '2-digit',
-          minute: '2-digit',
-        })
-      : null;
+  // La nature commande UN accent, pas trois badges différents. Une
+  // annotation privée n'est pas une annotation publique « un peu
+  // différente » : le tiroir lit la même décision que la marque
+  // (`markKindFor`), et se contente de la poser sur le panneau.
+  const markKind = markKindFor({
+    isOfficial,
+    isPublic: Boolean(activeAnnotation.isPublic || isPublicState),
+    hasNote,
+  });
+  const natureLabel =
+    markKind === 'official'
+      ? t`Officielle`
+      : kindLabel(markKind === 'highlight' ? 'highlight' : 'annotation');
 
   return (
     <AnimatePresence>
       {activeAnnotation && (
-        <div className="fixed inset-y-0 right-0 z-50 flex pointer-events-none font-sans select-text">
+        <div className="pointer-events-none fixed inset-y-0 right-0 z-50 flex font-sans select-text">
+          {/* Voile : un panneau blanc sur une page blanche n'a pas de bord.
+              Il rend le focus à l'article au clic, sans voler le focus
+              clavier (tabIndex -1, aria-hidden). */}
+          <motion.button
+            type="button"
+            tabIndex={-1}
+            aria-hidden="true"
+            onClick={onClose}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+            className="pointer-events-auto fixed inset-0 z-0 cursor-default bg-foreground/[0.08]"
+          />
+
           {/* Le tiroir était un panneau visuel sans sémantique : le focus
               restait derrière, dans l'article, et un lecteur d'écran ne
               savait pas qu'une surface s'était ouverte. `FocusScope`
@@ -404,376 +639,124 @@ export function AnnotationSideDrawer({
               role="dialog"
               aria-modal="true"
               aria-labelledby="annotation-drawer-title"
-              initial={{ x: '100%', opacity: 0.8 }}
+              initial={{ x: '100%', opacity: 0.6 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: '100%', opacity: 0 }}
-              transition={{ type: 'spring', damping: 28, stiffness: 220 }}
-              className="w-screen max-w-sm sm:max-w-md bg-popover/90 text-popover-foreground border-l border-border/30 backdrop-blur-2xl shadow-2xl rounded-l-3xl flex flex-col justify-between pointer-events-auto h-full overflow-hidden"
+              transition={{ type: 'spring', damping: 30, stiffness: 240 }}
+              className="pointer-events-auto relative z-10 flex h-full w-screen max-w-[420px] flex-col overflow-hidden border-border/60 bg-card text-card-foreground shadow-[-16px_0_40px_-24px_rgba(0,0,0,0.28)] sm:rounded-l-[var(--radius-card)] sm:border-l"
+              style={
+                {
+                  '--qoe-annotation-accent': `var(${MARK_ACCENT_TOKENS[markKind]})`,
+                } as React.CSSProperties
+              }
             >
-              {/* Header with multi-annotation switcher */}
-              <div className="p-4 border-b border-border/20 flex items-center justify-between">
-                <h2 id="annotation-drawer-title" className="sr-only">
-                  {t`Annotation`}
-                </h2>
-                <div className="flex items-center gap-2">
-                  {activeAnnotation.isOfficial ? (
-                    <span className="px-2.5 py-0.5 rounded-full bg-highlight/10 text-highlight border border-highlight/20 text-xs font-medium flex items-center gap-1">
-                      <Sparkles className="w-3 h-3" />
-                      Annotation officielle
-                    </span>
-                  ) : (
-                    <span className="text-xs font-medium text-foreground/80">Annotation</span>
-                  )}
+              <AnnotationDrawerHeader
+                label={natureLabel}
+                index={currentIndex}
+                total={totalAnnotations}
+                onPrev={handlePrev}
+                onNext={handleNext}
+                onClose={onClose}
+              />
 
-                  {/* Sequential article-wide annotation pagination switcher */}
-                  {totalAnnotations > 1 && (
-                    <div className="flex items-center gap-1 ml-2 pl-2 border-l border-border/30">
-                      <button
-                        onClick={handlePrev}
-                        disabled={currentIndex === 0}
-                        className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
-                        aria-label={t`Annotation précédente`}
-                        title={t`Annotation précédente (Flèche gauche)`}
-                      >
-                        <ChevronLeft className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="text-[11px] text-muted-foreground font-medium px-1">
-                        {currentIndex + 1} / {totalAnnotations}
-                      </span>
-                      <button
-                        onClick={handleNext}
-                        disabled={currentIndex === totalAnnotations - 1}
-                        className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/50 disabled:opacity-30 disabled:hover:bg-transparent transition-all cursor-pointer focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
-                        aria-label={t`Annotation suivante`}
-                        title={t`Annotation suivante (Flèche droite)`}
-                      >
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
-                </div>
+              <div ref={contentRef} className="flex-1 overflow-y-auto">
+                <AnnotationDrawerIdentity
+                  annotation={activeAnnotation}
+                  authorName={authorName}
+                  isOfficial={isOfficial}
+                  isOwner={isOwner}
+                  canDelete={canDelete}
+                  hasNote={hasNote}
+                  isPublicState={isPublicState}
+                  togglingPrivacy={togglingPrivacy}
+                  allowPublicAnnotations={allowPublicAnnotations}
+                  confirmingDelete={confirmingDelete}
+                  onStartWritingNote={startWritingNote}
+                  onRequestDelete={() => setConfirmingDelete(true)}
+                  onTogglePrivacy={handleTogglePrivacy}
+                  onOpenProfile={openProfile}
+                />
 
-                <button
-                  onClick={onClose}
-                  aria-label={t`Fermer l’annotation`}
-                  className="p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer focus-visible:ring-2 focus-visible:ring-ring/60 focus-visible:outline-none"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+                <AnnotationDrawerQuote text={activeAnnotation.text} hasNote={hasNote} />
 
-              {/* Main Scrollable Content */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {/* Quoted Passage */}
-                <div className="space-y-1 py-1">
-                  <span className="text-[11px] font-medium text-muted-foreground">
-                    Passage cité
-                  </span>
-                  <p className="text-xs sm:text-sm text-foreground/90 font-sans italic leading-relaxed pl-3 border-l-2 border-primary/40">
-                    « {activeAnnotation.text} »
-                  </p>
-                </div>
-
-                {/* Author / Note Details */}
-                <div className="space-y-3.5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center overflow-hidden shrink-0 border border-border/40 font-semibold text-xs">
-                        {activeAnnotation.reader.logoUrl ? (
-                          <img
-                            src={activeAnnotation.reader.logoUrl}
-                            alt={activeAnnotation.reader.name || 'Auteur'}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          (activeAnnotation.reader.name ||
-                            activeAnnotation.reader.username ||
-                            'A')[0]
-                        )}
-                      </div>
-                      <div>
-                        <h4 className="text-xs font-medium text-foreground flex items-center gap-1.5">
-                          <span>
-                            {activeAnnotation.reader.name ||
-                              activeAnnotation.reader.username ||
-                              'Lecteur'}
-                          </span>
-                          {activeAnnotation.isOfficial && (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.2 rounded-full bg-highlight text-highlight-foreground">
-                              Auteur
-                            </span>
-                          )}
-                        </h4>
-
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] text-muted-foreground">
-                            {new Date(activeAnnotation.createdAt).toLocaleDateString('fr-FR', {
-                              day: 'numeric',
-                              month: 'short',
-                            })}
-                          </span>
-
-                          {isEdited && (
-                            <span
-                              className="text-[10px] text-muted-foreground/80 flex items-center gap-1 italic"
-                              title={`Édité le ${formattedEditTime}`}
-                            >
-                              <span>•</span>
-                              <Pencil className="w-2.5 h-2.5 text-muted-foreground" />
-                              <span>Modifié le {formattedEditTime}</span>
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      {Boolean(
-                        currentUserId &&
-                        activeAnnotation.reader?.id &&
-                        currentUserId === activeAnnotation.reader.id
-                      ) && (
-                        <button
-                          onClick={() => setIsEditingNote(!isEditingNote)}
-                          className="p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
-                          title="Modifier cette annotation"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-
-                      {Boolean(
-                        currentUserId &&
-                        ((activeAnnotation.reader?.id &&
-                          currentUserId === activeAnnotation.reader.id) ||
-                          (articleAuthorId && currentUserId === articleAuthorId))
-                      ) && (
-                        <button
-                          onClick={handleDeleteAnnotation}
-                          className="p-1 rounded-full text-muted-foreground hover:text-destructive-text hover:bg-destructive/10 transition-colors cursor-pointer"
-                          title="Supprimer cette annotation"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-
-                      {currentUserId === activeAnnotation.reader.id &&
-                        !activeAnnotation.isOfficial && (
-                          <button
-                            onClick={handleTogglePrivacy}
-                            disabled={togglingPrivacy}
-                            className={cn(
-                              'flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all cursor-pointer',
-                              isPublicState
-                                ? 'bg-success/10 text-success-text border-success/20 hover:bg-success/20'
-                                : 'bg-muted text-muted-foreground border-border/30 hover:text-foreground'
-                            )}
-                            title={
-                              isPublicState ? t`Rendre privée` : t`Rendre publique sur l'article`
-                            }
-                          >
-                            {togglingPrivacy ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : isPublicState ? (
-                              <>
-                                <Globe className="w-3 h-3" />
-                                <span>Publique</span>
-                              </>
-                            ) : (
-                              <>
-                                <Lock className="w-3 h-3" />
-                                <span>{t`Privée`}</span>
-                              </>
-                            )}
-                          </button>
-                        )}
-                    </div>
-                  </div>
-
+                <div className="space-y-5 px-4 pb-6 pt-4">
                   {privacyError && (
-                    <div className="bg-destructive/10 border border-destructive/20 text-destructive-text p-2.5 rounded-xl text-xs flex gap-2">
-                      <AlertCircle className="w-4 h-4 shrink-0" />
+                    <div
+                      role="alert"
+                      className="flex gap-2 rounded-panel border border-destructive/25 bg-destructive/[0.04] p-3 type-control-md leading-5 text-destructive-text"
+                    >
+                      <AlertCircle className="size-3.5 shrink-0" aria-hidden />
                       <span>{privacyError}</span>
                     </div>
                   )}
 
-                  {/* Inline Note Editor Form or Note Display */}
-                  {isEditingNote ? (
-                    <form onSubmit={handleSaveNoteEdit} className="space-y-2.5">
-                      <textarea
-                        autoFocus
-                        rows={3}
-                        value={editNoteContent}
-                        onChange={(e) => setEditNoteContent(e.target.value)}
-                        placeholder={t`Modifier votre réflexion...`}
-                        className="w-full p-3 rounded-2xl bg-background border border-border/30 text-xs text-foreground focus:outline-none focus:border-primary font-sans resize-none leading-relaxed"
-                      />
-                      <div className="flex justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setIsEditingNote(false)}
-                          className="px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground cursor-pointer"
-                        >
-                          Annuler
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={savingEdit}
-                          className="px-3 py-1 rounded-xl bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
-                        >
-                          {savingEdit ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : (
-                            <Check className="w-3 h-3" />
-                          )}
-                          <span>Enregistrer</span>
-                        </button>
-                      </div>
-                    </form>
-                  ) : activeAnnotation.note ? (
-                    <p className="text-xs text-foreground leading-relaxed whitespace-pre-line bg-muted/40 p-3.5 rounded-2xl border border-border/20 font-sans">
-                      {activeAnnotation.note}
-                    </p>
-                  ) : (
-                    <p className="text-xs italic text-muted-foreground">
-                      Aucune note attachée à ce surlignage.
-                    </p>
+                  <AnnotationDrawerNote
+                    note={activeAnnotation.note}
+                    isEditing={isEditingNote}
+                    draft={editNoteContent}
+                    saving={savingEdit}
+                    error={noteError}
+                    onDraftChange={setEditNoteContent}
+                    onStart={startWritingNote}
+                    onCancel={() => {
+                      setNoteError(null);
+                      setIsEditingNote(false);
+                    }}
+                    onSave={handleSaveNoteEdit}
+                  />
+
+                  {confirmingDelete && (
+                    <AnnotationDrawerDeleteConfirmation
+                      hasNote={hasNote}
+                      deleting={deleting}
+                      onCancel={() => setConfirmingDelete(false)}
+                      onConfirm={handleDeleteAnnotation}
+                    />
+                  )}
+
+                  <AnnotationDrawerCitationHint
+                    hasNote={hasNote}
+                    isPublicState={isOfficial || activeAnnotation.isPublic || isPublicState}
+                  />
+
+                  <AnnotationDrawerCitation
+                    showForm={showCitationForm}
+                    success={citationPublished}
+                    citation={citation}
+                    commentary={citationCommentary}
+                    publishing={isCiting}
+                    error={citationError}
+                    postHref={citationPostHref}
+                    onCommentaryChange={setCitationCommentary}
+                    onCancel={() => setShowCitationForm(false)}
+                    onSubmit={handleCiteAnnotation}
+                  />
+
+                  {hasDiscussion && (
+                    <AnnotationDrawerDiscussion
+                      comments={comments}
+                      draft={newCommentText}
+                      submitting={submittingComment}
+                      onDraftChange={setNewCommentText}
+                      onSubmit={handleAddComment}
+                      onOpenProfile={openProfile}
+                    />
                   )}
                 </div>
-
-                {/* Action Bar */}
-                <div className="flex items-center justify-between pt-2.5 border-t border-border/20">
-                  <button
-                    onClick={handleUpvote}
-                    className={cn(
-                      'flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer',
-                      hasUpvoted
-                        ? 'bg-primary/10 text-primary border-primary/20'
-                        : 'bg-muted/40 text-muted-foreground border-border/30 hover:text-foreground'
-                    )}
-                  >
-                    <ThumbsUp className={cn('w-3.5 h-3.5', hasUpvoted && 'fill-primary')} />
-                    <span>{upvotes > 0 ? `${upvotes} Utile` : 'Utile'}</span>
-                  </button>
-
-                  <button
-                    onClick={() => setShowCrosspostForm(!showCrosspostForm)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition-all cursor-pointer shadow-xs"
-                  >
-                    <Share2 className="w-3.5 h-3.5" />
-                    <span>Citer sur le Feed</span>
-                  </button>
-                </div>
-
-                {/* Crosspost Success Alert */}
-                {crosspostSuccess && (
-                  <div className="bg-success/10 border border-success/20 text-success-text p-3 rounded-2xl text-xs flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Check className="w-4 h-4" />
-                      <span>{t`Passage cité avec succès sur votre fil Feed !`}</span>
-                    </div>
-                    <a href="/feed" className="font-medium underline">
-                      Voir
-                    </a>
-                  </div>
-                )}
-
-                {/* Crosspost Form */}
-                {showCrosspostForm && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    className="p-3 rounded-2xl bg-muted/30 border border-border/30 space-y-2.5"
-                  >
-                    <label className="text-[11px] font-medium text-muted-foreground">
-                      Ajouter un commentaire sur le Feed (optionnel)
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={crosspostCommentary}
-                      onChange={(e) => setCrosspostCommentary(e.target.value)}
-                      placeholder="Qu'en pensez-vous ?"
-                      className="w-full p-2.5 rounded-xl bg-background border border-border/30 text-xs text-foreground focus:outline-none focus:border-primary resize-none font-sans"
-                    />
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => setShowCrosspostForm(false)}
-                        className="px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground cursor-pointer"
-                      >
-                        Annuler
-                      </button>
-                      <button
-                        disabled={isCrossposting}
-                        onClick={handleCrosspostToFeed}
-                        className="px-3 py-1 rounded-xl bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 cursor-pointer disabled:opacity-50"
-                      >
-                        {isCrossposting ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          'Publier sur le Feed'
-                        )}
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-
-                {/* Annotation Discussion Thread (Comments) */}
-                {(activeAnnotation.isPublic || activeAnnotation.isOfficial) && (
-                  <div className="pt-3.5 border-t border-border/20 space-y-3.5">
-                    <div className="flex items-center gap-2">
-                      <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
-                      <h5 className="text-xs font-medium text-muted-foreground">
-                        Discussion ({comments.length})
-                      </h5>
-                    </div>
-
-                    {/* Add comment input */}
-                    <form onSubmit={handleAddComment} className="flex gap-2">
-                      <input
-                        type="text"
-                        value={newCommentText}
-                        onChange={(e) => setNewCommentText(e.target.value)}
-                        placeholder={t`Réagir à cette annotation...`}
-                        className="flex-1 bg-background border border-border/30 rounded-xl px-3 py-1.5 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary font-sans"
-                      />
-                      <button
-                        type="submit"
-                        disabled={submittingComment || !newCommentText.trim()}
-                        className="px-3 py-1.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50"
-                      >
-                        {submittingComment ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
-                        ) : (
-                          <Send className="w-3 h-3" />
-                        )}
-                      </button>
-                    </form>
-
-                    {/* Comments list */}
-                    <div className="space-y-2.5">
-                      {comments.map((cmt) => (
-                        <div
-                          key={cmt.id}
-                          className="p-3 rounded-2xl bg-muted/30 border border-border/20 space-y-1"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-medium text-foreground">
-                              {cmt.author?.name || cmt.author?.username || 'Lecteur'}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground">
-                              {new Date(cmt.createdAt).toLocaleDateString('fr-FR', {
-                                month: 'short',
-                                day: 'numeric',
-                              })}
-                            </span>
-                          </div>
-                          <p className="text-xs text-foreground leading-relaxed">{cmt.content}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
+
+              <AnnotationDrawerFooter
+                hasNote={hasNote}
+                canCite={canCite}
+                hasUpvoted={hasUpvoted}
+                upvotes={upvotes}
+                showCitationForm={showCitationForm}
+                onUpvote={handleUpvote}
+                onToggleCitation={() => {
+                  setCitationError(null);
+                  setShowCitationForm((open) => !open);
+                }}
+              />
             </motion.div>
           </FocusScope>
         </div>

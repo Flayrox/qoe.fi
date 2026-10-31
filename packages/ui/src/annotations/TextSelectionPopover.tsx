@@ -13,6 +13,7 @@ import {
 } from '@floating-ui/react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { cn } from '@qoe/utils';
+import { t } from '@lingui/core/macro';
 import type { SelectionState, TextSelectionPopoverProps } from './types';
 
 export type { SelectionState, TextSelectionPopoverProps };
@@ -21,13 +22,19 @@ export function TextSelectionPopover({
   containerId,
   minSelectionLength = 1,
   isLocked = false,
+  isDismissed = false,
   onSelectionChange,
   children,
   className,
-  ariaLabel = 'Annoter la sélection',
+  ariaLabel = t`Annoter la sélection`,
 }: TextSelectionPopoverProps & { ariaLabel?: string }) {
   const [selectedText, setSelectedText] = useState<string>('');
   const [selectionRange, setSelectionRange] = useState<Range | null>(null);
+  // ⚠️ Une sélection à moins d'une hauteur de barre du haut laissait
+  // `flip` placer la barre au-dessus de l'écran (mesuré : top −12 px) :
+  // elle existait, on ne la voyait pas. On choisit le côté AVANT le rendu
+  // plutôt que de compter sur le retournement.
+  const [preferredPlacement, setPreferredPlacement] = useState<'top' | 'bottom'>('top');
   const [virtualElement, setVirtualElement] = useState<{
     getBoundingClientRect(): DOMRect;
     getClientRects(): DOMRectList;
@@ -46,7 +53,7 @@ export function TextSelectionPopover({
 
   const { refs, floatingStyles, placement, middlewareData } = useFloating({
     open: Boolean(virtualElement),
-    placement: 'top',
+    placement: preferredPlacement,
     strategy: 'fixed',
     middleware: [
       offset(12),
@@ -68,6 +75,23 @@ export function TextSelectionPopover({
     setSelectionRange(null);
     onSelectionChange?.(null);
   }, [isLocked, onSelectionChange]);
+
+  // ⚠️ `isLocked` n'était lu QUE pour ignorer de nouvelles sélections : la
+  // barre déjà ouverte restait affichée. Ouvrir le tiroir laissait donc la
+  // barre d'annotation posée au-dessus du voile, sur un passage devenu
+  // inaccessible. `isDismissed` la referme, une fois par transition —
+  // distinct de `isLocked`, qui gèle la sélection pendant la saisie d'une
+  // note et doit laisser le formulaire ouvert.
+  const wasDismissedRef = useRef(false);
+  useEffect(() => {
+    if (isDismissed && !wasDismissedRef.current) {
+      setVirtualElement(null);
+      setSelectedText('');
+      setSelectionRange(null);
+      onSelectionChange?.(null);
+    }
+    wasDismissedRef.current = isDismissed;
+  }, [isDismissed, onSelectionChange]);
 
   const evaluateSelection = useCallback(() => {
     if (isLocked) return;
@@ -103,6 +127,11 @@ export function TextSelectionPopover({
       clearSelection();
       return;
     }
+
+    // La barre a besoin d'environ 56 px au-dessus ; sous 150 px, on l'ouvre
+    // en dessous. Le calcul se fait sur la sélection, pas sur un rendu
+    // précédent.
+    setPreferredPlacement(rect.top < 150 ? 'bottom' : 'top');
 
     const contextEl =
       (commonAncestor as Element | null) ||
@@ -213,7 +242,9 @@ export function TextSelectionPopover({
     }
   };
 
-  if (!virtualElement || !selectedText || !selectionRange) return null;
+  // Masquage immédiat (l'effet ci-dessus nettoie l'état au même moment) :
+  // aucun rendu intermédiaire ne laisse la barre par-dessus le tiroir.
+  if (isDismissed || !virtualElement || !selectedText || !selectionRange) return null;
 
   const isHidden = Boolean(middlewareData.hide?.referenceHidden);
 

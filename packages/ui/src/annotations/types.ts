@@ -3,6 +3,9 @@
 // =====================================================================
 
 import React from 'react';
+import type { AnnotationCitation } from './citation';
+
+export type { AnnotationCitation, AnnotationCitationReader } from './citation';
 
 /**
  * Filter mode for article annotations in reader view.
@@ -21,6 +24,12 @@ export interface AnnotationReader {
   username: string | null;
   logoUrl: string | null;
   subdomain?: string | null;
+  /**
+   * Nature du compte. Un compte média garde une photo CARRÉE à petits
+   * coins arrondis, jamais un cercle : c'est la règle de SafeAvatar, et le
+   * tiroir la laissait perdre en dessinant l'avatar à la main.
+   */
+  type?: 'PERSONAL' | 'MEDIA' | string | null;
 }
 
 /**
@@ -35,11 +44,9 @@ export interface CommentItem {
     name: string | null;
     username: string | null;
     logoUrl: string | null;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
   };
 }
-
-/** Alias for backward compatibility with existing legacy code */
-export type AnnotationCommentItem = CommentItem;
 
 /**
  * Core Annotation model representing a highlighted text passage.
@@ -128,6 +135,20 @@ export interface CrosspostPassageParams {
   commentary?: string;
 }
 
+/**
+ * Publication d'une annotation comme citation sur Qoefi.
+ *
+ * `citation` porte le texte annoté, sa note et son auteur — pas seulement
+ * un commentaire libre. Le serveur revérifie la nature et la visibilité de
+ * l'annotation : ce que le tiroir peut proposer, lui seul peut publier.
+ */
+export interface CiteAnnotationParams {
+  articleId?: string;
+  citation: AnnotationCitation;
+  /** Mots ajoutés par la personne qui cite (facultatif). */
+  commentary?: string;
+}
+
 export interface AnnotationActionResult<T = unknown> {
   ok: boolean;
   data?: T;
@@ -152,30 +173,28 @@ export interface AnnotationActionCallbacks {
   onUpdateNote?: (params: UpdateNoteParams) => Promise<AnnotationActionResult>;
   onDelete?: (highlightId: string) => Promise<AnnotationActionResult<void>>;
   onCrosspost?: (params: CrosspostPassageParams) => Promise<AnnotationActionResult>;
+  onCiteAnnotation?: (
+    params: CiteAnnotationParams
+  ) => Promise<AnnotationActionResult<{ url?: string | null }>>;
   onLoginRedirect?: () => void;
-  /** IA (fiche Plus P1) : expliquer un extrait. Absent = pas de bouton
-   * (le moteur reste neutre — c'est le parent qui branche l'IA + Plus).
-   * Résultat : { ok, explanation? } ou { ok: false, error } avec
-   * error.code ∈ AI_PLUS_REQUIRED, AI_QUOTA_EXCEEDED, AI_UNAVAILABLE. */
-  onExplain?: (params: {
-    text: string;
-  }) => Promise<AnnotationActionResult<{ explanation: string }>>;
 }
 
 // ---------------------------------------------------------------------
 // 🎨 Highlight Visual Styling Constants & Types
 // ---------------------------------------------------------------------
 
-export type HighlightType = 'official' | 'public' | 'private';
-
-export const MARK_STYLE_CLASSES: Record<HighlightType, string> = {
-  official:
-    'bg-highlight/20 text-foreground cursor-pointer border-b border-highlight hover:bg-highlight/30 transition-all relative group rounded-xs font-medium',
-  public:
-    'bg-primary/20 text-foreground cursor-pointer border-b border-primary/50 hover:bg-primary/30 transition-all relative group rounded-xs',
-  private:
-    'bg-highlight/15 text-foreground cursor-pointer border-b border-dashed border-highlight/60 hover:bg-highlight/25 transition-all relative group rounded-xs',
-};
+// La peau vit dans `mark-skin.ts` (une seule source, testée) ; on la
+// ré-exporte ici pour ne pas casser les imports historiques du module.
+export {
+  MARK_STYLE_CLASSES,
+  markSkin,
+  markSkinFor,
+  markKindFor,
+  MARK_ACCENT_TOKENS,
+  MARK_KINDS,
+  type MarkKind,
+  type MarkIdentity,
+} from './mark-skin';
 
 export const SPOTLIGHT_PULSE_CLASSES =
   'ring-2 ring-primary/80 bg-highlight/40 shadow-lg shadow-highlight/30 transition-all duration-500';
@@ -203,7 +222,10 @@ export interface SpotlightRange {
 export interface TextSelectionPopoverProps {
   containerId?: string;
   minSelectionLength?: number;
+  /** Gèle les nouvelles sélections (formulaire de note ouvert). */
   isLocked?: boolean;
+  /** Referme la barre au profit d'une autre surface (tiroir ouvert). */
+  isDismissed?: boolean;
   onSelectionChange?: (selection: SelectionState | null) => void;
   children: (selection: SelectionState) => React.ReactNode;
   className?: string;
@@ -222,6 +244,7 @@ export interface TextHighlighterProps {
     name: string | null;
     username: string | null;
     logoUrl: string | null;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
   } | null;
   articleAuthorId?: string | null;
   mainAppUrl: string;
@@ -251,6 +274,9 @@ export interface AnnotationSideDrawerProps {
   currentUserId?: string | null;
   articleAuthorId?: string | null;
   mainAppUrl?: string;
+  /** Conteneur du corps d'article : le spotlight ne cherche la marque que
+   *  dedans (une même annotation peut être peinte dans un autre article). */
+  containerId?: string;
   isOpen?: boolean;
   onClose: () => void;
   callbacks?: AnnotationActionCallbacks;

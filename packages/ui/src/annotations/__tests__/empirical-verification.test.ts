@@ -37,9 +37,10 @@ describe('Empirical Challenge: Subpath Export & TS Contracts Verification', () =
     expect(typeof AnnotationsModule.TextSelectionPopover).toBe('function');
 
     expect(AnnotationsModule.MARK_STYLE_CLASSES).toBeDefined();
-    expect(AnnotationsModule.MARK_STYLE_CLASSES.official).toContain('highlight');
-    expect(AnnotationsModule.MARK_STYLE_CLASSES.public).toContain('primary');
-    expect(AnnotationsModule.MARK_STYLE_CLASSES.private).toContain('dashed');
+    expect(AnnotationsModule.MARK_STYLE_CLASSES.official).toContain('qoe-mark-official');
+    expect(AnnotationsModule.MARK_STYLE_CLASSES.public).toContain('qoe-mark-public');
+    expect(AnnotationsModule.MARK_STYLE_CLASSES.private).toContain('qoe-mark-private');
+    expect(AnnotationsModule.MARK_STYLE_CLASSES.highlight).toContain('qoe-mark-highlight');
 
     expect(AnnotationsModule.SPOTLIGHT_PULSE_CLASSES).toBeDefined();
     expect(AnnotationsModule.SPOTLIGHT_PULSE_CLASSES).toContain('ring-2');

@@ -124,6 +124,14 @@ describe('CanonicalArticleBody — marques par offsets', () => {
     expect(html).toContain('data-highlight-text="Deuxième"');
   });
 
+  it('ne peint pas deux fois la même annotation (liste reçue en double)', () => {
+    // Le parent et le moteur peuvent ajouter la même annotation à tour de
+    // rôle : deux `<mark>` imbriqués portant le même id, mêmes classes, et
+    // le trait qui double sans rien signaler d'autre.
+    const html = renderBody([privateHighlight, { ...privateHighlight }], [], 'all');
+    expect(html.match(/data-highlight-id="priv-1"/g) ?? []).toHaveLength(1);
+  });
+
   it('ignore les ancres périmées (sha différent) et sans offsets', () => {
     const html = renderBody([privateHighlight, staleHighlight, noAnchorsHighlight], [], 'all');
     expect(html).not.toContain('stale-1');
@@ -228,7 +236,54 @@ describe('CanonicalArticleBody — marques par offsets', () => {
   });
 });
 
+describe('CanonicalArticleBody — quatre états de lecture', () => {
+  const markTag = (html: string, id: string) =>
+    html.match(new RegExp(`<mark[^>]*data-highlight-id="${id}"[^>]*>`))?.[0] ?? '';
+
+  it('donne une peau distincte à l’annotation privée, publique et officielle', () => {
+    const html = renderBody([privateHighlight], [publicHighlight, officialFromServer], 'all');
+    expect(markTag(html, 'priv-1')).toContain('qoe-mark-private');
+    expect(markTag(html, 'pub-1')).toContain('qoe-mark-public');
+    expect(markTag(html, 'official-1')).toContain('qoe-mark-official');
+  });
+
+  it('peint un passage sans note comme un surlignage, même public', () => {
+    // ⚠️ Le défaut d'origine : la visibilité décidait de la peau. Un
+    // surlignage public nu recevait donc le vermillon d'une annotation
+    // publique, et un surlignage privé nu l'ambre d'une annotation
+    // officielle. Le texte est le discriminant.
+    const plainPrivate = { ...privateHighlight, id: 'plain-priv', note: null };
+    const plainPublic = { ...publicHighlight, id: 'plain-pub', note: null };
+    const html = renderBody([plainPrivate], [plainPublic], 'all');
+    expect(markTag(html, 'plain-priv')).toContain('qoe-mark-highlight');
+    expect(markTag(html, 'plain-pub')).toContain('qoe-mark-highlight');
+    expect(markTag(html, 'plain-priv')).not.toContain('qoe-mark-private');
+    expect(html).not.toContain('qoe-mark-public');
+    expect(html).not.toContain('qoe-mark-private');
+  });
+
+  it('garde la peau officielle sur une marque d’auteur sans note', () => {
+    const bareOfficial = { ...officialFromServer, id: 'official-bare', note: null };
+    const html = renderBody([], [bareOfficial], 'all');
+    expect(markTag(html, 'official-bare')).toContain('qoe-mark-official');
+    expect(html).not.toContain('qoe-mark-highlight');
+  });
+});
+
 describe('buildSegmentMarks — unité pure', () => {
+  it('dédoublonne par identifiant à la peinture', () => {
+    const marks = buildSegmentMarks(
+      doc,
+      0,
+      0,
+      [],
+      [publicHighlight, { ...publicHighlight }],
+      'all',
+      'Créatrice'
+    );
+    expect(marks.filter((m) => m.id === 'pub-1')).toHaveLength(1);
+  });
+
   it('produit les marques attendues pour le bloc 0 (officiel + public)', () => {
     const marks: PaintMark[] = buildSegmentMarks(
       doc,
@@ -296,6 +351,43 @@ describe('CanonicalArticleBody — spotlight deep-link (tranche 6-b)', () => {
     );
     expect(html).toContain('data-spotlight="true"');
     expect(html).toContain('data-highlight-text="Bonjour"');
+  });
+
+  it('peint une annotation publique du lecteur avec la peau publique, une seule fois', () => {
+    const ownPublic: HighlightItem = {
+      ...privateHighlight,
+      id: 'own-pub',
+      text: 'Bonjour',
+      canonicalStart: 0,
+      canonicalEnd: 7,
+      isPublic: true,
+      note: 'Publique',
+    };
+    const asAnnotation: AnnotationItem = {
+      id: 'own-pub',
+      text: 'Bonjour',
+      canonicalStart: 0,
+      canonicalEnd: 7,
+      contentSha: 'sha-1',
+      note: 'Publique',
+      isPublic: true,
+      isOfficial: false,
+      upvotesCount: 0,
+      createdAt: new Date().toISOString(),
+      reader: { id: 'r1', name: 'Lectrice', username: 'lectrice', logoUrl: null },
+    };
+
+    // Présente dans les DEUX listes : une seule marque, et publique.
+    const both = renderBody([ownPublic], [asAnnotation], 'all');
+    expect(both.match(/data-highlight-id="own-pub"/g) ?? []).toHaveLength(1);
+    const mark = both.match(/<mark[^>]*data-highlight-id="own-pub"[^>]*>/)?.[0] ?? '';
+    expect(mark).toContain('qoe-mark-public');
+    expect(mark).not.toContain('qoe-mark-private');
+
+    // Présente seulement dans les surlignages : sa nature se lit quand même.
+    const only = renderBody([ownPublic], [], 'all');
+    const onlyMark = only.match(/<mark[^>]*data-highlight-id="own-pub"[^>]*>/)?.[0] ?? '';
+    expect(onlyMark).toContain('qoe-mark-public');
   });
 
   it('marque multi-segment (paragraphe + liste) résolue par buildSegmentMarks', () => {

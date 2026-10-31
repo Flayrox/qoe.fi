@@ -12,13 +12,21 @@ describe('@qoe/ui/annotations exports & styling', () => {
   });
 
   it('verifies mark styling classes match design specs', () => {
-    expect(MARK_STYLE_CLASSES.official).toContain('bg-highlight/20');
-    expect(MARK_STYLE_CLASSES.official).toContain('border-highlight');
-    expect(MARK_STYLE_CLASSES.public).toContain('bg-primary/20');
-    expect(MARK_STYLE_CLASSES.public).toContain('border-primary/50');
-    expect(MARK_STYLE_CLASSES.private).toContain('bg-highlight/15');
-    expect(MARK_STYLE_CLASSES.private).toContain('border-dashed');
-    expect(MARK_STYLE_CLASSES.private).toContain('border-highlight/60');
+    // La teinte et le trait viennent du CSS du thème (`marks.css`) ; la
+    // classe de peau (`qoe-mark-*`) est le seul choix laissé au composant.
+    expect(MARK_STYLE_CLASSES.official).toContain('qoe-mark-official');
+    expect(MARK_STYLE_CLASSES.public).toContain('qoe-mark-public');
+    expect(MARK_STYLE_CLASSES.private).toContain('qoe-mark-private');
+    expect(MARK_STYLE_CLASSES.highlight).toContain('qoe-mark-highlight');
+    expect(MARK_STYLE_CLASSES.selection).toContain('qoe-mark-selection');
+    // Plus de bordure héritée : elle doublonnait le trait et se cassait en
+    // pointillés sur les citations multi-lignes.
+    expect(MARK_STYLE_CLASSES.private).not.toContain('border-');
+    // Aucune classe typographique : la marque ne change pas la police du
+    // passage (la garantie est verrouillée par `font: inherit` dans le CSS).
+    for (const classes of Object.values(MARK_STYLE_CLASSES)) {
+      expect(classes).not.toMatch(/\bfont-|\bitalic\b|\bunderline\b/);
+    }
   });
 
   it('verifies active text spotlight pulse ring classes match design specs', () => {

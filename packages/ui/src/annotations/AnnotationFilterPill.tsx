@@ -23,8 +23,12 @@ export interface AnnotationFilterPillProps {
  *    conditionnelle : rien n'indiquait à un lecteur d'écran que « Toutes »
  *    était le choix actif, ni qu'il fallait en choisir un seul.
  *
- *    Le groupe porte maintenant `aria-pressed` sur chaque bascule et un nom
- *    accessible sur le groupe : « Toutes, enfoncé » se lit.
+ * ⚠️ En sélection exclusive, react-aria rend le groupe en `radiogroup` et ses
+ *    bascules en `radio` — pas en `toggle` avec `aria-pressed`, et il ne pose
+ *    aucun `data-selected`. Les classes d'état actif doivent donc se greffer
+ *    sur `aria-checked` : écrites sur `data-[selected]`, elles ne
+ *    s'appliquaient jamais (l'état « choisi » restait celui, plus discret, du
+ *    contrat). Vérifié dans le DOM du lab : `role="radio" aria-checked="true"`.
  */
 export function AnnotationFilterPill({
   filterMode,
@@ -38,8 +42,9 @@ export function AnnotationFilterPill({
   const buttonClass = cn(
     'h-auto rounded-full border-0 bg-transparent px-2.5 py-0.5 type-control-xs font-medium',
     'text-muted-foreground hover:text-foreground',
-    'data-[selected]:bg-foreground data-[selected]:font-semibold data-[selected]:text-background',
-    isSm ? 'text-[11px]' : 'px-3 py-1'
+    'aria-checked:bg-foreground aria-checked:font-semibold aria-checked:text-background',
+    'aria-checked:hover:bg-foreground',
+    isSm ? 'type-control-xs' : 'px-3 py-1'
   );
 
   return (

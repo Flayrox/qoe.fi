@@ -11,7 +11,8 @@ import {
   AnnotationFilterMode,
   AnnotationItem,
   HighlightItem,
-  MARK_STYLE_CLASSES,
+  markSkin,
+  markSkinFor,
   SPOTLIGHT_PULSE_CLASSES,
   SpotlightRange,
 } from './types';
@@ -25,6 +26,8 @@ import {
   styleSegments,
   toLocalRange,
 } from './canonical-document';
+import { isAnnotation } from './annotation-kind';
+import { t } from '@lingui/core/macro';
 
 export interface CanonicalArticleBodyProps {
   document: CanonicalDocument;
@@ -64,7 +67,7 @@ function toAnnotation(hl: HighlightItem): AnnotationItem {
     createdAt: hl.createdAt ?? new Date().toISOString(),
     reader: hl.reader ?? {
       id: 'reader',
-      name: 'Lecteur',
+      name: t`Lecteur`,
       username: 'lecteur',
       logoUrl: null,
     },
@@ -106,15 +109,25 @@ export function buildSegmentMarks(
     typeof cs === 'number' && typeof ce === 'number' && (!sha || sha === doc.sha);
 
   if (filterMode === 'all') {
+    // ⚠️ Une annotation présente dans les DEUX listes (le lecteur voit sa
+    // propre annotation publique) ne se peint qu'une fois, avec la peau
+    // publique : sinon la première marque gagnait et elle était privée.
+    const publicIds = new Set(allPublic.map((p) => p.id));
     for (const hl of highlights) {
+      if (publicIds.has(hl.id)) continue;
       if (!anchored(hl.canonicalStart, hl.canonicalEnd, hl.contentSha)) continue;
+      const isPublic = Boolean(hl.isPublic);
       push(
         hl.canonicalStart as number,
         hl.canonicalEnd as number,
         hl.id,
-        MARK_STYLE_CLASSES.private,
-        hl.note ? `Note privée : ${hl.note}` : undefined,
-        toAnnotation(hl)
+        markSkinFor({ isPublic, hasNote: Boolean(hl.note?.trim()) }),
+        hl.note
+          ? isPublic
+            ? t`Note publique : ${hl.note}`
+            : t`Note privée : ${hl.note}`
+          : undefined,
+        { ...toAnnotation(hl), isPublic }
       );
     }
   }
@@ -128,9 +141,15 @@ export function buildSegmentMarks(
         pub.canonicalStart as number,
         pub.canonicalEnd as number,
         pub.id,
-        pub.isOfficial ? MARK_STYLE_CLASSES.official : MARK_STYLE_CLASSES.public,
+        markSkinFor({
+          isOfficial: pub.isOfficial,
+          isPublic: true,
+          hasNote: Boolean(pub.note?.trim()),
+        }),
         pub.note
-          ? `${pub.isOfficial ? 'Annotation officielle' : 'Annotation publique'} : ${pub.note}`
+          ? pub.isOfficial
+            ? t`Annotation officielle : ${pub.note}`
+            : t`Annotation publique : ${pub.note}`
           : undefined,
         pub
       );
@@ -149,8 +168,8 @@ export function buildSegmentMarks(
           win.start + sp.start,
           win.start + sp.end,
           matched.id,
-          MARK_STYLE_CLASSES.official,
-          matched.note ? `Annotation officielle : ${matched.note}` : undefined,
+          markSkin('official'),
+          matched.note ? t`Annotation officielle : ${matched.note}` : undefined,
           matched
         );
         continue;
@@ -169,8 +188,8 @@ export function buildSegmentMarks(
         win.start + sp.start,
         win.start + sp.end,
         synth.id,
-        MARK_STYLE_CLASSES.official,
-        sp.note ? `Annotation officielle : ${sp.note}` : undefined,
+        markSkin('official'),
+        sp.note ? t`Annotation officielle : ${sp.note}` : undefined,
         synth
       );
     }
@@ -200,7 +219,19 @@ export function buildSegmentMarks(
       }
     );
   }
-  return marks;
+
+  // 🛡️ Une annotation ne se peint qu'une fois par segment. Si le même id
+  // arrive deux fois — liste mise à jour par le parent ET par le moteur —
+  // le texte recevrait deux `<mark>` imbriqués de mêmes classes : le trait
+  // doublerait, sans rien signaler d'autre.
+  const unique: PaintMark[] = [];
+  const seen = new Set<string>();
+  for (const mark of marks) {
+    if (seen.has(mark.id)) continue;
+    seen.add(mark.id);
+    unique.push(mark);
+  }
+  return unique;
 }
 
 // ---------------------------------------------------------------------
@@ -256,6 +287,7 @@ function RenderRich({ text, marks, inline, onMarkClick }: RichProps) {
     let node: ReactNode = <>{styled}</>;
     for (const m of covering) {
       const isSpotlight = m.id === SPOTLIGHT_MARK_ID;
+      const markLabel = isAnnotation(m.annotation) ? t`Annotation` : t`Surlignage`;
       node = (
         <mark
           key={m.id}
@@ -264,12 +296,31 @@ function RenderRich({ text, marks, inline, onMarkClick }: RichProps) {
           data-spotlight={isSpotlight ? 'true' : undefined}
           data-highlight-text={segText}
           title={m.title}
+          // Une marque cliquable doit être un contrôle : sans rôle ni
+          // `tabindex`, l'annotation n'est atteignable qu'à la souris.
+          // Le spotlight, lui, n'ouvre rien — il reste décoratif.
+          role={isSpotlight ? undefined : 'button'}
+          tabIndex={isSpotlight ? undefined : 0}
+          aria-label={
+            isSpotlight ? undefined : (m.title ?? `${markLabel} : ${segText.slice(0, 80)}`)
+          }
           onClick={
             isSpotlight
               ? undefined
               : (e) => {
                   e.stopPropagation();
                   onMarkClick(m.annotation);
+                }
+          }
+          onKeyDown={
+            isSpotlight
+              ? undefined
+              : (e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onMarkClick(m.annotation);
+                  }
                 }
           }
         >

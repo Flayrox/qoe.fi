@@ -4,6 +4,9 @@ import React from 'react';
 import { cn } from '@qoe/utils';
 import { getArticleUrl } from '@qoe/config';
 import { ArrowUpRight } from 'lucide-react';
+import { t } from '@lingui/core/macro';
+import { SafeAvatar } from '../SafeAvatar';
+import type { AnnotationCitation } from '../annotations/citation';
 
 export interface QuoteContextData {
   before: string;
@@ -36,19 +39,116 @@ export interface QuotedArticleData {
 }
 
 export interface QuotedArticleCardProps {
-  article: QuotedArticleData;
+  article?: QuotedArticleData | null;
   quotedExcerpt?: string;
+  /**
+   * Annotation citée : la note et son auteur sont la citation ; le passage
+   * et l'article en sont la preuve. Sans ce champ, la carte reste la
+   * citation d'un simple passage.
+   */
+  citation?: AnnotationCitation | null;
   onOpenArticle?: (article: QuotedArticleData) => void;
   className?: string;
+}
+
+/**
+ * La couche « annotation » d'une citation : qui a écrit, et ce qu'il a
+ * écrit. Employée par la carte du feed ET par l'aperçu du tiroir, pour
+ * qu'on ne voie jamais deux présentations différentes du même objet.
+ */
+export function AnnotationCitationHeading({
+  citation,
+  className,
+}: {
+  citation: AnnotationCitation;
+  className?: string;
+}) {
+  const handle = citation.reader.username;
+  // Sans nom, le handle tient lieu d'identité : « Annotation de un lecteur
+  // @lila » n'attribuerait la note à personne.
+  const name = citation.reader.name || (handle ? `@${handle}` : t`un lecteur`);
+
+  return (
+    <div data-annotation-citation className={cn('space-y-2', className)}>
+      <div className="flex min-w-0 items-center gap-2">
+        <SafeAvatar
+          id={citation.reader.id}
+          src={citation.reader.logoUrl}
+          name={name}
+          username={handle}
+          type={citation.reader.type}
+          size={24}
+          className="border border-border/40"
+        />
+        <p className="type-control-xs min-w-0 truncate text-muted-foreground">
+          <span className="font-medium text-foreground">{t`Annotation de ${name}`}</span>
+          {handle && citation.reader.name && <span className="ml-1">@{handle}</span>}
+        </p>
+      </div>
+
+      <blockquote className="border-l-2 border-brand/60 pl-3 font-serif text-sm leading-relaxed text-pretty text-foreground">
+        {t`« ${citation.note} »`}
+      </blockquote>
+    </div>
+  );
 }
 
 export function QuotedArticleCard({
   article,
   quotedExcerpt,
+  citation,
   onOpenArticle,
   className,
 }: QuotedArticleCardProps) {
-  const authorName = article.author?.name || article.author?.username || 'Auteur';
+  // Dégradation gracieuse : l'article a été supprimé ou dépublié, mais
+  // l'annotation citée (sa note, son auteur, son extrait) reste valide
+  // et ne doit jamais rendre la pensée vide ou faire planter l'interface.
+  if (!article) {
+    if (!citation) return null;
+
+    const excerpt = citation.excerpt || quotedExcerpt;
+
+    return (
+      <div
+        data-quoted-annotation={citation.id}
+        className={cn(
+          'relative border border-border/30 bg-muted/20 rounded-xl p-4 space-y-3 font-sans select-none my-2.5',
+          className
+        )}
+      >
+        {/* Quiet Left Hairline Accent Indicator */}
+        <div className="absolute top-3 bottom-3 left-0 w-[3px] bg-brand/80 rounded-r-full" />
+
+        {/* Clean Header: Type */}
+        <div className="flex items-center justify-between text-xs">
+          <div className="flex items-center gap-1.5 font-medium text-muted-foreground min-w-0">
+            <span className="text-[11px] uppercase tracking-wider text-muted-foreground/80 font-medium">
+              {t`Citation`}
+            </span>
+          </div>
+        </div>
+
+        {/* Couche annotation : la citation elle-même (note + auteur). */}
+        <AnnotationCitationHeading citation={citation} />
+
+        {/* Integrated Quoted Excerpt */}
+        {excerpt && (
+          <div className="relative pl-3 border-l-2 border-brand/50 py-0.5">
+            <p className="font-serif text-sm italic leading-relaxed text-foreground/90">
+              {t`« ${excerpt} »`}
+            </p>
+          </div>
+        )}
+
+        {/* Calm note without clickable navigation to deleted article */}
+        <div className="flex items-center justify-between text-xs pt-1.5 border-t border-border/20 text-muted-foreground">
+          <span className="italic text-muted-foreground/80">{t`Article indisponible`}</span>
+        </div>
+      </div>
+    );
+  }
+
+  const authorName = article.author?.name || article.author?.username || t`Auteur`;
   const articleDomain =
     article.author?.subdomain ||
     article.publication?.subdomain ||
@@ -109,6 +209,7 @@ export function QuotedArticleCard({
   return (
     <div
       onClick={handleClick}
+      data-quoted-annotation={citation ? citation.id : undefined}
       className={cn(
         'group/quote relative border border-border/30 hover:border-border/60 bg-muted/20 hover:bg-muted/35 rounded-xl p-4 transition-all duration-200 cursor-pointer space-y-3 font-sans select-none my-2.5',
         className
@@ -123,20 +224,23 @@ export function QuotedArticleCard({
           <span className="font-semibold text-foreground truncate">{subdomain}</span>
           <span className="opacity-40">·</span>
           <span className="text-[11px] uppercase tracking-wider text-muted-foreground/80 font-medium">
-            Article
+            {citation ? t`Citation` : t`Article`}
           </span>
           {article.isPremium && (
             <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-highlight/15 text-highlight border border-highlight/30 shrink-0">
-              PAYANT
+              {t`PAYANT`}
             </span>
           )}
         </div>
 
         <div className="flex items-center gap-0.5 text-xs font-medium text-muted-foreground group-hover/quote:text-brand transition-colors shrink-0">
-          <span>Ouvrir</span>
+          <span>{t`Ouvrir`}</span>
           <ArrowUpRight className="w-3.5 h-3.5 opacity-70 group-hover/quote:opacity-100 transition-opacity" />
         </div>
       </div>
+
+      {/* Couche annotation : la citation elle-même (note + auteur). */}
+      {citation && <AnnotationCitationHeading citation={citation} />}
 
       {/* Article Title */}
       <h4 className="text-base font-semibold text-foreground tracking-tight leading-snug group-hover/quote:text-brand transition-colors">
@@ -144,6 +248,13 @@ export function QuotedArticleCard({
       </h4>
 
       {/* Integrated Quoted Excerpt (Rauno Craft Style: No Boxception, No Fluorescent Yellow) */}
+      {citation?.excerpt && !highlightedText && (
+        <div className="relative pl-3 border-l-2 border-brand/50 py-0.5">
+          <p className="font-serif text-sm italic leading-relaxed text-foreground/90">
+            {t`« ${citation.excerpt} »`}
+          </p>
+        </div>
+      )}
       {highlightedText && (
         <div className="relative pl-3 border-l-2 border-brand/50 py-0.5 space-y-1">
           <p className="text-xs sm:text-sm font-serif leading-relaxed text-foreground/90 italic">
@@ -163,11 +274,11 @@ export function QuotedArticleCard({
       {/* Footer Credit & Action */}
       <div className="flex items-center justify-between text-xs pt-1.5 border-t border-border/20 text-muted-foreground">
         <div>
-          Par <span className="font-medium text-foreground">{authorName}</span>
+          {t`Par`} <span className="font-medium text-foreground">{authorName}</span>
         </div>
 
         <div className="flex items-center gap-1 font-medium text-xs text-brand group-hover/quote:translate-x-0.5 transition-transform">
-          <span>Lire l'article</span>
+          <span>{t`Lire l'article`}</span>
           <ArrowUpRight className="w-3.5 h-3.5" />
         </div>
       </div>

@@ -10,6 +10,7 @@ export interface StandardAnnotationActions {
   updateHighlightNoteAction?: GenericActionFn;
   deleteHighlightAction: GenericActionFn;
   quotePassageToFeedAction?: GenericActionFn;
+  citeAnnotationAction?: GenericActionFn;
   onLoginRedirect?: () => void;
 }
 
@@ -106,6 +107,20 @@ export function createAnnotationCallbacks(
             text: params.text,
             commentary: params.commentary,
           })) as never;
+        }
+      : undefined,
+    // 🧾 Citer une annotation : le serveur recharge l'annotation (texte, note,
+    // auteur, ancres) et refuse ce qui n'est pas partageable. Le client
+    // n'envoie que l'identifiant et son éventuel mot — pas une copie de
+    // l'annotation, qui pourrait mentir sur son contenu.
+    onCiteAnnotation: actions.citeAnnotationAction
+      ? async (params) => {
+          const fn = actions.citeAnnotationAction as (arg: unknown) => Promise<unknown>;
+          const res = (await fn({
+            annotationId: params.citation.id,
+            commentary: params.commentary,
+          })) as { ok?: boolean; data?: unknown; error?: unknown };
+          return (res?.ok !== undefined ? res : { ok: true, data: res }) as never;
         }
       : undefined,
     onLoginRedirect: actions.onLoginRedirect,
