@@ -21,6 +21,8 @@ import { CompositionSpecimen } from './specimens/12-composition';
 import { InputsComplexSpecimen } from './specimens/13-inputs-complexes';
 import { SelectionTablesSpecimen } from './specimens/14-selection-tables';
 import { PortedPiecesSpecimen } from './specimens/15-ported-pieces';
+import { MarkSkinSpecimen } from './specimens/16-mark-skin';
+import { AnnotationFlowSpecimen } from './specimens/17-annotation-flow';
 
 const SPECIMENS = [
   {
@@ -140,7 +142,8 @@ const SPECIMENS = [
     question:
       'Les pièces qui composent un écran sans le structurer : une personne, une section repliable, un état enfoncé, une barre d’outils. Chacune a une sémantique, pas seulement un style.',
     sources: [
-      'packages/ui/src/primitives/avatar/avatar.tsx',
+      'packages/ui/src/SafeAvatar.tsx',
+      'packages/ui/src/social/ProfileHoverCard.tsx',
       'packages/ui/src/primitives/accordion/accordion.tsx',
       'packages/ui/src/primitives/toggle/toggle-button.tsx',
       'packages/ui/src/primitives/toolbar/toolbar.tsx',
@@ -187,6 +190,35 @@ const SPECIMENS = [
       'packages/ui/src/primitives/save-button/save-button.tsx',
     ],
     Component: PortedPiecesSpecimen,
+  },
+  {
+    id: '16-mark-skin',
+    index: '16',
+    title: 'Surlignage — la peau des annotations',
+    question:
+      'Les surlignages sont peints dans le DOM, pas rendus par React. Comment leur donner le trait tracé à la main sans mesurer chaque ligne, et sans que la nature d’une annotation tienne à la seule couleur ?',
+    sources: [
+      'packages/ui/src/annotations/mark-skin.ts',
+      'packages/theme/src/styles/marks.css',
+      'packages/ui/src/annotations/TextHighlighter.tsx',
+    ],
+    Component: MarkSkinSpecimen,
+  },
+  {
+    id: '17-annotation-flow',
+    index: '17',
+    title: 'Annotation — le parcours, monté pour de vrai',
+    question:
+      'Les spécimens précédents montrent des peaux ; celui-ci monte le moteur. Sélectionner, annoter, filtrer, ouvrir le tiroir : le contrat de callbacks suffit-il à faire tourner le parcours complet sans base de données ?',
+    sources: [
+      'packages/ui/src/annotations/TextHighlighter.tsx',
+      'packages/ui/src/annotations/CanonicalArticleBody.tsx',
+      'packages/ui/src/annotations/AnnotationSideDrawer.tsx',
+      'apps/studio/src/app/dev/ui-lab/fixtures/annotation-document.ts',
+    ],
+    notes:
+      'Les callbacks du spécimen jouent le rôle du serveur, en local : aucun appel réseau, aucune donnée réelle.',
+    Component: AnnotationFlowSpecimen,
   },
 ];
 

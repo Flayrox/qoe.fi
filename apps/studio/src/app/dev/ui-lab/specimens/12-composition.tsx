@@ -12,20 +12,137 @@ import {
   Underline,
 } from 'lucide-react';
 import { Accordion, AccordionItem } from '@qoe/ui/accordion';
-import { Avatar, AvatarGroup } from '@qoe/ui/avatar';
 import { Button } from '@qoe/ui/button';
+import { SafeAvatar } from '@qoe/ui';
+import { ProfileHoverCard } from '@qoe/ui/social/ProfileHoverCard';
 import { ScrollShadow, Toolbar, ToolbarGroup, ToolbarSeparator } from '@qoe/ui/toolbar';
 import { ToggleButton, ToggleGroup } from '@qoe/ui/toggle';
 import { DefectList, Variant } from '../specimen-frame';
 
-const PEOPLE = [
-  { name: 'Éphémère Durand' },
-  { name: 'Camille Petit', src: 'https://i.pravatar.cc/80?img=12' },
-  { name: 'Noé Lambert' },
-  { name: 'Inès Moreau' },
-  { name: 'Awa Traoré' },
-  { name: 'Sam Rivière' },
+type LabIdentity = {
+  id: string;
+  name: string;
+  username: string;
+  logoUrl: string | null;
+  type: 'PERSONAL' | 'MEDIA';
+};
+
+/** Les assets existent déjà dans le repo : aucune URL distante, donc aucune
+ *  capture qui dépend d'un service tiers. */
+const PEOPLE: LabIdentity[] = [
+  {
+    id: 'person-ephemere',
+    name: 'Éphémère Durand',
+    username: 'ephemere',
+    logoUrl: '/avatars/avatar-1.svg',
+    type: 'PERSONAL',
+  },
+  {
+    id: 'media-camille',
+    name: 'Camille',
+    username: 'camille',
+    logoUrl: '/avatars/media-camille.svg',
+    type: 'MEDIA',
+  },
+  {
+    id: 'person-noe',
+    name: 'Noé Lambert',
+    username: 'noe',
+    logoUrl: '/avatars/avatar-2.svg',
+    type: 'PERSONAL',
+  },
+  {
+    id: 'person-ines',
+    name: 'Inès Moreau',
+    username: 'ines',
+    logoUrl: '/avatars/avatar-3.svg',
+    type: 'PERSONAL',
+  },
+  {
+    id: 'person-awa',
+    name: 'Awa Traoré',
+    username: 'awa',
+    logoUrl: '/avatars/introuvable.svg',
+    type: 'PERSONAL',
+  },
+  {
+    id: 'person-sam',
+    name: 'Sam Rivière',
+    username: 'sam',
+    logoUrl: null,
+    type: 'PERSONAL',
+  },
 ];
+
+function Identity({
+  person,
+  size = 40,
+  showName = false,
+}: {
+  person: LabIdentity;
+  size?: number;
+  showName?: boolean;
+}) {
+  return (
+    <ProfileHoverCard
+      user={person}
+      username={person.username}
+      className="flex flex-col items-center gap-1.5"
+    >
+      <SafeAvatar
+        id={person.id}
+        src={person.logoUrl}
+        name={person.name}
+        username={person.username}
+        type={person.type}
+        size={size}
+      />
+      {showName && (
+        <span className="max-w-[7.5rem] truncate type-control-xs text-muted-foreground">
+          {person.name}
+        </span>
+      )}
+    </ProfileHoverCard>
+  );
+}
+
+function AvatarStack({
+  people,
+  max = 4,
+  size = 28,
+}: {
+  people: LabIdentity[];
+  max?: number;
+  size?: number;
+}) {
+  const shown = people.slice(0, max);
+  const extra = people.length - shown.length;
+  return (
+    <div className="flex items-center -space-x-2" role="group" aria-label="Auteurs">
+      {shown.map((person) => (
+        <SafeAvatar
+          key={person.id}
+          id={person.id}
+          src={person.logoUrl}
+          name={person.name}
+          username={person.username}
+          type={person.type}
+          size={size}
+          className="ring-2 ring-card"
+        />
+      ))}
+      {extra > 0 && (
+        <span
+          className="inline-flex shrink-0 items-center justify-center rounded-full bg-muted type-control-xs font-semibold text-muted-foreground ring-2 ring-card"
+          style={{ width: size, height: size }}
+          aria-label={`${extra} autres auteurs`}
+        >
+          +{extra}
+        </span>
+      )}
+    </div>
+  );
+}
 
 export function CompositionSpecimen() {
   const [alignment, setAlignment] = useState<Set<string>>(new Set(['left']));
@@ -33,29 +150,79 @@ export function CompositionSpecimen() {
   return (
     <div className="grid gap-10">
       <Variant
-        label="Avatar — trois états, pas un"
+        label="Avatar — une personne est ronde, un média est carré"
         kind="candidat"
-        hint="Image chargée, image cassée, pas d’image. Le repli n’est pas un carré gris : ce sont les initiales, sur une teinte dérivée du nom — la même personne garde la même couleur."
+        hint="SafeAvatar porte la règle, pas chaque appelant : cercle pour une personne, carré à petits coins arrondis pour un compte média. Le repli est la silhouette (personne) ou l’emblème (média) sur une teinte dérivée du handle — la même identité garde la même couleur, même quand l’URL casse."
       >
         <div className="flex flex-wrap items-end gap-4">
-          <Avatar name="Éphémère Durand" size="xs" />
-          <Avatar name="Éphémère Durand" size="sm" />
-          <Avatar name="Éphémère Durand" />
-          <Avatar name="Camille Petit" src="https://i.pravatar.cc/80?img=12" size="lg" />
-          <Avatar name="Lien cassé" src="https://exemple.invalid/avatar.png" size="lg" />
-          <Avatar name="Éphémère Durand" size="xl" />
+          <Identity person={PEOPLE[0]} size={20} />
+          <Identity person={PEOPLE[0]} size={28} />
+          <Identity person={PEOPLE[0]} size={40} showName />
+          <Identity person={PEOPLE[1]} size={40} showName />
+          <Identity person={PEOPLE[4]} size={48} showName />
+          <Identity person={PEOPLE[5]} size={48} showName />
+          <Identity person={PEOPLE[1]} size={80} showName />
         </div>
 
         <div className="mt-6 flex flex-wrap items-center gap-6">
-          <AvatarGroup people={PEOPLE} max={4} />
-          <AvatarGroup people={PEOPLE} max={2} size="sm" />
+          <AvatarStack people={PEOPLE} max={4} />
+          <AvatarStack people={PEOPLE} max={2} size={24} />
         </div>
 
         <DefectList
           items={[
-            'Rayon rond : une personne n’est pas un carré arrondi',
+            'La forme est une donnée : `data-avatar-shape` et `data-avatar-entity` la rendent lisible sans inspecter les classes',
+            'Un média reste carré à toutes les tailles — le rayon ne suit pas la taille',
             'Le compteur « +N » est doublé d’un texte lu par les lecteurs d’écran',
-            'Une URL morte bascule sur les initiales, sans boucle de rechargement',
+            'Une URL morte bascule sur le repli, sans boucle de rechargement',
+          ]}
+        />
+      </Variant>
+
+      <Variant
+        label="Barre supérieure — l’identité tient la droite"
+        kind="candidat"
+        hint="Une barre réelle : la personne connectée (ronde) et le média actif (carré) restent deux natures distinctes, et chaque identité ouvre sa fiche au survol — pas un menu qui cache le profil derrière un clic."
+      >
+        <div
+          data-specimen-top-bar
+          className="flex h-14 items-center justify-between gap-3 rounded-panel border border-border/60 bg-background px-4"
+        >
+          <span className="text-sm font-semibold tracking-tight">qoe.fi</span>
+          <div className="flex items-center gap-2">
+            <ProfileHoverCard user={PEOPLE[0]} username={PEOPLE[0].username}>
+              <span className="flex items-center gap-2 rounded-full border border-border/50 bg-card py-1 pr-3 pl-1">
+                <SafeAvatar
+                  id={PEOPLE[0].id}
+                  src={PEOPLE[0].logoUrl}
+                  name={PEOPLE[0].name}
+                  username={PEOPLE[0].username}
+                  type={PEOPLE[0].type}
+                  size={24}
+                />
+                <span className="type-control-xs font-medium">{PEOPLE[0].name}</span>
+              </span>
+            </ProfileHoverCard>
+
+            <ProfileHoverCard user={PEOPLE[1]} username={PEOPLE[1].username}>
+              <SafeAvatar
+                id={PEOPLE[1].id}
+                src={PEOPLE[1].logoUrl}
+                name={PEOPLE[1].name}
+                username={PEOPLE[1].username}
+                type={PEOPLE[1].type}
+                size={28}
+                className="border border-border/40"
+              />
+            </ProfileHoverCard>
+          </div>
+        </div>
+
+        <DefectList
+          items={[
+            'Deux identités, deux formes : la personne reste ronde, le média reste carré',
+            'Le survol de la barre montre la fiche complète du compte, sans quitter la page',
+            'Les images viennent des assets du repo : aucune dépendance à un avatar distant',
           ]}
         />
       </Variant>
