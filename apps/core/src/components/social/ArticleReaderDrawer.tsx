@@ -20,6 +20,8 @@ export interface ArticleReaderDrawerProps {
   initialSource?: 'feed' | 'subdomain' | 'public_profile' | 'direct';
   /** Passage à mettre en avant (deep-link citation → article). */
   spotlight?: ArticleAnnotatorViewProps['spotlight'];
+  /** Profil DB du lecteur : sa nature média doit suivre jusqu'aux annotations. */
+  currentUserProfile?: ArticleAnnotatorViewProps['currentUserProfile'];
 }
 
 export function ArticleReaderDrawer(props: ArticleReaderDrawerProps) {
@@ -54,6 +56,7 @@ function ArticleReaderDrawerContent({
   onClose,
   initialSource,
   spotlight,
+  currentUserProfile,
 }: ArticleReaderDrawerProps) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const [scrollProgress, setScrollProgress] = React.useState(0);
@@ -121,7 +124,7 @@ function ArticleReaderDrawerContent({
       {isOpen && (
         <div
           data-testid="article-drawer"
-          className="fixed top-[6px] bottom-0 md:bottom-[6px] left-0 md:left-[262px] right-0 md:right-[6px] z-50 flex flex-col pointer-events-auto select-text selection:bg-foreground selection:text-background"
+          className="fixed top-[6px] bottom-0 md:bottom-[6px] left-0 md:left-[262px] right-0 md:right-[6px] z-50 flex flex-col pointer-events-auto select-text"
         >
           {/* Backdrop Click Area (No darkening overlay, strictly bounded to right stage, sidebar remains 100% uncovered) */}
           <div
@@ -135,7 +138,7 @@ function ArticleReaderDrawerContent({
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', stiffness: 320, damping: 32 }}
-            className="relative z-10 w-full h-full flex flex-col bg-white dark:bg-black text-black dark:text-white border border-border/40 rounded-t-3xl md:rounded-[18px] shadow-2xl overflow-hidden font-sans selection:bg-foreground selection:text-background"
+            className="relative z-10 w-full h-full flex flex-col bg-background text-foreground border border-border/40 rounded-t-3xl md:rounded-[18px] shadow-2xl overflow-hidden font-sans"
           >
             {/* 1. Zenithal Progressive Blur & Theme Gradient Fade */}
             <ProgressiveBlur direction="top" className="h-32 z-20" />
@@ -221,6 +224,7 @@ function ArticleReaderDrawerContent({
                   onClose={onClose}
                   initialSource={initialSource}
                   spotlight={spotlight}
+                  currentUserProfile={currentUserProfile}
                 />
               </div>
             </div>

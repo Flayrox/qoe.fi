@@ -48,6 +48,7 @@ export interface FeedPostRecord {
     logoUrl: string | null;
     heroText?: string | null;
     isCertified: boolean;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
   };
   parent?: {
     id: string;
@@ -59,10 +60,28 @@ export interface FeedPostRecord {
       username: string | null;
       logoUrl: string | null;
       isCertified: boolean;
+      type?: 'PERSONAL' | 'MEDIA' | string | null;
     };
   } | null;
   repost?: FeedPostRecord | null;
   quotedExcerpt?: string | null;
+  /** Snapshot serveur de l'annotation citée (voir Go `QuotedAnnotation`). */
+  quotedAnnotation?: {
+    id: string;
+    note: string;
+    excerpt: string;
+    quoteOrdinal?: number;
+    canonicalStart?: number | null;
+    canonicalEnd?: number | null;
+    contentSha?: string | null;
+    reader: {
+      id: string;
+      name: string | null;
+      username: string | null;
+      logoUrl: string | null;
+      type?: 'PERSONAL' | 'MEDIA' | string | null;
+    };
+  } | null;
   quotedArticle?: {
     id: string;
     title: string;
@@ -92,6 +111,7 @@ export interface FeedPostRecord {
       username: string | null;
       logoUrl: string | null;
       isCertified: boolean;
+      type?: 'PERSONAL' | 'MEDIA' | string | null;
     };
   } | null;
   likes?: { userId: string }[];
@@ -126,6 +146,26 @@ export const mapPublicationToAuthor = (
   type: pub.type,
   authorName: authorName ?? null,
 });
+
+const mapQuotedAnnotation = (citation: FeedPostRecord['quotedAnnotation']) =>
+  citation
+    ? {
+        id: citation.id,
+        note: citation.note,
+        excerpt: citation.excerpt,
+        quoteOrdinal: citation.quoteOrdinal ?? 0,
+        canonicalStart: citation.canonicalStart ?? undefined,
+        canonicalEnd: citation.canonicalEnd ?? undefined,
+        contentSha: citation.contentSha ?? undefined,
+        reader: {
+          id: citation.reader.id,
+          name: citation.reader.name,
+          username: citation.reader.username,
+          logoUrl: citation.reader.logoUrl,
+          type: citation.reader.type ?? undefined,
+        },
+      }
+    : null;
 
 export const mapQuotedArticle = (article: FeedPostRecord['quotedArticle']) =>
   article
@@ -186,6 +226,7 @@ export const mapPostToFeedItem = (post: FeedPostRecord, currentUserId?: string) 
     content: post.content,
     imageUrl: post.imageUrl || null,
     quotedExcerpt: post.quotedExcerpt || canonicalPost.quotedExcerpt || undefined,
+    annotationQuote: mapQuotedAnnotation(post.quotedAnnotation || canonicalPost.quotedAnnotation),
     articleQuote: mapQuotedArticle(post.quotedArticle || canonicalPost.quotedArticle),
     published: true,
     isPremium: false,
@@ -247,6 +288,7 @@ export const mapArticleToFeedItem = (art: ArticleWithDetails) => ({
           username: art.author.username,
           logoUrl: art.author.logoUrl,
           isCertified: art.author.isCertified,
+          type: art.author.type,
         }
       : null,
     coAuthors: art.coAuthors
@@ -265,6 +307,7 @@ export const mapArticleToFeedItem = (art: ArticleWithDetails) => ({
         username: coAuthor.username,
         logoUrl: coAuthor.logoUrl,
         isCertified: coAuthor.isCertified,
+        type: coAuthor.type,
       })),
     contributors: art.attributions
       .filter((attribution) => attribution.consentStatus === 'ACCEPTED' && attribution.isVisible)
@@ -274,6 +317,7 @@ export const mapArticleToFeedItem = (art: ArticleWithDetails) => ({
         username: attribution.user.username,
         logoUrl: attribution.user.logoUrl,
         isCertified: attribution.user.isCertified,
+        type: attribution.user.type,
         role: attribution.role,
         order: attribution.order,
         isVisible: attribution.isVisible,
@@ -338,6 +382,7 @@ export interface HydrateAuthor {
   username: string | null;
   logoUrl: string | null;
   isCertified: boolean;
+  type?: 'PERSONAL' | 'MEDIA' | string | null;
 }
 export interface HydratePublication {
   id: string;

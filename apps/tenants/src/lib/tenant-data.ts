@@ -123,6 +123,7 @@ export interface TenantArticleAuthor {
   name?: string | null;
   username?: string | null;
   logoUrl?: string | null;
+  type?: 'PERSONAL' | 'MEDIA' | string | null;
 }
 
 export interface TenantArticle {
@@ -191,6 +192,7 @@ interface GoHighlight {
     name: string | null;
     username: string | null;
     logoUrl: string | null;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
   };
 }
 
@@ -204,6 +206,7 @@ interface GoAnnotationComment {
     name?: string | null;
     username?: string | null;
     logoUrl?: string | null;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
   };
 }
 
@@ -316,6 +319,7 @@ export async function fetchArticleHighlights(articleId: string): Promise<{
             name: h.reader.name,
             username: h.reader.username,
             logoUrl: h.reader.logoUrl,
+            type: h.reader.type,
           },
           comments: comments as unknown as AnnotationItem['comments'],
         };
@@ -389,6 +393,7 @@ export interface TenantThoughtItem {
     username: string | null;
     logoUrl?: string | null;
     isCertified?: boolean;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
   };
   attachments?: Array<{ id?: string; url: string; type?: string; altText?: string | null }> | null;
   poll?: unknown;
@@ -435,6 +440,7 @@ export async function fetchTenantThoughts(
             logo?: string | null;
             logoUrl?: string | null;
             isCertified?: boolean;
+            type?: 'PERSONAL' | 'MEDIA' | string | null;
           };
           attachments?: Array<{
             id?: string;
@@ -490,6 +496,7 @@ export async function fetchTenantThoughts(
             username: author.username ?? null,
             logoUrl: author.logoUrl ?? author.logo ?? null,
             isCertified: !!author.isCertified,
+            type: author.type,
           },
           attachments: p.attachments ?? null,
           poll: p.poll ?? null,

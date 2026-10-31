@@ -56,6 +56,8 @@ export type DbUser = {
   logoUrl?: string | null;
   username?: string | null;
   isCertified?: boolean;
+  /** Nature du compte : un média garde un carré à coins arrondis. */
+  type?: 'PERSONAL' | 'MEDIA' | string | null;
 };
 
 interface ComposedPostAuthor {

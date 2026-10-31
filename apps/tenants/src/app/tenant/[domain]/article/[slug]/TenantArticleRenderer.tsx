@@ -4,6 +4,7 @@ import { headers } from 'next/headers';
 import { SubscribeForm, JsonLd, buildArticleSchema, SafeAvatar } from '@qoe/ui';
 import { buildArticlePath } from '@qoe/utils';
 import { type AnnotationItem, type HighlightItem } from '@qoe/ui/annotations';
+import { getCurrentUser } from '@qoe/auth/current-user';
 import { TenantArticleHighlighter } from './TenantArticleHighlighter';
 import { TenantArticleReadingTracker } from './TenantArticleReadingTracker';
 import { type CommentItem, ArticleCommentsSection } from './ArticleCommentsSection';
@@ -127,20 +128,31 @@ export async function TenantArticleRenderer({
 
   const rawAuthors = (
     article as unknown as {
-      authors?: Array<{ name?: string | null; username?: string | null; logoUrl?: string | null }>;
+      authors?: Array<{
+        name?: string | null;
+        username?: string | null;
+        logoUrl?: string | null;
+        type?: 'PERSONAL' | 'MEDIA' | string | null;
+      }>;
     }
   ).authors;
 
-  const authorsList: Array<{ name: string; logoUrl?: string | null }> =
+  const authorsList: Array<{
+    name: string;
+    logoUrl?: string | null;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
+  }> =
     rawAuthors && rawAuthors.length > 0
       ? rawAuthors.map((a) => ({
           name: a.name || a.username || 'Auteur',
           logoUrl: a.logoUrl || null,
+          type: a.type,
         }))
       : [
           {
             name: authorName,
             logoUrl: article.author?.logoUrl || publication.logoUrl || null,
+            type: article.author?.type,
           },
         ];
 
@@ -212,6 +224,7 @@ export async function TenantArticleRenderer({
       username: publication.user?.username ?? publication.subdomain ?? null,
       avatarUrl: publication.user?.logoUrl ?? null,
       bio: publication.bio ?? null,
+      type: publication.type,
     },
   };
 
@@ -234,6 +247,7 @@ export async function TenantArticleRenderer({
           name: article.author.name,
           username: article.author.username,
           logoUrl: article.author.logoUrl,
+          type: article.author.type,
         }
       : null,
     authors: authorsList,
@@ -266,21 +280,30 @@ export async function TenantArticleRenderer({
     baseUrl: `https://${decodedDomain}`,
   });
 
+  // Le profil DB porte la nature publique du compte (isMediaMember) : sans
+  // lui, la personne qui annote apparaît en cercle même si c'est un média.
+  const dbUser = user ? await getCurrentUser() : null;
   const currentUserProfile: {
     id: string;
     name: string | null;
     username: string | null;
     logoUrl: string | null;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
   } | null = user
     ? {
         id: user.id,
         name:
-          (user.user_metadata?.name as string) ?? (user.user_metadata?.full_name as string) ?? null,
+          dbUser?.name ??
+          (user.user_metadata?.name as string) ??
+          (user.user_metadata?.full_name as string) ??
+          null,
         username:
+          dbUser?.username ??
           (user.user_metadata?.username as string) ??
           (user.user_metadata?.user_name as string) ??
           null,
-        logoUrl: (user.user_metadata?.avatar_url as string) ?? null,
+        logoUrl: dbUser?.logoUrl ?? (user.user_metadata?.avatar_url as string) ?? null,
+        type: dbUser?.isMediaMember ? 'MEDIA' : 'PERSONAL',
       }
     : null;
 
@@ -367,7 +390,7 @@ export async function TenantArticleRenderer({
                       src={auth.logoUrl}
                       name={auth.name}
                       size={40}
-                      shape="circle"
+                      type={auth.type}
                       className="border-2 border-background ring-1 ring-border/40 shrink-0 shadow-2xs"
                     />
                   ))}

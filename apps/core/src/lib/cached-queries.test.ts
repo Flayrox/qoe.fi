@@ -55,8 +55,33 @@ describe('cached-queries', () => {
         walletBalanceCents: 2500,
         onboardingText: 'Passionné de philosophie et tech.',
         hasCompletedOnboarding: true,
+        type: 'PERSONAL',
       });
       expect(fetchMeProfile).toHaveBeenCalledTimes(1);
+    });
+
+    it('projette un membre actif de média en identité MEDIA', async () => {
+      vi.mocked(fetchMeProfile).mockResolvedValueOnce({
+        id: 'u-media',
+        email: 'redaction@qoe.fi',
+        name: 'La Rédaction',
+        username: 'redaction',
+        logoUrl: 'https://cdn.qoe.fi/media.jpg',
+        onboardingText: null,
+        pronouns: null,
+        role: 'user',
+        walletBalanceCents: 0,
+        hasCompletedOnboarding: true,
+        createdAt: '2026-01-01T00:00:00Z',
+        followsCount: 0,
+        mutedWordsCount: 0,
+        isMediaMember: true,
+      } as unknown as Awaited<ReturnType<typeof fetchMeProfile>>);
+
+      const user = await getRequestDbUser('u-media');
+
+      expect(user.type).toBe('MEDIA');
+      expect(user.username).toBe('redaction');
     });
   });
 

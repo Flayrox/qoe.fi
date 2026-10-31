@@ -21,8 +21,9 @@ import {
   upvoteHighlightAction,
   createAnnotationCommentAction,
   toggleHighlightPrivacyAction,
+  updateHighlightNoteAction,
   deleteHighlightAction,
-  explainPassageAction,
+  citeAnnotationAction,
 } from '@qoe/sdk';
 import { toggleFollowCreatorHomeAction } from '@qoe/sdk/actions/feed';
 import { SimilarArticlesSection } from './SimilarArticlesSection';
@@ -101,6 +102,14 @@ export interface ArticleAnnotatorViewProps {
    */
   spotlight?: SpotlightRange | null;
   onOpenProfile?: (username: string) => void;
+  /** Profil DB du lecteur (nature media incluse), fourni par le serveur. */
+  currentUserProfile?: {
+    id: string;
+    name: string | null;
+    username: string | null;
+    logoUrl: string | null;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
+  } | null;
 }
 
 interface AuthUser {
@@ -127,6 +136,7 @@ function ArticleAnnotatorViewInner({
   canonicalDocument: canonicalDocumentProp,
   spotlight,
   onOpenProfile,
+  currentUserProfile: currentUserProfileProp,
 }: ArticleAnnotatorViewProps) {
   const toolbar = useReaderToolbar();
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -212,18 +222,18 @@ function ArticleAnnotatorViewInner({
             upvoteHighlightAction(typeof id === 'string' ? { highlightId: id } : id),
           createAnnotationCommentAction,
           toggleHighlightPrivacyAction,
+          // ✍️ Sans cette action, « Annoter » depuis le tiroir ne modifiait
+          // que l’état local : la note disparaissait au rechargement et le
+          // surlignage redevenait nu (le tenant, lui, la passait déjà).
+          updateHighlightNoteAction,
           deleteHighlightAction: (id) =>
             deleteHighlightAction(typeof id === 'string' ? { highlightId: id } : id),
+          // 🧾 Publie l'annotation (note + passage + auteur) comme citation
+          // sur Qoefi. Le serveur recharge l'annotation : le tiroir ne fait
+          // que désigner CE QU'IL faut citer.
+          citeAnnotationAction,
         },
         {
-          // IA Expliquer (fiche Plus P1) : le backend gate (Plus, quotas,
-          // provider) et code ; ici on transmet tel quel (le moteur ui
-          // affiche selon le code).
-          onExplain: async ({ text }) => {
-            const res = await explainPassageAction({ text });
-            if (res.ok) return { ok: true, data: { explanation: res.data.explanation } };
-            return { ok: false, error: res.error };
-          },
           onCrosspost: async ({ text, commentary }) => {
             if (typeof window !== 'undefined') {
               window.dispatchEvent(
@@ -336,14 +346,18 @@ function ArticleAnnotatorViewInner({
     [highlightsList]
   );
 
-  const currentUserProfile = user
-    ? {
-        id: user.id,
-        name: user.user_metadata?.full_name || user.email?.split('@')[0] || null,
-        username: user.user_metadata?.username || null,
-        logoUrl: user.user_metadata?.avatar_url || null,
-      }
-    : null;
+  // Le profil serveur porte `type` (MEDIA pour un membre média actif). Le
+  // repli Supabase ne le connaît pas : forme ronde par défaut, jamais inventée.
+  const currentUserProfile =
+    currentUserProfileProp ??
+    (user
+      ? {
+          id: user.id,
+          name: user.user_metadata?.full_name || user.email?.split('@')[0] || null,
+          username: user.user_metadata?.username || null,
+          logoUrl: user.user_metadata?.avatar_url || null,
+        }
+      : null);
 
   const { preferences } = useReadingPreferences();
   const typographyClasses = getReaderTypographyClasses(preferences);
@@ -644,7 +658,7 @@ function ArticleAnnotatorViewInner({
         filterMode={toolbar?.filterMode}
         onFilterModeChange={toolbar?.setFilterMode}
         contentClassName={cn(
-          'prose prose-sm sm:prose-base dark:prose-invert max-w-none text-foreground/90 selection:bg-foreground selection:text-background cursor-text pt-2 leading-[1.8] antialiased [text-rendering:optimizeLegibility]',
+          'prose prose-sm sm:prose-base dark:prose-invert max-w-none text-foreground/90 cursor-text pt-2 leading-[1.8] antialiased [text-rendering:optimizeLegibility]',
           typographyClasses
         )}
         callbacks={callbacks}
@@ -656,7 +670,7 @@ function ArticleAnnotatorViewInner({
         <div
           id="article-content"
           className={cn(
-            'prose prose-zinc dark:prose-invert max-w-none text-base md:text-lg leading-relaxed space-y-6 text-foreground/90 selection:bg-foreground selection:text-background cursor-text pt-2 antialiased [text-rendering:optimizeLegibility]',
+            'prose prose-zinc dark:prose-invert max-w-none text-base md:text-lg leading-relaxed space-y-6 text-foreground/90 cursor-text pt-2 antialiased [text-rendering:optimizeLegibility]',
             typographyClasses
           )}
           dangerouslySetInnerHTML={{ __html: displayedContent }}
