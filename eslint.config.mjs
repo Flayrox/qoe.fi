@@ -167,9 +167,9 @@ const eslintConfig = defineConfig([
                 'HeroUI n’est plus une dépendance : écrire la primitive dans @qoe/ui/primitives sur le contrat partagé.',
             },
             {
-              group: ['@base-ui/react/*'],
+              group: ['@base-ui/react', '@base-ui/react/*'],
               message:
-                'Base UI est en cours de retrait : passer par @qoe/ui/<composant>, les écrans ne dépendent pas du moteur.',
+                'Base UI est strictement interdit (0 import) : utiliser react-aria-components ou les primitives de @qoe/ui.',
             },
           ],
         },
