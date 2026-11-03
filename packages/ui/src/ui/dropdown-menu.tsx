@@ -80,6 +80,8 @@ export interface DropdownMenuContentProps {
   sideOffset?: number;
   className?: string;
   children: React.ReactNode;
+  header?: React.ReactNode;
+  footer?: React.ReactNode;
   'aria-label'?: string;
 }
 
@@ -90,6 +92,8 @@ export function DropdownMenuContent({
   sideOffset = 4,
   className,
   children,
+  header,
+  footer,
   'aria-label': ariaLabel = 'Actions',
 }: DropdownMenuContentProps) {
   let placement: AriaPopoverProps['placement'] = 'bottom start';
@@ -114,6 +118,7 @@ export function DropdownMenuContent({
         className
       )}
     >
+      {header && <div data-slot="dropdown-menu-header">{header}</div>}
       <AriaMenu
         data-slot="dropdown-menu-content"
         aria-label={ariaLabel}
@@ -121,6 +126,7 @@ export function DropdownMenuContent({
       >
         {children}
       </AriaMenu>
+      {footer && <div data-slot="dropdown-menu-footer">{footer}</div>}
     </AriaPopover>
   );
 }

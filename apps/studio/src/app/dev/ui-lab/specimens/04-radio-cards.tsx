@@ -1,8 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Check } from 'lucide-react';
-import { cn } from '@qoe/utils';
+import { RadioGroup, RadioCard } from '@qoe/ui/radio-group';
 import { Variant } from '../specimen-frame';
 
 const LAYOUTS = [
@@ -58,83 +57,51 @@ export function RadioCardsSpecimen() {
   return (
     <div className="grid gap-10">
       <Variant
-        label="Bordure + coche"
+        label="Bordure + coche (@qoe/ui/radio-group)"
         kind="candidat"
-        hint="La sélection est portée par deux signaux : la bordure passe en foreground et une coche apparaît. Le survol ne change que la surface."
+        hint="Composant accessible basé sur react-aria-components. Clavier flèches directionnelles, bordure d'accent et coche animée."
       >
-        <div className="grid gap-3 sm:grid-cols-3">
-          {LAYOUTS.map((layout) => {
-            const selected = withCheck === layout.id;
-            return (
-              <button
-                key={layout.id}
-                type="button"
-                onClick={() => setWithCheck(layout.id)}
-                aria-pressed={selected}
-                className={cn(
-                  'group relative grid overflow-hidden rounded-lg border text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none',
-                  selected
-                    ? 'border-foreground/70 bg-card'
-                    : 'border-border/50 bg-card hover:border-border hover:bg-muted/20'
-                )}
-              >
-                <div className="h-20 border-b border-border/40">{layout.preview}</div>
-                <div className="grid gap-0.5 p-3">
-                  <span className="flex items-center gap-1.5 text-[13px] font-medium text-foreground">
-                    {layout.label}
-                    {selected && <Check className="size-3.5 text-foreground" strokeWidth={2} />}
-                  </span>
-                  <span className="text-[11.5px] leading-relaxed text-muted-foreground">
-                    {layout.description}
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+        <RadioGroup
+          aria-label="Mise en page avec coche"
+          value={withCheck}
+          onChange={setWithCheck}
+          variant="check"
+          className="grid gap-3 sm:grid-cols-3"
+        >
+          {LAYOUTS.map((layout) => (
+            <RadioCard
+              key={layout.id}
+              value={layout.id}
+              title={layout.label}
+              description={layout.description}
+              preview={layout.preview}
+            />
+          ))}
+        </RadioGroup>
       </Variant>
 
       <Variant
-        label="Bordure seule"
+        label="Bordure seule (@qoe/ui/radio-group)"
         kind="variante"
-        hint="Moins bavard : aucun signe ajouté, seule la bordure et la couleur du titre changent. Plus sobre, mais demande un contraste de bordure suffisant en thème clair."
+        hint="Variante sans coche graphique : le contraste de bordure et la surface distinguent l'option choisie."
       >
-        <div className="grid gap-3 sm:grid-cols-3">
-          {LAYOUTS.map((layout) => {
-            const selected = borderOnly === layout.id;
-            return (
-              <button
-                key={layout.id}
-                type="button"
-                onClick={() => setBorderOnly(layout.id)}
-                aria-pressed={selected}
-                className={cn(
-                  'grid overflow-hidden rounded-lg border text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none',
-                  selected
-                    ? 'border-foreground bg-muted/20'
-                    : 'border-border/50 bg-card hover:bg-muted/20'
-                )}
-              >
-                <div className="h-20 border-b border-border/40">{layout.preview}</div>
-                <div className="grid gap-0.5 p-3">
-                  <span
-                    className={cn(
-                      'text-[13px]',
-                      selected
-                        ? 'font-semibold text-foreground'
-                        : 'font-medium text-muted-foreground'
-                    )}
-                  >
-                    {layout.label}
-                  </span>
-                  <span className="text-[11.5px] leading-relaxed text-muted-foreground">
-                    {layout.description}
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+        <RadioGroup
+          aria-label="Mise en page bordure seule"
+          value={borderOnly}
+          onChange={setBorderOnly}
+          variant="border-only"
+          className="grid gap-3 sm:grid-cols-3"
+        >
+          {LAYOUTS.map((layout) => (
+            <RadioCard
+              key={layout.id}
+              value={layout.id}
+              title={layout.label}
+              description={layout.description}
+              preview={layout.preview}
+            />
+          ))}
+        </RadioGroup>
       </Variant>
     </div>
   );

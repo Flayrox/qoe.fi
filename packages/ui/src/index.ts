@@ -40,6 +40,16 @@ export {
   type CheckboxProps,
   type CheckboxPrimitiveProps,
 } from './primitives/checkbox/checkbox';
+export { Switch, type SwitchProps } from './primitives/switch/switch';
+export {
+  RadioGroup,
+  RadioCard,
+  Radio,
+  type RadioGroupProps,
+  type RadioCardProps,
+  type RadioProps,
+  type RadioCardVariant,
+} from './primitives/radio-group/radio-cards';
 export {
   AnnotationMark,
   type AnnotationMarkProps,
