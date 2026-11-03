@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect, createContext, useContext } from 'react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -8,6 +8,13 @@ import { cn } from '@qoe/utils';
 import { URLS } from '@qoe/config';
 import { ThemeToggle } from './ui/ThemeToggle';
 import { SafeAvatar } from './SafeAvatar';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from './ui/dropdown-menu';
 import {
   Home,
   FileText,
@@ -302,10 +309,8 @@ export function Sidebar({
 }: SidebarProps) {
   const currentPathname = usePathname();
   const activeUrl = activeUrlProp ?? currentPathname;
-  const [isAccountOpen, setIsAccountOpen] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const accountMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setIsMounted(true);
@@ -313,16 +318,10 @@ export function Sidebar({
 
   const accountUrl = isMounted ? `${URLS.CONSOLE}/settings` : '#';
 
-  // Handle outside click & Escape key & Mobile drawer toggle event
+  // Handle Escape key & Mobile drawer toggle event
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (accountMenuRef.current && !accountMenuRef.current.contains(event.target as Node)) {
-        setIsAccountOpen(false);
-      }
-    };
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setIsAccountOpen(false);
         setIsMobileOpen(false);
       }
     };
@@ -330,11 +329,9 @@ export function Sidebar({
       setIsMobileOpen((prev) => !prev);
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('keydown', handleKeyDown);
     window.addEventListener('toggle-mobile-sidebar', handleToggleMobile);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('toggle-mobile-sidebar', handleToggleMobile);
     };
@@ -496,51 +493,42 @@ export function Sidebar({
                   ))}
 
                 {/* Profile Popover */}
-                <div className="relative flex justify-end" ref={accountMenuRef}>
-                  <button
-                    type="button"
-                    onClick={() => setIsAccountOpen(!isAccountOpen)}
-                    aria-expanded={isAccountOpen}
-                    aria-haspopup="menu"
-                    className={cn(
-                      'w-full flex items-center gap-2.5 p-1.5 rounded-[12px] transition-colors outline-none',
-                      'hover:bg-sidebar-accent/60 text-sidebar-foreground'
-                    )}
-                    aria-label={t`Menu compte`}
-                  >
-                    <SafeAvatar
-                      id={userId}
-                      username={userUsername}
-                      src={userAvatar}
-                      name={userName}
-                      size={28}
-                      type={userType}
-                      className="border border-sidebar-primary/20 shrink-0"
-                    />
-                    <div className="flex-1 text-left truncate min-w-0">
-                      <span className="text-xs font-semibold block leading-tight truncate">
-                        {userName || t`Créateur`}
-                      </span>
-                      {userEmail && (
-                        <span className="text-[11px] text-muted-foreground block truncate leading-tight mt-0.5">
-                          {userEmail}
-                        </span>
+                <div className="relative flex justify-end">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      className={cn(
+                        'w-full flex items-center gap-2.5 p-1.5 rounded-[12px] transition-colors outline-none cursor-pointer',
+                        'hover:bg-sidebar-accent/60 text-sidebar-foreground'
                       )}
-                    </div>
-                  </button>
-
-                  <AnimatePresence>
-                    {isAccountOpen && (
-                      <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: 8 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 8 }}
-                        transition={{ duration: 0.15, ease: 'easeOut' }}
-                        className={cn(
-                          'absolute bottom-11 right-0 z-50 w-56 p-2 rounded-[14px] shadow-2xl origin-bottom-right',
-                          'bg-sidebar/95 backdrop-blur-2xl border border-sidebar-border text-sidebar-foreground'
+                      aria-label={t`Menu compte`}
+                    >
+                      <SafeAvatar
+                        id={userId}
+                        username={userUsername}
+                        src={userAvatar}
+                        name={userName}
+                        size={28}
+                        type={userType}
+                        className="border border-sidebar-primary/20 shrink-0"
+                      />
+                      <div className="flex-1 text-left truncate min-w-0">
+                        <span className="text-xs font-semibold block leading-tight truncate">
+                          {userName || t`Créateur`}
+                        </span>
+                        {userEmail && (
+                          <span className="text-[11px] text-muted-foreground block truncate leading-tight mt-0.5">
+                            {userEmail}
+                          </span>
                         )}
-                      >
+                      </div>
+                    </DropdownMenuTrigger>
+
+                    <DropdownMenuContent
+                      side="top"
+                      align="end"
+                      sideOffset={8}
+                      className="w-56 p-2 rounded-[14px] bg-sidebar/95 backdrop-blur-2xl border border-sidebar-border text-sidebar-foreground shadow-2xl"
+                      header={
                         <div className="px-2.5 py-2 mb-1 border-b border-sidebar-border/60">
                           <span className="font-semibold text-xs block leading-tight truncate">
                             {userName || t`Créateur`}
@@ -551,54 +539,47 @@ export function Sidebar({
                             </span>
                           )}
                         </div>
-
-                        <a
-                          href={accountUrl}
-                          className="flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-[8px] hover:bg-sidebar-primary hover:text-sidebar-primary-foreground transition-colors"
-                          onClick={() => setIsAccountOpen(false)}
-                        >
-                          <User className="w-4 h-4" />
-                          <span>{t`Mon Compte Personnel`}</span>
-                        </a>
-
-                        <Link
-                          href="/settings"
-                          className="flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-[8px] hover:bg-sidebar-primary hover:text-sidebar-primary-foreground transition-colors"
-                          onClick={() => setIsAccountOpen(false)}
-                        >
-                          <Palette className="w-4 h-4" />
-                          <span>{t`Design du Média`}</span>
-                        </Link>
-
-                        {/* Apparence : thème synchronisé sur tous les sous-domaines */}
-                        <div className="flex items-center justify-between gap-2 px-3 py-1.5">
+                      }
+                      footer={
+                        <div className="flex items-center justify-between gap-2 px-3 py-1.5 border-t border-sidebar-border/60 mt-1 pt-1.5">
                           <span className="text-xs font-medium text-sidebar-foreground/80">
                             {t`Thème`}
                           </span>
                           <ThemeToggle />
                         </div>
+                      }
+                    >
+                      <DropdownMenuItem
+                        href={accountUrl}
+                        className="flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-[8px] hover:bg-sidebar-primary hover:text-sidebar-primary-foreground transition-colors cursor-pointer"
+                      >
+                        <User className="w-4 h-4" />
+                        <span>{t`Mon Compte Personnel`}</span>
+                      </DropdownMenuItem>
 
-                        <div className="h-px my-1 bg-sidebar-border/60" />
+                      <DropdownMenuItem
+                        href="/settings"
+                        className="flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-[8px] hover:bg-sidebar-primary hover:text-sidebar-primary-foreground transition-colors cursor-pointer"
+                      >
+                        <Palette className="w-4 h-4" />
+                        <span>{t`Design du Média`}</span>
+                      </DropdownMenuItem>
 
-                        {onLogout && (
-                          <form
-                            action={() => {
-                              setIsAccountOpen(false);
-                              onLogout();
-                            }}
+                      {onLogout && (
+                        <>
+                          <DropdownMenuSeparator className="my-1 bg-sidebar-border/60" />
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onAction={onLogout}
+                            className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-destructive-text rounded-[8px] hover:bg-destructive/10 transition-colors cursor-pointer"
                           >
-                            <button
-                              type="submit"
-                              className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium text-destructive-text rounded-[8px] hover:bg-destructive/10 transition-colors text-left"
-                            >
-                              <LogOut className="w-4 h-4" />
-                              <span>{t`Se déconnecter`}</span>
-                            </button>
-                          </form>
-                        )}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                            <LogOut className="w-4 h-4" />
+                            <span>{t`Se déconnecter`}</span>
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </SidebarFooter>
             </>

@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-10-31T20:55:11.838Z",
-  "total": 359,
+  "generatedAt": "2026-11-03T23:18:29.518Z",
+  "total": 363,
   "signals": {
     "primitivesNeverImported": 17,
     "primitivesTotal": 41,
-    "rawButtons": 725,
-    "rawButtonFiles": 137,
+    "rawButtons": 721,
+    "rawButtonFiles": 136,
     "nativeSelectFiles": 1,
     "rawInputFiles": 78,
     "handRolledOverlays": 29
@@ -149,6 +149,13 @@
           "usages": 4
         },
         {
+          "name": "radio-cards",
+          "path": "packages/ui/src/primitives/radio-group/radio-cards.tsx",
+          "lines": 224,
+          "source": "primitives",
+          "usages": 0
+        },
+        {
           "name": "save-button",
           "path": "packages/ui/src/primitives/save-button/save-button.tsx",
           "lines": 113,
@@ -175,6 +182,13 @@
           "lines": 46,
           "source": "primitives",
           "usages": 0
+        },
+        {
+          "name": "switch",
+          "path": "packages/ui/src/primitives/switch/switch.tsx",
+          "lines": 105,
+          "source": "primitives",
+          "usages": 1
         },
         {
           "name": "sort",
@@ -297,9 +311,9 @@
         {
           "name": "dropdown-menu",
           "path": "packages/ui/src/ui/dropdown-menu.tsx",
-          "lines": 387,
+          "lines": 393,
           "source": "ui",
-          "usages": 1
+          "usages": 2
         },
         {
           "name": "exit-interstitial",
@@ -847,6 +861,13 @@
           "usages": 4
         },
         {
+          "name": "radio-cards",
+          "path": "packages/ui/src/primitives/radio-group/radio-cards.tsx",
+          "lines": 224,
+          "source": "ui",
+          "usages": 0
+        },
+        {
           "name": "save-button",
           "path": "packages/ui/src/primitives/save-button/save-button.tsx",
           "lines": 113,
@@ -873,6 +894,13 @@
           "lines": 46,
           "source": "ui",
           "usages": 0
+        },
+        {
+          "name": "switch",
+          "path": "packages/ui/src/primitives/switch/switch.tsx",
+          "lines": 105,
+          "source": "ui",
+          "usages": 1
         },
         {
           "name": "sort",
@@ -954,7 +982,7 @@
         {
           "name": "sidebar",
           "path": "packages/ui/src/sidebar.tsx",
-          "lines": 611,
+          "lines": 592,
           "source": "ui",
           "usages": 5
         },
@@ -1595,7 +1623,7 @@
         {
           "name": "HeaderWorkspaceSwitcher",
           "path": "apps/studio/src/features/dashboard/components/HeaderWorkspaceSwitcher.tsx",
-          "lines": 130,
+          "lines": 134,
           "source": "studio",
           "usages": null
         },
@@ -1931,7 +1959,7 @@
         {
           "name": "recommendations",
           "path": "apps/studio/src/features/settings/tabs/recommendations.tsx",
-          "lines": 476,
+          "lines": 435,
           "source": "studio",
           "usages": null
         },

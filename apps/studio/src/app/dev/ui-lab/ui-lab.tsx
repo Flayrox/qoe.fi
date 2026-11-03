@@ -23,6 +23,7 @@ import { SelectionTablesSpecimen } from './specimens/14-selection-tables';
 import { PortedPiecesSpecimen } from './specimens/15-ported-pieces';
 import { MarkSkinSpecimen } from './specimens/16-mark-skin';
 import { AnnotationFlowSpecimen } from './specimens/17-annotation-flow';
+import { SidebarSpecimen } from './specimens/18-sidebar';
 
 const SPECIMENS = [
   {
@@ -219,6 +220,21 @@ const SPECIMENS = [
     notes:
       'Les callbacks du spécimen jouent le rôle du serveur, en local : aucun appel réseau, aucune donnée réelle.',
     Component: AnnotationFlowSpecimen,
+  },
+  {
+    id: '18-sidebar',
+    index: '18',
+    title: 'Barre latérale & Sélecteurs de compte et d’espace',
+    question:
+      'Comment intégrer la navigation principale, l’indicateur animé et les menus de compte/espace sans aucun popover fait main ?',
+    sources: [
+      'packages/ui/src/sidebar.tsx',
+      'apps/studio/src/features/dashboard/components/HeaderWorkspaceSwitcher.tsx',
+      'packages/ui/src/ui/dropdown-menu.tsx',
+    ],
+    notes:
+      'Entièrement aligné sur react-aria-components : menu popover vers le haut pour le compte, changement d’espace, déconnexion destructive et thème.',
+    Component: SidebarSpecimen,
   },
 ];
 

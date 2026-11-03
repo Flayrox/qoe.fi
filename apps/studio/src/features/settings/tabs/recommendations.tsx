@@ -19,8 +19,8 @@ import {
   Loader2,
   Globe,
 } from 'lucide-react';
-import { cn } from '@qoe/utils';
 import { toast } from '@qoe/ui/toast';
+import { Switch } from '@qoe/ui/switch';
 import { t } from '@lingui/core/macro';
 import {
   getRecommendationsAction,
@@ -184,67 +184,39 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
         </h3>
         <div className="divide-y divide-border/30">
           <div className="py-3 flex items-center justify-between gap-4 first:pt-0">
-            <div>
-              <label
-                htmlFor="opt-rec-sidebar"
-                className="text-xs font-semibold text-foreground cursor-pointer block"
-              >
-                Colonne latérale
-              </label>
-              <span className="text-[11px] text-muted-foreground block">
-                Affiche « Recommandé par l’auteur » dans la barre latérale.
-              </span>
-            </div>
-            <button
-              type="button"
+            <Switch
               id="opt-rec-sidebar"
-              role="switch"
-              aria-checked={showRecsInSidebar}
-              onClick={() => toggleOption('showRecommendationsInSidebar')}
-              className={cn(
-                'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none',
-                showRecsInSidebar ? 'bg-primary' : 'bg-muted'
-              )}
-            >
-              <span
-                className={cn(
-                  'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out',
-                  showRecsInSidebar ? 'translate-x-4' : 'translate-x-0'
-                )}
-              />
-            </button>
+              isSelected={showRecsInSidebar}
+              onChange={() => toggleOption('showRecommendationsInSidebar')}
+              label={
+                <span className="text-xs font-semibold text-foreground">Colonne latérale</span>
+              }
+              description={
+                <span className="text-[11px] text-muted-foreground">
+                  Affiche « Recommandé par l’auteur » dans la barre latérale.
+                </span>
+              }
+              className="w-full"
+            />
           </div>
 
           <div className="py-3 flex items-center justify-between gap-4 last:pb-0">
-            <div>
-              <label
-                htmlFor="opt-rec-home"
-                className="text-xs font-semibold text-foreground cursor-pointer block"
-              >
-                Section en pied de page
-              </label>
-              <span className="text-[11px] text-muted-foreground block">
-                Affiche la grille sous le flux d’articles.
-              </span>
-            </div>
-            <button
-              type="button"
+            <Switch
               id="opt-rec-home"
-              role="switch"
-              aria-checked={showRecsOnHome}
-              onClick={() => toggleOption('showRecommendationsOnHome')}
-              className={cn(
-                'relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none',
-                showRecsOnHome ? 'bg-primary' : 'bg-muted'
-              )}
-            >
-              <span
-                className={cn(
-                  'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-xs ring-0 transition duration-200 ease-in-out',
-                  showRecsOnHome ? 'translate-x-4' : 'translate-x-0'
-                )}
-              />
-            </button>
+              isSelected={showRecsOnHome}
+              onChange={() => toggleOption('showRecommendationsOnHome')}
+              label={
+                <span className="text-xs font-semibold text-foreground">
+                  Section en pied de page
+                </span>
+              }
+              description={
+                <span className="text-[11px] text-muted-foreground">
+                  Affiche la grille sous le flux d’articles.
+                </span>
+              }
+              className="w-full"
+            />
           </div>
         </div>
       </div>
