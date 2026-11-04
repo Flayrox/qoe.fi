@@ -77,7 +77,9 @@ function CalloutAction({
     <Button
       variant="ghost"
       size="xs"
-      onClick={disabled ? undefined : onClick}
+      onClick={() => {
+        if (!disabled) onClick();
+      }}
       disabled={busy}
       aria-disabled={disabled || busy || undefined}
       aria-describedby={disabled ? describedBy : undefined}
@@ -747,6 +749,8 @@ export function TextHighlighter({
       callbacks.onLoginRedirect();
     } else if (mainAppUrl) {
       window.location.href = `${mainAppUrl}/login?redirect=${encodeURIComponent(window.location.href)}`;
+    } else {
+      toast.info(t`Connectez-vous pour surligner ou annoter.`);
     }
   };
 

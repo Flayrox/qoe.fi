@@ -29,7 +29,7 @@ import { toggleFollowCreatorHomeAction } from '@qoe/sdk/actions/feed';
 import { SimilarArticlesSection } from './SimilarArticlesSection';
 import { ArticleSummary } from './ArticleSummary';
 import { useArticleReadingTracker } from '@qoe/analytics';
-import { SubscribeForm, SafeAvatar, ProfileHoverCard } from '@qoe/ui';
+import { SubscribeForm, SafeAvatar, ProfileHoverCard, useAuthModal } from '@qoe/ui';
 import { CertifiedBadge } from '@qoe/ui/ui/CertifiedBadge';
 import {
   ReadingPreferencesProvider,
@@ -139,6 +139,7 @@ function ArticleAnnotatorViewInner({
   currentUserProfile: currentUserProfileProp,
 }: ArticleAnnotatorViewProps) {
   const toolbar = useReaderToolbar();
+  const { openAuthModal } = useAuthModal();
   const [user, setUser] = useState<AuthUser | null>(null);
   const [highlightsList, setHighlightsList] = useState<AnnotationItem[]>([]);
   const [clientDocument, setClientDocument] = useState<CanonicalDocument | null | undefined>(
@@ -232,6 +233,7 @@ function ArticleAnnotatorViewInner({
           // sur Qoefi. Le serveur recharge l'annotation : le tiroir ne fait
           // que désigner CE QU'IL faut citer.
           citeAnnotationAction,
+          onLoginRedirect: () => openAuthModal({ mode: 'login' }),
         },
         {
           onCrosspost: async ({ text, commentary }) => {
@@ -646,6 +648,7 @@ function ArticleAnnotatorViewInner({
         creatorName={authorName}
         allowPublicAnnotations={article.allowPublicAnnotations ?? true}
         isAuthenticated={!!user}
+        onRequireAuth={() => openAuthModal({ mode: 'login' })}
         initialHighlights={initialHighlights}
         publicHighlights={publicHighlights}
         currentUserId={user?.id || null}

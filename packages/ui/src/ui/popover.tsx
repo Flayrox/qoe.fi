@@ -6,6 +6,7 @@ import {
   Popover as AriaPopover,
   Dialog as AriaDialog,
   Button as AriaButton,
+  Pressable,
   type PopoverProps as AriaPopoverProps,
   type ButtonProps as AriaButtonProps,
 } from 'react-aria-components';
@@ -46,12 +47,13 @@ export interface PopoverTriggerProps extends React.ButtonHTMLAttributes<HTMLButt
 export function PopoverTrigger({ children, render, className, ...props }: PopoverTriggerProps) {
   if (render && React.isValidElement(render)) {
     const originalProps = render.props as Record<string, unknown>;
-    return React.cloneElement(render, {
+    const cloned = React.cloneElement(render, {
       ...props,
       'data-slot': 'popover-trigger',
       className: cn(originalProps.className as string, className),
       children: children ?? (originalProps.children as React.ReactNode),
-    } as React.HTMLAttributes<HTMLElement>);
+    } as React.DOMAttributes<Element>) as React.ReactElement<React.DOMAttributes<Element>, string>;
+    return <Pressable>{cloned}</Pressable>;
   }
   return (
     <AriaButton data-slot="popover-trigger" className={className} {...(props as AriaButtonProps)}>
