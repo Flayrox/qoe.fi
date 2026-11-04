@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-04T01:41:27.583Z",
+  "generatedAt": "2026-11-04T01:58:27.513Z",
   "total": 370,
   "signals": {
     "primitivesNeverImported": 10,
@@ -318,7 +318,7 @@
         {
           "name": "dropdown-menu",
           "path": "packages/ui/src/ui/dropdown-menu.tsx",
-          "lines": 393,
+          "lines": 399,
           "source": "ui",
           "usages": 2
         },
@@ -970,7 +970,7 @@
           "path": "packages/ui/src/SafeAvatar.tsx",
           "lines": 153,
           "source": "ui",
-          "usages": 17
+          "usages": 18
         },
         {
           "name": "SafeImage",
@@ -996,7 +996,7 @@
         {
           "name": "sidebar",
           "path": "packages/ui/src/sidebar.tsx",
-          "lines": 576,
+          "lines": 629,
           "source": "ui",
           "usages": 5
         },
@@ -1637,7 +1637,7 @@
         {
           "name": "HeaderWorkspaceSwitcher",
           "path": "apps/studio/src/features/dashboard/components/HeaderWorkspaceSwitcher.tsx",
-          "lines": 129,
+          "lines": 178,
           "source": "studio",
           "usages": null
         },

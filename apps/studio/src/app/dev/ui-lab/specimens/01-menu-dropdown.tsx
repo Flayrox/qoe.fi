@@ -38,9 +38,9 @@ export function MenuDropdownSpecimen() {
   return (
     <div className="grid gap-10">
       <Variant
-        label="Primitive actuelle"
-        kind="actuel"
-        hint="Rendu réel de @qoe/ui/ui/dropdown-menu : conteneur rounded-[20px] en bg-white (casse en thème sombre), items rounded-[12px] avec survol vermillon en dur, et icônes supprimées par [&_svg]:hidden."
+        label="Primitive composée (@qoe/ui/ui/dropdown-menu)"
+        kind="candidat"
+        hint="Variante composée réalignée sur le contrat : conteneur rounded-panel en bg-popover, sections titrées, survol en surface secondaire, icônes 14px visibles et raccourci à droite."
       >
         <DropdownMenu>
           <DropdownMenuTrigger render={<Button variant="outline" size="sm" />}>
@@ -48,8 +48,6 @@ export function MenuDropdownSpecimen() {
             <ChevronDown className="size-3.5 text-muted-foreground" />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-56">
-            {/* DropdownMenuLabel est un GroupLabel Base UI : hors <DropdownMenuGroup>
-                il lève « MenuGroupContext is missing » et casse tout le menu. */}
             <DropdownMenuGroup>
               <DropdownMenuLabel>Article</DropdownMenuLabel>
               <DropdownMenuItem>
@@ -73,15 +71,6 @@ export function MenuDropdownSpecimen() {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <DefectList
-          items={[
-            'Icônes invisibles : [&_svg]:hidden dans DropdownMenuItem',
-            'bg-white en dur → menu blanc sur fond sombre',
-            'Survol #EE4B2B : la marque devient une couleur d’état',
-            'Rayon 20px ici, rounded-lg (8px) dans Popover et Select',
-            'DropdownMenuLabel hors DropdownMenuGroup plante le menu (MenuGroupContext is missing)',
-          ]}
-        />
       </Variant>
 
       <Variant

@@ -7,10 +7,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@qoe/utils';
 import { ThemeToggle } from './ui/ThemeToggle';
 import { SafeAvatar } from './SafeAvatar';
+import { Badge } from './primitives/badge/badge';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from './ui/dropdown-menu';
@@ -24,7 +27,6 @@ import {
   Settings,
   Plus,
   LogOut,
-  User,
   Search,
   Bookmark,
   Highlighter,
@@ -34,7 +36,9 @@ import {
   Webhook,
   Compass,
   CircleUserRound,
+  ChevronsUpDown,
   Crown,
+  ExternalLink,
   X,
 } from 'lucide-react';
 import { t } from '@lingui/core/macro';
@@ -82,6 +86,8 @@ export interface SidebarProps {
   items?: SidebarItemData[];
   /** Currently active path (defaults to usePathname) */
   activeUrl?: string;
+  /** Gestionnaire optionnel pour intercepter la sélection d'une entrée (ex. bac à sable). */
+  onItemSelect?: (url: string) => void;
   /** Header logo element */
   logo?: React.ReactNode;
   /** Brand name displayed next to logo */
@@ -100,6 +106,11 @@ export interface SidebarProps {
   userAvatar?: string | null;
   /** Nature du compte : un média garde un carré à coins arrondis. */
   userType?: 'PERSONAL' | 'MEDIA' | string | null;
+  /** Href ou gestionnaire vers les réglages de l'application courante. */
+  settingsHref?: string;
+  onSettingsClick?: () => void;
+  /** Lien optionnel vers la vitrine publique du compte ou média. */
+  publicUrl?: string;
   /** Logout handler function */
   onLogout?: () => void | Promise<void>;
   /** Primary CTA action */
@@ -124,6 +135,7 @@ export interface SidebarProps {
    ───────────────────────────────────────────── */
 interface SidebarContextValue {
   activeUrl: string;
+  onItemSelect?: (url: string) => void;
   isMobileOpen: boolean;
   setIsMobileOpen: (open: boolean) => void;
 }
@@ -210,14 +222,19 @@ export function SidebarItem({
   children: React.ReactNode;
   className?: string;
 }) {
-  const { activeUrl } = useSidebarContext();
+  const { activeUrl, onItemSelect } = useSidebarContext();
   const active = href === '/' ? activeUrl === '/' : activeUrl.startsWith(href);
 
   return (
     <li className="relative">
       <Link
         href={href}
-        onClick={() => {
+        onClick={(e) => {
+          if (onItemSelect) {
+            e.preventDefault();
+            onItemSelect(href);
+            return;
+          }
           if (typeof window !== 'undefined') {
             window.dispatchEvent(new CustomEvent('reset-feed-view'));
           }
@@ -290,6 +307,7 @@ export function SidebarFooter({
 export function Sidebar({
   items,
   activeUrl: activeUrlProp,
+  onItemSelect,
   logo,
   brandName = 'qoefi',
   userId,
@@ -298,6 +316,9 @@ export function Sidebar({
   userEmail,
   userAvatar,
   userType = null,
+  settingsHref = '/settings',
+  onSettingsClick,
+  publicUrl,
   onLogout,
   primaryAction,
   onSearchChange,
@@ -341,7 +362,7 @@ export function Sidebar({
     return acc;
   }, {});
 
-  const contextValue = { activeUrl, isMobileOpen, setIsMobileOpen };
+  const contextValue = { activeUrl, onItemSelect, isMobileOpen, setIsMobileOpen };
 
   return (
     <SidebarContext.Provider value={contextValue}>
@@ -483,13 +504,14 @@ export function Sidebar({
                     </Link>
                   ))}
 
-                {/* Profile Popover */}
+                {/* Profile & Account Menu — aligné sur le contrat (@qoe/ui) */}
                 <div className="relative">
                   <DropdownMenu>
                     <DropdownMenuTrigger
                       className={cn(
-                        'w-full flex items-center gap-2.5 p-1.5 rounded-[12px] transition-colors outline-none cursor-pointer',
-                        'hover:bg-sidebar-accent/60 text-sidebar-foreground'
+                        'group/account flex w-full cursor-pointer items-center gap-2.5 rounded-control px-2 py-1.5 text-left text-sidebar-foreground outline-none transition-colors',
+                        'hover:bg-sidebar-accent/70 data-[pressed]:bg-sidebar-accent/80',
+                        'data-[focus-visible]:ring-2 data-[focus-visible]:ring-ring/60'
                       )}
                       aria-label={t`Menu compte`}
                     >
@@ -500,65 +522,96 @@ export function Sidebar({
                         name={userName}
                         size={28}
                         type={userType}
-                        className="border border-sidebar-primary/20 shrink-0"
+                        className="shrink-0 border border-border/50"
                       />
-                      <div className="flex-1 text-left truncate min-w-0">
-                        <span className="text-xs font-semibold block leading-tight truncate">
+                      <div className="min-w-0 flex-1 truncate">
+                        <span className="block truncate type-control-sm font-medium leading-tight text-sidebar-foreground">
                           {userName || t`Créateur`}
                         </span>
-                        {userEmail && (
-                          <span className="type-control-xs text-muted-foreground block truncate leading-tight mt-0.5">
-                            {userEmail}
+                        {(userUsername || userEmail) && (
+                          <span className="mt-0.5 block truncate type-control-xs leading-tight text-muted-foreground">
+                            {userUsername ? `@${userUsername}` : userEmail}
                           </span>
                         )}
                       </div>
+                      <ChevronsUpDown
+                        className="size-3.5 shrink-0 text-muted-foreground transition-colors group-hover/account:text-sidebar-foreground"
+                        strokeWidth={1.5}
+                      />
                     </DropdownMenuTrigger>
 
                     <DropdownMenuContent
                       side="top"
-                      align="end"
+                      align="start"
                       sideOffset={8}
-                      className="w-56 p-2 rounded-panel bg-sidebar/95 backdrop-blur-2xl border border-sidebar-border text-sidebar-foreground shadow-2xl"
+                      className="w-[236px]"
                       header={
-                        <div className="px-2.5 py-2 mb-1 border-b border-sidebar-border/60">
-                          <span className="font-semibold text-xs block leading-tight truncate">
-                            {userName || t`Créateur`}
-                          </span>
-                          {userEmail && (
-                            <span className="type-control-xs text-muted-foreground block truncate mt-0.5">
-                              {userEmail}
-                            </span>
-                          )}
+                        <div className="mb-1 flex items-center gap-2.5 border-b border-border/50 px-2 py-2">
+                          <SafeAvatar
+                            id={userId}
+                            username={userUsername}
+                            src={userAvatar}
+                            name={userName}
+                            size={30}
+                            type={userType}
+                            className="shrink-0 border border-border/50"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5">
+                              <span className="truncate type-control-sm font-semibold leading-tight text-foreground">
+                                {userName || t`Créateur`}
+                              </span>
+                              {userType && (
+                                <Badge size="xs" variant="soft" tone="neutral">
+                                  {userType === 'MEDIA' ? t`Média` : t`Perso`}
+                                </Badge>
+                              )}
+                            </div>
+                            {(userEmail || userUsername) && (
+                              <span className="mt-0.5 block truncate type-control-xs leading-tight text-muted-foreground">
+                                {userEmail || `@${userUsername}`}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       }
                     >
-                      {/* Un seul point d’entrée vers les réglages, et il reste
-                          dans l’application courante : le saut vers la console
-                          démontait la page et perdait le contexte de travail. */}
-                      <DropdownMenuItem
-                        href="/settings"
-                        className="flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-lg hover:bg-sidebar-primary hover:text-sidebar-primary-foreground transition-colors cursor-pointer"
-                      >
-                        {userType === 'MEDIA' ? (
-                          <Building2 className="w-4 h-4" />
-                        ) : (
-                          <User className="w-4 h-4" />
+                      <DropdownMenuGroup>
+                        <DropdownMenuLabel>
+                          {userType === 'MEDIA' ? t`Publication` : t`Compte`}
+                        </DropdownMenuLabel>
+                        {/* Un seul point d’entrée vers les réglages, qui reste dans
+                            l’application courante : surface sobre (bg-secondary au focus),
+                            jamais d’applat vermillon. */}
+                        <DropdownMenuItem
+                          href={onSettingsClick ? undefined : settingsHref}
+                          onAction={onSettingsClick}
+                        >
+                          <Settings className="text-muted-foreground" strokeWidth={1.5} />
+                          <span className="flex-1 truncate">
+                            {userType === 'MEDIA' ? t`Réglages du média` : t`Réglages du compte`}
+                          </span>
+                        </DropdownMenuItem>
+
+                        {publicUrl && (
+                          <DropdownMenuItem
+                            href={publicUrl}
+                            target={publicUrl.startsWith('#') ? undefined : '_blank'}
+                          >
+                            <ExternalLink className="text-muted-foreground" strokeWidth={1.5} />
+                            <span className="flex-1 truncate">
+                              {userType === 'MEDIA' ? t`Voir la publication` : t`Voir le profil`}
+                            </span>
+                          </DropdownMenuItem>
                         )}
-                        <span>
-                          {userType === 'MEDIA' ? t`Réglages du média` : t`Réglages du compte`}
-                        </span>
-                      </DropdownMenuItem>
+                      </DropdownMenuGroup>
 
                       {onLogout && (
                         <>
-                          <DropdownMenuSeparator className="my-1 bg-sidebar-border/60" />
-                          <DropdownMenuItem
-                            variant="destructive"
-                            onAction={onLogout}
-                            className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-destructive-text rounded-lg hover:bg-destructive/10 transition-colors cursor-pointer"
-                          >
-                            <LogOut className="w-4 h-4" />
-                            <span>{t`Se déconnecter`}</span>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem variant="destructive" onAction={onLogout}>
+                            <LogOut strokeWidth={1.5} />
+                            <span className="flex-1 truncate">{t`Se déconnecter`}</span>
                           </DropdownMenuItem>
                         </>
                       )}
