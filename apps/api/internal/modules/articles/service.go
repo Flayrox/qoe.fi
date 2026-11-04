@@ -276,6 +276,7 @@ func (s *Service) GetBySlugAny(ctx context.Context, slug string) (ArticleRespons
 		ID: row.ID, Title: row.Title, Slug: row.Slug, Content: cut.Content,
 		Published: row.Published, IsPremium: row.IsPremium, Visibility: string(row.Visibility),
 		ReadingTime: int(row.ReadingTime), Status: row.Status, PublicationID: row.PublicationId,
+		AllowPublicAnnotations: row.AllowPublicAnnotations, AllowComments: row.AllowComments,
 		AuthorID: row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
 		SeoTitle: textPtr(row.SeoTitle), SeoDescription: textPtr(row.SeoDescription),
 		CreatedAt:   row.CreatedAt.Time.Format(time.RFC3339),

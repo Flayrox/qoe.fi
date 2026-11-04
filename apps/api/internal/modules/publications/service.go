@@ -496,7 +496,7 @@ func (s *Service) publishedArticles(ctx context.Context, pubID string) ([]Articl
 	rows, err := s.pool.Query(ctx, `
 		SELECT a.id, a.title, a.slug, a.content, a.published, a."isPremium",
 		       a.visibility, a."readingTime", a."createdAt", a."categoryId",
-		       c.id, c.name, c.slug, c."isDefault", cp.slug, a."imageUrl",
+		       c.id, c.name, c.slug, COALESCE(c."isDefault", false), cp.slug, a."imageUrl",
 		       (SELECT count(*) FROM "ContentFeedback" f WHERE f."articleId" = a.id AND f."type" = 'LIKE') AS likes,
 		       (SELECT count(*) FROM "ArticleComment" ac WHERE ac."articleId" = a.id) AS comments,
 		       (SELECT count(*) FROM "Post" p WHERE p."quotedArticleId" = a.id) AS reposts
@@ -597,7 +597,7 @@ const articleSelect = `
 	       a."isPremium", a.visibility, a."readingTime",
 	       a."allowPublicAnnotations", a."allowComments", a."allowDownload",
 	       a."seoTitle", a."seoDescription", a."createdAt", a."authorId", a."imageUrl",
-	       c.id, c.name, c.slug, c."isDefault", cp.slug,
+	       c.id, c.name, c.slug, COALESCE(c."isDefault", false), cp.slug,
 	       au.name, au.username, au."logoUrl",
 	       EXISTS (SELECT 1 FROM "MediaMember" mm
 	               WHERE mm."userId" = au.id AND mm.status = 'active')

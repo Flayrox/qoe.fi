@@ -241,8 +241,8 @@ func TestPublicationsAttributionFallback(t *testing.T) {
 		t.Fatalf("publication coauthor: %v", err)
 	}
 	if _, err := poolTest.Exec(ctx, `
-		INSERT INTO "Article" (id, title, slug, content, published, "isPremium", visibility, "readingTime", "publicationId", "authorId", "createdAt", "updatedAt")
-		VALUES ('article_coauthored', 'Co-écrit', 'co-ecrit', '<p>Ensemble</p>', true, false, 'PUBLIC', 2, $1, $2, now(), now())`,
+		INSERT INTO "Article" (id, title, slug, content, published, status, "isPremium", visibility, "readingTime", "publicationId", "authorId", "createdAt", "updatedAt")
+		VALUES ('article_coauthored', 'Co-écrit', 'co-ecrit', '<p>Ensemble</p>', true, 'PUBLISHED', false, 'PUBLIC', 2, $1, $2, now(), now())`,
 		coauthorPub, userID); err != nil {
 		t.Fatalf("article coauthor: %v", err)
 	}
