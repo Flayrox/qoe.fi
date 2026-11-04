@@ -187,7 +187,7 @@ export {
   type AuthModalContextValue,
 } from './auth/AuthModalContext';
 export { GlobalAuthModalProvider } from './auth/GlobalAuthModalProvider';
-export { ArticleCard, type ArticleCardProps } from './ArticleCard';
+export { ArticleCard } from './ArticleCard';
 export * from './social';
 export {
   Sidebar,

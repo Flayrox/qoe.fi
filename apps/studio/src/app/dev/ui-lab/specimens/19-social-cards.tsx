@@ -91,34 +91,6 @@ const ARTICLE_ILLUSTRATED: QuotedArticleData = {
 };
 
 // ─── Carte d'article (feed) ──────────────────────────────────────────
-const FEED_ARTICLE_TEXT_ONLY: FeedArticleDTO = {
-  id: 'feed-article-text',
-  title: 'Pourquoi l’archive survit mieux quand elle sait oublier',
-  slug: 'archive-memoire-oubli',
-  content:
-    'Conserver chaque brouillon et chaque notification ne fabrique pas une mémoire collective : cela noie le signal sous l’inventaire. Une rédaction se reconnaît à ce qu’elle choisit d’éditer et de clore.',
-  imageUrl: null,
-  published: true,
-  isPremium: false,
-  readingTime: 5,
-  createdAt: '2026-10-29T07:15:00.000Z',
-  author: {
-    id: 'author-person',
-    name: 'Camille Roux',
-    username: 'camille',
-    subdomain: null,
-    customDomain: null,
-    logoUrl: '/avatars/avatar-1.svg',
-    heroText: null,
-    isCertified: false,
-    type: 'PERSONAL',
-  },
-  category: { name: 'Essai' },
-  tags: ['mémoire', 'édition'],
-  likesCount: 44,
-  repliesCount: 6,
-};
-
 const FEED_ARTICLE_WITH_COVER: FeedArticleDTO = {
   id: 'feed-article-cover',
   title: 'La ville sans voiture n’est pas une utopie',
@@ -636,35 +608,21 @@ export function SocialCardsSpecimen() {
         </Variant>
 
         <Variant
-          label="Carte d’article du feed (ArticleCard) — sans image vs avec couverture"
+          label="Carte d’article du feed (ArticleCard) — vitrine éditoriale"
           kind="candidat"
-          hint="Même rayon (`rounded-panel`), même identité en tête (`SafeAvatar` + `ProfileHoverCard` + `Badge`) et actions sur `@qoe/ui/button` + `@qoe/ui/tooltip`. Sans `imageUrl`, aucun rectangle vide n’est dessiné."
+          hint="La carte d’article du feed conserve son identité propre : couverture pleine largeur avec capsule auteur flottante en verre dépoli, titre à 21 px et pied de lecture."
         >
           <div className="grid items-start gap-6 lg:grid-cols-2">
-            <div className="grid gap-6">
-              <div>
-                <p className="type-control-xs mb-2 uppercase tracking-wider text-muted-foreground">
-                  sans image — purement typographique
-                </p>
-                <ArticleCard
-                  article={FEED_ARTICLE_TEXT_ONLY}
-                  handleBookmarkToggle={() => undefined}
-                  onOpenArticle={() => undefined}
-                  onOpenProfile={() => undefined}
-                />
-              </div>
-
-              <div>
-                <p className="type-control-xs mb-2 uppercase tracking-wider text-muted-foreground">
-                  standard avec couverture & co-auteurs
-                </p>
-                <ArticleCard
-                  article={FEED_ARTICLE_WITH_COVER}
-                  handleBookmarkToggle={() => undefined}
-                  onOpenArticle={() => undefined}
-                  onOpenProfile={() => undefined}
-                />
-              </div>
+            <div>
+              <p className="type-control-xs mb-2 uppercase tracking-wider text-muted-foreground">
+                standard avec couverture & co-auteurs
+              </p>
+              <ArticleCard
+                article={FEED_ARTICLE_WITH_COVER}
+                handleBookmarkToggle={() => undefined}
+                onOpenArticle={() => undefined}
+                onOpenProfile={() => undefined}
+              />
             </div>
 
             <div>
@@ -691,26 +649,26 @@ export function SocialCardsSpecimen() {
         </Variant>
 
         <Variant
-          label="Ce que toutes les cartes ont désormais en commun"
+          label="Ce que les cartes partagent"
           kind="candidat"
-          hint="Même densité de métadonnées, mêmes jetons sémantiques, mêmes marques d’identité. Les différences restantes tiennent au rôle éditorial, plus à l’historique du code."
+          hint="Même densité de métadonnées, mêmes marques d’identité (rond personne, carré média) et mêmes règles de citation."
         >
           <ul className="grid gap-2 text-xs leading-relaxed text-muted-foreground">
             <li>
-              Les cartes autonomes (`ArticleCard`) utilisent{' '}
-              <code className="font-mono">rounded-panel</code> ; les cartes imbriquées
-              (`QuotedThoughtCard`, `QuotedArticleCard`) utilisent{' '}
-              <code className="font-mono">rounded-xl</code> sur{' '}
+              La vitrine du feed (<code className="font-mono">ArticleCard</code>) garde sa
+              couverture et sa capsule flottante ; les cartes citées (
+              <code className="font-mono">QuotedThoughtCard</code>,{' '}
+              <code className="font-mono">QuotedArticleCard</code>) restent sobres sur{' '}
               <code className="font-mono">bg-muted/20</code> avec filet de marque au second niveau.
             </li>
             <li>
-              L’image est toujours facultative : présente sur une pensée, une citation ou un
-              article, elle garde un cadre capillaire ; absente, elle ne laisse aucun bloc mort.
+              Les images des pensées et des citations gardent un cadre capillaire et une hauteur
+              bornée (<code className="font-mono">max-h-48</code> au 1er niveau,{' '}
+              <code className="font-mono">max-h-28</code> dans la chaîne).
             </li>
             <li>
-              Les statuts (`Payant`, catégorie) passent par <code className="font-mono">Badge</code>{' '}
-              et les actions muettes par <code className="font-mono">Button</code> +{' '}
-              <code className="font-mono">Tooltip</code>.
+              Le nom de l’auteur (et du reposteur sur un écho) est toujours relié à la carte de
+              survol.
             </li>
             <li>
               {t`La citation imbriquée est un aperçu : seul le premier maillon ouvre la surcouche. L'article cité, lui, garde toujours son lien.`}
