@@ -18,7 +18,13 @@ import imageCompression from 'browser-image-compression';
 import { ImagePlus, Loader2, RefreshCcw, Trash2, UploadCloud } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '../primitives/dialog/dialog';
 import { Button } from '../primitives/button/button';
 
 const MAX_ZOOM = 4;

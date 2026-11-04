@@ -5,7 +5,13 @@ import { t } from '@lingui/core/macro';
 import { Flag, Loader2, Check } from 'lucide-react';
 import { reportTargetAction } from '@qoe/sdk/actions/feed';
 import { toast } from '@qoe/ui/toast';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '../primitives/dialog/dialog';
 import { Button } from '../primitives/button/button';
 import { Textarea } from '../primitives/input/input';
 

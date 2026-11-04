@@ -3,7 +3,13 @@
 import React, { useState } from 'react';
 import { t } from '@lingui/core/macro';
 import { Trash2, Loader2 } from 'lucide-react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '../primitives/dialog/dialog';
 import { Button } from '../primitives/button/button';
 
 export interface ConfirmDeleteModalProps {

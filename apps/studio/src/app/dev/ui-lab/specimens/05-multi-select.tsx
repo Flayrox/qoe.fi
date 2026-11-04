@@ -1,97 +1,129 @@
 'use client';
 
 import { useState } from 'react';
-import { X } from 'lucide-react';
-import { cn } from '@qoe/utils';
+import { Button } from '@qoe/ui/button';
+import { Tag, TagGroup, TagList } from '@qoe/ui/tag-group';
 import { Variant } from '../specimen-frame';
 
 const TAGS = [
-  { id: 'climat', label: 'Climat' },
-  { id: 'enquete', label: 'Enquête' },
-  { id: 'essai', label: 'Essai' },
-  { id: 'entretien', label: 'Entretien' },
-  { id: 'data', label: 'Données' },
-  { id: 'photo', label: 'Photo' },
+  { id: 'climat', label: 'Climat', count: 18 },
+  { id: 'enquete', label: 'Enquête', count: 42 },
+  { id: 'essai', label: 'Essai', count: 27 },
+  { id: 'entretien', label: 'Entretien', count: 14 },
+  { id: 'data', label: 'Données', count: 9 },
+  { id: 'photo', label: 'Photo', count: 31 },
+];
+
+const INITIAL_ARTICLE_TAGS = [
+  { id: 'urbanisme', label: 'Urbanisme' },
+  { id: 'mobilite', label: 'Mobilité douce' },
+  { id: 'europe', label: 'Europe' },
 ];
 
 export function MultiSelectSpecimen() {
-  const [selected, setSelected] = useState<string[]>(['enquete', 'data']);
-  const [single, setSingle] = useState<string | null>('essai');
-
-  const toggle = (id: string) =>
-    setSelected((prev) => (prev.includes(id) ? prev.filter((v) => v !== id) : [...prev, id]));
+  const [selected, setSelected] = useState<Set<string>>(new Set(['enquete', 'data']));
+  const [single, setSingle] = useState<Set<string>>(new Set(['essai']));
+  const [editableTags, setEditableTags] = useState(INITIAL_ARTICLE_TAGS);
 
   return (
     <div className="grid gap-10">
       <Variant
-        label="Chips à bascule"
+        label="TagGroup — filtres cumulables (@qoe/ui/tag-group)"
         kind="candidat"
-        hint="Choix multiple pour les filtres et les étiquettes. Rayon de l’échelle (rounded-md, pas de pilule), sélection portée par la surface et non par un contour coloré."
+        hint="Choix multiple sur react-aria : rayon du contrat (rounded-control, jamais pilule), sélection portée par la surface (bg-foreground text-background) et navigation complète aux flèches."
       >
         <div className="grid gap-3">
-          <div className="flex flex-wrap gap-1.5">
-            {TAGS.map((tag) => {
-              const active = selected.includes(tag.id);
-              return (
-                <button
-                  key={tag.id}
-                  type="button"
-                  onClick={() => toggle(tag.id)}
-                  aria-pressed={active}
-                  className={cn(
-                    'flex h-7 items-center gap-1.5 rounded-md border px-2 text-[12.5px] transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none',
-                    active
-                      ? 'border-transparent bg-foreground text-background'
-                      : 'border-border/50 bg-card text-muted-foreground hover:bg-muted/40 hover:text-foreground'
-                  )}
-                >
+          <TagGroup
+            aria-label="Filtrer par format"
+            selectionMode="multiple"
+            selectedKeys={selected}
+            onSelectionChange={(keys) => {
+              if (keys === 'all') {
+                setSelected(new Set(TAGS.map((t) => t.id)));
+              } else {
+                setSelected(new Set(Array.from(keys, String)));
+              }
+            }}
+          >
+            <TagList>
+              {TAGS.map((tag) => (
+                <Tag key={tag.id} id={tag.id} count={tag.count}>
                   {tag.label}
-                  {active && <X className="size-3 opacity-70" strokeWidth={2} />}
-                </button>
-              );
-            })}
-          </div>
-          <p className="text-[11.5px] text-muted-foreground">
-            {selected.length} sélectionné{selected.length > 1 ? 's' : ''} sur {TAGS.length}
-            {selected.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setSelected([])}
-                className="ml-2 text-foreground underline-offset-2 hover:underline"
-              >
+                </Tag>
+              ))}
+            </TagList>
+          </TagGroup>
+
+          <div className="flex items-center gap-2 type-control-xs text-muted-foreground">
+            <span>
+              {selected.size} sélectionné{selected.size > 1 ? 's' : ''} sur {TAGS.length}
+            </span>
+            {selected.size > 0 && (
+              <Button variant="ghost" size="xs" onClick={() => setSelected(new Set())}>
                 Tout effacer
-              </button>
+              </Button>
             )}
-          </p>
+          </div>
         </div>
       </Variant>
 
       <Variant
-        label="Choix unique en chips"
-        kind="variante"
-        hint="Même composant, sémantique exclusive. Utile quand une liste déroulante serait trop lourde (3 à 6 options visibles en permanence)."
+        label="TagGroup — choix exclusif & étiquettes supprimables"
+        kind="candidat"
+        hint="Même primitive : selectionMode='single' creuse la surface pour distinguer l’exclusivité d’un cumul, et onRemove active la suppression au clic ou au clavier (Retour arrière / Suppr)."
       >
-        <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label="Format">
-          {TAGS.slice(0, 4).map((tag) => {
-            const active = single === tag.id;
-            return (
-              <button
-                key={tag.id}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                onClick={() => setSingle(tag.id)}
-                className={cn(
-                  'flex h-7 items-center rounded-md border px-2 text-[12.5px] transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none',
-                  active
-                    ? 'border-foreground/60 bg-muted/40 font-medium text-foreground'
-                    : 'border-border/50 bg-card text-muted-foreground hover:bg-muted/40 hover:text-foreground'
+        <div className="grid max-w-xl gap-6">
+          <TagGroup
+            label="Format principal"
+            selectionMode="single"
+            selectedKeys={single}
+            onSelectionChange={(keys) => {
+              if (keys !== 'all') setSingle(new Set(Array.from(keys, String)));
+            }}
+          >
+            <TagList>
+              {TAGS.slice(0, 4).map((tag) => (
+                <Tag key={tag.id} id={tag.id}>
+                  {tag.label}
+                </Tag>
+              ))}
+            </TagList>
+          </TagGroup>
+
+          <div className="grid gap-2">
+            <TagGroup
+              label="Étiquettes de l’article (Suppr au clavier ou ×)"
+              selectionMode="none"
+              onRemove={(keys) =>
+                setEditableTags((prev) => prev.filter((item) => !keys.has(item.id)))
+              }
+            >
+              <TagList
+                renderEmptyState={() => (
+                  <span className="type-control-xs text-muted-foreground">
+                    Aucune étiquette associée.
+                  </span>
                 )}
               >
-                {tag.label}
-              </button>
-            );
-          })}
+                {editableTags.map((tag) => (
+                  <Tag key={tag.id} id={tag.id}>
+                    {tag.label}
+                  </Tag>
+                ))}
+              </TagList>
+            </TagGroup>
+            {editableTags.length < INITIAL_ARTICLE_TAGS.length && (
+              <div>
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => setEditableTags(INITIAL_ARTICLE_TAGS)}
+                >
+                  Réinitialiser les étiquettes
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </Variant>
     </div>

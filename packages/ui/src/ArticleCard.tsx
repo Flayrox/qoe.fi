@@ -6,7 +6,6 @@ import {
   BookMarked,
   Bookmark,
   Clock,
-  Crown,
   Heart,
   MessageSquare,
   Repeat,
@@ -15,42 +14,49 @@ import { cn } from '@qoe/utils';
 import { getArticleUrl } from '@qoe/config';
 import type { FeedArticleDTO } from '@qoe/sdk/types';
 import { useRequireAuth } from './auth/AuthModalContext';
+import { Badge } from './primitives/badge/badge';
+import { Button } from './primitives/button/button';
+import { Tooltip } from './primitives/tooltip/tooltip';
 import { CertifiedBadge } from './ui/CertifiedBadge';
 import { SafeAvatar } from './SafeAvatar';
 import { SafeImage } from './SafeImage';
 import { ProfileHoverCard } from './social/ProfileHoverCard';
 import { t } from '@lingui/core/macro';
 
+// =====================================================================
+// 📰 ArticleCard — carte éditoriale unifiée du feed
+// =====================================================================
+// 📖 Même grammaire que `QuotedArticleCard` et `ThoughtCard` :
+//    1. Surface sobre du contrat (`rounded-panel border-border/50 bg-card`),
+//       sans capsule en verre dépoli ni couleurs brutes `white` / `black`.
+//    2. Identité en tête : cercle pour une personne, carré adouci pour un
+//       média (`SafeAvatar`), survol de profil (`ProfileHoverCard`) et ligne
+//       de co-auteurs (`SharedContributorLine`).
+//    3. Couverture optionnelle : rendue UNIQUEMENT quand `article.imageUrl`
+//       est défini — un article sans illustration est une pièce typographique,
+//       jamais un rectangle gris vide ni un avatar étiré en 16/9.
+//    4. Actions sur les primitives du contrat (`Button` + `Tooltip`).
+// =====================================================================
+
 export type { FeedArticleDTO as Article };
 
-interface ArticleCardProps {
-  article: FeedArticleDTO;
+export interface ArticleCardProps {
+  article: FeedArticleDTO & {
+    reposted?: boolean;
+    repostsCount?: number;
+  };
   isFollowedAuthor?: boolean;
   disableAuthorOverride?: boolean;
   isBookmarked?: boolean;
   handleBookmarkToggle?: (article: FeedArticleDTO) => void;
+  onLikeToggle?: (article: FeedArticleDTO, event: React.MouseEvent) => void;
+  onRepostToggle?: (article: FeedArticleDTO, event: React.MouseEvent) => void;
   featured?: boolean;
   isPreview?: boolean;
   onOpenArticle?: (article: FeedArticleDTO) => void;
   onOpenProfile?: (username: string) => void;
   onOpenPost?: (id: string) => void;
-}
-
-function ProfileMark({ author, size = 40 }: { author: FeedArticleDTO['author']; size?: number }) {
-  return (
-    <SafeAvatar
-      src={author.logoUrl}
-      name={author.name}
-      username={author.username || author.subdomain}
-      size={size}
-      shape={author.type === 'MEDIA' ? 'squircle' : 'circle'}
-      type={author.type === 'MEDIA' ? 'MEDIA' : 'PERSONAL'}
-      className={cn(
-        'border border-white/80 shadow-xs shrink-0',
-        author.type === 'MEDIA' ? 'rounded-[10px]' : 'rounded-full'
-      )}
-    />
-  );
+  className?: string;
 }
 
 type SharedContributor = {
@@ -78,7 +84,7 @@ function SharedContributorLine({
   const allAvatars = forMedia ? [forMedia, ...people] : people;
 
   return (
-    <span className="mt-0.5 flex min-w-0 items-center gap-1.5 truncate text-[11px] text-muted-foreground font-sans">
+    <span className="mt-0.5 flex min-w-0 items-center gap-1.5 truncate type-control-xs text-muted-foreground font-sans">
       <span className="flex shrink-0 items-center -space-x-1">
         {allAvatars.slice(0, 3).map((person) => (
           <ProfileHoverCard
@@ -95,21 +101,18 @@ function SharedContributorLine({
             onOpenProfile={onOpenProfile}
           >
             <SafeAvatar
+              id={person.id}
               src={person.logoUrl}
               name={person.name}
               username={person.username}
               size={16}
-              shape={person.isMedia ? 'squircle' : 'circle'}
               type={person.isMedia ? 'MEDIA' : 'PERSONAL'}
-              className={cn(
-                'border border-border/80 shrink-0',
-                person.isMedia ? 'rounded-[4px]' : 'rounded-full'
-              )}
+              className="shrink-0 border border-border/70"
             />
           </ProfileHoverCard>
         ))}
       </span>
-      <span className="truncate flex items-center gap-1 flex-wrap">
+      <span className="flex flex-wrap items-center gap-1 truncate">
         {forMedia ? (
           <>
             <span>{t`Pour`}</span>
@@ -127,10 +130,12 @@ function SharedContributorLine({
             >
               <span
                 onClick={(e) => {
+                  if (!onOpenProfile) return;
+                  e.preventDefault();
                   e.stopPropagation();
-                  onOpenProfile?.(forMedia.username || forMedia.id);
+                  onOpenProfile(forMedia.username || forMedia.id);
                 }}
-                className="font-semibold text-foreground/90 hover:underline cursor-pointer"
+                className="cursor-pointer font-semibold text-foreground/90 transition-colors hover:text-brand"
               >
                 {forMedia.name || `@${forMedia.username || 'média'}`}
               </span>
@@ -157,10 +162,12 @@ function SharedContributorLine({
                       >
                         <span
                           onClick={(e) => {
+                            if (!onOpenProfile) return;
+                            e.preventDefault();
                             e.stopPropagation();
-                            onOpenProfile?.(pHandle);
+                            onOpenProfile(pHandle);
                           }}
-                          className="font-medium text-foreground/80 hover:underline cursor-pointer"
+                          className="cursor-pointer font-medium text-foreground/80 transition-colors hover:text-brand"
                         >
                           {person.name || `@${pHandle}`}
                         </span>
@@ -193,12 +200,14 @@ function SharedContributorLine({
                   >
                     <span
                       onClick={(e) => {
+                        if (!onOpenProfile) return;
+                        e.preventDefault();
                         e.stopPropagation();
-                        onOpenProfile?.(pHandle);
+                        onOpenProfile(pHandle);
                       }}
-                      className="font-medium text-foreground/80 hover:underline cursor-pointer"
+                      className="cursor-pointer font-medium text-foreground/80 transition-colors hover:text-brand"
                     >
-                      {person.handleOnly ? `@${pHandle}` : `${person.name || 'Auteur'} @${pHandle}`}
+                      {person.handleOnly ? `@${pHandle}` : `${person.name || t`Auteur`}`}
                     </span>
                   </ProfileHoverCard>
                 </React.Fragment>
@@ -218,20 +227,24 @@ export function ArticleCard({
   disableAuthorOverride = false,
   isBookmarked = false,
   handleBookmarkToggle,
+  onLikeToggle,
+  onRepostToggle,
   featured = false,
   isPreview = false,
   onOpenArticle,
   onOpenProfile,
   onOpenPost,
+  className,
 }: ArticleCardProps) {
   const { withAuth } = useRequireAuth();
   const [bookmarked, setBookmarked] = useState(isBookmarked);
   const [liked, setLiked] = useState(article.liked || false);
   const [likesCount, setLikesCount] = useState(article.likesCount || 0);
-  const [reposted, setReposted] = useState(false);
-  const [repostsCount, setRepostsCount] = useState(0);
+  const [reposted, setReposted] = useState(article.reposted || false);
+  const [repostsCount, setRepostsCount] = useState(article.repostsCount || 0);
 
-  const isThought = !article.title;
+  if (!article.title) return null;
+
   const authorHandle = article.author.username || article.author.subdomain || 'qoefi';
   const explicitContributors = (article.author.contributors || [])
     .filter(
@@ -253,11 +266,12 @@ export function ArticleCard({
     ...explicitContributors.filter((contributor) => contributor.id !== journalist?.id),
     ...legacyCoAuthors.filter((contributor) => !explicitContributorIds.has(contributor.id)),
   ];
+
   const isMedia = article.author.type === 'MEDIA';
   const useAuthorAsPrimary =
     !disableAuthorOverride && isMedia && Boolean(journalist?.id && isFollowedAuthor);
   const primaryPerson = useAuthorAsPrimary ? journalist : null;
-  const primaryName = primaryPerson?.name || article.author?.name || 'Auteur';
+  const primaryName = primaryPerson?.name || article.author?.name || t`Auteur`;
   const primaryHandle = primaryPerson?.username || primaryPerson?.id?.slice(0, 8) || authorHandle;
   const primaryAuthor = primaryPerson
     ? {
@@ -268,6 +282,7 @@ export function ArticleCard({
         customDomain: null,
       }
     : article.author;
+
   const mediaContributor: SharedContributor = {
     id: article.author.id,
     name: article.author.name,
@@ -287,25 +302,37 @@ export function ArticleCard({
           ]
         : otherContributors.map((coAuthor) => ({ ...coAuthor, isMedia: false }))
       : otherContributors.map((coAuthor) => ({ ...coAuthor, isMedia: false }));
-  const coverImage =
-    article.imageUrl || (useAuthorAsPrimary ? journalist?.logoUrl : article.author.logoUrl);
+
+  // Règle éditoriale : seule une vraie image de couverture est affichée.
+  // On n'étire jamais l'avatar de l'auteur en 16/9, et on ne rend pas de
+  // rectangle vide quand l'article est purement textuel.
+  const coverImage = article.imageUrl?.trim() ? article.imageUrl : null;
+
   const excerpt = article.content
     ? article.content
-        .replace(/<[^>]*>?/gm, '')
+        .replace(/<[^>]*>?/gm, ' ')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/&amp;/gi, '&')
         .replace(/\s+/g, ' ')
         .trim()
     : '';
-  const date = new Date(article.createdAt).toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+
+  const parsedDate = new Date(article.createdAt);
+  const date = Number.isNaN(parsedDate.getTime())
+    ? ''
+    : parsedDate.toLocaleDateString('fr-FR', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      });
   const url = getArticleUrl(article, { preferTenant: true });
+  const repliesCount = article.repliesCount || 0;
 
   const openProfile = (event: React.MouseEvent) => {
+    if (!onOpenProfile) return;
     event.preventDefault();
     event.stopPropagation();
-    onOpenProfile?.(primaryHandle);
+    onOpenProfile(primaryHandle);
   };
 
   const openArticle = (event: React.MouseEvent) => {
@@ -313,8 +340,8 @@ export function ArticleCard({
       event.preventDefault();
       event.stopPropagation();
       onOpenArticle(article);
-    } else {
-      window.location.href = url;
+    } else if (typeof window !== 'undefined') {
+      window.location.assign(url);
     }
   };
 
@@ -331,6 +358,7 @@ export function ArticleCard({
       event.stopPropagation();
       setLiked((value) => !value);
       setLikesCount((value) => (liked ? Math.max(0, value - 1) : value + 1));
+      onLikeToggle?.(article, event);
     },
     { actionContext: 'like' }
   );
@@ -341,177 +369,212 @@ export function ArticleCard({
       event.stopPropagation();
       setReposted((value) => !value);
       setRepostsCount((value) => (reposted ? Math.max(0, value - 1) : value + 1));
+      onRepostToggle?.(article, event);
     },
     { actionContext: 'repost' }
   );
 
-  if (isThought) return null;
-
   return (
     <article
+      data-article-card={article.id}
+      data-featured={featured ? 'true' : undefined}
       className={cn(
-        'group relative overflow-hidden bg-card shadow-none transition-colors border border-border/30 hover:border-border/60',
-        'rounded-[24px] p-2.5 sm:p-3 flex flex-col',
-        featured && 'rounded-[28px]'
+        'group/article relative flex flex-col rounded-panel border border-border/50 bg-card p-4 transition-colors duration-200 hover:border-border sm:p-5',
+        featured && 'border-border/70 sm:p-6',
+        className
       )}
     >
-      {/* 1. COVER IMAGE AVEC CAPSULE AUTEUR FLOTTANTE */}
-      <div
-        className={cn(
-          'relative overflow-hidden rounded-[17px] bg-muted',
-          featured ? 'h-[250px]' : 'h-[205px]'
+      {/* 1. EN-TÊTE UNIFIÉ : auteur / média, date et statut payant */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <ProfileHoverCard user={primaryAuthor} onOpenProfile={onOpenProfile}>
+            <SafeAvatar
+              id={primaryAuthor.id}
+              src={primaryAuthor.logoUrl}
+              name={primaryName}
+              username={primaryHandle}
+              type={primaryAuthor.type}
+              size={36}
+              className="shrink-0 border border-border/40"
+            />
+          </ProfileHoverCard>
+
+          <div className="min-w-0 leading-tight">
+            <div className="flex max-w-full items-center gap-1.5">
+              <ProfileHoverCard user={primaryAuthor} onOpenProfile={onOpenProfile}>
+                <span
+                  onClick={openProfile}
+                  className={cn(
+                    'truncate text-sm font-semibold tracking-tight text-foreground transition-colors hover:text-brand',
+                    onOpenProfile && 'cursor-pointer'
+                  )}
+                >
+                  {primaryName}
+                </span>
+              </ProfileHoverCard>
+              {(primaryPerson?.isCertified || article.author.isCertified) && <CertifiedBadge />}
+              {date && (
+                <span className="shrink-0 type-control-xs text-muted-foreground">· {date}</span>
+              )}
+            </div>
+            <SharedContributorLine
+              people={secondaryPeople}
+              forMedia={useAuthorAsPrimary ? mediaContributor : null}
+              onOpenProfile={onOpenProfile}
+            />
+          </div>
+        </div>
+
+        {article.isPremium && (
+          <Badge tone="vivid" variant="outline" size="xs">
+            {t`Payant`}
+          </Badge>
         )}
-      >
-        {coverImage ? (
+      </div>
+
+      {/* 2. COUVERTURE OPTIONNELLE — absente si l'article n'a pas d'image */}
+      {coverImage && (
+        <div
+          data-article-cover
+          onClick={openArticle}
+          className={cn(
+            'relative mt-3.5 cursor-pointer overflow-hidden rounded-lg border border-border/30 bg-muted/30',
+            featured ? 'aspect-video' : 'aspect-[2/1]'
+          )}
+        >
           <SafeImage
             src={coverImage}
             alt={article.title || ''}
             fill
             priority={featured}
-            className="object-cover"
+            className="object-cover transition-transform duration-300 group-hover/article:scale-[1.01]"
             sizes="(max-width: 768px) 100vw, 720px"
           />
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-muted-foreground/35 via-muted to-background" />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/25 pointer-events-none" />
-
-        {/* Capsule flottante en verre dépoli (Auteur, Profil, Follow/Action) */}
-        <div className="absolute inset-x-3 top-3 flex items-center justify-between gap-3 rounded-[14px] bg-white/90 px-2.5 py-2 text-black shadow-none backdrop-blur-md dark:bg-black/75 dark:text-white">
-          <div className="flex min-w-0 items-center gap-2.5 text-left">
-            <ProfileHoverCard user={primaryAuthor} onOpenProfile={onOpenProfile}>
-              <ProfileMark author={primaryAuthor} size={40} />
-            </ProfileHoverCard>
-            <div className="min-w-0 leading-tight">
-              <div className="flex max-w-full items-center gap-1.5 text-left">
-                <ProfileHoverCard user={primaryAuthor} onOpenProfile={onOpenProfile}>
-                  <span
-                    onClick={openProfile}
-                    className="truncate text-[15px] font-semibold tracking-[-0.02em] hover:underline cursor-pointer text-foreground dark:text-white"
-                  >
-                    {primaryName}
-                  </span>
-                </ProfileHoverCard>
-                {(primaryPerson?.isCertified || article.author.isCertified) && <CertifiedBadge />}
-                <span className="text-[11px] font-normal text-muted-foreground dark:text-white/60">
-                  · {date}
-                </span>
-              </div>
-              <SharedContributorLine
-                people={secondaryPeople}
-                forMedia={useAuthorAsPrimary ? mediaContributor : null}
-                onOpenProfile={onOpenProfile}
-              />
-            </div>
-          </div>
-
-          {!isPreview && (
-            <button
-              type="button"
-              onClick={openProfile}
-              className="shrink-0 px-3 py-1 rounded-full bg-muted/80 hover:bg-muted text-foreground dark:bg-white/20 dark:hover:bg-white/30 dark:text-white text-[11px] font-semibold transition-colors cursor-pointer"
-            >
-              {t`Profil`}
-            </button>
-          )}
         </div>
-      </div>
+      )}
 
-      {/* 2. TITRE & EXTRAIT SOUS L'IMAGE */}
+      {/* 3. TITRE & EXTRAIT */}
       <a
         href={url}
-        target="_blank"
-        rel="noreferrer"
+        target={onOpenArticle ? undefined : '_blank'}
+        rel={onOpenArticle ? undefined : 'noreferrer'}
         onClick={openArticle}
-        className="block px-1.5 pb-1 pt-3 cursor-pointer group/title select-none"
+        className="group/title mt-3.5 block cursor-pointer select-none"
       >
-        <h2 className="line-clamp-2 text-[21px] font-semibold leading-[1.12] tracking-[-0.03em] text-foreground group-hover/title:text-primary transition-colors">
+        <h2
+          className={cn(
+            'line-clamp-2 font-semibold leading-snug tracking-tight text-foreground transition-colors group-hover/title:text-brand',
+            featured ? 'text-xl sm:text-[22px]' : 'text-lg sm:text-[19px]'
+          )}
+        >
           {article.title}
         </h2>
         {excerpt && (
-          <p className="mt-1.5 line-clamp-2 text-[13.5px] leading-relaxed text-muted-foreground">
+          <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
             {excerpt}
           </p>
         )}
       </a>
 
-      {/* 3. FOOTER D'ACTIONS & LECTURE */}
-      <div className="flex items-center justify-between gap-3 border-t border-border/30 px-1.5 pt-2.5 text-xs text-muted-foreground mt-auto">
-        <div className="flex min-w-0 items-center gap-2.5">
+      {/* 4. PIED DE CARTE : métadonnées de lecture & actions du contrat */}
+      <div className="mt-4 flex items-center justify-between gap-3 border-t border-border/30 pt-3 type-control-xs text-muted-foreground">
+        <div className="flex min-w-0 items-center gap-2">
           {article.category && (
-            <span className="truncate text-foreground/80">{article.category.name}</span>
+            <Badge variant="soft" tone="neutral" size="xs" className="max-w-36 truncate">
+              {article.category.name}
+            </Badge>
           )}
-          {article.category && article.readingTime > 0 && <span>·</span>}
           {article.readingTime > 0 && (
             <span className="flex items-center gap-1 whitespace-nowrap">
-              <Clock className="h-3.5 w-3.5" />
-              {article.readingTime} {t`min de lecture`}
+              <Clock className="size-3.5" strokeWidth={1.75} aria-hidden />
+              {article.readingTime} {t`min`}
             </span>
           )}
-          {article.isPremium && <Crown className="h-3.5 w-3.5 text-highlight" />}
         </div>
 
-        <div className="flex shrink-0 items-center gap-1">
+        <div className="flex shrink-0 items-center gap-0.5">
           {!isPreview && (
             <>
-              <button
-                type="button"
-                onClick={toggleLike}
-                className={cn(
-                  'flex items-center gap-1 rounded-full p-1.5 hover:bg-muted transition-colors cursor-pointer',
-                  liked && 'text-primary'
-                )}
-                title={t`Aimer`}
-              >
-                <Heart className={cn('h-4 w-4', liked && 'fill-current')} />
-                {likesCount > 0 && <span>{likesCount}</span>}
-              </button>
-              <button
-                type="button"
-                onClick={toggleRepost}
-                className={cn(
-                  'flex items-center gap-1 rounded-full p-1.5 hover:bg-muted transition-colors cursor-pointer',
-                  reposted && 'text-success-text'
-                )}
-                title={t`Reposter`}
-              >
-                <Repeat className="h-4 w-4" />
-                {repostsCount > 0 && <span>{repostsCount}</span>}
-              </button>
-              <button
-                type="button"
-                onClick={() => onOpenPost?.(article.id)}
-                className="rounded-full p-1.5 hover:bg-muted transition-colors cursor-pointer"
-                title={t`Commenter`}
-              >
-                <MessageSquare className="h-4 w-4" />
-              </button>
+              <Tooltip content={t`Aimer`}>
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  shape={likesCount > 0 ? 'default' : 'icon'}
+                  tone={liked ? 'brand' : 'neutral'}
+                  onClick={toggleLike}
+                  aria-label={t`Aimer`}
+                  aria-pressed={liked}
+                >
+                  <Heart className={cn(liked && 'fill-current')} strokeWidth={1.75} />
+                  {likesCount > 0 && <span className="tabular-nums">{likesCount}</span>}
+                </Button>
+              </Tooltip>
+
+              <Tooltip content={t`Repartager`}>
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  shape={repostsCount > 0 ? 'default' : 'icon'}
+                  tone={reposted ? 'success' : 'neutral'}
+                  onClick={toggleRepost}
+                  aria-label={t`Repartager`}
+                  aria-pressed={reposted}
+                >
+                  <Repeat strokeWidth={1.75} />
+                  {repostsCount > 0 && <span className="tabular-nums">{repostsCount}</span>}
+                </Button>
+              </Tooltip>
+
+              <Tooltip content={t`Commenter`}>
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  shape={repliesCount > 0 ? 'default' : 'icon'}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onOpenPost?.(article.id);
+                  }}
+                  aria-label={t`Commenter`}
+                >
+                  <MessageSquare strokeWidth={1.75} />
+                  {repliesCount > 0 && <span className="tabular-nums">{repliesCount}</span>}
+                </Button>
+              </Tooltip>
             </>
           )}
+
           {handleBookmarkToggle && (
-            <button
-              type="button"
-              onClick={toggleBookmark}
-              className="rounded-full p-1.5 hover:bg-muted transition-colors cursor-pointer"
-              title={t`Mettre en signet`}
-            >
-              {bookmarked ? (
-                <BookMarked className="h-4 w-4 fill-current text-primary" />
-              ) : (
-                <Bookmark className="h-4 w-4" />
-              )}
-            </button>
+            <Tooltip content={t`Mettre en signet`}>
+              <Button
+                variant="ghost"
+                size="xs"
+                shape="icon"
+                tone={bookmarked ? 'brand' : 'neutral'}
+                onClick={toggleBookmark}
+                aria-label={t`Mettre en signet`}
+                aria-pressed={bookmarked}
+              >
+                {bookmarked ? (
+                  <BookMarked className="fill-current" strokeWidth={1.75} />
+                ) : (
+                  <Bookmark strokeWidth={1.75} />
+                )}
+              </Button>
+            </Tooltip>
           )}
-          <a
-            href={url}
-            target="_blank"
-            rel="noreferrer"
-            onClick={openArticle}
-            className="rounded-full p-1.5 hover:bg-muted transition-colors cursor-pointer"
-            title={t`Lire l'article`}
-          >
-            <ArrowUpRight className="h-4 w-4" />
-          </a>
+
+          <Tooltip content={t`Lire l'article`}>
+            <Button
+              variant="ghost"
+              size="xs"
+              shape="icon"
+              onClick={openArticle}
+              aria-label={t`Lire l'article`}
+            >
+              <ArrowUpRight strokeWidth={1.75} />
+            </Button>
+          </Tooltip>
         </div>
       </div>
     </article>

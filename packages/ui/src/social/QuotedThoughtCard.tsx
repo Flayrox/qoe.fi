@@ -28,6 +28,7 @@ export interface QuotedThoughtData {
   id: string;
   content: string;
   imageUrl?: string | null;
+  attachments?: Array<{ id?: string; url: string; type?: string; altText?: string | null }> | null;
   createdAt?: string | Date;
   author: {
     id: string;
@@ -45,6 +46,29 @@ export interface QuotedThoughtData {
   /** Annotation citée par ce maillon. */
   annotationQuote?: AnnotationCitation | null;
   quotedExcerpt?: string | null;
+}
+
+function getQuotedImages(
+  imageUrl?: string | null,
+  attachments?: QuotedThoughtData['attachments']
+): Array<{ url: string; altText: string }> {
+  if (attachments && attachments.length > 0) {
+    return attachments
+      .filter((item) => Boolean(item?.url))
+      .map((item) => ({ url: item.url, altText: item.altText ?? '' }));
+  }
+  if (!imageUrl) return [];
+  if (imageUrl.startsWith('[')) {
+    try {
+      const parsed: unknown = JSON.parse(imageUrl);
+      if (Array.isArray(parsed)) {
+        return parsed.filter(Boolean).map((url) => ({ url: String(url), altText: '' }));
+      }
+    } catch {
+      return [{ url: imageUrl, altText: '' }];
+    }
+  }
+  return [{ url: imageUrl, altText: '' }];
 }
 
 export interface QuotedThoughtCardProps {
@@ -81,10 +105,11 @@ export function QuotedThoughtCard({
   const innerThought = post.repost ?? null;
   const article = post.articleQuote ?? null;
   const citation = post.annotationQuote ?? null;
+  const images = getQuotedImages(post.imageUrl, post.attachments);
   // Un maillon sans texte, sans image et sans rien à citer ne doit pas
   // produire une boîte vide : c'est exactement le cas d'une pensée
   // supprimée entre deux chargements.
-  const isMissing = !content && !post.imageUrl && !article && !citation && !innerThought;
+  const isMissing = !content && images.length === 0 && !article && !citation && !innerThought;
 
   const open = (event: { preventDefault(): void; stopPropagation(): void }) => {
     event.preventDefault();
@@ -178,14 +203,39 @@ export function QuotedThoughtCard({
         </div>
       )}
 
-      {post.imageUrl && (
+      {images.length === 1 && (
         <div
+          data-quoted-media
           className={cn(
-            'mt-1 aspect-video overflow-hidden rounded-lg border border-border/30',
-            nested ? 'max-h-32' : 'max-h-48'
+            'mt-1.5 aspect-video overflow-hidden rounded-lg border border-border/30 bg-muted/30',
+            nested ? 'max-h-28' : 'max-h-48'
           )}
         >
-          <img src={post.imageUrl} alt="" className="h-full w-full object-cover" />
+          <img src={images[0].url} alt={images[0].altText} className="h-full w-full object-cover" />
+        </div>
+      )}
+
+      {images.length > 1 && (
+        <div
+          data-quoted-media
+          className={cn(
+            'mt-1.5 grid grid-cols-2 gap-1 overflow-hidden rounded-lg',
+            nested ? 'max-h-28' : 'max-h-48'
+          )}
+        >
+          {images.slice(0, 4).map((img, idx) => (
+            <div
+              key={`${img.url}-${idx}`}
+              className="relative aspect-video overflow-hidden rounded-md border border-border/30 bg-muted/30"
+            >
+              <img src={img.url} alt={img.altText} className="h-full w-full object-cover" />
+              {idx === 3 && images.length > 4 && (
+                <span className="absolute inset-0 flex items-center justify-center bg-foreground/65 font-mono type-control-xs font-semibold text-background">
+                  +{images.length - 4}
+                </span>
+              )}
+            </div>
+          ))}
         </div>
       )}
 

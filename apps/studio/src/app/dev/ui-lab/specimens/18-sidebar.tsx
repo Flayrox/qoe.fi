@@ -29,6 +29,8 @@ import {
   User,
   Users,
 } from 'lucide-react';
+import { Badge } from '@qoe/ui/badge';
+import { Button } from '@qoe/ui/button';
 import { Sidebar, type SidebarItemData } from '@qoe/ui/sidebar';
 import {
   DropdownMenu,
@@ -92,14 +94,10 @@ export function SidebarSpecimen() {
             className="max-w-[260px]"
           />
 
-          <button
-            type="button"
-            onClick={() => setActiveUrl('#articles')}
-            className="inline-flex h-control-sm items-center gap-1.5 rounded-full border border-border/60 bg-card px-3 type-control-xs font-medium text-foreground transition-colors hover:bg-muted"
-          >
-            <Plus className="size-3.5" />
+          <Button variant="outline" size="sm" onClick={() => setActiveUrl('#articles')}>
+            <Plus />
             Nouvel article
-          </button>
+          </Button>
         </div>
 
         <div className="flex min-h-[600px]">
@@ -150,18 +148,21 @@ export function SidebarSpecimen() {
                       {draft.meta}
                     </p>
                   </div>
-                  <span
-                    className={cn(
-                      'shrink-0 rounded-full border px-2 py-0.5 type-control-xs',
+                  <Badge
+                    variant="outline"
+                    shape="pill"
+                    size="sm"
+                    dot
+                    tone={
                       draft.state === 'Publié'
-                        ? 'border-success/30 bg-success/10 text-success-text'
+                        ? 'success'
                         : draft.state === 'En revue'
-                          ? 'border-primary/30 bg-primary/10 text-primary'
-                          : 'border-border/60 bg-muted text-muted-foreground'
-                    )}
+                          ? 'brand'
+                          : 'neutral'
+                    }
                   >
                     {draft.state}
-                  </span>
+                  </Badge>
                 </li>
               ))}
             </ul>
