@@ -72,6 +72,7 @@ export function AnnotationFlowSpecimen() {
   const [publicAnnotations, setPublicAnnotations] = useState<AnnotationItem[]>(
     INITIAL_PUBLIC_ANNOTATIONS
   );
+  const [filterMode, setFilterMode] = useState<AnnotationFilterMode>('all');
   // Remonter le moteur est plus honnête qu'un « reset » partiel : l'état
   // interne (sélection, tiroir, filtre) repart vraiment de zéro.
   const [generation, setGeneration] = useState(0);
@@ -232,6 +233,7 @@ export function AnnotationFlowSpecimen() {
   const restart = useCallback(() => {
     setReaderHighlights(INITIAL_READER_HIGHLIGHTS());
     setPublicAnnotations(INITIAL_PUBLIC_ANNOTATIONS());
+    setFilterMode('all');
     setJournal([]);
     setPublishedCitations([]);
     setGeneration((prev) => prev + 1);
@@ -284,10 +286,17 @@ export function AnnotationFlowSpecimen() {
                 </span>
               ))}
             </div>
-            <Button size="sm" variant="ghost" onClick={restart}>
-              <RotateCcw className="size-3.5" strokeWidth={1.75} />
-              Recommencer
-            </Button>
+            <div className="flex items-center gap-2">
+              <ReadingSettingsSheet
+                filterMode={filterMode}
+                onFilterModeChange={setFilterMode}
+                allowPublicAnnotations
+              />
+              <Button size="sm" variant="ghost" onClick={restart}>
+                <RotateCcw className="size-3.5" strokeWidth={1.75} />
+                Recommencer
+              </Button>
+            </div>
           </div>
 
           <div className="rounded-panel border border-border/40 bg-card px-5 py-6 sm:px-7">
@@ -296,6 +305,8 @@ export function AnnotationFlowSpecimen() {
               articleId="lab-article"
               creatorName="Fay Moreau"
               allowPublicAnnotations
+              filterMode={filterMode}
+              onFilterModeChange={setFilterMode}
               isAuthenticated
               initialHighlights={readerHighlights}
               publicHighlights={publicAnnotations}
