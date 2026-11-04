@@ -41,9 +41,9 @@ import { SelectionToolbar } from './SelectionToolbar';
 import { EditorToolbar } from './EditorToolbar';
 import { EditorSettingsDrawer } from './EditorSettingsDrawer';
 import { CoverUploader } from './CoverUploader';
-import { AnnotationPopover } from './AnnotationPopover';
-import { LinkPopover } from './LinkPopover';
-import { ImageDetailsPopover, type ImageDetails } from './ImageDetailsPopover';
+import { AnnotationNotePanel } from './AnnotationNotePanel';
+import { LinkEditorPanel } from './LinkEditorPanel';
+import { ImageDetailsPanel, type ImageDetails } from './ImageDetailsPanel';
 import { PublishModal, type PublishOptions } from './PublishModal';
 import { ArticleDiffModal } from './ArticleDiffModal';
 import { ArticleHistoryModal } from './ArticleHistoryModal';
@@ -1544,7 +1544,7 @@ export function Editor({
         </div>
       )}
 
-      <AnnotationPopover
+      <AnnotationNotePanel
         open={showAuthorAnnotationModal}
         position={popoverPosition}
         quote={selectedQuoteForAnnotation}
@@ -1556,7 +1556,7 @@ export function Editor({
         canDelete={Boolean(editor?.isActive('annotationMark'))}
       />
 
-      <LinkPopover
+      <LinkEditorPanel
         open={Boolean(linkPopover)}
         position={linkPopover}
         value={linkUrl}
@@ -1568,7 +1568,7 @@ export function Editor({
         error={linkError}
       />
 
-      <ImageDetailsPopover
+      <ImageDetailsPanel
         open={Boolean(imageDetailsPosition)}
         position={imageDetailsPosition}
         value={imageDetails}
