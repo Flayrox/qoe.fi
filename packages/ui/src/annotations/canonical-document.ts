@@ -136,3 +136,36 @@ export function styleSegments(
   }
   return out;
 }
+
+/**
+ * Recherche l'occurrence n° `ordinal` (0-based) de `target` dans `docText`.
+ * Repli sur la première occurrence si l'occurrence demandée n'est pas atteinte.
+ * Retourne les offsets globaux [start, end) en code points, ou null si introuvable.
+ */
+export function findInDocText(
+  docText: string,
+  target: string,
+  ordinal: number = 0
+): { start: number; end: number } | null {
+  if (!docText || !target) return null;
+  const trimmed = target.trim();
+  if (!trimmed) return null;
+  let from = 0;
+  let found = -1;
+  let count = 0;
+  while (true) {
+    const idx = docText.indexOf(trimmed, from);
+    if (idx === -1) break;
+    if (count === ordinal) {
+      found = idx;
+      break;
+    }
+    count++;
+    from = idx + 1;
+  }
+  if (found === -1 && count > 0) {
+    found = docText.indexOf(trimmed);
+  }
+  if (found === -1) return null;
+  return { start: found, end: found + trimmed.length };
+}

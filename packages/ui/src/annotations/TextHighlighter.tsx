@@ -21,7 +21,7 @@ import { TextSelectionPopover } from './TextSelectionPopover';
 import { AnnotationSideDrawer } from './AnnotationSideDrawer';
 import { CanonicalArticleBody } from './CanonicalArticleBody';
 import { AnnotationFilterPill } from './AnnotationFilterPill';
-import type { CanonicalDocument } from './canonical-document';
+import { findInDocText, type CanonicalDocument } from './canonical-document';
 import { findQuoteOccurrence } from './quote-anchor';
 import { toast } from '@qoe/ui/toast';
 import { Button } from '../primitives/button/button';
@@ -805,13 +805,29 @@ export function TextHighlighter({
 
       if (res?.ok && res.data) {
         const createdData = res.data as { id: string; reader?: AnnotationReader | null };
+        const rawHl = res.data as HighlightItem;
+        let canonicalStart = rawHl.canonicalStart;
+        let canonicalEnd = rawHl.canonicalEnd;
+        let contentSha = rawHl.contentSha;
+        if (typeof canonicalStart !== 'number' && documentRef?.text) {
+          const match = findInDocText(documentRef.text, selectedText, quoteOrdinal);
+          if (match) {
+            canonicalStart = match.start;
+            canonicalEnd = match.end;
+            contentSha = documentRef.sha;
+          }
+        }
+
         // Le parent peut avoir déjà ajouté le surlignage (mode document
         // canonique) : on ajoute par identité, jamais en double. Le profil
         // par défaut complète la réponse serveur (elle ne porte pas le type
         // de compte, donc un média perdait son carré arrondi à la création).
         setHighlights((prev) =>
           appendAnnotation(prev, {
-            ...(res.data as HighlightItem),
+            ...rawHl,
+            canonicalStart,
+            canonicalEnd,
+            contentSha,
             quoteOrdinal,
             reader: { ...defaultReader, ...(createdData.reader ?? {}) },
           })
@@ -842,9 +858,14 @@ export function TextHighlighter({
           clearForm();
           window.getSelection()?.removeAllRanges();
         }, 600);
+      } else {
+        const errorMsg =
+          (res as { error?: string })?.error || t`Impossible d'enregistrer le surlignage.`;
+        toast.error(errorMsg);
       }
     } catch (e) {
       console.error(e);
+      toast.error(t`Une erreur est survenue lors du surlignage.`);
     } finally {
       setHighlighting(false);
     }
@@ -919,8 +940,20 @@ export function TextHighlighter({
           clearForm();
           window.getSelection()?.removeAllRanges();
         }, 800);
-      } else if (res && !res.ok && res.error?.code === 'PUBLIC_ANNOTATIONS_DISABLED') {
-        setErrorMessage(t`Le créateur a désactivé les annotations publiques sur cet écrit.`);
+      } else if (res && !res.ok) {
+        const errObj = res as { error?: { code?: string; message?: string } | string };
+        const errCode = typeof errObj.error === 'object' ? errObj.error?.code : undefined;
+        if (errCode === 'PUBLIC_ANNOTATIONS_DISABLED') {
+          setErrorMessage(t`Le créateur a désactivé les annotations publiques sur cet écrit.`);
+        } else {
+          const msg =
+            typeof errObj.error === 'object'
+              ? errObj.error?.message
+              : typeof errObj.error === 'string'
+                ? errObj.error
+                : t`Impossible d'enregistrer l'annotation.`;
+          setErrorMessage(msg || t`Impossible d'enregistrer l'annotation.`);
+        }
       }
     } catch (e) {
       console.error(e);

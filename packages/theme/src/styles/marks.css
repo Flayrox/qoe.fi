@@ -54,6 +54,8 @@
   -webkit-box-decoration-break: clone;
   box-decoration-break: clone;
   transition: background-color 150ms ease-out;
+  padding: 0.05em 0.15em;
+  border-radius: 0.2rem;
 }
 
 /* Le survol éclaircit la teinte, jamais le trait ni le texte. */
@@ -93,13 +95,12 @@
   --qoe-mark-stroke: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 8' preserveAspectRatio='none'%3E%3Cpath d='M2 6C20 4.2 40 6 58 5.4S96 6.2 118 4.6' fill='none' stroke='%234f7cff' stroke-width='1.9' stroke-linecap='round' stroke-dasharray='3.5 3'/%3E%3C/svg%3E");
 }
 
-/* Surlignage seul — aucun fond, un trait pointillé neutre. C'est l'état
-   antérieur à l'annotation : le passage a été marqué, pas encore commenté.
-   Le survol donne un fond discret pour montrer qu'il est cliquable. */
+/* Surlignage seul — un fond surligneur chaleureux et visible + trait fin.
+   Le passage est nettement marqué par le lecteur sans altérer la typographie. */
 .qoe-mark-highlight {
-  --qoe-mark-tint: transparent;
-  --qoe-mark-tint-hover: color-mix(in oklch, var(--annotation-highlight) 20%, transparent);
-  --qoe-mark-stroke: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 8' preserveAspectRatio='none'%3E%3Cpath d='M2 6C20 4.2 40 6 58 5.4S96 6.2 118 4.6' fill='none' stroke='%2371717a' stroke-width='1.7' stroke-linecap='round' stroke-dasharray='1.2 3.8'/%3E%3C/svg%3E");
+  --qoe-mark-tint: color-mix(in oklch, var(--annotation-highlight) 24%, transparent);
+  --qoe-mark-tint-hover: color-mix(in oklch, var(--annotation-highlight) 38%, transparent);
+  --qoe-mark-stroke: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 8' preserveAspectRatio='none'%3E%3Cpath d='M2 6C20 4.2 40 6 58 5.4S96 6.2 118 4.6' fill='none' stroke='%23d97706' stroke-width='1.5' stroke-linecap='round' stroke-dasharray='2 3'/%3E%3C/svg%3E");
 }
 
 /* La marque temporaire sous le curseur pendant la saisie de la note. */
