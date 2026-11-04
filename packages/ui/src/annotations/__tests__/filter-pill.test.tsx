@@ -38,5 +38,6 @@ describe('AnnotationFilterPill', () => {
     );
 
     expect(screen.queryByRole('radio', { name: /toutes/i })).toBeNull();
+    expect(screen.getByRole('radio', { name: /mes notes/i })).toBeTruthy();
   });
 });

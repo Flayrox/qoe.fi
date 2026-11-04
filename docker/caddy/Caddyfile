@@ -549,6 +549,29 @@ mail.admin.qoe.fi {
     }
 }
 
+# UI Uptime Kuma (observabilité & monitoring) — tailnet-only
+status.admin.qoe.fi {
+    import tailnet_guard
+    encode zstd gzip
+
+    handle @tailnet {
+        reverse_proxy uptime-kuma:3001 {
+            transport http {
+                dial_timeout 15s
+            }
+        }
+    }
+    handle {
+        # Hors tailnet : connexion FERMÉE (plus de 404 « Not found » révélateur).
+        abort
+    }
+
+    log {
+        output stdout
+        format console
+    }
+}
+
 # ───────────────────────────────────────────────────────────────────
 # ✅ AUTORISATION « ask » pour l'On-Demand TLS (tenants *.qoe.fi)
 # ───────────────────────────────────────────────────────────────────

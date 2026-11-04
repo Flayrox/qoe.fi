@@ -276,9 +276,8 @@ export function TextHighlighter({
         'qoe_annotation_filter_mode'
       ) as AnnotationFilterMode | null;
       if (savedMode && ['all', 'official', 'none'].includes(savedMode)) {
-        const nextMode = !allowPublicAnnotations && savedMode === 'all' ? 'official' : savedMode;
-        setInternalFilterMode(nextMode);
-        onFilterModeChange?.(nextMode);
+        setInternalFilterMode(savedMode);
+        onFilterModeChange?.(savedMode);
       }
     } catch {
       // Ignore localStorage access restrictions
@@ -1001,16 +1000,22 @@ export function TextHighlighter({
     <>
       {/* 🌍 UNIVERSAL TENANT ANNOTATION READER FILTER BAR */}
       {!hideFilterBar && (
-        <div className="my-4 flex items-center justify-between border-b border-border/20 pb-3">
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-            <Eye className="w-3.5 h-3.5 text-muted-foreground" />
-            <span>{t`Affichage des annotations :`}</span>
+        <div className="my-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/40 bg-muted/20 px-4 py-2.5 backdrop-blur-xs transition-colors hover:border-border/60">
+          <div className="flex items-center gap-2 text-xs font-medium text-foreground">
+            <div className="flex size-6 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Eye className="size-3.5" />
+            </div>
+            <span className="font-semibold tracking-tight">{t`Annotations`}</span>
+            <span className="hidden text-xs text-muted-foreground sm:inline">
+              {t`— densité des marques affichées`}
+            </span>
           </div>
 
           <AnnotationFilterPill
             filterMode={filterMode}
             onChangeFilterMode={changeFilterMode}
             allowPublicAnnotations={allowPublicAnnotations}
+            size="sm"
           />
         </div>
       )}

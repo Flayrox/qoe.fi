@@ -26,7 +26,10 @@ import {
   deleteHighlightAction,
   citeAnnotationAction,
 } from '@qoe/sdk';
-import { toggleFollowCreatorHomeAction } from '@qoe/sdk/actions/feed';
+import {
+  toggleBookmarkArticleHomeAction,
+  toggleFollowCreatorHomeAction,
+} from '@qoe/sdk/actions/feed';
 import { SimilarArticlesSection } from './SimilarArticlesSection';
 import { ArticleSummary } from './ArticleSummary';
 import { useArticleReadingTracker } from '@qoe/analytics';
@@ -57,6 +60,8 @@ export interface ArticleAnnotatorViewProps {
     createdAt: string | Date;
     isPremium?: boolean;
     accessGranted?: boolean;
+    isBookmarked?: boolean;
+    isFollowed?: boolean;
     author: {
       id: string;
       name?: string | null;
@@ -68,6 +73,7 @@ export interface ArticleAnnotatorViewProps {
       isCertified?: boolean;
       type?: 'PERSONAL' | 'MEDIA' | string | null;
       accentColor?: string | null;
+      isFollowed?: boolean;
       journalist?: {
         id: string;
         name: string | null;
@@ -167,8 +173,10 @@ function ArticleAnnotatorViewInner({
   const [clientDocument, setClientDocument] = useState<CanonicalDocument | null | undefined>(
     undefined
   );
-  const [bookmarked, setBookmarked] = useState(false);
-  const [followed, setFollowed] = useState(false);
+  const [bookmarked, setBookmarked] = useState(article.isBookmarked ?? false);
+  const [followed, setFollowed] = useState(
+    article.isFollowed ?? article.author?.isFollowed ?? false
+  );
   const [copied, setCopied] = useState(false);
   // Gate Plus du TTS (fiche P1) : partagé avec la toolbar dockée via le
   // même hook (1 seul appel /v1/me/entitlements par session).
@@ -345,47 +353,43 @@ function ArticleAnnotatorViewInner({
     [article, openAuthModal]
   );
 
-  // Sync bookmark and follow states
+  // Synchronisation des signets et abonnements
   useEffect(() => {
-    if (!user?.id || !article.id) return;
-    const supabase = createClient();
-    supabase
-      .from('bookmarks')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('article_id', article.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) {
-          setBookmarked(true);
-          toolbar?.setBookmarked(true);
-        }
-      });
-    if (article.author?.id) {
-      supabase
-        .from('follows')
-        .select('id')
-        .eq('follower_id', user.id)
-        .eq('creator_id', article.author.id)
-        .maybeSingle()
-        .then(({ data }) => {
-          if (data) setFollowed(true);
-        });
+    if (article.isBookmarked !== undefined) {
+      setBookmarked(article.isBookmarked);
+      toolbar?.setBookmarked(article.isBookmarked);
     }
-  }, [user?.id, article.id, article.author?.id, toolbar]);
+  }, [article.isBookmarked, toolbar]);
+
+  useEffect(() => {
+    const nextFollowed = article.isFollowed ?? article.author?.isFollowed;
+    if (nextFollowed !== undefined) {
+      setFollowed(nextFollowed);
+    }
+  }, [article.isFollowed, article.author?.isFollowed]);
 
   const toggleBookmark = React.useCallback(async () => {
-    if (!user) return;
+    if (!user) {
+      openAuthModal({ mode: 'login' });
+      return;
+    }
+    const hasValidId = Boolean(article.id && article.id !== article.slug && !article.isLoading);
+    if (!hasValidId) return;
+
     const next = !activeBookmarked;
     setBookmarked(next);
     toolbar?.setBookmarked(next);
-    const supabase = createClient();
-    if (next) {
-      await supabase.from('bookmarks').insert({ user_id: user.id, article_id: article.id });
-    } else {
-      await supabase.from('bookmarks').delete().eq('user_id', user.id).eq('article_id', article.id);
+    try {
+      const res = await toggleBookmarkArticleHomeAction(article.id);
+      if (res.ok && res.data?.bookmarked !== undefined) {
+        setBookmarked(res.data.bookmarked);
+        toolbar?.setBookmarked(res.data.bookmarked);
+      }
+    } catch {
+      setBookmarked(!next);
+      toolbar?.setBookmarked(!next);
     }
-  }, [user, activeBookmarked, toolbar, article.id]);
+  }, [user, activeBookmarked, toolbar, article.id, article.slug, article.isLoading, openAuthModal]);
 
   useEffect(() => {
     if (toolbar?.registerToggleBookmark) {
@@ -393,8 +397,12 @@ function ArticleAnnotatorViewInner({
     }
   }, [toolbar, toggleBookmark]);
 
-  const toggleFollow = async () => {
-    if (!user || !article.author?.id) return;
+  const toggleFollow = React.useCallback(async () => {
+    if (!user) {
+      openAuthModal({ mode: 'login' });
+      return;
+    }
+    if (!article.author?.id || article.author.id === 'loading') return;
     const next = !followed;
     setFollowed(next);
     try {
@@ -402,7 +410,7 @@ function ArticleAnnotatorViewInner({
     } catch {
       setFollowed(!next);
     }
-  };
+  }, [user, followed, article.author?.id, openAuthModal]);
 
   const handleShare = React.useCallback(async () => {
     if (toolbar?.handleShare) {
@@ -726,6 +734,9 @@ function ArticleAnnotatorViewInner({
               onLockedThemeClick={() =>
                 toast.info(t`Papiers Nuit chaude et Papier réservés aux abonnés Plus (bientôt).`)
               }
+              filterMode={toolbar?.filterMode}
+              onFilterModeChange={toolbar?.setFilterMode}
+              allowPublicAnnotations={article.allowPublicAnnotations ?? true}
             />
           </div>
         </div>

@@ -89,12 +89,14 @@ export function buildArticleUrl(input: OpenArticleInput, slug: string): string {
 
 /** Coquille affichée pendant le fetch : même forme que l'article attendu. */
 export function buildPlaceholder(input: OpenArticleInput): OverlayArticle {
+  const isFollowed = input.isFollowed ?? input.author?.isFollowed ?? false;
   const author = {
     ...(input.author ?? {}),
     id: input.author?.id ?? 'loading',
     name: input.author?.name ?? null,
     username: input.author?.username ?? null,
     logoUrl: input.author?.logoUrl ?? null,
+    isFollowed,
   };
 
   return {
@@ -113,5 +115,7 @@ export function buildPlaceholder(input: OpenArticleInput): OverlayArticle {
     allowPublicAnnotations: input.allowPublicAnnotations,
     isLoading: true,
     author: author as OverlayArticle['author'],
+    isBookmarked: input.isBookmarked ?? false,
+    isFollowed,
   };
 }

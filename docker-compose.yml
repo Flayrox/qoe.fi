@@ -632,8 +632,8 @@ services:
 
     command: >
       redis-server
-      --maxmemory 256mb
-      --maxmemory-policy allkeys-lru
+      --maxmemory 512mb
+      --maxmemory-policy volatile-lru
       --appendonly yes
       --appendfsync everysec
 
@@ -723,6 +723,28 @@ services:
           cpus: '0.5'
 
   # ───────────────────────────────────────────────────────────────────
+  # 👁️ UPTIME KUMA : Observabilité & Alerting (100% self-hosted, Tailnet-only)
+  # ───────────────────────────────────────────────────────────────────
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: qoefi-uptime-kuma
+    restart: unless-stopped
+    ports:
+      - '100.117.195.127:3003:3001'
+    expose:
+      - '3001'
+    volumes:
+      - uptime_kuma_data:/app/data
+    networks:
+      - qoefi-private
+      - qoefi-public
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+
+  # ───────────────────────────────────────────────────────────────────
   # 🔄 MIGRATE : one-shot goose up (migrations Go)
   # ───────────────────────────────────────────────────────────────────
   migrate:
@@ -778,3 +800,5 @@ volumes:
     name: qoefi-meilisearch-data
   umami_db_data:
     name: qoefi-umami-db-data
+  uptime_kuma_data:
+    name: qoefi-uptime-kuma-data
