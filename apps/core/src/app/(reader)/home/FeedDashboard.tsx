@@ -609,7 +609,16 @@ export function FeedDashboard({
     const slug = typeof articleInput === 'string' ? articleInput : articleInput?.slug;
     if (!slug) return;
     const inputObj: OpenArticleInput =
-      typeof articleInput === 'string' ? { slug } : (articleInput as OpenArticleInput);
+      typeof articleInput === 'string' ? { slug } : { ...(articleInput as OpenArticleInput) };
+    if (typeof articleInput !== 'string') {
+      if (articleInput?.id) {
+        inputObj.isBookmarked = isArticleBookmarked(articleInput.id);
+      }
+      const authorId = articleInput.author?.id;
+      if (authorId) {
+        inputObj.isFollowed = isCreatorFollowed(authorId);
+      }
+    }
     overlay?.openArticle(inputObj, { source: 'feed' });
   };
 

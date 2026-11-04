@@ -23,11 +23,14 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { RotateCcw } from 'lucide-react';
 import {
   TextHighlighter,
+  AnnotationFilterPill,
   type AnnotationActionCallbacks,
   type AnnotationCitation,
+  type AnnotationFilterMode,
   type AnnotationItem,
   type HighlightItem,
 } from '@qoe/ui/annotations';
+import { ReadingSettingsSheet } from '@qoe/ui/reader';
 import { QuotedArticleCard } from '@qoe/ui/social';
 import { Button } from '@qoe/ui/button';
 import { DefectList, Variant } from '../specimen-frame';
