@@ -9,6 +9,7 @@ import { usePlus } from '@/lib/use-plus';
 import {
   TextHighlighter,
   createAnnotationCallbacks,
+  appendAnnotation,
   type AnnotationItem,
   type AnnotationActionCallbacks,
   type CanonicalDocument,
@@ -236,6 +237,61 @@ function ArticleAnnotatorViewInner({
           onLoginRedirect: () => openAuthModal({ mode: 'login' }),
         },
         {
+          onHighlightCreate: async (params) => {
+            const res = (await createHighlightAction({
+              articleId: params.articleId || article.id,
+              text: params.text,
+              note: params.note ?? undefined,
+              isPublic: !!params.isPublic,
+              ...(params.quoteOrdinal !== undefined ? { quoteOrdinal: params.quoteOrdinal } : {}),
+            })) as { ok?: boolean; data?: { highlight?: unknown }; error?: unknown };
+
+            if (res?.ok && res.data?.highlight) {
+              const createdHighlight = res.data.highlight as AnnotationItem;
+              setHighlightsList((prev) => appendAnnotation(prev, createdHighlight));
+              return { ok: true, data: createdHighlight };
+            }
+            return res?.ok !== undefined
+              ? (res as never)
+              : { ok: true, data: (res?.data ?? res) as never };
+          },
+          onDelete: async (highlightId: string) => {
+            const res = (await deleteHighlightAction(
+              typeof highlightId === 'string' ? { highlightId } : highlightId
+            )) as { ok?: boolean };
+            if (res?.ok !== false) {
+              setHighlightsList((prev) => prev.filter((h) => h.id !== highlightId));
+            }
+            return res as never;
+          },
+          onUpdateNote: async (params) => {
+            const res = (await updateHighlightNoteAction({
+              highlightId: params.highlightId,
+              note: params.note ?? null,
+            })) as { ok?: boolean; data?: { highlight?: unknown } };
+            if (res?.ok) {
+              setHighlightsList((prev) =>
+                prev.map((h) =>
+                  h.id === params.highlightId ? { ...h, note: params.note ?? null } : h
+                )
+              );
+            }
+            return res as never;
+          },
+          onTogglePrivacy: async (params) => {
+            const res = (await toggleHighlightPrivacyAction({
+              highlightId: params.highlightId,
+              isPublic: params.isPublic,
+            })) as { ok?: boolean; data?: { highlight?: unknown } };
+            if (res?.ok) {
+              setHighlightsList((prev) =>
+                prev.map((h) =>
+                  h.id === params.highlightId ? { ...h, isPublic: params.isPublic } : h
+                )
+              );
+            }
+            return res as never;
+          },
           onCrosspost: async ({ text, commentary }) => {
             if (typeof window !== 'undefined') {
               window.dispatchEvent(
@@ -263,7 +319,7 @@ function ArticleAnnotatorViewInner({
           },
         }
       ),
-    [article]
+    [article, openAuthModal]
   );
 
   // Sync bookmark and follow states
@@ -647,11 +703,11 @@ function ArticleAnnotatorViewInner({
         articleId={article.id}
         creatorName={authorName}
         allowPublicAnnotations={article.allowPublicAnnotations ?? true}
-        isAuthenticated={!!user}
+        isAuthenticated={Boolean(user || currentUserProfile)}
         onRequireAuth={() => openAuthModal({ mode: 'login' })}
         initialHighlights={initialHighlights}
         publicHighlights={publicHighlights}
-        currentUserId={user?.id || null}
+        currentUserId={user?.id || currentUserProfile?.id || null}
         currentUserProfile={currentUserProfile}
         articleAuthorId={article.author?.id || ''}
         mainAppUrl=""
