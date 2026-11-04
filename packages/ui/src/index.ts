@@ -11,6 +11,7 @@ export * from './tokens';
 // primitive Base UI (`./ui/button`) a été supprimée une fois ses trois
 // derniers consommateurs migrés (calendar, LoginFormBento, OnboardingFlow).
 export { Button, type ButtonProps } from './primitives/button/button';
+export { PopoverPanel, type PopoverPanelProps } from './primitives/popover/popover-panel';
 export {
   Badge,
   badgeClasses,

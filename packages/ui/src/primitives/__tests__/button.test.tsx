@@ -84,6 +84,39 @@ describe('Button', () => {
     await user.click(screen.getByRole('button'));
     expect(onClick).not.toHaveBeenCalled();
   });
+
+  it('annonce loading, désactive et remplace l’icône de tête par un spinner', async () => {
+    const user = userEvent.setup();
+    const onClick = vi.fn();
+
+    render(
+      <Button loading onClick={onClick}>
+        Enregistrer
+      </Button>
+    );
+
+    const button = screen.getByRole('button', { name: 'Enregistrer' });
+    expect(button.getAttribute('aria-busy')).toBe('true');
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    expect(button.querySelector('svg')).not.toBeNull();
+
+    await user.click(button);
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it('asChild rend l’enfant avec la peau du bouton, sans type invalide', () => {
+    render(
+      <Button asChild variant="solid" tone="brand">
+        <a href="/articles">Nouvel article</a>
+      </Button>
+    );
+
+    const link = screen.getByRole('link', { name: 'Nouvel article' });
+    expect(link.getAttribute('href')).toBe('/articles');
+    expect(link.className).toContain('bg-primary');
+    expect(link.getAttribute('type')).toBeNull();
+    expect(screen.queryByRole('button')).toBeNull();
+  });
 });
 
 describe('ButtonGroup', () => {
