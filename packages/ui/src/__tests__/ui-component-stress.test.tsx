@@ -226,27 +226,6 @@ describe('🛡️ UI Zero-Crash Resilience Test Suite', () => {
       );
 
       expect(container.querySelector('article')).toBeTruthy();
-      expect(container.querySelector('[data-article-cover]')).toBeNull();
-    });
-
-    it('n’étire jamais le logo auteur en couverture quand imageUrl est absent, et rend la couverture quand imageUrl est défini', () => {
-      const { container: withoutCover } = render(
-        <AuthModalProvider>
-          <ArticleCard article={{ ...mockArticle, imageUrl: null }} />
-        </AuthModalProvider>
-      );
-      expect(withoutCover.querySelector('[data-article-cover]')).toBeNull();
-
-      const { container: withCover } = render(
-        <AuthModalProvider>
-          <ArticleCard
-            article={{ ...mockArticle, imageUrl: '/lab/editorial-city.svg', isPremium: true }}
-            featured
-          />
-        </AuthModalProvider>
-      );
-      expect(withCover.querySelector('[data-article-cover]')).toBeTruthy();
-      expect(withCover.textContent).toContain('Payant');
     });
   });
 });

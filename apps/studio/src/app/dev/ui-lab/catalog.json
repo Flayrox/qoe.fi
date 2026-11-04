@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-04T01:28:26.151Z",
+  "generatedAt": "2026-11-04T01:41:27.583Z",
   "total": 370,
   "signals": {
     "primitivesNeverImported": 10,
@@ -123,7 +123,7 @@
         {
           "name": "dialog",
           "path": "packages/ui/src/primitives/dialog/dialog.tsx",
-          "lines": 326,
+          "lines": 333,
           "source": "primitives",
           "usages": 7
         },
@@ -221,7 +221,7 @@
         {
           "name": "tabs",
           "path": "packages/ui/src/primitives/tabs/tabs.tsx",
-          "lines": 205,
+          "lines": 204,
           "source": "primitives",
           "usages": 0
         },
@@ -506,7 +506,7 @@
         {
           "name": "ArticleCard",
           "path": "packages/ui/src/ArticleCard.tsx",
-          "lines": 583,
+          "lines": 520,
           "source": "ui",
           "usages": 0
         },
@@ -814,7 +814,7 @@
         {
           "name": "dialog",
           "path": "packages/ui/src/primitives/dialog/dialog.tsx",
-          "lines": 326,
+          "lines": 333,
           "source": "ui",
           "usages": 7
         },
@@ -912,7 +912,7 @@
         {
           "name": "tabs",
           "path": "packages/ui/src/primitives/tabs/tabs.tsx",
-          "lines": 205,
+          "lines": 204,
           "source": "ui",
           "usages": 0
         },
@@ -1045,7 +1045,7 @@
         {
           "name": "QuotedThoughtCard",
           "path": "packages/ui/src/social/QuotedThoughtCard.tsx",
-          "lines": 278,
+          "lines": 274,
           "source": "ui",
           "usages": 0
         },
