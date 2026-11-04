@@ -443,7 +443,7 @@ func TestService_Update_PublishedArticle_IsolatesDraft(t *testing.T) {
 		t.Fatalf("Update(live): %v", err)
 	}
 	if err := poolTest.QueryRow(ctx,
-		`SELECT title, content, "draftContent" FROM "Article" WHERE id=$1`, id,
+		`SELECT title, content, COALESCE("draftContent", '') FROM "Article" WHERE id=$1`, id,
 	).Scan(&title, &content, &draft); err != nil {
 		t.Fatalf("select live: %v", err)
 	}

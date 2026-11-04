@@ -230,6 +230,8 @@ func TestService_Update_Owner(t *testing.T) {
 		Content:             "Nouveau contenu",
 		ContentFormat:       "markdown",
 		Slug:                "premier-article",
+		Status:              "PUBLISHED",
+		Published:           true,
 		ActivePublicationID: fx.PublicationID,
 	})
 	if err != nil {
