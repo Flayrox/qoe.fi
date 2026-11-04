@@ -2,6 +2,7 @@
 
 import { XIcon } from 'lucide-react';
 import {
+  Children,
   cloneElement,
   createContext,
   isValidElement,
@@ -20,6 +21,7 @@ import {
   DialogTrigger as AriaDialogTrigger,
   Heading,
   Modal,
+  ModalOverlay,
   type ButtonProps as AriaButtonProps,
 } from 'react-aria-components';
 
@@ -89,17 +91,35 @@ export function Dialog({
 }: DialogProps) {
   const resolvedOpen = open !== undefined ? open : isOpen;
 
-  return (
+  // Si le dialogue est contrôlé et n'a pas de déclencheur bouton direct,
+  // on évite d'englober dans AriaDialogTrigger car PressResponder attend un enfant
+  // pressable et lève un avertissement console tout en polluant l'état des tiroirs parents.
+  const hasTrigger = Children.toArray(children).some(
+    (child) =>
+      isValidElement(child) &&
+      (child.type === DialogTrigger ||
+        (child.type as { displayName?: string })?.displayName === 'DialogTrigger')
+  );
+
+  const content = (
     <DialogContext.Provider value={{ isOpen: resolvedOpen, onOpenChange, isDismissable, size }}>
+      {children}
+    </DialogContext.Provider>
+  );
+
+  if (hasTrigger || resolvedOpen === undefined) {
+    return (
       <AriaDialogTrigger
         isOpen={resolvedOpen}
         defaultOpen={defaultOpen}
         onOpenChange={onOpenChange}
       >
-        {children}
+        {content}
       </AriaDialogTrigger>
-    </DialogContext.Provider>
-  );
+    );
+  }
+
+  return content;
 }
 
 export interface DialogTriggerProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -140,6 +160,7 @@ export function DialogTrigger({
     </AriaButton>
   );
 }
+DialogTrigger.displayName = 'DialogTrigger';
 
 export interface DialogContentProps {
   children: ReactNode;
@@ -163,7 +184,7 @@ export function DialogContent({
   showCloseButton = true,
   'aria-label': ariaLabel,
 }: DialogContentProps) {
-  const { isDismissable, onOpenChange, size: contextSize } = useContext(DialogContext);
+  const { isOpen, onOpenChange, isDismissable, size: contextSize } = useContext(DialogContext);
   const resolvedSize = sizeProp ?? contextSize;
   const resolvedDismissable = role === 'alertdialog' ? false : isDismissable;
   const dialogRef = useCallback((node: HTMLElement | null) => {
@@ -173,7 +194,9 @@ export function DialogContent({
   }, []);
 
   return (
-    <Modal
+    <ModalOverlay
+      isOpen={isOpen}
+      onOpenChange={onOpenChange}
       isDismissable={resolvedDismissable}
       className={cn(
         'fixed inset-0 z-50 flex items-center justify-center p-4',
@@ -181,11 +204,7 @@ export function DialogContent({
         overlayClassName
       )}
     >
-      <AriaDialog
-        ref={dialogRef}
-        data-slot="dialog-content"
-        role={role}
-        aria-label={ariaLabel}
+      <Modal
         className={cn(
           'relative flex flex-col gap-3 border border-border bg-popover font-sans text-popover-foreground shadow-xl outline-hidden',
           'max-sm:fixed max-sm:inset-x-0 max-sm:bottom-0 max-sm:max-h-[90vh] max-sm:rounded-t-panel max-sm:p-4',
@@ -195,32 +214,40 @@ export function DialogContent({
           className
         )}
       >
-        {({ close }) => {
-          const handleClose = () => {
-            close();
-            onOpenChange?.(false);
-          };
+        <AriaDialog
+          ref={dialogRef}
+          data-slot="dialog-content"
+          role={role}
+          aria-label={ariaLabel}
+          className="outline-hidden flex w-full flex-col gap-3"
+        >
+          {({ close }) => {
+            const handleClose = () => {
+              close();
+              onOpenChange?.(false);
+            };
 
-          return (
-            <DialogCloseActionContext.Provider value={handleClose}>
-              {children}
-              {showCloseButton && (
-                <Button
-                  variant="ghost"
-                  shape="icon"
-                  size="xs"
-                  onClick={handleClose}
-                  className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
-                  aria-label="Fermer"
-                >
-                  <XIcon className="size-4" strokeWidth={1.75} aria-hidden />
-                </Button>
-              )}
-            </DialogCloseActionContext.Provider>
-          );
-        }}
-      </AriaDialog>
-    </Modal>
+            return (
+              <DialogCloseActionContext.Provider value={handleClose}>
+                {children}
+                {showCloseButton && (
+                  <Button
+                    variant="ghost"
+                    shape="icon"
+                    size="xs"
+                    onClick={handleClose}
+                    className="absolute top-4 right-4 text-muted-foreground hover:text-foreground"
+                    aria-label="Fermer"
+                  >
+                    <XIcon className="size-4" strokeWidth={1.75} aria-hidden />
+                  </Button>
+                )}
+              </DialogCloseActionContext.Provider>
+            );
+          }}
+        </AriaDialog>
+      </Modal>
+    </ModalOverlay>
   );
 }
 

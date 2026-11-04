@@ -1,13 +1,14 @@
 'use client';
 
 import { XIcon } from 'lucide-react';
-import { createContext, useContext, type ReactNode } from 'react';
+import { Children, createContext, isValidElement, useContext, type ReactNode } from 'react';
 import {
   Button as AriaButton,
   Dialog,
   DialogTrigger,
   Heading,
   Modal,
+  ModalOverlay,
   Text,
   type DialogTriggerProps,
 } from 'react-aria-components';
@@ -36,6 +37,8 @@ interface DrawerVariant {
   width: DrawerWidth;
   isDismissable: boolean;
   className?: string;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 const DrawerVariantContext = createContext<DrawerVariant>({
@@ -73,6 +76,7 @@ const WIDTH_CLASSES: Record<DrawerWidth, string> = {
 export interface DrawerProps {
   children: ReactNode;
   isOpen?: boolean;
+  open?: boolean;
   onOpenChange?: (open: boolean) => void;
   defaultOpen?: DialogTriggerProps['defaultOpen'];
   side?: DrawerSide;
@@ -100,6 +104,7 @@ export interface DrawerProps {
 export function Drawer({
   children,
   isOpen,
+  open,
   onOpenChange,
   defaultOpen,
   side = 'right',
@@ -107,15 +112,32 @@ export function Drawer({
   isDismissable = true,
   className,
 }: DrawerProps) {
-  return (
-    <DialogTrigger isOpen={isOpen} onOpenChange={onOpenChange} defaultOpen={defaultOpen}>
-      {/* Le provider englobe les slots : le contenu n'a pas à répéter les
-          variants déjà donnés à la racine. */}
-      <DrawerVariantContext.Provider value={{ side, width, isDismissable, className }}>
-        {children}
-      </DrawerVariantContext.Provider>
-    </DialogTrigger>
+  const resolvedOpen = open !== undefined ? open : isOpen;
+
+  const hasTrigger = Children.toArray(children).some(
+    (child) =>
+      isValidElement(child) &&
+      (child.type === DrawerTrigger ||
+        (child.type as { displayName?: string })?.displayName === 'DrawerTrigger')
   );
+
+  const content = (
+    <DrawerVariantContext.Provider
+      value={{ side, width, isDismissable, className, isOpen: resolvedOpen, onOpenChange }}
+    >
+      {children}
+    </DrawerVariantContext.Provider>
+  );
+
+  if (hasTrigger || resolvedOpen === undefined) {
+    return (
+      <DialogTrigger isOpen={resolvedOpen} onOpenChange={onOpenChange} defaultOpen={defaultOpen}>
+        {content}
+      </DialogTrigger>
+    );
+  }
+
+  return content;
 }
 
 export interface DrawerTriggerProps {
@@ -130,6 +152,7 @@ export function DrawerTrigger({ children, className }: DrawerTriggerProps) {
     </AriaButton>
   );
 }
+DrawerTrigger.displayName = 'DrawerTrigger';
 
 export interface DrawerContentProps {
   children: ReactNode;
@@ -150,10 +173,19 @@ export function DrawerContent({
   overlayClassName,
   'aria-label': ariaLabel,
 }: DrawerContentProps) {
-  const { side, width, isDismissable, className: rootClassName } = useContext(DrawerVariantContext);
+  const {
+    side,
+    width,
+    isDismissable,
+    className: rootClassName,
+    isOpen,
+    onOpenChange,
+  } = useContext(DrawerVariantContext);
 
   return (
-    <Modal
+    <ModalOverlay
+      isOpen={isOpen}
+      onOpenChange={onOpenChange}
       isDismissable={isDismissable}
       className={cn(
         'fixed inset-0 z-50 flex',
@@ -165,8 +197,7 @@ export function DrawerContent({
         overlayClassName
       )}
     >
-      <Dialog
-        aria-label={ariaLabel}
+      <Modal
         className={cn(
           'flex h-full flex-col border-border bg-popover text-popover-foreground shadow-xl outline-hidden',
           // Entrée sans JS : `starting:` couvre le premier rendu.
@@ -177,9 +208,11 @@ export function DrawerContent({
           className
         )}
       >
-        {children}
-      </Dialog>
-    </Modal>
+        <Dialog aria-label={ariaLabel} className="outline-hidden flex h-full flex-col">
+          {children}
+        </Dialog>
+      </Modal>
+    </ModalOverlay>
   );
 }
 
