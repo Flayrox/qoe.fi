@@ -462,8 +462,10 @@ export function ArticleCard({
     >
       {/* 1. COVER IMAGE AVEC CAPSULE AUTEUR FLOTTANTE */}
       <div
+        data-article-cover
+        onClick={openArticle}
         className={cn(
-          'relative overflow-hidden rounded-[17px] bg-muted',
+          'relative overflow-hidden rounded-[17px] bg-muted cursor-pointer',
           featured ? 'h-[250px]' : 'h-[205px]'
         )}
       >
@@ -482,7 +484,10 @@ export function ArticleCard({
         <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/25 pointer-events-none" />
 
         {/* Capsule flottante en verre dépoli (Auteur, Profil, Follow/Action) */}
-        <div className="absolute inset-x-3 top-3 flex items-center justify-between gap-3 rounded-[14px] bg-white/90 px-2.5 py-2 text-black shadow-none backdrop-blur-md dark:bg-black/75 dark:text-white">
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="absolute inset-x-3 top-3 flex items-center justify-between gap-3 rounded-[14px] bg-white/90 px-2.5 py-2 text-black shadow-none backdrop-blur-md dark:bg-black/75 dark:text-white"
+        >
           <div className="flex min-w-0 items-center gap-2.5 text-left">
             {discovery && (
               <span
@@ -579,13 +584,11 @@ export function ArticleCard({
       {/* 2. TITRE & EXTRAIT SOUS L'IMAGE */}
       <a
         href={url}
-        target="_blank"
-        rel="noreferrer"
         data-article-link
         data-article-slug={article.slug}
         data-article-title={article.title}
         onClick={openArticle}
-        className="block px-1.5 pb-1 pt-3 cursor-pointer group/title select-none"
+        className="block px-1.5 pb-1 pt-3 cursor-pointer group/title"
       >
         <h2 className="line-clamp-2 text-[21px] font-semibold leading-[1.12] tracking-[-0.03em] text-foreground group-hover/title:text-primary transition-colors">
           {article.title}

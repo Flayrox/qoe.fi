@@ -229,6 +229,15 @@ export function ExternalLinkInterceptor({
     const anchor = target.closest('a');
     if (!anchor) return;
 
+    // Ne pas intercepter les liens d'articles, les liens internes ou marqués explicitement
+    if (
+      anchor.hasAttribute('data-article-link') ||
+      anchor.hasAttribute('data-internal') ||
+      anchor.hasAttribute('data-no-exit-interstitial')
+    ) {
+      return;
+    }
+
     const href = anchor.getAttribute('href');
     if (!href) return;
 
@@ -251,6 +260,21 @@ export function ExternalLinkInterceptor({
       );
       // Même origine : lien interne
       if (typeof window !== 'undefined' && urlObj.origin === window.location.origin) {
+        return;
+      }
+
+      // Domaines de l'écosystème Qoefi (tenants, plateformes, dev local)
+      const hostname = urlObj.hostname.toLowerCase();
+      if (
+        hostname === 'localhost' ||
+        hostname === '127.0.0.1' ||
+        hostname === 'qoe.fi' ||
+        hostname.endsWith('.qoe.fi') ||
+        hostname === 'lvh.me' ||
+        hostname.endsWith('.lvh.me') ||
+        hostname === 'qoe.test' ||
+        hostname.endsWith('.qoe.test')
+      ) {
         return;
       }
 
