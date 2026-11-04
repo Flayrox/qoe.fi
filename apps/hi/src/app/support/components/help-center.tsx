@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import { Search } from 'lucide-react';
+import { Input, InputGroup } from '@qoe/ui/input';
 import { SupportForm } from './support-form';
 
 // =====================================================================
@@ -22,14 +24,13 @@ export function HelpCenter({ appUrl, managed }: { appUrl: string; managed: Manag
 
   return (
     <div className="space-y-10">
-      <div>
-        <input
+      <InputGroup size="lg" left={<Search />}>
+        <Input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Rechercher : compte perdu, confirmation, désabonnement… / Search…"
-          className="w-full text-sm px-4 py-3 rounded-xl border border-border bg-background outline-none"
         />
-      </div>
+      </InputGroup>
 
       <div className="space-y-3">
         {results.length === 0 ? (

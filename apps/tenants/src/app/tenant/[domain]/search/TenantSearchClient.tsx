@@ -7,7 +7,10 @@
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { Search, X, Clock, Calendar, ArrowRight, Sparkles } from 'lucide-react';
-import { cn, buildArticlePath } from '@qoe/utils';
+import { Badge } from '@qoe/ui/badge';
+import { Button } from '@qoe/ui/button';
+import { Input, InputGroup } from '@qoe/ui/input';
+import { buildArticlePath } from '@qoe/utils';
 
 export interface SearchArticleItem {
   id: string;
@@ -66,59 +69,58 @@ export function TenantSearchClient({
     <div className="w-full max-w-3xl mx-auto py-4 sm:py-8">
       {/* Barre de Recherche Principale */}
       <div className="relative mb-6">
-        <div className="relative flex items-center">
-          <Search className="absolute left-4 w-5 h-5 text-muted-foreground pointer-events-none" />
-          <input
+        <InputGroup
+          size="lg"
+          left={<Search />}
+          right={
+            hasSearch ? (
+              <Button
+                variant="ghost"
+                size="xs"
+                shape="icon"
+                onClick={() => setQuery('')}
+                title="Effacer"
+                aria-label="Effacer la recherche"
+              >
+                <X />
+              </Button>
+            ) : undefined
+          }
+          className="bg-card shadow-xs"
+        >
+          <Input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Rechercher par titre, mot-clé, sujet..."
             autoFocus
-            className="w-full pl-12 pr-11 py-3.5 sm:py-4 rounded-2xl bg-card border border-border/60 text-foreground text-base sm:text-lg placeholder:text-muted-foreground outline-none shadow-xs transition-all focus:border-[var(--tenant-accent,#C04328)] focus:ring-2 focus:ring-[var(--tenant-accent,#C04328)]/20"
           />
-          {hasSearch && (
-            <button
-              type="button"
-              onClick={() => setQuery('')}
-              className="absolute right-3.5 p-1 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-colors cursor-pointer"
-              title="Effacer"
-              aria-label="Effacer la recherche"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
-        </div>
+        </InputGroup>
       </div>
 
       {/* Filtres par Rubrique */}
       {categories.length > 0 && (
         <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-6 scrollbar-none select-none">
-          <button
-            type="button"
+          <Button
+            variant={selectedCategory === 'all' ? 'solid' : 'outline'}
+            tone="neutral"
+            size="xs"
             onClick={() => setSelectedCategory('all')}
-            className={cn(
-              'px-3.5 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-all cursor-pointer border',
-              selectedCategory === 'all'
-                ? 'bg-foreground text-background border-foreground shadow-2xs'
-                : 'bg-card text-muted-foreground hover:text-foreground border-border/60 hover:border-foreground/30'
-            )}
+            className="rounded-full shrink-0"
           >
             Tous les articles
-          </button>
+          </Button>
           {categories.map((cat) => (
-            <button
+            <Button
               key={cat.id}
-              type="button"
+              variant={selectedCategory === cat.slug ? 'solid' : 'outline'}
+              tone="neutral"
+              size="xs"
               onClick={() => setSelectedCategory(cat.slug)}
-              className={cn(
-                'px-3.5 py-1.5 rounded-full text-xs font-semibold shrink-0 transition-all cursor-pointer border',
-                selectedCategory === cat.slug
-                  ? 'bg-foreground text-background border-foreground shadow-2xs'
-                  : 'bg-card text-muted-foreground hover:text-foreground border-border/60 hover:border-foreground/30'
-              )}
+              className="rounded-full shrink-0"
             >
               {cat.name}
-            </button>
+            </Button>
           ))}
         </div>
       )}
@@ -131,16 +133,17 @@ export function TenantSearchClient({
             : `${filteredResults.length} publication${filteredResults.length > 1 ? 's' : ''} disponible${filteredResults.length > 1 ? 's' : ''}`}
         </span>
         {hasSearch && (
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="xs"
             onClick={() => {
               setQuery('');
               setSelectedCategory('all');
             }}
-            className="hover:text-foreground transition-colors underline underline-offset-4"
+            className="h-auto px-1 py-0 text-xs underline underline-offset-4"
           >
             Réinitialiser
-          </button>
+          </Button>
         )}
       </div>
 
@@ -157,9 +160,9 @@ export function TenantSearchClient({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1.5 flex-wrap">
                     {art.categoryName && (
-                      <span className="px-2 py-0.5 rounded-full font-medium bg-muted text-foreground text-[10px] uppercase tracking-wider">
+                      <Badge variant="soft" tone="neutral" shape="pill" size="xs">
                         {art.categoryName}
-                      </span>
+                      </Badge>
                     )}
                     {art.publishedAt && (
                       <span className="inline-flex items-center gap-1">
@@ -222,17 +225,18 @@ export function TenantSearchClient({
           <p className="text-xs sm:text-sm text-muted-foreground max-w-sm mx-auto mb-4">
             Essayez avec d&apos;autres mots-clés ou consultez l&apos;ensemble de nos publications.
           </p>
-          <button
-            type="button"
+          <Button
+            variant="solid"
+            tone="brand"
+            size="sm"
             onClick={() => {
               setQuery('');
               setSelectedCategory('all');
             }}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-semibold bg-primary text-primary-foreground hover:opacity-90 transition-opacity cursor-pointer shadow-xs"
           >
             <span>Afficher tous les articles</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
+            <ArrowRight />
+          </Button>
         </div>
       )}
     </div>

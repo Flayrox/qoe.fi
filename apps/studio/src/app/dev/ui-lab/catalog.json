@@ -1,14 +1,14 @@
 {
-  "generatedAt": "2026-11-04T02:56:36.688Z",
+  "generatedAt": "2026-11-04T03:02:43.165Z",
   "total": 369,
   "signals": {
     "primitivesNeverImported": 10,
     "primitivesTotal": 33,
-    "rawButtons": 532,
-    "rawButtonFiles": 111,
+    "rawButtons": 511,
+    "rawButtonFiles": 105,
     "nativeSelectFiles": 0,
-    "rawInputFiles": 60,
-    "handRolledOverlays": 14
+    "rawInputFiles": 56,
+    "handRolledOverlays": 12
   },
   "families": [
     {
@@ -41,7 +41,7 @@
           "path": "packages/ui/src/primitives/badge/badge.tsx",
           "lines": 111,
           "source": "primitives",
-          "usages": 13
+          "usages": 16
         },
         {
           "name": "bevel-button",
@@ -62,7 +62,7 @@
           "path": "packages/ui/src/primitives/button/button.tsx",
           "lines": 150,
           "source": "primitives",
-          "usages": 31
+          "usages": 36
         },
         {
           "name": "card",
@@ -125,7 +125,7 @@
           "path": "packages/ui/src/primitives/dialog/dialog.tsx",
           "lines": 334,
           "source": "primitives",
-          "usages": 17
+          "usages": 19
         },
         {
           "name": "drawer",
@@ -160,7 +160,7 @@
           "path": "packages/ui/src/primitives/input/input.tsx",
           "lines": 192,
           "source": "primitives",
-          "usages": 20
+          "usages": 25
         },
         {
           "name": "radio-cards",
@@ -223,7 +223,7 @@
           "path": "packages/ui/src/primitives/tabs/tabs.tsx",
           "lines": 204,
           "source": "primitives",
-          "usages": 10
+          "usages": 11
         },
         {
           "name": "tag-group",
@@ -732,7 +732,7 @@
           "path": "packages/ui/src/primitives/badge/badge.tsx",
           "lines": 111,
           "source": "ui",
-          "usages": 13
+          "usages": 16
         },
         {
           "name": "bevel-button",
@@ -753,7 +753,7 @@
           "path": "packages/ui/src/primitives/button/button.tsx",
           "lines": 150,
           "source": "ui",
-          "usages": 31
+          "usages": 36
         },
         {
           "name": "card",
@@ -816,7 +816,7 @@
           "path": "packages/ui/src/primitives/dialog/dialog.tsx",
           "lines": 334,
           "source": "ui",
-          "usages": 17
+          "usages": 19
         },
         {
           "name": "drawer",
@@ -851,7 +851,7 @@
           "path": "packages/ui/src/primitives/input/input.tsx",
           "lines": 192,
           "source": "ui",
-          "usages": 20
+          "usages": 25
         },
         {
           "name": "radio-cards",
@@ -914,7 +914,7 @@
           "path": "packages/ui/src/primitives/tabs/tabs.tsx",
           "lines": 204,
           "source": "ui",
-          "usages": 10
+          "usages": 11
         },
         {
           "name": "tag-group",
@@ -1644,7 +1644,7 @@
         {
           "name": "developer-client",
           "path": "apps/studio/src/features/developer/components/developer-client.tsx",
-          "lines": 1332,
+          "lines": 1320,
           "source": "studio",
           "usages": null
         },
@@ -1714,7 +1714,7 @@
         {
           "name": "EditorSettingsDrawer",
           "path": "apps/studio/src/features/editor/components/EditorSettingsDrawer.tsx",
-          "lines": 624,
+          "lines": 620,
           "source": "studio",
           "usages": null
         },
@@ -1854,7 +1854,7 @@
         {
           "name": "step-up",
           "path": "apps/studio/src/features/security/step-up.tsx",
-          "lines": 300,
+          "lines": 297,
           "source": "studio",
           "usages": null
         },
@@ -1938,7 +1938,7 @@
         {
           "name": "settings",
           "path": "apps/studio/src/features/settings/settings.tsx",
-          "lines": 592,
+          "lines": 597,
           "source": "studio",
           "usages": null
         },
@@ -1959,7 +1959,7 @@
         {
           "name": "general",
           "path": "apps/studio/src/features/settings/tabs/general.tsx",
-          "lines": 516,
+          "lines": 518,
           "source": "studio",
           "usages": null
         },
@@ -1973,14 +1973,14 @@
         {
           "name": "recommendations",
           "path": "apps/studio/src/features/settings/tabs/recommendations.tsx",
-          "lines": 441,
+          "lines": 447,
           "source": "studio",
           "usages": null
         },
         {
           "name": "seo",
           "path": "apps/studio/src/features/settings/tabs/seo.tsx",
-          "lines": 274,
+          "lines": 279,
           "source": "studio",
           "usages": null
         },
@@ -2489,7 +2489,7 @@
         {
           "name": "RecommendedSection",
           "path": "apps/tenants/src/components/RecommendedSection.tsx",
-          "lines": 180,
+          "lines": 204,
           "source": "tenants",
           "usages": null
         },
@@ -2571,7 +2571,7 @@
         {
           "name": "ArticlePreviewModal",
           "path": "apps/hi/src/components/landing/ArticlePreviewModal.tsx",
-          "lines": 161,
+          "lines": 148,
           "source": "hi",
           "usages": null
         },

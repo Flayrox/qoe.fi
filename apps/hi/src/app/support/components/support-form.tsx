@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
+import { Button } from '@qoe/ui/button';
+import { Input, Textarea } from '@qoe/ui/input';
 import { Select } from '@qoe/ui/select';
 import { submitPublicTicket } from '@/lib/support-actions';
 
@@ -14,9 +16,6 @@ const KINDS = [
   { id: 'report_issue', label: 'Signalement / Report' },
   { id: 'other', label: 'Autre / Other' },
 ];
-
-const inputCls =
-  'w-full text-sm px-3 py-2 rounded-xl border border-border bg-background outline-none';
 
 export function SupportForm() {
   const [name, setName] = useState('');
@@ -59,12 +58,14 @@ export function SupportForm() {
             {done.id}
           </code>
         )}
-        <button
+        <Button
+          variant="ghost"
+          size="xs"
           onClick={() => setDone(null)}
-          className="text-xs font-semibold underline underline-offset-2 cursor-pointer"
+          className="underline underline-offset-2"
         >
           Ouvrir un autre dossier / Open another
-        </button>
+        </Button>
       </div>
     );
   }
@@ -77,19 +78,17 @@ export function SupportForm() {
   return (
     <div className="rounded-xl border border-border/60 p-5 space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
-        <input
+        <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Nom / Name (optionnel)"
           maxLength={100}
-          className={inputCls}
         />
-        <input
+        <Input
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="E-mail *"
           type="email"
-          className={inputCls}
         />
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
@@ -100,29 +99,28 @@ export function SupportForm() {
           onValueChange={setKind}
           options={KINDS.map((supportKind) => ({ id: supportKind.id, label: supportKind.label }))}
         />
-        <input
+        <Input
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
           placeholder="Sujet / Subject (5 min) *"
           maxLength={200}
-          className={inputCls}
         />
       </div>
-      <textarea
+      <Textarea
         value={message}
         onChange={(e) => setMessage(e.target.value)}
         placeholder="Décrivez le problème… / Describe the issue… *"
         rows={5}
-        className={inputCls}
       />
       {error && <p className="text-xs text-destructive-text">{error}</p>}
-      <button
+      <Button
+        variant="solid"
+        tone="neutral"
         disabled={sending || !valid}
         onClick={() => void submit()}
-        className="text-sm font-bold px-5 py-2.5 rounded-xl bg-foreground text-background cursor-pointer disabled:opacity-50"
       >
         {sending ? 'Envoi… / Sending…' : 'Envoyer / Send'}
-      </button>
+      </Button>
       <p className="text-[11px] text-muted-foreground">
         3 dossiers max par jour et par adresse (anti-spam). / Max 3 cases per day per address.
       </p>
