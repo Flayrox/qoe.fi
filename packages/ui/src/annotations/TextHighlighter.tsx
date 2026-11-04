@@ -77,6 +77,10 @@ function CalloutAction({
     <Button
       variant="ghost"
       size="xs"
+      onMouseDown={(e) => {
+        // Empêche le focus change et l'effondrement de la sélection native avant le clic
+        e.preventDefault();
+      }}
       onClick={() => {
         if (!disabled) onClick();
       }}
@@ -1131,6 +1135,7 @@ export function TextHighlighter({
                         copiedLabel={t`Copié`}
                         variant="ghost"
                         size="xs"
+                        onMouseDown={(e) => e.preventDefault()}
                         title={t`Copier l'extrait`}
                         className="px-3 font-semibold text-foreground/90 hover:text-foreground"
                       />

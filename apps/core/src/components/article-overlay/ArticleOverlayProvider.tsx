@@ -196,6 +196,9 @@ export function ArticleOverlayProvider({
           if (res.ok && res.data?.article) {
             const article = res.data.article as unknown as OverlayArticle;
             setArticle(article);
+            if (res.data.canonicalDocument) {
+              setCanonicalDocument(res.data.canonicalDocument);
+            }
             rememberArticle(slug, article);
             return;
           }
