@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-03T23:18:29.518Z",
-  "total": 363,
+  "generatedAt": "2026-11-04T00:13:25.891Z",
+  "total": 368,
   "signals": {
     "primitivesNeverImported": 17,
     "primitivesTotal": 41,
@@ -55,7 +55,7 @@
           "path": "packages/ui/src/primitives/button/button.tsx",
           "lines": 150,
           "source": "primitives",
-          "usages": 6
+          "usages": 7
         },
         {
           "name": "card",
@@ -116,9 +116,9 @@
         {
           "name": "drawer",
           "path": "packages/ui/src/primitives/drawer/drawer.tsx",
-          "lines": 245,
+          "lines": 256,
           "source": "primitives",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "dropdown",
@@ -151,7 +151,7 @@
         {
           "name": "radio-cards",
           "path": "packages/ui/src/primitives/radio-group/radio-cards.tsx",
-          "lines": 224,
+          "lines": 214,
           "source": "primitives",
           "usages": 0
         },
@@ -186,7 +186,7 @@
         {
           "name": "switch",
           "path": "packages/ui/src/primitives/switch/switch.tsx",
-          "lines": 105,
+          "lines": 100,
           "source": "primitives",
           "usages": 1
         },
@@ -536,7 +536,7 @@
           "path": "packages/ui/src/auth/AuthModalContext.tsx",
           "lines": 142,
           "source": "ui",
-          "usages": 3
+          "usages": 4
         },
         {
           "name": "GlobalAuthModalProvider",
@@ -767,7 +767,7 @@
           "path": "packages/ui/src/primitives/button/button.tsx",
           "lines": 150,
           "source": "ui",
-          "usages": 6
+          "usages": 7
         },
         {
           "name": "card",
@@ -828,9 +828,9 @@
         {
           "name": "drawer",
           "path": "packages/ui/src/primitives/drawer/drawer.tsx",
-          "lines": 245,
+          "lines": 256,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "dropdown",
@@ -863,7 +863,7 @@
         {
           "name": "radio-cards",
           "path": "packages/ui/src/primitives/radio-group/radio-cards.tsx",
-          "lines": 224,
+          "lines": 214,
           "source": "ui",
           "usages": 0
         },
@@ -898,7 +898,7 @@
         {
           "name": "switch",
           "path": "packages/ui/src/primitives/switch/switch.tsx",
-          "lines": 105,
+          "lines": 100,
           "source": "ui",
           "usages": 1
         },
@@ -982,7 +982,7 @@
         {
           "name": "sidebar",
           "path": "packages/ui/src/sidebar.tsx",
-          "lines": 592,
+          "lines": 576,
           "source": "ui",
           "usages": 5
         },
@@ -1024,14 +1024,14 @@
         {
           "name": "QuotedArticleCard",
           "path": "packages/ui/src/social/QuotedArticleCard.tsx",
-          "lines": 288,
+          "lines": 308,
           "source": "ui",
           "usages": 0
         },
         {
           "name": "QuotedThoughtCard",
           "path": "packages/ui/src/social/QuotedThoughtCard.tsx",
-          "lines": 89,
+          "lines": 224,
           "source": "ui",
           "usages": 0
         },
@@ -1066,7 +1066,7 @@
         {
           "name": "ThoughtCard",
           "path": "packages/ui/src/social/ThoughtCard.tsx",
-          "lines": 536,
+          "lines": 530,
           "source": "ui",
           "usages": 2
         },
@@ -1623,7 +1623,7 @@
         {
           "name": "HeaderWorkspaceSwitcher",
           "path": "apps/studio/src/features/dashboard/components/HeaderWorkspaceSwitcher.tsx",
-          "lines": 134,
+          "lines": 129,
           "source": "studio",
           "usages": null
         },
@@ -1959,7 +1959,7 @@
         {
           "name": "recommendations",
           "path": "apps/studio/src/features/settings/tabs/recommendations.tsx",
-          "lines": 435,
+          "lines": 448,
           "source": "studio",
           "usages": null
         },
@@ -2187,6 +2187,20 @@
           "usages": null
         },
         {
+          "name": "ArticleOverlayProvider",
+          "path": "apps/core/src/components/article-overlay/ArticleOverlayProvider.tsx",
+          "lines": 349,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "overlay-state",
+          "path": "apps/core/src/components/article-overlay/overlay-state.ts",
+          "lines": 118,
+          "source": "core",
+          "usages": null
+        },
+        {
           "name": "DynamicBannerSlot",
           "path": "apps/core/src/components/banners/DynamicBannerSlot.tsx",
           "lines": 73,
@@ -2257,6 +2271,13 @@
           "usages": null
         },
         {
+          "name": "position",
+          "path": "apps/core/src/components/overlay/position.ts",
+          "lines": 71,
+          "source": "core",
+          "usages": null
+        },
+        {
           "name": "InAppPlacement",
           "path": "apps/core/src/components/placements/InAppPlacement.tsx",
           "lines": 180,
@@ -2301,7 +2322,7 @@
         {
           "name": "ArticleCard",
           "path": "apps/core/src/components/social/ArticleCard.tsx",
-          "lines": 179,
+          "lines": 185,
           "source": "core",
           "usages": null
         },
@@ -2371,14 +2392,14 @@
         {
           "name": "SimilarArticlesSection",
           "path": "apps/core/src/components/social/SimilarArticlesSection.tsx",
-          "lines": 88,
+          "lines": 95,
           "source": "core",
           "usages": null
         },
         {
           "name": "ThoughtCard",
           "path": "apps/core/src/components/social/ThoughtCard.tsx",
-          "lines": 204,
+          "lines": 214,
           "source": "core",
           "usages": null
         },
@@ -2414,6 +2435,20 @@
           "name": "StaleServerActionBanner",
           "path": "apps/core/src/components/StaleServerActionBanner.tsx",
           "lines": 64,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "context",
+          "path": "apps/core/src/components/thought-overlay/context.ts",
+          "lines": 30,
+          "source": "core",
+          "usages": null
+        },
+        {
+          "name": "ThoughtOverlayProvider",
+          "path": "apps/core/src/components/thought-overlay/ThoughtOverlayProvider.tsx",
+          "lines": 210,
           "source": "core",
           "usages": null
         }

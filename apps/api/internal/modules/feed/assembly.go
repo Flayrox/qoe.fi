@@ -15,48 +15,26 @@ func (s *Service) buildSlices(ctx context.Context, targetIDs []string, viewerID 
 		return []posts.FeedSlice{}, nil
 	}
 
-	baseRows, err := s.q.GetPostsByIDs(ctx, db.GetPostsByIDsParams{Ids: targetIDs, ViewerID: toUUID(viewerID)})
+	// Fermeture complète : la pensée, ses ancêtres et toute sa chaîne de
+	// citations. Une citation de citation arrive donc avec son propre
+	// maillon au lieu d'un `repost` nul.
+	all, err := posts.LoadPostClosure(ctx, s.q, targetIDs, viewerID)
 	if err != nil {
 		return nil, err
 	}
 
-	// ids manquants (parent/root/repost)
-	have := map[string]bool{}
+	// L'ordre de la page vient du classement (`targetIDs`), jamais de la map.
+	baseRows := make([]db.GetPostsByIDsRow, 0, len(targetIDs))
 	for _, id := range targetIDs {
-		have[id] = true
-	}
-	missing := map[string]bool{}
-	addMissing := func(ids ...*string) {
-		for _, id := range ids {
-			if id != nil && !have[*id] {
-				missing[*id] = true
-			}
-		}
-	}
-	for i := range baseRows {
-		r := &baseRows[i]
-		addMissing(posts.ParentIDOf(r), posts.RootIDOf(r), posts.RepostIDOf(r))
-	}
-	var missingIDs []string
-	for id := range missing {
-		missingIDs = append(missingIDs, id)
-	}
-
-	all := map[string]*db.GetPostsByIDsRow{}
-	for i := range baseRows {
-		all[baseRows[i].ID] = &baseRows[i]
-	}
-	if len(missingIDs) > 0 {
-		extraRows, err := s.q.GetPostsByIDs(ctx, db.GetPostsByIDsParams{Ids: missingIDs, ViewerID: toUUID(viewerID)})
-		if err != nil {
-			return nil, err
-		}
-		for i := range extraRows {
-			all[extraRows[i].ID] = &extraRows[i]
+		if r, ok := all[id]; ok {
+			baseRows = append(baseRows, *r)
 		}
 	}
 
-	allIDs := append(append([]string{}, targetIDs...), missingIDs...)
+	allIDs := make([]string, 0, len(all))
+	for id := range all {
+		allIDs = append(allIDs, id)
+	}
 	attachments, err := posts.AttachmentsFor(ctx, s.q, allIDs)
 	if err != nil {
 		return nil, err

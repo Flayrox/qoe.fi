@@ -832,19 +832,21 @@ func (s *Service) Quotes(ctx context.Context, postID, viewerID string, limit, of
 
 	var postsList []FeedPost
 	if len(ids) > 0 {
-		rows, err := s.q.GetPostsByIDs(ctx, db.GetPostsByIDsParams{Ids: ids, ViewerID: toUUID(viewerID)})
+		// Fermeture : les citations listées arrivent avec leur éventuel
+		// article cité et leur propre maillon, comme dans le feed.
+		all, err := LoadPostClosure(ctx, s.q, ids, viewerID)
 		if err != nil {
 			return FeedResultPage{}, err
 		}
-		all := map[string]*db.GetPostsByIDsRow{}
-		for i := range rows {
-			all[rows[i].ID] = &rows[i]
+		allIDs := make([]string, 0, len(all))
+		for id := range all {
+			allIDs = append(allIDs, id)
 		}
-		attachments, err := AttachmentsFor(ctx, s.q, ids)
+		attachments, err := AttachmentsFor(ctx, s.q, allIDs)
 		if err != nil {
 			return FeedResultPage{}, err
 		}
-		polls, err := PollsFor(ctx, s.q, ids, viewerID)
+		polls, err := PollsFor(ctx, s.q, allIDs, viewerID)
 		if err != nil {
 			return FeedResultPage{}, err
 		}

@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@qoe/utils';
-import { URLS } from '@qoe/config';
 import { ThemeToggle } from './ui/ThemeToggle';
 import { SafeAvatar } from './SafeAvatar';
 import {
@@ -26,7 +25,6 @@ import {
   Plus,
   LogOut,
   User,
-  Palette,
   Search,
   Bookmark,
   Highlighter,
@@ -310,13 +308,6 @@ export function Sidebar({
   const currentPathname = usePathname();
   const activeUrl = activeUrlProp ?? currentPathname;
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  const accountUrl = isMounted ? `${URLS.CONSOLE}/settings` : '#';
 
   // Handle Escape key & Mobile drawer toggle event
   useEffect(() => {
@@ -493,7 +484,7 @@ export function Sidebar({
                   ))}
 
                 {/* Profile Popover */}
-                <div className="relative flex justify-end">
+                <div className="relative">
                   <DropdownMenu>
                     <DropdownMenuTrigger
                       className={cn(
@@ -516,7 +507,7 @@ export function Sidebar({
                           {userName || t`Créateur`}
                         </span>
                         {userEmail && (
-                          <span className="text-[11px] text-muted-foreground block truncate leading-tight mt-0.5">
+                          <span className="type-control-xs text-muted-foreground block truncate leading-tight mt-0.5">
                             {userEmail}
                           </span>
                         )}
@@ -527,42 +518,35 @@ export function Sidebar({
                       side="top"
                       align="end"
                       sideOffset={8}
-                      className="w-56 p-2 rounded-[14px] bg-sidebar/95 backdrop-blur-2xl border border-sidebar-border text-sidebar-foreground shadow-2xl"
+                      className="w-56 p-2 rounded-panel bg-sidebar/95 backdrop-blur-2xl border border-sidebar-border text-sidebar-foreground shadow-2xl"
                       header={
                         <div className="px-2.5 py-2 mb-1 border-b border-sidebar-border/60">
                           <span className="font-semibold text-xs block leading-tight truncate">
                             {userName || t`Créateur`}
                           </span>
                           {userEmail && (
-                            <span className="text-[10px] text-muted-foreground block truncate mt-0.5">
+                            <span className="type-control-xs text-muted-foreground block truncate mt-0.5">
                               {userEmail}
                             </span>
                           )}
                         </div>
                       }
-                      footer={
-                        <div className="flex items-center justify-between gap-2 px-3 py-1.5 border-t border-sidebar-border/60 mt-1 pt-1.5">
-                          <span className="text-xs font-medium text-sidebar-foreground/80">
-                            {t`Thème`}
-                          </span>
-                          <ThemeToggle />
-                        </div>
-                      }
                     >
-                      <DropdownMenuItem
-                        href={accountUrl}
-                        className="flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-[8px] hover:bg-sidebar-primary hover:text-sidebar-primary-foreground transition-colors cursor-pointer"
-                      >
-                        <User className="w-4 h-4" />
-                        <span>{t`Mon Compte Personnel`}</span>
-                      </DropdownMenuItem>
-
+                      {/* Un seul point d’entrée vers les réglages, et il reste
+                          dans l’application courante : le saut vers la console
+                          démontait la page et perdait le contexte de travail. */}
                       <DropdownMenuItem
                         href="/settings"
-                        className="flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-[8px] hover:bg-sidebar-primary hover:text-sidebar-primary-foreground transition-colors cursor-pointer"
+                        className="flex items-center gap-2 px-3 py-2 text-xs font-medium rounded-lg hover:bg-sidebar-primary hover:text-sidebar-primary-foreground transition-colors cursor-pointer"
                       >
-                        <Palette className="w-4 h-4" />
-                        <span>{t`Design du Média`}</span>
+                        {userType === 'MEDIA' ? (
+                          <Building2 className="w-4 h-4" />
+                        ) : (
+                          <User className="w-4 h-4" />
+                        )}
+                        <span>
+                          {userType === 'MEDIA' ? t`Réglages du média` : t`Réglages du compte`}
+                        </span>
                       </DropdownMenuItem>
 
                       {onLogout && (
@@ -571,7 +555,7 @@ export function Sidebar({
                           <DropdownMenuItem
                             variant="destructive"
                             onAction={onLogout}
-                            className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-destructive-text rounded-[8px] hover:bg-destructive/10 transition-colors cursor-pointer"
+                            className="flex items-center gap-2 px-3 py-2 text-xs font-medium text-destructive-text rounded-lg hover:bg-destructive/10 transition-colors cursor-pointer"
                           >
                             <LogOut className="w-4 h-4" />
                             <span>{t`Se déconnecter`}</span>

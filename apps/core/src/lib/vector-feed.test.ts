@@ -328,6 +328,53 @@ describe('mapPostToFeedItem', () => {
     expect(out.repost?.createdAt).toBe('2026-08-03T10:00:00.000Z');
   });
 
+  it('chaîne de citations : article et annotation survivent au deuxième maillon', () => {
+    const out = mapPostToFeedItem(
+      post({
+        repost: post({
+          id: 'r1',
+          content: 'citation intermédiaire',
+          author: { ...baseAuthor, id: 'media1', type: 'MEDIA' },
+          repost: post({
+            id: 'r2',
+            content: 'citation profonde',
+            quotedExcerpt: 'le passage cité',
+            quotedArticle: {
+              id: 'art1',
+              title: 'La ville sans voiture',
+              slug: 'la-ville-sans-voiture',
+              isPremium: false,
+              quoteContext: null,
+              publication: {
+                name: 'La Gazette',
+                slug: 'la-gazette',
+                subdomain: 'gazette',
+                customDomain: null,
+                type: 'MEDIA',
+                logoUrl: null,
+                isCertified: true,
+              },
+              author: {
+                id: 'u1',
+                name: 'Alice',
+                username: 'alice',
+                logoUrl: null,
+                isCertified: true,
+                type: 'MEDIA',
+              },
+            },
+          }),
+        }),
+      })
+    );
+
+    expect(out.repost?.author.type).toBe('MEDIA');
+    expect(out.repost?.repost?.id).toBe('r2');
+    // Le renommage `quotedArticle` → `articleQuote` doit suivre la chaîne,
+    // sinon l'article cité disparaît dès le deuxième maillon.
+    expect(out.repost?.repost?.articleQuote?.title).toBe('La ville sans voiture');
+  });
+
   it('parent mappé avec dates et isCertified par défaut', () => {
     const out = mapPostToFeedItem(
       post({

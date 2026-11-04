@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   TrendingUp,
@@ -65,6 +66,7 @@ export function FeedSidebarWidgets({
   userStats,
   activityData,
 }: FeedSidebarWidgetsProps) {
+  const router = useRouter();
   const [followedLocally, setFollowedLocally] = useState<Set<string>>(new Set());
   const [justFollowed, setJustFollowed] = useState<string | null>(null);
 
@@ -139,7 +141,7 @@ export function FeedSidebarWidgets({
                         if (onOpenProfile) {
                           onOpenProfile(username);
                         } else {
-                          window.location.href = routes.feed.profile(username);
+                          router.push(routes.feed.profile(username));
                         }
                       }}
                       whileTap={{ scale: 0.98 }}

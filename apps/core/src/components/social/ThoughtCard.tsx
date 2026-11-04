@@ -9,6 +9,8 @@ import { ModerationReportModal } from './ModerationReportModal';
 import { routes } from '@qoe/config/routes';
 import { toast } from '@qoe/ui/toast';
 import { createClient } from '@/lib/supabase/client';
+import { useRouter } from 'next/navigation';
+import { useThoughtOverlay } from '@/components/thought-overlay/context';
 import { pinPostAction as pinPost, unpinPostAction as unpinPost } from '@qoe/sdk/actions/feed';
 import { PollCard } from './PollCard';
 import { ThreadgateBadge, type ReplyRestrictionType } from './ThreadgateBadge';
@@ -42,6 +44,8 @@ export function ThoughtCard({
   className,
   ...restProps
 }: FeedThoughtCardProps) {
+  const router = useRouter();
+  const thoughtOverlay = useThoughtOverlay();
   const [currentUserId, setCurrentUserId] = React.useState<string | null>(propUserId || null);
   const [showReportModal, setShowReportModal] = React.useState<boolean>(false);
   const [confirmDeletePostId, setConfirmDeletePostId] = React.useState<string | null>(null);
@@ -71,14 +75,20 @@ export function ThoughtCard({
     if (onOpenProfile) {
       onOpenProfile(username);
     } else {
-      window.location.href = routes.feed.profile(username);
+      // Navigation client : la page de profil se rend sans recharger l'app.
+      router.push(routes.feed.profile(username));
     }
   };
 
   const handleOpenPost = (postId: string, author?: string) => {
     if (variant === 'focus') return;
+    const handle = author || authorHandle;
     if (onOpenPost) {
-      onOpenPost(postId, author || authorHandle);
+      onOpenPost(postId, handle);
+    } else {
+      // Cartes sans callback (résultats de recherche) : la surcouche prend
+      // le relais au lieu de laisser le clic sans effet.
+      thoughtOverlay?.openThought(postId, handle);
     }
   };
 

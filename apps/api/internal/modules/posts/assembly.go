@@ -17,6 +17,57 @@ import (
 	"github.com/qoefi/api/internal/identity"
 )
 
+// MaxQuoteDepth borne la profondeur d'une chaîne de citations. Trois
+// maillons couvrent les chaînes réelles ; la borne évite qu'une référence
+// cyclique (A cite B qui cite A) ne fasse déborder la pile de rendu.
+const MaxQuoteDepth = 3
+
+// LoadPostClosure charge les pensées demandées puis complète la fermeture,
+// niveau par niveau : ancêtres (parent / racine) et citations (repost).
+//
+// Sans cette fermeture, une citation de citation arrivait avec `repost`
+// nul : le client ne pouvait pas dessiner le troisième maillon, même quand
+// la donnée existait en base. La même map sert à résoudre les articles
+// cités et à charger pièces jointes / sondages, donc les maillons profonds
+// héritent eux aussi de leur contexte.
+func LoadPostClosure(ctx context.Context, q db.Querier, ids []string, viewerID string) (map[string]*db.GetPostsByIDsRow, error) {
+	all := map[string]*db.GetPostsByIDsRow{}
+	queued := map[string]bool{}
+	pending := make([]string, 0, len(ids))
+	for _, id := range ids {
+		if id == "" || queued[id] {
+			continue
+		}
+		queued[id] = true
+		pending = append(pending, id)
+	}
+
+	for depth := 0; depth <= MaxQuoteDepth && len(pending) > 0; depth++ {
+		rows, err := q.GetPostsByIDs(ctx, db.GetPostsByIDsParams{Ids: pending, ViewerID: toUUID(viewerID)})
+		if err != nil {
+			return nil, err
+		}
+		next := make([]string, 0)
+		for i := range rows {
+			r := &rows[i]
+			if _, seen := all[r.ID]; seen {
+				continue
+			}
+			all[r.ID] = r
+			for _, ref := range []*string{ParentIDOf(r), RootIDOf(r), RepostIDOf(r)} {
+				if ref == nil || all[*ref] != nil || queued[*ref] {
+					continue
+				}
+				queued[*ref] = true
+				next = append(next, *ref)
+			}
+		}
+		pending = next
+	}
+
+	return all, nil
+}
+
 // ParentIDOf renvoie l'ID parent d'une ligne (nil si aucun).
 func ParentIDOf(r *db.GetPostsByIDsRow) *string {
 	if r.ParentId.Valid && r.ParentId.String != "" {
@@ -61,6 +112,12 @@ func AuthorOf(r *db.GetPostsByIDsRow, following map[string]bool) Author {
 // l'état du viewer (liked/reposted), l'état follow de l'auteur et l'article
 // cité résolu par le serveur (quoted, clé = postID — voir QuotedArticlesFor).
 func BuildFeedPost(r *db.GetPostsByIDsRow, all map[string]*db.GetPostsByIDsRow, attachments map[string][]Attachment, polls map[string]*Poll, following map[string]bool, quoted map[string]*QuotedArticle) FeedPost {
+	return buildFeedPost(r, all, attachments, polls, following, quoted, 0)
+}
+
+// buildFeedPost porte la profondeur : la borne s'applique à la récursion,
+// pas à l'API exportée (qui garde sa signature pour tous les appelants).
+func buildFeedPost(r *db.GetPostsByIDsRow, all map[string]*db.GetPostsByIDsRow, attachments map[string][]Attachment, polls map[string]*Poll, following map[string]bool, quoted map[string]*QuotedArticle, depth int) FeedPost {
 	fp := FeedPost{
 		ID:               r.ID,
 		Content:          r.Content,
@@ -88,9 +145,9 @@ func BuildFeedPost(r *db.GetPostsByIDsRow, all map[string]*db.GetPostsByIDsRow, 
 		Liked:    r.ViewerLiked,
 		Reposted: r.ViewerReposted,
 	}
-	if rid := RepostIDOf(r); rid != nil {
+	if rid := RepostIDOf(r); rid != nil && depth < MaxQuoteDepth {
 		if rp, ok := all[*rid]; ok {
-			rr := BuildFeedPost(rp, all, attachments, polls, following, quoted)
+			rr := buildFeedPost(rp, all, attachments, polls, following, quoted, depth+1)
 			fp.Repost = &rr
 		}
 	}

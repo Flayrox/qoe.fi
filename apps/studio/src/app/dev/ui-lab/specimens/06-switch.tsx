@@ -55,7 +55,7 @@ export function SwitchSpecimen() {
       <Variant
         label="Composant Switch de production (@qoe/ui/switch)"
         kind="candidat"
-        hint="Bâti sur react-aria-components. Clavier complet (Espace/Entrée), focus-visible ring, hauteurs normalisées sm/md, tokens sémantiques et gestion fluide des labels/descriptions."
+        hint="Clavier complet (Espace/Entrée), anneau de focus visible, hauteurs normalisées sm/md, jetons sémantiques, et libellé/description reliés au contrôle."
       >
         <div className="grid max-w-md gap-6">
           <Switch

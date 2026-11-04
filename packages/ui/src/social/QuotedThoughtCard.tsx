@@ -3,11 +3,27 @@
 import React from 'react';
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
-import { AuthorAvatar } from '../ui/AuthorAvatar';
+import { CornerDownRight } from 'lucide-react';
+import { SafeAvatar } from '../SafeAvatar';
 import { CertifiedBadge } from '../ui/CertifiedBadge';
 import { TextParser } from '../ui/TextParser';
 import { ProfileHoverCard } from './ProfileHoverCard';
+import { QuotedArticleCard, type QuotedArticleData } from './QuotedArticleCard';
+import type { AnnotationCitation } from '../annotations/citation';
 
+/**
+ * Profondeur maximale dessinée. Une chaîne réelle tient en trois maillons
+ * (la pensée, celle qu'elle cite, celle que la citation cite encore) ;
+ * au-delà, on résume au lieu d'indenter à l'infini.
+ */
+const MAX_QUOTE_DEPTH = 2;
+
+/**
+ * Une pensée citée. `repost` est récursif : citer une citation n'est pas un
+ * cas dégénéré, c'est un troisième point de vue. La carte d'article et
+ * l'annotation voyagent avec chaque maillon — sans quoi une citation
+ * d'article perdue au deuxième niveau ressemblerait à une pensée orpheline.
+ */
 export interface QuotedThoughtData {
   id: string;
   content: string;
@@ -22,66 +38,185 @@ export interface QuotedThoughtData {
     isCertified?: boolean;
     type?: 'PERSONAL' | 'MEDIA' | string | null;
   };
+  /** Maillon suivant de la chaîne de citations. */
+  repost?: QuotedThoughtData | null;
+  /** Article cité par ce maillon. */
+  articleQuote?: QuotedArticleData | null;
+  /** Annotation citée par ce maillon. */
+  annotationQuote?: AnnotationCitation | null;
+  quotedExcerpt?: string | null;
 }
 
 export interface QuotedThoughtCardProps {
   post: QuotedThoughtData | null;
   onOpenPost?: (postId: string, authorUsername?: string) => void;
+  /** 0 = citation directe, 1+ = maillon d'une chaîne. */
+  depth?: number;
   className?: string;
 }
 
-export function QuotedThoughtCard({ post, onOpenPost, className }: QuotedThoughtCardProps) {
+/**
+ * Une seule carte pour toute la chaîne : le premier maillon porte la
+ * surface (bord, fond, rayon), les suivants s'accrochent à un filet de
+ * marque. Deux boîtes imbriquées donneraient l'impression d'un collage.
+ */
+export function QuotedThoughtCard({
+  post,
+  onOpenPost,
+  depth = 0,
+  className,
+}: QuotedThoughtCardProps) {
   if (!post) return null;
 
-  const authorHandle =
-    post.author.username || post.author.subdomain || post.author.id.slice(0, 8) || 'auteur';
+  const nested = depth > 0;
+  const author = post.author;
+  // Le handle public sert à la fois d'affichage et de destination. Un compte
+  // sans nom ni handle garde un libellé neutre : huit caractères d'UUID au
+  // milieu d'une citation ne sont pas une identité.
+  const publicHandle = author?.username || author?.subdomain || '';
+  const authorHandle = publicHandle || author?.id?.slice(0, 8) || 'auteur';
+  const authorName = author?.name || (publicHandle ? `@${publicHandle}` : t`Auteur`);
 
-  const handleClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const content = post.content?.trim() ?? '';
+  const innerThought = post.repost ?? null;
+  const article = post.articleQuote ?? null;
+  const citation = post.annotationQuote ?? null;
+  // Un maillon sans texte, sans image et sans rien à citer ne doit pas
+  // produire une boîte vide : c'est exactement le cas d'une pensée
+  // supprimée entre deux chargements.
+  const isMissing = !content && !post.imageUrl && !article && !citation && !innerThought;
+
+  const open = (event: { preventDefault(): void; stopPropagation(): void }) => {
+    event.preventDefault();
+    event.stopPropagation();
     if (onOpenPost) {
       onOpenPost(post.id, authorHandle);
-    } else {
-      window.location.href = `/${encodeURIComponent(authorHandle)}/thought/${encodeURIComponent(post.id)}`;
+      return;
     }
+    if (typeof window !== 'undefined') {
+      window.location.assign(
+        `/${encodeURIComponent(authorHandle)}/thought/${encodeURIComponent(post.id)}`
+      );
+    }
+  };
+
+  // Seul le premier maillon est un bouton : un bouton dans un bouton n'est
+  // pas une hiérarchie, c'est un piège au clavier. Les maillons suivants
+  // restent du contexte lisible ; l'article cité, lui, garde son lien.
+  const handleClick = (event: React.MouseEvent) => {
+    if (nested) return;
+    open(event);
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (nested) return;
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    open(event);
   };
 
   return (
     <div
-      onClick={handleClick}
+      data-quoted-thought={post.id}
+      data-quote-depth={depth}
+      role={nested ? undefined : 'button'}
+      tabIndex={nested ? undefined : 0}
+      aria-label={nested ? undefined : t`Ouvrir la pensée citée`}
+      onClick={nested ? undefined : handleClick}
+      onKeyDown={nested ? undefined : handleKeyDown}
       className={cn(
-        'border border-border/40 hover:border-brand/40 rounded-xl p-3 bg-muted/20 hover:bg-muted/40 transition-all duration-200 cursor-pointer space-y-2 font-sans select-none shadow-2xs mt-2',
+        'font-sans select-none space-y-2 text-left',
+        nested
+          ? 'mt-2 border-l-2 border-brand/30 pl-3'
+          : 'mt-2.5 cursor-pointer rounded-xl border border-border/40 bg-muted/20 p-3 shadow-2xs transition-all duration-200 hover:border-brand/40 hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-brand/50 focus-visible:outline-hidden',
         className
       )}
     >
-      {/* Header Author Info */}
-      <div className="flex items-center gap-2">
-        <AuthorAvatar user={post.author} size="xs" showBadge={false} />
-        <div className="flex items-center gap-1.5 min-w-0 flex-1">
-          <ProfileHoverCard user={post.author} username={authorHandle}>
-            <span className="font-bold text-xs text-foreground hover:text-brand transition-colors cursor-pointer truncate">
-              {post.author.name || t`Auteur`}
+      {/* Auteur du maillon — même identité que le reste de l'application :
+          SafeAvatar déduit le cercle d'une personne et le carré d'un média. */}
+      <div className="flex min-w-0 items-center gap-2">
+        <SafeAvatar
+          id={author?.id}
+          src={author?.logoUrl}
+          name={authorName}
+          username={authorHandle}
+          type={author?.type}
+          size={nested ? 18 : 24}
+          className={cn(nested ? 'border border-border/40' : 'border border-border/30')}
+        />
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          <ProfileHoverCard user={author} username={authorHandle}>
+            <span
+              className={cn(
+                'truncate font-bold text-foreground transition-colors hover:text-brand',
+                nested ? 'text-[11px]' : 'text-xs'
+              )}
+            >
+              {authorName}
             </span>
           </ProfileHoverCard>
-          {post.author.isCertified && <CertifiedBadge />}
-          <ProfileHoverCard user={post.author} username={authorHandle}>
-            <span className="text-xs text-muted-foreground hover:text-brand transition-colors cursor-pointer truncate">
-              @{authorHandle}
-            </span>
-          </ProfileHoverCard>
+          {author?.isCertified && <CertifiedBadge />}
+          {publicHandle && (
+            <ProfileHoverCard user={author} username={publicHandle}>
+              <span className="truncate text-[11px] text-muted-foreground transition-colors hover:text-brand">
+                @{publicHandle}
+              </span>
+            </ProfileHoverCard>
+          )}
         </div>
       </div>
 
-      {/* Content */}
-      <div className="text-xs text-foreground/90 leading-relaxed font-sans line-clamp-3">
-        <TextParser content={post.content} />
-      </div>
+      {content && (
+        <div
+          className={cn(
+            'leading-relaxed text-foreground/90',
+            nested ? 'text-[11.5px]' : 'text-xs',
+            depth === 0 ? 'line-clamp-3' : depth === 1 ? 'line-clamp-2' : 'line-clamp-1'
+          )}
+        >
+          <TextParser content={post.content} />
+        </div>
+      )}
 
-      {/* Single Image Thumbnail if present */}
       {post.imageUrl && (
-        <div className="overflow-hidden rounded-lg border border-border/30 max-h-48 aspect-video mt-1">
-          <img src={post.imageUrl} alt="" className="w-full h-full object-cover" />
+        <div
+          className={cn(
+            'mt-1 aspect-video overflow-hidden rounded-lg border border-border/30',
+            nested ? 'max-h-32' : 'max-h-48'
+          )}
+        >
+          <img src={post.imageUrl} alt="" className="h-full w-full object-cover" />
         </div>
+      )}
+
+      {isMissing && (
+        <p
+          data-quote-missing
+          className="flex items-center gap-1.5 text-[11px] italic leading-relaxed text-muted-foreground"
+        >
+          <CornerDownRight className="size-3.5 shrink-0" aria-hidden />
+          {t`Le texte cité n’est plus disponible.`}
+        </p>
+      )}
+
+      {(article || citation) && (
+        <QuotedArticleCard
+          article={article}
+          citation={citation ?? undefined}
+          quotedExcerpt={post.quotedExcerpt ?? undefined}
+          compact={nested}
+        />
+      )}
+
+      {innerThought && depth < MAX_QUOTE_DEPTH && (
+        <QuotedThoughtCard post={innerThought} onOpenPost={onOpenPost} depth={depth + 1} />
+      )}
+
+      {innerThought && depth >= MAX_QUOTE_DEPTH && (
+        <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <CornerDownRight className="size-3.5 shrink-0" aria-hidden />
+          {t`La chaîne de citations continue.`}
+        </p>
       )}
     </div>
   );

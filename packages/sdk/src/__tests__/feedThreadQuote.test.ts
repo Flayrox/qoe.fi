@@ -301,6 +301,34 @@ describe('getPostThreadAction — citations', () => {
     expect(nestedReplyNode?.annotationQuote?.reader.type).toBe('MEDIA');
   });
 
+  it('conserve la chaîne de citations et la nature du compte à chaque maillon', async () => {
+    const deepest = makePostNode('post_deepest', 'deepest');
+    const middle = makePostNode('post_middle', 'middle', {
+      repost: deepest,
+      author: {
+        id: 'author_middle',
+        name: 'Le Journal Éco',
+        username: 'journaleco',
+        logoUrl: null,
+        isCertified: true,
+        type: 'MEDIA',
+      },
+    });
+    const outer = makePostNode('post_outer', 'outer', { repost: middle });
+
+    goFetch.mockResolvedValue({ post: outer });
+
+    const res = await getPostThreadAction('post_outer');
+    if (!res.ok) throw new Error('Expected ok');
+    const { post } = res.data;
+
+    // Le maillon intermédiaire garde son identité média — sinon son avatar
+    // redevient un cercle dès qu'il traverse un fil.
+    expect(post.repost?.author.type).toBe('MEDIA');
+    expect(post.repost?.repost?.id).toBe('post_deepest');
+    expect(post.repost?.repost?.annotationQuote?.reader.type).toBe('MEDIA');
+  });
+
   it('laisse les citations nulles sur une pensée ordinaire', async () => {
     goFetch.mockResolvedValue({
       post: {

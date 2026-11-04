@@ -29,7 +29,7 @@ import { buttonClasses } from '../button/button';
 // =====================================================================
 
 export type DrawerSide = 'left' | 'right';
-export type DrawerWidth = 'sm' | 'md' | 'lg';
+export type DrawerWidth = 'sm' | 'md' | 'lg' | 'xl';
 
 interface DrawerVariant {
   side: DrawerSide;
@@ -65,6 +65,9 @@ const WIDTH_CLASSES: Record<DrawerWidth, string> = {
   sm: 'w-full sm:w-80',
   md: 'w-full sm:w-[25rem]',
   lg: 'w-full sm:w-[30rem]',
+  // Fil de discussion : plus large que `lg`, jamais une largeur inventée
+  // par un écran. Les tiroirs du produit n'ont que ces quatre dimensions.
+  xl: 'w-full sm:w-[36rem]',
 };
 
 export interface DrawerProps {
@@ -131,6 +134,12 @@ export function DrawerTrigger({ children, className }: DrawerTriggerProps) {
 export interface DrawerContentProps {
   children: ReactNode;
   className?: string;
+  /**
+   * Classes du voile (`Modal`), pas du panneau : sert à choisir la couche
+   * d'empilement quand deux surcouches se superposent (ex. `z-40` pour un
+   * panneau qui doit rester SOUS un drawer ouvert par-dessus).
+   */
+  overlayClassName?: string;
   /** Nom accessible, si aucun `DrawerTitle` n'est rendu. */
   'aria-label'?: string;
 }
@@ -138,6 +147,7 @@ export interface DrawerContentProps {
 export function DrawerContent({
   children,
   className,
+  overlayClassName,
   'aria-label': ariaLabel,
 }: DrawerContentProps) {
   const { side, width, isDismissable, className: rootClassName } = useContext(DrawerVariantContext);
@@ -151,7 +161,8 @@ export function DrawerContent({
         // laisserait l'arrière-plan lisible, donc rien ne signalerait que
         // la page est inerte.
         'bg-foreground/25 backdrop-blur-xs',
-        OVERLAY_SIDE[side]
+        OVERLAY_SIDE[side],
+        overlayClassName
       )}
     >
       <Dialog

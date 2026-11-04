@@ -48,6 +48,12 @@ export interface QuotedArticleCardProps {
    */
   citation?: AnnotationCitation | null;
   onOpenArticle?: (article: QuotedArticleData) => void;
+  /**
+   * Maillon d'une chaîne de citations : la carte perd sa boîte et son
+   * pied de page. Le rayon, le filet de marque et le titre restent — c'est
+   * le même objet, simplement moins prioritaire qu'au premier niveau.
+   */
+  compact?: boolean;
   className?: string;
 }
 
@@ -98,6 +104,7 @@ export function QuotedArticleCard({
   quotedExcerpt,
   citation,
   onOpenArticle,
+  compact = false,
   className,
 }: QuotedArticleCardProps) {
   // Dégradation gracieuse : l'article a été supprimé ou dépublié, mais
@@ -112,7 +119,8 @@ export function QuotedArticleCard({
       <div
         data-quoted-annotation={citation.id}
         className={cn(
-          'relative border border-border/30 bg-muted/20 rounded-xl p-4 space-y-3 font-sans select-none my-2.5',
+          'relative border border-border/30 bg-muted/20 space-y-3 font-sans select-none',
+          compact ? 'my-1 rounded-lg p-3' : 'my-2.5 rounded-xl p-4',
           className
         )}
       >
@@ -211,7 +219,8 @@ export function QuotedArticleCard({
       onClick={handleClick}
       data-quoted-annotation={citation ? citation.id : undefined}
       className={cn(
-        'group/quote relative border border-border/30 hover:border-border/60 bg-muted/20 hover:bg-muted/35 rounded-xl p-4 transition-all duration-200 cursor-pointer space-y-3 font-sans select-none my-2.5',
+        'group/quote relative border border-border/30 bg-muted/20 transition-all duration-200 cursor-pointer space-y-3 font-sans select-none hover:border-border/60 hover:bg-muted/35',
+        compact ? 'my-1 rounded-lg p-3' : 'my-2.5 rounded-xl p-4',
         className
       )}
     >
@@ -243,7 +252,12 @@ export function QuotedArticleCard({
       {citation && <AnnotationCitationHeading citation={citation} />}
 
       {/* Article Title */}
-      <h4 className="text-base font-semibold text-foreground tracking-tight leading-snug group-hover/quote:text-brand transition-colors">
+      <h4
+        className={cn(
+          'font-semibold leading-snug tracking-tight text-foreground transition-colors group-hover/quote:text-brand',
+          compact ? 'text-sm' : 'text-base'
+        )}
+      >
         {article.title}
       </h4>
 
@@ -271,8 +285,14 @@ export function QuotedArticleCard({
         </div>
       )}
 
-      {/* Footer Credit & Action */}
-      <div className="flex items-center justify-between text-xs pt-1.5 border-t border-border/20 text-muted-foreground">
+      {/* Footer Credit & Action — masqué en maillon : il répéterait ce que
+          la carte de pensée citée dit déjà deux lignes plus haut. */}
+      <div
+        className={cn(
+          'flex items-center justify-between border-t border-border/20 pt-1.5 text-xs text-muted-foreground',
+          compact && 'hidden'
+        )}
+      >
         <div>
           {t`Par`} <span className="font-medium text-foreground">{authorName}</span>
         </div>
