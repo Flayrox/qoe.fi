@@ -18,7 +18,10 @@ import {
 } from 'lucide-react';
 import { AuthorAvatar } from '@qoe/ui/ui/AuthorAvatar';
 import { ThoughtCard } from '@/components/social/ThoughtCard';
-import { useArticleOverlay } from '@/components/article-overlay/ArticleOverlayProvider';
+import {
+  useArticleOverlay,
+  type OpenArticleInput,
+} from '@/components/article-overlay/ArticleOverlayProvider';
 import { useThoughtOverlay } from '@/components/thought-overlay/context';
 import { ArticleCard } from '@qoe/ui/cards';
 import { Button } from '@qoe/ui/button';
@@ -116,6 +119,21 @@ export function ProfileView({
       return;
     }
     router.push(routes.feed.thought(handle, id));
+  };
+
+  const handleOpenArticle = (art: { id?: string; slug?: string; title?: string } | string) => {
+    const slug = typeof art === 'string' ? art : art?.slug;
+    if (!slug) return;
+    if (overlay) {
+      overlay.openArticle(
+        typeof art === 'string' ? { slug } : (art as unknown as OpenArticleInput),
+        { source: 'public_profile' }
+      );
+    } else {
+      window.location.href = getArticleUrl(typeof art === 'string' ? { slug } : { ...art, slug }, {
+        fallbackOwner: user.username || user.subdomain || 'article',
+      });
+    }
   };
   const [activeTab, setActiveTab] = useState<ProfileTab>(
     PROFILE_TABS.includes(initialTab as ProfileTab) ? (initialTab as ProfileTab) : 'thoughts'
@@ -505,6 +523,7 @@ export function ProfileView({
                           const handle = authorUsername || profileHandle || user.id;
                           openThought(id, handle);
                         }}
+                        onOpenArticle={handleOpenArticle}
                       />
                     </div>
                   ))}
@@ -518,6 +537,7 @@ export function ProfileView({
                         const handle = authorUsername || profileHandle || user.id;
                         openThought(id, handle);
                       }}
+                      onOpenArticle={handleOpenArticle}
                     />
                   ))}
                 </>
@@ -540,6 +560,7 @@ export function ProfileView({
                       const handle = authorUsername || user.username || user.subdomain || user.id;
                       openThought(id, handle);
                     }}
+                    onOpenArticle={handleOpenArticle}
                   />
                 ))
               )}
@@ -562,15 +583,7 @@ export function ProfileView({
                     disableAuthorOverride={true}
                     handleFollowToggle={handleFollowToggle}
                     handleBookmarkToggle={() => {}}
-                    onOpenArticle={() => {
-                      if (overlay) {
-                        overlay.openArticle(article, { source: 'public_profile' });
-                      } else {
-                        window.location.href = getArticleUrl(article, {
-                          fallbackOwner: user.username || user.subdomain || 'article',
-                        });
-                      }
-                    }}
+                    onOpenArticle={() => handleOpenArticle(article)}
                   />
                 ))
               )}
@@ -598,6 +611,7 @@ export function ProfileView({
                         user.id;
                       openThought(id, handle);
                     }}
+                    onOpenArticle={handleOpenArticle}
                   />
                 ))
               )}

@@ -15,9 +15,16 @@ import { ThoughtCard } from './ThoughtCard';
 import { AuthorAvatar } from '@qoe/ui/ui/AuthorAvatar';
 import { CertifiedBadge } from '@qoe/ui/ui/CertifiedBadge';
 import Link from 'next/link';
-import { routes } from '@qoe/config/routes';
+import { routes, getArticleUrl } from '@qoe/config/routes';
+import {
+  useArticleOverlay,
+  type OpenArticleInput,
+} from '@/components/article-overlay/ArticleOverlayProvider';
+import { useThoughtOverlay } from '@/components/thought-overlay/context';
 
 export function SearchFeed({ initialQuery = '' }: { initialQuery?: string }) {
+  const articleOverlay = useArticleOverlay();
+  const thoughtOverlay = useThoughtOverlay();
   const [query, setQuery] = useState(initialQuery);
   const [activeTab, setActiveTab] = useState<'all' | 'thoughts' | 'users' | 'articles'>('all');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -205,7 +212,37 @@ export function SearchFeed({ initialQuery = '' }: { initialQuery?: string }) {
               </h3>
               <div className="rounded-2xl border border-border/50 overflow-hidden divide-y divide-border/30 bg-card">
                 {thoughts.map((thought) => (
-                  <ThoughtCard key={thought.id} post={thought} />
+                  <ThoughtCard
+                    key={thought.id}
+                    post={thought}
+                    onOpenPost={(id, authorUsername) => {
+                      const handle =
+                        authorUsername ||
+                        thought.author?.username ||
+                        thought.author?.subdomain ||
+                        thought.author?.id ||
+                        'auteur';
+                      if (thoughtOverlay) {
+                        thoughtOverlay.openThought(id, handle);
+                      } else {
+                        window.location.href = routes.feed.thought(handle, id);
+                      }
+                    }}
+                    onOpenArticle={(art) => {
+                      const slug = typeof art === 'string' ? art : art?.slug;
+                      if (!slug) return;
+                      if (articleOverlay) {
+                        articleOverlay.openArticle(
+                          typeof art === 'string' ? { slug } : (art as unknown as OpenArticleInput),
+                          { source: 'feed' }
+                        );
+                      } else {
+                        window.location.href = getArticleUrl(
+                          typeof art === 'string' ? { slug } : { ...art, slug }
+                        );
+                      }
+                    }}
+                  />
                 ))}
               </div>
             </div>
@@ -221,7 +258,17 @@ export function SearchFeed({ initialQuery = '' }: { initialQuery?: string }) {
                 {articles.map((art) => (
                   <div
                     key={art.id}
-                    className="p-4 rounded-2xl bg-card border border-border/50 space-y-1"
+                    onClick={() => {
+                      if (!art.slug) return;
+                      if (articleOverlay) {
+                        articleOverlay.openArticle(art as unknown as OpenArticleInput, {
+                          source: 'feed',
+                        });
+                      } else {
+                        window.location.href = getArticleUrl(art);
+                      }
+                    }}
+                    className="p-4 rounded-2xl bg-card border border-border/50 space-y-1 hover:border-border/80 hover:bg-muted/40 transition-all cursor-pointer select-none"
                   >
                     <h4 className="font-bold text-sm text-foreground hover:text-primary transition-colors">
                       {art.title}
