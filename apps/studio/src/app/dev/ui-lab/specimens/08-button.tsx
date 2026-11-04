@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { Plus, Trash2 } from 'lucide-react';
 import { Button } from '@qoe/ui/button';
 import { ButtonGroup } from '@qoe/ui/button-group';
@@ -176,6 +177,32 @@ export function ButtonSpecimen() {
             'Les icônes suivent la densité : <Button><Plus />Texte</Button> sans prop `icon`',
             'ButtonGroup colle les rayons et fusionne les bordures en `attached`',
             'className reste fusionné : la disposition (ml-auto, w-full) est permise, l’identité non',
+          ]}
+        />
+      </Variant>
+
+      <Variant
+        label="États — en cours, désactivé, lien"
+        kind="candidat"
+        hint="`loading` n’est pas une décoration : le bouton devient non activable, annonce `aria-busy` et remplace son icône de tête par un spinner, sans changer sa largeur. `asChild` donne la même peau à un `next/link` — plus de faux bouton qui perd la navigation client."
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="solid" tone="brand" loading>
+            Enregistrement…
+          </Button>
+          <Button variant="outline" loading>
+            Chargement
+          </Button>
+          <Button asChild variant="solid" tone="neutral">
+            <Link href="/dev/ui-lab">Ouvrir le lab</Link>
+          </Button>
+        </div>
+
+        <DefectList
+          items={[
+            'Le libellé reste en place : la largeur ne saute pas au clic',
+            '`loading` désactive réellement le bouton, pas seulement le spinner',
+            '`asChild` clone l’enfant et lui applique buttonClasses, sans `type` invalide sur un lien',
           ]}
         />
       </Variant>
