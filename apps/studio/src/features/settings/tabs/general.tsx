@@ -9,11 +9,12 @@
 // =====================================================================
 
 import React, { useState } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
-import { t } from '@lingui/core/macro';
 import { ColorPicker } from '@qoe/ui';
-import { Input } from '@qoe/ui/input';
+import { Badge } from '@qoe/ui/badge';
+import { Button, buttonClasses } from '@qoe/ui/button';
+import { Input, Textarea } from '@qoe/ui/input';
+import { Switch } from '@qoe/ui/switch';
+import { Tab, TabList, Tabs } from '@qoe/ui/tabs';
 import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
 import { cn } from '@qoe/utils';
@@ -26,13 +27,10 @@ import {
   Palette,
   Image as ImageIcon,
   PenTool,
-  Trash2,
-  Building2,
-  ShieldCheck,
 } from 'lucide-react';
 
 import type { CreatorProfile } from '../types';
-import { ACCENT_SWATCHES, SITE_FONTS, SITE_OPTION_ITEMS } from '../types';
+import { ACCENT_SWATCHES, SITE_FONTS } from '../types';
 import { MediaProfilePreviewEditor } from '../components/MediaProfilePreviewEditor';
 
 interface GeneralTabProps {
@@ -73,33 +71,27 @@ export function GeneralTab({
     <div className="max-w-6xl mx-auto space-y-4">
       {/* ── EN-TÊTE COMPACT & LIEN DIRECT VERS LE VRAI SITE ── */}
       <div className="flex items-center justify-between gap-3 pb-3 border-b border-border/40">
-        <div className="flex items-center gap-1.5 p-1 bg-muted/40 rounded-xl border border-border/40 w-fit">
-          <button
-            type="button"
-            onClick={() => setIdentityScope('tenant')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              identityScope === 'tenant'
-                ? 'bg-background text-foreground shadow-2xs border border-border/50'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Globe className="w-3.5 h-3.5 text-primary" />
-            <span>Site Web</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setIdentityScope('core')}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-              identityScope === 'core'
-                ? 'bg-background text-foreground shadow-2xs border border-border/50'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <User className="w-3.5 h-3.5 text-primary" />
-            <span>{isMedia ? 'Profil du média' : 'Votre profil'}</span>
-          </button>
-        </div>
+        <Tabs
+          variant="segmented"
+          size="sm"
+          value={identityScope}
+          onValueChange={(val) => setIdentityScope(val as 'tenant' | 'core')}
+        >
+          <TabList aria-label="Portée des paramètres d'identité">
+            <Tab id="tenant">
+              <span className="inline-flex items-center gap-1.5">
+                <Globe className="size-3.5 text-primary" />
+                <span>Site Web</span>
+              </span>
+            </Tab>
+            <Tab id="core">
+              <span className="inline-flex items-center gap-1.5">
+                <User className="size-3.5 text-primary" />
+                <span>{isMedia ? 'Profil du média' : 'Votre profil'}</span>
+              </span>
+            </Tab>
+          </TabList>
+        </Tabs>
 
         <div className="flex items-center gap-2">
           {publicBlogUrl && (
@@ -107,10 +99,10 @@ export function GeneralTab({
               href={publicBlogUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 shadow-2xs transition-all active:scale-95"
+              className={buttonClasses({ variant: 'soft', tone: 'brand', size: 'sm' })}
               title="Ouvrir le vrai site web dans un nouvel onglet"
             >
-              <ExternalLink className="w-3.5 h-3.5" />
+              <ExternalLink />
               <span>Voir mon site en direct ↗</span>
             </a>
           )}
@@ -159,13 +151,13 @@ export function GeneralTab({
                     {current.heroText?.length || 0}/180
                   </span>
                 </div>
-                <textarea
+                <Textarea
+                  size="sm"
                   value={current.heroText || ''}
                   onChange={(e) => setCurrent((prev) => ({ ...prev, heroText: e.target.value }))}
                   maxLength={180}
                   rows={2}
                   placeholder="Ex. Analyses, essais et récits"
-                  className="w-full px-3 py-2 bg-background border border-border/40 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80 resize-none transition-colors"
                 />
               </div>
             </div>
@@ -188,30 +180,29 @@ export function GeneralTab({
                   {SITE_FONTS.map((font) => {
                     const isSelected = activeFontId === font.id;
                     return (
-                      <button
+                      <Button
                         key={font.id}
-                        type="button"
+                        variant={isSelected ? 'soft' : 'outline'}
+                        tone={isSelected ? 'brand' : 'neutral'}
                         onClick={() => setCurrent((prev) => ({ ...prev, fontFamily: font.id }))}
                         className={cn(
-                          'p-2.5 rounded-lg border text-left transition-all cursor-pointer',
-                          isSelected
-                            ? 'border-primary bg-primary/10 ring-1 ring-primary shadow-2xs'
-                            : 'border-border/40 bg-muted/20 hover:bg-muted/40 text-muted-foreground'
+                          'h-auto flex-col items-stretch justify-start p-2.5 text-left',
+                          isSelected && 'ring-1 ring-primary'
                         )}
                       >
-                        <div className="flex items-center justify-between mb-0.5">
+                        <span className="flex items-center justify-between mb-0.5">
                           <span className="text-xs font-semibold text-foreground truncate">
                             {font.name.split(' ')[0]}
                           </span>
                           {isSelected && <Check className="w-3 h-3 text-primary shrink-0" />}
-                        </div>
-                        <p
+                        </span>
+                        <span
                           style={{ fontFamily: font.family }}
                           className="text-[11px] text-foreground/80 font-medium truncate"
                         >
                           Écriture libre
-                        </p>
-                      </button>
+                        </span>
+                      </Button>
                     );
                   })}
                 </div>
@@ -220,39 +211,46 @@ export function GeneralTab({
               {/* Couleur d'accentuation */}
               <div className="space-y-1.5 pt-1">
                 <label className="text-xs font-semibold text-foreground block">
-                  Couleur d'accentuation
+                  Couleur d&apos;accentuation
                 </label>
                 <div className="flex items-center gap-2 flex-wrap">
                   {ACCENT_SWATCHES.map((swatch) => {
                     const isSelected = activeColorHex.toLowerCase() === swatch.hex.toLowerCase();
                     return (
-                      <button
+                      <Button
                         key={swatch.id}
-                        type="button"
+                        variant="ghost"
+                        size="xs"
+                        shape="icon"
                         onClick={() => setCurrent((prev) => ({ ...prev, accentColor: swatch.hex }))}
                         title={swatch.name}
+                        aria-label={swatch.name}
                         className={cn(
-                          'w-6 h-6 rounded-full border-2 transition-all cursor-pointer flex items-center justify-center shrink-0',
+                          'size-6 rounded-full border-2 p-0 transition-transform',
                           isSelected
                             ? 'border-foreground scale-110 shadow-xs'
                             : 'border-transparent hover:scale-105'
                         )}
                         style={{ backgroundColor: swatch.hex }}
                       >
-                        {isSelected && <Check className="w-3 h-3 text-white drop-shadow-sm" />}
-                      </button>
+                        {isSelected && (
+                          <Check className="size-3 text-primary-foreground drop-shadow-sm" />
+                        )}
+                      </Button>
                     );
                   })}
 
                   <div className="flex items-center gap-1.5 ml-1 pl-2 border-l border-border/40">
-                    <input
+                    <Input
                       type="color"
+                      size="xs"
                       value={activeColorHex}
                       onChange={(e) =>
                         setCurrent((prev) => ({ ...prev, accentColor: e.target.value }))
                       }
-                      className="w-6 h-6 rounded-full border border-border/50 cursor-pointer p-0 bg-transparent"
+                      aria-label="Couleur personnalisée"
                       title="Couleur personnalisée"
+                      className="size-6 rounded-full border-border/50 cursor-pointer p-0 bg-transparent"
                     />
                     <span className="text-[11px] font-mono text-muted-foreground uppercase">
                       {activeColorHex}
@@ -308,13 +306,15 @@ export function GeneralTab({
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-semibold text-foreground">Logo du site</label>
                     {current.logoUrl && (
-                      <button
-                        type="button"
+                      <Button
+                        variant="ghost"
+                        tone="danger"
+                        size="xs"
                         onClick={() => setCurrent((prev) => ({ ...prev, logoUrl: null }))}
-                        className="text-[11px] text-destructive-text hover:underline cursor-pointer"
+                        className="h-auto px-1.5 py-0.5 text-[11px]"
                       >
                         Supprimer
-                      </button>
+                      </Button>
                     )}
                   </div>
                   <div className="max-w-[100px] mx-auto">
@@ -339,18 +339,20 @@ export function GeneralTab({
                   <div className="flex items-center justify-between">
                     <label className="text-xs font-semibold text-foreground">Wordmark</label>
                     {Boolean(current.siteOptions?.wordmarkUrl) && (
-                      <button
-                        type="button"
+                      <Button
+                        variant="ghost"
+                        tone="danger"
+                        size="xs"
                         onClick={() =>
                           setCurrent((prev) => ({
                             ...prev,
                             siteOptions: { ...(prev.siteOptions || {}), wordmarkUrl: null },
                           }))
                         }
-                        className="text-[11px] text-destructive-text hover:underline cursor-pointer"
+                        className="h-auto px-1.5 py-0.5 text-[11px]"
                       >
                         Supprimer
-                      </button>
+                      </Button>
                     )}
                   </div>
                   <ImageUploader
@@ -368,7 +370,7 @@ export function GeneralTab({
                     maxDimension={1600}
                   />
                   <p className="text-[10px] text-muted-foreground text-center">
-                    Logo texte PNG/SVG centré dans l'en-tête (remplace le nom textuel)
+                    Logo texte PNG/SVG centré dans l&apos;en-tête (remplace le nom textuel)
                   </p>
                 </div>
               </div>
@@ -400,32 +402,25 @@ export function GeneralTab({
                 ].map((item) => {
                   const isEnabled = (current.siteOptions?.[item.key] ?? true) !== false;
                   return (
-                    <button
+                    <div
                       key={item.key}
-                      type="button"
-                      onClick={() => toggleSiteOption(item.key)}
                       className={cn(
-                        'flex items-center justify-between p-2 rounded-lg border text-xs font-medium transition-all cursor-pointer',
+                        'rounded-lg border px-2.5 py-2 transition-colors',
                         isEnabled
-                          ? 'border-border/60 bg-muted/30 text-foreground'
-                          : 'border-border/30 bg-muted/10 text-muted-foreground/60'
+                          ? 'border-border/60 bg-muted/30'
+                          : 'border-border/30 bg-muted/10 opacity-75'
                       )}
                     >
-                      <span className="truncate pr-1 text-[11px]">{item.label}</span>
-                      <div
-                        className={cn(
-                          'w-7 h-4 rounded-full transition-colors relative shrink-0',
-                          isEnabled ? 'bg-primary' : 'bg-muted-foreground/30'
-                        )}
-                      >
-                        <div
-                          className={cn(
-                            'w-3 h-3 rounded-full bg-white transition-transform absolute top-0.5',
-                            isEnabled ? 'left-3.5' : 'left-0.5'
-                          )}
-                        />
-                      </div>
-                    </button>
+                      <Switch
+                        size="sm"
+                        isSelected={isEnabled}
+                        onChange={() => toggleSiteOption(item.key)}
+                        label={
+                          <span className="truncate text-[11px] font-medium">{item.label}</span>
+                        }
+                        className="w-full items-center gap-2"
+                      />
+                    </div>
                   );
                 })}
               </div>
@@ -445,11 +440,11 @@ export function GeneralTab({
           <div className="flex items-center justify-between pb-3 border-b border-border/30">
             <div className="flex items-center gap-2">
               <User className="w-4 h-4 text-primary" />
-              <h3 className="text-sm font-bold text-foreground">Profil personnel d'auteur</h3>
+              <h3 className="text-sm font-bold text-foreground">Profil personnel d&apos;auteur</h3>
             </div>
-            <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border/40">
+            <Badge variant="outline" shape="pill">
               Géré sur le Core
-            </span>
+            </Badge>
           </div>
 
           {/* Carte d'identité actuelle en lecture seule */}
@@ -495,9 +490,9 @@ export function GeneralTab({
           {/* Explication & Action vers le Core */}
           <div className="space-y-4 pt-1">
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Votre identité publique d'auteur (nom, biographie, photo de profil et sécurité) est
-              centralisée sur le réseau souverain Qoefi. Les modifications sont instantanément
-              répercutées sur l'ensemble de vos écrits et de vos interactions.
+              Votre identité publique d&apos;auteur (nom, biographie, photo de profil et sécurité)
+              est centralisée sur le réseau souverain Qoefi. Les modifications sont instantanément
+              répercutées sur l&apos;ensemble de vos écrits et de vos interactions.
             </p>
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-border/30">
@@ -508,10 +503,10 @@ export function GeneralTab({
                 href={consoleSettingsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-all shadow-xs cursor-pointer active:scale-95"
+                className={buttonClasses({ variant: 'solid', tone: 'brand', size: 'md' })}
               >
                 <span>Gérer mon profil sur Qoefi Core</span>
-                <ExternalLink className="w-3.5 h-3.5" />
+                <ExternalLink />
               </a>
             </div>
           </div>

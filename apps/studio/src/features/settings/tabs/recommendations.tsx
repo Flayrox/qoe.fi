@@ -19,6 +19,9 @@ import {
   Loader2,
   Globe,
 } from 'lucide-react';
+import { Badge } from '@qoe/ui/badge';
+import { Button } from '@qoe/ui/button';
+import { Input, InputGroup } from '@qoe/ui/input';
 import { toast } from '@qoe/ui/toast';
 import { Switch } from '@qoe/ui/switch';
 import { t } from '@lingui/core/macro';
@@ -230,28 +233,23 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
 
         <form onSubmit={handleLookup} className="space-y-4">
           <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <input
+            <InputGroup left={<Search />} className="flex-1">
+              <Input
                 type="text"
                 value={domainInput}
                 onChange={(e) => setDomainInput(e.target.value)}
                 placeholder="Domaine, sous-domaine ou nom (ex: souverainete, adminoo)..."
-                className="w-full rounded-xl border border-input bg-background py-2.5 pr-4 pl-10 text-sm outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
               />
-            </div>
-            <button
+            </InputGroup>
+            <Button
               type="submit"
+              variant="soft"
+              size="md"
               disabled={isSearching || !domainInput.trim()}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-muted hover:bg-muted/80 text-foreground font-medium text-xs transition-colors cursor-pointer disabled:opacity-50"
             >
-              {isSearching ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Search className="w-4 h-4" />
-              )}
+              {isSearching ? <Loader2 className="animate-spin" /> : <Search />}
               <span>Trouver</span>
-            </button>
+            </Button>
           </div>
 
           {searchError && (
@@ -284,9 +282,10 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
                     </span>
                   </div>
                 </div>
-                <span className="text-[11px] font-semibold text-primary px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" /> Trouvé
-                </span>
+                <Badge variant="outline" tone="brand" shape="pill">
+                  <CheckCircle2 />
+                  <span>Trouvé</span>
+                </Badge>
               </div>
 
               {foundPub.bio && (
@@ -299,29 +298,26 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
                 <label className="text-xs font-medium text-foreground block">
                   Note ou mot de recommandation (optionnel)
                 </label>
-                <input
+                <Input
                   type="text"
+                  size="sm"
                   value={noteInput}
                   onChange={(e) => setNoteInput(e.target.value)}
                   placeholder="Pourquoi recommandez-vous cette publication à vos lecteurs ?"
-                  className="w-full rounded-lg border border-input bg-background py-2 px-3 text-xs outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                 />
               </div>
 
               <div className="flex justify-end pt-1">
-                <button
-                  type="button"
+                <Button
+                  variant="solid"
+                  tone="brand"
+                  size="sm"
                   onClick={handleAdd}
                   disabled={isAdding}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold text-xs shadow-xs hover:opacity-95 transition-all cursor-pointer disabled:opacity-50"
                 >
-                  {isAdding ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Plus className="w-3.5 h-3.5" />
-                  )}
+                  {isAdding ? <Loader2 className="animate-spin" /> : <Plus />}
                   <span>Ajouter</span>
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -344,13 +340,15 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
         ) : error ? (
           <div className="p-4 rounded-xl border border-destructive/20 bg-destructive/5 text-destructive-text text-xs flex items-center justify-between gap-3">
             <span>{error}</span>
-            <button
-              type="button"
+            <Button
+              variant="outline"
+              tone="danger"
+              size="xs"
               onClick={loadRecs}
-              className="shrink-0 rounded-lg border border-destructive/30 px-2.5 py-1 font-semibold hover:bg-destructive/10 transition-colors cursor-pointer"
+              className="shrink-0"
             >
               Réessayer
-            </button>
+            </Button>
           </div>
         ) : recommendations.length === 0 ? (
           <div className="text-center p-8 border border-dashed border-border/60 rounded-2xl space-y-2">
@@ -411,30 +409,31 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
 
                   {confirmDeleteId === rec.id ? (
                     <div className="flex items-center gap-1.5 shrink-0 animate-in fade-in duration-150">
-                      <button
-                        type="button"
+                      <Button
+                        variant="solid"
+                        tone="danger"
+                        size="xs"
                         onClick={() => handleRemove(rec.id, rec.publicationName)}
-                        className="px-2.5 py-1 text-xs font-semibold bg-destructive text-destructive-foreground hover:opacity-90 rounded-lg transition-opacity cursor-pointer shadow-2xs"
                       >
                         Retirer
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmDeleteId(null)}
-                        className="px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground rounded-lg transition-colors cursor-pointer"
-                      >
+                      </Button>
+                      <Button variant="ghost" size="xs" onClick={() => setConfirmDeleteId(null)}>
                         Annuler
-                      </button>
+                      </Button>
                     </div>
                   ) : (
-                    <button
-                      type="button"
+                    <Button
+                      variant="ghost"
+                      tone="danger"
+                      size="sm"
+                      shape="icon"
                       onClick={() => setConfirmDeleteId(rec.id)}
-                      className="p-2 text-muted-foreground hover:text-destructive-text hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer shrink-0"
+                      className="shrink-0 text-muted-foreground"
                       title={t`Retirer la recommandation`}
+                      aria-label={t`Retirer la recommandation`}
                     >
-                      <Trash2 className="w-4 h-4 stroke-[1.5]" />
-                    </button>
+                      <Trash2 />
+                    </Button>
                   )}
                 </div>
               );

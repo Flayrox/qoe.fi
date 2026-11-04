@@ -31,9 +31,15 @@ import {
   X,
 } from 'lucide-react';
 import { SafeAvatar } from '@qoe/ui';
+import { Button } from '@qoe/ui/button';
+import { Checkbox } from '@qoe/ui/checkbox';
+import { Input, InputGroup, Textarea } from '@qoe/ui/input';
+import { Switch } from '@qoe/ui/switch';
+import { Tab, TabList, Tabs } from '@qoe/ui/tabs';
 import { searchArticleContributorsAction } from '@qoe/sdk/actions/articles';
 import { toast } from '@qoe/ui/toast';
 import { Select } from '@qoe/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@qoe/ui/ui/popover';
 import { cn } from '@qoe/utils';
 import { attemptWithStepUp } from '@/lib/authz-feedback';
 import { PendingInvites } from './PendingInvites';
@@ -434,8 +440,6 @@ export function MediaStudioClient({
 
   const isOwner = myRole === MEDIA_ROLES.OWNER;
 
-  const inputCls =
-    'w-full bg-transparent border-b border-border/40 text-sm py-2.5 placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors';
   const labelCls = 'block text-xs font-semibold text-muted-foreground mb-0.5';
 
   /* ─────────────────────────── CREATE FLOW ─────────────────────────── */
@@ -485,33 +489,29 @@ export function MediaStudioClient({
         >
           <div>
             <label className={labelCls}>Nom du Média</label>
-            <input
+            <Input
               value={createName}
               onChange={(e) => setCreateName(e.target.value)}
               placeholder={t`Ex: La Gazette de la Souveraineté`}
-              className={inputCls}
             />
           </div>
           <div>
             <label className={labelCls}>Permalien</label>
-            <div className="flex items-center border-b border-border/40 focus-within:border-primary transition-colors">
-              <span className="text-sm text-muted-foreground">qoe.fi/</span>
-              <input
+            <InputGroup left={<span className="text-xs">qoe.fi/</span>}>
+              <Input
                 value={createSlug}
                 onChange={(e) => setCreateSlug(e.target.value)}
                 placeholder="gazette-souverainete"
-                className="w-full bg-transparent text-sm py-2.5 focus:outline-none"
               />
-            </div>
+            </InputGroup>
           </div>
           <div>
             <label className={labelCls}>Bio / Présentation</label>
-            <textarea
+            <Textarea
               value={createBio}
               onChange={(e) => setCreateBio(e.target.value)}
               rows={2}
               placeholder={t`Décrivez la ligne éditoriale du média...`}
-              className={cn(inputCls, 'resize-none')}
             />
           </div>
           <div>
@@ -528,20 +528,16 @@ export function MediaStudioClient({
             />
           </div>
 
-          <button
-            type="submit"
-            disabled={creating}
-            className="w-full py-3 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
-          >
+          <Button type="submit" variant="solid" tone="brand" size="lg" block disabled={creating}>
             {creating ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 className="animate-spin" />
             ) : (
               <>
                 Créer le Média & mon espace de travail
-                <ArrowRight className="w-4 h-4" strokeWidth={1.5} />
+                <ArrowRight strokeWidth={1.5} />
               </>
             )}
-          </button>
+          </Button>
         </form>
       </div>
     );
@@ -569,13 +565,15 @@ export function MediaStudioClient({
         <p className="text-sm text-muted-foreground mt-1 mb-6 max-w-sm mx-auto">
           Créez votre premier média pour inviter une équipe et lancer votre sous-domaine.
         </p>
-        <button
+        <Button
+          variant="solid"
+          tone="brand"
+          size="md"
           onClick={() => router.push('/media?create=1')}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold cursor-pointer hover:opacity-90 transition-all"
         >
-          <Plus className="w-4 h-4" strokeWidth={1.5} />
+          <Plus strokeWidth={1.5} />
           Créer un Média
-        </button>
+        </Button>
       </div>
     );
   }
@@ -652,18 +650,15 @@ export function MediaStudioClient({
         {medias.map((m) => {
           const active = selectedMediaId === m.id;
           return (
-            <button
+            <Button
               key={m.id}
+              variant={active ? 'soft' : 'ghost'}
+              size="sm"
               onClick={() => {
                 setSelectedMediaId(m.id);
                 setTab('members');
               }}
-              className={cn(
-                'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors cursor-pointer',
-                active
-                  ? 'bg-muted/60 text-foreground'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
-              )}
+              className="gap-2"
             >
               <QuietDot active={active} />
               {m.logoUrl ? (
@@ -678,46 +673,41 @@ export function MediaStudioClient({
                 <Building2 className="w-3.5 h-3.5" strokeWidth={1.5} />
               )}
               <span>{m.name}</span>
-            </button>
+            </Button>
           );
         })}
-        <button
-          onClick={() => router.push('/media?create=1')}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-primary transition-colors cursor-pointer whitespace-nowrap"
-        >
-          <Plus className="w-3.5 h-3.5" strokeWidth={1.5} />
+        <Button variant="ghost" size="sm" onClick={() => router.push('/media?create=1')}>
+          <Plus strokeWidth={1.5} />
           Nouveau
-        </button>
+        </Button>
       </div>
 
-      {/* ── Tabs (clean segmented) ── */}
-      <div className="flex items-center gap-1 border-b border-border/40 mb-6">
-        {[
-          { key: 'members' as const, label: () => t`Membres`, icon: Users },
-          { key: 'invites' as const, label: () => t`Invitations`, icon: Mail },
-          ...(canManageApiKeys
-            ? [{ key: 'api-keys' as const, label: () => t`Clés API`, icon: Key }]
-            : []),
-          { key: 'settings' as const, label: () => t`Réglages`, icon: Settings },
-        ].map((tabItem) => {
-          const active = tab === tabItem.key;
-          return (
-            <button
-              key={tabItem.key}
-              onClick={() => setTab(tabItem.key)}
-              className={cn(
-                'flex items-center gap-2 px-3 py-2.5 -mb-px border-b-2 text-xs font-semibold transition-colors cursor-pointer',
-                active
-                  ? 'border-primary text-foreground'
-                  : 'border-transparent text-muted-foreground hover:text-foreground'
-              )}
-            >
-              <tabItem.icon className="w-3.5 h-3.5" strokeWidth={1.5} />
-              {tabItem.label()}
-            </button>
-          );
-        })}
-      </div>
+      {/* ── Tabs ── */}
+      <Tabs
+        variant="underline"
+        size="sm"
+        value={tab}
+        onValueChange={(val) => setTab(val as StudioTab)}
+        className="mb-6"
+      >
+        <TabList aria-label={t`Sections du média`}>
+          {[
+            { key: 'members' as const, label: () => t`Membres`, icon: Users },
+            { key: 'invites' as const, label: () => t`Invitations`, icon: Mail },
+            ...(canManageApiKeys
+              ? [{ key: 'api-keys' as const, label: () => t`Clés API`, icon: Key }]
+              : []),
+            { key: 'settings' as const, label: () => t`Réglages`, icon: Settings },
+          ].map((tabItem) => (
+            <Tab key={tabItem.key} id={tabItem.key}>
+              <span className="inline-flex items-center gap-1.5">
+                <tabItem.icon className="size-3.5" strokeWidth={1.5} />
+                <span>{tabItem.label()}</span>
+              </span>
+            </Tab>
+          ))}
+        </TabList>
+      </Tabs>
 
       {/* ── Members ── */}
       {tab === 'members' && (
@@ -791,18 +781,23 @@ export function MediaStudioClient({
                           label: ROLE_META[role].label(),
                         }))}
                       />
-                      <button
+                      <Button
+                        variant="ghost"
+                        tone="danger"
+                        size="sm"
+                        shape="icon"
                         onClick={() =>
                           handleRemoveMember(
                             member.user.id,
                             member.user.name || member.user.username || 'ce membre'
                           )
                         }
-                        className="p-1.5 text-muted-foreground hover:text-destructive-text rounded-lg transition-colors cursor-pointer"
+                        className="text-muted-foreground"
                         title={t`Retirer du Média`}
+                        aria-label={t`Retirer du Média`}
                       >
-                        <Trash2 className="w-4 h-4" strokeWidth={1.5} />
-                      </button>
+                        <Trash2 strokeWidth={1.5} />
+                      </Button>
                     </>
                   )}
                 </div>
@@ -851,36 +846,32 @@ export function MediaStudioClient({
                           @{selectedMember.username}
                         </span>
                       </span>
-                      <button
-                        type="button"
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        shape="icon"
                         onClick={() => {
                           setSelectedMember(null);
                           setMemberQuery('');
                         }}
                         aria-label={t`Retirer la sélection`}
-                        className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
                       >
-                        <X className="w-4 h-4" strokeWidth={1.5} />
-                      </button>
+                        <X strokeWidth={1.5} />
+                      </Button>
                     </div>
                   ) : (
-                    <>
-                      <Search
-                        className="w-4 h-4 text-muted-foreground absolute left-0 top-1/2 -translate-y-1/2"
-                        strokeWidth={1.5}
-                      />
-                      <input
+                    <InputGroup
+                      left={<Search strokeWidth={1.5} />}
+                      right={searchingMembers ? <Loader2 className="animate-spin" /> : undefined}
+                    >
+                      <Input
                         value={memberQuery}
                         onChange={(e) => setMemberQuery(e.target.value)}
                         placeholder={t`Rechercher un créateur (nom ou @username)`}
                         autoComplete="off"
                         spellCheck={false}
-                        className="w-full pl-7 bg-transparent border-b border-border/40 text-sm py-2.5 placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors"
                       />
-                      {searchingMembers && (
-                        <Loader2 className="w-4 h-4 animate-spin text-muted-foreground absolute right-0 top-1/2 -translate-y-1/2" />
-                      )}
-                    </>
+                    </InputGroup>
                   )}
                 </div>
                 <Select
@@ -893,32 +884,31 @@ export function MediaStudioClient({
                     label: ROLE_META[role].label(),
                   }))}
                 />
-                <button
+                <Button
                   type="submit"
+                  variant="solid"
+                  tone="brand"
+                  size="md"
                   disabled={inviting || !selectedMember}
-                  className="px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
                 >
-                  {inviting ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <UserPlus className="w-4 h-4" strokeWidth={1.5} />
-                  )}
+                  {inviting ? <Loader2 className="animate-spin" /> : <UserPlus strokeWidth={1.5} />}
                   Ajouter
-                </button>
+                </Button>
               </div>
 
               {!selectedMember && memberResults.length > 0 && (
                 <div className="overflow-hidden rounded-xl border border-border/50 bg-card shadow-lg divide-y divide-border/30">
                   {memberResults.map((person) => (
-                    <button
+                    <Button
                       key={person.id}
-                      type="button"
+                      variant="ghost"
+                      block
                       onClick={() => {
                         setSelectedMember(person);
                         setMemberQuery('');
                         setMemberResults([]);
                       }}
-                      className="flex w-full items-center gap-2.5 p-2.5 text-left hover:bg-muted transition-colors cursor-pointer"
+                      className="h-auto justify-start gap-2.5 rounded-none p-2.5 text-left"
                     >
                       <SafeAvatar
                         src={person.logoUrl}
@@ -937,7 +927,7 @@ export function MediaStudioClient({
                         </span>
                       </span>
                       <UserPlus className="w-4 h-4 text-primary shrink-0" strokeWidth={1.5} />
-                    </button>
+                    </Button>
                   ))}
                 </div>
               )}
@@ -1013,19 +1003,17 @@ export function MediaStudioClient({
                 </div>
               </div>
 
-              <button
-                type="button"
+              <Button
+                variant="solid"
+                tone="brand"
+                size="md"
+                block
                 onClick={handleCreateInviteLink}
                 disabled={creatingLink}
-                className="w-full px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
               >
-                {creatingLink ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Link2 className="w-4 h-4" strokeWidth={1.5} />
-                )}
-                Générer le lien d'invitation
-              </button>
+                {creatingLink ? <Loader2 className="animate-spin" /> : <Link2 strokeWidth={1.5} />}
+                Générer le lien d&apos;invitation
+              </Button>
 
               <div className="pt-3 border-t border-border/30">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
@@ -1088,29 +1076,33 @@ export function MediaStudioClient({
                             </p>
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              type="button"
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              shape="icon"
                               onClick={() => copyInviteLink(link)}
-                              className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg transition-colors cursor-pointer"
                               title={t`Copier le lien`}
                               aria-label={t`Copier le lien`}
                             >
                               {copiedLinkId === link.id ? (
-                                <Check className="w-4 h-4 text-success-text" strokeWidth={1.5} />
+                                <Check className="text-success-text" strokeWidth={1.5} />
                               ) : (
-                                <Copy className="w-4 h-4" strokeWidth={1.5} />
+                                <Copy strokeWidth={1.5} />
                               )}
-                            </button>
+                            </Button>
                             {!link.isRevoked && (
-                              <button
-                                type="button"
+                              <Button
+                                variant="ghost"
+                                tone="danger"
+                                size="sm"
+                                shape="icon"
                                 onClick={() => handleRevokeInviteLink(link.id)}
-                                className="p-1.5 text-muted-foreground hover:text-destructive-text rounded-lg transition-colors cursor-pointer"
+                                className="text-muted-foreground"
                                 title={t`Révoquer le lien`}
                                 aria-label={t`Révoquer le lien`}
                               >
-                                <XCircle className="w-4 h-4" strokeWidth={1.5} />
-                              </button>
+                                <XCircle strokeWidth={1.5} />
+                              </Button>
                             )}
                           </div>
                         </div>
@@ -1197,40 +1189,33 @@ function PermissionPopover({
   perms: string[];
   onToggle: (memberUserId: string, permission: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
   return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer"
-      >
+    <Popover>
+      <PopoverTrigger className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors cursor-pointer">
         <Shield className="w-3 h-3" strokeWidth={1.5} /> Permissions
-      </button>
-      {open && (
-        <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full mt-2 z-20 w-64 rounded-xl bg-card border border-border/40 shadow-xl p-3 space-y-1">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-1 pb-1">
-              Permissions de {member.user.name || member.user.username}
-            </p>
-            {ALL_MEDIA_PERMISSIONS.map((perm) => (
-              <label
-                key={perm}
-                className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-muted/40 text-[11px] font-medium cursor-pointer transition-colors"
-              >
-                <input
-                  type="checkbox"
-                  checked={perms.includes(perm)}
-                  onChange={() => onToggle(member.user.id, perm)}
-                  className="accent-[var(--primary)] cursor-pointer"
-                />
-                {PERMISSION_LABELS[perm] ? PERMISSION_LABELS[perm]() : perm}
-              </label>
-            ))}
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        aria-label={`Permissions de ${member.user.name || member.user.username || 'ce membre'}`}
+        className="w-64 space-y-1 p-3"
+      >
+        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground px-1 pb-1">
+          Permissions de {member.user.name || member.user.username}
+        </p>
+        {ALL_MEDIA_PERMISSIONS.map((perm) => (
+          <div key={perm} className="px-1.5 py-1 rounded-lg hover:bg-muted/40 transition-colors">
+            <Checkbox
+              size="sm"
+              tone="brand"
+              isSelected={perms.includes(perm)}
+              onChange={() => onToggle(member.user.id, perm)}
+              label={PERMISSION_LABELS[perm] ? PERMISSION_LABELS[perm]() : perm}
+              className="w-full"
+            />
           </div>
-        </>
-      )}
-    </div>
+        ))}
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -1279,9 +1264,7 @@ function MediaSettingsForm({
     }
   };
 
-  const inputCls =
-    'w-full bg-transparent border-b border-border/40 text-sm py-2.5 placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors';
-  const labelCls = 'block text-xs font-semibold text-muted-foreground mb-0.5';
+  const labelCls = 'block text-xs font-semibold text-muted-foreground mb-1';
 
   const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
     <section className="py-6 border-b border-border/30 last:border-b-0">
@@ -1298,16 +1281,11 @@ function MediaSettingsForm({
         <div className="grid md:grid-cols-2 gap-x-8 gap-y-6">
           <div>
             <label className={labelCls}>Nom du Média</label>
-            <input
-              className={inputCls}
-              value={form.name}
-              onChange={(e) => set('name', e.target.value)}
-            />
+            <Input value={form.name} onChange={(e) => set('name', e.target.value)} />
           </div>
           <div>
-            <label className={labelCls}>Couleur d'accent</label>
-            <input
-              className={inputCls}
+            <label className={labelCls}>Couleur d&apos;accent</label>
+            <Input
               value={form.accentColor ?? ''}
               onChange={(e) => set('accentColor', e.target.value)}
             />
@@ -1329,8 +1307,7 @@ function MediaSettingsForm({
           </div>
           <div>
             <label className={labelCls}>Bio / Présentation</label>
-            <textarea
-              className={cn(inputCls, 'resize-none')}
+            <Textarea
               rows={2}
               value={form.bio ?? ''}
               onChange={(e) => set('bio', e.target.value)}
@@ -1356,20 +1333,17 @@ function MediaSettingsForm({
         <div className="grid md:grid-cols-2 gap-x-8 gap-y-6">
           <div>
             <label className={labelCls}>Sous-domaine</label>
-            <div className="flex items-center border-b border-border/40 focus-within:border-primary transition-colors">
-              <input
-                className="w-full bg-transparent text-sm py-2.5 focus:outline-none"
+            <InputGroup right={<span className="text-xs font-mono">.qoe.fi</span>}>
+              <Input
                 value={form.subdomain ?? ''}
                 onChange={(e) => set('subdomain', e.target.value)}
                 placeholder="mon-media"
               />
-              <span className="text-xs text-muted-foreground whitespace-nowrap">.qoe.fi</span>
-            </div>
+            </InputGroup>
           </div>
           <div>
             <label className={labelCls}>Domaine personnalisé</label>
-            <input
-              className={inputCls}
+            <Input
               value={form.customDomain ?? ''}
               onChange={(e) => set('customDomain', e.target.value)}
               placeholder="monmedia.com"
@@ -1377,14 +1351,13 @@ function MediaSettingsForm({
           </div>
           <div>
             <label className={labelCls}>Texte de footer</label>
-            <input
-              className={inputCls}
+            <Input
               value={form.footerText ?? ''}
               onChange={(e) => set('footerText', e.target.value)}
             />
           </div>
           <div>
-            <label className={labelCls}>Image d'en-tête</label>
+            <label className={labelCls}>Image d&apos;en-tête</label>
             <ImageUploader
               value={form.headerImageUrl}
               onChange={(url) => set('headerImageUrl', url)}
@@ -1402,55 +1375,48 @@ function MediaSettingsForm({
         <div className="grid md:grid-cols-2 gap-x-8 gap-y-6">
           <div>
             <label className={labelCls}>SEO Title</label>
-            <input
-              className={inputCls}
-              value={form.seoTitle ?? ''}
-              onChange={(e) => set('seoTitle', e.target.value)}
-            />
+            <Input value={form.seoTitle ?? ''} onChange={(e) => set('seoTitle', e.target.value)} />
           </div>
           <div>
             <label className={labelCls}>SEO Description</label>
-            <input
-              className={inputCls}
+            <Input
               value={form.seoDescription ?? ''}
               onChange={(e) => set('seoDescription', e.target.value)}
             />
           </div>
           <div className="md:col-span-2">
-            <label className={labelCls}>Hero Text (accroche de la page d'accueil)</label>
-            <textarea
-              className={cn(inputCls, 'resize-none')}
+            <label className={labelCls}>Hero Text (accroche de la page d&apos;accueil)</label>
+            <Textarea
               rows={2}
               value={form.heroText ?? ''}
               onChange={(e) => set('heroText', e.target.value)}
             />
           </div>
           <div className="md:col-span-2">
-            <button
-              onClick={() => set('allowIndexing', !form.allowIndexing)}
-              className="flex items-center gap-3 text-sm font-semibold cursor-pointer"
-            >
-              <QuietDot active={form.allowIndexing} />
-              {form.allowIndexing
-                ? t`Indexation Google autorisée`
-                : t`Indexation Google désactivée`}
-            </button>
+            <Switch
+              isSelected={form.allowIndexing}
+              onChange={(checked) => set('allowIndexing', checked)}
+              label={
+                form.allowIndexing
+                  ? t`Indexation Google autorisée`
+                  : t`Indexation Google désactivée`
+              }
+            />
           </div>
         </div>
       </Section>
 
-      <button
+      <Button
+        variant="solid"
+        tone="brand"
+        size="lg"
         onClick={handleSave}
         disabled={saving}
-        className="mt-8 px-6 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+        className="mt-8"
       >
-        {saving ? (
-          <Loader2 className="w-4 h-4 animate-spin" />
-        ) : (
-          <FileText className="w-4 h-4" strokeWidth={1.5} />
-        )}
+        {saving ? <Loader2 className="animate-spin" /> : <FileText strokeWidth={1.5} />}
         Enregistrer les réglages
-      </button>
+      </Button>
     </div>
   );
 }

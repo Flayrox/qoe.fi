@@ -9,14 +9,24 @@ import {
   XCircle,
   RotateCcw,
   Edit3,
-  X,
   Loader2,
   MessageSquare,
 } from 'lucide-react';
 import { diffWords, type Change } from 'diff';
-import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@qoe/ui';
+import { Badge } from '@qoe/ui/badge';
+import { Button } from '@qoe/ui/button';
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@qoe/ui/dialog';
+import { Textarea } from '@qoe/ui/input';
+import { Tab, TabList, Tabs } from '@qoe/ui/tabs';
 
 export interface ArticleDiffModalProps {
   open: boolean;
@@ -137,71 +147,54 @@ export function ArticleDiffModal({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !v && !isActionPending && onClose()}>
-      <DialogContent className="max-w-5xl h-[88vh] flex flex-col p-0 gap-0 overflow-hidden bg-background border-border/60">
+    <Dialog
+      open={open}
+      isDismissable={!isActionPending}
+      onOpenChange={(v) => !v && !isActionPending && onClose()}
+    >
+      <DialogContent className="sm:max-w-5xl h-[88vh] p-0 sm:p-0 gap-0 overflow-hidden bg-background border-border/60">
         {/* Header */}
-        <DialogHeader className="px-6 py-4 border-b border-border/40 shrink-0 flex flex-row items-center justify-between space-y-0">
+        <DialogHeader className="px-6 py-4 pr-14 border-b border-border/40 shrink-0 flex flex-row items-center justify-between gap-4">
           <div className="space-y-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="flex size-7 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 <GitCompare className="size-4" />
               </span>
-              <DialogTitle className="text-base font-semibold">
-                {t`Comparaison des versions`}
-              </DialogTitle>
+              <DialogTitle>{t`Comparaison des versions`}</DialogTitle>
               {isPublished && (
-                <span className="inline-flex items-center rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-medium text-success-text">
+                <Badge variant="soft" tone="success" shape="pill">
                   {t`Version en ligne vs Brouillon`}
-                </span>
+                </Badge>
               )}
             </div>
-            <DialogDescription className="text-xs text-muted-foreground">
+            <DialogDescription>
               {stats.additions === 0 && stats.deletions === 0 && !hasTitleChanged
                 ? t`Aucune différence textuelle détectée.`
                 : t`${stats.additions} ajouts, ${stats.deletions} suppressions par rapport à la version publiée.`}
             </DialogDescription>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* View Mode Toggle */}
-            <div className="flex items-center rounded-lg border border-border/40 bg-muted/20 p-0.5 text-xs">
-              <button
-                type="button"
-                onClick={() => setViewMode('split')}
-                className={cn(
-                  'flex items-center gap-1.5 rounded-md px-2.5 py-1 font-medium transition-colors',
-                  viewMode === 'split'
-                    ? 'bg-card text-foreground shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                <Columns2 className="size-3.5" />
-                <span>{t`Côte à côte`}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('unified')}
-                className={cn(
-                  'flex items-center gap-1.5 rounded-md px-2.5 py-1 font-medium transition-colors',
-                  viewMode === 'unified'
-                    ? 'bg-card text-foreground shadow-xs'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                <Rows3 className="size-3.5" />
-                <span>{t`Vue unifiée`}</span>
-              </button>
-            </div>
-
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isActionPending}
-              className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
-            >
-              <X className="size-4" />
-            </button>
-          </div>
+          <Tabs
+            variant="segmented"
+            size="xs"
+            value={viewMode}
+            onValueChange={(val) => setViewMode(val as 'split' | 'unified')}
+          >
+            <TabList aria-label={t`Mode d'affichage du diff`}>
+              <Tab id="split">
+                <span className="inline-flex items-center gap-1.5">
+                  <Columns2 className="size-3.5" />
+                  <span>{t`Côte à côte`}</span>
+                </span>
+              </Tab>
+              <Tab id="unified">
+                <span className="inline-flex items-center gap-1.5">
+                  <Rows3 className="size-3.5" />
+                  <span>{t`Vue unifiée`}</span>
+                </span>
+              </Tab>
+            </TabList>
+          </Tabs>
         </DialogHeader>
 
         {/* Title Diff Banner (if title changed) */}
@@ -222,48 +215,37 @@ export function ArticleDiffModal({
                 <MessageSquare className="size-3.5" />
                 {t`Demander des retouches à l'auteur`}
               </span>
-              <button
-                type="button"
-                onClick={() => setRejectMode(false)}
-                className="text-xs text-muted-foreground hover:text-foreground"
-              >
+              <Button variant="ghost" size="xs" onClick={() => setRejectMode(false)}>
                 {t`Annuler`}
-              </button>
+              </Button>
             </div>
-            <textarea
+            <Textarea
+              size="sm"
               value={rejectComment}
               onChange={(e) => setRejectComment(e.target.value)}
               placeholder={t`Indiquez à l'auteur les points à réviser (ex: préciser la source, corriger la conclusion)…`}
               rows={2}
-              className="w-full text-xs rounded-lg border border-border/60 bg-background p-2.5 text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary resize-none"
             />
             <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setRejectMode(false)}
-                className="px-3 py-1.5 text-xs rounded-lg border border-border/40 hover:bg-muted/40"
-              >
+              <Button variant="outline" size="xs" onClick={() => setRejectMode(false)}>
                 {t`Retour`}
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant="solid"
+                tone="danger"
+                size="xs"
                 onClick={handleReject}
                 disabled={isActionPending}
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-destructive text-destructive-foreground hover:opacity-90 flex items-center gap-1.5"
               >
-                {isActionPending ? (
-                  <Loader2 className="size-3 animate-spin" />
-                ) : (
-                  <XCircle className="size-3.5" />
-                )}
+                {isActionPending ? <Loader2 className="animate-spin" /> : <XCircle />}
                 {t`Confirmer la demande de retouches`}
-              </button>
+              </Button>
             </div>
           </div>
         )}
 
         {/* Content Viewer */}
-        <div className="flex-1 overflow-y-auto p-6 text-sm font-sans leading-relaxed">
+        <DialogBody className="flex-1 p-6 text-sm font-sans leading-relaxed">
           {viewMode === 'split' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
               {/* Left Column: Live Content */}
@@ -360,78 +342,72 @@ export function ArticleDiffModal({
               </div>
             </div>
           )}
-        </div>
+        </DialogBody>
 
         {/* Footer Actions */}
-        <div className="px-6 py-3.5 border-t border-border/40 shrink-0 bg-muted/10 flex flex-wrap items-center justify-between gap-3">
+        <DialogFooter className="px-6 py-3.5 border-t border-border/40 shrink-0 bg-muted/10 flex-wrap justify-between gap-3">
           <div className="flex items-center gap-2">
             {onDiscardDraft && (
-              <button
-                type="button"
+              <Button
+                variant="outline"
+                tone="danger"
+                size="sm"
                 onClick={handleDiscard}
                 disabled={isActionPending}
-                className="h-8 px-2.5 rounded-lg border border-border/40 text-muted-foreground hover:text-destructive-text hover:border-destructive/30 text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
                 title={t`Abandonner le brouillon et réinitialiser à la version en ligne`}
               >
-                <RotateCcw className="size-3.5" />
+                <RotateCcw />
                 <span>{t`Abandonner le brouillon`}</span>
-              </button>
+              </Button>
             )}
 
             {onEdit && (
-              <button
-                type="button"
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={() => {
                   onClose();
                   onEdit();
                 }}
-                className="h-8 px-2.5 rounded-lg border border-border/40 bg-card text-foreground hover:bg-muted/40 text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer"
               >
-                <Edit3 className="size-3.5" />
+                <Edit3 />
                 <span>{t`Modifier dans l'éditeur`}</span>
-              </button>
+              </Button>
             )}
           </div>
 
           <div className="flex items-center gap-2">
             {canReview && status === 'SUBMITTED' && onReject && !rejectMode && (
-              <button
-                type="button"
+              <Button
+                variant="outline"
+                tone="danger"
+                size="sm"
                 onClick={() => setRejectMode(true)}
                 disabled={isActionPending}
-                className="h-8 px-3 rounded-lg border border-destructive/30 text-destructive-text hover:bg-destructive/10 text-xs font-semibold transition-colors flex items-center gap-1.5 cursor-pointer"
               >
-                <XCircle className="size-3.5" />
+                <XCircle />
                 <span>{t`Demander des retouches`}</span>
-              </button>
+              </Button>
             )}
 
             {canReview && onApprove && (
-              <button
-                type="button"
+              <Button
+                variant="solid"
+                tone="success"
+                size="sm"
                 onClick={handleApprove}
                 disabled={isActionPending}
-                className="h-8 px-3.5 rounded-lg bg-success hover:bg-success/90 text-success-foreground text-xs font-semibold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
               >
-                {isActionPending ? (
-                  <Loader2 className="size-3.5 animate-spin" />
-                ) : (
-                  <CheckCircle2 className="size-3.5" />
-                )}
+                {isActionPending ? <Loader2 className="animate-spin" /> : <CheckCircle2 />}
                 <span>{t`Approuver et publier`}</span>
-              </button>
+              </Button>
             )}
 
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isActionPending}
-              className="h-8 px-3 rounded-lg border border-border/40 hover:bg-muted/40 text-xs font-medium transition-colors"
-            >
+            <Button variant="outline" size="sm" onClick={onClose} disabled={isActionPending}>
               {t`Fermer`}
-            </button>
+            </Button>
           </div>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

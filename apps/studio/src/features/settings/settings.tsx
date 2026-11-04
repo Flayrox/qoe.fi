@@ -12,6 +12,9 @@ import { t } from '@lingui/core/macro';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useDebounce } from 'use-debounce';
 import { toast } from '@qoe/ui/toast';
+import { Badge } from '@qoe/ui/badge';
+import { Button, buttonClasses } from '@qoe/ui/button';
+import { Tab, TabList, Tabs } from '@qoe/ui/tabs';
 import { URLS } from '@qoe/config';
 import {
   ExternalLink,
@@ -345,9 +348,14 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
                 {current.name || 'Paramètres'}
               </h1>
               {isMediaWorkspace && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider border border-primary/20">
+                <Badge
+                  variant="outline"
+                  tone="brand"
+                  shape="pill"
+                  className="uppercase tracking-wider"
+                >
                   Média
-                </span>
+                </Badge>
               )}
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">
@@ -357,9 +365,11 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
+          <div className="flex items-center gap-2.5">
+            <Button
+              variant={isAdvancedMode ? 'soft' : 'outline'}
+              tone={isAdvancedMode ? 'brand' : 'neutral'}
+              size="sm"
               onClick={() => {
                 const next = !isAdvancedMode;
                 setIsAdvancedMode(next);
@@ -369,66 +379,63 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
                   toast.info(t`Mode Standard réactivé`);
                 }
               }}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
-                isAdvancedMode
-                  ? 'border-primary bg-primary/10 text-primary ring-1 ring-primary shadow-2xs'
-                  : 'border-border/50 bg-muted/20 hover:bg-muted/50 text-muted-foreground'
-              }`}
             >
-              <Terminal className="w-3.5 h-3.5" />
+              <Terminal />
               <span>{isAdvancedMode ? 'Mode Avancé' : 'Mode Standard'}</span>
-            </button>
+            </Button>
 
             <a
               href={publicBlogUrl || '#'}
               target="_blank"
               rel="noopener noreferrer"
               suppressHydrationWarning
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/50 bg-muted/20 hover:bg-muted/50 text-xs text-muted-foreground hover:text-foreground transition-colors font-medium"
+              className={buttonClasses({ variant: 'outline', size: 'sm' })}
             >
               <span>Voir le site</span>
-              <ExternalLink className="w-3.5 h-3.5" />
+              <ExternalLink />
             </a>
 
-            <button
+            <Button
+              variant="solid"
+              tone="brand"
+              size="sm"
               disabled={!hasChanges || isSaving}
               onClick={handleSaveAll}
-              className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shadow-xs"
             >
               {isSaving ? (
-                <span className="flex items-center gap-1.5">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <>
+                  <Loader2 className="animate-spin" />
                   <span>Enregistrement...</span>
-                </span>
+                </>
               ) : (
                 <span>Enregistrer</span>
               )}
-            </button>
+            </Button>
           </div>
         </div>
 
         {/* Barre d'onglets */}
         <div className="max-w-6xl mx-auto px-6">
-          <div className="flex gap-2 sm:gap-6 border-b border-border/40 overflow-x-auto scrollbar-none">
-            {TABS.map((tab) => {
-              const Icon = tab.icon;
-              const isSelected = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`pb-3 pt-1 text-xs font-medium transition-colors border-b-2 -mb-px cursor-pointer flex items-center gap-1.5 shrink-0 ${
-                    isSelected
-                      ? 'border-primary text-foreground font-semibold'
-                      : 'border-transparent text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  <Icon className={`w-3.5 h-3.5 ${isSelected ? 'text-primary' : 'opacity-70'}`} />
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
-          </div>
+          <Tabs
+            variant="underline"
+            size="sm"
+            value={activeTab}
+            onValueChange={(val) => setActiveTab(val as TabType)}
+          >
+            <TabList aria-label={t`Sections des paramètres`} className="border-b-0">
+              {TABS.map((tab) => {
+                const Icon = tab.icon;
+                return (
+                  <Tab key={tab.id} id={tab.id}>
+                    <span className="inline-flex items-center gap-1.5">
+                      <Icon className="size-3.5" />
+                      <span>{tab.label}</span>
+                    </span>
+                  </Tab>
+                );
+              })}
+            </TabList>
+          </Tabs>
         </div>
       </header>
 
@@ -548,31 +555,35 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
             </span>
 
             <div className="flex items-center gap-2">
-              <button
+              <Button
+                variant="soft"
+                tone="neutral"
+                size="sm"
                 disabled={isSaving}
                 onClick={handleDiscardChanges}
-                className="px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground bg-muted/40 hover:bg-muted rounded-lg transition-colors cursor-pointer disabled:opacity-50"
               >
                 Annuler
-              </button>
+              </Button>
 
-              <button
+              <Button
+                variant="solid"
+                tone="brand"
+                size="sm"
                 disabled={isSaving}
                 onClick={handleSaveAll}
-                className="px-4 py-1.5 text-xs font-semibold text-primary-foreground bg-primary hover:bg-primary/90 rounded-lg transition-colors inline-flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-xs"
               >
                 {isSaving ? (
                   <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <Loader2 className="animate-spin" />
                     <span>Enregistrement...</span>
                   </>
                 ) : (
                   <>
-                    <Check className="w-3.5 h-3.5" />
+                    <Check />
                     <span>Enregistrer (⌘S)</span>
                   </>
                 )}
-              </button>
+              </Button>
             </div>
           </motion.div>
         )}

@@ -19,7 +19,17 @@ import {
   Building2,
   User,
 } from 'lucide-react';
-import { cn } from '@qoe/utils';
+import { Badge } from '@qoe/ui/badge';
+import { Button, buttonClasses } from '@qoe/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@qoe/ui/dialog';
+import { Input, Textarea } from '@qoe/ui/input';
 import { toast } from '@qoe/ui/toast';
 import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
@@ -43,20 +53,14 @@ const OAUTH_SCOPES = [
   { name: 'media', required: false, desc: () => t`Statut de membre et permissions du média` },
 ] as const;
 
-const STATUS_META: Record<OAuthClientDTO['status'], { label: () => string; className: string }> = {
-  PENDING: {
-    label: () => t`En attente`,
-    className: 'bg-highlight/10 text-highlight border-highlight/20',
-  },
-  APPROVED: {
-    label: () => t`Approuvée`,
-    className: 'bg-success/10 text-success-text border-success/20',
-  },
-  REJECTED: {
-    label: () => t`Rejetée`,
-    className: 'bg-destructive/10 text-destructive-text border-destructive/20',
-  },
-  REVOKED: { label: () => t`Révoquée`, className: 'bg-muted text-muted-foreground border-border' },
+const STATUS_META: Record<
+  OAuthClientDTO['status'],
+  { label: () => string; tone: 'vivid' | 'success' | 'danger' | 'neutral' }
+> = {
+  PENDING: { label: () => t`En attente`, tone: 'vivid' },
+  APPROVED: { label: () => t`Approuvée`, tone: 'success' },
+  REJECTED: { label: () => t`Rejetée`, tone: 'danger' },
+  REVOKED: { label: () => t`Révoquée`, tone: 'neutral' },
 };
 
 interface OAuthAppsClientProps {
@@ -210,21 +214,21 @@ export function OAuthAppsClient({
                 OpenID Connect
               </div>
               {workspace && (
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border bg-muted/40 border-border text-foreground">
+                <Badge variant="outline" shape="pill" size="sm">
                   {workspace.type === 'MEDIA' ? (
                     <>
-                      <Building2 className="w-3 h-3 text-primary shrink-0" />
+                      <Building2 className="text-primary" />
                       <span>
                         Média : <strong>{workspace.name}</strong>
                       </span>
                     </>
                   ) : (
                     <>
-                      <User className="w-3 h-3 text-muted-foreground shrink-0" />
+                      <User />
                       <span>Espace Personnel</span>
                     </>
                   )}
-                </div>
+                </Badge>
               )}
             </div>
             <h1 className="text-3xl font-bold tracking-tight text-foreground">
@@ -237,13 +241,16 @@ export function OAuthAppsClient({
           </div>
 
           {!gated && (
-            <button
+            <Button
+              variant="solid"
+              tone="brand"
+              size="md"
               onClick={() => setShowCreate((s) => !s)}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 active:scale-[0.99] transition-all cursor-pointer shadow-xs self-start md:self-auto"
+              className="self-start md:self-auto"
             >
-              <Plus className="w-3.5 h-3.5" strokeWidth={2} />
+              <Plus />
               Nouvelle application
-            </button>
+            </Button>
           )}
         </div>
 
@@ -278,20 +285,20 @@ export function OAuthAppsClient({
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
             <Link
               href="/developer"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-all cursor-pointer shadow-xs"
+              className={buttonClasses({ variant: 'solid', tone: 'brand', size: 'md' })}
             >
               {status?.toLowerCase() === 'approved'
                 ? 'Gérer mes accès développeur'
                 : "Demander l'accès développeur"}{' '}
-              <ArrowRight className="w-3.5 h-3.5" />
+              <ArrowRight />
             </Link>
             <a
               href="https://docs.qoe.fi"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-muted text-foreground text-xs font-semibold hover:bg-muted/80 border border-border/60 transition-all"
+              className={buttonClasses({ variant: 'outline', size: 'md' })}
             >
-              Documentation OAuth <Globe className="w-3.5 h-3.5 opacity-70" />
+              Documentation OAuth <Globe className="opacity-70" />
             </a>
           </div>
         </div>
@@ -311,24 +318,22 @@ export function OAuthAppsClient({
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-foreground">
-                Nom de l'application <span className="text-primary">*</span>
+                Nom de l&apos;application <span className="text-primary">*</span>
               </label>
-              <input
+              <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Ex : Mon portefolio Next.js"
-                className="w-full bg-muted/30 border border-border rounded-xl px-3.5 py-2.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
               />
             </div>
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold text-foreground">
-                URL d'accueil (affichée sur l'écran de consentement)
+                URL d&apos;accueil (affichée sur l&apos;écran de consentement)
               </label>
-              <input
+              <Input
                 value={homepageUrl}
                 onChange={(e) => setHomepageUrl(e.target.value)}
                 placeholder="https://monapp.com"
-                className="w-full bg-muted/30 border border-border rounded-xl px-3.5 py-2.5 text-xs font-sans text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
               />
             </div>
           </div>
@@ -338,11 +343,10 @@ export function OAuthAppsClient({
               <label className="block text-xs font-semibold text-foreground">
                 Description (facultatif)
               </label>
-              <input
+              <Input
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder={t`À quoi sert votre application ?`}
-                className="w-full bg-muted/30 border border-border rounded-xl px-3.5 py-2.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
               />
             </div>
             <div className="space-y-1.5">
@@ -366,41 +370,32 @@ export function OAuthAppsClient({
             <label className="block text-xs font-semibold text-foreground">
               URL de redirection (une par ligne) <span className="text-primary">*</span>
             </label>
-            <textarea
+            <Textarea
               value={redirectUrisText}
               onChange={(e) => setRedirectUrisText(e.target.value)}
               rows={3}
               placeholder={
                 'https://monapp.com/api/auth/callback\nhttp://localhost:3000/api/auth/callback'
               }
-              className="w-full bg-muted/30 border border-border rounded-xl px-3.5 py-2.5 text-xs font-sans text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
             />
           </div>
 
           <div className="space-y-2">
             <label className="block text-xs font-semibold text-foreground">Type de client</label>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {(['CONFIDENTIAL', 'PUBLIC'] as const).map((type) => (
-                <button
+                <Button
                   key={type}
-                  type="button"
+                  variant={clientType === type ? 'soft' : 'outline'}
+                  tone={clientType === type ? 'brand' : 'neutral'}
+                  size="sm"
                   onClick={() => setClientType(type)}
-                  className={cn(
-                    'px-3.5 py-2 rounded-lg text-xs font-semibold border transition-all cursor-pointer flex items-center gap-1.5',
-                    clientType === type
-                      ? 'bg-primary/10 border-primary/30 text-primary'
-                      : 'bg-muted/30 border-border text-muted-foreground hover:border-muted-foreground/40'
-                  )}
                 >
-                  {type === 'CONFIDENTIAL' ? (
-                    <KeyRound className="w-3.5 h-3.5" />
-                  ) : (
-                    <Globe className="w-3.5 h-3.5" />
-                  )}
+                  {type === 'CONFIDENTIAL' ? <KeyRound /> : <Globe />}
                   {type === 'CONFIDENTIAL'
                     ? 'Confidentielle (secret client)'
                     : 'Publique (PKCE seul)'}
-                </button>
+                </Button>
               ))}
             </div>
           </div>
@@ -413,45 +408,36 @@ export function OAuthAppsClient({
               {OAUTH_SCOPES.map((scope) => {
                 const active = scope.required || selectedScopes.includes(scope.name);
                 return (
-                  <button
+                  <Button
                     key={scope.name}
-                    type="button"
+                    variant={active ? 'soft' : 'outline'}
+                    tone={active ? 'brand' : 'neutral'}
+                    size="xs"
+                    disabled={scope.required}
                     onClick={() => toggleScope(scope.name)}
                     title={scope.desc()}
-                    className={cn(
-                      'px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer',
-                      active
-                        ? 'bg-primary/10 border-primary/30 text-primary'
-                        : 'bg-muted/30 border-border text-muted-foreground hover:border-muted-foreground/40',
-                      scope.required && 'cursor-not-allowed opacity-80'
-                    )}
                   >
                     <span>{active ? '✓' : '+'}</span> {scope.name}
-                  </button>
+                  </Button>
                 );
               })}
             </div>
           </div>
 
           <div className="flex items-center justify-between pt-2 border-t border-border/60">
-            <button
-              onClick={() => setShowCreate(false)}
-              className="text-xs text-muted-foreground hover:text-foreground font-medium px-3 py-2"
-            >
+            <Button variant="ghost" size="sm" onClick={() => setShowCreate(false)}>
               Annuler
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="solid"
+              tone="brand"
+              size="md"
               onClick={handleCreate}
               disabled={creating || !name.trim() || redirectUris.length === 0}
-              className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 active:scale-[0.99] transition-all flex items-center gap-2 cursor-pointer disabled:opacity-60 shadow-xs"
             >
-              {creating ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Plus className="w-3.5 h-3.5" />
-              )}
-              Créer l'application
-            </button>
+              {creating ? <Loader2 className="animate-spin" /> : <Plus />}
+              Créer l&apos;application
+            </Button>
           </div>
         </div>
       )}
@@ -467,13 +453,10 @@ export function OAuthAppsClient({
             Créez une application pour permettre à vos utilisateurs de se connecter avec leur compte
             qoefi.
           </p>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-all cursor-pointer shadow-xs"
-          >
-            <Plus className="w-3.5 h-3.5" />
+          <Button variant="solid" tone="brand" size="md" onClick={() => setShowCreate(true)}>
+            <Plus />
             Créer ma première application
-          </button>
+          </Button>
         </div>
       )}
 
@@ -481,9 +464,9 @@ export function OAuthAppsClient({
         <div className="bg-card border border-border/80 rounded-2xl shadow-xs overflow-hidden divide-y divide-border/60">
           <div className="px-6 py-4 border-b border-border/80 flex items-center justify-between">
             <h3 className="text-base font-bold text-foreground">Vos applications</h3>
-            <span className="text-xs font-semibold bg-muted/60 border border-border/80 px-2.5 py-1 rounded-full text-foreground">
+            <Badge variant="outline" shape="pill" size="sm">
               {clients.length} application{clients.length > 1 ? 's' : ''}
-            </span>
+            </Badge>
           </div>
 
           {clients.map((client) => {
@@ -497,17 +480,12 @@ export function OAuthAppsClient({
                   <div className="min-w-0 space-y-2">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className="text-sm font-bold text-foreground">{client.name}</p>
-                      <span
-                        className={cn(
-                          'text-[10px] font-bold px-2 py-0.5 rounded-full border',
-                          meta.className
-                        )}
-                      >
+                      <Badge variant="outline" tone={meta.tone} shape="pill">
                         {meta.label()}
-                      </span>
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-muted/60 text-muted-foreground border border-border/40">
+                      </Badge>
+                      <Badge variant="soft" shape="pill">
                         {client.clientType === 'CONFIDENTIAL' ? 'Confidentielle' : 'Publique'}
-                      </span>
+                      </Badge>
                     </div>
 
                     {client.description && (
@@ -519,17 +497,16 @@ export function OAuthAppsClient({
                       <code className="bg-muted/60 text-muted-foreground px-2 py-0.5 rounded font-sans font-medium text-[11px] border border-border/50 truncate">
                         {client.clientId}
                       </code>
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        shape="icon"
                         onClick={() => copy(client.clientId)}
-                        className="p-1 text-muted-foreground hover:text-foreground rounded hover:bg-muted/50 transition-colors cursor-pointer shrink-0"
                         title="Copier le Client ID"
+                        aria-label="Copier le Client ID"
                       >
-                        {copied ? (
-                          <Check className="w-3.5 h-3.5 text-success-text" />
-                        ) : (
-                          <Copy className="w-3.5 h-3.5" />
-                        )}
-                      </button>
+                        {copied ? <Check className="text-success-text" /> : <Copy />}
+                      </Button>
                     </div>
 
                     <div className="space-y-1">
@@ -545,40 +522,43 @@ export function OAuthAppsClient({
 
                     <div className="flex flex-wrap gap-1.5 pt-1">
                       {client.scopes.map((scope) => (
-                        <span
-                          key={scope}
-                          className="px-2 py-0.5 rounded-md bg-muted/60 text-[10px] font-medium text-muted-foreground border border-border/40"
-                        >
+                        <Badge key={scope} variant="outline">
                           {scope}
-                        </span>
+                        </Badge>
                       ))}
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0 self-end md:self-start">
                     {client.clientType === 'CONFIDENTIAL' && (
-                      <button
+                      <Button
+                        variant="outline"
+                        size="xs"
                         onClick={() => handleRotate(client)}
                         disabled={busyId === client.id}
-                        className="px-3 py-1.5 rounded-lg text-xs font-semibold text-foreground bg-muted/40 hover:bg-muted border border-border/60 transition-colors cursor-pointer flex items-center gap-1"
                         title={t`Régénérer le secret client`}
                       >
                         {busyId === client.id ? (
-                          <Loader2 className="w-3 h-3 animate-spin" />
+                          <Loader2 className="animate-spin" />
                         ) : (
-                          <KeyRound className="w-3 h-3 text-primary" />
+                          <KeyRound className="text-primary" />
                         )}
                         Régénérer le secret
-                      </button>
+                      </Button>
                     )}
-                    <button
+                    <Button
+                      variant="ghost"
+                      tone="danger"
+                      size="sm"
+                      shape="icon"
                       onClick={() => handleDelete(client)}
                       disabled={busyId === client.id}
-                      className="p-1.5 text-muted-foreground hover:text-destructive-text hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
                       title="Supprimer cette application"
+                      aria-label="Supprimer cette application"
+                      className="text-muted-foreground"
                     >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                      <Trash2 />
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -588,20 +568,30 @@ export function OAuthAppsClient({
       )}
 
       {/* Secret reveal modal */}
-      {revealed && (
-        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-card border border-border shadow-xl rounded-2xl p-6 md:p-8 max-w-xl w-full space-y-5 text-foreground">
-            <div className="space-y-2">
-              <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
-                <KeyRound className="w-5 h-5 text-primary" />
-                Client Secret généré
-              </h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Copiez ce secret dès maintenant. Pour des raisons de sécurité, nous ne pourrons plus
-                jamais vous le réafficher — vous pourrez uniquement le régénérer.
-              </p>
-            </div>
+      <Dialog
+        open={Boolean(revealed)}
+        size="lg"
+        isDismissable={false}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRevealed(null);
+            setCopied(false);
+          }
+        }}
+      >
+        <DialogContent role="alertdialog" showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <KeyRound className="w-5 h-5 text-primary" />
+              Client Secret généré
+            </DialogTitle>
+            <DialogDescription>
+              Copiez ce secret dès maintenant. Pour des raisons de sécurité, nous ne pourrons plus
+              jamais vous le réafficher — vous pourrez uniquement le régénérer.
+            </DialogDescription>
+          </DialogHeader>
 
+          {revealed && (
             <div className="space-y-3">
               <div className="space-y-1">
                 <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
@@ -619,36 +609,45 @@ export function OAuthAppsClient({
                   <code className="flex-1 font-sans text-xs break-all select-all">
                     {revealed.clientSecret}
                   </code>
-                  <button
+                  <Button
+                    variant="solid"
+                    tone="brand"
+                    size="sm"
+                    shape="icon"
                     onClick={() => copy(revealed.clientSecret)}
-                    className="bg-primary hover:bg-primary/90 text-primary-foreground p-2 rounded-lg transition-colors shrink-0 cursor-pointer"
+                    aria-label="Copier le Client Secret"
                   >
-                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  </button>
+                    {copied ? <Check /> : <Copy />}
+                  </Button>
                 </div>
               </div>
             </div>
+          )}
 
-            <div className="flex items-start gap-3 p-3.5 rounded-xl bg-highlight/10 border border-highlight/20 text-xs text-highlight">
-              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <p className="leading-relaxed text-[11px]">
-                Stockez ce secret côté serveur uniquement (variables d'environnement). Ne l'exposez
-                jamais dans du code client public.
-              </p>
-            </div>
+          <div className="flex items-start gap-3 p-3.5 rounded-xl bg-highlight/10 border border-highlight/20 text-xs text-highlight">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <p className="leading-relaxed text-[11px]">
+              Stockez ce secret côté serveur uniquement (variables d&apos;environnement). Ne
+              l&apos;exposez jamais dans du code client public.
+            </p>
+          </div>
 
-            <button
+          <DialogFooter>
+            <Button
+              variant="solid"
+              tone="brand"
+              size="md"
+              block
               onClick={() => {
                 setRevealed(null);
                 setCopied(false);
               }}
-              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs py-3 rounded-xl transition-colors cursor-pointer shadow-xs"
             >
-              J'ai sauvegardé mon secret
-            </button>
-          </div>
-        </div>
-      )}
+              J&apos;ai sauvegardé mon secret
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

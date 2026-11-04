@@ -4,7 +4,16 @@ import React, { useEffect, useState } from 'react';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 import { toast } from '@qoe/ui/toast';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@qoe/ui';
+import { Button } from '@qoe/ui/button';
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@qoe/ui/dialog';
 import { Select } from '@qoe/ui/select';
 import { bulkUpdateArticlesAction, type BulkUpdateArticlesInput } from '@qoe/sdk/actions/articles';
 
@@ -168,21 +177,21 @@ export function ArticleBulkSettingsDialog({
   return (
     <Dialog
       open={open}
+      size="lg"
+      isDismissable={!applying}
       onOpenChange={(next) => {
         if (!applying) onOpenChange(next);
       }}
     >
-      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
-        <DialogHeader className="space-y-1">
-          <DialogTitle className="text-base font-bold">
-            {t`Modifier ${selectedCount} article(s)`}
-          </DialogTitle>
-          <DialogDescription className="text-xs text-muted-foreground">
+      <DialogContent className="max-h-[90vh]">
+        <DialogHeader>
+          <DialogTitle>{t`Modifier ${selectedCount} article(s)`}</DialogTitle>
+          <DialogDescription>
             {t`Seuls les paramètres que vous changez ici seront appliqués. Le contenu n'est jamais modifié.`}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3 pt-1">
+        <DialogBody className="space-y-3 pt-1">
           <Select
             label={t`Catégorie`}
             hideLabel
@@ -253,27 +262,17 @@ export function ArticleBulkSettingsDialog({
               </p>
             )}
           </div>
-        </div>
+        </DialogBody>
 
-        <div className="flex items-center justify-end gap-2 pt-2">
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            disabled={applying}
-            className="h-9 rounded-xl px-4 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted disabled:opacity-50"
-          >
+        <DialogFooter>
+          <Button variant="ghost" size="sm" onClick={() => onOpenChange(false)} disabled={applying}>
             {t`Annuler`}
-          </button>
-          <button
-            type="button"
-            onClick={handleApply}
-            disabled={applying}
-            className="inline-flex h-9 items-center gap-2 rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-          >
-            {applying && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+          </Button>
+          <Button variant="solid" tone="brand" size="sm" onClick={handleApply} disabled={applying}>
+            {applying && <Loader2 className="animate-spin" />}
             {t`Appliquer`}
-          </button>
-        </div>
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

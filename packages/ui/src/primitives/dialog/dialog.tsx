@@ -183,6 +183,7 @@ export function DialogContent({
     >
       <AriaDialog
         ref={dialogRef}
+        data-slot="dialog-content"
         role={role}
         aria-label={ariaLabel}
         className={cn(
