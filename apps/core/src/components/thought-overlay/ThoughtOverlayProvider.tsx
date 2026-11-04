@@ -20,10 +20,9 @@
 import React from 'react';
 import { X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { motion, AnimatePresence } from 'framer-motion';
 import { t } from '@lingui/core/macro';
-import { useAuthModal } from '@qoe/ui';
-import { Button } from '@qoe/ui/button';
-import { Drawer, DrawerContent } from '@qoe/ui/drawer';
+import { useAuthModal, ProgressiveBlur } from '@qoe/ui';
 import { routes } from '@qoe/config/routes';
 import { ThoughtThreadView } from '@/app/(reader)/home/components/ThoughtThreadView';
 import type { DbUser } from '@/app/(reader)/home/components/ThoughtComposer';
@@ -81,7 +80,9 @@ export function ThoughtOverlayProvider({
     pushedRef.current = false;
     postIdRef.current = null;
     setIsOpen(false);
-    setActivePostId(null);
+    window.setTimeout(() => {
+      if (!openRef.current) setActivePostId(null);
+    }, 320);
 
     if (base) restorePosition(base);
 
@@ -152,58 +153,106 @@ export function ThoughtOverlayProvider({
     [openThought, closeThought, isOpen, activePostId]
   );
 
+  // Lock body scroll when drawer is open
+  React.useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
+  // ESC key listener
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        closeThought();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, closeThought]);
+
   return (
     <ThoughtOverlayContext.Provider value={value}>
       {children}
 
-      {/* 🚪 Panneau modal du contrat : react-aria fournit le piège à focus,
-          Échap, le clic extérieur et le retrait de l'arrière-plan de l'ordre
-          de tabulation. Rien de tout ça n'est réécrit ici. */}
-      <Drawer
-        isOpen={isOpen}
-        onOpenChange={(open) => {
-          if (!open) closeThought();
-        }}
-        width="xl"
-      >
-        <DrawerContent aria-label={t`Fil de pensée`} overlayClassName="z-40" className="bg-card">
-          <div className="relative flex h-full min-h-0 flex-col">
-            <Button
-              variant="ghost"
-              shape="icon"
-              size="xs"
-              onClick={closeThought}
-              className="absolute right-3 top-3 z-10 text-muted-foreground hover:text-foreground"
-              aria-label={t`Fermer le fil`}
-            >
-              <X className="size-4" aria-hidden />
-            </Button>
-
+      <AnimatePresence>
+        {isOpen && (
+          <div
+            data-testid="thought-drawer"
+            className="fixed top-[6px] bottom-0 md:bottom-[6px] left-0 md:left-[262px] right-0 md:right-[6px] z-40 flex flex-col pointer-events-auto select-text"
+          >
+            {/* Backdrop Click Area (No darkening overlay, strictly bounded to right stage, sidebar remains 100% uncovered) */}
             <div
-              className="flex-1 overflow-y-auto px-4 pb-8 pt-8 sm:px-6"
-              data-testid="thought-overlay"
+              onClick={closeThought}
+              className="fixed top-0 bottom-0 left-0 md:left-[262px] right-0 cursor-pointer -z-10"
+            />
+
+            {/* Stage Panel aligned with sidebar */}
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', stiffness: 320, damping: 32 }}
+              className="relative z-10 w-full h-full flex flex-col bg-background text-foreground border border-border/40 rounded-t-3xl md:rounded-[18px] shadow-2xl overflow-hidden font-sans"
             >
-              {activePostId && (
-                <ThoughtThreadView
-                  postId={activePostId}
-                  currentUserId={dbUser?.id ?? null}
-                  dbUser={dbUser}
-                  standalone
-                  onClose={closeThought}
-                  onOpenArticle={(article) => {
-                    articleOverlay?.openArticle(
-                      { id: article.id, slug: article.slug, title: article.title },
-                      { source: 'feed' }
-                    );
-                  }}
-                  onOpenProfile={(username) => router.push(routes.feed.profile(username))}
-                  onLoginRequired={() => openAuthModal({ mode: 'login' })}
-                />
-              )}
-            </div>
+              {/* 1. Zenithal Progressive Blur */}
+              <ProgressiveBlur direction="top" className="h-28 z-20 pointer-events-none" />
+
+              {/* 2. Floating Header Controls (Drag Handle + Circular Close Button) */}
+              <div className="absolute top-0 left-0 right-0 z-30 pointer-events-none flex flex-col">
+                {/* Drag Handle */}
+                <div className="w-full pt-2.5 pb-1 flex items-center justify-center shrink-0">
+                  <div className="w-10 h-1 rounded-full bg-foreground/25 hover:bg-foreground/45 transition-colors cursor-grab pointer-events-auto" />
+                </div>
+
+                {/* Header Row with Close Button */}
+                <div className="h-11 px-3.5 sm:px-6 flex items-center justify-end">
+                  <button
+                    type="button"
+                    onClick={closeThought}
+                    aria-label={t`Fermer le fil`}
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground bg-background/80 hover:bg-muted border border-border/20 shadow-xs backdrop-blur-sm transition-all outline-none cursor-pointer shrink-0 pointer-events-auto"
+                    title={t`Fermer le fil`}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* 3. Scroll Container */}
+              <div
+                className="relative flex-1 overflow-y-auto overflow-x-hidden pt-14 pb-16 px-4 sm:px-6 scroll-smooth bg-white dark:bg-black"
+                data-testid="thought-overlay"
+              >
+                <div className="max-w-3xl mx-auto">
+                  {activePostId && (
+                    <ThoughtThreadView
+                      postId={activePostId}
+                      currentUserId={dbUser?.id ?? null}
+                      dbUser={dbUser}
+                      standalone
+                      onClose={closeThought}
+                      onOpenArticle={(article) => {
+                        articleOverlay?.openArticle(
+                          { id: article.id, slug: article.slug, title: article.title },
+                          { source: 'feed' }
+                        );
+                      }}
+                      onOpenProfile={(username) => router.push(routes.feed.profile(username))}
+                      onLoginRequired={() => openAuthModal({ mode: 'login' })}
+                    />
+                  )}
+                </div>
+              </div>
+            </motion.div>
           </div>
-        </DrawerContent>
-      </Drawer>
+        )}
+      </AnimatePresence>
     </ThoughtOverlayContext.Provider>
   );
 }

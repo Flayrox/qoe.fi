@@ -255,7 +255,13 @@ export function ArticleOverlayProvider({
       if (link.hasAttribute('download')) return;
 
       const url = new URL(link.href, window.location.origin);
-      if (url.origin !== window.location.origin) return;
+      const isInternal =
+        url.origin === window.location.origin ||
+        url.hostname === 'localhost' ||
+        url.hostname.endsWith('.qoe.fi') ||
+        url.hostname.endsWith('.lvh.me') ||
+        url.hostname.endsWith('.qoe.test');
+      if (!isInternal && !link.dataset.articleSlug) return;
 
       const slug =
         link.dataset.articleSlug ||
