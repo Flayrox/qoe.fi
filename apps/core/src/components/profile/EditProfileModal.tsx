@@ -1,9 +1,18 @@
 'use client';
 
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { toast } from '@qoe/ui/toast';
+import { Button } from '@qoe/ui/button';
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@qoe/ui/dialog';
+import { Input, Textarea } from '@qoe/ui/input';
 import { updateProfileAction as updateProfile } from '@qoe/sdk/actions/feed';
 import { updateMediaProfileAction, resolveMediaIdByPublication } from './profile-edit-actions';
 
@@ -129,21 +138,12 @@ export function EditProfileModal({
   const [headerImageUrl, setHeaderImageUrl] = useState<string | null>(user.headerImageUrl || null);
   const [saving, setSaving] = useState(false);
 
-  if (!isOpen) return null;
-
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
 
     try {
-      // 🎯 Une seule cible d'écriture : on résout ce que représente la
-      // publication affichée (média ou compte personnel) côté serveur. Un
-      // média n'a ni username ni onboardingText : ces champs ne partent que
-      // vers /v1/me/profile (compte personnel).
       const mediaId = publicationId ? await resolveMediaId(publicationId) : null;
-      // ⚠️ null est SIGNIFICATIF (retrait de photo) : on le transmet tel quel,
-      // jamais `|| undefined` qui le transformerait en champ omis → le retrait
-      // ne partirait jamais côté Go.
       const res = mediaId
         ? await updateMediaProfile(mediaId, {
             name,
@@ -188,26 +188,19 @@ export function EditProfileModal({
   };
 
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 10 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 10 }}
-          className="bg-card text-card-foreground border border-border/40 rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl flex flex-col font-sans"
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-border/40">
-            <h3 className="font-semibold text-base text-foreground">{t`Éditer le profil`}</h3>
-            <button
-              onClick={onClose}
-              className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent size="lg">
+        <DialogHeader>
+          <DialogTitle>{t`Éditer le profil`}</DialogTitle>
+        </DialogHeader>
 
-          <form onSubmit={handleSave} className="p-5 space-y-5 overflow-y-auto max-h-[80vh]">
+        <form onSubmit={handleSave} className="flex flex-col min-h-0">
+          <DialogBody className="space-y-5 max-h-[75vh] overflow-y-auto">
             {/* Banner Upload */}
             <div className="space-y-2">
               <ImageUploader
@@ -236,13 +229,12 @@ export function EditProfileModal({
             {/* Name Input */}
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-muted-foreground">{t`Nom complet`}</label>
-              <input
+              <Input
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder={t`Votre nom`}
                 required
-                className="w-full text-sm border border-border/50 focus:border-foreground bg-muted/30 focus:bg-card text-foreground rounded-lg p-2.5 outline-none transition-all font-medium"
               />
             </div>
 
@@ -251,12 +243,11 @@ export function EditProfileModal({
               <label className="text-xs font-semibold text-muted-foreground">
                 {t`Bio / Présentation`}
               </label>
-              <textarea
+              <Textarea
                 value={heroText}
                 onChange={(e) => setHeroText(e.target.value)}
                 placeholder={t`Décrivez-vous en quelques mots...`}
                 rows={3}
-                className="w-full text-xs border border-border/50 focus:border-foreground bg-muted/30 focus:bg-card text-foreground rounded-lg p-2.5 resize-none outline-none transition-all"
               />
             </div>
 
@@ -265,37 +256,33 @@ export function EditProfileModal({
               <label className="text-xs font-semibold text-muted-foreground">
                 {t`Localisation / Ville`}
               </label>
-              <input
+              <Input
                 type="text"
                 value={locationText}
                 maxLength={30}
                 onChange={(e) => setLocationText(e.target.value)}
                 placeholder={t`Paris, France`}
-                className="w-full text-xs border border-border/50 focus:border-foreground bg-muted/30 focus:bg-card text-foreground rounded-lg p-2.5 outline-none transition-all"
               />
             </div>
+          </DialogBody>
 
-            {/* Footer buttons */}
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-border/40">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-              >
-                {t`Annuler`}
-              </button>
-              <button
-                type="submit"
-                disabled={saving || !name.trim()}
-                className="px-5 py-2 bg-foreground text-background text-xs font-semibold rounded-lg hover:opacity-90 disabled:opacity-40 transition-opacity cursor-pointer flex items-center gap-2"
-              >
-                {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                <span>{t`Enregistrer`}</span>
-              </button>
-            </div>
-          </form>
-        </motion.div>
-      </div>
-    </AnimatePresence>
+          <DialogFooter>
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              {t`Annuler`}
+            </Button>
+            <Button
+              type="submit"
+              variant="solid"
+              tone="neutral"
+              size="sm"
+              disabled={saving || !name.trim()}
+            >
+              {saving && <Loader2 className="animate-spin" />}
+              <span>{t`Enregistrer`}</span>
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

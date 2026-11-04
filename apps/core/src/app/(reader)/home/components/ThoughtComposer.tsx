@@ -34,7 +34,17 @@ import { Popover, PopoverTrigger, PopoverContent } from '@qoe/ui/ui/popover';
 import { Calendar } from '@qoe/ui/ui/calendar';
 import { TimePickerInput } from '@qoe/ui/ui/time-picker-input';
 import { toast } from '@qoe/ui/toast';
+import { Button } from '@qoe/ui/button';
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@qoe/ui/dialog';
 import { Select } from '@qoe/ui/select';
+import { Tabs, TabList, Tab } from '@qoe/ui/tabs';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@qoe/ui/ui/sheet';
 import { ProfileHoverCard } from '@qoe/ui/social/ProfileHoverCard';
 
@@ -2572,28 +2582,18 @@ function ImageCropperModal({ image, onClose, onConfirm }: ImageCropperModalProps
   };
 
   return (
-    <div className="fixed inset-0 bg-background/80 backdrop-blur-xs z-[100] flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.97 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.97 }}
-        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-        className="bg-[var(--surface-0)] border border-[var(--border-default)] rounded-[var(--radius-card)] w-full max-w-md overflow-hidden shadow-2xl flex flex-col animate-fade-in"
-      >
-        <div className="p-4 border-b border-[var(--border-subtle)] flex items-center justify-between">
-          <span className="text-sm font-semibold text-[var(--text-primary)] font-serif">
-            Recadrer l'image
-          </span>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] p-1 cursor-pointer transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent size="md">
+        <DialogHeader>
+          <DialogTitle>{t`Recadrer l’image`}</DialogTitle>
+        </DialogHeader>
 
-        <div className="flex-1 min-h-[380px] bg-background flex items-center justify-center p-6 select-none relative overflow-hidden">
+        <DialogBody className="flex min-h-[340px] items-center justify-center bg-muted/20 p-4 select-none relative overflow-hidden rounded-control">
           <ReactCrop
             crop={crop}
             onChange={(c) => setCrop(c)}
@@ -2611,50 +2611,33 @@ function ImageCropperModal({ image, onClose, onConfirm }: ImageCropperModalProps
               draggable={false}
             />
           </ReactCrop>
+        </DialogBody>
+
+        <div className="px-5 pt-2 flex items-center justify-between gap-4">
+          <span className="type-control-xs font-medium text-muted-foreground">{t`Format`}</span>
+          <Tabs
+            variant="segmented"
+            size="xs"
+            selectedKey={aspectRatio}
+            onSelectionChange={(key) => setAspectRatio(key as 'libre' | '1:1' | '16:9')}
+          >
+            <TabList aria-label={t`Format de recadrage`}>
+              <Tab id="libre">Libre</Tab>
+              <Tab id="1:1">1:1</Tab>
+              <Tab id="16:9">16:9</Tab>
+            </TabList>
+          </Tabs>
         </div>
 
-        <div className="p-4 bg-[var(--surface-1)] border-t border-[var(--border-subtle)] space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <span className="text-xs text-[var(--text-secondary)] font-medium font-serif">
-              Format
-            </span>
-            <div className="flex gap-1.5">
-              {(['libre', '1:1', '16:9'] as const).map((ratio) => (
-                <button
-                  key={ratio}
-                  type="button"
-                  onClick={() => setAspectRatio(ratio)}
-                  className={cn(
-                    'px-2.5 py-1 rounded-[var(--radius-button)] text-[10px] uppercase font-bold border transition-all cursor-pointer font-serif',
-                    aspectRatio === ratio
-                      ? 'border-[var(--qoe-vermillion)] bg-[var(--qoe-vermillion-08)] text-[var(--qoe-vermillion)]'
-                      : 'border-[var(--border-default)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] bg-[var(--surface-0)]'
-                  )}
-                >
-                  {ratio}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-3.5 py-2 border border-[var(--border-default)] rounded-[var(--radius-button)] text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-2)] cursor-pointer font-serif"
-            >
-              Annuler
-            </button>
-            <button
-              type="button"
-              onClick={handleConfirm}
-              className="px-3.5 py-2 bg-[var(--qoe-vermillion)] hover:bg-[#d63d20] text-white font-bold rounded-[var(--radius-button)] text-xs cursor-pointer font-serif"
-            >
-              Confirmer
-            </button>
-          </div>
-        </div>
-      </motion.div>
-    </div>
+        <DialogFooter>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            {t`Annuler`}
+          </Button>
+          <Button variant="solid" tone="brand" size="sm" onClick={handleConfirm}>
+            {t`Confirmer`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

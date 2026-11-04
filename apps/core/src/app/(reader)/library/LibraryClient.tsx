@@ -27,6 +27,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { trackServerEvent } from '@qoe/analytics';
 import { routes, getArticleUrl } from '@qoe/config/routes';
 import { UserAvatar } from '@qoe/ui/ui/UserAvatar';
+import { Badge } from '@qoe/ui/badge';
+import { Button, buttonClasses } from '@qoe/ui/button';
+import { Input, Textarea } from '@qoe/ui/input';
+import { Tabs, TabList, Tab } from '@qoe/ui/tabs';
+import { TagGroup, TagList, Tag } from '@qoe/ui/tag-group';
 import { toast } from '@qoe/ui/toast';
 import { toggleBookmarkArticleHomeAction } from '@qoe/sdk/actions/feed';
 import { deleteHighlightAction, updateHighlightNoteAction } from '@qoe/sdk/actions/highlights';
@@ -298,13 +303,13 @@ export function LibraryClient({
             <h1 className="text-lg sm:text-xl font-bold tracking-tight text-foreground">
               {t`Bibliothèque`}
             </h1>
-            <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20">
+            <Badge tone="brand" variant="soft" size="sm">
               {activeTab === 'bookmarks'
                 ? bookmarks.length
                 : activeTab === 'highlights'
                   ? highlights.length
                   : annotationsCount}
-            </span>
+            </Badge>
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">
             {t`Vos lectures sauvegardées, citations et réflexions personnelles.`}
@@ -315,23 +320,23 @@ export function LibraryClient({
           {/* Mes livres (EPUBs personnels — fiche Plus P1) */}
           <Link
             href={routes.feed.ebooks()}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-muted/60 hover:bg-muted text-foreground border border-border/50 transition-colors shadow-2xs cursor-pointer"
+            className={buttonClasses({ variant: 'outline', size: 'sm' })}
             title={t`Mes livres (EPUBs importés)`}
           >
-            <BookOpen className="w-3.5 h-3.5 text-primary" />
+            <BookOpen className="text-primary" />
             <span>{t`Mes livres`}</span>
           </Link>
           {/* Action Export Markdown */}
           {highlights.length > 0 && (
-            <button
-              type="button"
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleExportMarkdown}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-muted/60 hover:bg-muted text-foreground border border-border/50 transition-colors shadow-2xs cursor-pointer self-start sm:self-auto"
               title={t`Exporter au format Markdown (Notion, Obsidian, Bear)`}
             >
-              <Download className="w-3.5 h-3.5 text-primary" />
+              <Download className="text-primary" />
               <span>{t`Exporter (.md)`}</span>
-            </button>
+            </Button>
           )}
         </div>
       </div>
@@ -401,140 +406,74 @@ export function LibraryClient({
 
       {/* ─── Contrôles de navigation : Tabs + Filtres + Recherche ─── */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-        {/* Tabs compactes & fluides */}
-        <div className="inline-flex items-center p-1 bg-muted/50 border border-border/50 rounded-xl relative">
-          {tabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => handleTabChange(tab.id)}
-                className={cn(
-                  'relative z-10 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer select-none',
-                  isActive
-                    ? 'text-primary-foreground font-semibold'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="library-active-tab-indicator"
-                    className="absolute inset-0 bg-primary rounded-lg shadow-2xs"
-                    transition={{ type: 'spring', stiffness: 450, damping: 35 }}
-                  />
-                )}
-                <Icon className="w-3.5 h-3.5 relative z-10" />
-                <span className="relative z-10">{tab.label}</span>
-                <span
-                  className={cn(
-                    'relative z-10 text-[10px] px-1.5 py-0.5 rounded-md font-semibold',
-                    isActive
-                      ? 'bg-primary-foreground/20 text-primary-foreground'
-                      : 'bg-muted text-muted-foreground'
-                  )}
-                >
-                  {tab.count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        <Tabs
+          variant="segmented"
+          size="sm"
+          selectedKey={activeTab}
+          onSelectionChange={(key) => handleTabChange(key as LibraryTab)}
+        >
+          <TabList aria-label={t`Sections de la bibliothèque`}>
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <Tab key={tab.id} id={tab.id} count={tab.count}>
+                  <Icon />
+                  <span>{tab.label}</span>
+                </Tab>
+              );
+            })}
+          </TabList>
+        </Tabs>
 
         {/* Filtres de lecture & modes (pour les Signets) */}
         <div className="flex flex-wrap items-center gap-2">
           {activeTab === 'bookmarks' && (
             <>
-              {/* Filtres de temps */}
-              <div className="inline-flex items-center p-0.5 bg-muted/50 border border-border/50 rounded-lg text-[11px]">
-                <button
-                  type="button"
-                  onClick={() => setTimeFilter('all')}
-                  className={cn(
-                    'px-2 py-1 rounded-md font-semibold transition-colors cursor-pointer',
-                    timeFilter === 'all'
-                      ? 'bg-card text-foreground shadow-2xs'
-                      : 'text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  {t`Tous`}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTimeFilter('quick')}
-                  className={cn(
-                    'px-2 py-1 rounded-md font-semibold transition-colors cursor-pointer',
-                    timeFilter === 'quick'
-                      ? 'bg-card text-foreground shadow-2xs'
-                      : 'text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  &lt; 5 min
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTimeFilter('medium')}
-                  className={cn(
-                    'px-2 py-1 rounded-md font-semibold transition-colors cursor-pointer',
-                    timeFilter === 'medium'
-                      ? 'bg-card text-foreground shadow-2xs'
-                      : 'text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  5-15 min
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTimeFilter('deep')}
-                  className={cn(
-                    'px-2 py-1 rounded-md font-semibold transition-colors cursor-pointer',
-                    timeFilter === 'deep'
-                      ? 'bg-card text-foreground shadow-2xs'
-                      : 'text-muted-foreground hover:text-foreground'
-                  )}
-                >
-                  &gt; 15 min
-                </button>
-              </div>
+              <TagGroup
+                aria-label={t`Durée de lecture`}
+                selectionMode="single"
+                disallowEmptySelection
+                size="xs"
+                selectedKeys={new Set([timeFilter])}
+                onSelectionChange={(keys) => {
+                  if (keys !== 'all') {
+                    const next = Array.from(keys)[0] as ReadingTimeFilter | undefined;
+                    if (next) setTimeFilter(next);
+                  }
+                }}
+              >
+                <TagList>
+                  <Tag id="all">{t`Tous`}</Tag>
+                  <Tag id="quick">&lt; 5 min</Tag>
+                  <Tag id="medium">5-15 min</Tag>
+                  <Tag id="deep">&gt; 15 min</Tag>
+                </TagList>
+              </TagGroup>
 
-              {/* Mode de vue (Grille vs Liste) */}
-              <div className="inline-flex items-center p-0.5 bg-muted/50 border border-border/50 rounded-lg">
-                <button
-                  type="button"
-                  onClick={() => setViewMode('grid')}
-                  className={cn(
-                    'p-1 rounded-md transition-colors cursor-pointer',
-                    viewMode === 'grid'
-                      ? 'bg-card text-foreground shadow-2xs'
-                      : 'text-muted-foreground hover:text-foreground'
-                  )}
-                  title={t`Vue en grille bento`}
-                >
-                  <LayoutGrid className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode('list')}
-                  className={cn(
-                    'p-1 rounded-md transition-colors cursor-pointer',
-                    viewMode === 'list'
-                      ? 'bg-card text-foreground shadow-2xs'
-                      : 'text-muted-foreground hover:text-foreground'
-                  )}
-                  title={t`Vue en liste haute densité`}
-                >
-                  <List className="w-3.5 h-3.5" />
-                </button>
-              </div>
+              <Tabs
+                variant="segmented"
+                size="xs"
+                selectedKey={viewMode}
+                onSelectionChange={(key) => setViewMode(key as 'grid' | 'list')}
+              >
+                <TabList aria-label={t`Mode d’affichage`}>
+                  <Tab id="grid" aria-label={t`Vue en grille bento`}>
+                    <LayoutGrid />
+                  </Tab>
+                  <Tab id="list" aria-label={t`Vue en liste haute densité`}>
+                    <List />
+                  </Tab>
+                </TabList>
+              </Tabs>
             </>
           )}
 
           {/* Champ de recherche compact */}
           <div className="relative w-full sm:w-56">
-            <Search className="w-3.5 h-3.5 text-muted-foreground/70 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
+            <Search className="w-3.5 h-3.5 text-muted-foreground/70 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none z-10" />
+            <Input
               type="text"
+              size="sm"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={
@@ -544,16 +483,19 @@ export function LibraryClient({
                     ? t`Rechercher une citation...`
                     : t`Filtrer les notes...`
               }
-              className="w-full bg-muted/40 border border-border/50 focus:border-primary/40 focus:ring-1 focus:ring-primary/20 rounded-xl pl-8 pr-7 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-hidden transition-all shadow-2xs"
+              className="pl-8 pr-7"
             />
             {searchQuery && (
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="xs"
+                shape="icon"
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5 rounded-full hover:bg-muted transition-colors cursor-pointer"
+                aria-label={t`Effacer la recherche`}
+                className="absolute right-1 top-1/2 -translate-y-1/2 size-6"
               >
-                <X className="w-3 h-3" />
-              </button>
+                <X />
+              </Button>
             )}
           </div>
         </div>
@@ -633,15 +575,17 @@ export function LibraryClient({
                             </span>
 
                             {/* Bouton de retrait immédiat */}
-                            <button
-                              type="button"
+                            <Button
+                              variant="ghost"
+                              tone="danger"
+                              size="xs"
+                              shape="icon"
                               onClick={() => handleRemoveBookmark(b)}
-                              className="p-1 text-muted-foreground/60 hover:text-destructive-text hover:bg-destructive/10 rounded-md transition-colors cursor-pointer"
-                              title={t`Retirer des signets`}
+                              aria-label={t`Retirer des signets`}
                             >
-                              <BookmarkCheck className="w-3.5 h-3.5 text-primary group-hover:hidden" />
-                              <Trash2 className="w-3.5 h-3.5 text-destructive-text hidden group-hover:block" />
-                            </button>
+                              <BookmarkCheck className="text-primary group-hover:hidden" />
+                              <Trash2 className="hidden group-hover:block" />
+                            </Button>
                           </div>
                         </div>
 
@@ -781,14 +725,16 @@ export function LibraryClient({
                           <ExternalLink className="w-3 h-3" />
                         </a>
 
-                        <button
-                          type="button"
+                        <Button
+                          variant="ghost"
+                          tone="danger"
+                          size="xs"
+                          shape="icon"
                           onClick={() => handleRemoveBookmark(b)}
-                          className="p-1 text-muted-foreground/60 hover:text-destructive-text hover:bg-destructive/10 rounded-md transition-colors cursor-pointer"
-                          title={t`Retirer`}
+                          aria-label={t`Retirer`}
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                          <Trash2 />
+                        </Button>
                       </div>
                     </motion.div>
                   );
@@ -898,14 +844,16 @@ export function LibraryClient({
                                 </p>
                               </div>
                             </div>
-                            <button
-                              type="button"
+                            <Button
+                              variant="ghost"
+                              size="xs"
+                              shape="icon"
                               onClick={() => handleStartEditNote(h)}
-                              className="p-1 text-muted-foreground/60 hover:text-foreground hover:bg-muted rounded-md transition-colors cursor-pointer shrink-0"
-                              title={t`Modifier l'annotation`}
+                              aria-label={t`Modifier l'annotation`}
+                              className="shrink-0"
                             >
-                              <Pencil className="w-3 h-3" />
-                            </button>
+                              <Pencil />
+                            </Button>
                           </div>
                         )}
 
@@ -918,29 +866,25 @@ export function LibraryClient({
                                 <span>{t`Rédiger une annotation`}</span>
                               </span>
                             </div>
-                            <textarea
+                            <Textarea
                               value={noteInput}
                               onChange={(e) => setNoteInput(e.target.value)}
                               placeholder={t`Votre réflexion, synthèse ou mémo sur ce passage...`}
                               rows={2}
-                              className="w-full text-xs p-2 rounded-md bg-card border border-border/60 focus:ring-1 focus:ring-primary/30 focus:border-primary/40 focus:outline-hidden resize-none text-foreground placeholder:text-muted-foreground/60"
                               autoFocus
                             />
                             <div className="flex items-center justify-end gap-2">
-                              <button
-                                type="button"
-                                onClick={handleCancelEditNote}
-                                className="text-xs px-2.5 py-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors cursor-pointer"
-                              >
+                              <Button variant="ghost" size="xs" onClick={handleCancelEditNote}>
                                 {t`Annuler`}
-                              </button>
-                              <button
-                                type="button"
+                              </Button>
+                              <Button
+                                variant="solid"
+                                tone="brand"
+                                size="xs"
                                 onClick={() => handleSaveNote(h.id)}
-                                className="text-xs px-3 py-1 rounded-md bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity cursor-pointer shadow-2xs"
                               >
                                 {t`Enregistrer`}
-                              </button>
+                              </Button>
                             </div>
                           </div>
                         )}
@@ -949,52 +893,50 @@ export function LibraryClient({
                         <div className="flex items-center justify-between pt-2 border-t border-border/40 text-xs">
                           <div className="flex items-center gap-1">
                             {!h.note && !isEditing && (
-                              <button
-                                type="button"
+                              <Button
+                                variant="ghost"
+                                size="xs"
                                 onClick={() => handleStartEditNote(h)}
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors cursor-pointer"
                               >
-                                <Plus className="w-3 h-3" />
+                                <Plus />
                                 <span>{t`Annoter`}</span>
-                              </button>
+                              </Button>
                             )}
                           </div>
 
                           <div className="flex items-center gap-1">
                             {/* Copier */}
-                            <button
-                              type="button"
+                            <Button
+                              variant="ghost"
+                              size="xs"
                               onClick={() => handleCopyHighlight(h)}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
                               title={t`Copier la citation`}
                             >
-                              {isCopied ? (
-                                <Check className="w-3 h-3 text-success-text" />
-                              ) : (
-                                <Copy className="w-3 h-3" />
-                              )}
+                              {isCopied ? <Check className="text-success-text" /> : <Copy />}
                               <span>{isCopied ? t`Copié` : t`Copier`}</span>
-                            </button>
+                            </Button>
 
                             {/* Citer */}
                             <a
                               href={`/home?quote=${encodeURIComponent(h.text)}&sourceId=${h.article.id}`}
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors cursor-pointer"
+                              className={buttonClasses({ variant: 'ghost', size: 'xs' })}
                               title={t`Citer dans une pensée`}
                             >
-                              <MessageSquareQuote className="w-3 h-3" />
+                              <MessageSquareQuote />
                               <span>{t`Citer`}</span>
                             </a>
 
                             {/* Supprimer */}
-                            <button
-                              type="button"
+                            <Button
+                              variant="ghost"
+                              tone="danger"
+                              size="xs"
+                              shape="icon"
                               onClick={() => handleDeleteHighlight(h.id)}
-                              className="p-1 text-muted-foreground/60 hover:text-destructive-text hover:bg-destructive/10 rounded-md transition-colors cursor-pointer"
-                              title={t`Supprimer ce surlignage`}
+                              aria-label={t`Supprimer ce surlignage`}
                             >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
+                              <Trash2 />
+                            </Button>
 
                             {/* Ouvrir l'article */}
                             <a
