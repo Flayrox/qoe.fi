@@ -377,6 +377,61 @@ export function AnnotationFlowSpecimen() {
       </Variant>
 
       <Variant
+        label="Confort de lecture & Pilule de filtre des annotations (Composants isolés)"
+        kind="variante"
+        hint="Le panneau de confort de lecture (« Aa ») regroupe typographie, taille, thèmes papier et mode d'affichage des annotations. Les filtres d'annotation s'adaptent dynamiquement aux droits définis par l'auteur."
+      >
+        <div className="grid gap-6">
+          <div className="flex flex-wrap items-center gap-6 p-4 rounded-2xl border border-border/40 bg-card">
+            <div className="flex flex-col gap-2">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Panneau complet (Aa)
+              </span>
+              <ReadingSettingsSheet
+                filterMode={filterMode}
+                onFilterModeChange={setFilterMode}
+                allowPublicAnnotations
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Filtre standard (Public autorisé)
+              </span>
+              <AnnotationFilterPill
+                filterMode={filterMode}
+                onChangeFilterMode={setFilterMode}
+                allowPublicAnnotations={true}
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Filtre restreint (Auteur sans public : « Mes notes »)
+              </span>
+              <AnnotationFilterPill
+                filterMode={filterMode}
+                onChangeFilterMode={setFilterMode}
+                allowPublicAnnotations={false}
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Taille compacte (size="sm")
+              </span>
+              <AnnotationFilterPill
+                filterMode={filterMode}
+                onChangeFilterMode={setFilterMode}
+                allowPublicAnnotations={true}
+                size="sm"
+              />
+            </div>
+          </div>
+        </div>
+      </Variant>
+
+      <Variant
         label="Ce que l’audit a corrigé sur ce parcours"
         kind="ecart"
         hint="Relevé en relisant le moteur ligne à ligne, pas en le réécrivant : chaque point est un défaut observable, avec sa cause."
