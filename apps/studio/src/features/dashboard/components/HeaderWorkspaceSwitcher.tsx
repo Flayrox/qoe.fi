@@ -53,12 +53,9 @@ export function HeaderWorkspaceSwitcher() {
     setActiveWorkspace(ws);
     setActiveCookie(ws);
     // Le dashboard entier (Home, Articles, Audience, Analytics, Réglages)
-    // opère sur le workspace actif — on reste sur la même app, sans changer de compte.
-    if (ws.type === 'MEDIA') {
-      router.push('/');
-    } else {
-      router.push('/');
-    }
+    // opère sur le workspace actif : on recharge la même app pour que les
+    // données suivent, quel que soit le type d'espace.
+    router.push('/');
   };
 
   if (!activeWorkspace) return null;

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import {
   MapPin,
@@ -17,10 +18,15 @@ import {
 } from 'lucide-react';
 import { AuthorAvatar } from '@qoe/ui/ui/AuthorAvatar';
 import { ThoughtCard } from '@/components/social/ThoughtCard';
+import { useArticleOverlay } from '@/components/article-overlay/ArticleOverlayProvider';
+import { useThoughtOverlay } from '@/components/thought-overlay/context';
 import { ArticleCard } from '@/app/(reader)/home/components/ArticleCard';
 import { EditProfileModal } from '@/components/profile/EditProfileModal';
 import { FollowList } from './FollowList';
-import { toggleFollowCreatorHomeAction as toggleFollowCreator } from '@qoe/sdk/actions/feed';
+import {
+  toggleFollowCreatorHomeAction as toggleFollowCreator,
+  type ProfilePostPayload,
+} from '@qoe/sdk/actions/feed';
 import { useDeletePostMutation } from '@qoe/sdk';
 import {
   CertifiedBadge,
@@ -38,31 +44,13 @@ import { ReaderPageLayout } from '@/components/layout/ReaderPageLayout';
 import type { FeedArticleDTO } from '@/lib/feed-types';
 import { t } from '@lingui/core/macro';
 
-interface ProfilePost {
-  id: string;
-  content: string;
-  imageUrl?: string | null;
-  createdAt: string | Date;
-  triggerWarning?: string | null;
-  isPinned?: boolean;
-  author: {
-    id: string;
-    name: string | null;
-    username: string | null;
-    subdomain?: string | null;
-    logoUrl: string | null;
-    isCertified?: boolean;
-  };
-  parentId?: string | null;
-  repostId?: string | null;
-  parent?: ProfilePost | null;
-  repost?: ProfilePost | null;
-  likesCount?: number;
-  repliesCount?: number;
-  repostsCount?: number;
-  liked?: boolean;
-  _count?: { likes?: number; replies?: number; reposts?: number };
-}
+/**
+ * Le profil ne redéfinit pas la pensée : il rend le même contrat que le
+ * feed (`ProfilePostPayload`), citations et chaîne comprises. Une copie
+ * locale plus étroite était la cause des cartes différentes d'une page à
+ * l'autre.
+ */
+type ProfilePost = ProfilePostPayload;
 
 interface ProfileUser {
   id: string;
@@ -111,9 +99,22 @@ export function ProfileView({
   initialTab = 'thoughts',
   initialPublicationId,
 }: ProfileViewProps) {
+  const router = useRouter();
+  const overlay = useArticleOverlay();
+  const thoughtOverlay = useThoughtOverlay();
   const [user, setUser] = useState(initialProfileUser);
   const [isFollowing, setIsFollowing] = useState(initialIsFollowing);
   const [followersCount, setFollowersCount] = useState(user._count?.followers || 0);
+
+  // 🧵 Un fil s'ouvre par-dessus le profil : la position et le scroll de la
+  // page restent intacts. Sans provider (vitrine), navigation classique.
+  const openThought = (id: string, handle: string) => {
+    if (thoughtOverlay) {
+      thoughtOverlay.openThought(id, handle);
+      return;
+    }
+    router.push(routes.feed.thought(handle, id));
+  };
   const [activeTab, setActiveTab] = useState<ProfileTab>(
     PROFILE_TABS.includes(initialTab as ProfileTab) ? (initialTab as ProfileTab) : 'thoughts'
   );
@@ -244,7 +245,7 @@ export function ProfileView({
             if (typeof window !== 'undefined' && window.history.length > 1) {
               window.history.back();
             } else {
-              window.location.href = routes.feed.home();
+              router.push(routes.feed.home());
             }
           }}
           className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
@@ -492,7 +493,7 @@ export function ProfileView({
                         onDeletePost={handleDeletePost}
                         onOpenPost={(id, authorUsername) => {
                           const handle = authorUsername || profileHandle || user.id;
-                          window.location.href = routes.feed.thought(handle, id);
+                          openThought(id, handle);
                         }}
                       />
                     </div>
@@ -505,7 +506,7 @@ export function ProfileView({
                       onDeletePost={handleDeletePost}
                       onOpenPost={(id, authorUsername) => {
                         const handle = authorUsername || profileHandle || user.id;
-                        window.location.href = routes.feed.thought(handle, id);
+                        openThought(id, handle);
                       }}
                     />
                   ))}
@@ -527,7 +528,7 @@ export function ProfileView({
                     onDeletePost={handleDeletePost}
                     onOpenPost={(id, authorUsername) => {
                       const handle = authorUsername || user.username || user.subdomain || user.id;
-                      window.location.href = routes.feed.thought(handle, id);
+                      openThought(id, handle);
                     }}
                   />
                 ))
@@ -552,9 +553,13 @@ export function ProfileView({
                     handleFollowToggle={handleFollowToggle}
                     handleBookmarkToggle={() => {}}
                     onOpenArticle={() => {
-                      window.location.href = getArticleUrl(article, {
-                        fallbackOwner: user.username || user.subdomain || 'article',
-                      });
+                      if (overlay) {
+                        overlay.openArticle(article, { source: 'public_profile' });
+                      } else {
+                        window.location.href = getArticleUrl(article, {
+                          fallbackOwner: user.username || user.subdomain || 'article',
+                        });
+                      }
                     }}
                   />
                 ))
@@ -581,7 +586,7 @@ export function ProfileView({
                         user.username ||
                         user.subdomain ||
                         user.id;
-                      window.location.href = routes.feed.thought(handle, id);
+                      openThought(id, handle);
                     }}
                   />
                 ))
@@ -601,13 +606,13 @@ export function ProfileView({
                       <button
                         key={post.id}
                         onClick={() =>
-                          (window.location.href = routes.feed.thought(
+                          openThought(
+                            post.id,
                             post.author?.username ||
                               post.author?.subdomain ||
                               profileHandle ||
-                              user.id,
-                            post.id
-                          ))
+                              user.id
+                          )
                         }
                         className="relative aspect-square overflow-hidden rounded-xl bg-muted group cursor-pointer"
                       >

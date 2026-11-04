@@ -24,6 +24,7 @@ import { PortedPiecesSpecimen } from './specimens/15-ported-pieces';
 import { MarkSkinSpecimen } from './specimens/16-mark-skin';
 import { AnnotationFlowSpecimen } from './specimens/17-annotation-flow';
 import { SidebarSpecimen } from './specimens/18-sidebar';
+import { SocialCardsSpecimen } from './specimens/19-social-cards';
 
 const SPECIMENS = [
   {
@@ -226,15 +227,31 @@ const SPECIMENS = [
     index: '18',
     title: 'Barre latérale & Sélecteurs de compte et d’espace',
     question:
-      'Comment intégrer la navigation principale, l’indicateur animé et les menus de compte/espace sans aucun popover fait main ?',
+      'La console tient-elle debout comme une seule famille ? Le sélecteur d’espace en haut et le menu de compte en bas doivent se lire au même niveau de finition que la navigation — et ne pas dupliquer les mêmes entrées.',
     sources: [
       'packages/ui/src/sidebar.tsx',
       'apps/studio/src/features/dashboard/components/HeaderWorkspaceSwitcher.tsx',
       'packages/ui/src/ui/dropdown-menu.tsx',
     ],
     notes:
-      'Entièrement aligné sur react-aria-components : menu popover vers le haut pour le compte, changement d’espace, déconnexion destructive et thème.',
+      'Un seul point d’entrée vers les réglages, qui reste dans l’application courante ; la nature du compte ne change que la forme de la marque d’identité (rond personnel, carré média) ; le thème n’est proposé qu’une fois, dans l’en-tête, là où il est toujours atteignable.',
     Component: SidebarSpecimen,
+  },
+  {
+    id: '19-social-cards',
+    index: '19',
+    title: 'Pensées, articles, échos et citations',
+    question:
+      'Une pensée, la pensée qu’elle cite, l’article du feed, l’article qu’elle surligne, la note qu’elle cite, l’écho d’une pensée — et une citation qui en cite une autre. Quelle hiérarchie tient quand six objets se ressemblent ?',
+    sources: [
+      'packages/ui/src/social/ThoughtCard.tsx',
+      'packages/ui/src/social/QuotedThoughtCard.tsx',
+      'packages/ui/src/social/QuotedArticleCard.tsx',
+      'packages/ui/src/ArticleCard.tsx',
+    ],
+    notes:
+      'La citation imbriquée est montrée telle qu’elle est rendue aujourd’hui (un seul niveau) à côté de la cible lisible : c’est le trou à trancher, pas un oubli de données.',
+    Component: SocialCardsSpecimen,
   },
 ];
 

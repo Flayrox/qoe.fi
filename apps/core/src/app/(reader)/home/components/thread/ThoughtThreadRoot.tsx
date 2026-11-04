@@ -20,6 +20,7 @@ import {
   type ThoughtThreadContextValue,
 } from './ThoughtThreadContext';
 import type { DbUser } from '../ThoughtComposer';
+import { useThoughtOverlay } from '@/components/thought-overlay/context';
 
 export interface ThoughtThreadRootProps {
   postId: string;
@@ -51,6 +52,7 @@ export function ThoughtThreadRoot({
   onLoginRequired,
   children,
 }: ThoughtThreadRootProps) {
+  const thoughtOverlay = useThoughtOverlay();
   const [post, setPost] = useState<OptimisticThought | null>(initialPost);
   const [loading, setLoading] = useState(!initialPost);
   const [sendingReply, setSendingReply] = useState(false);
@@ -116,7 +118,13 @@ export function ThoughtThreadRoot({
         'author';
 
       if (standalone) {
-        window.location.href = routes.feed.thought(handle, targetPostId);
+        // Dans la surcouche : remplacer le fil affiché, sans navigation.
+        // Sur la page permalien (aucun provider) : navigation classique.
+        if (thoughtOverlay) {
+          thoughtOverlay.openThought(targetPostId, handle);
+        } else {
+          window.location.href = routes.feed.thought(handle, targetPostId);
+        }
         return;
       }
 
@@ -140,7 +148,7 @@ export function ThoughtThreadRoot({
         setLoading(false);
       });
     },
-    [post, currentUserId, standalone]
+    [post, currentUserId, standalone, thoughtOverlay]
   );
 
   // 0ms Optimistic Like Handler with Rollback

@@ -62,7 +62,14 @@ export function SimilarArticlesSection({ articleId }: SimilarArticlesSectionProp
             },
           });
           return (
-            <Link key={item.id} href={url} className="block group">
+            <Link
+              key={item.id}
+              href={url}
+              data-article-link
+              data-article-slug={item.slug}
+              data-article-title={item.title}
+              className="block group"
+            >
               <article className="rounded-xl border border-border/50 bg-card/60 hover:border-primary/40 hover:bg-card transition-all p-4 space-y-2">
                 <h3 className="text-sm font-semibold text-foreground group-hover:text-primary line-clamp-2 leading-snug">
                   {item.title}

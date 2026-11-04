@@ -10,6 +10,7 @@
 // =====================================================================
 
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import type { QuotedThoughtData } from '@qoe/ui/social';
 import {
   formatPollData,
   type FeedArticle,
@@ -199,6 +200,33 @@ export const mapQuotedArticle = (article: FeedPostRecord['quotedArticle']) =>
 const toISO = (d: Date | string | null | undefined): string | undefined =>
   d == null ? undefined : (d instanceof Date ? d : new Date(d)).toISOString();
 
+/**
+ * Un maillon de citation, dans la forme attendue par les cartes.
+ *
+ * Le mapping du post principal renomme `quotedArticle` en `articleQuote` ;
+ * sans ce passage récursif, un article cité au deuxième ou troisième
+ * maillon restait sous son nom brut et disparaissait à l'écran.
+ */
+const mapQuotedThought = (
+  post: FeedPostRecord,
+  fallbackCreatedAt?: Date | string | null
+): QuotedThoughtData => ({
+  id: post.id,
+  content: post.content ?? '',
+  imageUrl: post.imageUrl,
+  // Un repost sans date propre garde la date du post qui le porte : sinon
+  // la carte afficherait une chaîne vide à la place de l'heure.
+  createdAt: toISO(post.createdAt) ?? toISO(fallbackCreatedAt) ?? '',
+  author: {
+    ...post.author,
+    isCertified: post.author?.isCertified || false,
+  },
+  repost: post.repost ? mapQuotedThought(post.repost, post.createdAt ?? fallbackCreatedAt) : null,
+  articleQuote: mapQuotedArticle(post.quotedArticle),
+  annotationQuote: mapQuotedAnnotation(post.quotedAnnotation),
+  quotedExcerpt: post.quotedExcerpt ?? null,
+});
+
 export const mapPostToFeedItem = (post: FeedPostRecord, currentUserId?: string) => {
   const canonicalPost = post.repost || post;
   const likesCount = canonicalPost._count?.likes ?? post._count?.likes ?? 0;
@@ -247,16 +275,7 @@ export const mapPostToFeedItem = (post: FeedPostRecord, currentUserId?: string) 
           },
         }
       : null,
-    repost: post.repost
-      ? {
-          ...post.repost,
-          createdAt: toISO(post.repost.createdAt) ?? toISO(post.createdAt) ?? '',
-          author: {
-            ...post.repost.author,
-            isCertified: post.repost.author?.isCertified || false,
-          },
-        }
-      : null,
+    repost: post.repost ? mapQuotedThought(post.repost, post.createdAt) : null,
     category: { name: 'Micro-post' },
     tags: post.tags || [],
     likesCount,

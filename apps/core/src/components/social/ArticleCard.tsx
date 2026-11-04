@@ -116,6 +116,9 @@ export function ArticleCard({ article, onOpenReader }: ArticleCardProps) {
       <div className="space-y-1.5">
         <Link
           href={articleHref}
+          data-article-link
+          data-article-slug={article.slug}
+          data-article-title={article.title}
           onClick={handleReadClick}
           className="font-bold text-lg text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-snug"
         >
@@ -155,6 +158,9 @@ export function ArticleCard({ article, onOpenReader }: ArticleCardProps) {
         <div className="flex items-center gap-2 shrink-0">
           <Link
             href={articleHref}
+            data-article-link
+            data-article-slug={article.slug}
+            data-article-title={article.title}
             onClick={handleReadClick}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-primary text-primary-foreground hover:opacity-90 transition-all shadow-2xs"
           >

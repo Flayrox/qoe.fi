@@ -7,7 +7,7 @@ import { Pin, CornerDownRight, Repeat } from 'lucide-react';
 import { AuthorAvatar } from '../ui/AuthorAvatar';
 import { ThoughtHeader } from './ThoughtHeader';
 import { ThoughtBody } from './ThoughtBody';
-import { QuotedThoughtCard } from './QuotedThoughtCard';
+import { QuotedThoughtCard, type QuotedThoughtData } from './QuotedThoughtCard';
 import { QuotedArticleCard, type QuotedArticleData } from './QuotedArticleCard';
 import type { AnnotationCitation } from '../annotations/citation';
 import { LinkPreview, type UnfurlPreview } from './LinkPreview';
@@ -51,21 +51,8 @@ export interface ThoughtData {
       type?: 'PERSONAL' | 'MEDIA' | string | null;
     };
   } | null;
-  repost?: {
-    id: string;
-    content: string;
-    imageUrl?: string | null;
-    createdAt?: string | Date;
-    author: {
-      id: string;
-      name: string | null;
-      username: string | null;
-      subdomain?: string | null;
-      logoUrl?: string | null;
-      isCertified?: boolean;
-      type?: 'PERSONAL' | 'MEDIA' | string | null;
-    };
-  } | null;
+  /** Citation d'une pensée — récursive : une citation peut en citer une autre. */
+  repost?: QuotedThoughtData | null;
   author: {
     id: string;
     name: string | null;
@@ -180,26 +167,32 @@ export function ThoughtCard({
   className,
 }: ThoughtCardProps) {
   const isPureThoughtRepost = !!post.repost && !post.content?.trim();
+  // ✂️ La pensée effective : un écho n'a pas de texte, donc TOUT ce qu'il
+  // affiche vient de la pensée repostée — y compris sa propre citation.
+  // Sans ça, un écho de citation paraissait vide et perdait le maillon
+  // qu'il était censé remonter.
+  const effectivePost = (isPureThoughtRepost ? post.repost! : post) as ThoughtData;
   // Une citation d'annotation est un post à part entière, même sans mot
   // ajouté : ce n'est pas un simple repartage d'article.
   const isPureArticleRepost =
-    !post.repost && !post.content?.trim() && !!post.articleQuote && !post.annotationQuote;
+    !effectivePost.repost &&
+    !effectivePost.content?.trim() &&
+    !!effectivePost.articleQuote &&
+    !effectivePost.annotationQuote;
   const isPureRepost = isPureThoughtRepost || isPureArticleRepost;
-  const isQuotePost = !!post.repost && !!post.content?.trim();
+  const isQuotePost = !!effectivePost.repost && !!effectivePost.content?.trim();
 
-  const displayAuthor = isPureThoughtRepost ? post.repost!.author : post.author;
-  const displayContent = isPureThoughtRepost ? post.repost!.content : post.content;
+  const displayAuthor = effectivePost.author;
+  const displayContent = effectivePost.content;
   const rawDisplayContent = displayContent;
-  const displayImageUrl = isPureThoughtRepost ? post.repost!.imageUrl : post.imageUrl;
-  const displayPostId = isPureThoughtRepost ? post.repost!.id : post.id;
-  const displayCreatedAt = isPureThoughtRepost
-    ? post.repost!.createdAt || post.createdAt
-    : post.createdAt;
+  const displayImageUrl = effectivePost.imageUrl;
+  const displayPostId = effectivePost.id;
+  const displayCreatedAt = effectivePost.createdAt || post.createdAt;
 
   const authorHandle =
     displayAuthor.username || displayAuthor.subdomain || displayAuthor.id?.slice(0, 8) || 'auteur';
   const urls = getUrls(rawDisplayContent || '');
-  const quotedExcerpt = post.quotedExcerpt;
+  const quotedExcerpt = effectivePost.quotedExcerpt;
 
   const handleQuoteClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -412,15 +405,16 @@ export function ThoughtCard({
           {/* Poll Slot */}
           {pollSlot}
 
-          {/* Quoted Thought Card (if quoting another thought) */}
+          {/* Quoted Thought Card (if quoting another thought) — la carte
+              dessine elle-même la chaîne et son repli. */}
           {isQuotePost && (
             <QuotedThoughtCard
-              post={post.repost || null}
+              post={effectivePost.repost || null}
               onOpenPost={(id, authorUsername) => {
                 const handle =
                   authorUsername ||
-                  post.repost?.author?.username ||
-                  post.repost?.author?.subdomain ||
+                  effectivePost.repost?.author?.username ||
+                  effectivePost.repost?.author?.subdomain ||
                   'auteur';
                 if (onOpenPost) onOpenPost(id, handle);
               }}
@@ -428,17 +422,17 @@ export function ThoughtCard({
           )}
 
           {/* Quoted Article Card (Explicit prop) */}
-          {(post.articleQuote || post.annotationQuote) && (
+          {(effectivePost.articleQuote || effectivePost.annotationQuote) && (
             <QuotedArticleCard
-              article={post.articleQuote}
+              article={effectivePost.articleQuote}
               quotedExcerpt={quotedExcerpt || undefined}
-              citation={post.annotationQuote ?? undefined}
+              citation={effectivePost.annotationQuote ?? undefined}
               onOpenArticle={onOpenArticle}
             />
           )}
 
           {/* Unfurled Link Preview (Apple Reader Highlight if article link, or external link preview) */}
-          {!post.articleQuote && !post.annotationQuote && urls.length > 0 && (
+          {!effectivePost.articleQuote && !effectivePost.annotationQuote && urls.length > 0 && (
             <LinkPreview
               urls={urls}
               quotedExcerpt={quotedExcerpt || undefined}

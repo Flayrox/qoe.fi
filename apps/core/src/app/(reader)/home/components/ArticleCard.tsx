@@ -16,6 +16,7 @@ import {
 import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
 import { getArticleUrl } from '@qoe/config/routes';
+import { useArticleOverlay } from '@/components/article-overlay/ArticleOverlayProvider';
 import { Popover, PopoverContent, PopoverTrigger } from '@qoe/ui/ui/popover';
 import { SafeAvatar, ProfileHoverCard } from '@qoe/ui';
 import { CertifiedBadge } from '@qoe/ui/ui/CertifiedBadge';
@@ -290,6 +291,7 @@ export function ArticleCard({
   onOpenProfile,
   onOpenPost,
 }: ArticleCardProps) {
+  const overlay = useArticleOverlay();
   const [bookmarked, setBookmarked] = useState(isBookmarked);
   const [followed, setFollowed] = useState(isFollowed);
 
@@ -403,7 +405,9 @@ export function ArticleCard({
     }
     if (onOpenArticle) onOpenArticle(article);
     else if (onOpenPost) onOpenPost(article.id);
+    else if (overlay) overlay.openArticle(article, { source: 'feed' });
     else {
+      // Hors provider (test, vitrine) : la navigation classique reste le filet.
       window.location.href = articleUrl;
     }
   };
@@ -430,6 +434,7 @@ export function ArticleCard({
 
   return (
     <article
+      data-overlay-anchor={article.id}
       className={cn(
         'group relative overflow-hidden bg-card shadow-none transition-colors border border-border/30 hover:border-border/60',
         'rounded-[24px] p-2.5 sm:p-3 flex flex-col',
@@ -586,8 +591,9 @@ export function ArticleCard({
       {/* 2. TITRE & EXTRAIT SOUS L'IMAGE */}
       <a
         href={articleUrl}
-        target="_blank"
-        rel="noreferrer"
+        data-article-link
+        data-article-slug={article.slug}
+        data-article-title={article.title}
         onClick={openArticle}
         className="block px-1.5 pb-1 pt-3 cursor-pointer group/title"
       >

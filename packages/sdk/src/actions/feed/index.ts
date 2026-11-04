@@ -212,6 +212,8 @@ export interface WebThreadPost {
     subdomain: string | null;
     logoUrl: string | null;
     isCertified: boolean;
+    /** Nature publique du compte — décide de la forme de l'avatar. */
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
   };
   parentId: string | null;
   rootId: string | null;
@@ -533,6 +535,9 @@ function mapFeedPostToThreadThought(p: RawPostPayload | null | undefined): WebTh
       subdomain: (author.subdomain as string | null) ?? null,
       logoUrl: (author.logoUrl as string | null) ?? null,
       isCertified: Boolean(author.isCertified),
+      // Sans ce champ, un compte média perdait son carré et redevenait un
+      // cercle dès qu'il traversait un fil — l'avatar ne ment pas ailleurs.
+      type: (author.type as 'PERSONAL' | 'MEDIA' | null | undefined) ?? null,
     },
     parentId: (p.parentId as string | null) ?? null,
     rootId: (p.rootId as string | null) ?? null,
@@ -1164,13 +1169,19 @@ export interface ProfilePostPayload {
     id: string;
     name: string | null;
     username: string | null;
+    subdomain?: string | null;
     logoUrl: string | null;
     isCertified: boolean;
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
   };
   parentId?: string | null;
   repostId?: string | null;
   parent?: ProfilePostPayload | null;
   repost?: ProfilePostPayload | null;
+  /** Le profil est une vue du MÊME post : les citations y voyagent aussi. */
+  quotedExcerpt?: string | null;
+  annotationQuote?: MappedQuotedAnnotation;
+  articleQuote?: MappedQuotedArticle;
   likesCount?: number;
   repliesCount?: number;
   repostsCount?: number;
@@ -1314,13 +1325,20 @@ function mapProfilePost(fp: ApiFeedPost | RawPostPayload): ProfilePostPayload {
       id: (author.id as string) ?? (raw.authorId as string) ?? '',
       name: (author.name as string | null) ?? null,
       username: (author.username as string | null) ?? null,
+      subdomain: (author.subdomain as string | null) ?? null,
       logoUrl: (author.logoUrl as string | null) ?? null,
       isCertified: Boolean(author.isCertified),
+      type: (author.type as 'PERSONAL' | 'MEDIA' | null | undefined) ?? null,
     },
     parentId: (raw.parentId as string | null) ?? null,
     repostId: (raw.repostId as string | null) ?? null,
     parent: raw.parent ? mapProfilePost(raw.parent as RawPostPayload) : null,
     repost: raw.repost ? mapProfilePost(raw.repost as RawPostPayload) : null,
+    quotedExcerpt: (raw.quotedExcerpt as string | null | undefined) ?? null,
+    annotationQuote: mapQuotedAnnotationForCard(
+      raw.quotedAnnotation as RawQuotedAnnotation | null | undefined
+    ),
+    articleQuote: mapQuotedArticleForCard(raw.quotedArticle as RawQuotedArticle | null | undefined),
     likesCount,
     repliesCount,
     repostsCount,

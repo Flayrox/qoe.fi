@@ -8,6 +8,7 @@ import { BookMarked, Bookmark, ArrowUpRight, Clock } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { getArticleUrl } from '@qoe/config/routes';
 import { SafeAvatar, CertifiedBadge, ProfileHoverCard } from '@qoe/ui';
+import { useArticleOverlay } from '@/components/article-overlay/ArticleOverlayProvider';
 
 export interface ArticleRowProps {
   article: {
@@ -45,9 +46,12 @@ export function ArticleRow({
   onOpenArticle,
   className,
 }: ArticleRowProps) {
+  const overlay = useArticleOverlay();
   const handleClick = () => {
     if (onOpenArticle) {
       onOpenArticle(article.slug);
+    } else if (overlay) {
+      overlay.openArticle(article, { source: 'feed' });
     } else {
       window.location.href = getArticleUrl(article);
     }

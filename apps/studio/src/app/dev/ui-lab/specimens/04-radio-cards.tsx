@@ -59,7 +59,7 @@ export function RadioCardsSpecimen() {
       <Variant
         label="Bordure + coche (@qoe/ui/radio-group)"
         kind="candidat"
-        hint="Composant accessible basé sur react-aria-components. Clavier flèches directionnelles, bordure d'accent et coche animée."
+        hint="Clavier par flèches directionnelles, bordure d'accent, coche animée — et aperçu de mise en page dans la carte."
       >
         <RadioGroup
           aria-label="Mise en page avec coche"
