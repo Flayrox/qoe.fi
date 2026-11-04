@@ -1,8 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import { Copy, Pencil, Trash2 } from 'lucide-react';
+import { Archive, Bookmark, Copy, Pencil, Share2, Trash2 } from 'lucide-react';
 import { Button } from '@qoe/ui/button';
+import {
+  Dialog,
+  DialogBody,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@qoe/ui/dialog';
 import {
   Drawer,
   DrawerBody,
@@ -14,9 +25,10 @@ import {
   DrawerTrigger,
 } from '@qoe/ui/drawer';
 import { Dropdown } from '@qoe/ui/dropdown';
-import { Input } from '@qoe/ui/input';
+import { Input, Textarea } from '@qoe/ui/input';
 import { Select } from '@qoe/ui/select';
 import { toast } from '@qoe/ui/toast';
+import { Tooltip } from '@qoe/ui/tooltip';
 import { DefectList, Variant } from '../specimen-frame';
 
 /** Menu fait main, tel qu'il existe dans une dizaine d'écrans. */
@@ -75,9 +87,9 @@ export function OverlaysSpecimen() {
       </Variant>
 
       <Variant
-        label="Dropdown — menu d’actions"
+        label="Dropdown & Tooltip — menus d’actions et contrôles muets"
         kind="candidat"
-        hint="Declaration : react-aria fournit l’ouverture, les flèches, Échap, le clic extérieur et le retour du focus. Les items se désactivent et se colorent par le contrat."
+        hint="react-aria fournit l’ouverture, les flèches, Échap et le retour du focus. Pour les boutons icône seule, Tooltip remplace l’attribut natif `title` (lent et invisible au clavier) sans ajouter de nœud DOM."
       >
         <div className="flex flex-wrap items-center gap-3">
           <Dropdown
@@ -112,42 +124,31 @@ export function OverlaysSpecimen() {
               { id: 'popular', label: 'Plus lus', onAction: () => {} },
             ]}
           />
+
+          <div className="ml-2 flex items-center gap-1 border-l border-border/50 pl-3">
+            <Tooltip content="Mettre en signet (S)">
+              <Button variant="ghost" size="sm" shape="icon" aria-label="Mettre en signet">
+                <Bookmark />
+              </Button>
+            </Tooltip>
+            <Tooltip content="Copier le lien canonique">
+              <Button variant="ghost" size="sm" shape="icon" aria-label="Partager">
+                <Share2 />
+              </Button>
+            </Tooltip>
+            <Tooltip content="Archiver le brouillon">
+              <Button variant="ghost" size="sm" shape="icon" aria-label="Archiver">
+                <Archive />
+              </Button>
+            </Tooltip>
+          </div>
         </div>
 
         <DefectList
           items={[
             'Le menu est nommé par son déclencheur (`aria-labelledby`) : pas de nom inventé à côté',
-            '`aria-expanded` bascule sur le déclencheur, le focus revient à la fermeture',
+            'Tooltip s’ouvre au survol COMME au focus clavier et relie l’icône par `aria-describedby`',
             'Les items désactivés restent lisibles mais non activables (`aria-disabled`)',
-          ]}
-        />
-      </Variant>
-
-      <Variant
-        label="Select — ce que fait le natif"
-        kind="actuel"
-        hint="Le `<select>` reste imbattable pour un formulaire simple, mais il se dessine tout seul sous Windows, ne décrit pas ses options et ne signale pas son erreur autrement qu'en rouge système."
-      >
-        <div className="grid max-w-sm gap-3">
-          <label className="grid gap-1.5">
-            <span className="type-control-sm font-medium text-foreground">
-              Langue de l’interface
-            </span>
-            <select className="h-control-md rounded-control border border-border bg-background px-2 type-control-sm">
-              <option>Français</option>
-              <option>English</option>
-            </select>
-          </label>
-          <p className="type-control-xs text-muted-foreground">
-            ↑ le natif : hauteur imposée par le navigateur, police du système.
-          </p>
-        </div>
-
-        <DefectList
-          items={[
-            'Le contrôle a la même bordure que les champs mais pas la même hauteur',
-            'Aucune option ne peut porter de description ni de ton',
-            'L’état invalide et le message d’erreur ne sont pas reliés au contrôle',
           ]}
         />
       </Variant>
@@ -196,6 +197,73 @@ export function OverlaysSpecimen() {
             onValueChange={() => {}}
             options={[{ id: 'prise', label: 'carnet-ephemere' }]}
           />
+        </div>
+      </Variant>
+
+      <Variant
+        label="Dialog & AlertDialog — modale centrée (@qoe/ui/dialog)"
+        kind="candidat"
+        hint="Symétrique à Drawer : voile sémantique (bg-foreground/25, zéro noir en dur), piège du focus et restitution au déclencheur. En `role='alertdialog'`, le clic extérieur est bloqué pour exiger un choix explicite."
+      >
+        <div className="flex flex-wrap items-center gap-3">
+          <Dialog size="md">
+            <DialogTrigger>Inviter un co-auteur</DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Inviter un co-auteur</DialogTitle>
+                <DialogDescription>
+                  La personne recevra une demande de signature et pourra relire le brouillon avant
+                  publication.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogBody className="grid gap-3 py-1">
+                <Input
+                  aria-label="Adresse ou handle"
+                  placeholder="@camille ou adresse@domaine.fr"
+                />
+                <Textarea
+                  aria-label="Note d’accompagnement"
+                  rows={2}
+                  placeholder="Un mot sur l’angle ou l’échéance (optionnel)…"
+                />
+              </DialogBody>
+              <DialogFooter>
+                <DialogClose>Annuler</DialogClose>
+                <DialogClose
+                  variant="solid"
+                  tone="brand"
+                  onClick={() => toast.success('Invitation envoyée')}
+                >
+                  Envoyer l’invitation
+                </DialogClose>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog size="sm">
+            <DialogTrigger variant="soft" tone="danger">
+              Dépublier l’article…
+            </DialogTrigger>
+            <DialogContent role="alertdialog" showCloseButton={false}>
+              <DialogHeader className="pr-0">
+                <DialogTitle>Dépublier cet article ?</DialogTitle>
+                <DialogDescription>
+                  Les liens existants afficheront une notice d’indisponibilité, mais les citations
+                  d’annotations déjà partagées resteront lisibles.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <DialogClose variant="outline">Conserver en ligne</DialogClose>
+                <DialogClose
+                  variant="solid"
+                  tone="danger"
+                  onClick={() => toast.info('Article repassé en brouillon')}
+                >
+                  Dépublier
+                </DialogClose>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
       </Variant>
 

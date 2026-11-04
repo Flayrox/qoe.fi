@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-11-04T00:13:25.891Z",
-  "total": 368,
+  "generatedAt": "2026-11-04T01:28:26.151Z",
+  "total": 370,
   "signals": {
-    "primitivesNeverImported": 17,
-    "primitivesTotal": 41,
+    "primitivesNeverImported": 10,
+    "primitivesTotal": 33,
     "rawButtons": 721,
     "rawButtonFiles": 136,
     "nativeSelectFiles": 1,
@@ -33,6 +33,13 @@
           "name": "avatar",
           "path": "packages/ui/src/primitives/avatar/avatar.tsx",
           "lines": 177,
+          "source": "primitives",
+          "usages": 0
+        },
+        {
+          "name": "badge",
+          "path": "packages/ui/src/primitives/badge/badge.tsx",
+          "lines": 111,
           "source": "primitives",
           "usages": 0
         },
@@ -112,6 +119,13 @@
           "lines": 214,
           "source": "primitives",
           "usages": 0
+        },
+        {
+          "name": "dialog",
+          "path": "packages/ui/src/primitives/dialog/dialog.tsx",
+          "lines": 326,
+          "source": "primitives",
+          "usages": 7
         },
         {
           "name": "drawer",
@@ -205,6 +219,20 @@
           "usages": 0
         },
         {
+          "name": "tabs",
+          "path": "packages/ui/src/primitives/tabs/tabs.tsx",
+          "lines": 205,
+          "source": "primitives",
+          "usages": 0
+        },
+        {
+          "name": "tag-group",
+          "path": "packages/ui/src/primitives/tag-group/tag-group.tsx",
+          "lines": 183,
+          "source": "primitives",
+          "usages": 0
+        },
+        {
           "name": "toast",
           "path": "packages/ui/src/primitives/toast/toast.tsx",
           "lines": 169,
@@ -224,6 +252,13 @@
           "lines": 160,
           "source": "primitives",
           "usages": 0
+        },
+        {
+          "name": "tooltip",
+          "path": "packages/ui/src/primitives/tooltip/tooltip.tsx",
+          "lines": 90,
+          "source": "primitives",
+          "usages": 0
         }
       ]
     },
@@ -231,27 +266,6 @@
       "id": "primitives",
       "label": "Primitives héritées (@qoe/ui/ui)",
       "items": [
-        {
-          "name": "AccessibilityMenu",
-          "path": "packages/ui/src/ui/AccessibilityMenu.tsx",
-          "lines": 119,
-          "source": "ui",
-          "usages": 0
-        },
-        {
-          "name": "AnimatedBentoCard",
-          "path": "packages/ui/src/ui/AnimatedBentoCard.tsx",
-          "lines": 37,
-          "source": "ui",
-          "usages": 0
-        },
-        {
-          "name": "AskQoeBar",
-          "path": "packages/ui/src/ui/AskQoeBar.tsx",
-          "lines": 242,
-          "source": "ui",
-          "usages": 0
-        },
         {
           "name": "AuthorAvatar",
           "path": "packages/ui/src/ui/AuthorAvatar.tsx",
@@ -302,13 +316,6 @@
           "usages": 1
         },
         {
-          "name": "dialog",
-          "path": "packages/ui/src/ui/dialog.tsx",
-          "lines": 218,
-          "source": "ui",
-          "usages": 7
-        },
-        {
           "name": "dropdown-menu",
           "path": "packages/ui/src/ui/dropdown-menu.tsx",
           "lines": 393,
@@ -332,7 +339,7 @@
         {
           "name": "feature-interstitial",
           "path": "packages/ui/src/ui/feature-interstitial.tsx",
-          "lines": 370,
+          "lines": 376,
           "source": "ui",
           "usages": 3
         },
@@ -353,7 +360,7 @@
         {
           "name": "ImageUploader",
           "path": "packages/ui/src/ui/ImageUploader.tsx",
-          "lines": 410,
+          "lines": 416,
           "source": "ui",
           "usages": 6
         },
@@ -368,13 +375,6 @@
           "name": "label",
           "path": "packages/ui/src/ui/label.tsx",
           "lines": 19,
-          "source": "ui",
-          "usages": 0
-        },
-        {
-          "name": "period-select",
-          "path": "packages/ui/src/ui/period-select.tsx",
-          "lines": 65,
           "source": "ui",
           "usages": 0
         },
@@ -398,13 +398,6 @@
           "lines": 96,
           "source": "ui",
           "usages": 1
-        },
-        {
-          "name": "ReadingProgressBar",
-          "path": "packages/ui/src/ui/ReadingProgressBar.tsx",
-          "lines": 74,
-          "source": "ui",
-          "usages": 0
         },
         {
           "name": "Reveal",
@@ -442,13 +435,6 @@
           "usages": 1
         },
         {
-          "name": "TabErrorBoundary",
-          "path": "packages/ui/src/ui/TabErrorBoundary.tsx",
-          "lines": 102,
-          "source": "ui",
-          "usages": 0
-        },
-        {
           "name": "table",
           "path": "packages/ui/src/ui/table.tsx",
           "lines": 88,
@@ -468,13 +454,6 @@
           "lines": 32,
           "source": "ui",
           "usages": 1
-        },
-        {
-          "name": "time-picker-demo",
-          "path": "packages/ui/src/ui/time-picker-demo.tsx",
-          "lines": 63,
-          "source": "ui",
-          "usages": 0
         },
         {
           "name": "time-picker-input",
@@ -527,7 +506,7 @@
         {
           "name": "ArticleCard",
           "path": "packages/ui/src/ArticleCard.tsx",
-          "lines": 520,
+          "lines": 583,
           "source": "ui",
           "usages": 0
         },
@@ -749,6 +728,13 @@
           "usages": 0
         },
         {
+          "name": "badge",
+          "path": "packages/ui/src/primitives/badge/badge.tsx",
+          "lines": 111,
+          "source": "ui",
+          "usages": 0
+        },
+        {
           "name": "bevel-button",
           "path": "packages/ui/src/primitives/bevel-button/bevel-button.tsx",
           "lines": 109,
@@ -824,6 +810,13 @@
           "lines": 214,
           "source": "ui",
           "usages": 0
+        },
+        {
+          "name": "dialog",
+          "path": "packages/ui/src/primitives/dialog/dialog.tsx",
+          "lines": 326,
+          "source": "ui",
+          "usages": 7
         },
         {
           "name": "drawer",
@@ -917,6 +910,20 @@
           "usages": 0
         },
         {
+          "name": "tabs",
+          "path": "packages/ui/src/primitives/tabs/tabs.tsx",
+          "lines": 205,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "tag-group",
+          "path": "packages/ui/src/primitives/tag-group/tag-group.tsx",
+          "lines": 183,
+          "source": "ui",
+          "usages": 0
+        },
+        {
           "name": "toast",
           "path": "packages/ui/src/primitives/toast/toast.tsx",
           "lines": 169,
@@ -934,6 +941,13 @@
           "name": "toolbar",
           "path": "packages/ui/src/primitives/toolbar/toolbar.tsx",
           "lines": 160,
+          "source": "ui",
+          "usages": 0
+        },
+        {
+          "name": "tooltip",
+          "path": "packages/ui/src/primitives/tooltip/tooltip.tsx",
+          "lines": 90,
           "source": "ui",
           "usages": 0
         },
@@ -989,7 +1003,7 @@
         {
           "name": "ConfirmDeleteModal",
           "path": "packages/ui/src/social/ConfirmDeleteModal.tsx",
-          "lines": 81,
+          "lines": 87,
           "source": "ui",
           "usages": 1
         },
@@ -1024,21 +1038,21 @@
         {
           "name": "QuotedArticleCard",
           "path": "packages/ui/src/social/QuotedArticleCard.tsx",
-          "lines": 308,
+          "lines": 323,
           "source": "ui",
           "usages": 0
         },
         {
           "name": "QuotedThoughtCard",
           "path": "packages/ui/src/social/QuotedThoughtCard.tsx",
-          "lines": 224,
+          "lines": 278,
           "source": "ui",
           "usages": 0
         },
         {
           "name": "ReportModal",
           "path": "packages/ui/src/social/ReportModal.tsx",
-          "lines": 161,
+          "lines": 167,
           "source": "ui",
           "usages": 0
         },
@@ -1066,7 +1080,7 @@
         {
           "name": "ThoughtCard",
           "path": "packages/ui/src/social/ThoughtCard.tsx",
-          "lines": 530,
+          "lines": 555,
           "source": "ui",
           "usages": 2
         },
@@ -2189,7 +2203,7 @@
         {
           "name": "ArticleOverlayProvider",
           "path": "apps/core/src/components/article-overlay/ArticleOverlayProvider.tsx",
-          "lines": 349,
+          "lines": 348,
           "source": "core",
           "usages": null
         },

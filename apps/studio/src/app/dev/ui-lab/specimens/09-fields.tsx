@@ -2,7 +2,7 @@
 
 import { AtSign, Search } from 'lucide-react';
 import { FieldError } from '@qoe/ui/field-error';
-import { Input, InputGroup } from '@qoe/ui/input';
+import { Input, InputGroup, Textarea } from '@qoe/ui/input';
 import { DefectList, Variant } from '../specimen-frame';
 
 /** Classes réelles des champs de réglages, avant migration. */
@@ -43,9 +43,9 @@ export function FieldsSpecimen() {
       </Variant>
 
       <Variant
-        label="Le champ — mêmes contrats que le bouton"
+        label="Input & Textarea — mêmes contrats que le bouton"
         kind="candidat"
-        hint="Une seule densité, le même rayon, le même anneau de focus. L’erreur se déclare via `invalid` et se rattache par `aria-describedby`."
+        hint="Une seule densité, le même rayon, le même anneau de focus. L’erreur se déclare via `invalid` et se rattache par `aria-describedby` sur une ligne comme sur plusieurs."
       >
         <div className="grid max-w-md gap-4">
           <div className="grid gap-1.5">
@@ -86,14 +86,39 @@ export function FieldsSpecimen() {
             </InputGroup>
             <FieldError>Trois caractères minimum.</FieldError>
           </div>
+
+          <div className="grid gap-1.5">
+            <label htmlFor="lab-bio" className="type-control-sm font-medium text-foreground">
+              Présentation éditoriale (Textarea)
+            </label>
+            <Textarea
+              id="lab-bio"
+              rows={3}
+              placeholder="Décrivez la ligne de votre publication en deux phrases…"
+            />
+          </div>
+
+          <div className="grid gap-1.5">
+            <label htmlFor="lab-excerpt" className="type-control-sm font-medium text-foreground">
+              Chapô (invalide)
+            </label>
+            <Textarea
+              id="lab-excerpt"
+              rows={2}
+              invalid
+              aria-describedby="lab-excerpt-error"
+              defaultValue="Texte trop long pour un chapô d’ouverture dans la newsletter."
+            />
+            <FieldError id="lab-excerpt-error">Maximum 160 caractères pour l’aperçu.</FieldError>
+          </div>
         </div>
 
         <DefectList
           items={[
             'Le cadre et l’anneau de focus vivent sur le groupe : cliquer l’icône donne le focus au champ',
             '`size` veut dire la même chose ici que dans Button (la taille native du <input> est retirée)',
+            'Textarea partage exactement la bordure, le rayon et le `aria-invalid` de Input',
             'FieldError ne rend rien sans message : pas d’alerte vide annoncée',
-            'Le champ dans un InputGroup perd sa bordure sans changer son appel',
           ]}
         />
       </Variant>

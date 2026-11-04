@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" fill="none">
+  <rect width="800" height="450" fill="#F3EFEA"/>
+  <rect x="48" y="42" width="704" height="366" rx="12" fill="#EAE3DA" stroke="#D5CBC0" stroke-width="1.5"/>
+  <!-- Trame urbaine piétonne -->
+  <path d="M48 210H752M48 290H752M240 42V408M520 42V408" stroke="#D5CBC0" stroke-width="2"/>
+  <path d="M120 408L380 42M430 408L680 42" stroke="#C8BDB0" stroke-width="1.5" stroke-dasharray="6 6"/>
+  <!-- Îlots d'architecture et parcs -->
+  <rect x="76" y="70" width="136" height="112" rx="6" fill="#D9CFC3"/>
+  <rect x="268" y="70" width="224" height="112" rx="6" fill="#C4D1C2"/>
+  <circle cx="330" cy="126" r="24" fill="#8FA88B"/>
+  <circle cx="385" cy="114" r="18" fill="#7D9879"/>
+  <circle cx="432" cy="136" r="22" fill="#8FA88B"/>
+  <rect x="548" y="70" width="176" height="112" rx="6" fill="#DFD6CA"/>
+  <rect x="76" y="316" width="136" height="66" rx="6" fill="#DFD6CA"/>
+  <rect x="268" y="316" width="224" height="66" rx="6" fill="#D9CFC3"/>
+  <rect x="548" y="316" width="176" height="66" rx="6" fill="#C4D1C2"/>
+  <!-- Corridor mobilité douce (accent vermillon éditorial) -->
+  <path d="M48 250H752" stroke="#D95D39" stroke-width="6"/>
+  <circle cx="240" cy="250" r="9" fill="#F3EFEA" stroke="#D95D39" stroke-width="4"/>
+  <circle cx="520" cy="250" r="9" fill="#F3EFEA" stroke="#D95D39" stroke-width="4"/>
+  <!-- Légende cartographique -->
+  <rect x="76" y="224" width="118" height="16" rx="4" fill="#2A2623" fill-opacity="0.82"/>
+</svg>

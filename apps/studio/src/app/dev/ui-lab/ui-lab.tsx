@@ -53,8 +53,11 @@ const SPECIMENS = [
     index: '03',
     title: 'Sélecteur segmenté / onglets',
     question:
-      'Les réglages utilisent des onglets soulignés faits main. On garde, on passe en segmenté, ou on autorise la pilule animée ?',
-    sources: ['apps/studio/src/features/settings/settings.tsx'],
+      'Une seule mécanique ARIA pour deux usages : le rail segmenté en creux (vue/période) et le trait bas sobre en border-foreground (sections de page).',
+    sources: [
+      'packages/ui/src/primitives/tabs/tabs.tsx',
+      'apps/studio/src/features/settings/settings.tsx',
+    ],
     Component: SegmentedSpecimen,
   },
   {
@@ -62,28 +65,31 @@ const SPECIMENS = [
     index: '04',
     title: 'Cartes de choix',
     question:
-      'Choix de mise en page ou de thème : la sélection est-elle portée par une bordure, une coche, ou les deux ?',
-    sources: [],
-    notes:
-      'Aucun composant dédié aujourd’hui : le choix de mise en page est dispersé dans les écrans.',
+      'Choix de mise en page ou de thème : la sélection est portée par RadioGroup et RadioCard sur react-aria.',
+    sources: ['packages/ui/src/primitives/radio-group/radio-cards.tsx'],
     Component: RadioCardsSpecimen,
   },
   {
     id: '05-multi-select',
     index: '05',
-    title: 'Sélection multiple',
+    title: 'Sélection multiple & étiquettes',
     question:
-      'Filtres et étiquettes : chips à bascule, avec ou sans croix, et comment afficher le décompte ?',
-    sources: ['packages/ui/src/annotations/AnnotationFilterPill.tsx'],
+      'Filtres cumulables, choix exclusif court et étiquettes supprimables au clavier : TagGroup unifie les chips sur le contrat.',
+    sources: [
+      'packages/ui/src/primitives/tag-group/tag-group.tsx',
+      'packages/ui/src/annotations/AnnotationFilterPill.tsx',
+    ],
     Component: MultiSelectSpecimen,
   },
   {
     id: '06-switch',
     index: '06',
     title: 'Interrupteur',
-    question:
-      'Les réglages utilisent un bouton sans sémantique. On aligne sur un switch accessible, avec quel état actif ?',
-    sources: ['apps/studio/src/features/settings/tabs/recommendations.tsx'],
+    question: 'Un vrai role="switch" accessible au clavier, aligné sur les densités du contrat.',
+    sources: [
+      'packages/ui/src/primitives/switch/switch.tsx',
+      'apps/studio/src/features/settings/tabs/recommendations.tsx',
+    ],
     Component: SwitchSpecimen,
   },
   {
@@ -114,14 +120,16 @@ const SPECIMENS = [
   {
     id: '10-overlays',
     index: '10',
-    title: 'Overlays — menu, sélection, panneau, notification',
+    title: 'Overlays — menu, infobulle, modale, panneau, notification',
     question:
-      'Les quatre surfaces flottantes du produit. Le menu maison tient-il encore, et que gagne-t-on à passer sur react-aria ?',
+      'Toutes les surfaces flottantes du produit reposent désormais sur react-aria : Dropdown, Tooltip, Select, Dialog / AlertDialog, Drawer et Toast.',
     sources: [
       'packages/ui/src/primitives/dropdown/dropdown.tsx',
+      'packages/ui/src/primitives/tooltip/tooltip.tsx',
       'packages/ui/src/primitives/select/select.tsx',
+      'packages/ui/src/primitives/dialog/dialog.tsx',
       'packages/ui/src/primitives/drawer/drawer.tsx',
-      'packages/ui/src/primitives/toast/toast.tsx',
+      'packages/ui/src/ui/toast.tsx',
     ],
     Component: OverlaysSpecimen,
   },
@@ -146,6 +154,7 @@ const SPECIMENS = [
     sources: [
       'packages/ui/src/SafeAvatar.tsx',
       'packages/ui/src/social/ProfileHoverCard.tsx',
+      'packages/ui/src/primitives/badge/badge.tsx',
       'packages/ui/src/primitives/accordion/accordion.tsx',
       'packages/ui/src/primitives/toggle/toggle-button.tsx',
       'packages/ui/src/primitives/toolbar/toolbar.tsx',
@@ -240,17 +249,18 @@ const SPECIMENS = [
   {
     id: '19-social-cards',
     index: '19',
-    title: 'Pensées, articles, échos et citations',
+    title: 'Pensées, articles, images, échos et citations',
     question:
-      'Une pensée, la pensée qu’elle cite, l’article du feed, l’article qu’elle surligne, la note qu’elle cite, l’écho d’une pensée — et une citation qui en cite une autre. Quelle hiérarchie tient quand six objets se ressemblent ?',
+      'Une pensée (texte ou grille d’images), la pensée qu’elle cite, l’article du feed (avec ou sans couverture), le passage surligné, la note citée, l’écho et la chaîne à trois niveaux : une seule famille éditoriale.',
     sources: [
       'packages/ui/src/social/ThoughtCard.tsx',
+      'packages/ui/src/social/ThoughtBody.tsx',
       'packages/ui/src/social/QuotedThoughtCard.tsx',
       'packages/ui/src/social/QuotedArticleCard.tsx',
       'packages/ui/src/ArticleCard.tsx',
     ],
     notes:
-      'La citation imbriquée est montrée telle qu’elle est rendue aujourd’hui (un seul niveau) à côté de la cible lisible : c’est le trou à trancher, pas un oubli de données.',
+      'Toutes les illustrations proviennent d’assets SVG locaux (/lab/*.svg) : aucun appel réseau, et vérification directe des cas avec/sans image sur chaque niveau de citation.',
     Component: SocialCardsSpecimen,
   },
 ];

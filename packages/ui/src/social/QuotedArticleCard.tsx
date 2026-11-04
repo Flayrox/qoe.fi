@@ -6,6 +6,7 @@ import { getArticleUrl } from '@qoe/config';
 import { ArrowUpRight } from 'lucide-react';
 import { t } from '@lingui/core/macro';
 import { SafeAvatar } from '../SafeAvatar';
+import { Badge } from '../primitives/badge/badge';
 import type { AnnotationCitation } from '../annotations/citation';
 
 export interface QuoteContextData {
@@ -21,6 +22,7 @@ export interface QuotedArticleData {
   id: string;
   title: string;
   slug: string;
+  imageUrl?: string | null;
   isPremium?: boolean;
   content?: string | null;
   // Contexte du passage résolu côté serveur (texte canonique de l'article) :
@@ -236,9 +238,9 @@ export function QuotedArticleCard({
             {citation ? t`Citation` : t`Article`}
           </span>
           {article.isPremium && (
-            <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-highlight/15 text-highlight border border-highlight/30 shrink-0">
-              {t`PAYANT`}
-            </span>
+            <Badge tone="vivid" variant="outline" size="xs">
+              {t`Payant`}
+            </Badge>
           )}
         </div>
 
@@ -251,15 +253,28 @@ export function QuotedArticleCard({
       {/* Couche annotation : la citation elle-même (note + auteur). */}
       {citation && <AnnotationCitationHeading citation={citation} />}
 
-      {/* Article Title */}
-      <h4
-        className={cn(
-          'font-semibold leading-snug tracking-tight text-foreground transition-colors group-hover/quote:text-brand',
-          compact ? 'text-sm' : 'text-base'
+      {/* Article Title + vignette éditoriale optionnelle */}
+      <div className="flex items-start justify-between gap-3">
+        <h4
+          className={cn(
+            'min-w-0 flex-1 font-semibold leading-snug tracking-tight text-foreground transition-colors group-hover/quote:text-brand',
+            compact ? 'text-sm' : 'text-base'
+          )}
+        >
+          {article.title}
+        </h4>
+        {article.imageUrl && (
+          <div
+            data-quoted-article-media
+            className={cn(
+              'shrink-0 overflow-hidden rounded-lg border border-border/30 bg-muted/30',
+              compact ? 'h-11 w-16' : 'h-14 w-20'
+            )}
+          >
+            <img src={article.imageUrl} alt="" className="h-full w-full object-cover" />
+          </div>
         )}
-      >
-        {article.title}
-      </h4>
+      </div>
 
       {/* Integrated Quoted Excerpt (Rauno Craft Style: No Boxception, No Fluorescent Yellow) */}
       {citation?.excerpt && !highlightedText && (

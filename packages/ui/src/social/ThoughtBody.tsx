@@ -172,7 +172,7 @@ function ImageGrid({
                   e.stopPropagation();
                   setActiveAlt(activeAlt === item.altText ? null : item.altText);
                 }}
-                className="absolute bottom-2 left-2 z-10 px-1.5 py-0.5 text-[10px] font-bold text-white bg-black/75 backdrop-blur-xs rounded border border-white/20 hover:bg-black/95 transition-colors"
+                className="absolute bottom-2 left-2 z-10 rounded border border-background/20 bg-foreground/80 px-1.5 py-0.5 text-[10px] font-bold text-background backdrop-blur-xs transition-colors hover:bg-foreground"
               >
                 ALT
               </button>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" fill="none">
+  <rect width="800" height="450" fill="#1F2226"/>
+  <rect x="44" y="40" width="712" height="370" rx="12" fill="#272B30" stroke="#383E46" stroke-width="1.5"/>
+  <!-- Grille analytique -->
+  <path d="M96 110H704M96 185H704M96 260H704M96 335H704" stroke="#343A42" stroke-width="1"/>
+  <!-- Courbe de trafic automobile en baisse -->
+  <path d="M110 130C220 142 310 198 420 248C520 292 610 315 690 324" stroke="#7A828E" stroke-width="3" stroke-dasharray="6 6"/>
+  <!-- Courbe de commerces actifs / mobilités douces en hausse -->
+  <path d="M110 318C215 304 305 256 420 198C525 145 612 124 690 116" stroke="#E06D4B" stroke-width="4.5" stroke-linecap="round"/>
+  <circle cx="110" cy="318" r="6" fill="#E06D4B"/>
+  <circle cx="420" cy="198" r="6" fill="#E06D4B"/>
+  <circle cx="690" cy="116" r="7" fill="#F4EFEA" stroke="#E06D4B" stroke-width="3.5"/>
+  <!-- Repères verticaux -->
+  <path d="M420 96V355" stroke="#E06D4B" stroke-opacity="0.35" stroke-width="1.5"/>
+  <rect x="96" y="68" width="96" height="14" rx="4" fill="#F4EFEA" fill-opacity="0.14"/>
+  <rect x="204" y="68" width="64" height="14" rx="4" fill="#E06D4B" fill-opacity="0.28"/>
+</svg>

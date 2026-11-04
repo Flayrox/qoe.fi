@@ -12,6 +12,36 @@ export * from './tokens';
 // derniers consommateurs migrés (calendar, LoginFormBento, OnboardingFlow).
 export { Button, type ButtonProps } from './primitives/button/button';
 export {
+  Badge,
+  badgeClasses,
+  type BadgeProps,
+  type BadgeSize,
+  type BadgeStyleOptions,
+  type BadgeVariant,
+} from './primitives/badge/badge';
+export { Tooltip, type TooltipPlacement, type TooltipProps } from './primitives/tooltip/tooltip';
+export {
+  Tabs,
+  TabList,
+  Tab,
+  TabPanel,
+  type TabsProps,
+  type TabListProps,
+  type TabProps,
+  type TabPanelProps,
+  type TabsVariant,
+} from './primitives/tabs/tabs';
+export {
+  TagGroup,
+  TagList,
+  Tag,
+  type TagGroupProps,
+  type TagListProps,
+  type TagProps,
+  type TagSelectionMode,
+  type TagSize,
+} from './primitives/tag-group/tag-group';
+export {
   Input,
   InputGroup,
   Textarea,
@@ -157,7 +187,7 @@ export {
   type AuthModalContextValue,
 } from './auth/AuthModalContext';
 export { GlobalAuthModalProvider } from './auth/GlobalAuthModalProvider';
-export { ArticleCard } from './ArticleCard';
+export { ArticleCard, type ArticleCardProps } from './ArticleCard';
 export * from './social';
 export {
   Sidebar,
@@ -175,7 +205,7 @@ export {
   type UseOptimisticMutationOptions,
 } from './hooks/useOptimisticMutation';
 export * from './cmdk';
-export * from './ui/dialog';
+export * from './primitives/dialog/dialog';
 export * from './ui/hover-card';
 export * from './ui/popover';
 export { ProgressiveBlur, type ProgressiveBlurProps } from './ui/progressive-blur';

@@ -12,6 +12,7 @@ import {
   Underline,
 } from 'lucide-react';
 import { Accordion, AccordionItem } from '@qoe/ui/accordion';
+import { Badge } from '@qoe/ui/badge';
 import { Button } from '@qoe/ui/button';
 import { SafeAvatar } from '@qoe/ui';
 import { ProfileHoverCard } from '@qoe/ui/social/ProfileHoverCard';
@@ -234,6 +235,45 @@ export function CompositionSpecimen() {
             'Les images viennent des assets du repo : aucune dépendance à un avatar distant',
           ]}
         />
+      </Variant>
+
+      <Variant
+        label="Badge — états, natures et compteurs (@qoe/ui/badge)"
+        kind="candidat"
+        hint="Même matrice Tone que Button (neutral, brand, vivid, success, danger), en soft, outline ou solid. Un Badge informe ; dès qu’on clique dessus pour filtrer, on passe sur TagGroup."
+      >
+        <div className="grid gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge tone="neutral">Brouillon</Badge>
+            <Badge tone="brand" dot>
+              En revue
+            </Badge>
+            <Badge tone="success" dot>
+              Publié
+            </Badge>
+            <Badge tone="vivid" variant="outline">
+              Payant
+            </Badge>
+            <Badge tone="danger" variant="soft">
+              Signalé
+            </Badge>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline" tone="neutral" shape="pill" size="sm">
+              Urbanisme
+            </Badge>
+            <Badge variant="outline" tone="brand" shape="pill" size="sm" dot>
+              Enquête · 12 min
+            </Badge>
+            <Badge variant="solid" tone="neutral" size="xs">
+              v2.4
+            </Badge>
+            <Badge variant="solid" tone="brand" shape="pill" size="xs">
+              +12
+            </Badge>
+          </div>
+        </div>
       </Variant>
 
       <Variant

@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { Button } from '@qoe/ui/button';
+import { Tab, TabList, TabPanel, Tabs } from '@qoe/ui/tabs';
 import { cn } from '@qoe/utils';
 import { DefectList, Variant } from '../specimen-frame';
 
@@ -11,26 +12,33 @@ const OPTIONS = [
   { id: 'medias', label: 'Médias', count: 340 },
 ];
 
+const SETTINGS_TABS = [
+  { id: 'general', label: 'Général' },
+  { id: 'editorial', label: 'Ligne éditoriale' },
+  { id: 'members', label: 'Membres', count: 6 },
+  { id: 'billing', label: 'Facturation', disabled: true },
+];
+
 export function SegmentedSpecimen() {
-  const [a, setA] = useState('articles');
-  const [b, setB] = useState('articles');
-  const [c, setC] = useState('articles');
+  const [legacy, setLegacy] = useState('articles');
+  const [segmented, setSegmented] = useState('articles');
+  const [section, setSection] = useState('general');
 
   return (
     <div className="grid gap-10">
       <Variant
-        label="Onglets soulignés"
+        label="Onglets soulignés faits main"
         kind="actuel"
-        hint="C’est le pattern réellement utilisé dans les réglages du Studio : bordure basse de 2 px, couleur primaire sur le trait et l’icône."
+        hint="C’est le pattern historique des réglages : bordure basse de 2 px, couleur primaire sur le trait, boutons en vrac sans rôle ARIA."
       >
         <div className="flex gap-5 border-b border-border/40">
           {OPTIONS.map((option) => {
-            const selected = a === option.id;
+            const selected = legacy === option.id;
             return (
               <button
                 key={option.id}
                 type="button"
-                onClick={() => setA(option.id)}
+                onClick={() => setLegacy(option.id)}
                 className={cn(
                   '-mb-px flex items-center gap-1.5 border-b-2 pt-1 pb-2.5 text-xs transition-colors',
                   selected
@@ -53,116 +61,73 @@ export function SegmentedSpecimen() {
       </Variant>
 
       <Variant
-        label="Segmenté en creux"
+        label="Tabs — segmenté en creux (@qoe/ui/tabs)"
         kind="candidat"
-        hint="Rayon de l’échelle (rounded-lg, pas de pilule) : le fond creux porte la sélection, l’élément actif remonte en surface. C’est la variante la plus proche de ce que le reste de l’app fait déjà."
+        hint="Pour basculer une vue, une période ou un filtre court. Le rail en creux (bg-muted/40) tombe exactement sur la hauteur h-control-* du bouton adjacent ; flèches gauche/droite et Home/End sont gérés par react-aria."
       >
-        <Segmented id="segmente" options={OPTIONS} value={b} onChange={setB} />
+        <div className="grid gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <Tabs variant="segmented" size="sm" value={segmented} onValueChange={setSegmented}>
+              <TabList aria-label="Filtrer le catalogue">
+                {OPTIONS.map((option) => (
+                  <Tab key={option.id} id={option.id} count={option.count}>
+                    {option.label}
+                  </Tab>
+                ))}
+              </TabList>
+            </Tabs>
+
+            <Button variant="outline" size="sm">
+              Exporter ({OPTIONS.find((item) => item.id === segmented)?.count ?? 0})
+            </Button>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            {(['xs', 'sm', 'md', 'lg'] as const).map((size) => (
+              <Tabs key={size} variant="segmented" size={size} defaultValue="day">
+                <TabList aria-label={`Période (${size})`}>
+                  <Tab id="day">7 j</Tab>
+                  <Tab id="month">30 j</Tab>
+                  <Tab id="year">12 m</Tab>
+                </TabList>
+              </Tabs>
+            ))}
+          </div>
+        </div>
       </Variant>
 
       <Variant
-        label="Pilule glissante animée"
-        kind="ecart"
-        hint="Ce que font beaucoup de produits (macOS / Linear) : pastille qui glisse à l’activation. Séduisant, mais c’est un écart : aujourd’hui l’app n’utilise des pilules que pour des badges, jamais pour un sélecteur. À valider comme exception, pas comme défaut."
+        label="Tabs — souligné sobre de section (@qoe/ui/tabs)"
+        kind="candidat"
+        hint="Même primitive, variant='underline' : pour les sections d’une page (Profil, Réglages, Analytics). Hauteur fixe h-control-md, trait actif en border-foreground (jamais primaire) et panneaux reliés par aria-controls."
       >
-        <SegmentedPill id="pillule" options={OPTIONS} value={c} onChange={setC} />
+        <div className="max-w-xl">
+          <Tabs variant="underline" size="md" value={section} onValueChange={setSection}>
+            <TabList aria-label="Sections des réglages">
+              {SETTINGS_TABS.map((tab) => (
+                <Tab key={tab.id} id={tab.id} count={tab.count} disabled={tab.disabled}>
+                  {tab.label}
+                </Tab>
+              ))}
+            </TabList>
+            <TabPanel id="general">
+              <p className="type-control-sm text-muted-foreground">
+                Identité publique, sous-domaine et langue principale de la publication.
+              </p>
+            </TabPanel>
+            <TabPanel id="editorial">
+              <p className="type-control-sm text-muted-foreground">
+                Charte de citation, politique d’annotations et signature par défaut.
+              </p>
+            </TabPanel>
+            <TabPanel id="members">
+              <p className="type-control-sm text-muted-foreground">
+                Six journalistes et éditeurs disposent d’un accès actif à l’espace.
+              </p>
+            </TabPanel>
+          </Tabs>
+        </div>
       </Variant>
-    </div>
-  );
-}
-
-function Segmented({
-  id,
-  options,
-  value,
-  onChange,
-}: {
-  id: string;
-  options: { id: string; label: string; count: number }[];
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <div
-      role="tablist"
-      aria-label="Filtrer la liste"
-      className="inline-flex items-center gap-0.5 rounded-lg bg-muted/40 p-0.5"
-    >
-      {options.map((option) => {
-        const selected = value === option.id;
-        return (
-          <button
-            key={option.id}
-            role="tab"
-            aria-selected={selected}
-            id={`${id}-${option.id}`}
-            type="button"
-            onClick={() => onChange(option.id)}
-            className={cn(
-              'flex h-7 items-center gap-1.5 rounded-[min(var(--radius-md),10px)] px-2.5 text-[12.5px] transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none',
-              selected
-                ? 'bg-background font-medium text-foreground shadow-xs'
-                : 'font-normal text-muted-foreground hover:text-foreground'
-            )}
-          >
-            {option.label}
-            <span
-              className={cn(
-                'font-mono text-[10.5px] tabular-nums',
-                selected ? 'text-muted-foreground' : 'text-muted-foreground/70'
-              )}
-            >
-              {option.count}
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function SegmentedPill({
-  id,
-  options,
-  value,
-  onChange,
-}: {
-  id: string;
-  options: { id: string; label: string; count: number }[];
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <div
-      role="tablist"
-      aria-label="Filtrer la liste"
-      className="inline-flex items-center gap-1 rounded-full bg-muted/50 p-1"
-    >
-      {options.map((option) => {
-        const selected = value === option.id;
-        return (
-          <button
-            key={option.id}
-            role="tab"
-            aria-selected={selected}
-            type="button"
-            onClick={() => onChange(option.id)}
-            className={cn(
-              'relative flex h-7 items-center gap-1.5 rounded-full px-3 text-[12.5px] transition-colors focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none',
-              selected ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'
-            )}
-          >
-            {selected && (
-              <motion.span
-                layoutId={`${id}-pill`}
-                className="absolute inset-0 rounded-full bg-background shadow-sm"
-                transition={{ type: 'spring', stiffness: 520, damping: 38 }}
-              />
-            )}
-            <span className="relative z-10">{option.label}</span>
-          </button>
-        );
-      })}
     </div>
   );
 }

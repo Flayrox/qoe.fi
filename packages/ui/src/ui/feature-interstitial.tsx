@@ -21,7 +21,13 @@ import React from 'react';
 import Link from 'next/link';
 import { Check, Clock, Globe, Info, Loader2, Lock, Mail, Sparkles, ArrowRight } from 'lucide-react';
 import { cn } from '@qoe/utils';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '../primitives/dialog/dialog';
 import {
   DEFAULT_FEATURE_LOCALE,
   FEATURE_STATUS_COPY,

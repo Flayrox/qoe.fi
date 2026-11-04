@@ -7,7 +7,7 @@ import { X } from 'lucide-react';
 import { LoginFormBento } from './LoginFormBento';
 import type { AuthActionContext } from './GuestFloatingBar';
 import { Button } from './primitives/button/button';
-import { Dialog, DialogClose, DialogContent, DialogTitle } from './ui/dialog';
+import { Dialog, DialogClose, DialogContent, DialogTitle } from './primitives/dialog/dialog';
 export type { AuthActionContext };
 
 export interface LoginModalProps {

@@ -163,4 +163,55 @@ describe('QuotedThoughtCard — chaîne de citations', () => {
     expect((html.match(/role="button"/g) ?? []).length).toBe(1);
     expect(html).toContain('tabindex="0"');
   });
+
+  it('affiche les images des pensées citées (imageUrl et grille attachments) et les préserve dans un écho', () => {
+    const quotedWithGrid: QuotedThoughtData = {
+      id: 'thought-grid',
+      content: 'Planches de terrain',
+      author: MEDIA,
+      attachments: [
+        { id: '1', url: '/lab/editorial-city.svg', type: 'IMAGE', altText: 'Planche 1' },
+        { id: '2', url: '/lab/editorial-transit.svg', type: 'IMAGE', altText: 'Planche 2' },
+      ],
+    };
+
+    const quoteHtml = renderToStaticMarkup(<ThoughtCard post={postWithQuote(quotedWithGrid)} />);
+    expect(quoteHtml).toContain('data-quoted-media');
+    expect(quoteHtml).toContain('/lab/editorial-city.svg');
+    expect(quoteHtml).toContain('/lab/editorial-transit.svg');
+
+    // Un maillon contenant uniquement une image ne doit jamais être marqué manquant.
+    const imageOnlyHtml = renderToStaticMarkup(
+      <QuotedThoughtCard
+        post={{
+          id: 'thought-img-only',
+          content: '',
+          imageUrl: '/lab/editorial-archive.svg',
+          author: PERSON,
+        }}
+      />
+    );
+    expect(imageOnlyHtml).not.toContain('data-quote-missing');
+    expect(imageOnlyHtml).toContain('/lab/editorial-archive.svg');
+
+    // Un écho pur d'une pensée illustrée conserve ses pièces jointes et affiche la bannière.
+    const echoWithAttachments: ThoughtData = {
+      id: 'echo-att',
+      content: '',
+      createdAt: '2026-10-30T10:00:00.000Z',
+      author: PERSON,
+      repost: {
+        id: 'orig-att',
+        content: 'Archive numérisée',
+        author: MEDIA,
+        attachments: [
+          { id: 'a1', url: '/lab/editorial-archive.svg', type: 'IMAGE', altText: 'Archive' },
+        ],
+      },
+    };
+    const echoHtml = renderToStaticMarkup(<ThoughtCard post={echoWithAttachments} />);
+    expect(echoHtml).toContain('data-repost-banner');
+    expect(echoHtml).toContain('@camille');
+    expect(echoHtml).toContain('/lab/editorial-archive.svg');
+  });
 });
