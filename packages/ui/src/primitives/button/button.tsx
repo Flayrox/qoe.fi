@@ -1,6 +1,14 @@
 'use client';
 
-import { forwardRef, type ButtonHTMLAttributes } from 'react';
+import {
+  Children,
+  cloneElement,
+  forwardRef,
+  isValidElement,
+  type ButtonHTMLAttributes,
+  type ReactElement,
+} from 'react';
+import { Loader2 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 
 import {
@@ -108,6 +116,23 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   shape?: 'default' | 'icon';
   /** Occupe toute la largeur de son conteneur. */
   block?: boolean;
+  /**
+   * Action en cours : le bouton n'est plus activable, annonce `aria-busy`
+   * et remplace son icône de tête par un spinner. Le libellé reste en
+   * place — la largeur ne saute donc pas au moment du clic.
+   */
+  loading?: boolean;
+  /**
+   * Rend l'élément enfant à la place du `<button>` (`next/link`, `<a>`…)
+   * en lui appliquant la peau du contrat. L'enfant doit être unique.
+   *
+   * ```tsx
+   * <Button asChild variant="solid" tone="brand">
+   *   <Link href="/articles">Nouvel article</Link>
+   * </Button>
+   * ```
+   */
+  asChild?: boolean;
 }
 
 /**
@@ -132,18 +157,48 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
     size = 'md',
     shape = 'default',
     block = false,
+    loading = false,
+    asChild = false,
     className,
     type = 'button',
+    children,
     ...props
   },
   ref
 ) {
+  const classes = buttonClasses({ variant, tone, size, shape, block, className });
+
+  if (asChild) {
+    // `Children.only` lève si l'appelant passe plusieurs enfants : c'est
+    // voulu, un bouton-lien ne peut envelopper qu'un seul élément.
+    const child = Children.only(children) as ReactElement<Record<string, unknown>>;
+
+    if (!isValidElement(child)) {
+      throw new Error('`Button asChild` attend un unique élément React.');
+    }
+
+    return cloneElement(child, {
+      ...(props as Record<string, unknown>),
+      ref,
+      className: cn(classes, child.props.className as string | undefined),
+      'data-slot': 'button',
+    });
+  }
+
   return (
     <button
+      {...props}
       ref={ref}
       type={type}
-      className={buttonClasses({ variant, tone, size, shape, block, className })}
-      {...props}
-    />
+      // `loading` n'est pas décoratif : le clic doit être impossible, sinon
+      // on double la requête que le spinner est censé représenter.
+      disabled={props.disabled || loading}
+      aria-busy={loading || undefined}
+      data-loading={loading ? '' : undefined}
+      className={classes}
+    >
+      {loading && <Loader2 aria-hidden className="animate-spin" />}
+      {children}
+    </button>
   );
 });
