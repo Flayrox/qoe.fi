@@ -23,6 +23,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Loader2, ShieldCheck } from 'lucide-react';
 import { authzSecurityHref } from '@qoe/sdk/actions/utils/authz';
+import { Button, buttonClasses } from '@qoe/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@qoe/ui/dialog';
+import { Input } from '@qoe/ui/input';
 import { createClient } from '@/lib/supabase/client';
 import { TotpEnrollment } from './totp-enrollment';
 
@@ -168,37 +178,39 @@ export function StepUpGate() {
   const securityHref = authzSecurityHref();
 
   return (
-    <div
-      className="fixed inset-0 z-[110] flex items-center justify-center bg-background/70 p-4 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="step-up-title"
+    <Dialog
+      open={Boolean(request)}
+      size="sm"
+      isDismissable={phase !== 'submitting'}
+      onOpenChange={(open) => {
+        if (!open && phase !== 'submitting') close(false);
+      }}
     >
-      <div className="w-full max-w-sm rounded-2xl border border-border bg-popover p-5 shadow-lg shadow-black/10">
-        <div className="flex items-start gap-3">
-          <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
-            <ShieldCheck className="size-4" />
-          </span>
-          <div className="min-w-0 space-y-1">
-            <h2 id="step-up-title" className="text-sm font-semibold text-popover-foreground">
-              Vérification requise
-            </h2>
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              {request.reason ??
-                'Cette action sensible demande une authentification forte récente.'}
-            </p>
+      <DialogContent overlayClassName="z-[110]" showCloseButton={false}>
+        <DialogHeader className="pr-0">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
+              <ShieldCheck className="size-4" />
+            </span>
+            <div className="min-w-0 space-y-1">
+              <DialogTitle className="text-sm">Vérification requise</DialogTitle>
+              <DialogDescription className="text-xs">
+                {request.reason ??
+                  'Cette action sensible demande une authentification forte récente.'}
+              </DialogDescription>
+            </div>
           </div>
-        </div>
+        </DialogHeader>
 
         {phase === 'loading' && (
-          <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2 py-2 text-xs text-muted-foreground">
             <Loader2 className="size-3.5 animate-spin" />
             Vérification de vos facteurs…
           </div>
         )}
 
         {phase === 'no-factor' && (
-          <div className="mt-4 space-y-3">
+          <div className="space-y-3">
             <p className="text-xs leading-relaxed text-muted-foreground">
               Aucun facteur fort compatible n’est enregistré sur ce compte. Une application
               d’authentification (TOTP) ou une passkey est nécessaire pour débloquer cette action —
@@ -210,33 +222,22 @@ export function StepUpGate() {
                 supprimez l’ancien depuis vos réglages de sécurité.
               </p>
             )}
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setPhase('enroll')}
-                className="rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-              >
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <Button variant="solid" tone="brand" size="sm" onClick={() => setPhase('enroll')}>
                 Enregistrer un facteur maintenant
-              </button>
-              <a
-                href={securityHref}
-                className="rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-              >
+              </Button>
+              <a href={securityHref} className={buttonClasses({ variant: 'outline', size: 'sm' })}>
                 Gérer mes facteurs
               </a>
-              <button
-                type="button"
-                onClick={() => close(false)}
-                className="rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-              >
+              <Button variant="ghost" size="sm" onClick={() => close(false)}>
                 Fermer
-              </button>
+              </Button>
             </div>
           </div>
         )}
 
         {phase === 'enroll' && (
-          <div className="mt-4">
+          <div>
             <TotpEnrollment
               intro="Scannez ce QR code, puis saisissez le code affiché : l’action sera relancée automatiquement."
               onVerified={handleEnrolled}
@@ -246,7 +247,7 @@ export function StepUpGate() {
         )}
 
         {(phase === 'input' || phase === 'submitting') && (
-          <form onSubmit={submit} className="mt-4 space-y-3">
+          <form onSubmit={submit} className="space-y-3">
             <label className="block space-y-1.5">
               <span className="text-xs font-medium text-foreground">
                 Code de votre application d’authentification
@@ -254,15 +255,17 @@ export function StepUpGate() {
                   <span className="text-muted-foreground"> · {factors.totp[0].label}</span>
                 ) : null}
               </span>
-              <input
+              <Input
                 autoFocus
+                size="lg"
                 value={code}
                 onChange={(event) => setCode(event.target.value)}
                 inputMode="numeric"
                 autoComplete="one-time-code"
                 maxLength={6}
                 placeholder="123456"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-center text-lg font-semibold tracking-[0.3em] text-foreground outline-none focus:border-primary"
+                invalid={Boolean(errorMessage)}
+                className="text-center text-lg font-semibold tracking-[0.3em]"
               />
             </label>
 
@@ -270,26 +273,24 @@ export function StepUpGate() {
               <p className="text-xs leading-relaxed text-destructive-text">{errorMessage}</p>
             )}
 
-            <div className="flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => close(false)}
-                className="rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-              >
+            <DialogFooter>
+              <Button variant="outline" size="sm" onClick={() => close(false)}>
                 Annuler
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
+                variant="solid"
+                tone="brand"
+                size="sm"
                 disabled={phase === 'submitting' || code.trim().length < 6}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
               >
-                {phase === 'submitting' && <Loader2 className="size-3.5 animate-spin" />}
+                {phase === 'submitting' && <Loader2 className="animate-spin" />}
                 Vérifier
-              </button>
-            </div>
+              </Button>
+            </DialogFooter>
           </form>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }

@@ -1,9 +1,17 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo } from 'react';
-import { AlertTriangle, Check, Loader2, RotateCcw, SlidersHorizontal, X } from 'lucide-react';
-import { cn } from '@qoe/utils';
+import { AlertTriangle, Check, Loader2, RotateCcw, SlidersHorizontal } from 'lucide-react';
 import { t } from '@lingui/core/macro';
+import { Button } from '@qoe/ui/button';
+import {
+  Drawer,
+  DrawerBody,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+} from '@qoe/ui/drawer';
 import { EditorSettingsDrawer } from '@/features/editor/components/EditorSettingsDrawer';
 import { useArticleSettings } from '@/features/editor/hooks/useArticleSettings';
 import { computeAutoSeoDescription } from '@/features/editor/lib/article-settings';
@@ -22,38 +30,29 @@ function SettingsOverlay({
   children: React.ReactNode;
 }) {
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden font-sans">
-      <div
-        className="fixed inset-0 bg-background/50 backdrop-blur-xs transition-opacity duration-200"
-        onClick={onClose}
-      />
-      <div className="fixed inset-y-0 right-0 flex max-w-full pl-6 sm:pl-10">
-        <aside className="flex w-screen max-w-md flex-col border-l border-border/50 bg-card shadow-2xl">
-          <div className="flex shrink-0 items-center justify-between border-b border-border/40 px-5 py-4">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary shadow-xs">
-                <SlidersHorizontal className="h-4 w-4" />
-              </div>
-              <div>
-                <h3 className="font-sans text-sm font-bold text-foreground">
-                  {t`Paramètres de l'article`}
-                </h3>
-                <p className="text-[11px] text-muted-foreground">{subtitle}</p>
-              </div>
+    <Drawer
+      side="right"
+      width="md"
+      isOpen
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DrawerContent>
+        <DrawerHeader>
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary shadow-xs">
+              <SlidersHorizontal className="h-4 w-4" />
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              aria-label={t`Fermer`}
-              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            <div>
+              <DrawerTitle className="text-sm font-bold">{t`Paramètres de l'article`}</DrawerTitle>
+              <DrawerDescription className="mt-0 text-[11px]">{subtitle}</DrawerDescription>
+            </div>
           </div>
-          {children}
-        </aside>
-      </div>
-    </div>
+        </DrawerHeader>
+        <DrawerBody className="flex flex-col p-0">{children}</DrawerBody>
+      </DrawerContent>
+    </Drawer>
   );
 }
 
@@ -139,11 +138,6 @@ export function ArticleSettingsSheet({
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (document.querySelector('[data-slot="dialog-content"]')) return;
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        requestClose();
-        return;
-      }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 's') {
         event.preventDefault();
         if (dirty && !saving && loadState === 'ready') void save();
@@ -151,7 +145,7 @@ export function ArticleSettingsSheet({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [dirty, loadState, requestClose, save, saving]);
+  }, [dirty, loadState, save, saving]);
 
   const autoSeoDescription = useMemo(
     () => (draft ? computeAutoSeoDescription(draft.content, draft.isPremium) : ''),
@@ -181,14 +175,10 @@ export function ArticleSettingsSheet({
               {error || t`Réessayez dans un instant.`}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => void retry()}
-            className="inline-flex h-9 items-center gap-2 rounded-xl bg-primary px-4 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
+          <Button variant="solid" tone="brand" size="md" onClick={() => void retry()}>
+            <RotateCcw />
             {t`Réessayer`}
-          </button>
+          </Button>
         </div>
       </SettingsOverlay>
     );
@@ -252,7 +242,7 @@ export function ArticleSettingsSheet({
         })
       }
       footer={
-        <div className="space-y-2.5">
+        <div className="w-full space-y-2.5">
           <div className="flex min-h-4 items-center justify-between gap-2 text-[10px]">
             <div className="flex items-center gap-1.5">
               {error ? (
@@ -275,43 +265,36 @@ export function ArticleSettingsSheet({
               )}
             </div>
             {dirty && (
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                size="xs"
                 onClick={resetDraft}
                 disabled={saving || scheduling}
-                className="shrink-0 font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+                className="h-auto px-1.5 py-0.5 text-[10px]"
               >
                 {t`Réinitialiser`}
-              </button>
+              </Button>
             )}
           </div>
           <div className="flex items-center justify-end gap-2">
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={requestClose}
               disabled={saving || scheduling}
-              className="h-9 rounded-xl px-4 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted disabled:opacity-50"
             >
               {t`Fermer`}
-            </button>
-            <button
-              type="button"
+            </Button>
+            <Button
+              variant={dirty ? 'solid' : 'soft'}
+              tone={dirty ? 'brand' : 'neutral'}
+              size="sm"
               onClick={() => void save()}
               disabled={saving || scheduling || !dirty}
-              className={cn(
-                'inline-flex h-9 items-center gap-2 rounded-xl px-4 text-xs font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50',
-                dirty
-                  ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                  : 'bg-muted text-muted-foreground'
-              )}
             >
-              {saving ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : dirty ? null : (
-                <Check className="h-3.5 w-3.5" />
-              )}
+              {saving ? <Loader2 className="animate-spin" /> : dirty ? null : <Check />}
               {saving ? t`Enregistrement…` : dirty ? t`Enregistrer` : t`Enregistré`}
-            </button>
+            </Button>
           </div>
         </div>
       }

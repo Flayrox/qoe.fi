@@ -2,6 +2,11 @@
 
 import React, { useState } from 'react';
 import { t } from '@lingui/core/macro';
+import { Badge } from '@qoe/ui/badge';
+import { Button } from '@qoe/ui/button';
+import { Input } from '@qoe/ui/input';
+import { Table, TableBody, TableCell, TableColumn, TableHeader, TableRow } from '@qoe/ui/table';
+import { Tab, TabList, Tabs } from '@qoe/ui/tabs';
 import { Users, Search, Download, Zap, Mail, CreditCard } from 'lucide-react';
 
 export interface SubscriberItem {
@@ -68,7 +73,7 @@ export function AudienceClient({ initialSubscribers }: AudienceClientProps) {
           <div className="flex items-center gap-2 mb-1.5">
             <Users className="h-4 w-4 text-primary stroke-[1.5]" />
             <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
-              Gestion d'audience
+              Gestion d&apos;audience
             </span>
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
@@ -79,14 +84,16 @@ export function AudienceClient({ initialSubscribers }: AudienceClientProps) {
           </p>
         </div>
 
-        <button
+        <Button
+          variant="outline"
+          size="sm"
           onClick={handleExportCSV}
           disabled={subscribers.length === 0}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-card border border-border/40 text-xs font-semibold text-foreground hover:bg-muted/40 transition-colors self-start sm:self-auto disabled:opacity-50"
+          className="self-start sm:self-auto"
         >
-          <Download className="h-4 w-4 stroke-[1.5]" />
+          <Download />
           <span>Exporter en CSV</span>
-        </button>
+        </Button>
       </div>
 
       {/* ─── KPI Cards Grid ─────────────────────────────────────── */}
@@ -131,51 +138,50 @@ export function AudienceClient({ initialSubscribers }: AudienceClientProps) {
             </div>
           </div>
           <div className="text-3xl font-bold tracking-tight text-foreground">{totalLtvEur} €</div>
-          <p className="text-xs text-muted-foreground mt-2">Valeur totale générée par l'audience</p>
+          <p className="text-xs text-muted-foreground mt-2">
+            Valeur totale générée par l&apos;audience
+          </p>
         </div>
       </div>
 
       {/* ─── Search & Filters Bar ───────────────────────────────── */}
       <div className="rounded-xl border border-border/30 bg-card p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-        {/* Search Input */}
         <div className="relative w-full sm:w-80">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground stroke-[1.5]" />
-          <input
+          <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground stroke-[1.5]" />
+          <Input
             type="text"
+            size="sm"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Rechercher un e-mail..."
-            className="w-full pl-9 pr-4 py-2 bg-muted/40 border border-border/30 rounded-lg text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            className="pl-9"
           />
         </div>
 
-        {/* Filter Tabs */}
-        <div className="flex items-center gap-1 p-1 rounded-lg bg-muted/40 border border-border/30 w-full sm:w-auto">
-          {(
-            [
-              { id: 'all', label: `Tous (${totalSubscribers})` },
-              { id: 'free', label: `Gratuits (${freeCount})` },
-              { id: 'premium', label: `Premium (${premiumCount})` },
-            ] as const
-          ).map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setFilterType(tab.id)}
-              className={`flex-1 sm:flex-none px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                filterType === tab.id
-                  ? 'bg-card text-foreground font-semibold shadow-sm border border-border/30'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        <Tabs
+          variant="segmented"
+          size="sm"
+          selectedKey={filterType}
+          onSelectionChange={(key) => setFilterType(String(key) as 'all' | 'free' | 'premium')}
+          className="w-full sm:w-auto"
+        >
+          <TabList aria-label="Filtrer par formule" className="w-full sm:w-auto">
+            <Tab id="all" count={totalSubscribers}>
+              Tous
+            </Tab>
+            <Tab id="free" count={freeCount}>
+              Gratuits
+            </Tab>
+            <Tab id="premium" count={premiumCount}>
+              Premium
+            </Tab>
+          </TabList>
+        </Tabs>
       </div>
 
       {/* ─── Subscribers Table ──────────────────────────────────── */}
-      <div className="rounded-xl border border-border/30 bg-card overflow-hidden shadow-none">
-        {filteredSubscribers.length === 0 ? (
+      {filteredSubscribers.length === 0 ? (
+        <div className="rounded-xl border border-border/30 bg-card overflow-hidden shadow-none">
           <div className="flex flex-col items-center justify-center py-16 text-center border border-dashed rounded-lg border-border/30 bg-muted/10 m-6">
             <Mail className="h-8 w-8 text-muted-foreground/40 mb-2 stroke-[1.5]" />
             <p className="text-sm font-semibold text-foreground">Aucun abonné trouvé</p>
@@ -185,65 +191,57 @@ export function AudienceClient({ initialSubscribers }: AudienceClientProps) {
                 : t`Les personnes qui s'abonnent à votre espace apparaîtront ici.`}
             </p>
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-muted/40 border-b border-border/30 text-muted-foreground uppercase text-[10px] font-bold tracking-wider">
-                <tr>
-                  <th className="py-3.5 px-6">Abonné</th>
-                  <th className="py-3.5 px-6">Statut</th>
-                  <th className="py-3.5 px-6">Formule</th>
-                  <th className="py-3.5 px-6">LTV</th>
-                  <th className="py-3.5 px-6 text-right">Inscrit le</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/30 text-foreground font-medium">
-                {filteredSubscribers.map((sub) => (
-                  <tr key={sub.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground font-bold uppercase text-xs">
-                          {sub.email.substring(0, 2)}
-                        </div>
-                        <span className="font-semibold text-foreground">{sub.email}</span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className={`h-1.5 w-1.5 rounded-full ${sub.isActive ? 'bg-success' : 'bg-muted-foreground'}`}
-                        />
-                        <span className="text-muted-foreground">
-                          {sub.isActive ? 'Actif' : 'Inactif'}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6">
-                      {sub.isPremium ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-primary/10 text-primary font-semibold text-[11px]">
-                          <Zap className="h-3 w-3 stroke-[1.5]" /> Premium
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-muted text-muted-foreground font-medium text-[11px]">
-                          Gratuit
-                        </span>
-                      )}
-                    </td>
-                    <td className="py-4 px-6 font-semibold">{(sub.ltvCents / 100).toFixed(2)} €</td>
-                    <td className="py-4 px-6 text-right text-muted-foreground">
-                      {new Date(sub.createdAt).toLocaleDateString('fr-FR', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      })}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <Table aria-label="Liste des abonnés" size="md">
+          <TableHeader>
+            <TableColumn isRowHeader>Abonné</TableColumn>
+            <TableColumn>Statut</TableColumn>
+            <TableColumn>Formule</TableColumn>
+            <TableColumn>LTV</TableColumn>
+            <TableColumn className="text-right">Inscrit le</TableColumn>
+          </TableHeader>
+          <TableBody items={filteredSubscribers}>
+            {(sub) => (
+              <TableRow id={sub.id}>
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-muted-foreground font-bold uppercase text-xs">
+                      {sub.email.substring(0, 2)}
+                    </div>
+                    <span className="font-semibold text-foreground">{sub.email}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="soft" dot tone={sub.isActive ? 'success' : 'neutral'} size="xs">
+                    {sub.isActive ? 'Actif' : 'Inactif'}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  {sub.isPremium ? (
+                    <Badge variant="soft" tone="brand" size="xs">
+                      <Zap />
+                      Premium
+                    </Badge>
+                  ) : (
+                    <Badge variant="soft" tone="neutral" size="xs">
+                      Gratuit
+                    </Badge>
+                  )}
+                </TableCell>
+                <TableCell className="font-semibold">{(sub.ltvCents / 100).toFixed(2)} €</TableCell>
+                <TableCell className="text-right text-muted-foreground">
+                  {new Date(sub.createdAt).toLocaleDateString('fr-FR', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                  })}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      )}
     </div>
   );
 }

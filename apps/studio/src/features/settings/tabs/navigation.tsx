@@ -1,5 +1,7 @@
 import React, { useMemo } from 'react';
 import Link from 'next/link';
+import { Badge } from '@qoe/ui/badge';
+import { Button, buttonClasses } from '@qoe/ui/button';
 import { Input } from '@qoe/ui/input';
 import {
   Plus,
@@ -405,24 +407,28 @@ export function NavigationTab({
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
                   {/* Flèches de réordonnancement global */}
                   <div className="flex items-center gap-0.5 shrink-0">
-                    <button
-                      type="button"
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      shape="icon"
                       disabled={index === 0}
                       onClick={() => moveUnifiedItem(index, 'up')}
-                      className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-20 disabled:cursor-not-allowed rounded transition-colors"
                       title="Déplacer vers la gauche / plus haut"
+                      aria-label="Déplacer vers la gauche / plus haut"
                     >
-                      <ArrowUp className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
+                      <ArrowUp />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      shape="icon"
                       disabled={index === unifiedNavItems.length - 1}
                       onClick={() => moveUnifiedItem(index, 'down')}
-                      className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-20 disabled:cursor-not-allowed rounded transition-colors"
                       title="Déplacer vers la droite / plus bas"
+                      aria-label="Déplacer vers la droite / plus bas"
                     >
-                      <ArrowDown className="w-3.5 h-3.5" />
-                    </button>
+                      <ArrowDown />
+                    </Button>
                   </div>
 
                   {/* Icône du type */}
@@ -444,34 +450,22 @@ export function NavigationTab({
                       <span className="text-xs font-semibold text-foreground truncate">
                         {item.label}
                       </span>
-                      {item.type === 'home' && (
-                        <span className="text-[10px] font-medium text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded border border-border/30">
-                          Accueil
-                        </span>
-                      )}
+                      {item.type === 'home' && <Badge variant="outline">Accueil</Badge>}
                       {item.type === 'category' && (
-                        <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
+                        <Badge variant="outline" tone="brand">
                           Rubrique{' '}
                           {item.subCount && item.subCount > 0
                             ? `(${item.subCount} sous-rubriques)`
                             : ''}
-                        </span>
+                        </Badge>
                       )}
-                      {item.type === 'page' && (
-                        <span className="text-[10px] font-medium text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded border border-border/30">
-                          Page interne
-                        </span>
-                      )}
+                      {item.type === 'page' && <Badge variant="outline">Page interne</Badge>}
                       {item.type === 'mail' && (
-                        <span className="text-[10px] font-medium text-primary bg-primary/10 px-1.5 py-0.5 rounded border border-primary/20">
+                        <Badge variant="outline" tone="brand">
                           ✉️ Email direct
-                        </span>
+                        </Badge>
                       )}
-                      {item.type === 'link' && (
-                        <span className="text-[10px] font-medium text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded border border-border/30">
-                          Lien externe
-                        </span>
-                      )}
+                      {item.type === 'link' && <Badge variant="outline">Lien externe</Badge>}
                     </div>
                     <span className="text-[10px] font-mono text-muted-foreground truncate block">
                       {item.url}
@@ -481,15 +475,11 @@ export function NavigationTab({
 
                 {/* Actions : Visibilité & Suppression pour les liens */}
                 <div className="flex items-center gap-1.5 shrink-0 self-start sm:self-auto">
-                  <button
-                    type="button"
+                  <Button
+                    variant={item.isVisible ? 'soft' : 'outline'}
+                    tone={item.isVisible ? 'brand' : 'neutral'}
+                    size="xs"
                     onClick={item.onToggle}
-                    className={cn(
-                      'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer',
-                      item.isVisible
-                        ? 'border-primary/50 bg-primary/10 text-primary shadow-2xs'
-                        : 'border-border/40 bg-muted/40 text-muted-foreground hover:text-foreground'
-                    )}
                     title={
                       item.isVisible
                         ? 'Visible dans le menu (cliquez pour masquer)'
@@ -498,26 +488,29 @@ export function NavigationTab({
                   >
                     {item.isVisible ? (
                       <>
-                        <Eye className="w-3 h-3 text-primary" />
-                        <span className="text-[11px]">Dans le menu</span>
+                        <Eye />
+                        <span>Dans le menu</span>
                       </>
                     ) : (
                       <>
-                        <EyeOff className="w-3 h-3 opacity-60" />
-                        <span className="text-[11px]">Masqué</span>
+                        <EyeOff className="opacity-60" />
+                        <span>Masqué</span>
                       </>
                     )}
-                  </button>
+                  </Button>
 
                   {item.canDelete && item.onDelete && (
-                    <button
-                      type="button"
+                    <Button
+                      variant="ghost"
+                      tone="danger"
+                      size="xs"
+                      shape="icon"
                       onClick={item.onDelete}
-                      className="p-1.5 text-destructive-text hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
                       title="Supprimer définitivement ce lien"
+                      aria-label="Supprimer définitivement ce lien"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                      <Trash2 />
+                    </Button>
                   )}
                 </div>
               </div>
@@ -545,22 +538,14 @@ export function NavigationTab({
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={addCustomEmail}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-primary/40 bg-primary/10 hover:bg-primary/20 text-primary text-xs font-semibold transition-all active:scale-95 cursor-pointer shadow-2xs"
-            >
-              <Mail className="w-3.5 h-3.5" />
+            <Button variant="soft" tone="brand" size="sm" onClick={addCustomEmail}>
+              <Mail />
               <span>+ Email / Contact</span>
-            </button>
-            <button
-              type="button"
-              onClick={addCustomLink}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold transition-all active:scale-95 cursor-pointer shadow-xs"
-            >
-              <Plus className="w-3.5 h-3.5" />
+            </Button>
+            <Button variant="solid" tone="brand" size="sm" onClick={addCustomLink}>
+              <Plus />
               <span>+ Lien Web</span>
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -568,21 +553,13 @@ export function NavigationTab({
           <div className="py-6 text-center border border-dashed border-border/40 rounded-lg text-xs text-muted-foreground space-y-2">
             <p>Aucun lien personnalisé ni email de contact configuré.</p>
             <div className="flex items-center justify-center gap-2 pt-1">
-              <button
-                type="button"
-                onClick={addCustomEmail}
-                className="text-primary hover:underline font-semibold cursor-pointer text-xs"
-              >
+              <Button variant="ghost" tone="brand" size="xs" onClick={addCustomEmail}>
                 Ajouter un email de contact
-              </button>
+              </Button>
               <span className="text-muted-foreground/40">·</span>
-              <button
-                type="button"
-                onClick={addCustomLink}
-                className="text-primary hover:underline font-semibold cursor-pointer text-xs"
-              >
+              <Button variant="ghost" tone="brand" size="xs" onClick={addCustomLink}>
                 Ajouter un lien web
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
@@ -646,28 +623,33 @@ export function NavigationTab({
                     />
 
                     {isMail ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-primary bg-primary/10 px-2 py-1 rounded-md border border-primary/20 shrink-0 select-none">
-                        <Mail className="w-3 h-3" />
+                      <Badge variant="outline" tone="brand">
+                        <Mail />
                         <span>Email direct</span>
-                      </span>
+                      </Badge>
                     ) : nav.isExternal ? (
-                      <span
-                        className="inline-flex items-center gap-1 text-[10px] font-medium text-warning bg-warning/10 px-2 py-1 rounded-md border border-warning/20 shrink-0 select-none"
+                      <Badge
+                        variant="outline"
+                        tone="vivid"
                         title="Ce lien externe sera sécurisé par la page d'avertissement avant redirection hors de la publication."
                       >
-                        <Shield className="w-3 h-3" />
+                        <Shield />
                         <span className="hidden sm:inline">Sortie sécurisée</span>
-                      </span>
+                      </Badge>
                     ) : null}
 
-                    <button
-                      type="button"
+                    <Button
+                      variant="ghost"
+                      tone="danger"
+                      size="xs"
+                      shape="icon"
                       onClick={() => removeNavigationLink(globalIndex)}
-                      className="p-1.5 text-destructive-text hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer shrink-0 ml-auto"
+                      className="shrink-0 ml-auto"
                       title="Supprimer ce lien"
+                      aria-label="Supprimer ce lien"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                      <Trash2 />
+                    </Button>
                   </div>
 
                   {/* Suggestion intuitive pour convertir en mailto: */}
@@ -676,8 +658,10 @@ export function NavigationTab({
                       <span className="text-[11px] text-muted-foreground">
                         Adresse email reconnue. Voulez-vous activer le lien direct de messagerie ?
                       </span>
-                      <button
-                        type="button"
+                      <Button
+                        variant="ghost"
+                        tone="brand"
+                        size="xs"
                         onClick={() => {
                           const updated = [...current.navigation];
                           updated[globalIndex] = {
@@ -687,10 +671,10 @@ export function NavigationTab({
                           };
                           setCurrent((prev) => ({ ...prev, navigation: updated }));
                         }}
-                        className="text-xs font-semibold text-primary hover:underline cursor-pointer shrink-0"
+                        className="shrink-0"
                       >
                         Formater en mailto:{trimmedUrl}
-                      </button>
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -721,10 +705,10 @@ export function NavigationTab({
           <Link
             href="/articles?tab=categories"
             onClick={guardUnsavedNavigation}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/50 bg-muted/30 hover:bg-muted/60 text-foreground text-xs font-semibold transition-colors shrink-0"
+            className={buttonClasses({ variant: 'outline', size: 'sm', className: 'shrink-0' })}
           >
             Gérer les catégories
-            <ExternalLink className="w-3 h-3" />
+            <ExternalLink />
           </Link>
         </div>
 
@@ -790,15 +774,12 @@ export function NavigationTab({
                     </div>
                   </div>
 
-                  <button
-                    type="button"
+                  <Button
+                    variant={!isHiddenFromNav ? 'soft' : 'outline'}
+                    tone={!isHiddenFromNav ? 'brand' : 'neutral'}
+                    size="xs"
                     onClick={() => toggleCategoryInNav(cat.id)}
-                    className={cn(
-                      'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer shrink-0 self-start sm:self-auto',
-                      !isHiddenFromNav
-                        ? 'border-primary/50 bg-primary/10 text-primary shadow-2xs'
-                        : 'border-border/40 bg-muted/40 text-muted-foreground hover:text-foreground'
-                    )}
+                    className="shrink-0 self-start sm:self-auto"
                     title={
                       !isHiddenFromNav
                         ? 'Visible dans le menu du site (cliquez pour masquer cette branche)'
@@ -807,16 +788,16 @@ export function NavigationTab({
                   >
                     {!isHiddenFromNav ? (
                       <>
-                        <Eye className="w-3 h-3 text-primary" />
-                        <span className="text-[11px]">Dans le menu</span>
+                        <Eye />
+                        <span>Dans le menu</span>
                       </>
                     ) : (
                       <>
-                        <EyeOff className="w-3 h-3 opacity-60" />
-                        <span className="text-[11px]">Masquée</span>
+                        <EyeOff className="opacity-60" />
+                        <span>Masquée</span>
                       </>
                     )}
-                  </button>
+                  </Button>
                 </div>
               );
             })}

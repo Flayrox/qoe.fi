@@ -14,11 +14,17 @@ import {
   RotateCcw,
   Send,
   Undo2,
-  X,
   XCircle,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
-import { Button } from '@qoe/ui/button';
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@qoe/ui/dialog';
 import { t } from '@lingui/core/macro';
 import {
   getArticleEventsAction,
@@ -159,56 +165,32 @@ export function ArticleHistoryModal({ open, articleId, onClose }: ArticleHistory
     };
   }, [open, articleId]);
 
-  React.useEffect(() => {
-    if (!open) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [open, onClose]);
-
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-start justify-center bg-background/70 p-4 pt-[8vh] backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="article-history-title"
-      onClick={onClose}
+    <Dialog
+      open={open}
+      size="lg"
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onClose();
+      }}
     >
-      <div
-        className="w-full max-w-lg rounded-2xl border border-border bg-popover shadow-[0_24px_60px_-12px_rgba(0,0,0,0.35)]"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <header className="flex items-start justify-between gap-4 border-b border-border/50 p-5">
+      <DialogContent overlayClassName="z-[100] items-start pt-[8vh]">
+        <DialogHeader className="border-b border-border/50 pb-4">
           <div className="flex items-start gap-3">
             <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
               <History className="h-4 w-4" strokeWidth={1.8} />
             </span>
             <div>
-              <h2 id="article-history-title" className="text-sm font-semibold tracking-tight">
-                {t`Historique de publication`}
-              </h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">
+              <DialogTitle className="text-sm">{t`Historique de publication`}</DialogTitle>
+              <DialogDescription className="mt-0.5 text-xs">
                 {t`Chaque étape de la vie publique de cet écrit.`}
-              </p>
+              </DialogDescription>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            shape="icon"
-            onClick={onClose}
-            aria-label={t`Fermer`}
-            className="text-muted-foreground"
-          >
-            <X />
-          </Button>
-        </header>
+        </DialogHeader>
 
-        <div className="max-h-[55vh] overflow-y-auto p-5">
+        <DialogBody className="max-h-[55vh] py-2">
           {!articleId && (
             <p className="py-8 text-center text-xs text-muted-foreground">
               {t`L'historique apparaîtra une fois l'article enregistré une première fois.`}
@@ -236,14 +218,14 @@ export function ArticleHistoryModal({ open, articleId, onClose }: ArticleHistory
           )}
 
           {events && events.length > 0 && (
-            <ol className="relative space-y-5 border-l border-border/60 pl-5">
+            <ol className="relative space-y-5 border-l border-border/60 pl-5 ml-3">
               {events.map((event) => {
                 const visual = visualFor(event);
                 return (
                   <li key={event.id} className="relative">
                     <span
                       className={cn(
-                        'absolute -left-[30px] top-0 grid size-6 place-items-center rounded-full border',
+                        'absolute -left-[32px] top-0 grid size-6 place-items-center rounded-full border',
                         TONE_CLASSES[visual.tone]
                       )}
                       aria-hidden="true"
@@ -295,8 +277,8 @@ export function ArticleHistoryModal({ open, articleId, onClose }: ArticleHistory
               })}
             </ol>
           )}
-        </div>
-      </div>
-    </div>
+        </DialogBody>
+      </DialogContent>
+    </Dialog>
   );
 }

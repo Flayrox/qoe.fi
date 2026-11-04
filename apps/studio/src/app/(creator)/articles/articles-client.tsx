@@ -1323,7 +1323,7 @@ export function ArticlesClient({
                         ))}
                       </div>
                       <div className="pt-2 border-t border-border/30 space-y-2">
-                        {/* Un `<select value="">` qui ne sert qu'à déclencher des
+                        {/* Un sélecteur natif à valeur vide qui ne sert qu'à déclencher des
                             actions : c'est un menu, pas une sélection. */}
                         <Dropdown
                           label={t`Vues sauvegardées`}

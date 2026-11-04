@@ -7,6 +7,7 @@
 import React from 'react';
 import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { FeatureTeaser } from '@qoe/ui';
+import { Input, InputGroup } from '@qoe/ui/input';
 import type { CreatorProfile } from '../types';
 
 interface DomainTabProps {
@@ -38,8 +39,11 @@ export function DomainTab({
         {/* Subdomain */}
         <div id="subdomain" className="space-y-2">
           <label className="text-xs font-semibold text-foreground block">Sous-domaine qoefi</label>
-          <div className="relative flex items-center">
-            <input
+          <InputGroup
+            invalid={!subdomainCheck.loading && subdomainCheck.available === false}
+            right={<span className="select-none font-mono text-xs">.qoe.fi</span>}
+          >
+            <Input
               type="text"
               value={subdomainInput}
               onChange={(e) => {
@@ -47,13 +51,9 @@ export function DomainTab({
                 setSubdomainInput(val);
                 setCurrent((prev) => ({ ...prev, subdomain: val }));
               }}
-              className="w-full pl-3.5 pr-20 py-2.5 bg-muted/20 border border-border/40 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80 transition-colors"
               placeholder="mon-espace"
             />
-            <span className="absolute right-3 text-xs text-muted-foreground select-none font-mono">
-              .qoe.fi
-            </span>
-          </div>
+          </InputGroup>
 
           <div>
             {subdomainCheck.loading && (
@@ -83,12 +83,11 @@ export function DomainTab({
               <label className="text-xs font-semibold text-foreground block">
                 Domaine personnalisé propre
               </label>
-              <input
+              <Input
                 type="text"
                 value={current.customDomain || ''}
                 readOnly
                 placeholder="journal.mon-domaine.com"
-                className="w-full px-3.5 py-2.5 bg-muted/20 border border-border/40 rounded-lg text-xs font-medium text-foreground"
               />
 
               <div className="p-3.5 bg-muted/30 border border-border/40 rounded-lg space-y-1 text-xs text-muted-foreground">
@@ -110,12 +109,11 @@ export function DomainTab({
           <label className="text-xs font-semibold text-foreground block">
             Support & Lien de contact
           </label>
-          <input
+          <Input
             type="text"
             value={current.supportUrl || ''}
             onChange={(e) => setCurrent((prev) => ({ ...prev, supportUrl: e.target.value }))}
             placeholder="contact@votre-domaine.com ou https://support.votre-domaine.com"
-            className="w-full px-3.5 py-2.5 bg-muted/20 border border-border/40 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80 transition-colors"
           />
         </div>
       </div>

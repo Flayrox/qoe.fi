@@ -3,6 +3,12 @@
 import React, { useState } from 'react';
 import { t } from '@lingui/core/macro';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Badge } from '@qoe/ui/badge';
+import { Button } from '@qoe/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@qoe/ui/dialog';
+import { Input, Textarea } from '@qoe/ui/input';
+import { Table, TableBody, TableCell, TableColumn, TableHeader, TableRow } from '@qoe/ui/table';
+import { Tab, TabList, Tabs } from '@qoe/ui/tabs';
 import { toast } from '@qoe/ui/toast';
 import {
   Terminal,
@@ -661,13 +667,12 @@ print(articles)`,
                           {reason.trim().length} car. (min 10)
                         </span>
                       </label>
-                      <textarea
+                      <Textarea
                         id="reason"
                         rows={4}
                         value={reason}
                         onChange={(e) => setReason(e.target.value)}
                         placeholder="Décrivez votre projet, les données que vous souhaitez requêter et les technologies employées..."
-                        className="w-full rounded-xl border border-border px-4 py-3 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary placeholder:text-muted-foreground/60 bg-muted/30 transition-all leading-relaxed"
                         required
                       />
                     </div>
@@ -676,34 +681,28 @@ print(articles)`,
                       <label htmlFor="projectUrl" className="text-xs font-semibold text-foreground">
                         Lien de votre site ou dépôt (optionnel)
                       </label>
-                      <input
+                      <Input
                         id="projectUrl"
                         type="url"
                         value={projectUrl}
                         onChange={(e) => setProjectUrl(e.target.value)}
                         placeholder="https://monportfolio.com ou https://github.com/mon-projet"
-                        className="w-full rounded-xl border border-border px-3.5 py-2.5 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary placeholder:text-muted-foreground/60 bg-muted/30 transition-all font-sans"
                       />
                     </div>
 
                     <div className="pt-1">
-                      <button
+                      <Button
                         type="submit"
+                        variant="solid"
+                        tone="brand"
+                        block
                         disabled={isSubmittingApp || reason.trim().length < 10}
-                        className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed font-semibold text-xs tracking-wide py-3 px-6 rounded-xl transition-all duration-200 shadow-xs cursor-pointer"
                       >
-                        {isSubmittingApp ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            Transmission de votre dossier...
-                          </>
-                        ) : (
-                          <>
-                            <Send className="w-3.5 h-3.5" />
-                            Transmettre ma demande d'accès
-                          </>
-                        )}
-                      </button>
+                        {isSubmittingApp ? <Loader2 className="animate-spin" /> : <Send />}
+                        {isSubmittingApp
+                          ? 'Transmission de votre dossier...'
+                          : "Transmettre ma demande d'accès"}
+                      </Button>
                     </div>
                   </form>
                 </div>
@@ -895,7 +894,7 @@ print(articles)`,
 
               <form onSubmit={handleGenerateKey} className="space-y-4 max-w-2xl">
                 <div className="flex flex-col sm:flex-row gap-3">
-                  <input
+                  <Input
                     type="text"
                     value={newKeyName}
                     onChange={(e) => setNewKeyName(e.target.value)}
@@ -904,21 +903,18 @@ print(articles)`,
                         ? t`Nom de la clé (ex: CMS Import, Bot Discord, Next.js...)`
                         : t`Nom de la clé (ex: Blog Vercel Prod, App Mobile...)`
                     }
-                    className="flex-1 rounded-xl border border-border px-4 py-2.5 text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary placeholder:text-muted-foreground/60 bg-muted/30 transition-all text-foreground"
+                    className="flex-1"
                     required
                   />
-                  <button
+                  <Button
                     type="submit"
+                    variant="solid"
+                    tone="brand"
                     disabled={isGeneratingKey || !newKeyName.trim() || newKeyScopes.length === 0}
-                    className="bg-primary hover:bg-primary/90 text-primary-foreground disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed text-xs font-semibold px-5 py-2.5 rounded-xl flex items-center justify-center gap-1.5 transition-all duration-200 shadow-xs cursor-pointer"
                   >
-                    {isGeneratingKey ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    ) : (
-                      <Plus className="w-3.5 h-3.5" />
-                    )}
+                    {isGeneratingKey ? <Loader2 className="animate-spin" /> : <Plus />}
                     {isMediaWorkspace ? t`Générer pour le Média` : t`Générer la clé`}
-                  </button>
+                  </Button>
                 </div>
 
                 {/* Permissions de la clé (bornées par les permissions accordées) */}
@@ -933,21 +929,18 @@ print(articles)`,
                           const active = newKeyScopes.includes(scope);
                           const meta = SCOPE_META[scope];
                           return (
-                            <button
+                            <Button
                               key={scope}
                               type="button"
+                              variant={active ? 'soft' : 'outline'}
+                              tone={active ? 'brand' : 'neutral'}
+                              size="xs"
                               onClick={() => toggleKeyScope(scope)}
                               title={meta.desc()}
-                              className={cn(
-                                'text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all duration-200 cursor-pointer flex items-center gap-1.5',
-                                active
-                                  ? meta.badgeClass
-                                  : 'bg-muted/30 border-border text-muted-foreground hover:border-muted-foreground/40'
-                              )}
                             >
                               <span>{active ? '✓' : '+'}</span>
                               <span>{scope}</span>
-                            </button>
+                            </Button>
                           );
                         })}
                       </div>
@@ -958,10 +951,10 @@ print(articles)`,
                       </p>
                     </>
                   ) : (
-                    <p className="text-[11px] text-warning leading-relaxed">
-                      Aucune permission d'API entrante ne vous a été accordée (lecture / écriture /
-                      analytics). Contactez un administrateur pour étendre vos permissions — vos
-                      webhooks et applications OAuth restent actifs.
+                    <p className="text-[11px] text-highlight leading-relaxed">
+                      Aucune permission d&apos;API entrante ne vous a été accordée (lecture /
+                      écriture / analytics). Contactez un administrateur pour étendre vos
+                      permissions — vos webhooks et applications OAuth restent actifs.
                     </p>
                   )}
                 </div>
@@ -988,149 +981,152 @@ print(articles)`,
                     <Key className="w-6 h-6" />
                   </div>
                   <p className="text-xs font-medium text-foreground">
-                    Aucune clé d'API générée pour le moment.
+                    Aucune clé d&apos;API générée pour le moment.
                   </p>
                   <p className="text-[11px] text-muted-foreground">
                     Remplissez le formulaire ci-dessus pour obtenir votre premier identifiant.
                   </p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse text-left">
-                    <thead>
-                      <tr className="bg-muted/40 border-b border-border/80 text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
-                        <th className="px-6 py-3.5">Nom & Identifiant</th>
-                        <th className="px-6 py-3.5">Permissions</th>
-                        <th className="px-6 py-3.5">Dernière Activité</th>
-                        <th className="px-6 py-3.5">Date de Création</th>
-                        <th className="px-6 py-3.5 text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border/60 text-xs">
-                      {keys.map((key) => {
-                        const isRecentlyActive =
-                          key.lastUsedAt &&
-                          Date.now() - new Date(key.lastUsedAt).getTime() < 86400000;
+                <Table aria-label="Clés d'API actives" size="md" className="rounded-none border-0">
+                  <TableHeader>
+                    <TableColumn isRowHeader>Nom & Identifiant</TableColumn>
+                    <TableColumn>Permissions</TableColumn>
+                    <TableColumn>Dernière Activité</TableColumn>
+                    <TableColumn>Date de Création</TableColumn>
+                    <TableColumn className="text-right">Actions</TableColumn>
+                  </TableHeader>
+                  <TableBody items={keys}>
+                    {(key) => {
+                      const isRecentlyActive =
+                        key.lastUsedAt &&
+                        Date.now() - new Date(key.lastUsedAt).getTime() < 86400000;
 
-                        return (
-                          <tr key={key.id} className="hover:bg-muted/20 transition-colors">
-                            <td className="px-6 py-4">
-                              <div className="font-semibold text-foreground">{key.name}</div>
-                              <div className="mt-1 flex items-center gap-1.5">
-                                <code className="bg-muted/60 text-muted-foreground px-2 py-0.5 rounded font-sans font-medium text-[11px] border border-border/50">
-                                  {key.keyPrefix}••••••••••••••••
-                                </code>
-                              </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              <div className="flex flex-wrap gap-1.5">
-                                {(key.scopes?.length
-                                  ? (key.scopes as ApiKeyScope[])
-                                  : (['READ', 'WRITE', 'ANALYTICS'] as ApiKeyScope[])
-                                ).map((scope) => {
-                                  const meta = SCOPE_META[scope] || {
-                                    badgeClass: 'bg-muted border-border text-muted-foreground',
-                                  };
-                                  return (
-                                    <span
-                                      key={scope}
-                                      className={cn(
-                                        'text-[10px] font-bold tracking-wide border px-1.5 py-0.5 rounded-md',
-                                        meta.badgeClass
-                                      )}
-                                    >
-                                      {scope}
-                                    </span>
-                                  );
+                      return (
+                        <TableRow id={key.id}>
+                          <TableCell>
+                            <div className="font-semibold text-foreground">{key.name}</div>
+                            <div className="mt-1 flex items-center gap-1.5">
+                              <code className="bg-muted/60 text-muted-foreground px-2 py-0.5 rounded font-sans font-medium text-[11px] border border-border/50">
+                                {key.keyPrefix}••••••••••••••••
+                              </code>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-1.5">
+                              {(key.scopes?.length
+                                ? (key.scopes as ApiKeyScope[])
+                                : (['READ', 'WRITE', 'ANALYTICS'] as ApiKeyScope[])
+                              ).map((scope) => (
+                                <Badge
+                                  key={scope}
+                                  variant="soft"
+                                  tone={
+                                    scope === 'WRITE'
+                                      ? 'success'
+                                      : scope === 'ANALYTICS'
+                                        ? 'vivid'
+                                        : 'brand'
+                                  }
+                                  size="xs"
+                                >
+                                  {scope}
+                                </Badge>
+                              ))}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {key.lastUsedAt ? (
+                              <span className="flex items-center gap-1.5 text-foreground font-medium text-[11px]">
+                                <span
+                                  className={cn(
+                                    'w-1.5 h-1.5 rounded-full',
+                                    isRecentlyActive
+                                      ? 'bg-success animate-pulse'
+                                      : 'bg-muted-foreground'
+                                  )}
+                                />
+                                {new Date(key.lastUsedAt).toLocaleDateString('fr-FR', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  hour: '2-digit',
+                                  minute: '2-digit',
                                 })}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground text-[11px] flex items-center gap-1">
+                                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
+                                Jamais utilisée
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-[11px]">
+                            {new Date(key.createdAt).toLocaleDateString('fr-FR', {
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric',
+                            })}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {confirmDeleteId === key.id ? (
+                              <div className="flex items-center justify-end gap-1.5">
+                                <Button
+                                  variant="ghost"
+                                  size="xs"
+                                  onClick={() => setConfirmDeleteId(null)}
+                                  disabled={isRevokingKeyId === key.id}
+                                >
+                                  Annuler
+                                </Button>
+                                <Button
+                                  variant="solid"
+                                  tone="danger"
+                                  size="xs"
+                                  disabled={isRevokingKeyId === key.id}
+                                  onClick={() => handleRevokeKey(key.id)}
+                                >
+                                  {isRevokingKeyId === key.id && (
+                                    <Loader2 className="animate-spin" />
+                                  )}
+                                  Révoquer
+                                </Button>
                               </div>
-                            </td>
-                            <td className="px-6 py-4">
-                              {key.lastUsedAt ? (
-                                <span className="flex items-center gap-1.5 text-foreground font-medium text-[11px]">
-                                  <span
-                                    className={cn(
-                                      'w-1.5 h-1.5 rounded-full',
-                                      isRecentlyActive
-                                        ? 'bg-success animate-pulse'
-                                        : 'bg-muted-foreground'
-                                    )}
+                            ) : (
+                              <div className="flex items-center justify-end gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="xs"
+                                  shape="icon"
+                                  disabled={
+                                    isRotatingKeyId === key.id || isRevokingKeyId === key.id
+                                  }
+                                  onClick={() => handleRotateKey(key.id)}
+                                  title={t`Rotater la clé : régénère le secret et invalide l'ancienne clé`}
+                                  aria-label={t`Rotater la clé`}
+                                >
+                                  <RefreshCw
+                                    className={cn(isRotatingKeyId === key.id && 'animate-spin')}
                                   />
-                                  {new Date(key.lastUsedAt).toLocaleDateString('fr-FR', {
-                                    day: 'numeric',
-                                    month: 'short',
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                  })}
-                                </span>
-                              ) : (
-                                <span className="text-muted-foreground text-[11px] flex items-center gap-1">
-                                  <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/40" />
-                                  Jamais utilisée
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-6 py-4 text-muted-foreground text-[11px]">
-                              {new Date(key.createdAt).toLocaleDateString('fr-FR', {
-                                day: 'numeric',
-                                month: 'long',
-                                year: 'numeric',
-                              })}
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                              {confirmDeleteId === key.id ? (
-                                <div className="flex items-center justify-end gap-1.5">
-                                  <button
-                                    onClick={() => setConfirmDeleteId(null)}
-                                    className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded"
-                                    disabled={isRevokingKeyId === key.id}
-                                  >
-                                    Annuler
-                                  </button>
-                                  <button
-                                    onClick={() => handleRevokeKey(key.id)}
-                                    disabled={isRevokingKeyId === key.id}
-                                    className="bg-destructive hover:bg-destructive/90 text-destructive-foreground text-xs font-semibold px-3 py-1 rounded-lg flex items-center gap-1 transition-colors"
-                                  >
-                                    {isRevokingKeyId === key.id ? (
-                                      <Loader2 className="w-3 h-3 animate-spin" />
-                                    ) : (
-                                      'Révoquer'
-                                    )}
-                                  </button>
-                                </div>
-                              ) : (
-                                <div className="flex items-center justify-end gap-1">
-                                  <button
-                                    onClick={() => handleRotateKey(key.id)}
-                                    disabled={
-                                      isRotatingKeyId === key.id || isRevokingKeyId === key.id
-                                    }
-                                    title={t`Rotater la clé : régénère le secret et invalide l'ancienne clé`}
-                                    className="text-muted-foreground hover:text-primary hover:bg-primary/10 p-1.5 rounded-lg transition-colors inline-flex cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    {isRotatingKeyId === key.id ? (
-                                      <Loader2 className="w-4 h-4 animate-spin" />
-                                    ) : (
-                                      <RefreshCw className="w-4 h-4" />
-                                    )}
-                                  </button>
-                                  <button
-                                    onClick={() => setConfirmDeleteId(key.id)}
-                                    title={t`Révoquer cette clé d'API`}
-                                    className="text-muted-foreground hover:text-destructive-text hover:bg-destructive/10 p-1.5 rounded-lg transition-colors inline-flex cursor-pointer"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </div>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  tone="danger"
+                                  size="xs"
+                                  shape="icon"
+                                  onClick={() => setConfirmDeleteId(key.id)}
+                                  title={t`Révoquer cette clé d'API`}
+                                  aria-label={t`Révoquer cette clé d'API`}
+                                >
+                                  <Trash2 />
+                                </Button>
+                              </div>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    }}
+                  </TableBody>
+                </Table>
               )}
             </div>
 
@@ -1154,43 +1150,40 @@ print(articles)`,
                       </a>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Exemple d'appel d'API avec authentification Bearer.
+                      Exemple d&apos;appel d&apos;API avec authentification Bearer.
                     </p>
                   </div>
                 </div>
 
                 {/* Code Tabs */}
-                <div className="flex items-center bg-muted/60 p-1 rounded-xl border border-border/60 text-xs self-start">
-                  {(['curl', 'typescript', 'python'] as CodeSnippetTab[]).map((tab) => (
-                    <button
-                      key={tab}
-                      onClick={() => setSnippetTab(tab)}
-                      className={cn(
-                        'px-3 py-1 rounded-lg font-semibold transition-all duration-150 capitalize cursor-pointer',
-                        snippetTab === tab
-                          ? 'bg-card text-foreground shadow-xs'
-                          : 'text-muted-foreground hover:text-foreground'
-                      )}
-                    >
-                      {tab === 'typescript' ? 'TypeScript' : tab === 'python' ? 'Python' : 'cURL'}
-                    </button>
-                  ))}
-                </div>
+                <Tabs
+                  variant="segmented"
+                  size="sm"
+                  selectedKey={snippetTab}
+                  onSelectionChange={(key) => setSnippetTab(String(key) as CodeSnippetTab)}
+                  className="self-start"
+                >
+                  <TabList aria-label="Langage de l'extrait">
+                    <Tab id="curl">cURL</Tab>
+                    <Tab id="typescript">TypeScript</Tab>
+                    <Tab id="python">Python</Tab>
+                  </TabList>
+                </Tabs>
               </div>
 
               {/* Code Snippet Box */}
               <div className="relative bg-muted/40 border border-border/80 rounded-xl p-4 font-sans text-xs overflow-x-auto">
-                <button
+                <Button
+                  variant="outline"
+                  size="xs"
+                  shape="icon"
                   onClick={() => handleCopy(snippets[snippetTab], true)}
-                  className="absolute top-3 right-3 p-1.5 rounded-lg bg-card border border-border hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  className="absolute top-3 right-3 bg-card"
                   title="Copier l'extrait de code"
+                  aria-label="Copier l'extrait de code"
                 >
-                  {snippetCopied ? (
-                    <Check className="w-3.5 h-3.5 text-success-text" />
-                  ) : (
-                    <Copy className="w-3.5 h-3.5" />
-                  )}
-                </button>
+                  {snippetCopied ? <Check className="text-success-text" /> : <Copy />}
+                </Button>
                 <pre className="text-foreground whitespace-pre overflow-x-auto pr-8">
                   {snippets[snippetTab]}
                 </pre>
@@ -1247,72 +1240,80 @@ print(articles)`,
       </AnimatePresence>
 
       {/* KEY GENERATED MODAL */}
-      <AnimatePresence>
-        {showKeyModal && generatedKey && (
-          <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-card border border-border shadow-xl rounded-2xl p-6 md:p-8 max-w-xl w-full space-y-6 text-foreground"
-            >
+      <Dialog
+        open={Boolean(showKeyModal && generatedKey)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowKeyModal(false);
+            setGeneratedKey(null);
+          }
+        }}
+        isDismissable={false}
+        size="lg"
+      >
+        <DialogContent showCloseButton={false}>
+          {generatedKey && (
+            <div className="space-y-5">
               <div className="text-center space-y-2">
                 <div className="w-12 h-12 bg-success/10 text-success-text border border-success/20 rounded-2xl flex items-center justify-center mx-auto mb-2">
                   <CheckCircle className="w-6 h-6" />
                 </div>
-                <h3 className="text-lg font-bold text-foreground">
+                <DialogTitle className="text-center text-lg">
                   {keyModalMode === 'rotated'
                     ? t`Votre clé d'API a été rotatée avec succès`
                     : t`Votre clé d'API a été générée avec succès`}
-                </h3>
-                <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                </DialogTitle>
+                <DialogDescription className="max-w-md mx-auto text-center">
                   {keyModalMode === 'rotated'
                     ? t`L'ancienne clé est désormais invalide. Copiez cette nouvelle clé secrète dès maintenant : elle ne sera plus jamais réaffichée.`
                     : t`Copiez cette clé secrète dès maintenant. Pour des raisons de sécurité, nous ne pourrons plus jamais vous la réafficher.`}
-                </p>
+                </DialogDescription>
               </div>
 
-              {/* API Key container */}
               <div className="bg-muted/50 border border-border rounded-xl p-4 flex items-center justify-between gap-3 font-sans text-xs select-all">
                 <code className="text-foreground break-all font-semibold font-sans text-xs">
                   {generatedKey}
                 </code>
-                <button
+                <Button
                   type="button"
+                  variant="solid"
+                  tone="brand"
+                  size="sm"
+                  shape="icon"
                   onClick={() => handleCopy(generatedKey)}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground p-2 rounded-lg transition-colors shrink-0 cursor-pointer"
+                  aria-label="Copier la clé"
                 >
-                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                </button>
+                  {copied ? <Check /> : <Copy />}
+                </Button>
               </div>
 
-              {/* Danger alert banner */}
               <div className="bg-highlight/10 border border-highlight/20 rounded-xl p-4 flex gap-3 text-xs text-highlight">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <div className="space-y-1">
                   <span className="font-bold">Stockage sécurisé</span>
                   <p className="leading-relaxed text-[11px]">
-                    Gardez cette clé confidentielle dans vos variables d'environnement serveur. Ne
-                    l'exposez jamais dans du code client JavaScript public.
+                    Gardez cette clé confidentielle dans vos variables d&apos;environnement serveur.
+                    Ne l&apos;exposez jamais dans du code client JavaScript public.
                   </p>
                 </div>
               </div>
 
-              {/* Confirm / Close Button */}
-              <button
+              <Button
                 type="button"
+                variant="solid"
+                tone="brand"
+                block
                 onClick={() => {
                   setShowKeyModal(false);
                   setGeneratedKey(null);
                 }}
-                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold text-xs py-3 rounded-xl transition-colors cursor-pointer shadow-xs"
               >
-                J'ai sauvegardé ma clé d'API
-              </button>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+                J&apos;ai sauvegardé ma clé d&apos;API
+              </Button>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

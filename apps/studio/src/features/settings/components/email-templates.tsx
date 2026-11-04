@@ -15,9 +15,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { t } from '@lingui/core/macro';
 import { UpcomingBadge, useFeatureAnnouncement } from '@qoe/ui';
+import { Button } from '@qoe/ui/button';
+import { Checkbox } from '@qoe/ui/checkbox';
+import { Input, Textarea } from '@qoe/ui/input';
 import { toast } from '@qoe/ui/toast';
 import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
+import { cn } from '@qoe/utils';
 import { Check, Loader2, Mail, SendHorizonal, Monitor, Smartphone } from 'lucide-react';
 import {
   getEmailSettingsAction,
@@ -41,8 +45,6 @@ type PreviewState = {
 const rowClass = 'py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 items-start';
 const labelClass = 'text-xs font-semibold text-foreground block';
 const hintClass = 'text-xs text-muted-foreground block mt-0.5';
-const inputClass =
-  'w-full px-3.5 py-2 bg-muted/20 border border-border/30 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80';
 
 export function EmailTemplates({ publicationId }: { publicationId: string }) {
   const [settings, setSettings] = useState<PublicationEmailSettings>(EMPTY);
@@ -199,13 +201,15 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
             <p className="text-xs text-muted-foreground">
               {t`Nom d'expéditeur, couleurs, sujets et textes personnalisés sont réservés aux publications Pro. Gratuit : nom, logo, langues d'envoi et e-mails soignés par défaut.`}
             </p>
-            <button
-              type="button"
+            <Button
+              variant="ghost"
+              tone="brand"
+              size="xs"
               onClick={() => announcement.open('email-customization')}
-              className="text-xs font-semibold text-primary hover:underline cursor-pointer"
+              className="px-0 hover:bg-transparent hover:underline"
             >
               {t`Voir ce qui est inclus`}
-            </button>
+            </Button>
           </div>
         )}
         {/* Expéditeur (Pro) */}
@@ -217,14 +221,14 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
             <span className={hintClass}>{t`Affiché comme « De » dans la boîte de réception.`}</span>
           </div>
           <div className="sm:col-span-2">
-            <input
+            <Input
               type="text"
+              size="sm"
               value={settings.fromName || ''}
               onChange={(e) => set('fromName', e.target.value)}
               maxLength={60}
               disabled={locked}
               placeholder={t`Ex. La Gazette du Net`}
-              className={`${inputClass} disabled:opacity-40`}
             />
           </div>
         </div>
@@ -238,14 +242,14 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
             <span className={hintClass}>{t`Les réponses des lecteurs arrivent ici.`}</span>
           </div>
           <div className="sm:col-span-2">
-            <input
+            <Input
               type="email"
+              size="sm"
               value={settings.replyTo || ''}
               onChange={(e) => set('replyTo', e.target.value)}
               maxLength={254}
               disabled={locked}
               placeholder="contact@exemple.fr"
-              className={`${inputClass} disabled:opacity-40`}
             />
           </div>
         </div>
@@ -263,28 +267,32 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
               {ACCENT_SWATCHES.map((c) => {
                 const active = (settings.accentColor || '').toLowerCase() === c;
                 return (
-                  <button
+                  <Button
                     key={c}
-                    type="button"
+                    variant="ghost"
+                    size="xs"
+                    shape="icon"
                     disabled={locked}
                     onClick={() => set('accentColor', c)}
                     aria-label={c}
-                    className={`w-7 h-7 rounded-full border-2 cursor-pointer transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+                    className={cn(
+                      'size-7 rounded-full border-2 p-0 transition-transform',
                       active ? 'border-foreground scale-110' : 'border-transparent'
-                    }`}
+                    )}
                     style={{ backgroundColor: c }}
                   />
                 );
               })}
             </div>
-            <input
+            <Input
               type="text"
+              size="sm"
               value={settings.accentColor || ''}
               onChange={(e) => set('accentColor', e.target.value)}
               maxLength={7}
               disabled={locked}
               placeholder="#2563eb"
-              className={`${inputClass} max-w-[120px] font-sans disabled:opacity-40`}
+              className="max-w-[120px]"
             />
           </div>
         </div>
@@ -325,8 +333,9 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
               >{t`Unique pour toutes les langues. Texte d'aperçu = phrase visible dans la boîte de réception.`}</span>
             </div>
             <div className="sm:col-span-2 space-y-2">
-              <input
+              <Input
                 type="text"
+                size="sm"
                 value={settings.subjects?.[tpl] ?? ''}
                 onChange={(e) => setMap('subjects', tpl, e.target.value)}
                 maxLength={120}
@@ -336,16 +345,15 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
                     ? t`Confirmez votre abonnement — (nom)`
                     : t`Bienvenue chez (nom)`
                 }
-                className={`${inputClass} disabled:opacity-40`}
               />
-              <input
+              <Input
                 type="text"
+                size="sm"
                 value={settings.preheaders?.[tpl] ?? ''}
                 onChange={(e) => setMap('preheaders', tpl, e.target.value)}
                 maxLength={140}
                 disabled={locked}
                 placeholder={t`Texte d'aperçu`}
-                className={`${inputClass} disabled:opacity-40`}
               />
             </div>
           </div>
@@ -361,26 +369,24 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
               className={hintClass}
             >{t`Texte brut, une seule version pour toutes les langues.`}</span>
             <div className="mt-3 space-y-1">
-              <label className="flex items-center gap-2 text-xs cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={welcomeOn}
-                  onChange={(e) => set('welcomeEnabled', e.target.checked)}
-                  className="w-4 h-4 rounded border-border/40 text-primary focus:ring-primary cursor-pointer"
-                />
-                <span className="font-medium">{t`Envoyer l'email de bienvenue`}</span>
-              </label>
+              <Checkbox
+                size="sm"
+                tone="brand"
+                isSelected={welcomeOn}
+                onChange={(checked) => set('welcomeEnabled', checked)}
+                label={t`Envoyer l'email de bienvenue`}
+              />
             </div>
           </div>
           <div className="sm:col-span-2 space-y-2">
-            <textarea
+            <Textarea
+              size="sm"
               value={settings.welcomeBody ?? ''}
               onChange={(e) => set('welcomeBody', e.target.value)}
               maxLength={2000}
               rows={3}
               disabled={!welcomeOn || locked}
               placeholder={t`Votre inscription est confirmée. À très vite !`}
-              className={`${inputClass} resize-none disabled:opacity-40`}
             />
           </div>
         </div>
@@ -394,14 +400,14 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
             <span className={hintClass}>{t`Mention libre sous le texte de consentement.`}</span>
           </div>
           <div className="sm:col-span-2">
-            <input
+            <Input
               type="text"
+              size="sm"
               value={settings.footerNote || ''}
               onChange={(e) => set('footerNote', e.target.value)}
               maxLength={200}
               disabled={locked}
               placeholder={t`Ex. Propulsé avec amour depuis Lyon`}
-              className={`${inputClass} disabled:opacity-40`}
             />
           </div>
         </div>
@@ -413,14 +419,10 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
               <Check className="w-3.5 h-3.5" /> {t`Enregistré`}
             </span>
           )}
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold transition-all active:scale-95 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed flex items-center gap-1.5"
-          >
-            {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+          <Button variant="solid" tone="brand" size="sm" onClick={handleSave} disabled={saving}>
+            {saving && <Loader2 className="animate-spin" />}
             <span>{t`Enregistrer les réglages email`}</span>
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -431,67 +433,81 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
             <Mail className="w-3.5 h-3.5 text-primary" />
             {t`Aperçu réel`}
           </div>
-          <div className="flex items-center gap-1 bg-muted/40 rounded-lg p-0.5">
+          <div className="flex items-center gap-0.5 rounded-control bg-muted/40 p-0.5">
             {(['confirm', 'welcome'] as const).map((tpl) => (
-              <button
+              <Button
                 key={tpl}
+                variant="ghost"
+                size="xs"
                 onClick={() => setTemplate(tpl)}
-                className={`px-2 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
+                className={cn(
+                  'h-6 px-2.5 text-[11px]',
                   template === tpl
-                    ? 'bg-background shadow-sm text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
+                    ? 'bg-background text-foreground shadow-xs hover:bg-background'
+                    : 'text-muted-foreground hover:bg-transparent hover:text-foreground'
+                )}
               >
                 {tpl === 'confirm' ? t`Confirmation` : t`Bienvenue`}
-              </button>
+              </Button>
             ))}
           </div>
         </div>
 
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1 bg-muted/40 rounded-lg p-0.5">
+          <div className="flex items-center gap-0.5 rounded-control bg-muted/40 p-0.5">
             {locales.map((l) => (
-              <button
+              <Button
                 key={l}
+                variant="ghost"
+                size="xs"
                 onClick={() => setLang(l)}
-                className={`px-2.5 py-1 rounded-md text-[11px] font-medium uppercase transition-colors cursor-pointer ${
+                className={cn(
+                  'h-6 px-2.5 text-[11px] uppercase',
                   lang === l
-                    ? 'bg-background shadow-sm text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
+                    ? 'bg-background text-foreground shadow-xs hover:bg-background'
+                    : 'text-muted-foreground hover:bg-transparent hover:text-foreground'
+                )}
               >
                 {l}
-              </button>
+              </Button>
             ))}
           </div>
 
           <div className="flex items-center gap-2">
             {previewing && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />}
-            <div className="flex items-center gap-0.5 bg-muted/40 rounded-lg p-0.5">
-              <button
-                type="button"
+            <div className="flex items-center gap-0.5 rounded-control bg-muted/40 p-0.5">
+              <Button
+                variant="ghost"
+                size="xs"
+                shape="icon"
                 onClick={() => setPreviewMode('desktop')}
                 title="Vue Bureau"
-                className={`p-1 rounded-md text-xs transition-colors cursor-pointer ${
+                aria-label="Vue Bureau"
+                className={cn(
+                  'size-6',
                   previewMode === 'desktop'
-                    ? 'bg-background shadow-sm text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
+                    ? 'bg-background text-foreground shadow-xs hover:bg-background'
+                    : 'text-muted-foreground hover:bg-transparent hover:text-foreground'
+                )}
               >
-                <Monitor className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
+                <Monitor />
+              </Button>
+              <Button
+                variant="ghost"
+                size="xs"
+                shape="icon"
                 onClick={() => setPreviewMode('mobile')}
                 title="Vue Mobile"
-                className={`p-1 rounded-md text-xs transition-colors cursor-pointer ${
+                aria-label="Vue Mobile"
+                className={cn(
+                  'size-6',
                   previewMode === 'mobile'
-                    ? 'bg-background shadow-sm text-foreground'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
+                    ? 'bg-background text-foreground shadow-xs hover:bg-background'
+                    : 'text-muted-foreground hover:bg-transparent hover:text-foreground'
+                )}
               >
-                <Smartphone className="w-3.5 h-3.5" />
-              </button>
+                <Smartphone />
+              </Button>
             </div>
           </div>
         </div>
@@ -517,7 +533,8 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
               title="email-preview"
               srcDoc={preview.html}
               sandbox=""
-              className={`w-full bg-white transition-all ${
+              style={{ backgroundColor: '#ffffff' }}
+              className={`w-full transition-all ${
                 previewMode === 'mobile' ? 'h-[500px]' : 'h-[560px]'
               }`}
             />
@@ -525,28 +542,28 @@ export function EmailTemplates({ publicationId }: { publicationId: string }) {
         </div>
 
         {/* Envoi d'un vrai email de test à l'adresse du compte créateur */}
-        <button
+        <Button
+          variant="outline"
+          size="md"
+          block
           onClick={handleSendTest}
           disabled={sendingTest || loading}
-          className="w-full flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg border border-border/50 bg-muted/30 text-xs font-semibold text-foreground transition-all active:scale-95 hover:bg-muted/50 disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed"
         >
-          {sendingTest ? (
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          ) : (
-            <SendHorizonal className="w-3.5 h-3.5" />
-          )}
+          {sendingTest ? <Loader2 className="animate-spin" /> : <SendHorizonal />}
           <span>
             {t`Envoyer un test à mon adresse`}
             <span className="uppercase opacity-60"> ({lang})</span>
           </span>
-        </button>
+        </Button>
 
-        <button
+        <Button
+          variant="ghost"
+          size="xs"
           onClick={() => setShowText((v) => !v)}
-          className="text-[11px] text-muted-foreground hover:text-foreground underline cursor-pointer"
+          className="px-0 text-[11px] text-muted-foreground underline hover:bg-transparent hover:text-foreground"
         >
           {showText ? t`Masquer la version texte` : t`Voir la version texte`}
-        </button>
+        </Button>
         {showText && preview && (
           <pre className="whitespace-pre-wrap text-[10px] leading-relaxed text-muted-foreground bg-muted/20 border border-border/30 rounded-lg p-3 max-h-64 overflow-y-auto">
             {preview.text}

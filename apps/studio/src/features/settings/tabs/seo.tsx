@@ -7,10 +7,11 @@
 import React from 'react';
 import { t } from '@lingui/core/macro';
 import { toast } from '@qoe/ui/toast';
+import { Badge } from '@qoe/ui/badge';
 import { Button } from '@qoe/ui/button';
-import { Input } from '@qoe/ui/input';
+import { Input, Textarea } from '@qoe/ui/input';
+import { Switch } from '@qoe/ui/switch';
 import { Globe, Terminal, Share2, Trash2 } from 'lucide-react';
-import { cn } from '@qoe/utils';
 import type { CreatorProfile } from '../types';
 import { SUPPORTED_SOCIAL_PLATFORMS } from '../types';
 import { SeoPreview } from '../components/seo-preview';
@@ -46,9 +47,14 @@ export function SeoTab({
                   <h4 className="text-sm font-bold text-foreground">
                     Référencement entièrement automatisé
                   </h4>
-                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-primary/15 text-primary">
+                  <Badge
+                    variant="soft"
+                    tone="brand"
+                    shape="pill"
+                    className="uppercase tracking-wider"
+                  >
                     Auto-Pilot
-                  </span>
+                  </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed">
                   Qoefi génère et met à jour en continu vos balises méta Google, vos aperçus
@@ -62,17 +68,19 @@ export function SeoTab({
               <span className="text-muted-foreground text-[11px]">
                 Besoin de rédiger manuellement vos balises ou de modifier les robots ?
               </span>
-              <button
-                type="button"
+              <Button
+                variant="ghost"
+                tone="brand"
+                size="xs"
                 onClick={() => {
                   setIsAdvancedMode(true);
                   toast.success(t`Mode Avancé débloqué`);
                 }}
-                className="font-semibold text-primary hover:underline cursor-pointer flex items-center gap-1.5 shrink-0"
+                className="shrink-0"
               >
-                <Terminal className="w-3.5 h-3.5" />
+                <Terminal />
                 <span>Débloquer le mode avancé</span>
-              </button>
+              </Button>
             </div>
           </div>
         ) : (
@@ -85,9 +93,9 @@ export function SeoTab({
                   Surcharge manuelle SEO (Mode Avancé)
                 </h3>
               </div>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 text-primary font-bold">
+              <Badge variant="soft" tone="brand" className="font-mono font-bold">
                 EXPERT
-              </span>
+              </Badge>
             </div>
 
             {/* Meta Title */}
@@ -121,14 +129,14 @@ export function SeoTab({
                   {current.seoDescription?.length || 0}/160 car.
                 </span>
               </div>
-              <textarea
+              <Textarea
+                size="sm"
                 value={current.seoDescription || ''}
                 onChange={(e) =>
                   setCurrent((prev) => ({ ...prev, seoDescription: e.target.value }))
                 }
                 placeholder={t`Description concise de votre ligne éditoriale pour les moteurs de recherche...`}
                 rows={3}
-                className="w-full px-3.5 py-2.5 bg-muted/20 border border-border/40 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80 resize-none transition-colors"
               />
               <span className="text-[11px] text-muted-foreground block">
                 Extrait descriptif affiché sous le titre dans les résultats de recherche.
@@ -136,29 +144,14 @@ export function SeoTab({
             </div>
 
             {/* Indexation Switch */}
-            <div
-              id="indexing"
-              className="pt-3 border-t border-border/30 flex items-center justify-between gap-4"
-            >
-              <div>
-                <label className="text-xs font-semibold text-foreground block">
-                  Indexation par les moteurs de recherche
-                </label>
-                <span className="text-[11px] text-muted-foreground block mt-0.5">
-                  Autoriser les robots de Google, Bing et DuckDuckGo à référencer vos articles.
-                </span>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                <input
-                  type="checkbox"
-                  checked={current.allowIndexing}
-                  onChange={(e) =>
-                    setCurrent((prev) => ({ ...prev, allowIndexing: e.target.checked }))
-                  }
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-muted peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-background after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-background after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary" />
-              </label>
+            <div id="indexing" className="pt-3 border-t border-border/30">
+              <Switch
+                isSelected={current.allowIndexing}
+                onChange={(checked) => setCurrent((prev) => ({ ...prev, allowIndexing: checked }))}
+                label="Indexation par les moteurs de recherche"
+                description="Autoriser les robots de Google, Bing et DuckDuckGo à référencer vos articles."
+                className="w-full"
+              />
             </div>
           </div>
         )}
@@ -172,12 +165,12 @@ export function SeoTab({
             <label className="text-xs font-semibold text-foreground block">
               Mention de pied de page
             </label>
-            <textarea
+            <Textarea
+              size="sm"
               value={current.footerText || ''}
               onChange={(e) => setCurrent((prev) => ({ ...prev, footerText: e.target.value }))}
               placeholder={t`Ex. Tous droits réservés. Écrit avec passion sur qoefi.`}
               rows={2}
-              className="w-full px-3.5 py-2.5 bg-muted/20 border border-border/40 rounded-lg text-xs font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary/80 resize-none transition-colors"
             />
             <span className="text-[11px] text-muted-foreground block">
               Mention affichée en bas de chaque page de votre site.
@@ -206,20 +199,15 @@ export function SeoTab({
             {SUPPORTED_SOCIAL_PLATFORMS.map((plat) => {
               const isConnected = current.socialLinks.some((s) => s.platform === plat.id);
               return (
-                <button
+                <Button
                   key={plat.id}
-                  type="button"
+                  variant="outline"
+                  size="xs"
                   disabled={isConnected}
                   onClick={() => addSocialLink(plat.id)}
-                  className={cn(
-                    'px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors cursor-pointer',
-                    isConnected
-                      ? 'bg-muted/20 border-border/20 text-muted-foreground/40 cursor-not-allowed'
-                      : 'border-border/40 bg-muted/20 hover:bg-muted/50 text-foreground'
-                  )}
                 >
                   {plat.name} {isConnected && '✓'}
-                </button>
+                </Button>
               );
             })}
           </div>

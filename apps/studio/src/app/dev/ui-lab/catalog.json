@@ -1,14 +1,14 @@
 {
-  "generatedAt": "2026-11-04T02:17:25.452Z",
+  "generatedAt": "2026-11-04T02:56:36.688Z",
   "total": 369,
   "signals": {
     "primitivesNeverImported": 10,
     "primitivesTotal": 33,
-    "rawButtons": 662,
-    "rawButtonFiles": 129,
-    "nativeSelectFiles": 1,
-    "rawInputFiles": 72,
-    "handRolledOverlays": 25
+    "rawButtons": 532,
+    "rawButtonFiles": 111,
+    "nativeSelectFiles": 0,
+    "rawInputFiles": 60,
+    "handRolledOverlays": 14
   },
   "families": [
     {
@@ -41,7 +41,7 @@
           "path": "packages/ui/src/primitives/badge/badge.tsx",
           "lines": 111,
           "source": "primitives",
-          "usages": 3
+          "usages": 13
         },
         {
           "name": "bevel-button",
@@ -62,7 +62,7 @@
           "path": "packages/ui/src/primitives/button/button.tsx",
           "lines": 150,
           "source": "primitives",
-          "usages": 14
+          "usages": 31
         },
         {
           "name": "card",
@@ -76,7 +76,7 @@
           "path": "packages/ui/src/primitives/checkbox/checkbox.tsx",
           "lines": 242,
           "source": "primitives",
-          "usages": 0
+          "usages": 3
         },
         {
           "name": "color",
@@ -123,16 +123,16 @@
         {
           "name": "dialog",
           "path": "packages/ui/src/primitives/dialog/dialog.tsx",
-          "lines": 333,
+          "lines": 334,
           "source": "primitives",
-          "usages": 11
+          "usages": 17
         },
         {
           "name": "drawer",
           "path": "packages/ui/src/primitives/drawer/drawer.tsx",
           "lines": 256,
           "source": "primitives",
-          "usages": 1
+          "usages": 4
         },
         {
           "name": "dropdown",
@@ -160,7 +160,7 @@
           "path": "packages/ui/src/primitives/input/input.tsx",
           "lines": 192,
           "source": "primitives",
-          "usages": 9
+          "usages": 20
         },
         {
           "name": "radio-cards",
@@ -202,7 +202,7 @@
           "path": "packages/ui/src/primitives/switch/switch.tsx",
           "lines": 100,
           "source": "primitives",
-          "usages": 3
+          "usages": 7
         },
         {
           "name": "sort",
@@ -216,14 +216,14 @@
           "path": "packages/ui/src/primitives/table/table.tsx",
           "lines": 375,
           "source": "primitives",
-          "usages": 0
+          "usages": 3
         },
         {
           "name": "tabs",
           "path": "packages/ui/src/primitives/tabs/tabs.tsx",
           "lines": 204,
           "source": "primitives",
-          "usages": 4
+          "usages": 10
         },
         {
           "name": "tag-group",
@@ -383,7 +383,7 @@
           "path": "packages/ui/src/ui/popover.tsx",
           "lines": 174,
           "source": "ui",
-          "usages": 2
+          "usages": 3
         },
         {
           "name": "PreviewableUserAvatar",
@@ -506,7 +506,7 @@
         {
           "name": "ArticleCard",
           "path": "packages/ui/src/ArticleCard.tsx",
-          "lines": 687,
+          "lines": 692,
           "source": "ui",
           "usages": 0
         },
@@ -732,7 +732,7 @@
           "path": "packages/ui/src/primitives/badge/badge.tsx",
           "lines": 111,
           "source": "ui",
-          "usages": 3
+          "usages": 13
         },
         {
           "name": "bevel-button",
@@ -753,7 +753,7 @@
           "path": "packages/ui/src/primitives/button/button.tsx",
           "lines": 150,
           "source": "ui",
-          "usages": 14
+          "usages": 31
         },
         {
           "name": "card",
@@ -767,7 +767,7 @@
           "path": "packages/ui/src/primitives/checkbox/checkbox.tsx",
           "lines": 242,
           "source": "ui",
-          "usages": 0
+          "usages": 3
         },
         {
           "name": "color",
@@ -814,16 +814,16 @@
         {
           "name": "dialog",
           "path": "packages/ui/src/primitives/dialog/dialog.tsx",
-          "lines": 333,
+          "lines": 334,
           "source": "ui",
-          "usages": 11
+          "usages": 17
         },
         {
           "name": "drawer",
           "path": "packages/ui/src/primitives/drawer/drawer.tsx",
           "lines": 256,
           "source": "ui",
-          "usages": 1
+          "usages": 4
         },
         {
           "name": "dropdown",
@@ -851,7 +851,7 @@
           "path": "packages/ui/src/primitives/input/input.tsx",
           "lines": 192,
           "source": "ui",
-          "usages": 9
+          "usages": 20
         },
         {
           "name": "radio-cards",
@@ -893,7 +893,7 @@
           "path": "packages/ui/src/primitives/switch/switch.tsx",
           "lines": 100,
           "source": "ui",
-          "usages": 3
+          "usages": 7
         },
         {
           "name": "sort",
@@ -907,14 +907,14 @@
           "path": "packages/ui/src/primitives/table/table.tsx",
           "lines": 375,
           "source": "ui",
-          "usages": 0
+          "usages": 3
         },
         {
           "name": "tabs",
           "path": "packages/ui/src/primitives/tabs/tabs.tsx",
           "lines": 204,
           "source": "ui",
-          "usages": 4
+          "usages": 10
         },
         {
           "name": "tag-group",
@@ -1644,7 +1644,7 @@
         {
           "name": "developer-client",
           "path": "apps/studio/src/features/developer/components/developer-client.tsx",
-          "lines": 1319,
+          "lines": 1332,
           "source": "studio",
           "usages": null
         },
@@ -1679,14 +1679,14 @@
         {
           "name": "ArticleDiffModal",
           "path": "apps/studio/src/features/editor/components/ArticleDiffModal.tsx",
-          "lines": 439,
+          "lines": 415,
           "source": "studio",
           "usages": null
         },
         {
           "name": "ArticleHistoryModal",
           "path": "apps/studio/src/features/editor/components/ArticleHistoryModal.tsx",
-          "lines": 303,
+          "lines": 285,
           "source": "studio",
           "usages": null
         },
@@ -1714,7 +1714,7 @@
         {
           "name": "EditorSettingsDrawer",
           "path": "apps/studio/src/features/editor/components/EditorSettingsDrawer.tsx",
-          "lines": 652,
+          "lines": 624,
           "source": "studio",
           "usages": null
         },
@@ -1749,7 +1749,7 @@
         {
           "name": "PublishModal",
           "path": "apps/studio/src/features/editor/components/PublishModal.tsx",
-          "lines": 355,
+          "lines": 366,
           "source": "studio",
           "usages": null
         },
@@ -1854,7 +1854,7 @@
         {
           "name": "step-up",
           "path": "apps/studio/src/features/security/step-up.tsx",
-          "lines": 296,
+          "lines": 300,
           "source": "studio",
           "usages": null
         },
@@ -1882,7 +1882,7 @@
         {
           "name": "email-templates",
           "path": "apps/studio/src/features/settings/components/email-templates.tsx",
-          "lines": 562,
+          "lines": 579,
           "source": "studio",
           "usages": null
         },
@@ -1938,14 +1938,14 @@
         {
           "name": "settings",
           "path": "apps/studio/src/features/settings/settings.tsx",
-          "lines": 586,
+          "lines": 592,
           "source": "studio",
           "usages": null
         },
         {
           "name": "domain",
           "path": "apps/studio/src/features/settings/tabs/domain.tsx",
-          "lines": 125,
+          "lines": 123,
           "source": "studio",
           "usages": null
         },
@@ -1959,28 +1959,28 @@
         {
           "name": "general",
           "path": "apps/studio/src/features/settings/tabs/general.tsx",
-          "lines": 523,
+          "lines": 516,
           "source": "studio",
           "usages": null
         },
         {
           "name": "navigation",
           "path": "apps/studio/src/features/settings/tabs/navigation.tsx",
-          "lines": 829,
+          "lines": 810,
           "source": "studio",
           "usages": null
         },
         {
           "name": "recommendations",
           "path": "apps/studio/src/features/settings/tabs/recommendations.tsx",
-          "lines": 448,
+          "lines": 441,
           "source": "studio",
           "usages": null
         },
         {
           "name": "seo",
           "path": "apps/studio/src/features/settings/tabs/seo.tsx",
-          "lines": 291,
+          "lines": 274,
           "source": "studio",
           "usages": null
         },
