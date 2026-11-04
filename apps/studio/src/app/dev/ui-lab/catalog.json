@@ -1,14 +1,14 @@
 {
-  "generatedAt": "2026-11-04T01:58:27.513Z",
-  "total": 370,
+  "generatedAt": "2026-11-04T02:17:25.452Z",
+  "total": 369,
   "signals": {
     "primitivesNeverImported": 10,
     "primitivesTotal": 33,
-    "rawButtons": 721,
-    "rawButtonFiles": 136,
+    "rawButtons": 662,
+    "rawButtonFiles": 129,
     "nativeSelectFiles": 1,
-    "rawInputFiles": 78,
-    "handRolledOverlays": 29
+    "rawInputFiles": 72,
+    "handRolledOverlays": 25
   },
   "families": [
     {
@@ -41,7 +41,7 @@
           "path": "packages/ui/src/primitives/badge/badge.tsx",
           "lines": 111,
           "source": "primitives",
-          "usages": 0
+          "usages": 3
         },
         {
           "name": "bevel-button",
@@ -62,7 +62,7 @@
           "path": "packages/ui/src/primitives/button/button.tsx",
           "lines": 150,
           "source": "primitives",
-          "usages": 7
+          "usages": 14
         },
         {
           "name": "card",
@@ -125,7 +125,7 @@
           "path": "packages/ui/src/primitives/dialog/dialog.tsx",
           "lines": 333,
           "source": "primitives",
-          "usages": 7
+          "usages": 11
         },
         {
           "name": "drawer",
@@ -160,14 +160,14 @@
           "path": "packages/ui/src/primitives/input/input.tsx",
           "lines": 192,
           "source": "primitives",
-          "usages": 4
+          "usages": 9
         },
         {
           "name": "radio-cards",
           "path": "packages/ui/src/primitives/radio-group/radio-cards.tsx",
           "lines": 214,
           "source": "primitives",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "save-button",
@@ -202,7 +202,7 @@
           "path": "packages/ui/src/primitives/switch/switch.tsx",
           "lines": 100,
           "source": "primitives",
-          "usages": 1
+          "usages": 3
         },
         {
           "name": "sort",
@@ -223,14 +223,14 @@
           "path": "packages/ui/src/primitives/tabs/tabs.tsx",
           "lines": 204,
           "source": "primitives",
-          "usages": 0
+          "usages": 4
         },
         {
           "name": "tag-group",
           "path": "packages/ui/src/primitives/tag-group/tag-group.tsx",
           "lines": 183,
           "source": "primitives",
-          "usages": 0
+          "usages": 2
         },
         {
           "name": "toast",
@@ -292,7 +292,7 @@
           "path": "packages/ui/src/ui/CertifiedBadge.tsx",
           "lines": 23,
           "source": "ui",
-          "usages": 7
+          "usages": 6
         },
         {
           "name": "color-picker",
@@ -318,7 +318,7 @@
         {
           "name": "dropdown-menu",
           "path": "packages/ui/src/ui/dropdown-menu.tsx",
-          "lines": 399,
+          "lines": 396,
           "source": "ui",
           "usages": 2
         },
@@ -383,7 +383,7 @@
           "path": "packages/ui/src/ui/popover.tsx",
           "lines": 174,
           "source": "ui",
-          "usages": 3
+          "usages": 2
         },
         {
           "name": "PreviewableUserAvatar",
@@ -506,7 +506,7 @@
         {
           "name": "ArticleCard",
           "path": "packages/ui/src/ArticleCard.tsx",
-          "lines": 520,
+          "lines": 687,
           "source": "ui",
           "usages": 0
         },
@@ -732,7 +732,7 @@
           "path": "packages/ui/src/primitives/badge/badge.tsx",
           "lines": 111,
           "source": "ui",
-          "usages": 0
+          "usages": 3
         },
         {
           "name": "bevel-button",
@@ -753,7 +753,7 @@
           "path": "packages/ui/src/primitives/button/button.tsx",
           "lines": 150,
           "source": "ui",
-          "usages": 7
+          "usages": 14
         },
         {
           "name": "card",
@@ -816,7 +816,7 @@
           "path": "packages/ui/src/primitives/dialog/dialog.tsx",
           "lines": 333,
           "source": "ui",
-          "usages": 7
+          "usages": 11
         },
         {
           "name": "drawer",
@@ -851,14 +851,14 @@
           "path": "packages/ui/src/primitives/input/input.tsx",
           "lines": 192,
           "source": "ui",
-          "usages": 4
+          "usages": 9
         },
         {
           "name": "radio-cards",
           "path": "packages/ui/src/primitives/radio-group/radio-cards.tsx",
           "lines": 214,
           "source": "ui",
-          "usages": 0
+          "usages": 1
         },
         {
           "name": "save-button",
@@ -893,7 +893,7 @@
           "path": "packages/ui/src/primitives/switch/switch.tsx",
           "lines": 100,
           "source": "ui",
-          "usages": 1
+          "usages": 3
         },
         {
           "name": "sort",
@@ -914,14 +914,14 @@
           "path": "packages/ui/src/primitives/tabs/tabs.tsx",
           "lines": 204,
           "source": "ui",
-          "usages": 0
+          "usages": 4
         },
         {
           "name": "tag-group",
           "path": "packages/ui/src/primitives/tag-group/tag-group.tsx",
           "lines": 183,
           "source": "ui",
-          "usages": 0
+          "usages": 2
         },
         {
           "name": "toast",
@@ -970,7 +970,7 @@
           "path": "packages/ui/src/SafeAvatar.tsx",
           "lines": 153,
           "source": "ui",
-          "usages": 18
+          "usages": 17
         },
         {
           "name": "SafeImage",
@@ -1033,7 +1033,7 @@
           "path": "packages/ui/src/social/ProfileHoverCard.tsx",
           "lines": 451,
           "source": "ui",
-          "usages": 4
+          "usages": 3
         },
         {
           "name": "QuotedArticleCard",
@@ -2280,7 +2280,7 @@
         {
           "name": "NotificationSettingsForm",
           "path": "apps/core/src/components/notifications/NotificationSettingsForm.tsx",
-          "lines": 165,
+          "lines": 162,
           "source": "core",
           "usages": null
         },
@@ -2301,7 +2301,7 @@
         {
           "name": "EditProfileModal",
           "path": "apps/core/src/components/profile/EditProfileModal.tsx",
-          "lines": 302,
+          "lines": 289,
           "source": "core",
           "usages": null
         },
@@ -2330,13 +2330,6 @@
           "name": "ArticleAnnotatorView",
           "path": "apps/core/src/components/social/ArticleAnnotatorView.tsx",
           "lines": 759,
-          "source": "core",
-          "usages": null
-        },
-        {
-          "name": "ArticleCard",
-          "path": "apps/core/src/components/social/ArticleCard.tsx",
-          "lines": 185,
           "source": "core",
           "usages": null
         },
@@ -2371,7 +2364,7 @@
         {
           "name": "ModerationReportModal",
           "path": "apps/core/src/components/social/ModerationReportModal.tsx",
-          "lines": 174,
+          "lines": 154,
           "source": "core",
           "usages": null
         },

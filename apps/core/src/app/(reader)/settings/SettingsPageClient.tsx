@@ -6,7 +6,12 @@ import { t } from '@lingui/core/macro';
 import { useI18n } from '@qoe/i18n';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
+import { Badge } from '@qoe/ui/badge';
+import { Button, buttonClasses } from '@qoe/ui/button';
+import { Input } from '@qoe/ui/input';
 import { Select } from '@qoe/ui/select';
+import { Switch } from '@qoe/ui/switch';
+import { Tag, TagGroup, TagList } from '@qoe/ui/tag-group';
 import {
   Accessibility,
   Bell,
@@ -369,20 +374,20 @@ export default function AccountSettingsPage({
           <nav className="space-y-1" aria-label={t`Sections des réglages`}>
             {sections.map((section) => {
               const Icon = section.icon;
+              const isActive = activeSection === section.id;
               return (
-                <button
+                <Button
                   key={section.id}
-                  type="button"
+                  variant={isActive ? 'soft' : 'ghost'}
+                  tone={isActive ? 'brand' : 'neutral'}
+                  size="sm"
+                  block
                   onClick={() => navigateToSection(section.id)}
-                  className={`flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-sm transition-colors ${
-                    activeSection === section.id
-                      ? 'bg-primary/10 font-semibold text-primary'
-                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                  }`}
+                  className="justify-start gap-2.5"
                 >
-                  <Icon className="h-4 w-4" strokeWidth={1.7} />
-                  {section.label()}
-                </button>
+                  <Icon strokeWidth={1.7} />
+                  <span>{section.label()}</span>
+                </Button>
               );
             })}
           </nav>
@@ -440,9 +445,11 @@ export default function AccountSettingsPage({
               <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
                 {un.editing ? (
                   <>
-                    <div className="flex items-center gap-1 rounded-xl border border-border bg-background px-3 py-2 sm:w-72">
-                      <span className="text-sm text-muted-foreground">@</span>
-                      <input
+                    <div className="relative flex items-center sm:w-72">
+                      <span className="pointer-events-none absolute left-3 text-sm text-muted-foreground">
+                        @
+                      </span>
+                      <Input
                         value={un.value}
                         maxLength={24}
                         onChange={(event) =>
@@ -451,40 +458,43 @@ export default function AccountSettingsPage({
                             value: event.target.value.toLowerCase().replace(/[^a-z0-9_.]/g, ''),
                           })
                         }
-                        className="w-full bg-transparent text-sm outline-none"
+                        className="pl-7 pr-8"
                         placeholder="ephe"
                         autoFocus
                       />
-                      <button
-                        type="button"
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        shape="icon"
                         onClick={() => setUn({ value: data.user.username ?? '', editing: false })}
-                        className="shrink-0 text-muted-foreground hover:text-foreground"
+                        className="absolute right-1 size-6 text-muted-foreground hover:text-foreground"
                         aria-label={t`Annuler`}
                       >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
+                        <X />
+                      </Button>
                     </div>
-                    <button
-                      type="button"
+                    <Button
+                      variant="solid"
+                      tone="brand"
+                      size="sm"
                       disabled={isPending || un.value.length < 3 || un.value === data.user.username}
                       onClick={changeUsername}
-                      className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
                     >
                       {t`Enregistrer`}
-                    </button>
+                    </Button>
                   </>
                 ) : (
                   <>
-                    <code className="rounded-lg bg-muted px-2.5 py-1.5 text-sm sm:w-72">
+                    <code className="rounded-control bg-muted px-2.5 py-1.5 text-sm sm:w-72">
                       @{data.user.username || '—'}
                     </code>
-                    <button
-                      type="button"
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => setUn({ value: data.user.username ?? '', editing: true })}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-muted"
                     >
-                      <Pencil className="h-3 w-3" /> {t`Modifier`}
-                    </button>
+                      <Pencil /> {t`Modifier`}
+                    </Button>
                   </>
                 )}
               </div>
@@ -526,22 +536,20 @@ export default function AccountSettingsPage({
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 <label className="block space-y-1.5">
                   <span className="text-sm font-medium">{t`Mot de passe actuel`}</span>
-                  <input
+                  <Input
                     type="password"
                     autoComplete="current-password"
                     value={em.current}
                     onChange={(event) => setEm({ ...em, current: event.target.value })}
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
                   />
                 </label>
                 <label className="block space-y-1.5">
                   <span className="text-sm font-medium">{t`Nouvelle adresse email`}</span>
-                  <input
+                  <Input
                     type="email"
                     autoComplete="email"
                     value={em.next}
                     onChange={(event) => setEm({ ...em, next: event.target.value })}
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
                   />
                 </label>
               </div>
@@ -555,14 +563,15 @@ export default function AccountSettingsPage({
                 </p>
               )}
               <div className="mt-4 flex justify-end">
-                <button
-                  type="button"
+                <Button
+                  variant="solid"
+                  tone="brand"
+                  size="sm"
                   disabled={isPending || !em.next.includes('@')}
                   onClick={changeEmail}
-                  className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
                 >
                   {t`Envoyer la vérification`}
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -582,33 +591,30 @@ export default function AccountSettingsPage({
               <div className="mt-4 grid gap-3">
                 <label className="block space-y-1.5">
                   <span className="text-sm font-medium">{t`Mot de passe actuel`}</span>
-                  <input
+                  <Input
                     type="password"
                     autoComplete="current-password"
                     value={pw.current}
                     onChange={(event) => setPw({ ...pw, current: event.target.value })}
-                    className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
                   />
                 </label>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block space-y-1.5">
                     <span className="text-sm font-medium">{t`Nouveau mot de passe`}</span>
-                    <input
+                    <Input
                       type="password"
                       autoComplete="new-password"
                       value={pw.next}
                       onChange={(event) => setPw({ ...pw, next: event.target.value })}
-                      className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
                     />
                   </label>
                   <label className="block space-y-1.5">
                     <span className="text-sm font-medium">{t`Confirmer le mot de passe`}</span>
-                    <input
+                    <Input
                       type="password"
                       autoComplete="new-password"
                       value={pw.confirm}
                       onChange={(event) => setPw({ ...pw, confirm: event.target.value })}
-                      className="w-full rounded-xl border border-border bg-background px-3 py-2.5 text-sm outline-none focus:border-primary"
                     />
                   </label>
                 </div>
@@ -621,17 +627,16 @@ export default function AccountSettingsPage({
                     { ok: /[a-zß-ÿ]/.test(pw.next), label: t`Une minuscule` },
                     { ok: /\d/.test(pw.next), label: t`Un chiffre` },
                   ].map(({ ok, label }) => (
-                    <span
+                    <Badge
                       key={label}
-                      className={`rounded-full border px-2 py-0.5 text-[11px] ${
-                        ok
-                          ? 'border-success/30 bg-success/10 text-success-text'
-                          : 'border-border bg-muted text-muted-foreground'
-                      }`}
+                      variant={ok ? 'soft' : 'outline'}
+                      tone={ok ? 'success' : 'neutral'}
+                      shape="pill"
+                      size="xs"
                     >
                       {ok ? '✓ ' : ''}
                       {label}
-                    </span>
+                    </Badge>
                   ))}
                 </div>
               )}
@@ -645,14 +650,15 @@ export default function AccountSettingsPage({
                 </p>
               )}
               <div className="mt-4 flex justify-end">
-                <button
-                  type="button"
+                <Button
+                  variant="solid"
+                  tone="brand"
+                  size="sm"
                   disabled={isPending || !pw.current || pw.next.length < 8}
                   onClick={changePassword}
-                  className="rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground disabled:opacity-50"
                 >
                   {t`Changer le mot de passe`}
-                </button>
+                </Button>
               </div>
             </div>
 
@@ -664,9 +670,9 @@ export default function AccountSettingsPage({
                 </p>
               </div>
               <form action={logoutAccountAction}>
-                <button className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-destructive-text hover:bg-destructive/10">
-                  <LogOut className="h-3.5 w-3.5" /> {t`Se déconnecter`}
-                </button>
+                <Button type="submit" variant="ghost" tone="danger" size="sm">
+                  <LogOut /> {t`Se déconnecter`}
+                </Button>
               </form>
             </div>
 
@@ -685,16 +691,10 @@ export default function AccountSettingsPage({
                 </div>
               </div>
               <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-                <a
-                  href="/support"
-                  className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-center hover:bg-muted"
-                >
+                <a href="/support" className={buttonClasses({ variant: 'outline', size: 'sm' })}>
                   {t`Contacter le support`}
                 </a>
-                <a
-                  href="/appeals"
-                  className="rounded-lg border border-border px-4 py-2 text-sm font-semibold text-center hover:bg-muted"
-                >
+                <a href="/appeals" className={buttonClasses({ variant: 'outline', size: 'sm' })}>
                   {t`Mes recours`}
                 </a>
               </div>
@@ -800,9 +800,11 @@ export default function AccountSettingsPage({
               </div>
               <div className="mt-3 flex flex-wrap gap-2">
                 {socialUsers.blocked.map((user) => (
-                  <button
+                  <Button
                     key={`b-${user.id}`}
-                    type="button"
+                    variant="outline"
+                    tone="danger"
+                    size="xs"
                     disabled={isPending}
                     onClick={() =>
                       startTransition(async () => {
@@ -824,15 +826,15 @@ export default function AccountSettingsPage({
                         }
                       })
                     }
-                    className="rounded-full border border-destructive/30 px-3 py-1.5 text-xs text-destructive-text"
                   >
                     {user.name || user.username || user.id} ×
-                  </button>
+                  </Button>
                 ))}
                 {socialUsers.muted.map((user) => (
-                  <button
+                  <Button
                     key={`m-${user.id}`}
-                    type="button"
+                    variant="outline"
+                    size="xs"
                     disabled={isPending}
                     onClick={() =>
                       startTransition(async () => {
@@ -854,10 +856,9 @@ export default function AccountSettingsPage({
                         }
                       })
                     }
-                    className="rounded-full border border-border px-3 py-1.5 text-xs"
                   >
                     {user.name || user.username || user.id} ×
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -873,44 +874,44 @@ export default function AccountSettingsPage({
                 </div>
               </div>
               <div className="mt-4 flex gap-2">
-                <input
+                <Input
+                  size="sm"
                   value={mutedInput}
                   onChange={(event) => setMutedInput(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') addMutedWord();
                   }}
                   placeholder={t`Ajouter un mot à masquer`}
-                  className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  className="min-w-0 flex-1"
                 />
-                <button
-                  type="button"
+                <Button
+                  variant="solid"
+                  tone="brand"
+                  size="sm"
                   disabled={isPending || mutedInput.trim() === ''}
                   onClick={addMutedWord}
-                  className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-40"
                 >
-                  <Plus className="h-3.5 w-3.5" /> {t`Ajouter`}
-                </button>
+                  <Plus /> {t`Ajouter`}
+                </Button>
               </div>
               {mutedWords.length > 0 ? (
-                <ul className="mt-4 flex flex-wrap gap-2">
-                  {mutedWords.map((word) => (
-                    <li
-                      key={word}
-                      className="flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-3 py-1.5 text-xs"
-                    >
-                      {word}
-                      <button
-                        type="button"
-                        aria-label={t`Retirer ${word}`}
-                        onClick={() => removeMutedWord(word)}
-                        disabled={isPending}
-                        className="text-muted-foreground hover:text-destructive-text"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                <TagGroup
+                  aria-label={t`Mots masqués`}
+                  selectionMode="none"
+                  size="sm"
+                  onRemove={(keys) => {
+                    for (const key of keys) removeMutedWord(String(key));
+                  }}
+                  className="mt-4"
+                >
+                  <TagList>
+                    {mutedWords.map((word) => (
+                      <Tag key={word} id={word}>
+                        {word}
+                      </Tag>
+                    ))}
+                  </TagList>
+                </TagGroup>
               ) : (
                 <p className="mt-4 text-xs text-muted-foreground">
                   {t`Aucun mot masqué pour le moment.`}
@@ -1031,14 +1032,9 @@ export default function AccountSettingsPage({
                     {t`Demandée le`} {formatDate(data.deletionRequest.requestedAt)}.
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={cancelDeletion}
-                  disabled={isPending}
-                  className="rounded-lg border border-border px-3 py-2 text-xs font-semibold hover:bg-muted disabled:opacity-50"
-                >
+                <Button variant="outline" size="xs" onClick={cancelDeletion} disabled={isPending}>
                   {t`Annuler`}
-                </button>
+                </Button>
               </div>
             )}
             <div className="rounded-xl border border-destructive/25 bg-destructive/[0.03] p-4">
@@ -1054,19 +1050,22 @@ export default function AccountSettingsPage({
                 </div>
               </div>
               <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                <input
+                <Input
+                  size="sm"
                   value={deletionConfirmation}
                   onChange={(event) => setDeletionConfirmation(event.target.value)}
                   placeholder={t`Écrivez DELETE`}
-                  className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  className="min-w-0 flex-1"
                 />
-                <button
+                <Button
+                  variant="solid"
+                  tone="danger"
+                  size="sm"
                   disabled={isPending || deletionConfirmation !== 'DELETE'}
                   onClick={requestDeletion}
-                  className="rounded-lg bg-destructive px-3 py-2 text-xs font-semibold text-destructive-foreground disabled:opacity-40"
                 >
                   {t`Demander la suppression`}
-                </button>
+                </Button>
               </div>
             </div>
           </SettingsPanel>
@@ -1083,18 +1082,21 @@ export default function AccountSettingsPage({
           <div className="mx-auto flex max-w-2xl items-center justify-around gap-1">
             {sections.map((section) => {
               const Icon = section.icon;
+              const isActive = activeSection === section.id;
               return (
-                <button
+                <Button
                   key={section.id}
-                  type="button"
+                  variant={isActive ? 'soft' : 'ghost'}
+                  tone={isActive ? 'brand' : 'neutral'}
+                  size="xs"
                   onClick={() => navigateToSection(section.id)}
                   aria-label={section.label()}
-                  aria-current={activeSection === section.id ? 'page' : undefined}
-                  className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded-lg px-1 py-1.5 text-[10px] ${activeSection === section.id ? 'bg-primary/10 font-semibold text-primary' : 'text-muted-foreground'}`}
+                  aria-current={isActive ? 'page' : undefined}
+                  className="h-auto min-w-0 flex-1 flex-col gap-1 px-1 py-1.5 text-[10px]"
                 >
                   <Icon className="h-4 w-4" />
                   <span className="max-w-full truncate">{section.label()}</span>
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -1148,20 +1150,13 @@ function ToggleRow({
   onChange: (value: boolean) => void;
 }) {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-border/60 px-4 py-3 hover:bg-muted/30">
-      <span>
-        <span className="block text-sm font-medium">{label}</span>
-        <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
-          {description}
-        </span>
-      </span>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
-        className="h-4 w-4 shrink-0 accent-primary"
-      />
-    </label>
+    <Switch
+      isSelected={checked}
+      onChange={onChange}
+      label={<span className="text-sm font-medium">{label}</span>}
+      description={description}
+      className="items-center rounded-xl border border-border/60 px-4 py-3 hover:bg-muted/30"
+    />
   );
 }
 function SelectRow({
@@ -1214,18 +1209,19 @@ function SettingsLink({
   disabled?: boolean;
 }) {
   return (
-    <button
-      type="button"
+    <Button
+      variant="ghost"
+      block
       disabled={disabled}
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-xl border border-border/60 px-4 py-3 text-left hover:bg-muted/30 disabled:cursor-not-allowed disabled:opacity-70"
+      className="h-auto items-center justify-start gap-3 rounded-xl border border-border/60 px-4 py-3 text-left font-normal whitespace-normal hover:bg-muted/30"
     >
       <Icon className="h-4 w-4 shrink-0 text-primary" />
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-medium">{title}</span>
+        <span className="block text-sm font-medium text-foreground">{title}</span>
         <span className="mt-0.5 block text-xs text-muted-foreground">{description}</span>
       </span>
-      {!disabled && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
-    </button>
+      {!disabled && <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
+    </Button>
   );
 }

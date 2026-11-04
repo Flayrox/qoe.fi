@@ -1,44 +1,100 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   ArrowUpRight,
   BookMarked,
   Bookmark,
   Clock,
   Crown,
+  EyeOff,
   Heart,
   MessageSquare,
+  MoreHorizontal,
   Repeat,
+  UserCheck,
+  UserPlus,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
 import { getArticleUrl } from '@qoe/config';
+import { getCoverPlaceholder } from '@qoe/theme';
 import type { FeedArticleDTO } from '@qoe/sdk/types';
 import { useRequireAuth } from './auth/AuthModalContext';
 import { CertifiedBadge } from './ui/CertifiedBadge';
 import { SafeAvatar } from './SafeAvatar';
 import { SafeImage } from './SafeImage';
 import { ProfileHoverCard } from './social/ProfileHoverCard';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 import { t } from '@lingui/core/macro';
+
+export type ArticleCardArticle = Omit<
+  FeedArticleDTO,
+  'published' | 'content' | 'category' | 'author'
+> & {
+  published?: boolean;
+  content?: string | null;
+  publication?: {
+    id: string;
+    name: string;
+    slug?: string | null;
+    subdomain?: string | null;
+    logoUrl?: string | null;
+    type?: string | null;
+  } | null;
+  author: Omit<FeedArticleDTO['author'], 'type' | 'subdomain' | 'customDomain' | 'heroText'> & {
+    type?: 'PERSONAL' | 'MEDIA' | string | null;
+    subdomain?: string | null;
+    customDomain?: string | null;
+    heroText?: string | null;
+  };
+  category?: {
+    name: string;
+    slug?: string;
+    parent?: { name: string; slug?: string } | null;
+  } | null;
+};
 
 export type { FeedArticleDTO as Article };
 
-interface ArticleCardProps {
-  article: FeedArticleDTO;
+export interface ArticleCardProps {
+  article: ArticleCardArticle;
+  idx?: number;
+  dbUser?: {
+    id?: string | null;
+    email?: string | null;
+    name?: string | null;
+    avatarUrl?: string | null;
+  } | null;
+  isFollowed?: boolean;
   isFollowedAuthor?: boolean;
   disableAuthorOverride?: boolean;
   isBookmarked?: boolean;
-  handleBookmarkToggle?: (article: FeedArticleDTO) => void;
+  handleFollowToggle?: (author: ArticleCardArticle['author']) => void;
+  handleBookmarkToggle?: (article: ArticleCardArticle) => void;
   featured?: boolean;
+  discovery?: boolean;
   isPreview?: boolean;
-  onOpenArticle?: (article: FeedArticleDTO) => void;
+  onHideArticle?: (article: ArticleCardArticle) => void;
+  onOpenArticle?: (article: ArticleCardArticle) => void;
   onOpenProfile?: (username: string) => void;
   onOpenPost?: (id: string) => void;
 }
 
-function ProfileMark({ author, size = 40 }: { author: FeedArticleDTO['author']; size?: number }) {
+function ProfileMark({
+  author,
+  size = 40,
+}: {
+  author: ArticleCardArticle['author'];
+  size?: number;
+}) {
   return (
     <SafeAvatar
+      id={author.id}
       src={author.logoUrl}
       name={author.name}
       username={author.username || author.subdomain}
@@ -214,22 +270,31 @@ function SharedContributorLine({
 
 export function ArticleCard({
   article,
+  dbUser,
+  isFollowed = false,
   isFollowedAuthor = false,
   disableAuthorOverride = false,
   isBookmarked = false,
+  handleFollowToggle,
   handleBookmarkToggle,
   featured = false,
+  discovery = false,
   isPreview = false,
+  onHideArticle,
   onOpenArticle,
   onOpenProfile,
   onOpenPost,
 }: ArticleCardProps) {
   const { withAuth } = useRequireAuth();
   const [bookmarked, setBookmarked] = useState(isBookmarked);
+  const [followed, setFollowed] = useState(isFollowed);
   const [liked, setLiked] = useState(article.liked || false);
   const [likesCount, setLikesCount] = useState(article.likesCount || 0);
   const [reposted, setReposted] = useState(false);
   const [repostsCount, setRepostsCount] = useState(0);
+
+  useEffect(() => setBookmarked(isBookmarked), [isBookmarked]);
+  useEffect(() => setFollowed(isFollowed), [isFollowed]);
 
   const isThought = !article.title;
   const authorHandle = article.author.username || article.author.subdomain || 'qoefi';
@@ -271,7 +336,7 @@ export function ArticleCard({
   const mediaContributor: SharedContributor = {
     id: article.author.id,
     name: article.author.name,
-    username: article.author.username || article.author.subdomain,
+    username: article.author.username || article.author.subdomain || null,
     logoUrl: article.author.logoUrl,
     isMedia: true,
     handleOnly: true,
@@ -287,8 +352,32 @@ export function ArticleCard({
           ]
         : otherContributors.map((coAuthor) => ({ ...coAuthor, isMedia: false }))
       : otherContributors.map((coAuthor) => ({ ...coAuthor, isMedia: false }));
+  const authorLabel = (article.author.name ?? '').trim().toLowerCase();
+  const mediaLabel = (article.publication?.name ?? '').trim().toLowerCase();
+  const isAuthorTheMedia = authorLabel !== '' && authorLabel === mediaLabel;
+  const profileMedia: SharedContributor | null =
+    disableAuthorOverride && isMedia && !isAuthorTheMedia
+      ? article.publication
+        ? {
+            id: article.publication.id,
+            name: article.publication.name,
+            username: article.publication.subdomain ?? null,
+            logoUrl: article.publication.logoUrl ?? null,
+            isMedia: true,
+            handleOnly: true,
+          }
+        : mediaContributor
+      : null;
+  const linePeople: SharedContributor[] = profileMedia
+    ? otherContributors.map((coAuthor) => ({ ...coAuthor, isMedia: false }))
+    : secondaryPeople;
+  const fallbackLogo = useAuthorAsPrimary ? journalist?.logoUrl : article.author.logoUrl;
+  const rawCover = article.imageUrl?.includes('unsplash') ? null : article.imageUrl;
+  const rawFallback = fallbackLogo?.includes('unsplash') ? null : fallbackLogo;
   const coverImage =
-    article.imageUrl || (useAuthorAsPrimary ? journalist?.logoUrl : article.author.logoUrl);
+    rawCover ||
+    rawFallback ||
+    (dbUser !== undefined ? getCoverPlaceholder(article.id || article.slug) : null);
   const excerpt = article.content
     ? article.content
         .replace(/<[^>]*>?/gm, '')
@@ -313,6 +402,10 @@ export function ArticleCard({
       event.preventDefault();
       event.stopPropagation();
       onOpenArticle(article);
+    } else if (onOpenPost) {
+      event.preventDefault();
+      event.stopPropagation();
+      onOpenPost(article.id);
     } else {
       window.location.href = url;
     }
@@ -323,6 +416,13 @@ export function ArticleCard({
     event.stopPropagation();
     setBookmarked((value) => !value);
     handleBookmarkToggle?.(article);
+  };
+
+  const toggleFollow = (event: React.MouseEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setFollowed((value) => !value);
+    handleFollowToggle?.(article.author);
   };
 
   const toggleLike = withAuth(
@@ -347,8 +447,13 @@ export function ArticleCard({
 
   if (isThought) return null;
 
+  const showFeedFollowControls = Boolean(
+    dbUser && dbUser.id !== article.author.id && handleFollowToggle
+  );
+
   return (
     <article
+      data-overlay-anchor={article.id}
       className={cn(
         'group relative overflow-hidden bg-card shadow-none transition-colors border border-border/30 hover:border-border/60',
         'rounded-[24px] p-2.5 sm:p-3 flex flex-col',
@@ -379,6 +484,14 @@ export function ArticleCard({
         {/* Capsule flottante en verre dépoli (Auteur, Profil, Follow/Action) */}
         <div className="absolute inset-x-3 top-3 flex items-center justify-between gap-3 rounded-[14px] bg-white/90 px-2.5 py-2 text-black shadow-none backdrop-blur-md dark:bg-black/75 dark:text-white">
           <div className="flex min-w-0 items-center gap-2.5 text-left">
+            {discovery && (
+              <span
+                className="flex shrink-0 items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-medium text-primary"
+                title={t`Sélection hors de ta bulle, choisie pour élargir tes horizons`}
+              >
+                ✦ {t`Découverte`}
+              </span>
+            )}
             <ProfileHoverCard user={primaryAuthor} onOpenProfile={onOpenProfile}>
               <ProfileMark author={primaryAuthor} size={40} />
             </ProfileHoverCard>
@@ -398,21 +511,67 @@ export function ArticleCard({
                 </span>
               </div>
               <SharedContributorLine
-                people={secondaryPeople}
-                forMedia={useAuthorAsPrimary ? mediaContributor : null}
+                people={linePeople}
+                forMedia={useAuthorAsPrimary ? mediaContributor : profileMedia}
                 onOpenProfile={onOpenProfile}
               />
             </div>
           </div>
 
-          {!isPreview && (
-            <button
-              type="button"
-              onClick={openProfile}
-              className="shrink-0 px-3 py-1 rounded-full bg-muted/80 hover:bg-muted text-foreground dark:bg-white/20 dark:hover:bg-white/30 dark:text-white text-[11px] font-semibold transition-colors cursor-pointer"
-            >
-              {t`Profil`}
-            </button>
+          {showFeedFollowControls ? (
+            <div className="flex shrink-0 items-center gap-1.5">
+              <button
+                type="button"
+                onClick={toggleFollow}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold transition-colors cursor-pointer',
+                  followed
+                    ? 'bg-muted/80 text-foreground hover:bg-muted dark:bg-white/20 dark:text-white dark:hover:bg-white/30'
+                    : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                )}
+              >
+                {followed ? (
+                  <UserCheck className="h-3.5 w-3.5" />
+                ) : (
+                  <UserPlus className="h-3.5 w-3.5" />
+                )}
+                <span>{followed ? t`Abonné` : t`Suivre`}</span>
+              </button>
+
+              {onHideArticle && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    type="button"
+                    className="text-black/60 transition-colors hover:text-black dark:text-white/60 dark:hover:text-white p-1 rounded-full cursor-pointer outline-none"
+                    aria-label={t`Plus d'options`}
+                  >
+                    <MoreHorizontal className="h-4 w-4" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" sideOffset={8} className="w-56">
+                    <DropdownMenuItem
+                      onAction={() => {
+                        if (window.confirm(t`Voir moins de contenu comme ça ?`)) {
+                          onHideArticle(article);
+                        }
+                      }}
+                    >
+                      <EyeOff className="text-muted-foreground" />
+                      <span>{t`Voir moins de contenu comme ça`}</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
+          ) : (
+            !isPreview && (
+              <button
+                type="button"
+                onClick={openProfile}
+                className="shrink-0 px-3 py-1 rounded-full bg-muted/80 hover:bg-muted text-foreground dark:bg-white/20 dark:hover:bg-white/30 dark:text-white text-[11px] font-semibold transition-colors cursor-pointer"
+              >
+                {t`Profil`}
+              </button>
+            )
           )}
         </div>
       </div>
@@ -422,6 +581,9 @@ export function ArticleCard({
         href={url}
         target="_blank"
         rel="noreferrer"
+        data-article-link
+        data-article-slug={article.slug}
+        data-article-title={article.title}
         onClick={openArticle}
         className="block px-1.5 pb-1 pt-3 cursor-pointer group/title select-none"
       >
@@ -439,7 +601,17 @@ export function ArticleCard({
       <div className="flex items-center justify-between gap-3 border-t border-border/30 px-1.5 pt-2.5 text-xs text-muted-foreground mt-auto">
         <div className="flex min-w-0 items-center gap-2.5">
           {article.category && (
-            <span className="truncate text-foreground/80">{article.category.name}</span>
+            <span className="truncate text-foreground/80 inline-flex items-center gap-1">
+              {article.category.parent && (
+                <>
+                  <span className="text-muted-foreground/80 font-normal">
+                    {article.category.parent.name}
+                  </span>
+                  <span className="text-muted-foreground/50 text-[10px]">›</span>
+                </>
+              )}
+              <span>{article.category.name}</span>
+            </span>
           )}
           {article.category && article.readingTime > 0 && <span>·</span>}
           {article.readingTime > 0 && (

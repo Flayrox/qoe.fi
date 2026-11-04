@@ -1,9 +1,8 @@
 'use client';
 
 import React from 'react';
-import { motion } from 'framer-motion';
-import { cn } from '@qoe/utils';
 import { t } from '@lingui/core/macro';
+import { Tabs, TabList, Tab } from '@qoe/ui/tabs';
 
 interface FeedTabsHeaderProps {
   activeFeed: string;
@@ -19,36 +18,20 @@ export function FeedTabsHeader({ activeFeed, onTabChange }: FeedTabsHeaderProps)
   ];
 
   return (
-    <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-auto no-scrollbar">
-      {tabs.map((tab) => {
-        const active = activeFeed === tab.id;
-
-        return (
-          <motion.button
-            key={tab.id}
-            onClick={() => onTabChange(tab.id)}
-            whileTap={{ scale: 0.98 }}
-            className={cn(
-              'relative px-3 py-1 rounded-full',
-              'text-xs font-semibold tracking-tight',
-              'outline-none cursor-pointer transition-all duration-200 select-none',
-              active
-                ? 'text-foreground bg-muted/60'
-                : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
-            )}
-          >
+    <Tabs
+      variant="segmented"
+      size="sm"
+      selectedKey={activeFeed}
+      onSelectionChange={(key) => onTabChange(String(key))}
+      className="max-w-full overflow-x-auto no-scrollbar"
+    >
+      <TabList aria-label={t`Navigation du fil`}>
+        {tabs.map((tab) => (
+          <Tab key={tab.id} id={tab.id}>
             {tab.label}
-
-            {active && (
-              <motion.div
-                layoutId="feedTabActiveBg"
-                transition={{ type: 'spring', stiffness: 450, damping: 32 }}
-                className="absolute inset-0 rounded-full bg-muted/80 -z-10 border border-border/50"
-              />
-            )}
-          </motion.button>
-        );
-      })}
-    </div>
+          </Tab>
+        ))}
+      </TabList>
+    </Tabs>
   );
 }

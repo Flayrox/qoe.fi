@@ -1,9 +1,20 @@
 'use client';
 
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldAlert, X, Check, Loader2 } from 'lucide-react';
+import { ShieldAlert, Check, Loader2 } from 'lucide-react';
 import { toast } from '@qoe/ui/toast';
+import { Button } from '@qoe/ui/button';
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@qoe/ui/dialog';
+import { Textarea } from '@qoe/ui/input';
+import { RadioCard, RadioGroup } from '@qoe/ui/radio-group';
 import { createReportSchema, type CreateReportInput } from '@qoe/config/schemas';
 import { reportTargetAction } from '@qoe/sdk/actions/feed';
 import { t } from '@lingui/core/macro';
@@ -25,8 +36,6 @@ export function ModerationReportModal({
   const [details, setDetails] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-
-  if (!isOpen) return null;
 
   const reportReasons = [
     { id: 'spam', label: t`Spam ou publicité indésirable` },
@@ -75,99 +84,70 @@ export function ModerationReportModal({
   };
 
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-md flex items-center justify-center p-4 font-sans">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 10 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 10 }}
-          className="w-full max-w-md bg-card border border-border/40 rounded-2xl p-6 shadow-2xl space-y-5 relative"
-        >
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
-
-          {submitted ? (
-            <div className="py-8 text-center space-y-3">
-              <div className="w-12 h-12 rounded-full bg-success/10 border border-success/30 text-success-text flex items-center justify-center mx-auto text-xl font-bold">
-                <Check className="w-6 h-6" />
-              </div>
-              <h3 className="text-base font-bold text-foreground">{t`Signalement envoyé`}</h3>
-              <p className="text-xs text-muted-foreground">
-                {t`Notre équipe de modération va analyser cet élément dans les plus brefs délais.`}
-              </p>
+    <Dialog
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <DialogContent size="md">
+        {submitted ? (
+          <DialogBody className="py-8 text-center space-y-3">
+            <div className="w-12 h-12 rounded-full bg-success/10 border border-success/30 text-success-text flex items-center justify-center mx-auto text-xl font-bold">
+              <Check className="w-6 h-6" />
             </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <DialogTitle className="text-base">{t`Signalement envoyé`}</DialogTitle>
+            <p className="text-xs text-muted-foreground">
+              {t`Notre équipe de modération va analyser cet élément dans les plus brefs délais.`}
+            </p>
+          </DialogBody>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <DialogHeader>
               <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-lg bg-highlight/10 text-highlight">
-                  <ShieldAlert className="w-5 h-5" />
+                <div className="p-2 rounded-control bg-highlight/10 text-highlight">
+                  <ShieldAlert className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-foreground">{t`Signaler un contenu`}</h3>
-                  <p className="text-xs text-muted-foreground">
+                  <DialogTitle>{t`Signaler un contenu`}</DialogTitle>
+                  <DialogDescription>
                     {t`Pourquoi souhaitez-vous signaler cette publication ?`}
-                  </p>
+                  </DialogDescription>
                 </div>
               </div>
+            </DialogHeader>
 
-              <div className="space-y-2">
+            <DialogBody className="space-y-4">
+              <RadioGroup
+                aria-label={t`Motif du signalement`}
+                value={reason}
+                onChange={(val) => setReason(val as CreateReportInput['reason'])}
+              >
                 {reportReasons.map((r) => (
-                  <label
-                    key={r.id}
-                    className={`flex items-center gap-3 p-3 rounded-xl border text-xs cursor-pointer transition-all ${
-                      reason === r.id
-                        ? 'bg-brand/10 border-brand text-foreground font-semibold'
-                        : 'bg-muted/20 border-border/40 text-muted-foreground hover:bg-muted/40'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="report_reason"
-                      value={r.id}
-                      checked={reason === r.id}
-                      onChange={() => setReason(r.id)}
-                      className="accent-brand"
-                    />
-                    <span>{r.label}</span>
-                  </label>
+                  <RadioCard key={r.id} value={r.id} title={r.label} />
                 ))}
-              </div>
+              </RadioGroup>
 
-              <div>
-                <textarea
-                  rows={3}
-                  value={details}
-                  onChange={(e) => setDetails(e.target.value)}
-                  placeholder={t`Détails complémentaires (optionnel)...`}
-                  className="w-full bg-muted/20 border border-border/40 rounded-xl p-3 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-brand resize-none font-sans"
-                />
-              </div>
+              <Textarea
+                rows={3}
+                value={details}
+                onChange={(e) => setDetails(e.target.value)}
+                placeholder={t`Détails complémentaires (optionnel)...`}
+              />
+            </DialogBody>
 
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-4 py-2 rounded-xl text-xs font-medium text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
-                >
-                  {t`Annuler`}
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-4 py-2 rounded-xl bg-destructive text-destructive-foreground font-medium text-xs hover:opacity-90 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
-                >
-                  {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  <span>{t`Signaler`}</span>
-                </button>
-              </div>
-            </form>
-          )}
-        </motion.div>
-      </div>
-    </AnimatePresence>
+            <DialogFooter>
+              <Button variant="ghost" size="sm" onClick={onClose}>
+                {t`Annuler`}
+              </Button>
+              <Button type="submit" variant="solid" tone="danger" size="sm" disabled={submitting}>
+                {submitting && <Loader2 className="animate-spin" />}
+                <span>{t`Signaler`}</span>
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

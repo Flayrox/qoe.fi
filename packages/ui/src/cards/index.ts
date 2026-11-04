@@ -1,4 +1,9 @@
-export { ArticleCard, type Article } from '../ArticleCard';
+export {
+  ArticleCard,
+  type Article,
+  type ArticleCardArticle,
+  type ArticleCardProps,
+} from '../ArticleCard';
 export {
   QuotedArticleCard,
   type QuotedArticleData,

@@ -20,7 +20,9 @@ import { AuthorAvatar } from '@qoe/ui/ui/AuthorAvatar';
 import { ThoughtCard } from '@/components/social/ThoughtCard';
 import { useArticleOverlay } from '@/components/article-overlay/ArticleOverlayProvider';
 import { useThoughtOverlay } from '@/components/thought-overlay/context';
-import { ArticleCard } from '@/app/(reader)/home/components/ArticleCard';
+import { ArticleCard } from '@qoe/ui/cards';
+import { Button } from '@qoe/ui/button';
+import { Tabs, TabList, Tab } from '@qoe/ui/tabs';
 import { EditProfileModal } from '@/components/profile/EditProfileModal';
 import { FollowList } from './FollowList';
 import {
@@ -240,7 +242,9 @@ export function ProfileView({
     <ReaderPageLayout hideHeader>
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 font-sans space-y-6">
         {/* Back navigation */}
-        <button
+        <Button
+          variant="ghost"
+          size="xs"
           onClick={() => {
             if (typeof window !== 'undefined' && window.history.length > 1) {
               window.history.back();
@@ -248,11 +252,11 @@ export function ProfileView({
               router.push(routes.feed.home());
             }
           }}
-          className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          className="text-muted-foreground hover:text-foreground"
         >
-          <ArrowLeft className="w-3.5 h-3.5" />
+          <ArrowLeft />
           <span>Retour</span>
-        </button>
+        </Button>
 
         {/* Profile Card Header */}
         <div className="bg-card border border-border/40 rounded-2xl overflow-hidden shadow-xs relative">
@@ -287,43 +291,45 @@ export function ProfileView({
                 />
               </div>
 
-              {isOwnProfile ? (
-                <button
-                  onClick={() => setIsEditModalOpen(true)}
-                  className="px-4 py-2 border border-border/60 hover:bg-muted text-foreground text-xs font-semibold rounded-lg transition-colors cursor-pointer flex items-center gap-2"
-                >
-                  <Edit3 className="w-3.5 h-3.5" />
-                  <span>{t`Éditer le profil`}</span>
-                </button>
-              ) : (
-                <button
-                  onClick={handleFollowToggle}
-                  className={cn(
-                    'px-5 py-2 text-xs font-semibold rounded-lg transition-all cursor-pointer shadow-xs',
-                    isFollowing
-                      ? 'border border-border/60 bg-card hover:bg-destructive/10 hover:text-destructive-text text-foreground'
-                      : 'bg-foreground text-background hover:opacity-90'
-                  )}
-                >
-                  {isFollowing ? t`Abonné` : t`Suivre`}
-                </button>
-              )}
-
-              {/* Partager le profil */}
-              <ShareMenu
-                title={`Profil de ${user.name || user.username || 'Utilisateur'}`}
-                authorHandle={user.username || user.subdomain || user.id}
-                trigger={
-                  <button
-                    type="button"
-                    onClick={(e) => e.stopPropagation()}
-                    title="Partager ce profil"
-                    className="h-9 w-9 flex items-center justify-center border border-border/60 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg transition-colors cursor-pointer"
+              <div className="flex items-center gap-2">
+                {isOwnProfile ? (
+                  <Button variant="outline" size="sm" onClick={() => setIsEditModalOpen(true)}>
+                    <Edit3 />
+                    <span>{t`Éditer le profil`}</span>
+                  </Button>
+                ) : (
+                  <Button
+                    variant={isFollowing ? 'outline' : 'solid'}
+                    tone="neutral"
+                    size="sm"
+                    onClick={handleFollowToggle}
+                    className={
+                      isFollowing
+                        ? 'hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive-text'
+                        : undefined
+                    }
                   >
-                    <Share2 className="w-3.5 h-3.5" />
-                  </button>
-                }
-              />
+                    {isFollowing ? t`Abonné` : t`Suivre`}
+                  </Button>
+                )}
+
+                {/* Partager le profil */}
+                <ShareMenu
+                  title={`Profil de ${user.name || user.username || 'Utilisateur'}`}
+                  authorHandle={user.username || user.subdomain || user.id}
+                  trigger={
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      shape="icon"
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={t`Partager ce profil`}
+                    >
+                      <Share2 />
+                    </Button>
+                  }
+                />
+              </div>
             </div>
 
             {/* User Identity */}
@@ -419,42 +425,45 @@ export function ProfileView({
           </div>
 
           {/* Profile Tabs Navigation */}
-          <div className="flex items-center gap-1 border-t border-border/40 px-3 overflow-x-auto no-scrollbar">
-            <TabButton
-              active={activeTab === 'thoughts'}
-              onClick={() => handleTabChange('thoughts')}
-              icon={<MessageSquare className="w-3.5 h-3.5" />}
-              label={t`Pensées`}
-              count={rootThoughts.length}
-            />
-            <TabButton
-              active={activeTab === 'with_replies'}
-              onClick={() => handleTabChange('with_replies')}
-              icon={<MessageSquare className="w-3.5 h-3.5 opacity-60" />}
-              label={t`Réponses`}
-              count={replyThoughts.length}
-            />
-            <TabButton
-              active={activeTab === 'articles'}
-              onClick={() => handleTabChange('articles')}
-              icon={<FileText className="w-3.5 h-3.5" />}
-              label="Articles"
-              count={articlesList.length}
-            />
-            <TabButton
-              active={activeTab === 'reposts'}
-              onClick={() => handleTabChange('reposts')}
-              icon={<Repeat className="w-3.5 h-3.5" />}
-              label="Reposts"
-              count={repostsList.length}
-            />
-            <TabButton
-              active={activeTab === 'media'}
-              onClick={() => handleTabChange('media')}
-              icon={<ImageIcon className="w-3.5 h-3.5" />}
-              label={t`Médias`}
-              count={mediaThoughts.length}
-            />
+          <div className="border-t border-border/40 px-3 overflow-x-auto no-scrollbar">
+            <Tabs
+              variant="underline"
+              size="md"
+              selectedKey={activeTab}
+              onSelectionChange={(key) => handleTabChange(key as ProfileTab)}
+            >
+              <TabList aria-label={t`Sections du profil`} className="border-b-0">
+                <Tab
+                  id="thoughts"
+                  count={rootThoughts.length > 0 ? rootThoughts.length : undefined}
+                >
+                  <MessageSquare />
+                  <span>{t`Pensées`}</span>
+                </Tab>
+                <Tab
+                  id="with_replies"
+                  count={replyThoughts.length > 0 ? replyThoughts.length : undefined}
+                >
+                  <MessageSquare className="opacity-60" />
+                  <span>{t`Réponses`}</span>
+                </Tab>
+                <Tab
+                  id="articles"
+                  count={articlesList.length > 0 ? articlesList.length : undefined}
+                >
+                  <FileText />
+                  <span>Articles</span>
+                </Tab>
+                <Tab id="reposts" count={repostsList.length > 0 ? repostsList.length : undefined}>
+                  <Repeat />
+                  <span>Reposts</span>
+                </Tab>
+                <Tab id="media" count={mediaThoughts.length > 0 ? mediaThoughts.length : undefined}>
+                  <ImageIcon />
+                  <span>{t`Médias`}</span>
+                </Tab>
+              </TabList>
+            </Tabs>
           </div>
         </div>
 
@@ -466,14 +475,15 @@ export function ProfileView({
                 replyThoughts.length > 0 ? (
                   <div className="py-10 text-center text-xs text-muted-foreground bg-card/40 border border-border/30 rounded-xl space-y-3 p-4">
                     <p className="italic">Aucune pensée principale publiée pour le moment.</p>
-                    <button
-                      type="button"
+                    <Button
+                      variant="soft"
+                      tone="brand"
+                      size="sm"
                       onClick={() => handleTabChange('with_replies')}
-                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-brand/10 text-brand font-semibold rounded-lg hover:bg-brand/20 transition-colors cursor-pointer"
                     >
                       Afficher les {replyThoughts.length} réponse
                       {replyThoughts.length > 1 ? 's' : ''} de @{profileHandle}
-                    </button>
+                    </Button>
                   </div>
                 ) : (
                   <EmptyTabMessage message="Aucune pensée originale publiée pour le moment." />
@@ -675,40 +685,6 @@ export function ProfileView({
         />
       )}
     </ReaderPageLayout>
-  );
-}
-
-function TabButton({
-  active,
-  onClick,
-  icon,
-  label,
-  count,
-}: {
-  active: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  label: string;
-  count: number;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'flex items-center gap-2 px-4 py-3 text-xs font-semibold border-b-2 transition-all cursor-pointer whitespace-nowrap',
-        active
-          ? 'border-foreground text-foreground'
-          : 'border-transparent text-muted-foreground hover:text-foreground'
-      )}
-    >
-      {icon}
-      <span>{label}</span>
-      {count > 0 && (
-        <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded-full text-muted-foreground">
-          {count}
-        </span>
-      )}
-    </button>
   );
 }
 

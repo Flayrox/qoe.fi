@@ -5,6 +5,7 @@ import {
   useNotificationPreferencesQuery,
   useUpdateNotificationPreferencesMutation,
 } from '@qoe/sdk';
+import { Switch } from '@qoe/ui/switch';
 import {
   Loader2,
   Heart,
@@ -135,25 +136,21 @@ export function NotificationSettingsForm() {
               </div>
 
               <div className="pt-2 border-t border-border/50 flex flex-wrap items-center justify-between gap-4">
-                <label className="flex items-center gap-2 cursor-pointer text-sm text-foreground">
-                  <input
-                    type="checkbox"
-                    checked={pushVal}
-                    onChange={(e) => handleToggle(section.pushKey, e.target.checked)}
-                    className="w-4 h-4 rounded border-border text-primary focus:ring-primary accent-primary"
-                  />
-                  <span>{t`Notifications App / Push`}</span>
-                </label>
+                <Switch
+                  size="sm"
+                  isSelected={pushVal}
+                  onChange={(val) => handleToggle(section.pushKey, val)}
+                  label={t`Notifications App / Push`}
+                  className="items-center gap-2.5"
+                />
 
-                <label className="flex items-center gap-2 cursor-pointer text-sm text-foreground">
-                  <input
-                    type="checkbox"
-                    checked={emailVal}
-                    onChange={(e) => handleToggle(section.emailKey, e.target.checked)}
-                    className="w-4 h-4 rounded border-border text-primary focus:ring-primary accent-primary"
-                  />
-                  <span>{t`Alertes Email`}</span>
-                </label>
+                <Switch
+                  size="sm"
+                  isSelected={emailVal}
+                  onChange={(val) => handleToggle(section.emailKey, val)}
+                  label={t`Alertes Email`}
+                  className="items-center gap-2.5"
+                />
               </div>
             </div>
           );

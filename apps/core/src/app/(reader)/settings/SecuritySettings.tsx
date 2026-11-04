@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { t } from '@lingui/core/macro';
 import { createClient } from '@qoe/supabase/client';
-import { Check, Copy, KeyRound, Link2, LogOut, ShieldCheck, Trash2 } from 'lucide-react';
+import { Badge } from '@qoe/ui/badge';
+import { Button } from '@qoe/ui/button';
+import { Input } from '@qoe/ui/input';
+import { Check, Copy, Link2, LogOut, ShieldCheck, Trash2 } from 'lucide-react';
 
 const supabase = createClient();
 
@@ -163,34 +166,44 @@ export default function SecuritySettings() {
               {verified.map((factor) => (
                 <div
                   key={factor.id}
-                  className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2 text-sm"
+                  className="flex items-center justify-between rounded-control bg-muted/30 px-3 py-2 text-sm"
                 >
-                  <span>
-                    {factor.friendly_name || 'TOTP'}{' '}
-                    <span className="text-xs text-success-text">{t`Vérifié`}</span>
+                  <span className="flex items-center gap-2">
+                    <span>{factor.friendly_name || 'TOTP'}</span>
+                    <Badge tone="success" variant="soft" size="xs">
+                      {t`Vérifié`}
+                    </Badge>
                   </span>
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    tone="danger"
+                    size="xs"
+                    shape="icon"
                     disabled={busy}
                     onClick={() => removeFactor(factor.id)}
-                    className="text-destructive-text"
+                    aria-label={t`Supprimer ce facteur`}
                   >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                    <Trash2 />
+                  </Button>
                 </div>
               ))}
             </div>
             {!enrollment && (
-              <button
-                type="button"
+              <Button
+                variant="solid"
+                tone="brand"
+                size="sm"
                 disabled={busy}
                 onClick={beginEnrollment}
-                className="mt-4 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
-              >{t`Ajouter un facteur TOTP`}</button>
+                className="mt-4"
+              >
+                {t`Ajouter un facteur TOTP`}
+              </Button>
             )}
             {enrollment && (
-              <div className="mt-4 space-y-3 rounded-lg bg-muted/30 p-3">
+              <div className="mt-4 space-y-3 rounded-panel bg-muted/30 p-3">
                 <p className="text-xs">{t`Scannez ce QR code avec votre application d’authentification.`}</p>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={`data:image/svg+xml;utf8,${encodeURIComponent(enrollment.qr)}`}
                   alt={t`QR code TOTP`}
@@ -198,39 +211,40 @@ export default function SecuritySettings() {
                 />
                 <div className="flex items-center gap-2">
                   <p className="min-w-0 flex-1 break-all font-mono text-xs">{enrollment.secret}</p>
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    size="xs"
+                    shape="icon"
                     onClick={copySecret}
-                    className="shrink-0 rounded p-1 text-muted-foreground hover:bg-muted"
                     aria-label={t`Copier le secret TOTP`}
                   >
-                    {copied ? (
-                      <Check className="h-4 w-4 text-success-text" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                  </button>
+                    {copied ? <Check className="text-success-text" /> : <Copy />}
+                  </Button>
                 </div>
                 <div className="flex gap-2">
-                  <input
+                  <Input
+                    size="sm"
                     inputMode="numeric"
                     maxLength={6}
                     value={code}
                     onChange={(event) => setCode(event.target.value.replace(/\D/g, ''))}
                     placeholder="123456"
-                    className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    className="min-w-0 flex-1"
                   />
-                  <button
-                    type="button"
+                  <Button
+                    variant="solid"
+                    tone="brand"
+                    size="sm"
                     disabled={busy || code.length !== 6}
                     onClick={verifyEnrollment}
-                    className="rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
-                  >{t`Vérifier`}</button>
+                  >
+                    {t`Vérifier`}
+                  </Button>
                 </div>
               </div>
             )}
           </div>
-          <div className="rounded-xl border border-border/60 p-4">
+          <div className="rounded-panel border border-border/60 p-4">
             <div className="flex items-start gap-3">
               <Link2 className="mt-0.5 h-5 w-5 text-primary" />
               <div>
@@ -238,26 +252,25 @@ export default function SecuritySettings() {
                 <p className="mt-1 text-xs text-muted-foreground">{t`Les fournisseurs liés ne donnent jamais accès à vos tokens.`}</p>
               </div>
             </div>
-            <div className="mt-4 flex flex-wrap gap-2">
+            <div className="mt-4 flex flex-wrap items-center gap-2">
               {identities.map((identity) => (
-                <span
-                  key={`${identity.provider}-${identity.id}`}
-                  className="rounded-full border border-border px-3 py-1.5 text-xs"
-                >
+                <Badge key={`${identity.provider}-${identity.id}`} variant="outline" shape="pill">
                   {identity.provider}
-                </span>
+                </Badge>
               ))}
               {!identities.some((identity) => identity.provider === 'google') && (
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
+                  size="xs"
                   disabled={busy}
                   onClick={() => linkProvider('google')}
-                  className="rounded-full border border-border px-3 py-1.5 text-xs hover:bg-muted"
-                >{t`Lier Google`}</button>
+                >
+                  {t`Lier Google`}
+                </Button>
               )}
             </div>
           </div>
-          <div className="rounded-xl border border-destructive/25 bg-destructive/[0.03] p-4">
+          <div className="rounded-panel border border-destructive/25 bg-destructive/[0.03] p-4">
             <div className="flex items-start gap-3">
               <LogOut className="mt-0.5 h-5 w-5 text-destructive-text" />
               <div>
@@ -265,12 +278,16 @@ export default function SecuritySettings() {
                 <p className="mt-1 text-xs text-muted-foreground">{t`Déconnecte tous les appareils gérés par Supabase Auth.`}</p>
               </div>
             </div>
-            <button
-              type="button"
+            <Button
+              variant="outline"
+              tone="danger"
+              size="sm"
               disabled={busy}
               onClick={globalSignOut}
-              className="mt-4 rounded-lg border border-destructive/30 px-3 py-2 text-sm font-semibold text-destructive-text disabled:opacity-50"
-            >{t`Déconnecter tous les appareils`}</button>
+              className="mt-4"
+            >
+              {t`Déconnecter tous les appareils`}
+            </Button>
           </div>
         </>
       )}

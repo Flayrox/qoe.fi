@@ -23,7 +23,7 @@ import {
   type OnboardingSubmitData,
 } from '@qoe/ui';
 import { useFeedImpressionTracker } from '@qoe/analytics';
-import { ArticleCard } from './components/ArticleCard';
+import { ArticleCard } from '@qoe/ui/cards';
 import { ThoughtFeedSlice } from './components/ThoughtFeedSlice';
 import { VirtualizedFeedList } from '@/components/feed/VirtualizedFeedList';
 import { RealtimeFeedPill } from '@/components/feed/RealtimeFeedPill';
