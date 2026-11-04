@@ -14,11 +14,15 @@
 import React from 'react';
 import Link from 'next/link';
 import { ShieldOff } from 'lucide-react';
+import { Badge } from '@qoe/ui/badge';
+import { Button } from '@qoe/ui/button';
+import { Checkbox } from '@qoe/ui/checkbox';
+import { Input } from '@qoe/ui/input';
+import { Table, TableBody, TableCell, TableColumn, TableHeader, TableRow } from '@qoe/ui/table';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 import { denialGroups, getAuthzDecisions, modeSplit } from '@/lib/admin-audit-data';
 import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
 import { QueueEmpty } from '@/components/queue/QueueEmpty';
-import { StatusPill } from '@/components/queue/StatusPill';
 
 export const dynamic = 'force-dynamic';
 
@@ -70,34 +74,38 @@ export default async function AdminAccessDecisionsPage({ searchParams }: Decisio
       >
         <label className="text-[11px] text-muted-foreground space-y-1 block">
           Capacité
-          <input
+          <Input
             name="capability"
             defaultValue={params.capability ?? ''}
             placeholder="admin.users.moderate"
-            className="w-64 text-xs px-3 py-2 rounded-xl border border-border bg-background outline-none"
+            size="sm"
+            className="w-64"
           />
         </label>
         <label className="text-[11px] text-muted-foreground space-y-1 block">
           Fenêtre (heures)
-          <input
+          <Input
             name="window"
             type="number"
             min={1}
             defaultValue={windowHours}
-            className="w-28 text-xs px-3 py-2 rounded-xl border border-border bg-background outline-none"
+            size="sm"
+            className="w-28"
           />
         </label>
-        <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
-          <input type="checkbox" name="denied" value="1" defaultChecked={onlyDenied} />
+        <label className="flex items-center gap-2 text-[11px] text-muted-foreground mb-1 cursor-pointer">
+          <input
+            type="checkbox"
+            name="denied"
+            value="1"
+            defaultChecked={onlyDenied}
+            className="rounded border-border"
+          />
           Refus uniquement
         </label>
-        <button
-          type="submit"
-          className="rounded-xl bg-[#EE4B2B] px-4 py-2 text-xs font-bold text-white"
-          data-testid="decisions-apply"
-        >
+        <Button type="submit" variant="solid" tone="brand" size="sm" data-testid="decisions-apply">
           Appliquer
-        </button>
+        </Button>
       </form>
 
       <section className="space-y-4">
@@ -110,41 +118,40 @@ export default async function AdminAccessDecisionsPage({ searchParams }: Decisio
             hint="Personne n’a été bloqué : c’est la condition pour armer le mode refus sans surprise."
           />
         ) : (
-          <div className="bg-white border border-border rounded-3xl shadow-sm overflow-hidden">
-            <table className="w-full text-left text-xs" data-testid="decisions-groups">
-              <thead className="bg-muted/40 text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">Capacité</th>
-                  <th className="px-4 py-3 font-semibold">Motif</th>
-                  <th className="px-4 py-3 font-semibold">Mode</th>
-                  <th className="px-4 py-3 font-semibold">Refus</th>
-                  <th className="px-4 py-3 font-semibold">Dernier</th>
-                </tr>
-              </thead>
-              <tbody>
-                {denials.map((group) => (
-                  <tr
-                    key={`${group.capability}-${group.mode}-${group.code}`}
-                    className="border-t border-border/70"
-                  >
-                    <td className="px-4 py-3 font-mono text-[11px]">{group.capability}</td>
-                    <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground">
-                      {group.code}
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusPill tone={group.mode === 'enforce' ? 'hot' : 'muted'}>
-                        {group.mode === 'enforce' ? 'appliqué' : 'observé'}
-                      </StatusPill>
-                    </td>
-                    <td className="px-4 py-3 font-semibold">{group.total}</td>
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {group.lastAt ? new Date(group.lastAt).toLocaleString('fr-FR') : '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table aria-label="Refus par capacité" size="md" data-testid="decisions-groups">
+            <TableHeader>
+              <TableColumn isRowHeader>Capacité</TableColumn>
+              <TableColumn>Motif</TableColumn>
+              <TableColumn>Mode</TableColumn>
+              <TableColumn>Refus</TableColumn>
+              <TableColumn>Dernier</TableColumn>
+            </TableHeader>
+            <TableBody items={denials}>
+              {(group) => (
+                <TableRow id={`${group.capability}-${group.mode}-${group.code}`}>
+                  <TableCell className="font-mono text-[11px] font-semibold text-foreground">
+                    {group.capability}
+                  </TableCell>
+                  <TableCell className="font-mono text-[11px] text-muted-foreground">
+                    {group.code}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="soft"
+                      tone={group.mode === 'enforce' ? 'danger' : 'neutral'}
+                      size="xs"
+                    >
+                      {group.mode === 'enforce' ? 'appliqué' : 'observé'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="font-semibold text-foreground">{group.total}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {group.lastAt ? new Date(group.lastAt).toLocaleString('fr-FR') : '—'}
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         )}
       </section>
 
@@ -156,57 +163,59 @@ export default async function AdminAccessDecisionsPage({ searchParams }: Decisio
             hint="Élargissez la fenêtre ou retirez le filtre de refus."
           />
         ) : (
-          <div className="bg-white border border-border rounded-3xl shadow-sm overflow-hidden">
-            <table className="w-full min-w-[860px] text-left text-xs" data-testid="decisions-items">
-              <thead className="bg-muted/40 text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">Quand</th>
-                  <th className="px-4 py-3 font-semibold">Personne</th>
-                  <th className="px-4 py-3 font-semibold">Route</th>
-                  <th className="px-4 py-3 font-semibold">Capacité</th>
-                  <th className="px-4 py-3 font-semibold">Issue</th>
-                </tr>
-              </thead>
-              <tbody>
-                {view.items.map((item) => (
-                  <tr key={item.id} className="border-t border-border/70">
-                    <td className="px-4 py-3 text-muted-foreground">
-                      {new Date(item.createdAt).toLocaleString('fr-FR')}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div>{item.email || '—'}</div>
-                      <div className="font-mono text-[10px] text-muted-foreground">
-                        {item.userId ?? 'anonyme'}
+          <Table aria-label="Dernières décisions" size="md" data-testid="decisions-items">
+            <TableHeader>
+              <TableColumn isRowHeader>Quand</TableColumn>
+              <TableColumn>Personne</TableColumn>
+              <TableColumn>Route</TableColumn>
+              <TableColumn>Capacité</TableColumn>
+              <TableColumn>Issue</TableColumn>
+            </TableHeader>
+            <TableBody items={view.items}>
+              {(item) => (
+                <TableRow id={item.id}>
+                  <TableCell className="text-muted-foreground">
+                    {new Date(item.createdAt).toLocaleString('fr-FR')}
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-medium text-foreground">{item.email || '—'}</div>
+                    <div className="font-mono text-[10px] text-muted-foreground">
+                      {item.userId ?? 'anonyme'}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="font-mono text-[11px] text-foreground">
+                      {item.method} {item.path}
+                    </span>
+                  </TableCell>
+                  <TableCell className="font-mono text-[11px]">
+                    {item.capability}
+                    {item.proofLevel ? (
+                      <Badge variant="soft" tone="neutral" size="xs" className="ml-1 font-sans">
+                        {item.proofLevel}
+                      </Badge>
+                    ) : null}
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="soft"
+                      tone={
+                        item.allowed ? 'success' : item.mode === 'enforce' ? 'danger' : 'neutral'
+                      }
+                      size="xs"
+                    >
+                      {item.allowed ? 'accordé' : item.mode === 'enforce' ? 'refusé' : 'observé'}
+                    </Badge>
+                    {!item.allowed && (
+                      <div className="mt-1 font-mono text-[10px] text-muted-foreground">
+                        {item.code}
                       </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="font-mono text-[11px]">
-                        {item.method} {item.path}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 font-mono text-[11px]">
-                      {item.capability}
-                      {item.proofLevel ? (
-                        <span className="ml-1 rounded bg-muted px-1.5 py-0.5 font-sans text-[10px]">
-                          {item.proofLevel}
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusPill tone={item.allowed ? 'hot' : 'muted'}>
-                        {item.allowed ? 'accordé' : item.mode === 'enforce' ? 'refusé' : 'observé'}
-                      </StatusPill>
-                      {!item.allowed && (
-                        <div className="mt-1 font-mono text-[10px] text-muted-foreground">
-                          {item.code}
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    )}
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         )}
       </section>
     </div>

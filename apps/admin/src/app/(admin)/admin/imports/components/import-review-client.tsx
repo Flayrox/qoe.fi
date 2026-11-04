@@ -18,6 +18,10 @@
 import React, { useState } from 'react';
 import { toast } from '@qoe/ui/toast';
 import { Select } from '@qoe/ui/select';
+import { Button } from '@qoe/ui/button';
+import { Input, Textarea } from '@qoe/ui/input';
+import { Badge } from '@qoe/ui/badge';
+import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell } from '@qoe/ui/table';
 import { Loader2 } from 'lucide-react';
 import {
   cancelSendWaveAction,
@@ -153,9 +157,9 @@ export function ImportReviewClient({ initial }: { initial: ImportReview }) {
         </div>
         <div className="flex flex-wrap gap-2">
           {Object.entries(rowCounts).map(([status, n]) => (
-            <span key={status} className="rounded-full border border-border/60 px-2.5 py-1 text-xs">
-              {ROW_STATUS_LABELS[status] ?? status} : <strong>{n}</strong>
-            </span>
+            <Badge key={status} variant="soft" tone="neutral" size="sm">
+              {ROW_STATUS_LABELS[status] ?? status} : <strong className="ml-1">{n}</strong>
+            </Badge>
           ))}
           {Object.keys(rowCounts).length === 0 && (
             <span className="text-xs text-muted-foreground">
@@ -165,26 +169,26 @@ export function ImportReviewClient({ initial }: { initial: ImportReview }) {
           )}
         </div>
         {initial.rows.length > 0 && (
-          <div className="overflow-x-auto rounded-xl border border-border/40">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="bg-muted/40 text-left text-muted-foreground">
-                  <th className="px-3 py-2 font-medium">Adresse (échantillon neutralisé)</th>
-                  <th className="px-3 py-2 font-medium">Verdict</th>
-                  <th className="px-3 py-2 font-medium">Motif</th>
-                </tr>
-              </thead>
-              <tbody>
-                {initial.rows.slice(0, 50).map((row, i) => (
-                  <tr key={`${row.email}-${i}`} className="border-t border-border/40">
-                    <td className="px-3 py-1.5 font-mono">{row.email}</td>
-                    <td className="px-3 py-1.5">{ROW_STATUS_LABELS[row.status] ?? row.status}</td>
-                    <td className="px-3 py-1.5 text-muted-foreground">{row.reason ?? '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table aria-label="Échantillon d'adresses neutralisé" size="sm">
+            <TableHeader>
+              <TableColumn isRowHeader>Adresse (échantillon neutralisé)</TableColumn>
+              <TableColumn>Verdict</TableColumn>
+              <TableColumn>Motif</TableColumn>
+            </TableHeader>
+            <TableBody
+              items={initial.rows
+                .slice(0, 50)
+                .map((row, i) => ({ ...row, id: `${row.email}-${i}` }))}
+            >
+              {(row) => (
+                <TableRow id={row.id}>
+                  <TableCell className="font-mono">{row.email}</TableCell>
+                  <TableCell>{ROW_STATUS_LABELS[row.status] ?? row.status}</TableCell>
+                  <TableCell className="text-muted-foreground">{row.reason ?? '—'}</TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         )}
       </Section>
 
@@ -271,68 +275,70 @@ export function ImportReviewClient({ initial }: { initial: ImportReview }) {
             </label>
             <label className="space-y-1 text-xs">
               <span className="text-muted-foreground">Expire le (optionnel)</span>
-              <input
+              <Input
                 type="date"
                 value={expiresAt}
                 onChange={(e) => setExpiresAt(e.target.value)}
-                className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                size="sm"
               />
             </label>
             <label className="space-y-1 text-xs sm:col-span-2">
               <span className="text-muted-foreground">
                 Motif interne (jamais exposé au demandeur)
               </span>
-              <textarea
+              <Textarea
                 value={internalReason}
                 onChange={(e) => setInternalReason(e.target.value)}
                 rows={2}
-                className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                size="sm"
               />
             </label>
             <label className="space-y-1 text-xs sm:col-span-2">
               <span className="text-muted-foreground">Motif communicable</span>
-              <textarea
+              <Textarea
                 value={publicReason}
                 onChange={(e) => setPublicReason(e.target.value)}
                 rows={2}
-                className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                size="sm"
               />
             </label>
             <label className="space-y-1 text-xs">
               <span className="text-muted-foreground">Version du fichier visée</span>
-              <input
+              <Input
                 value={fileVersion}
                 onChange={(e) => setFileVersion(e.target.value)}
                 inputMode="numeric"
-                className="w-full rounded-lg border bg-background px-3 py-2 text-sm font-mono"
+                size="sm"
+                className="font-mono"
               />
             </label>
             <label className="space-y-1 text-xs">
               <span className="text-muted-foreground">Empreinte visée</span>
-              <input
+              <Input
                 value={fileFingerprint}
                 onChange={(e) => setFileFingerprint(e.target.value)}
-                className="w-full rounded-lg border bg-background px-3 py-2 text-sm font-mono"
+                size="sm"
+                className="font-mono"
               />
             </label>
             <label className="space-y-1 text-xs">
               <span className="text-muted-foreground">Plafond destinataires (envoi encadré)</span>
-              <input
+              <Input
                 value={maxRecipients}
                 onChange={(e) => setMaxRecipients(e.target.value)}
                 inputMode="numeric"
                 placeholder="défaut 1000"
-                className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                size="sm"
               />
             </label>
             <label className="space-y-1 text-xs">
               <span className="text-muted-foreground">Plafond par vague (reconfirmation)</span>
-              <input
+              <Input
                 value={maxWave}
                 onChange={(e) => setMaxWave(e.target.value)}
                 inputMode="numeric"
                 placeholder="défaut 500"
-                className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+                size="sm"
               />
             </label>
             <label className="space-y-1 text-xs sm:col-span-2">
@@ -340,32 +346,36 @@ export function ImportReviewClient({ initial }: { initial: ImportReview }) {
                 Exclure des adresses (une par ligne ou séparées par virgules — deviennent une
                 opposition durable)
               </span>
-              <textarea
+              <Textarea
                 value={excludeEmails}
                 onChange={(e) => setExcludeEmails(e.target.value)}
                 rows={2}
-                className="w-full rounded-lg border bg-background px-3 py-2 text-sm font-mono"
+                size="sm"
+                className="font-mono"
               />
             </label>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               disabled={busy !== null}
               onClick={() => run('claim', () => claimImportAction(batch.id))}
-              className="rounded-lg border border-border/60 px-3 py-2 text-xs font-semibold disabled:opacity-50"
             >
               {busy === 'claim' ? '…' : 'Marquer en examen'}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="solid"
+              tone="brand"
+              size="sm"
               disabled={busy !== null}
               onClick={submitDecision}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"
             >
               {busy === 'decide' && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
               {busy === 'decide' ? 'Enregistrement…' : 'Enregistrer la décision'}
-            </button>
+            </Button>
           </div>
           <p className="text-[11px] leading-relaxed text-muted-foreground">
             Une décision est immuable et porte sur la version exacte du fichier : modifier le CSV
@@ -400,33 +410,36 @@ export function ImportReviewClient({ initial }: { initial: ImportReview }) {
         <div className="flex flex-wrap items-end gap-2">
           <label className="space-y-1 text-xs">
             <span className="text-muted-foreground">Taille de vague</span>
-            <input
+            <Input
               value={waveSize}
               onChange={(e) => setWaveSize(e.target.value)}
               inputMode="numeric"
-              className="w-28 rounded-lg border bg-background px-3 py-2 text-sm"
+              size="sm"
+              className="w-28"
             />
           </label>
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             disabled={busy !== null}
             onClick={() =>
               run('reconfirm', () =>
                 startReconfirmWaveAction({ batchId: batch.id, waveSize: Number(waveSize) || 0 })
               )
             }
-            className="rounded-lg border border-border/60 px-3 py-2 text-xs font-semibold disabled:opacity-50"
           >
             {busy === 'reconfirm' ? '…' : 'Ouvrir une vague'}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             disabled={busy !== null}
             onClick={() => run('purge', () => purgeReconfirmAction(batch.id))}
-            className="rounded-lg border border-border/60 px-3 py-2 text-xs font-semibold disabled:opacity-50"
           >
             {busy === 'purge' ? '…' : 'Purger les demandes échues'}
-          </button>
+          </Button>
         </div>
       </Section>
 
@@ -449,18 +462,21 @@ export function ImportReviewClient({ initial }: { initial: ImportReview }) {
                 </p>
                 <p className="mt-1 font-mono text-[11px] text-muted-foreground">{w.id}</p>
                 {(w.status === 'queued' || w.status === 'sending' || w.status === 'paused') && (
-                  <button
+                  <Button
                     type="button"
+                    variant="soft"
+                    tone="danger"
+                    size="sm"
                     disabled={busy !== null}
                     onClick={() =>
                       run(`cancel-${w.id}`, () =>
                         cancelSendWaveAction({ batchId: batch.id, waveId: w.id })
                       )
                     }
-                    className="mt-2 rounded-lg border border-destructive/50 px-2.5 py-1.5 text-xs font-semibold text-destructive-text disabled:opacity-50"
+                    className="mt-2"
                   >
                     {busy === `cancel-${w.id}` ? '…' : 'Annuler la vague'}
-                  </button>
+                  </Button>
                 )}
               </div>
             ))}
@@ -469,26 +485,29 @@ export function ImportReviewClient({ initial }: { initial: ImportReview }) {
         <div className="flex flex-wrap items-end gap-2">
           <label className="space-y-1 text-xs">
             <span className="text-muted-foreground">Plafond destinataires</span>
-            <input
+            <Input
               value={sendCap}
               onChange={(e) => setSendCap(e.target.value)}
               inputMode="numeric"
               placeholder="défaut 1000"
-              className="w-36 rounded-lg border bg-background px-3 py-2 text-sm"
+              size="sm"
+              className="w-36"
             />
           </label>
-          <button
+          <Button
             type="button"
+            variant="solid"
+            tone="brand"
+            size="sm"
             disabled={busy !== null}
             onClick={() =>
               run('sendwave', () =>
                 startSendWaveAction({ batchId: batch.id, cap: Number(sendCap) || 0 })
               )
             }
-            className="rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"
           >
             {busy === 'sendwave' ? '…' : "Ouvrir une vague d'envoi"}
-          </button>
+          </Button>
         </div>
         <p className="text-[11px] leading-relaxed text-muted-foreground">
           Réservé aux lots <span className="font-mono">approved_direct</span> avec preuves solides.

@@ -11,10 +11,11 @@ import React from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { UserSearch } from 'lucide-react';
+import { Badge } from '@qoe/ui/badge';
+import { Table, TableBody, TableCell, TableColumn, TableHeader, TableRow } from '@qoe/ui/table';
 import { getAdminIdentity, hasCapability, requireCapability } from '@/lib/admin-identity';
 import { getAccessPerson, getAccessRoles } from '@/lib/admin-access-data';
 import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
-import { StatusPill } from '@/components/queue/StatusPill';
 import { AccessGrantForm } from '../../components/access-grant-form';
 
 export const dynamic = 'force-dynamic';
@@ -68,37 +69,37 @@ export default async function AdminAccessPersonPage({ params }: AccessPersonPage
             {person.legacySuperadmin ? ' — sauf par la promotion historique.' : '.'}
           </p>
         ) : (
-          <div className="bg-white border border-border rounded-3xl shadow-sm overflow-hidden">
-            <table className="w-full text-left text-xs" data-testid="access-person-roles">
-              <thead className="bg-muted/40 text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">Rôle</th>
-                  <th className="px-4 py-3 font-semibold">Attribué le</th>
-                  <th className="px-4 py-3 font-semibold">Échéance</th>
-                  <th className="px-4 py-3 font-semibold">État</th>
-                </tr>
-              </thead>
-              <tbody>
-                {person.roles.map((role) => (
-                  <tr key={role.roleKey} className="border-t border-border/70">
-                    <td className="px-4 py-3">
-                      <div className="font-medium">{role.roleLabel}</div>
-                      <div className="font-mono text-[11px] text-muted-foreground">
-                        {role.roleKey}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">{fmt(role.grantedAt)}</td>
-                    <td className="px-4 py-3">{fmt(role.expiresAt)}</td>
-                    <td className="px-4 py-3">
-                      <StatusPill tone={role.state === 'active' ? 'hot' : 'muted'}>
-                        {role.state === 'active' ? 'actif' : 'échu'}
-                      </StatusPill>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Table aria-label="Rôles attribués" size="md" data-testid="access-person-roles">
+            <TableHeader>
+              <TableColumn isRowHeader>Rôle</TableColumn>
+              <TableColumn>Attribué le</TableColumn>
+              <TableColumn>Échéance</TableColumn>
+              <TableColumn>État</TableColumn>
+            </TableHeader>
+            <TableBody items={person.roles}>
+              {(role) => (
+                <TableRow id={role.roleKey}>
+                  <TableCell>
+                    <div className="font-medium text-foreground">{role.roleLabel}</div>
+                    <div className="font-mono text-[11px] text-muted-foreground">
+                      {role.roleKey}
+                    </div>
+                  </TableCell>
+                  <TableCell>{fmt(role.grantedAt)}</TableCell>
+                  <TableCell>{fmt(role.expiresAt)}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="soft"
+                      tone={role.state === 'active' ? 'vivid' : 'neutral'}
+                      size="xs"
+                    >
+                      {role.state === 'active' ? 'actif' : 'échu'}
+                    </Badge>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         )}
       </section>
 

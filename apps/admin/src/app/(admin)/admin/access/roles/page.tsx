@@ -13,6 +13,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Grid3X3, Users } from 'lucide-react';
+import { Table, TableBody, TableCell, TableColumn, TableHeader, TableRow } from '@qoe/ui/table';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 import { getAccessCapabilities, getAccessRoles } from '@/lib/admin-access-data';
 import { ADMIN_DOMAIN_LABELS, ADMIN_DOMAINS, type AdminDomain } from '@/lib/admin-console';
@@ -66,63 +67,51 @@ export default async function AdminAccessRolesPage() {
         ))}
       </div>
 
-      <div className="bg-white border border-border rounded-3xl shadow-sm overflow-x-auto">
-        <table className="w-full text-left text-xs" data-testid="access-roles-matrix">
-          <thead className="bg-muted/40 text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3 font-semibold sticky left-0 bg-muted/40">Capacité</th>
-              {roles.map((role) => (
-                <th
-                  key={role.key}
-                  className="px-3 py-3 font-semibold text-center whitespace-nowrap"
-                >
-                  {role.label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {ADMIN_DOMAINS.map((domain) => (
-              <React.Fragment key={domain}>
-                <tr className="border-t border-border/70 bg-muted/20">
-                  <td colSpan={roles.length + 1} className="px-4 py-2 font-semibold">
-                    {ADMIN_DOMAIN_LABELS[domain]}
-                  </td>
-                </tr>
-                {(byDomain.get(domain) ?? []).map((capability) => (
-                  <tr key={capability.key} className="border-t border-border/40">
-                    <td className="px-4 py-2 sticky left-0 bg-white">
-                      <div className="font-medium">{capability.label}</div>
-                      <div className="font-mono text-[11px] text-muted-foreground">
-                        {capability.key}
-                      </div>
-                    </td>
-                    {roles.map((role) => {
-                      const has = held.get(role.key)?.has(capability.key) ?? false;
-                      return (
-                        <td
-                          key={role.key}
-                          className="px-3 py-2 text-center"
-                          data-testid={`access-matrix-${role.key}-${capability.key}`}
-                        >
-                          {has ? (
-                            <span className="text-foreground" aria-label="détenue">
-                              ●
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground/40" aria-label="absente">
-                              ·
-                            </span>
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </React.Fragment>
+      <div className="bg-card border border-border rounded-3xl shadow-sm overflow-x-auto">
+        <Table aria-label="Matrice des rôles" size="sm" data-testid="access-roles-matrix">
+          <TableHeader>
+            <TableColumn isRowHeader className="sticky left-0 bg-muted/40 z-10">
+              Capacité
+            </TableColumn>
+            {roles.map((role) => (
+              <TableColumn key={role.key} className="text-center whitespace-nowrap">
+                {role.label}
+              </TableColumn>
             ))}
-          </tbody>
-        </table>
+          </TableHeader>
+          <TableBody>
+            {capabilities.map((capability) => (
+              <TableRow key={capability.key} id={capability.key}>
+                <TableCell className="sticky left-0 bg-background z-10">
+                  <div className="font-medium text-foreground">{capability.label}</div>
+                  <div className="font-mono text-[11px] text-muted-foreground">
+                    {capability.key}
+                  </div>
+                </TableCell>
+                {roles.map((role) => {
+                  const has = held.get(role.key)?.has(capability.key) ?? false;
+                  return (
+                    <TableCell
+                      key={role.key}
+                      className="text-center"
+                      data-testid={`access-matrix-${role.key}-${capability.key}`}
+                    >
+                      {has ? (
+                        <span className="text-foreground" aria-label="détenue">
+                          ●
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground/40" aria-label="absente">
+                          ·
+                        </span>
+                      )}
+                    </TableCell>
+                  );
+                })}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

@@ -18,6 +18,9 @@ import {
   SlidersHorizontal,
   UserCog,
 } from 'lucide-react';
+import { Badge } from '@qoe/ui/badge';
+import { Button, buttonClasses } from '@qoe/ui/button';
+import { Table, TableBody, TableCell, TableColumn, TableHeader, TableRow } from '@qoe/ui/table';
 import { auditQuery, type AdminAuditEntry, type AuthzMode } from '@/lib/admin-audit-types';
 
 const actionMeta: Record<string, { label: string; icon: typeof ShieldCheck }> = {
@@ -175,100 +178,87 @@ export function AuditLogClient({ entries, mode, filters }: AuditLogClientProps) 
             <input type="date" name="until" defaultValue={filters.until} className={inputCls} />
           </label>
           <div className="md:col-span-3 flex gap-2">
-            <button
+            <Button
               type="submit"
+              variant="solid"
+              tone="brand"
+              size="sm"
               data-testid="audit-apply-filters"
-              className="rounded-xl bg-[#EE4B2B] px-4 py-2 text-xs font-bold text-white"
             >
               Appliquer
-            </button>
-            <a
-              href="/admin/audit"
-              className="rounded-xl border border-border px-4 py-2 text-xs font-semibold"
-            >
+            </Button>
+            <a href="/admin/audit" className={buttonClasses({ variant: 'outline', size: 'sm' })}>
               Réinitialiser
             </a>
           </div>
         </form>
       )}
 
-      <div className="overflow-hidden rounded-2xl border border-border bg-white">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px] text-left text-sm" data-testid="audit-table">
-            <thead className="border-b border-border bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3">Quand</th>
-                <th className="px-4 py-3">Qui</th>
-                <th className="px-4 py-3">Action</th>
-                <th className="px-4 py-3">Capacité</th>
-                <th className="px-4 py-3">Cible</th>
-                <th className="px-4 py-3">Motif &amp; diff</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-xs text-muted-foreground">
-                    Aucune entrée pour ces filtres.
-                  </td>
-                </tr>
-              ) : (
-                entries.map((entry) => {
-                  const meta = actionMeta[entry.action];
-                  const Icon = meta?.icon ?? ShieldCheck;
-                  const before = compact(entry.before);
-                  const after = compact(entry.after) || compact(entry.metadata);
-                  return (
-                    <tr key={entry.id} className="border-b border-border/60 align-top">
-                      <td className="px-4 py-3 whitespace-nowrap text-xs text-muted-foreground">
-                        {new Date(entry.createdAt).toLocaleString('fr-FR')}
-                      </td>
-                      <td className="px-4 py-3 text-xs">
-                        <div className="font-medium">{entry.actorName ?? entry.actorEmail}</div>
-                        <div className="text-muted-foreground">{entry.actorEmail}</div>
-                      </td>
-                      <td className="px-4 py-3 text-xs">
-                        <span className="inline-flex items-center gap-1.5 font-medium">
-                          <Icon className="h-3.5 w-3.5" /> {meta?.label ?? entry.action}
-                        </span>
-                        <div className="font-mono text-[10px] text-muted-foreground">
-                          {entry.action}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-xs font-mono">
-                        {entry.capability ?? <span className="text-muted-foreground">—</span>}
-                        {entry.proofLevel ? (
-                          <span className="ml-1 rounded bg-muted px-1.5 py-0.5 font-sans text-[10px]">
-                            {entry.proofLevel}
-                          </span>
-                        ) : null}
-                      </td>
-                      <td className="px-4 py-3 text-xs">
-                        <div>{entry.targetType}</div>
-                        <div className="font-mono text-[10px] text-muted-foreground">
-                          {entry.targetId ?? '—'}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 text-xs">
-                        {entry.reason ? <div className="italic">« {entry.reason} »</div> : null}
-                        {before || after ? (
-                          <div className="mt-1 text-[11px] text-muted-foreground">
-                            {before ? <span className="line-through">{before}</span> : null}
-                            {before && after ? <span> → </span> : null}
-                            {after ? <span>{after}</span> : null}
-                          </div>
-                        ) : (
-                          !entry.reason && <span className="text-muted-foreground">—</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <Table aria-label="Journal d'audit" size="md" data-testid="audit-table">
+        <TableHeader>
+          <TableColumn isRowHeader>Quand</TableColumn>
+          <TableColumn>Qui</TableColumn>
+          <TableColumn>Action</TableColumn>
+          <TableColumn>Capacité</TableColumn>
+          <TableColumn>Cible</TableColumn>
+          <TableColumn>Motif &amp; diff</TableColumn>
+        </TableHeader>
+        <TableBody items={entries} emptyState="Aucune entrée pour ces filtres.">
+          {(entry) => {
+            const meta = actionMeta[entry.action];
+            const Icon = meta?.icon ?? ShieldCheck;
+            const before = compact(entry.before);
+            const after = compact(entry.after) || compact(entry.metadata);
+            return (
+              <TableRow key={entry.id} id={entry.id}>
+                <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                  {new Date(entry.createdAt).toLocaleString('fr-FR')}
+                </TableCell>
+                <TableCell className="text-xs">
+                  <div className="font-medium text-foreground">
+                    {entry.actorName ?? entry.actorEmail}
+                  </div>
+                  <div className="text-muted-foreground">{entry.actorEmail}</div>
+                </TableCell>
+                <TableCell className="text-xs">
+                  <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+                    <Icon className="h-3.5 w-3.5" /> {meta?.label ?? entry.action}
+                  </span>
+                  <div className="font-mono text-[10px] text-muted-foreground">{entry.action}</div>
+                </TableCell>
+                <TableCell className="text-xs font-mono">
+                  {entry.capability ?? <span className="text-muted-foreground">—</span>}
+                  {entry.proofLevel ? (
+                    <Badge variant="soft" tone="neutral" size="xs" className="ml-1 font-sans">
+                      {entry.proofLevel}
+                    </Badge>
+                  ) : null}
+                </TableCell>
+                <TableCell className="text-xs">
+                  <div className="text-foreground">{entry.targetType}</div>
+                  <div className="font-mono text-[10px] text-muted-foreground">
+                    {entry.targetId ?? '—'}
+                  </div>
+                </TableCell>
+                <TableCell className="text-xs">
+                  {entry.reason ? (
+                    <div className="italic text-foreground">« {entry.reason} »</div>
+                  ) : null}
+                  {before || after ? (
+                    <div className="mt-1 text-[11px] text-muted-foreground">
+                      {before ? <span className="line-through">{before}</span> : null}
+                      {before && after ? <span> → </span> : null}
+                      {after ? <span className="text-foreground">{after}</span> : null}
+                    </div>
+                  ) : (
+                    !entry.reason && <span className="text-muted-foreground">—</span>
+                  )}
+                </TableCell>
+              </TableRow>
+            );
+          }}
+        </TableBody>
+      </Table>
     </div>
   );
 }

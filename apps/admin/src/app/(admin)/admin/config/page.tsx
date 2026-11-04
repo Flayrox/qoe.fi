@@ -1,3 +1,5 @@
+import { Button } from '@qoe/ui/button';
+import { Table, TableBody, TableCell, TableColumn, TableHeader, TableRow } from '@qoe/ui/table';
 import {
   getReservedIdentifiers,
   getSystemConfigs,
@@ -258,93 +260,66 @@ export default async function AdminConfig() {
 
       {/* Feature Flags Table */}
       <div className="w-full">
-        <table className="w-full text-left">
-          <thead>
-            <tr className="border-b border-border hover:bg-transparent">
-              <th className="h-auto py-2 align-bottom text-muted-foreground font-semibold text-xs w-1/4">
-                Key
-              </th>
-              <th className="h-auto py-2 align-bottom text-muted-foreground font-semibold text-xs w-1/4">
-                Value
-              </th>
-              <th className="h-auto py-2 align-bottom text-muted-foreground font-semibold text-xs w-2/5">
-                Description
-              </th>
-              <th className="h-auto py-2 align-bottom text-muted-foreground font-semibold text-xs text-right w-1/12">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {configs.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="py-16 text-center text-muted-foreground text-sm">
-                  No configuration defined.
-                </td>
-              </tr>
-            ) : (
-              configs.map((c) => (
-                <tr
-                  key={c.key}
-                  className="hover:bg-muted/50 border-b border-border/50 transition-colors duration-150 group"
-                >
-                  <td className="py-3 font-mono text-sm text-muted-foreground align-middle">
-                    {c.key}
-                  </td>
-
-                  {/* Inline value and description update form */}
-                  <td colSpan={2} className="py-3 align-middle">
-                    <form action={handleUpdateConfig} className="w-full flex items-center gap-4">
-                      <input type="hidden" name="key" value={c.key} />
-                      <div className="w-1/2">
-                        <textarea
-                          name="value"
-                          defaultValue={c.value}
-                          rows={c.value.length > 80 || c.value.includes('\n') ? 3 : 1}
-                          className="w-full bg-transparent border border-transparent px-2 py-1 text-sm text-muted-foreground focus:ring-1 focus:ring-ring resize-y shadow-none font-mono hover:bg-white hover:border-border focus:bg-white transition-all rounded outline-none"
-                        />
-                      </div>
-
-                      <div className="w-full flex items-center gap-2">
-                        <input
-                          type="text"
-                          name="description"
-                          defaultValue={c.description || ''}
-                          className="w-full bg-transparent border border-transparent px-2 py-1 text-sm text-muted-foreground focus:ring-1 focus:ring-ring shadow-none hover:bg-white hover:border-border focus:bg-white transition-all rounded outline-none"
-                          placeholder="Add a description..."
-                        />
-
-                        <div className="opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            type="submit"
-                            className="text-xs font-medium text-muted-foreground hover:text-foreground bg-white border border-border shadow-sm px-2 py-1 rounded"
-                          >
-                            Save
-                          </button>
-                        </div>
-                      </div>
-                    </form>
-                  </td>
-
-                  <td className="py-3 text-right align-middle">
-                    <form
-                      action={handleDeleteConfig}
-                      className="inline-block opacity-0 group-hover:opacity-100 transition-opacity"
+        <Table aria-label="Configurations système" size="md">
+          <TableHeader>
+            <TableColumn isRowHeader className="w-1/4">
+              Key
+            </TableColumn>
+            <TableColumn className="w-1/4">Value</TableColumn>
+            <TableColumn className="w-2/5">Description</TableColumn>
+            <TableColumn className="text-right w-1/12">Actions</TableColumn>
+          </TableHeader>
+          <TableBody items={configs} emptyState="No configuration defined.">
+            {(c) => (
+              <TableRow key={c.key} id={c.key} className="group">
+                <TableCell className="font-mono text-xs text-muted-foreground">{c.key}</TableCell>
+                <TableCell>
+                  <form id={`form-val-${c.key}`} action={handleUpdateConfig}>
+                    <input type="hidden" name="key" value={c.key} />
+                    <textarea
+                      name="value"
+                      defaultValue={c.value}
+                      rows={c.value.length > 80 || c.value.includes('\n') ? 3 : 1}
+                      className="w-full bg-transparent border border-border/50 px-2 py-1 text-xs text-foreground focus:ring-1 focus:ring-ring resize-y shadow-none font-mono rounded outline-none"
+                    />
+                  </form>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      form={`form-val-${c.key}`}
+                      name="description"
+                      defaultValue={c.description || ''}
+                      className="w-full bg-transparent border border-border/50 px-2 py-1 text-xs text-foreground focus:ring-1 focus:ring-ring shadow-none rounded outline-none"
+                      placeholder="Add a description..."
+                    />
+                    <Button
+                      type="submit"
+                      form={`form-val-${c.key}`}
+                      variant="outline"
+                      size="xs"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity"
                     >
-                      <input type="hidden" name="key" value={c.key} />
-                      <button
-                        type="submit"
-                        className="text-xs font-medium text-muted-foreground hover:text-destructive-text px-2 py-1"
-                      >
-                        Delete
-                      </button>
-                    </form>
-                  </td>
-                </tr>
-              ))
+                      Save
+                    </Button>
+                  </div>
+                </TableCell>
+                <TableCell className="text-right">
+                  <form
+                    action={handleDeleteConfig}
+                    className="inline-block opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <input type="hidden" name="key" value={c.key} />
+                    <Button type="submit" variant="ghost" tone="danger" size="xs">
+                      Delete
+                    </Button>
+                  </form>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

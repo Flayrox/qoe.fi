@@ -8,6 +8,7 @@
 
 import React from 'react';
 import { Database } from 'lucide-react';
+import { Table, TableBody, TableCell, TableColumn, TableHeader, TableRow } from '@qoe/ui/table';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 import { getStorageUsage } from '@/lib/admin-infra-data';
 import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
@@ -86,44 +87,47 @@ export default async function AdminStoragePage() {
         {usage.topUsers.length === 0 ? (
           <QueueEmpty title="Aucun média enregistré" hint="Le registre MediaAsset est vide." />
         ) : (
-          <div className="overflow-hidden rounded-3xl border border-border bg-white shadow-sm">
-            <table className="w-full text-left text-xs" data-testid="storage-top-users">
-              <thead className="bg-muted/40 text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 font-semibold">Compte</th>
-                  <th className="px-4 py-3 font-semibold">Fichiers</th>
-                  <th className="px-4 py-3 font-semibold">Volume</th>
-                  <th className="px-4 py-3 font-semibold">Part</th>
-                </tr>
-              </thead>
-              <tbody>
-                {usage.topUsers.map((user) => {
-                  const share =
-                    usage.totalBytes > 0 ? (user.totalBytes / usage.totalBytes) * 100 : 0;
-                  return (
-                    <tr key={user.ownerId} className="border-t border-border/70">
-                      <td className="px-4 py-3 font-mono text-[11px]">{user.ownerId}</td>
-                      <td className="px-4 py-3">{user.assetCount.toLocaleString('fr-FR')}</td>
-                      <td className="px-4 py-3 font-medium">{formatBytes(user.totalBytes)}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
-                            <div
-                              className="h-full rounded-full bg-highlight"
-                              style={{ width: `${Math.min(100, share).toFixed(1)}%` }}
-                            />
-                          </div>
-                          <span className="text-[11px] text-muted-foreground">
-                            {share.toFixed(1)} %
-                          </span>
+          <Table
+            aria-label="Plus gros consommateurs de stockage"
+            size="md"
+            data-testid="storage-top-users"
+          >
+            <TableHeader>
+              <TableColumn isRowHeader>Compte</TableColumn>
+              <TableColumn>Fichiers</TableColumn>
+              <TableColumn>Volume</TableColumn>
+              <TableColumn>Part</TableColumn>
+            </TableHeader>
+            <TableBody items={usage.topUsers}>
+              {(user) => {
+                const share = usage.totalBytes > 0 ? (user.totalBytes / usage.totalBytes) * 100 : 0;
+                return (
+                  <TableRow id={user.ownerId}>
+                    <TableCell className="font-mono text-[11px] text-foreground">
+                      {user.ownerId}
+                    </TableCell>
+                    <TableCell>{user.assetCount.toLocaleString('fr-FR')}</TableCell>
+                    <TableCell className="font-medium text-foreground">
+                      {formatBytes(user.totalBytes)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
+                          <div
+                            className="h-full rounded-full bg-highlight"
+                            style={{ width: `${Math.min(100, share).toFixed(1)}%` }}
+                          />
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        <span className="text-[11px] text-muted-foreground">
+                          {share.toFixed(1)} %
+                        </span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              }}
+            </TableBody>
+          </Table>
         )}
       </section>
     </div>

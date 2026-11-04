@@ -4,6 +4,11 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { CheckCircle2, Clock3, Loader2, RefreshCw, XCircle } from 'lucide-react';
 import { retryNotificationDeliveryAction } from '@/lib/admin-aux-actions';
+import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell } from '@qoe/ui/table';
+import { Badge, type BadgeProps } from '@qoe/ui/badge';
+import { Button } from '@qoe/ui/button';
+
+type BadgeTone = NonNullable<BadgeProps['tone']>;
 
 export type DeliveryRow = {
   id: string;
@@ -17,12 +22,12 @@ export type DeliveryRow = {
   notification: { type: string; articleTitle: string | null };
 };
 
-const statusMeta: Record<string, { label: string; className: string; icon: typeof Clock3 }> = {
-  QUEUED: { label: 'En attente', className: 'text-highlight bg-highlight/10', icon: Clock3 },
-  PROCESSING: { label: 'En cours', className: 'text-primary bg-primary/10', icon: Loader2 },
-  SENT: { label: 'Envoyé', className: 'text-success-text bg-success/10', icon: CheckCircle2 },
-  FAILED: { label: 'Échec', className: 'text-destructive-text bg-destructive/10', icon: XCircle },
-  DISABLED: { label: 'Désactivé', className: 'text-muted-foreground bg-muted', icon: XCircle },
+const statusMeta: Record<string, { label: string; tone: BadgeTone; icon: typeof Clock3 }> = {
+  QUEUED: { label: 'En attente', tone: 'brand', icon: Clock3 },
+  PROCESSING: { label: 'En cours', tone: 'brand', icon: Loader2 },
+  SENT: { label: 'Envoyé', tone: 'success', icon: CheckCircle2 },
+  FAILED: { label: 'Échec', tone: 'danger', icon: XCircle },
+  DISABLED: { label: 'Désactivé', tone: 'neutral', icon: XCircle },
 };
 
 export function DeliveryTable({ rows }: { rows: DeliveryRow[] }) {
@@ -56,77 +61,74 @@ export function DeliveryTable({ rows }: { rows: DeliveryRow[] }) {
           {error}
         </div>
       )}
-      <div className="overflow-hidden rounded-2xl border border-border bg-white">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left text-sm">
-            <thead className="border-b border-border bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3">Destinataire</th>
-                <th className="px-4 py-3">Événement</th>
-                <th className="px-4 py-3">Statut</th>
-                <th className="px-4 py-3">Tentatives</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/60">
-              {rows.map((row) => {
-                const meta = statusMeta[row.status] || statusMeta.FAILED;
-                const Icon = meta.icon;
-                return (
-                  <tr key={row.id} className="align-top hover:bg-muted/70">
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-foreground">{row.recipient}</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {new Date(row.createdAt).toLocaleString('fr-FR')}
-                      </p>
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="font-medium text-foreground">{row.notification.type}</p>
-                      <p className="mt-0.5 max-w-xs truncate text-xs text-muted-foreground">
-                        {row.notification.articleTitle || 'Notification sans article'}
-                      </p>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-semibold ${meta.className}`}
+      <div className="overflow-hidden rounded-2xl border border-border bg-card">
+        <Table aria-label="Journal des livraisons de notifications" size="md">
+          <TableHeader>
+            <TableColumn isRowHeader>Destinataire</TableColumn>
+            <TableColumn>Événement</TableColumn>
+            <TableColumn>Statut</TableColumn>
+            <TableColumn>Tentatives</TableColumn>
+            <TableColumn>Actions</TableColumn>
+          </TableHeader>
+          <TableBody
+            items={rows}
+            renderEmptyState={() => (
+              <div className="p-12 text-center text-sm text-muted-foreground">
+                Aucune livraison dans l’outbox.
+              </div>
+            )}
+          >
+            {(row) => {
+              const meta = statusMeta[row.status] || statusMeta.FAILED;
+              const Icon = meta.icon;
+              return (
+                <TableRow id={row.id}>
+                  <TableCell>
+                    <p className="font-medium text-foreground">{row.recipient}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {new Date(row.createdAt).toLocaleString('fr-FR')}
+                    </p>
+                  </TableCell>
+                  <TableCell>
+                    <p className="font-medium text-foreground">{row.notification.type}</p>
+                    <p className="mt-0.5 max-w-xs truncate text-xs text-muted-foreground">
+                      {row.notification.articleTitle || 'Notification sans article'}
+                    </p>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="soft" tone={meta.tone} size="sm">
+                      <Icon
+                        className={`h-3 w-3 ${row.status === 'PROCESSING' ? 'animate-spin' : ''}`}
+                      />
+                      <span>{meta.label}</span>
+                    </Badge>
+                    {row.lastError && (
+                      <p
+                        className="mt-1 max-w-xs truncate text-[11px] text-destructive-text"
+                        title={row.lastError}
                       >
-                        <Icon
-                          className={`h-3.5 w-3.5 ${row.status === 'PROCESSING' ? 'animate-spin' : ''}`}
-                        />
-                        {meta.label}
-                      </span>
-                      {row.lastError && (
-                        <p
-                          className="mt-1 max-w-xs truncate text-[11px] text-destructive-text"
-                          title={row.lastError}
-                        >
-                          {row.lastError}
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">{row.attempts}</td>
-                    <td className="px-4 py-3 text-right">
-                      {['FAILED', 'DISABLED'].includes(row.status) && (
-                        <button
-                          disabled={isPending && retrying === row.id}
-                          onClick={() => retry(row.id)}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-semibold text-foreground hover:bg-muted disabled:opacity-50"
-                        >
-                          <RefreshCw className="h-3.5 w-3.5" /> Relancer
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        {rows.length === 0 && (
-          <div className="p-12 text-center text-sm text-muted-foreground">
-            Aucune livraison dans l’outbox.
-          </div>
-        )}
+                        {row.lastError}
+                      </p>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{row.attempts}</TableCell>
+                  <TableCell className="text-right">
+                    {['FAILED', 'DISABLED'].includes(row.status) && (
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        disabled={isPending && retrying === row.id}
+                        onClick={() => retry(row.id)}
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" /> Relancer
+                      </Button>
+                    )}
+                  </TableCell>
+                </TableRow>
+              );
+            }}
+          </TableBody>
+        </Table>
       </div>
     </div>
   );
