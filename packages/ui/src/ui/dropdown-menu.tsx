@@ -3,11 +3,12 @@
 import * as React from 'react';
 import {
   MenuTrigger,
+  Pressable,
   Button as AriaButton,
   Popover as AriaPopover,
   Menu as AriaMenu,
   MenuItem as AriaMenuItem,
-  Section as AriaSection,
+  MenuSection as AriaMenuSection,
   Header as AriaHeader,
   Separator as AriaSeparator,
   SubmenuTrigger as AriaSubmenuTrigger,
@@ -55,12 +56,13 @@ export function DropdownMenuTrigger({
   const childElement = asChild && React.isValidElement(children) ? children : render;
   if (childElement && React.isValidElement(childElement)) {
     const originalProps = childElement.props as Record<string, unknown>;
-    return React.cloneElement(childElement, {
+    const clonedTrigger = React.cloneElement(childElement, {
       ...props,
       'data-slot': 'dropdown-menu-trigger',
       className: cn(originalProps.className as string, className),
       children: originalProps.children ?? children,
-    } as React.HTMLAttributes<HTMLElement>);
+    } as React.DOMAttributes<Element>) as React.ReactElement<React.DOMAttributes<Element>, string>;
+    return <Pressable>{clonedTrigger}</Pressable>;
   }
   return (
     <AriaButton
@@ -113,8 +115,8 @@ export function DropdownMenuContent({
       offset={sideOffset}
       crossOffset={alignOffset}
       className={cn(
-        'z-50 min-w-32 rounded-[20px] bg-popover p-2 text-popover-foreground shadow-xl ring-1 ring-border/50 outline-hidden',
-        'transition duration-100 ease-out starting:opacity-0 starting:scale-95',
+        'z-50 min-w-44 rounded-panel border border-border bg-popover p-1 text-popover-foreground shadow-lg outline-hidden',
+        'transition duration-150 ease-out starting:scale-95 starting:opacity-0',
         className
       )}
     >
@@ -135,15 +137,15 @@ export function DropdownMenuGroup({
   className,
   children,
   ...props
-}: React.ComponentProps<typeof AriaSection>) {
+}: React.ComponentProps<typeof AriaMenuSection>) {
   return (
-    <AriaSection
+    <AriaMenuSection
       data-slot="dropdown-menu-group"
       className={cn('flex flex-col gap-0.5', className)}
       {...props}
     >
       {children}
-    </AriaSection>
+    </AriaMenuSection>
   );
 }
 
@@ -162,7 +164,7 @@ export function DropdownMenuLabel({
       data-slot="dropdown-menu-label"
       data-inset={inset}
       className={cn(
-        'px-1.5 py-1 text-xs font-medium text-muted-foreground data-inset:pl-7',
+        'px-2 py-1 type-control-xs font-medium text-muted-foreground data-inset:pl-7',
         className
       )}
       {...props}
@@ -202,7 +204,11 @@ export function DropdownMenuItem({
       data-variant={variant}
       onAction={handleAction}
       className={cn(
-        'group/dropdown-menu-item relative flex cursor-pointer items-center rounded-[12px] px-3 py-2 text-sm outline-hidden select-none transition-colors focus:bg-accent focus:text-accent-foreground data-inset:pl-7 data-[variant=destructive]:text-destructive-text data-[variant=destructive]:focus:bg-destructive/10 data-[variant=destructive]:focus:text-destructive-text dark:data-[variant=destructive]:focus:bg-destructive/20 data-disabled:pointer-events-none data-disabled:opacity-50',
+        'group/dropdown-menu-item relative flex min-h-8 cursor-pointer items-center gap-2 rounded-control px-2 py-1.5 type-control-sm text-foreground outline-hidden select-none transition-colors',
+        '[&_svg]:size-3.5 [&_svg]:shrink-0',
+        'data-[focused]:bg-secondary data-[hovered]:bg-secondary data-inset:pl-7',
+        'data-[variant=destructive]:text-destructive-text data-[variant=destructive]:data-[focused]:bg-destructive/10 data-[variant=destructive]:data-[hovered]:bg-destructive/10',
+        'data-disabled:pointer-events-none data-disabled:opacity-50',
         className
       )}
       {...props}
@@ -320,11 +326,11 @@ export function DropdownMenuRadioGroup({
   children,
   className,
   ...props
-}: React.ComponentProps<typeof AriaSection>) {
+}: React.ComponentProps<typeof AriaMenuSection>) {
   return (
-    <AriaSection data-slot="dropdown-menu-radio-group" className={className} {...props}>
+    <AriaMenuSection data-slot="dropdown-menu-radio-group" className={className} {...props}>
       {children}
-    </AriaSection>
+    </AriaMenuSection>
   );
 }
 
@@ -372,7 +378,7 @@ export function DropdownMenuSeparator({
   return (
     <AriaSeparator
       data-slot="dropdown-menu-separator"
-      className={cn('-mx-1 my-1 h-px bg-border', className)}
+      className={cn('-mx-1 my-1 h-px bg-border/60', className)}
       {...props}
     />
   );
@@ -382,10 +388,7 @@ export function DropdownMenuShortcut({ className, ...props }: React.ComponentPro
   return (
     <span
       data-slot="dropdown-menu-shortcut"
-      className={cn(
-        'ml-auto text-xs tracking-widest text-muted-foreground group-focus/dropdown-menu-item:text-accent-foreground',
-        className
-      )}
+      className={cn('ml-auto shrink-0 font-mono type-control-xs text-muted-foreground', className)}
       {...props}
     />
   );

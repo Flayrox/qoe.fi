@@ -16,8 +16,8 @@
 import { useState } from 'react';
 import {
   Bookmark,
-  Building2,
   Check,
+  ChevronsUpDown,
   Compass,
   FileText,
   Highlighter,
@@ -26,16 +26,19 @@ import {
   PieChart,
   Plus,
   Settings,
-  User,
   Users,
 } from 'lucide-react';
+import { SafeAvatar } from '@qoe/ui';
 import { Badge } from '@qoe/ui/badge';
 import { Button } from '@qoe/ui/button';
 import { Sidebar, type SidebarItemData } from '@qoe/ui/sidebar';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@qoe/ui/ui/dropdown-menu';
 import { cn } from '@qoe/utils';
@@ -59,11 +62,45 @@ const NAV_ITEMS: SidebarItemData[] = [
   { title: 'Réglages', url: '#reglages', icon: Settings, section: 'Système' },
 ];
 
-const WORKSPACES = [
-  { id: 'ws-1', name: 'Louis Robin', nature: 'PERSONAL', role: 'Auteur' },
-  { id: 'ws-2', name: 'Le Journal Éco', nature: 'MEDIA', role: 'Fondateur' },
-  { id: 'ws-3', name: 'Atelier Revue', nature: 'MEDIA', role: 'Rédacteur en chef' },
-] as const;
+interface LabWorkspace {
+  id: string;
+  name: string;
+  handle: string;
+  email: string;
+  logoUrl: string | null;
+  nature: 'PERSONAL' | 'MEDIA';
+  role: string;
+}
+
+const WORKSPACES: readonly LabWorkspace[] = [
+  {
+    id: 'ws-1',
+    name: 'Louis Robin',
+    handle: 'louisrobin',
+    email: 'louis@qoefi.media',
+    logoUrl: '/avatars/avatar-1.svg',
+    nature: 'PERSONAL',
+    role: 'Compte personnel',
+  },
+  {
+    id: 'ws-2',
+    name: 'Le Journal Éco',
+    handle: 'journaleco',
+    email: 'redaction@journaleco.media',
+    logoUrl: '/avatars/media-camille.svg',
+    nature: 'MEDIA',
+    role: 'Fondateur',
+  },
+  {
+    id: 'ws-3',
+    name: 'Atelier Revue',
+    handle: 'atelierrevue',
+    email: 'contact@atelierrevue.fr',
+    logoUrl: null,
+    nature: 'MEDIA',
+    role: 'Rédacteur en chef',
+  },
+];
 
 const DRAFTS = [
   { title: 'La ville sans voiture', meta: 'Brouillon · modifié il y a 2 h', state: 'Brouillon' },
@@ -73,9 +110,7 @@ const DRAFTS = [
 
 export function SidebarSpecimen() {
   const [activeUrl, setActiveUrl] = useState('#articles');
-  const [activeWorkspace, setActiveWorkspace] = useState<(typeof WORKSPACES)[number]>(
-    WORKSPACES[1]
-  );
+  const [activeWorkspace, setActiveWorkspace] = useState<LabWorkspace>(WORKSPACES[1]);
 
   const activeSection = NAV_ITEMS.find((item) => item.url === activeUrl)?.title ?? 'Accueil';
 
@@ -83,7 +118,7 @@ export function SidebarSpecimen() {
     <Variant
       label="Barre latérale, sélecteur d’espace et menu de compte"
       kind="candidat"
-      hint="Le sélecteur d’espace (haut) et le menu de compte (bas) partagent la densité, les rayons et les jetons de la navigation : une seule famille visuelle, deux niveaux d’identité — personne et média."
+      hint="Le sélecteur d’espace (haut) et le menu de compte (bas) partagent la densité, les rayons et les jetons du contrat : SafeAvatar (rond pour une personne, carré arrondi pour un média), sections titrées, survol en surface secondaire."
     >
       <div className="overflow-hidden rounded-panel border border-border/60 bg-background">
         {/* Barre d'application : identité du workspace à gauche, action à droite */}
@@ -91,6 +126,7 @@ export function SidebarSpecimen() {
           <WorkspaceSwitcher
             active={activeWorkspace}
             onChange={setActiveWorkspace}
+            onCreateMedia={() => setActiveUrl('#reglages')}
             className="max-w-[260px]"
           />
 
@@ -107,12 +143,16 @@ export function SidebarSpecimen() {
               className="relative bottom-0 left-0 top-0 z-auto h-[584px] w-full"
               items={NAV_ITEMS}
               activeUrl={activeUrl}
+              onItemSelect={setActiveUrl}
               brandName="Qoefi"
               userName={activeWorkspace.name}
-              userEmail="redaction@qoefi.media"
+              userEmail={activeWorkspace.email}
               userId={`usr_${activeWorkspace.id}`}
-              userUsername="louisrobin"
+              userUsername={activeWorkspace.handle}
+              userAvatar={activeWorkspace.logoUrl}
               userType={activeWorkspace.nature}
+              onSettingsClick={() => setActiveUrl('#reglages')}
+              publicUrl="#decouvrir"
               primaryAction={{
                 label: 'Nouvel article',
                 icon: Plus,
@@ -127,7 +167,7 @@ export function SidebarSpecimen() {
             <div className="flex items-start justify-between gap-6">
               <div>
                 <p className="type-control-xs uppercase tracking-wider text-muted-foreground">
-                  Studio
+                  {activeWorkspace.nature === 'MEDIA' ? activeWorkspace.name : 'Espace personnel'}
                 </p>
                 <h3 className="mt-1 text-lg font-semibold tracking-tight text-foreground">
                   {activeSection}
@@ -176,88 +216,126 @@ export function SidebarSpecimen() {
 /**
  * Sélecteur d'espace de travail — l'endroit où l'on change d'identité.
  *
- * Deux natures coexistent : une personne (avatar rond) et un média (carré à
- * coins arrondis). Elles ne diffèrent que par cette forme et par le libellé
- * de rôle : le reste de la ligne est identique, sinon on donne à croire que
- * ce sont deux produits.
+ * Deux natures coexistent : une personne (`SafeAvatar` rond) et un média
+ * (`SafeAvatar` carré à coins arrondis). Toutes les actions, y compris
+ * « Créer un média », restent à l'intérieur de la collection `<AriaMenu>`
+ * pour préserver la navigation complète au clavier.
  */
 function WorkspaceSwitcher({
   active,
   onChange,
+  onCreateMedia,
   className,
 }: {
-  active: (typeof WORKSPACES)[number];
-  onChange: (workspace: (typeof WORKSPACES)[number]) => void;
+  active: LabWorkspace;
+  onChange: (workspace: LabWorkspace) => void;
+  onCreateMedia?: () => void;
   className?: string;
 }) {
+  const personalWorkspaces = WORKSPACES.filter((ws) => ws.nature === 'PERSONAL');
+  const mediaWorkspaces = WORKSPACES.filter((ws) => ws.nature === 'MEDIA');
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
+        aria-label="Changer d’espace de travail"
         className={cn(
-          'flex h-control-sm items-center gap-2.5 rounded-panel border border-border/50 bg-card px-2.5',
-          'type-control-xs font-medium text-foreground transition-colors',
-          'hover:bg-muted/60 outline-none data-[focus-visible]:ring-2 data-[focus-visible]:ring-ring/60',
+          'group/ws inline-flex h-control-sm cursor-pointer items-center gap-2 rounded-control border border-border bg-card px-2.5',
+          'type-control-sm font-medium text-foreground transition-colors outline-none',
+          'hover:bg-secondary/70 data-[pressed]:bg-secondary',
+          'data-[focus-visible]:ring-2 data-[focus-visible]:ring-ring/60',
           className
         )}
       >
-        <IdentityMark nature={active.nature} />
+        <SafeAvatar
+          id={active.id}
+          username={active.handle}
+          src={active.logoUrl}
+          name={active.name}
+          size={20}
+          type={active.nature}
+          className="shrink-0"
+        />
         <span className="min-w-0 truncate">{active.name}</span>
+        <ChevronsUpDown
+          className="ml-0.5 size-3.5 shrink-0 text-muted-foreground transition-colors group-hover/ws:text-foreground"
+          strokeWidth={1.5}
+        />
       </DropdownMenuTrigger>
 
       <DropdownMenuContent
         align="start"
         side="bottom"
         sideOffset={6}
-        className="w-64 rounded-panel border border-border/40 bg-card p-1.5 shadow-xl"
-        header={
-          <p className="px-2.5 py-1.5 type-control-xs uppercase tracking-wider text-muted-foreground">
-            Espaces de travail
-          </p>
-        }
-        footer={
-          <div className="mt-1 border-t border-border/20 pt-1">
-            <DropdownMenuItem className="flex items-center gap-2 rounded-lg px-2.5 py-2 type-control-xs font-medium text-primary">
-              <Plus className="size-3.5" />
-              Créer un média
-            </DropdownMenuItem>
-          </div>
-        }
+        aria-label="Espaces de travail"
+        className="w-64"
       >
-        {WORKSPACES.map((workspace) => (
-          <DropdownMenuItem
-            key={workspace.id}
-            onAction={() => onChange(workspace)}
-            className="flex w-full items-center justify-between gap-3 rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-muted/50"
-          >
-            <span className="flex min-w-0 items-center gap-2.5">
-              <IdentityMark nature={workspace.nature} />
-              <span className="min-w-0">
-                <span className="block truncate text-xs font-medium text-foreground">
-                  {workspace.name}
-                </span>
-                <span className="block truncate type-control-xs text-muted-foreground">
-                  {workspace.nature === 'MEDIA' ? `Média · ${workspace.role}` : 'Compte personnel'}
-                </span>
-              </span>
-            </span>
-            {active.id === workspace.id && <Check className="size-4 shrink-0 text-primary" />}
-          </DropdownMenuItem>
-        ))}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Compte personnel</DropdownMenuLabel>
+          {personalWorkspaces.map((workspace) => (
+            <WorkspaceOptionItem
+              key={workspace.id}
+              workspace={workspace}
+              isActive={active.id === workspace.id}
+              onSelect={() => onChange(workspace)}
+            />
+          ))}
+        </DropdownMenuGroup>
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Publications & médias</DropdownMenuLabel>
+          {mediaWorkspaces.map((workspace) => (
+            <WorkspaceOptionItem
+              key={workspace.id}
+              workspace={workspace}
+              isActive={active.id === workspace.id}
+              onSelect={() => onChange(workspace)}
+            />
+          ))}
+        </DropdownMenuGroup>
+
+        <DropdownMenuSeparator />
+
+        <DropdownMenuItem onAction={onCreateMedia}>
+          <Plus className="text-muted-foreground" strokeWidth={1.75} />
+          <span className="flex-1 truncate font-medium">Créer un média</span>
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
 
-/** La seule différence admise entre une personne et un média : la forme. */
-function IdentityMark({ nature }: { nature: 'PERSONAL' | 'MEDIA' }) {
+function WorkspaceOptionItem({
+  workspace,
+  isActive,
+  onSelect,
+}: {
+  workspace: LabWorkspace;
+  isActive: boolean;
+  onSelect: () => void;
+}) {
   return (
-    <span
-      className={cn(
-        'flex size-5 shrink-0 items-center justify-center bg-primary/10 text-primary',
-        nature === 'MEDIA' ? 'rounded-md' : 'rounded-full'
-      )}
-    >
-      {nature === 'MEDIA' ? <Building2 className="size-3" /> : <User className="size-3" />}
-    </span>
+    <DropdownMenuItem onAction={onSelect} className="gap-2.5 py-1.5">
+      <SafeAvatar
+        id={workspace.id}
+        username={workspace.handle}
+        src={workspace.logoUrl}
+        name={workspace.name}
+        size={26}
+        type={workspace.nature}
+        className="shrink-0"
+      />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate type-control-sm font-medium leading-tight text-foreground">
+          {workspace.name}
+        </span>
+        <span className="mt-0.5 block truncate type-control-xs leading-tight text-muted-foreground">
+          {workspace.nature === 'MEDIA' ? workspace.role : `@${workspace.handle}`}
+        </span>
+      </span>
+      {isActive && <Check className="ml-auto size-3.5 shrink-0 text-foreground" strokeWidth={2} />}
+    </DropdownMenuItem>
   );
 }
