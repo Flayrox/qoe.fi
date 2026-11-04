@@ -1,19 +1,19 @@
 {
   "$comment": "Plafonds de dette UI. Ne peuvent que descendre : `pnpm ui:audit --update` fige les baisses, une hausse exige --allow-increase.",
   "limits": {
-    "rawButtons": 452,
-    "rawButtonFiles": 98,
-    "rawInputs": 184,
-    "rawInputFiles": 51,
+    "rawButtons": 442,
+    "rawButtonFiles": 96,
+    "rawInputs": 181,
+    "rawInputFiles": 50,
     "rawSelects": 0,
     "rawSelectFiles": 0,
     "rawTables": 0,
     "rawTableFiles": 0,
-    "handRolledOverlays": 7,
-    "localPrimitives": 19,
+    "handRolledOverlays": 4,
+    "localPrimitives": 16,
     "unusedPrimitives": 10,
     "baseUiImports": 0,
     "herouiImportsOutsideUi": 0
   },
-  "updatedAt": "2026-11-04T12:33:12.642Z"
+  "updatedAt": "2026-11-04T22:03:59.502Z"
 }
