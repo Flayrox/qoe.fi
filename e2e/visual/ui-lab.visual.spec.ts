@@ -54,6 +54,59 @@ test.describe('primitives — rendu de référence', () => {
     await prepare(page);
   });
 
+  test('menu déroulant : déclencheurs et panneaux fermés', async ({ page }) => {
+    const menu = await section(page, '01-menu');
+    await expect(menu.getByRole('button').first()).toBeVisible();
+
+    await expect(menu).toHaveScreenshot('menu.png');
+  });
+
+  test('select : déclencheur, groupe et options', async ({ page }) => {
+    const select = await section(page, '02-select');
+    await expect(select.getByRole('button').first()).toBeVisible();
+
+    await expect(select).toHaveScreenshot('select.png');
+  });
+
+  test('sélecteur segmenté : rail et trait bas', async ({ page }) => {
+    const segmented = await section(page, '03-segmented');
+    await expect(segmented.getByRole('tab').first()).toBeVisible();
+
+    await expect(segmented).toHaveScreenshot('segmented.png');
+  });
+
+  test('cartes de choix : sélection par RadioGroup', async ({ page }) => {
+    const cards = await section(page, '04-radio-cards');
+    await expect(cards.getByRole('radio').first()).toBeVisible();
+
+    await expect(cards).toHaveScreenshot('radio-cards.png');
+  });
+
+  test('sélection multiple : étiquettes cumulables', async ({ page }) => {
+    const tags = await section(page, '05-multi-select');
+
+    await expect(tags).toHaveScreenshot('multi-select.png');
+  });
+
+  test('interrupteur : role=switch, pas un bouton peint', async ({ page }) => {
+    const switches = await section(page, '06-switch');
+    await expect(switches.getByRole('switch').first()).toBeVisible();
+
+    await expect(switches).toHaveScreenshot('switch.png');
+  });
+
+  test('barre latérale : navigation, espace et compte', async ({ page }) => {
+    const sidebar = await section(page, '18-sidebar');
+
+    await expect(sidebar).toHaveScreenshot('sidebar.png');
+  });
+
+  test('cartes sociales : pensées, articles et citations', async ({ page }) => {
+    const cards = await section(page, '19-social-cards');
+
+    await expect(cards).toHaveScreenshot('social-cards.png');
+  });
+
   test('boutons : variantes, tons, densités', async ({ page }) => {
     const buttons = page.getByRole('button');
     // Garde-fou : une capture d'une page vide passerait le test visuel en
