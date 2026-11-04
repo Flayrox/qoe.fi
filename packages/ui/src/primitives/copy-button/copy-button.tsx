@@ -47,6 +47,27 @@ export interface CopyButtonProps extends Omit<
   className?: string;
 }
 
+function fallbackCopyText(text: string): boolean {
+  if (typeof document === 'undefined') return false;
+  const textArea = document.createElement('textarea');
+  textArea.value = text;
+  textArea.style.position = 'fixed';
+  textArea.style.top = '-9999px';
+  textArea.style.left = '-9999px';
+  textArea.setAttribute('readonly', '');
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+  try {
+    const successful = document.execCommand('copy');
+    document.body.removeChild(textArea);
+    return successful;
+  } catch {
+    document.body.removeChild(textArea);
+    return false;
+  }
+}
+
 const LAYER = 'col-start-1 row-start-1 text-left transition-opacity duration-200 ease-out';
 
 export const CopyButton = forwardRef<HTMLButtonElement, CopyButtonProps>(function CopyButton(
@@ -77,14 +98,18 @@ export const CopyButton = forwardRef<HTMLButtonElement, CopyButtonProps>(functio
 
   const handleClick = async (event: React.MouseEvent<HTMLButtonElement>) => {
     onClick?.(event);
-    // `clipboard` est absent hors contexte sécurisé : on rend la main sans
-    // mentir sur le résultat.
-    if (!navigator.clipboard?.writeText) return;
-    try {
-      await navigator.clipboard.writeText(value);
-    } catch {
-      return;
+    let success = false;
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(value);
+        success = true;
+      } catch {
+        success = fallbackCopyText(value);
+      }
+    } else {
+      success = fallbackCopyText(value);
     }
+    if (!success) return;
     setCopied(true);
     if (timerRef.current !== null) globalThis.clearTimeout(timerRef.current);
     timerRef.current = globalThis.setTimeout(() => setCopied(false), resetMs);

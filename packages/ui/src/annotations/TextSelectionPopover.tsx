@@ -263,7 +263,7 @@ export function TextSelectionPopover({
         aria-orientation="horizontal"
         onKeyDown={handleKeyDown}
         className={cn(
-          'z-50 pointer-events-auto select-none font-sans flex items-center justify-center',
+          'z-[60] pointer-events-auto select-none font-sans flex items-center justify-center',
           className
         )}
         onPointerDown={(e) => {
