@@ -138,12 +138,24 @@ export function TextSelectionPopover({
       (containerId ? document.getElementById(containerId) : null) ||
       document.body;
 
+    let lastValidRect = rect;
     const virtualRefObj = {
       getBoundingClientRect() {
-        return range.getBoundingClientRect();
+        const r = range.getBoundingClientRect();
+        // Si le range s'effondre (width=0 & height=0), conserver le dernier rectangle
+        // valide pour éviter que la barre ne saute à (0, 0) en haut à gauche.
+        if (r.width === 0 && r.height === 0 && r.top === 0 && r.left === 0) {
+          return lastValidRect;
+        }
+        lastValidRect = r;
+        return r;
       },
       getClientRects() {
-        return range.getClientRects();
+        const list = range.getClientRects();
+        if (list.length === 0) {
+          return [lastValidRect] as unknown as DOMRectList;
+        }
+        return list;
       },
       contextElement: contextEl,
     };
@@ -266,6 +278,13 @@ export function TextSelectionPopover({
           'z-[60] pointer-events-auto select-none font-sans flex items-center justify-center',
           className
         )}
+        onMouseDown={(e) => {
+          if (isLocked) return;
+          const target = e.target as HTMLElement;
+          if (target.tagName !== 'TEXTAREA' && target.tagName !== 'INPUT') {
+            e.preventDefault();
+          }
+        }}
         onPointerDown={(e) => {
           if (isLocked) return;
           const target = e.target as HTMLElement;

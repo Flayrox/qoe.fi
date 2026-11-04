@@ -34,6 +34,7 @@ import type {
   PublicProfileData,
   FollowActor as ApiFollowActor,
   QuoteContext,
+  CanonicalDocument,
 } from '../../types';
 
 /** Résultat du découpage paywall (shape Go GET /v1/articles/{slug}). */
@@ -648,7 +649,10 @@ export const getPostThreadAction = safeAction<string, { post: ThreadPost }>(
 
 export const getArticleThreadAction = safeAction<
   string,
-  { article: (ArticleRecord & PaywallCutResult) | null }
+  {
+    article: (ArticleRecord & PaywallCutResult) | null;
+    canonicalDocument?: CanonicalDocument | null;
+  }
 >(
   async (slug) => {
     // Go-only : GET /v1/articles/{slug} — le paywall est tronqué côté serveur
@@ -661,7 +665,29 @@ export const getArticleThreadAction = safeAction<
           paywallMeta: PaywallCutResult['paywallMeta'];
         }
       >(`/v1/articles/${encodeURIComponent(slug)}`);
-      return { article: article as unknown as ArticleRecord & PaywallCutResult };
+
+      if (!article) return { article: null };
+
+      // ⚡️ Préchargement serveur du document canonique (évite le waterfall client et les flashs de layout)
+      let canonicalDocument: CanonicalDocument | null = null;
+      const canReadFull = !article.isPremium || article.accessGranted === true;
+      if (canReadFull && article.id) {
+        try {
+          const doc = await goFetch<CanonicalDocument>(
+            `/v1/articles/${encodeURIComponent(article.id)}/document`
+          );
+          if (doc && Array.isArray(doc.blocks) && doc.text) {
+            canonicalDocument = doc;
+          }
+        } catch {
+          // Erreur silencieuse : le client retombera sur le fetch local ou TreeWalker
+        }
+      }
+
+      return {
+        article: article as unknown as ArticleRecord & PaywallCutResult,
+        canonicalDocument,
+      };
     } catch (err) {
       const status = (err as { status?: number }).status;
       if (status === 404) return { article: null };

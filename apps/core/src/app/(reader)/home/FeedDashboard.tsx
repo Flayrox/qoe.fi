@@ -585,9 +585,12 @@ export function FeedDashboard({
 
   // 🪟 Le feed ne possède plus le drawer : il déclare l'intention, la
   // surcouche du layout gère historique, fetch, position et focus.
-  const handleOpenArticle = (articleInput: Partial<Article>) => {
-    if (!articleInput?.slug) return;
-    overlay?.openArticle(articleInput as OpenArticleInput, { source: 'feed' });
+  const handleOpenArticle = (articleInput: Partial<Article> | string) => {
+    const slug = typeof articleInput === 'string' ? articleInput : articleInput?.slug;
+    if (!slug) return;
+    const inputObj: OpenArticleInput =
+      typeof articleInput === 'string' ? { slug } : (articleInput as OpenArticleInput);
+    overlay?.openArticle(inputObj, { source: 'feed' });
   };
 
   const [composerQuotedThought, setComposerQuotedThought] = useState<ThoughtData | null>(null);

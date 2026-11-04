@@ -131,6 +131,27 @@ export function ArticleAnnotatorView(props: ArticleAnnotatorViewProps) {
   );
 }
 
+function ArticleReadingTracker({
+  articleId,
+  slug,
+  readingTimeMinutes,
+  initialSource = 'feed',
+}: {
+  articleId: string;
+  slug: string;
+  readingTimeMinutes?: number;
+  initialSource?: 'feed' | 'subdomain' | 'public_profile' | 'direct';
+}) {
+  useArticleReadingTracker({
+    articleId,
+    slug,
+    readingTimeMinutes,
+    initialSource,
+  });
+
+  return null;
+}
+
 function ArticleAnnotatorViewInner({
   article,
   initialSource,
@@ -169,7 +190,8 @@ function ArticleAnnotatorViewInner({
   useEffect(() => {
     if (canonicalDocumentProp !== undefined) return;
     const canFetchDocument = !article.isPremium || article.accessGranted === true;
-    if (!canFetchDocument || !article.id) return;
+    const hasValidId = Boolean(article.id && article.id !== article.slug && !article.isLoading);
+    if (!canFetchDocument || !hasValidId) return;
     let cancelled = false;
     (async () => {
       const doc = await getCanonicalDocumentAction(article.id);
@@ -178,15 +200,14 @@ function ArticleAnnotatorViewInner({
     return () => {
       cancelled = true;
     };
-  }, [article.id, article.isPremium, article.accessGranted, canonicalDocumentProp]);
-
-  // 📊 High-precision reading tracker (Dwell time actif + Scroll depth + Détection Survol)
-  useArticleReadingTracker({
-    articleId: article.id,
-    slug: article.slug,
-    readingTimeMinutes: article.readingTime || 5,
-    initialSource,
-  });
+  }, [
+    article.id,
+    article.slug,
+    article.isLoading,
+    article.isPremium,
+    article.accessGranted,
+    canonicalDocumentProp,
+  ]);
 
   // Fetch current user auth state
   useEffect(() => {
@@ -200,6 +221,8 @@ function ArticleAnnotatorViewInner({
 
   // Fetch article highlights
   useEffect(() => {
+    const hasValidId = Boolean(article.id && article.id !== article.slug && !article.isLoading);
+    if (!hasValidId) return;
     async function loadHighlights() {
       try {
         const res = await getArticleHighlightsAction({ articleId: article.id });
@@ -211,7 +234,7 @@ function ArticleAnnotatorViewInner({
       }
     }
     loadHighlights();
-  }, [article.id]);
+  }, [article.id, article.slug, article.isLoading]);
 
   // Standardized Annotation Action Callbacks bound to API client actions
   const callbacks: AnnotationActionCallbacks = React.useMemo(
@@ -486,6 +509,16 @@ function ArticleAnnotatorViewInner({
       )}
     >
       <ReadingRuler />
+
+      {/* 📊 High-precision reading tracker isolé pour éviter tout re-render de l'article */}
+      {Boolean(article.id && article.id !== article.slug && !article.isLoading) && (
+        <ArticleReadingTracker
+          articleId={article.id}
+          slug={article.slug}
+          readingTimeMinutes={article.readingTime || 5}
+          initialSource={initialSource}
+        />
+      )}
 
       {/* 1. ARTICLE HEADER : TITRE EN GRAND */}
       <div className="space-y-4 pb-2">

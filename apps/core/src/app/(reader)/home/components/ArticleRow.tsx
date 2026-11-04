@@ -31,7 +31,7 @@ export interface ArticleRowProps {
   };
   isBookmarked?: boolean;
   onBookmarkToggle?: (articleId: string) => void;
-  onOpenArticle?: (slug: string) => void;
+  onOpenArticle?: (article: ArticleRowProps['article'] | string) => void;
   className?: string;
 }
 
@@ -49,7 +49,7 @@ export function ArticleRow({
   const overlay = useArticleOverlay();
   const handleClick = () => {
     if (onOpenArticle) {
-      onOpenArticle(article.slug);
+      onOpenArticle(article);
     } else if (overlay) {
       overlay.openArticle(article, { source: 'feed' });
     } else {
