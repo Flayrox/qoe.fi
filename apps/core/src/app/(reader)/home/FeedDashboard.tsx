@@ -221,6 +221,26 @@ interface FeedDashboardProps {
   followingHidden?: HiddenAuthor[];
 }
 
+// 👁️ Wrapper impression module-level : fire-once par item (IntersectionObserver, batché).
+// Isolé hors du corps du FeedDashboard pour garantir la stabilité de type et éviter
+// que React ne démonte/remonte l'arbre complet des cartes du feed lors des re-renders.
+function ImpressionWrapper({
+  children,
+  itemType,
+  itemId,
+  position,
+  isDiscovery,
+}: {
+  children: React.ReactNode;
+  itemType: 'ARTICLE' | 'THOUGHT';
+  itemId: string;
+  position: number;
+  isDiscovery?: boolean;
+}) {
+  const ref = useFeedImpressionTracker({ itemType, itemId, position, isDiscovery });
+  return <div ref={ref}>{children}</div>;
+}
+
 export function FeedDashboard({
   dbUser,
   followingArticles,
@@ -701,18 +721,6 @@ export function FeedDashboard({
     '#design',
     '#creators',
   ];
-
-  // 👁️ Wrapper impression : fire-once par item (IntersectionObserver, batché)
-  const ImpressionWrapper: React.FC<{
-    children: React.ReactNode;
-    itemType: 'ARTICLE' | 'THOUGHT';
-    itemId: string;
-    position: number;
-    isDiscovery?: boolean;
-  }> = ({ children, itemType, itemId, position, isDiscovery }) => {
-    const ref = useFeedImpressionTracker({ itemType, itemId, position, isDiscovery });
-    return <div ref={ref}>{children}</div>;
-  };
 
   return (
     <ReaderPageLayout giantTitle={t`Lire`}>

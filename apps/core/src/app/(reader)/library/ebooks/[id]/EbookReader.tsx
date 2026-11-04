@@ -544,7 +544,10 @@ function EbookReaderInner({
       {/* ─── Passage sélectionné : on propose de le garder (aucune action
             imposée, la sélection reste utilisable normalement) ─── */}
       {selection && (
-        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 max-w-lg w-[calc(100%-2rem)]">
+        <div
+          onMouseDown={(e) => e.preventDefault()}
+          className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 max-w-lg w-[calc(100%-2rem)]"
+        >
           <div className="rounded-2xl border border-border/60 bg-card shadow-lg px-3 py-2 flex items-center gap-3">
             <p className="text-[11px] italic text-muted-foreground line-clamp-2 flex-1">
               « {selection} »

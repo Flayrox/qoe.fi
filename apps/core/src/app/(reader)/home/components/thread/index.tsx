@@ -11,6 +11,7 @@ import { ThoughtThreadItem, type ThoughtThreadItemProps } from './ThoughtThreadI
 import { ThoughtThreadTombstone, type ThoughtThreadTombstoneProps } from './ThoughtThreadTombstone';
 import { ThoughtThreadLightbox } from './ThoughtThreadLightbox';
 import { useThoughtThreadContext, type OptimisticThought } from './ThoughtThreadContext';
+import { useArticleOverlay } from '@/components/article-overlay/ArticleOverlayProvider';
 import type { DbUser } from '../ThoughtComposer';
 
 export const ThoughtThread = {
@@ -64,6 +65,15 @@ export function ThoughtThreadView({
   ) => void;
   onLoginRequired?: () => void;
 }) {
+  const articleOverlay = useArticleOverlay();
+  const effectiveOnOpenArticle =
+    onOpenArticle ??
+    (articleOverlay
+      ? (art: { id: string; slug: string; title: string }) => {
+          articleOverlay.openArticle(art, { source: 'feed' });
+        }
+      : undefined);
+
   return (
     <ThoughtThread.Root
       postId={postId}
@@ -73,7 +83,7 @@ export function ThoughtThreadView({
       standalone={standalone}
       onClose={onClose}
       onOpenProfile={onOpenProfile}
-      onOpenArticle={onOpenArticle}
+      onOpenArticle={effectiveOnOpenArticle}
       onInteractionUpdate={onInteractionUpdate}
       onLoginRequired={onLoginRequired}
     >
