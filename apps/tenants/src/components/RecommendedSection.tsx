@@ -6,6 +6,16 @@ import { subscribeToNewsletterAction } from '@qoe/sdk/actions/tenant';
 import { Check, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { SafeAvatar } from '@qoe/ui';
+import { Button } from '@qoe/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@qoe/ui/dialog';
+import { Input } from '@qoe/ui/input';
 import type { RecommendationItem } from '@/lib/tenant-data';
 
 interface RecommendedSectionProps {
@@ -105,12 +115,14 @@ export function RecommendedSection({ authorName, recommendations }: RecommendedS
 
                   <div className="mt-1.5 flex items-center gap-3 text-[11px] text-muted-foreground">
                     {pub.articlesCount > 0 && <span>{t`${pub.articlesCount} écrits`}</span>}
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="xs"
                       onClick={() => {
                         if (!isSubscribed) setEmailModalPub(pub);
                       }}
                       disabled={isSubscribed || isLoading}
-                      className="inline-flex items-center gap-1 font-medium text-foreground underline underline-offset-4 decoration-border hover:decoration-foreground transition-colors disabled:opacity-60 cursor-pointer"
+                      className="h-auto px-0 py-0 text-[11px] font-medium text-foreground underline underline-offset-4 decoration-border hover:bg-transparent hover:decoration-foreground"
                     >
                       {isSubscribed ? (
                         <>
@@ -122,7 +134,7 @@ export function RecommendedSection({ authorName, recommendations }: RecommendedS
                       ) : (
                         <span>{t`S'abonner`}</span>
                       )}
-                    </button>
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -132,48 +144,60 @@ export function RecommendedSection({ authorName, recommendations }: RecommendedS
       </div>
 
       {/* Quick Email Modal for 1-Click Subscription */}
-      {emailModalPub && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
-          <div className="relative w-full max-w-md p-6 bg-background rounded-2xl border border-border shadow-2xl">
-            <h4 className="text-lg font-semibold mb-1">{t`S'abonner à ${emailModalPub.name}`}</h4>
-            <p className="text-xs text-muted-foreground mb-4">
-              {t`Recevez les prochaines parutions directement dans votre boîte mail.`}
-            </p>
+      <Dialog
+        open={Boolean(emailModalPub)}
+        onOpenChange={(open) => {
+          if (!open) setEmailModalPub(null);
+        }}
+        size="md"
+      >
+        <DialogContent>
+          {emailModalPub && (
+            <>
+              <DialogHeader>
+                <DialogTitle>{t`S'abonner à ${emailModalPub.name}`}</DialogTitle>
+                <DialogDescription>
+                  {t`Recevez les prochaines parutions directement dans votre boîte mail.`}
+                </DialogDescription>
+              </DialogHeader>
 
-            <form onSubmit={handleSubscribe} className="flex flex-col gap-3">
-              <input
-                type="email"
-                required
-                placeholder={t`Votre adresse email`}
-                value={emailInput}
-                onChange={(e) => setEmailInput(e.target.value)}
-                className="w-full h-11 px-4 text-sm rounded-xl border border-input bg-background focus:ring-2 focus:ring-[var(--tenant-accent)] outline-none"
-                autoFocus
-              />
-              <div className="flex justify-end gap-2 mt-2">
-                <button
-                  type="button"
-                  onClick={() => setEmailModalPub(null)}
-                  className="px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground"
-                >
-                  {t`Annuler`}
-                </button>
-                <button
-                  type="submit"
-                  disabled={loadingMap[emailModalPub.id]}
-                  className="px-5 py-2 text-xs font-medium rounded-full bg-foreground text-background hover:opacity-90 active:scale-95 disabled:opacity-50"
-                >
-                  {loadingMap[emailModalPub.id] ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    t`Confirmer l'abonnement`
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+              <form onSubmit={handleSubscribe} className="flex flex-col gap-3">
+                <Input
+                  type="email"
+                  required
+                  placeholder={t`Votre adresse email`}
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  autoFocus
+                />
+                <DialogFooter className="mt-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setEmailModalPub(null)}
+                  >
+                    {t`Annuler`}
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="solid"
+                    tone="neutral"
+                    size="sm"
+                    disabled={loadingMap[emailModalPub.id]}
+                  >
+                    {loadingMap[emailModalPub.id] ? (
+                      <Loader2 className="animate-spin" />
+                    ) : (
+                      t`Confirmer l'abonnement`
+                    )}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }

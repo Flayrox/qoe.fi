@@ -6,6 +6,7 @@ import { t } from '@lingui/core/macro';
 import { useI18n } from '@qoe/i18n';
 import Link from 'next/link';
 import { ArrowUpRight, Check } from 'lucide-react';
+import { Tab, TabList, Tabs } from '@qoe/ui/tabs';
 import { URLS } from '@qoe/config';
 
 interface CreatorHubProps {
@@ -13,20 +14,20 @@ interface CreatorHubProps {
 }
 
 const TABS = ['Créateurs', 'Médias & CMS', 'API'] as const;
-type Tab = (typeof TABS)[number];
+type CreatorTab = (typeof TABS)[number];
 
 // Libellés d'onglets résolus au rendu (t`...` au module resterait figé).
-const getTabLabel = (tab: Tab): string => {
+const getTabLabel = (tab: CreatorTab): string => {
   if (tab === 'Créateurs') return t`Créateurs`;
   if (tab === 'Médias & CMS') return t`Médias & CMS`;
   return t`API`;
 };
 
 export const CreatorHub = ({ config }: CreatorHubProps) => {
-  const [activeTab, setActiveTab] = useState<Tab>('Créateurs');
+  const [activeTab, setActiveTab] = useState<CreatorTab>('Créateurs');
 
   const TAB_CONTENT: Record<
-    Tab,
+    CreatorTab,
     {
       eyebrow: string;
       headline: string;
@@ -149,21 +150,20 @@ export const CreatorHub = ({ config }: CreatorHubProps) => {
         </div>
 
         {/* Tab switcher */}
-        <div className="flex items-center gap-1 mb-12 bg-muted rounded-lg p-1 w-fit">
-          {TABS.map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-                activeTab === tab
-                  ? 'bg-white text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-muted-foreground'
-              }`}
-            >
-              {getTabLabel(tab)}
-            </button>
-          ))}
-        </div>
+        <Tabs
+          variant="segmented"
+          value={activeTab}
+          onValueChange={(id) => setActiveTab(id as CreatorTab)}
+          className="mb-12 w-fit"
+        >
+          <TabList aria-label={t`Profils créateurs`}>
+            {TABS.map((tab) => (
+              <Tab key={tab} id={tab}>
+                {getTabLabel(tab)}
+              </Tab>
+            ))}
+          </TabList>
+        </Tabs>
 
         {/* Tab content */}
         <AnimatePresence mode="wait">
