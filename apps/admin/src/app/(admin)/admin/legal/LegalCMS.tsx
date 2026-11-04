@@ -12,7 +12,21 @@ import { useMemo, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { findLegalPlaceholders, markdownToHtml } from '@qoe/utils';
 import { getLegalDocumentUrl } from '@qoe/config/legal';
+import { Badge } from '@qoe/ui/badge';
+import { Button } from '@qoe/ui/button';
+import { Checkbox } from '@qoe/ui/checkbox';
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@qoe/ui/dialog';
+import { Input, Textarea } from '@qoe/ui/input';
 import { Select } from '@qoe/ui/select';
+import { Table, TableBody, TableCell, TableColumn, TableHeader, TableRow } from '@qoe/ui/table';
 import {
   AlertTriangle,
   Archive,
@@ -815,105 +829,79 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
               <Filter className="h-4 w-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold text-foreground">Volumétrie par document</h2>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[640px] text-left text-sm">
-                <thead className="border-b border-border bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3">Document</th>
-                    <th className="px-4 py-3">Consentement</th>
-                    <th className="px-4 py-3">Acceptations</th>
-                    <th className="px-4 py-3">30 jours</th>
-                    <th className="px-4 py-3">Versions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/60">
-                  {stats.map((item) => (
-                    <tr key={item.id}>
-                      <td className="px-4 py-3 font-mono text-xs text-foreground">{item.slug}</td>
-                      <td className="px-4 py-3 text-xs">
-                        {item.requiresAcceptance ? (
-                          <span className="rounded-full bg-highlight/15 px-2 py-0.5 text-[10px] font-semibold text-foreground ring-1 ring-highlight/40">
-                            requis
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">informatif</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-foreground">{item.acceptances}</td>
-                      <td className="px-4 py-3 text-xs text-foreground">{item.acceptances30d}</td>
-                      <td className="px-4 py-3 text-xs text-foreground">{item.versionsCount}</td>
-                    </tr>
-                  ))}
-                  {stats.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={5}
-                        className="px-4 py-8 text-center text-xs text-muted-foreground"
-                      >
-                        Aucune preuve de consentement enregistrée pour le moment.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <Table aria-label="Volumétrie par document" size="md">
+              <TableHeader>
+                <TableColumn isRowHeader>Document</TableColumn>
+                <TableColumn>Consentement</TableColumn>
+                <TableColumn>Acceptations</TableColumn>
+                <TableColumn>30 jours</TableColumn>
+                <TableColumn>Versions</TableColumn>
+              </TableHeader>
+              <TableBody items={stats}>
+                {(item) => (
+                  <TableRow id={item.id}>
+                    <TableCell className="font-mono text-xs text-foreground">{item.slug}</TableCell>
+                    <TableCell>
+                      {item.requiresAcceptance ? (
+                        <Badge variant="soft" tone="vivid" size="xs">
+                          requis
+                        </Badge>
+                      ) : (
+                        <Badge variant="soft" tone="neutral" size="xs">
+                          informatif
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs text-foreground">{item.acceptances}</TableCell>
+                    <TableCell className="text-xs text-foreground">{item.acceptances30d}</TableCell>
+                    <TableCell className="text-xs text-foreground">{item.versionsCount}</TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
           </div>
 
-          <div className="overflow-hidden rounded-2xl border border-border bg-white">
+          <div className="overflow-hidden rounded-2xl border border-border bg-card">
             <div className="flex items-center gap-2 border-b border-border px-5 py-4">
               <ShieldCheck className="h-4 w-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold text-foreground">
                 Dernières preuves ({acceptances.length})
               </h2>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[860px] text-left text-sm">
-                <thead className="border-b border-border bg-muted/40 text-[11px] uppercase tracking-wider text-muted-foreground">
-                  <tr>
-                    <th className="px-4 py-3">Quand</th>
-                    <th className="px-4 py-3">Document</th>
-                    <th className="px-4 py-3">Version</th>
-                    <th className="px-4 py-3">Compte</th>
-                    <th className="px-4 py-3">Origine</th>
-                    <th className="px-4 py-3">IP</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/60">
-                  {acceptances.map((row) => (
-                    <tr key={row.id}>
-                      <td className="px-4 py-3 text-xs text-muted-foreground">
-                        {formatDate(row.acceptedAt)}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-xs text-foreground">
-                        {row.documentSlug ?? row.documentId}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-foreground">
-                        v{row.version} · {row.locale}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-foreground">
-                        {row.userEmail ?? row.source}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-muted-foreground">
-                        {row.source} / {row.method}
-                      </td>
-                      <td className="px-4 py-3 font-mono text-[11px] text-muted-foreground">
-                        {row.ip ?? '—'}
-                      </td>
-                    </tr>
-                  ))}
-                  {acceptances.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={6}
-                        className="px-4 py-8 text-center text-xs text-muted-foreground"
-                      >
-                        Rien à afficher.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+            <Table aria-label="Dernières preuves de consentement" size="md">
+              <TableHeader>
+                <TableColumn isRowHeader>Quand</TableColumn>
+                <TableColumn>Document</TableColumn>
+                <TableColumn>Version</TableColumn>
+                <TableColumn>Compte</TableColumn>
+                <TableColumn>Origine</TableColumn>
+                <TableColumn>IP</TableColumn>
+              </TableHeader>
+              <TableBody items={acceptances}>
+                {(row) => (
+                  <TableRow id={row.id}>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {formatDate(row.acceptedAt)}
+                    </TableCell>
+                    <TableCell className="font-mono text-xs text-foreground">
+                      {row.documentSlug ?? row.documentId}
+                    </TableCell>
+                    <TableCell className="text-xs text-foreground">
+                      v{row.version} · {row.locale}
+                    </TableCell>
+                    <TableCell className="text-xs text-foreground">
+                      {row.userEmail ?? row.source}
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
+                      {row.source} / {row.method}
+                    </TableCell>
+                    <TableCell className="font-mono text-[11px] text-muted-foreground">
+                      {row.ip ?? '—'}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
           </div>
         </div>
       )}
@@ -1133,22 +1121,23 @@ function VersionEditorModal({
   const previewHtml = useMemo(() => markdownToHtml(draft.body), [draft.body]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 p-4 backdrop-blur-sm md:p-8">
-      <div className="flex max-h-full w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <div>
-            <h2 className="text-sm font-semibold text-foreground">{title}</h2>
-            <p className="text-[11px] text-muted-foreground">
-              Markdown supporté : titres, listes, tableaux, citations, liens. Le HTML brut est
-              neutralisé.
-            </p>
-          </div>
-          <button onClick={onClose} aria-label="Fermer" className="rounded-lg p-1 hover:bg-muted">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      size="xl"
+    >
+      <DialogContent className="max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+        <DialogHeader className="border-b border-border px-5 py-4">
+          <DialogTitle className="text-sm font-semibold">{title}</DialogTitle>
+          <DialogDescription className="text-[11px]">
+            Markdown supporté : titres, listes, tableaux, citations, liens. Le HTML brut est
+            neutralisé.
+          </DialogDescription>
+        </DialogHeader>
 
-        <div className="grid flex-1 gap-4 overflow-y-auto p-5 sm:grid-cols-2">
+        <DialogBody className="grid flex-1 gap-4 overflow-y-auto p-5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Locale
@@ -1171,12 +1160,12 @@ function VersionEditorModal({
             <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Version (semver)
             </span>
-            <input
+            <Input
               value={draft.version}
               disabled={isEdit}
               onChange={(e) => onChange({ ...draft, version: e.target.value })}
               placeholder="1.1.0"
-              className={inputClass('font-mono disabled:opacity-60')}
+              className="font-mono"
             />
           </label>
 
@@ -1184,10 +1173,9 @@ function VersionEditorModal({
             <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Titre
             </span>
-            <input
+            <Input
               value={draft.title}
               onChange={(e) => onChange({ ...draft, title: e.target.value })}
-              className={inputClass()}
             />
           </label>
 
@@ -1195,10 +1183,9 @@ function VersionEditorModal({
             <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Résumé (meta description)
             </span>
-            <input
+            <Input
               value={draft.summary}
               onChange={(e) => onChange({ ...draft, summary: e.target.value })}
-              className={inputClass()}
             />
           </label>
 
@@ -1206,11 +1193,10 @@ function VersionEditorModal({
             <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Entrée en vigueur
             </span>
-            <input
+            <Input
               type="date"
               value={draft.effectiveAt}
               onChange={(e) => onChange({ ...draft, effectiveAt: e.target.value })}
-              className={inputClass()}
             />
           </label>
 
@@ -1218,11 +1204,10 @@ function VersionEditorModal({
             <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Journal des modifications
             </span>
-            <input
+            <Input
               value={draft.changelog}
               onChange={(e) => onChange({ ...draft, changelog: e.target.value })}
               placeholder="Ex. : ajout de l'article 9 sur les paiements"
-              className={inputClass()}
             />
           </label>
 
@@ -1231,52 +1216,44 @@ function VersionEditorModal({
               <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Contenu
               </span>
-              <button
-                onClick={onTogglePreview}
-                className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] font-semibold text-foreground hover:bg-muted"
-              >
-                <Eye className="h-3 w-3" /> {showPreview ? 'Éditer' : 'Aperçu'}
-              </button>
+              <Button variant="outline" size="xs" onClick={onTogglePreview}>
+                <Eye /> {showPreview ? 'Éditer' : 'Aperçu'}
+              </Button>
             </div>
 
             {showPreview ? (
               <div
-                className="prose prose-sm max-h-[420px] overflow-y-auto rounded-xl border border-border px-4 py-3 text-sm leading-relaxed"
+                className="prose prose-sm max-h-[420px] overflow-y-auto rounded-xl border border-border px-4 py-3 text-sm leading-relaxed bg-muted/20"
                 dangerouslySetInnerHTML={{ __html: previewHtml }}
               />
             ) : (
-              <textarea
+              <Textarea
                 value={draft.body}
                 onChange={(e) => onChange({ ...draft, body: e.target.value })}
                 rows={18}
-                className={inputClass('font-mono text-[12px] leading-relaxed')}
+                className="font-mono text-[12px] leading-relaxed"
               />
             )}
           </div>
-        </div>
+        </DialogBody>
 
-        <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-4">
-          <button
-            onClick={onClose}
-            className="rounded-xl border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted"
-          >
+        <DialogFooter className="flex items-center justify-end gap-2 border-t border-border px-5 py-4">
+          <Button variant="ghost" size="sm" onClick={onClose}>
             Annuler
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="solid"
+            tone="neutral"
+            size="sm"
             onClick={onSave}
             disabled={pending || !draft.title.trim() || !draft.body.trim()}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-foreground px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50"
           >
-            {pending ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Save className="h-3.5 w-3.5" />
-            )}
+            {pending ? <Loader2 className="animate-spin" /> : <Save />}
             {isEdit ? 'Enregistrer le brouillon' : 'Créer le brouillon'}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1311,36 +1288,35 @@ function NewDocumentModal({ pending, onClose, onCreate }: NewDocumentModalProps)
   const [publish, setPublish] = useState(false);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 p-4 backdrop-blur-sm md:p-8">
-      <div className="flex max-h-full w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-border px-5 py-4">
-          <h2 className="text-sm font-semibold text-foreground">Nouveau document juridique</h2>
-          <button onClick={onClose} aria-label="Fermer" className="rounded-lg p-1 hover:bg-muted">
-            <X className="h-4 w-4" />
-          </button>
-        </div>
+    <Dialog
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+      size="lg"
+    >
+      <DialogContent className="max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+        <DialogHeader className="border-b border-border px-5 py-4">
+          <DialogTitle className="text-sm font-semibold">Nouveau document juridique</DialogTitle>
+        </DialogHeader>
 
-        <div className="grid gap-4 overflow-y-auto p-5 sm:grid-cols-2">
+        <DialogBody className="grid gap-4 overflow-y-auto p-5 sm:grid-cols-2">
           <label className="space-y-1.5">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Slug
             </span>
-            <input
+            <Input
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
               placeholder="politique-remboursement"
-              className={inputClass('font-mono')}
+              className="font-mono"
             />
           </label>
           <label className="space-y-1.5">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Titre
             </span>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className={inputClass()}
-            />
+            <Input value={title} onChange={(e) => setTitle(e.target.value)} />
           </label>
           <div className="space-y-1.5">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
@@ -1372,51 +1348,53 @@ function NewDocumentModal({ pending, onClose, onCreate }: NewDocumentModalProps)
             <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Résumé
             </span>
-            <input
-              value={summary}
-              onChange={(e) => setSummary(e.target.value)}
-              className={inputClass()}
-            />
+            <Input value={summary} onChange={(e) => setSummary(e.target.value)} />
           </label>
           <label className="space-y-1.5 sm:col-span-2">
             <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Contenu (markdown)
             </span>
-            <textarea
+            <Textarea
               value={body}
               onChange={(e) => setBody(e.target.value)}
               rows={10}
-              className={inputClass('font-mono text-[12px]')}
+              className="font-mono text-[12px]"
             />
           </label>
-          <label className="flex items-center gap-3 rounded-xl border border-border px-4 py-3">
-            <input
-              type="checkbox"
-              checked={requiresAcceptance}
-              onChange={(e) => setRequiresAcceptance(e.target.checked)}
-              className="h-4 w-4"
+          <div
+            onClick={() => setRequiresAcceptance(!requiresAcceptance)}
+            className="flex items-center gap-3 rounded-xl border border-border px-4 py-3 cursor-pointer hover:bg-muted/40"
+          >
+            <Checkbox
+              isSelected={requiresAcceptance}
+              onChange={setRequiresAcceptance}
+              size="sm"
+              className="pointer-events-none"
             />
             <span className="text-xs font-semibold text-foreground">Consentement obligatoire</span>
-          </label>
-          <label className="flex items-center gap-3 rounded-xl border border-border px-4 py-3">
-            <input
-              type="checkbox"
-              checked={publish}
-              onChange={(e) => setPublish(e.target.checked)}
-              className="h-4 w-4"
+          </div>
+          <div
+            onClick={() => setPublish(!publish)}
+            className="flex items-center gap-3 rounded-xl border border-border px-4 py-3 cursor-pointer hover:bg-muted/40"
+          >
+            <Checkbox
+              isSelected={publish}
+              onChange={setPublish}
+              size="sm"
+              className="pointer-events-none"
             />
             <span className="text-xs font-semibold text-foreground">Publier immédiatement</span>
-          </label>
-        </div>
+          </div>
+        </DialogBody>
 
-        <div className="flex items-center justify-end gap-2 border-t border-border px-5 py-4">
-          <button
-            onClick={onClose}
-            className="rounded-xl border border-border px-3 py-2 text-xs font-semibold text-foreground hover:bg-muted"
-          >
+        <DialogFooter className="flex items-center justify-end gap-2 border-t border-border px-5 py-4">
+          <Button variant="ghost" size="sm" onClick={onClose}>
             Annuler
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="solid"
+            tone="brand"
+            size="sm"
             onClick={() =>
               onCreate({
                 slug,
@@ -1433,13 +1411,12 @@ function NewDocumentModal({ pending, onClose, onCreate }: NewDocumentModalProps)
               })
             }
             disabled={pending || !slug.trim() || !title.trim() || !body.trim()}
-            className="inline-flex items-center gap-1.5 rounded-xl bg-foreground px-3 py-2 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50"
           >
-            <Plus className="h-3.5 w-3.5" /> Créer
-          </button>
-        </div>
-      </div>
-    </div>
+            <Plus /> Créer
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -1453,7 +1430,7 @@ function StatCard({
   icon: typeof CheckCircle2;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-white px-5 py-4">
+    <div className="rounded-2xl border border-border bg-card px-5 py-4">
       <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         <Icon className="h-3.5 w-3.5" /> {label}
       </div>

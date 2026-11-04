@@ -1,14 +1,14 @@
 {
-  "generatedAt": "2026-11-04T03:02:43.165Z",
+  "generatedAt": "2026-11-04T12:33:11.125Z",
   "total": 369,
   "signals": {
     "primitivesNeverImported": 10,
     "primitivesTotal": 33,
-    "rawButtons": 511,
-    "rawButtonFiles": 105,
+    "rawButtons": 452,
+    "rawButtonFiles": 98,
     "nativeSelectFiles": 0,
-    "rawInputFiles": 56,
-    "handRolledOverlays": 12
+    "rawInputFiles": 51,
+    "handRolledOverlays": 7
   },
   "families": [
     {
@@ -41,7 +41,7 @@
           "path": "packages/ui/src/primitives/badge/badge.tsx",
           "lines": 111,
           "source": "primitives",
-          "usages": 16
+          "usages": 27
         },
         {
           "name": "bevel-button",
@@ -62,7 +62,7 @@
           "path": "packages/ui/src/primitives/button/button.tsx",
           "lines": 150,
           "source": "primitives",
-          "usages": 36
+          "usages": 48
         },
         {
           "name": "card",
@@ -76,7 +76,7 @@
           "path": "packages/ui/src/primitives/checkbox/checkbox.tsx",
           "lines": 242,
           "source": "primitives",
-          "usages": 3
+          "usages": 6
         },
         {
           "name": "color",
@@ -125,7 +125,7 @@
           "path": "packages/ui/src/primitives/dialog/dialog.tsx",
           "lines": 334,
           "source": "primitives",
-          "usages": 19
+          "usages": 24
         },
         {
           "name": "drawer",
@@ -160,7 +160,7 @@
           "path": "packages/ui/src/primitives/input/input.tsx",
           "lines": 192,
           "source": "primitives",
-          "usages": 25
+          "usages": 33
         },
         {
           "name": "radio-cards",
@@ -202,7 +202,7 @@
           "path": "packages/ui/src/primitives/switch/switch.tsx",
           "lines": 100,
           "source": "primitives",
-          "usages": 7
+          "usages": 8
         },
         {
           "name": "sort",
@@ -216,14 +216,14 @@
           "path": "packages/ui/src/primitives/table/table.tsx",
           "lines": 375,
           "source": "primitives",
-          "usages": 3
+          "usages": 17
         },
         {
           "name": "tabs",
           "path": "packages/ui/src/primitives/tabs/tabs.tsx",
           "lines": 204,
           "source": "primitives",
-          "usages": 11
+          "usages": 13
         },
         {
           "name": "tag-group",
@@ -732,7 +732,7 @@
           "path": "packages/ui/src/primitives/badge/badge.tsx",
           "lines": 111,
           "source": "ui",
-          "usages": 16
+          "usages": 27
         },
         {
           "name": "bevel-button",
@@ -753,7 +753,7 @@
           "path": "packages/ui/src/primitives/button/button.tsx",
           "lines": 150,
           "source": "ui",
-          "usages": 36
+          "usages": 48
         },
         {
           "name": "card",
@@ -767,7 +767,7 @@
           "path": "packages/ui/src/primitives/checkbox/checkbox.tsx",
           "lines": 242,
           "source": "ui",
-          "usages": 3
+          "usages": 6
         },
         {
           "name": "color",
@@ -816,7 +816,7 @@
           "path": "packages/ui/src/primitives/dialog/dialog.tsx",
           "lines": 334,
           "source": "ui",
-          "usages": 19
+          "usages": 24
         },
         {
           "name": "drawer",
@@ -851,7 +851,7 @@
           "path": "packages/ui/src/primitives/input/input.tsx",
           "lines": 192,
           "source": "ui",
-          "usages": 25
+          "usages": 33
         },
         {
           "name": "radio-cards",
@@ -893,7 +893,7 @@
           "path": "packages/ui/src/primitives/switch/switch.tsx",
           "lines": 100,
           "source": "ui",
-          "usages": 7
+          "usages": 8
         },
         {
           "name": "sort",
@@ -907,14 +907,14 @@
           "path": "packages/ui/src/primitives/table/table.tsx",
           "lines": 375,
           "source": "ui",
-          "usages": 3
+          "usages": 17
         },
         {
           "name": "tabs",
           "path": "packages/ui/src/primitives/tabs/tabs.tsx",
           "lines": 204,
           "source": "ui",
-          "usages": 11
+          "usages": 13
         },
         {
           "name": "tag-group",
@@ -2558,7 +2558,7 @@
         {
           "name": "step-up",
           "path": "apps/admin/src/components/security/step-up.tsx",
-          "lines": 467,
+          "lines": 496,
           "source": "admin",
           "usages": null
         }

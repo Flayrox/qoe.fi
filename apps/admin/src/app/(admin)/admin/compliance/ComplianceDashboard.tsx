@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   Users,
 } from 'lucide-react';
+import { Table, TableBody, TableCell, TableColumn, TableHeader, TableRow } from '@qoe/ui/table';
 import type {
   ComplianceDocument,
   ComplianceObligation,
@@ -221,69 +222,62 @@ export function ComplianceDashboard({ snapshot }: { snapshot: ComplianceSnapshot
             Gérer le contenu juridique
           </Link>
         </header>
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[760px] text-left text-sm">
-            <thead>
-              <tr className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                <th className="px-5 py-2 font-semibold">Document</th>
-                <th className="px-3 py-2 font-semibold">Version</th>
-                <th className="px-3 py-2 font-semibold">Locales</th>
-                <th className="px-3 py-2 font-semibold">Couverture</th>
-                <th className="px-3 py-2 font-semibold">Statut</th>
-                <th className="px-5 py-2 font-semibold">Angles morts</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {documentsByRisk.map((doc) => (
-                <tr key={doc.id} className="align-top">
-                  <td className="px-5 py-3">
-                    <p className="font-medium text-foreground">{doc.slug}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {doc.audience} · {doc.category}
-                      {doc.requiresAcceptance ? ' · consentement obligatoire' : ''}
-                      {!doc.isActive ? ' · désactivé' : ''}
-                    </p>
-                  </td>
-                  <td className="px-3 py-3 text-[12px] text-muted-foreground">
-                    {doc.publishedVersion || <span className="text-destructive-text">aucune</span>}
-                    {doc.draftsCount > 0 && (
-                      <span className="ml-1 text-[10px]">({doc.draftsCount} brouillon)</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-3 text-[12px] text-muted-foreground">
-                    {doc.distinctLocales}
-                  </td>
-                  <td className="px-3 py-3">
-                    {doc.requiresAcceptance ? (
-                      <CoverageBar document={doc} eligible={snapshot.eligibleUsers} />
-                    ) : (
-                      <span className="text-[11px] text-muted-foreground">non requise</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-3">
-                    <StatusBadge status={doc.status} />
-                  </td>
-                  <td className="px-5 py-3">
-                    {doc.issues.length === 0 ? (
-                      <span className="text-[11px] text-muted-foreground">—</span>
-                    ) : (
-                      <ul className="space-y-1">
-                        {doc.issues.map((issue) => (
-                          <li
-                            key={issue}
-                            className="text-[11px] leading-snug text-muted-foreground"
-                          >
-                            • {issue}
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table aria-label="Couverture du consentement" size="md">
+          <TableHeader>
+            <TableColumn isRowHeader>Document</TableColumn>
+            <TableColumn>Version</TableColumn>
+            <TableColumn>Locales</TableColumn>
+            <TableColumn>Couverture</TableColumn>
+            <TableColumn>Statut</TableColumn>
+            <TableColumn>Angles morts</TableColumn>
+          </TableHeader>
+          <TableBody items={documentsByRisk}>
+            {(doc) => (
+              <TableRow id={doc.id} className="align-top">
+                <TableCell>
+                  <p className="font-medium text-foreground">{doc.slug}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {doc.audience} · {doc.category}
+                    {doc.requiresAcceptance ? ' · consentement obligatoire' : ''}
+                    {!doc.isActive ? ' · désactivé' : ''}
+                  </p>
+                </TableCell>
+                <TableCell className="text-[12px] text-muted-foreground">
+                  {doc.publishedVersion || <span className="text-destructive-text">aucune</span>}
+                  {doc.draftsCount > 0 && (
+                    <span className="ml-1 text-[10px]">({doc.draftsCount} brouillon)</span>
+                  )}
+                </TableCell>
+                <TableCell className="text-[12px] text-muted-foreground">
+                  {doc.distinctLocales}
+                </TableCell>
+                <TableCell>
+                  {doc.requiresAcceptance ? (
+                    <CoverageBar document={doc} eligible={snapshot.eligibleUsers} />
+                  ) : (
+                    <span className="text-[11px] text-muted-foreground">non requise</span>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={doc.status} />
+                </TableCell>
+                <TableCell>
+                  {doc.issues.length === 0 ? (
+                    <span className="text-[11px] text-muted-foreground">—</span>
+                  ) : (
+                    <ul className="space-y-1">
+                      {doc.issues.map((issue) => (
+                        <li key={issue} className="text-[11px] leading-snug text-muted-foreground">
+                          • {issue}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
       </section>
 
       {/* ─── Avis envoyés + traceurs ─── */}

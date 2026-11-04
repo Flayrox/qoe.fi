@@ -4,9 +4,12 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Loader2, Search, ShieldOff } from 'lucide-react';
+import { Badge } from '@qoe/ui/badge';
+import { Button } from '@qoe/ui/button';
+import { Input } from '@qoe/ui/input';
+import { Table, TableBody, TableCell, TableColumn, TableHeader, TableRow } from '@qoe/ui/table';
 import { revokeRoleAction } from '@/lib/admin-access-actions';
 import { QueueEmpty } from '@/components/queue/QueueEmpty';
-import { StatusPill } from '@/components/queue/StatusPill';
 import { useStaffAction } from '@/components/queue/useStaffAction';
 import type { AccessGrantRow } from '@/lib/admin-access-data';
 
@@ -60,19 +63,16 @@ export function AccessGrantsTable({ grants, query, canGrant }: AccessGrantsTable
           className="flex gap-2"
           data-testid="access-grants-search"
         >
-          <input
+          <Input
             name="q"
             defaultValue={query}
             placeholder="Filtrer par personne, email ou rôle…"
-            className={inputCls}
+            size="sm"
             data-testid="access-grants-search-input"
           />
-          <button
-            type="submit"
-            className="text-xs font-bold px-3 py-2 rounded-xl border border-border cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
-          >
-            <Search className="w-3 h-3" /> Filtrer
-          </button>
+          <Button type="submit" variant="outline" size="sm">
+            <Search /> Filtrer
+          </Button>
         </form>
       </div>
 
@@ -82,111 +82,115 @@ export function AccessGrantsTable({ grants, query, canGrant }: AccessGrantsTable
           hint="Cherchez une personne ci-dessus pour lui attribuer un rôle — ou élargissez le filtre."
         />
       ) : (
-        <div className="bg-white border border-border rounded-3xl shadow-sm overflow-hidden">
-          <table className="w-full text-left text-xs" data-testid="access-grants-table">
-            <thead className="bg-muted/40 text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3 font-semibold">Personne</th>
-                <th className="px-4 py-3 font-semibold">Rôle</th>
-                <th className="px-4 py-3 font-semibold">Attribué le</th>
-                <th className="px-4 py-3 font-semibold">Échéance</th>
-                <th className="px-4 py-3 font-semibold">État</th>
-                <th className="px-4 py-3 font-semibold text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {grants.map((grant) => {
-                const isOpen = revoking === key(grant);
-                return (
-                  <React.Fragment key={key(grant)}>
-                    <tr
-                      className="border-t border-border/70"
-                      data-testid={`access-grant-row-${grant.roleKey}`}
+        <Table aria-label="Attributions de rôles" size="md" data-testid="access-grants-table">
+          <TableHeader>
+            <TableColumn isRowHeader>Personne</TableColumn>
+            <TableColumn>Rôle</TableColumn>
+            <TableColumn>Attribué le</TableColumn>
+            <TableColumn>Échéance</TableColumn>
+            <TableColumn>État</TableColumn>
+            <TableColumn className="text-right">Action</TableColumn>
+          </TableHeader>
+          <TableBody items={grants}>
+            {(grant) => {
+              const isOpen = revoking === key(grant);
+              return (
+                <TableRow id={key(grant)} data-testid={`access-grant-row-${grant.roleKey}`}>
+                  <TableCell>
+                    <div className="font-medium text-foreground">
+                      {grant.name ?? grant.username ?? grant.email}
+                    </div>
+                    <div className="text-muted-foreground">{grant.email}</div>
+                    <Link
+                      href={`/admin/access/people/${encodeURIComponent(grant.userId)}`}
+                      className="text-[11px] underline text-muted-foreground hover:text-foreground"
+                      data-testid={`access-explain-${grant.roleKey}`}
                     >
-                      <td className="px-4 py-3">
-                        <div className="font-medium">
-                          {grant.name ?? grant.username ?? grant.email}
-                        </div>
-                        <div className="text-muted-foreground">{grant.email}</div>
-                        <Link
-                          href={`/admin/access/people/${encodeURIComponent(grant.userId)}`}
-                          className="text-[11px] underline text-muted-foreground"
-                          data-testid={`access-explain-${grant.roleKey}`}
-                        >
-                          pourquoi ?
-                        </Link>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="font-medium">{grant.roleLabel}</div>
-                        <div className="font-mono text-[11px] text-muted-foreground">
-                          {grant.roleKey}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">{fmt(grant.grantedAt)}</td>
-                      <td className="px-4 py-3">{fmt(grant.expiresAt)}</td>
-                      <td className="px-4 py-3">
-                        <StatusPill tone={grant.state === 'active' ? 'hot' : 'muted'}>
-                          {grant.state === 'active' ? 'actif' : 'échu'}
-                        </StatusPill>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <button
-                          type="button"
-                          disabled={!canGrant || loadingId !== null}
-                          onClick={() => {
-                            setRevoking(isOpen ? null : key(grant));
-                            setReason('');
-                          }}
-                          data-testid={`access-revoke-${grant.roleKey}`}
-                          className="text-[11px] font-bold px-3 py-1.5 rounded-lg border border-border cursor-pointer inline-flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          <ShieldOff className="w-3 h-3" /> Révoquer
-                        </button>
-                      </td>
-                    </tr>
-                    {isOpen && (
-                      <tr
-                        className="border-t border-border/70 bg-muted/20"
+                      pourquoi ?
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    <div className="font-medium text-foreground">{grant.roleLabel}</div>
+                    <div className="font-mono text-[11px] text-muted-foreground">
+                      {grant.roleKey}
+                    </div>
+                  </TableCell>
+                  <TableCell>{fmt(grant.grantedAt)}</TableCell>
+                  <TableCell>{fmt(grant.expiresAt)}</TableCell>
+                  <TableCell>
+                    <Badge
+                      variant="soft"
+                      tone={grant.state === 'active' ? 'vivid' : 'neutral'}
+                      size="xs"
+                    >
+                      {grant.state === 'active' ? 'actif' : 'échu'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {isOpen ? (
+                      <div
+                        className="flex flex-col gap-2 pt-1 min-w-[220px]"
                         data-testid={`access-revoke-form-${grant.roleKey}`}
                       >
-                        <td colSpan={6} className="px-4 py-3">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <input
-                              value={reason}
-                              onChange={(e) => setReason(e.target.value)}
-                              placeholder={`Motif de la révocation de « ${grant.roleKey} » (obligatoire)`}
-                              className={`${inputCls} flex-1 min-w-[240px]`}
-                              data-testid={`access-revoke-reason-${grant.roleKey}`}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => submitRevoke(grant)}
-                              disabled={reason.trim().length < 5 || loadingId !== null}
-                              data-testid={`access-revoke-confirm-${grant.roleKey}`}
-                              className="text-[11px] font-bold px-3 py-2 rounded-lg bg-[#EE4B2B] text-white cursor-pointer inline-flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
-                            >
-                              {loadingId === key(grant) ? (
-                                <Loader2 className="w-3 h-3 animate-spin" />
-                              ) : (
-                                <ShieldOff className="w-3 h-3" />
-                              )}
-                              Confirmer la révocation
-                            </button>
-                          </div>
-                          <p className="mt-2 text-[11px] text-muted-foreground">
-                            Refusé par le serveur si c’est votre dernier rôle, le dernier superadmin
-                            de la plateforme, ou un rôle dont vous ne détenez pas toutes les
-                            capacités.
-                          </p>
-                        </td>
-                      </tr>
+                        <Input
+                          value={reason}
+                          onChange={(e) => setReason(e.target.value)}
+                          placeholder="Motif (obligatoire)"
+                          size="xs"
+                          data-testid={`access-revoke-reason-${grant.roleKey}`}
+                          autoFocus
+                        />
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="xs"
+                            onClick={() => {
+                              setRevoking(null);
+                              setReason('');
+                            }}
+                          >
+                            Annuler
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="solid"
+                            tone="danger"
+                            size="xs"
+                            disabled={reason.trim().length < 5 || loadingId !== null}
+                            onClick={() => submitRevoke(grant)}
+                            data-testid={`access-revoke-confirm-${grant.roleKey}`}
+                          >
+                            {loadingId === key(grant) ? (
+                              <Loader2 className="animate-spin" />
+                            ) : (
+                              <ShieldOff />
+                            )}
+                            Confirmer
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="xs"
+                        disabled={!canGrant || loadingId !== null}
+                        onClick={() => {
+                          setRevoking(key(grant));
+                          setReason('');
+                        }}
+                        data-testid={`access-revoke-${grant.roleKey}`}
+                      >
+                        <ShieldOff /> Révoquer
+                      </Button>
                     )}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                  </TableCell>
+                </TableRow>
+              );
+            }}
+          </TableBody>
+        </Table>
       )}
     </section>
   );

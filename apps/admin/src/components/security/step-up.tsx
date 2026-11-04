@@ -33,6 +33,15 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { Copy, Loader2, ShieldCheck } from 'lucide-react';
+import { Button } from '@qoe/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@qoe/ui/dialog';
+import { Input } from '@qoe/ui/input';
 import { toast } from '@qoe/ui/toast';
 import { createClient } from '@/lib/supabase/client';
 
@@ -164,38 +173,45 @@ export function StepUpGate() {
   if (!request) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="step-up-title"
-      data-testid="step-up-dialog"
+    <Dialog
+      open={Boolean(request)}
+      size="sm"
+      isDismissable={phase !== 'submitting'}
+      onOpenChange={(open) => {
+        if (!open && phase !== 'submitting') close(false);
+      }}
     >
-      <div className="w-full max-w-sm rounded-3xl border border-border bg-white p-6 shadow-2xl text-foreground">
-        <div className="flex items-start gap-3">
-          <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-xl bg-[#EE4B2B]/10 text-[#EE4B2B]">
-            <ShieldCheck className="size-4" />
-          </span>
-          <div className="min-w-0 space-y-1">
-            <h2 id="step-up-title" className="text-sm font-semibold">
-              Vérification requise
-            </h2>
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              {request.reason ??
-                'Cet acte sensible demande une authentification forte récente (moins de 10 minutes).'}
-            </p>
+      <DialogContent
+        overlayClassName="z-[110]"
+        showCloseButton={false}
+        data-testid="step-up-dialog"
+      >
+        <DialogHeader className="pr-0">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg bg-primary/15 text-primary">
+              <ShieldCheck className="size-4" />
+            </span>
+            <div className="min-w-0 space-y-1">
+              <DialogTitle id="step-up-title" className="text-sm">
+                Vérification requise
+              </DialogTitle>
+              <DialogDescription className="text-xs">
+                {request.reason ??
+                  'Cet acte sensible demande une authentification forte récente (moins de 10 minutes).'}
+              </DialogDescription>
+            </div>
           </div>
-        </div>
+        </DialogHeader>
 
         {phase === 'loading' && (
-          <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
             <Loader2 className="size-3.5 animate-spin" />
             Vérification de vos facteurs…
           </div>
         )}
 
         {phase === 'no-factor' && (
-          <div className="mt-4 space-y-3">
+          <div className="mt-2 space-y-3">
             <p className="text-xs leading-relaxed text-muted-foreground">
               Aucun facteur fort compatible n’est enregistré sur ce compte. Une application
               d’authentification (TOTP) est nécessaire pour débloquer cet acte — un code reçu par
@@ -206,22 +222,20 @@ export function StepUpGate() {
                 Un facteur existe mais n’a jamais été vérifié : enrôlez-en un nouveau.
               </p>
             )}
-            <div className="flex flex-wrap items-center gap-2">
-              <button
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              <Button
                 type="button"
+                variant="solid"
+                tone="brand"
+                size="sm"
                 onClick={() => setPhase('enroll')}
                 data-testid="step-up-enroll"
-                className="rounded-xl bg-[#EE4B2B] px-3 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90 cursor-pointer"
               >
                 Enregistrer un facteur maintenant
-              </button>
-              <button
-                type="button"
-                onClick={() => close(false)}
-                className="rounded-xl border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
-              >
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => close(false)}>
                 Fermer
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -231,7 +245,7 @@ export function StepUpGate() {
         )}
 
         {(phase === 'input' || phase === 'submitting') && (
-          <form onSubmit={submit} className="mt-4 space-y-3">
+          <form onSubmit={submit} className="mt-2 space-y-3">
             <label className="block space-y-1.5">
               <span className="text-xs font-medium">
                 Code de votre application d’authentification
@@ -239,7 +253,7 @@ export function StepUpGate() {
                   <span className="text-muted-foreground"> · {factors.totp[0].label}</span>
                 ) : null}
               </span>
-              <input
+              <Input
                 autoFocus
                 value={code}
                 onChange={(event) => setCode(event.target.value.replace(/\D/g, ''))}
@@ -248,7 +262,7 @@ export function StepUpGate() {
                 maxLength={6}
                 placeholder="123456"
                 data-testid="step-up-code"
-                className="w-full rounded-xl border border-border bg-background px-3 py-2 text-center text-lg font-semibold tracking-[0.3em] outline-none focus:border-[#EE4B2B]"
+                className="text-center text-lg font-semibold tracking-[0.3em]"
               />
             </label>
 
@@ -256,28 +270,26 @@ export function StepUpGate() {
               <p className="text-xs leading-relaxed text-destructive-text">{errorMessage}</p>
             )}
 
-            <div className="flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => close(false)}
-                className="rounded-xl border border-border px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
-              >
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <Button type="button" variant="ghost" size="sm" onClick={() => close(false)}>
                 Annuler
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
+                variant="solid"
+                tone="brand"
+                size="sm"
                 disabled={phase === 'submitting' || code.trim().length < 6}
                 data-testid="step-up-submit"
-                className="inline-flex items-center gap-1.5 rounded-xl bg-[#EE4B2B] px-3 py-2 text-xs font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
               >
                 {phase === 'submitting' && <Loader2 className="size-3.5 animate-spin" />}
                 Vérifier
-              </button>
+              </Button>
             </div>
           </form>
         )}
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -373,20 +385,12 @@ function TotpEnrollment({
       <div className="mt-4 space-y-3">
         <p className="text-xs leading-relaxed text-destructive-text">{errorMessage}</p>
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => void start()}
-            className="rounded-xl border border-border px-3 py-2 text-xs cursor-pointer"
-          >
+          <Button type="button" variant="outline" size="sm" onClick={() => void start()}>
             Réessayer
-          </button>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="rounded-xl border border-border px-3 py-2 text-xs cursor-pointer"
-          >
+          </Button>
+          <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
             Fermer
-          </button>
+          </Button>
         </div>
       </div>
     );
@@ -414,20 +418,22 @@ function TotpEnrollment({
       {secret && (
         <div className="flex items-center justify-between gap-2 rounded-xl bg-muted/40 px-3 py-2">
           <code className="truncate font-mono text-xs">{secret}</code>
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="xs"
             onClick={() => copy(secret, 'Secret')}
             data-testid="step-up-copy-secret"
-            className="inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-1 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+            className="shrink-0"
           >
-            <Copy className="size-3.5" /> Copier
-          </button>
+            <Copy /> Copier
+          </Button>
         </div>
       )}
 
       <label className="block space-y-1.5">
         <span className="text-xs font-medium">Code à 6 chiffres</span>
-        <input
+        <Input
           autoFocus
           value={code}
           onChange={(event) => setCode(event.target.value.replace(/\D/g, ''))}
@@ -436,7 +442,7 @@ function TotpEnrollment({
           maxLength={6}
           placeholder="123456"
           data-testid="step-up-enroll-code"
-          className="w-full max-w-[10rem] rounded-xl border border-border bg-background px-3 py-2 text-center text-lg font-semibold tracking-[0.3em] outline-none focus:border-[#EE4B2B]"
+          className="max-w-[10rem] text-center text-lg font-semibold tracking-[0.3em]"
         />
       </label>
 
@@ -444,22 +450,20 @@ function TotpEnrollment({
         <p className="text-xs leading-relaxed text-destructive-text">{errorMessage}</p>
       )}
 
-      <div className="flex items-center gap-2">
-        <button
+      <div className="flex items-center gap-2 pt-2">
+        <Button
           type="submit"
+          variant="solid"
+          tone="brand"
+          size="sm"
           disabled={busy || code.length < 6}
           data-testid="step-up-enroll-submit"
-          className="inline-flex items-center gap-2 rounded-xl bg-[#EE4B2B] px-3 py-2 text-xs font-bold text-white disabled:opacity-40 cursor-pointer"
         >
-          {busy && <Loader2 className="size-3.5 animate-spin" />} Vérifier
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-xl border border-border px-3 py-2 text-xs cursor-pointer"
-        >
+          {busy && <Loader2 className="animate-spin" />} Vérifier
+        </Button>
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
           Annuler
-        </button>
+        </Button>
       </div>
     </form>
   );

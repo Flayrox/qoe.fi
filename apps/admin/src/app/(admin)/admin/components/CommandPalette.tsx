@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Command } from 'cmdk';
 import { useRouter } from 'next/navigation';
+import { Dialog, DialogContent } from '@qoe/ui/dialog';
 import {
   ADMIN_CAPABILITY_DOMAINS,
   ADMIN_DOMAIN_LABELS,
@@ -50,54 +51,53 @@ export function CommandPalette({ capabilities }: CommandPaletteProps) {
   if (!open) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-50 bg-white/40 backdrop-blur-md flex items-start justify-center pt-[15vh]"
-      data-testid="admin-command-palette"
-    >
-      <div className="fixed inset-0" onClick={() => setOpen(false)} />
-      <Command
-        className="w-full max-w-xl bg-white/90 backdrop-blur-xl rounded-2xl shadow-[0_0_0_1px_rgba(0,0,0,0.08),0_16px_32px_rgba(0,0,0,0.1)] overflow-hidden relative z-10 animate-in fade-in-0 slide-in-from-bottom-1 duration-150 ease-[0.16,1,0.3,1] antialiased font-sans"
-        style={{
-          boxShadow: '0 0 0 1px rgba(0,0,0,0.06), 0 16px 32px -8px rgba(0,0,0,0.08)',
-        }}
+    <Dialog open={open} onOpenChange={setOpen} size="lg">
+      <DialogContent
+        showCloseButton={false}
+        aria-label="Palette de commandes"
+        overlayClassName="items-start pt-[15vh] bg-foreground/25 backdrop-blur-md"
+        className="w-full max-w-xl p-0 gap-0 overflow-hidden bg-popover/95 backdrop-blur-xl border border-border/80 shadow-2xl"
+        data-testid="admin-command-palette"
       >
-        <div className="flex items-center px-4 border-b border-border/80">
-          <Command.Input
-            autoFocus
-            placeholder="Aller à un écran, chercher une action…"
-            className="w-full h-14 bg-transparent outline-none placeholder:text-muted-foreground text-lg font-light text-foreground"
-          />
-        </div>
-        <Command.List className="max-h-[320px] overflow-y-auto p-2 scroll-smooth">
-          <Command.Empty className="py-8 text-center text-muted-foreground text-sm font-light">
-            Aucun écran accessible ne correspond.
-          </Command.Empty>
+        <Command className="w-full bg-transparent overflow-hidden relative z-10 antialiased font-sans">
+          <div className="flex items-center px-4 border-b border-border/80">
+            <Command.Input
+              autoFocus
+              placeholder="Aller à un écran, chercher une action…"
+              className="w-full h-14 bg-transparent outline-none placeholder:text-muted-foreground text-lg font-light text-foreground"
+            />
+          </div>
+          <Command.List className="max-h-[320px] overflow-y-auto p-2 scroll-smooth">
+            <Command.Empty className="py-8 text-center text-muted-foreground text-sm font-light">
+              Aucun écran accessible ne correspond.
+            </Command.Empty>
 
-          <Command.Group
-            heading="Écrans"
-            className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-widest"
-          >
-            {items.map((item) => (
-              <Command.Item
-                key={item.href}
-                value={`${item.label} ${item.href} ${item.description}`}
-                onSelect={() => {
-                  router.push(item.href);
-                  setOpen(false);
-                }}
-                data-testid={`admin-command-${item.href.replace(/\//g, '-')}`}
-                className="flex flex-col gap-0.5 px-3 py-2.5 rounded-xl text-muted-foreground aria-selected:bg-muted/80 aria-selected:text-foreground cursor-pointer transition-colors"
-              >
-                <span className="text-sm font-medium">{item.label}</span>
-                <span className="text-[11px] font-normal opacity-70">
-                  {ADMIN_DOMAIN_LABELS[ADMIN_CAPABILITY_DOMAINS[item.capability]]} —{' '}
-                  {item.description}
-                </span>
-              </Command.Item>
-            ))}
-          </Command.Group>
-        </Command.List>
-      </Command>
-    </div>
+            <Command.Group
+              heading="Écrans"
+              className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-widest"
+            >
+              {items.map((item) => (
+                <Command.Item
+                  key={item.href}
+                  value={`${item.label} ${item.href} ${item.description}`}
+                  onSelect={() => {
+                    router.push(item.href);
+                    setOpen(false);
+                  }}
+                  data-testid={`admin-command-${item.href.replace(/\//g, '-')}`}
+                  className="flex flex-col gap-0.5 px-3 py-2.5 rounded-xl text-muted-foreground aria-selected:bg-muted/80 aria-selected:text-foreground cursor-pointer transition-colors"
+                >
+                  <span className="text-sm font-medium">{item.label}</span>
+                  <span className="text-[11px] font-normal opacity-70">
+                    {ADMIN_DOMAIN_LABELS[ADMIN_CAPABILITY_DOMAINS[item.capability]]} —{' '}
+                    {item.description}
+                  </span>
+                </Command.Item>
+              ))}
+            </Command.Group>
+          </Command.List>
+        </Command>
+      </DialogContent>
+    </Dialog>
   );
 }

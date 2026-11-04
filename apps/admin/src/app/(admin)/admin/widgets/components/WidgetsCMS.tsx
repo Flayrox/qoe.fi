@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Star, TrendingUp, Megaphone, Trash2, Search, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Star, TrendingUp, Megaphone, Trash2, Search } from 'lucide-react';
 import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
 import {
@@ -15,6 +15,11 @@ import {
   togglePromoActive,
 } from '@/lib/admin-aux-actions';
 import { cn } from '@qoe/utils';
+import { Table, TableHeader, TableColumn, TableBody, TableRow, TableCell } from '@qoe/ui/table';
+import { Badge } from '@qoe/ui/badge';
+import { Button } from '@qoe/ui/button';
+import { Input, InputGroup, Textarea } from '@qoe/ui/input';
+import { Switch } from '@qoe/ui/switch';
 
 interface Article {
   id: string;
@@ -199,9 +204,7 @@ export function WidgetsCMS({
               onClick={() => setActiveTab(tab.id as 'featured' | 'trends' | 'promos')}
               className={cn(
                 'relative pb-3 flex items-center gap-2 text-sm font-semibold transition-colors outline-none cursor-pointer',
-                isActive
-                  ? 'text-[var(--qoe-vermillion)]'
-                  : 'text-muted-foreground hover:text-foreground'
+                isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
               )}
             >
               <Icon className="w-4 h-4" />
@@ -210,7 +213,7 @@ export function WidgetsCMS({
               {isActive && (
                 <motion.div
                   layoutId="activeAdminTab"
-                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-[var(--qoe-vermillion)]"
+                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"
                   transition={springs.tab}
                 />
               )}
@@ -231,89 +234,69 @@ export function WidgetsCMS({
               transition={{ duration: 0.15 }}
               className="space-y-6"
             >
-              <div className="flex items-center gap-3 bg-muted px-3 py-2 rounded-lg border border-border/50 w-full max-w-sm">
-                <Search className="w-4 h-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Rechercher un article ou un auteur..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-transparent border-none p-0 text-sm focus:ring-0 w-full outline-none"
-                />
+              <div className="max-w-sm w-full">
+                <InputGroup size="sm" left={<Search className="w-4 h-4 text-muted-foreground" />}>
+                  <Input
+                    type="text"
+                    placeholder="Rechercher un article ou un auteur..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </InputGroup>
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="py-2 text-muted-foreground font-semibold text-xs w-1/2">
-                        Titre
-                      </th>
-                      <th className="py-2 text-muted-foreground font-semibold text-xs w-1/4">
-                        Auteur
-                      </th>
-                      <th className="py-2 text-muted-foreground font-semibold text-xs w-1/8">
-                        Statut
-                      </th>
-                      <th className="py-2 text-muted-foreground font-semibold text-xs text-right w-1/8">
-                        Mise en avant
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredArticles.length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="py-12 text-center text-muted-foreground text-sm">
-                          Aucun article trouvé.
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredArticles.map((art) => (
-                        <tr
-                          key={art.id}
-                          className="border-b border-border/50 hover:bg-muted/30 transition-colors"
-                        >
-                          <td className="py-3 pr-4 align-middle">
-                            <span className="text-sm font-semibold text-foreground block truncate max-w-md">
-                              {art.title}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground block mt-0.5">
-                              Publié le {new Date(art.createdAt).toLocaleDateString('fr-FR')}
-                            </span>
-                          </td>
-                          <td className="py-3 text-sm text-muted-foreground align-middle">
-                            {art.author.name || art.author.email}
-                          </td>
-                          <td className="py-3 align-middle">
-                            <span
-                              className={cn(
-                                'inline-block text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded',
-                                art.published
-                                  ? 'bg-success/10 text-success-text'
-                                  : 'bg-muted text-muted-foreground'
-                              )}
-                            >
-                              {art.published ? 'Publié' : 'Brouillon'}
-                            </span>
-                          </td>
-                          <td className="py-3 text-right align-middle">
-                            <button
-                              onClick={() => handleToggleFeatured(art.id)}
-                              className={cn(
-                                'text-xs font-bold px-3 py-1.5 rounded transition-all cursor-pointer',
-                                art.isEditorPick
-                                  ? 'bg-[var(--qoe-vermillion)] text-white shadow-sm'
-                                  : 'bg-muted text-muted-foreground hover:bg-secondary'
-                              )}
-                            >
-                              {art.isEditorPick ? '★ À la une' : 'Mettre à la une'}
-                            </button>
-                          </td>
-                        </tr>
-                      ))
+                <Table aria-label="Articles à la une" size="sm">
+                  <TableHeader>
+                    <TableColumn isRowHeader>Titre</TableColumn>
+                    <TableColumn>Auteur</TableColumn>
+                    <TableColumn>Statut</TableColumn>
+                    <TableColumn>Mise en avant</TableColumn>
+                  </TableHeader>
+                  <TableBody
+                    items={filteredArticles}
+                    renderEmptyState={() => (
+                      <div className="py-12 text-center text-muted-foreground text-sm">
+                        Aucun article trouvé.
+                      </div>
                     )}
-                  </tbody>
-                </table>
+                  >
+                    {(art) => (
+                      <TableRow id={art.id}>
+                        <TableCell className="align-middle">
+                          <span className="text-sm font-semibold text-foreground block truncate max-w-md">
+                            {art.title}
+                          </span>
+                          <span className="text-[10px] text-muted-foreground block mt-0.5">
+                            Publié le {new Date(art.createdAt).toLocaleDateString('fr-FR')}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground align-middle">
+                          {art.author.name || art.author.email}
+                        </TableCell>
+                        <TableCell className="align-middle">
+                          <Badge
+                            variant="soft"
+                            tone={art.published ? 'success' : 'neutral'}
+                            size="xs"
+                          >
+                            {art.published ? 'Publié' : 'Brouillon'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right align-middle">
+                          <Button
+                            size="xs"
+                            variant={art.isEditorPick ? 'solid' : 'soft'}
+                            tone={art.isEditorPick ? 'brand' : 'neutral'}
+                            onClick={() => handleToggleFeatured(art.id)}
+                          >
+                            {art.isEditorPick ? '★ À la une' : 'Mettre à la une'}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
               </div>
             </motion.div>
           )}
@@ -336,12 +319,12 @@ export function WidgetsCMS({
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                     Hashtag
                   </label>
-                  <input
+                  <Input
                     type="text"
                     value={newHashtag}
                     onChange={(e) => setNewHashtag(e.target.value)}
                     placeholder="#attention"
-                    className="w-full bg-transparent border-none px-0 py-1 text-sm font-semibold text-foreground placeholder:text-muted-foreground focus:ring-0 outline-none"
+                    size="sm"
                     required
                   />
                 </div>
@@ -350,85 +333,72 @@ export function WidgetsCMS({
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                     Volume (lectures)
                   </label>
-                  <input
+                  <Input
                     type="number"
                     value={newCount}
                     onChange={(e) => setNewCount(parseInt(e.target.value) || 0)}
                     placeholder="1200"
-                    className="w-full bg-transparent border-none px-0 py-1 text-sm font-semibold text-foreground placeholder:text-muted-foreground focus:ring-0 outline-none"
+                    size="sm"
                     required
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  className="text-sm font-bold text-white bg-[var(--qoe-vermillion)] hover:bg-[var(--qoe-vermillion)]/90 px-4 py-2 rounded-lg transition-colors cursor-pointer"
-                >
+                <Button type="submit" variant="solid" tone="brand" size="sm">
                   Ajouter la tendance
-                </button>
+                </Button>
               </form>
 
               {/* Trends List Table */}
               <div className="overflow-x-auto">
-                <table className="w-full text-left">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="py-2 text-muted-foreground font-semibold text-xs w-1/2">
-                        Hashtag
-                      </th>
-                      <th className="py-2 text-muted-foreground font-semibold text-xs w-1/3">
-                        Volume lectures
-                      </th>
-                      <th className="py-2 text-muted-foreground font-semibold text-xs text-right w-1/6">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {trends.length === 0 ? (
-                      <tr>
-                        <td colSpan={3} className="py-12 text-center text-muted-foreground text-sm">
-                          Aucune tendance enregistrée.
-                        </td>
-                      </tr>
-                    ) : (
-                      trends.map((t) => (
-                        <tr
-                          key={t.id}
-                          className="border-b border-border/50 hover:bg-muted/30 transition-colors group"
-                        >
-                          <td className="py-3 align-middle text-sm font-bold text-foreground">
-                            {t.hashtag}
-                          </td>
-                          <td className="py-3 align-middle">
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="number"
-                                defaultValue={t.count}
-                                onBlur={(e) =>
-                                  handleUpdateTrend(t.id, parseInt(e.target.value) || 0)
-                                }
-                                className="w-24 bg-transparent border border-transparent hover:border-border focus:border-border px-1 py-0.5 rounded text-sm text-muted-foreground outline-none font-mono"
-                              />
-                              <span className="text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
-                                (Sortir du champ pour enregistrer)
-                              </span>
-                            </div>
-                          </td>
-                          <td className="py-3 text-right align-middle">
-                            <button
-                              onClick={() => handleDeleteTrend(t.id)}
-                              className="text-xs font-bold text-muted-foreground hover:text-destructive-text p-1.5 rounded transition-colors cursor-pointer"
-                              title="Supprimer"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))
+                <Table aria-label="Tendances" size="sm">
+                  <TableHeader>
+                    <TableColumn isRowHeader>Hashtag</TableColumn>
+                    <TableColumn>Volume lectures</TableColumn>
+                    <TableColumn>Actions</TableColumn>
+                  </TableHeader>
+                  <TableBody
+                    items={trends}
+                    renderEmptyState={() => (
+                      <div className="py-12 text-center text-muted-foreground text-sm">
+                        Aucune tendance enregistrée.
+                      </div>
                     )}
-                  </tbody>
-                </table>
+                  >
+                    {(t) => (
+                      <TableRow id={t.id}>
+                        <TableCell className="text-sm font-bold text-foreground align-middle">
+                          {t.hashtag}
+                        </TableCell>
+                        <TableCell className="align-middle">
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              defaultValue={t.count}
+                              onBlur={(e) => handleUpdateTrend(t.id, parseInt(e.target.value) || 0)}
+                              size="xs"
+                              className="w-24 font-mono"
+                            />
+                            <span className="text-[10px] text-muted-foreground">
+                              (Sortir du champ pour enregistrer)
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right align-middle">
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            shape="icon"
+                            onClick={() => handleDeleteTrend(t.id)}
+                            aria-label="Supprimer"
+                            className="hover:text-destructive-text"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
               </div>
             </motion.div>
           )}
@@ -453,12 +423,12 @@ export function WidgetsCMS({
                     <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                       Titre du widget
                     </label>
-                    <input
+                    <Input
                       type="text"
                       value={promoTitle}
                       onChange={(e) => setPromoTitle(e.target.value)}
                       placeholder="qoe.premium"
-                      className="w-full bg-muted border border-border px-3 py-2 rounded-lg text-sm font-semibold outline-none focus:border-border"
+                      size="sm"
                       required
                     />
                   </div>
@@ -467,12 +437,12 @@ export function WidgetsCMS({
                     <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                       Texte du bouton (CTA)
                     </label>
-                    <input
+                    <Input
                       type="text"
                       value={promoCtaText}
                       onChange={(e) => setPromoCtaText(e.target.value)}
                       placeholder="Découvrir l'offre"
-                      className="w-full bg-muted border border-border px-3 py-2 rounded-lg text-sm font-semibold outline-none focus:border-border"
+                      size="sm"
                     />
                   </div>
                 </div>
@@ -481,12 +451,13 @@ export function WidgetsCMS({
                   <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                     Description
                   </label>
-                  <textarea
+                  <Textarea
                     value={promoDesc}
                     onChange={(e) => setPromoDesc(e.target.value)}
                     placeholder="Soutenez le journalisme libre et sans bruit..."
                     rows={3}
-                    className="w-full bg-muted border border-border px-3 py-2 rounded-lg text-sm font-semibold outline-none focus:border-border resize-none"
+                    size="sm"
+                    className="resize-none"
                     required
                   />
                 </div>
@@ -496,12 +467,12 @@ export function WidgetsCMS({
                     <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                       Lien de destination (CTA URL)
                     </label>
-                    <input
+                    <Input
                       type="text"
                       value={promoCtaUrl}
                       onChange={(e) => setPromoCtaUrl(e.target.value)}
                       placeholder="/billing"
-                      className="w-full bg-muted border border-border px-3 py-2 rounded-lg text-sm font-semibold outline-none focus:border-border"
+                      size="sm"
                     />
                   </div>
 
@@ -522,12 +493,15 @@ export function WidgetsCMS({
                 </div>
 
                 <div className="flex items-end">
-                  <button
+                  <Button
                     type="submit"
-                    className="text-sm font-bold text-white bg-[var(--qoe-vermillion)] hover:bg-[var(--qoe-vermillion)]/90 px-5 py-2.5 rounded-lg transition-colors cursor-pointer w-full md:w-auto"
+                    variant="solid"
+                    tone="brand"
+                    size="md"
+                    className="w-full md:w-auto"
                   >
                     Créer le widget publicitaire
-                  </button>
+                  </Button>
                 </div>
               </form>
 
@@ -545,7 +519,7 @@ export function WidgetsCMS({
                       <div
                         key={p.id}
                         className={cn(
-                          'bg-white border border-border/50 rounded-xl p-5 shadow-[0_4px_20px_rgba(0,0,0,0.01)] flex flex-col justify-between relative',
+                          'bg-card border border-border/50 rounded-xl p-5 shadow-[0_4px_20px_rgba(0,0,0,0.01)] flex flex-col justify-between relative',
                           p.isActive ? 'ring-1 ring-success/20' : 'opacity-75'
                         )}
                       >
@@ -557,25 +531,24 @@ export function WidgetsCMS({
 
                             <div className="flex items-center gap-3">
                               {/* Active toggle */}
-                              <button
-                                onClick={() => handleTogglePromo(p.id, p.isActive)}
-                                className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                                title={p.isActive ? 'Désactiver' : 'Activer'}
-                              >
-                                {p.isActive ? (
-                                  <ToggleRight className="w-6 h-6 text-success-text" />
-                                ) : (
-                                  <ToggleLeft className="w-6 h-6 text-muted-foreground" />
-                                )}
-                              </button>
+                              <Switch
+                                isSelected={p.isActive}
+                                onChange={() => handleTogglePromo(p.id, p.isActive)}
+                                aria-label={p.isActive ? 'Désactiver' : 'Activer'}
+                                size="sm"
+                              />
 
                               {/* Delete button */}
-                              <button
+                              <Button
+                                variant="ghost"
+                                size="xs"
+                                shape="icon"
                                 onClick={() => handleDeletePromo(p.id)}
-                                className="text-muted-foreground hover:text-destructive-text transition-colors cursor-pointer"
+                                aria-label="Supprimer"
+                                className="hover:text-destructive-text"
                               >
                                 <Trash2 className="w-4 h-4" />
-                              </button>
+                              </Button>
                             </div>
                           </div>
 
@@ -601,11 +574,7 @@ export function WidgetsCMS({
                               {p.ctaUrl || 'Aucun'}
                             </code>
                           </span>
-                          {p.ctaText && (
-                            <span className="font-bold text-[var(--qoe-vermillion)]">
-                              {p.ctaText}
-                            </span>
-                          )}
+                          {p.ctaText && <span className="font-bold text-primary">{p.ctaText}</span>}
                         </div>
                       </div>
                     ))}

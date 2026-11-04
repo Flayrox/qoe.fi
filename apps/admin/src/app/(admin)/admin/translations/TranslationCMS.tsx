@@ -13,6 +13,18 @@ import {
   Download,
   Upload,
 } from 'lucide-react';
+import { Badge } from '@qoe/ui/badge';
+import { Button, buttonClasses } from '@qoe/ui/button';
+import {
+  Dialog,
+  DialogBody,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@qoe/ui/dialog';
+import { Input, InputGroup } from '@qoe/ui/input';
 import { setSystemConfigAction } from '@/lib/admin-aux-actions';
 import { Select } from '@qoe/ui/select';
 
@@ -316,52 +328,54 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
         <div>
           <h1 className="text-xl font-bold tracking-tight flex items-center gap-2">
             Base de traduction dynamique
-            <Sparkles className="w-4 h-4 text-[#EE4B2B]" />
+            <Sparkles className="w-4 h-4 text-primary" />
           </h1>
           <p className="text-[11px] text-muted-foreground mt-0.5">
             Surchargez les textes du site en direct dans la base de données.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleExportCSV}
-            className="inline-flex items-center gap-1 text-[11px] text-muted-foreground font-bold border border-border px-3 py-1.5 rounded-lg hover:bg-muted transition-all cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5" /> Export CSV
-          </button>
-          <button
-            type="button"
-            onClick={handleExportJSON}
-            className="inline-flex items-center gap-1 text-[11px] text-muted-foreground font-bold border border-border px-3 py-1.5 rounded-lg hover:bg-muted transition-all cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5" /> Export JSON
-          </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button type="button" variant="outline" size="xs" onClick={handleExportCSV}>
+            <Download /> Export CSV
+          </Button>
+          <Button type="button" variant="outline" size="xs" onClick={handleExportJSON}>
+            <Download /> Export JSON
+          </Button>
 
-          <label className="inline-flex items-center gap-1 text-[11px] text-muted-foreground font-bold border border-border px-3 py-1.5 rounded-lg hover:bg-muted transition-all cursor-pointer">
+          <label
+            className={buttonClasses({
+              variant: 'outline',
+              size: 'xs',
+              className: 'cursor-pointer',
+            })}
+          >
             <Upload className="w-3.5 h-3.5" /> Import
             <input type="file" accept=".csv,.json" onChange={handleFileUpload} className="hidden" />
           </label>
 
           {overriddenCount > 0 && (
-            <button
+            <Button
               type="button"
+              variant="outline"
+              tone="danger"
+              size="xs"
               onClick={handleResetAll}
-              className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-destructive-text font-bold border border-border px-3 py-1.5 rounded-lg hover:bg-destructive/10 hover:border-destructive transition-all cursor-pointer"
             >
-              <Trash2 className="w-3.5 h-3.5" /> Réinitialiser tout
-            </button>
+              <Trash2 /> Réinitialiser tout
+            </Button>
           )}
 
           {isDirty && (
-            <button
+            <Button
               type="button"
+              variant="solid"
+              tone="brand"
+              size="xs"
               onClick={() => setShowModal(true)}
-              className="inline-flex items-center gap-1 text-[11px] bg-[#EE4B2B] text-white font-bold px-3 py-1.5 rounded-lg hover:opacity-95 transition-all cursor-pointer shadow-sm animate-in fade-in-0 duration-150"
             >
-              <Save className="w-3.5 h-3.5" /> Enregistrer ({diff.length})
-            </button>
+              <Save /> Enregistrer ({diff.length})
+            </Button>
           )}
         </div>
       </div>
@@ -377,17 +391,17 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
       )}
 
       {/* Dense Controls Row */}
-      <div className="bg-white border border-border rounded-xl p-3.5 flex flex-col md:flex-row gap-3 items-center">
+      <div className="bg-card border border-border rounded-xl p-3.5 flex flex-col md:flex-row gap-3 items-center">
         {/* Search */}
-        <div className="relative flex-1 w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Rechercher par clé ou texte..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-muted border border-border rounded-lg pl-8.5 pr-3 py-1.5 text-xs focus:ring-1 focus:ring-[#EE4B2B] focus:border-[#EE4B2B] outline-none"
-          />
+        <div className="flex-1 w-full">
+          <InputGroup size="sm" left={<Search />}>
+            <Input
+              type="text"
+              placeholder="Rechercher par clé ou texte..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </InputGroup>
         </div>
 
         {/* Namespace Select */}
@@ -624,27 +638,16 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
       )}
 
       {/* Confirmation Diffs Modal */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 bg-foreground/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl border border-border shadow-2xl w-full max-w-xl p-5 space-y-4 animate-in fade-in-0 slide-in-from-bottom-1 duration-150">
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
-                  Récapitulatif des modifications
-                </h3>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
-                  Vérifiez la liste de vos changements avant de les appliquer en ligne :
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-muted-foreground transition-colors cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+      <Dialog open={showModal} onOpenChange={setShowModal} size="lg">
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Récapitulatif des modifications</DialogTitle>
+            <DialogDescription>
+              Vérifiez la liste de vos changements avant de les appliquer en ligne :
+            </DialogDescription>
+          </DialogHeader>
 
+          <DialogBody>
             {/* List of changes */}
             <div className="max-h-64 overflow-y-auto divide-y divide-border border border-border/80 rounded-xl p-3 bg-muted/50">
               {diff.map((item, index) => (
@@ -653,9 +656,9 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
                     <span className="font-semibold text-foreground truncate break-all pr-4">
                       {item.key}
                     </span>
-                    <span className="text-[8px] uppercase font-bold px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">
+                    <Badge variant="soft" tone="neutral" size="xs">
                       {item.lang === 'fr' ? '🇫🇷 FR' : '🇬🇧 EN'}
-                    </span>
+                    </Badge>
                   </div>
                   <div className="text-[10px] text-muted-foreground flex items-center gap-1.5 flex-wrap">
                     <span
@@ -666,7 +669,7 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
                     </span>
                     <span>→</span>
                     <span
-                      className="font-bold text-[#EE4B2B] truncate max-w-[240px]"
+                      className="font-bold text-primary truncate max-w-[240px]"
                       title={item.newVal}
                     >
                       {item.newVal}
@@ -675,27 +678,25 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
                 </div>
               ))}
             </div>
+          </DialogBody>
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-border">
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                className="px-3.5 py-2 rounded-lg border border-border hover:bg-muted text-xs font-semibold cursor-pointer text-muted-foreground"
-              >
-                Annuler
-              </button>
-              <button
-                type="button"
-                disabled={isPending}
-                onClick={confirmSave}
-                className="px-3.5 py-2 rounded-lg bg-[#EE4B2B] text-white hover:opacity-95 text-xs font-bold cursor-pointer shadow-sm"
-              >
-                {isPending ? 'Sauvegarde...' : "Confirmer l'enregistrement"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          <DialogFooter className="pt-2 border-t border-border">
+            <Button type="button" variant="ghost" size="sm" onClick={() => setShowModal(false)}>
+              Annuler
+            </Button>
+            <Button
+              type="button"
+              variant="solid"
+              tone="brand"
+              size="sm"
+              disabled={isPending}
+              onClick={confirmSave}
+            >
+              {isPending ? 'Sauvegarde...' : "Confirmer l'enregistrement"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
