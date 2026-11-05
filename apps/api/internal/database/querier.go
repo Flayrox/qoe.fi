@@ -46,6 +46,7 @@ type Querier interface {
 	CheckArticleSlugExists(ctx context.Context, arg CheckArticleSlugExistsParams) (bool, error)
 	CheckCategorySlugExists(ctx context.Context, arg CheckCategorySlugExistsParams) (bool, error)
 	CheckMediaSlugExists(ctx context.Context, slug string) (bool, error)
+	CheckPublicationEmailCooldown(ctx context.Context, publicationid string) (pgtype.Timestamp, error)
 	CheckSubdomainExists(ctx context.Context, subdomain pgtype.Text) (bool, error)
 	CheckSubdomainExistsOther(ctx context.Context, arg CheckSubdomainExistsOtherParams) (bool, error)
 	// Réclamation atomique (QUEUED → PROCESSING) : plusieurs instances du worker
@@ -191,6 +192,7 @@ type Querier interface {
 	FindSimilarArticles(ctx context.Context, arg FindSimilarArticlesParams) ([]FindSimilarArticlesRow, error)
 	FindTrending(ctx context.Context, arg FindTrendingParams) ([]FindTrendingRow, error)
 	FinishArticleImportJob(ctx context.Context, arg FinishArticleImportJobParams) error
+	FinishArticleRelease(ctx context.Context, arg FinishArticleReleaseParams) error
 	FinishNewsletterIssue(ctx context.Context, arg FinishNewsletterIssueParams) (string, error)
 	GetActiveSubscribersByPublication(ctx context.Context, arg GetActiveSubscribersByPublicationParams) ([]GetActiveSubscribersByPublicationRow, error)
 	GetActiveSubscriptionForReply(ctx context.Context, arg GetActiveSubscriptionForReplyParams) (int32, error)
@@ -211,6 +213,7 @@ type Querier interface {
 	GetArticleBySlugAny(ctx context.Context, slug string) (GetArticleBySlugAnyRow, error)
 	GetArticleCommentAuthor(ctx context.Context, id string) (string, error)
 	GetArticleCommentsConfig(ctx context.Context, id string) (GetArticleCommentsConfigRow, error)
+	GetArticleEmailReleaseStatus(ctx context.Context, id string) (GetArticleEmailReleaseStatusRow, error)
 	// Retourne le vecteur d'un article sous forme texte ('' si absent). Le scan
 	// d'un type vector NULL n'est pas géré par pgvector-go → on cast en texte.
 	GetArticleEmbeddingText(ctx context.Context, id string) (string, error)
@@ -434,7 +437,9 @@ type Querier interface {
 	InsertArticleContributorNotification(ctx context.Context, arg InsertArticleContributorNotificationParams) error
 	// Import bulk d'articles — jobs asynq + rapports d'erreurs.
 	InsertArticleImportJob(ctx context.Context, arg InsertArticleImportJobParams) (string, error)
+	InsertArticleReleaseCatchUpDeliveries(ctx context.Context, arg InsertArticleReleaseCatchUpDeliveriesParams) error
 	InsertArticleReleaseDeliveries(ctx context.Context, arg InsertArticleReleaseDeliveriesParams) error
+	InsertArticleReleaseMajorUpdateDeliveries(ctx context.Context, arg InsertArticleReleaseMajorUpdateDeliveriesParams) error
 	InsertArticleReviewLog(ctx context.Context, arg InsertArticleReviewLogParams) error
 	InsertArticleReviewNotification(ctx context.Context, arg InsertArticleReviewNotificationParams) error
 	InsertBlock(ctx context.Context, arg InsertBlockParams) error
@@ -738,6 +743,8 @@ type Querier interface {
 	// séparément dans le service (les CTE PostgreSQL sont matérialisés, un
 	// COUNT dans le même statement ne verrait pas l'insertion).
 	ToggleHighlightUpvote(ctx context.Context, arg ToggleHighlightUpvoteParams) (int32, error)
+	TryLockArticleForEmailRelease(ctx context.Context, arg TryLockArticleForEmailReleaseParams) (string, error)
+	TryLockArticleForMajorUpdate(ctx context.Context, arg TryLockArticleForMajorUpdateParams) (string, error)
 	UnhideArticleByModerator(ctx context.Context, id string) error
 	UnhidePostByModerator(ctx context.Context, id string) error
 	UnpinPost(ctx context.Context, arg UnpinPostParams) (bool, error)

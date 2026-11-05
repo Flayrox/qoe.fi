@@ -36,6 +36,9 @@ interface ArticleData {
   status?: string;
   scheduledAt?: string | null;
   isPremium: boolean;
+  emailStatus?: string | null;
+  emailSentAt?: string | null;
+  emailSentCount?: number;
   allowDownload?: boolean;
   allowPublicAnnotations?: boolean;
   allowComments?: boolean;
@@ -149,6 +152,11 @@ export function EditArticleClient({ article, categories, capabilities }: EditArt
         initialAllowDownload={article.allowDownload ?? true}
         initialAllowPublicAnnotations={article.allowPublicAnnotations ?? true}
         initialAllowComments={article.allowComments ?? true}
+        initialEmailStatus={
+          article.emailStatus as 'NOT_SENT' | 'SENDING' | 'SENT' | 'FAILED' | null | undefined
+        }
+        initialEmailSentAt={article.emailSentAt}
+        initialEmailSentCount={article.emailSentCount}
         initialCategoryId={article.categoryId}
         initialSeoTitle={article.seoTitle || ''}
         initialSeoDescription={article.seoDescription || ''}

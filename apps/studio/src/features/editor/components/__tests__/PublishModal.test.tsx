@@ -117,4 +117,25 @@ describe('PublishModal', () => {
       resolveConfirm();
     });
   });
+
+  it('permet de personnaliser l’objet et le préheader de la newsletter', async () => {
+    render(<PublishModal {...baseProps} />);
+    const user = userEvent.setup();
+
+    const subjectInput = screen.getByLabelText(/Objet du message/i);
+    fireEvent.change(subjectInput, { target: { value: 'Objet personnalisé spécial' } });
+
+    const previewInput = screen.getByLabelText(/Texte d'aperçu/i);
+    fireEvent.change(previewInput, { target: { value: 'Aperçu exclusif' } });
+
+    const confirmBtn = screen.getByRole('button', { name: /Publier & Envoyer maintenant/i });
+    await user.click(confirmBtn);
+
+    expect(baseProps.onConfirm).toHaveBeenCalledWith({
+      sendEmail: true,
+      isPremium: false,
+      emailSubject: 'Objet personnalisé spécial',
+      emailPreviewText: 'Aperçu exclusif',
+    });
+  });
 });

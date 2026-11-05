@@ -599,6 +599,14 @@ type Article struct {
 	CreatedAt              pgtype.Timestamp  `json:"createdAt"`
 	UpdatedAt              pgtype.Timestamp  `json:"updatedAt"`
 	Embedding              pgvector.Vector   `json:"embedding"`
+	EmailStatus            string            `json:"emailStatus"`
+	EmailSentAt            pgtype.Timestamp  `json:"emailSentAt"`
+	EmailSubject           pgtype.Text       `json:"emailSubject"`
+	EmailPreviewText       pgtype.Text       `json:"emailPreviewText"`
+	EmailSentCount         int32             `json:"emailSentCount"`
+	EmailFailedCount       int32             `json:"emailFailedCount"`
+	EmailTotalRecipients   int32             `json:"emailTotalRecipients"`
+	EmailResendCount       int32             `json:"emailResendCount"`
 }
 
 type ArticleAttribution struct {
@@ -656,6 +664,7 @@ type ArticleReleaseDelivery struct {
 	Email        string           `json:"email"`
 	SubscriberId pgtype.Text      `json:"subscriberId"`
 	Status       string           `json:"status"`
+	DeliveryType string           `json:"deliveryType"`
 	Error        pgtype.Text      `json:"error"`
 	CreatedAt    pgtype.Timestamp `json:"createdAt"`
 	UpdatedAt    pgtype.Timestamp `json:"updatedAt"`

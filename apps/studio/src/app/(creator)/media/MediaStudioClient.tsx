@@ -31,10 +31,23 @@ import {
   X,
 } from 'lucide-react';
 import { SafeAvatar } from '@qoe/ui';
+import { Badge } from '@qoe/ui/badge';
 import { Button } from '@qoe/ui/button';
 import { Checkbox } from '@qoe/ui/checkbox';
 import { Input, InputGroup, Textarea } from '@qoe/ui/input';
 import { Switch } from '@qoe/ui/switch';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableColumn,
+  TableHeader,
+  TableRow,
+  TablePersonCell,
+  sortRows,
+  type SortDescriptorLike,
+  type SortSpec,
+} from '@qoe/ui/table';
 import { Tab, TabList, Tabs } from '@qoe/ui/tabs';
 import { searchArticleContributorsAction } from '@qoe/sdk/actions/articles';
 import { toast } from '@qoe/ui/toast';
@@ -165,6 +178,48 @@ const ROLE_DEFAULT_PERMS: Record<string, string[]> = {
 };
 
 type StudioTab = 'members' | 'invites' | 'api-keys' | 'settings';
+
+const MEMBER_SORT: SortSpec<MediaDetail['members'][number]> = {
+  member: {
+    kind: 'text',
+    value: (row) => row.user.name || row.user.username || '',
+  },
+  role: {
+    kind: 'rank',
+    rank: [MEDIA_ROLES.OWNER, 'editor', 'writer', 'viewer'],
+    value: (row) => row.role,
+  },
+  joinedAt: {
+    kind: 'date',
+    value: (row) => (row.joinedAt ? new Date(row.joinedAt) : null),
+  },
+};
+
+const INVITE_SORT: SortSpec<MediaInviteLinkDTO> = {
+  role: {
+    kind: 'rank',
+    rank: ['editor', 'writer', 'viewer'],
+    value: (row) => row.role,
+  },
+  status: {
+    kind: 'rank',
+    rank: ['Actif', 'Expiré', 'Épuisé', 'Révoqué'],
+    value: (row) => {
+      if (row.isRevoked) return 'Révoqué';
+      if (row.expiresAt && new Date(row.expiresAt).getTime() < Date.now()) return 'Expiré';
+      if (row.maxUses > 0 && row.usedCount >= row.maxUses) return 'Épuisé';
+      return 'Actif';
+    },
+  },
+  uses: {
+    kind: 'number',
+    value: (row) => row.usedCount,
+  },
+  expiresAt: {
+    kind: 'date',
+    value: (row) => (row.expiresAt ? new Date(row.expiresAt) : null),
+  },
+};
 
 function formatDate(iso: string | null): string {
   if (!iso) return '—';
@@ -353,14 +408,33 @@ export function MediaStudioClient({
     }
   };
 
-  const linkStatus = (link: MediaInviteLinkDTO) => {
-    if (link.isRevoked)
-      return { label: t`Révoqué`, tone: 'text-destructive-text bg-destructive/10' };
+  const [memberSort, setMemberSort] = useState<SortDescriptorLike>({
+    column: 'role',
+    direction: 'ascending',
+  });
+  const [inviteSort, setInviteSort] = useState<SortDescriptorLike>({
+    column: 'status',
+    direction: 'ascending',
+  });
+
+  const sortedMembers = useMemo(() => {
+    if (!detail?.members) return [];
+    return sortRows(detail.members, memberSort, MEMBER_SORT);
+  }, [detail?.members, memberSort]);
+
+  const sortedInviteLinks = useMemo(() => {
+    return sortRows(inviteLinks, inviteSort, INVITE_SORT);
+  }, [inviteLinks, inviteSort]);
+
+  const linkStatus = (
+    link: MediaInviteLinkDTO
+  ): { label: string; tone: 'danger' | 'neutral' | 'success' } => {
+    if (link.isRevoked) return { label: t`Révoqué`, tone: 'danger' };
     if (link.expiresAt && new Date(link.expiresAt).getTime() < Date.now())
-      return { label: t`Expiré`, tone: 'text-muted-foreground bg-muted' };
+      return { label: t`Expiré`, tone: 'neutral' };
     if (link.maxUses > 0 && link.usedCount >= link.maxUses)
-      return { label: t`Épuisé`, tone: 'text-muted-foreground bg-muted' };
-    return { label: t`Actif`, tone: 'text-success-text bg-success/10' };
+      return { label: t`Épuisé`, tone: 'neutral' };
+    return { label: t`Actif`, tone: 'success' };
   };
 
   const handleCreateInviteLink = async () => {
@@ -684,7 +758,7 @@ export function MediaStudioClient({
 
       {/* ── Tabs ── */}
       <Tabs
-        variant="underline"
+        variant="segmented"
         size="sm"
         value={tab}
         onValueChange={(val) => setTab(val as StudioTab)}
@@ -711,99 +785,127 @@ export function MediaStudioClient({
 
       {/* ── Members ── */}
       {tab === 'members' && (
-        <div className="divide-y divide-border/30">
-          {detail.members.map((member) => {
-            const roleMeta = ROLE_META[member.role] || ROLE_META.writer;
-            const RoleIcon = roleMeta.icon;
-            const perms = effectivePerms(member);
-            return (
-              <div key={member.id} className="group flex items-center gap-3 py-3.5">
-                {member.user.logoUrl ? (
-                  <Image
-                    src={member.user.logoUrl}
-                    alt=""
-                    width={36}
-                    height={36}
-                    className="size-9 rounded-full object-cover border border-border/40 shrink-0"
-                  />
-                ) : (
-                  <div className="size-9 rounded-full bg-muted flex items-center justify-center text-xs font-bold text-muted-foreground shrink-0">
-                    {(member.user.name || member.user.username || '?').slice(0, 2).toUpperCase()}
-                  </div>
-                )}
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-foreground truncate">
-                      {member.user.name || member.user.username || 'Inconnu'}
-                    </span>
-                    <span
-                      className={cn(
-                        'flex items-center gap-1 text-[11px] font-medium',
-                        roleMeta.color
+        <div className="space-y-4">
+          <div className="overflow-hidden rounded-xl border border-border/30 bg-card shadow-none">
+            <Table
+              aria-label={t`Membres du Média`}
+              size="md"
+              sortDescriptor={memberSort}
+              onSortChange={setMemberSort}
+            >
+              <TableHeader>
+                <TableColumn id="member" isRowHeader allowsSorting>
+                  {t`Membre`}
+                </TableColumn>
+                <TableColumn id="role" allowsSorting>
+                  {t`Rôle`}
+                </TableColumn>
+                <TableColumn id="permissions">{t`Permissions`}</TableColumn>
+                <TableColumn id="joinedAt" allowsSorting>
+                  {t`Date d'arrivée`}
+                </TableColumn>
+                {canManageMembers && <TableColumn className="text-right">{t`Actions`}</TableColumn>}
+              </TableHeader>
+              <TableBody items={sortedMembers}>
+                {(member) => {
+                  const roleMeta = ROLE_META[member.role] || ROLE_META.writer;
+                  const RoleIcon = roleMeta.icon;
+                  const perms = effectivePerms(member);
+                  return (
+                    <TableRow id={member.id}>
+                      <TableCell>
+                        <TablePersonCell
+                          name={member.user.name || member.user.username || 'Inconnu'}
+                          src={member.user.logoUrl}
+                          meta={member.user.username ? `@${member.user.username}` : undefined}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={cn(
+                            'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-chip text-xs font-medium',
+                            roleMeta.color
+                          )}
+                        >
+                          <RoleIcon className="w-3.5 h-3.5" strokeWidth={1.5} />
+                          {roleMeta.label()}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5">
+                          <div className="flex flex-wrap gap-1">
+                            {perms.slice(0, 2).map((perm) => (
+                              <span
+                                key={perm}
+                                className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground"
+                              >
+                                {PERMISSION_LABELS[perm] ? PERMISSION_LABELS[perm]() : perm}
+                              </span>
+                            ))}
+                            {perms.length > 2 && (
+                              <span className="rounded bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                                +{perms.length - 2}
+                              </span>
+                            )}
+                          </div>
+                          {isOwner && member.role !== MEDIA_ROLES.OWNER && (
+                            <PermissionPopover
+                              member={member}
+                              perms={perms}
+                              onToggle={handlePermissionsChange}
+                            />
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-xs tabular-nums">
+                        {formatDate(member.joinedAt)}
+                      </TableCell>
+                      {canManageMembers && (
+                        <TableCell className="text-right">
+                          {member.role !== MEDIA_ROLES.OWNER ? (
+                            <div className="flex items-center justify-end gap-1.5">
+                              <Select
+                                label={t`Rôle de ${member.user.name || member.user.username || t`ce membre`}`}
+                                hideLabel
+                                size="sm"
+                                className="w-32"
+                                value={member.role}
+                                onValueChange={(role) => handleRoleChange(member.user.id, role)}
+                                options={ASSIGNABLE_ROLES.map((role) => ({
+                                  id: role,
+                                  label: ROLE_META[role].label(),
+                                }))}
+                              />
+                              <Button
+                                variant="ghost"
+                                tone="danger"
+                                size="sm"
+                                shape="icon"
+                                onClick={() =>
+                                  handleRemoveMember(
+                                    member.user.id,
+                                    member.user.name || member.user.username || 'ce membre'
+                                  )
+                                }
+                                title={t`Retirer du Média`}
+                                aria-label={t`Retirer du Média`}
+                              >
+                                <Trash2 strokeWidth={1.5} />
+                              </Button>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground italic">
+                              {t`Créateur`}
+                            </span>
+                          )}
+                        </TableCell>
                       )}
-                    >
-                      <RoleIcon className="w-3 h-3" strokeWidth={1.5} />
-                      {roleMeta.label()}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
-                    {perms.slice(0, 3).map((perm) => (
-                      <span key={perm} className="text-[11px] text-muted-foreground">
-                        {PERMISSION_LABELS[perm] ? PERMISSION_LABELS[perm]() : perm}
-                      </span>
-                    ))}
-                    {perms.length > 3 && (
-                      <span className="text-[11px] text-muted-foreground">+{perms.length - 3}</span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                  {isOwner && member.role !== MEDIA_ROLES.OWNER && (
-                    <PermissionPopover
-                      member={member}
-                      perms={perms}
-                      onToggle={handlePermissionsChange}
-                    />
-                  )}
-                  {canManageMembers && member.role !== MEDIA_ROLES.OWNER && (
-                    <>
-                      <Select
-                        label={t`Rôle de ${member.user.name || member.user.username || t`ce membre`}`}
-                        hideLabel
-                        size="sm"
-                        className="w-36"
-                        value={member.role}
-                        onValueChange={(role) => handleRoleChange(member.user.id, role)}
-                        options={ASSIGNABLE_ROLES.map((role) => ({
-                          id: role,
-                          label: ROLE_META[role].label(),
-                        }))}
-                      />
-                      <Button
-                        variant="ghost"
-                        tone="danger"
-                        size="sm"
-                        shape="icon"
-                        onClick={() =>
-                          handleRemoveMember(
-                            member.user.id,
-                            member.user.name || member.user.username || 'ce membre'
-                          )
-                        }
-                        className="text-muted-foreground"
-                        title={t`Retirer du Média`}
-                        aria-label={t`Retirer du Média`}
-                      >
-                        <Trash2 strokeWidth={1.5} />
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+                    </TableRow>
+                  );
+                }}
+              </TableBody>
+            </Table>
+          </div>
 
           {!canManageMembers && (
             <p className="text-xs text-muted-foreground py-4">
@@ -1029,85 +1131,93 @@ export function MediaStudioClient({
                     Aucun lien d'invitation généré pour ce Média.
                   </p>
                 ) : (
-                  <div className="divide-y divide-border/30">
-                    {inviteLinks.map((link) => {
-                      const status = linkStatus(link);
-                      const meta = ROLE_META[link.role] || ROLE_META.writer;
-                      const Icon = meta.icon;
-                      return (
-                        <div key={link.id} className="flex items-center gap-3 py-3">
-                          <div className="size-9 rounded-full bg-muted flex items-center justify-center text-muted-foreground shrink-0">
-                            <Link2 className="w-4 h-4" strokeWidth={1.5} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span
-                                className={cn(
-                                  'flex items-center gap-1 text-[11px] font-medium',
-                                  meta.color
-                                )}
-                              >
-                                <Icon className="w-3 h-3" strokeWidth={1.5} />
-                                {meta.label()}
-                              </span>
-                              <span
-                                className={cn(
-                                  'rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider',
-                                  status.tone
-                                )}
-                              >
-                                {status.label}
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-muted-foreground flex items-center gap-2 mt-1">
-                              <span className="flex items-center gap-1">
-                                <Clock className="w-3 h-3" strokeWidth={1.5} />
-                                {link.expiresAt
-                                  ? `Expire le ${formatDate(link.expiresAt)}`
-                                  : 'Permanent'}
-                              </span>
-                              <span className="flex items-center gap-1">
-                                <Users className="w-3 h-3" strokeWidth={1.5} />
+                  <div className="overflow-hidden rounded-xl border border-border/30 bg-card shadow-none">
+                    <Table
+                      aria-label={t`Liens d'invitation`}
+                      size="sm"
+                      sortDescriptor={inviteSort}
+                      onSortChange={setInviteSort}
+                    >
+                      <TableHeader>
+                        <TableColumn id="role" isRowHeader allowsSorting>
+                          {t`Rôle`}
+                        </TableColumn>
+                        <TableColumn id="status" allowsSorting>
+                          {t`Statut`}
+                        </TableColumn>
+                        <TableColumn id="uses" allowsSorting>
+                          {t`Utilisations`}
+                        </TableColumn>
+                        <TableColumn id="expiresAt" allowsSorting>
+                          {t`Expiration`}
+                        </TableColumn>
+                        <TableColumn className="text-right">{t`Actions`}</TableColumn>
+                      </TableHeader>
+                      <TableBody items={sortedInviteLinks}>
+                        {(link) => {
+                          const status = linkStatus(link);
+                          const meta = ROLE_META[link.role] || ROLE_META.writer;
+                          const Icon = meta.icon;
+                          const isExpired = status.label !== t`Actif`;
+                          return (
+                            <TableRow id={link.id}>
+                              <TableCell>
+                                <span
+                                  className={cn(
+                                    'inline-flex items-center gap-1.5 text-xs font-medium',
+                                    meta.color
+                                  )}
+                                >
+                                  <Icon className="w-3.5 h-3.5" strokeWidth={1.5} />
+                                  {meta.label()}
+                                </span>
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="soft" dot tone={status.tone} size="xs">
+                                  {status.label}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="tabular-nums text-xs">
                                 {link.usedCount} / {link.maxUses > 0 ? link.maxUses : '∞'}
-                              </span>
-                            </p>
-                            <p className="text-[11px] text-muted-foreground truncate">
-                              {inviteLinkUrl(link)}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              shape="icon"
-                              onClick={() => copyInviteLink(link)}
-                              title={t`Copier le lien`}
-                              aria-label={t`Copier le lien`}
-                            >
-                              {copiedLinkId === link.id ? (
-                                <Check className="text-success-text" strokeWidth={1.5} />
-                              ) : (
-                                <Copy strokeWidth={1.5} />
-                              )}
-                            </Button>
-                            {!link.isRevoked && (
-                              <Button
-                                variant="ghost"
-                                tone="danger"
-                                size="sm"
-                                shape="icon"
-                                onClick={() => handleRevokeInviteLink(link.id)}
-                                className="text-muted-foreground"
-                                title={t`Révoquer le lien`}
-                                aria-label={t`Révoquer le lien`}
-                              >
-                                <XCircle strokeWidth={1.5} />
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground tabular-nums">
+                                {link.expiresAt ? formatDate(link.expiresAt) : t`Permanent`}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="xs"
+                                    onClick={() => copyInviteLink(link)}
+                                    disabled={isExpired}
+                                    title={t`Copier le lien`}
+                                  >
+                                    {copiedLinkId === link.id ? (
+                                      <Check className="w-3.5 h-3.5 text-success" />
+                                    ) : (
+                                      <Copy className="w-3.5 h-3.5" />
+                                    )}
+                                    <span>{copiedLinkId === link.id ? t`Copié` : t`Copier`}</span>
+                                  </Button>
+                                  {!link.isRevoked && (
+                                    <Button
+                                      variant="ghost"
+                                      tone="danger"
+                                      size="xs"
+                                      shape="icon"
+                                      onClick={() => void handleRevokeInviteLink(link.id)}
+                                      title={t`Révoquer le lien`}
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </Button>
+                                  )}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        }}
+                      </TableBody>
+                    </Table>{' '}
                   </div>
                 )}
               </div>

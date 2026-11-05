@@ -31,6 +31,10 @@ var (
 	// errAlreadyPublished protège les articles en ligne : une programmation ne
 	// doit jamais retirer un article publié du site en attendant sa date.
 	errAlreadyPublished = errors.New("Un article publié ne peut pas être programmé : retirez-le du site (ou partez d'un brouillon) avant de fixer une date.")
+
+	ErrCooldownActive     = errors.New("un email a déjà été envoyé pour cette publication il y a moins de 2 heures")
+	ErrArticleAlreadySent = errors.New("cet article a déjà été envoyé par email ou un envoi est déjà en cours")
+	ErrArticleNotEligible = errors.New("l'article doit être publié pour être envoyé par email")
 )
 
 // ArticleResponse est la forme API d'un article (contenu éventuellement tronqué).
@@ -49,6 +53,10 @@ type ArticleResponse struct {
 	ReadingTime            int                            `json:"readingTime"`
 	Status                 string                         `json:"status"`
 	ScheduledAt            *string                        `json:"scheduledAt"`
+	EmailStatus            *string                        `json:"emailStatus,omitempty"`
+	EmailSentAt            *string                        `json:"emailSentAt,omitempty"`
+	EmailSentCount         int                            `json:"emailSentCount"`
+	EmailResendCount       int                            `json:"emailResendCount"`
 	PublicationID          string                         `json:"publicationId"`
 	AuthorID               string                         `json:"authorId"`
 	CategoryID             *string                        `json:"categoryId"`
@@ -145,8 +153,11 @@ type CreateArticleInput struct {
 	Status                 string
 	// ScheduledAt programme la publication : futur + demande de publication →
 	// statut SCHEDULED (publié automatiquement par le scheduled publisher).
-	ScheduledAt  *time.Time
-	Attributions []ArticleAttributionInput
+	ScheduledAt      *time.Time
+	Attributions     []ArticleAttributionInput
+	SendEmail        *bool
+	EmailSubject     *string
+	EmailPreviewText *string
 }
 
 // UpdateArticleInput est l'entrée de mise à jour.
@@ -168,15 +179,25 @@ type UpdateArticleInput struct {
 	Status                 string
 	ActivePublicationID    string
 	// ScheduledAt programme la publication ; nil = conserver l'existant.
-	ScheduledAt  *time.Time
-	Attributions []ArticleAttributionInput
+	ScheduledAt      *time.Time
+	Attributions     []ArticleAttributionInput
+	SendEmail        *bool
+	EmailSubject     *string
+	EmailPreviewText *string
 }
 
+type EmailSender func(ctx context.Context, to, subject, html, unsubURL, fromName string) error
+
 type Service struct {
-	pool *pgxpool.Pool
-	q    *db.Queries
-	rc   *redis.Client
-	ac   *asynq.Client
+	pool        *pgxpool.Pool
+	q           *db.Queries
+	rc          *redis.Client
+	ac          *asynq.Client
+	emailSender EmailSender
+}
+
+func (s *Service) SetEmailSender(sender EmailSender) {
+	s.emailSender = sender
 }
 
 // CanonicalDocument canonicalise le contenu d'un article (document canonique
@@ -474,7 +495,13 @@ func (s *Service) Create(ctx context.Context, userID string, in CreateArticleInp
 		s.notifyReviewers(ctx, in.PublicationID, id, userID)
 	case published:
 		if row, err := s.q.GetArticleByID(ctx, id); err == nil {
-			s.emitPublished(ctx, row)
+			sendEmail := true
+			if in.SendEmail != nil {
+				sendEmail = *in.SendEmail
+			}
+			emailSubject := stringPtrVal(in.EmailSubject)
+			emailPreviewText := stringPtrVal(in.EmailPreviewText)
+			s.emitPublished(ctx, row, sendEmail, emailSubject, emailPreviewText)
 			s.recordEvent(ctx, EventInput{
 				ArticleID: id, PublicationID: in.PublicationID, ActorID: userID,
 				Type: EventPublished, FromStatus: "DRAFT", ToStatus: statusOrDraft(status),
@@ -507,6 +534,9 @@ func (s *Service) List(ctx context.Context, userID, publicationID string, limit,
 			AllowComments:          r.AllowComments,
 			AllowDownload:          r.AllowDownload,
 			CategoryID:             textPtr(r.CategoryId),
+			EmailStatus:            strPtr(r.EmailStatus),
+			EmailSentAt:            tsPtr(r.EmailSentAt),
+			EmailSentCount:         int(r.EmailSentCount),
 			CreatedAt:              r.CreatedAt.Time.Format(time.RFC3339),
 			UpdatedAt:              r.UpdatedAt.Time.Format(time.RFC3339),
 			AccessGranted:          true,
@@ -1081,7 +1111,13 @@ func (s *Service) Update(ctx context.Context, articleID, userID string, in Updat
 
 	// Fan-out + événement à la transition draft→publié.
 	if effectivePublished && !row.Published {
-		s.emitPublished(ctx, row)
+		sendEmail := true
+		if in.SendEmail != nil {
+			sendEmail = *in.SendEmail
+		}
+		emailSubject := stringPtrVal(in.EmailSubject)
+		emailPreviewText := stringPtrVal(in.EmailPreviewText)
+		s.emitPublished(ctx, row, sendEmail, emailSubject, emailPreviewText)
 		s.recordEvent(ctx, EventInput{
 			ArticleID: articleID, PublicationID: row.PublicationId, ActorID: userID,
 			Type: EventPublished, FromStatus: statusOrDraft(row.Status), ToStatus: statusOrDraft(effectiveStatus),
@@ -1121,7 +1157,7 @@ func (s *Service) SetStatus(ctx context.Context, articleID, userID, status strin
 	}
 	s.queueSearchSync(articleID, "upsert")
 	if published {
-		s.emitPublished(ctx, row)
+		s.emitPublished(ctx, row, true, "", "")
 		s.recordEvent(ctx, EventInput{
 			ArticleID: articleID, PublicationID: row.PublicationId, ActorID: userID,
 			Type: EventPublished, FromStatus: statusOrDraft(row.Status), ToStatus: statusOrDraft(status),
@@ -1250,21 +1286,133 @@ func (s *Service) queueSearchSync(articleID string, action string) {
 
 // emitPublished enqueue l'événement article.published dans asynq, plus le
 // job d'embedding sémantique (jina-embeddings-v3) si le service est branché.
-func (s *Service) emitPublished(ctx context.Context, row db.GetArticleByIDRow) {
+func (s *Service) emitPublished(ctx context.Context, row db.GetArticleByIDRow, sendEmail bool, emailSubject, emailPreviewText string) {
 	if s.ac == nil {
 		return
 	}
 	_ = queue.PublishArticleEmbedding(s.ac, queue.EmbeddingPayload{ArticleID: row.ID})
 	_ = queue.PublishArticlePublished(s.ac, queue.ArticlePublishedPayload{
-		EventID:       "article_published_" + row.ID,
-		PublicationID: row.PublicationId,
-		ArticleID:     row.ID,
-		AuthorID:      row.AuthorID,
-		Title:         row.Title,
-		Slug:          row.Slug,
-		Visibility:    string(row.Visibility),
-		PublishedAt:   time.Now().UTC().Format(time.RFC3339),
+		EventID:          "article_published_" + row.ID,
+		PublicationID:    row.PublicationId,
+		ArticleID:        row.ID,
+		AuthorID:         row.AuthorID,
+		Title:            row.Title,
+		Slug:             row.Slug,
+		Visibility:       string(row.Visibility),
+		PublishedAt:      time.Now().UTC().Format(time.RFC3339),
+		SendEmail:        sendEmail,
+		EmailSubject:     emailSubject,
+		EmailPreviewText: emailPreviewText,
 	})
+}
+
+// SendArticleEmail déclenche l'envoi manuel par email d'un article déjà publié (Branch D ou Branch B).
+func (s *Service) SendArticleEmail(ctx context.Context, articleID, userID, subject, previewText string, isMajorUpdate bool) error {
+	row, err := s.q.GetArticleByID(ctx, articleID)
+	if err != nil {
+		return errNotFound
+	}
+	mc, err := s.resolveMember(ctx, userID, row.PublicationId)
+	if err != nil {
+		return errForbidden
+	}
+	if !mc.can(permissions.PermPublishAny) && mc.role != "owner" {
+		return errForbidden
+	}
+	if !row.Published || row.Status != "PUBLISHED" {
+		return ErrArticleNotEligible
+	}
+
+	// Cooldown 2h par publication
+	cooldownAt, err := s.q.CheckPublicationEmailCooldown(ctx, row.PublicationId)
+	if err == nil && cooldownAt.Valid {
+		return ErrCooldownActive
+	}
+
+	if subject == "" {
+		subject = row.Title
+	}
+
+	if isMajorUpdate {
+		if s.pool != nil {
+			if !subscriptions.HasPro(ctx, s.pool, row.PublicationId, time.Now()) {
+				return errors.New("l'envoi d'une mise à jour majeure par email est réservé aux publications PRO")
+			}
+		}
+		if !strings.HasPrefix(subject, "[Mise à jour]") && !strings.HasPrefix(subject, "[Update]") {
+			subject = "[Mise à jour] " + subject
+		}
+		if _, err := s.q.TryLockArticleForMajorUpdate(ctx, db.TryLockArticleForMajorUpdateParams{
+			Subject:     subject,
+			PreviewText: previewText,
+			ID:          articleID,
+		}); err != nil {
+			return ErrArticleAlreadySent
+		}
+		_ = s.q.InsertArticleReleaseMajorUpdateDeliveries(ctx, db.InsertArticleReleaseMajorUpdateDeliveriesParams{
+			ArticleId:     articleID,
+			PublicationId: row.PublicationId,
+		})
+	} else {
+		if _, err := s.q.TryLockArticleForEmailRelease(ctx, db.TryLockArticleForEmailReleaseParams{
+			Subject:     subject,
+			PreviewText: previewText,
+			ID:          articleID,
+		}); err != nil {
+			return ErrArticleAlreadySent
+		}
+		_ = s.q.InsertArticleReleaseDeliveries(ctx, db.InsertArticleReleaseDeliveriesParams{
+			ArticleId:     articleID,
+			PublicationId: row.PublicationId,
+		})
+	}
+
+	if s.ac != nil {
+		_ = queue.PublishArticleRelease(s.ac, queue.ArticleReleasePayload{ArticleID: articleID}, 0)
+	}
+	return nil
+}
+
+// SendArticleTestEmail envoie un email d'aperçu de l'article à l'adresse de l'utilisateur connecté.
+func (s *Service) SendArticleTestEmail(ctx context.Context, articleID, userID string) error {
+	row, err := s.q.GetArticleByID(ctx, articleID)
+	if err != nil {
+		return errNotFound
+	}
+	if _, err := s.resolveMember(ctx, userID, row.PublicationId); err != nil {
+		return errForbidden
+	}
+
+	if s.pool == nil {
+		return errors.New("base de données non disponible")
+	}
+	var userEmail string
+	err = s.pool.QueryRow(ctx, `SELECT COALESCE(email, '') FROM "User" WHERE id = $1`, toUUID(userID)).Scan(&userEmail)
+	if err != nil || strings.TrimSpace(userEmail) == "" {
+		return errors.New("adresse email utilisateur introuvable")
+	}
+
+	if s.emailSender == nil {
+		return errors.New("fournisseur d'email non configuré")
+	}
+
+	info := db.GetArticleReleaseInfoRow{
+		ID:               row.ID,
+		Title:            row.Title,
+		Slug:             row.Slug,
+		Visibility:       row.Visibility,
+		IsPremium:        row.IsPremium,
+		Content:          row.Content,
+		PublicationId:    row.PublicationId,
+		EmailSubject:     pgtype.Text{String: "[TEST] " + row.Title, Valid: true},
+		EmailPreviewText: pgtype.Text{String: "Aperçu test — " + row.Title, Valid: true},
+		PublicationName:  row.PublicationName,
+		Subdomain:        row.PublicationSubdomain,
+	}
+	link := "https://qoe.fi/p/" + row.Slug
+	rendered := BuildArticleReleaseEmail(info, link, userEmail)
+	testSubject := "[TEST] " + row.Title
+	return s.emailSender(ctx, userEmail, testSubject, rendered.HTML, rendered.ListUnsubscribe, rendered.FromName)
 }
 
 // Delete supprime un article (RBAC média complet, miroir deleteArticleAction).
@@ -1804,7 +1952,7 @@ func (s *Service) Review(ctx context.Context, articleID, userID string, approve 
 
 	s.queueSearchSync(articleID, "upsert")
 	if approve && !row.Published {
-		s.emitPublished(ctx, row)
+		s.emitPublished(ctx, row, true, "", "")
 	}
 	eventType := EventRejected
 	if approve {
@@ -2038,6 +2186,10 @@ func (s *Service) articleResponseFromIDRow(row db.GetArticleByIDRow) ArticleResp
 		AllowDownload: row.AllowDownload, AllowPublicAnnotations: row.AllowPublicAnnotations,
 		AllowComments: row.AllowComments,
 		ReadingTime:   int(row.ReadingTime), Status: row.Status, ScheduledAt: tsPtr(row.ScheduledAt),
+		EmailStatus:   strPtr(row.EmailStatus),
+		EmailSentAt:   tsPtr(row.EmailSentAt),
+		EmailSentCount: int(row.EmailSentCount),
+		EmailResendCount: int(row.EmailResendCount),
 		PublicationID: row.PublicationId,
 		AuthorID:      row.AuthorID, CategoryID: textPtr(row.CategoryId), TierID: textPtr(row.TierId),
 		SeoTitle: textPtr(row.SeoTitle), SeoDescription: textPtr(row.SeoDescription),
@@ -2262,4 +2414,18 @@ func timestampPtr(t *time.Time) pgtype.Timestamp {
 		return pgtype.Timestamp{}
 	}
 	return pgtype.Timestamp{Time: *t, Valid: true}
+}
+
+func stringPtrVal(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
+}
+
+func strPtr(s string) *string {
+	if s == "" {
+		return nil
+	}
+	return &s
 }
