@@ -168,7 +168,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="space-y-6">
       {/* ── EN-TÊTE DE L'ONGLET ── */}
       <div className="space-y-1.5 pb-6 border-b border-border/40">
         <div className="flex items-center gap-2.5 text-primary">
@@ -225,7 +225,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
       </div>
 
       {/* ── FORMULAIRE : AJOUTER UNE RECOMMANDATION ── */}
-      <div className="rounded-2xl border border-border/50 bg-card p-6 space-y-5 shadow-2xs">
+      <div className="space-y-4 rounded-xl border border-border/50 bg-card p-5 shadow-2xs">
         <div className="flex items-center gap-2">
           <Plus className="w-4 h-4 text-primary" />
           <h3 className="text-sm font-semibold text-foreground">Ajouter une recommandation</h3>

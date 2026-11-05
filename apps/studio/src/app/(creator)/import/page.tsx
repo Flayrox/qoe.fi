@@ -18,6 +18,7 @@ import {
   type SubscriberImportStats,
 } from './actions';
 import { t } from '@lingui/core/macro';
+import { StudioHeader } from '@/components/studio-page';
 import { Select } from '@qoe/ui/select';
 
 export default function CreatorImportPage() {
@@ -126,20 +127,11 @@ export default function CreatorImportPage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6 md:p-10 text-foreground">
-      {/* Header */}
-      <div className="mb-10">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium mb-3">
-          <Upload className="w-3.5 h-3.5" />
-          <span>Migration 1-Clic World-Class</span>
-        </div>
-        <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">
-          Importer depuis Substack & Ghost
-        </h1>
-        <p className="text-muted-foreground text-base max-w-2xl">
-          Migrez instantanément vos articles passés sans perdre un seul lecteur.
-        </p>
-      </div>
+    <div className="mx-auto w-full max-w-6xl space-y-6 text-foreground">
+      <StudioHeader
+        title="Importer des articles"
+        description="Depuis un flux RSS ou un export CSV. Rien n'est publié sans relecture."
+      />
 
       {/* Status Notifications */}
       {successMsg && (

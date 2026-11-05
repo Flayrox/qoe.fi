@@ -59,6 +59,7 @@ import {
   type PublicationEmailSettings,
 } from '@/features/settings/actions';
 import { attemptWithStepUp } from '@/lib/authz-feedback';
+import { StudioHeader } from '@/components/studio-page';
 
 interface NewsletterClientProps {
   initialIssues: NewsletterIssue[];
@@ -396,43 +397,38 @@ export function NewsletterClient({
     .reduce((total, issue) => total + issue.sentCount, 0);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6 p-6 lg:p-10">
-      {/* ─── En-tête ─── */}
-      <div className="flex flex-col gap-4 border-b border-border/40 pb-6 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">{t`Newsletter`}</h1>
-            {emailPro && (
-              <Badge variant="soft" tone="brand" size="xs">
-                PRO
-              </Badge>
-            )}
-          </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {t`Emails automatiques, messages directs et historique des envois.`}
-          </p>
-        </div>
-
-        <Tabs
-          variant="segmented"
-          size="sm"
-          value={activeSection}
-          onValueChange={(key) => setActiveSection(key as Section)}
-          className="self-start sm:self-auto"
-        >
-          <TabList aria-label={t`Sections newsletter`}>
-            <Tab id="config" icon={Settings2}>
-              {t`Configuration`}
-            </Tab>
-            <Tab id="direct" icon={Send}>
-              {t`Message direct`}
-            </Tab>
-            <Tab id="history" icon={History} count={issues.length}>
-              {t`Historique`}
-            </Tab>
-          </TabList>
-        </Tabs>
-      </div>
+    <div className="mx-auto w-full max-w-6xl space-y-6">
+      <StudioHeader
+        title={t`Newsletter`}
+        description={t`Emails automatiques, messages directs et historique des envois.`}
+        badge={
+          emailPro ? (
+            <Badge variant="soft" tone="brand" size="xs">
+              PRO
+            </Badge>
+          ) : undefined
+        }
+        actions={
+          <Tabs
+            variant="segmented"
+            size="sm"
+            value={activeSection}
+            onValueChange={(key) => setActiveSection(key as Section)}
+          >
+            <TabList aria-label={t`Sections newsletter`}>
+              <Tab id="config" icon={Settings2}>
+                {t`Configuration`}
+              </Tab>
+              <Tab id="direct" icon={Send}>
+                {t`Message direct`}
+              </Tab>
+              <Tab id="history" icon={History} count={issues.length}>
+                {t`Historique`}
+              </Tab>
+            </TabList>
+          </Tabs>
+        }
+      />
 
       {/* ═══ Onglet 1 : configuration ═══ */}
       {activeSection === 'config' && (

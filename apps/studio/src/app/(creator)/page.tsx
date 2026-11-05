@@ -16,10 +16,11 @@ import {
   BarChart3,
   MessageSquare,
   Edit3,
-  Building2,
   Feather,
   Image as ImageIcon,
 } from 'lucide-react';
+import { Badge } from '@qoe/ui/badge';
+import { StudioHeader } from '@/components/studio-page';
 
 // ─── Données du dashboard (miroir Go GET /v1/analytics/dashboard) ───────────
 interface DashboardArticle {
@@ -99,7 +100,7 @@ export default async function CreatorDashboardPage() {
 
   if (!dashboard) {
     return (
-      <main className="w-full space-y-8 pb-24 md:pb-12 text-foreground font-sans selection:bg-primary/20 selection:text-primary">
+      <main className="mx-auto w-full max-w-6xl space-y-6 pb-16 text-foreground">
         <div className="flex flex-col items-center justify-center py-24 text-center space-y-3">
           <p className="text-sm font-semibold text-foreground">Espace indisponible</p>
           <p className="text-xs text-muted-foreground max-w-sm">
@@ -264,31 +265,28 @@ export default async function CreatorDashboardPage() {
 
   return (
     <main className="w-full space-y-8 pb-24 md:pb-12 text-foreground font-sans selection:bg-primary/20 selection:text-primary">
-      {/* Main Stage Headline */}
-      <section className="pt-2 space-y-0.5">
-        <div className="flex items-center gap-2 flex-wrap">
-          {isMediaWorkspace && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider border border-primary/20">
-              <Building2 className="w-3 h-3" /> Média
-            </span>
-          )}
-          <h2 className="text-3xl font-bold tracking-tight text-foreground font-sans">
-            {t`Tableau de bord`}
-          </h2>
-        </div>
-        <p className="text-muted-foreground/80 text-sm font-sans">
-          {isMediaWorkspace
+      <StudioHeader
+        title={t`Tableau de bord`}
+        description={
+          isMediaWorkspace
             ? t`Studio du média « ${workspace.name} ».`
-            : t`Bienvenue, ${user.name || t`Créateur`}.`}
-        </p>
-      </section>
+            : t`Bienvenue, ${user.name || t`Créateur`}.`
+        }
+        badge={
+          isMediaWorkspace ? (
+            <Badge variant="soft" tone="brand" size="xs">
+              {t`Média`}
+            </Badge>
+          ) : undefined
+        }
+      />
 
       {/* Real Live Metrics Cards */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {/* Card 1: Total Pageviews (Umami Real Telemetry) */}
         <div className="bg-card rounded-xl border border-border/40 shadow-none p-5 flex flex-col justify-between hover:border-border/80 transition-all duration-200">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+            <span className="text-[11px] font-medium tracking-wide text-muted-foreground">
               {t`Pages vues (30 j)`}
             </span>
             <Eye className="w-4.5 h-4.5 text-muted-foreground stroke-[1.5]" />
@@ -309,7 +307,7 @@ export default async function CreatorDashboardPage() {
         {/* Card 2: Active Subscribers & Paid Members (Real DB) */}
         <div className="bg-card rounded-xl border border-border/40 shadow-none p-5 flex flex-col justify-between hover:border-border/80 transition-all duration-200">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+            <span className="text-[11px] font-medium tracking-wide text-muted-foreground">
               {t`Abonnés`}
             </span>
             <Users className="w-4.5 h-4.5 text-muted-foreground stroke-[1.5]" />
@@ -330,7 +328,7 @@ export default async function CreatorDashboardPage() {
         {/* Card 3: Estimated Revenue / MRR (Real DB) */}
         <div className="bg-card rounded-xl border border-border/40 shadow-none p-5 flex flex-col justify-between hover:border-border/80 transition-all duration-200">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+            <span className="text-[11px] font-medium tracking-wide text-muted-foreground">
               {t`Revenu mensuel`}
             </span>
             <CreditCard className="w-4.5 h-4.5 text-muted-foreground stroke-[1.5]" />

@@ -447,7 +447,7 @@ print(articles)`,
   };
 
   return (
-    <div className="w-full space-y-8 font-sans pb-16 text-foreground">
+    <div className="mx-auto w-full max-w-6xl space-y-6 text-foreground">
       {/* Header section */}
       <div className="space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -543,7 +543,7 @@ print(articles)`,
             className="space-y-8"
           >
             {/* Hero value proposition */}
-            <div className="relative overflow-hidden rounded-3xl border border-border/80 bg-gradient-to-br from-card via-card to-primary/5 p-6 md:p-8 shadow-xs">
+            <div className="rounded-xl border border-border/50 bg-card p-5 shadow-2xs">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
                 <div className="space-y-2 max-w-2xl">
                   <div className="flex flex-wrap items-center gap-2">
@@ -587,7 +587,7 @@ print(articles)`,
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Form Column */}
               <div className="lg:col-span-2 space-y-6">
-                <div className="bg-card border border-border/80 rounded-2xl shadow-xs p-6 md:p-8 space-y-6">
+                <div className="space-y-4 rounded-xl border border-border/50 bg-card p-5 shadow-2xs">
                   <div className="space-y-1.5">
                     <h3 className="text-lg font-bold text-foreground">
                       Demande d'activation développeur
@@ -710,7 +710,7 @@ print(articles)`,
 
               {/* Explainer Sidebar */}
               <div className="space-y-6">
-                <div className="bg-card border border-border/80 rounded-2xl p-6 space-y-4 shadow-xs">
+                <div className="space-y-4 rounded-xl border border-border/50 bg-card p-5 shadow-2xs">
                   <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4 text-primary" />
                     Permissions incluses
@@ -748,7 +748,7 @@ print(articles)`,
                   </div>
                 </div>
 
-                <div className="border border-border/80 rounded-2xl p-6 bg-muted/30 space-y-3">
+                <div className="space-y-3 rounded-xl border border-border/50 bg-muted/20 p-5">
                   <h4 className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
                     <BookOpen className="w-3.5 h-3.5 text-primary" />
                     Documentation & SDK
@@ -840,7 +840,7 @@ print(articles)`,
             </div>
 
             {/* In the meantime docs card */}
-            <div className="bg-card border border-border/80 rounded-2xl p-6 md:p-8 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+            <div className="flex flex-col justify-between gap-4 rounded-xl border border-border/50 bg-card p-5 shadow-2xs sm:flex-row sm:items-center">
               <div className="space-y-1.5">
                 <h3 className="text-base font-bold text-foreground flex items-center gap-2">
                   <BookOpen className="w-4 h-4 text-primary" />
@@ -962,7 +962,7 @@ print(articles)`,
             </div>
 
             {/* List active keys */}
-            <div className="bg-card border border-border/80 rounded-2xl shadow-xs overflow-hidden">
+            <div className="overflow-hidden rounded-xl border border-border/50 bg-card shadow-2xs">
               <div className="px-6 py-4.5 border-b border-border/80 flex items-center justify-between">
                 <div>
                   <h3 className="text-base font-bold text-foreground">Clés d'API Actives</h3>

@@ -1037,11 +1037,11 @@ export function ArticlesClient({
   const countReview = articles.filter((a) => a.status === 'SUBMITTED').length;
 
   return (
-    <div className="space-y-6 w-full pb-24 text-foreground font-sans selection:bg-primary/20 selection:text-primary">
+    <div className="mx-auto w-full max-w-6xl space-y-6 pb-16 text-foreground">
       {/* Main Stage Headline */}
       <section className="pt-4 md:pt-2 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <h2 className="text-3xl font-bold tracking-tight text-foreground font-sans">{t`Articles`}</h2>
+          <h2 className="text-2xl font-semibold tracking-tight text-foreground">{t`Articles`}</h2>
 
           <div className="flex items-center gap-2">
             {/* Shortcut: Page À propos */}

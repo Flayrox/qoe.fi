@@ -172,10 +172,10 @@ export default async function CreatorSettingsPage() {
     <div className="space-y-12">
       <SettingsView initialCreator={initialCreatorData} publicationId={publication.id} />
 
-      <div className="max-w-6xl mx-auto px-6">
-        <div className="p-6 rounded-2xl border border-border/80 bg-card shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="mx-auto w-full max-w-6xl">
+        <div className="flex flex-col justify-between gap-4 rounded-xl border border-border/50 bg-card p-5 shadow-2xs sm:flex-row sm:items-center">
           <div className="space-y-1">
-            <h3 className="text-sm font-bold text-foreground">Sécurité du compte & mot de passe</h3>
+            <h3 className="text-sm font-semibold text-foreground">Sécurité du compte</h3>
             <p className="text-xs text-muted-foreground leading-relaxed">
               Pour modifier votre mot de passe, votre adresse e-mail, la double authentification
               (2FA) ou vos sessions actives, rendez-vous sur les paramètres de votre compte
@@ -186,7 +186,7 @@ export default async function CreatorSettingsPage() {
             href="https://qoe.fi/settings"
             className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-muted text-foreground hover:bg-muted/80 border border-border/60 text-xs font-semibold shrink-0 transition-all shadow-xs"
           >
-            Gérer mon compte personnel ↗
+            Gérer mon compte
           </a>
         </div>
       </div>

@@ -1,5 +1,7 @@
 'use client';
 
+import { StudioHeader } from '@/components/studio-page';
+
 import React, { useEffect, useState, useMemo } from 'react';
 import { t } from '@lingui/core/macro';
 import { Badge } from '@qoe/ui/badge';
@@ -129,41 +131,26 @@ export function AudienceClient({ initialSubscribers }: AudienceClientProps) {
   const hasSelection = selectedKeys.size > 0;
 
   return (
-    <div className="space-y-8 p-6 lg:p-10 max-w-7xl mx-auto">
-      {/* ─── Header ─────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-6 border-b border-border/30">
-        <div>
-          <div className="flex items-center gap-2 mb-1.5">
-            <Users className="h-4 w-4 text-primary stroke-[1.5]" />
-            <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
-              Gestion d&apos;audience
-            </span>
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            Mon Audience &amp; Abonnés
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Gérez vos lecteurs, vos abonnés à la newsletter et vos membres Premium
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
+    <div className="mx-auto w-full max-w-6xl space-y-6">
+      <StudioHeader
+        title={t`Audience`}
+        description={t`Lecteurs, abonnés à la newsletter et membres premium.`}
+        actions={
           <Button
             variant="outline"
             size="sm"
             onClick={() => handleExportCSV(false)}
             disabled={filteredSubscribers.length === 0}
-            className="self-start sm:self-auto"
           >
             <Download />
             <span>Exporter ({filteredSubscribers.length})</span>
           </Button>
-        </div>
-      </div>
+        }
+      />
 
       {/* ─── KPI Cards Grid ─────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="rounded-xl border border-border/30 bg-card p-6 shadow-none">
+        <div className="rounded-xl border border-border/50 bg-card p-5 shadow-2xs">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
               Total Abonnés
@@ -180,7 +167,7 @@ export function AudienceClient({ initialSubscribers }: AudienceClientProps) {
           </p>
         </div>
 
-        <div className="rounded-xl border border-border/30 bg-card p-6 shadow-none">
+        <div className="rounded-xl border border-border/50 bg-card p-5 shadow-2xs">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
               Formule Premium
@@ -197,7 +184,7 @@ export function AudienceClient({ initialSubscribers }: AudienceClientProps) {
           </p>
         </div>
 
-        <div className="rounded-xl border border-border/30 bg-card p-6 shadow-none">
+        <div className="rounded-xl border border-border/50 bg-card p-5 shadow-2xs">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
               Revenu LTV Cumulé

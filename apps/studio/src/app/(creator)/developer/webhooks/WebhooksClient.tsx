@@ -164,18 +164,12 @@ export function WebhooksClient({
   };
 
   return (
-    <div className="w-full space-y-8 font-sans pb-16 text-foreground">
+    <div className="mx-auto w-full max-w-6xl space-y-6 text-foreground">
       {/* Header section */}
       <div className="space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary mb-1.5">
-              <WebhookIcon className="w-3.5 h-3.5" />
-              Événements & Intégrations Sortantes
-            </div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">
-              Webhooks Temps Réel
-            </h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Webhooks</h1>
             <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
               Recevez les événements de « {workspaceName} » directement sur vos serveurs avec une
               signature cryptographique HMAC SHA-256.

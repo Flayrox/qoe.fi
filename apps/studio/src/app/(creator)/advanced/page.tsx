@@ -6,6 +6,7 @@ import { t } from '@lingui/core/macro';
 import { Badge } from '@qoe/ui/badge';
 import { Button } from '@qoe/ui/button';
 import { Input, Textarea } from '@qoe/ui/input';
+import { StudioHeader } from '@/components/studio-page';
 import {
   getCollaborationRequestsAction,
   respondToCollaborationRequestAction,
@@ -109,13 +110,11 @@ export default function CreatorAdvancedPage() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6 p-6 text-foreground lg:p-10">
-      <header className="border-b border-border/40 pb-5">
-        <h1 className="text-2xl font-bold tracking-tight">{t`Collaboration`}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t`Demandes de co-rédaction, visibilité sur votre profil et espaces médias.`}
-        </p>
-      </header>
+    <div className="mx-auto w-full max-w-6xl space-y-6 text-foreground">
+      <StudioHeader
+        title={t`Collaboration`}
+        description={t`Demandes de co-rédaction, visibilité sur votre profil et espaces médias.`}
+      />
 
       {actionMsg && (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-border/50 bg-card px-4 py-3">

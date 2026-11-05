@@ -203,16 +203,12 @@ export function OAuthAppsClient({
   const gated = status !== 'approved' || !hasOAuthGrant;
 
   return (
-    <div className="w-full space-y-8 font-sans pb-16 text-foreground">
+    <div className="mx-auto w-full max-w-6xl space-y-6 text-foreground">
       {/* Header */}
       <div className="space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 flex-wrap mb-1.5">
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
-                <Shield className="w-3.5 h-3.5" />
-                OpenID Connect
-              </div>
               {workspace && (
                 <Badge variant="outline" shape="pill" size="sm">
                   {workspace.type === 'MEDIA' ? (
@@ -231,7 +227,7 @@ export function OAuthAppsClient({
                 </Badge>
               )}
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
               Applications OAuth
             </h1>
             <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
