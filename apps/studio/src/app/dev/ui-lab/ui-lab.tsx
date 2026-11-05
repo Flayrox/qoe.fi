@@ -58,6 +58,7 @@ const SPECIMENS = [
       'Une seule mécanique ARIA pour deux usages : le rail segmenté en creux (vue/période) et le trait bas sobre en border-foreground (sections de page).',
     sources: [
       'packages/ui/src/primitives/tabs/tabs.tsx',
+      'packages/ui/src/annotations/AnnotationFilterPill.tsx',
       'apps/studio/src/features/settings/settings.tsx',
     ],
     Component: SegmentedSpecimen,
