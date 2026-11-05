@@ -162,8 +162,7 @@ export function PublishModal({
   };
 
   const effectiveSubject = emailSubject.trim() || articleTitle || t`Sans titre`;
-  const effectivePreview =
-    emailPreviewText.trim() || articleExcerpt || t`Découvrez le contenu de cet article...`;
+  const effectivePreview = emailPreviewText.trim() || articleExcerpt || t`Lire l'article.`;
 
   return (
     <Dialog
@@ -397,7 +396,7 @@ export function PublishModal({
                       size="sm"
                       value={emailSubject}
                       onChange={(e) => setEmailSubject(e.target.value)}
-                      placeholder={articleTitle || t`Objet affiché dans la boîte de réception`}
+                      placeholder={articleTitle || t`Objet de l'email`}
                     />
                   </div>
 
@@ -413,7 +412,7 @@ export function PublishModal({
                       size="sm"
                       value={emailPreviewText}
                       onChange={(e) => setEmailPreviewText(e.target.value)}
-                      placeholder={t`Extrait court apparaissant à côté du sujet dans les boîtes mail...`}
+                      placeholder={t`Visible à côté du sujet, avant ouverture.`}
                     />
                   </div>
                 </div>
@@ -424,7 +423,7 @@ export function PublishModal({
                 <div className="p-4 flex items-center justify-between border-b border-border/40">
                   <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     <Eye className="w-4 h-4" />
-                    <span>{t`Aperçu direct de la parution`}</span>
+                    <span>{t`Aperçu de l'email`}</span>
                   </div>
                   <div className="flex items-center gap-0.5 bg-muted p-0.5 rounded-control">
                     <Button

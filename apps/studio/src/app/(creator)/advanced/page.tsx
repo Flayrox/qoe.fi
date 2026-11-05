@@ -1,24 +1,17 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import {
-  Users,
-  CheckCircle2,
-  XCircle,
-  UserPlus,
-  Sliders,
-  ArrowRight,
-  Loader2,
-  Building2,
-} from 'lucide-react';
+import { Users, CheckCircle2, XCircle, UserPlus, Loader2, Building2 } from 'lucide-react';
+import { t } from '@lingui/core/macro';
+import { Badge } from '@qoe/ui/badge';
+import { Button } from '@qoe/ui/button';
+import { Input, Textarea } from '@qoe/ui/input';
 import {
   getCollaborationRequestsAction,
   respondToCollaborationRequestAction,
   sendCollaborationRequestAction,
 } from './actions';
 import { createMediaAction } from '../media/actions';
-import { t } from '@lingui/core/macro';
 
 interface CollaborationRequest {
   id: string;
@@ -26,6 +19,15 @@ interface CollaborationRequest {
   article?: { title: string } | null;
   inviter?: { name: string | null; username: string | null } | null;
 }
+
+const REQUEST_STATUS: Record<
+  string,
+  { label: string; tone: 'brand' | 'success' | 'danger' | 'neutral' }
+> = {
+  PENDING: { label: t`En attente`, tone: 'brand' },
+  ACCEPTED: { label: t`Acceptée`, tone: 'success' },
+  DECLINED: { label: t`Refusée`, tone: 'danger' },
+};
 
 export default function CreatorAdvancedPage() {
   const [requests, setRequests] = useState<{
@@ -39,7 +41,6 @@ export default function CreatorAdvancedPage() {
   const [actionMsg, setActionMsg] = useState<string | null>(null);
   const [profileVisibility, setProfileVisibility] = useState<Record<string, boolean>>({});
 
-  // Media Creation State
   const [mediaName, setMediaName] = useState('');
   const [mediaSlug, setMediaSlug] = useState('');
   const [mediaBio, setMediaBio] = useState('');
@@ -47,7 +48,7 @@ export default function CreatorAdvancedPage() {
   const [mediaMsg, setMediaMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    loadRequests();
+    void loadRequests();
   }, []);
 
   const loadRequests = async () => {
@@ -66,8 +67,8 @@ export default function CreatorAdvancedPage() {
   ) => {
     const res = await respondToCollaborationRequestAction(requestId, accept, showOnPublicProfile);
     if (res.success) {
-      setActionMsg(accept ? t`✅ Invitation acceptée !` : t`❌ Invitation refusée.`);
-      loadRequests();
+      setActionMsg(accept ? t`Invitation acceptée.` : t`Invitation refusée.`);
+      void loadRequests();
     }
   };
 
@@ -80,12 +81,12 @@ export default function CreatorAdvancedPage() {
     setSendingInvite(false);
 
     if (res.success) {
-      setActionMsg(t`🎉 Invitation de co-rédaction envoyée avec succès !`);
+      setActionMsg(t`Invitation envoyée.`);
       setInviteUsername('');
       setInviteArticleId('');
-      loadRequests();
+      void loadRequests();
     } else {
-      setActionMsg(`⚠️ ${res.error}`);
+      setActionMsg(res.error || t`Envoi impossible.`);
     }
   };
 
@@ -98,287 +99,252 @@ export default function CreatorAdvancedPage() {
     setCreatingMedia(false);
 
     if (res.success) {
-      setMediaMsg(
-        '🎉 Votre Profil Média a été créé ! Vous pouvez y basculer depuis le sélecteur de Workspace dans le header.'
-      );
+      setMediaMsg(t`Média créé. Il est accessible depuis le sélecteur d'espace.`);
       setMediaName('');
       setMediaSlug('');
       setMediaBio('');
     } else {
-      setMediaMsg(`⚠️ ${res.error}`);
+      setMediaMsg(res.error || t`Création impossible.`);
     }
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-6 md:p-10 text-foreground">
-      {/* Header */}
-      <div className="mb-10">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium mb-3">
-          <Sliders className="w-3.5 h-3.5" />
-          <span>{t`Espace Avancé & Collaboration`}</span>
-        </div>
-        <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">
-          Co-Édition, Demandes & Médias
-        </h1>
-        <p className="text-muted-foreground text-base max-w-2xl">
-          Gérez vos demandes de co-rédaction, choisissez quels articles apparaissent sur votre
-          profil public, et créez vos journaux collectifs.
+    <div className="mx-auto max-w-5xl space-y-6 p-6 text-foreground lg:p-10">
+      <header className="border-b border-border/40 pb-5">
+        <h1 className="text-2xl font-bold tracking-tight">{t`Collaboration`}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {t`Demandes de co-rédaction, visibilité sur votre profil et espaces médias.`}
         </p>
-      </div>
+      </header>
 
       {actionMsg && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="p-4 mb-8 bg-card border border-primary/30 text-foreground rounded-2xl flex items-center justify-between shadow-sm"
-        >
-          <span className="text-sm font-medium">{actionMsg}</span>
-          <button
-            onClick={() => setActionMsg(null)}
-            className="text-xs text-muted-foreground hover:text-foreground"
-          >
-            Fermer
-          </button>
-        </motion.div>
+        <div className="flex items-center justify-between gap-3 rounded-xl border border-border/50 bg-card px-4 py-3">
+          <span className="text-sm">{actionMsg}</span>
+          <Button variant="ghost" size="xs" onClick={() => setActionMsg(null)}>
+            {t`Fermer`}
+          </Button>
+        </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-        {/* Collaboration Requests Received */}
-        <div className="bg-card border border-border/40 rounded-3xl p-6 md:p-8 shadow-sm">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
-              <Users className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold">Demandes Reçues</h2>{' '}
-              <p className="text-xs text-muted-foreground">
-                Vous gardez le contrôle de votre consentement et de votre visibilité publique.
-              </p>
-            </div>
-          </div>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <section className="space-y-3 rounded-xl border border-border/50 bg-card p-5 shadow-2xs">
+          <header className="flex items-center gap-2">
+            <Users className="h-3.5 w-3.5 text-primary" />
+            <h2 className="text-xs font-bold tracking-wider text-muted-foreground uppercase">
+              {t`Demandes reçues`}
+            </h2>
+          </header>
 
           {loading ? (
-            <div className="py-8 text-center text-muted-foreground text-sm flex items-center justify-center gap-2">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span>{t`Chargement des requêtes...`}</span>
-            </div>
+            <p className="flex items-center gap-2 py-6 text-xs text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              {t`Chargement…`}
+            </p>
           ) : requests.received.length === 0 ? (
-            <div className="py-8 text-center border border-dashed border-border/40 rounded-2xl text-xs text-muted-foreground">
-              Aucune demande de collaboration en attente.
-            </div>
+            <p className="rounded-lg border border-dashed border-border/60 px-3 py-6 text-center text-xs text-muted-foreground">
+              {t`Aucune demande en attente.`}
+            </p>
           ) : (
-            <div className="space-y-4">
-              {requests.received.map((req) => (
-                <div key={req.id} className="p-4 rounded-2xl bg-muted/30 border border-border/40">
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <p className="font-bold text-sm text-foreground">
-                        {req.article?.title || 'Article'}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        De :{' '}
-                        <strong className="text-foreground">
+            <ul className="space-y-3">
+              {requests.received.map((req) => {
+                const status = REQUEST_STATUS[req.status] ?? {
+                  label: req.status,
+                  tone: 'neutral' as const,
+                };
+                return (
+                  <li
+                    key={req.id}
+                    className="space-y-2 rounded-lg border border-border/40 bg-muted/20 p-3"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">
+                          {req.article?.title || t`Article`}
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {t`De`}{' '}
                           {req.inviter?.name ||
-                            (req.inviter?.username ? `@${req.inviter.username}` : 'Un créateur')}
-                        </strong>
-                      </p>
+                            (req.inviter?.username ? `@${req.inviter.username}` : t`un créateur`)}
+                        </p>
+                      </div>
+                      <Badge variant="soft" tone={status.tone} size="xs">
+                        {status.label}
+                      </Badge>
                     </div>
-                    <span
-                      className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${
-                        req.status === 'ACCEPTED'
-                          ? 'bg-success/10 text-success-text'
-                          : req.status === 'DECLINED'
-                            ? 'bg-destructive/10 text-destructive-text'
-                            : 'bg-highlight/10 text-highlight'
-                      }`}
-                    >
-                      {req.status}
-                    </span>
-                  </div>
 
-                  {req.status === 'PENDING' && (
-                    <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border/20">
-                      <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <input
-                          type="checkbox"
-                          checked={profileVisibility[req.id] ?? true}
-                          onChange={(event) =>
-                            setProfileVisibility((current) => ({
-                              ...current,
-                              [req.id]: event.target.checked,
-                            }))
+                    {req.status === 'PENDING' && (
+                      <div className="flex flex-wrap items-center gap-2 border-t border-border/30 pt-2">
+                        <label className="mr-auto flex items-center gap-2 text-xs text-muted-foreground">
+                          <input
+                            type="checkbox"
+                            checked={profileVisibility[req.id] ?? true}
+                            onChange={(event) =>
+                              setProfileVisibility((current) => ({
+                                ...current,
+                                [req.id]: event.target.checked,
+                              }))
+                            }
+                            className="h-3.5 w-3.5 accent-primary"
+                          />
+                          {t`Afficher sur mon profil`}
+                        </label>
+                        <Button
+                          size="sm"
+                          variant="solid"
+                          tone="brand"
+                          onClick={() =>
+                            void handleRespond(req.id, true, profileVisibility[req.id] ?? true)
                           }
-                          className="h-3.5 w-3.5 accent-primary"
-                        />
-                        Afficher sur mon profil
-                      </label>
-                      <button
-                        onClick={() =>
-                          handleRespond(req.id, true, profileVisibility[req.id] ?? true)
-                        }
-                        className="px-4 py-2 rounded-xl bg-primary text-primary-foreground font-semibold text-xs hover:opacity-90 transition-all cursor-pointer flex items-center gap-1.5"
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Accepter</span>
-                      </button>
-                      <button
-                        onClick={() => handleRespond(req.id, false)}
-                        className="px-4 py-2 rounded-xl bg-muted text-muted-foreground hover:text-foreground font-semibold text-xs transition-all cursor-pointer flex items-center gap-1.5"
-                      >
-                        <XCircle className="w-3.5 h-3.5" />
-                        <span>Refuser</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
+                        >
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          {t`Accepter`}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => void handleRespond(req.id, false)}
+                        >
+                          <XCircle className="h-3.5 w-3.5" />
+                          {t`Refuser`}
+                        </Button>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
           )}
-        </div>
+        </section>
 
-        {/* Invite Co-Author Form */}
-        <div className="bg-card border border-border/40 rounded-3xl p-6 md:p-8 shadow-sm">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
-              <UserPlus className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-xl font-bold">Inviter un Co-Auteur</h2>
-              <p className="text-xs text-muted-foreground">
-                Collaborez en temps réel sur l'un de vos écrits
-              </p>
-            </div>
-          </div>
+        <section className="space-y-3 rounded-xl border border-border/50 bg-card p-5 shadow-2xs">
+          <header className="flex items-center gap-2">
+            <UserPlus className="h-3.5 w-3.5 text-primary" />
+            <h2 className="text-xs font-bold tracking-wider text-muted-foreground uppercase">
+              {t`Inviter un co-auteur`}
+            </h2>
+          </header>
+          <p className="text-xs text-muted-foreground">
+            {t`Invitez un auteur sur l'un de vos articles.`}
+          </p>
 
-          <form onSubmit={handleSendInvite} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-                ID de votre article (Draft/Article)
+          <form onSubmit={handleSendInvite} className="space-y-3">
+            <div className="space-y-1.5">
+              <label htmlFor="invite-article" className="text-xs font-semibold text-foreground">
+                {t`Identifiant de l'article`}
               </label>
-              <input
-                type="text"
+              <Input
+                id="invite-article"
+                size="sm"
                 value={inviteArticleId}
                 onChange={(e) => setInviteArticleId(e.target.value)}
-                placeholder="Ex: cm123abc..."
-                className="w-full p-3 rounded-xl bg-muted/40 border border-border/40 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+                placeholder="cm123abc"
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-                Nom d'utilisateur (@) du co-auteur à inviter
+            <div className="space-y-1.5">
+              <label htmlFor="invite-username" className="text-xs font-semibold text-foreground">
+                {t`Nom d'utilisateur du co-auteur`}
               </label>
-              <input
-                type="text"
+              <Input
+                id="invite-username"
+                size="sm"
                 value={inviteUsername}
                 onChange={(e) => setInviteUsername(e.target.value)}
                 autoComplete="off"
                 spellCheck={false}
                 placeholder="@username"
-                className="w-full p-3 rounded-xl bg-muted/40 border border-border/40 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
               />
             </div>
 
-            <button
+            <Button
               type="submit"
-              disabled={sendingInvite}
-              className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:opacity-90 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              variant="solid"
+              tone="brand"
+              size="sm"
+              block
+              loading={sendingInvite}
             >
-              {sendingInvite ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <>
-                  <span>{t`Envoyer la demande de co-rédaction`}</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
+              {t`Envoyer la demande`}
+            </Button>
           </form>
-        </div>
+        </section>
       </div>
 
-      {/* Create Media Section */}
-      <div className="bg-card border border-border/40 rounded-3xl p-6 md:p-8 shadow-sm">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center">
-            <Building2 className="w-5 h-5" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold">Créer un Profil Média / Journal Collectif</h2>
-            <p className="text-xs text-muted-foreground">
-              Créez une entité média indépendante avec son propre profil, sous-domaine et équipe
-              d'auteurs.
-            </p>
-          </div>
-        </div>
+      <section className="space-y-3 rounded-xl border border-border/50 bg-card p-5 shadow-2xs">
+        <header className="flex items-center gap-2">
+          <Building2 className="h-3.5 w-3.5 text-primary" />
+          <h2 className="text-xs font-bold tracking-wider text-muted-foreground uppercase">
+            {t`Nouveau média`}
+          </h2>
+        </header>
+        <p className="text-xs text-muted-foreground">
+          {t`Un espace séparé, avec son propre profil, son sous-domaine et son équipe.`}
+        </p>
 
         {mediaMsg && (
-          <div className="p-4 mb-6 bg-primary/10 border border-primary/20 text-foreground text-xs font-medium rounded-xl">
+          <p className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2 text-xs">
             {mediaMsg}
-          </div>
+          </p>
         )}
 
-        <form onSubmit={handleCreateMedia} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-              Nom du Média
+        <form onSubmit={handleCreateMedia} className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className="space-y-1.5">
+            <label htmlFor="media-name" className="text-xs font-semibold text-foreground">
+              {t`Nom du média`}
             </label>
-            <input
-              type="text"
+            <Input
+              id="media-name"
+              size="sm"
               value={mediaName}
               onChange={(e) => {
                 setMediaName(e.target.value);
                 setMediaSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, '-'));
               }}
-              placeholder={t`Ex: Le Clubic Indépendant`}
-              className="w-full p-3 rounded-xl bg-muted/40 border border-border/40 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              placeholder={t`Nom du média`}
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-              Permalien / Sous-domaine
+          <div className="space-y-1.5">
+            <label htmlFor="media-slug" className="text-xs font-semibold text-foreground">
+              {t`Sous-domaine`}
             </label>
-            <input
-              type="text"
+            <Input
+              id="media-slug"
+              size="sm"
               value={mediaSlug}
               onChange={(e) => setMediaSlug(e.target.value)}
-              placeholder="clubic-independant"
-              className="w-full p-3 rounded-xl bg-muted/40 border border-border/40 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              placeholder="nom-du-media"
+            />
+          </div>
+
+          <div className="space-y-1.5 md:col-span-2">
+            <label htmlFor="media-bio" className="text-xs font-semibold text-foreground">
+              {t`Description`}
+            </label>
+            <Textarea
+              id="media-bio"
+              size="sm"
+              value={mediaBio}
+              onChange={(e) => setMediaBio(e.target.value)}
+              placeholder={t`En une phrase, ce que publie ce média.`}
+              rows={3}
             />
           </div>
 
           <div className="md:col-span-2">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
-              Description / Bio du Média
-            </label>
-            <textarea
-              value={mediaBio}
-              onChange={(e) => setMediaBio(e.target.value)}
-              placeholder={t`Revue collective dédiée aux enjeux de la transition numérique...`}
-              rows={3}
-              className="w-full p-3 rounded-xl bg-muted/40 border border-border/40 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-            />
-          </div>
-
-          <div className="md:col-span-2 pt-2">
-            <button
+            <Button
               type="submit"
-              disabled={creatingMedia}
-              className="w-full py-3.5 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:opacity-90 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              variant="solid"
+              tone="brand"
+              size="sm"
+              block
+              loading={creatingMedia}
             >
-              {creatingMedia ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <>
-                  <span>{t`Créer le Profil Média & Espace de Travail`}</span>
-                  <ArrowRight className="w-4 h-4" />
-                </>
-              )}
-            </button>
+              {t`Créer le média`}
+            </Button>
           </div>
         </form>
-      </div>
+      </section>
     </div>
   );
 }

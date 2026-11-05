@@ -16,6 +16,7 @@ import {
   TableRow,
   TableSelectAllCell,
   TableSelectionCell,
+  selectionToKeySet,
   sortRows,
   type SortDescriptorLike,
   type SortSpec,
@@ -411,7 +412,14 @@ export function SelectionTablesSpecimen() {
           aria-label="Écrits"
           selectionMode="multiple"
           selectedKeys={articleKeys}
-          onSelectionChange={(keys) => setArticleKeys(new Set(keys as Set<string>))}
+          onSelectionChange={(keys) =>
+            setArticleKeys(
+              selectionToKeySet(
+                keys,
+                sortedArticles.map((article) => article.id)
+              )
+            )
+          }
           sortDescriptor={articleSort}
           onSortChange={setArticleSort}
         >
@@ -467,7 +475,14 @@ export function SelectionTablesSpecimen() {
           size="sm"
           selectionMode="single"
           selectedKeys={subscriberKeys}
-          onSelectionChange={(keys) => setSubscriberKeys(new Set(keys as Set<string>))}
+          onSelectionChange={(keys) =>
+            setSubscriberKeys(
+              selectionToKeySet(
+                keys,
+                sortedSubscribers.map((subscriber) => subscriber.id)
+              )
+            )
+          }
           sortDescriptor={subscriberSort}
           onSortChange={setSubscriberSort}
         >
@@ -515,7 +530,14 @@ export function SelectionTablesSpecimen() {
           aria-label="Brouillons et publications"
           selectionMode="multiple"
           selectedKeys={draftKeys}
-          onSelectionChange={(keys) => setDraftKeys(new Set(keys as Set<string>))}
+          onSelectionChange={(keys) =>
+            setDraftKeys(
+              selectionToKeySet(
+                keys,
+                sortedDrafts.map((draft) => draft.id)
+              )
+            )
+          }
           sortDescriptor={draftSort}
           onSortChange={setDraftSort}
         >
@@ -590,7 +612,14 @@ export function SelectionTablesSpecimen() {
           size="xs"
           selectionMode="multiple"
           selectedKeys={commentKeys}
-          onSelectionChange={(keys) => setCommentKeys(new Set(keys as Set<string>))}
+          onSelectionChange={(keys) =>
+            setCommentKeys(
+              selectionToKeySet(
+                keys,
+                sortedComments.map((comment) => comment.id)
+              )
+            )
+          }
           sortDescriptor={commentSort}
           onSortChange={setCommentSort}
         >

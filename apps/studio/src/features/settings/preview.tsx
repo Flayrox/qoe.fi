@@ -243,11 +243,11 @@ export function Preview({
                 style={{ fontFamily: activeFont }}
                 className="text-base sm:text-lg font-bold text-foreground leading-snug tracking-tight"
               >
-                Modèles cinétiques et toucher tactile des surfaces fluides
+                Notes de terrain, carnet de bord
               </h2>
               <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
-                Exploration des constantes d'élasticité, d'amortissement et de vélocité pour
-                conférer un momentum organique aux interfaces modernes.
+                Un aperçu de la mise en page de vos articles, avec la police et les couleurs du
+                site.
               </p>
             </article>
 
@@ -265,10 +265,10 @@ export function Preview({
                   style={{ fontFamily: activeFont }}
                   className="text-xs sm:text-sm font-semibold text-foreground leading-snug"
                 >
-                  L'indépendance éditoriale à l'ère des flux
+                  Écrire loin du bruit
                 </h3>
                 <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
-                  Pourquoi les créateurs reprennent la souveraineté de leur lectorat.
+                  Un exemple de sous-titre d'article.
                 </p>
               </article>
 
@@ -284,10 +284,10 @@ export function Preview({
                   style={{ fontFamily: activeFont }}
                   className="text-xs sm:text-sm font-semibold text-foreground leading-snug"
                 >
-                  Le temps long comme méthode de travail
+                  Le temps long
                 </h3>
                 <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
-                  S'affranchir du bruit permanent pour retrouver la profondeur des idées.
+                  Un second exemple de sous-titre.
                 </p>
               </article>
             </div>

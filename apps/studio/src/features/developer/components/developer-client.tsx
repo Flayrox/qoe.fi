@@ -946,8 +946,8 @@ print(articles)`,
                       </div>
                       <p className="text-[11px] text-muted-foreground">
                         {isMediaWorkspace
-                          ? t`💡 Cette clé d'API est rattachée au Média « ${activeWorkspace?.name} » et donne accès aux ressources du média selon les permissions sélectionnées.`
-                          : t`💡 Sélectionnez uniquement les permissions strictement nécessaires — une clé ne peut pas dépasser les permissions que l'admin vous a accordées (API entrante lecture / écriture / analytics).`}
+                          ? t`Cette clé est rattachée au média « ${activeWorkspace?.name} » et donne accès à ses ressources selon les permissions choisies.`
+                          : t`Sélectionnez uniquement les permissions nécessaires. Une clé ne peut pas dépasser celles accordées par l'admin.`}
                       </p>
                     </>
                   ) : (

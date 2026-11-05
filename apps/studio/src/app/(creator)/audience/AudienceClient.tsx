@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { t } from '@lingui/core/macro';
 import { Badge } from '@qoe/ui/badge';
 import { Button } from '@qoe/ui/button';
@@ -15,6 +15,7 @@ import {
   TableSelectAllCell,
   TableSelectionCell,
   TablePersonCell,
+  selectionToKeySet,
   sortRows,
   type SortDescriptorLike,
   type SortSpec,
@@ -118,6 +119,12 @@ export function AudienceClient({ initialSubscribers }: AudienceClientProps) {
     link.click();
     document.body.removeChild(link);
   };
+
+  // Une ligne filtrée sort de la table : la garder sélectionnée rendrait la
+  // barre d'actions (et l'export de sélection) menteuse.
+  useEffect(() => {
+    setSelectedKeys(new Set());
+  }, [searchQuery, filterType]);
 
   const hasSelection = selectedKeys.size > 0;
 
@@ -290,7 +297,14 @@ export function AudienceClient({ initialSubscribers }: AudienceClientProps) {
             size="md"
             selectionMode="multiple"
             selectedKeys={selectedKeys}
-            onSelectionChange={(keys) => setSelectedKeys(new Set(keys as Set<string>))}
+            onSelectionChange={(keys) =>
+              setSelectedKeys(
+                selectionToKeySet(
+                  keys,
+                  sortedSubscribers.map((sub) => sub.id)
+                )
+              )
+            }
             sortDescriptor={sortDescriptor}
             onSortChange={setSortDescriptor}
           >

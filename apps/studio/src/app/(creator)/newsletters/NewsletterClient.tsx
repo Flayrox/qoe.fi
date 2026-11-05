@@ -1,41 +1,49 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { t } from '@lingui/core/macro';
+import Link from 'next/link';
 import {
-  Mail,
-  Settings,
-  History,
-  Send,
-  Plus,
-  Trash2,
-  Pencil,
-  Eye,
-  Loader2,
   Check,
-  Lock,
-  RotateCcw,
+  Eye,
+  FileText,
+  History,
+  Image as ImageIcon,
+  Loader2,
+  Mail,
   Monitor,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  RotateCcw,
+  Send,
+  Settings2,
   Smartphone,
-  ExternalLink,
-  Sparkles,
+  Trash2,
 } from 'lucide-react';
-import { Button } from '@qoe/ui/button';
-import { Input } from '@qoe/ui/input';
+import { ColorPicker } from '@qoe/ui';
 import { Badge } from '@qoe/ui/badge';
-import { Tabs, TabList, Tab, TabPanel } from '@qoe/ui/tabs';
+import { Button, buttonClasses } from '@qoe/ui/button';
+import { Dropdown, type DropdownItem } from '@qoe/ui/dropdown';
+import { Input, Textarea } from '@qoe/ui/input';
+import { Switch } from '@qoe/ui/switch';
+import { Tab, TabList, Tabs } from '@qoe/ui/tabs';
 import {
   Table,
-  TableHeader,
-  TableColumn,
   TableBody,
-  TableRow,
   TableCell,
+  TableColumn,
+  TableHeader,
+  TableRow,
   sortRows,
-  type SortSpec,
   type SortDescriptorLike,
+  type SortSpec,
 } from '@qoe/ui/table';
+import { ToggleButton, ToggleGroup } from '@qoe/ui/toggle';
 import { toast } from '@qoe/ui/toast';
+import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
+import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
+import { cn } from '@qoe/utils';
 import {
   createNewsletterAction,
   deleteNewsletterAction,
@@ -45,13 +53,12 @@ import {
   type NewsletterIssue,
 } from './actions';
 import {
-  updateEmailSettingsAction,
+  previewEmailSettingsAction,
   sendTestEmailAction,
+  updateEmailSettingsAction,
   type PublicationEmailSettings,
 } from '@/features/settings/actions';
 import { attemptWithStepUp } from '@/lib/authz-feedback';
-import { cn } from '@qoe/utils';
-import Link from 'next/link';
 
 interface NewsletterClientProps {
   initialIssues: NewsletterIssue[];
@@ -64,6 +71,25 @@ interface NewsletterClientProps {
   logoUrl?: string;
 }
 
+type Section = 'config' | 'direct' | 'history';
+type PreviewTemplate = 'confirm' | 'welcome';
+
+interface EmailPreview {
+  subject: string;
+  from: string;
+  html: string;
+  text: string;
+}
+
+const ACCENT_PRESETS = [
+  { name: 'Noir', hex: '#18181b' },
+  { name: 'Rouge', hex: '#e11d48' },
+  { name: 'Orange', hex: '#ea580c' },
+  { name: 'Vert', hex: '#16a34a' },
+  { name: 'Bleu', hex: '#2563eb' },
+  { name: 'Violet', hex: '#7c3aed' },
+];
+
 const ISSUE_SORT: SortSpec<NewsletterIssue> = {
   subject: { kind: 'text', value: (row) => row.subject },
   status: {
@@ -75,35 +101,108 @@ const ISSUE_SORT: SortSpec<NewsletterIssue> = {
   sentAt: { kind: 'date', value: (row) => (row.sentAt ? new Date(row.sentAt) : new Date(0)) },
 };
 
+/** Carte de réglage, au format des panneaux de /settings. */
+function SettingsCard({
+  icon: Icon,
+  title,
+  aside,
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  title: string;
+  aside?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-xl border border-border/50 bg-card p-4 shadow-2xs">
+      <header className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <Icon className="h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={1.5} />
+          <h2 className="truncate text-xs font-bold tracking-wider text-muted-foreground uppercase">
+            {title}
+          </h2>
+        </div>
+        {aside}
+      </header>
+      <div className="mt-3 space-y-3">{children}</div>
+    </section>
+  );
+}
+
+/** Libellé + indice + badge Pro, avec l'association `htmlFor` explicite. */
+function Field({
+  id,
+  label,
+  hint,
+  aside,
+  children,
+}: {
+  id: string;
+  label: string;
+  hint?: string;
+  aside?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <label htmlFor={id} className="text-xs font-semibold text-foreground">
+          {label}
+        </label>
+        {aside}
+      </div>
+      {children}
+      {hint && <p className="text-[11px] leading-relaxed text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
+
+function ProBadge() {
+  return (
+    <Badge variant="soft" tone="brand" size="xs">
+      PRO
+    </Badge>
+  );
+}
+
 export function NewsletterClient({
   initialIssues,
   publicationId,
   publicationName,
   initialEmailSettings,
   emailPro,
+  locales = ['fr', 'en'],
   accentColor = '#18181b',
   logoUrl = '',
 }: NewsletterClientProps) {
-  const [activeTab, setActiveTab] = useState<string>('config');
+  const [activeSection, setActiveSection] = useState<Section>('config');
   const [issues, setIssues] = useState<NewsletterIssue[]>(initialIssues);
 
-  // ─── Configuration State ───
-  const [settings, setSettings] = useState<PublicationEmailSettings>(
-    initialEmailSettings ?? {
-      fromName: '',
-      replyTo: '',
-      footerNote: '',
-      welcomeBody: '',
-      welcomeEnabled: true,
-      logoUrl: logoUrl ?? '',
-      accentColor: accentColor ?? '#18181b',
-    }
-  );
+  // ─── Configuration ───
+  const initialSettings: PublicationEmailSettings = initialEmailSettings ?? {
+    fromName: '',
+    replyTo: '',
+    footerNote: '',
+    welcomeBody: '',
+    welcomeEnabled: true,
+    logoUrl: logoUrl ?? '',
+    accentColor: accentColor ?? '#18181b',
+  };
+  const [settings, setSettings] = useState<PublicationEmailSettings>(initialSettings);
+  const [savedSettings, setSavedSettings] = useState<PublicationEmailSettings>(initialSettings);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [isSendingTest, setIsSendingTest] = useState(false);
-  const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
 
-  // ─── Direct Newsletter Composer State ───
+  // ─── Aperçu (rendu du backend) ───
+  const [previewTemplate, setPreviewTemplate] = useState<PreviewTemplate>('welcome');
+  const [previewLocale, setPreviewLocale] = useState(locales[0] ?? 'fr');
+  const [previewDevice, setPreviewDevice] = useState<'desktop' | 'mobile'>('desktop');
+  const [preview, setPreview] = useState<EmailPreview | null>(null);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [showTextVersion, setShowTextVersion] = useState(false);
+  const previewRequest = useRef(0);
+
+  // ─── Compositeur de message direct ───
   const [showComposer, setShowComposer] = useState(false);
   const [editingIssue, setEditingIssue] = useState<NewsletterIssue | null>(null);
   const [composerSubject, setComposerSubject] = useState('');
@@ -112,29 +211,75 @@ export function NewsletterClient({
   const [isSubmittingCampaign, setIsSubmittingCampaign] = useState(false);
   const [busyActionId, setBusyActionId] = useState<string | null>(null);
 
-  // ─── Table Sorting ───
+  // ─── Tri de l'historique ───
   const [sortDescriptor, setSortDescriptor] = useState<SortDescriptorLike>({
     column: 'sentAt',
     direction: 'descending',
   });
 
   const sortedIssues = sortRows(issues, sortDescriptor, ISSUE_SORT);
+  const hasSettingsChanges = JSON.stringify(settings) !== JSON.stringify(savedSettings);
 
   const refreshIssues = async () => {
     const res = await listNewslettersAction();
     if (res.success) setIssues(res.items);
   };
 
+  const updateSetting = <K extends keyof PublicationEmailSettings>(
+    key: K,
+    value: PublicationEmailSettings[K]
+  ) => {
+    setSettings((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const setTemplateMap = (
+    key: 'subjects' | 'preheaders',
+    template: PreviewTemplate,
+    value: string
+  ) => {
+    setSettings((prev) => ({ ...prev, [key]: { ...prev[key], [template]: value } }));
+  };
+
+  /**
+   * L'aperçu est le rendu RÉEL du backend — le même moteur que les envois.
+   * Débounce court : une frappe ne déclenche pas un rendu par caractère.
+   */
+  const refreshPreview = useCallback(
+    async (next: PublicationEmailSettings) => {
+      const request = ++previewRequest.current;
+      setIsPreviewing(true);
+      try {
+        const res = await previewEmailSettingsAction(
+          publicationId,
+          previewTemplate,
+          previewLocale,
+          next
+        );
+        if (request === previewRequest.current) {
+          setPreview({ subject: res.subject, from: res.from, html: res.html, text: res.text });
+        }
+      } catch {
+        // Silencieux : un aperçu ne doit jamais interrompre la saisie.
+      } finally {
+        if (request === previewRequest.current) setIsPreviewing(false);
+      }
+    },
+    [publicationId, previewTemplate, previewLocale]
+  );
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void refreshPreview(settings), 450);
+    return () => window.clearTimeout(timer);
+  }, [settings, refreshPreview]);
+
   const handleSaveSettings = async () => {
     setIsSavingSettings(true);
     try {
       const res = await updateEmailSettingsAction(publicationId, settings);
-      if (res?.emailSettings) {
-        setSettings(res.emailSettings);
-        toast.success(t`Réglages newsletter enregistrés.`);
-      } else {
-        toast.success(t`Réglages mis à jour.`);
-      }
+      const stored = res.emailSettings ?? settings;
+      setSettings(stored);
+      setSavedSettings(stored);
+      toast.success(t`Réglages enregistrés.`);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : t`Échec de la sauvegarde des réglages.`);
     } finally {
@@ -142,11 +287,11 @@ export function NewsletterClient({
     }
   };
 
-  const handleSendConfigTestEmail = async () => {
+  const handleSendTestEmail = async () => {
     setIsSendingTest(true);
     try {
-      await sendTestEmailAction(publicationId, 'welcome', 'fr', settings);
-      toast.success(t`Email test envoyé à votre adresse personnelle.`);
+      await sendTestEmailAction(publicationId, previewTemplate, previewLocale, settings);
+      toast.success(t`Email test envoyé.`);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : t`Échec de l'envoi du test.`);
     } finally {
@@ -166,10 +311,13 @@ export function NewsletterClient({
       setComposerPreviewText('');
       setComposerHtml('');
     }
+    // Depuis l'historique, éditer sans basculer d'onglet laisserait
+    // l'utilisateur devant une page inchangée.
+    setActiveSection('direct');
     setShowComposer(true);
   };
 
-  const handleSaveComposer = async () => {
+  const handleSaveComposer = async (options?: { sendAfter?: boolean }) => {
     if (!composerSubject.trim() || !composerHtml.trim()) {
       toast.error(t`Sujet et contenu de l'email requis.`);
       return;
@@ -191,10 +339,16 @@ export function NewsletterClient({
               }),
         { fallback: t`Erreur lors de la sauvegarde du brouillon` }
       );
-      if (res.success) {
-        toast.success(editingIssue ? t`Brouillon mis à jour` : t`Brouillon créé`);
-        setShowComposer(false);
-        await refreshIssues();
+      if (!res.success) return;
+
+      toast.success(editingIssue ? t`Brouillon mis à jour` : t`Brouillon créé`);
+      const savedIssue = res.issue ?? editingIssue;
+      setEditingIssue(null);
+      setShowComposer(false);
+      await refreshIssues();
+
+      if (options?.sendAfter && savedIssue) {
+        await handleSendIssue(savedIssue);
       }
     } finally {
       setIsSubmittingCampaign(false);
@@ -203,12 +357,12 @@ export function NewsletterClient({
 
   const handleSendIssue = async (issue: NewsletterIssue) => {
     if (!emailPro) {
-      toast.error(t`L'envoi de messages directs sans article est réservé aux publications PRO.`);
+      toast.error(t`L'envoi sans article est réservé au forfait PRO.`);
       return;
     }
     if (
       !confirm(
-        t`Envoyer « ${issue.subject} » à tous vos abonnés actifs ? Cette action est définitive.`
+        t`Envoyer « ${issue.subject} » à tous les abonnés actifs ? L'envoi ne peut pas être annulé.`
       )
     ) {
       return;
@@ -219,7 +373,7 @@ export function NewsletterClient({
     });
     setBusyActionId(null);
     if (res.success) {
-      toast.success(t`Envoi lancé — vos abonnés recevront l'email d'ici quelques minutes.`);
+      toast.success(t`Envoi lancé. L'email part dans quelques minutes.`);
       await refreshIssues();
     }
   };
@@ -238,50 +392,40 @@ export function NewsletterClient({
   };
 
   const totalSentCount = issues
-    .filter((i) => i.status === 'SENT')
-    .reduce((acc, i) => acc + i.sentCount, 0);
+    .filter((issue) => issue.status === 'SENT')
+    .reduce((total, issue) => total + issue.sentCount, 0);
 
   return (
-    <div className="space-y-6 p-6 lg:p-10 max-w-6xl mx-auto">
-      {/* ─── Header ─── */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-6 border-b border-border/40">
+    <div className="mx-auto max-w-6xl space-y-6 p-6 lg:p-10">
+      {/* ─── En-tête ─── */}
+      <div className="flex flex-col gap-4 border-b border-border/40 pb-6 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <div className="flex items-center gap-2 mb-1.5">
-            <Mail className="h-4 w-4 text-primary stroke-[1.5]" />
-            <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
-              {t`Diffusion & Abonnés`}
-            </span>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">{t`Newsletter`}</h1>
             {emailPro && (
               <Badge variant="soft" tone="brand" size="xs">
                 PRO
               </Badge>
             )}
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">{t`Newsletters & Diffusion`}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {t`Configurez l'apparence de vos emails automatiques, envoyez des messages directs et suivez vos envois.`}
+          <p className="mt-1 text-sm text-muted-foreground">
+            {t`Emails automatiques, messages directs et historique des envois.`}
           </p>
         </div>
 
-        {/* Navigation par onglets segmentés en creux (conforme UI Lab) */}
         <Tabs
           variant="segmented"
           size="sm"
-          value={activeTab}
-          onValueChange={setActiveTab}
+          value={activeSection}
+          onValueChange={(key) => setActiveSection(key as Section)}
           className="self-start sm:self-auto"
         >
           <TabList aria-label={t`Sections newsletter`}>
-            <Tab id="config" icon={Settings}>
+            <Tab id="config" icon={Settings2}>
               {t`Configuration`}
             </Tab>
             <Tab id="direct" icon={Send}>
               {t`Message direct`}
-              {!emailPro && (
-                <span className="ml-1.5 px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-primary/10 text-primary">
-                  PRO
-                </span>
-              )}
             </Tab>
             <Tab id="history" icon={History} count={issues.length}>
               {t`Historique`}
@@ -290,133 +434,231 @@ export function NewsletterClient({
         </Tabs>
       </div>
 
-      {/* ─── Onglet 1: Configuration ─── */}
-      {activeTab === 'config' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          <div className="lg:col-span-7 space-y-6">
-            {/* Carte 1 : Identité d'expéditeur */}
-            <div className="rounded-2xl border border-border/60 bg-card p-6 space-y-4">
-              <div className="flex items-center justify-between border-b border-border/40 pb-3">
-                <div>
-                  <h3 className="text-sm font-semibold text-foreground">{t`Identité d'expédition`}</h3>
-                  <p className="text-xs text-muted-foreground">
-                    {t`Nom et adresse affichés dans la boîte de réception de vos abonnés.`}
-                  </p>
-                </div>
-                {!emailPro && (
-                  <Badge variant="outline" tone="neutral" size="xs">
-                    {t`Standard`}
-                  </Badge>
-                )}
-              </div>
+      {/* ═══ Onglet 1 : configuration ═══ */}
+      {activeSection === 'config' && (
+        <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
+          <div className="space-y-5 lg:col-span-7">
+            <SettingsCard
+              icon={Mail}
+              title={t`Expéditeur`}
+              aside={
+                !emailPro ? <Badge variant="outline" size="xs">{t`Standard`}</Badge> : undefined
+              }
+            >
+              <Field
+                id="newsletter-from-name"
+                label={t`Nom d'expéditeur`}
+                hint={
+                  emailPro
+                    ? t`Affiché comme nom d'expéditeur.`
+                    : t`Réservé au forfait PRO. Le nom de la publication est utilisé.`
+                }
+                aside={emailPro ? undefined : <ProBadge />}
+              >
+                <Input
+                  id="newsletter-from-name"
+                  size="sm"
+                  value={settings.fromName ?? ''}
+                  disabled={!emailPro}
+                  maxLength={60}
+                  onChange={(e) => updateSetting('fromName', e.target.value)}
+                  placeholder={publicationName}
+                />
+              </Field>
 
-              <div className="space-y-4">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-medium text-foreground">{t`Nom d'expéditeur`}</label>
-                    {!emailPro && (
-                      <span className="text-[10px] text-muted-foreground font-medium">
-                        {t`Par défaut : ${publicationName}`}
-                      </span>
-                    )}
-                  </div>
-                  <Input
-                    size="sm"
-                    value={settings.fromName ?? ''}
-                    disabled={!emailPro}
-                    onChange={(e) => setSettings({ ...settings, fromName: e.target.value })}
-                    placeholder={publicationName}
-                  />
-                  {!emailPro && (
-                    <p className="text-[11px] text-muted-foreground mt-1">
-                      {t`Personnalisation réservée aux publications PRO. Votre nom de publication est utilisé.`}
-                    </p>
-                  )}
-                </div>
+              <Field
+                id="newsletter-reply-to"
+                label={t`Adresse de réponse (Reply-To)`}
+                hint={
+                  emailPro
+                    ? t`Les réponses arrivent dans cette boîte.`
+                    : t`Les emails partent de l'infrastructure qoe.fi.`
+                }
+                aside={emailPro ? <ProBadge /> : undefined}
+              >
+                <Input
+                  id="newsletter-reply-to"
+                  size="sm"
+                  type="email"
+                  value={settings.replyTo ?? ''}
+                  disabled={!emailPro}
+                  maxLength={254}
+                  onChange={(e) => updateSetting('replyTo', e.target.value)}
+                  placeholder="contact@votredomaine.com"
+                />
+              </Field>
+            </SettingsCard>
 
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-medium text-foreground">{t`Adresse de réponse (Reply-To)`}</label>
-                    {emailPro && (
-                      <Badge variant="soft" tone="brand" size="xs">
-                        PRO
-                      </Badge>
-                    )}
-                  </div>
-                  <Input
-                    size="sm"
-                    type="email"
-                    value={settings.replyTo ?? ''}
-                    disabled={!emailPro}
-                    onChange={(e) => setSettings({ ...settings, replyTo: e.target.value })}
-                    placeholder="contact@votredomaine.com"
-                  />
-                  <p className="text-[11px] text-muted-foreground mt-1">
-                    {emailPro
-                      ? t`Les réponses de vos abonnés seront transférées directement vers cette boîte email.`
-                      : t`En version standard, les emails sont diffusés via l'infrastructure sécurisée qoe.fi.`}
-                  </p>
-                </div>
-              </div>
-            </div>
+            <SettingsCard
+              icon={FileText}
+              title={t`Emails automatiques`}
+              aside={!emailPro ? <ProBadge /> : undefined}
+            >
+              <Switch
+                size="sm"
+                isSelected={settings.welcomeEnabled !== false}
+                onChange={(enabled) => updateSetting('welcomeEnabled', enabled)}
+                label={t`Email de bienvenue`}
+                description={t`Envoyé une fois l'inscription confirmée.`}
+                className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2"
+              />
 
-            {/* Carte 2 : Visuel & Signature */}
-            <div className="rounded-2xl border border-border/60 bg-card p-6 space-y-4">
-              <div className="border-b border-border/40 pb-3">
-                <h3 className="text-sm font-semibold text-foreground">{t`Branding & Signature`}</h3>
-                <p className="text-xs text-muted-foreground">
-                  {t`Détails graphiques et note personnalisée ajoutés au bas de chaque envoi.`}
+              <Field
+                id="newsletter-subject-confirm"
+                label={t`Sujet de la confirmation`}
+                hint={t`Une seule version pour toutes les langues.`}
+                aside={!emailPro ? <ProBadge /> : undefined}
+              >
+                <Input
+                  id="newsletter-subject-confirm"
+                  size="sm"
+                  value={settings.subjects?.confirm ?? ''}
+                  disabled={!emailPro}
+                  maxLength={120}
+                  onChange={(e) => setTemplateMap('subjects', 'confirm', e.target.value)}
+                  placeholder={t`Confirmez votre abonnement — ${publicationName}`}
+                />
+              </Field>
+
+              <Field
+                id="newsletter-preheader-confirm"
+                label={t`Texte d'aperçu de la confirmation`}
+                hint={t`Visible à côté du sujet, avant ouverture.`}
+                aside={!emailPro ? <ProBadge /> : undefined}
+              >
+                <Input
+                  id="newsletter-preheader-confirm"
+                  size="sm"
+                  value={settings.preheaders?.confirm ?? ''}
+                  disabled={!emailPro}
+                  maxLength={140}
+                  onChange={(e) => setTemplateMap('preheaders', 'confirm', e.target.value)}
+                  placeholder={t`Un clic suffit pour recevoir vos prochaines parutions.`}
+                />
+              </Field>
+
+              <Field
+                id="newsletter-subject-welcome"
+                label={t`Sujet du bienvenue`}
+                aside={!emailPro ? <ProBadge /> : undefined}
+              >
+                <Input
+                  id="newsletter-subject-welcome"
+                  size="sm"
+                  value={settings.subjects?.welcome ?? ''}
+                  disabled={!emailPro}
+                  maxLength={120}
+                  onChange={(e) => setTemplateMap('subjects', 'welcome', e.target.value)}
+                  placeholder={t`Bienvenue chez ${publicationName}`}
+                />
+              </Field>
+
+              <Field
+                id="newsletter-preheader-welcome"
+                label={t`Texte d'aperçu du bienvenue`}
+                aside={!emailPro ? <ProBadge /> : undefined}
+              >
+                <Input
+                  id="newsletter-preheader-welcome"
+                  size="sm"
+                  value={settings.preheaders?.welcome ?? ''}
+                  disabled={!emailPro}
+                  maxLength={140}
+                  onChange={(e) => setTemplateMap('preheaders', 'welcome', e.target.value)}
+                  placeholder={t`Votre inscription est confirmée.`}
+                />
+              </Field>
+
+              <Field
+                id="newsletter-welcome-body"
+                label={t`Corps de l'email de bienvenue`}
+                hint={t`Texte brut, identique pour toutes les langues.`}
+                aside={
+                  <span className="font-mono text-[10px] text-muted-foreground">
+                    {(settings.welcomeBody ?? '').length}/2000
+                  </span>
+                }
+              >
+                <Textarea
+                  id="newsletter-welcome-body"
+                  size="sm"
+                  rows={4}
+                  value={settings.welcomeBody ?? ''}
+                  disabled={!emailPro || settings.welcomeEnabled === false}
+                  maxLength={2000}
+                  onChange={(e) => updateSetting('welcomeBody', e.target.value)}
+                  placeholder={t`Votre inscription est confirmée. À très vite !`}
+                />
+              </Field>
+            </SettingsCard>
+
+            <SettingsCard icon={ImageIcon} title={t`Logo et signature`}>
+              <div className="space-y-1.5">
+                <p className="text-xs font-medium text-foreground">{t`Logo d'en-tête`}</p>
+                <ImageUploader
+                  value={settings.logoUrl || null}
+                  onChange={(url) => updateSetting('logoUrl', url ?? '')}
+                  upload={(file) =>
+                    uploadImageToRoute(file, '/api/articles/upload', IMAGE_FOLDERS.avatars)
+                  }
+                  aspect={1}
+                  shape="circle"
+                  maxDimension={512}
+                />
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  {t`À défaut, l'initiale de la publication.`}
                 </p>
               </div>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="text-xs font-medium text-foreground mb-1 block">
-                    {t`Logo d'en-tête (URL)`}
-                  </label>
-                  <Input
-                    size="sm"
-                    value={settings.logoUrl ?? ''}
-                    onChange={(e) => setSettings({ ...settings, logoUrl: e.target.value })}
-                    placeholder="https://..."
-                  />
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-foreground">{t`Couleur des boutons`}</span>
+                  {!emailPro ? <ProBadge /> : undefined}
                 </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs font-medium text-foreground">
-                      {t`Note de pied de page (Signature)`}
-                    </label>
-                    {emailPro && (
-                      <Badge variant="soft" tone="brand" size="xs">
-                        PRO
-                      </Badge>
-                    )}
-                  </div>
-                  <Input
-                    size="sm"
-                    value={settings.footerNote ?? ''}
-                    disabled={!emailPro}
-                    onChange={(e) => setSettings({ ...settings, footerNote: e.target.value })}
-                    placeholder={t`Merci de lire ${publicationName}. Retrouvez nos archives sur le site.`}
+                <fieldset disabled={!emailPro} className={cn('min-w-0', !emailPro && 'opacity-50')}>
+                  <ColorPicker
+                    value={settings.accentColor ?? '#18181b'}
+                    onChange={(hex) => updateSetting('accentColor', hex ?? '#18181b')}
+                    presets={ACCENT_PRESETS}
+                    allowClear={false}
+                    defaultLabel={t`Couleur par défaut`}
                   />
-                </div>
+                </fieldset>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  {t`Couleur du bouton principal des emails.`}
+                </p>
               </div>
-            </div>
 
-            {/* Carte 3 : Action Bar */}
-            <div className="flex items-center justify-between pt-2">
+              <Field
+                id="newsletter-footer-note"
+                label={t`Note de pied de page (signature)`}
+                hint={t`Mention libre sous le texte de consentement.`}
+                aside={!emailPro ? <ProBadge /> : undefined}
+              >
+                <Input
+                  id="newsletter-footer-note"
+                  size="sm"
+                  value={settings.footerNote ?? ''}
+                  disabled={!emailPro}
+                  maxLength={200}
+                  onChange={(e) => updateSetting('footerNote', e.target.value)}
+                  placeholder={t`Merci de lire ${publicationName}. Retrouvez nos archives sur le site.`}
+                />
+              </Field>
+            </SettingsCard>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={handleSendConfigTestEmail}
+                onClick={handleSendTestEmail}
                 disabled={isSendingTest}
                 className="gap-2"
               >
                 {isSendingTest ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
-                  <Mail className="w-3.5 h-3.5" />
+                  <Mail className="h-3.5 w-3.5" />
                 )}
                 <span>{t`Envoyer un test à mon adresse`}</span>
               </Button>
@@ -426,183 +668,202 @@ export function NewsletterClient({
                 tone="brand"
                 size="sm"
                 onClick={handleSaveSettings}
-                disabled={isSavingSettings}
+                disabled={isSavingSettings || !hasSettingsChanges}
                 className="gap-2"
               >
                 {isSavingSettings ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
                 ) : (
-                  <Check className="w-3.5 h-3.5" />
+                  <Check className="h-3.5 w-3.5" />
                 )}
-                <span>{t`Enregistrer les modifications`}</span>
+                <span>{t`Enregistrer`}</span>
               </Button>
             </div>
           </div>
 
-          {/* Colonne latérale : Live Preview */}
-          <div className="lg:col-span-5 sticky top-6">
-            <div className="rounded-2xl border border-border/60 bg-muted/20 overflow-hidden">
-              <div className="p-3.5 flex items-center justify-between border-b border-border/40 bg-card">
-                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  <Eye className="w-3.5 h-3.5" />
-                  <span>{t`Aperçu du rendu`}</span>
+          {/* ─── Aperçu ─── */}
+          <div className="lg:sticky lg:top-6 lg:col-span-5">
+            <div className="overflow-hidden rounded-2xl border border-border/60 bg-card">
+              <div className="space-y-2.5 border-b border-border/40 p-3.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                    <Eye className="h-3.5 w-3.5 text-primary" />
+                    {t`Aperçu`}
+                    {isPreviewing && (
+                      <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                    )}
+                  </div>
+                  <ToggleGroup
+                    aria-label={t`Appareil d'aperçu`}
+                    variant="inset"
+                    selectionMode="single"
+                    disallowEmptySelection
+                    selectedKeys={[previewDevice]}
+                    onSelectionChange={(keys) => {
+                      const [next] = Array.from(keys);
+                      if (next) setPreviewDevice(next as 'desktop' | 'mobile');
+                    }}
+                  >
+                    <ToggleButton id="desktop" size="xs" aria-label={t`Bureau`}>
+                      <Monitor className="size-3.5" />
+                    </ToggleButton>
+                    <ToggleButton id="mobile" size="xs" aria-label={t`Mobile`}>
+                      <Smartphone className="size-3.5" />
+                    </ToggleButton>
+                  </ToggleGroup>
                 </div>
-                <div className="flex items-center gap-0.5 bg-muted p-0.5 rounded-control">
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    shape="icon"
-                    onClick={() => setPreviewDevice('desktop')}
-                    className={cn(
-                      'size-6',
-                      previewDevice === 'desktop'
-                        ? 'bg-background shadow-xs text-foreground'
-                        : 'text-muted-foreground'
-                    )}
+
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <ToggleGroup
+                    aria-label={t`Modèle d'email`}
+                    variant="inset"
+                    selectionMode="single"
+                    disallowEmptySelection
+                    selectedKeys={[previewTemplate]}
+                    onSelectionChange={(keys) => {
+                      const [next] = Array.from(keys);
+                      if (next) setPreviewTemplate(next as PreviewTemplate);
+                    }}
                   >
-                    <Monitor />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    shape="icon"
-                    onClick={() => setPreviewDevice('mobile')}
-                    className={cn(
-                      'size-6',
-                      previewDevice === 'mobile'
-                        ? 'bg-background shadow-xs text-foreground'
-                        : 'text-muted-foreground'
-                    )}
-                  >
-                    <Smartphone />
-                  </Button>
+                    <ToggleButton id="confirm" size="xs">
+                      {t`Confirmation`}
+                    </ToggleButton>
+                    <ToggleButton id="welcome" size="xs">
+                      {t`Bienvenue`}
+                    </ToggleButton>
+                  </ToggleGroup>
+
+                  {locales.length > 1 && (
+                    <ToggleGroup
+                      aria-label={t`Langue d'aperçu`}
+                      variant="inset"
+                      selectionMode="single"
+                      disallowEmptySelection
+                      selectedKeys={[previewLocale]}
+                      onSelectionChange={(keys) => {
+                        const [next] = Array.from(keys);
+                        if (next) setPreviewLocale(String(next));
+                      }}
+                    >
+                      {locales.map((locale) => (
+                        <ToggleButton key={locale} id={locale} size="xs" className="uppercase">
+                          {locale}
+                        </ToggleButton>
+                      ))}
+                    </ToggleGroup>
+                  )}
                 </div>
               </div>
 
-              <div className="p-4 sm:p-6 flex justify-center bg-muted/40">
+              <div className="bg-muted/30 p-4 sm:p-5">
                 <div
                   className={cn(
-                    'bg-card text-card-foreground border border-border/80 rounded-xl shadow-sm p-5 transition-all duration-200',
-                    previewDevice === 'mobile' ? 'max-w-[300px] w-full text-xs' : 'max-w-md w-full'
+                    'mx-auto overflow-hidden bg-background transition-all duration-200',
+                    previewDevice === 'mobile'
+                      ? 'max-w-[320px] rounded-2xl border-4 border-border shadow-lg'
+                      : 'w-full rounded-xl border border-border/50 shadow-sm'
                   )}
                 >
-                  <div className="border-b border-border/40 pb-3 mb-4 space-y-1 text-xs">
-                    <div className="text-muted-foreground">
-                      {t`De :`}{' '}
-                      <span className="text-foreground font-medium">
-                        {settings.fromName?.trim() || publicationName} &lt;noreply@qoe.fi&gt;
-                      </span>
-                    </div>
-                    {settings.replyTo?.trim() && (
-                      <div className="text-muted-foreground text-[11px]">
-                        {t`Répondre à :`}{' '}
-                        <span className="text-foreground font-mono">{settings.replyTo.trim()}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-3">
-                    {settings.logoUrl?.trim() && (
-                      <img
-                        src={settings.logoUrl.trim()}
-                        alt="Logo"
-                        className="w-10 h-10 rounded-lg object-cover mb-2"
-                      />
-                    )}
-                    <h5 className="font-bold text-sm leading-snug">
-                      {t`Titre d'exemple de votre parution`}
-                    </h5>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      {t`Voici à quoi ressemblera le texte distribué dans la messagerie de vos lecteurs. Le style respecte la typographie haute lisibilité et s'adapte au mode sombre.`}
+                  <div className="border-b border-border/40 bg-muted/30 px-3.5 py-2.5">
+                    <p className="truncate text-[11px] font-semibold text-foreground">
+                      {preview?.from || publicationName}
                     </p>
-                    <div className="pt-2">
-                      <span className="inline-block px-3 py-1 rounded-full text-[11px] font-semibold bg-foreground text-background">
-                        {t`Lire sur le web`}
-                      </span>
-                    </div>
+                    <p className="mt-0.5 truncate text-[11px] text-foreground">
+                      {preview?.subject || t`Chargement…`}
+                    </p>
                   </div>
 
-                  {settings.footerNote?.trim() && (
-                    <div className="mt-6 pt-3 border-t border-border/30 text-[11px] text-muted-foreground italic">
-                      {settings.footerNote.trim()}
+                  {preview ? (
+                    <iframe
+                      title={t`Aperçu de l'email`}
+                      srcDoc={preview.html}
+                      sandbox=""
+                      style={{ backgroundColor: '#ffffff' }}
+                      className={cn(
+                        'w-full',
+                        previewDevice === 'mobile' ? 'h-[440px]' : 'h-[520px]'
+                      )}
+                    />
+                  ) : (
+                    <div className="flex h-[320px] items-center justify-center text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
                     </div>
                   )}
-
-                  <div className="mt-4 pt-3 border-t border-border/30 text-[10px] text-muted-foreground flex justify-between">
-                    <span>{t`Envoyé par ${publicationName}`}</span>
-                    <span className="underline">{t`Se désabonner`}</span>
-                  </div>
                 </div>
+              </div>
+
+              <div className="space-y-2 border-t border-border/40 p-3.5">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  block
+                  onClick={handleSendTestEmail}
+                  disabled={isSendingTest}
+                  className="gap-2"
+                >
+                  {isSendingTest ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Send className="h-3.5 w-3.5" />
+                  )}
+                  <span>
+                    {t`Envoyer un test`}
+                    <span className="uppercase opacity-60"> ({previewLocale})</span>
+                  </span>
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => setShowTextVersion((visible) => !visible)}
+                  className="px-0 text-[11px] text-muted-foreground underline hover:bg-transparent hover:text-foreground"
+                >
+                  {showTextVersion ? t`Masquer la version texte` : t`Voir la version texte`}
+                </Button>
+
+                {showTextVersion && preview && (
+                  <pre className="max-h-56 overflow-y-auto rounded-lg border border-border/30 bg-muted/20 p-3 text-[10px] leading-relaxed whitespace-pre-wrap text-muted-foreground">
+                    {preview.text}
+                  </pre>
+                )}
               </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* ─── Onglet 2: Message direct (Broadcast PRO) ─── */}
-      {activeTab === 'direct' && (
-        <div className="space-y-6">
+      {/* ═══ Onglet 2 : message direct ═══ */}
+      {activeSection === 'direct' && (
+        <div className="space-y-5">
           {!emailPro ? (
-            /* Bannière Upsell PRO sobre et élégante (zéro auto-pilot ou hype IA) */
-            <div className="rounded-2xl border border-primary/20 bg-primary/5 p-8 max-w-3xl mx-auto space-y-6 text-center">
-              <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mx-auto">
-                <Sparkles className="w-6 h-6 stroke-[1.5]" />
+            <div className="max-w-2xl rounded-xl border border-border/50 bg-card p-5 shadow-2xs">
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" size="xs">
+                  {t`PRO`}
+                </Badge>
+                <h2 className="text-sm font-semibold text-foreground">{t`Messages directs`}</h2>
               </div>
-              <div className="space-y-2 max-w-lg mx-auto">
-                <div className="flex items-center justify-center gap-2">
-                  <Badge variant="solid" tone="brand" size="xs">
-                    PRO
-                  </Badge>
-                  <h2 className="text-lg font-bold tracking-tight text-foreground">
-                    {t`Communication directe par email`}
-                  </h2>
-                </div>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {t`L'envoi automatique de vos articles lors de leur publication est 100% gratuit et illimité. L'envoi de messages directs dédiés (annonces, lettres privées sans article web) fait partie de la suite d'outils PRO.`}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-left pt-2 max-w-xl mx-auto">
-                <div className="p-4 rounded-xl border border-border/50 bg-background/60">
-                  <span className="text-xs font-semibold text-foreground flex items-center gap-1.5 mb-1">
-                    <Check className="w-4 h-4 text-success-text" />
-                    {t`Inclus Gratuitement`}
-                  </span>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {t`Publication d'articles illimitée avec option d'envoi immédiat par email à toute votre audience.`}
-                  </p>
-                </div>
-
-                <div className="p-4 rounded-xl border border-primary/30 bg-primary/10">
-                  <span className="text-xs font-semibold text-foreground flex items-center gap-1.5 mb-1">
-                    <Sparkles className="w-4 h-4 text-primary" />
-                    {t`Avec le forfait PRO`}
-                  </span>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
-                    {t`Messages directs sans publication, renvoi de mises à jour majeures, nom et signature personnalisés.`}
-                  </p>
-                </div>
-              </div>
-
-              <div className="pt-2">
-                <Link href="/settings">
-                  <Button variant="solid" tone="brand" size="md" className="gap-2">
-                    <span>{t`Découvrir les avantages PRO`}</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </Button>
-                </Link>
-              </div>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                {t`L'envoi de vos articles est inclus dans toutes les offres. Rédiger un message sans article demande le forfait PRO.`}
+              </p>
+              <Link
+                href="/pricing"
+                className={buttonClasses({
+                  variant: 'outline',
+                  size: 'sm',
+                  className: 'mt-4',
+                })}
+              >
+                {t`Voir les offres`}
+              </Link>
             </div>
           ) : (
-            /* Mode PRO Actif : Compositeur direct */
-            <div className="space-y-6">
-              <div className="flex items-center justify-between pb-2">
+            <div className="space-y-5">
+              <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
-                  <h3 className="text-base font-semibold text-foreground">
-                    {t`Messages directs aux abonnés`}
-                  </h3>
+                  <h2 className="text-base font-semibold text-foreground">{t`Messages directs`}</h2>
                   <p className="text-xs text-muted-foreground">
-                    {t`Rédigez et diffusez une lettre d'information indépendante de vos publications web.`}
+                    {t`Un email à vos abonnés, sans article.`}
                   </p>
                 </div>
                 {!showComposer && (
@@ -613,18 +874,18 @@ export function NewsletterClient({
                     onClick={() => handleOpenComposer()}
                     className="gap-2"
                   >
-                    <Plus className="w-4 h-4" />
+                    <Plus className="h-4 w-4" />
                     <span>{t`Nouveau message direct`}</span>
                   </Button>
                 )}
               </div>
 
               {showComposer ? (
-                <div className="rounded-2xl border border-border/70 bg-card p-6 space-y-4">
-                  <div className="flex items-center justify-between border-b border-border/40 pb-3">
-                    <h4 className="text-sm font-semibold text-foreground">
+                <div className="rounded-2xl border border-border/60 bg-card p-5 sm:p-6">
+                  <div className="mb-4 flex items-center justify-between border-b border-border/40 pb-3">
+                    <h3 className="text-sm font-semibold text-foreground">
                       {editingIssue ? t`Modifier le message direct` : t`Composer un message direct`}
-                    </h4>
+                    </h3>
                     <Button
                       variant="ghost"
                       size="xs"
@@ -636,73 +897,114 @@ export function NewsletterClient({
                   </div>
 
                   <div className="space-y-4">
-                    <div>
-                      <label className="text-xs font-medium text-foreground mb-1 block">
-                        {t`Objet du message`}
-                      </label>
+                    <Field
+                      id="composer-subject"
+                      label={t`Objet du message`}
+                      aside={
+                        <span className="font-mono text-[10px] text-muted-foreground">
+                          {composerSubject.length}/120
+                        </span>
+                      }
+                    >
                       <Input
+                        id="composer-subject"
                         size="sm"
                         value={composerSubject}
+                        maxLength={120}
                         onChange={(e) => setComposerSubject(e.target.value)}
-                        placeholder={t`Nouvelles de l'équipe, mot de l'auteur...`}
+                        placeholder={t`Nouvelles de la rédaction`}
                       />
-                    </div>
+                    </Field>
 
-                    <div>
-                      <label className="text-xs font-medium text-foreground mb-1 block">
-                        {t`Texte d'aperçu (Preheader)`}
-                      </label>
+                    <Field
+                      id="composer-preheader"
+                      label={t`Texte d'aperçu`}
+                      aside={
+                        <span className="font-mono text-[10px] text-muted-foreground">
+                          {composerPreviewText.length}/140
+                        </span>
+                      }
+                    >
                       <Input
+                        id="composer-preheader"
                         size="sm"
                         value={composerPreviewText}
+                        maxLength={140}
                         onChange={(e) => setComposerPreviewText(e.target.value)}
-                        placeholder={t`Court extrait visible avant ouverture...`}
+                        placeholder={t`Visible avant ouverture.`}
                       />
-                    </div>
+                    </Field>
 
-                    <div>
-                      <label className="text-xs font-medium text-foreground mb-1 block">
-                        {t`Contenu du message (HTML ou texte formaté)`}
-                      </label>
-                      <textarea
-                        rows={10}
+                    <Field
+                      id="composer-html"
+                      label={t`Contenu du message`}
+                      hint={t`Contenu injecté dans le gabarit email de la publication.`}
+                    >
+                      <Textarea
+                        id="composer-html"
+                        size="sm"
+                        rows={12}
                         value={composerHtml}
                         onChange={(e) => setComposerHtml(e.target.value)}
-                        placeholder={t`<p>Chers abonnés, voici les dernières nouvelles...</p>`}
-                        className="w-full rounded-control border border-border bg-background p-3 text-xs font-mono leading-relaxed focus:outline-hidden focus:ring-1 focus:ring-primary"
+                        placeholder={t`<p>Chers abonnés, voici les dernières nouvelles…</p>`}
+                        className="font-mono text-xs leading-relaxed"
                       />
-                    </div>
+                    </Field>
 
-                    <div className="flex items-center justify-end gap-3 pt-2">
-                      <Button variant="ghost" size="sm" onClick={() => setShowComposer(false)}>
+                    <div className="flex flex-wrap items-center justify-end gap-2 pt-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowComposer(false)}
+                        disabled={isSubmittingCampaign}
+                      >
                         {t`Annuler`}
                       </Button>
                       <Button
-                        variant="solid"
-                        tone="brand"
+                        variant="outline"
                         size="sm"
-                        onClick={handleSaveComposer}
+                        onClick={() => void handleSaveComposer()}
                         disabled={isSubmittingCampaign}
                         className="gap-2"
                       >
                         {isSubmittingCampaign ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         ) : (
-                          <Check className="w-3.5 h-3.5" />
+                          <FileText className="h-3.5 w-3.5" />
                         )}
                         <span>
                           {editingIssue ? t`Mettre à jour le brouillon` : t`Créer le brouillon`}
                         </span>
                       </Button>
+
+                      {(editingIssue?.status === 'DRAFT' || editingIssue?.status === 'FAILED') && (
+                        <Button
+                          variant="solid"
+                          tone="brand"
+                          size="sm"
+                          onClick={() => void handleSaveComposer({ sendAfter: true })}
+                          disabled={isSubmittingCampaign}
+                          className="gap-2"
+                        >
+                          <Send className="h-3.5 w-3.5" />
+                          <span>{t`Enregistrer et envoyer`}</span>
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="rounded-2xl border border-border/40 bg-muted/20 p-8 text-center space-y-2">
-                  <p className="text-sm font-medium text-foreground">{t`Aucun brouillon en cours de rédaction`}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {t`Cliquez sur « Nouveau message direct » pour rédiger un e-mail à destination de vos abonnés.`}
-                  </p>
+                <div className="rounded-xl border border-dashed border-border p-6 text-center">
+                  <p className="text-xs text-muted-foreground">{t`Aucun brouillon.`}</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleOpenComposer()}
+                    className="mt-3 gap-2"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>{t`Écrire un message`}</span>
+                  </Button>
                 </div>
               )}
             </div>
@@ -710,198 +1012,171 @@ export function NewsletterClient({
         </div>
       )}
 
-      {/* ─── Onglet 3: Historique & Campagnes ─── */}
-      {activeTab === 'history' && (
+      {/* ═══ Onglet 3 : historique ═══ */}
+      {activeSection === 'history' && (
         <div className="space-y-6">
-          {/* Métriques récapitulatives */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="rounded-xl border border-border/50 bg-card p-5">
-              <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground block mb-2">
-                {t`Envois totaux`}
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-muted-foreground">
+            <span>
+              {t`Envois`} :{' '}
+              <span className="font-medium text-foreground tabular-nums">{issues.length}</span>
+            </span>
+            <span>
+              {t`Délivrés`} :{' '}
+              <span className="font-medium text-foreground tabular-nums">
+                {totalSentCount.toLocaleString('fr-FR')}
               </span>
-              <div className="text-2xl font-bold tracking-tight text-foreground">
-                {issues.length}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {issues.filter((i) => i.status === 'SENT').length} {t`envoyés avec succès`}
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-border/50 bg-card p-5">
-              <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground block mb-2">
-                {t`Emails délivrés`}
+            </span>
+            <span>
+              {t`En attente`} :{' '}
+              <span className="font-medium text-foreground tabular-nums">
+                {
+                  issues.filter((issue) => issue.status === 'DRAFT' || issue.status === 'FAILED')
+                    .length
+                }
               </span>
-              <div className="text-2xl font-bold tracking-tight text-foreground">
-                {totalSentCount.toLocaleString()}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">{t`Cumul auprès de vos abonnés`}</p>
-            </div>
-
-            <div className="rounded-xl border border-border/50 bg-card p-5">
-              <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground block mb-2">
-                {t`En attente`}
-              </span>
-              <div className="text-2xl font-bold tracking-tight text-foreground">
-                {issues.filter((i) => i.status === 'DRAFT' || i.status === 'FAILED').length}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {issues.filter((i) => i.status === 'FAILED').length}{' '}
-                {t`en échec pouvant être réessayés`}
-              </p>
-            </div>
+            </span>
           </div>
 
-          {/* Table conforme UI Lab */}
           {issues.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-border p-12 text-center space-y-3">
-              <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center mx-auto text-muted-foreground">
-                <History className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">{t`Aucune campagne envoyée pour l'instant`}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t`Vos parutions d'articles et vos messages directs apparaîtront dans cette liste.`}
-                </p>
-              </div>
+            <div className="rounded-xl border border-dashed border-border p-8 text-center">
+              <p className="text-sm font-medium text-foreground">{t`Aucun envoi.`}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t`Les parutions d'articles et les messages directs apparaîtront ici.`}
+              </p>
             </div>
           ) : (
-            <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
-              <Table
-                aria-label={t`Historique des newsletters`}
-                sortDescriptor={sortDescriptor}
-                onSortChange={setSortDescriptor}
-              >
-                <TableHeader>
-                  <TableColumn id="subject" isRowHeader allowsSorting>
-                    {t`Sujet de l'email`}
-                  </TableColumn>
-                  <TableColumn id="status" allowsSorting>
-                    {t`État`}
-                  </TableColumn>
-                  <TableColumn id="recipients" allowsSorting>
-                    {t`Destinataires`}
-                  </TableColumn>
-                  <TableColumn id="sentAt" allowsSorting>
-                    {t`Date`}
-                  </TableColumn>
-                  <TableColumn id="actions">{t`Actions`}</TableColumn>
-                </TableHeader>
-                <TableBody items={sortedIssues}>
-                  {(issue) => {
-                    const isDraft = issue.status === 'DRAFT';
-                    const isFailed = issue.status === 'FAILED';
-                    const isSending = issue.status === 'SENDING';
-                    const isSent = issue.status === 'SENT';
+            <Table
+              aria-label={t`Historique des envois`}
+              sortDescriptor={sortDescriptor}
+              onSortChange={setSortDescriptor}
+            >
+              <TableHeader>
+                <TableColumn id="subject" isRowHeader allowsSorting>
+                  {t`Sujet`}
+                </TableColumn>
+                <TableColumn id="status" allowsSorting>
+                  {t`État`}
+                </TableColumn>
+                <TableColumn id="recipients" allowsSorting>
+                  {t`Destinataires`}
+                </TableColumn>
+                <TableColumn id="sentAt" allowsSorting>
+                  {t`Date`}
+                </TableColumn>
+                <TableColumn id="actions">
+                  <span className="sr-only">{t`Actions`}</span>
+                </TableColumn>
+              </TableHeader>
 
-                    return (
-                      <TableRow id={issue.id}>
-                        <TableCell>
-                          <div className="py-1">
-                            <span className="font-medium text-xs text-foreground block truncate max-w-md">
-                              {issue.subject}
+              <TableBody items={sortedIssues} emptyState={t`Aucun envoi`}>
+                {(issue) => {
+                  const isDraft = issue.status === 'DRAFT';
+                  const isFailed = issue.status === 'FAILED';
+                  const isSending = issue.status === 'SENDING';
+                  const isSent = issue.status === 'SENT';
+
+                  const actions: DropdownItem[] = [];
+                  if (isDraft || isFailed) {
+                    actions.push({
+                      id: 'edit',
+                      label: t`Modifier`,
+                      icon: <Pencil />,
+                      onAction: () => handleOpenComposer(issue),
+                    });
+                    actions.push({
+                      id: 'send',
+                      label: isFailed ? t`Renvoyer` : t`Envoyer`,
+                      icon: isFailed ? <RotateCcw /> : <Send />,
+                      onAction: () => void handleSendIssue(issue),
+                    });
+                    actions.push({
+                      id: 'delete',
+                      label: t`Supprimer`,
+                      icon: <Trash2 />,
+                      tone: 'danger',
+                      onAction: () => void handleDeleteIssue(issue.id),
+                    });
+                  }
+
+                  return (
+                    <TableRow id={issue.id}>
+                      <TableCell>
+                        <div className="py-1">
+                          <span className="block max-w-md truncate text-xs font-medium text-foreground">
+                            {issue.subject}
+                          </span>
+                          {issue.previewText && (
+                            <span className="block max-w-md truncate text-[11px] text-muted-foreground">
+                              {issue.previewText}
                             </span>
-                            {issue.previewText && (
-                              <span className="text-[11px] text-muted-foreground block truncate max-w-md">
-                                {issue.previewText}
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {isSent && (
-                            <Badge variant="soft" tone="success" dot size="xs">
-                              {t`Envoyée`}
-                            </Badge>
                           )}
-                          {isSending && (
-                            <Badge variant="soft" tone="brand" dot size="xs">
-                              {t`Envoi en cours...`}
-                            </Badge>
-                          )}
-                          {isFailed && (
-                            <Badge variant="soft" tone="danger" dot size="xs">
-                              {t`Échec`}
-                            </Badge>
-                          )}
-                          {isDraft && (
-                            <Badge variant="soft" tone="neutral" size="xs">
-                              {t`Brouillon`}
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="tabular-nums text-xs">
-                          {isSent ? (
-                            <span>
-                              {issue.sentCount.toLocaleString()} {t`abonnés`}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="tabular-nums text-xs text-muted-foreground">
-                          {issue.sentAt
-                            ? new Date(issue.sentAt).toLocaleDateString('fr-FR', {
-                                day: 'numeric',
-                                month: 'short',
-                                year: 'numeric',
-                              })
-                            : new Date(issue.createdAt).toLocaleDateString('fr-FR', {
-                                day: 'numeric',
-                                month: 'short',
-                              })}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            {(isDraft || isFailed) && (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="xs"
-                                  shape="icon"
-                                  onClick={() => handleOpenComposer(issue)}
-                                  aria-label={t`Modifier`}
-                                  className="text-muted-foreground hover:text-foreground"
-                                >
-                                  <Pencil className="w-3.5 h-3.5" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="xs"
-                                  shape="icon"
-                                  onClick={() => handleSendIssue(issue)}
-                                  disabled={busyActionId === issue.id}
-                                  aria-label={isFailed ? t`Renvoyer` : t`Envoyer`}
-                                  className="text-primary hover:text-primary"
-                                >
-                                  {busyActionId === issue.id ? (
-                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                  ) : isFailed ? (
-                                    <RotateCcw className="w-3.5 h-3.5" />
-                                  ) : (
-                                    <Send className="w-3.5 h-3.5" />
-                                  )}
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="xs"
-                                  shape="icon"
-                                  onClick={() => handleDeleteIssue(issue.id)}
-                                  disabled={busyActionId === issue.id}
-                                  aria-label={t`Supprimer`}
-                                  className="text-muted-foreground hover:text-destructive-text"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  }}
-                </TableBody>
-              </Table>
-            </div>
+                        </div>
+                      </TableCell>
+
+                      <TableCell>
+                        {isSent && (
+                          <Badge variant="soft" tone="success" dot size="xs">
+                            {t`Envoyé`}
+                          </Badge>
+                        )}
+                        {isSending && (
+                          <Badge variant="soft" tone="brand" dot size="xs">
+                            {t`Envoi en cours…`}
+                          </Badge>
+                        )}
+                        {isFailed && (
+                          <Badge variant="soft" tone="danger" dot size="xs">
+                            {t`Échec`}
+                          </Badge>
+                        )}
+                        {isDraft && (
+                          <Badge variant="soft" tone="neutral" size="xs">
+                            {t`Brouillon`}
+                          </Badge>
+                        )}
+                      </TableCell>
+
+                      <TableCell className="text-xs tabular-nums">
+                        {isSent ? (
+                          <span>
+                            {issue.sentCount.toLocaleString('fr-FR')} {t`abonnés`}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+
+                      <TableCell className="text-xs text-muted-foreground tabular-nums">
+                        {(issue.sentAt ?? issue.createdAt)
+                          ? new Date(issue.sentAt ?? issue.createdAt).toLocaleDateString('fr-FR', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                            })
+                          : '—'}
+                      </TableCell>
+
+                      <TableCell className="text-right">
+                        {busyActionId === issue.id ? (
+                          <Loader2 className="ml-auto h-3.5 w-3.5 animate-spin text-muted-foreground" />
+                        ) : actions.length > 0 ? (
+                          <Dropdown
+                            ariaLabel={t`Actions pour « ${issue.subject} »`}
+                            label={<MoreHorizontal className="h-3.5 w-3.5" />}
+                            items={actions}
+                            size="xs"
+                            variant="ghost"
+                            chevron={false}
+                            align="end"
+                            className="ml-auto"
+                          />
+                        ) : null}
+                      </TableCell>
+                    </TableRow>
+                  );
+                }}
+              </TableBody>
+            </Table>
           )}
         </div>
       )}

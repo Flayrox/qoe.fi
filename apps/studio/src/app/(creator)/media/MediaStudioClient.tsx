@@ -566,7 +566,7 @@ export function MediaStudioClient({
             <Input
               value={createName}
               onChange={(e) => setCreateName(e.target.value)}
-              placeholder={t`Ex: La Gazette de la Souveraineté`}
+              placeholder={t`Nom du média`}
             />
           </div>
           <div>
@@ -575,7 +575,7 @@ export function MediaStudioClient({
               <Input
                 value={createSlug}
                 onChange={(e) => setCreateSlug(e.target.value)}
-                placeholder="gazette-souverainete"
+                placeholder="nom-du-media"
               />
             </InputGroup>
           </div>

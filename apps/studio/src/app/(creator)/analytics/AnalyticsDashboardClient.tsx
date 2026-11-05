@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState, useTransition } from 'react';
-import { Eye, Users, Activity, Clock, TrendingUp, Info } from 'lucide-react';
+import { t } from '@lingui/core/macro';
+import { Eye, Users, Activity, Clock, Info } from 'lucide-react';
+import { ToggleButton, ToggleGroup } from '@qoe/ui/toggle';
 import type { FeatureLocale } from '@qoe/ui';
 import { getCreatorAnalyticsData, AnalyticsResponseData, TimePeriod } from './actions';
 import { TimeseriesChart } from './components/TimeseriesChart';
@@ -61,48 +63,36 @@ export function AnalyticsDashboardClient({
       {/* ─── Header & Period Controls ─────────────────────────────── */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-6 border-b border-border/30">
         <div>
-          <div className="flex items-center gap-2 mb-1.5">
-            {/* QuietDot Indicator (6px) */}
-            <span className="h-1.5 w-1.5 rounded-full bg-success" />
-            <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
-              Télémétrie en direct
-            </span>
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Analytics Créateur</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Mesures d'audience et de consultation souveraines (Umami, sans cookies traceurs)
-          </p>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Statistiques</h1>
+          <p className="text-sm text-muted-foreground mt-1">Audience et lecture, sans cookies.</p>
         </div>
 
-        {/* Apple Segmented Control */}
-        <div className="flex items-center gap-1 p-1 rounded-lg bg-muted/40 border border-border/30 backdrop-blur-md self-start sm:self-auto">
-          {(['24h', '7d', '30d', '90d', 'all'] as TimePeriod[]).map((period) => {
-            const labels: Record<TimePeriod, string> = {
-              '24h': '24h',
-              '7d': '7 jours',
-              '30d': '30 jours',
-              '90d': '90 jours',
-              all: 'Tout',
-            };
-
-            const isActive = selectedPeriod === period;
-
-            return (
-              <button
-                key={period}
-                onClick={() => handlePeriodChange(period)}
-                disabled={isPending}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                  isActive
-                    ? 'bg-card text-foreground shadow-sm font-semibold border border-border/30'
-                    : 'text-muted-foreground hover:text-foreground'
-                } ${isPending ? 'opacity-60 cursor-not-allowed' : ''}`}
-              >
-                {labels[period]}
-              </button>
-            );
-          })}
-        </div>
+        <ToggleGroup
+          aria-label="Période"
+          variant="inset"
+          selectionMode="single"
+          disallowEmptySelection
+          selectedKeys={[selectedPeriod]}
+          onSelectionChange={(keys) => {
+            const [next] = Array.from(keys);
+            if (next) handlePeriodChange(next as TimePeriod);
+          }}
+          className="self-start sm:self-auto"
+        >
+          {(
+            [
+              ['24h', '24 h'],
+              ['7d', '7 jours'],
+              ['30d', '30 jours'],
+              ['90d', '90 jours'],
+              ['all', 'Tout'],
+            ] as const
+          ).map(([period, label]) => (
+            <ToggleButton key={period} id={period} size="xs">
+              {label}
+            </ToggleButton>
+          ))}
+        </ToggleGroup>
       </div>
 
       {/* ─── Unconfigured State Banner ───────────────────────────── */}
@@ -110,16 +100,11 @@ export function AnalyticsDashboardClient({
         <div className="rounded-xl border border-border/30 bg-card p-6 sm:p-8 backdrop-blur-md">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-1.5 max-w-2xl">
-              <div className="inline-flex items-center gap-1.5 text-[11px] font-bold tracking-wider uppercase text-muted-foreground mb-1">
-                <Activity className="h-3.5 w-3.5 stroke-[1.5]" />
-                <span>Configuration Analytics Umami</span>
-              </div>
               <h2 className="text-lg font-semibold text-foreground tracking-tight">
-                Connectez votre tracker d'audience
+                Statistiques non configurées
               </h2>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Umami mesure les lectures sur votre espace créateur en temps réel, sans déposer
-                aucun cookie chez vos visiteurs.
+                Umami mesure les lectures sans déposer de cookie chez vos visiteurs.
               </p>
             </div>
 
@@ -150,12 +135,8 @@ export function AnalyticsDashboardClient({
             <span className="text-3xl font-bold tracking-tight text-foreground">
               {pageviews.toLocaleString()}
             </span>
-            <span className="text-xs font-medium text-success-text flex items-center gap-0.5">
-              <TrendingUp className="h-3 w-3 stroke-[1.5]" />
-              +14%
-            </span>
           </div>
-          <p className="text-xs text-muted-foreground mt-2">Consultations de pages totales</p>
+          <p className="text-xs text-muted-foreground mt-2">{t`Pages vues sur la période`}</p>
         </div>
 
         {/* KPI 2: Visitors */}
@@ -174,7 +155,7 @@ export function AnalyticsDashboardClient({
             </span>
             <span className="text-xs text-muted-foreground font-medium">Lecteurs uniques</span>
           </div>
-          <p className="text-xs text-muted-foreground mt-2">Audience distincte identifiée</p>
+          <p className="text-xs text-muted-foreground mt-2">{t`Visiteurs distincts`}</p>
         </div>
 
         {/* KPI 3: Visits */}
@@ -195,7 +176,7 @@ export function AnalyticsDashboardClient({
               {visits > 0 ? (pageviews / visits).toFixed(1) : '0'} p/v
             </span>
           </div>
-          <p className="text-xs text-muted-foreground mt-2">Sessions de lecture ouvertes</p>
+          <p className="text-xs text-muted-foreground mt-2">{t`Sessions`}</p>
         </div>
 
         {/* KPI 4: Avg Duration */}
@@ -214,7 +195,7 @@ export function AnalyticsDashboardClient({
             </span>
             <span className="text-xs text-muted-foreground font-medium">Rebond {bounceRate}%</span>
           </div>
-          <p className="text-xs text-muted-foreground mt-2">Durée moyenne par session</p>
+          <p className="text-xs text-muted-foreground mt-2">{t`Durée moyenne`}</p>
         </div>
       </div>
 

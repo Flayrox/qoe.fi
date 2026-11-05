@@ -21,7 +21,6 @@ import {
   Check,
   Loader2,
   Palette,
-  Mail,
   Search,
   Globe,
   Compass,
@@ -40,7 +39,6 @@ import {
 import type { CreatorProfile, ClientSocialLink } from './types';
 
 import { GeneralTab } from './tabs/general';
-import { EmailsTab } from './tabs/emails';
 import { RecommendationsTab } from './tabs/recommendations';
 import { SeoTab } from './tabs/seo';
 import { DomainTab } from './tabs/domain';
@@ -51,7 +49,7 @@ export interface SettingsProps {
   publicationId?: string;
 }
 
-export type TabType = 'general' | 'emails' | 'recommendations' | 'domain' | 'navigation' | 'seo';
+export type TabType = 'general' | 'recommendations' | 'domain' | 'navigation' | 'seo';
 
 export default function SettingsView({ initialCreator, publicationId }: SettingsProps) {
   // ── 💾 STATE MANAGEMENT ──
@@ -71,7 +69,7 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
       const hash = hashToUse || window.location.hash;
       if (!hash) return;
 
-      const tabMatch = hash.match(/^#(general|emails|recommendations|domain|navigation|seo)/);
+      const tabMatch = hash.match(/^#(general|recommendations|domain|navigation|seo)/);
       if (tabMatch) {
         setActiveTab(tabMatch[1] as TabType);
       } else {
@@ -377,7 +375,6 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
 
   const TABS = [
     { id: 'general' as const, label: t`Identité & Design`, icon: Palette },
-    { id: 'emails' as const, label: t`Emails & Abonnés`, icon: Mail },
     { id: 'recommendations' as const, label: t`Recommandations`, icon: Users },
     { id: 'seo' as const, label: t`SEO & Réseaux`, icon: Search },
     { id: 'domain' as const, label: t`Domaine & DNS`, icon: Globe },
@@ -503,18 +500,6 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
                 consoleSettingsUrl={consoleSettingsUrl}
                 publicBlogUrl={publicBlogUrl}
               />
-            </motion.div>
-          )}
-
-          {activeTab === 'emails' && (
-            <motion.div
-              key="tab-emails"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-            >
-              <EmailsTab publicationId={publicationId} />
             </motion.div>
           )}
 

@@ -103,7 +103,7 @@ export function GeneralTab({
               title="Ouvrir le vrai site web dans un nouvel onglet"
             >
               <ExternalLink />
-              <span>Voir mon site en direct ↗</span>
+              <span>Ouvrir le site</span>
             </a>
           )}
         </div>
@@ -145,7 +145,7 @@ export function GeneralTab({
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-semibold text-foreground block">
-                    Slogan éditorial (Tagline)
+                    Slogan éditorial
                   </label>
                   <span className="text-[10px] text-muted-foreground font-mono">
                     {current.heroText?.length || 0}/180
@@ -330,7 +330,7 @@ export function GeneralTab({
                     />
                   </div>
                   <p className="text-[10px] text-muted-foreground text-center">
-                    Avatar 512x512 png/svg
+                    PNG ou SVG, 512 × 512.
                   </p>
                 </div>
 
@@ -370,7 +370,7 @@ export function GeneralTab({
                     maxDimension={1600}
                   />
                   <p className="text-[10px] text-muted-foreground text-center">
-                    Logo texte PNG/SVG centré dans l&apos;en-tête (remplace le nom textuel)
+                    Remplace le nom textuel dans l&apos;en-tête.
                   </p>
                 </div>
               </div>
@@ -385,9 +385,6 @@ export function GeneralTab({
                     Affichage des blocs
                   </h3>
                 </div>
-                <span className="text-[11px] text-muted-foreground">
-                  Activez/désactivez en 1 clic
-                </span>
               </div>
 
               <div className="grid grid-cols-2 gap-2">
@@ -490,9 +487,8 @@ export function GeneralTab({
           {/* Explication & Action vers le Core */}
           <div className="space-y-4 pt-1">
             <p className="text-xs text-muted-foreground leading-relaxed">
-              Votre identité publique d&apos;auteur (nom, biographie, photo de profil et sécurité)
-              est centralisée sur le réseau souverain Qoefi. Les modifications sont instantanément
-              répercutées sur l&apos;ensemble de vos écrits et de vos interactions.
+              Votre identité publique (nom, biographie, photo et sécurité) est gérée sur Qoefi Core.
+              Les modifications s&apos;appliquent à tous vos articles.
             </p>
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-border/30">

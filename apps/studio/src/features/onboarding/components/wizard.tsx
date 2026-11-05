@@ -242,7 +242,7 @@ export function OnboardingWizard({
   const handleLaunch = () => {
     if (status !== 'idle') return;
     if (!name.trim()) {
-      toast.error(t`Ton nom est requis pour créer ton espace.`);
+      toast.error(t`Votre nom est requis pour créer votre espace.`);
       return;
     }
 

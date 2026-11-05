@@ -64,9 +64,7 @@ export default function CreatorImportPage() {
     setLoading(false);
 
     if (res.success) {
-      setSuccessMessage(
-        `🎉 Succès ! ${res.count} nouveaux articles ont été importés dans vos publications.`
-      );
+      setSuccessMessage(`${res.count} articles importés.`);
       setRssUrl('');
     } else {
       setErrorMessage(res.error || "Impossible d'importer les articles depuis ce flux.");

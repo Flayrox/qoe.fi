@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"html"
 	"log"
 	"net/url"
 	"os"
@@ -469,10 +470,10 @@ func VerifyUnsubscribe(pubID, email, sig string) bool {
 }
 
 // buildUnsubURL construit le lien de désinscription RFC 8058 One-Click.
+// Délégué au module articles : une seule construction de lien (et la même
+// surcharge QOE_CONFIRM_BASE_URL pour le self-host / staging).
 func buildUnsubURL(pubID, email string) string {
-	sig := SignUnsubscribe(pubID, email)
-	return fmt.Sprintf("https://api.qoe.fi/v1/newsletters/unsubscribe?pub=%s&email=%s&sig=%s",
-		url.QueryEscape(pubID), url.QueryEscape(email), sig)
+	return articles.BuildUnsubURL(pubID, email)
 }
 
 // publicationPublicURL calcule l'URL racine d'un média.
@@ -488,6 +489,17 @@ func publicationPublicURL(subdomain, customDomain pgtype.Text) string {
 
 // renderEmailLayout compose un template HTML responsive haute délivrabilité (Dark/Light mode).
 func renderEmailLayout(pubName, pubLogoURL, pubURL, preheader, subject, bodyHTML, unsubURL, webLink string) string {
+	// Les champs du créateur sont du texte, pas du HTML : on les échappe avant
+	// de les poser dans l'en-tête ou le preheader. Le corps (bodyHTML) est le
+	// contenu HTML assumé de la newsletter.
+	pubName = html.EscapeString(pubName)
+	pubLogoURL = html.EscapeString(pubLogoURL)
+	pubURL = html.EscapeString(pubURL)
+	preheader = html.EscapeString(preheader)
+	subject = html.EscapeString(subject)
+	unsubURL = html.EscapeString(unsubURL)
+	webLink = html.EscapeString(webLink)
+
 	logoHTML := ""
 	if pubLogoURL != "" {
 		logoHTML = fmt.Sprintf(`<img src="%s" alt="%s" width="48" height="48" style="border-radius:10px;object-fit:cover;display:block;margin-bottom:12px;" />`, pubLogoURL, pubName)
@@ -570,10 +582,7 @@ func (n *NewsletterWorker) buildNewsletterEmail(issue db.GetNewsletterIssueWithP
 		preview = issue.PreviewText.String
 	}
 	if preview == "" {
-		preview = stripHTML(issue.Html)
-		if len(preview) > 140 {
-			preview = preview[:140]
-		}
+		preview = articles.TruncateRunes(stripHTML(issue.Html), 140)
 	}
 
 	html := renderEmailLayout(pubName, logoURL, pubURL, preview, issue.Subject, issue.Html, unsub, pubURL)
