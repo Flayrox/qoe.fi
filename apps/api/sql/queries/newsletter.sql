@@ -104,14 +104,83 @@ WHERE "issueId" = $1
   AND email = $2;
 
 -- name: InsertArticleReleaseDeliveries :exec
-INSERT INTO "ArticleReleaseDelivery" (id, "articleId", email, "subscriberId", "updatedAt")
-SELECT gen_random_uuid()::text, $1, s.email, s.id, now()
+INSERT INTO "ArticleReleaseDelivery" (id, "articleId", email, "subscriberId", "deliveryType", "updatedAt")
+SELECT gen_random_uuid()::text, $1, s.email, s.id, 'INITIAL', now()
 FROM "Subscriber" s
 WHERE s."publicationId" = $2
   AND s."isActive" = true
   AND s."receiveArticles" = true
   AND s."confirmedAt" IS NOT NULL  -- double opt-in : jamais de bulk vers un email non confirmé
-ON CONFLICT ("articleId", email) DO NOTHING;
+ON CONFLICT ("articleId", email, "deliveryType") DO NOTHING;
+
+-- name: InsertArticleReleaseMajorUpdateDeliveries :exec
+INSERT INTO "ArticleReleaseDelivery" (id, "articleId", email, "subscriberId", "deliveryType", "updatedAt")
+SELECT gen_random_uuid()::text, $1, s.email, s.id, 'MAJOR_UPDATE', now()
+FROM "Subscriber" s
+WHERE s."publicationId" = $2
+  AND s."isActive" = true
+  AND s."receiveArticles" = true
+  AND s."confirmedAt" IS NOT NULL
+ON CONFLICT ("articleId", email, "deliveryType") DO NOTHING;
+
+-- name: InsertArticleReleaseCatchUpDeliveries :exec
+INSERT INTO "ArticleReleaseDelivery" (id, "articleId", email, "subscriberId", "deliveryType", "updatedAt")
+SELECT gen_random_uuid()::text, $1, s.email, s.id, 'CATCH_UP', now()
+FROM "Subscriber" s
+JOIN "Article" a ON a.id = $1
+WHERE s."publicationId" = $2
+  AND s."isActive" = true
+  AND s."receiveArticles" = true
+  AND s."confirmedAt" IS NOT NULL
+  AND a."emailSentAt" IS NOT NULL
+  AND s."confirmedAt" > a."emailSentAt"
+ON CONFLICT ("articleId", email, "deliveryType") DO NOTHING;
+
+-- name: TryLockArticleForEmailRelease :one
+UPDATE "Article"
+SET "emailStatus" = 'SENDING',
+    "emailSubject" = COALESCE(NULLIF(sqlc.arg('subject')::text, ''), title),
+    "emailPreviewText" = NULLIF(sqlc.arg('preview_text')::text, ''),
+    "updatedAt" = now()
+WHERE id = sqlc.arg('id')
+  AND ("emailStatus" = 'NOT_SENT' OR "emailStatus" = 'FAILED')
+RETURNING id;
+
+-- name: TryLockArticleForMajorUpdate :one
+UPDATE "Article"
+SET "emailStatus" = 'SENDING',
+    "emailSubject" = COALESCE(NULLIF(sqlc.arg('subject')::text, ''), title),
+    "emailPreviewText" = NULLIF(sqlc.arg('preview_text')::text, ''),
+    "emailResendCount" = COALESCE("emailResendCount", 0) + 1,
+    "updatedAt" = now()
+WHERE id = sqlc.arg('id')
+  AND "emailStatus" = 'SENT'
+  AND COALESCE("emailResendCount", 0) = 0
+RETURNING id;
+
+-- name: FinishArticleRelease :exec
+UPDATE "Article"
+SET "emailStatus" = $2,
+    "emailSentCount" = $3,
+    "emailFailedCount" = $4,
+    "emailTotalRecipients" = $5,
+    "emailSentAt" = COALESCE("emailSentAt", now()),
+    "updatedAt" = now()
+WHERE id = $1;
+
+-- name: GetArticleEmailReleaseStatus :one
+SELECT id, "emailStatus", "emailSentAt", "emailSubject", "emailPreviewText",
+       "emailSentCount", "emailFailedCount", "emailTotalRecipients", "emailResendCount"
+FROM "Article"
+WHERE id = $1;
+
+-- name: CheckPublicationEmailCooldown :one
+SELECT "emailSentAt"
+FROM "Article"
+WHERE "publicationId" = $1
+  AND "emailSentAt" > now() - INTERVAL '2 hours'
+ORDER BY "emailSentAt" DESC
+LIMIT 1;
 
 -- name: ListQueuedArticleReleaseDeliveries :many
 SELECT id, email, status, error
@@ -139,7 +208,7 @@ WHERE id = $1
 
 -- name: GetArticleReleaseInfo :one
 SELECT a.id, a.title, a.slug, a.visibility, a."isPremium", a.content,
-       a."publicationId",
+       a."publicationId", a."emailSubject", a."emailPreviewText",
        p.name AS publication_name, p.subdomain, p."customDomain"
 FROM "Article" a
 JOIN "Publication" p ON p.id = a."publicationId"

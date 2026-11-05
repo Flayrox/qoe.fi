@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -300,7 +301,25 @@ func newRouter(d RouterDeps) *chi.Mux {
 	auth := authmw.NewAuth(d.JWTSecret, d.SupabaseAuthURL)
 
 	// Articles : lecture publique (auth optionnelle, paywall) hors groupe protégé.
-	articlesHandler := articles.NewHandler(articles.NewService(pool, rc, asynqClient))
+	articlesSvc := articles.NewService(pool, rc, asynqClient)
+	if d.EmailProvider != nil {
+		articlesSvc.SetEmailSender(func(ctx context.Context, to, subject, html, unsubURL, fromName string) error {
+			senderEmail := strings.TrimSpace(d.EmailFrom)
+			if senderEmail == "" {
+				senderEmail = "noreply@qoe.fi"
+			}
+			from := fmt.Sprintf("%s <%s>", fromName, senderEmail)
+			return d.EmailProvider.Send(ctx, workers.EmailMessage{
+				From:            from,
+				To:              to,
+				Subject:         subject,
+				HTML:            html,
+				ListUnsubscribe: unsubURL,
+				IsBulk:          false,
+			})
+		})
+	}
+	articlesHandler := articles.NewHandler(articlesSvc)
 	r.With(auth.OptionalAuth).Group(func(pub chi.Router) {
 		articlesHandler.RegisterPublic(pub)
 	})
@@ -318,6 +337,8 @@ func newRouter(d RouterDeps) *chi.Mux {
 	// Budgets anti-abus (fiche 06 P0) : plafonne les e-mails de confirmation
 	// sur la troisième voie d'inscription (connectée). Nil en test.
 	newslettersSvc.SetBudgetPool(pool)
+	// Vérification des droits d'envoi PRO (broadcast direct).
+	newslettersSvc.SetPool(pool)
 	newslettersHandler := newsletters.NewHandler(newslettersSvc)
 	// Anti-spam « brouillon/publier » : 10 déclenchements d'envoi par heure max
 	// (le worker rate-limit ensuite le rythme des emails eux-mêmes).

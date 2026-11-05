@@ -576,6 +576,14 @@ CREATE TABLE "Article" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "embedding" vector(512),
+    "emailStatus" TEXT NOT NULL DEFAULT 'NOT_SENT',
+    "emailSentAt" TIMESTAMP(3),
+    "emailSubject" TEXT,
+    "emailPreviewText" TEXT,
+    "emailSentCount" INTEGER NOT NULL DEFAULT 0,
+    "emailFailedCount" INTEGER NOT NULL DEFAULT 0,
+    "emailTotalRecipients" INTEGER NOT NULL DEFAULT 0,
+    "emailResendCount" INTEGER NOT NULL DEFAULT 0,
 
     CONSTRAINT "Article_pkey" PRIMARY KEY ("id")
 );
@@ -1160,6 +1168,7 @@ CREATE TABLE "ArticleReleaseDelivery" (
     "email" TEXT NOT NULL,
     "subscriberId" TEXT,
     "status" TEXT NOT NULL DEFAULT 'QUEUED',
+    "deliveryType" TEXT NOT NULL DEFAULT 'INITIAL',
     "error" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -1614,7 +1623,7 @@ CREATE UNIQUE INDEX "NewsletterDelivery_issueId_email_key" ON "NewsletterDeliver
 CREATE INDEX "NewsletterDelivery_issueId_status_idx" ON "NewsletterDelivery"("issueId", "status");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ArticleReleaseDelivery_articleId_email_key" ON "ArticleReleaseDelivery"("articleId", "email");
+CREATE UNIQUE INDEX "ArticleReleaseDelivery_article_email_delivery_key" ON "ArticleReleaseDelivery"("articleId", "email", "deliveryType");
 
 -- CreateIndex
 CREATE INDEX "ArticleReleaseDelivery_articleId_status_idx" ON "ArticleReleaseDelivery"("articleId", "status");

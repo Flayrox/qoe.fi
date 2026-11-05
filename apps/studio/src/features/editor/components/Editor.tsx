@@ -77,6 +77,9 @@ export interface EditorProps {
   initialAllowPublicAnnotations?: boolean;
   initialAllowComments?: boolean;
   initialAllowDownload?: boolean;
+  initialEmailStatus?: 'NOT_SENT' | 'SENDING' | 'SENT' | 'FAILED' | null;
+  initialEmailSentAt?: string | null;
+  initialEmailSentCount?: number;
   initialAttributions?: ArticleAttributionDraft[];
   collaborationRoomId?: string;
   collaborationEnabled?: boolean;
@@ -100,6 +103,9 @@ export interface EditorProps {
     allowComments?: boolean;
     allowDownload?: boolean;
     attributions?: ArticleAttributionDraft[];
+    sendEmail?: boolean;
+    emailSubject?: string;
+    emailPreviewText?: string;
   }) => Promise<{ id?: string } | void>;
   onDiscardDraft?: () => Promise<void> | void;
   onReview?: (approve: boolean, comment?: string) => Promise<void> | void;
@@ -124,6 +130,9 @@ export function Editor({
   initialAllowPublicAnnotations = true,
   initialAllowComments = true,
   initialAllowDownload = true,
+  initialEmailStatus = null,
+  initialEmailSentAt = null,
+  initialEmailSentCount = 0,
   initialAttributions = EMPTY_ATTRIBUTIONS,
   collaborationRoomId,
   // ⚠️ Désactivé par défaut tant que l'échange de jeton avec le serveur de
@@ -886,6 +895,9 @@ export function Editor({
       status: string;
       scheduledAt: string | null;
       isPremium?: boolean;
+      sendEmail?: boolean;
+      emailSubject?: string;
+      emailPreviewText?: string;
     }) => ({
       title,
       content: editor?.getHTML() || '',
@@ -895,6 +907,9 @@ export function Editor({
       status: overrides.status,
       scheduledAt: overrides.scheduledAt,
       isPremium: overrides.isPremium ?? isPremium,
+      sendEmail: overrides.sendEmail,
+      emailSubject: overrides.emailSubject,
+      emailPreviewText: overrides.emailPreviewText,
       categoryId,
       seoTitle: seoTitle || null,
       seoDescription: seoDescription || null,
@@ -1001,6 +1016,9 @@ export function Editor({
           status: 'PUBLISHED',
           scheduledAt: null,
           isPremium: options.isPremium,
+          sendEmail: options.sendEmail,
+          emailSubject: options.emailSubject,
+          emailPreviewText: options.emailPreviewText,
         });
         const res = (await onSave(payload)) as { id?: string } | void;
         if (res?.id) persistedIdRef.current = res.id;
@@ -1583,8 +1601,13 @@ export function Editor({
         onConfirm={handleConfirmPublish}
         articleTitle={title}
         articleExcerpt={editor.getText().slice(0, 180)}
+        articleId={persistedIdRef.current || collaborationRoomId}
         publicationName={subdomain ? `${subdomain}.qoe.fi` : 'Votre site web'}
         initialIsPremium={isPremium}
+        isAlreadyPublished={published}
+        emailStatus={initialEmailStatus}
+        emailSentAt={initialEmailSentAt}
+        emailSentCount={initialEmailSentCount}
         warnings={publishWarnings}
       />
 

@@ -170,6 +170,7 @@ SELECT a.id, a.title, a.slug, a.content, a."draftContent", a.published, a."isPre
        a."readingTime", a."allowPublicAnnotations", a."allowComments", a."allowDownload", a."scheduledAt",
        a.status, a."publicationId", a."authorId", a."categoryId", a."tierId",
        a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
+       a."emailStatus", a."emailSentAt", a."emailSentCount", a."emailResendCount",
        u.id::text     AS author_id,
        u.name         AS author_name,
        u.username     AS author_username,
@@ -206,6 +207,10 @@ type GetArticleByIDRow struct {
 	SeoDescription         pgtype.Text       `json:"seoDescription"`
 	CreatedAt              pgtype.Timestamp  `json:"createdAt"`
 	UpdatedAt              pgtype.Timestamp  `json:"updatedAt"`
+	EmailStatus            string            `json:"emailStatus"`
+	EmailSentAt            pgtype.Timestamp  `json:"emailSentAt"`
+	EmailSentCount         int32             `json:"emailSentCount"`
+	EmailResendCount       int32             `json:"emailResendCount"`
 	AuthorID               string            `json:"author_id"`
 	AuthorName             pgtype.Text       `json:"author_name"`
 	AuthorUsername         pgtype.Text       `json:"author_username"`
@@ -241,6 +246,10 @@ func (q *Queries) GetArticleByID(ctx context.Context, id string) (GetArticleByID
 		&i.SeoDescription,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.EmailStatus,
+		&i.EmailSentAt,
+		&i.EmailSentCount,
+		&i.EmailResendCount,
 		&i.AuthorID,
 		&i.AuthorName,
 		&i.AuthorUsername,
@@ -735,6 +744,7 @@ SELECT a.id, a.title, a.slug, a.published, a."isPremium", a.visibility, a."readi
        a.status, a."createdAt", a."updatedAt", a."categoryId", a."publicationId",
        a."allowPublicAnnotations", a."allowComments", a."allowDownload",
        (a."draftContent" IS NOT NULL AND a."draftContent" <> '') AS has_unpublished_changes,
+       a."emailStatus", a."emailSentAt", a."emailSentCount",
        c.id  AS category_id,
        c.name AS category_name,
        c.slug AS category_slug
@@ -768,6 +778,9 @@ type ListArticlesWithCategoryRow struct {
 	AllowComments          bool              `json:"allowComments"`
 	AllowDownload          bool              `json:"allowDownload"`
 	HasUnpublishedChanges  pgtype.Bool       `json:"has_unpublished_changes"`
+	EmailStatus            string            `json:"emailStatus"`
+	EmailSentAt            pgtype.Timestamp  `json:"emailSentAt"`
+	EmailSentCount         int32             `json:"emailSentCount"`
 	CategoryID             pgtype.Text       `json:"category_id"`
 	CategoryName           pgtype.Text       `json:"category_name"`
 	CategorySlug           pgtype.Text       `json:"category_slug"`
@@ -799,6 +812,9 @@ func (q *Queries) ListArticlesWithCategory(ctx context.Context, arg ListArticles
 			&i.AllowComments,
 			&i.AllowDownload,
 			&i.HasUnpublishedChanges,
+			&i.EmailStatus,
+			&i.EmailSentAt,
+			&i.EmailSentCount,
 			&i.CategoryID,
 			&i.CategoryName,
 			&i.CategorySlug,

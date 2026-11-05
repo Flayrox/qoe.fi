@@ -79,6 +79,8 @@ func (h *Handler) RegisterProtected(r chi.Router, requireScope func(string) func
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/unpublish", h.unpublish)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/schedule", h.schedule)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/review", h.review)
+	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/send-email", h.sendEmail)
+	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/test-email", h.testEmail)
 	r.With(requireScope(middleware.ScopeWrite)).Post("/v1/articles/{id}/discard-draft", h.discardDraft)
 	r.With(requireScope(middleware.ScopeRead)).Get("/v1/articles/{id}/review-feedback", h.getReviewFeedback)
 	// Chronologie de publication (publication, dépublication, programmation…).
@@ -181,6 +183,9 @@ type createInput struct {
 	Status                 string                    `json:"status"`
 	ScheduledAt            string                    `json:"scheduledAt"`
 	Attributions           []ArticleAttributionInput `json:"attributions"`
+	SendEmail              *bool                     `json:"sendEmail"`
+	EmailSubject           *string                   `json:"emailSubject"`
+	EmailPreviewText       *string                   `json:"emailPreviewText"`
 }
 
 func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
@@ -213,8 +218,11 @@ func (h *Handler) create(w http.ResponseWriter, r *http.Request) {
 		AllowPublicAnnotations: in.AllowPublicAnnotations, AllowComments: in.AllowComments,
 		AllowDownload: in.AllowDownload,
 		ReadingTime:   in.ReadingTime, Published: in.Published, Status: in.Status,
-		ScheduledAt:  scheduledAt,
-		Attributions: in.Attributions,
+		ScheduledAt:      scheduledAt,
+		Attributions:     in.Attributions,
+		SendEmail:        in.SendEmail,
+		EmailSubject:     in.EmailSubject,
+		EmailPreviewText: in.EmailPreviewText,
 	})
 	if err != nil {
 		response.Forbidden(w, err.Error())
@@ -337,6 +345,9 @@ type updateInput struct {
 	ActivePublicationID    string                    `json:"activePublicationId"`
 	ScheduledAt            string                    `json:"scheduledAt"`
 	Attributions           []ArticleAttributionInput `json:"attributions"`
+	SendEmail              *bool                     `json:"sendEmail"`
+	EmailSubject           *string                   `json:"emailSubject"`
+	EmailPreviewText       *string                   `json:"emailPreviewText"`
 }
 
 func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
@@ -364,6 +375,7 @@ func (h *Handler) update(w http.ResponseWriter, r *http.Request) {
 		ReadingTime:   in.ReadingTime, Published: in.Published, Status: in.Status,
 		ActivePublicationID: in.ActivePublicationID, ScheduledAt: scheduledAt,
 		Attributions: in.Attributions,
+		SendEmail: in.SendEmail, EmailSubject: in.EmailSubject, EmailPreviewText: in.EmailPreviewText,
 	}); err != nil {
 		response.BadRequest(w, err.Error())
 		return
@@ -413,6 +425,63 @@ func (h *Handler) publish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.OK(w, map[string]bool{"published": true})
+}
+
+type sendEmailInput struct {
+	Subject       string `json:"subject"`
+	PreviewText   string `json:"previewText"`
+	IsMajorUpdate bool   `json:"isMajorUpdate"`
+}
+
+// POST /v1/articles/{id}/send-email — déclenche l'envoi newsletter aux abonnés.
+func (h *Handler) sendEmail(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	articleID := chi.URLParam(r, "id")
+	var in sendEmailInput
+	_ = json.NewDecoder(r.Body).Decode(&in)
+
+	if err := h.svc.SendArticleEmail(r.Context(), articleID, userID, in.Subject, in.PreviewText, in.IsMajorUpdate); err != nil {
+		if errors.Is(err, errNotFound) {
+			response.NotFound(w, "Article introuvable")
+			return
+		}
+		if errors.Is(err, errForbidden) {
+			response.Forbidden(w, "Permission insuffisante")
+			return
+		}
+		if errors.Is(err, ErrCooldownActive) {
+			response.ErrorCode(w, http.StatusTooManyRequests, "cooldown_active", err.Error())
+			return
+		}
+		if errors.Is(err, ErrArticleAlreadySent) {
+			response.ErrorCode(w, http.StatusConflict, "already_sent", err.Error())
+			return
+		}
+		response.BadRequest(w, err.Error())
+		return
+	}
+	response.OK(w, map[string]any{"ok": true})
+}
+
+// POST /v1/articles/{id}/test-email — envoie un email de test à l'adresse de l'utilisateur connecté.
+func (h *Handler) testEmail(w http.ResponseWriter, r *http.Request) {
+	userID, _ := middleware.UserID(r.Context())
+	articleID := chi.URLParam(r, "id")
+
+	if err := h.svc.SendArticleTestEmail(r.Context(), articleID, userID); err != nil {
+		if errors.Is(err, errNotFound) {
+			response.NotFound(w, "Article introuvable")
+			return
+		}
+		if errors.Is(err, errForbidden) {
+			response.Forbidden(w, "Permission insuffisante")
+			return
+		}
+		log.Printf("[articles] testEmail error: %v", err)
+		response.BadRequest(w, err.Error())
+		return
+	}
+	response.OK(w, map[string]any{"ok": true, "message": "Email test envoyé"})
 }
 
 // POST /v1/articles/{id}/unpublish — repasse un article en brouillon privé

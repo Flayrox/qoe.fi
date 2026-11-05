@@ -22,6 +22,7 @@ import (
 	"github.com/qoefi/api/internal/comms"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/flags"
+	"github.com/qoefi/api/internal/modules/articles"
 	"github.com/qoefi/api/internal/queue"
 )
 
@@ -190,6 +191,26 @@ func (n *NewsletterWorker) HandleArticlePublished(ctx context.Context, t *asynq.
 		log.Printf("[newsletter] notif MEDIA_ARTICLE_PUBLISHED fanout: %v", err)
 	}
 
+	// Si l'auteur n'a pas demandé d'envoi newsletter (Web uniquement), pas d'email.
+	if !p.SendEmail {
+		log.Printf("[newsletter] article %s : publication Web uniquement (sendEmail=false)", p.ArticleID)
+		return nil
+	}
+
+	// 🛡️ Verrouillage d'envoi & Anti-doublons (idempotence) :
+	subject := p.EmailSubject
+	if subject == "" {
+		subject = p.Title
+	}
+	if _, err := n.q.TryLockArticleForEmailRelease(ctx, db.TryLockArticleForEmailReleaseParams{
+		ID:          p.ArticleID,
+		Subject:     subject,
+		PreviewText: p.EmailPreviewText,
+	}); err != nil {
+		log.Printf("[newsletter] release %s : envoi ignoré (déjà envoyé ou en cours : %v)", p.ArticleID, err)
+		return nil
+	}
+
 	// Coupe-feu : pas d'email si le flag coupe l'envoi (la matérialisation se
 	// fera au prochain événement, la dédup article/email protège des doublons).
 	if !n.dispatchEnabled(ctx) {
@@ -287,6 +308,19 @@ func (n *NewsletterWorker) HandleArticleRelease(ctx context.Context, t *asynq.Ta
 	if err == nil {
 		log.Printf("[newsletter] release %s : lot %d envoyés / %d échecs (total sent=%d failed=%d)",
 			p.ArticleID, sent, failed, stats.Sent, stats.Failed)
+		if len(rows) < n.batchSize() {
+			status := "SENT"
+			if stats.Sent == 0 && stats.Failed > 0 {
+				status = "FAILED"
+			}
+			_ = n.q.FinishArticleRelease(ctx, db.FinishArticleReleaseParams{
+				ID:                   p.ArticleID,
+				EmailStatus:          status,
+				EmailSentCount:       int32(stats.Sent),
+				EmailFailedCount:     int32(stats.Failed),
+				EmailTotalRecipients: int32(stats.Total),
+			})
+		}
 	}
 	return nil
 }
@@ -559,41 +593,19 @@ func (n *NewsletterWorker) buildNewsletterEmail(issue db.GetNewsletterIssueWithP
 	}
 }
 
-// buildArticleReleaseEmail compose l'email de release d'un article :
-// titre + extrait (jamais de contenu premium) + CTA vers l'article public.
 func (n *NewsletterWorker) buildArticleReleaseEmail(info db.GetArticleReleaseInfoRow, link, email string) EmailMessage {
-	pubName := info.PublicationName
-	pubURL := publicationPublicURL(info.Subdomain, info.CustomDomain)
-	unsub := buildUnsubURL(info.PublicationId, email)
-
-	body := fmt.Sprintf(`<h1 style="margin:0 0 16px;font-size:24px;line-height:1.25;color:#09090b;">%s</h1>`, info.Title)
-	if !info.IsPremium {
-		excerpt := stripHTML(info.Content)
-		if len(excerpt) > 400 {
-			excerpt = excerpt[:400] + "…"
-		}
-		if excerpt != "" {
-			body += fmt.Sprintf(`<p style="margin:0 0 24px;color:#27272a;line-height:1.7;">%s</p>`, excerpt)
-		}
-	} else {
-		body += `<p style="margin:0 0 24px;color:#71717a;font-style:italic;">Article exclusif réservé aux abonnés — découvrez la suite en ligne.</p>`
-	}
-	body += fmt.Sprintf(`<div style="margin:24px 0;"><a href="%s" style="display:inline-block;background:#09090b;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:10px;font-weight:600;font-size:15px;">Lire l'article sur %s →</a></div>`, link, pubName)
-
-	preview := "Nouvel article : " + info.Title
-	html := renderEmailLayout(pubName, "", pubURL, preview, preview, body, unsub, link)
-
+	rendered := articles.BuildArticleReleaseEmail(info, link, email)
 	senderEmail := strings.TrimSpace(n.from)
 	if senderEmail == "" {
 		senderEmail = "noreply@qoe.fi"
 	}
-	from := fmt.Sprintf("%s <%s>", pubName, senderEmail)
+	from := fmt.Sprintf("%s <%s>", rendered.FromName, senderEmail)
 	return EmailMessage{
 		From:            from,
 		To:              email,
-		Subject:         "Nouvel article : " + info.Title,
-		HTML:            html,
-		ListUnsubscribe: unsub,
+		Subject:         rendered.Subject,
+		HTML:            rendered.HTML,
+		ListUnsubscribe: rendered.ListUnsubscribe,
 		IsBulk:          true,
 	}
 }

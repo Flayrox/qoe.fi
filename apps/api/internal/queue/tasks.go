@@ -52,14 +52,17 @@ type StripeEventPayload struct {
 
 // ArticlePublishedPayload est le payload de TaskArticlePublished.
 type ArticlePublishedPayload struct {
-	EventID       string `json:"eventId"`
-	PublicationID string `json:"publicationId"`
-	ArticleID     string `json:"articleId"`
-	AuthorID      string `json:"authorId"`
-	Title         string `json:"title"`
-	Slug          string `json:"slug"`
-	Visibility    string `json:"visibility"`
-	PublishedAt   string `json:"publishedAt"`
+	EventID          string `json:"eventId"`
+	PublicationID    string `json:"publicationId"`
+	ArticleID        string `json:"articleId"`
+	AuthorID         string `json:"authorId"`
+	Title            string `json:"title"`
+	Slug             string `json:"slug"`
+	Visibility       string `json:"visibility"`
+	PublishedAt      string `json:"publishedAt"`
+	SendEmail        bool   `json:"sendEmail"`
+	EmailSubject     string `json:"emailSubject,omitempty"`
+	EmailPreviewText string `json:"emailPreviewText,omitempty"`
 }
 
 // SubscriberCreatedPayload est le payload de TaskSubscriberCreated.

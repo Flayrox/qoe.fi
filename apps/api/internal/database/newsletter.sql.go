@@ -80,6 +80,22 @@ func (q *Queries) AttachSubscriberToAccount(ctx context.Context, arg AttachSubsc
 	return err
 }
 
+const checkPublicationEmailCooldown = `-- name: CheckPublicationEmailCooldown :one
+SELECT "emailSentAt"
+FROM "Article"
+WHERE "publicationId" = $1
+  AND "emailSentAt" > now() - INTERVAL '2 hours'
+ORDER BY "emailSentAt" DESC
+LIMIT 1
+`
+
+func (q *Queries) CheckPublicationEmailCooldown(ctx context.Context, publicationid string) (pgtype.Timestamp, error) {
+	row := q.db.QueryRow(ctx, checkPublicationEmailCooldown, publicationid)
+	var emailSentAt pgtype.Timestamp
+	err := row.Scan(&emailSentAt)
+	return emailSentAt, err
+}
+
 const confirmSubscriberByToken = `-- name: ConfirmSubscriberByToken :one
 UPDATE "Subscriber"
 SET "receiveArticles" = true,
@@ -236,6 +252,36 @@ func (q *Queries) DeleteNewsletterIssueDraft(ctx context.Context, id string) err
 	return err
 }
 
+const finishArticleRelease = `-- name: FinishArticleRelease :exec
+UPDATE "Article"
+SET "emailStatus" = $2,
+    "emailSentCount" = $3,
+    "emailFailedCount" = $4,
+    "emailTotalRecipients" = $5,
+    "emailSentAt" = COALESCE("emailSentAt", now()),
+    "updatedAt" = now()
+WHERE id = $1
+`
+
+type FinishArticleReleaseParams struct {
+	ID                   string `json:"id"`
+	EmailStatus          string `json:"emailStatus"`
+	EmailSentCount       int32  `json:"emailSentCount"`
+	EmailFailedCount     int32  `json:"emailFailedCount"`
+	EmailTotalRecipients int32  `json:"emailTotalRecipients"`
+}
+
+func (q *Queries) FinishArticleRelease(ctx context.Context, arg FinishArticleReleaseParams) error {
+	_, err := q.db.Exec(ctx, finishArticleRelease,
+		arg.ID,
+		arg.EmailStatus,
+		arg.EmailSentCount,
+		arg.EmailFailedCount,
+		arg.EmailTotalRecipients,
+	)
+	return err
+}
+
 const finishNewsletterIssue = `-- name: FinishNewsletterIssue :one
 UPDATE "NewsletterIssue"
 SET status           = $2,
@@ -269,9 +315,45 @@ func (q *Queries) FinishNewsletterIssue(ctx context.Context, arg FinishNewslette
 	return id, err
 }
 
+const getArticleEmailReleaseStatus = `-- name: GetArticleEmailReleaseStatus :one
+SELECT id, "emailStatus", "emailSentAt", "emailSubject", "emailPreviewText",
+       "emailSentCount", "emailFailedCount", "emailTotalRecipients", "emailResendCount"
+FROM "Article"
+WHERE id = $1
+`
+
+type GetArticleEmailReleaseStatusRow struct {
+	ID                   string           `json:"id"`
+	EmailStatus          string           `json:"emailStatus"`
+	EmailSentAt          pgtype.Timestamp `json:"emailSentAt"`
+	EmailSubject         pgtype.Text      `json:"emailSubject"`
+	EmailPreviewText     pgtype.Text      `json:"emailPreviewText"`
+	EmailSentCount       int32            `json:"emailSentCount"`
+	EmailFailedCount     int32            `json:"emailFailedCount"`
+	EmailTotalRecipients int32            `json:"emailTotalRecipients"`
+	EmailResendCount     int32            `json:"emailResendCount"`
+}
+
+func (q *Queries) GetArticleEmailReleaseStatus(ctx context.Context, id string) (GetArticleEmailReleaseStatusRow, error) {
+	row := q.db.QueryRow(ctx, getArticleEmailReleaseStatus, id)
+	var i GetArticleEmailReleaseStatusRow
+	err := row.Scan(
+		&i.ID,
+		&i.EmailStatus,
+		&i.EmailSentAt,
+		&i.EmailSubject,
+		&i.EmailPreviewText,
+		&i.EmailSentCount,
+		&i.EmailFailedCount,
+		&i.EmailTotalRecipients,
+		&i.EmailResendCount,
+	)
+	return i, err
+}
+
 const getArticleReleaseInfo = `-- name: GetArticleReleaseInfo :one
 SELECT a.id, a.title, a.slug, a.visibility, a."isPremium", a.content,
-       a."publicationId",
+       a."publicationId", a."emailSubject", a."emailPreviewText",
        p.name AS publication_name, p.subdomain, p."customDomain"
 FROM "Article" a
 JOIN "Publication" p ON p.id = a."publicationId"
@@ -281,16 +363,18 @@ WHERE a.id = $1
 `
 
 type GetArticleReleaseInfoRow struct {
-	ID              string            `json:"id"`
-	Title           string            `json:"title"`
-	Slug            string            `json:"slug"`
-	Visibility      ContentVisibility `json:"visibility"`
-	IsPremium       bool              `json:"isPremium"`
-	Content         string            `json:"content"`
-	PublicationId   string            `json:"publicationId"`
-	PublicationName string            `json:"publication_name"`
-	Subdomain       pgtype.Text       `json:"subdomain"`
-	CustomDomain    pgtype.Text       `json:"customDomain"`
+	ID               string            `json:"id"`
+	Title            string            `json:"title"`
+	Slug             string            `json:"slug"`
+	Visibility       ContentVisibility `json:"visibility"`
+	IsPremium        bool              `json:"isPremium"`
+	Content          string            `json:"content"`
+	PublicationId    string            `json:"publicationId"`
+	EmailSubject     pgtype.Text       `json:"emailSubject"`
+	EmailPreviewText pgtype.Text       `json:"emailPreviewText"`
+	PublicationName  string            `json:"publication_name"`
+	Subdomain        pgtype.Text       `json:"subdomain"`
+	CustomDomain     pgtype.Text       `json:"customDomain"`
 }
 
 func (q *Queries) GetArticleReleaseInfo(ctx context.Context, id string) (GetArticleReleaseInfoRow, error) {
@@ -304,6 +388,8 @@ func (q *Queries) GetArticleReleaseInfo(ctx context.Context, id string) (GetArti
 		&i.IsPremium,
 		&i.Content,
 		&i.PublicationId,
+		&i.EmailSubject,
+		&i.EmailPreviewText,
 		&i.PublicationName,
 		&i.Subdomain,
 		&i.CustomDomain,
@@ -655,15 +741,39 @@ func (q *Queries) GetUserPublicationID(ctx context.Context, id string) (string, 
 	return publicationId, err
 }
 
+const insertArticleReleaseCatchUpDeliveries = `-- name: InsertArticleReleaseCatchUpDeliveries :exec
+INSERT INTO "ArticleReleaseDelivery" (id, "articleId", email, "subscriberId", "deliveryType", "updatedAt")
+SELECT gen_random_uuid()::text, $1, s.email, s.id, 'CATCH_UP', now()
+FROM "Subscriber" s
+JOIN "Article" a ON a.id = $1
+WHERE s."publicationId" = $2
+  AND s."isActive" = true
+  AND s."receiveArticles" = true
+  AND s."confirmedAt" IS NOT NULL
+  AND a."emailSentAt" IS NOT NULL
+  AND s."confirmedAt" > a."emailSentAt"
+ON CONFLICT ("articleId", email, "deliveryType") DO NOTHING
+`
+
+type InsertArticleReleaseCatchUpDeliveriesParams struct {
+	ArticleId     string `json:"articleId"`
+	PublicationId string `json:"publicationId"`
+}
+
+func (q *Queries) InsertArticleReleaseCatchUpDeliveries(ctx context.Context, arg InsertArticleReleaseCatchUpDeliveriesParams) error {
+	_, err := q.db.Exec(ctx, insertArticleReleaseCatchUpDeliveries, arg.ArticleId, arg.PublicationId)
+	return err
+}
+
 const insertArticleReleaseDeliveries = `-- name: InsertArticleReleaseDeliveries :exec
-INSERT INTO "ArticleReleaseDelivery" (id, "articleId", email, "subscriberId", "updatedAt")
-SELECT gen_random_uuid()::text, $1, s.email, s.id, now()
+INSERT INTO "ArticleReleaseDelivery" (id, "articleId", email, "subscriberId", "deliveryType", "updatedAt")
+SELECT gen_random_uuid()::text, $1, s.email, s.id, 'INITIAL', now()
 FROM "Subscriber" s
 WHERE s."publicationId" = $2
   AND s."isActive" = true
   AND s."receiveArticles" = true
   AND s."confirmedAt" IS NOT NULL  -- double opt-in : jamais de bulk vers un email non confirmé
-ON CONFLICT ("articleId", email) DO NOTHING
+ON CONFLICT ("articleId", email, "deliveryType") DO NOTHING
 `
 
 type InsertArticleReleaseDeliveriesParams struct {
@@ -673,6 +783,27 @@ type InsertArticleReleaseDeliveriesParams struct {
 
 func (q *Queries) InsertArticleReleaseDeliveries(ctx context.Context, arg InsertArticleReleaseDeliveriesParams) error {
 	_, err := q.db.Exec(ctx, insertArticleReleaseDeliveries, arg.ArticleId, arg.PublicationId)
+	return err
+}
+
+const insertArticleReleaseMajorUpdateDeliveries = `-- name: InsertArticleReleaseMajorUpdateDeliveries :exec
+INSERT INTO "ArticleReleaseDelivery" (id, "articleId", email, "subscriberId", "deliveryType", "updatedAt")
+SELECT gen_random_uuid()::text, $1, s.email, s.id, 'MAJOR_UPDATE', now()
+FROM "Subscriber" s
+WHERE s."publicationId" = $2
+  AND s."isActive" = true
+  AND s."receiveArticles" = true
+  AND s."confirmedAt" IS NOT NULL
+ON CONFLICT ("articleId", email, "deliveryType") DO NOTHING
+`
+
+type InsertArticleReleaseMajorUpdateDeliveriesParams struct {
+	ArticleId     string `json:"articleId"`
+	PublicationId string `json:"publicationId"`
+}
+
+func (q *Queries) InsertArticleReleaseMajorUpdateDeliveries(ctx context.Context, arg InsertArticleReleaseMajorUpdateDeliveriesParams) error {
+	_, err := q.db.Exec(ctx, insertArticleReleaseMajorUpdateDeliveries, arg.ArticleId, arg.PublicationId)
 	return err
 }
 
@@ -1051,6 +1182,56 @@ type SubscribePendingParams struct {
 func (q *Queries) SubscribePending(ctx context.Context, arg SubscribePendingParams) error {
 	_, err := q.db.Exec(ctx, subscribePending, arg.Email, arg.PublicationID, arg.Token)
 	return err
+}
+
+const tryLockArticleForEmailRelease = `-- name: TryLockArticleForEmailRelease :one
+UPDATE "Article"
+SET "emailStatus" = 'SENDING',
+    "emailSubject" = COALESCE(NULLIF($1::text, ''), title),
+    "emailPreviewText" = NULLIF($2::text, ''),
+    "updatedAt" = now()
+WHERE id = $3
+  AND ("emailStatus" = 'NOT_SENT' OR "emailStatus" = 'FAILED')
+RETURNING id
+`
+
+type TryLockArticleForEmailReleaseParams struct {
+	Subject     string `json:"subject"`
+	PreviewText string `json:"preview_text"`
+	ID          string `json:"id"`
+}
+
+func (q *Queries) TryLockArticleForEmailRelease(ctx context.Context, arg TryLockArticleForEmailReleaseParams) (string, error) {
+	row := q.db.QueryRow(ctx, tryLockArticleForEmailRelease, arg.Subject, arg.PreviewText, arg.ID)
+	var id string
+	err := row.Scan(&id)
+	return id, err
+}
+
+const tryLockArticleForMajorUpdate = `-- name: TryLockArticleForMajorUpdate :one
+UPDATE "Article"
+SET "emailStatus" = 'SENDING',
+    "emailSubject" = COALESCE(NULLIF($1::text, ''), title),
+    "emailPreviewText" = NULLIF($2::text, ''),
+    "emailResendCount" = COALESCE("emailResendCount", 0) + 1,
+    "updatedAt" = now()
+WHERE id = $3
+  AND "emailStatus" = 'SENT'
+  AND COALESCE("emailResendCount", 0) = 0
+RETURNING id
+`
+
+type TryLockArticleForMajorUpdateParams struct {
+	Subject     string `json:"subject"`
+	PreviewText string `json:"preview_text"`
+	ID          string `json:"id"`
+}
+
+func (q *Queries) TryLockArticleForMajorUpdate(ctx context.Context, arg TryLockArticleForMajorUpdateParams) (string, error) {
+	row := q.db.QueryRow(ctx, tryLockArticleForMajorUpdate, arg.Subject, arg.PreviewText, arg.ID)
+	var id string
+	err := row.Scan(&id)
+	return id, err
 }
 
 const unsubscribeNewsletterSubscriber = `-- name: UnsubscribeNewsletterSubscriber :exec

@@ -289,3 +289,37 @@ func TestNewsletterFailedRetry(t *testing.T) {
 		t.Fatalf("status après renvoi = %s, attendu SENDING", items[0].Status)
 	}
 }
+
+func TestNewsletterSend_ProRequired(t *testing.T) {
+	ctx := context.Background()
+	seedNewsletterEnv(t, ctx)
+
+	svc := newTestService()
+	svc.SetPool(poolTest)
+
+	issue, err := svc.CreateDraft(ctx, ownerID, CreateInput{
+		PublicationID: pubID,
+		Subject:       "Broadcast sans Pro",
+		Html:          "<p>Texte</p>",
+	})
+	if err != nil {
+		t.Fatalf("create draft: %v", err)
+	}
+
+	// 1. Sans droit Pro → errProRequired.
+	if err := svc.Send(ctx, ownerID, issue.ID); !errors.Is(err, errProRequired) {
+		t.Fatalf("send sans pro = %v, attendu errProRequired", err)
+	}
+
+	// 2. Avec octroi Pro effectif sur la publication → succès.
+	if _, err := poolTest.Exec(ctx, `
+		INSERT INTO "SubscriptionGrant" (id, "subjectType", "subjectId", plan, "startsAt", "grantedBy", note)
+		VALUES ('grant_pro_test', 'publication', $1, 'pro', now() - INTERVAL '1 hour', 'test', 'test pro grant')
+	`, pubID); err != nil {
+		t.Fatalf("grant pro: %v", err)
+	}
+
+	if err := svc.Send(ctx, ownerID, issue.ID); err != nil {
+		t.Fatalf("send avec pro: %v", err)
+	}
+}

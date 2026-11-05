@@ -58,6 +58,11 @@ export interface Article {
   likesCount?: number;
   /** Nombre total de reposts (compteur à vie). */
   repostsCount?: number;
+  /** Statut de distribution par email (Substack-like). */
+  emailStatus?: 'NOT_SENT' | 'SENDING' | 'SENT' | 'FAILED' | null;
+  emailSentAt?: string | null;
+  emailSentCount?: number;
+  emailResendCount?: number;
 }
 
 /** 📥 Bascule le droit de téléchargement (hors-ligne + file d'écoute).
@@ -274,6 +279,9 @@ export const saveArticleAction = safeAction<
     seoTitle?: string | null;
     seoDescription?: string | null;
     attributions?: ArticleAttributionInput[];
+    sendEmail?: boolean;
+    emailSubject?: string;
+    emailPreviewText?: string;
   },
   Article
 >(async (data) => {
@@ -295,6 +303,9 @@ export const saveArticleAction = safeAction<
     seoTitle = null,
     seoDescription = null,
     attributions,
+    sendEmail,
+    emailSubject,
+    emailPreviewText,
   } = data;
 
   if (!title.trim()) {
@@ -335,6 +346,9 @@ export const saveArticleAction = safeAction<
         readingTime,
         attributions: normalizeArticleAttributions(attributions, user.id),
         activePublicationId,
+        sendEmail,
+        emailSubject,
+        emailPreviewText,
       },
     });
   }
@@ -359,8 +373,49 @@ export const saveArticleAction = safeAction<
       seoDescription,
       readingTime,
       attributions: normalizeArticleAttributions(attributions, user.id),
+      sendEmail,
+      emailSubject,
+      emailPreviewText,
     },
   });
+});
+
+/** ✉️ Déclenche manuellement l'envoi newsletter pour un article publié. */
+export const sendArticleEmailAction = safeAction<
+  {
+    articleId: string;
+    subject?: string;
+    previewText?: string;
+    isMajorUpdate?: boolean;
+  },
+  { ok: boolean }
+>(async ({ articleId, subject, previewText, isMajorUpdate }) => {
+  await authenticateUser();
+  const res = await goFetch<{ ok: boolean }>(
+    `/v1/articles/${encodeURIComponent(articleId)}/send-email`,
+    {
+      method: 'POST',
+      body: { subject, previewText, isMajorUpdate },
+    }
+  );
+  revalidatePath('/articles');
+  revalidatePath('/newsletters');
+  return res;
+});
+
+/** ✉️ Envoie un email de test de l'article à l'adresse de l'utilisateur connecté. */
+export const sendArticleTestEmailAction = safeAction<
+  { articleId: string },
+  { ok: boolean; message: string }
+>(async ({ articleId }) => {
+  await authenticateUser();
+  return goFetch<{ ok: boolean; message: string }>(
+    `/v1/articles/${encodeURIComponent(articleId)}/test-email`,
+    {
+      method: 'POST',
+      body: {},
+    }
+  );
 });
 
 /**

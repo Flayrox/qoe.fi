@@ -91,6 +91,8 @@ func (h *Handler) handleErr(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, errForbidden):
 		response.Forbidden(w, err.Error())
+	case errors.Is(err, errProRequired):
+		response.ErrorCode(w, http.StatusForbidden, "pro_required", err.Error())
 	case errors.Is(err, errNotFound):
 		response.NotFound(w, "Newsletter introuvable.")
 	case errors.Is(err, errNotDraft):

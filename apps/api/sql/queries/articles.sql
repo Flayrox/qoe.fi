@@ -90,6 +90,7 @@ SELECT a.id, a.title, a.slug, a.content, a."draftContent", a.published, a."isPre
        a."readingTime", a."allowPublicAnnotations", a."allowComments", a."allowDownload", a."scheduledAt",
        a.status, a."publicationId", a."authorId", a."categoryId", a."tierId",
        a."seoTitle", a."seoDescription", a."createdAt", a."updatedAt",
+       a."emailStatus", a."emailSentAt", a."emailSentCount", a."emailResendCount",
        u.id::text     AS author_id,
        u.name         AS author_name,
        u.username     AS author_username,
@@ -218,6 +219,7 @@ SELECT a.id, a.title, a.slug, a.published, a."isPremium", a.visibility, a."readi
        a.status, a."createdAt", a."updatedAt", a."categoryId", a."publicationId",
        a."allowPublicAnnotations", a."allowComments", a."allowDownload",
        (a."draftContent" IS NOT NULL AND a."draftContent" <> '') AS has_unpublished_changes,
+       a."emailStatus", a."emailSentAt", a."emailSentCount",
        c.id  AS category_id,
        c.name AS category_name,
        c.slug AS category_slug

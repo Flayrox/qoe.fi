@@ -16,6 +16,7 @@ import (
 	"github.com/qoefi/api/internal/abuse"
 	db "github.com/qoefi/api/internal/database"
 	"github.com/qoefi/api/internal/queue"
+	"github.com/qoefi/api/internal/subscriptions"
 )
 
 var (
@@ -23,12 +24,14 @@ var (
 	errForbidden      = errors.New("vous ne gérez pas cette publication")
 	errNotDraft       = errors.New("seuls les brouillons ou les envois en échec peuvent être modifiés ou envoyés")
 	errConfirmInvalid = errors.New("lien de confirmation invalide ou déjà utilisé")
+	errProRequired    = errors.New("l'envoi d'un message direct sans article public est réservé aux publications Pro")
 )
 
 // Service porte les opérations newsletters (côté créateur).
 type Service struct {
-	q  newsletterQuerier
-	ac *asynq.Client
+	q    newsletterQuerier
+	ac   *asynq.Client
+	pool subscriptions.HasDB
 	// emailVerifier lit l'adresse et sa confirmation côté fournisseur
 	// (branché par le serveur ; nil = parcours connectés désactivés).
 	emailVerifier emailVerifier
@@ -63,6 +66,9 @@ func (s *Service) SetEmailVerifier(v emailVerifier) { s.emailVerifier = v }
 // environnements sans base directe). abuse n'importe aucun module métier :
 // pas de cycle d'import.
 func (s *Service) SetBudgetPool(p abuse.BudgetDB) { s.budgetPool = p }
+
+// SetPool branche la base pour les vérifications de droits (ex. statut PRO).
+func (s *Service) SetPool(p subscriptions.HasDB) { s.pool = p }
 
 func NewService(q newsletterQuerier, ac *asynq.Client) *Service {
 	return &Service{q: q, ac: ac}
@@ -231,10 +237,15 @@ func (s *Service) DeleteDraft(ctx context.Context, userID, issueID string) error
 // Send passe un brouillon ou une issue en échec en SENDING et enqueue la tâche de distribution.
 // Anti-spam : seuls les brouillons ou issues échouées peuvent être envoyés (une issue déjà
 // SENDING ou SENT renvoie errNotDraft) — pas de double envoi simultané.
+// Réservé aux comptes PRO (l'envoi d'un broadcast direct sans article public nécessite l'offre Pro).
 func (s *Service) Send(ctx context.Context, userID, issueID string) error {
 	issue, err := s.checkOwnership(ctx, userID, issueID)
 	if err != nil {
 		return err
+	}
+	// 🛡️ Garde PRO : l'envoi d'un broadcast libre sans article est STRICTEMENT PRO
+	if s.pool != nil && !subscriptions.HasPro(ctx, s.pool, issue.PublicationId, time.Now()) {
+		return errProRequired
 	}
 	if issue.Status != "DRAFT" && issue.Status != "FAILED" {
 		return errNotDraft
