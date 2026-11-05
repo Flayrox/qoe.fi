@@ -201,6 +201,7 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
         'heroText',
         'accentColor',
         'fontFamily',
+        'themeMode',
         'layoutStyle',
         'logoUrl',
         'headerImageUrl',
@@ -219,10 +220,12 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
 
       if (profileFieldsChanged || siteOptionsChanged) {
         const profileResult = await updateCreatorProfileAction({
+          publicationId,
           name: current.name,
           heroText: current.heroText,
           accentColor: current.accentColor,
           fontFamily: current.fontFamily,
+          themeMode: current.themeMode,
           layoutStyle: current.layoutStyle,
           logoUrl: current.logoUrl,
           headerImageUrl: current.headerImageUrl,
@@ -243,21 +246,53 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
           if (subdomainCheck.available === false) {
             throw new Error(`Sous-domaine invalide : ${subdomainCheck.error}`);
           }
-          await updateSubdomainAction(current.subdomain);
+          const subResult = await updateSubdomainAction({
+            publicationId,
+            subdomain: current.subdomain,
+          });
+          if (!subResult.ok) {
+            throw new Error(
+              subResult.error?.message || 'Erreur lors de la mise à jour du sous-domaine.'
+            );
+          }
         } else {
-          await updateSubdomainAction('');
+          const subResult = await updateSubdomainAction({
+            publicationId,
+            subdomain: '',
+          });
+          if (!subResult.ok) {
+            throw new Error(
+              subResult.error?.message || 'Erreur lors de la suppression du sous-domaine.'
+            );
+          }
         }
       }
 
       const navChanged = JSON.stringify(current.navigation) !== JSON.stringify(original.navigation);
       if (navChanged) {
-        await saveNavigationLinksAction(current.navigation);
+        const navResult = await saveNavigationLinksAction({
+          publicationId,
+          links: current.navigation,
+        });
+        if (!navResult.ok) {
+          throw new Error(
+            navResult.error?.message || 'Erreur lors de la sauvegarde de la navigation.'
+          );
+        }
       }
 
       const socialChanged =
         JSON.stringify(current.socialLinks) !== JSON.stringify(original.socialLinks);
       if (socialChanged) {
-        await saveSocialLinksAction(current.socialLinks);
+        const socialResult = await saveSocialLinksAction({
+          publicationId,
+          links: current.socialLinks,
+        });
+        if (!socialResult.ok) {
+          throw new Error(
+            socialResult.error?.message || 'Erreur lors de la sauvegarde des réseaux sociaux.'
+          );
+        }
       }
 
       // Les catégories ne sont plus modifiables ici : création, renommage,
@@ -265,7 +300,19 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
       toast.success(t`Paramètres enregistrés.`);
       setOriginal(current);
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Erreur de sauvegarde.');
+      const msg = err instanceof Error ? err.message : 'Erreur de sauvegarde.';
+      if (
+        msg.includes('Server Action') ||
+        msg.includes('Failed to find Server Action') ||
+        msg.includes('older or newer deployment')
+      ) {
+        toast.error(
+          t`Une nouvelle version a été déployée. La page va se recharger pour synchroniser vos réglages.`
+        );
+        setTimeout(() => window.location.reload(), 1500);
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setIsSaving(false);
     }
