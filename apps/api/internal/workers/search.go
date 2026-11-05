@@ -91,7 +91,7 @@ func (s *SearchWorker) ensureIndex(ctx context.Context, base string) {
 	if resp.StatusCode == http.StatusOK && info.PrimaryKey == "id" {
 		// Filterable attributes (best-effort) : nécessaire pour le scope « mine »
 		// du Cmd+K studio (publicationId = publication active).
-		s.doJSON(ctx, http.MethodPatch, base+"/indexes/"+searchIndex+"/settings/filterable-attributes", []string{"publicationId"})
+		s.doJSON(ctx, http.MethodPut, base+"/indexes/"+searchIndex+"/settings/filterable-attributes", []string{"publicationId"})
 		return
 	}
 	if resp.StatusCode == http.StatusOK {
@@ -101,7 +101,7 @@ func (s *SearchWorker) ensureIndex(ctx context.Context, base string) {
 	s.doJSON(ctx, http.MethodPost, base+"/indexes", map[string]any{
 		"uid": searchIndex, "primaryKey": "id",
 	})
-	s.doJSON(ctx, http.MethodPatch, base+"/indexes/"+searchIndex+"/settings/filterable-attributes", []string{"publicationId"})
+	s.doJSON(ctx, http.MethodPut, base+"/indexes/"+searchIndex+"/settings/filterable-attributes", []string{"publicationId"})
 }
 
 // doJSON envoie une requête HTTP JSON avec le Bearer key (best-effort).

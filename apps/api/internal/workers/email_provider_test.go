@@ -74,3 +74,22 @@ func TestBuildSMTPHeaders_CRLFImmunity(t *testing.T) {
 		t.Errorf("Missing Precedence: bulk in:\n%s", headers)
 	}
 }
+
+func TestCleanEnvelopeAddress(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"relay@qoe.fi", "relay@qoe.fi"},
+		{"<relay@qoe.fi>", "relay@qoe.fi"},
+		{"Publication Name <relay@qoe.fi>", "relay@qoe.fi"},
+		{"  Qoe.fi Platform  <noreply@qoe.fi> ", "noreply@qoe.fi"},
+		{"\"Quotes, In Name\" <user@test.org>", "user@test.org"},
+	}
+	for _, tt := range tests {
+		got := cleanEnvelopeAddress(tt.input)
+		if got != tt.want {
+			t.Errorf("cleanEnvelopeAddress(%q) = %q, want %q", tt.input, got, tt.want)
+		}
+	}
+}

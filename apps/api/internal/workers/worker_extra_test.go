@@ -473,7 +473,7 @@ func TestSearch_Setup_CreatesIndexWhenMissing(t *testing.T) {
 		"GET /indexes/" + searchIndex,
 		"POST /indexes",
 		"PATCH /indexes/" + searchIndex + "/settings",
-		"PATCH /indexes/" + searchIndex + "/settings/filterable-attributes",
+		"PUT /indexes/" + searchIndex + "/settings/filterable-attributes",
 	} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("Setup devait émettre %q ; requêtes:\n%s", want, joined)
@@ -492,7 +492,7 @@ func TestSearch_Setup_KeepsExistingPrimaryKeyID(t *testing.T) {
 	if strings.Contains(joined, "DELETE /indexes/"+searchIndex) {
 		t.Errorf("index OK (primaryKey=id) : re-création indésirable:\n%s", joined)
 	}
-	if !strings.Contains(joined, "PATCH /indexes/"+searchIndex+"/settings/filterable-attributes") {
+	if !strings.Contains(joined, "PUT /indexes/"+searchIndex+"/settings/filterable-attributes") {
 		t.Errorf("filterable-attributes attendu:\n%s", joined)
 	}
 }

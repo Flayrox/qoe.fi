@@ -51,6 +51,7 @@ async function getActivePublicationId(): Promise<string> {
 }
 
 interface UpdateCreatorProfileInput {
+  publicationId?: string;
   name?: string | null;
   heroText?: string | null;
   onboardingText?: string | null;
@@ -87,11 +88,13 @@ interface CompleteOnboardingInput {
 
 export const updateCreatorProfileAction = safeAction<UpdateCreatorProfileInput, User>(
   async (data) => {
-    const publicationId = await getActivePublicationId();
-    return goFetch<User>('/v1/settings/profile', {
+    const publicationId = data.publicationId || (await getActivePublicationId());
+    const res = await goFetch<User>('/v1/settings/profile', {
       method: 'PATCH',
-      body: { publicationId, ...data },
+      body: { ...data, publicationId },
     });
+    revalidatePath('/settings');
+    return res;
   }
 );
 
@@ -104,39 +107,50 @@ export const checkSubdomainAvailabilityAction = safeAction<
   );
 });
 
-export const updateSubdomainAction = safeAction<string, { success: boolean; subdomain: string }>(
-  async (subdomain) => {
-    const publicationId = await getActivePublicationId();
-    return goFetch<{ success: boolean; subdomain: string }>('/v1/settings/subdomain', {
-      method: 'POST',
-      body: { publicationId, subdomain },
-    });
-  }
-);
+export const updateSubdomainAction = safeAction<
+  { publicationId?: string; subdomain: string } | string,
+  { success: boolean; subdomain: string }
+>(async (input) => {
+  const subdomain = typeof input === 'string' ? input : input.subdomain;
+  const publicationId =
+    (typeof input === 'object' && input.publicationId) || (await getActivePublicationId());
+  const res = await goFetch<{ success: boolean; subdomain: string }>('/v1/settings/subdomain', {
+    method: 'POST',
+    body: { publicationId, subdomain },
+  });
+  revalidatePath('/settings');
+  return res;
+});
 
-export const saveNavigationLinksAction = safeAction<NavigationLinkInput[], { success: boolean }>(
-  async (links) => {
-    const publicationId = await getActivePublicationId();
-    await goFetch('/v1/settings/navigation', {
-      method: 'PUT',
-      body: { publicationId, links },
-    });
-    revalidatePath('/settings');
-    return { success: true };
-  }
-);
+export const saveNavigationLinksAction = safeAction<
+  { publicationId?: string; links: NavigationLinkInput[] } | NavigationLinkInput[],
+  { success: boolean }
+>(async (input) => {
+  const links = Array.isArray(input) ? input : input.links;
+  const publicationId =
+    (!Array.isArray(input) && input.publicationId) || (await getActivePublicationId());
+  await goFetch('/v1/settings/navigation', {
+    method: 'PUT',
+    body: { publicationId, links },
+  });
+  revalidatePath('/settings');
+  return { success: true };
+});
 
-export const saveSocialLinksAction = safeAction<SocialLinkInput[], { success: boolean }>(
-  async (links) => {
-    const publicationId = await getActivePublicationId();
-    await goFetch('/v1/settings/social', {
-      method: 'PUT',
-      body: { publicationId, links },
-    });
-    revalidatePath('/settings');
-    return { success: true };
-  }
-);
+export const saveSocialLinksAction = safeAction<
+  { publicationId?: string; links: SocialLinkInput[] } | SocialLinkInput[],
+  { success: boolean }
+>(async (input) => {
+  const links = Array.isArray(input) ? input : input.links;
+  const publicationId =
+    (!Array.isArray(input) && input.publicationId) || (await getActivePublicationId());
+  await goFetch('/v1/settings/social', {
+    method: 'PUT',
+    body: { publicationId, links },
+  });
+  revalidatePath('/settings');
+  return { success: true };
+});
 
 export const submitApiApplicationAction = safeAction<string, { success: boolean }>(
   async (reason) => {

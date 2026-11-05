@@ -21,6 +21,7 @@ import (
 	"mime/quotedprintable"
 	"net"
 	"net/http"
+	"net/mail"
 	"net/smtp"
 	"strings"
 	"time"
@@ -114,7 +115,14 @@ func (p *SMTPProvider) Send(ctx context.Context, msg EmailMessage) error {
 	// 2) STARTTLS si le serveur le propose (et qu'on n'est pas déjà en TLS).
 	if !p.cfg.Secure {
 		if ok, _ := client.Extension("STARTTLS"); ok {
-			if err := client.StartTLS(&tls.Config{ServerName: p.cfg.Host}); err != nil {
+			tlsCfg := &tls.Config{ServerName: p.cfg.Host}
+			// Sur les liaisons locales/bridge docker (host.docker.internal, localhost, 127.0.0.1),
+			// le certificat TLS du serveur mail porte souvent le nom de domaine public (ex. mail.qoe.fi).
+			// On accepte la négociation TLS sans blocage de nom d'hôte sur ces adresses locales.
+			if p.cfg.Host == "host.docker.internal" || p.cfg.Host == "localhost" || p.cfg.Host == "127.0.0.1" {
+				tlsCfg.InsecureSkipVerify = true
+			}
+			if err := client.StartTLS(tlsCfg); err != nil {
 				return fmt.Errorf("smtp: starttls: %w", err)
 			}
 			// Post-STARTTLS : re-EHLO (certains serveurs exigent une nouvelle EHLO).
@@ -132,11 +140,15 @@ func (p *SMTPProvider) Send(ctx context.Context, msg EmailMessage) error {
 	}
 
 	// 4) Enveloppe + contenu.
-	if err := client.Mail(from); err != nil {
+	// En SMTP (RFC 5321), MAIL FROM et RCPT TO attendent une adresse pure (reverse-path / forward-path),
+	// jamais une adresse formatée avec display-name (ex: "Nom <email@domaine.com>").
+	envelopeFrom := cleanEnvelopeAddress(from)
+	if err := client.Mail(envelopeFrom); err != nil {
 		return fmt.Errorf("smtp: mail from: %w", err)
 	}
-	if err := client.Rcpt(msg.To); err != nil {
-		return fmt.Errorf("smtp: rcpt to %s: %w", msg.To, err)
+	envelopeTo := cleanEnvelopeAddress(msg.To)
+	if err := client.Rcpt(envelopeTo); err != nil {
+		return fmt.Errorf("smtp: rcpt to %s: %w", envelopeTo, err)
 	}
 
 	w, err := client.Data()
@@ -162,6 +174,19 @@ func smtpAddr(cfg SMTPConfig) string {
 		port = 587
 	}
 	return net.JoinHostPort(cfg.Host, fmt.Sprintf("%d", port))
+}
+
+func cleanEnvelopeAddress(addr string) string {
+	if parsed, err := mail.ParseAddress(addr); err == nil && parsed.Address != "" {
+		return parsed.Address
+	}
+	addr = strings.TrimSpace(addr)
+	if start := strings.LastIndex(addr, "<"); start != -1 {
+		if end := strings.LastIndex(addr, ">"); end > start {
+			return strings.TrimSpace(addr[start+1 : end])
+		}
+	}
+	return addr
 }
 
 // SanitizeHeaderValue élimine les caractères \r, \n et les caractères de contrôle
