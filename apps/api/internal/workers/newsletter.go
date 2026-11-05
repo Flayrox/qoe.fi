@@ -544,7 +544,11 @@ func (n *NewsletterWorker) buildNewsletterEmail(issue db.GetNewsletterIssueWithP
 
 	html := renderEmailLayout(pubName, logoURL, pubURL, preview, issue.Subject, issue.Html, unsub, pubURL)
 
-	from := fmt.Sprintf("%s <%s>", pubName, n.from)
+	senderEmail := strings.TrimSpace(n.from)
+	if senderEmail == "" {
+		senderEmail = "noreply@qoe.fi"
+	}
+	from := fmt.Sprintf("%s <%s>", pubName, senderEmail)
 	return EmailMessage{
 		From:            from,
 		To:              email,
@@ -579,7 +583,11 @@ func (n *NewsletterWorker) buildArticleReleaseEmail(info db.GetArticleReleaseInf
 	preview := "Nouvel article : " + info.Title
 	html := renderEmailLayout(pubName, "", pubURL, preview, preview, body, unsub, link)
 
-	from := fmt.Sprintf("%s <%s>", pubName, n.from)
+	senderEmail := strings.TrimSpace(n.from)
+	if senderEmail == "" {
+		senderEmail = "noreply@qoe.fi"
+	}
+	from := fmt.Sprintf("%s <%s>", pubName, senderEmail)
 	return EmailMessage{
 		From:            from,
 		To:              email,

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 
 	"github.com/hibiken/asynq"
 	"github.com/qoefi/api/internal/modules/imports"
@@ -164,9 +165,13 @@ If this message is not for you, ignore it or unsubscribe in one click: %s`,
 		info.PublicationName, confirm, unsub,
 		info.PublicationName, confirm, unsub)
 
-	from := w.from
+	senderEmail := strings.TrimSpace(w.from)
+	if senderEmail == "" {
+		senderEmail = "noreply@qoe.fi"
+	}
+	from := senderEmail
 	if info.PublicationName != "" {
-		from = fmt.Sprintf("%s <%s>", info.PublicationName, w.from)
+		from = fmt.Sprintf("%s <%s>", info.PublicationName, senderEmail)
 	}
 	return EmailMessage{
 		From:            from,

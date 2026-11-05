@@ -14,6 +14,7 @@ import {
   Eye,
   Users,
   AlertTriangle,
+  RotateCcw,
 } from 'lucide-react';
 import { toast } from '@qoe/ui/toast';
 import {
@@ -168,6 +169,12 @@ export function NewsletterClient({ initialIssues }: NewsletterClientProps) {
           <div className="text-3xl font-bold tracking-tight text-foreground">{issues.length}</div>
           <p className="text-xs text-muted-foreground mt-2">
             {issues.filter((i) => i.status === 'DRAFT').length} brouillons en attente
+            {issues.some((i) => i.status === 'FAILED') && (
+              <span className="text-destructive-text">
+                {' '}
+                · {issues.filter((i) => i.status === 'FAILED').length} en échec
+              </span>
+            )}
           </p>
         </div>
         <div className="rounded-xl border border-border/30 bg-card p-6">
@@ -349,7 +356,7 @@ export function NewsletterClient({ initialIssues }: NewsletterClientProps) {
                       <Loader2 className="h-4 w-4 animate-spin text-primary" />
                     ) : (
                       <>
-                        {issue.status === 'DRAFT' && (
+                        {(issue.status === 'DRAFT' || issue.status === 'FAILED') && (
                           <>
                             <button
                               onClick={() => openEdit(issue)}
@@ -360,11 +367,20 @@ export function NewsletterClient({ initialIssues }: NewsletterClientProps) {
                             </button>
                             <button
                               onClick={() => send(issue)}
-                              title="Envoyer"
+                              title={issue.status === 'FAILED' ? 'Renvoyer' : 'Envoyer'}
                               className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-all"
                             >
-                              <Send className="h-3.5 w-3.5 stroke-[1.5]" />
-                              Envoyer
+                              {issue.status === 'FAILED' ? (
+                                <>
+                                  <RotateCcw className="h-3.5 w-3.5 stroke-[1.5]" />
+                                  Renvoyer
+                                </>
+                              ) : (
+                                <>
+                                  <Send className="h-3.5 w-3.5 stroke-[1.5]" />
+                                  Envoyer
+                                </>
+                              )}
                             </button>
                             <button
                               onClick={() => remove(issue.id)}

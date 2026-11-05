@@ -85,6 +85,11 @@ func TestCleanEnvelopeAddress(t *testing.T) {
 		{"Publication Name <relay@qoe.fi>", "relay@qoe.fi"},
 		{"  Qoe.fi Platform  <noreply@qoe.fi> ", "noreply@qoe.fi"},
 		{"\"Quotes, In Name\" <user@test.org>", "user@test.org"},
+		{"L'Assez <>", ""},
+		{"<>", ""},
+		{"", ""},
+		{"NoAtSign", ""},
+		{"L'Assez <invalid>", ""},
 	}
 	for _, tt := range tests {
 		got := cleanEnvelopeAddress(tt.input)

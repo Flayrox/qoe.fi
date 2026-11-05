@@ -228,7 +228,7 @@ func (q *Queries) DeactivateSubscriber(ctx context.Context, arg DeactivateSubscr
 const deleteNewsletterIssueDraft = `-- name: DeleteNewsletterIssueDraft :exec
 DELETE FROM "NewsletterIssue"
 WHERE id = $1
-  AND status = 'DRAFT'
+  AND (status = 'DRAFT' OR status = 'FAILED')
 `
 
 func (q *Queries) DeleteNewsletterIssueDraft(ctx context.Context, id string) error {
@@ -946,6 +946,20 @@ func (q *Queries) MarkNewsletterDelivery(ctx context.Context, arg MarkNewsletter
 	return err
 }
 
+const resetFailedNewsletterDeliveries = `-- name: ResetFailedNewsletterDeliveries :exec
+UPDATE "NewsletterDelivery"
+SET status     = 'QUEUED',
+    error      = NULL,
+    "updatedAt" = now()
+WHERE "issueId" = $1
+  AND status = 'FAILED'
+`
+
+func (q *Queries) ResetFailedNewsletterDeliveries(ctx context.Context, issueid string) error {
+	_, err := q.db.Exec(ctx, resetFailedNewsletterDeliveries, issueid)
+	return err
+}
+
 const resetNewsletterIssueToDraft = `-- name: ResetNewsletterIssueToDraft :exec
 UPDATE "NewsletterIssue"
 SET status     = 'DRAFT',
@@ -980,7 +994,7 @@ UPDATE "NewsletterIssue"
 SET status     = 'SENDING',
     "updatedAt" = now()
 WHERE id = $1
-  AND status = 'DRAFT'
+  AND (status = 'DRAFT' OR status = 'FAILED')
 RETURNING id
 `
 
@@ -1064,7 +1078,7 @@ SET subject       = $2,
     html          = $4,
     "updatedAt"   = now()
 WHERE id = $1
-  AND status = 'DRAFT'
+  AND (status = 'DRAFT' OR status = 'FAILED')
 RETURNING id, "publicationId", subject, "previewText", html, status, "totalRecipients", "sentCount", "failedCount", "createdAt", "updatedAt", "sentAt"
 `
 

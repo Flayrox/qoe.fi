@@ -80,11 +80,26 @@ func (p *SMTPProvider) Name() string { return "smtp" }
 
 func (p *SMTPProvider) Send(ctx context.Context, msg EmailMessage) error {
 	from := msg.From
-	if from == "" {
-		from = p.cfg.From
-	}
-	if from == "" {
-		return fmt.Errorf("smtp: expéditeur manquant (EMAIL_FROM)")
+	envelopeFrom := cleanEnvelopeAddress(from)
+	if envelopeFrom == "" {
+		envelopeFrom = cleanEnvelopeAddress(p.cfg.From)
+		if envelopeFrom == "" {
+			envelopeFrom = cleanEnvelopeAddress(p.cfg.User)
+		}
+		if envelopeFrom == "" {
+			envelopeFrom = "noreply@qoe.fi"
+		}
+		// Si msg.From était incomplet (ex: "Nom <>" ou juste "Nom"),
+		// on reformate From avec l'adresse d'enveloppe résolue pour l'en-tête RFC 5322.
+		display := strings.TrimSpace(msg.From)
+		if start := strings.LastIndex(display, "<"); start != -1 {
+			display = strings.TrimSpace(display[:start])
+		}
+		if display != "" {
+			from = fmt.Sprintf("%s <%s>", display, envelopeFrom)
+		} else {
+			from = envelopeFrom
+		}
 	}
 
 	// 1) Connexion : TLS implicite (465) ou TCP nu (25/587 → STARTTLS ensuite).
@@ -142,11 +157,13 @@ func (p *SMTPProvider) Send(ctx context.Context, msg EmailMessage) error {
 	// 4) Enveloppe + contenu.
 	// En SMTP (RFC 5321), MAIL FROM et RCPT TO attendent une adresse pure (reverse-path / forward-path),
 	// jamais une adresse formatée avec display-name (ex: "Nom <email@domaine.com>").
-	envelopeFrom := cleanEnvelopeAddress(from)
 	if err := client.Mail(envelopeFrom); err != nil {
 		return fmt.Errorf("smtp: mail from: %w", err)
 	}
 	envelopeTo := cleanEnvelopeAddress(msg.To)
+	if envelopeTo == "" {
+		return fmt.Errorf("smtp: destinataire invalide (%q)", msg.To)
+	}
 	if err := client.Rcpt(envelopeTo); err != nil {
 		return fmt.Errorf("smtp: rcpt to %s: %w", envelopeTo, err)
 	}
@@ -178,15 +195,22 @@ func smtpAddr(cfg SMTPConfig) string {
 
 func cleanEnvelopeAddress(addr string) string {
 	if parsed, err := mail.ParseAddress(addr); err == nil && parsed.Address != "" {
-		return parsed.Address
+		return strings.TrimSpace(parsed.Address)
 	}
 	addr = strings.TrimSpace(addr)
 	if start := strings.LastIndex(addr, "<"); start != -1 {
 		if end := strings.LastIndex(addr, ">"); end > start {
-			return strings.TrimSpace(addr[start+1 : end])
+			extracted := strings.TrimSpace(addr[start+1 : end])
+			if strings.Contains(extracted, "@") {
+				return extracted
+			}
+			return ""
 		}
 	}
-	return addr
+	if strings.Contains(addr, "@") && !strings.ContainsAny(addr, "<> \t\r\n") {
+		return addr
+	}
+	return ""
 }
 
 // SanitizeHeaderValue élimine les caractères \r, \n et les caractères de contrôle
