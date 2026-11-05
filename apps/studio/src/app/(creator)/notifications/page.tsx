@@ -6,6 +6,7 @@
 // =====================================================================
 
 import { NotificationList } from '@qoe/ui/notifications';
+import { StudioHeader, StudioSection } from '@/components/studio-page';
 
 export const metadata = {
   title: 'Notifications | qoefi',
@@ -14,18 +15,14 @@ export const metadata = {
 
 export default function DashboardNotificationsPage() {
   return (
-    <div className="mx-auto max-w-3xl">
-      <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
-          Notifications
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Invitations, soumissions, réactions et nouveaux membres.
-        </p>
-      </div>
-      <div className="bg-card border border-border/40 rounded-2xl overflow-hidden">
+    <div className="mx-auto w-full max-w-3xl space-y-6">
+      <StudioHeader
+        title="Notifications"
+        description="Invitations, soumissions, réactions et nouveaux membres."
+      />
+      <StudioSection className="p-0" bodyClassName="overflow-hidden rounded-xl">
         <NotificationList />
-      </div>
+      </StudioSection>
     </div>
   );
 }

@@ -333,7 +333,7 @@ export function NavigationTab({
   const visibleNavbarItems = unifiedNavItems.filter((item) => item.isVisible);
 
   return (
-    <div className="max-w-4xl space-y-6">
+    <div className="space-y-6">
       {/* ── 0. APERÇU EN DIRECT DE LA BARRE DU HAUT ── */}
       <div className="rounded-xl border border-border/50 bg-card p-4 space-y-3 shadow-2xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-border/30">

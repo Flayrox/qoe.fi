@@ -388,7 +388,7 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
         <div className="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2.5">
-              <h1 className="text-xl font-bold tracking-tight text-foreground">
+              <h1 className="truncate text-2xl font-semibold tracking-tight text-foreground">
                 {current.name || 'Paramètres'}
               </h1>
               {isMediaWorkspace && (
@@ -402,10 +402,10 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
                 </Badge>
               )}
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">
+            <p className="mt-1 text-sm text-muted-foreground">
               {isMediaWorkspace
                 ? `Configuration du média « ${current.name} »`
-                : t`Configuration de votre site`}
+                : t`Configuration du site`}
             </p>
           </div>
 

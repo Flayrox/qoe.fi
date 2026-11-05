@@ -68,7 +68,7 @@ export function GeneralTab({
   };
 
   return (
-    <div className="max-w-6xl mx-auto space-y-4">
+    <div className="space-y-4">
       {/* ── EN-TÊTE COMPACT & LIEN DIRECT VERS LE VRAI SITE ── */}
       <div className="flex items-center justify-between gap-3 pb-3 border-b border-border/40">
         <Tabs
@@ -433,7 +433,7 @@ export function GeneralTab({
         /* =====================================================================
            VUE 2B : COMPTE PERSONNEL (PASSE PAR LE CORE QOEFI)
            ===================================================================== */
-        <div className="max-w-2xl mx-auto rounded-2xl border border-border/50 bg-card p-6 space-y-6 shadow-2xs">
+        <div className="mx-auto max-w-2xl space-y-5 rounded-xl border border-border/50 bg-card p-5 shadow-2xs">
           <div className="flex items-center justify-between pb-3 border-b border-border/30">
             <div className="flex items-center gap-2">
               <User className="w-4 h-4 text-primary" />

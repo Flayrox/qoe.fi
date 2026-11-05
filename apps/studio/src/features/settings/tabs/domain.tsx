@@ -30,7 +30,7 @@ export function DomainTab({
   subdomainCheck,
 }: DomainTabProps) {
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="space-y-6">
       <div className="rounded-xl border border-border/50 bg-card p-5 space-y-5 shadow-2xs">
         <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
           Adresse & Sous-domaine

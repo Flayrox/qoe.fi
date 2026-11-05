@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-05T17:54:18.332Z",
+  "generatedAt": "2026-11-05T18:07:10.400Z",
   "total": 371,
   "signals": {
     "primitivesNeverImported": 10,
@@ -41,7 +41,7 @@
           "path": "packages/ui/src/primitives/badge/badge.tsx",
           "lines": 111,
           "source": "primitives",
-          "usages": 31
+          "usages": 32
         },
         {
           "name": "bevel-button",
@@ -746,7 +746,7 @@
           "path": "packages/ui/src/primitives/badge/badge.tsx",
           "lines": 111,
           "source": "ui",
-          "usages": 31
+          "usages": 32
         },
         {
           "name": "bevel-button",

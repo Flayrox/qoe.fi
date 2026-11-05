@@ -519,11 +519,9 @@ export function MediaStudioClient({
   /* ─────────────────────────── CREATE FLOW ─────────────────────────── */
   if (showCreate || medias.length === 0) {
     return (
-      <div className="mx-auto max-w-md px-4 py-16 md:py-24">
+      <div className="mx-auto w-full max-w-md py-10">
         <div className="mb-10">
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground">
-            Créez votre Média
-          </h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Créer un média</h1>
           <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
             Un journal, une revue, un collectif. Invitez une équipe, définissez des rôles et lancez
             votre sous-domaine.
@@ -659,7 +657,7 @@ export function MediaStudioClient({
     : `qoe.fi/${detail.publication.slug}`;
 
   return (
-    <div className="mx-auto max-w-5xl px-4 md:px-6 py-6 text-foreground font-sans">
+    <div className="mx-auto w-full max-w-6xl space-y-6 text-foreground">
       <div className="mb-6">
         <PendingInvites />
       </div>
@@ -686,7 +684,7 @@ export function MediaStudioClient({
             </div>
           )}
           <div className="min-w-0 pt-0.5">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight truncate">
+            <h1 className="truncate text-2xl font-semibold tracking-tight">
               {detail.publication.name}
             </h1>
             <div className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">

@@ -4,6 +4,7 @@ import React, { useState, useTransition } from 'react';
 import { t } from '@lingui/core/macro';
 import { Eye, Users, Activity, Clock, Info } from 'lucide-react';
 import { ToggleButton, ToggleGroup } from '@qoe/ui/toggle';
+import { StudioHeader } from '@/components/studio-page';
 import type { FeatureLocale } from '@qoe/ui';
 import { getCreatorAnalyticsData, AnalyticsResponseData, TimePeriod } from './actions';
 import { TimeseriesChart } from './components/TimeseriesChart';
@@ -59,41 +60,39 @@ export function AnalyticsDashboardClient({
   const bounceRate = visits > 0 ? Math.round((bounces / visits) * 100) : 0;
 
   return (
-    <div className="space-y-8 p-6 lg:p-10 max-w-7xl mx-auto">
+    <div className="mx-auto w-full max-w-6xl space-y-6">
       {/* ─── Header & Period Controls ─────────────────────────────── */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between pb-6 border-b border-border/30">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">Statistiques</h1>
-          <p className="text-sm text-muted-foreground mt-1">Audience et lecture, sans cookies.</p>
-        </div>
-
-        <ToggleGroup
-          aria-label="Période"
-          variant="inset"
-          selectionMode="single"
-          disallowEmptySelection
-          selectedKeys={[selectedPeriod]}
-          onSelectionChange={(keys) => {
-            const [next] = Array.from(keys);
-            if (next) handlePeriodChange(next as TimePeriod);
-          }}
-          className="self-start sm:self-auto"
-        >
-          {(
-            [
-              ['24h', '24 h'],
-              ['7d', '7 jours'],
-              ['30d', '30 jours'],
-              ['90d', '90 jours'],
-              ['all', 'Tout'],
-            ] as const
-          ).map(([period, label]) => (
-            <ToggleButton key={period} id={period} size="xs">
-              {label}
-            </ToggleButton>
-          ))}
-        </ToggleGroup>
-      </div>
+      <StudioHeader
+        title={t`Statistiques`}
+        description={t`Audience et lecture, sans cookies.`}
+        actions={
+          <ToggleGroup
+            aria-label="Période"
+            variant="inset"
+            selectionMode="single"
+            disallowEmptySelection
+            selectedKeys={[selectedPeriod]}
+            onSelectionChange={(keys) => {
+              const [next] = Array.from(keys);
+              if (next) handlePeriodChange(next as TimePeriod);
+            }}
+          >
+            {(
+              [
+                ['24h', '24 h'],
+                ['7d', '7 jours'],
+                ['30d', '30 jours'],
+                ['90d', '90 jours'],
+                ['all', 'Tout'],
+              ] as const
+            ).map(([period, label]) => (
+              <ToggleButton key={period} id={period} size="xs" isDisabled={isPending}>
+                {label}
+              </ToggleButton>
+            ))}
+          </ToggleGroup>
+        }
+      />
 
       {/* ─── Unconfigured State Banner ───────────────────────────── */}
       {(!data.configured || !data.websiteId) && (
@@ -122,7 +121,7 @@ export function AnalyticsDashboardClient({
       {/* ─── 4 Core KPI Cards Grid ────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* KPI 1: Pageviews */}
-        <div className="rounded-xl border border-border/30 bg-card p-6 shadow-none transition-all hover:bg-muted/20">
+        <div className="rounded-xl border border-border/50 bg-card p-5 shadow-2xs">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
               Pages vues
@@ -140,7 +139,7 @@ export function AnalyticsDashboardClient({
         </div>
 
         {/* KPI 2: Visitors */}
-        <div className="rounded-xl border border-border/30 bg-card p-6 shadow-none transition-all hover:bg-muted/20">
+        <div className="rounded-xl border border-border/50 bg-card p-5 shadow-2xs">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
               Visiteurs uniques
@@ -159,7 +158,7 @@ export function AnalyticsDashboardClient({
         </div>
 
         {/* KPI 3: Visits */}
-        <div className="rounded-xl border border-border/30 bg-card p-6 shadow-none transition-all hover:bg-muted/20">
+        <div className="rounded-xl border border-border/50 bg-card p-5 shadow-2xs">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
               Visites / Sessions
@@ -180,7 +179,7 @@ export function AnalyticsDashboardClient({
         </div>
 
         {/* KPI 4: Avg Duration */}
-        <div className="rounded-xl border border-border/30 bg-card p-6 shadow-none transition-all hover:bg-muted/20">
+        <div className="rounded-xl border border-border/50 bg-card p-5 shadow-2xs">
           <div className="flex items-center justify-between mb-3">
             <span className="text-[11px] font-bold tracking-wider uppercase text-muted-foreground">
               Temps de lecture
