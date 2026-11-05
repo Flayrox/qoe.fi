@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@qoe/ui/button';
 import { Tab, TabList, TabPanel, Tabs } from '@qoe/ui/tabs';
+import { AnnotationFilterPill, type AnnotationFilterMode } from '@qoe/ui/annotations';
 import { cn } from '@qoe/utils';
 import { Highlighter, Quote, PenLine, Volume2 } from 'lucide-react';
 import { DefectList, Variant } from '../specimen-frame';
@@ -24,6 +25,8 @@ export function SegmentedSpecimen() {
   const [legacy, setLegacy] = useState('articles');
   const [segmented, setSegmented] = useState('articles');
   const [section, setSection] = useState('general');
+  const [filterMode, setFilterMode] = useState<AnnotationFilterMode>('all');
+  const [filterModeRestricted, setFilterModeRestricted] = useState<AnnotationFilterMode>('mine');
 
   return (
     <div className="grid gap-10">
@@ -147,6 +150,67 @@ export function SegmentedSpecimen() {
               <Tab id="year">12 m</Tab>
             </TabList>
           </Tabs>
+        </div>
+      </Variant>
+
+      <Variant
+        label="AnnotationFilterPill — sélecteur segmenté avec intitulé incrusté & infobulles"
+        kind="candidat"
+        hint="Dérivé du rail segmenté en creux : intègre l'intitulé « Annotations » à même le rail sans bloc externe encombrant, expose les 4 modes (Toutes, Auteur, Mes annotations, Masquer) sous forme d'icônes avec infobulles au survol, et s'adapte lorsque l'auteur désactive les notes publiques."
+      >
+        <div className="flex flex-col gap-6">
+          <div className="flex flex-wrap items-center gap-8">
+            <div className="flex flex-col gap-2">
+              <span className="text-[11px] font-medium text-muted-foreground">
+                Standard (sm — public autorisé)
+              </span>
+              <AnnotationFilterPill
+                filterMode={filterMode}
+                onChangeFilterMode={setFilterMode}
+                allowPublicAnnotations
+                size="sm"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <span className="text-[11px] font-medium text-muted-foreground">
+                Taille moyenne (md)
+              </span>
+              <AnnotationFilterPill
+                filterMode={filterMode}
+                onChangeFilterMode={setFilterMode}
+                allowPublicAnnotations
+                size="md"
+              />
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-8">
+            <div className="flex flex-col gap-2">
+              <span className="text-[11px] font-medium text-muted-foreground">
+                Sans public (auteur & notes privées uniquement)
+              </span>
+              <AnnotationFilterPill
+                filterMode={filterModeRestricted}
+                onChangeFilterMode={setFilterModeRestricted}
+                allowPublicAnnotations={false}
+                size="sm"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <span className="text-[11px] font-medium text-muted-foreground">
+                Sans libellé (icônes nues pour barre d'outils)
+              </span>
+              <AnnotationFilterPill
+                filterMode={filterMode}
+                onChangeFilterMode={setFilterMode}
+                allowPublicAnnotations
+                showLabel={false}
+                size="sm"
+              />
+            </div>
+          </div>
         </div>
       </Variant>
 
