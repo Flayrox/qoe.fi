@@ -132,7 +132,7 @@ export default function CollaborateJoinPage() {
   if (error || !preview) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center p-4 font-sans">
-        <div className="w-full max-w-md rounded-2xl border border-destructive/20 bg-card p-6 shadow-xl space-y-4 text-center">
+        <div className="w-full max-w-md rounded-xl border border-destructive/20 bg-card p-6 shadow-xl space-y-4 text-center">
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 text-destructive-text">
             <AlertCircle className="h-6 w-6" />
           </div>
@@ -173,7 +173,7 @@ export default function CollaborateJoinPage() {
         </div>
 
         {/* Détails de l'article */}
-        <div className="rounded-2xl border border-border/40 bg-background/60 p-5 space-y-4">
+        <div className="rounded-xl border border-border/40 bg-background/60 p-5 space-y-4">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <FileText className="h-5 w-5" />

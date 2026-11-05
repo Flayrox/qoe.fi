@@ -53,7 +53,7 @@ export function SeoPreview({
   const isAutoManaged = !isAdvancedMode && !seoTitle && !seoDescription;
 
   return (
-    <div className="rounded-2xl border border-border/60 bg-card overflow-hidden shadow-sm">
+    <div className="rounded-xl border border-border/60 bg-card overflow-hidden shadow-sm">
       {/* Header bar with switch */}
       <div className="px-4 py-3 bg-muted/30 border-b border-border/40 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">

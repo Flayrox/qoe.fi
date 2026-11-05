@@ -41,7 +41,7 @@ export function DeveloperNav({ activeTab }: DeveloperNavProps) {
   ];
 
   return (
-    <div className="flex items-center justify-between border-b border-border/80 pb-px gap-4">
+    <div className="flex items-center justify-between border-b border-border/50 pb-px gap-4">
       <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
         {tabs.map((tab) => {
           const Icon = tab.icon;

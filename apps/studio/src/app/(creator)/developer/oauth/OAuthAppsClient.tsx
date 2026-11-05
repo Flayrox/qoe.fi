@@ -262,7 +262,7 @@ export function OAuthAppsClient({
 
       {/* Gated state */}
       {gated && (
-        <div className="bg-card border border-border/80 rounded-2xl p-10 text-center max-w-2xl mx-auto space-y-4 shadow-xs">
+        <div className="bg-card border border-border/50 rounded-2xl p-10 text-center max-w-2xl mx-auto space-y-4 shadow-xs">
           <div className="w-14 h-14 rounded-2xl bg-muted/40 text-muted-foreground flex items-center justify-center mx-auto border border-border/60">
             <Lock className="w-6 h-6" />
           </div>
@@ -302,7 +302,7 @@ export function OAuthAppsClient({
 
       {/* Create form */}
       {!gated && showCreate && (
-        <div className="bg-card border border-border/80 rounded-2xl p-6 md:p-8 space-y-5 shadow-xs">
+        <div className="bg-card border border-border/50 rounded-2xl p-6 md:p-8 space-y-5 shadow-xs">
           <div className="space-y-1">
             <h3 className="text-base font-bold text-foreground">Créer une application OAuth</h3>
             <p className="text-xs text-muted-foreground">
@@ -440,7 +440,7 @@ export function OAuthAppsClient({
 
       {/* List */}
       {!gated && clients.length === 0 && !showCreate && (
-        <div className="py-20 text-center bg-card border border-border/80 rounded-2xl p-8 shadow-xs">
+        <div className="py-20 text-center bg-card border border-border/50 rounded-2xl p-8 shadow-xs">
           <div className="w-14 h-14 rounded-2xl bg-muted/40 text-primary flex items-center justify-center mx-auto mb-4 border border-border/60">
             <Shield className="w-6 h-6" strokeWidth={1.5} />
           </div>
@@ -457,8 +457,8 @@ export function OAuthAppsClient({
       )}
 
       {!gated && clients.length > 0 && (
-        <div className="bg-card border border-border/80 rounded-2xl shadow-xs overflow-hidden divide-y divide-border/60">
-          <div className="px-6 py-4 border-b border-border/80 flex items-center justify-between">
+        <div className="bg-card border border-border/50 rounded-2xl shadow-xs overflow-hidden divide-y divide-border/60">
+          <div className="px-6 py-4 border-b border-border/50 flex items-center justify-between">
             <h3 className="text-base font-bold text-foreground">Vos applications</h3>
             <Badge variant="outline" shape="pill" size="sm">
               {clients.length} application{clients.length > 1 ? 's' : ''}

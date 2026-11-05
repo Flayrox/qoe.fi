@@ -193,7 +193,7 @@ export function WebhooksClient({
 
       {/* Create form */}
       {showCreate && (
-        <div className="bg-card border border-border/80 rounded-2xl p-6 md:p-8 space-y-5 shadow-xs">
+        <div className="bg-card border border-border/50 rounded-2xl p-6 md:p-8 space-y-5 shadow-xs">
           <div className="space-y-1">
             <h3 className="text-base font-bold text-foreground">Configurer un nouveau webhook</h3>
             <p className="text-xs text-muted-foreground">
@@ -300,7 +300,7 @@ export function WebhooksClient({
 
       {/* Gate : permission « API sortante — webhooks » non accordée par l'admin */}
       {!hasWebhookGrant ? (
-        <div className="py-16 text-center bg-card border border-border/80 rounded-2xl p-8 shadow-xs max-w-2xl mx-auto space-y-4">
+        <div className="py-16 text-center bg-card border border-border/50 rounded-2xl p-8 shadow-xs max-w-2xl mx-auto space-y-4">
           <div className="w-14 h-14 rounded-2xl bg-muted/40 text-muted-foreground flex items-center justify-center mx-auto border border-border/60">
             <Lock className="w-6 h-6" />
           </div>
@@ -342,7 +342,7 @@ export function WebhooksClient({
         </div>
       ) : // List
       webhooks.length === 0 && !showCreate ? (
-        <div className="py-20 text-center bg-card border border-border/80 rounded-2xl p-8 shadow-xs">
+        <div className="py-20 text-center bg-card border border-border/50 rounded-2xl p-8 shadow-xs">
           <div className="w-14 h-14 rounded-2xl bg-muted/40 text-primary flex items-center justify-center mx-auto mb-4 border border-border/60">
             <Globe className="w-6 h-6" strokeWidth={1.5} />
           </div>
@@ -360,10 +360,10 @@ export function WebhooksClient({
           </button>
         </div>
       ) : (
-        <div className="bg-card border border-border/80 rounded-2xl shadow-xs overflow-hidden divide-y divide-border/60">
-          <div className="px-6 py-4 border-b border-border/80 flex items-center justify-between">
+        <div className="bg-card border border-border/50 rounded-2xl shadow-xs overflow-hidden divide-y divide-border/60">
+          <div className="px-6 py-4 border-b border-border/50 flex items-center justify-between">
             <h3 className="text-base font-bold text-foreground">Endpoints Enregistrés</h3>
-            <span className="text-xs font-semibold bg-muted/60 border border-border/80 px-2.5 py-1 rounded-full text-foreground">
+            <span className="text-xs font-semibold bg-muted/60 border border-border/50 px-2.5 py-1 rounded-full text-foreground">
               {webhooks.length} webhook{webhooks.length > 1 ? 's' : ''}
             </span>
           </div>
@@ -470,7 +470,7 @@ export function WebhooksClient({
                 {deliveries.map((d) => (
                   <div
                     key={d.id}
-                    className="p-3.5 rounded-xl border border-border/80 bg-muted/30 text-xs space-y-1.5"
+                    className="p-3.5 rounded-xl border border-border/50 bg-muted/30 text-xs space-y-1.5"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">

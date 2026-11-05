@@ -1633,7 +1633,7 @@ export function ArticlesClient({
                             ? 'border-primary bg-primary/5 ring-2 ring-primary/20 shadow-md'
                             : editingCat?.id === root.id
                               ? 'border-primary/60 ring-1 ring-primary/30'
-                              : 'border-border/40 hover:border-border/80'
+                              : 'border-border/40 hover:border-border/50'
                         )}
                       >
                         {/* Root Category Header Row */}

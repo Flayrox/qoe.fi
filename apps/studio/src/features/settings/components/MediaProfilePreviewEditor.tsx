@@ -130,7 +130,7 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
       </div>
 
       {/* ── CARTE DE PREVIEW PROFIL INTERACTIVE ── */}
-      <div className="rounded-2xl border border-border/60 bg-card overflow-hidden shadow-md">
+      <div className="rounded-xl border border-border/60 bg-card overflow-hidden shadow-md">
         {/* 1. Zone Bannière de Couverture */}
         <div className="relative w-full h-36 sm:h-44 bg-muted/40 group overflow-hidden">
           {current.headerImageUrl ? (
@@ -199,7 +199,7 @@ export function MediaProfilePreviewEditor({ current, setCurrent }: MediaProfileP
               />
               <div
                 onClick={() => logoInputRef.current?.click()}
-                className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl border-4 border-card bg-muted/60 overflow-hidden shadow-lg flex items-center justify-center cursor-pointer relative transition-transform hover:scale-105"
+                className="w-24 h-24 sm:w-28 sm:h-28 rounded-xl border-4 border-card bg-muted/60 overflow-hidden shadow-lg flex items-center justify-center cursor-pointer relative transition-transform hover:scale-105"
                 style={{ backgroundColor: accentColor }}
               >
                 {current.logoUrl ? (

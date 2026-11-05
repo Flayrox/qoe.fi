@@ -181,7 +181,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
       </div>
 
       {/* ── OPTIONS D'AFFICHAGE SUR LE SITE ── */}
-      <div className="rounded-2xl border border-border/50 bg-card p-5 space-y-4 shadow-2xs">
+      <div className="rounded-xl border border-border/50 bg-card p-5 space-y-4 shadow-2xs">
         <h3 className="text-sm font-semibold text-foreground tracking-tight">
           Affichage sur le site
         </h3>
@@ -369,7 +369,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
               return (
                 <div
                   key={rec.id}
-                  className="p-4 rounded-2xl border border-border/50 bg-card hover:border-border transition-colors flex items-center justify-between gap-4 group"
+                  className="p-4 rounded-xl border border-border/50 bg-card hover:border-border transition-colors flex items-center justify-between gap-4 group"
                 >
                   <div className="flex items-center gap-3.5 min-w-0">
                     {rec.publicationLogoUrl ? (

@@ -679,7 +679,7 @@ export function NewsletterClient({
 
           {/* ─── Aperçu ─── */}
           <div className="lg:sticky lg:top-6 lg:col-span-5">
-            <div className="overflow-hidden rounded-2xl border border-border/60 bg-card">
+            <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
               <div className="space-y-2.5 border-b border-border/40 p-3.5">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
@@ -756,7 +756,7 @@ export function NewsletterClient({
                   className={cn(
                     'mx-auto overflow-hidden bg-background transition-all duration-200',
                     previewDevice === 'mobile'
-                      ? 'max-w-[320px] rounded-2xl border-4 border-border shadow-lg'
+                      ? 'max-w-[320px] rounded-xl border-4 border-border shadow-lg'
                       : 'w-full rounded-xl border border-border/50 shadow-sm'
                   )}
                 >
@@ -877,7 +877,7 @@ export function NewsletterClient({
               </div>
 
               {showComposer ? (
-                <div className="rounded-2xl border border-border/60 bg-card p-5 sm:p-6">
+                <div className="rounded-xl border border-border/60 bg-card p-5 sm:p-6">
                   <div className="mb-4 flex items-center justify-between border-b border-border/40 pb-3">
                     <h3 className="text-sm font-semibold text-foreground">
                       {editingIssue ? t`Modifier le message direct` : t`Composer un message direct`}

@@ -263,12 +263,12 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
 
       {/* Liste des clés */}
       {loading ? (
-        <div className="bg-card border border-border/80 rounded-2xl shadow-xs flex items-center justify-center py-20 text-muted-foreground text-xs">
+        <div className="bg-card border border-border/50 rounded-2xl shadow-xs flex items-center justify-center py-20 text-muted-foreground text-xs">
           <Loader2 className="w-4 h-4 animate-spin mr-2" />
           {t`Chargement des clés API...`}
         </div>
       ) : keys.length === 0 ? (
-        <div className="bg-card border border-border/80 rounded-2xl shadow-xs p-12 text-center text-muted-foreground space-y-2">
+        <div className="bg-card border border-border/50 rounded-2xl shadow-xs p-12 text-center text-muted-foreground space-y-2">
           <div className="w-12 h-12 rounded-2xl bg-muted/40 flex items-center justify-center mx-auto text-muted-foreground">
             <Key className="w-6 h-6" strokeWidth={1.5} />
           </div>

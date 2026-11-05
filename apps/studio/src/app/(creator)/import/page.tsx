@@ -213,7 +213,7 @@ export default function CreatorImportPage() {
         </p>
 
         {/* Provenance déclarée : nécessaire à la revue, revérifiée côté serveur. */}
-        <div className="mb-6 space-y-3 rounded-2xl border border-border/60 bg-muted/20 p-4">
+        <div className="mb-6 space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4">
           <p className="text-sm font-semibold">{t`Provenance de la liste`}</p>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1 text-xs">
@@ -313,7 +313,7 @@ export default function CreatorImportPage() {
         </div>
 
         {importStats && (
-          <div className="mb-4 rounded-2xl border border-border/60 bg-muted/20 p-4 text-xs">
+          <div className="mb-4 rounded-xl border border-border/60 bg-muted/20 p-4 text-xs">
             <p className="mb-2 text-sm font-semibold">{t`Bilan du dépôt (aucun envoi)`}</p>
             <ul className="grid gap-1 sm:grid-cols-2">
               <li>{t`Adresses reçues : ${importStats.received}`}</li>
@@ -343,7 +343,7 @@ export default function CreatorImportPage() {
           onClick={() => fileInputRef.current?.click()}
           className={`rounded-2xl p-8 text-center transition-all bg-muted/20 flex flex-col items-center justify-center gap-3 border-2 border-dashed ${
             declarationsComplete
-              ? 'border-border/80 hover:border-primary/60 hover:bg-muted/40 cursor-pointer'
+              ? 'border-border/50 hover:border-primary/60 hover:bg-muted/40 cursor-pointer'
               : 'border-border/40 opacity-60 cursor-not-allowed'
           }`}
         >
