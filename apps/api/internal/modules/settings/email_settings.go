@@ -95,7 +95,7 @@ func (s *Service) UpdateEmailSettings(ctx context.Context, userID, publicationID
 	}
 	if err := s.q.UpdatePublicationEmailSettings(ctx, db.UpdatePublicationEmailSettingsParams{
 		PublicationID: publicationID,
-		EmailSettings: b,
+		EmailSettings: string(b),
 	}); err != nil {
 		return nil, err
 	}

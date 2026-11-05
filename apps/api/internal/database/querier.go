@@ -47,6 +47,7 @@ type Querier interface {
 	CheckCategorySlugExists(ctx context.Context, arg CheckCategorySlugExistsParams) (bool, error)
 	CheckMediaSlugExists(ctx context.Context, slug string) (bool, error)
 	CheckSubdomainExists(ctx context.Context, subdomain pgtype.Text) (bool, error)
+	CheckSubdomainExistsOther(ctx context.Context, arg CheckSubdomainExistsOtherParams) (bool, error)
 	// Réclamation atomique (QUEUED → PROCESSING) : plusieurs instances du worker
 	// peuvent tourner sans envoyer deux fois le même email.
 	ClaimLegalNoticeDeliveries(ctx context.Context, batchSize int32) ([]ClaimLegalNoticeDeliveriesRow, error)
