@@ -1,18 +1,32 @@
 'use client';
 
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { t } from '@lingui/core/macro';
-import { X, Keyboard } from 'lucide-react';
+import { Keyboard } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '../primitives/dialog/dialog';
 
 export interface HotkeyHelpModalProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+/**
+ * Aide des raccourcis clavier.
+ *
+ * 🎯 Ce qui a changé : la feuille était un `<div className="fixed inset-0">`
+ *    animé à la main, avec un `onClick` sur le fond. Elle n'avait ni
+ *    `role="dialog"`, ni `aria-modal`, ni piège du focus, ni Échap, et le
+ *    focus restait derrière — alors qu'elle s'ouvre en pressant « ? », donc
+ *    au clavier. Elle repose sur `Dialog` (react-aria), qui apporte les
+ *    quatre, et sur `showCloseButton` pour la fermeture visible.
+ */
 export function HotkeyHelpModal({ isOpen, onClose }: HotkeyHelpModalProps) {
-  if (!isOpen) return null;
-
   const hotkeysList = [
     { key: 'n', description: t`Rédiger une nouvelle pensée (Nouveau post)` },
     { key: '/', description: t`Activer la barre de recherche` },
@@ -26,63 +40,40 @@ export function HotkeyHelpModal({ isOpen, onClose }: HotkeyHelpModalProps) {
   ];
 
   return (
-    <AnimatePresence>
-      <div
-        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md font-sans"
-        onClick={onClose}
-      >
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 10 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 10 }}
-          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="w-full max-w-md bg-card text-card-foreground border border-border/50 rounded-2xl p-6 shadow-2xl overflow-hidden"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className="flex items-center justify-between pb-4 border-b border-border/40 mb-4">
-            <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-primary/10 text-primary">
-                <Keyboard className="w-5 h-5" />
-              </div>
-              <h3 className="text-base font-bold tracking-tight text-foreground">
-                {t`Raccourcis Clavier`}
-              </h3>
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent size="md" className="max-h-[85vh]">
+        <DialogHeader>
+          <div className="flex items-center gap-2.5">
+            <span className="flex size-8 items-center justify-center rounded-control bg-primary/10 text-primary">
+              <Keyboard className="size-4" aria-hidden />
+            </span>
+            <DialogTitle>{t`Raccourcis clavier`}</DialogTitle>
+          </div>
+          <DialogDescription>{t`Tout se fait sans quitter le clavier.`}</DialogDescription>
+        </DialogHeader>
+
+        <div className="min-h-0 space-y-1.5 overflow-y-auto pr-1">
+          {hotkeysList.map((hk) => (
+            <div
+              key={hk.key}
+              className="flex items-center justify-between gap-3 rounded-control bg-muted/40 px-2.5 py-2"
             >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
+              <span className="type-control-sm text-muted-foreground">{hk.description}</span>
+              <kbd className="min-w-7 rounded-control border border-border bg-background px-2 py-0.5 text-center font-mono text-[11px] font-semibold text-foreground">
+                {hk.key}
+              </kbd>
+            </div>
+          ))}
+        </div>
 
-          {/* Hotkeys List */}
-          <div className="space-y-2.5 max-h-[60vh] overflow-y-auto pr-1">
-            {hotkeysList.map((hk) => (
-              <div
-                key={hk.key}
-                className="flex items-center justify-between p-2.5 rounded-xl bg-muted/30 hover:bg-muted/50 transition-colors"
-              >
-                <span className="text-xs text-muted-foreground font-normal">{hk.description}</span>
-                <kbd className="px-2.5 py-1 text-xs font-semibold text-foreground bg-background border border-border rounded-md shadow-xs min-w-[28px] text-center">
-                  {hk.key}
-                </kbd>
-              </div>
-            ))}
-          </div>
-
-          {/* Footer Note */}
-          <div className="pt-4 mt-4 border-t border-border/40 text-center text-[11px] text-muted-foreground">
-            {t`Appuyez sur`}{' '}
-            <kbd className="px-1.5 py-0.5 border border-border rounded bg-background font-mono text-[10px]">
-              ?
-            </kbd>{' '}
-            {t`à tout moment pour afficher cette aide.`}
-          </div>
-        </motion.div>
-      </div>
-    </AnimatePresence>
+        <p className="border-t border-border/60 pt-3 text-center type-control-xs text-muted-foreground">
+          {t`Appuyez sur`}{' '}
+          <kbd className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px]">
+            ?
+          </kbd>{' '}
+          {t`à tout moment pour afficher cette aide.`}
+        </p>
+      </DialogContent>
+    </Dialog>
   );
 }
