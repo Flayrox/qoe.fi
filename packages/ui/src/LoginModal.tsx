@@ -32,6 +32,10 @@ export interface LoginModalProps {
  *    après connexion (pour que le layout tenant ouvre son onboarding sans
  *    rechargement complet).
  *
+ * 🪟 La modale monte la variante `compact` du formulaire : une popup n'a pas
+ *    la place d'un plateau 55/45, et la colonne de manifeste y volait le
+ *    focus visuel. La page `/login` garde, elle, le bento complet.
+ *
  * ⚠️ L'ancienne animation laissait la modale à `scale: 0.9` en état final
  *    (le `animate` valait 0.9, pas 1) : elle restait 10 % plus petite que
  *    sa propre mise en page, et les rayons paraissaient flous.
@@ -55,7 +59,7 @@ export function LoginModal({
         showCloseButton={false}
         // Le contenu porte sa propre surface (bento) : pas de carte blanche
         // par-dessus une autre carte blanche.
-        className="max-h-[92vh] border-0 bg-transparent p-0 shadow-none sm:max-w-5xl"
+        className="max-h-[92vh] border-0 bg-transparent p-0 shadow-none sm:max-w-md"
       >
         {/* Nom accessible de la boîte de dialogue. Sans lui, Base UI
             annoncerait « dialogue » et rien d'autre. */}
@@ -81,6 +85,7 @@ export function LoginModal({
 
         <div className="relative my-auto w-full overflow-y-auto">
           <LoginFormBento
+            variant="compact"
             initialMode={initialMode}
             actionContext={actionContext}
             onSuccess={handleSuccess}

@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, type ReactNode } from 'react';
+import type { LucideIcon } from 'lucide-react';
 import {
   Tab as AriaTab,
   TabList as AriaTabList,
@@ -21,14 +22,15 @@ import { DISABLED, FOCUS_RING, ICON_SLOT, SIZE_CLASSES, type Size } from '../con
 //    aux flèches, Home/End, liaison `aria-controls` ↔ `aria-labelledby`),
 //    deux peaux validées dans le Spécimen 03 :
 //    - `segmented` : rail en creux (`bg-muted/40`), l'onglet actif remonte
-//      en surface (`bg-background shadow-xs`). Pour basculer une vue, une
-//      période ou un filtre court.
+//      en surface (`bg-background shadow-xs`). Supporte également `iconOnly`
+//      avec infobulle flottante au survol.
+//    - `segmented-square` : alias rétrocompatible du format segmenté en creux.
 //    - `underline` : trait bas sobre (`border-foreground`, jamais primaire :
 //      on signale un lieu, pas une action) à hauteur fixe (`h-control-*`).
 //      Pour les sections d'une page (Profil, Réglages, Analytics).
 // =====================================================================
 
-export type TabsVariant = 'segmented' | 'underline';
+export type TabsVariant = 'segmented' | 'segmented-square' | 'underline';
 
 interface TabsStyleContextValue {
   variant: TabsVariant;
@@ -124,10 +126,12 @@ export function TabList({ children, 'aria-label': ariaLabel, className }: TabLis
   return (
     <AriaTabList
       aria-label={ariaLabel}
+      data-variant={variant}
       className={cn(
-        variant === 'segmented'
-          ? 'inline-flex w-fit max-w-full items-center gap-0.5 overflow-x-auto rounded-control bg-muted/40 p-0.5'
-          : 'flex w-full items-center gap-5 overflow-x-auto border-b border-border/50',
+        (variant === 'segmented' || variant === 'segmented-square') &&
+          'inline-flex w-fit max-w-full items-center gap-0.5 overflow-x-auto rounded-control bg-muted/40 p-0.5',
+        variant === 'underline' &&
+          'flex w-full items-center gap-5 overflow-x-auto border-b border-border/50',
         className
       )}
     >
@@ -138,7 +142,17 @@ export function TabList({ children, 'aria-label': ariaLabel, className }: TabLis
 
 export interface TabProps {
   id: string;
+  /** Libellé. Reste le nom accessible quand l'onglet est en icône seule. */
   children: ReactNode;
+  /** Icône affichée avant le libellé, ou seule. */
+  icon?: LucideIcon;
+  /**
+   * Icône seule : le libellé quitte le rendu visuel et devient le nom
+   * accessible (`aria-label`) et l'infobulle.
+   */
+  iconOnly?: boolean;
+  /** Texte de l'infobulle. Par défaut, le libellé. */
+  tooltip?: ReactNode;
   /** Compteur optionnel affiché en chasse fixe à droite du libellé. */
   count?: number | string;
   isDisabled?: boolean;
@@ -146,24 +160,40 @@ export interface TabProps {
   className?: string;
 }
 
-export function Tab({ id, children, count, isDisabled, disabled, className }: TabProps) {
+export function Tab({
+  id,
+  children,
+  icon: Icon,
+  iconOnly = false,
+  tooltip,
+  count,
+  isDisabled,
+  disabled,
+  className,
+}: TabProps) {
   const { variant, size } = useContext(TabsStyleContext);
   const resolvedDisabled = isDisabled ?? disabled;
+  const isIconOnly = iconOnly && Boolean(Icon);
+  const labelText =
+    typeof tooltip === 'string' ? tooltip : typeof children === 'string' ? children : undefined;
+  const accessibleName = isIconOnly ? labelText : undefined;
 
-  return (
+  const tab = (
     <AriaTab
       id={id}
       isDisabled={resolvedDisabled}
+      aria-label={accessibleName}
       className={cn(
         'group/tab relative inline-flex shrink-0 cursor-pointer select-none items-center justify-center whitespace-nowrap transition-colors',
         FOCUS_RING,
         DISABLED,
         ICON_SLOT,
-        variant === 'segmented'
+        variant !== 'underline'
           ? [
               SEGMENTED_ITEM_SIZES[size],
               'rounded-[max(calc(var(--radius-button)-2px),4px)] font-normal text-muted-foreground hover:text-foreground',
               'data-[selected]:bg-background data-[selected]:font-medium data-[selected]:text-foreground data-[selected]:shadow-xs',
+              isIconOnly && 'aspect-square px-0',
             ]
           : [
               UNDERLINE_ITEM_SIZES[size],
@@ -173,8 +203,15 @@ export function Tab({ id, children, count, isDisabled, disabled, className }: Ta
         className
       )}
     >
-      <span>{children}</span>
-      {count !== undefined && (
+      {Icon && (
+        <Icon
+          aria-hidden
+          className={cn('shrink-0', isIconOnly ? 'size-4' : 'size-3.5')}
+          strokeWidth={1.75}
+        />
+      )}
+      {!isIconOnly && <span>{children}</span>}
+      {count !== undefined && !isIconOnly && (
         <span
           className={cn(
             'font-mono text-[10.5px] tabular-nums transition-colors',
@@ -184,8 +221,19 @@ export function Tab({ id, children, count, isDisabled, disabled, className }: Ta
           {count}
         </span>
       )}
+      {isIconOnly && labelText && (
+        <span
+          role="tooltip"
+          aria-hidden
+          className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 hidden group-hover/tab:flex group-focus-visible/tab:flex whitespace-nowrap rounded-control bg-foreground px-2 py-1 type-control-xs font-medium text-background shadow-md transition duration-150"
+        >
+          {labelText}
+        </span>
+      )}
     </AriaTab>
   );
+
+  return tab;
 }
 
 export interface TabPanelProps {

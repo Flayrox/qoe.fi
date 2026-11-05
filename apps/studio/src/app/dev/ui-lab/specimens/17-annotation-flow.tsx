@@ -30,7 +30,13 @@ import {
   type AnnotationItem,
   type HighlightItem,
 } from '@qoe/ui/annotations';
-import { ReadingSettingsSheet } from '@qoe/ui/reader';
+import {
+  ReadingPreferencesProvider,
+  ReadingSettingsSheet,
+  getPaperThemeClasses,
+  getReaderTypographyClasses,
+  useReadingPreferences,
+} from '@qoe/ui/reader';
 import { QuotedArticleCard } from '@qoe/ui/social';
 import { Button } from '@qoe/ui/button';
 import { DefectList, Variant } from '../specimen-frame';
@@ -377,58 +383,33 @@ export function AnnotationFlowSpecimen() {
       </Variant>
 
       <Variant
-        label="Confort de lecture & Pilule de filtre des annotations (Composants isolés)"
-        kind="variante"
-        hint="Le panneau de confort de lecture (« Aa ») regroupe typographie, taille, thèmes papier et mode d'affichage des annotations. Les filtres d'annotation s'adaptent dynamiquement aux droits définis par l'auteur."
+        label="Confort de lecture — les réglages agissent sur un texte"
+        kind="candidat"
+        hint="Le panneau « Aa » était monté sans fournisseur de préférences : ses boutons écrivaient dans un contexte par défaut dont `update` et `reset` ne font rien. Le voici branché sur le vrai contexte, avec un texte qui lui obéit — taille, police, interligne, colonne et papier."
       >
-        <div className="grid gap-6">
-          <div className="flex flex-wrap items-center gap-6 p-4 rounded-2xl border border-border/40 bg-card">
-            <div className="flex flex-col gap-2">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Panneau complet (Aa)
-              </span>
-              <ReadingSettingsSheet
-                filterMode={filterMode}
-                onFilterModeChange={setFilterMode}
-                allowPublicAnnotations
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Filtre standard (Public autorisé)
-              </span>
-              <AnnotationFilterPill
-                filterMode={filterMode}
-                onChangeFilterMode={setFilterMode}
-                allowPublicAnnotations={true}
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Filtre restreint (Auteur sans public : « Mes notes »)
-              </span>
-              <AnnotationFilterPill
-                filterMode={filterMode}
-                onChangeFilterMode={setFilterMode}
-                allowPublicAnnotations={false}
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Taille compacte (size="sm")
-              </span>
-              <AnnotationFilterPill
-                filterMode={filterMode}
-                onChangeFilterMode={setFilterMode}
-                allowPublicAnnotations={true}
-                size="sm"
-              />
-            </div>
+        <ReadingPreferencesProvider>
+          <div
+            data-testid="reading-comfort"
+            className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,18rem)]"
+          >
+            <ReadingComfortArticle />
+            <ReadingComfortControls filterMode={filterMode} setFilterMode={setFilterMode} />
           </div>
-        </div>
+        </ReadingPreferencesProvider>
+
+        <DefectList
+          items={[
+            'Le panneau empilait six sections sous un titre en capitales, une icône décorative par libellé et un dégradé de rayons (`rounded-2xl` flouté, `shadow-2xl`). Trois groupes subsistent — le texte, la lecture, le papier — sans icône sur les intitulés',
+            'Vingt-trois `<button>` faits main vivaient ici, chacun avec son rayon, son ombre et son état actif. Ils passent sur `ToggleGroup`, `Switch` et `Button` du contrat : une seule peau, plus aucun bouton natif dans le panneau (l’audit ne compte que les apps, pas `packages/ui`)',
+            'Les réglages actifs s’affichaient en enum dans une ligne monospace (`font-serif · base · normal · wide · default`) : le texte de gauche est désormais le seul verdict, et il porte un vrai article',
+            'Le panneau était monté SANS `ReadingPreferencesProvider` : `update` et `reset` étaient les fonctions vides du contexte par défaut. Les boutons répondaient au clic et ne changeaient rien — le spécimen laissait croire que le composant était inerte',
+            'Cinq boutons de taille dont le seul texte est « A » : un lecteur d’écran annonçait « A, A, A, A, A ». Chacun porte un nom (« Petite taille » … « Taille maximale ») et `aria-pressed`',
+            'Les deux interrupteurs (Bionic, règle de lecture) portaient `role="switch"` sans nom accessible : le libellé vivait à côté du bouton, pas dedans. Ils sont nommés',
+            'Polices, interligne, colonne et papiers n’exposaient pas leur état : l’option active n’existait que par la couleur. `aria-pressed` partout',
+            'Un papier premium verrouillé ne se distinguait que par une icône et un `title` : le nom accessible dit maintenant « réservé aux abonnés Plus »',
+            'L’aperçu de droite suit réellement les préférences : c’est ce qui manquait pour juger le panneau autrement qu’à l’œil',
+          ]}
+        />
       </Variant>
 
       <Variant
@@ -460,5 +441,89 @@ export function AnnotationFlowSpecimen() {
         />
       </Variant>
     </div>
+  );
+}
+
+// ── Confort de lecture : un article, et les réglages en marge ────────────
+// 📖 Le fournisseur manquait dans ce spécimen : `useReadingPreferences`
+//    retombait sur le contexte par défaut, dont `update` et `reset` sont
+//    vides. Les réglages ne faisaient donc rien — et rien ne le signalait.
+//
+// 🎯 Ce qui a changé : plus de carte de démonstration, plus de ligne
+//    monospace qui vidait les valeurs internes (`font-serif · base · normal`).
+//    Un vrai article d'essai, et les réglages à côté. La page est le verdict.
+
+function ReadingComfortControls({
+  filterMode,
+  setFilterMode,
+}: {
+  filterMode: AnnotationFilterMode;
+  setFilterMode: (mode: AnnotationFilterMode) => void;
+}) {
+  return (
+    <aside className="flex min-w-0 flex-col items-start gap-3 lg:sticky lg:top-6 lg:self-start">
+      <div className="flex flex-wrap items-center gap-2">
+        <ReadingSettingsSheet
+          filterMode={filterMode}
+          onFilterModeChange={setFilterMode}
+          allowPublicAnnotations
+        />
+        <AnnotationFilterPill
+          filterMode={filterMode}
+          onChangeFilterMode={setFilterMode}
+          allowPublicAnnotations
+          size="sm"
+        />
+      </div>
+      <p className="text-[11px] leading-relaxed text-muted-foreground">
+        Ouvrez « Aa » ou basculez le filtre d’annotations : les réglages s’appliquent à l’article,
+        jamais à la page du Lab.
+      </p>
+    </aside>
+  );
+}
+
+function ReadingComfortArticle() {
+  const { preferences } = useReadingPreferences();
+
+  return (
+    <article
+      className={`overflow-hidden rounded-panel border ${getPaperThemeClasses(
+        preferences.paperTheme
+      )}`}
+    >
+      <div className="px-6 py-8 sm:px-10 sm:py-10">
+        <div className="mx-auto max-w-[62ch]">
+          <div className="flex items-baseline justify-between gap-4 border-b border-current/10 pb-2 text-[10.5px] font-medium tracking-[0.14em] uppercase opacity-55">
+            <span>La Lenteur</span>
+            <span>Essai</span>
+          </div>
+
+          <h3 className="mt-6 font-serif text-[2rem] leading-[1.08] tracking-tight">
+            La lenteur comme méthode
+          </h3>
+          <p className="mt-2 text-xs opacity-60">Fay Moreau · 12 min de lecture</p>
+
+          <div className={`mt-6 space-y-4 ${getReaderTypographyClasses(preferences)}`}>
+            <p className="first-letter:float-left first-letter:mr-2 first-letter:font-serif first-letter:text-[3.1em] first-letter:leading-[0.82]">
+              On apprend à lire vite avant d’apprendre à lire. La vitesse sert à trier : elle décide
+              en une seconde si une page mérite la suivante. Comprendre demande l’inverse — rester,
+              revenir, relire la même phrase jusqu’à ce qu’elle cesse de résister.
+            </p>
+            <p>
+              Les réglages de cette page ne changent rien au texte. Ils changent le corps qui le
+              reçoit : la taille à laquelle les lettres se décollent, l’interligne qui laisse
+              respirer une ligne, la largeur de colonne qui décide où l’œil repart. Trois mesures,
+              et la même phrase devient lisible ou pénible.
+            </p>
+            <p>
+              Mesurez : passez de l’étroite au large, du sépia au noir, des lettres serrées aux
+              lettres espacées. Ce qui vous convient à onze heures du soir n’est pas ce qui vous
+              convient à midi, et aucun réglage par défaut ne peut le savoir.
+            </p>
+          </div>
+        </div>
+      </div>
+    </article>
   );
 }

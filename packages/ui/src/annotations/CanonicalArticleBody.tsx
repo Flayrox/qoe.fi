@@ -39,6 +39,7 @@ export interface CanonicalArticleBodyProps {
   containerId?: string;
   className?: string;
   creatorName: string;
+  currentUserId?: string | null;
   onMarkClick: (annotation: AnnotationItem) => void;
   /** Passage à mettre en avant (deep-link citation → article) : marque
    *  spotlight + scroll + pulse au montage, si sha conforme. */
@@ -87,7 +88,8 @@ export function buildSegmentMarks(
   allPublic: AnnotationItem[],
   filterMode: AnnotationFilterMode,
   creatorName: string,
-  spotlight?: SpotlightRange | null
+  spotlight?: SpotlightRange | null,
+  currentUserId?: string | null
 ): PaintMark[] {
   const win = segmentWindow(doc, blockIdx, itemIdx);
   if (!win) return [];
@@ -108,13 +110,13 @@ export function buildSegmentMarks(
   const anchored = (cs: unknown, ce: unknown, sha: string | undefined) =>
     typeof cs === 'number' && typeof ce === 'number' && (!sha || sha === doc.sha);
 
-  if (filterMode === 'all') {
+  if (filterMode === 'all' || filterMode === 'mine') {
     // ⚠️ Une annotation présente dans les DEUX listes (le lecteur voit sa
     // propre annotation publique) ne se peint qu'une fois, avec la peau
     // publique : sinon la première marque gagnait et elle était privée.
     const publicIds = new Set(allPublic.map((p) => p.id));
     for (const hl of highlights) {
-      if (publicIds.has(hl.id)) continue;
+      if (filterMode === 'all' && publicIds.has(hl.id)) continue;
       if (!anchored(hl.canonicalStart, hl.canonicalEnd, hl.contentSha)) continue;
       const isPublic = Boolean(hl.isPublic);
       push(
@@ -136,6 +138,11 @@ export function buildSegmentMarks(
     for (const pub of allPublic) {
       // Mode « officielles » : seules les marques de l'auteur sont peintes.
       if (filterMode === 'official' && !pub.isOfficial) continue;
+      // Mode « mine » : seules les marques du lecteur courant sont peintes.
+      if (filterMode === 'mine') {
+        const isMine = currentUserId ? pub.reader?.id === currentUserId : false;
+        if (!isMine) continue;
+      }
       if (!anchored(pub.canonicalStart, pub.canonicalEnd, pub.contentSha)) continue;
       push(
         pub.canonicalStart as number,
@@ -156,42 +163,44 @@ export function buildSegmentMarks(
     }
     // Spans officiels du document (mark data-annotation-note du studio) :
     // réutilisés quand un allPublic officiel correspond (même texte), sinon
-    // synthétisés pour le drawer.
-    const block = doc.blocks[blockIdx];
-    const used = new Set<string>();
-    for (const sp of block?.spans ?? []) {
-      const text = (block.text ?? '').slice(sp.start, sp.end);
-      const matched = allPublic.find((p) => p.isOfficial && p.text === text && !used.has(p.id));
-      if (matched) {
-        used.add(matched.id);
+    // synthétisés pour le drawer (non affichés en mode « mine »).
+    if (filterMode !== 'mine') {
+      const block = doc.blocks[blockIdx];
+      const used = new Set<string>();
+      for (const sp of block?.spans ?? []) {
+        const text = (block.text ?? '').slice(sp.start, sp.end);
+        const matched = allPublic.find((p) => p.isOfficial && p.text === text && !used.has(p.id));
+        if (matched) {
+          used.add(matched.id);
+          push(
+            win.start + sp.start,
+            win.start + sp.end,
+            matched.id,
+            markSkin('official'),
+            matched.note ? t`Annotation officielle : ${matched.note}` : undefined,
+            matched
+          );
+          continue;
+        }
+        const synth: AnnotationItem = {
+          id: `official-html-mark-${blockIdx}-${sp.start}`,
+          text,
+          note: sp.note ?? null,
+          isPublic: true,
+          isOfficial: true,
+          upvotesCount: 0,
+          createdAt: new Date().toISOString(),
+          reader: { id: 'creator', name: creatorName, username: 'creator', logoUrl: null },
+        };
         push(
           win.start + sp.start,
           win.start + sp.end,
-          matched.id,
+          synth.id,
           markSkin('official'),
-          matched.note ? t`Annotation officielle : ${matched.note}` : undefined,
-          matched
+          sp.note ? t`Annotation officielle : ${sp.note}` : undefined,
+          synth
         );
-        continue;
       }
-      const synth: AnnotationItem = {
-        id: `official-html-mark-${blockIdx}-${sp.start}`,
-        text,
-        note: sp.note ?? null,
-        isPublic: true,
-        isOfficial: true,
-        upvotesCount: 0,
-        createdAt: new Date().toISOString(),
-        reader: { id: 'creator', name: creatorName, username: 'creator', logoUrl: null },
-      };
-      push(
-        win.start + sp.start,
-        win.start + sp.end,
-        synth.id,
-        markSkin('official'),
-        sp.note ? t`Annotation officielle : ${sp.note}` : undefined,
-        synth
-      );
     }
   }
 
@@ -342,6 +351,7 @@ interface BlockViewProps {
   creatorName: string;
   onMarkClick: (annotation: AnnotationItem) => void;
   spotlight?: SpotlightRange | null;
+  currentUserId?: string | null;
 }
 
 function BlockView({
@@ -353,6 +363,7 @@ function BlockView({
   creatorName,
   onMarkClick,
   spotlight,
+  currentUserId,
 }: BlockViewProps) {
   const block = doc.blocks[blockIdx];
   if (!block) return null;
@@ -378,7 +389,8 @@ function BlockView({
                   allPublic,
                   filterMode,
                   creatorName,
-                  spotlight
+                  spotlight,
+                  currentUserId
                 )}
                 inline={item.inline}
                 onMarkClick={onMarkClick}
@@ -402,7 +414,8 @@ function BlockView({
               allPublic,
               filterMode,
               creatorName,
-              spotlight
+              spotlight,
+              currentUserId
             )}
             inline={block.inline}
             onMarkClick={onMarkClick}
@@ -421,6 +434,7 @@ export function CanonicalArticleBody({
   containerId = 'article-content',
   className,
   creatorName,
+  currentUserId,
   onMarkClick,
   spotlight,
 }: CanonicalArticleBodyProps) {
@@ -465,6 +479,7 @@ export function CanonicalArticleBody({
           allPublic={allPublic}
           filterMode={filterMode}
           creatorName={creatorName}
+          currentUserId={currentUserId}
           onMarkClick={onMarkClick}
           spotlight={spotlight}
         />

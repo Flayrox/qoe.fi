@@ -11,9 +11,10 @@ export type { AnnotationCitation, AnnotationCitationReader } from './citation';
  * Filter mode for article annotations in reader view.
  * - `all`: Renders author (official), public, and private annotations.
  * - `official`: Renders ONLY official author annotations.
+ * - `mine`: Renders ONLY current user's personal annotations and highlights.
  * - `none`: Hides all annotations for an uninterrupted reading experience.
  */
-export type AnnotationFilterMode = 'all' | 'official' | 'none';
+export type AnnotationFilterMode = 'all' | 'official' | 'mine' | 'none';
 
 /**
  * Reader / Author user profile associated with an annotation or comment.

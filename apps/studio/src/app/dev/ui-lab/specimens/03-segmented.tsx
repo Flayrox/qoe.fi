@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@qoe/ui/button';
 import { Tab, TabList, TabPanel, Tabs } from '@qoe/ui/tabs';
 import { cn } from '@qoe/utils';
+import { Highlighter, Quote, PenLine, Volume2 } from 'lucide-react';
 import { DefectList, Variant } from '../specimen-frame';
 
 const OPTIONS = [
@@ -93,6 +94,59 @@ export function SegmentedSpecimen() {
               </Tabs>
             ))}
           </div>
+        </div>
+      </Variant>
+
+      <Variant
+        label="Tabs — segmenté en creux, icônes seules et infobulles"
+        kind="candidat"
+        hint="Le même rail en creux que le sélecteur de base (rounded-control bg-muted/40). `iconOnly` réduit un onglet à son icône ; le libellé reste le nom accessible (`aria-label`) et s’affiche dans une infobulle flottante au survol. La barre passe de la largeur d’un paragraphe à celle de quatre icônes — sans perdre la navigation aux flèches."
+      >
+        <div className="grid gap-4">
+          <Tabs variant="segmented" size="sm" defaultValue="highlight">
+            <TabList aria-label="Actions sur la sélection">
+              <Tab id="highlight" icon={Highlighter} iconOnly tooltip="Surligner">
+                Surligner
+              </Tab>
+              <Tab id="quote" icon={Quote} iconOnly tooltip="Citer">
+                Citer
+              </Tab>
+              <Tab id="note" icon={PenLine} iconOnly tooltip="Annoter">
+                Annoter
+              </Tab>
+              <Tab id="listen" icon={Volume2} iconOnly tooltip="Écouter">
+                Écouter
+              </Tab>
+            </TabList>
+            <TabPanel id="highlight">
+              <p className="type-control-sm text-muted-foreground">
+                Pose un trait sur le passage, sans note : un surlignage, pas une annotation.
+              </p>
+            </TabPanel>
+            <TabPanel id="quote">
+              <p className="type-control-sm text-muted-foreground">
+                Publie le passage sur le Feed, attribué à son auteur.
+              </p>
+            </TabPanel>
+            <TabPanel id="note">
+              <p className="type-control-sm text-muted-foreground">
+                Ouvre le formulaire : une note privée, ou une annotation publique.
+              </p>
+            </TabPanel>
+            <TabPanel id="listen">
+              <p className="type-control-sm text-muted-foreground">
+                Lit la sélection à voix haute sans quitter l’article.
+              </p>
+            </TabPanel>
+          </Tabs>
+
+          <Tabs variant="segmented" size="sm" defaultValue="day">
+            <TabList aria-label="Période (segmenté, avec libellés)">
+              <Tab id="day">7 j</Tab>
+              <Tab id="month">30 j</Tab>
+              <Tab id="year">12 m</Tab>
+            </TabList>
+          </Tabs>
         </div>
       </Variant>
 

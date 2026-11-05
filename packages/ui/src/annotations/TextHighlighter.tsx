@@ -9,9 +9,8 @@ import {
   Globe,
   Lock,
   Quote,
-  Eye,
   Volume2,
-  Sparkles,
+  CircleHelp,
   Highlighter,
   PenLine,
 } from 'lucide-react';
@@ -27,6 +26,7 @@ import { toast } from '@qoe/ui/toast';
 import { Button } from '../primitives/button/button';
 import { BevelButton } from '../primitives/bevel-button/bevel-button';
 import { CopyButton } from '../primitives/copy-button/copy-button';
+import { Tooltip } from '../primitives/tooltip/tooltip';
 import { Textarea } from '../primitives/input/input';
 import { ToggleButton, ToggleGroup } from '../primitives/toggle/toggle-button';
 import { useTextToSpeech } from '../reader/TextToSpeechContext';
@@ -46,10 +46,12 @@ export type { AnnotationFilterMode };
 /**
  * Une action de la barre de sélection.
  *
- * ⚠️ Les deux libellés (repos / confirmation) occupent la MÊME cellule de
- * grille : « Citer » ne devient pas « Cité ! » en élargissant le bouton.
- * La barre est centrée sur la sélection ; chaque changement de largeur la
- * faisait glisser sous le curseur au moment même du clic.
+ * 🎯 Icône seule, nom accessible et infobulle : six actions en clair
+ *    occupaient toute la largeur d'un paragraphe et recouvraient le texte
+ *    qu'on venait de sélectionner. Le libellé reste — dans `aria-label`
+ *    pour les lecteurs d'écran, dans le tooltip pour les yeux. L'état
+ *    « occupé » et l'état « fait » remplacent l'icône sur place, donc la
+ *    barre ne change jamais de largeur pendant l'action.
  */
 function CalloutAction({
   icon: Icon,
@@ -74,63 +76,57 @@ function CalloutAction({
   title?: string;
 }) {
   return (
-    <Button
-      variant="ghost"
-      size="xs"
-      onMouseDown={(e) => {
-        // Empêche le focus change et l'effondrement de la sélection native avant le clic
-        e.preventDefault();
-      }}
-      onClick={() => {
-        if (!disabled) onClick();
-      }}
-      disabled={busy}
-      aria-disabled={disabled || busy || undefined}
-      aria-describedby={disabled ? describedBy : undefined}
-      aria-busy={busy || undefined}
-      title={title}
-      className={cn(
-        'px-3 font-semibold text-foreground/90 hover:text-foreground',
-        disabled && 'text-muted-foreground'
-      )}
-    >
-      <span className="relative size-3.5 shrink-0" aria-hidden>
-        <span
-          className={cn(
-            'absolute inset-0 grid place-items-center transition-opacity duration-150',
-            busy && 'opacity-0'
-          )}
-        >
-          <Icon className="size-3.5" strokeWidth={1.75} />
+    <Tooltip content={title ?? label} placement="top">
+      <Button
+        shape="icon"
+        size="sm"
+        variant="ghost"
+        onMouseDown={(e) => {
+          // Empêche le focus change et l'effondrement de la sélection native avant le clic
+          e.preventDefault();
+        }}
+        onClick={() => {
+          if (!disabled) onClick();
+        }}
+        disabled={busy}
+        aria-disabled={disabled || busy || undefined}
+        aria-label={done ? (doneLabel ?? label) : label}
+        aria-describedby={disabled ? describedBy : undefined}
+        aria-busy={busy || undefined}
+        title={title}
+        className={cn(
+          'text-foreground/85 hover:text-foreground',
+          disabled && 'text-muted-foreground'
+        )}
+      >
+        <span className="relative size-4" aria-hidden>
+          <span
+            className={cn(
+              'absolute inset-0 grid place-items-center transition-opacity duration-150',
+              (busy || done) && 'opacity-0'
+            )}
+          >
+            <Icon className="size-4" strokeWidth={1.75} />
+          </span>
+          <span
+            className={cn(
+              'absolute inset-0 grid place-items-center transition-opacity duration-150',
+              busy ? 'opacity-100' : 'opacity-0'
+            )}
+          >
+            <Loader2 className="size-4 animate-spin" />
+          </span>
+          <span
+            className={cn(
+              'absolute inset-0 grid place-items-center text-success-text transition-opacity duration-150',
+              done && !busy ? 'opacity-100' : 'opacity-0'
+            )}
+          >
+            <Check className="size-4" strokeWidth={2.5} />
+          </span>
         </span>
-        <span
-          className={cn(
-            'absolute inset-0 grid place-items-center transition-opacity duration-150',
-            busy ? 'opacity-100' : 'opacity-0'
-          )}
-        >
-          <Loader2 className="size-3.5 animate-spin" />
-        </span>
-      </span>
-
-      <span className="grid">
-        <span
-          aria-hidden={done}
-          className={cn('col-start-1 row-start-1 transition-opacity', done && 'opacity-0')}
-        >
-          {label}
-        </span>
-        <span
-          aria-hidden={!done}
-          className={cn(
-            'col-start-1 row-start-1 font-semibold text-success-text transition-opacity',
-            !done && 'opacity-0'
-          )}
-        >
-          {doneLabel ?? label}
-        </span>
-      </span>
-    </Button>
+      </Button>
+    </Tooltip>
   );
 }
 
@@ -510,6 +506,44 @@ export function TextHighlighter({
             pub.id,
             pub,
             pub.quoteOrdinal
+          );
+        });
+      return;
+    }
+
+    if (filterMode === 'mine') {
+      // Render ONLY current reader's personal highlights & annotations
+      highlights
+        .filter((hl) => !painted.has(hl.id))
+        .forEach((hl) => {
+          painted.add(hl.id);
+          applyHighlightToDOM(
+            articleEl,
+            hl.text,
+            hl.note || undefined,
+            Boolean(hl.isPublic),
+            false,
+            hl.id,
+            undefined,
+            hl.quoteOrdinal
+          );
+        });
+      allPublic
+        .filter(
+          (pub) =>
+            !painted.has(pub.id) && Boolean(currentUserId && pub.reader?.id === currentUserId)
+        )
+        .forEach((pub) => {
+          painted.add(pub.id);
+          applyHighlightToDOM(
+            articleEl,
+            pub.text,
+            pub.note || undefined,
+            pub.isPublic,
+            pub.isOfficial,
+            pub.id,
+            pub,
+            pub.quoteOrdinal ?? 0
           );
         });
       return;
@@ -998,19 +1032,9 @@ export function TextHighlighter({
 
   return (
     <>
-      {/* 🌍 UNIVERSAL TENANT ANNOTATION READER FILTER BAR */}
+      {/* 🌍 UNIVERSAL TENANT ANNOTATION READER FILTER */}
       {!hideFilterBar && (
-        <div className="my-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/40 bg-muted/20 px-4 py-2.5 backdrop-blur-xs transition-colors hover:border-border/60">
-          <div className="flex items-center gap-2 text-xs font-medium text-foreground">
-            <div className="flex size-6 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Eye className="size-3.5" />
-            </div>
-            <span className="font-semibold tracking-tight">{t`Annotations`}</span>
-            <span className="hidden text-xs text-muted-foreground sm:inline">
-              {t`— densité des marques affichées`}
-            </span>
-          </div>
-
+        <div className="mb-4 flex items-center justify-end">
           <AnnotationFilterPill
             filterMode={filterMode}
             onChangeFilterMode={changeFilterMode}
@@ -1032,6 +1056,7 @@ export function TextHighlighter({
           containerId={containerId}
           className={contentClassName}
           creatorName={creatorName}
+          currentUserId={currentUserId}
           onMarkClick={openDrawerForAnnotation}
           spotlight={spotlight}
         />
@@ -1049,19 +1074,18 @@ export function TextHighlighter({
           return (
             /* 🍏 APPLE CALLOUT MENU (Inspiré du callout menu natif d'Apple) */
             <div className="relative flex flex-col items-center">
-              {/* Directional Caret (flèche vers le haut si le menu est sous la sélection) */}
-              {!showNoteInput && placement.startsWith('bottom') && (
-                <div className="w-0 h-0 border-x-[6px] border-x-transparent border-b-[6px] border-b-popover/95 drop-shadow-[0_-1px_1px_rgba(0,0,0,0.08)] mb-[-1px] z-10 pointer-events-none" />
-              )}
-
               <div
                 className={cn(
                   // Une surface pleine et une ombre franche : à 95 % sur une
                   // page blanche, la barre n'avait ni bord ni fond visibles et
                   // les libellés semblaient posés sur l'article.
-                  'bg-card text-card-foreground border border-border/70 ring-1 ring-foreground/5 font-sans transition-all duration-150 ease-out',
-                  'shadow-[0_18px_45px_-12px_rgba(0,0,0,0.30)] dark:shadow-[0_18px_45px_-12px_rgba(0,0,0,0.65)]',
-                  showNoteInput ? 'rounded-2xl w-80 sm:w-84 p-4 space-y-3' : 'rounded-xl py-1 px-1'
+                  // Une surface unie, un seul filet et une ombre courte : la
+                  // barre se pose sur l'article sans imiter un menu système.
+                  'bg-popover text-popover-foreground border border-border font-sans transition-colors duration-150',
+                  'shadow-md',
+                  showNoteInput
+                    ? 'rounded-panel w-80 p-4 space-y-3'
+                    : 'rounded-control px-0.5 py-0.5'
                 )}
               >
                 <AnimatePresence mode="popLayout" initial={false}>
@@ -1073,7 +1097,7 @@ export function TextHighlighter({
                       animate={{ opacity: 1 }}
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.1 }}
-                      className="flex items-center text-xs font-semibold select-none"
+                      className="flex items-center gap-0.5 text-xs font-medium select-none"
                     >
                       {/* Surligner : pose un TRAIT, pas une annotation.
                        * Le tiroir le dira (« Surlignage ») et proposera d'y
@@ -1086,8 +1110,6 @@ export function TextHighlighter({
                         title={t`Surligner ce passage`}
                       />
 
-                      <span aria-hidden className="mx-0.5 h-3.5 w-px shrink-0 bg-border/40" />
-
                       <CalloutAction
                         icon={Quote}
                         label={t`Citer`}
@@ -1097,8 +1119,6 @@ export function TextHighlighter({
                         onClick={() => handleDirectCrosspostToFeed(selectedText, clearSelection)}
                         title={t`Citer ce passage sur le Feed`}
                       />
-
-                      <span aria-hidden className="mx-0.5 h-3.5 w-px shrink-0 bg-border/40" />
 
                       <CalloutAction
                         icon={PenLine}
@@ -1115,8 +1135,6 @@ export function TextHighlighter({
                         title={t`Ajouter une note ou annotation publique`}
                       />
 
-                      <span aria-hidden className="mx-0.5 h-3.5 w-px shrink-0 bg-border/40" />
-
                       {tts && (
                         <>
                           <CalloutAction
@@ -1128,29 +1146,32 @@ export function TextHighlighter({
                             }}
                             title={t`Écouter ce passage`}
                           />
-                          <span aria-hidden className="mx-0.5 h-3.5 w-px shrink-0 bg-border/40" />
                         </>
                       )}
 
                       {/* Copier : la primitive confirme dans la MÊME largeur
                        * et annonce le résultat en `aria-live`. */}
-                      <CopyButton
-                        value={selectedText}
-                        label={t`Copier`}
-                        copiedLabel={t`Copié`}
-                        variant="ghost"
-                        size="xs"
-                        onMouseDown={(e) => e.preventDefault()}
-                        title={t`Copier l'extrait`}
-                        className="px-3 font-semibold text-foreground/90 hover:text-foreground"
-                      />
+                      <Tooltip content={t`Copier`} placement="top">
+                        <CopyButton
+                          value={selectedText}
+                          iconOnly
+                          aria-label={t`Copier`}
+                          label={t`Copier`}
+                          copiedLabel={t`Copié`}
+                          variant="ghost"
+                          size="sm"
+                          onMouseDown={(e) => e.preventDefault()}
+                          title={t`Copier l'extrait`}
+                          className="px-2 text-foreground/85 hover:text-foreground"
+                        />
+                      </Tooltip>
 
                       {/* Expliquer (IA) : l'affordance reste visible, la
                        * fonction n'est pas branchée. Le bouton est annoncé
                        * désactivé et décrit ; aucune réponse n'est fabriquée. */}
-                      <span aria-hidden className="mx-0.5 h-3.5 w-px shrink-0 bg-border/40" />
+
                       <CalloutAction
-                        icon={Sparkles}
+                        icon={CircleHelp}
                         label={t`Expliquer`}
                         disabled
                         describedBy={explainDisabledId}

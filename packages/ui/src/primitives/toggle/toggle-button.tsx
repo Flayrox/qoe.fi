@@ -60,6 +60,12 @@ export function ToggleButton({
 
 export interface ToggleButtonGroupPrimitiveProps extends Omit<ToggleButtonGroupProps, 'className'> {
   className?: string;
+  /**
+   * `pill` (défaut) : rail arrondi avec fond doux (`bg-muted/60`).
+   * `inset` : rail segmenté en creux (`rounded-control bg-muted/40`), la même
+   * peau que `Tabs variant="segmented"` — pour les barres d'outils, filtres et réglages.
+   */
+  variant?: 'pill' | 'inset';
 }
 
 /**
@@ -69,12 +75,18 @@ export interface ToggleButtonGroupPrimitiveProps extends Omit<ToggleButtonGroupP
  * portent `aria-pressed` : sans le groupe, trois boutons enfoncés ne
  * disent pas qu'ils forment une seule question.
  */
-export function ToggleGroup({ className, ...props }: ToggleButtonGroupPrimitiveProps) {
+export function ToggleGroup({
+  className,
+  variant = 'pill',
+  ...props
+}: ToggleButtonGroupPrimitiveProps) {
   return (
     <ToggleButtonGroup
       {...props}
+      data-variant={variant}
       className={cn(
-        'inline-flex items-center gap-0.5 rounded-control bg-muted/60 p-0.5',
+        'inline-flex items-center gap-0.5 p-0.5',
+        variant === 'pill' ? 'rounded-control bg-muted/60' : 'rounded-control bg-muted/40',
         className
       )}
     />

@@ -41,6 +41,11 @@ export interface CopyButtonProps extends Omit<
   copiedLabel?: string;
   /** Durée d'affichage de la confirmation, en ms. Défaut 1600. */
   resetMs?: number;
+  /**
+   * Icône seule : le libellé quitte le rendu visuel et reste dans
+   * `aria-label`. Pour les barres d'outils où la place est comptée.
+   */
+  iconOnly?: boolean;
   variant?: Variant;
   tone?: Tone;
   size?: Size;
@@ -76,6 +81,7 @@ export const CopyButton = forwardRef<HTMLButtonElement, CopyButtonProps>(functio
     label = 'Copier',
     copiedLabel = 'Copié',
     resetMs = 1600,
+    iconOnly = false,
     variant = 'soft',
     tone = 'neutral',
     size = 'sm',
@@ -143,7 +149,7 @@ export const CopyButton = forwardRef<HTMLButtonElement, CopyButtonProps>(functio
         </span>
       </span>
 
-      <span className="grid">
+      <span className={cn('grid', iconOnly && 'hidden')} aria-hidden={iconOnly || undefined}>
         <span aria-hidden={copied} className={cn(LAYER, copied ? 'opacity-0' : 'opacity-100')}>
           {label}
         </span>

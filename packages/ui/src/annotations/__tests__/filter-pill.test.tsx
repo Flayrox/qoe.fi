@@ -40,4 +40,25 @@ describe('AnnotationFilterPill', () => {
     expect(screen.queryByRole('radio', { name: /toutes/i })).toBeNull();
     expect(screen.getByRole('radio', { name: /mes notes/i })).toBeTruthy();
   });
+
+  it('permet de filtrer uniquement sur nos propres annotations (mode mine)', () => {
+    const onChangeFilterMode = vi.fn();
+    render(<AnnotationFilterPill filterMode="all" onChangeFilterMode={onChangeFilterMode} />);
+
+    fireEvent.click(screen.getByRole('radio', { name: /mes annotations/i }));
+
+    expect(onChangeFilterMode).toHaveBeenCalledWith('mine');
+  });
+
+  it('affiche le libellé incrusté « Annotations » par défaut et permet de le masquer', () => {
+    const { rerender } = render(
+      <AnnotationFilterPill filterMode="all" onChangeFilterMode={() => {}} />
+    );
+    expect(screen.getByText('Annotations')).toBeTruthy();
+
+    rerender(
+      <AnnotationFilterPill filterMode="all" onChangeFilterMode={() => {}} showLabel={false} />
+    );
+    expect(screen.queryByText('Annotations')).toBeNull();
+  });
 });

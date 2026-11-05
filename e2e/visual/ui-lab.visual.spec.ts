@@ -95,6 +95,15 @@ test.describe('primitives — rendu de référence', () => {
     await expect(switches).toHaveScreenshot('switch.png');
   });
 
+  test('confort de lecture : un article, ses réglages en marge', async ({ page }) => {
+    await section(page, '17-annotation-flow');
+
+    // Le panneau « Aa » et l'article qu'il pilote : c'est le seul endroit du
+    // lab où un réglage change le rendu d'un texte, donc le seul où une
+    // régression de typographie se voit.
+    await expect(page.getByTestId('reading-comfort')).toHaveScreenshot('comfort.png');
+  });
+
   test('barre latérale : navigation, espace et compte', async ({ page }) => {
     const sidebar = await section(page, '18-sidebar');
 
@@ -105,6 +114,30 @@ test.describe('primitives — rendu de référence', () => {
     const cards = await section(page, '19-social-cards');
 
     await expect(cards).toHaveScreenshot('social-cards.png');
+  });
+
+  test('authentification : formulaire, inscription et modale', async ({ page }) => {
+    const auth = await section(page, '20-auth');
+    // Le spécimen monte le composant après hydratation : on attend le titre
+    // réel plutôt que de capturer la réserve de hauteur.
+    await expect(auth.getByRole('heading', { name: 'Connexion' }).first()).toBeVisible();
+    await expect(auth.getByRole('heading', { name: 'Créer un compte' }).first()).toBeVisible();
+
+    await expect(auth).toHaveScreenshot('auth.png');
+  });
+
+  test('modales — l’aide des raccourcis est un vrai dialogue', async ({ page }) => {
+    const modals = await section(page, '21-modals');
+    await modals.getByRole('button', { name: 'Aide des raccourcis' }).click();
+
+    const dialog = page.locator('[role="dialog"]');
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('heading', { name: 'Raccourcis clavier' })).toBeVisible();
+    await expect(dialog).toHaveScreenshot('modals-hotkeys.png');
+
+    // Échap ferme et rend le focus : c’est ce que l’ancien div ne savait pas faire.
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
   });
 
   test('boutons : variantes, tons, densités', async ({ page }) => {

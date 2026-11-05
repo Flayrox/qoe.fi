@@ -25,6 +25,8 @@ import { MarkSkinSpecimen } from './specimens/16-mark-skin';
 import { AnnotationFlowSpecimen } from './specimens/17-annotation-flow';
 import { SidebarSpecimen } from './specimens/18-sidebar';
 import { SocialCardsSpecimen } from './specimens/19-social-cards';
+import { AuthSpecimen } from './specimens/20-auth';
+import { ModalsSpecimen } from './specimens/21-modals';
 
 const SPECIMENS = [
   {
@@ -262,6 +264,37 @@ const SPECIMENS = [
     notes:
       'Toutes les illustrations proviennent d’assets SVG locaux (/lab/*.svg) : aucun appel réseau, et vérification directe des cas avec/sans image sur chaque niveau de citation.',
     Component: SocialCardsSpecimen,
+  },
+  {
+    id: '20-auth',
+    index: '20',
+    title: 'Authentification — connexion, inscription, modale',
+    question:
+      'La porte d’entrée du produit tient-elle sur le même contrat que le reste ? Les champs, les boutons OAuth et la densité du CTA sont encore décidés localement — et l’erreur n’est annoncée par personne.',
+    sources: [
+      'packages/ui/src/LoginFormBento.tsx',
+      'packages/ui/src/LoginModal.tsx',
+      'packages/ui/src/auth/AuthModalContext.tsx',
+    ],
+    notes:
+      'Le spécimen monte le composant réel après hydratation : il interroge /v1/home/config pour les méthodes activées et dégrade silencieusement si l’API ne répond pas. Aucun compte n’est créé.',
+    Component: AuthSpecimen,
+  },
+  {
+    id: '21-modals',
+    index: '21',
+    title: 'Les autres modales — raccourcis, suppression, signalement, recommandations',
+    question:
+      'Deux modales dessinent encore leur propre fond et ne piègent pas le focus. Le geste le plus destructif du produit, lui, tient-il le contrat ?',
+    sources: [
+      'packages/ui/src/shortcuts/HotkeyHelpModal.tsx',
+      'packages/ui/src/social/ConfirmDeleteModal.tsx',
+      'packages/ui/src/social/ReportModal.tsx',
+      'packages/ui/src/RecommendationModal.tsx',
+    ],
+    notes:
+      'Aucune action n’est envoyée : signaler et s’abonner appellent de vraies Server Actions. Les quatre modales s’ouvrent par un bouton et sont fermées au repos.',
+    Component: ModalsSpecimen,
   },
 ];
 

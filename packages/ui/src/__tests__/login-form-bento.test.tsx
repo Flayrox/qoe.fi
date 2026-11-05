@@ -187,6 +187,31 @@ describe('LoginFormBento — signup one-click', () => {
     stop.mockRestore();
   });
 
+  it('11. variante compacte : le même formulaire, sans la colonne de manifeste', () => {
+    const { container } = render(<LoginFormBento variant="compact" initialMode="signup" />);
+
+    // Les mêmes champs, le même formulaire, aucune maquette réduite.
+    expect(container.querySelector('form')).toBeTruthy();
+    expect(container.querySelector('input[name="name"]')).toBeTruthy();
+    expect(container.querySelector('input[name="username"]')).toBeTruthy();
+    expect(container.querySelector('input[name="email"]')).toBeTruthy();
+    expect(container.querySelector('input[name="password"]')).toBeTruthy();
+
+    // La colonne de marque (et son manifeste) n’est pas rendue dans une popup.
+    expect(container.textContent).not.toContain('Reprenez le contrôle');
+  });
+
+  it('12. l’erreur de formulaire est annoncée (role="alert")', () => {
+    const { container } = render(<LoginFormBento initialMode="signup" />);
+    setInput(container, 'email', 'reader@exemple.com');
+    setInput(container, 'password', 'longpassword1');
+    fireEvent.submit(getForm(container));
+
+    const alert = container.querySelector('#auth-form-error');
+    expect(alert).toBeTruthy();
+    expect(alert?.getAttribute('role')).toBe('alert');
+  });
+
   it("9. masque le lien « S'inscrire » quand ALLOW_NEW_REGISTRATIONS=false", async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue({
       ok: true,
