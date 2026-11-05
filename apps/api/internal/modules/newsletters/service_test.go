@@ -238,3 +238,54 @@ func TestNewsletterDraftEdgeCases(t *testing.T) {
 		t.Fatalf("delete après send = %v, attendu errNotDraft", err)
 	}
 }
+
+func TestNewsletterFailedRetry(t *testing.T) {
+	ctx := context.Background()
+	seedNewsletterEnv(t, ctx)
+	svc := newTestService()
+
+	issue, err := svc.CreateDraft(ctx, ownerID, CreateInput{
+		PublicationID: pubID,
+		Subject:       "Sujet initial",
+		Html:          "<p>Texte</p>",
+	})
+	if err != nil {
+		t.Fatalf("create draft: %v", err)
+	}
+
+	// Simule un échec d'envoi (issue marquée FAILED).
+	if _, err := db.New(poolTest).FinishNewsletterIssue(ctx, db.FinishNewsletterIssueParams{
+		ID:              issue.ID,
+		Status:          "FAILED",
+		SentCount:       0,
+		FailedCount:     1,
+		TotalRecipients: 1,
+	}); err != nil {
+		t.Fatalf("finish issue as failed: %v", err)
+	}
+
+	// 1. Modification d'une issue FAILED permise.
+	updated, err := svc.UpdateDraft(ctx, ownerID, issue.ID, CreateInput{
+		PublicationID: pubID,
+		Subject:       "Sujet corrigé",
+		Html:          "<p>Texte corrigé</p>",
+	})
+	if err != nil {
+		t.Fatalf("update failed issue: %v", err)
+	}
+	if updated.Subject != "Sujet corrigé" {
+		t.Fatalf("subject = %q, want 'Sujet corrigé'", updated.Subject)
+	}
+
+	// 2. Renvoi d'une issue FAILED permis (repasse en SENDING).
+	if err := svc.Send(ctx, ownerID, issue.ID); err != nil {
+		t.Fatalf("retry send failed issue: %v", err)
+	}
+	items, err := svc.ListIssues(ctx, ownerID, pubID)
+	if err != nil || len(items) == 0 {
+		t.Fatalf("list issues: %v", err)
+	}
+	if items[0].Status != "SENDING" {
+		t.Fatalf("status après renvoi = %s, attendu SENDING", items[0].Status)
+	}
+}

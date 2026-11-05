@@ -130,7 +130,7 @@ func Load() *Config {
 		// ── Boîte d'envoi email (drain des notifications) ────────────────
 		NotificationDeliveryEnabled:   boolEnv("NOTIFICATION_DELIVERY_ENABLED"),
 		EmailProvider:                 envOr("EMAIL_PROVIDER", ""),
-		EmailFrom:                     envOr("EMAIL_FROM", ""),
+		EmailFrom:                     envOr("EMAIL_FROM", "noreply@qoe.fi"),
 		LegalPortalBaseURL:            envOr("LEGAL_PORTAL_BASE_URL", "https://qoe.fi"),
 		LegalAdminBaseURL:             envOr("LEGAL_ADMIN_BASE_URL", "https://admin.qoe.fi"),
 		LegalLifecycleIntervalMinutes: envInt("LEGAL_LIFECYCLE_INTERVAL_MINUTES", 15),

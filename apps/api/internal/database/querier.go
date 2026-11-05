@@ -687,6 +687,7 @@ type Querier interface {
 	ReactivateMediaAsset(ctx context.Context, id string) (MediaAsset, error)
 	RemoveListenLater(ctx context.Context, arg RemoveListenLaterParams) (int64, error)
 	RemoveRecommendation(ctx context.Context, arg RemoveRecommendationParams) error
+	ResetFailedNewsletterDeliveries(ctx context.Context, issueid string) error
 	ResetNewsletterIssueToDraft(ctx context.Context, id string) error
 	ResolvePublicationIDBySlugOrID(ctx context.Context, id string) (string, error)
 	RetryNotificationDelivery(ctx context.Context, id string) error

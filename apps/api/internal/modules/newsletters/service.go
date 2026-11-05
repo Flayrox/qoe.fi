@@ -21,7 +21,7 @@ import (
 var (
 	errNotFound       = errors.New("newsletter introuvable")
 	errForbidden      = errors.New("vous ne gérez pas cette publication")
-	errNotDraft       = errors.New("seuls les brouillons peuvent être modifiés ou envoyés")
+	errNotDraft       = errors.New("seuls les brouillons ou les envois en échec peuvent être modifiés ou envoyés")
 	errConfirmInvalid = errors.New("lien de confirmation invalide ou déjà utilisé")
 )
 
@@ -182,13 +182,17 @@ func (s *Service) CreateDraft(ctx context.Context, userID string, in CreateInput
 	return &issue, nil
 }
 
-// UpdateDraft met à jour un brouillon (DRAFT uniquement).
+// UpdateDraft met à jour un brouillon (DRAFT ou FAILED).
 func (s *Service) UpdateDraft(ctx context.Context, userID, issueID string, in CreateInput) (*Issue, error) {
 	if in.Subject == "" || in.Html == "" {
 		return nil, errors.New("subject et html requis")
 	}
-	if _, err := s.checkOwnership(ctx, userID, issueID); err != nil {
+	issue, err := s.checkOwnership(ctx, userID, issueID)
+	if err != nil {
 		return nil, err
+	}
+	if issue.Status != "DRAFT" && issue.Status != "FAILED" {
+		return nil, errNotDraft
 	}
 	preview := pgtype.Text{}
 	if in.PreviewText != "" {
@@ -201,40 +205,44 @@ func (s *Service) UpdateDraft(ctx context.Context, userID, issueID string, in Cr
 		Html:        in.Html,
 	})
 	if err != nil {
-		// Hors DRAFT (déjà envoyée) ou issue inconnue : l'update est refusé
+		// Hors DRAFT / FAILED (déjà envoyée ou en cours) ou issue inconnue : l'update est refusé
 		// proprement — pas de modification d'une issue en cours d'envoi.
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, errNotDraft
 		}
 		return nil, err
 	}
-	issue := fromModel(row)
-	return &issue, nil
+	res := fromModel(row)
+	return &res, nil
 }
 
-// DeleteDraft supprime un brouillon (DRAFT uniquement).
+// DeleteDraft supprime un brouillon ou une issue en échec (DRAFT ou FAILED).
 func (s *Service) DeleteDraft(ctx context.Context, userID, issueID string) error {
 	issue, err := s.checkOwnership(ctx, userID, issueID)
 	if err != nil {
 		return err
 	}
-	if issue.Status != "DRAFT" {
+	if issue.Status != "DRAFT" && issue.Status != "FAILED" {
 		return errNotDraft
 	}
 	return s.q.DeleteNewsletterIssueDraft(ctx, issueID)
 }
 
-// Send passe un brouillon en SENDING et enqueue la tâche de distribution.
-// Anti-spam : seuls les brouillons peuvent être envoyés (une issue déjà
-// SENDING/SENT/FAILED renvoie errNotDraft) — pas de double envoi, pas de
-// re-send après clôture.
+// Send passe un brouillon ou une issue en échec en SENDING et enqueue la tâche de distribution.
+// Anti-spam : seuls les brouillons ou issues échouées peuvent être envoyés (une issue déjà
+// SENDING ou SENT renvoie errNotDraft) — pas de double envoi simultané.
 func (s *Service) Send(ctx context.Context, userID, issueID string) error {
 	issue, err := s.checkOwnership(ctx, userID, issueID)
 	if err != nil {
 		return err
 	}
-	if issue.Status != "DRAFT" {
+	if issue.Status != "DRAFT" && issue.Status != "FAILED" {
 		return errNotDraft
+	}
+	if issue.Status == "FAILED" {
+		if err := s.q.ResetFailedNewsletterDeliveries(ctx, issueID); err != nil {
+			return err
+		}
 	}
 	if _, err := s.q.SetNewsletterIssueSending(ctx, issueID); err != nil {
 		return err
