@@ -101,9 +101,7 @@ export function SeoTab({
             {/* Meta Title */}
             <div id="meta" className="space-y-1.5">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-foreground block">
-                  Titre META (SEO) personnalisé
-                </label>
+                <label className="text-xs font-semibold text-foreground block">Titre SEO</label>
                 <span className="text-[10px] text-muted-foreground font-mono">
                   {current.seoTitle?.length || 0}/60 car.
                 </span>
@@ -112,10 +110,10 @@ export function SeoTab({
                 type="text"
                 value={current.seoTitle || ''}
                 onChange={(e) => setCurrent((prev) => ({ ...prev, seoTitle: e.target.value }))}
-                placeholder={t`Ex. Le Carnet de Sarah — Écrits & Analyses`}
+                placeholder={t`Ex. Le Carnet de Sarah`}
               />
               <span className="text-[11px] text-muted-foreground block">
-                Remplace le titre automatique généré par Qoefi sur Google.
+                Remplace le titre généré automatiquement.
               </span>
             </div>
 
@@ -123,7 +121,7 @@ export function SeoTab({
             <div className="space-y-1.5 pt-2 border-t border-border/30">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-semibold text-foreground block">
-                  Description META personnalisée
+                  Description SEO
                 </label>
                 <span className="text-[10px] text-muted-foreground font-mono">
                   {current.seoDescription?.length || 0}/160 car.
@@ -135,11 +133,11 @@ export function SeoTab({
                 onChange={(e) =>
                   setCurrent((prev) => ({ ...prev, seoDescription: e.target.value }))
                 }
-                placeholder={t`Description concise de votre ligne éditoriale pour les moteurs de recherche...`}
+                placeholder={t`En une phrase, ce que publie votre site.`}
                 rows={3}
               />
               <span className="text-[11px] text-muted-foreground block">
-                Extrait descriptif affiché sous le titre dans les résultats de recherche.
+                Affichée sous le titre dans les résultats de recherche.
               </span>
             </div>
 
@@ -169,7 +167,7 @@ export function SeoTab({
               size="sm"
               value={current.footerText || ''}
               onChange={(e) => setCurrent((prev) => ({ ...prev, footerText: e.target.value }))}
-              placeholder={t`Ex. Tous droits réservés. Écrit avec passion sur qoefi.`}
+              placeholder={t`Ex. Tous droits réservés.`}
               rows={2}
             />
             <span className="text-[11px] text-muted-foreground block">
@@ -190,7 +188,7 @@ export function SeoTab({
                 Réseaux sociaux
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Connectez vos profils pour permettre à vos lecteurs de vous suivre.
+                Vos profils, affichés sur le site.
               </p>
             </div>
           </div>

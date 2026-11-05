@@ -238,7 +238,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
                 type="text"
                 value={domainInput}
                 onChange={(e) => setDomainInput(e.target.value)}
-                placeholder="Domaine, sous-domaine ou nom (ex: souverainete, adminoo)..."
+                placeholder={t`Domaine ou nom de la publication`}
               />
             </InputGroup>
             <Button

@@ -67,12 +67,14 @@ export async function createNewsletterAction(input: {
   if (!subject || !html) return { success: false as const, error: 'Sujet et contenu requis' };
 
   try {
-    await goFetch<NewsletterIssue>('/v1/newsletters', {
+    const issue = await goFetch<NewsletterIssue>('/v1/newsletters', {
       method: 'POST',
       body: { publicationId, subject, previewText: input.previewText?.trim() ?? '', html },
     });
     revalidatePath('/newsletters');
-    return { success: true as const };
+    // L'issue créée est renvoyée : le compositeur peut enchaîner sur un
+    // envoi sans relire toute la liste pour retrouver l'identifiant.
+    return { success: true as const, issue };
   } catch (err) {
     return failure(err, 'Erreur serveur');
   }
@@ -88,12 +90,12 @@ export async function updateNewsletterAction(
   if (!subject || !html) return { success: false as const, error: 'Sujet et contenu requis' };
 
   try {
-    await goFetch<NewsletterIssue>(`/v1/newsletters/${encodeURIComponent(id)}`, {
+    const issue = await goFetch<NewsletterIssue>(`/v1/newsletters/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: { publicationId, subject, previewText: input.previewText?.trim() ?? '', html },
     });
     revalidatePath('/newsletters');
-    return { success: true as const };
+    return { success: true as const, issue };
   } catch (err) {
     return failure(err, 'Erreur serveur');
   }

@@ -322,6 +322,10 @@ function TableRowCheckboxInner({
   return <Checkbox slot="selection" {...checkboxProps} size="sm" indicator={indicator} />;
 }
 
+// La matérialisation de `'all'` vit dans `selection.ts` : un helper partagé
+// évite le `new Set(keys)` qui découpe la chaîne « all » en lettres.
+export { selectionToKeySet, type SelectionLike } from './selection';
+
 /**
  * Cellule « personne » : avatar + nom + texte secondaire.
  *

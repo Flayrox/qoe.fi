@@ -462,7 +462,7 @@ export function NavigationTab({
                       {item.type === 'page' && <Badge variant="outline">Page interne</Badge>}
                       {item.type === 'mail' && (
                         <Badge variant="outline" tone="brand">
-                          ✉️ Email direct
+                          Email direct
                         </Badge>
                       )}
                       {item.type === 'link' && <Badge variant="outline">Lien externe</Badge>}

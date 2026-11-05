@@ -48,7 +48,7 @@ export function SeoPreview({
   const computedDescription =
     seoDescription?.trim() ||
     heroText?.trim() ||
-    `Découvrez les publications, analyses et articles exclusifs de ${name || 'cette publication'} sur qoefi.`;
+    `Publications, analyses et articles de ${name || 'cette publication'}.`;
 
   const isAutoManaged = !isAdvancedMode && !seoTitle && !seoDescription;
 

@@ -101,12 +101,10 @@ export default async function CreatorDashboardPage() {
     return (
       <main className="w-full space-y-8 pb-24 md:pb-12 text-foreground font-sans selection:bg-primary/20 selection:text-primary">
         <div className="flex flex-col items-center justify-center py-24 text-center space-y-3">
-          <p className="text-sm font-semibold text-foreground">
-            Votre espace créateur n'est pas encore prêt.
-          </p>
+          <p className="text-sm font-semibold text-foreground">Espace indisponible</p>
           <p className="text-xs text-muted-foreground max-w-sm">
-            Reconnectez-vous avec un compte créateur, ou terminez votre onboarding pour créer votre
-            publication.
+            Aucune publication n'est rattachée à ce compte. Terminez l'inscription pour en créer
+            une.
           </p>
         </div>
       </main>
@@ -197,7 +195,7 @@ export default async function CreatorDashboardPage() {
       id: 'first-publish',
       icon: <Feather className="w-5 h-5 stroke-[1.5]" />,
       title: t`Publier un premier écrit`,
-      body: t`Votre espace n'a encore aucun article public : c'est la première brique d'audience, et la seule qui fasse fonctionner les recommandations.`,
+      body: t`Votre page ne contient encore aucun article public.`,
       href: '/articles/new',
       cta: t`Écrire`,
     });
@@ -212,7 +210,7 @@ export default async function CreatorDashboardPage() {
         count > 1
           ? t`${count} articles sans image de couverture`
           : t`Un article sans image de couverture`,
-      body: t`Une couverture change nettement le taux de clic dans le fil et les recommandations. Ces articles s'affichent aujourd'hui avec un simple gabarit.`,
+      body: t`Ces articles s'affichent avec le gabarit par défaut, sans image.`,
       href: `/articles/${publishedWithoutCover[0].id}`,
       cta: t`Ajouter une image`,
     });
@@ -223,9 +221,8 @@ export default async function CreatorDashboardPage() {
     advice.push({
       id: 'dormant-drafts',
       icon: <Edit3 className="w-5 h-5 stroke-[1.5]" />,
-      title:
-        count > 1 ? t`${count} brouillons dormants` : t`Un brouillon dort depuis deux semaines`,
-      body: t`Inutile de repartir de zéro : relisez l'introduction, coupez le premier paragraphe et finissez-le. Un brouillon oublié ne rapporte jamais rien.`,
+      title: count > 1 ? t`${count} brouillons en attente` : t`Un brouillon en attente`,
+      body: t`Ces brouillons n'ont pas été modifiés depuis deux semaines.`,
       href: `/articles/${dormantDrafts[0].id}`,
       cta: t`Reprendre`,
     });
@@ -236,7 +233,7 @@ export default async function CreatorDashboardPage() {
       id: 'no-subscribers',
       icon: <Users className="w-5 h-5 stroke-[1.5]" />,
       title: t`Aucun abonné pour l'instant`,
-      body: t`Publiez le lien de votre publication dans votre premier article : c'est là que le lecteur décide de s'abonner.`,
+      body: t`Le lien d'abonnement figure en bas de chaque article.`,
     });
   }
 
@@ -245,7 +242,7 @@ export default async function CreatorDashboardPage() {
       id: 'short-reads',
       icon: <Zap className="w-5 h-5 stroke-[1.5]" />,
       title: t`Des formats très courts se répètent`,
-      body: t`Plusieurs de vos derniers écrits font 2 minutes ou moins. Un format long de temps en temps donne de la profondeur à votre archive — et pèse plus lourd en référencement.`,
+      body: t`Plusieurs de vos derniers articles font 2 minutes ou moins.`,
     });
   }
 
@@ -253,8 +250,8 @@ export default async function CreatorDashboardPage() {
     advice.push({
       id: 'share',
       icon: <MessageSquare className="w-5 h-5 stroke-[1.5]" />,
-      title: t`Tout est en ordre`,
-      body: t`Couvertures, brouillons, publication : rien à signaler. Le prochain levier, c'est le partage — un article lu dans les 48 h de sa sortie performe bien mieux.`,
+      title: t`Rien à signaler`,
+      body: t`Aucun brouillon ancien, aucune couverture manquante.`,
     });
   }
 
@@ -276,13 +273,13 @@ export default async function CreatorDashboardPage() {
             </span>
           )}
           <h2 className="text-3xl font-bold tracking-tight text-foreground font-sans">
-            {t`Accueil Studio`}
+            {t`Tableau de bord`}
           </h2>
         </div>
         <p className="text-muted-foreground/80 text-sm font-sans">
           {isMediaWorkspace
-            ? t`Bienvenue dans le studio du Média « ${workspace.name} ». Vue en temps réel de votre média d'équipe.`
-            : t`Bienvenue, ${user.name || t`Créateur`}. Voici l'aperçu réel de votre studio créateur.`}
+            ? t`Studio du média « ${workspace.name} ».`
+            : t`Bienvenue, ${user.name || t`Créateur`}.`}
         </p>
       </section>
 
@@ -292,7 +289,7 @@ export default async function CreatorDashboardPage() {
         <div className="bg-card rounded-xl border border-border/40 shadow-none p-5 flex flex-col justify-between hover:border-border/80 transition-all duration-200">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-              {t`Vues totales (30j)`}
+              {t`Pages vues (30 j)`}
             </span>
             <Eye className="w-4.5 h-4.5 text-muted-foreground stroke-[1.5]" />
           </div>
@@ -313,7 +310,7 @@ export default async function CreatorDashboardPage() {
         <div className="bg-card rounded-xl border border-border/40 shadow-none p-5 flex flex-col justify-between hover:border-border/80 transition-all duration-200">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-              {t`Abonnés Réseau`}
+              {t`Abonnés`}
             </span>
             <Users className="w-4.5 h-4.5 text-muted-foreground stroke-[1.5]" />
           </div>
@@ -334,7 +331,7 @@ export default async function CreatorDashboardPage() {
         <div className="bg-card rounded-xl border border-border/40 shadow-none p-5 flex flex-col justify-between hover:border-border/80 transition-all duration-200">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-              {t`Revenu Estimé (LTV)`}
+              {t`Revenu mensuel`}
             </span>
             <CreditCard className="w-4.5 h-4.5 text-muted-foreground stroke-[1.5]" />
           </div>
@@ -379,7 +376,9 @@ export default async function CreatorDashboardPage() {
                 <h4 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
                   {t`Créer un premier écrit`}
                 </h4>
-                <p className="text-xs text-muted-foreground mt-0.5">{t`Prenez la plume et publiez.`}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {t`Aucun article publié pour l'instant.`}
+                </p>
               </div>
             </a>
           ) : (
@@ -435,9 +434,7 @@ export default async function CreatorDashboardPage() {
       {/* Creator Insights */}
       <section className="space-y-6">
         <div className="flex items-center justify-between">
-          <h3 className="text-xl font-bold text-foreground tracking-tight">
-            {t`Analyses & Conseils Créateur`}
-          </h3>
+          <h3 className="text-xl font-bold text-foreground tracking-tight">{t`À faire`}</h3>
           <BarChart3 className="w-5 h-5 text-primary stroke-[1.5]" />
         </div>
 
@@ -472,7 +469,7 @@ export default async function CreatorDashboardPage() {
       <section className="space-y-6">
         <div className="flex items-center justify-between">
           <h3 className="text-xl font-bold text-foreground tracking-tight">
-            {t`Écrits programmés & Brouillons`}
+            {t`Programmés et brouillons`}
           </h3>
           <a href="/articles" className="text-xs font-semibold text-primary hover:underline">
             {t`Calendrier des écrits`}
@@ -483,13 +480,13 @@ export default async function CreatorDashboardPage() {
           <div className="flex flex-col items-center justify-center p-8 border border-dashed rounded-xl border-border/40 bg-card text-center">
             <Clock className="w-8 h-8 text-muted-foreground/40 mb-2 stroke-[1.5]" />
             <p className="text-sm font-medium text-muted-foreground">
-              {t`Aucun écrit programmé ni brouillon en cours`}
+              {t`Aucun contenu programmé.`}
             </p>
             <a
               href="/articles/new"
               className="mt-3 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity"
             >
-              + {t`Programmer une publication`}
+              {t`Écrire un article`}
             </a>
           </div>
         ) : (
@@ -527,7 +524,7 @@ export default async function CreatorDashboardPage() {
               </div>
               <div>
                 <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  {t`Performance de votre dernier écrit`}
+                  {t`Dernier article publié`}
                 </span>
                 <h3 className="text-lg font-bold text-foreground truncate max-w-lg">
                   {latestPublishedArticle ? latestPublishedArticle.title : t`Aucun écrit publié`}
@@ -542,13 +539,13 @@ export default async function CreatorDashboardPage() {
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-card border border-border/40 text-xs font-semibold text-foreground hover:bg-muted/40 transition-colors"
                 >
                   <Edit3 className="h-3.5 w-3.5 stroke-[1.5]" />
-                  <span>{t`Éditer`}</span>
+                  <span>{t`Modifier`}</span>
                 </a>
                 <a
                   href="/analytics"
                   className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity"
                 >
-                  <span>{t`Analyses complètes`}</span>
+                  <span>{t`Voir les statistiques`}</span>
                   <ArrowUpRight className="h-3.5 w-3.5 stroke-[1.5]" />
                 </a>
               </div>
@@ -589,7 +586,7 @@ export default async function CreatorDashboardPage() {
 
               <div className="p-4 rounded-xl bg-muted/20 border border-border/30">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  {t`Réactions Lecteurs`}
+                  {t`Réactions`}
                 </span>
                 <p className="text-sm font-bold text-foreground mt-1 flex items-center gap-1.5">
                   <MessageSquare className="w-4 h-4 text-primary stroke-[1.5]" />
@@ -599,7 +596,7 @@ export default async function CreatorDashboardPage() {
             </div>
           ) : (
             <div className="text-center py-6 text-xs text-muted-foreground font-sans">
-              {t`Publiez votre premier article pour suivre ses performances en temps réel ici.`}
+              {t`Aucun article publié.`}
             </div>
           )}
         </div>

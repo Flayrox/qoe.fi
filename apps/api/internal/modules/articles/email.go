@@ -6,6 +6,7 @@ import (
 	"crypto/subtle"
 	"encoding/hex"
 	"fmt"
+	"html"
 	"net/url"
 	"os"
 	"regexp"
@@ -44,11 +45,37 @@ func VerifyUnsubscribe(pubID, email, sig string) bool {
 	return subtle.ConstantTimeCompare([]byte(expected), []byte(sig)) == 1
 }
 
+// unsubscribeBaseURL est la racine des liens de désinscription (et de
+// confirmation, même hôte). QOE_CONFIRM_BASE_URL surcharge en self-host /
+// staging — sans elle, un email parti d'un environnement local pointerait
+// vers la production.
+func unsubscribeBaseURL() string {
+	if v := strings.TrimSpace(os.Getenv("QOE_CONFIRM_BASE_URL")); v != "" {
+		return strings.TrimRight(v, "/")
+	}
+	return "https://api.qoe.fi"
+}
+
 // BuildUnsubURL construit le lien de désinscription RFC 8058 One-Click.
 func BuildUnsubURL(pubID, email string) string {
 	sig := SignUnsubscribe(pubID, email)
-	return fmt.Sprintf("https://api.qoe.fi/v1/newsletters/unsubscribe?pub=%s&email=%s&sig=%s",
-		url.QueryEscape(pubID), url.QueryEscape(email), sig)
+	return fmt.Sprintf("%s/v1/newsletters/unsubscribe?pub=%s&email=%s&sig=%s",
+		unsubscribeBaseURL(), url.QueryEscape(pubID), url.QueryEscape(email), sig)
+}
+
+// TruncateRunes coupe un texte à max caractères sans séparer un rune UTF-8.
+// `preview[:140]` sur un texte accentué produit un octet invalide dans le
+// preheader (« é » coupé en deux) : le client mail affiche alors un caractère
+// de remplacement.
+func TruncateRunes(s string, max int) string {
+	if max <= 0 {
+		return ""
+	}
+	runes := []rune(s)
+	if len(runes) <= max {
+		return s
+	}
+	return strings.TrimSpace(string(runes[:max])) + "…"
 }
 
 // PublicationPublicURL calcule l'URL racine d'un média.
@@ -75,6 +102,17 @@ func ArticlePublicURL(subdomain, customDomain pgtype.Text, slug string) string {
 
 // RenderEmailLayout compose un template HTML responsive haute délivrabilité (Dark/Light mode).
 func RenderEmailLayout(pubName, pubLogoURL, pubURL, preheader, subject, bodyHTML, unsubURL, webLink string) string {
+	// Tout ce qui vient du créateur est du TEXTE qui entre dans du HTML : il
+	// doit être échappé (un nom de publication « R&D <3 » casserait sinon
+	// l'en-tête). Le corps (bodyHTML) reste du HTML assumé.
+	pubName = html.EscapeString(pubName)
+	pubLogoURL = html.EscapeString(pubLogoURL)
+	pubURL = html.EscapeString(pubURL)
+	preheader = html.EscapeString(preheader)
+	subject = html.EscapeString(subject)
+	unsubURL = html.EscapeString(unsubURL)
+	webLink = html.EscapeString(webLink)
+
 	logoHTML := ""
 	if pubLogoURL != "" {
 		logoHTML = fmt.Sprintf(`<img src="%s" alt="%s" width="48" height="48" style="border-radius:10px;object-fit:cover;display:block;margin-bottom:12px;" />`, pubLogoURL, pubName)
@@ -174,7 +212,7 @@ func BuildArticleReleaseEmail(info db.GetArticleReleaseInfoRow, link, email stri
 		subject = info.EmailSubject.String
 	}
 
-	body := fmt.Sprintf(`<h1 style="margin:0 0 20px;font-size:26px;line-height:1.25;color:#09090b;font-weight:700;">%s</h1>`, info.Title)
+	body := fmt.Sprintf(`<h1 style="margin:0 0 20px;font-size:26px;line-height:1.25;color:#09090b;font-weight:700;">%s</h1>`, html.EscapeString(info.Title))
 
 	if !info.IsPremium {
 		// Article gratuit : distribution intégrale du contenu façon Substack
@@ -182,7 +220,7 @@ func BuildArticleReleaseEmail(info db.GetArticleReleaseInfoRow, link, email stri
 		if articleHTML != "" {
 			body += fmt.Sprintf(`<div style="color:#27272a;line-height:1.75;font-size:16px;">%s</div>`, articleHTML)
 		}
-		body += fmt.Sprintf(`<div style="margin:36px 0 16px;text-align:center;"><a href="%s" style="display:inline-block;background:#09090b;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">Lire l'article sur %s →</a></div>`, link, pubName)
+		body += fmt.Sprintf(`<div style="margin:36px 0 16px;text-align:center;"><a href="%s" style="display:inline-block;background:#09090b;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">Lire l'article sur %s →</a></div>`, html.EscapeString(link), html.EscapeString(pubName))
 	} else {
 		// Article premium : découpage Zero-Leak côté serveur
 		// Si un marqueur <!--qoe-paywall--> est présent, on affiche le teaser pré-paywall.
@@ -199,7 +237,7 @@ func BuildArticleReleaseEmail(info db.GetArticleReleaseInfoRow, link, email stri
   <p style="margin:0 0 8px;font-weight:700;color:#18181b;font-size:16px;">Cet article est réservé aux abonnés payants</p>
   <p style="margin:0 0 20px;color:#71717a;font-size:14px;line-height:1.5;">Pour lire l'intégralité et soutenir %s, rejoignez les membres Premium.</p>
   <a href="%s" style="display:inline-block;background:#09090b;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;font-size:14px;">Lire l'article sur %s →</a>
-</div>`, pubName, link, pubName)
+</div>`, html.EscapeString(pubName), html.EscapeString(link), html.EscapeString(pubName))
 	}
 
 	preview := ""
@@ -208,19 +246,13 @@ func BuildArticleReleaseEmail(info db.GetArticleReleaseInfoRow, link, email stri
 	} else if info.IsPremium {
 		if strings.Contains(info.Content, "<!--qoe-paywall-->") {
 			parts := strings.SplitN(info.Content, "<!--qoe-paywall-->", 2)
-			preview = StripHTML(parts[0])
-			if len(preview) > 140 {
-				preview = preview[:140]
-			}
+			preview = TruncateRunes(StripHTML(parts[0]), 140)
 		}
 		if preview == "" {
 			preview = "Nouvel article réservé aux abonnés : " + info.Title
 		}
 	} else {
-		preview = StripHTML(info.Content)
-		if len(preview) > 140 {
-			preview = preview[:140]
-		}
+		preview = TruncateRunes(StripHTML(info.Content), 140)
 		if preview == "" {
 			preview = "Nouvel article : " + info.Title
 		}
