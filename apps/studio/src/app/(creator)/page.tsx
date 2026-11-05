@@ -284,7 +284,7 @@ export default async function CreatorDashboardPage() {
       {/* Real Live Metrics Cards */}
       <section className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {/* Card 1: Total Pageviews (Umami Real Telemetry) */}
-        <div className="bg-card rounded-xl border border-border/40 shadow-none p-5 flex flex-col justify-between hover:border-border/80 transition-all duration-200">
+        <div className="bg-card rounded-xl border border-border/40 shadow-none p-5 flex flex-col justify-between hover:border-border/50 transition-all duration-200">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-medium tracking-wide text-muted-foreground">
               {t`Pages vues (30 j)`}
@@ -305,7 +305,7 @@ export default async function CreatorDashboardPage() {
         </div>
 
         {/* Card 2: Active Subscribers & Paid Members (Real DB) */}
-        <div className="bg-card rounded-xl border border-border/40 shadow-none p-5 flex flex-col justify-between hover:border-border/80 transition-all duration-200">
+        <div className="bg-card rounded-xl border border-border/40 shadow-none p-5 flex flex-col justify-between hover:border-border/50 transition-all duration-200">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-medium tracking-wide text-muted-foreground">
               {t`Abonnés`}
@@ -326,7 +326,7 @@ export default async function CreatorDashboardPage() {
         </div>
 
         {/* Card 3: Estimated Revenue / MRR (Real DB) */}
-        <div className="bg-card rounded-xl border border-border/40 shadow-none p-5 flex flex-col justify-between hover:border-border/80 transition-all duration-200">
+        <div className="bg-card rounded-xl border border-border/40 shadow-none p-5 flex flex-col justify-between hover:border-border/50 transition-all duration-200">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-medium tracking-wide text-muted-foreground">
               {t`Revenu mensuel`}
@@ -365,7 +365,7 @@ export default async function CreatorDashboardPage() {
           {dashboard.recentArticles.length === 0 ? (
             <a
               href="/articles/new"
-              className="group border border-dashed border-border/80 rounded-xl p-6 flex flex-col items-center justify-center text-center space-y-3 hover:border-primary/50 hover:bg-muted/30 transition-all aspect-video"
+              className="group border border-dashed border-border/50 rounded-xl p-6 flex flex-col items-center justify-center text-center space-y-3 hover:border-primary/50 hover:bg-muted/30 transition-all aspect-video"
             >
               <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center">
                 <Plus className="w-5 h-5 stroke-[2]" />
@@ -382,7 +382,7 @@ export default async function CreatorDashboardPage() {
           ) : (
             dashboard.recentArticles.map((art) => (
               <a key={art.id} href={`/articles/${art.id}`} className="group cursor-pointer block">
-                <div className="aspect-video bg-muted/40 rounded-xl border border-border/40 overflow-hidden relative mb-3 flex items-center justify-center group-hover:border-border/80 transition-all">
+                <div className="aspect-video bg-muted/40 rounded-xl border border-border/40 overflow-hidden relative mb-3 flex items-center justify-center group-hover:border-border/50 transition-all">
                   {art.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element -- URL distante arbitraire (Supabase Storage), pas de domaine configurable.
                     <img
@@ -440,7 +440,7 @@ export default async function CreatorDashboardPage() {
           {advice.slice(0, 3).map((item) => (
             <div
               key={item.id}
-              className="bg-card rounded-xl border border-border/40 p-6 flex items-start gap-4 hover:border-border/80 transition-colors"
+              className="bg-card rounded-xl border border-border/40 p-6 flex items-start gap-4 hover:border-border/50 transition-colors"
             >
               <div className="p-2.5 bg-primary/10 text-primary rounded-lg shrink-0">
                 {item.icon}
@@ -493,7 +493,7 @@ export default async function CreatorDashboardPage() {
               <a
                 key={item.id}
                 href={item.href}
-                className="snap-start shrink-0 w-[240px] bg-card rounded-xl border border-border/40 p-4 hover:border-border/80 transition-colors block"
+                className="snap-start shrink-0 w-[240px] bg-card rounded-xl border border-border/40 p-4 hover:border-border/50 transition-colors block"
               >
                 <div className="flex items-center justify-between mb-2">
                   <span

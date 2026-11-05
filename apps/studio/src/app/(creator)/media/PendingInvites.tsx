@@ -54,7 +54,7 @@ export function PendingInvites() {
   };
 
   return (
-    <div className="rounded-2xl border border-highlight/40 bg-highlight/5 p-4 space-y-3">
+    <div className="rounded-xl border border-highlight/40 bg-highlight/5 p-4 space-y-3">
       <div className="flex items-center gap-2">
         <MailOpen className="w-4 h-4 text-highlight" />
         <h3 className="text-sm font-semibold">{t`Invitations en attente (${invites.length})`}</h3>

@@ -77,7 +77,7 @@ export function Preview({
   } = siteOptions;
 
   return (
-    <div className="rounded-2xl border border-border/70 bg-background overflow-hidden shadow-xs transition-all select-none">
+    <div className="rounded-xl border border-border/70 bg-background overflow-hidden shadow-xs transition-all select-none">
       <div className="w-full relative overflow-hidden flex flex-col justify-between min-h-[560px]">
         {/* ── 1. EN-TÊTE FIXE AU-DESSUS DU DÉGRADÉ (z-30) ── */}
         <header className="px-5 py-3.5 flex items-center justify-between gap-3 relative z-30 bg-background/95 backdrop-blur-md border-b border-border/20">
@@ -295,7 +295,7 @@ export function Preview({
 
           {/* Mur d'abonnement Newsletter (Style fidèle à SubscribeForm & NewsletterWallBlock) */}
           {showNewsletterWall && (
-            <div className="p-6 rounded-2xl border border-border/50 bg-muted/20 text-center space-y-3 shadow-xs">
+            <div className="p-6 rounded-xl border border-border/50 bg-muted/20 text-center space-y-3 shadow-xs">
               <div className="space-y-1">
                 <h3
                   style={{ fontFamily: activeFont }}
@@ -339,7 +339,7 @@ export function Preview({
         {/* ── 6. DOCK FLOTTANT PILL DEVOURING DETAILS (z-30) ── */}
         {showCraftIndex && (
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
-            <div className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-full border border-border/80 bg-background/95 backdrop-blur-md shadow-lg">
+            <div className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-full border border-border/50 bg-background/95 backdrop-blur-md shadow-lg">
               <div
                 className="w-2.5 h-2.5 rounded-full shrink-0"
                 style={{ backgroundColor: activeColor }}

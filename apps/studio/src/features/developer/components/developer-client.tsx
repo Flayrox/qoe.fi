@@ -468,7 +468,7 @@ print(articles)`,
           <div className="flex flex-wrap items-center gap-2.5 self-start md:self-auto">
             {/* Workspace Context Badge */}
             {activeWorkspace && (
-              <div className="flex items-center gap-2 bg-card border border-border/80 rounded-full px-3.5 py-1.5 text-xs shadow-xs">
+              <div className="flex items-center gap-2 bg-card border border-border/50 rounded-full px-3.5 py-1.5 text-xs shadow-xs">
                 <span className="text-muted-foreground">Workspace :</span>
                 {isMediaWorkspace ? (
                   <span className="font-semibold text-primary flex items-center gap-1.5">
@@ -485,7 +485,7 @@ print(articles)`,
             )}
 
             {/* Status Badge */}
-            <div className="flex items-center gap-2 bg-card border border-border/80 rounded-full px-3.5 py-1.5 text-xs shadow-xs">
+            <div className="flex items-center gap-2 bg-card border border-border/50 rounded-full px-3.5 py-1.5 text-xs shadow-xs">
               <span className="text-muted-foreground">Statut d'accès :</span>
               {status === 'none' && (
                 <span className="font-medium text-muted-foreground">Non demandé</span>
@@ -574,7 +574,7 @@ print(articles)`,
                     href="https://docs.qoe.fi"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-card border border-border/80 text-foreground hover:border-primary/40 hover:text-primary text-xs font-semibold shadow-xs transition-all"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-card border border-border/50 text-foreground hover:border-primary/40 hover:text-primary text-xs font-semibold shadow-xs transition-all"
                   >
                     <BookOpen className="w-3.5 h-3.5 text-primary" />
                     Explorer docs.qoe.fi
@@ -627,7 +627,7 @@ print(articles)`,
                                 'w-7 h-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5 border',
                                 isSelected
                                   ? 'bg-primary text-primary-foreground border-primary'
-                                  : 'bg-card text-muted-foreground border-border/80'
+                                  : 'bg-card text-muted-foreground border-border/50'
                               )}
                             >
                               <Icon className="w-3.5 h-3.5" />
@@ -781,7 +781,7 @@ print(articles)`,
             className="max-w-3xl mx-auto space-y-8"
           >
             {/* Timeline Stepper Tracker */}
-            <div className="bg-card border border-border/80 rounded-2xl shadow-xs p-6 md:p-8 space-y-6">
+            <div className="bg-card border border-border/50 rounded-2xl shadow-xs p-6 md:p-8 space-y-6">
               <div className="text-center space-y-2 max-w-md mx-auto">
                 <div className="w-14 h-14 bg-highlight/10 text-highlight rounded-2xl flex items-center justify-center mx-auto border border-highlight/20 animate-pulse">
                   <Clock className="w-7 h-7" />
@@ -877,7 +877,7 @@ print(articles)`,
             className="space-y-8"
           >
             {/* Generate key form */}
-            <div className="bg-card border border-border/80 rounded-2xl shadow-xs p-6 md:p-8 space-y-6">
+            <div className="bg-card border border-border/50 rounded-2xl shadow-xs p-6 md:p-8 space-y-6">
               <div>
                 <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
                   <Key className="w-4 h-4 text-primary" />
@@ -963,14 +963,14 @@ print(articles)`,
 
             {/* List active keys */}
             <div className="overflow-hidden rounded-xl border border-border/50 bg-card shadow-2xs">
-              <div className="px-6 py-4.5 border-b border-border/80 flex items-center justify-between">
+              <div className="px-6 py-4.5 border-b border-border/50 flex items-center justify-between">
                 <div>
                   <h3 className="text-base font-bold text-foreground">Clés d'API Actives</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">
                     Surveillez l'activité et révoquez vos accès à tout moment.
                   </p>
                 </div>
-                <span className="text-xs font-semibold bg-muted/60 border border-border/80 px-2.5 py-1 rounded-full text-foreground">
+                <span className="text-xs font-semibold bg-muted/60 border border-border/50 px-2.5 py-1 rounded-full text-foreground">
                   {keys.length} clé{keys.length > 1 ? 's' : ''}
                 </span>
               </div>
@@ -1131,7 +1131,7 @@ print(articles)`,
             </div>
 
             {/* Quick Start Documentation with Language Tabs */}
-            <div className="bg-card border border-border/80 rounded-2xl shadow-xs p-6 md:p-8 space-y-6">
+            <div className="bg-card border border-border/50 rounded-2xl shadow-xs p-6 md:p-8 space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <Code2 className="w-5 h-5 text-primary" />
@@ -1172,7 +1172,7 @@ print(articles)`,
               </div>
 
               {/* Code Snippet Box */}
-              <div className="relative bg-muted/40 border border-border/80 rounded-xl p-4 font-sans text-xs overflow-x-auto">
+              <div className="relative bg-muted/40 border border-border/50 rounded-xl p-4 font-sans text-xs overflow-x-auto">
                 <Button
                   variant="outline"
                   size="xs"
@@ -1191,7 +1191,7 @@ print(articles)`,
 
               {/* Endpoints overview cards */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                <div className="border border-border/80 rounded-xl p-4 space-y-1.5 bg-muted/20">
+                <div className="border border-border/50 rounded-xl p-4 space-y-1.5 bg-muted/20">
                   <h4 className="font-bold text-foreground flex items-center gap-1 text-xs">
                     <span className="bg-success/10 text-success-text border border-success/20 px-1.5 py-0.5 rounded text-[9px] font-black mr-1">
                       GET
@@ -1204,7 +1204,7 @@ print(articles)`,
                   </p>
                 </div>
 
-                <div className="border border-border/80 rounded-xl p-4 space-y-1.5 bg-muted/20">
+                <div className="border border-border/50 rounded-xl p-4 space-y-1.5 bg-muted/20">
                   <h4 className="font-bold text-foreground flex items-center gap-1 text-xs">
                     <span className="bg-success/10 text-success-text border border-success/20 px-1.5 py-0.5 rounded text-[9px] font-black mr-1">
                       GET

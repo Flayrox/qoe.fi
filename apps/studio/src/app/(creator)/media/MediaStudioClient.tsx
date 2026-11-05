@@ -1045,7 +1045,7 @@ export function MediaStudioClient({
 
           {/* Liens d'invitation d'équipe (sans email, rôle + durée + max d'utilisations) */}
           {canManageMembers && (
-            <div className="rounded-2xl border border-border/40 bg-card p-4 space-y-4">
+            <div className="rounded-xl border border-border/40 bg-card p-4 space-y-4">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                   <Link2 className="w-3.5 h-3.5" strokeWidth={1.5} /> Liens d'invitation d'équipe

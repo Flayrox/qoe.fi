@@ -80,7 +80,7 @@ export function OfferCompare({ supportUrl }: { supportUrl: string }) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="rounded-2xl border border-border/60 p-6">
+        <div className="rounded-xl border border-border/60 p-6">
           <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
             Gratuit
           </p>
@@ -91,7 +91,7 @@ export function OfferCompare({ supportUrl }: { supportUrl: string }) {
             Tout ce qui fait vivre le réseau : publier, envoyer, grandir.
           </p>
         </div>
-        <div className="rounded-2xl border-2 border-primary/60 p-6 relative">
+        <div className="rounded-xl border-2 border-primary/60 p-6 relative">
           <span className="absolute -top-2.5 left-5 rounded-full bg-primary px-2.5 py-0.5 text-[10px] font-bold uppercase text-primary-foreground">
             Pro
           </span>
@@ -116,7 +116,7 @@ export function OfferCompare({ supportUrl }: { supportUrl: string }) {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-border/60 overflow-hidden">
+      <div className="rounded-xl border border-border/60 overflow-hidden">
         <div className="grid grid-cols-[1fr_auto] gap-3 px-5 py-2.5 bg-muted/30 items-center">
           <span />
           <div className="flex items-center gap-4">
