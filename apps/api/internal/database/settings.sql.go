@@ -22,6 +22,22 @@ func (q *Queries) CheckSubdomainExists(ctx context.Context, subdomain pgtype.Tex
 	return exists, err
 }
 
+const checkSubdomainExistsOther = `-- name: CheckSubdomainExistsOther :one
+SELECT EXISTS(SELECT 1 FROM "Publication" WHERE "subdomain" = $1 AND id != $2) AS exists
+`
+
+type CheckSubdomainExistsOtherParams struct {
+	Subdomain pgtype.Text `json:"subdomain"`
+	ID        string      `json:"id"`
+}
+
+func (q *Queries) CheckSubdomainExistsOther(ctx context.Context, arg CheckSubdomainExistsOtherParams) (bool, error) {
+	row := q.db.QueryRow(ctx, checkSubdomainExistsOther, arg.Subdomain, arg.ID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const completeOnboardingUser = `-- name: CompleteOnboardingUser :exec
 UPDATE "User"
 SET role = $2, "hasCompletedOnboarding" = true, name = $3, "updatedAt" = now()
@@ -753,12 +769,12 @@ func (q *Queries) UpdatePersonalPublication(ctx context.Context, arg UpdatePerso
 const updatePublicationEmailSettings = `-- name: UpdatePublicationEmailSettings :exec
 
 UPDATE "Publication"
-SET "emailSettings" = $1::jsonb, "updatedAt" = now()
+SET "emailSettings" = $1::text::jsonb, "updatedAt" = now()
 WHERE id = $2
 `
 
 type UpdatePublicationEmailSettingsParams struct {
-	EmailSettings []byte `json:"email_settings"`
+	EmailSettings string `json:"email_settings"`
 	PublicationID string `json:"publication_id"`
 }
 

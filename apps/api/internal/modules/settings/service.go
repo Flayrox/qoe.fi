@@ -433,10 +433,41 @@ func (s *Service) UpdateSubdomain(ctx context.Context, userID, publicationID, su
 		return err
 	}
 	clean := strings.ToLower(strings.TrimSpace(subdomain))
-	available, reason := s.CheckSubdomain(ctx, clean)
-	if !available {
-		return errors.New(reason)
+	if clean == "" {
+		return s.q.UpdatePublicationSubdomain(ctx, db.UpdatePublicationSubdomainParams{
+			ID:        publicationID,
+			Subdomain: pgtype.Text{Valid: false},
+		})
 	}
+
+	existsOther, err := s.q.CheckSubdomainExistsOther(ctx, db.CheckSubdomainExistsOtherParams{
+		Subdomain: pgtype.Text{String: clean, Valid: true},
+		ID:        publicationID,
+	})
+	if err != nil {
+		return errors.New("Vérification impossible, réessayez.")
+	}
+	if existsOther {
+		return errors.New("Ce sous-domaine est déjà attribué à une autre publication.")
+	}
+
+	if !identifier.ValidSubdomain(clean) || strings.Contains(clean, ".") {
+		return errors.New("Le sous-domaine ne doit contenir que des lettres minuscules et des tirets, sans point.")
+	}
+	if len(clean) < 3 || len(clean) > 30 {
+		return errors.New("La longueur doit être comprise entre 3 et 30 caractères.")
+	}
+	if strings.HasPrefix(clean, "-") || strings.HasSuffix(clean, "-") || strings.Contains(clean, "--") {
+		return errors.New("Le sous-domaine ne peut pas commencer, finir ou répéter un tiret.")
+	}
+	reserved, err := isReservedIdentifier(ctx, s.pool, "subdomain", clean)
+	if err != nil {
+		return errors.New("Vérification impossible, réessayez.")
+	}
+	if reserved || identifier.IsReserved(clean) {
+		return errors.New("Ce nom de sous-domaine est réservé par la plateforme.")
+	}
+
 	if err := s.q.UpdatePublicationSubdomain(ctx, db.UpdatePublicationSubdomainParams{
 		ID:        publicationID,
 		Subdomain: pgtype.Text{String: clean, Valid: true},

@@ -140,8 +140,11 @@ ORDER BY name ASC;
 
 -- name: UpdatePublicationEmailSettings :exec
 UPDATE "Publication"
-SET "emailSettings" = sqlc.arg(email_settings)::jsonb, "updatedAt" = now()
+SET "emailSettings" = sqlc.arg(email_settings)::text::jsonb, "updatedAt" = now()
 WHERE id = sqlc.arg(publication_id);
+
+-- name: CheckSubdomainExistsOther :one
+SELECT EXISTS(SELECT 1 FROM "Publication" WHERE "subdomain" = $1 AND id != $2) AS exists;
 
 -- name: GetPublicationEmailDefaults :one
 -- Identité par défaut de la publication (pré-remplissage du formulaire
