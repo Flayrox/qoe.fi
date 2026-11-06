@@ -16,6 +16,7 @@ import {
 } from '@qoe/ui/dialog';
 import { Select } from '@qoe/ui/select';
 import { bulkUpdateArticlesAction, type BulkUpdateArticlesInput } from '@qoe/sdk/actions/articles';
+import { StudioRow, StudioRowList } from '@/components/studio-page';
 
 import type { CategoryWithCount } from './article-list-types';
 import type { ConfirmAction } from './confirm-action-dialog';
@@ -52,11 +53,7 @@ function BulkTriRow({
   onChange: (value: TriState) => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-xl border border-border/40 bg-muted/15 p-3">
-      <div className="min-w-0">
-        <p className="text-xs font-semibold text-foreground">{label}</p>
-        <p className="text-[10px] leading-tight text-muted-foreground">{description}</p>
-      </div>
+    <StudioRow title={label} description={description}>
       <Select
         label={label}
         hideLabel
@@ -70,7 +67,7 @@ function BulkTriRow({
           { id: 'off', label: t`Désactiver` },
         ]}
       />
-    </div>
+    </StudioRow>
   );
 }
 
@@ -210,30 +207,32 @@ export function ArticleBulkSettingsDialog({
             ]}
           />
 
-          <BulkTriRow
-            label={t`Article Premium`}
-            description={t`Réserver aux abonnés payants.`}
-            value={settings.premium}
-            onChange={(value) => setSettings((prev) => ({ ...prev, premium: value }))}
-          />
-          <BulkTriRow
-            label={t`Commentaires`}
-            description={t`Ouvrir ou fermer l'espace de débat.`}
-            value={settings.comments}
-            onChange={(value) => setSettings((prev) => ({ ...prev, comments: value }))}
-          />
-          <BulkTriRow
-            label={t`Annotations publiques`}
-            description={t`Autoriser les lecteurs à surligner et annoter.`}
-            value={settings.annotations}
-            onChange={(value) => setSettings((prev) => ({ ...prev, annotations: value }))}
-          />
-          <BulkTriRow
-            label={t`Téléchargement hors-ligne`}
-            description={t`Autoriser les lecteurs Plus à télécharger.`}
-            value={settings.download}
-            onChange={(value) => setSettings((prev) => ({ ...prev, download: value }))}
-          />
+          <StudioRowList>
+            <BulkTriRow
+              label={t`Article Premium`}
+              description={t`Réserver aux abonnés payants.`}
+              value={settings.premium}
+              onChange={(value) => setSettings((prev) => ({ ...prev, premium: value }))}
+            />
+            <BulkTriRow
+              label={t`Commentaires`}
+              description={t`Ouvrir ou fermer l'espace de débat.`}
+              value={settings.comments}
+              onChange={(value) => setSettings((prev) => ({ ...prev, comments: value }))}
+            />
+            <BulkTriRow
+              label={t`Annotations publiques`}
+              description={t`Autoriser les lecteurs à surligner et annoter.`}
+              value={settings.annotations}
+              onChange={(value) => setSettings((prev) => ({ ...prev, annotations: value }))}
+            />
+            <BulkTriRow
+              label={t`Téléchargement hors-ligne`}
+              description={t`Autoriser les lecteurs Plus à télécharger.`}
+              value={settings.download}
+              onChange={(value) => setSettings((prev) => ({ ...prev, download: value }))}
+            />
+          </StudioRowList>
 
           <div className="space-y-1.5">
             <Select
@@ -254,7 +253,7 @@ export function ArticleBulkSettingsDialog({
               ]}
             />
             {settings.publication !== 'keep' && (
-              <p className="flex items-start gap-1.5 rounded-lg border border-highlight/20 bg-highlight/10 p-2 text-[10px] text-highlight">
+              <p className="flex items-start gap-1.5 rounded-md bg-highlight/10 p-2 text-[10px] text-highlight">
                 <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
                 {settings.publication === 'publish'
                   ? t`Les articles seront immédiatement visibles publiquement.`

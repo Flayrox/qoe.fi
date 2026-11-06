@@ -11,7 +11,6 @@ import {
   Trash2,
   RefreshCw,
   AlertCircle,
-  CheckCircle,
   PenLine,
 } from 'lucide-react';
 import { Badge } from '@qoe/ui/badge';
@@ -114,7 +113,7 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
     setCopied(true);
-    toast.success(t`Clé copiée dans le presse-papiers !`);
+    toast.success(t`Clé copiée dans le presse-papiers.`);
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -213,29 +212,22 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
     setConfirmRevokeId(null);
 
     if (res.success) {
-      toast.success(t`Clé API révoquée avec succès.`);
+      toast.success(t`Clé API révoquée.`);
       fetchKeys();
     }
   };
 
   return (
     <div className="space-y-8">
-      {/* En-tête & Bouton Création */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-            <Key className="w-4 h-4 text-primary" strokeWidth={1.5} />
-            {t`Clés API du Média`}
-          </h2>
-          <p className="text-xs text-muted-foreground mt-0.5 max-w-xl leading-relaxed">
-            {t`Ces clés d'API agissent directement au nom de ${mediaName}. Elles permettent d'automatiser des publications, d'intégrer des outils éditoriaux ou d'alimenter une application headless.`}
-          </p>
-        </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="max-w-xl text-xs leading-relaxed text-muted-foreground">
+          {t`Ces clés agissent au nom de ${mediaName} : automatiser des publications, connecter un outil éditorial ou alimenter une application.`}
+        </p>
 
-        <div className="flex items-center gap-3 shrink-0">
-          <Badge variant="outline" tone="neutral" shape="pill" size="sm">
-            {keys.length} / 10 {t`clés`}
-          </Badge>
+        <div className="flex shrink-0 items-center gap-3">
+          <span className="text-xs text-muted-foreground tabular-nums">
+            {keys.length} / 10 clés
+          </span>
 
           <Button
             variant="solid"
@@ -251,8 +243,8 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
       </div>
 
       {/* Notice info */}
-      <div className="bg-muted/30 border border-border/60 rounded-xl p-3.5 flex items-start gap-2.5 text-xs text-muted-foreground">
-        <AlertCircle className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+      <div className="flex items-start gap-2.5 text-xs text-muted-foreground">
+        <AlertCircle className="mt-0.5 size-4 shrink-0" />
         <div className="space-y-0.5 leading-relaxed">
           <span className="font-semibold text-foreground">
             {t`Identité Média & Moindre privilège`} :
@@ -263,15 +255,13 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
 
       {/* Liste des clés */}
       {loading ? (
-        <div className="bg-card border border-border/50 rounded-2xl shadow-xs flex items-center justify-center py-20 text-muted-foreground text-xs">
+        <div className="flex items-center justify-center py-16 text-xs text-muted-foreground">
           <Loader2 className="w-4 h-4 animate-spin mr-2" />
           {t`Chargement des clés API...`}
         </div>
       ) : keys.length === 0 ? (
-        <div className="bg-card border border-border/50 rounded-2xl shadow-xs p-12 text-center text-muted-foreground space-y-2">
-          <div className="w-12 h-12 rounded-2xl bg-muted/40 flex items-center justify-center mx-auto text-muted-foreground">
-            <Key className="w-6 h-6" strokeWidth={1.5} />
-          </div>
+        <div className="space-y-2 py-16 text-center text-muted-foreground">
+          <Key className="mx-auto size-5" strokeWidth={1.5} />
           <p className="text-xs font-medium text-foreground">
             {t`Aucune clé API active pour ce média.`}
           </p>
@@ -476,12 +466,7 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
                       <div
                         key={scope}
                         onClick={() => handleToggleScope(scope)}
-                        className={cn(
-                          'flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all',
-                          active
-                            ? 'border-primary/40 bg-primary/5'
-                            : 'border-border/60 bg-muted/20 hover:border-border'
-                        )}
+                        className="flex cursor-pointer items-start gap-3 border-b border-border/40 py-3 last:border-0"
                       >
                         <Checkbox
                           isSelected={active}
@@ -491,10 +476,10 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
                           className="mt-0.5 pointer-events-none"
                         />
                         <div className="space-y-0.5">
-                          <Badge variant="soft" tone={meta.tone} size="xs" className="mr-2">
+                          <span className="mr-2 font-mono text-[10px] font-semibold tracking-wider text-foreground uppercase">
                             {scope}
-                          </Badge>
-                          <span className="text-xs text-muted-foreground block">{meta.desc()}</span>
+                          </span>
+                          <span className="block text-xs text-muted-foreground">{meta.desc()}</span>
                         </div>
                       </div>
                     );
@@ -594,10 +579,7 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
         <DialogContent showCloseButton={false}>
           {secretModalData && (
             <div className="space-y-5">
-              <div className="text-center space-y-2">
-                <div className="w-12 h-12 bg-success/10 text-success-text border border-success/20 rounded-2xl flex items-center justify-center mx-auto mb-2">
-                  <CheckCircle className="w-6 h-6" />
-                </div>
+              <div className="space-y-2 text-center">
                 <DialogTitle className="text-center text-lg">
                   {secretModalData.mode === 'rotated'
                     ? t`Clé API rotatée avec succès`
@@ -627,7 +609,7 @@ export function MediaApiKeysTab({ mediaId, mediaName }: MediaApiKeysTabProps) {
                 </Button>
               </div>
 
-              <div className="bg-highlight/10 border border-highlight/20 rounded-xl p-4 flex gap-3 text-xs text-highlight">
+              <div className="flex gap-3 text-xs text-muted-foreground">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                 <div className="space-y-1">
                   <span className="font-bold">{t`Stockage sécurisé`}</span>

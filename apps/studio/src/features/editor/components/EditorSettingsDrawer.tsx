@@ -31,6 +31,7 @@ import {
 import { Input, InputGroup, Textarea } from '@qoe/ui/input';
 import { Select } from '@qoe/ui/select';
 import { Switch } from '@qoe/ui/switch';
+import { StudioField, StudioRow, StudioRowList } from '@/components/studio-page';
 import { ArticleAttributionEditor, type ArticleAttributionDraft } from './ArticleAttributionEditor';
 import { resolveArticleCategoryPath } from '../lib/article-settings';
 import { formatScheduledAt } from '../lib/datetime';
@@ -151,22 +152,23 @@ function ToggleRow({
   onChange: (value: boolean) => void;
 }) {
   return (
-    <div className="rounded-xl border border-border/40 bg-muted/15 p-3 hover:bg-muted/30 transition-colors">
+    <StudioRow
+      title={
+        <span className="inline-flex items-center gap-1.5">
+          {icon}
+          <span>{title}</span>
+        </span>
+      }
+      description={description}
+    >
       <Switch
         size="sm"
         isSelected={checked}
         isDisabled={disabled}
         onChange={onChange}
-        label={
-          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-foreground">
-            {icon}
-            <span>{title}</span>
-          </span>
-        }
-        description={<span className="text-[10px] leading-tight">{description}</span>}
-        className="w-full items-center"
+        aria-label={title}
       />
-    </div>
+    </StudioRow>
   );
 }
 
@@ -255,9 +257,7 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
       <DrawerContent aria-label={t`Paramètres de l'article`}>
         <DrawerHeader>
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-xs">
-              <SlidersHorizontal className="w-4 h-4" />
-            </div>
+            <SlidersHorizontal className="size-4 text-primary" />
             <div>
               <DrawerTitle className="text-sm font-bold">{t`Paramètres de l'article`}</DrawerTitle>
               <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
@@ -379,7 +379,7 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
               ) : (
                 <>
                   {scheduledAt && scheduledLabel ? (
-                    <div className="rounded-xl border border-highlight/30 bg-highlight/5 p-3">
+                    <div className="space-y-0.5">
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-highlight">
                         {t`Programmé`}
                       </p>
@@ -471,10 +471,7 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
               {t`Référencement SEO & Social`}
             </SectionTitle>
 
-            <div className="rounded-xl border border-border/40 bg-muted/10 p-3 space-y-1">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {t`Aperçu automatique`}
-              </p>
+            <div className="space-y-1">
               <p className="text-sm font-medium text-primary line-clamp-1">
                 {seoTitle.trim() || autoSeoTitle || t`Titre de l'article`}
               </p>
@@ -499,17 +496,7 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
             </Button>
 
             <div className={cn('space-y-3', seoAdvancedOpen ? 'block' : 'hidden')}>
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
-                  <label>{t`Titre SEO alternatif`}</label>
-                  <span
-                    className={cn(
-                      seoTitle.length > 60 ? 'text-highlight' : 'text-muted-foreground'
-                    )}
-                  >
-                    {seoTitle.length}/60
-                  </span>
-                </div>
+              <StudioField label={t`Titre SEO`} counter={`${seoTitle.length}/60`}>
                 <Input
                   type="text"
                   size="sm"
@@ -517,69 +504,62 @@ export function EditorSettingsDrawer(props: EditorSettingsDrawerProps) {
                   onChange={(event) => onSeoTitleChange(event.target.value)}
                   placeholder={autoSeoTitle || t`Titre de l'article`}
                 />
-              </div>
+              </StudioField>
 
-              <div className="space-y-1">
-                <div className="flex items-center justify-between text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">
-                  <label>{t`Description Meta SEO`}</label>
-                  <span
-                    className={cn(
-                      seoDescription.length > 160 ? 'text-highlight' : 'text-muted-foreground'
-                    )}
-                  >
-                    {seoDescription.length}/160
-                  </span>
-                </div>
+              <StudioField
+                label={t`Description SEO`}
+                counter={`${seoDescription.length}/160`}
+                hint={t`Affichée sous le titre dans les résultats de recherche et les partages.`}
+              >
                 <Textarea
                   size="sm"
                   rows={3}
                   value={seoDescription}
                   onChange={(event) => onSeoDescriptionChange(event.target.value)}
-                  placeholder={
-                    autoSeoDescription ||
-                    t`Une courte accroche percutante pour Google et les partages sociaux...`
-                  }
+                  placeholder={autoSeoDescription || t`Résumé de l'article.`}
                 />
-              </div>
+              </StudioField>
             </div>
           </section>
 
-          <section className="space-y-2.5 pt-4 border-t border-border/40">
+          <section className="space-y-3 pt-4 border-t border-border/40">
             <SectionTitle icon={<Lock className="h-3.5 w-3.5 text-primary stroke-[1.5]" />}>
               {t`Accès & Monétisation`}
             </SectionTitle>
 
-            <ToggleRow
-              icon={<Lock className="w-3.5 h-3.5 text-highlight" />}
-              title={t`Article Paywall Premium`}
-              description={t`Réservé aux membres disposant d'un abonnement payant.`}
-              checked={isPremium}
-              onChange={onTogglePremium}
-            />
-            <ToggleRow
-              icon={<Highlighter className="w-3.5 h-3.5 text-primary" />}
-              title={t`Annotations publiques`}
-              description={t`Permet aux lecteurs de surligner et d'annoter publiquement vos phrases.`}
-              checked={allowPublicAnnotations}
-              onChange={onTogglePublicAnnotations}
-            />
-            <ToggleRow
-              icon={<MessageSquare className="w-3.5 h-3.5 text-primary" />}
-              title={t`Espace commentaires`}
-              description={t`Ouvre un espace de débat et d'échange sous l'article.`}
-              checked={allowComments}
-              onChange={onToggleComments}
-            />
-            {articleId && (
+            <StudioRowList>
               <ToggleRow
-                icon={<Download className="w-3.5 h-3.5 text-primary" />}
-                title={t`Téléchargement hors-ligne`}
-                description={t`Autorise les lecteurs Plus à mettre cet article hors-ligne et dans leur file d'écoute.`}
-                checked={allowDownload}
-                disabled={downloadSaving}
-                onChange={onToggleDownload}
+                icon={<Lock className="w-3.5 h-3.5 text-highlight" />}
+                title={t`Article Paywall Premium`}
+                description={t`Réservé aux membres disposant d'un abonnement payant.`}
+                checked={isPremium}
+                onChange={onTogglePremium}
               />
-            )}
+              <ToggleRow
+                icon={<Highlighter className="w-3.5 h-3.5 text-primary" />}
+                title={t`Annotations publiques`}
+                description={t`Permet aux lecteurs de surligner et d'annoter publiquement vos phrases.`}
+                checked={allowPublicAnnotations}
+                onChange={onTogglePublicAnnotations}
+              />
+              <ToggleRow
+                icon={<MessageSquare className="w-3.5 h-3.5 text-primary" />}
+                title={t`Espace commentaires`}
+                description={t`Ouvre un espace de débat et d'échange sous l'article.`}
+                checked={allowComments}
+                onChange={onToggleComments}
+              />
+              {articleId && (
+                <ToggleRow
+                  icon={<Download className="w-3.5 h-3.5 text-primary" />}
+                  title={t`Téléchargement hors-ligne`}
+                  description={t`Autorise les lecteurs Plus à mettre cet article hors-ligne et dans leur file d'écoute.`}
+                  checked={allowDownload}
+                  disabled={downloadSaving}
+                  onChange={onToggleDownload}
+                />
+              )}
+            </StudioRowList>
           </section>
 
           {published && hasUnpublishedChanges && onDiscardDraft && (
