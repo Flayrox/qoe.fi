@@ -61,8 +61,10 @@ interface DataGridProps<T extends { id: string }> {
   /** Active la colonne de sélection et la barre d'actions groupées. */
   selectable?: boolean;
   bulkActions?: (rows: T[]) => React.ReactNode;
-  /** Entrée au clavier (et double clic) : où ouvrir la ligne. */
+  /** Entrée au clavier : où ouvrir la ligne. */
   rowHref?: (row: T) => string;
+  /** Prioritaire sur `rowHref` : ouvre la ligne dans un panneau. */
+  onRowOpen?: (row: T) => void;
 }
 
 export function DataGrid<T extends { id: string }>({
@@ -80,6 +82,7 @@ export function DataGrid<T extends { id: string }>({
   selectable = false,
   bulkActions,
   rowHref,
+  onRowOpen,
 }: DataGridProps<T>) {
   const router = useRouter();
   const [selectedKeys, setSelectedKeys] = React.useState<Set<string>>(new Set());
@@ -140,7 +143,7 @@ export function DataGrid<T extends { id: string }>({
     <div
       ref={wrapperRef}
       className={cn('min-w-0 outline-hidden', className)}
-      tabIndex={selectable || rowHref ? 0 : undefined}
+      tabIndex={selectable || rowHref || onRowOpen ? 0 : undefined}
       onKeyDown={(event) => {
         const tag = (event.target as HTMLElement).tagName;
         if (['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON', 'A'].includes(tag)) return;
@@ -160,11 +163,12 @@ export function DataGrid<T extends { id: string }>({
             else next.add(row.id);
             return next;
           });
-        } else if (event.key === 'Enter' && rowHref) {
+        } else if (event.key === 'Enter' && (onRowOpen || rowHref)) {
           const row = sorted[cursor ?? 0];
           if (!row) return;
           event.preventDefault();
-          router.push(rowHref(row));
+          if (onRowOpen) onRowOpen(row);
+          else if (rowHref) router.push(rowHref(row));
         } else if (event.key === 'Escape') {
           setSelectedKeys(new Set());
           setCursor(null);
