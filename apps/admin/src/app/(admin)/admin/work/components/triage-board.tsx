@@ -17,6 +17,13 @@ import { Select } from '@qoe/ui/select';
 import { Input } from '@qoe/ui/ui/input';
 import { CopyableId } from '@/components/shell/CopyableId';
 import { DataGrid, type GridColumn } from '@/components/shell/DataGrid';
+import { GridViewToolbar } from '@/components/shell/GridView';
+import {
+  filterRows,
+  useGridView,
+  type GridFacetDef,
+  type GridViewState,
+} from '@/components/shell/grid-view';
 import type { RowActionItem } from '@/components/shell/RowMenu';
 import { attemptWithStepUp, notifyActionFailure, readMessage } from '@/lib/authz-feedback';
 import { triageQueueItemAction, type TriageActionInput } from '@/lib/admin-triage-actions';
@@ -67,6 +74,7 @@ export function TriageBoard({ view }: { view: AdminWorkQueueView }) {
   const labels = new Map(view.items.map((item) => [item.key, item.label]));
   const [status, setStatus] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const grid = useGridView('admin.work.triage', { column: 'sla', direction: 'ascending' });
 
   const save = (input: TriageActionInput, message: string) => {
     startTransition(async () => {
@@ -202,6 +210,37 @@ export function TriageBoard({ view }: { view: AdminWorkQueueView }) {
     },
   ];
 
+  const facetDefs: GridFacetDef<AdminQueueTriageEntry>[] = [
+    {
+      id: 'queue',
+      label: 'File',
+      values: view.items.map((item) => ({
+        id: item.key,
+        label: item.label,
+        test: (entry) => entry.queue === item.key,
+      })),
+    },
+    {
+      id: 'priority',
+      label: 'Priorité',
+      values: PRIORITIES.map((item) => ({
+        id: item.id,
+        label: item.label,
+        test: (entry) => entry.priority === item.id,
+      })),
+    },
+    {
+      id: 'sla',
+      label: 'SLA',
+      values: SLA_RANK.map((state) => ({
+        id: state,
+        label: SLA_LABELS[state],
+        test: (entry) => entry.slaState === state,
+      })),
+    },
+  ];
+  const visible = filterRows(view.entries, grid.state.facets, facetDefs);
+
   if (view.entries.length === 0) {
     return (
       <p className="rounded-md border border-border bg-muted/20 px-3 py-6 text-center text-[12px] text-muted-foreground">
@@ -220,6 +259,21 @@ export function TriageBoard({ view }: { view: AdminWorkQueueView }) {
         </p>
       </div>
 
+      <GridViewToolbar
+        state={grid.state}
+        onChange={grid.update}
+        onToggleFacet={grid.toggleFacet}
+        onToggleColumn={grid.toggleColumn}
+        onReset={grid.reset}
+        facets={facetDefs}
+        columns={columns.map((column) => ({ id: column.id, label: column.id }))}
+        views={grid.views}
+        onSaveView={grid.saveView}
+        onApplyView={grid.applyView}
+        onRemoveView={grid.removeView}
+        count={visible.length}
+      />
+
       {status && (
         <p role="status" className="text-[11px] text-muted-foreground">
           {status}
@@ -228,9 +282,13 @@ export function TriageBoard({ view }: { view: AdminWorkQueueView }) {
 
       <DataGrid
         ariaLabel="Triage des dossiers de la file staff"
-        rows={view.entries}
+        rows={visible}
         columns={columns}
         initialSort={{ column: 'sla', direction: 'ascending' }}
+        sort={grid.state.sort}
+        onSortChange={(sort) => grid.update({ sort } as Partial<GridViewState>)}
+        hiddenColumns={grid.state.hidden}
+        density={grid.state.density}
         emptyState="Aucun dossier ouvert dans les six files."
         rowMenu={menu}
       />
