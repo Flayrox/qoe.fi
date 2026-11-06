@@ -8,7 +8,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
-import { buttonClasses } from '@qoe/ui/button';
+import { Button } from '@qoe/ui/button';
 import { getActiveWorkspace } from '@/lib/active-workspace';
 import SettingsView from '@/features/settings/settings';
 import type { CreatorProfile } from '@/features/settings/types';
@@ -180,12 +180,9 @@ export default async function CreatorSettingsPage() {
             Le mot de passe, l&apos;adresse e-mail, la double authentification et les sessions
             actives se gèrent depuis les paramètres du compte personnel.
           </p>
-          <a
-            href="https://qoe.fi/settings"
-            className={buttonClasses({ variant: 'outline', size: 'sm' })}
-          >
-            Gérer mon compte
-          </a>
+          <Button asChild variant="outline" size="sm">
+            <a href="https://qoe.fi/settings">Gérer mon compte</a>
+          </Button>
         </div>
       </StudioSection>
     </StudioPage>
