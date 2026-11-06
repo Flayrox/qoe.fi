@@ -175,9 +175,11 @@ Commits du chantier :
 - [x] **C9. File agrégée** : assignation, priorité et SLA uniformes sur les six files
       (migration 00071, `triage-board.tsx`, tests Go `queue_triage_test.go`).
 
-### Lot D — crédibilité plateforme (à faire)
+### Lot D — crédibilité plateforme
 
-- [ ] **D1. DSAR** : export et effacement par personne, avec preuve et délai.
+- [x] **D1. DSAR** : export et effacement par personne, avec preuve et délai
+      (commit `6c282740`, `dsar.go`, `DSARRequestsManager.tsx`, `UserDSARPanel.tsx`,
+      compte à rebours 30 jours, attestation scellée SHA-256).
 - [ ] **D2. Rétention** : politiques par table, purge planifiée, journal.
 - [ ] **D3. Exports signés** déjà présents côté légal — généraliser aux autres
       registres (audit, consentement, abonnés).
