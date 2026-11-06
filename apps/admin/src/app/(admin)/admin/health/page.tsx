@@ -16,9 +16,10 @@ import { Activity, Database, GitBranch, ShieldCheck, ShieldOff } from 'lucide-re
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 import { getAuthzDecisions } from '@/lib/admin-audit-data';
 import { ADMIN_CAPABILITIES } from '@/lib/admin-console';
-import { getPlatformHealth } from '@/lib/admin-infra-data';
+import { getPlatformHealth, getPlatformSLO } from '@/lib/admin-infra-data';
 import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
 import { StatusPill } from '@/components/queue/StatusPill';
+import { SLOConsole } from './SLOConsole';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,12 +27,13 @@ export default async function AdminHealthPage() {
   const identity = await getAdminIdentity();
   requireCapability(identity, 'admin.dashboard.read');
 
-  const [health, decisions, month] = await Promise.all([
+  const [health, decisions, month, slo] = await Promise.all([
     getPlatformHealth(),
     getAuthzDecisions({ window: 24, denied: false, limit: 1 }),
     // Fenêtre large : la question « quelles capacités ne sont JAMAIS exercées »
     // ne se lit pas sur 24 heures.
     getAuthzDecisions({ window: 720, denied: false, limit: 1 }),
+    getPlatformSLO(),
   ]);
 
   const exercised = new Set(month.groups.map((group) => group.capability));
@@ -55,6 +57,8 @@ export default async function AdminHealthPage() {
           </>
         }
       />
+
+      <SLOConsole report={slo} />
 
       <div className="grid gap-4 md:grid-cols-3">
         <div

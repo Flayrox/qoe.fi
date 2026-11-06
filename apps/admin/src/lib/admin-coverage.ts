@@ -36,6 +36,7 @@ export const ADMIN_ROUTE_COVERAGE: Record<string, AdminRouteCoverage> = {
   'GET /v1/admin/work-queue': via('/admin/work'),
   'GET /v1/admin/storage/usage': via('/admin/storage'),
   'GET /v1/admin/health': via('/admin/health'),
+  'GET /v1/admin/slo': via('/admin/health'),
   'GET /v1/admin/audit-log': via('/admin/audit'),
   'POST /v1/admin/audit/signed-export': via('/admin/audit'),
   'GET /v1/admin/access/decisions': via('/admin/access/decisions'),

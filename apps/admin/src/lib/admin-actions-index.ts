@@ -131,6 +131,13 @@ export const ADMIN_ACTIONS: readonly AdminActionShortcut[] = [
     capability: 'admin.audit.read',
     keywords: 'audit qui a fait quoi journal décisions',
   },
+  {
+    id: 'health-slo',
+    label: 'Santé de la plateforme & SLO',
+    href: '/admin/health',
+    capability: 'admin.dashboard.read',
+    keywords: 'slo sante alertes latence outbox erreurs migration uptime budget',
+  },
 ];
 
 /** Actions atteignables avec un jeu de capacités. */

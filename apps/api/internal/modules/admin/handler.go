@@ -156,6 +156,8 @@ func (h *Handler) routeTable() []adminRoute {
 		// Santé de la plateforme : base, migration appliquée, mode d'autorisation
 		// et décisions récentes — la preuve chiffrée avant d'armer le refus.
 		{http.MethodGet, "/v1/admin/health", adminauthz.DashboardRead, h.health},
+		// SLO et alertes par surface (latence API, erreurs, outbox, migration).
+		{http.MethodGet, "/v1/admin/slo", adminauthz.DashboardRead, h.sloReport},
 
 		// ── Comptes & modération ─────────────────────────────────────────
 		{http.MethodGet, "/v1/admin/users", adminauthz.UsersRead, h.users},
@@ -405,6 +407,15 @@ func (h *Handler) health(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	response.OK(w, health)
+}
+
+// GET /v1/admin/slo — rapport SLO et alertes par surface (latence, erreurs, outbox, migration).
+func (h *Handler) sloReport(w http.ResponseWriter, r *http.Request) {
+	if _, ok := h.requireAuthenticated(w, r); !ok {
+		return
+	}
+	report := h.svc.GetPlatformSLOReport(r.Context())
+	response.OK(w, report)
 }
 
 // GET /v1/admin/storage/usage — supervision du bucket images (superadmin).

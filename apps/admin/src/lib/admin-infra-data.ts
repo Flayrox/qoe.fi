@@ -74,3 +74,44 @@ export async function getPlatformHealth(): Promise<PlatformHealth | null> {
     return null;
   }
 }
+
+// ── SLO & Alertes par surface (Lot D4) ──────────────────────────────────────
+
+export type SLOStatus = 'nominal' | 'warning' | 'critical';
+export type AlertSeverity = 'critical' | 'warning' | 'info';
+
+export interface PlatformAlert {
+  id: string;
+  severity: AlertSeverity;
+  surface: string;
+  title: string;
+  message: string;
+  recommendation: string;
+  triggeredAt: string;
+}
+
+export interface SLOSurface {
+  id: string;
+  name: string;
+  target: string;
+  currentValue: string;
+  status: SLOStatus;
+  errorBudgetRemaining: number;
+  details: Record<string, unknown>;
+}
+
+export interface PlatformSLOReport {
+  generatedAt: string;
+  globalStatus: SLOStatus;
+  surfaces: SLOSurface[];
+  alerts: PlatformAlert[];
+}
+
+/** Rapport SLO et alertes par surface (latence API, erreurs, outbox, migration). */
+export async function getPlatformSLO(): Promise<PlatformSLOReport | null> {
+  try {
+    return await goFetch<PlatformSLOReport>('/v1/admin/slo');
+  } catch {
+    return null;
+  }
+}

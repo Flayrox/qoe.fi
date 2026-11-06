@@ -188,6 +188,7 @@ func TestSensitiveRoutesDeclareTheRightCapability(t *testing.T) {
 	}{
 		{"GET", "/v1/admin/me", adminauthz.SelfRead},
 		{"GET", "/v1/admin/dashboard", adminauthz.DashboardRead},
+		{"GET", "/v1/admin/slo", adminauthz.DashboardRead},
 		{"GET", "/v1/admin/audit-log", adminauthz.AuditRead},
 		{"POST", "/v1/admin/subscriptions/grants", adminauthz.SubscriptionsWrite},
 		{"POST", "/v1/admin/subscriptions/grants/{id}/revoke", adminauthz.SubscriptionsWrite},
