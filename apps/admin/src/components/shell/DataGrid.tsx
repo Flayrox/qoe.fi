@@ -47,6 +47,11 @@ interface DataGridProps<T extends { id: string }> {
   /** Actions de ligne — les mêmes pour le bouton « … » et le clic droit. */
   rowMenu?: (row: T) => RowActionItem[];
   className?: string;
+  /** Tri contrôlé (URL) ; sinon l'état est local. */
+  sort?: SortDescriptorLike;
+  onSortChange?: (descriptor: SortDescriptorLike) => void;
+  hiddenColumns?: readonly string[];
+  density?: 'compact' | 'normal';
 }
 
 export function DataGrid<T extends { id: string }>({
@@ -57,22 +62,46 @@ export function DataGrid<T extends { id: string }>({
   emptyState,
   rowMenu,
   className,
+  sort,
+  onSortChange,
+  hiddenColumns,
+  density = 'normal',
 }: DataGridProps<T>) {
-  const [descriptor, setDescriptor] = React.useState<SortDescriptorLike>(
+  const [innerSort, setInnerSort] = React.useState<SortDescriptorLike>(
     initialSort ?? { column: columns[0]?.id ?? 'id', direction: 'ascending' }
   );
+  const descriptor = sort ?? innerSort;
+  const changeSort = (next: SortDescriptorLike) => {
+    if (onSortChange) onSortChange(next);
+    else setInnerSort(next);
+  };
+
+  const visibleColumns = React.useMemo(
+    () => columns.filter((column) => !hiddenColumns?.includes(column.id)),
+    [columns, hiddenColumns]
+  );
+  // Trier sur une colonne masquée n'a plus de sens : on retombe sur la
+  // première colonne triable plutôt que de laisser `sortRows` sans spec.
+  const effectiveSort: SortDescriptorLike = visibleColumns.some(
+    (column) => column.id === descriptor.column && column.sort
+  )
+    ? descriptor
+    : {
+        column: visibleColumns.find((column) => column.sort)?.id ?? visibleColumns[0]?.id ?? 'id',
+        direction: 'ascending',
+      };
   const [menu, setMenu] = React.useState<{ point: { x: number; y: number }; row: T } | null>(null);
 
   const spec = React.useMemo(
     () =>
       Object.fromEntries(
-        columns.filter((column) => column.sort).map((column) => [column.id, column.sort])
+        visibleColumns.filter((column) => column.sort).map((column) => [column.id, column.sort])
       ) as SortSpec<T>,
-    [columns]
+    [visibleColumns]
   );
   const sorted = React.useMemo(
-    () => sortRows(rows as T[], descriptor, spec),
-    [rows, descriptor, spec]
+    () => sortRows(rows as T[], effectiveSort, spec),
+    [rows, effectiveSort, spec]
   );
   const closeMenu = React.useCallback(() => setMenu(null), []);
 
@@ -96,12 +125,12 @@ export function DataGrid<T extends { id: string }>({
       <Table
         aria-label={ariaLabel}
         size="xs"
-        sortDescriptor={descriptor}
-        onSortChange={setDescriptor}
-        className="rounded-md border-border/70"
+        sortDescriptor={effectiveSort}
+        onSortChange={changeSort}
+        className={`rounded-md border-border/70 ${density === 'compact' ? '[&_td]:py-0 [&_th]:py-0' : ''}`}
       >
         <TableHeader>
-          {columns.map((column) => (
+          {visibleColumns.map((column) => (
             <TableColumn
               key={column.id}
               id={column.id}
@@ -121,7 +150,7 @@ export function DataGrid<T extends { id: string }>({
         <TableBody items={sorted} emptyState={emptyState ?? 'Aucune ligne.'}>
           {(row) => (
             <TableRow id={row.id}>
-              {columns.map((column) => (
+              {visibleColumns.map((column) => (
                 <TableCell
                   key={column.id}
                   className={cn(column.align === 'right' && 'text-right', column.className)}

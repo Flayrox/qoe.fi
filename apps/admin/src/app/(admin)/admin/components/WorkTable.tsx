@@ -5,6 +5,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { CopyableId } from '@/components/shell/CopyableId';
 import { DataGrid, type GridColumn } from '@/components/shell/DataGrid';
+import { GridViewToolbar } from '@/components/shell/GridView';
+import {
+  filterRows,
+  useGridView,
+  type GridFacetDef,
+  type GridViewState,
+} from '@/components/shell/grid-view';
 import { attemptWithStepUp, notifyActionFailure, readMessage } from '@/lib/authz-feedback';
 import { triageQueueItemAction } from '@/lib/admin-triage-actions';
 import type {
@@ -67,6 +74,7 @@ export function WorkTable({
 }) {
   const router = useRouter();
   const [status, setStatus] = React.useState<string | null>(null);
+  const grid = useGridView('admin.work', { column: 'sla', direction: 'ascending' });
 
   const assign = (entry: AdminQueueTriageEntry) => {
     void (async () => {
@@ -157,8 +165,44 @@ export function WorkTable({
     },
   ];
 
+  const facetDefs: GridFacetDef<AdminQueueTriageEntry>[] = [
+    {
+      id: 'queue',
+      label: 'File',
+      values: Object.entries(queueLabels).map(([id, label]) => ({
+        id,
+        label,
+        test: (row) => row.queue === id,
+      })),
+    },
+    {
+      id: 'sla',
+      label: 'SLA',
+      values: SLA_RANK.map((state) => ({
+        id: state,
+        label: SLA_LABELS[state],
+        test: (row) => row.slaState === state,
+      })),
+    },
+  ];
+  const visible = filterRows(entries, grid.state.facets, facetDefs).slice(0, limit);
+
   return (
     <div className="space-y-1.5">
+      <GridViewToolbar
+        state={grid.state}
+        onChange={grid.update}
+        onToggleFacet={grid.toggleFacet}
+        onToggleColumn={grid.toggleColumn}
+        onReset={grid.reset}
+        facets={facetDefs}
+        columns={columns.map((column) => ({ id: column.id, label: column.id }))}
+        views={grid.views}
+        onSaveView={grid.saveView}
+        onApplyView={grid.applyView}
+        onRemoveView={grid.removeView}
+        count={visible.length}
+      />
       {status && (
         <p role="status" className="text-[11px] text-muted-foreground">
           {status}
@@ -166,9 +210,13 @@ export function WorkTable({
       )}
       <DataGrid
         ariaLabel="Dossiers à traiter"
-        rows={entries.slice(0, limit)}
+        rows={visible}
         columns={columns}
         initialSort={{ column: 'sla', direction: 'ascending' }}
+        sort={grid.state.sort}
+        onSortChange={(sort) => grid.update({ sort } as Partial<GridViewState>)}
+        hiddenColumns={grid.state.hidden}
+        density={grid.state.density}
         emptyState="Aucun dossier ouvert : les six files sont vides."
         rowMenu={(row) => [
           { id: 'open', label: 'Ouvrir le dossier', onSelect: () => router.push(row.href) },
