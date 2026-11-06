@@ -230,6 +230,10 @@ func (h *Handler) routeTable() []adminRoute {
 		// ── Notifications & livraisons ───────────────────────────────────
 		{http.MethodGet, "/v1/admin/deliveries", adminauthz.DeliveriesRead, h.deliveries},
 		{http.MethodPost, "/v1/admin/deliveries/{id}/retry", adminauthz.DeliveriesRetry, h.retryDelivery},
+		{http.MethodGet, "/v1/admin/outbox/metrics", adminauthz.DeliveriesRead, h.outboxMetrics},
+		{http.MethodPost, "/v1/admin/outbox/retry-all", adminauthz.DeliveriesRetry, h.retryAllFailed},
+		{http.MethodPost, "/v1/admin/outbox/unlock-stuck", adminauthz.DeliveriesRetry, h.unlockStuck},
+		{http.MethodPost, "/v1/admin/outbox/batch-retry", adminauthz.DeliveriesRetry, h.batchRetry},
 
 		// ── Communication & Annonce globale ──────────────────────────────
 		{http.MethodGet, "/v1/admin/announcement", adminauthz.CampaignsRead, h.getAnnouncement},

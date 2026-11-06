@@ -477,12 +477,84 @@ export async function retryNotificationDeliveryAction(deliveryId: string) {
     await goFetch(`/v1/admin/deliveries/${encodeURIComponent(deliveryId)}/retry`, {
       method: 'POST',
     });
+    revalidatePath('/admin/notifications');
     return { success: true as const };
   } catch (error: unknown) {
     console.error(error);
     return {
       success: false as const,
       error: errorMessage(error, 'Relance impossible.'),
+      ...authzTrailers(error),
+    };
+  }
+}
+
+/** 📮 Relance toutes les livraisons en échec de l'outbox (optionnellement filtrées par canal). */
+export async function retryAllFailedDeliveriesAction(reason?: string, channel?: string) {
+  await assertCapability('admin.deliveries.retry');
+  try {
+    const data = await goFetch<{ success: boolean; retriedCount: number }>('/v1/admin/outbox/retry-all', {
+      method: 'POST',
+      body: {
+        reason: reason?.trim() || 'Relance manuelle globale',
+        channel: channel?.trim() || undefined,
+      },
+    });
+    revalidatePath('/admin/notifications');
+    return { success: true as const, retriedCount: data.retriedCount ?? 0 };
+  } catch (error: unknown) {
+    console.error(error);
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Relance globale impossible.'),
+      ...authzTrailers(error),
+    };
+  }
+}
+
+/** 🔓 Débloque les messages de l'outbox restés coincés en PROCESSING. */
+export async function unlockStuckDeliveriesAction(reason?: string) {
+  await assertCapability('admin.deliveries.retry');
+  try {
+    const data = await goFetch<{ success: boolean; unlockedCount: number }>('/v1/admin/outbox/unlock-stuck', {
+      method: 'POST',
+      body: {
+        reason: reason?.trim() || 'Déblocage des messages fantômes',
+      },
+    });
+    revalidatePath('/admin/notifications');
+    return { success: true as const, unlockedCount: data.unlockedCount ?? 0 };
+  } catch (error: unknown) {
+    console.error(error);
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Déblocage impossible.'),
+      ...authzTrailers(error),
+    };
+  }
+}
+
+/** 📦 Relance par lot d'une sélection de livraisons. */
+export async function batchRetryDeliveriesAction(ids: string[], reason?: string) {
+  await assertCapability('admin.deliveries.retry');
+  if (!ids || ids.length === 0) {
+    return { success: false as const, error: 'Aucune livraison sélectionnée.' };
+  }
+  try {
+    const data = await goFetch<{ success: boolean; retriedCount: number }>('/v1/admin/outbox/batch-retry', {
+      method: 'POST',
+      body: {
+        ids,
+        reason: reason?.trim() || 'Relance par lot d’éléments sélectionnés',
+      },
+    });
+    revalidatePath('/admin/notifications');
+    return { success: true as const, retriedCount: data.retriedCount ?? 0 };
+  } catch (error: unknown) {
+    console.error(error);
+    return {
+      success: false as const,
+      error: errorMessage(error, 'Relance par lot impossible.'),
       ...authzTrailers(error),
     };
   }
