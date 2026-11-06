@@ -187,7 +187,9 @@ Commits du chantier :
       registres (commit `51a06890`, `signed_exports.go`, `signed_exports_test.go`,
       Ed25519 autonome, journal d'audit scellé, registre des abonnés avec hachage SHA-256,
       contrôle universel `UniversalExportVerifierPanel.tsx`, streaming direct Next.js, step-up N2).
-- [ ] **D4. SLO + alertes** par surface (latence API, erreurs, outbox, migration).
+- [x] **D4. SLO + alertes** par surface (commit `d0c32587`, `service_slo.go`, `service_slo_test.go`,
+      `SLOConsole.tsx`, `GET /v1/admin/slo`, évaluation des 4 surfaces vitales : latence API p95,
+      disponibilité et budget d'erreur 99.9%, outbox et retard de dépilage, dérive de schéma goose v73).
 - [ ] **D5. Outbox observable** : profondeur, retries, blocages, reprise.
 - [ ] **D6. Bac à sable** : seeds et impersonation pour tester sans production.
 
