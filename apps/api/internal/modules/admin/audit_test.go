@@ -1,9 +1,9 @@
 package admin
 
-// Tests du journal d'audit superadmin : le flag admin-audit-log (table
-// feature_flags partagée) active les écritures ; chaque bascule de permissions
+// Tests du journal d'audit superadmin : les mutations sont TOUJOURS tracées,
+// que le flag admin-audit-log soit actif ou non ; chaque bascule de permissions
 // API / contrôle d'accès est tracée (qui, quand, quoi) et lisible via
-// ListAuditLogs.
+// ListAuditLogs. Le flag ne pilote plus que le mode verbeux.
 
 import (
 	"context"

@@ -33,8 +33,9 @@ var roleOrder = []string{
 //     `subscriptions.write`, pas de modération, pas d'écriture plateforme ;
 //   - `moderation` traite les mesures et les recours, mais ne touche ni à la
 //     configuration ni aux abonnements ;
-//   - `ops` tient la plateforme (config, flags, OAuth, accès API, livraisons,
-//     campagnes) sans prendre de décision sur les personnes ;
+//   - `ops` tient la PLATEFORME (config, flags, OAuth, accès API, livraisons)
+//     sans prendre de décision sur les personnes, les contenus, le support ou
+//     la croissance : ce n'est pas un rôle attrape-tout ;
 //   - `analyst` ne contient que des capacités en lecture — un test le vérifie.
 var RoleCapabilities = map[string][]Capability{
 	RoleSuperadmin: Capabilities(),
@@ -72,10 +73,9 @@ var RoleCapabilities = map[string][]Capability{
 		ConfigRead, ConfigWrite, FlagsWrite,
 		OAuthRead, OAuthApprove,
 		APIRead, APIGrantsWrite,
-		ImportsRead, ImportsReview,
-		DeliveriesRead, DeliveriesRetry,
-		CampaignsRead, CampaignsWrite,
-		IncidentsRead, IncidentsWrite, ComplianceRead,
+		// Imports, campagnes, incidents, livraisons et conformité appartiennent
+		// à leurs domaines métier : les inclure ici ferait d'`ops` un second
+		// superadmin déguisé.
 	},
 
 	RoleLegal: {

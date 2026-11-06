@@ -1,7 +1,8 @@
 package settings
 
 // Tests du journal d'audit superadmin étendu aux clés API : création,
-// rotation et révocation tracées quand le flag admin-audit-log est actif.
+// rotation et révocation tracées même quand le flag admin-audit-log est
+// éteint. La trace ne dépend plus d'un interrupteur.
 
 import (
 	"context"
@@ -100,7 +101,7 @@ func TestApiKeyAuditLog_TracesCreateRotateRevoke(t *testing.T) {
 	}
 }
 
-func TestApiKeyAuditLog_FlagOff_NoWrites(t *testing.T) {
+func TestApiKeyAuditLog_WritesEvenWhenFlagOff(t *testing.T) {
 	ctx := context.Background()
 	fx := seedSettings(t)
 	setAuditFlagSettings(t, ctx, false)
@@ -116,7 +117,14 @@ func TestApiKeyAuditLog_FlagOff_NoWrites(t *testing.T) {
 	if err := poolTest.QueryRow(ctx, `SELECT COUNT(*) FROM "AdminAuditLog"`).Scan(&count); err != nil {
 		t.Fatalf("count: %v", err)
 	}
-	if count != 0 {
-		t.Fatalf("entries = %d avec flag off, attendu 0", count)
+	if count != 1 {
+		t.Fatalf("entries = %d avec flag off, attendu 1", count)
+	}
+	var action string
+	if err := poolTest.QueryRow(ctx, `SELECT action FROM "AdminAuditLog" LIMIT 1`).Scan(&action); err != nil {
+		t.Fatalf("action: %v", err)
+	}
+	if action != "api.key.created" {
+		t.Fatalf("action = %q, attendu api.key.created", action)
 	}
 }

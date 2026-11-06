@@ -178,6 +178,50 @@ func TestAnalystIsStrictlyReadOnly(t *testing.T) {
 	}
 }
 
+// TestOpsIsNotCatchAll — `ops` ne détient que des capacités de pilotage ou de
+// plateforme. Une capacité de community, croissance, sécurité ou conformité
+// dans ce rôle signalerait un retour du superadmin déguisé.
+func TestOpsIsNotCatchAll(t *testing.T) {
+	ops := RoleSet(RoleOps)
+	for c := range ops {
+		switch c.Domain() {
+		case "pilotage", "plateforme":
+		default:
+			t.Errorf("ops détient %q du domaine %q : hors périmètre plateforme", c, c.Domain())
+		}
+	}
+	for _, c := range []Capability{
+		UsersModerate, UsersSessionsRevoke, ReportsWrite, SubscriptionsWrite,
+		ContentWrite, WidgetsWrite, LegalWrite, ComplianceExport, ComplianceRead,
+		ImportsRead, ImportsReview, CampaignsRead, CampaignsWrite,
+		IncidentsRead, IncidentsWrite, DeliveriesRead, DeliveriesRetry,
+	} {
+		if ops.Has(c) {
+			t.Errorf("ops ne doit pas détenir %q", c)
+		}
+	}
+	for _, c := range []Capability{ConfigRead, ConfigWrite, FlagsWrite, OAuthApprove, APIGrantsWrite} {
+		if !ops.Has(c) {
+			t.Errorf("ops devrait conserver %q (cœur plateforme)", c)
+		}
+	}
+}
+
+// TestContentCannotPublishLegalText — un rôle éditorial lit le juridique mais
+// ne publie pas un texte opposable ; seul `legal` (et superadmin) l'écrit.
+func TestContentCannotPublishLegalText(t *testing.T) {
+	content := RoleSet(RoleContent)
+	if content.Has(LegalWrite) {
+		t.Fatal("content détient admin.legal.write : un éditorial ne publie pas un texte opposable")
+	}
+	if !content.Has(LegalRead) {
+		t.Fatal("content devrait conserver la lecture juridique")
+	}
+	if !RoleSet(RoleLegal).Has(LegalWrite) {
+		t.Fatal("legal doit conserver l'écriture juridique")
+	}
+}
+
 // TestSupportCannotWriteSubscriptions — le cœur de la demande : un agent
 // support accueille et lit, mais n'octroie ni ne révoque un palier (et ne
 // touche pas à l'email Pro).
@@ -235,8 +279,8 @@ func TestRoleCapabilityMatrix(t *testing.T) {
 		},
 		{
 			role:    RoleOps,
-			holds:   []Capability{ConfigWrite, ConfigRead, FlagsWrite, OAuthApprove, OAuthRead, APIGrantsWrite, ImportsReview, DeliveriesRetry, CampaignsWrite, IncidentsWrite},
-			refuses: []Capability{UsersModerate, UsersSessionsRevoke, SubscriptionsWrite, ReportsWrite, ContentWrite, LegalWrite, ComplianceExport},
+			holds:   []Capability{ConfigWrite, ConfigRead, FlagsWrite, OAuthApprove, OAuthRead, APIGrantsWrite, AuditRead},
+			refuses: []Capability{UsersModerate, UsersSessionsRevoke, SubscriptionsWrite, ReportsWrite, ContentWrite, WidgetsWrite, LegalWrite, ComplianceRead, ComplianceExport, ImportsRead, ImportsReview, CampaignsRead, CampaignsWrite, IncidentsRead, IncidentsWrite, DeliveriesRead, DeliveriesRetry},
 		},
 		{
 			role:    RoleLegal,

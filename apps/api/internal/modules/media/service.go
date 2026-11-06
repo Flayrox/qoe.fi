@@ -44,7 +44,8 @@ type Service struct {
 	pool *pgxpool.Pool
 	q    *db.Queries
 
-	// flags gate le journal d'audit superadmin (flag admin-audit-log).
+	// flags est conservé pour le futur mode verbeux de l'audit ; la trace
+	// AdminAuditLog n'est plus conditionnée par admin-audit-log.
 	flags *flags.Service
 }
 
