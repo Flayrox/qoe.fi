@@ -1,9 +1,9 @@
 package media
 
 // Tests du journal d'audit superadmin étendu aux Médias : changement de rôle
-// et de permissions d'un membre (MediaMember) tracés quand le flag
-// admin-audit-log est actif — le journal media (MediaAuditLog) reste écrit
-// indépendamment, le journal superadmin (AdminAuditLog) est gated par flag.
+// et de permissions d'un membre (MediaMember) tracés même quand le flag
+// admin-audit-log est éteint. Le journal media (MediaAuditLog) reste écrit
+// indépendamment ; la trace superadmin ne dépend plus d'un interrupteur.
 
 import (
 	"context"
@@ -96,7 +96,7 @@ func TestMediaAuditLog_TracesMemberChanges(t *testing.T) {
 	}
 }
 
-func TestMediaAuditLog_FlagOff_NoSuperadminWrites(t *testing.T) {
+func TestMediaAuditLog_WritesEvenWhenFlagOff(t *testing.T) {
 	ctx := context.Background()
 	seedMedia(t, ctx)
 	setAuditFlagMedia(t, ctx, false)
@@ -104,7 +104,7 @@ func TestMediaAuditLog_FlagOff_NoSuperadminWrites(t *testing.T) {
 		t.Fatalf("clean audit: %v", err)
 	}
 
-	// Service sans flags branché → pas d'écriture superadmin (défaut sûr).
+	// Service sans flags branché : la trace ne dépend plus du flag.
 	svc := newTestService()
 	if err := svc.UpdateMemberRole(ctx, mediaOwnerID, "media_001", mediaWriterID, "editor"); err != nil {
 		t.Fatalf("UpdateMemberRole: %v", err)
@@ -113,7 +113,14 @@ func TestMediaAuditLog_FlagOff_NoSuperadminWrites(t *testing.T) {
 	if err := poolTest.QueryRow(ctx, `SELECT COUNT(*) FROM "AdminAuditLog"`).Scan(&count); err != nil {
 		t.Fatalf("count: %v", err)
 	}
-	if count != 0 {
-		t.Fatalf("entries = %d avec flag off, attendu 0", count)
+	if count != 1 {
+		t.Fatalf("entries = %d avec flag off, attendu 1", count)
+	}
+	var action string
+	if err := poolTest.QueryRow(ctx, `SELECT action FROM "AdminAuditLog" LIMIT 1`).Scan(&action); err != nil {
+		t.Fatalf("action: %v", err)
+	}
+	if action != "media.member.role_changed" {
+		t.Fatalf("action = %q, attendu media.member.role_changed", action)
 	}
 }

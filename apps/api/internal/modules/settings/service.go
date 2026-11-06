@@ -38,7 +38,8 @@ type Service struct {
 	pool pooler
 	q    ServiceQuerier
 
-	// flags gate le journal d'audit superadmin (flag admin-audit-log).
+	// flags est conservé pour le futur mode verbeux de l'audit ; la trace
+	// AdminAuditLog n'est plus conditionnée par admin-audit-log.
 	flags *flags.Service
 
 	// Fournisseur email + adresse d'expéditeur pour l'envoi de test du

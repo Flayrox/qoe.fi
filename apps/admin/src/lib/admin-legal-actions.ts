@@ -11,6 +11,7 @@
 import { revalidatePath } from 'next/cache';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { authzTrailers } from '@/lib/action-result';
+import { assertCapability } from '@/lib/admin-identity';
 
 async function verifySuperadmin() {
   try {
@@ -73,7 +74,9 @@ export interface LegalVersionRow {
 
 /** 📚 Charge l'historique complet d'un document (chargement à la demande). */
 export async function loadLegalVersionsAction(documentId: string): Promise<LegalVersionRow[]> {
-  await verifySuperadmin();
+  // Lecture à la demande depuis un composant client : on revérifie la
+  // capacité de lecture juridique ici aussi, pas seulement côté page.
+  await assertCapability('admin.legal.read');
   const data = await goFetch<{ items: LegalVersionRow[] }>(
     `/v1/admin/legal/${encodeURIComponent(documentId)}/versions`
   );

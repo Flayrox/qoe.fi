@@ -25,6 +25,9 @@ const (
 	// featureMigrationPath porte une correction de matrice (retrait de
 	// l'écriture juridique au rôle content), appliquée après les deux seeds.
 	featureMigrationPath = "../../sql/migrations/00069_feature_catalog_interest.sql"
+	// opsMigrationPath resserre `ops` à la plateforme : les capacités de
+	// community, croissance, sécurité et conformité lui sont retirées.
+	opsMigrationPath = "../../sql/migrations/00072_ops_scope.sql"
 	// domainMigrationPath réorganise les domaines d'affichage en six domaines
 	// métier : il ne sème aucune capacité, il en change l'étiquette.
 	domainMigrationPath = "../../sql/migrations/00070_admin_domains.sql"
@@ -206,8 +209,10 @@ func TestMigrationParity_Matrix(t *testing.T) {
 	// Corrections ultérieures de la matrice : un DELETE explicite dans une
 	// migration addendum doit être reflété avant la comparaison.
 	removal := regexp.MustCompile(`DELETE FROM "AdminRoleCapability"\s+WHERE "roleKey" = '([^']+)' AND "capabilityKey" = '([^']+)'`)
-	for _, m := range removal.FindAllStringSubmatch(readMigrationAt(t, featureMigrationPath), -1) {
-		delete(got, pair{m[1], m[2]})
+	for _, path := range []string{featureMigrationPath, opsMigrationPath} {
+		for _, m := range removal.FindAllStringSubmatch(readMigrationAt(t, path), -1) {
+			delete(got, pair{m[1], m[2]})
+		}
 	}
 
 	for _, role := range Roles() {

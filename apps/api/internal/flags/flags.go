@@ -25,6 +25,8 @@ const (
 	WebNewsletterBanner   = "web-newsletter-banner"
 	DashboardAITitle      = "dashboard-ai-title-suggestions"
 	LandingPricingSection = "landing-pricing-section"
+	// AdminAuditLog ne conditionne plus l'écriture de la trace : les mutations
+	// sont toujours auditées. Il ne pilote que le mode verbeux.
 	AdminAuditLog         = "admin-audit-log"
 	WorkersNewsletter     = "workers-newsletter-dispatch"
 	// AuthzEnforce bascule le garde d'autorisation (internal/authz) du mode

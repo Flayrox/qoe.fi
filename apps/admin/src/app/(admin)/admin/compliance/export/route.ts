@@ -7,16 +7,28 @@
 // l'empreinte et rendrait la preuve invérifiable. On relaie donc le corps
 // tel quel, en-têtes compris.
 //
-// Route handler = pas de layout : la garde est celle de l'API Go (403 si
-// l'appelant n'est pas superadmin), pas une vérification d'affichage.
+// Route handler = pas de layout : on revérifie donc la capacité ici, puis
+// l'API Go reste le juge final (403 si l'appelant n'a pas le droit).
 // =====================================================================
 
 import type { NextRequest } from 'next/server';
 import { goFetchRaw } from '@qoe/sdk/actions/utils/go-client';
+import { getAdminIdentity, hasCapability } from '@/lib/admin-identity';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
+  const identity = await getAdminIdentity();
+  if (!hasCapability(identity, 'admin.compliance.export')) {
+    return new Response(
+      JSON.stringify({ error: 'Accès refusé : la capacité admin.compliance.export est requise.' }),
+      {
+        status: 403,
+        headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
+      }
+    );
+  }
+
   const form = await request.formData().catch(() => null);
 
   const subject = String(form?.get('subject') ?? '').slice(0, 200);
