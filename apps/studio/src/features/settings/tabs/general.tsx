@@ -3,14 +3,12 @@
 // =====================================================================
 // ⚡ apps/studio/src/features/settings/tabs/general.tsx
 // =====================================================================
-// Onglet Identité & Design :
-// Interface « Zéro Scroll » ultra directe, compacte et sans modales.
-// Tout est paramétrable sous les yeux en 1 écran.
+// Identité & Design : une seule carte par sujet, des lignes séparées par
+// un filet. Plus de boîtes imbriquées autour du logo ou des switches.
 // =====================================================================
 
 import React, { useState } from 'react';
 import { ColorPicker } from '@qoe/ui';
-import { Badge } from '@qoe/ui/badge';
 import { Button, buttonClasses } from '@qoe/ui/button';
 import { Input, Textarea } from '@qoe/ui/input';
 import { Switch } from '@qoe/ui/switch';
@@ -19,19 +17,20 @@ import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
 import { cn } from '@qoe/utils';
 import {
-  ExternalLink,
   Check,
+  ExternalLink,
   Globe,
-  User,
-  SlidersHorizontal,
-  Palette,
   Image as ImageIcon,
+  Palette,
   PenTool,
+  SlidersHorizontal,
+  User,
 } from 'lucide-react';
 
 import type { CreatorProfile } from '../types';
 import { ACCENT_SWATCHES, SITE_FONTS } from '../types';
 import { MediaProfilePreviewEditor } from '../components/MediaProfilePreviewEditor';
+import { StudioField, StudioRow, StudioRowList, StudioSection } from '@/components/studio-page';
 
 interface GeneralTabProps {
   current: CreatorProfile;
@@ -40,13 +39,17 @@ interface GeneralTabProps {
   publicBlogUrl?: string;
 }
 
-export function GeneralTab({
-  current,
-  setCurrent,
-  consoleSettingsUrl,
-  publicBlogUrl,
-}: GeneralTabProps) {
-  // Commutateur de portée : Site Web vs Profil public
+const DISPLAY_OPTIONS = [
+  { key: 'showLogo', label: 'Logo / Avatar' },
+  { key: 'showTagline', label: 'Slogan' },
+  { key: 'showSubscribeButton', label: 'Bouton S’abonner' },
+  { key: 'showCategoryTabs', label: 'Onglets rubriques' },
+  { key: 'showCraftIndex', label: 'Sommaire' },
+  { key: 'showProgressiveBlur', label: 'Flou progressif' },
+  { key: 'showNewsletterWall', label: 'Mur newsletter' },
+];
+
+export function GeneralTab({ current, setCurrent, consoleSettingsUrl }: GeneralTabProps) {
   const [identityScope, setIdentityScope] = useState<'tenant' | 'core'>('tenant');
   const isMedia = Boolean(current.isMedia);
 
@@ -68,256 +71,196 @@ export function GeneralTab({
   };
 
   return (
-    <div className="space-y-4">
-      {/* ── EN-TÊTE COMPACT & LIEN DIRECT VERS LE VRAI SITE ── */}
-      <div className="flex items-center justify-between gap-3 pb-3 border-b border-border/40">
-        <Tabs
-          variant="segmented"
-          size="sm"
-          value={identityScope}
-          onValueChange={(val) => setIdentityScope(val as 'tenant' | 'core')}
-        >
-          <TabList aria-label="Portée des paramètres d'identité">
-            <Tab id="tenant">
-              <span className="inline-flex items-center gap-1.5">
-                <Globe className="size-3.5 text-primary" />
-                <span>Site Web</span>
-              </span>
-            </Tab>
-            <Tab id="core">
-              <span className="inline-flex items-center gap-1.5">
-                <User className="size-3.5 text-primary" />
-                <span>{isMedia ? 'Profil du média' : 'Votre profil'}</span>
-              </span>
-            </Tab>
-          </TabList>
-        </Tabs>
+    <div className="space-y-5">
+      <Tabs
+        variant="segmented"
+        size="sm"
+        value={identityScope}
+        onValueChange={(value) => setIdentityScope(value as 'tenant' | 'core')}
+      >
+        <TabList aria-label="Portée des paramètres d'identité">
+          <Tab id="tenant">
+            <span className="inline-flex items-center gap-1.5">
+              <Globe className="size-3.5" />
+              <span>Site web</span>
+            </span>
+          </Tab>
+          <Tab id="core">
+            <span className="inline-flex items-center gap-1.5">
+              <User className="size-3.5" />
+              <span>{isMedia ? 'Profil du média' : 'Votre profil'}</span>
+            </span>
+          </Tab>
+        </TabList>
+      </Tabs>
 
-        <div className="flex items-center gap-2">
-          {publicBlogUrl && (
-            <a
-              href={publicBlogUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={buttonClasses({ variant: 'soft', tone: 'brand', size: 'sm' })}
-              title="Ouvrir le vrai site web dans un nouvel onglet"
-            >
-              <ExternalLink />
-              <span>Ouvrir le site</span>
-            </a>
-          )}
-        </div>
-      </div>
-
-      {/* =====================================================================
-          VUE 1 : SITE WEB & PUBLICATION (ZÉRO SCROLL, 2 COLONNES)
-          ===================================================================== */}
       {identityScope === 'tenant' ? (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* ── COLONNE GAUCHE : IDENTITÉ & STYLE ── */}
-          <div className="space-y-4">
-            {/* 1. Identité du site */}
-            <div className="rounded-xl border border-border/50 bg-card p-4 space-y-3 shadow-2xs">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <PenTool className="w-3.5 h-3.5 text-primary" />
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Identité du site
-                  </h3>
-                </div>
-                <span className="text-[11px] text-muted-foreground font-mono">
-                  {current.subdomain ? `${current.subdomain}.qoe.fi` : ''}
-                </span>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground block">
-                  Nom du site web
-                </label>
-                <Input
-                  type="text"
-                  value={current.name || ''}
-                  onChange={(e) => setCurrent((prev) => ({ ...prev, name: e.target.value }))}
-                  placeholder="Ex. Carnet d'Éphémère"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-foreground block">
-                    Slogan éditorial
-                  </label>
-                  <span className="text-[10px] text-muted-foreground font-mono">
-                    {current.heroText?.length || 0}/180
+        <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
+          <div className="space-y-5">
+            <StudioSection
+              title="Identité du site"
+              icon={PenTool}
+              actions={
+                current.subdomain ? (
+                  <span className="font-mono text-[10px] text-muted-foreground">
+                    {current.subdomain}.qoe.fi
                   </span>
-                </div>
-                <Textarea
-                  size="sm"
-                  value={current.heroText || ''}
-                  onChange={(e) => setCurrent((prev) => ({ ...prev, heroText: e.target.value }))}
-                  maxLength={180}
-                  rows={2}
-                  placeholder="Ex. Analyses, essais et récits"
-                />
-              </div>
-            </div>
+                ) : null
+              }
+            >
+              <div className="space-y-4">
+                <StudioField label="Nom du site" htmlFor="site-name">
+                  <Input
+                    id="site-name"
+                    type="text"
+                    value={current.name || ''}
+                    onChange={(event) =>
+                      setCurrent((prev) => ({ ...prev, name: event.target.value }))
+                    }
+                    placeholder="Carnet d'Éphémère"
+                  />
+                </StudioField>
 
-            {/* 2. Style & Direction artistique */}
-            <div className="rounded-xl border border-border/50 bg-card p-4 space-y-3 shadow-2xs">
-              <div className="flex items-center gap-2">
-                <Palette className="w-3.5 h-3.5 text-primary" />
-                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Style & Typographie
-                </h3>
+                <StudioField
+                  label="Slogan"
+                  htmlFor="site-tagline"
+                  counter={`${current.heroText?.length || 0}/180`}
+                  hint="Une phrase affichée sous le nom."
+                >
+                  <Textarea
+                    id="site-tagline"
+                    size="sm"
+                    rows={2}
+                    maxLength={180}
+                    value={current.heroText || ''}
+                    onChange={(event) =>
+                      setCurrent((prev) => ({ ...prev, heroText: event.target.value }))
+                    }
+                    placeholder="Analyses, essais et récits"
+                  />
+                </StudioField>
               </div>
+            </StudioSection>
 
-              {/* Polices */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-foreground block">
-                  Police typographique
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {SITE_FONTS.map((font) => {
-                    const isSelected = activeFontId === font.id;
-                    return (
-                      <Button
-                        key={font.id}
-                        variant={isSelected ? 'soft' : 'outline'}
-                        tone={isSelected ? 'brand' : 'neutral'}
-                        onClick={() => setCurrent((prev) => ({ ...prev, fontFamily: font.id }))}
-                        className={cn(
-                          'h-auto flex-col items-stretch justify-start p-2.5 text-left',
-                          isSelected && 'ring-1 ring-primary'
-                        )}
-                      >
-                        <span className="flex items-center justify-between mb-0.5">
-                          <span className="text-xs font-semibold text-foreground truncate">
-                            {font.name.split(' ')[0]}
-                          </span>
-                          {isSelected && <Check className="w-3 h-3 text-primary shrink-0" />}
-                        </span>
-                        <span
-                          style={{ fontFamily: font.family }}
-                          className="text-[11px] text-foreground/80 font-medium truncate"
+            <StudioSection title="Typographie et couleur" icon={Palette}>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <span className="text-xs font-semibold text-foreground">Police</span>
+                  <div className="grid grid-cols-2 gap-2">
+                    {SITE_FONTS.map((font) => {
+                      const isSelected = activeFontId === font.id;
+                      return (
+                        <Button
+                          key={font.id}
+                          variant={isSelected ? 'soft' : 'outline'}
+                          tone={isSelected ? 'brand' : 'neutral'}
+                          onClick={() => setCurrent((prev) => ({ ...prev, fontFamily: font.id }))}
+                          className={cn(
+                            'h-auto flex-col items-stretch justify-start gap-1 p-2.5 text-left',
+                            isSelected && 'ring-1 ring-primary'
+                          )}
                         >
-                          Écriture libre
-                        </span>
-                      </Button>
-                    );
-                  })}
+                          <span className="flex items-center justify-between gap-2">
+                            <span className="truncate text-xs font-semibold text-foreground">
+                              {font.name}
+                            </span>
+                            {isSelected ? <Check className="size-3 shrink-0 text-primary" /> : null}
+                          </span>
+                          <span
+                            style={{ fontFamily: font.family }}
+                            className="truncate text-sm leading-tight text-muted-foreground"
+                          >
+                            Aa Bb Cc
+                          </span>
+                        </Button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
 
-              {/* Couleur d'accentuation */}
-              <div className="space-y-1.5 pt-1">
-                <label className="text-xs font-semibold text-foreground block">
-                  Couleur d&apos;accentuation
-                </label>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {ACCENT_SWATCHES.map((swatch) => {
-                    const isSelected = activeColorHex.toLowerCase() === swatch.hex.toLowerCase();
-                    return (
-                      <Button
-                        key={swatch.id}
-                        variant="ghost"
+                <div className="space-y-2 border-t border-border/40 pt-4">
+                  <span className="text-xs font-semibold text-foreground">Couleur d’accent</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {ACCENT_SWATCHES.map((swatch) => {
+                      const isSelected = activeColorHex.toLowerCase() === swatch.hex.toLowerCase();
+                      return (
+                        <Button
+                          key={swatch.id}
+                          variant="ghost"
+                          size="xs"
+                          shape="icon"
+                          onClick={() =>
+                            setCurrent((prev) => ({ ...prev, accentColor: swatch.hex }))
+                          }
+                          title={swatch.name}
+                          aria-label={swatch.name}
+                          className={cn(
+                            'size-6 rounded-full border-2 p-0 transition-transform',
+                            isSelected
+                              ? 'scale-110 border-foreground'
+                              : 'border-transparent hover:scale-105'
+                          )}
+                          style={{ backgroundColor: swatch.hex }}
+                        >
+                          {isSelected ? (
+                            <Check className="size-3 text-primary-foreground drop-shadow-sm" />
+                          ) : null}
+                        </Button>
+                      );
+                    })}
+
+                    <div className="ml-1 flex items-center gap-1.5">
+                      <Input
+                        type="color"
                         size="xs"
-                        shape="icon"
-                        onClick={() => setCurrent((prev) => ({ ...prev, accentColor: swatch.hex }))}
-                        title={swatch.name}
-                        aria-label={swatch.name}
-                        className={cn(
-                          'size-6 rounded-full border-2 p-0 transition-transform',
-                          isSelected
-                            ? 'border-foreground scale-110 shadow-xs'
-                            : 'border-transparent hover:scale-105'
-                        )}
-                        style={{ backgroundColor: swatch.hex }}
-                      >
-                        {isSelected && (
-                          <Check className="size-3 text-primary-foreground drop-shadow-sm" />
-                        )}
-                      </Button>
-                    );
-                  })}
+                        value={activeColorHex}
+                        onChange={(event) =>
+                          setCurrent((prev) => ({ ...prev, accentColor: event.target.value }))
+                        }
+                        aria-label="Couleur personnalisée"
+                        title="Couleur personnalisée"
+                        className="size-6 cursor-pointer rounded-full border-border/50 bg-transparent p-0"
+                      />
+                      <span className="font-mono text-[11px] text-muted-foreground uppercase">
+                        {activeColorHex}
+                      </span>
+                    </div>
+                  </div>
+                </div>
 
-                  <div className="flex items-center gap-1.5 ml-1 pl-2 border-l border-border/40">
-                    <Input
-                      type="color"
-                      size="xs"
-                      value={activeColorHex}
-                      onChange={(e) =>
-                        setCurrent((prev) => ({ ...prev, accentColor: e.target.value }))
-                      }
-                      aria-label="Couleur personnalisée"
-                      title="Couleur personnalisée"
-                      className="size-6 rounded-full border-border/50 cursor-pointer p-0 bg-transparent"
-                    />
-                    <span className="text-[11px] font-mono text-muted-foreground uppercase">
-                      {activeColorHex}
+                <div className="space-y-2 border-t border-border/40 pt-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs font-semibold text-foreground">Couleur de fond</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {current.siteOptions?.backgroundColor ? 'Personnalisée' : 'Par défaut'}
                     </span>
                   </div>
+                  <ColorPicker
+                    value={(current.siteOptions?.backgroundColor as string) || null}
+                    onChange={(hex) =>
+                      setCurrent((prev) => ({
+                        ...prev,
+                        siteOptions: {
+                          ...(prev.siteOptions || {}),
+                          backgroundColor: hex,
+                        },
+                      }))
+                    }
+                    defaultLabel="Thème neutre"
+                  />
                 </div>
               </div>
-
-              {/* Couleur de fond du site (sur-mesure) */}
-              <div className="space-y-1.5 pt-2 border-t border-border/30">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-foreground block">
-                    Couleur de fond du site
-                  </label>
-                  <span className="text-[10px] text-muted-foreground font-medium">
-                    {(current.siteOptions?.backgroundColor as string)
-                      ? 'Personnalisé'
-                      : 'Par défaut (Neutre)'}
-                  </span>
-                </div>
-
-                <ColorPicker
-                  value={(current.siteOptions?.backgroundColor as string) || null}
-                  onChange={(hex) =>
-                    setCurrent((prev) => ({
-                      ...prev,
-                      siteOptions: {
-                        ...(prev.siteOptions || {}),
-                        backgroundColor: hex,
-                      },
-                    }))
-                  }
-                  defaultLabel="Thème neutre standard"
-                />
-              </div>
-            </div>
+            </StudioSection>
           </div>
 
-          {/* ── COLONNE DROITE : MÉDIAS & BLOCS D'AFFICHAGE ── */}
-          <div className="space-y-4">
-            {/* 3. Médias & Identité Visuelle */}
-            <div className="rounded-xl border border-border/50 bg-card p-4 space-y-3 shadow-2xs">
-              <div className="flex items-center gap-2">
-                <ImageIcon className="w-3.5 h-3.5 text-primary" />
-                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Médias du site
-                </h3>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-start">
-                {/* Logo */}
-                <div className="p-3 rounded-lg border border-border/40 bg-muted/10 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold text-foreground">Logo du site</label>
-                    {current.logoUrl && (
-                      <Button
-                        variant="ghost"
-                        tone="danger"
-                        size="xs"
-                        onClick={() => setCurrent((prev) => ({ ...prev, logoUrl: null }))}
-                        className="h-auto px-1.5 py-0.5 text-[11px]"
-                      >
-                        Supprimer
-                      </Button>
-                    )}
-                  </div>
-                  <div className="max-w-[100px] mx-auto">
+          <div className="space-y-5">
+            <StudioSection title="Médias" icon={ImageIcon}>
+              <StudioRowList>
+                <StudioRow
+                  title="Logo"
+                  description="Affiché dans l’en-tête du site et comme favicon. PNG ou SVG, 512 × 512."
+                >
+                  <div className="w-44">
                     <ImageUploader
                       value={current.logoUrl}
                       onChange={(url) => setCurrent((prev) => ({ ...prev, logoUrl: url }))}
@@ -329,184 +272,99 @@ export function GeneralTab({
                       maxDimension={512}
                     />
                   </div>
-                  <p className="text-[10px] text-muted-foreground text-center">
-                    PNG ou SVG, 512 × 512.
-                  </p>
-                </div>
+                </StudioRow>
 
-                {/* Wordmark : logo typographique de l'en-tête */}
-                <div className="sm:col-span-2 p-3 rounded-lg border border-border/40 bg-muted/10 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-semibold text-foreground">Wordmark</label>
-                    {Boolean(current.siteOptions?.wordmarkUrl) && (
-                      <Button
-                        variant="ghost"
-                        tone="danger"
-                        size="xs"
-                        onClick={() =>
-                          setCurrent((prev) => ({
-                            ...prev,
-                            siteOptions: { ...(prev.siteOptions || {}), wordmarkUrl: null },
-                          }))
-                        }
-                        className="h-auto px-1.5 py-0.5 text-[11px]"
-                      >
-                        Supprimer
-                      </Button>
-                    )}
+                <StudioRow
+                  title="Wordmark"
+                  description="Remplace le nom texte dans l’en-tête du site. Laissez vide pour garder le nom."
+                >
+                  <div className="w-52">
+                    <ImageUploader
+                      value={(current.siteOptions?.wordmarkUrl as string | undefined) || null}
+                      onChange={(url) =>
+                        setCurrent((prev) => ({
+                          ...prev,
+                          siteOptions: { ...(prev.siteOptions || {}), wordmarkUrl: url },
+                        }))
+                      }
+                      upload={(file) =>
+                        uploadImageToRoute(file, '/api/articles/upload', IMAGE_FOLDERS.banners)
+                      }
+                      shape="banner"
+                      maxDimension={1600}
+                    />
                   </div>
-                  <ImageUploader
-                    value={(current.siteOptions?.wordmarkUrl as string | undefined) || null}
-                    onChange={(url) =>
-                      setCurrent((prev) => ({
-                        ...prev,
-                        siteOptions: { ...(prev.siteOptions || {}), wordmarkUrl: url },
-                      }))
-                    }
-                    upload={(file) =>
-                      uploadImageToRoute(file, '/api/articles/upload', IMAGE_FOLDERS.banners)
-                    }
-                    shape="banner"
-                    maxDimension={1600}
-                  />
-                  <p className="text-[10px] text-muted-foreground text-center">
-                    Remplace le nom textuel dans l&apos;en-tête.
-                  </p>
-                </div>
-              </div>
-            </div>
+                </StudioRow>
+              </StudioRowList>
+            </StudioSection>
 
-            {/* 4. Affichage des blocs & Options */}
-            <div className="rounded-xl border border-border/50 bg-card p-4 space-y-3 shadow-2xs">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <SlidersHorizontal className="w-3.5 h-3.5 text-primary" />
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Affichage des blocs
-                  </h3>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { key: 'showLogo', label: 'Logo / Avatar' },
-                  { key: 'showTagline', label: 'Slogan éditorial' },
-                  { key: 'showSubscribeButton', label: 'Bouton S’abonner' },
-                  { key: 'showCategoryTabs', label: 'Onglets rubriques' },
-                  { key: 'showCraftIndex', label: 'Sommaire Craft' },
-                  { key: 'showProgressiveBlur', label: 'Flou progressif' },
-                  { key: 'showNewsletterWall', label: 'Mur newsletter' },
-                ].map((item) => {
-                  const isEnabled = (current.siteOptions?.[item.key] ?? true) !== false;
+            <StudioSection title="Affichage" icon={SlidersHorizontal}>
+              <div className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+                {DISPLAY_OPTIONS.map((option) => {
+                  const isEnabled = (current.siteOptions?.[option.key] ?? true) !== false;
                   return (
-                    <div
-                      key={item.key}
-                      className={cn(
-                        'rounded-lg border px-2.5 py-2 transition-colors',
-                        isEnabled
-                          ? 'border-border/60 bg-muted/30'
-                          : 'border-border/30 bg-muted/10 opacity-75'
-                      )}
-                    >
-                      <Switch
-                        size="sm"
-                        isSelected={isEnabled}
-                        onChange={() => toggleSiteOption(item.key)}
-                        label={
-                          <span className="truncate text-[11px] font-medium">{item.label}</span>
-                        }
-                        className="w-full items-center gap-2"
-                      />
-                    </div>
+                    <Switch
+                      key={option.key}
+                      size="sm"
+                      isSelected={isEnabled}
+                      onChange={() => toggleSiteOption(option.key)}
+                      label={<span className="text-[11px] font-medium">{option.label}</span>}
+                      className="items-center gap-2"
+                    />
                   );
                 })}
               </div>
-            </div>
+            </StudioSection>
           </div>
         </div>
       ) : isMedia ? (
-        /* =====================================================================
-           VUE 2A : PROFIL DU MÉDIA (PREVIEW INTERACTIVE INTELIGENTE)
-           ===================================================================== */
         <MediaProfilePreviewEditor current={current} setCurrent={setCurrent} />
       ) : (
-        /* =====================================================================
-           VUE 2B : COMPTE PERSONNEL (PASSE PAR LE CORE QOEFI)
-           ===================================================================== */
-        <div className="mx-auto max-w-2xl space-y-5 rounded-xl border border-border/50 bg-card p-5 shadow-2xs">
-          <div className="flex items-center justify-between pb-3 border-b border-border/30">
-            <div className="flex items-center gap-2">
-              <User className="w-4 h-4 text-primary" />
-              <h3 className="text-sm font-bold text-foreground">Profil personnel d&apos;auteur</h3>
-            </div>
-            <Badge variant="outline" shape="pill">
-              Géré sur le Core
-            </Badge>
-          </div>
-
-          {/* Carte d'identité actuelle en lecture seule */}
-          <div className="flex items-start gap-4 p-4 rounded-xl bg-muted/20 border border-border/40">
-            <div className="w-14 h-14 rounded-full bg-primary/10 border-2 border-primary/20 overflow-hidden flex items-center justify-center shrink-0">
+        <StudioSection title="Profil public" icon={User} className="max-w-3xl">
+          <div className="flex items-start gap-4">
+            <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/50 bg-muted">
               {current.logoUrl ? (
-                <img
-                  src={current.logoUrl}
-                  alt={current.name || 'Avatar'}
-                  className="w-full h-full object-cover"
-                />
+                <img src={current.logoUrl} alt="" className="size-full object-cover" />
               ) : (
-                <span className="text-xl font-bold text-primary">
+                <span className="text-lg font-semibold text-muted-foreground">
                   {(current.name || 'A').charAt(0).toUpperCase()}
                 </span>
               )}
             </div>
 
-            <div className="space-y-1 min-w-0 flex-1">
+            <div className="min-w-0 flex-1 space-y-1">
               <div className="flex items-center gap-2">
-                <h4 className="text-sm font-bold text-foreground truncate">
+                <h3 className="truncate text-sm font-semibold text-foreground">
                   {current.name || 'Auteur Qoefi'}
-                </h4>
-                {current.username && (
-                  <span className="text-xs text-muted-foreground font-mono">
+                </h3>
+                {current.username ? (
+                  <span className="font-mono text-xs text-muted-foreground">
                     @{current.username}
                   </span>
-                )}
+                ) : null}
               </div>
-
-              {current.heroText ? (
-                <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-                  {current.heroText}
-                </p>
-              ) : (
-                <p className="text-xs text-muted-foreground italic">
-                  Aucune biographie renseignée pour le moment.
-                </p>
-              )}
+              <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+                {current.heroText || 'Aucune biographie renseignée.'}
+              </p>
             </div>
           </div>
 
-          {/* Explication & Action vers le Core */}
-          <div className="space-y-4 pt-1">
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Votre identité publique (nom, biographie, photo et sécurité) est gérée sur Qoefi Core.
-              Les modifications s&apos;appliquent à tous vos articles.
+          <div className="mt-5 flex flex-col gap-3 border-t border-border/40 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="max-w-lg text-xs leading-relaxed text-muted-foreground">
+              Le nom, la biographie, l’avatar et la sécurité du compte sont gérés sur Qoefi Core.
+              Les modifications s’appliquent à tous vos articles.
             </p>
-
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-border/30">
-              <span className="text-xs text-muted-foreground font-medium">
-                Modification du profil, avatar ou sécurité :
-              </span>
-              <a
-                href={consoleSettingsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={buttonClasses({ variant: 'solid', tone: 'brand', size: 'md' })}
-              >
-                <span>Gérer mon profil sur Qoefi Core</span>
-                <ExternalLink />
-              </a>
-            </div>
+            <a
+              href={consoleSettingsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={buttonClasses({ variant: 'outline', size: 'sm' })}
+            >
+              <span>Gérer mon profil</span>
+              <ExternalLink />
+            </a>
           </div>
-        </div>
+        </StudioSection>
       )}
     </div>
   );

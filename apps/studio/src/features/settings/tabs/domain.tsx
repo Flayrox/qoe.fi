@@ -5,10 +5,11 @@
 // =====================================================================
 
 import React from 'react';
-import { Loader2, CheckCircle, AlertCircle } from 'lucide-react';
-import { FeatureTeaser } from '@qoe/ui';
+import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { UpcomingBadge } from '@qoe/ui';
 import { Input, InputGroup } from '@qoe/ui/input';
 import type { CreatorProfile } from '../types';
+import { StudioField, StudioSection } from '@/components/studio-page';
 
 interface DomainTabProps {
   current: CreatorProfile;
@@ -30,93 +31,91 @@ export function DomainTab({
   subdomainCheck,
 }: DomainTabProps) {
   return (
-    <div className="space-y-6">
-      <div className="rounded-xl border border-border/50 bg-card p-5 space-y-5 shadow-2xs">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-          Adresse & Sous-domaine
-        </h3>
-
-        {/* Subdomain */}
-        <div id="subdomain" className="space-y-2">
-          <label className="text-xs font-semibold text-foreground block">Sous-domaine qoefi</label>
-          <InputGroup
-            invalid={!subdomainCheck.loading && subdomainCheck.available === false}
-            right={<span className="select-none font-mono text-xs">.qoe.fi</span>}
+    <div className="max-w-3xl space-y-5">
+      <StudioSection title="Adresse">
+        <div className="space-y-5">
+          <StudioField
+            label="Sous-domaine qoefi"
+            hint={
+              subdomainInput
+                ? `Adresse publique : ${subdomainInput}.qoe.fi`
+                : 'Choisissez le nom sous lequel le site est accessible.'
+            }
           >
-            <Input
-              type="text"
-              value={subdomainInput}
-              onChange={(e) => {
-                const val = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
-                setSubdomainInput(val);
-                setCurrent((prev) => ({ ...prev, subdomain: val }));
-              }}
-              placeholder="mon-espace"
-            />
-          </InputGroup>
-
-          <div>
-            {subdomainCheck.loading && (
-              <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <Loader2 className="w-3 h-3 animate-spin text-primary" /> Vérification...
-              </span>
-            )}
-            {!subdomainCheck.loading && subdomainCheck.available === true && (
-              <span className="text-xs text-success-text font-medium flex items-center gap-1">
-                <CheckCircle className="w-3.5 h-3.5" /> Sous-domaine disponible.
-              </span>
-            )}
-            {!subdomainCheck.loading && subdomainCheck.available === false && (
-              <span className="text-xs text-destructive-text font-medium flex items-center gap-1">
-                <AlertCircle className="w-3.5 h-3.5" /> {subdomainCheck.error || 'Indisponible.'}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Custom Domain — annoncé, pas encore provisionné.
-         * Le champ reste VISIBLE (on montre ce qui arrive) mais réellement
-         * inerte : aucun domaine fantôme ne peut être saisi puis oublié. */}
-        <div id="custom" className="pt-4 border-t border-border/30">
-          <FeatureTeaser feature="custom-domain">
-            <div className="space-y-2.5 p-3.5">
-              <label className="text-xs font-semibold text-foreground block">
-                Domaine personnalisé propre
-              </label>
+            <InputGroup
+              invalid={!subdomainCheck.loading && subdomainCheck.available === false}
+              right={<span className="font-mono text-xs select-none">.qoe.fi</span>}
+            >
               <Input
                 type="text"
-                value={current.customDomain || ''}
-                readOnly
-                placeholder="journal.mon-domaine.com"
+                value={subdomainInput}
+                onChange={(event) => {
+                  const value = event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+                  setSubdomainInput(value);
+                  setCurrent((prev) => ({ ...prev, subdomain: value }));
+                }}
+                placeholder="mon-espace"
               />
+            </InputGroup>
 
-              <div className="p-3.5 bg-muted/30 border border-border/40 rounded-lg space-y-1 text-xs text-muted-foreground">
-                <span className="font-semibold text-foreground block">
-                  Configuration DNS recommandée :
+            <div className="pt-1.5">
+              {subdomainCheck.loading ? (
+                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Loader2 className="size-3 animate-spin" />
+                  Vérification…
                 </span>
-                <p>
-                  Créez un enregistrement CNAME pointant vers{' '}
-                  <code className="text-primary font-mono font-medium">cname.qoe.fi</code> chez
-                  votre fournisseur de domaine.
-                </p>
-              </div>
+              ) : null}
+              {!subdomainCheck.loading && subdomainCheck.available === true ? (
+                <span className="flex items-center gap-1.5 text-xs font-medium text-success-text">
+                  <CheckCircle className="size-3.5" />
+                  Sous-domaine disponible.
+                </span>
+              ) : null}
+              {!subdomainCheck.loading && subdomainCheck.available === false ? (
+                <span className="flex items-center gap-1.5 text-xs font-medium text-destructive-text">
+                  <AlertCircle className="size-3.5" />
+                  {subdomainCheck.error || 'Indisponible.'}
+                </span>
+              ) : null}
             </div>
-          </FeatureTeaser>
-        </div>
+          </StudioField>
 
-        {/* Support Contact */}
-        <div className="space-y-2 pt-4 border-t border-border/30">
-          <label className="text-xs font-semibold text-foreground block">
-            Support & Lien de contact
-          </label>
+          <div className="border-t border-border/40 pt-4">
+            <StudioField
+              label="Contact / support"
+              hint="Un lien ou une adresse email affichés sur le site."
+            >
+              <Input
+                type="text"
+                value={current.supportUrl || ''}
+                onChange={(event) =>
+                  setCurrent((prev) => ({ ...prev, supportUrl: event.target.value }))
+                }
+                placeholder="contact@votre-domaine.com"
+              />
+            </StudioField>
+          </div>
+        </div>
+      </StudioSection>
+
+      <StudioSection
+        title="Domaine personnalisé"
+        actions={<UpcomingBadge feature="custom-domain" />}
+      >
+        <div className="space-y-3">
           <Input
             type="text"
-            value={current.supportUrl || ''}
-            onChange={(e) => setCurrent((prev) => ({ ...prev, supportUrl: e.target.value }))}
-            placeholder="contact@votre-domaine.com ou https://support.votre-domaine.com"
+            value={current.customDomain || ''}
+            readOnly
+            placeholder="journal.mon-domaine.com"
+            aria-label="Domaine personnalisé"
           />
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Pour rattacher un domaine, créez un enregistrement CNAME pointant vers{' '}
+            <code className="font-mono text-foreground">cname.qoe.fi</code> chez votre fournisseur.
+          </p>
         </div>
-      </div>
+      </StudioSection>
     </div>
   );
 }

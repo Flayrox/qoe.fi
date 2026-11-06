@@ -16,17 +16,7 @@ import { Badge } from '@qoe/ui/badge';
 import { Button, buttonClasses } from '@qoe/ui/button';
 import { Tab, TabList, Tabs } from '@qoe/ui/tabs';
 import { URLS } from '@qoe/config';
-import {
-  ExternalLink,
-  Check,
-  Loader2,
-  Palette,
-  Search,
-  Globe,
-  Compass,
-  Terminal,
-  Users,
-} from 'lucide-react';
+import { ExternalLink, Check, Loader2, Palette, Search, Globe, Compass, Users } from 'lucide-react';
 
 import {
   updateCreatorProfileAction,
@@ -59,9 +49,6 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
   const [activeTab, setActiveTab] = useState<TabType>('general');
   const [isSaving, setIsSaving] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
-  const [isAdvancedMode, setIsAdvancedMode] = useState<boolean>(
-    initialCreator.advancedSettingsMode ?? false
-  );
 
   // Ecoute des events depuis le CmdK / hash URL
   useEffect(() => {
@@ -382,10 +369,10 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
   ];
 
   return (
-    <div className="w-full min-h-screen bg-background text-foreground font-sans pb-28">
+    <div className="w-full pb-24 text-foreground">
       {/* ── HEADER SUPÉRIEUR ÉPURÉ ── */}
       <header className="w-full border-b border-border/40 bg-background/95 backdrop-blur-md sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto px-6 py-5 flex items-center justify-between gap-4">
+        <div className="flex items-center justify-between gap-4 py-5">
           <div>
             <div className="flex items-center gap-2.5">
               <h1 className="truncate text-2xl font-semibold tracking-tight text-foreground">
@@ -410,24 +397,6 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
           </div>
 
           <div className="flex items-center gap-2.5">
-            <Button
-              variant={isAdvancedMode ? 'soft' : 'outline'}
-              tone={isAdvancedMode ? 'brand' : 'neutral'}
-              size="sm"
-              onClick={() => {
-                const next = !isAdvancedMode;
-                setIsAdvancedMode(next);
-                if (next) {
-                  toast.success(t`Mode Avancé débloqué`);
-                } else {
-                  toast.info(t`Mode Standard réactivé`);
-                }
-              }}
-            >
-              <Terminal />
-              <span>{isAdvancedMode ? 'Mode Avancé' : 'Mode Standard'}</span>
-            </Button>
-
             <a
               href={publicBlogUrl || '#'}
               target="_blank"
@@ -459,7 +428,7 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
         </div>
 
         {/* Barre d'onglets */}
-        <div className="max-w-6xl mx-auto px-6">
+        <div>
           <Tabs
             variant="underline"
             size="sm"
@@ -484,7 +453,7 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
       </header>
 
       {/* ── CONTENU DES ONGLETS ── */}
-      <main className="max-w-6xl mx-auto px-6 pt-8">
+      <main className="pt-6">
         <AnimatePresence mode="wait">
           {activeTab === 'general' && (
             <motion.div
@@ -526,8 +495,6 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
               <SeoTab
                 current={current}
                 setCurrent={setCurrent}
-                isAdvancedMode={isAdvancedMode}
-                setIsAdvancedMode={setIsAdvancedMode}
                 addSocialLink={addSocialLink}
                 removeSocialLink={removeSocialLink}
               />
@@ -580,7 +547,7 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
             transition={{ duration: 0.15 }}
-            className="fixed bottom-6 right-8 z-30 bg-card border border-border/60 text-card-foreground rounded-2xl shadow-xl p-3.5 flex items-center gap-4 select-none backdrop-blur-md"
+            className="fixed bottom-6 right-8 z-30 flex items-center gap-4 rounded-xl border border-border/60 bg-card p-3 text-card-foreground shadow-lg select-none backdrop-blur-md"
           >
             <span className="text-xs text-muted-foreground font-medium px-1">
               Modifications non enregistrées

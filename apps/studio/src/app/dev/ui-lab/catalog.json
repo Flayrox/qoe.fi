@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-11-05T18:09:07.689Z",
+  "generatedAt": "2026-11-06T10:19:25.150Z",
   "total": 371,
   "signals": {
     "primitivesNeverImported": 10,
     "primitivesTotal": 33,
-    "rawButtons": 429,
-    "rawButtonFiles": 93,
+    "rawButtons": 427,
+    "rawButtonFiles": 92,
     "nativeSelectFiles": 0,
     "rawInputFiles": 49,
     "handRolledOverlays": 4
@@ -41,7 +41,7 @@
           "path": "packages/ui/src/primitives/badge/badge.tsx",
           "lines": 111,
           "source": "primitives",
-          "usages": 32
+          "usages": 29
         },
         {
           "name": "bevel-button",
@@ -62,7 +62,7 @@
           "path": "packages/ui/src/primitives/button/button.tsx",
           "lines": 205,
           "source": "primitives",
-          "usages": 51
+          "usages": 52
         },
         {
           "name": "card",
@@ -237,7 +237,7 @@
           "path": "packages/ui/src/primitives/tabs/tabs.tsx",
           "lines": 252,
           "source": "primitives",
-          "usages": 14
+          "usages": 15
         },
         {
           "name": "tag-group",
@@ -488,7 +488,7 @@
           "path": "packages/ui/src/ui/toast.tsx",
           "lines": 77,
           "source": "ui",
-          "usages": 60
+          "usages": 59
         },
         {
           "name": "tooltip",
@@ -746,7 +746,7 @@
           "path": "packages/ui/src/primitives/badge/badge.tsx",
           "lines": 111,
           "source": "ui",
-          "usages": 32
+          "usages": 29
         },
         {
           "name": "bevel-button",
@@ -767,7 +767,7 @@
           "path": "packages/ui/src/primitives/button/button.tsx",
           "lines": 205,
           "source": "ui",
-          "usages": 51
+          "usages": 52
         },
         {
           "name": "card",
@@ -942,7 +942,7 @@
           "path": "packages/ui/src/primitives/tabs/tabs.tsx",
           "lines": 252,
           "source": "ui",
-          "usages": 14
+          "usages": 15
         },
         {
           "name": "tag-group",
@@ -1938,7 +1938,7 @@
         {
           "name": "seo-preview",
           "path": "apps/studio/src/features/settings/components/seo-preview.tsx",
-          "lines": 209,
+          "lines": 139,
           "source": "studio",
           "usages": null
         },
@@ -1959,42 +1959,42 @@
         {
           "name": "settings",
           "path": "apps/studio/src/features/settings/settings.tsx",
-          "lines": 629,
+          "lines": 596,
           "source": "studio",
           "usages": null
         },
         {
           "name": "domain",
           "path": "apps/studio/src/features/settings/tabs/domain.tsx",
-          "lines": 123,
+          "lines": 122,
           "source": "studio",
           "usages": null
         },
         {
           "name": "general",
           "path": "apps/studio/src/features/settings/tabs/general.tsx",
-          "lines": 514,
+          "lines": 372,
           "source": "studio",
           "usages": null
         },
         {
           "name": "navigation",
           "path": "apps/studio/src/features/settings/tabs/navigation.tsx",
-          "lines": 810,
+          "lines": 797,
           "source": "studio",
           "usages": null
         },
         {
           "name": "recommendations",
           "path": "apps/studio/src/features/settings/tabs/recommendations.tsx",
-          "lines": 447,
+          "lines": 436,
           "source": "studio",
           "usages": null
         },
         {
           "name": "seo",
           "path": "apps/studio/src/features/settings/tabs/seo.tsx",
-          "lines": 277,
+          "lines": 188,
           "source": "studio",
           "usages": null
         },
