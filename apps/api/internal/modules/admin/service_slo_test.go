@@ -47,7 +47,7 @@ func TestService_GetPlatformSLOReport(t *testing.T) {
 			t.Errorf("expected migration surface, got %s", mig.ID)
 		}
 		if mig.Status != SLONominal {
-			t.Errorf("expected nominal migration status (v73 applied in tests), got %s", mig.Status)
+			t.Errorf("expected nominal migration status (v74 applied in tests), got %s", mig.Status)
 		}
 	}
 }

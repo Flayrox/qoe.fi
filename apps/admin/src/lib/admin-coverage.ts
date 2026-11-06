@@ -137,6 +137,11 @@ export const ADMIN_ROUTE_COVERAGE: Record<string, AdminRouteCoverage> = {
   'POST /v1/admin/sandbox/seed': via('/admin/sandbox'),
   'POST /v1/admin/sandbox/impersonate': via('/admin/sandbox'),
 
+  // Vues sauvegardées d'équipe en base (Lot B3).
+  'GET /v1/admin/views/{resource}': via('/admin/work'),
+  'POST /v1/admin/views/{resource}': via('/admin/work'),
+  'DELETE /v1/admin/views/{resource}/{id}': via('/admin/work'),
+
   // ── Plateforme ────────────────────────────────────────────────────────
   'GET /v1/admin/feature-flags': via('/admin/config'),
   'PUT /v1/admin/feature-flags/{key}': via('/admin/config'),

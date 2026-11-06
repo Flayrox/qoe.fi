@@ -26,7 +26,7 @@ export interface GridViewToolbarProps<T> {
   facets: readonly GridFacetDef<T>[];
   columns: readonly { id: string; label: string }[];
   views: readonly SavedView[];
-  onSaveView: (name: string) => void;
+  onSaveView: (name: string, isShared?: boolean) => void;
   onApplyView: (name: string) => void;
   onRemoveView: (name: string) => void;
   /** Nombre de lignes visibles, affiché à droite. */
@@ -53,7 +53,8 @@ export function GridViewToolbar<T>({
   const save = () => {
     const name = window.prompt('Nom de la vue (filtres, tri, colonnes, densité) :');
     if (!name) return;
-    onSaveView(name);
+    const isShared = window.confirm('Partager cette vue avec toute l’équipe staff ?');
+    onSaveView(name, isShared);
     setCurrentView(name);
   };
 
@@ -166,7 +167,10 @@ export function GridViewToolbar<T>({
               placeholder="Vue…"
               options={[
                 { id: '', label: 'Vue…' },
-                ...views.map((view) => ({ id: view.name, label: view.name })),
+                ...views.map((view) => ({
+                  id: view.name,
+                  label: view.isShared ? `${view.name} (équipe)` : view.name,
+                })),
               ]}
               onValueChange={(value) => {
                 setCurrentView(value);
