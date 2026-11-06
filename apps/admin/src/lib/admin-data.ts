@@ -500,6 +500,44 @@ export async function getAdminDeliveries(): Promise<{
   );
 }
 
+export interface OutboxChannelMetrics {
+  channel: string;
+  queued: number;
+  sent: number;
+  failed: number;
+}
+
+export interface OutboxHealthMetrics {
+  queuedTotal: number;
+  processingTotal: number;
+  stuckProcessing: number;
+  failedTotal: number;
+  sent24h: number;
+  failed24h: number;
+  oldestQueuedSeconds: number;
+  channels: OutboxChannelMetrics[];
+  status: 'healthy' | 'degraded' | 'blocked';
+}
+
+/** 📮 Métriques fines de profondeur et de blocage de l'outbox (Lot D5). */
+export async function getAdminOutboxMetrics(): Promise<OutboxHealthMetrics> {
+  try {
+    return await goFetch<OutboxHealthMetrics>('/v1/admin/outbox/metrics');
+  } catch {
+    return {
+      queuedTotal: 0,
+      processingTotal: 0,
+      stuckProcessing: 0,
+      failedTotal: 0,
+      sent24h: 0,
+      failed24h: 0,
+      oldestQueuedSeconds: 0,
+      channels: [],
+      status: 'healthy',
+    };
+  }
+}
+
 export interface AdminAuditEntry {
   id: string;
   actorId: string;

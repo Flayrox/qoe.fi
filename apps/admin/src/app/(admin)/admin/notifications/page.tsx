@@ -1,18 +1,20 @@
 import React from 'react';
-import { getAdminDeliveries } from '@/lib/admin-data';
+import { getAdminDeliveries, getAdminOutboxMetrics } from '@/lib/admin-data';
 import { getGlobalAnnouncementAction, listPlacementsAdminAction } from '@/lib/admin-aux-actions';
 import { DeliveryTable, type DeliveryRow } from './DeliveryTable';
 import { BroadcastAnnouncementConsole } from './BroadcastAnnouncementConsole';
 import { PlacementsManager } from './PlacementsManager';
+import { OutboxObservabilityConsole } from './OutboxObservabilityConsole';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 import { MetricChips } from '@/components/shell/MetricChips';
 
 export default async function AdminNotificationsPage() {
   requireCapability(await getAdminIdentity(), 'admin.deliveries.read');
-  const [deliveriesData, announcement, placements] = await Promise.all([
+  const [deliveriesData, announcement, placements, outboxMetrics] = await Promise.all([
     getAdminDeliveries(),
     getGlobalAnnouncementAction(),
     listPlacementsAdminAction(),
+    getAdminOutboxMetrics(),
   ]);
   const { counts, total: totalCount, deliveries } = deliveriesData;
 
@@ -72,6 +74,8 @@ export default async function AdminNotificationsPage() {
           ]}
         />
       </div>
+
+      <OutboxObservabilityConsole metrics={outboxMetrics} />
 
       <BroadcastAnnouncementConsole initialAnnouncement={announcement} />
 

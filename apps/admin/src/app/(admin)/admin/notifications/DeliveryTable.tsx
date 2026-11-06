@@ -10,7 +10,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Loader2, RefreshCw, AlertTriangle, Mail } from 'lucide-react';
-import { retryNotificationDeliveryAction } from '@/lib/admin-aux-actions';
+import { batchRetryDeliveriesAction, retryNotificationDeliveryAction } from '@/lib/admin-aux-actions';
 import { Button } from '@qoe/ui/button';
 import {
   Drawer,
@@ -90,6 +90,29 @@ export function DeliveryTable({ rows }: { rows: DeliveryRow[] }) {
       setStatus(err instanceof Error ? err.message : 'Relance impossible');
     } finally {
       setRetryingId(null);
+    }
+  };
+
+  const handleBatchRetry = async (selected: DeliveryRow[]) => {
+    const ids = selected.map((r) => r.id);
+    setStatus(`Relance de ${ids.length} livraison(s) en cours...`);
+    try {
+      const res = await batchRetryDeliveriesAction(ids);
+      if (res.success) {
+        setStatus(
+          `Audité · ${res.retriedCount} livraison(s) réarmée(s) à ${new Date().toLocaleTimeString('fr-FR')}`
+        );
+        setItems((prev) =>
+          prev.map((it) =>
+            ids.includes(it.id) ? { ...it, status: 'QUEUED', lastError: null } : it
+          )
+        );
+        router.refresh();
+      } else {
+        setStatus(res.error || 'Erreur lors de la relance');
+      }
+    } catch (err) {
+      setStatus(err instanceof Error ? err.message : 'Erreur de relance');
     }
   };
 
@@ -267,6 +290,20 @@ export function DeliveryTable({ rows }: { rows: DeliveryRow[] }) {
         density={grid.state.density}
         columnOrder={grid.state.order}
         emptyState="Aucune livraison ne correspond aux critères filtrés."
+        selectable
+        bulkActions={(rows) => (
+          <Button
+            type="button"
+            size="xs"
+            variant="soft"
+            tone="brand"
+            className="h-6 px-2 text-[11px] gap-1"
+            onClick={() => handleBatchRetry(rows)}
+          >
+            <RefreshCw className="h-3 w-3" />
+            Relancer la sélection ({rows.length})
+          </Button>
+        )}
         onRowOpen={(row) => setPreview(row)}
         rowMenu={rowMenu}
       />
