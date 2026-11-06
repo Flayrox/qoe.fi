@@ -160,7 +160,7 @@ export function RegistrationsControl({
                 handleAdd();
               }
             }}
-            placeholder="ami@example.com"
+            placeholder="adresse@domaine.fr"
             className="bg-muted border border-border px-3 py-2 rounded-lg text-sm outline-none focus:border-border"
           />
           <input
