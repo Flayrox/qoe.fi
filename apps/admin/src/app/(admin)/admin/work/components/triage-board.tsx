@@ -10,14 +10,13 @@
 // l'échéance au clic, sans bouton « Enregistrer » ni formulaire à trois étages.
 // Le reste vit dans le clic droit (assigner, libérer, copier, audit).
 
-import React, { useState, useTransition } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Select } from '@qoe/ui/select';
-import { Input } from '@qoe/ui/ui/input';
 import { CopyableId } from '@/components/shell/CopyableId';
 import { DataGrid, type GridColumn } from '@/components/shell/DataGrid';
 import { GridViewToolbar } from '@/components/shell/GridView';
+import { InlineChoice, InlineDate } from '@/components/shell/InlineScalar';
 import {
   filterRows,
   useGridView,
@@ -58,36 +57,23 @@ const SLA_CLASSES: Record<AdminQueueSLAState, string> = {
 const SLA_RANK: AdminQueueSLAState[] = ['breached', 'due_soon', 'on_track', 'closed'];
 const PRIORITY_RANK: AdminQueuePriority[] = ['urgent', 'high', 'normal', 'low'];
 
-/** Date RFC3339 → valeur d'un input `datetime-local` (heure locale). */
-function toLocalInput(iso: string | null): string {
-  if (!iso) return '';
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '';
-  const pad = (value: number) => String(value).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
-    date.getHours()
-  )}:${pad(date.getMinutes())}`;
-}
-
 export function TriageBoard({ view }: { view: AdminWorkQueueView }) {
   const router = useRouter();
   const labels = new Map(view.items.map((item) => [item.key, item.label]));
   const [status, setStatus] = useState<string | null>(null);
-  const [pending, startTransition] = useTransition();
   const grid = useGridView('admin.work.triage', { column: 'sla', direction: 'ascending' });
 
-  const save = (input: TriageActionInput, message: string) => {
-    startTransition(async () => {
-      const result = await attemptWithStepUp(() => triageQueueItemAction(input), {
-        reason: 'Trier un dossier de la file staff',
-      });
-      if (result.ok) {
-        setStatus(`${message} · audité à ${new Date().toLocaleTimeString('fr-FR')}`);
-        router.refresh();
-        return;
-      }
-      notifyActionFailure(result, readMessage(result) ?? 'Triage impossible');
+  const save = async (input: TriageActionInput, message: string): Promise<boolean> => {
+    const result = await attemptWithStepUp(() => triageQueueItemAction(input), {
+      reason: 'Trier un dossier de la file staff',
     });
+    if (result.ok) {
+      setStatus(`${message} · audité à ${new Date().toLocaleTimeString('fr-FR')}`);
+      router.refresh();
+      return true;
+    }
+    notifyActionFailure(result, readMessage(result) ?? 'Triage impossible');
+    return false;
   };
 
   const patch = (
@@ -96,7 +82,7 @@ export function TriageBoard({ view }: { view: AdminWorkQueueView }) {
       Pick<TriageActionInput, 'priority' | 'dueAt' | 'assignToMe' | 'clearAssignee'>
     >,
     message: string
-  ) =>
+  ): Promise<boolean> =>
     save(
       {
         queue: entry.queue,
@@ -182,7 +168,18 @@ export function TriageBoard({ view }: { view: AdminWorkQueueView }) {
       header: 'Priorité',
       width: 104,
       sort: { kind: 'rank', rank: PRIORITY_RANK, value: (entry) => entry.priority },
-      cell: (entry) => <PriorityCell entry={entry} onPatch={patch} />,
+      cell: (entry) => (
+        <InlineChoice
+          label={`Priorité de ${entry.title}`}
+          value={entry.priority}
+          options={PRIORITIES}
+          onSave={(nextValue) =>
+            patch(entry, { priority: nextValue as AdminQueuePriority }, 'Priorité modifiée')
+          }
+          onStatus={setStatus}
+          successLabel="Priorité modifiée"
+        />
+      ),
     },
     {
       id: 'sla',
@@ -206,7 +203,15 @@ export function TriageBoard({ view }: { view: AdminWorkQueueView }) {
         kind: 'number',
         value: (entry) => new Date(entry.dueAt ?? entry.slaDueAt).getTime(),
       },
-      cell: (entry) => <DueCell entry={entry} onPatch={patch} />,
+      cell: (entry) => (
+        <InlineDate
+          label={`Échéance de ${entry.title}`}
+          value={entry.dueAt}
+          onSave={(nextIso) => patch(entry, { dueAt: nextIso }, 'Échéance modifiée')}
+          onStatus={setStatus}
+          successLabel="Échéance modifiée"
+        />
+      ),
     },
   ];
 
@@ -255,7 +260,6 @@ export function TriageBoard({ view }: { view: AdminWorkQueueView }) {
         <h2 className="text-[13px] font-semibold">Triage</h2>
         <p className="text-[11px] text-muted-foreground">
           Priorité et échéance s’enregistrent à la modification · clic droit pour assigner.
-          {pending && ' · enregistrement…'}
         </p>
       </div>
 
@@ -301,57 +305,5 @@ export function TriageBoard({ view }: { view: AdminWorkQueueView }) {
         rowMenu={menu}
       />
     </section>
-  );
-}
-
-/** Sélecteur de priorité compact : la modification EST l'enregistrement. */
-function PriorityCell({
-  entry,
-  onPatch,
-}: {
-  entry: AdminQueueTriageEntry;
-  onPatch: (
-    entry: AdminQueueTriageEntry,
-    changes: { priority: AdminQueuePriority },
-    message: string
-  ) => void;
-}) {
-  return (
-    <Select
-      label={`Priorité de ${entry.title}`}
-      hideLabel
-      size="xs"
-      value={entry.priority}
-      options={PRIORITIES}
-      onValueChange={(value) =>
-        onPatch(entry, { priority: value as AdminQueuePriority }, 'Priorité modifiée')
-      }
-    />
-  );
-}
-
-/** Échéance : le champ garde la valeur locale, l'enregistrement part au blur. */
-function DueCell({
-  entry,
-  onPatch,
-}: {
-  entry: AdminQueueTriageEntry;
-  onPatch: (entry: AdminQueueTriageEntry, changes: { dueAt: string }, message: string) => void;
-}) {
-  const initial = toLocalInput(entry.dueAt);
-  const [value, setValue] = useState(initial);
-
-  return (
-    <Input
-      type="datetime-local"
-      aria-label={`Échéance de ${entry.title}`}
-      value={value}
-      onChange={(event) => setValue(event.target.value)}
-      onBlur={() => {
-        if (value === initial) return;
-        onPatch(entry, { dueAt: value ? new Date(value).toISOString() : '' }, 'Échéance modifiée');
-      }}
-      className="h-6 w-full rounded border-transparent bg-transparent px-1 text-[11px] tabular-nums text-muted-foreground shadow-none hover:border-border focus:border-border focus:bg-background focus:text-foreground focus-visible:ring-0"
-    />
   );
 }
