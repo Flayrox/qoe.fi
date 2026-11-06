@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, ArrowLeft, Home } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { BRAND_LOGOS } from '@qoe/brand';
+import { Button } from './primitives/button/button';
 
 export interface NotFoundViewProps {
   /**
@@ -11,52 +12,31 @@ export interface NotFoundViewProps {
    */
   locale?: 'fr' | 'en';
   /**
-   * Titre personnalisé optionnel.
+   * Titre personnalisé optionnel (non affiché dans cette vue ultra-minimaliste).
    */
   title?: string;
   /**
-   * Message personnalisé optionnel.
+   * Message personnalisé optionnel (non affiché dans cette vue ultra-minimaliste).
    */
   description?: string;
   /**
-   * Afficher ou masquer la barre de recherche intégrée (défaut: true).
+   * Afficher ou masquer la barre de recherche intégrée (conservé pour rétro-compatibilité).
    */
   showSearch?: boolean;
 }
 
 const STRINGS = {
   fr: {
-    badge: 'ERREUR 404',
-    title: 'Page introuvable',
-    subtitle: 'La page que vous cherchez n’existe pas ou a été déplacée.',
-    lostCoordinates: 'Chemin demandé : ',
-    searchPlaceholder: 'Rechercher sur qoefi...',
-    searchBtn: 'Rechercher',
     backHome: 'Retour à l’accueil',
-    goBack: 'Page précédente',
   },
   en: {
-    badge: 'ERROR 404',
-    title: 'Page not found',
-    subtitle: 'The page you are looking for does not exist or has been moved.',
-    lostCoordinates: 'Requested path: ',
-    searchPlaceholder: 'Search on qoefi...',
-    searchBtn: 'Search',
     backHome: 'Back to home',
-    goBack: 'Go back',
   },
 };
 
-export function NotFoundView({
-  locale: propLocale,
-  title,
-  description,
-  showSearch = true,
-}: NotFoundViewProps) {
+export function NotFoundView({ locale: propLocale }: NotFoundViewProps) {
   const router = useRouter();
   const [locale, setLocale] = useState<'fr' | 'en'>(propLocale || 'fr');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [currentPath, setCurrentPath] = useState('');
 
   useEffect(() => {
     if (!propLocale && typeof document !== 'undefined') {
@@ -65,36 +45,19 @@ export function NotFoundView({
         setLocale('en');
       }
     }
-    if (typeof window !== 'undefined') {
-      setCurrentPath(window.location.pathname);
-    }
   }, [propLocale]);
 
   const t = STRINGS[locale];
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
-    router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
-  };
-
-  const handleBack = () => {
-    if (typeof window !== 'undefined' && window.history.length > 1) {
-      router.back();
-    } else {
-      router.push('/home');
-    }
-  };
-
   return (
-    <main className="min-h-[80vh] flex flex-col items-center justify-center p-4 sm:p-6 lg:p-10 select-none relative overflow-hidden">
-      {/* Halo d'ambiance vermillon très subtil et diffus */}
+    <main className="min-h-[82vh] flex flex-col items-center justify-center p-4 sm:p-6 select-none relative overflow-hidden">
+      {/* Halo d'ambiance vermillon ultra-subtil et diffus */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[540px] h-[360px] rounded-full bg-[#EE4B2B]/[0.04] dark:bg-[#EE4B2B]/[0.08] blur-[120px]"
+        className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[340px] rounded-full bg-[#EE4B2B]/[0.035] dark:bg-[#EE4B2B]/[0.07] blur-[120px]"
       />
 
-      {/* Styles d'animation SVG intégrés & auto-suffisants */}
+      {/* Styles d'animation SVG intégrés & légers */}
       <style>{`
         @keyframes qoe404Float {
           0%, 100% { transform: translateY(0px); }
@@ -105,12 +68,12 @@ export function NotFoundView({
           100% { stroke-dashoffset: 0; }
         }
         @keyframes qoe404Pulse {
-          0%, 100% { opacity: 0.18; transform: scale(0.98); }
-          50% { opacity: 0.42; transform: scale(1.03); }
+          0%, 100% { opacity: 0.16; transform: scale(0.98); }
+          50% { opacity: 0.38; transform: scale(1.03); }
         }
         @keyframes qoe404Guide {
-          0%, 100% { opacity: 0.1; }
-          50% { opacity: 0.28; }
+          0%, 100% { opacity: 0.08; }
+          50% { opacity: 0.22; }
         }
         .qoe-404-float {
           animation: qoe404Float 4.5s ease-in-out infinite;
@@ -141,9 +104,9 @@ export function NotFoundView({
         }
       `}</style>
 
-      <div className="w-full max-w-xl flex flex-col items-center text-center gap-6 sm:gap-8 relative z-10">
+      <div className="w-full max-w-md flex flex-col items-center text-center gap-8 relative z-10">
         {/* 🎨 Animation SVG construite avec le logo Qoefi */}
-        <div className="w-full max-w-sm sm:max-w-md aspect-[520/200] relative">
+        <div className="w-full max-w-xs sm:max-w-sm aspect-[520/200] relative">
           <svg
             viewBox="0 0 520 200"
             className="w-full h-full overflow-visible text-foreground"
@@ -169,18 +132,15 @@ export function NotFoundView({
               </filter>
             </defs>
 
-            {/* Lignes de construction typographiques (repères sobres) */}
+            {/* Lignes de repères typographiques ultra-fines */}
             <g
               className="qoe-404-guide"
               stroke="currentColor"
               strokeWidth="1"
               strokeDasharray="3 5"
             >
-              {/* Ligne de tête (cap-height) */}
               <line x1="30" y1="51" x2="490" y2="51" />
-              {/* Ligne de base (baseline) */}
               <line x1="30" y1="149" x2="490" y2="149" />
-              {/* Ligne médiane des traverses */}
               <line x1="30" y1="117" x2="490" y2="117" strokeDasharray="1 7" />
             </g>
 
@@ -199,7 +159,7 @@ export function NotFoundView({
 
             {/* Composition centrale du logo Qoefi */}
             <g className="qoe-404-float" style={{ transformOrigin: '260px 100px' }}>
-              {/* Aura lumineuse vermillon */}
+              {/* Halo d'ambiance vermillon */}
               <g className="qoe-404-pulse" style={{ transformOrigin: '260px 100px' }}>
                 <rect
                   x="182"
@@ -212,8 +172,8 @@ export function NotFoundView({
                 />
               </g>
 
-              {/* Repères d'alignement et de cadrage aux 4 coins */}
-              <g stroke="#EE4B2B" strokeWidth="1.5" strokeLinecap="square" opacity="0.6">
+              {/* Repères d'alignement sobres */}
+              <g stroke="#EE4B2B" strokeWidth="1.5" strokeLinecap="square" opacity="0.55">
                 <path d="M 172 59 V 45 H 186" fill="none" />
                 <path d="M 334 45 H 348 V 59" fill="none" />
                 <path d="M 172 141 V 155 H 186" fill="none" />
@@ -223,13 +183,11 @@ export function NotFoundView({
 
               {/* Glyphe officiel Qoefi & tracé lumineux animé */}
               <g transform="translate(180, 50.74) scale(0.74074)">
-                {/* Remplissage vermillon officiel avec léger dégradé */}
                 <path
                   d={BRAND_LOGOS.symbol.path}
                   fill="url(#qoe-404-grad)"
                   filter="url(#qoe-404-glow)"
                 />
-                {/* Filet lumineux vectoriel traçant le périmètre et la découpe */}
                 <path
                   d={BRAND_LOGOS.symbol.path}
                   fill="none"
@@ -256,73 +214,17 @@ export function NotFoundView({
           </svg>
         </div>
 
-        {/* 🏷️ Badge sobre */}
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-muted/60 text-muted-foreground border border-border/70 text-xs font-mono font-medium tracking-wider">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#EE4B2B] animate-pulse" />
-          <span>{t.badge}</span>
-        </div>
-
-        {/* ✍️ Titre & Description sobre */}
-        <div className="space-y-2.5">
-          <h1 className="text-2xl sm:text-4xl font-bold tracking-tight text-foreground">
-            {title || t.title}
-          </h1>
-          <p className="text-sm sm:text-base text-muted-foreground max-w-md mx-auto leading-relaxed">
-            {description || t.subtitle}
-          </p>
-        </div>
-
-        {/* 📍 Coordonnées demandées (si présentes) */}
-        {currentPath && (
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-muted/40 text-muted-foreground text-xs font-mono border border-border/50 max-w-sm sm:max-w-md truncate">
-            <span className="opacity-60">{t.lostCoordinates}</span>
-            <span className="font-medium text-foreground/85 truncate">{currentPath}</span>
-          </div>
-        )}
-
-        {/* 🔍 Barre de recherche discrète et élégante */}
-        {showSearch && (
-          <form
-            onSubmit={handleSearchSubmit}
-            className="w-full max-w-md relative flex items-center shadow-xs"
-          >
-            <Search className="absolute left-3.5 w-4 h-4 text-muted-foreground pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t.searchPlaceholder}
-              className="w-full pl-10 pr-24 py-2.5 rounded-xl border border-border/80 bg-card text-sm text-foreground placeholder:text-muted-foreground/60 transition-all outline-none focus:border-[#EE4B2B] focus:ring-2 focus:ring-[#EE4B2B]/20"
-            />
-            <button
-              type="submit"
-              className="absolute right-1.5 px-3.5 py-1.5 rounded-lg bg-foreground text-background hover:opacity-90 text-xs font-medium transition-opacity cursor-pointer"
-            >
-              {t.searchBtn}
-            </button>
-          </form>
-        )}
-
-        {/* 🧭 Actions & Navigation de Rebond */}
-        <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
-          <button
-            type="button"
-            onClick={() => router.push('/home')}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#EE4B2B] hover:bg-[#d63f20] text-white text-sm font-medium shadow-sm hover:shadow transition-all cursor-pointer"
-          >
-            <Home className="w-4 h-4" />
-            <span>{t.backHome}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={handleBack}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border/80 bg-card hover:bg-muted/60 text-foreground text-sm font-medium transition-colors cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>{t.goBack}</span>
-          </button>
-        </div>
+        {/* 🧭 Bouton minimaliste de retour à l'accueil du package UI */}
+        <Button
+          variant="outline"
+          tone="neutral"
+          size="sm"
+          onClick={() => router.push('/home')}
+          className="rounded-full px-4 text-xs font-medium text-muted-foreground hover:text-foreground border-border/80 hover:border-foreground/30 transition-all cursor-pointer"
+        >
+          <ArrowLeft className="w-3.5 h-3.5 mr-1.5 opacity-70" />
+          <span>{t.backHome}</span>
+        </Button>
       </div>
     </main>
   );
