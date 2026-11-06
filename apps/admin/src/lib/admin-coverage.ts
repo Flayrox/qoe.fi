@@ -44,6 +44,8 @@ export const ADMIN_ROUTE_COVERAGE: Record<string, AdminRouteCoverage> = {
   'GET /v1/admin/users/{userID}': via('/admin/users'),
   'PATCH /v1/admin/users/{userID}': via('/admin/users'),
   'POST /v1/admin/users/{userID}/revoke-sessions': via('/admin/users'),
+  'POST /v1/admin/users/{userID}/dsar-export': via('/admin/users'),
+  'POST /v1/admin/users/{userID}/erase': via('/admin/users'),
   'GET /v1/admin/reports': via('/admin/reports'),
   'PATCH /v1/admin/reports/{id}': via('/admin/reports'),
   'PUT /v1/admin/reports/{id}/triage': via('/admin/work'),
@@ -162,7 +164,8 @@ export const ADMIN_ROUTE_COVERAGE: Record<string, AdminRouteCoverage> = {
   'GET /v1/admin/legal/reviews': via('/admin/legal'),
   'POST /v1/admin/legal/reviews': via('/admin/legal'),
   'POST /v1/admin/legal/reviews/{reviewID}/dismiss': via('/admin/legal'),
-  // Conformité : preuves de consentement, cookies, avis, exports.
+  // Conformité : preuves de consentement, cookies, avis, exports et demandes RGPD.
+  'GET /v1/admin/compliance/deletion-requests': via('/admin/compliance'),
   'GET /v1/admin/legal/compliance': via('/admin/compliance'),
   'GET /v1/admin/legal/acceptances': via('/admin/compliance'),
   'GET /v1/admin/legal/consent-exports': via('/admin/compliance'),

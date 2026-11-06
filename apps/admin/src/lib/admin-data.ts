@@ -776,6 +776,42 @@ export async function verifyAdminConsentExports(): Promise<ConsentExportVerifica
   }
 }
 
+// ─── Demandes d'effacement RGPD (Art. 17 & DSAR) ────────────────────
+
+export interface DeletionRequestItem {
+  id: string;
+  userId: string;
+  userEmail: string;
+  userName?: string | null;
+  status: 'PENDING' | 'PROCESSED' | string;
+  reason?: string | null;
+  requestedAt: string;
+  processedAt?: string | null;
+  daysRemaining: number;
+  isUrgent: boolean;
+}
+
+export interface ErasureReceipt {
+  receiptId: string;
+  userId: string;
+  emailHash: string;
+  reason: string;
+  erasedAt: string;
+  proofSha256: string;
+}
+
+/** 🗑️ Liste des demandes d'effacement de compte RGPD (Art. 17). */
+export async function getAdminDeletionRequests(): Promise<DeletionRequestItem[]> {
+  try {
+    const data = await goFetch<{ items: DeletionRequestItem[] }>(
+      '/v1/admin/compliance/deletion-requests'
+    );
+    return data.items ?? [];
+  } catch {
+    return [];
+  }
+}
+
 // ─── Cycle de vie légal ──────────────────────────────────────────────
 
 /** Une revue périodique suivie par la console. */

@@ -100,6 +100,8 @@ var stepUpCapabilities = map[adminauthz.Capability]string{
 // couvrir de la lecture fine et un acte lourd).
 var extraStepUpRoutes = []string{
 	"POST /v1/admin/legal/consent-exports",
+	"POST /v1/admin/users/{userID}/dsar-export",
+	"POST /v1/admin/users/{userID}/erase",
 }
 
 // assumedN0 : capacités d'écriture qui restent volontairement sans preuve

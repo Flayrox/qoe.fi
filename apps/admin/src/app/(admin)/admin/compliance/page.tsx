@@ -1,12 +1,14 @@
 import { ShieldCheck } from 'lucide-react';
 import {
   getAdminConsentExports,
+  getAdminDeletionRequests,
   getAdminLegalCompliance,
   getAdminLegalReviews,
   verifyAdminConsentExports,
 } from '@/lib/admin-data';
 import { ComplianceDashboard } from './ComplianceDashboard';
 import { ComplianceLifecycle } from './ComplianceLifecycle';
+import { DSARRequestsManager } from './DSARRequestsManager';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 
 export const dynamic = 'force-dynamic';
@@ -14,13 +16,14 @@ export const dynamic = 'force-dynamic';
 export default async function AdminCompliancePage() {
   requireCapability(await getAdminIdentity(), 'admin.compliance.read');
 
-  // Trois lectures en parallèle : le tableau, le registre des revues et les
-  // pièces produites. Aucune ne dépend des autres.
-  const [snapshot, reviews, exports, verification] = await Promise.all([
+  // Lectures en parallèle : le tableau, le registre des revues, les
+  // pièces produites et les demandes d'effacement RGPD.
+  const [snapshot, reviews, exports, verification, deletionRequests] = await Promise.all([
     getAdminLegalCompliance(),
     getAdminLegalReviews(),
     getAdminConsentExports(),
     verifyAdminConsentExports(),
+    getAdminDeletionRequests(),
   ]);
 
   const documents = snapshot.documents.map((doc) => ({ slug: doc.slug, title: doc.slug }));
@@ -43,6 +46,8 @@ export default async function AdminCompliancePage() {
       </div>
 
       <ComplianceDashboard snapshot={snapshot} />
+
+      <DSARRequestsManager requests={deletionRequests} />
 
       <ComplianceLifecycle
         reviews={reviews}

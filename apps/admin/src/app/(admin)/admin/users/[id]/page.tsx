@@ -4,6 +4,7 @@ import { ArrowLeft, Mail, ShieldCheck, Activity, Euro, Users, BookOpen } from 'l
 import { SafeAvatar } from '@qoe/ui';
 import { getAdminUserDetail } from '@/lib/admin-data';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
+import { UserDSARPanel } from './UserDSARPanel';
 
 interface PageProps {
   params: {
@@ -135,6 +136,9 @@ export default async function UserProfilePage({ params }: PageProps) {
           </div>
         </div>
       </div>
+
+      {/* Conformité & RGPD (DSAR & Effacement Art. 17) */}
+      <UserDSARPanel userId={user.id} userEmail={user.email} />
     </div>
   );
 }
