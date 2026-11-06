@@ -40,6 +40,8 @@ export interface GridColumn<T> {
   /** Le tri n'existe que si la colonne déclare sa nature. */
   sort?: ColumnSort<T>;
   width?: number;
+  /** Largeur minimale garantie en pixels pour éviter l'écrasement en vue dense. */
+  minWidth?: number;
   align?: 'left' | 'right';
   className?: string;
 }
@@ -65,6 +67,8 @@ interface DataGridProps<T extends { id: string }> {
   rowHref?: (row: T) => string;
   /** Prioritaire sur `rowHref` : ouvre la ligne dans un panneau. */
   onRowOpen?: (row: T) => void;
+  /** Raccourci `e` : éditer la ligne (ou déclencher son contrôle inline). */
+  onRowEdit?: (row: T) => void;
   /** Raccourci `a` : assigner la sélection (ou la ligne courante). */
   onAssign?: (rows: T[]) => void;
   /** Ordre explicite des colonnes (ids absents = à la fin, ordre déclaré). */
@@ -87,6 +91,7 @@ export function DataGrid<T extends { id: string }>({
   bulkActions,
   rowHref,
   onRowOpen,
+  onRowEdit,
   onAssign,
   columnOrder,
 }: DataGridProps<T>) {
@@ -94,7 +99,15 @@ export function DataGrid<T extends { id: string }>({
   const [selectedKeys, setSelectedKeys] = React.useState<Set<string>>(new Set());
   const [cursor, setCursor] = React.useState<number | null>(null);
   const [helpOpen, setHelpOpen] = React.useState(false);
+  const [gChordActive, setGChordActive] = React.useState(false);
+  const gChordTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
   const wrapperRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    return () => {
+      if (gChordTimeoutRef.current) clearTimeout(gChordTimeoutRef.current);
+    };
+  }, []);
   const [innerSort, setInnerSort] = React.useState<SortDescriptorLike>(
     initialSort ?? { column: columns[0]?.id ?? 'id', direction: 'ascending' }
   );
@@ -159,6 +172,55 @@ export function DataGrid<T extends { id: string }>({
       onKeyDown={(event) => {
         const tag = (event.target as HTMLElement).tagName;
         if (['INPUT', 'SELECT', 'TEXTAREA', 'BUTTON', 'A'].includes(tag)) return;
+
+        // Accord à deux touches "g" + lettre
+        if (gChordActive) {
+          event.preventDefault();
+          if (gChordTimeoutRef.current) clearTimeout(gChordTimeoutRef.current);
+          setGChordActive(false);
+          switch (event.key.toLowerCase()) {
+            case 'h':
+              router.push('/admin');
+              return;
+            case 'w':
+              router.push('/admin/work');
+              return;
+            case 'u':
+              router.push('/admin/users');
+              return;
+            case 'r':
+              router.push('/admin/reports');
+              return;
+            case 'a':
+              router.push('/admin/audit');
+              return;
+            case 's':
+              router.push('/admin/settings');
+              return;
+            case 'n':
+              router.push('/admin/notifications');
+              return;
+            case 'c':
+              router.push('/admin/compliance');
+              return;
+            case 'x':
+              router.push('/admin/sandbox');
+              return;
+            default:
+              return;
+          }
+        }
+
+        if (event.key === 'g' && !event.metaKey && !event.ctrlKey && !event.altKey) {
+          event.preventDefault();
+          setGChordActive(true);
+          if (gChordTimeoutRef.current) clearTimeout(gChordTimeoutRef.current);
+          gChordTimeoutRef.current = setTimeout(() => {
+            setGChordActive(false);
+          }, 1500);
+          return;
+        }
+
         if (event.key === 'j') {
           event.preventDefault();
           moveCursor(1);
@@ -181,6 +243,58 @@ export function DataGrid<T extends { id: string }>({
           event.preventDefault();
           if (onRowOpen) onRowOpen(row);
           else if (rowHref) router.push(rowHref(row));
+        } else if (event.key === 'e') {
+          const row = sorted[cursor ?? 0];
+          if (row) {
+            event.preventDefault();
+            if (onRowEdit) {
+              onRowEdit(row);
+            } else {
+              const rowElement = wrapperRef.current?.querySelectorAll('tbody tr')[cursor ?? 0] as
+                HTMLElement | undefined;
+              const editable = rowElement?.querySelector<HTMLElement>(
+                'button:not([disabled]), [tabindex="0"], input, select, textarea'
+              );
+              if (editable) {
+                editable.focus();
+              } else if (onRowOpen) {
+                onRowOpen(row);
+              }
+            }
+          }
+        } else if (event.key === '/') {
+          event.preventDefault();
+          const searchInput = document.querySelector<HTMLInputElement>(
+            'input[type="search"], input[data-grid-search], input[placeholder*="Recherch" i]'
+          );
+          if (searchInput) {
+            searchInput.focus();
+            searchInput.select();
+          } else {
+            const eventK = new KeyboardEvent('keydown', {
+              key: 'k',
+              metaKey: true,
+              bubbles: true,
+            });
+            document.dispatchEvent(eventK);
+          }
+        } else if (event.key === 'f') {
+          event.preventDefault();
+          const firstFacet = document.querySelector<HTMLButtonElement>(
+            '[data-facet-button], [data-grid-facets] button'
+          );
+          firstFacet?.focus();
+        } else if (event.key === 'v') {
+          event.preventDefault();
+          const viewsTrigger = document.querySelector<HTMLElement>(
+            '[data-grid-views] summary, [data-grid-views] button, [data-grid-views] input'
+          );
+          if (viewsTrigger) {
+            viewsTrigger.focus();
+            if (viewsTrigger.tagName === 'SUMMARY') {
+              (viewsTrigger.parentElement as HTMLDetailsElement).open = !(viewsTrigger.parentElement as HTMLDetailsElement).open;
+            }
+          }
         } else if (event.key === '?') {
           event.preventDefault();
           setHelpOpen((open) => !open);
@@ -195,6 +309,7 @@ export function DataGrid<T extends { id: string }>({
           onAssign(rows);
         } else if (event.key === 'Escape') {
           setHelpOpen(false);
+          setGChordActive(false);
           setSelectedKeys(new Set());
           setCursor(null);
         }
@@ -218,10 +333,17 @@ export function DataGrid<T extends { id: string }>({
           {[
             ['j / k', 'ligne suivante / précédente'],
             ['x', 'sélectionner la ligne'],
-            ['Entrée', 'ouvrir le détail'],
+            ['Entrée', 'ouvrir le détail / lien'],
+            ['e', 'éditer (champ inline)'],
             ['a', 'assigner la sélection'],
             ['r', 'rafraîchir la vue'],
-            ['Échap', 'vider la sélection'],
+            ['/', 'rechercher (ou ⌘K)'],
+            ['f', 'focus facettes'],
+            ['v', 'menu des vues'],
+            ['Échap', 'vider la sélection / fermer'],
+            ['g + h / w / u', 'aller à Accueil / Dossiers / Users'],
+            ['g + r / a / s', 'aller à Signalements / Audit / Réglages'],
+            ['g + n / c / x', 'aller à Outbox / Conformité / Sandbox'],
           ].map(([key, label]) => (
             <span key={key} className="flex items-center justify-between gap-3">
               <kbd className="rounded border border-border bg-muted px-1 text-[10px] text-foreground">
@@ -230,6 +352,15 @@ export function DataGrid<T extends { id: string }>({
               <span>{label}</span>
             </span>
           ))}
+        </div>
+      )}
+
+      {gChordActive && (
+        <div className="mb-1 flex h-6 items-center gap-1.5 rounded-md border border-[#EE4B2B]/40 bg-[#EE4B2B]/5 px-2 text-[11px] font-medium text-[#B5371C]">
+          <span>Aller à :</span>
+          <span className="text-muted-foreground">
+            h (accueil), w (dossiers), u (users), r (signalements), a (audit), s (réglages), n (outbox), c (conformité), x (sandbox)
+          </span>
         </div>
       )}
 
@@ -278,6 +409,8 @@ export function DataGrid<T extends { id: string }>({
               key={column.id}
               id={column.id}
               width={column.width}
+              minWidth={column.minWidth}
+              style={column.minWidth ? { minWidth: `${column.minWidth}px` } : undefined}
               allowsSorting={Boolean(column.sort)}
               className={column.align === 'right' ? 'text-right' : undefined}
             >
@@ -301,6 +434,7 @@ export function DataGrid<T extends { id: string }>({
                 <TableCell
                   key={column.id}
                   className={cn(column.align === 'right' && 'text-right', column.className)}
+                  style={column.minWidth ? { minWidth: `${column.minWidth}px` } : undefined}
                 >
                   {column.cell(row)}
                 </TableCell>

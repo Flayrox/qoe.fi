@@ -73,6 +73,14 @@ function formatDue(iso: string | null): string {
   });
 }
 
+interface UndoSnapshot {
+  id: string;
+  queue: string;
+  priority: AdminQueuePriority;
+  dueAt: string | null;
+  assignedName: string | null;
+}
+
 export function WorkTable({
   entries,
   queueLabels,
@@ -85,7 +93,7 @@ export function WorkTable({
   const router = useRouter();
   const [status, setStatus] = React.useState<string | null>(null);
   const [preview, setPreview] = React.useState<AdminQueueTriageEntry | null>(null);
-  const [undoable, setUndoable] = React.useState<AdminQueueTriageEntry[]>([]);
+  const [undoSnapshots, setUndoSnapshots] = React.useState<UndoSnapshot[]>([]);
   const grid = useGridView('admin.work', { column: 'sla', direction: 'ascending' });
 
   const assign = (entry: AdminQueueTriageEntry) => {
@@ -111,8 +119,18 @@ export function WorkTable({
     })();
   };
 
-  const assignMany = (rows: AdminQueueTriageEntry[]) => {
+  const snapshotRows = (rows: AdminQueueTriageEntry[]): UndoSnapshot[] =>
+    rows.map((row) => ({
+      id: row.id,
+      queue: row.queue,
+      priority: row.priority,
+      dueAt: row.dueAt,
+      assignedName: row.assignedName,
+    }));
+
+  const bulkAssign = (rows: AdminQueueTriageEntry[], assignToMe: boolean) => {
     void (async () => {
+      setUndoSnapshots(snapshotRows(rows));
       for (const row of rows) {
         const result = await attemptWithStepUp(
           () =>
@@ -121,25 +139,56 @@ export function WorkTable({
               id: row.id,
               priority: row.priority,
               dueAt: row.dueAt ?? '',
-              assignToMe: true,
-              clearAssignee: false,
+              assignToMe,
+              clearAssignee: !assignToMe,
             }),
-          { reason: 'Assigner une sélection de dossiers' }
+          { reason: assignToMe ? 'Assigner une sélection de dossiers' : 'Libérer une sélection' }
         );
         if (!result.ok) {
-          notifyActionFailure(result, readMessage(result) ?? 'Assignation impossible');
+          notifyActionFailure(result, readMessage(result) ?? 'Action groupée impossible');
           return;
         }
       }
       setStatus(
-        `${rows.length} dossier(s) assigné(s) · audité à ${new Date().toLocaleTimeString('fr-FR')}`
+        `${rows.length} dossier(s) ${assignToMe ? 'assigné(s)' : 'libéré(s)'} · audité à ${new Date().toLocaleTimeString('fr-FR')}`
       );
       router.refresh();
     })();
   };
 
-  const undoAssign = (rows: AdminQueueTriageEntry[]) => {
+  const bulkPriority = (rows: AdminQueueTriageEntry[], priority: AdminQueuePriority) => {
     void (async () => {
+      setUndoSnapshots(snapshotRows(rows));
+      for (const row of rows) {
+        const result = await attemptWithStepUp(
+          () =>
+            triageQueueItemAction({
+              queue: row.queue,
+              id: row.id,
+              priority,
+              dueAt: row.dueAt ?? '',
+              assignToMe: false,
+              clearAssignee: false,
+            }),
+          { reason: 'Modifier la priorité d’une sélection' }
+        );
+        if (!result.ok) {
+          notifyActionFailure(result, readMessage(result) ?? 'Modification groupée impossible');
+          return;
+        }
+      }
+      setStatus(
+        `Priorité passée à ${PRIORITY_LABELS[priority]} sur ${rows.length} dossier(s) · audité à ${new Date().toLocaleTimeString('fr-FR')}`
+      );
+      router.refresh();
+    })();
+  };
+
+  const bulkDueAt = (rows: AdminQueueTriageEntry[], hoursOffset: number | null) => {
+    void (async () => {
+      setUndoSnapshots(snapshotRows(rows));
+      const targetDue =
+        hoursOffset !== null ? new Date(Date.now() + hoursOffset * 3600 * 1000).toISOString() : '';
       for (const row of rows) {
         const result = await attemptWithStepUp(
           () =>
@@ -147,20 +196,48 @@ export function WorkTable({
               queue: row.queue,
               id: row.id,
               priority: row.priority,
-              dueAt: row.dueAt ?? '',
+              dueAt: targetDue,
               assignToMe: false,
-              clearAssignee: true,
+              clearAssignee: false,
             }),
-          { reason: 'Annuler une assignation groupée' }
+          { reason: 'Modifier l’échéance d’une sélection' }
+        );
+        if (!result.ok) {
+          notifyActionFailure(result, readMessage(result) ?? 'Modification d’échéance impossible');
+          return;
+        }
+      }
+      setStatus(
+        `Échéance mise à jour sur ${rows.length} dossier(s) · audité à ${new Date().toLocaleTimeString('fr-FR')}`
+      );
+      router.refresh();
+    })();
+  };
+
+  const undoBulk = () => {
+    void (async () => {
+      const items = [...undoSnapshots];
+      for (const item of items) {
+        const result = await attemptWithStepUp(
+          () =>
+            triageQueueItemAction({
+              queue: item.queue,
+              id: item.id,
+              priority: item.priority,
+              dueAt: item.dueAt ?? '',
+              assignToMe: false,
+              clearAssignee: !item.assignedName,
+            }),
+          { reason: 'Annuler les modifications groupées' }
         );
         if (!result.ok) {
           notifyActionFailure(result, readMessage(result) ?? 'Annulation impossible');
           return;
         }
       }
-      setUndoable([]);
+      setUndoSnapshots([]);
       setStatus(
-        `Assignation annulée sur ${rows.length} dossier(s) · audité à ${new Date().toLocaleTimeString('fr-FR')}`
+        `Modifications annulées sur ${items.length} dossier(s) · audité à ${new Date().toLocaleTimeString('fr-FR')}`
       );
       router.refresh();
     })();
@@ -170,6 +247,7 @@ export function WorkTable({
     {
       id: 'dossier',
       header: 'Dossier',
+      minWidth: 240,
       sort: { kind: 'text', value: (row) => row.title },
       cell: (row) => (
         <div className="flex min-w-0 items-center gap-2">
@@ -190,6 +268,7 @@ export function WorkTable({
     {
       id: 'assigned',
       header: 'Assigné',
+      minWidth: 90,
       sort: { kind: 'text', value: (row) => row.assignedName ?? '' },
       cell: (row) =>
         row.assignedName ? (
@@ -201,12 +280,14 @@ export function WorkTable({
     {
       id: 'priority',
       header: 'Priorité',
+      minWidth: 80,
       sort: { kind: 'rank', rank: PRIORITY_RANK, value: (row) => row.priority },
       cell: (row) => <span className="text-muted-foreground">{PRIORITY_LABELS[row.priority]}</span>,
     },
     {
       id: 'sla',
       header: 'SLA',
+      minWidth: 90,
       sort: { kind: 'rank', rank: SLA_RANK, value: (row) => row.slaState },
       cell: (row) => (
         <span
@@ -220,6 +301,7 @@ export function WorkTable({
       id: 'due',
       header: 'Échéance',
       align: 'right',
+      minWidth: 100,
       sort: {
         kind: 'number',
         value: (row) => new Date(row.dueAt ?? row.slaDueAt).getTime(),
@@ -280,13 +362,13 @@ export function WorkTable({
       {status && (
         <p role="status" className="flex items-center gap-2 text-[11px] text-muted-foreground">
           <span>{status}</span>
-          {undoable.length > 0 && (
+          {undoSnapshots.length > 0 && (
             <Button
               type="button"
               size="xs"
               variant="ghost"
               className="h-5 px-1 text-[11px] underline underline-offset-2"
-              onClick={() => undoAssign(undoable)}
+              onClick={undoBulk}
             >
               Annuler
             </Button>
@@ -307,18 +389,72 @@ export function WorkTable({
         selectable
         rowHref={(row) => row.href}
         onRowOpen={(row) => setPreview(row)}
-        onAssign={(rows) => assignMany(rows)}
+        onAssign={(rows) => bulkAssign(rows, true)}
         bulkActions={(rows) => (
-          <Button
-            type="button"
-            size="xs"
-            variant="soft"
-            tone="brand"
-            className="h-6 px-1.5 text-[11px]"
-            onClick={() => assignMany(rows)}
-          >
-            M’assigner
-          </Button>
+          <>
+            <Button
+              type="button"
+              size="xs"
+              variant="soft"
+              tone="brand"
+              className="h-6 px-1.5 text-[11px]"
+              onClick={() => bulkAssign(rows, true)}
+            >
+              M’assigner
+            </Button>
+            <Button
+              type="button"
+              size="xs"
+              variant="ghost"
+              className="h-6 px-1.5 text-[11px] text-muted-foreground"
+              onClick={() => bulkAssign(rows, false)}
+            >
+              Libérer
+            </Button>
+            <details className="relative">
+              <summary className="cursor-pointer list-none rounded px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground [&::-webkit-details-marker]:hidden">
+                Priorité ▾
+              </summary>
+              <div className="absolute left-0 z-30 mt-1 flex flex-col gap-0.5 rounded-md border border-border bg-popover p-1 text-[11px] shadow-lg">
+                {PRIORITY_RANK.map((p) => (
+                  <Button
+                    key={p}
+                    type="button"
+                    size="xs"
+                    variant="ghost"
+                    onClick={() => bulkPriority(rows, p)}
+                    className="h-6 justify-start px-2 font-normal text-foreground"
+                  >
+                    {PRIORITY_LABELS[p]}
+                  </Button>
+                ))}
+              </div>
+            </details>
+            <details className="relative">
+              <summary className="cursor-pointer list-none rounded px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground [&::-webkit-details-marker]:hidden">
+                Échéance ▾
+              </summary>
+              <div className="absolute left-0 z-30 mt-1 flex flex-col gap-0.5 rounded-md border border-border bg-popover p-1 text-[11px] shadow-lg">
+                {[
+                  { label: '+24 heures', hours: 24 },
+                  { label: '+48 heures', hours: 48 },
+                  { label: '+7 jours', hours: 168 },
+                  { label: 'Effacer', hours: null },
+                ].map((item) => (
+                  <Button
+                    key={item.label}
+                    type="button"
+                    size="xs"
+                    variant="ghost"
+                    onClick={() => bulkDueAt(rows, item.hours)}
+                    className="h-6 justify-start px-2 font-normal text-foreground"
+                  >
+                    {item.label}
+                  </Button>
+                ))}
+              </div>
+            </details>
+          </>
         )}
         rowMenu={(row) => [
           {

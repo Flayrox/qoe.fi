@@ -63,7 +63,7 @@ export function GridViewToolbar<T>({
     state.density === 'compact';
 
   return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1" data-grid-facets="">
       {facets.map((group) => (
         <div key={group.id} className="flex items-center gap-1">
           <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
@@ -81,6 +81,7 @@ export function GridViewToolbar<T>({
                 aria-pressed={active}
                 onClick={() => onToggleFacet(group.id, value.id)}
                 className="h-6 px-1.5 text-[11px] font-normal"
+                data-facet-button=""
               >
                 {value.label}
               </Button>
@@ -155,49 +156,51 @@ export function GridViewToolbar<T>({
           Densité : {state.density === 'compact' ? 'compacte' : 'normale'}
         </Button>
 
-        {views.length > 0 && (
-          <Select
-            label="Vue enregistrée"
-            hideLabel
-            size="xs"
-            value={currentView || undefined}
-            placeholder="Vue…"
-            options={[
-              { id: '', label: 'Vue…' },
-              ...views.map((view) => ({ id: view.name, label: view.name })),
-            ]}
-            onValueChange={(value) => {
-              setCurrentView(value);
-              if (value) onApplyView(value);
-            }}
-            className="w-32"
-          />
-        )}
+        <div className="flex items-center gap-1" data-grid-views="">
+          {views.length > 0 && (
+            <Select
+              label="Vue enregistrée"
+              hideLabel
+              size="xs"
+              value={currentView || undefined}
+              placeholder="Vue…"
+              options={[
+                { id: '', label: 'Vue…' },
+                ...views.map((view) => ({ id: view.name, label: view.name })),
+              ]}
+              onValueChange={(value) => {
+                setCurrentView(value);
+                if (value) onApplyView(value);
+              }}
+              className="w-32"
+            />
+          )}
 
-        <Button
-          type="button"
-          size="xs"
-          variant="ghost"
-          onClick={save}
-          className="h-6 px-1.5 text-[11px] font-normal text-muted-foreground"
-        >
-          Enregistrer la vue
-        </Button>
-
-        {currentView && views.some((view) => view.name === currentView) && (
           <Button
             type="button"
             size="xs"
             variant="ghost"
-            onClick={() => {
-              onRemoveView(currentView);
-              setCurrentView('');
-            }}
+            onClick={save}
             className="h-6 px-1.5 text-[11px] font-normal text-muted-foreground"
           >
-            Supprimer
+            Enregistrer la vue
           </Button>
-        )}
+
+          {currentView && views.some((view) => view.name === currentView) && (
+            <Button
+              type="button"
+              size="xs"
+              variant="ghost"
+              onClick={() => {
+                onRemoveView(currentView);
+                setCurrentView('');
+              }}
+              className="h-6 px-1.5 text-[11px] font-normal text-muted-foreground"
+            >
+              Supprimer
+            </Button>
+          )}
+        </div>
 
         {hasFilters && (
           <Button
