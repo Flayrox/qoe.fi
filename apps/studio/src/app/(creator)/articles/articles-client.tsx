@@ -57,10 +57,17 @@ import {
 import { updateCreatorProfileAction } from '@qoe/sdk/actions/dashboard';
 import { toast } from '@qoe/ui/toast';
 import { Button, buttonClasses } from '@qoe/ui/button';
+import { Checkbox } from '@qoe/ui/checkbox';
 import { Dropdown } from '@qoe/ui/dropdown';
-import { Input, InputGroup } from '@qoe/ui/input';
+import { Input, InputGroup, Textarea } from '@qoe/ui/input';
 import { Tab, TabList, Tabs } from '@qoe/ui/tabs';
-import { StudioHeader, StudioPage } from '@/components/studio-page';
+import {
+  StudioField,
+  StudioHeader,
+  StudioPage,
+  StudioRowList,
+  StudioSection,
+} from '@/components/studio-page';
 import { Select } from '@qoe/ui/select';
 import { t } from '@lingui/core/macro';
 
@@ -262,15 +269,6 @@ export function ArticlesClient({
     null
   );
 
-  // Category Form State (Création)
-  const [newCatName, setNewCatName] = useState('');
-  const [newCatSlug, setNewCatSlug] = useState('');
-  const [newCatDesc, setNewCatDesc] = useState('');
-  const [newCatParentId, setNewCatParentId] = useState<string>('');
-  const [categoryError, setCategoryError] = useState<string | null>(null);
-  const [, setCategorySuccess] = useState(false);
-  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
-
   // Category Edit State (Modal d'édition)
   const [editingCat, setEditingCat] = useState<CategoryWithCount | null>(null);
   const [editCatName, setEditCatName] = useState('');
@@ -398,21 +396,6 @@ export function ArticlesClient({
     [categories, draggedId]
   );
   const hasChildren = (id: string) => categories.some((c) => c.parentId === id);
-
-  // Automatic category slug helper
-  const handleCategoryNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    setNewCatName(val);
-    setNewCatSlug(
-      val
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9\s-]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-')
-    );
-  };
 
   // Pointer-based Drag & Drop handlers (ultra fiable, zéro annulation navigateur sur Mac/Trackpad)
   const handlePointerDown = (e: React.PointerEvent, id: string) => {
@@ -683,66 +666,6 @@ export function ArticlesClient({
       alert(err instanceof Error ? err.message : t`Échec de la création de la catégorie.`);
     } finally {
       setIsCreatingInline(false);
-    }
-  };
-
-  // Handle category submission
-  const handleCreateCategory = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newCatName.trim()) return;
-
-    const candidateSlug = slugify(newCatSlug.trim() || newCatName.trim());
-    if (isReservedTenantRoute(candidateSlug)) {
-      setCategoryError(
-        t`Le slug « ${candidateSlug} » est réservé par une page du site. Choisissez un autre nom.`
-      );
-      return;
-    }
-
-    try {
-      setCategoryError(null);
-      setCategorySuccess(false);
-      setIsCreatingCategory(true);
-
-      const res = await saveCategoryAction({
-        name: newCatName,
-        slug: newCatSlug || undefined,
-        description: newCatDesc || null,
-        parentId: newCatParentId || null,
-      });
-
-      if (!res.ok) throw new Error(res.error.message);
-      if (!res.data) throw new Error(t`Échec de création de la catégorie.`);
-      const created = res.data;
-
-      const newCatWithCount: CategoryWithCount = {
-        id: created.id,
-        name: created.name,
-        slug: created.slug,
-        description: created.description,
-        parentId: created.parentId ?? (newCatParentId || null),
-        isDefault: created.isDefault ?? false,
-        _count: { articles: 0 },
-      };
-
-      setCategories((prev) =>
-        [...prev, newCatWithCount].sort((a, b) => a.name.localeCompare(b.name))
-      );
-
-      setNewCatName('');
-      setNewCatSlug('');
-      setNewCatDesc('');
-      setNewCatParentId('');
-      setCategorySuccess(true);
-      setTimeout(() => setCategorySuccess(false), 3000);
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : t`Une erreur est survenue lors de la création de la catégorie.`;
-      setCategoryError(message);
-    } finally {
-      setIsCreatingCategory(false);
     }
   };
 
@@ -1258,20 +1181,18 @@ export function ArticlesClient({
                         <span className="text-[11px] font-semibold text-foreground">
                           {t`Densité`}
                         </span>
-                        <div className="flex rounded-lg border border-border/30 overflow-hidden">
+                        <div className="flex items-center gap-1">
                           {(['comfortable', 'compact'] as const).map((value) => (
-                            <button
+                            <Button
                               key={value}
+                              type="button"
+                              variant={density === value ? 'soft' : 'ghost'}
+                              tone={density === value ? 'brand' : 'neutral'}
+                              size="xs"
                               onClick={() => setDensity(value)}
-                              className={cn(
-                                'px-2 py-1 text-[10px] font-semibold uppercase transition-colors',
-                                density === value
-                                  ? 'bg-primary text-primary-foreground'
-                                  : 'text-muted-foreground hover:text-foreground'
-                              )}
                             >
                               {value === 'comfortable' ? t`Confort` : t`Compact`}
-                            </button>
+                            </Button>
                           ))}
                         </div>
                       </div>
@@ -1289,25 +1210,19 @@ export function ArticlesClient({
                             ['comments', t`Commentaires`],
                           ] as const
                         ).map(([key, label]) => (
-                          <label
+                          <Checkbox
                             key={key}
-                            className="flex items-center gap-2 px-1 py-1 rounded-lg text-xs text-foreground hover:bg-muted/50 cursor-pointer"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={columns[key]}
-                              onChange={(event) =>
-                                setColumns((prev) => ({ ...prev, [key]: event.target.checked }))
-                              }
-                              className="w-3.5 h-3.5 rounded border-border/40 text-primary focus:ring-primary"
-                            />
-                            <span>{label}</span>
-                          </label>
+                            size="sm"
+                            isSelected={columns[key]}
+                            onChange={(selected) =>
+                              setColumns((prev) => ({ ...prev, [key]: selected }))
+                            }
+                            label={<span className="text-xs text-foreground">{label}</span>}
+                            className="w-full px-1 py-1 hover:bg-muted/50"
+                          />
                         ))}
                       </div>
                       <div className="pt-2 border-t border-border/30 space-y-2">
-                        {/* Un sélecteur natif à valeur vide qui ne sert qu'à déclencher des
-                            actions : c'est un menu, pas une sélection. */}
                         <Dropdown
                           label={t`Vues sauvegardées`}
                           ariaLabel={t`Vues sauvegardées`}
@@ -1357,24 +1272,23 @@ export function ArticlesClient({
 
             {/* Sélection & actions groupées */}
             <div className="flex flex-wrap items-center justify-between gap-3 px-1">
-              <label className="flex items-center gap-2 text-xs text-muted-foreground font-sans cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={
-                    filteredAndSortedArticles.length > 0 &&
-                    filteredAndSortedArticles.every((art) => selectedIds.has(art.id))
-                  }
-                  onChange={(event) => {
-                    if (event.target.checked) {
-                      setSelectedIds(new Set(filteredAndSortedArticles.map((art) => art.id)));
-                    } else {
-                      setSelectedIds(new Set());
-                    }
-                  }}
-                  className="w-3.5 h-3.5 rounded border-border/40 text-primary focus:ring-primary"
-                />
-                {t`Tout sélectionner`} ({filteredAndSortedArticles.length})
-              </label>
+              <Checkbox
+                size="sm"
+                isSelected={
+                  filteredAndSortedArticles.length > 0 &&
+                  filteredAndSortedArticles.every((art) => selectedIds.has(art.id))
+                }
+                onChange={(selected) => {
+                  setSelectedIds(
+                    selected ? new Set(filteredAndSortedArticles.map((art) => art.id)) : new Set()
+                  );
+                }}
+                label={
+                  <span className="text-xs text-muted-foreground">
+                    {t`Tout sélectionner`} ({filteredAndSortedArticles.length})
+                  </span>
+                }
+              />
               {selectedIds.size > 0 && (
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs font-semibold text-foreground">
@@ -1488,673 +1402,709 @@ export function ArticlesClient({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-10 pt-2"
+            className="grid grid-cols-1 gap-6 pt-2 md:grid-cols-3"
           >
             {/* Left: Categories hierarchy & Drag and Drop zone */}
-            <div className="md:col-span-2 space-y-4 select-none">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-bold text-foreground font-sans flex items-center gap-2">
-                    <FolderTree className="w-4 h-4 text-primary" />
-                    {t`Arborescence des catégories`}
-                  </h3>
-                  <p className="text-xs text-muted-foreground font-sans">
-                    {t`Glissez-déposez à la souris pour convertir une catégorie en sous-catégorie ou réorganiser.`}
-                  </p>
-                </div>
-              </div>
+            <div className="select-none md:col-span-2">
+              <StudioSection title={t`Arborescence`} icon={FolderTree}>
+                <p className="mb-4 text-xs text-muted-foreground">
+                  {t`Glissez-déposez une catégorie pour la déplacer, ou utilisez les actions de chaque ligne.`}
+                </p>
 
-              {/* Badge flottant qui suit le pointeur de souris lors du Drag (sans aucun décalage de page) */}
-              {draggedCat && pointerPos && (
-                <div
-                  style={{
-                    position: 'fixed',
-                    left: pointerPos.x + 14,
-                    top: pointerPos.y + 14,
-                    pointerEvents: 'none',
-                    zIndex: 9999,
-                  }}
-                  className="bg-primary text-primary-foreground font-sans text-xs font-semibold px-3 py-1.5 rounded-lg shadow-2xl flex items-center gap-2 border border-primary-foreground/20 backdrop-blur-md select-none transition-transform pointer-events-none"
-                >
-                  <Move className="w-3.5 h-3.5" />
-                  <span>{draggedCat.name}</span>
-                  {dragOverParentId ? (
-                    <span className="text-[10px] bg-primary-foreground/20 px-1.5 py-0.5 rounded text-primary-foreground font-normal">
-                      ↳ {categories.find((c) => c.id === dragOverParentId)?.name}
-                    </span>
-                  ) : dragOverRoot ? (
-                    <span className="text-[10px] bg-primary-foreground/20 px-1.5 py-0.5 rounded text-primary-foreground font-normal">
-                      ↳ {t`Catégorie principale`}
-                    </span>
-                  ) : null}
-                </div>
-              )}
-
-              {categories.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-14 px-6 text-center space-y-4 font-sans border-2 border-dashed border-border/70 hover:border-primary/40 rounded-2xl bg-muted/5 transition-all">
-                  <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-xs">
-                    <FolderTree className="w-6 h-6" />
+                {/* Badge flottant qui suit le pointeur de souris lors du Drag (sans aucun décalage de page) */}
+                {draggedCat && pointerPos && (
+                  <div
+                    style={{
+                      position: 'fixed',
+                      left: pointerPos.x + 14,
+                      top: pointerPos.y + 14,
+                      pointerEvents: 'none',
+                      zIndex: 9999,
+                    }}
+                    className="bg-primary text-primary-foreground font-sans text-xs font-semibold px-3 py-1.5 rounded-lg shadow-2xl flex items-center gap-2 border border-primary-foreground/20 backdrop-blur-md select-none transition-transform pointer-events-none"
+                  >
+                    <Move className="w-3.5 h-3.5" />
+                    <span>{draggedCat.name}</span>
+                    {dragOverParentId ? (
+                      <span className="text-[10px] bg-primary-foreground/20 px-1.5 py-0.5 rounded text-primary-foreground font-normal">
+                        ↳ {categories.find((c) => c.id === dragOverParentId)?.name}
+                      </span>
+                    ) : dragOverRoot ? (
+                      <span className="text-[10px] bg-primary-foreground/20 px-1.5 py-0.5 rounded text-primary-foreground font-normal">
+                        ↳ {t`Catégorie principale`}
+                      </span>
+                    ) : null}
                   </div>
-                  <div className="space-y-1 max-w-sm">
-                    <h4 className="text-sm font-bold text-foreground font-sans">
+                )}
+
+                {categories.length === 0 ? (
+                  <div className="py-12 text-center">
+                    <FolderTree
+                      className="mx-auto h-5 w-5 text-muted-foreground"
+                      strokeWidth={1.5}
+                    />
+                    <p className="mt-3 text-sm font-medium text-foreground">
                       {t`Aucune catégorie pour le moment`}
-                    </h4>
-                    <p className="text-xs text-muted-foreground font-sans leading-relaxed">
+                    </p>
+                    <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-muted-foreground">
                       {t`Organisez vos articles avec des thématiques claires et des sous-catégories à 2 niveaux.`}
                     </p>
-                  </div>
 
-                  {isCreatingInlineRoot ? (
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        handleInlineCreateRoot();
-                      }}
-                      className="w-full max-w-md p-2 rounded-xl bg-card border border-primary/50 shadow-md flex items-center gap-2"
-                    >
-                      <FolderOpen className="w-4 h-4 text-primary shrink-0 ml-1.5" />
-                      <input
-                        autoFocus
-                        type="text"
-                        value={inlineRootName}
-                        onChange={(e) => setInlineRootName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Escape') setIsCreatingInlineRoot(false);
+                    {isCreatingInlineRoot ? (
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          handleInlineCreateRoot();
                         }}
-                        placeholder={t`Nom de la catégorie principale... (Entrée)`}
-                        className="flex-1 bg-transparent border-0 text-xs font-sans text-foreground placeholder:text-muted-foreground focus:outline-none"
-                      />
-                      <button
-                        type="submit"
-                        disabled={isCreatingInline || !inlineRootName.trim()}
-                        className="px-3 py-1.5 text-xs font-bold font-sans bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors cursor-pointer shadow-xs"
+                        className="mx-auto mt-4 flex w-full max-w-md items-center gap-2"
                       >
-                        {isCreatingInline ? t`...` : t`Créer`}
-                      </button>
-                      <button
+                        <Input
+                          autoFocus
+                          size="sm"
+                          value={inlineRootName}
+                          onChange={(e) => setInlineRootName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') setIsCreatingInlineRoot(false);
+                          }}
+                          placeholder={t`Nom de la catégorie principale... (Entrée)`}
+                          className="flex-1"
+                        />
+                        <Button
+                          type="submit"
+                          variant="solid"
+                          tone="brand"
+                          size="sm"
+                          disabled={isCreatingInline || !inlineRootName.trim()}
+                        >
+                          {isCreatingInline ? t`...` : t`Créer`}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="xs"
+                          shape="icon"
+                          onClick={() => setIsCreatingInlineRoot(false)}
+                          aria-label={t`Annuler`}
+                        >
+                          <X />
+                        </Button>
+                      </form>
+                    ) : (
+                      <Button
                         type="button"
-                        onClick={() => setIsCreatingInlineRoot(false)}
-                        className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors cursor-pointer"
+                        variant="solid"
+                        tone="brand"
+                        size="sm"
+                        className="mt-4"
+                        onClick={() => {
+                          setIsCreatingInlineRoot(true);
+                          setInlineRootName('');
+                        }}
                       >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </form>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsCreatingInlineRoot(true);
-                        setInlineRootName('');
-                      }}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-bold font-sans transition-all cursor-pointer shadow-xs hover:shadow-sm active:scale-[0.98]"
-                    >
-                      <Plus className="w-4 h-4 stroke-[2.5]" />
-                      <span>{t`Créer votre première catégorie`}</span>
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {rootCategories.map((root) => {
-                    const subCategories = categories.filter((c) => c.parentId === root.id);
-                    const totalArticles =
-                      root._count.articles +
-                      subCategories.reduce((acc, s) => acc + s._count.articles, 0);
+                        <Plus />
+                        {t`Créer votre première catégorie`}
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    <StudioRowList>
+                      {rootCategories.map((root) => {
+                        const subCategories = categories.filter((c) => c.parentId === root.id);
+                        const totalArticles =
+                          root._count.articles +
+                          subCategories.reduce((acc, s) => acc + s._count.articles, 0);
 
-                    const canBeDropTarget =
-                      draggedId && draggedId !== root.id && !hasChildren(draggedId);
-                    const isDropTarget = dragOverParentId === root.id;
+                        const isDropTarget = dragOverParentId === root.id;
 
-                    return (
-                      <div
-                        key={root.id}
-                        data-category-drop-id={root.id}
-                        className={cn(
-                          'p-3.5 rounded-xl border transition-all duration-200 bg-card',
-                          isDropTarget
-                            ? 'border-primary bg-primary/5 ring-2 ring-primary/20 shadow-md'
-                            : editingCat?.id === root.id
-                              ? 'border-primary/60 ring-1 ring-primary/30'
-                              : 'border-border/40 hover:border-border/50'
-                        )}
-                      >
-                        {/* Root Category Header Row */}
-                        <div className="flex items-center justify-between gap-4">
-                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                            {/* Drag Handle */}
-                            <div
-                              onPointerDown={(e) => {
-                                if (!hasChildren(root.id)) {
-                                  handlePointerDown(e, root.id);
-                                }
-                              }}
-                              className={cn(
-                                'p-1 text-muted-foreground/50 hover:text-foreground rounded transition-colors touch-none select-none',
-                                hasChildren(root.id)
-                                  ? 'opacity-30 cursor-not-allowed'
-                                  : 'cursor-grab active:cursor-grabbing'
-                              )}
-                              title={
-                                hasChildren(root.id)
-                                  ? t`Une catégorie mère avec des sous-catégories ne peut pas devenir sous-catégorie.`
-                                  : t`Glisser pour déplacer`
-                              }
-                            >
-                              <GripVertical className="w-4 h-4" />
-                            </div>
-
-                            <FolderOpen className="w-4 h-4 text-primary shrink-0" />
-
-                            <div className="min-w-0 flex items-center gap-2 flex-wrap">
-                              <h4 className="text-sm font-semibold text-foreground font-sans truncate">
-                                {root.name?.trim() || root.slug}
-                              </h4>
-                              <span className="text-[11px] text-muted-foreground font-sans font-medium tabular-nums">
-                                ({totalArticles} {totalArticles > 1 ? t`articles` : t`article`})
-                              </span>
-                              {subCategories.length > 0 && (
-                                <span className="text-[10px] bg-muted/60 text-muted-foreground px-1.5 py-0.5 rounded font-sans font-medium">
-                                  {subCategories.length}{' '}
-                                  {subCategories.length > 1
-                                    ? t`sous-catégories`
-                                    : t`sous-catégorie`}
-                                </span>
-                              )}
-                              <span className="text-[11px] font-sans font-medium text-muted-foreground/70">
-                                /{root.slug}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Quick Actions */}
-                          <div className="flex items-center gap-1 shrink-0">
-                            {/* Bouton déplacement 1 clic si pas d'enfants */}
-                            {!hasChildren(root.id) && (
-                              <div className="relative">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setMovingCatId(movingCatId === root.id ? null : root.id)
-                                  }
-                                  className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/60 transition-colors cursor-pointer"
-                                  title={t`Déplacer sous une autre catégorie (1 clic)`}
-                                >
-                                  <FolderInput className="w-3.5 h-3.5 stroke-[1.5]" />
-                                </button>
-                                {movingCatId === root.id && (
-                                  <div className="absolute right-0 top-full mt-1.5 z-40 w-52 bg-card border border-border/60 rounded-xl shadow-xl p-1.5 space-y-1 text-xs">
-                                    <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                                      {t`Déplacer sous...`}
-                                    </div>
-                                    {rootCategories
-                                      .filter((r) => r.id !== root.id)
-                                      .map((r) => (
-                                        <button
-                                          key={r.id}
-                                          type="button"
-                                          onClick={async () => {
-                                            setMovingCatId(null);
-                                            await handleDropOnParent(r.id, root.id);
-                                          }}
-                                          className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-muted text-foreground flex items-center gap-2 transition-colors cursor-pointer truncate"
-                                        >
-                                          <FolderOpen className="w-3.5 h-3.5 text-primary shrink-0" />
-                                          <span className="truncate">{r.name}</span>
-                                        </button>
-                                      ))}
-                                  </div>
-                                )}
-                              </div>
+                        return (
+                          <div
+                            key={root.id}
+                            data-category-drop-id={root.id}
+                            className={cn(
+                              'py-4 transition-colors first:pt-0 last:pb-0',
+                              isDropTarget || editingCat?.id === root.id ? 'bg-primary/5' : ''
                             )}
-
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setInlineCreatingParentId(root.id);
-                                setInlineSubName('');
-                              }}
-                              className="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors cursor-pointer"
-                              title={t`Ajouter une sous-catégorie directement`}
-                            >
-                              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-                            </button>
-                            {root.isDefault ? (
-                              <span
-                                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-muted/60 text-[10px] font-semibold text-muted-foreground"
-                                title={t`Catégorie technique non supprimable, masquée de la navigation publique`}
-                              >
-                                <Lock className="w-3 h-3" />
-                                {t`Par défaut`}
-                              </span>
-                            ) : (
-                              <>
-                                <button
-                                  onClick={() => handleOpenEdit(root)}
-                                  className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/60 transition-colors cursor-pointer"
-                                  title={t`Modifier`}
-                                >
-                                  <Edit3 className="w-3.5 h-3.5 stroke-[1.5]" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteCategory(root.id, root.name)}
-                                  className="p-1.5 text-muted-foreground hover:text-destructive-text rounded-lg hover:bg-muted/60 transition-colors cursor-pointer"
-                                  title={t`Supprimer`}
-                                >
-                                  <Trash2 className="w-3.5 h-3.5 stroke-[1.5]" />
-                                </button>
-                              </>
-                            )}
-                          </div>
-                        </div>
-
-                        {root.description && (
-                          <p className="text-xs text-muted-foreground font-sans leading-relaxed pt-1.5 pl-8">
-                            {root.description}
-                          </p>
-                        )}
-
-                        {/* Drop hint when hovered */}
-                        {isDropTarget && (
-                          <div className="mt-2.5 ml-8 py-2 px-3 border border-dashed border-primary rounded-lg bg-primary/10 text-primary text-xs font-sans font-medium flex items-center gap-1.5 animate-pulse">
-                            <CornerDownRight className="w-3.5 h-3.5" />
-                            {t`Déposer ici pour ajouter en sous-catégorie de "${root.name}"`}
-                          </div>
-                        )}
-
-                        {/* Nested Sub-Categories + Live Ghost Preview + Inline Quick Create */}
-                        <div className="mt-3 ml-7 pl-3 border-l-2 border-border/40 space-y-1.5">
-                          {subCategories.map((sub) => (
-                            <div
-                              key={sub.id}
-                              onPointerDown={(e) => handlePointerDown(e, sub.id)}
-                              className={cn(
-                                'py-1.5 px-2 rounded-lg flex items-center justify-between gap-3 bg-muted/20 hover:bg-muted/40 transition-colors cursor-grab active:cursor-grabbing border border-transparent hover:border-border/30 touch-none select-none',
-                                draggedId === sub.id &&
-                                  'opacity-40 border-dashed border-primary ring-1 ring-primary/40'
-                              )}
-                            >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <GripVertical className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0" />
-                                <CornerDownRight className="w-3.5 h-3.5 text-muted-foreground/70 shrink-0" />
-                                <span className="text-xs font-medium text-foreground font-sans truncate">
-                                  {sub.name?.trim() || sub.slug}
-                                </span>
-                                <span className="text-[10px] text-muted-foreground font-sans tabular-nums">
-                                  ({sub._count.articles}{' '}
-                                  {sub._count.articles > 1 ? t`articles` : t`article`})
-                                </span>
-                                <span className="text-[10px] font-sans font-medium text-muted-foreground/70">
-                                  /{sub.slug}
-                                </span>
-                              </div>
-
-                              <div className="flex items-center gap-1 shrink-0">
-                                {/* Menu rapide Déplacer vers... */}
-                                <div className="relative">
-                                  <button
-                                    type="button"
-                                    onClick={() =>
-                                      setMovingCatId(movingCatId === sub.id ? null : sub.id)
-                                    }
-                                    className="p-1 text-muted-foreground hover:text-foreground rounded hover:bg-muted transition-colors cursor-pointer"
-                                    title={t`Déplacer vers... (1 clic)`}
-                                  >
-                                    <FolderInput className="w-3.5 h-3.5 stroke-[1.5]" />
-                                  </button>
-                                  {movingCatId === sub.id && (
-                                    <div className="absolute right-0 top-full mt-1.5 z-40 w-52 bg-card border border-border/60 rounded-xl shadow-xl p-1.5 space-y-1 text-xs">
-                                      <div className="px-2 py-1 text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                                        {t`Déplacer vers...`}
-                                      </div>
-                                      <button
-                                        type="button"
-                                        onClick={async () => {
-                                          setMovingCatId(null);
-                                          await handleDropOnRoot(sub.id);
-                                        }}
-                                        className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-muted text-foreground flex items-center gap-2 transition-colors cursor-pointer"
-                                      >
-                                        <ArrowUpRight className="w-3.5 h-3.5 text-primary shrink-0" />
-                                        <span>{t`Catégorie principale`}</span>
-                                      </button>
-                                      {rootCategories
-                                        .filter((r) => r.id !== sub.parentId)
-                                        .map((r) => (
-                                          <button
-                                            key={r.id}
-                                            type="button"
-                                            onClick={async () => {
-                                              setMovingCatId(null);
-                                              await handleDropOnParent(r.id, sub.id);
-                                            }}
-                                            className="w-full text-left px-2.5 py-1.5 rounded-lg hover:bg-muted text-foreground flex items-center gap-2 transition-colors cursor-pointer truncate"
-                                          >
-                                            <FolderOpen className="w-3.5 h-3.5 text-primary shrink-0" />
-                                            <span className="truncate">{r.name}</span>
-                                          </button>
-                                        ))}
-                                    </div>
-                                  )}
-                                </div>
-
-                                <button
-                                  onClick={async () => {
-                                    try {
-                                      const res = await moveCategoryAction({
-                                        id: sub.id,
-                                        parentId: null,
-                                      });
-                                      if (!res.ok) throw new Error(res.error.message);
-                                      setCategories((prev) =>
-                                        prev.map((c) =>
-                                          c.id === sub.id ? { ...c, parentId: null } : c
-                                        )
-                                      );
-                                    } catch (err: unknown) {
-                                      alert(
-                                        err instanceof Error
-                                          ? err.message
-                                          : t`Échec de la promotion.`
-                                      );
+                          >
+                            {/* Root Category Header Row */}
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex min-w-0 flex-1 items-center gap-2">
+                                {/* Drag Handle */}
+                                <div
+                                  onPointerDown={(e) => {
+                                    if (!hasChildren(root.id)) {
+                                      handlePointerDown(e, root.id);
                                     }
                                   }}
-                                  className="p-1 text-muted-foreground hover:text-foreground rounded hover:bg-muted transition-colors cursor-pointer"
-                                  title={t`Promouvoir en catégorie principale`}
+                                  className={cn(
+                                    'shrink-0 touch-none select-none rounded p-1 text-muted-foreground/60 transition-colors',
+                                    hasChildren(root.id)
+                                      ? 'cursor-not-allowed opacity-30'
+                                      : 'cursor-grab hover:text-foreground active:cursor-grabbing'
+                                  )}
+                                  title={
+                                    hasChildren(root.id)
+                                      ? t`Une catégorie mère avec des sous-catégories ne peut pas devenir sous-catégorie.`
+                                      : t`Glisser pour déplacer`
+                                  }
                                 >
-                                  <ArrowUpRight className="w-3.5 h-3.5 stroke-[1.5]" />
-                                </button>
-                                <button
-                                  onClick={() => handleOpenEdit(sub)}
-                                  className="p-1 text-muted-foreground hover:text-foreground rounded hover:bg-muted transition-colors cursor-pointer"
-                                  title={t`Modifier`}
+                                  <GripVertical className="h-3.5 w-3.5" />
+                                </div>
+
+                                <FolderOpen
+                                  className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                                  strokeWidth={1.5}
+                                />
+
+                                <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+                                  <span className="truncate text-sm font-medium text-foreground">
+                                    {root.name?.trim() || root.slug}
+                                  </span>
+                                  <span className="text-[11px] tabular-nums text-muted-foreground">
+                                    {totalArticles} {totalArticles > 1 ? t`articles` : t`article`}
+                                  </span>
+                                  {subCategories.length > 0 && (
+                                    <span className="text-[11px] text-muted-foreground">
+                                      {subCategories.length}{' '}
+                                      {subCategories.length > 1
+                                        ? t`sous-catégories`
+                                        : t`sous-catégorie`}
+                                    </span>
+                                  )}
+                                  <span className="font-mono text-[10px] text-muted-foreground/70">
+                                    /{root.slug}
+                                  </span>
+                                  {root.isDefault && (
+                                    <span
+                                      className="inline-flex items-center gap-1 text-[11px] text-muted-foreground"
+                                      title={t`Catégorie technique non supprimable, masquée de la navigation publique`}
+                                    >
+                                      <Lock className="h-3 w-3" />
+                                      {t`Par défaut`}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Quick Actions */}
+                              <div className="flex shrink-0 items-center gap-0.5">
+                                {/* Bouton déplacement 1 clic si pas d'enfants */}
+                                {!hasChildren(root.id) && (
+                                  <div className="relative">
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="xs"
+                                      shape="icon"
+                                      onClick={() =>
+                                        setMovingCatId(movingCatId === root.id ? null : root.id)
+                                      }
+                                      title={t`Déplacer sous une autre catégorie (1 clic)`}
+                                      aria-label={t`Déplacer sous une autre catégorie`}
+                                    >
+                                      <FolderInput />
+                                    </Button>
+                                    {movingCatId === root.id && (
+                                      <div className="absolute right-0 top-full z-40 mt-1 w-52 space-y-0.5 rounded-xl border border-border/60 bg-card p-1.5 text-xs shadow-xl">
+                                        <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                          {t`Déplacer sous...`}
+                                        </p>
+                                        {rootCategories
+                                          .filter((r) => r.id !== root.id)
+                                          .map((r) => (
+                                            <Button
+                                              key={r.id}
+                                              type="button"
+                                              variant="ghost"
+                                              size="xs"
+                                              className="w-full justify-start gap-2 font-normal"
+                                              onClick={async () => {
+                                                setMovingCatId(null);
+                                                await handleDropOnParent(r.id, root.id);
+                                              }}
+                                            >
+                                              <FolderOpen className="shrink-0 text-muted-foreground" />
+                                              <span className="truncate">{r.name}</span>
+                                            </Button>
+                                          ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="xs"
+                                  shape="icon"
+                                  onClick={() => {
+                                    setInlineCreatingParentId(root.id);
+                                    setInlineSubName('');
+                                  }}
+                                  title={t`Ajouter une sous-catégorie directement`}
+                                  aria-label={t`Ajouter une sous-catégorie`}
                                 >
-                                  <Edit3 className="w-3.5 h-3.5 stroke-[1.5]" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteCategory(sub.id, sub.name)}
-                                  className="p-1 text-muted-foreground hover:text-destructive-text rounded hover:bg-muted transition-colors cursor-pointer"
-                                  title={t`Supprimer`}
-                                >
-                                  <Trash2 className="w-3.5 h-3.5 stroke-[1.5]" />
-                                </button>
+                                  <Plus />
+                                </Button>
+                                {!root.isDefault && (
+                                  <>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="xs"
+                                      shape="icon"
+                                      onClick={() => handleOpenEdit(root)}
+                                      title={t`Modifier`}
+                                      aria-label={t`Modifier la catégorie`}
+                                    >
+                                      <Edit3 />
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="xs"
+                                      shape="icon"
+                                      onClick={() => handleDeleteCategory(root.id, root.name)}
+                                      title={t`Supprimer`}
+                                      aria-label={t`Supprimer la catégorie`}
+                                      className="hover:text-destructive-text"
+                                    >
+                                      <Trash2 />
+                                    </Button>
+                                  </>
+                                )}
                               </div>
                             </div>
-                          ))}
 
-                          {/* Live Insertion Ghost Preview during Drag */}
-                          {isDropTarget && draggedCat && (
-                            <div className="py-2 px-3 rounded-lg border-2 border-dashed border-primary bg-primary/10 flex items-center gap-2 text-xs font-semibold text-primary animate-pulse shadow-sm">
-                              <CornerDownRight className="w-3.5 h-3.5 text-primary shrink-0" />
-                              <span>↳ {draggedCat.name}</span>
-                              <span className="text-[10px] bg-primary/20 text-primary px-2 py-0.5 rounded-full ml-auto font-medium">
-                                {t`Aperçu du nouvel emplacement`}
-                              </span>
+                            {root.description && (
+                              <p className="text-xs text-muted-foreground font-sans leading-relaxed pt-1.5 pl-8">
+                                {root.description}
+                              </p>
+                            )}
+
+                            {/* Drop hint when hovered */}
+                            {isDropTarget && (
+                              <p className="mt-1 flex items-center gap-1.5 pl-8 text-xs font-medium text-primary">
+                                <CornerDownRight className="h-3.5 w-3.5 shrink-0" />
+                                {t`Déposer ici pour ajouter en sous-catégorie de "${root.name}"`}
+                              </p>
+                            )}
+
+                            {/* Nested Sub-Categories + Live Ghost Preview + Inline Quick Create */}
+                            <div className="mt-2 ml-4 border-l border-border/40 pl-4">
+                              {subCategories.map((sub) => (
+                                <div
+                                  key={sub.id}
+                                  onPointerDown={(e) => handlePointerDown(e, sub.id)}
+                                  className={cn(
+                                    'flex cursor-grab touch-none select-none items-center justify-between gap-3 border-b border-border/30 py-2 active:cursor-grabbing',
+                                    draggedId === sub.id && 'opacity-40'
+                                  )}
+                                >
+                                  <div className="flex min-w-0 items-center gap-2">
+                                    <GripVertical className="h-3 w-3 shrink-0 text-muted-foreground/50" />
+                                    <CornerDownRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/70" />
+                                    <span className="truncate text-xs font-medium text-foreground">
+                                      {sub.name?.trim() || sub.slug}
+                                    </span>
+                                    <span className="text-[10px] tabular-nums text-muted-foreground">
+                                      {sub._count.articles}{' '}
+                                      {sub._count.articles > 1 ? t`articles` : t`article`}
+                                    </span>
+                                    <span className="font-mono text-[10px] text-muted-foreground/70">
+                                      /{sub.slug}
+                                    </span>
+                                  </div>
+
+                                  <div className="flex shrink-0 items-center gap-0.5">
+                                    {/* Menu rapide Déplacer vers... */}
+                                    <div className="relative">
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="xs"
+                                        shape="icon"
+                                        onClick={() =>
+                                          setMovingCatId(movingCatId === sub.id ? null : sub.id)
+                                        }
+                                        title={t`Déplacer vers... (1 clic)`}
+                                        aria-label={t`Déplacer la catégorie`}
+                                      >
+                                        <FolderInput />
+                                      </Button>
+                                      {movingCatId === sub.id && (
+                                        <div className="absolute right-0 top-full z-40 mt-1 w-52 space-y-0.5 rounded-xl border border-border/60 bg-card p-1.5 text-xs shadow-xl">
+                                          <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                            {t`Déplacer vers...`}
+                                          </p>
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="xs"
+                                            className="w-full justify-start gap-2 font-normal"
+                                            onClick={async () => {
+                                              setMovingCatId(null);
+                                              await handleDropOnRoot(sub.id);
+                                            }}
+                                          >
+                                            <ArrowUpRight className="shrink-0 text-muted-foreground" />
+                                            <span>{t`Catégorie principale`}</span>
+                                          </Button>
+                                          {rootCategories
+                                            .filter((r) => r.id !== sub.parentId)
+                                            .map((r) => (
+                                              <Button
+                                                key={r.id}
+                                                type="button"
+                                                variant="ghost"
+                                                size="xs"
+                                                className="w-full justify-start gap-2 font-normal"
+                                                onClick={async () => {
+                                                  setMovingCatId(null);
+                                                  await handleDropOnParent(r.id, sub.id);
+                                                }}
+                                              >
+                                                <FolderOpen className="shrink-0 text-muted-foreground" />
+                                                <span className="truncate">{r.name}</span>
+                                              </Button>
+                                            ))}
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="xs"
+                                      shape="icon"
+                                      onClick={async () => {
+                                        try {
+                                          const res = await moveCategoryAction({
+                                            id: sub.id,
+                                            parentId: null,
+                                          });
+                                          if (!res.ok) throw new Error(res.error.message);
+                                          setCategories((prev) =>
+                                            prev.map((c) =>
+                                              c.id === sub.id ? { ...c, parentId: null } : c
+                                            )
+                                          );
+                                        } catch (err: unknown) {
+                                          alert(
+                                            err instanceof Error
+                                              ? err.message
+                                              : t`Échec de la promotion.`
+                                          );
+                                        }
+                                      }}
+                                      title={t`Promouvoir en catégorie principale`}
+                                      aria-label={t`Promouvoir en catégorie principale`}
+                                    >
+                                      <ArrowUpRight />
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="xs"
+                                      shape="icon"
+                                      onClick={() => handleOpenEdit(sub)}
+                                      title={t`Modifier`}
+                                      aria-label={t`Modifier la catégorie`}
+                                    >
+                                      <Edit3 />
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="xs"
+                                      shape="icon"
+                                      onClick={() => handleDeleteCategory(sub.id, sub.name)}
+                                      title={t`Supprimer`}
+                                      aria-label={t`Supprimer la catégorie`}
+                                      className="hover:text-destructive-text"
+                                    >
+                                      <Trash2 />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+
+                              {/* Live Insertion Ghost Preview during Drag */}
+                              {isDropTarget && draggedCat && (
+                                <p className="flex items-center gap-2 py-2 text-xs font-medium text-primary">
+                                  <CornerDownRight className="h-3.5 w-3.5 shrink-0" />↳{' '}
+                                  {draggedCat.name}
+                                </p>
+                              )}
+
+                              {/* Inline Sub-Category Creation Form */}
+                              {inlineCreatingParentId === root.id ? (
+                                <form
+                                  onSubmit={(e) => {
+                                    e.preventDefault();
+                                    handleInlineCreateSubCategory(root.id);
+                                  }}
+                                  className="flex items-center gap-2 py-2"
+                                >
+                                  <Input
+                                    autoFocus
+                                    size="sm"
+                                    value={inlineSubName}
+                                    onChange={(e) => setInlineSubName(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Escape') setInlineCreatingParentId(null);
+                                    }}
+                                    placeholder={t`Nom de la sous-catégorie... (Entrée)`}
+                                    className="flex-1"
+                                  />
+                                  <Button
+                                    type="submit"
+                                    variant="solid"
+                                    tone="brand"
+                                    size="sm"
+                                    disabled={isCreatingInline || !inlineSubName.trim()}
+                                  >
+                                    {isCreatingInline ? t`...` : t`Créer`}
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="xs"
+                                    shape="icon"
+                                    onClick={() => setInlineCreatingParentId(null)}
+                                    aria-label={t`Annuler`}
+                                  >
+                                    <X />
+                                  </Button>
+                                </form>
+                              ) : (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="xs"
+                                  className="mt-1 text-muted-foreground"
+                                  onClick={() => {
+                                    setInlineCreatingParentId(root.id);
+                                    setInlineSubName('');
+                                  }}
+                                >
+                                  <Plus />
+                                  {t`Ajouter une sous-catégorie`}
+                                </Button>
+                              )}
                             </div>
-                          )}
+                          </div>
+                        );
+                      })}
+                    </StudioRowList>
 
-                          {/* Inline Sub-Category Creation Form */}
-                          {inlineCreatingParentId === root.id ? (
-                            <form
-                              onSubmit={(e) => {
-                                e.preventDefault();
-                                handleInlineCreateSubCategory(root.id);
-                              }}
-                              className="py-1 flex items-center gap-2 pt-1"
-                            >
-                              <CornerDownRight className="w-3.5 h-3.5 text-primary shrink-0" />
-                              <input
-                                autoFocus
-                                type="text"
-                                value={inlineSubName}
-                                onChange={(e) => setInlineSubName(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Escape') setInlineCreatingParentId(null);
-                                }}
-                                placeholder={t`Nom de la sous-catégorie... (Entrée)`}
-                                className="flex-1 bg-background border border-primary/50 focus:border-primary rounded-lg px-2.5 py-1 text-xs text-foreground focus:outline-none transition-all shadow-xs"
-                              />
-                              <button
-                                type="submit"
-                                disabled={isCreatingInline || !inlineSubName.trim()}
-                                className="px-2.5 py-1 text-xs font-bold bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors cursor-pointer"
-                              >
-                                {isCreatingInline ? t`...` : t`Créer`}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setInlineCreatingParentId(null)}
-                                className="p-1 text-muted-foreground hover:text-foreground rounded hover:bg-muted transition-colors cursor-pointer"
-                              >
-                                <X className="w-3.5 h-3.5" />
-                              </button>
-                            </form>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setInlineCreatingParentId(root.id);
-                                setInlineSubName('');
-                              }}
-                              className="group flex items-center gap-1.5 text-[11px] text-muted-foreground/75 hover:text-foreground hover:bg-muted/40 px-2 py-1 rounded-md transition-colors cursor-pointer mt-1"
-                            >
-                              <Plus className="w-3 h-3 text-muted-foreground/60 group-hover:text-primary transition-colors" />
-                              <span>{t`Ajouter une sous-catégorie`}</span>
-                            </button>
-                          )}
-                        </div>
+                    {/* Zone de largage pour promouvoir en catégorie racine */}
+                    {draggedCat?.parentId && (
+                      <div
+                        data-drop-zone="root"
+                        onClick={() => handleDropOnRoot(draggedCat.id)}
+                        className={cn(
+                          'mt-2 flex cursor-pointer items-center justify-center gap-2 border-t border-dashed py-3 text-xs font-medium transition-colors',
+                          dragOverRoot
+                            ? 'border-primary text-primary'
+                            : 'border-border/60 text-muted-foreground hover:text-foreground'
+                        )}
+                      >
+                        <ArrowUpRight className="h-3.5 w-3.5" />
+                        {t`Déposer ici pour promouvoir en catégorie principale`}
                       </div>
-                    );
-                  })}
+                    )}
 
-                  {/* Zone de largage pour promouvoir en catégorie racine (en bas de liste, zéro décalage en haut) */}
-                  {draggedCat?.parentId && (
-                    <div
-                      data-drop-zone="root"
-                      onClick={() => handleDropOnRoot(draggedCat.id)}
-                      className={cn(
-                        'p-3.5 rounded-xl border-2 border-dashed transition-all flex items-center justify-center gap-2 text-xs font-sans font-semibold cursor-pointer',
-                        dragOverRoot
-                          ? 'border-primary bg-primary/15 text-primary scale-[1.01] shadow-md ring-2 ring-primary/30'
-                          : 'border-border/60 bg-muted/20 text-muted-foreground hover:bg-muted/40'
-                      )}
-                    >
-                      <ArrowUpRight className="w-4 h-4 text-primary" />
-                      {t`Déposer ici pour promouvoir en catégorie principale`}
-                    </div>
-                  )}
-
-                  {/* Bouton ou formulaire inline pour créer une catégorie principale */}
-                  {isCreatingInlineRoot ? (
-                    <form
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        handleInlineCreateRoot();
-                      }}
-                      className="p-3.5 rounded-xl border border-primary/50 bg-card flex items-center gap-2.5 shadow-sm"
-                    >
-                      <FolderOpen className="w-4 h-4 text-primary shrink-0" />
-                      <input
-                        autoFocus
-                        type="text"
-                        value={inlineRootName}
-                        onChange={(e) => setInlineRootName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Escape') setIsCreatingInlineRoot(false);
+                    {/* Bouton ou formulaire inline pour créer une catégorie principale */}
+                    {isCreatingInlineRoot ? (
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          handleInlineCreateRoot();
                         }}
-                        placeholder={t`Nom de la catégorie principale... (Entrée pour valider)`}
-                        className="flex-1 bg-background border border-primary/40 focus:border-primary rounded-lg px-3 py-1.5 text-xs text-foreground focus:outline-none transition-all"
-                      />
-                      <button
-                        type="submit"
-                        disabled={isCreatingInline || !inlineRootName.trim()}
-                        className="px-3 py-1.5 text-xs font-bold bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 transition-colors cursor-pointer"
+                        className="mt-3 flex items-center gap-2 border-t border-border/40 pt-3"
                       >
-                        {isCreatingInline ? t`...` : t`Créer`}
-                      </button>
-                      <button
+                        <Input
+                          autoFocus
+                          size="sm"
+                          value={inlineRootName}
+                          onChange={(e) => setInlineRootName(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') setIsCreatingInlineRoot(false);
+                          }}
+                          placeholder={t`Nom de la catégorie principale... (Entrée pour valider)`}
+                          className="flex-1"
+                        />
+                        <Button
+                          type="submit"
+                          variant="solid"
+                          tone="brand"
+                          size="sm"
+                          disabled={isCreatingInline || !inlineRootName.trim()}
+                        >
+                          {isCreatingInline ? t`...` : t`Créer`}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="xs"
+                          shape="icon"
+                          onClick={() => setIsCreatingInlineRoot(false)}
+                          aria-label={t`Annuler`}
+                        >
+                          <X />
+                        </Button>
+                      </form>
+                    ) : (
+                      <Button
                         type="button"
-                        onClick={() => setIsCreatingInlineRoot(false)}
-                        className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors cursor-pointer"
+                        variant="outline"
+                        size="sm"
+                        className="mt-3"
+                        onClick={() => {
+                          setIsCreatingInlineRoot(true);
+                          setInlineRootName('');
+                        }}
                       >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </form>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsCreatingInlineRoot(true);
-                        setInlineRootName('');
-                      }}
-                      className="w-full py-2.5 px-3 rounded-xl border border-dashed border-border/70 hover:border-primary/60 hover:bg-primary/5 text-muted-foreground hover:text-primary transition-all flex items-center justify-center gap-2 text-xs font-semibold cursor-pointer"
-                    >
-                      <Plus className="w-4 h-4" />
-                      {t`Nouvelle catégorie principale`}
-                    </button>
-                  )}
-                </div>
-              )}
+                        <Plus />
+                        {t`Nouvelle catégorie principale`}
+                      </Button>
+                    )}
+                  </>
+                )}
+              </StudioSection>
             </div>
 
             {/* Right Panel: Contextual Category Editor */}
             <div className="md:col-span-1">
-              {editingCat ? (
-                <div className="bg-card border border-border/40 rounded-xl p-5 space-y-4 shadow-none sticky top-6">
-                  <div className="flex items-center justify-between gap-2 border-b border-border/30 pb-3">
-                    <div className="min-w-0">
-                      <h3 className="text-xs font-bold text-foreground uppercase tracking-wider font-sans truncate">
-                        {t`Modifier la catégorie`}
-                      </h3>
-                      <p className="text-muted-foreground text-[11px] truncate font-sans">
-                        {editingCat.name}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setEditingCat(null)}
-                      className="p-1 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors cursor-pointer"
-                      title={t`Fermer`}
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
+              <div className="sticky top-6">
+                {editingCat ? (
+                  <StudioSection
+                    title={t`Modifier la catégorie`}
+                    icon={FolderTree}
+                    actions={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="xs"
+                        shape="icon"
+                        onClick={() => setEditingCat(null)}
+                        title={t`Fermer`}
+                        aria-label={t`Fermer`}
+                      >
+                        <X />
+                      </Button>
+                    }
+                  >
+                    <p className="mb-4 truncate text-xs text-muted-foreground">{editingCat.name}</p>
 
-                  <form onSubmit={handleSaveEdit} className="space-y-3.5 font-sans">
-                    <div className="space-y-1">
-                      <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans font-semibold">
-                        {t`Nom de la catégorie`}
-                      </label>
-                      <input
-                        type="text"
-                        value={editCatName}
-                        onChange={(e) => setEditCatName(e.target.value)}
-                        required
-                        className="w-full bg-background border border-border/40 rounded-lg p-2 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-sans"
-                      />
-                    </div>
+                    <form onSubmit={handleSaveEdit} className="space-y-4">
+                      <StudioField label={t`Nom de la catégorie`} htmlFor="category-name">
+                        <Input
+                          id="category-name"
+                          size="sm"
+                          value={editCatName}
+                          onChange={(e) => setEditCatName(e.target.value)}
+                          required
+                        />
+                      </StudioField>
 
-                    <div className="space-y-1">
-                      <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans font-semibold">
-                        {t`Catégorie parente`}
-                      </label>
-                      <Select
+                      <StudioField
                         label={t`Catégorie parente`}
-                        hideLabel
-                        size="sm"
-                        value={editCatParentId}
-                        onValueChange={setEditCatParentId}
-                        disabled={hasChildren(editingCat.id)}
-                        options={[
-                          { id: '', label: t`Aucune (catégorie principale)` },
-                          ...rootCategories
-                            .filter((rc) => rc.id !== editingCat.id)
-                            .map((rc) => ({ id: rc.id, label: rc.name })),
-                        ]}
-                      />
-                      {hasChildren(editingCat.id) && (
-                        <p className="text-[10px] text-muted-foreground/80 italic">
-                          {t`Cette catégorie possède déjà des sous-catégories et doit rester une catégorie principale.`}
+                        hint={
+                          hasChildren(editingCat.id)
+                            ? t`Cette catégorie possède déjà des sous-catégories et doit rester une catégorie principale.`
+                            : undefined
+                        }
+                      >
+                        <Select
+                          label={t`Catégorie parente`}
+                          hideLabel
+                          size="sm"
+                          value={editCatParentId}
+                          onValueChange={setEditCatParentId}
+                          disabled={hasChildren(editingCat.id)}
+                          options={[
+                            { id: '', label: t`Aucune (catégorie principale)` },
+                            ...rootCategories
+                              .filter((rc) => rc.id !== editingCat.id)
+                              .map((rc) => ({ id: rc.id, label: rc.name })),
+                          ]}
+                        />
+                      </StudioField>
+
+                      <StudioField label={t`Slug URL`} htmlFor="category-slug">
+                        <Input
+                          id="category-slug"
+                          size="sm"
+                          value={editCatSlug}
+                          onChange={(e) =>
+                            setEditCatSlug(
+                              e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-')
+                            )
+                          }
+                          required
+                          className="font-mono text-muted-foreground"
+                        />
+                      </StudioField>
+
+                      <StudioField label={t`Description`} htmlFor="category-description">
+                        <Textarea
+                          id="category-description"
+                          rows={3}
+                          size="sm"
+                          value={editCatDesc}
+                          onChange={(e) => setEditCatDesc(e.target.value)}
+                          placeholder={t`Courte description thématique...`}
+                        />
+                      </StudioField>
+
+                      {editError && (
+                        <p className="flex items-start gap-2 text-xs text-destructive-text">
+                          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                          <span>{editError}</span>
                         </p>
                       )}
-                    </div>
 
-                    <div className="space-y-1">
-                      <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans font-semibold">
-                        {t`Slug URL`}
-                      </label>
-                      <input
-                        type="text"
-                        value={editCatSlug}
-                        onChange={(e) =>
-                          setEditCatSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-'))
-                        }
-                        required
-                        className="w-full bg-background border border-border/40 rounded-lg p-2 text-xs font-sans text-muted-foreground focus:outline-none focus:border-primary transition-colors"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-sans font-semibold">
-                        {t`Description`}
-                      </label>
-                      <textarea
-                        rows={3}
-                        value={editCatDesc}
-                        onChange={(e) => setEditCatDesc(e.target.value)}
-                        placeholder={t`Courte description thématique...`}
-                        className="w-full bg-background border border-border/40 rounded-lg p-2 text-xs text-foreground focus:outline-none focus:border-primary transition-colors font-sans resize-none"
-                      />
-                    </div>
-
-                    {editError && (
-                      <div className="bg-destructive/10 border border-destructive/20 text-destructive-text p-2.5 rounded-lg text-[11px] flex gap-2 font-sans">
-                        <AlertCircle className="h-4 w-4 shrink-0" />
-                        <span>{editError}</span>
+                      <div className="flex items-center justify-end gap-2 border-t border-border/40 pt-4">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setEditingCat(null)}
+                        >
+                          {t`Annuler`}
+                        </Button>
+                        <Button
+                          type="submit"
+                          variant="solid"
+                          tone="brand"
+                          size="sm"
+                          disabled={isSavingEdit || !editCatName.trim()}
+                        >
+                          {isSavingEdit ? t`Enregistrement...` : t`Enregistrer`}
+                        </Button>
                       </div>
-                    )}
-
-                    <div className="flex items-center justify-end gap-2 pt-2">
-                      <button
-                        type="button"
-                        onClick={() => setEditingCat(null)}
-                        className="px-3 py-1.5 rounded-lg text-xs font-sans text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
-                      >
-                        {t`Annuler`}
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={isSavingEdit || !editCatName.trim()}
-                        className="px-4 py-1.5 rounded-lg text-xs font-sans font-bold bg-primary hover:bg-primary/90 text-primary-foreground transition-colors disabled:opacity-50 cursor-pointer shadow-xs"
-                      >
-                        {isSavingEdit ? t`Enregistrement...` : t`Enregistrer`}
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              ) : (
-                <div className="bg-card border border-border/40 rounded-xl p-5 space-y-4 shadow-none sticky top-6">
-                  <div className="space-y-1.5">
-                    <h3 className="text-xs font-bold text-foreground uppercase tracking-wider font-sans flex items-center gap-2">
-                      <FolderTree className="w-4 h-4 text-primary" />
-                      {t`Gestion des catégories`}
-                    </h3>
-                    <p className="text-muted-foreground text-xs leading-relaxed font-sans">
-                      {t`Cliquez sur l'icône de crayon d'une catégorie pour la modifier ici sans quitter la page.`}
+                    </form>
+                  </StudioSection>
+                ) : (
+                  <StudioSection title={t`Gestion des catégories`} icon={FolderTree}>
+                    <p className="text-xs leading-relaxed text-muted-foreground">
+                      {t`Sélectionnez une catégorie pour la modifier ici, sans quitter la page.`}
                     </p>
-                  </div>
-
-                  <div className="pt-3 border-t border-border/30 space-y-2.5 text-xs text-muted-foreground font-sans">
-                    <div className="flex items-start gap-2">
-                      <GripVertical className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
-                      <span>{t`Glissez et déposez à la souris pour convertir une catégorie en sous-catégorie.`}</span>
+                    <div className="mt-4 space-y-2 border-t border-border/40 pt-4 text-xs text-muted-foreground">
+                      <p className="flex items-start gap-2">
+                        <GripVertical className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        <span>{t`Glissez et déposez une catégorie pour la convertir en sous-catégorie.`}</span>
+                      </p>
+                      <p className="flex items-start gap-2">
+                        <Plus className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        <span>{t`Cliquez sur « + » depuis une ligne pour ajouter une sous-catégorie.`}</span>
+                      </p>
                     </div>
-                    <div className="flex items-start gap-2">
-                      <Plus className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
-                      <span>{t`Cliquez sur "+" directement sous un dossier pour ajouter une sous-catégorie instantanément.`}</span>
-                    </div>
-                  </div>
-                </div>
-              )}
+                  </StudioSection>
+                )}
+              </div>
             </div>
           </motion.div>
         )}

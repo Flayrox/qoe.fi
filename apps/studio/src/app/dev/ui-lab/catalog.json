@@ -1,13 +1,13 @@
 {
-  "generatedAt": "2026-11-06T10:26:53.496Z",
+  "generatedAt": "2026-11-06T10:35:30.698Z",
   "total": 371,
   "signals": {
     "primitivesNeverImported": 10,
     "primitivesTotal": 33,
-    "rawButtons": 400,
-    "rawButtonFiles": 90,
+    "rawButtons": 376,
+    "rawButtonFiles": 89,
     "nativeSelectFiles": 0,
-    "rawInputFiles": 49,
+    "rawInputFiles": 48,
     "handRolledOverlays": 4
   },
   "families": [
@@ -76,7 +76,7 @@
           "path": "packages/ui/src/primitives/checkbox/checkbox.tsx",
           "lines": 242,
           "source": "primitives",
-          "usages": 5
+          "usages": 6
         },
         {
           "name": "color",
@@ -781,7 +781,7 @@
           "path": "packages/ui/src/primitives/checkbox/checkbox.tsx",
           "lines": 242,
           "source": "ui",
-          "usages": 5
+          "usages": 6
         },
         {
           "name": "color",
