@@ -1,9 +1,16 @@
 'use client';
 
+// =====================================================================
+// 🛡️ ModerationQueue — file de modération cockpit (DataGrid + Drawer)
+// =====================================================================
+// Ergonomie cockpit : lignes de 26 px, navigation clavier complète,
+// facettes dans l'URL, tiroir de détail 480 px, actions réversibles
+// auditées sans toast de succès (statut horodaté inline).
+// =====================================================================
+
 import React, { useState } from 'react';
-import { toast } from '@qoe/ui/toast';
+import { useRouter } from 'next/navigation';
 import {
-  Loader2,
   ShieldCheck,
   EyeOff,
   Eye,
@@ -16,6 +23,28 @@ import {
   User as UserIcon,
 } from 'lucide-react';
 import { resolveModerationReportAction } from '@qoe/sdk/actions/admin';
+import { Button } from '@qoe/ui/button';
+import { Input } from '@qoe/ui/ui/input';
+import {
+  Drawer,
+  DrawerBody,
+  DrawerClose,
+  DrawerContent,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from '@qoe/ui/drawer';
+import { CopyableId } from '@/components/shell/CopyableId';
+import { DataGrid, type GridColumn } from '@/components/shell/DataGrid';
+import { GridViewToolbar } from '@/components/shell/GridView';
+import {
+  filterRows,
+  useGridView,
+  type GridFacetDef,
+  type GridViewState,
+} from '@/components/shell/grid-view';
+import type { RowActionItem } from '@/components/shell/RowMenu';
+import { attemptWithStepUp, notifyActionFailure, readMessage } from '@/lib/authz-feedback';
 import type { ModerationReportItem } from '@/lib/admin-data';
 
 interface ModerationQueueProps {
@@ -24,288 +53,588 @@ interface ModerationQueueProps {
 }
 
 const REASON_LABELS: Record<string, string> = {
-  spam: 'Spam / publicité',
+  spam: 'Spam / pub',
   harassment: 'Harcèlement',
-  hate_speech: 'Discours haineux',
+  hate_speech: 'Haine',
   misleading: 'Désinformation',
   other: 'Autre',
 };
 
-const TYPE_META: Record<string, { label: string; icon: React.ReactNode }> = {
-  thought: { label: 'Pensée', icon: <MessageSquareQuote className="w-3 h-3" /> },
-  article: { label: 'Article', icon: <FileText className="w-3 h-3" /> },
-  user: { label: 'Compte', icon: <UserIcon className="w-3 h-3" /> },
+const ACTION_LABELS: Record<string, string> = {
+  hide_post: 'Pensée masquée',
+  hide_article: 'Article masqué',
+  unhide_post: 'Pensée restaurée',
+  unhide_article: 'Article restauré',
+  suspend_author: 'Auteur suspendu',
+  resolve: 'Résolu sans action',
+  dismiss: 'Ignoré',
 };
 
-export function ModerationQueue({ initialItems, initialPending }: ModerationQueueProps) {
-  const [items, setItems] = useState<ModerationReportItem[]>(initialItems);
-  const [pending, setPending] = useState(initialPending);
-  const [filter, setFilter] = useState<'all' | 'pending' | 'resolved' | 'dismissed'>('pending');
-  const [loadingId, setLoadingId] = useState<string | null>(null);
-  const [suspendNoteId, setSuspendNoteId] = useState<string | null>(null);
-  const [suspendNote, setSuspendNote] = useState('');
-  const [lastDecision, setLastDecision] = useState<string | null>(null);
+const STATUS_LABELS: Record<string, string> = {
+  pending: 'En attente',
+  resolved: 'Résolu',
+  dismissed: 'Ignoré',
+};
 
-  const run = async (report: ModerationReportItem, action: string, note = '') => {
-    setLoadingId(report.id);
-    try {
-      const res = await resolveModerationReportAction({ reportId: report.id, action, note });
-      if (res.ok) {
-        const updated = {
-          ...report,
-          status: action === 'dismiss' ? 'dismissed' : 'resolved',
-          actionTaken: action,
-        };
-        setItems((prev) => prev.map((it) => (it.id === report.id ? updated : it)));
-        if (report.status === 'pending') setPending((p) => Math.max(0, p - 1));
-        setLastDecision(
-          `${
-            action === 'dismiss' ? 'Signalement ignoré' : 'Signalement traité'
-          } · audité à ${new Date().toLocaleTimeString('fr-FR')}`
-        );
-        setSuspendNoteId(null);
-        setSuspendNote('');
-      } else {
-        const msg =
-          typeof res.error === 'string' ? res.error : (res.error?.message ?? 'Action impossible');
-        toast.error(msg);
+const STATUS_CLASSES: Record<string, string> = {
+  pending: 'bg-highlight/15 text-highlight border-highlight/40',
+  resolved: 'bg-success/10 text-success-text border-success/20',
+  dismissed: 'bg-muted text-muted-foreground border-border',
+};
+
+function TypeBadge({ type }: { type: string }) {
+  if (type === 'article') {
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+        <FileText className="size-3 shrink-0" />
+        <span>Article</span>
+      </span>
+    );
+  }
+  if (type === 'user') {
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+        <UserIcon className="size-3 shrink-0" />
+        <span>Compte</span>
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+      <MessageSquareQuote className="size-3 shrink-0" />
+      <span>Pensée</span>
+    </span>
+  );
+}
+
+export function ModerationQueue({ initialItems }: ModerationQueueProps) {
+  const router = useRouter();
+  const [items, setItems] = useState<ModerationReportItem[]>(initialItems);
+  const [preview, setPreview] = useState<ModerationReportItem | null>(null);
+  const [suspendNote, setSuspendNote] = useState('');
+  const [status, setStatus] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const grid = useGridView('admin.reports.queue', {
+    column: 'createdAt',
+    direction: 'descending',
+  });
+
+  const runAction = async (report: ModerationReportItem, action: string, note = '') => {
+    setIsSubmitting(true);
+    const result = await attemptWithStepUp(
+      () => resolveModerationReportAction({ reportId: report.id, action, note }),
+      { reason: `Modération ${action} sur le signalement ${report.id}` }
+    );
+    setIsSubmitting(false);
+
+    if (result.ok) {
+      const nextStatus = action === 'dismiss' ? 'dismissed' : 'resolved';
+      const updated: ModerationReportItem = {
+        ...report,
+        status: nextStatus,
+        actionTaken: action,
+      };
+
+      setItems((prev) => prev.map((item) => (item.id === report.id ? updated : item)));
+      if (preview?.id === report.id) {
+        setPreview(updated);
       }
-    } catch (error: unknown) {
-      toast.error(error instanceof Error ? error.message : 'Action impossible');
-    } finally {
-      setLoadingId(null);
+      setSuspendNote('');
+      const actionName = ACTION_LABELS[action] ?? action;
+      setStatus(`${actionName} · audité à ${new Date().toLocaleTimeString('fr-FR')}`);
+      router.refresh();
+      return true;
     }
+
+    notifyActionFailure(result, readMessage(result) ?? 'Action impossible');
+    return false;
   };
 
-  const filtered = items.filter((it) => filter === 'all' || it.status === filter);
+  const columns: GridColumn<ModerationReportItem>[] = [
+    {
+      id: 'target',
+      header: 'Cible',
+      width: 170,
+      sort: { kind: 'text', value: (r) => `${r.targetType}:${r.targetId}` },
+      cell: (r) => (
+        <div className="flex min-w-0 items-center gap-1.5">
+          <TypeBadge type={r.targetType} />
+          <CopyableId id={r.targetId} max={6} />
+          {r.targetCount > 1 && (
+            <span
+              title={`${r.targetCount} signalements sur cette cible`}
+              className="inline-flex rounded-full border border-highlight/40 bg-highlight/15 px-1 text-[10px] tabular-nums font-semibold text-highlight"
+            >
+              +{r.targetCount - 1}
+            </span>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: 'preview',
+      header: 'Contenu / Détails',
+      sort: { kind: 'text', value: (r) => r.targetPreview || r.details || '' },
+      cell: (r) => {
+        const text = r.targetPreview || r.details || '—';
+        return (
+          <span className="truncate text-[11px] text-foreground/90" title={text}>
+            {text}
+          </span>
+        );
+      },
+    },
+    {
+      id: 'reason',
+      header: 'Motif',
+      width: 120,
+      sort: { kind: 'text', value: (r) => r.reason },
+      cell: (r) => (
+        <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+          <Flag className="size-3 shrink-0 text-destructive-text" />
+          <span className="truncate">{REASON_LABELS[r.reason] ?? r.reason}</span>
+        </span>
+      ),
+    },
+    {
+      id: 'reporter',
+      header: 'Signaleur',
+      width: 120,
+      sort: {
+        kind: 'text',
+        value: (r) => r.reporter.name || r.reporter.username || r.reporter.id,
+      },
+      cell: (r) => (
+        <span className="truncate text-[11px] text-muted-foreground">
+          {r.reporter.name || r.reporter.username || r.reporter.id.slice(0, 8)}
+        </span>
+      ),
+    },
+    {
+      id: 'status',
+      header: 'Statut',
+      width: 96,
+      sort: { kind: 'text', value: (r) => r.status },
+      cell: (r) => (
+        <span
+          className={`inline-flex rounded-full border px-1.5 py-0 text-[10px] font-medium ${
+            STATUS_CLASSES[r.status] ?? STATUS_CLASSES.dismissed
+          }`}
+        >
+          {STATUS_LABELS[r.status] ?? r.status}
+        </span>
+      ),
+    },
+    {
+      id: 'action',
+      header: 'Action prise',
+      width: 130,
+      sort: { kind: 'text', value: (r) => r.actionTaken || '' },
+      cell: (r) =>
+        r.actionTaken && r.actionTaken !== 'none' ? (
+          <span className="truncate text-[10px] text-muted-foreground font-medium">
+            {ACTION_LABELS[r.actionTaken] ?? r.actionTaken}
+          </span>
+        ) : (
+          <span className="text-[10px] text-muted-foreground/60">—</span>
+        ),
+    },
+    {
+      id: 'createdAt',
+      header: 'Date',
+      width: 110,
+      sort: { kind: 'number', value: (r) => new Date(r.createdAt).getTime() },
+      cell: (r) => (
+        <span className="tabular-nums text-[11px] text-muted-foreground">
+          {new Date(r.createdAt).toLocaleDateString('fr-FR', {
+            day: '2-digit',
+            month: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+          })}
+        </span>
+      ),
+    },
+  ];
+
+  const facetDefs: GridFacetDef<ModerationReportItem>[] = [
+    {
+      id: 'status',
+      label: 'Statut',
+      values: [
+        { id: 'pending', label: 'En attente', test: (r) => r.status === 'pending' },
+        { id: 'resolved', label: 'Résolus', test: (r) => r.status === 'resolved' },
+        { id: 'dismissed', label: 'Ignorés', test: (r) => r.status === 'dismissed' },
+      ],
+    },
+    {
+      id: 'targetType',
+      label: 'Type de cible',
+      values: [
+        { id: 'thought', label: 'Pensées', test: (r) => r.targetType === 'thought' },
+        { id: 'article', label: 'Articles', test: (r) => r.targetType === 'article' },
+        { id: 'user', label: 'Comptes', test: (r) => r.targetType === 'user' },
+      ],
+    },
+    {
+      id: 'reason',
+      label: 'Motif',
+      values: Object.entries(REASON_LABELS).map(([key, label]) => ({
+        id: key,
+        label,
+        test: (r) => r.reason === key,
+      })),
+    },
+  ];
+
+  const visible = filterRows(items, grid.state.facets, facetDefs);
+
+  const rowMenu = (report: ModerationReportItem): RowActionItem[] => {
+    const isPending = report.status === 'pending';
+    const isHidden = report.actionTaken === 'hide_post' || report.actionTaken === 'hide_article';
+
+    return [
+      {
+        id: 'open',
+        label: 'Aperçu du dossier',
+        shortcut: 'Entrée',
+        onSelect: () => setPreview(report),
+      },
+      ...(isPending
+        ? [
+            {
+              id: 'resolve',
+              label: 'Résoudre sans sanction',
+              onSelect: () => void runAction(report, 'resolve'),
+            },
+            {
+              id: 'dismiss',
+              label: 'Ignorer le signalement',
+              onSelect: () => void runAction(report, 'dismiss'),
+            },
+            ...(report.targetType === 'thought'
+              ? [
+                  {
+                    id: 'hide_thought',
+                    label: 'Masquer la pensée',
+                    onSelect: () => void runAction(report, 'hide_post'),
+                  },
+                ]
+              : []),
+            ...(report.targetType === 'article'
+              ? [
+                  {
+                    id: 'hide_article',
+                    label: 'Masquer l’article',
+                    onSelect: () => void runAction(report, 'hide_article'),
+                  },
+                ]
+              : []),
+            ...(report.targetType !== 'user'
+              ? [
+                  {
+                    id: 'suspend_author',
+                    label: 'Suspendre l’auteur…',
+                    onSelect: () => setPreview(report),
+                  },
+                ]
+              : []),
+          ]
+        : []),
+      ...(isHidden
+        ? [
+            {
+              id: 'unhide',
+              label: 'Restaurer le contenu',
+              onSelect: () =>
+                void runAction(
+                  report,
+                  report.actionTaken === 'hide_post' ? 'unhide_post' : 'unhide_article'
+                ),
+            },
+          ]
+        : []),
+      {
+        id: 'copy-target',
+        label: 'Copier l’ID cible',
+        onSelect: () => void navigator.clipboard.writeText(report.targetId),
+      },
+      {
+        id: 'copy-id',
+        label: 'Copier l’ID du signalement',
+        onSelect: () => void navigator.clipboard.writeText(report.id),
+      },
+      {
+        id: 'audit',
+        label: 'Voir l’audit de la cible',
+        onSelect: () => router.push(`/admin/audit?subject=${encodeURIComponent(report.targetId)}`),
+      },
+    ];
+  };
 
   return (
-    <div className="space-y-6 text-foreground font-sans">
-      {/* Barre de filtres + badge pending */}
-      <div className="flex flex-col md:flex-row gap-4 justify-between items-stretch md:items-center">
-        <div className="flex flex-wrap gap-2">
-          {(
-            [
-              { id: 'pending', label: `En attente (${pending})` },
-              { id: 'resolved', label: 'Résolus' },
-              { id: 'dismissed', label: 'Ignorés' },
-              { id: 'all', label: 'Tous' },
-            ] as const
-          ).map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setFilter(tab.id)}
-              className={`text-xs font-semibold px-4 py-2 rounded-full border transition-all cursor-pointer ${
-                filter === tab.id
-                  ? 'bg-[#EE4B2B] text-white border-[#EE4B2B] shadow-sm'
-                  : 'bg-white text-muted-foreground border-border hover:bg-muted'
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
+    <div className="space-y-2">
+      <GridViewToolbar
+        state={grid.state}
+        onChange={grid.update}
+        onToggleFacet={grid.toggleFacet}
+        onToggleColumn={grid.toggleColumn}
+        onMoveColumn={(id, delta) =>
+          grid.moveColumn(
+            id,
+            delta,
+            columns.map((column) => column.id)
+          )
+        }
+        onReset={grid.reset}
+        facets={facetDefs}
+        columns={columns.map((column) => ({ id: column.id, label: column.header as string }))}
+        views={grid.views}
+        onSaveView={grid.saveView}
+        onApplyView={grid.applyView}
+        onRemoveView={grid.removeView}
+        count={visible.length}
+      />
 
-      {lastDecision && (
+      {status && (
         <p role="status" className="text-[11px] text-muted-foreground">
-          {lastDecision}
+          {status}
         </p>
       )}
 
-      {filtered.length === 0 ? (
-        <div className="rounded-lg border border-border bg-card p-10 text-center text-muted-foreground space-y-2">
-          <ShieldCheck className="w-10 h-10 text-muted-foreground mx-auto" />
-          <p className="text-sm font-semibold">
-            {filter === 'pending' ? 'Aucun signalement en attente' : 'Aucun signalement ici'}
-          </p>
-          <p className="text-xs">
-            {filter === 'pending'
-              ? 'La file est vide. Les signalements de la communauté apparaîtront ici.'
-              : 'Ajustez le filtre pour voir d’autres statuts.'}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <>
-            {filtered.map((report) => {
-              const typeMeta = TYPE_META[report.targetType] ?? TYPE_META.thought;
-              const isPending = report.status === 'pending';
-              const loading = loadingId === report.id;
-              return (
-                <div
-                  key={report.id}
-                  className={`bg-white border rounded-lg p-5 shadow-sm transition-colors ${
-                    isPending ? 'border-highlight/40' : 'border-border'
-                  }`}
-                >
-                  <div className="flex flex-col lg:flex-row gap-4 lg:items-start justify-between">
-                    {/* Contenu signalé */}
-                    <div className="flex-1 min-w-0 space-y-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border ${
-                            isPending
-                              ? 'bg-highlight/10 text-highlight border-highlight/40'
-                              : 'bg-muted text-muted-foreground border-border'
-                          }`}
-                        >
-                          {typeMeta.icon}
-                          {typeMeta.label}
-                        </span>
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-destructive/10 text-destructive-text border border-destructive/40">
-                          <Flag className="w-3 h-3" />
-                          {REASON_LABELS[report.reason] ?? report.reason}
-                        </span>
-                        {report.targetCount > 1 && (
-                          <span className="text-[10px] font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                            {report.targetCount} signalements sur cette cible
-                          </span>
-                        )}
-                        {report.actionTaken !== 'none' && report.actionTaken !== '' && (
-                          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-foreground text-background">
-                            <EyeOff className="w-3 h-3" />
-                            {report.actionTaken}
-                          </span>
-                        )}
-                      </div>
+      <DataGrid
+        ariaLabel="File des signalements de modération"
+        rows={visible}
+        columns={columns}
+        initialSort={{ column: 'createdAt', direction: 'descending' }}
+        sort={grid.state.sort}
+        onSortChange={(sort) => grid.update({ sort } as Partial<GridViewState>)}
+        hiddenColumns={grid.state.hidden}
+        density={grid.state.density}
+        columnOrder={grid.state.order}
+        emptyState="Aucun signalement ne correspond aux filtres appliqués."
+        onRowOpen={(row) => setPreview(row)}
+        rowMenu={rowMenu}
+      />
 
-                      {report.targetPreview ? (
-                        <p className="text-sm leading-relaxed text-foreground/90 line-clamp-3 bg-muted/40 border border-border/60 rounded-xl p-3 tabular-nums text-xs">
-                          {report.targetPreview}
-                        </p>
-                      ) : (
-                        <p className="text-xs text-muted-foreground italic">Cible indisponible</p>
-                      )}
+      <Drawer
+        open={preview !== null}
+        onOpenChange={(open) => {
+          if (!open) setPreview(null);
+        }}
+        width="md"
+      >
+        {preview && (
+          <DrawerContent aria-label="Aperçu du signalement">
+            <DrawerHeader>
+              <DrawerTitle>
+                Signalement #{preview.id.slice(0, 8)} · {preview.targetType}
+              </DrawerTitle>
+            </DrawerHeader>
 
-                      {report.details && (
-                        <p className="text-xs text-muted-foreground leading-relaxed">
-                          <span className="font-semibold text-foreground/80">Détails : </span>
-                          {report.details}
-                        </p>
-                      )}
+            <DrawerBody className="space-y-4">
+              <dl className="grid grid-cols-[104px_1fr] gap-x-2 gap-y-1.5 text-[12px]">
+                <dt className="text-muted-foreground">ID Signalement</dt>
+                <dd>
+                  <CopyableId id={preview.id} />
+                </dd>
+                <dt className="text-muted-foreground">ID Cible</dt>
+                <dd>
+                  <CopyableId id={preview.targetId} />
+                </dd>
+                <dt className="text-muted-foreground">Type de cible</dt>
+                <dd className="capitalize">{preview.targetType}</dd>
+                <dt className="text-muted-foreground">Motif</dt>
+                <dd className="font-medium text-destructive-text">
+                  {REASON_LABELS[preview.reason] ?? preview.reason}
+                </dd>
+                <dt className="text-muted-foreground">Signalé par</dt>
+                <dd>{preview.reporter.name || preview.reporter.username || preview.reporter.id}</dd>
+                <dt className="text-muted-foreground">Date</dt>
+                <dd className="tabular-nums">
+                  {new Date(preview.createdAt).toLocaleString('fr-FR')}
+                </dd>
+                <dt className="text-muted-foreground">Statut</dt>
+                <dd>
+                  <span
+                    className={`inline-flex rounded-full border px-1.5 py-0 text-[10px] font-medium ${
+                      STATUS_CLASSES[preview.status] ?? STATUS_CLASSES.dismissed
+                    }`}
+                  >
+                    {STATUS_LABELS[preview.status] ?? preview.status}
+                  </span>
+                </dd>
+                {preview.actionTaken && preview.actionTaken !== 'none' && (
+                  <>
+                    <dt className="text-muted-foreground">Action prise</dt>
+                    <dd className="font-medium">
+                      {ACTION_LABELS[preview.actionTaken] ?? preview.actionTaken}
+                    </dd>
+                  </>
+                )}
+              </dl>
 
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
-                        <span>
-                          Signalé par{' '}
-                          <span className="font-semibold text-foreground/80">
-                            {report.reporter.name ||
-                              report.reporter.username ||
-                              report.reporter.id.slice(0, 8)}
-                          </span>
-                        </span>
-                        <span className="tabular-nums">
-                          {new Date(report.createdAt).toLocaleString('fr-FR')}
-                        </span>
-                        <span className="tabular-nums text-[10px]">#{report.id.slice(0, 8)}</span>
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex flex-col items-stretch gap-2 shrink-0 lg:w-56">
-                      {loading ? (
-                        <div className="flex items-center justify-center py-4">
-                          <Loader2 className="w-5 h-5 animate-spin text-[#EE4B2B]" />
-                        </div>
-                      ) : (
-                        <>
-                          {isPending && (
-                            <>
-                              {report.targetType === 'thought' && (
-                                <button
-                                  onClick={() => run(report, 'hide_post')}
-                                  className="flex items-center justify-center gap-1.5 bg-destructive/10 hover:bg-destructive/15 text-destructive-text font-semibold px-3 py-2 rounded-xl text-xs transition-all cursor-pointer"
-                                >
-                                  <EyeOff className="w-3.5 h-3.5" />
-                                  Masquer la pensée
-                                </button>
-                              )}
-                              {report.targetType === 'article' && (
-                                <button
-                                  onClick={() => run(report, 'hide_article')}
-                                  className="flex items-center justify-center gap-1.5 bg-destructive/10 hover:bg-destructive/15 text-destructive-text font-semibold px-3 py-2 rounded-xl text-xs transition-all cursor-pointer"
-                                >
-                                  <EyeOff className="w-3.5 h-3.5" />
-                                  Masquer l'article
-                                </button>
-                              )}
-                              {report.targetType !== 'user' && (
-                                <button
-                                  onClick={() =>
-                                    setSuspendNoteId(suspendNoteId === report.id ? null : report.id)
-                                  }
-                                  className="flex items-center justify-center gap-1.5 bg-muted hover:bg-destructive/10 hover:text-destructive-text border border-border text-muted-foreground font-semibold px-3 py-2 rounded-xl text-xs transition-all cursor-pointer"
-                                >
-                                  <Ban className="w-3.5 h-3.5" />
-                                  Suspendre l'auteur
-                                </button>
-                              )}
-                              {suspendNoteId === report.id && (
-                                <div className="space-y-2">
-                                  <input
-                                    type="text"
-                                    value={suspendNote}
-                                    onChange={(e) => setSuspendNote(e.target.value)}
-                                    placeholder="Motif de suspension…"
-                                    className="w-full text-xs bg-white border border-border rounded-xl px-3 py-2 focus:outline-none focus:border-[#EE4B2B] placeholder:text-muted-foreground"
-                                  />
-                                  <button
-                                    onClick={() => run(report, 'suspend_author', suspendNote)}
-                                    disabled={!suspendNote.trim()}
-                                    className="w-full flex items-center justify-center gap-1.5 bg-destructive text-white font-bold px-3 py-2 rounded-xl text-xs transition-all cursor-pointer disabled:opacity-40"
-                                  >
-                                    <Ban className="w-3.5 h-3.5" />
-                                    Confirmer la suspension
-                                  </button>
-                                </div>
-                              )}
-                              <div className="grid grid-cols-2 gap-2">
-                                <button
-                                  onClick={() => run(report, 'resolve')}
-                                  className="flex items-center justify-center gap-1.5 bg-success/10 hover:bg-success/20 text-success-text font-semibold px-3 py-2 rounded-xl text-xs transition-all cursor-pointer"
-                                >
-                                  <Check className="w-3.5 h-3.5" />
-                                  Résoudre
-                                </button>
-                                <button
-                                  onClick={() => run(report, 'dismiss')}
-                                  className="flex items-center justify-center gap-1.5 bg-muted hover:bg-muted/70 border border-border text-muted-foreground font-semibold px-3 py-2 rounded-xl text-xs transition-all cursor-pointer"
-                                >
-                                  <X className="w-3.5 h-3.5" />
-                                  Ignorer
-                                </button>
-                              </div>
-                            </>
-                          )}
-
-                          {!isPending &&
-                            (report.actionTaken === 'hide_post' ||
-                              report.actionTaken === 'hide_article') && (
-                              <button
-                                onClick={() =>
-                                  run(
-                                    report,
-                                    report.actionTaken === 'hide_post'
-                                      ? 'unhide_post'
-                                      : 'unhide_article'
-                                  )
-                                }
-                                className="flex items-center justify-center gap-1.5 bg-muted hover:bg-success/10 hover:text-success-text border border-border text-muted-foreground font-semibold px-3 py-2 rounded-xl text-xs transition-all cursor-pointer"
-                              >
-                                <Eye className="w-3.5 h-3.5" />
-                                Restaurer le contenu
-                              </button>
-                            )}
-                        </>
-                      )}
-                    </div>
+              {preview.targetPreview && (
+                <div className="space-y-1">
+                  <span className="text-[11px] font-medium text-muted-foreground">
+                    Aperçu du contenu signalé :
+                  </span>
+                  <div className="rounded border border-border bg-muted/30 p-2.5 text-[12px] leading-relaxed select-text whitespace-pre-wrap">
+                    {preview.targetPreview}
                   </div>
                 </div>
-              );
-            })}
-          </>
-        </div>
-      )}
+              )}
+
+              {preview.details && (
+                <div className="space-y-1">
+                  <span className="text-[11px] font-medium text-muted-foreground">
+                    Explications du signaleur :
+                  </span>
+                  <div className="rounded border border-border bg-muted/20 p-2 text-[11px] text-muted-foreground leading-normal">
+                    {preview.details}
+                  </div>
+                </div>
+              )}
+
+              {preview.status === 'pending' && (
+                <div className="rounded border border-border/80 bg-background p-3 space-y-3">
+                  <span className="text-[11px] font-semibold text-foreground uppercase tracking-wide">
+                    Prendre une décision
+                  </span>
+
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="soft"
+                      tone="brand"
+                      disabled={isSubmitting}
+                      onClick={() => void runAction(preview, 'resolve')}
+                    >
+                      <Check className="size-3.5" />
+                      Résoudre (conforme)
+                    </Button>
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="outline"
+                      disabled={isSubmitting}
+                      onClick={() => void runAction(preview, 'dismiss')}
+                    >
+                      <X className="size-3.5" />
+                      Ignorer
+                    </Button>
+
+                    {preview.targetType === 'thought' && (
+                      <Button
+                        type="button"
+                        size="xs"
+                        variant="soft"
+                        tone="danger"
+                        disabled={isSubmitting}
+                        onClick={() => void runAction(preview, 'hide_post')}
+                      >
+                        <EyeOff className="size-3.5" />
+                        Masquer la pensée
+                      </Button>
+                    )}
+
+                    {preview.targetType === 'article' && (
+                      <Button
+                        type="button"
+                        size="xs"
+                        variant="soft"
+                        tone="danger"
+                        disabled={isSubmitting}
+                        onClick={() => void runAction(preview, 'hide_article')}
+                      >
+                        <EyeOff className="size-3.5" />
+                        Masquer l’article
+                      </Button>
+                    )}
+                  </div>
+
+                  {preview.targetType !== 'user' && (
+                    <div className="space-y-2 border-t border-border/60 pt-2.5">
+                      <span className="text-[11px] text-muted-foreground">
+                        Sanction lourde : suspendre l’auteur de ce contenu
+                      </span>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Motif de suspension obligatoire…"
+                          value={suspendNote}
+                          onChange={(e) => setSuspendNote(e.target.value)}
+                          className="h-7 text-[11px]"
+                        />
+                        <Button
+                          type="button"
+                          size="xs"
+                          variant="solid"
+                          tone="danger"
+                          disabled={!suspendNote.trim() || isSubmitting}
+                          onClick={() => void runAction(preview, 'suspend_author', suspendNote)}
+                        >
+                          <Ban className="size-3.5" />
+                          Suspendre
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {preview.status !== 'pending' &&
+                (preview.actionTaken === 'hide_post' || preview.actionTaken === 'hide_article') && (
+                  <div className="rounded border border-border bg-muted/20 p-3 space-y-2">
+                    <span className="text-[11px] text-muted-foreground">
+                      Contenu actuellement masqué.
+                    </span>
+                    <div>
+                      <Button
+                        type="button"
+                        size="xs"
+                        variant="soft"
+                        tone="brand"
+                        disabled={isSubmitting}
+                        onClick={() =>
+                          void runAction(
+                            preview,
+                            preview.actionTaken === 'hide_post' ? 'unhide_post' : 'unhide_article'
+                          )
+                        }
+                      >
+                        <Eye className="size-3.5" />
+                        Restaurer le contenu
+                      </Button>
+                    </div>
+                  </div>
+                )}
+            </DrawerBody>
+
+            <DrawerFooter>
+              <div className="flex w-full items-center justify-between">
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="ghost"
+                  onClick={() =>
+                    router.push(`/admin/audit?subject=${encodeURIComponent(preview.targetId)}`)
+                  }
+                >
+                  <ShieldCheck className="size-3.5" />
+                  Journal d’audit
+                </Button>
+                <DrawerClose>
+                  <Button type="button" size="xs" variant="ghost">
+                    Fermer
+                  </Button>
+                </DrawerClose>
+              </div>
+            </DrawerFooter>
+          </DrawerContent>
+        )}
+      </Drawer>
     </div>
   );
 }

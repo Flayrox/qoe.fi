@@ -10,6 +10,7 @@ import React from 'react';
 import { getAdminReports } from '@/lib/admin-data';
 import { ModerationQueue } from './components/moderation-queue';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
+import { MetricChips } from '@/components/shell/MetricChips';
 
 export default async function AdminReportsPage() {
   requireCapability(await getAdminIdentity(), 'admin.reports.read');
@@ -34,23 +35,46 @@ export default async function AdminReportsPage() {
     },
   }));
 
+  const pendingCount = serialized.filter((r) => r.status === 'pending').length;
+  const resolvedCount = serialized.filter((r) => r.status === 'resolved').length;
+  const dismissedCount = serialized.filter((r) => r.status === 'dismissed').length;
+
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-10">
-      <div>
-        <div className="flex items-center gap-3">
-          <h1 className="text-[17px] font-semibold tracking-tight text-foreground">
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+        <div>
+          <h1 className="text-[15px] font-semibold tracking-tight text-foreground">
             File de modération
           </h1>
-          {data.pending > 0 && (
-            <span className="bg-highlight/15 text-highlight border border-highlight/40 px-2.5 py-1 rounded-full text-xs font-bold">
-              {data.pending} en attente
-            </span>
-          )}
+          <p className="text-[12px] text-muted-foreground">
+            Signalements de la communauté (pensées, articles, comptes) · masquage et suspension
+            d’auteur.
+          </p>
         </div>
-        <p className="mt-1 max-w-3xl text-[12px] leading-5 text-muted-foreground">
-          Les signalements de la communauté (pensées, articles, comptes). Masquez un contenu pour le
-          retirer des flux, ou suspendez l'auteur directement. Toutes les actions sont réversibles.
-        </p>
+        <MetricChips
+          items={[
+            {
+              label: 'En attente',
+              value: pendingCount,
+              tone: pendingCount > 0 ? 'warn' : 'default',
+            },
+            {
+              label: 'Résolus',
+              value: resolvedCount,
+              tone: 'default',
+            },
+            {
+              label: 'Ignorés',
+              value: dismissedCount,
+              tone: 'default',
+            },
+            {
+              label: 'Total',
+              value: serialized.length,
+              tone: 'default',
+            },
+          ]}
+        />
       </div>
 
       <ModerationQueue initialItems={serialized} initialPending={data.pending} />
