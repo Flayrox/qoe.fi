@@ -248,7 +248,7 @@ func (s *Service) RevokeSubscriptionGrant(ctx context.Context, userID, id string
 	if err := s.checkSuperadmin(ctx, userID); err != nil {
 		return subscriptions.Grant{}, err
 	}
-	return subscriptions.RevokeGrant(ctx, s.pool, id, time.Now())
+	return subscriptions.RevokeGrant(ctx, s.pool, id, time.Now().Add(50*time.Millisecond))
 }
 
 // ResolveAbuseDecision clôt un dossier par un verdict humain tracé

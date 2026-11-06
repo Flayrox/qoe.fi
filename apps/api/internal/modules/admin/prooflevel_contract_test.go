@@ -105,6 +105,8 @@ var extraStepUpRoutes = []string{
 	"POST /v1/admin/compliance/retention/purge",
 	"POST /v1/admin/audit/signed-export",
 	"POST /v1/admin/subscribers/signed-export",
+	"POST /v1/admin/sandbox/seed",
+	"POST /v1/admin/sandbox/impersonate",
 }
 
 // assumedN0 : capacités d'écriture qui restent volontairement sans preuve

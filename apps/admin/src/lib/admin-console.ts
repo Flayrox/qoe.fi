@@ -373,6 +373,13 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
     description: 'Index des leviers : effet, portée, capacité et preuve exigée',
   },
   {
+    href: '/admin/sandbox',
+    label: 'Bac à sable',
+    capability: 'admin.dashboard.read',
+    alsoUses: ['admin.config.write'],
+    description: 'Scénarios de test isolés et impersonation contrôlée',
+  },
+  {
     href: '/admin/config',
     label: 'Feature flags',
     capability: 'admin.config.read',
