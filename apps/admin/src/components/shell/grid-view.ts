@@ -22,6 +22,8 @@ export interface GridViewState {
   facets: Record<string, string[]>;
   /** Colonnes masquées par leur id. */
   hidden: string[];
+  /** Ordre explicite des colonnes (vide = ordre déclaré). */
+  order: string[];
   density: 'compact' | 'normal';
 }
 
@@ -46,6 +48,7 @@ const PARAM_SORT = 'sort';
 const PARAM_FACETS = 'f';
 const PARAM_HIDDEN = 'c';
 const PARAM_DENSITY = 'd';
+const PARAM_ORDER = 'o';
 
 /** Filtre les lignes selon les facettes actives (ET entre groupes, OU dedans). */
 export function filterRows<T>(
@@ -74,6 +77,7 @@ function encode(state: GridViewState): string {
     .flatMap(([group, values]) => values.map((value) => `${group}:${value}`));
   if (facets.length > 0) params.set(PARAM_FACETS, facets.join(','));
   if (state.hidden.length > 0) params.set(PARAM_HIDDEN, state.hidden.join(','));
+  if (state.order.length > 0) params.set(PARAM_ORDER, state.order.join(','));
   if (state.density === 'compact') params.set(PARAM_DENSITY, 'compact');
   return params.toString();
 }
@@ -95,6 +99,7 @@ function decode(search: string, fallback: SortDescriptorLike): GridViewState {
         : fallback,
     facets,
     hidden: (params.get(PARAM_HIDDEN) ?? '').split(',').filter(Boolean),
+    order: (params.get(PARAM_ORDER) ?? '').split(',').filter(Boolean),
     density: params.get(PARAM_DENSITY) === 'compact' ? 'compact' : 'normal',
   };
 }
@@ -105,6 +110,7 @@ export function useGridView(resource: string, initialSort: SortDescriptorLike) {
     sort: initialSort,
     facets: {},
     hidden: [],
+    order: [],
     density: 'normal',
   });
   const [views, setViews] = React.useState<SavedView[]>([]);
@@ -163,8 +169,24 @@ export function useGridView(resource: string, initialSort: SortDescriptorLike) {
     }));
   }, []);
 
+  const moveColumn = React.useCallback((id: string, delta: number, all: readonly string[]) => {
+    setState((current) => {
+      const base = [
+        ...current.order.filter((column) => all.includes(column)),
+        ...all.filter((column) => !current.order.includes(column)),
+      ];
+      const from = base.indexOf(id);
+      if (from === -1) return current;
+      const to = Math.max(0, Math.min(base.length - 1, from + delta));
+      if (to === from) return current;
+      base.splice(from, 1);
+      base.splice(to, 0, id);
+      return { ...current, order: base };
+    });
+  }, []);
+
   const reset = React.useCallback(() => {
-    setState({ sort: initialRef.current, facets: {}, hidden: [], density: 'normal' });
+    setState({ sort: initialRef.current, facets: {}, hidden: [], order: [], density: 'normal' });
   }, []);
 
   const persist = (next: SavedView[]) => {
@@ -207,6 +229,7 @@ export function useGridView(resource: string, initialSort: SortDescriptorLike) {
     update,
     toggleFacet,
     toggleColumn,
+    moveColumn,
     reset,
     saveView,
     applyView,
