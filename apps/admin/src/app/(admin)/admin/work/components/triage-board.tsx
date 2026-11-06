@@ -5,38 +5,51 @@
 // capacité est un pouvoir de décision (recours, anti-abus, imports, doubles
 // validations) exigent une preuve forte récente, et l'écran propose alors la
 // vérification puis rejoue la même action — sans perdre la saisie.
+//
+// Densité : une ligne fait ~26 px, la priorité se change dans la ligne et
+// l'échéance au clic, sans bouton « Enregistrer » ni formulaire à trois étages.
+// Le reste vit dans le clic droit (assigner, libérer, copier, audit).
 
 import React, { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Select } from '@qoe/ui/select';
+import { Input } from '@qoe/ui/ui/input';
+import { CopyableId } from '@/components/shell/CopyableId';
+import { DataGrid, type GridColumn } from '@/components/shell/DataGrid';
+import type { RowActionItem } from '@/components/shell/RowMenu';
 import { attemptWithStepUp, notifyActionFailure, readMessage } from '@/lib/authz-feedback';
 import { triageQueueItemAction, type TriageActionInput } from '@/lib/admin-triage-actions';
 import type {
   AdminQueuePriority,
+  AdminQueueSLAState,
   AdminQueueTriageEntry,
   AdminWorkQueueView,
 } from '@/lib/admin-data';
 
-const PRIORITIES: { value: AdminQueuePriority; label: string }[] = [
-  { value: 'low', label: 'Basse' },
-  { value: 'normal', label: 'Normale' },
-  { value: 'high', label: 'Haute' },
-  { value: 'urgent', label: 'Urgente' },
+const PRIORITIES: { id: AdminQueuePriority; label: string }[] = [
+  { id: 'low', label: 'Basse' },
+  { id: 'normal', label: 'Normale' },
+  { id: 'high', label: 'Haute' },
+  { id: 'urgent', label: 'Urgente' },
 ];
 
-const SLA_LABELS: Record<string, string> = {
+const SLA_LABELS: Record<AdminQueueSLAState, string> = {
   breached: 'SLA dépassé',
   due_soon: 'Échéance proche',
   on_track: 'Dans les temps',
   closed: 'Fermé',
 };
 
-const SLA_CLASSES: Record<string, string> = {
+const SLA_CLASSES: Record<AdminQueueSLAState, string> = {
   breached: 'bg-destructive/10 text-destructive-text border-destructive/20',
   due_soon: 'bg-highlight/15 text-highlight border-highlight/40',
   on_track: 'bg-success/10 text-success-text border-success/20',
   closed: 'bg-muted text-muted-foreground border-border',
 };
+
+const SLA_RANK: AdminQueueSLAState[] = ['breached', 'due_soon', 'on_track', 'closed'];
+const PRIORITY_RANK: AdminQueuePriority[] = ['urgent', 'high', 'normal', 'low'];
 
 /** Date RFC3339 → valeur d'un input `datetime-local` (heure locale). */
 function toLocalInput(iso: string | null): string {
@@ -49,177 +62,230 @@ function toLocalInput(iso: string | null): string {
   )}:${pad(date.getMinutes())}`;
 }
 
-function formatDate(iso: string | null): string {
-  if (!iso) return '—';
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('fr-FR');
-}
-
-function TriageRow({
-  entry,
-  label,
-  onDone,
-}: {
-  entry: AdminQueueTriageEntry;
-  label: string;
-  onDone: () => void;
-}) {
-  const [priority, setPriority] = useState<AdminQueuePriority>(entry.priority ?? 'normal');
-  const [dueInput, setDueInput] = useState<string>(toLocalInput(entry.dueAt));
-  const [assignMode, setAssignMode] = useState<'keep' | 'me' | 'clear'>('keep');
+export function TriageBoard({ view }: { view: AdminWorkQueueView }) {
+  const router = useRouter();
+  const labels = new Map(view.items.map((item) => [item.key, item.label]));
+  const [status, setStatus] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const [savedAt, setSavedAt] = useState<string | null>(null);
 
-  const submit = () => {
+  const save = (input: TriageActionInput, message: string) => {
     startTransition(async () => {
-      const input: TriageActionInput = {
-        queue: entry.queue,
-        id: entry.id,
-        priority,
-        dueAt: dueInput ? new Date(dueInput).toISOString() : '',
-        assignToMe: assignMode === 'me',
-        clearAssignee: assignMode === 'clear',
-      };
       const result = await attemptWithStepUp(() => triageQueueItemAction(input), {
         reason: 'Trier un dossier de la file staff',
       });
       if (result.ok) {
-        setSavedAt(new Date().toLocaleTimeString('fr-FR'));
-        setAssignMode('keep');
-        onDone();
+        setStatus(`${message} · audité à ${new Date().toLocaleTimeString('fr-FR')}`);
+        router.refresh();
         return;
       }
       notifyActionFailure(result, readMessage(result) ?? 'Triage impossible');
     });
   };
 
-  return (
-    <tr className="border-t border-border/60 align-top">
-      <td className="px-4 py-4">
-        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</p>
-        <Link href={entry.href} className="mt-1 block text-sm font-medium hover:underline">
-          {entry.title}
-        </Link>
-        <p className="mt-1 text-[11px] text-muted-foreground">
-          {entry.status} · {entry.id}
-        </p>
-      </td>
+  const patch = (
+    entry: AdminQueueTriageEntry,
+    changes: Partial<
+      Pick<TriageActionInput, 'priority' | 'dueAt' | 'assignToMe' | 'clearAssignee'>
+    >,
+    message: string
+  ) =>
+    save(
+      {
+        queue: entry.queue,
+        id: entry.id,
+        priority: changes.priority ?? entry.priority,
+        dueAt: changes.dueAt ?? entry.dueAt ?? '',
+        assignToMe: changes.assignToMe ?? false,
+        clearAssignee: changes.clearAssignee ?? false,
+      },
+      message
+    );
 
-      <td className="px-4 py-4 text-sm">
-        {entry.assignedName ?? <span className="text-muted-foreground">Libre</span>}
-        {entry.assignedToMe ? (
-          <span className="ml-2 rounded-full border border-[#EE4B2B]/30 bg-[#EE4B2B]/5 px-2 py-0.5 text-[10px] text-[#B5371C]">
-            moi
+  const menu = (entry: AdminQueueTriageEntry): RowActionItem[] => [
+    { id: 'open', label: 'Ouvrir le dossier', onSelect: () => router.push(entry.href) },
+    {
+      id: 'me',
+      label: 'M’assigner',
+      onSelect: () => patch(entry, { assignToMe: true }, 'Assigné'),
+    },
+    ...(entry.assignedName
+      ? [
+          {
+            id: 'release',
+            label: 'Libérer l’assignation',
+            onSelect: () => patch(entry, { clearAssignee: true }, 'Assignation libérée'),
+          },
+        ]
+      : []),
+    {
+      id: 'copy',
+      label: 'Copier l’identifiant',
+      shortcut: '⌘C',
+      onSelect: () => void navigator.clipboard.writeText(entry.id),
+    },
+    {
+      id: 'audit',
+      label: 'Voir l’audit',
+      onSelect: () => router.push(`/admin/audit?subject=${encodeURIComponent(entry.id)}`),
+    },
+  ];
+
+  const columns: GridColumn<AdminQueueTriageEntry>[] = [
+    {
+      id: 'dossier',
+      header: 'Dossier',
+      sort: { kind: 'text', value: (entry) => entry.title },
+      cell: (entry) => (
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="w-[88px] shrink-0 truncate text-[10px] uppercase tracking-wide text-muted-foreground">
+            {labels.get(entry.queue) ?? entry.queue}
           </span>
-        ) : null}
-      </td>
-
-      <td className="px-4 py-4">
+          <Link
+            href={entry.href}
+            title={entry.title}
+            className="min-w-0 flex-1 truncate font-medium text-foreground hover:underline"
+          >
+            {entry.title}
+          </Link>
+          <CopyableId id={entry.id} max={6} />
+        </div>
+      ),
+    },
+    {
+      id: 'assigned',
+      header: 'Assigné',
+      sort: { kind: 'text', value: (entry) => entry.assignedName ?? '' },
+      cell: (entry) =>
+        entry.assignedName ? (
+          <span className="inline-flex items-center gap-1 text-muted-foreground">
+            {entry.assignedName}
+            {entry.assignedToMe && (
+              <span className="rounded-full border border-[#EE4B2B]/30 bg-[#EE4B2B]/5 px-1 text-[10px] text-[#B5371C]">
+                moi
+              </span>
+            )}
+          </span>
+        ) : (
+          <span className="text-muted-foreground/70">Libre</span>
+        ),
+    },
+    {
+      id: 'priority',
+      header: 'Priorité',
+      width: 104,
+      sort: { kind: 'rank', rank: PRIORITY_RANK, value: (entry) => entry.priority },
+      cell: (entry) => <PriorityCell entry={entry} onPatch={patch} />,
+    },
+    {
+      id: 'sla',
+      header: 'SLA',
+      sort: { kind: 'rank', rank: SLA_RANK, value: (entry) => entry.slaState },
+      cell: (entry) => (
         <span
-          className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-medium ${
+          className={`inline-flex rounded-full border px-1.5 py-0 text-[10px] font-medium ${
             SLA_CLASSES[entry.slaState] ?? SLA_CLASSES.on_track
           }`}
         >
           {SLA_LABELS[entry.slaState] ?? entry.slaState}
         </span>
-        <p className="mt-1 text-[11px] text-muted-foreground">
-          {formatDate(entry.dueAt ?? entry.slaDueAt)}
-        </p>
-      </td>
-
-      <td className="px-4 py-4">
-        <div className="flex flex-col gap-2">
-          <select
-            aria-label={`Priorité de ${entry.title}`}
-            value={priority}
-            onChange={(event) => setPriority(event.target.value as AdminQueuePriority)}
-            className="rounded-lg border border-border bg-white px-2 py-1.5 text-xs"
-          >
-            {PRIORITIES.map((item) => (
-              <option key={item.value} value={item.value}>
-                {item.label}
-              </option>
-            ))}
-          </select>
-          <input
-            type="datetime-local"
-            aria-label={`Échéance de ${entry.title}`}
-            value={dueInput}
-            onChange={(event) => setDueInput(event.target.value)}
-            className="rounded-lg border border-border bg-white px-2 py-1.5 text-xs"
-          />
-          <select
-            aria-label={`Assignation de ${entry.title}`}
-            value={assignMode}
-            onChange={(event) => setAssignMode(event.target.value as 'keep' | 'me' | 'clear')}
-            className="rounded-lg border border-border bg-white px-2 py-1.5 text-xs"
-          >
-            <option value="keep">Assignation inchangée</option>
-            <option value="me">Me l’assigner</option>
-            <option value="clear">Libérer</option>
-          </select>
-          <button
-            type="button"
-            onClick={submit}
-            disabled={pending}
-            className="rounded-lg bg-[#EE4B2B] px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
-          >
-            {pending ? 'Enregistrement…' : 'Enregistrer'}
-          </button>
-          {savedAt && (
-            <p role="status" className="text-[11px] text-muted-foreground">
-              Triage enregistré · audité à {savedAt}
-            </p>
-          )}
-        </div>
-      </td>
-    </tr>
-  );
-}
-
-export function TriageBoard({ view }: { view: AdminWorkQueueView }) {
-  const router = useRouter();
-  const labels = new Map(view.items.map((item) => [item.key, item.label]));
+      ),
+    },
+    {
+      id: 'due',
+      header: 'Échéance',
+      width: 168,
+      sort: {
+        kind: 'number',
+        value: (entry) => new Date(entry.dueAt ?? entry.slaDueAt).getTime(),
+      },
+      cell: (entry) => <DueCell entry={entry} onPatch={patch} />,
+    },
+  ];
 
   if (view.entries.length === 0) {
     return (
-      <div className="rounded-lg border border-border/60 bg-muted/20 p-8 text-center text-sm text-muted-foreground">
+      <p className="rounded-md border border-border bg-muted/20 px-3 py-6 text-center text-[12px] text-muted-foreground">
         Aucun dossier ouvert dans les six files.
-      </div>
+      </p>
     );
   }
 
   return (
-    <section className="space-y-3">
-      <div>
-        <h2 className="text-lg font-semibold tracking-tight">Triage</h2>
-        <p className="text-xs text-muted-foreground">
-          Priorité, échéance et assignation sont communes aux six files. L’échéance vide rétablit le
-          SLA par défaut de la file.
+    <section className="space-y-1.5">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="text-[13px] font-semibold">Triage</h2>
+        <p className="text-[11px] text-muted-foreground">
+          Priorité et échéance s’enregistrent à la modification · clic droit pour assigner.
+          {pending && ' · enregistrement…'}
         </p>
       </div>
-      <div className="overflow-x-auto rounded-lg border border-border/60 bg-white shadow-sm">
-        <table className="min-w-[900px] w-full text-left">
-          <thead className="bg-muted/30 text-[11px] uppercase tracking-wide text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3 font-medium">Dossier</th>
-              <th className="px-4 py-3 font-medium">Assigné à</th>
-              <th className="px-4 py-3 font-medium">SLA</th>
-              <th className="px-4 py-3 font-medium">Triage</th>
-            </tr>
-          </thead>
-          <tbody>
-            {view.entries.map((entry) => (
-              <TriageRow
-                key={`${entry.queue}:${entry.id}`}
-                entry={entry}
-                label={labels.get(entry.queue) ?? entry.queue}
-                onDone={() => router.refresh()}
-              />
-            ))}
-          </tbody>
-        </table>
-      </div>
+
+      {status && (
+        <p role="status" className="text-[11px] text-muted-foreground">
+          {status}
+        </p>
+      )}
+
+      <DataGrid
+        ariaLabel="Triage des dossiers de la file staff"
+        rows={view.entries}
+        columns={columns}
+        initialSort={{ column: 'sla', direction: 'ascending' }}
+        emptyState="Aucun dossier ouvert dans les six files."
+        rowMenu={menu}
+      />
     </section>
+  );
+}
+
+/** Sélecteur de priorité compact : la modification EST l'enregistrement. */
+function PriorityCell({
+  entry,
+  onPatch,
+}: {
+  entry: AdminQueueTriageEntry;
+  onPatch: (
+    entry: AdminQueueTriageEntry,
+    changes: { priority: AdminQueuePriority },
+    message: string
+  ) => void;
+}) {
+  return (
+    <Select
+      label={`Priorité de ${entry.title}`}
+      hideLabel
+      size="xs"
+      value={entry.priority}
+      options={PRIORITIES}
+      onValueChange={(value) =>
+        onPatch(entry, { priority: value as AdminQueuePriority }, 'Priorité modifiée')
+      }
+    />
+  );
+}
+
+/** Échéance : le champ garde la valeur locale, l'enregistrement part au blur. */
+function DueCell({
+  entry,
+  onPatch,
+}: {
+  entry: AdminQueueTriageEntry;
+  onPatch: (entry: AdminQueueTriageEntry, changes: { dueAt: string }, message: string) => void;
+}) {
+  const initial = toLocalInput(entry.dueAt);
+  const [value, setValue] = useState(initial);
+
+  return (
+    <Input
+      type="datetime-local"
+      aria-label={`Échéance de ${entry.title}`}
+      value={value}
+      onChange={(event) => setValue(event.target.value)}
+      onBlur={() => {
+        if (value === initial) return;
+        onPatch(entry, { dueAt: value ? new Date(value).toISOString() : '' }, 'Échéance modifiée');
+      }}
+      className="h-6 w-full rounded border-transparent bg-transparent px-1 text-[11px] tabular-nums text-muted-foreground shadow-none hover:border-border focus:border-border focus:bg-background focus:text-foreground focus-visible:ring-0"
+    />
   );
 }

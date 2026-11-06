@@ -54,7 +54,7 @@ export default async function AdminAccessPersonPage({ params }: AccessPersonPage
       {person.legacySuperadmin && (
         <p className="rounded-lg border border-border bg-muted/40 p-4 text-xs">
           Cette personne porte la promotion historique{' '}
-          <span className="font-mono">User.role = &apos;superadmin&apos;</span> : elle détient
+          <span className="tabular-nums">User.role = &apos;superadmin&apos;</span> : elle détient
           TOUTES les capacités, indépendamment des rôles listés ci-dessous. Retirer un rôle de la
           matrice ne la verrouille donc pas — c&apos;est volontaire (aucun superadmin existant ne
           peut être verrouillé par l&apos;introduction des rôles).
@@ -81,7 +81,7 @@ export default async function AdminAccessPersonPage({ params }: AccessPersonPage
                 <TableRow id={role.roleKey}>
                   <TableCell>
                     <div className="font-medium text-foreground">{role.roleLabel}</div>
-                    <div className="font-mono text-[11px] text-muted-foreground">
+                    <div className="tabular-nums text-[11px] text-muted-foreground">
                       {role.roleKey}
                     </div>
                   </TableCell>
@@ -116,7 +116,7 @@ export default async function AdminAccessPersonPage({ params }: AccessPersonPage
                 key={capability}
                 className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-4 py-2"
               >
-                <span className="font-mono text-[11px]">{capability}</span>
+                <span className="tabular-nums text-[11px]">{capability}</span>
                 <span className="text-[11px] text-muted-foreground">
                   {(person.capabilitySources[capability] ?? []).join(', ') || 'provenance inconnue'}
                 </span>

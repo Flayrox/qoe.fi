@@ -171,7 +171,7 @@ export function ModerationQueue({ initialItems, initialPending }: ModerationQueu
                       </div>
 
                       {report.targetPreview ? (
-                        <p className="text-sm leading-relaxed text-foreground/90 line-clamp-3 bg-muted/40 border border-border/60 rounded-xl p-3 font-mono text-xs">
+                        <p className="text-sm leading-relaxed text-foreground/90 line-clamp-3 bg-muted/40 border border-border/60 rounded-xl p-3 tabular-nums text-xs">
                           {report.targetPreview}
                         </p>
                       ) : (
@@ -194,10 +194,10 @@ export function ModerationQueue({ initialItems, initialPending }: ModerationQueu
                               report.reporter.id.slice(0, 8)}
                           </span>
                         </span>
-                        <span className="font-mono">
+                        <span className="tabular-nums">
                           {new Date(report.createdAt).toLocaleString('fr-FR')}
                         </span>
-                        <span className="font-mono text-[10px]">#{report.id.slice(0, 8)}</span>
+                        <span className="tabular-nums text-[10px]">#{report.id.slice(0, 8)}</span>
                       </div>
                     </div>
 

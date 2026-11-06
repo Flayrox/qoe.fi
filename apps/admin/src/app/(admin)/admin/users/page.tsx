@@ -1,7 +1,6 @@
 import { getAdminUsers } from '@/lib/admin-data';
-import { DataTable } from './components/data-table';
-import { columns, AdminUser } from './components/columns';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
+import { UsersGrid, type AdminUserRow } from './components/users-grid';
 
 export default async function AdminUsers() {
   requireCapability(await getAdminIdentity(), 'admin.users.read');
@@ -9,30 +8,22 @@ export default async function AdminUsers() {
   // Tous les utilisateurs pour la modération (Go en primaire, fallback Prisma dev).
   const users = await getAdminUsers();
 
-  return (
-    <div className="w-full max-w-5xl mx-auto space-y-10">
-      <div className="mb-8">
-        <h1 className="text-3xl font-semibold tracking-tight text-foreground">Users</h1>
-        <p className="text-muted-foreground mt-2 text-sm">Modération & Management</p>
-      </div>
+  const rows: AdminUserRow[] = users.map((user) => ({
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    username: user.username,
+    role: user.role,
+    isCertified: user.isCertified,
+    isShadowbanned: user.isShadowbanned,
+    isSuspended: user.isSuspended,
+    createdAt: String(user.createdAt),
+    subdomain: user.subdomain,
+  }));
 
-      <DataTable
-        columns={columns}
-        data={
-          users.map((u) => ({
-            id: u.id,
-            email: u.email,
-            name: u.name,
-            username: u.username,
-            role: u.role,
-            isCertified: u.isCertified,
-            isShadowbanned: u.isShadowbanned,
-            isSuspended: u.isSuspended,
-            createdAt: new Date(u.createdAt),
-            subdomain: u.subdomain,
-          })) as AdminUser[]
-        }
-      />
+  return (
+    <div className="space-y-3">
+      <UsersGrid users={rows} />
     </div>
   );
 }

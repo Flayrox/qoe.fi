@@ -61,7 +61,7 @@ export function ApiAccessModulesToggles({ initialModules }: { initialModules: Ap
           <h2 className="text-xl font-semibold">Permissions d’accès API</h2>
           <p className="mt-2 text-sm text-muted-foreground max-w-2xl leading-relaxed">
             Modules accordables aux créateurs lors de l’approbation d’une demande d’accès API (clé{' '}
-            <code className="font-mono text-xs">API_ACCESS_MODULES</code>). Désactiver un module
+            <code className="tabular-nums text-xs">API_ACCESS_MODULES</code>). Désactiver un module
             l’empêche d’être accordé — et d’être utilisé — à l’échelle de la plateforme, sans casser
             les intégrations existantes.
           </p>

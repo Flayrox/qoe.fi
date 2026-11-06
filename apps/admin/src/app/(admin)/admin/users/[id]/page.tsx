@@ -60,7 +60,7 @@ export default async function UserProfilePage({ params }: PageProps) {
               className="mb-4 shadow-md"
             />
             <h2 className="text-xl font-bold text-foreground">{user.name || 'Sans nom'}</h2>
-            <p className="text-muted-foreground text-sm font-mono flex items-center gap-1.5 mt-1">
+            <p className="text-muted-foreground text-sm tabular-nums flex items-center gap-1.5 mt-1">
               <Mail className="w-3 h-3" /> {user.email}
             </p>
             <div className="mt-4 px-3 py-1 bg-muted text-muted-foreground rounded-full text-[10px] font-bold uppercase tracking-wider">

@@ -350,7 +350,7 @@ export function WidgetsCMS({
                               defaultValue={t.count}
                               onBlur={(e) => handleUpdateTrend(t.id, parseInt(e.target.value) || 0)}
                               size="xs"
-                              className="w-24 font-mono"
+                              className="w-24 tabular-nums"
                             />
                             <span className="text-[10px] text-muted-foreground">
                               (Sortir du champ pour enregistrer)
@@ -537,7 +537,7 @@ export function WidgetsCMS({
                         <div className="flex items-center justify-between pt-4 border-t border-border mt-4 text-[10px] text-muted-foreground">
                           <span>
                             CTA Link:{' '}
-                            <code className="bg-muted px-1 py-0.5 rounded font-mono">
+                            <code className="bg-muted px-1 py-0.5 rounded tabular-nums">
                               {p.ctaUrl || 'Aucun'}
                             </code>
                           </span>

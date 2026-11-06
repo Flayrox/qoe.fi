@@ -54,7 +54,7 @@ export default async function AdminImportsPage() {
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate font-mono text-xs text-muted-foreground">{b.id}</p>
+                  <p className="truncate tabular-nums text-xs text-muted-foreground">{b.id}</p>
                   <p className="mt-1 text-sm">
                     <span className="font-semibold">{b.rowCount} adresses</span>
                     <span className="text-muted-foreground"> · {b.source}</span>

@@ -216,7 +216,7 @@ export function BroadcastAnnouncementConsole({
               <CheckCircle2 className="w-3.5 h-3.5 text-success-text" /> Auto-mémorisé en
               localStorage lors de la fermeture
             </span>
-            <span className="font-mono text-[10px]">{type.toUpperCase()}</span>
+            <span className="tabular-nums text-[10px]">{type.toUpperCase()}</span>
           </div>
         </div>
       </div>

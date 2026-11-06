@@ -106,7 +106,7 @@ export function AppealsQueue({ initialItems }: AppealsQueueProps) {
                   {shown.outcome === 'overturned' ? 'Infirmé (mesure levée)' : 'Confirmé'}
                 </span>
               )}
-              <code className="text-[11px] text-muted-foreground font-mono truncate max-w-full">
+              <code className="text-[11px] text-muted-foreground tabular-nums truncate max-w-full">
                 {shown.subjectType}:{shown.subjectId}
               </code>
             </div>

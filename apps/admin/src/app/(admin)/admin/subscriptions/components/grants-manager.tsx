@@ -168,7 +168,7 @@ export function GrantsManager({ initialItems }: GrantsManagerProps) {
                         {item.effective ? 'Effectif' : 'Inactif'}
                       </StatusPill>
                       <StatusPill>{item.plan === 'pro' ? 'Pro' : 'Plus'}</StatusPill>
-                      <code className="text-[11px] text-muted-foreground font-mono truncate max-w-full">
+                      <code className="text-[11px] text-muted-foreground tabular-nums truncate max-w-full">
                         {item.subjectType}:{item.subjectId}
                       </code>
                     </div>

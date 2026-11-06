@@ -140,7 +140,7 @@ export function IncidentsQueue({ initialItems, metrics }: IncidentsQueueProps) {
               {metrics.topSubjects.slice(0, 5).map((s) => (
                 <span
                   key={`${s.subjectType}:${s.subjectId}`}
-                  className="text-[11px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-mono"
+                  className="text-[11px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground tabular-nums"
                   title={`${s.signals} signaux · dernier : ${s.lastResult}`}
                 >
                   {s.subjectId.slice(0, 18)}… ({s.signals})

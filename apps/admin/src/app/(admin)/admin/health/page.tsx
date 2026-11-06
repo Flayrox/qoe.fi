@@ -47,7 +47,7 @@ export default async function AdminHealthPage() {
           <>
             Base, migration appliquée, mode d’autorisation et décisions des 24 dernières heures.
             C’est la lecture qui décide du passage en{' '}
-            <span className="font-mono">authz-enforce</span>.{' '}
+            <span className="tabular-nums">authz-enforce</span>.{' '}
             <Link href="/admin/access/decisions" className="underline">
               Détail des décisions
             </Link>
@@ -180,7 +180,7 @@ export default async function AdminHealthPage() {
             {neverExercised.map((capability) => (
               <span
                 key={capability}
-                className="rounded-full border border-border px-2 py-0.5 font-mono text-[10px] text-muted-foreground"
+                className="rounded-full border border-border px-2 py-0.5 tabular-nums text-[10px] text-muted-foreground"
               >
                 {capability}
               </span>

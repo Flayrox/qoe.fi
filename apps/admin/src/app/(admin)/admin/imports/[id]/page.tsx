@@ -54,7 +54,7 @@ export default async function AdminImportReviewPage({ params }: { params: { id: 
           <ArrowLeft className="w-3.5 h-3.5" /> Retour à la file
         </Link>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-foreground">Dossier d'import</h1>
-        <p className="mt-2 font-mono text-xs text-muted-foreground">{review.batch.id}</p>
+        <p className="mt-2 tabular-nums text-xs text-muted-foreground">{review.batch.id}</p>
       </div>
 
       <ImportReviewClient initial={serialized} />

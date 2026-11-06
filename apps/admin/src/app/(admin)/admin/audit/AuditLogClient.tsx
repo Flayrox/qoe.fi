@@ -88,7 +88,7 @@ export function AuditLogClient({ entries, mode, filters }: AuditLogClientProps) 
       >
         <strong>Mode OBSERVATION</strong> — les refus d’autorisation sont journalisés mais{' '}
         <strong>pas encore appliqués</strong>. Le passage en{' '}
-        <span className="font-mono">enforce</span> se décide sur le volume de refus observés
+        <span className="tabular-nums">enforce</span> se décide sur le volume de refus observés
         (journal des décisions).
       </div>
     ) : (
@@ -224,9 +224,11 @@ export function AuditLogClient({ entries, mode, filters }: AuditLogClientProps) 
                   <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
                     <Icon className="h-3.5 w-3.5" /> {meta?.label ?? entry.action}
                   </span>
-                  <div className="font-mono text-[10px] text-muted-foreground">{entry.action}</div>
+                  <div className="tabular-nums text-[10px] text-muted-foreground">
+                    {entry.action}
+                  </div>
                 </TableCell>
-                <TableCell className="text-xs font-mono">
+                <TableCell className="text-xs tabular-nums">
                   {entry.capability ?? <span className="text-muted-foreground">—</span>}
                   {entry.proofLevel ? (
                     <Badge variant="soft" tone="neutral" size="xs" className="ml-1 font-sans">
@@ -236,7 +238,7 @@ export function AuditLogClient({ entries, mode, filters }: AuditLogClientProps) 
                 </TableCell>
                 <TableCell className="text-xs">
                   <div className="text-foreground">{entry.targetType}</div>
-                  <div className="font-mono text-[10px] text-muted-foreground">
+                  <div className="tabular-nums text-[10px] text-muted-foreground">
                     {entry.targetId ?? '—'}
                   </div>
                 </TableCell>

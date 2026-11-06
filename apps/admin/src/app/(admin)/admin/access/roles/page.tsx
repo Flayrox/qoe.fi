@@ -84,7 +84,7 @@ export default async function AdminAccessRolesPage() {
               <TableRow key={capability.key} id={capability.key}>
                 <TableCell className="sticky left-0 bg-background z-10">
                   <div className="font-medium text-foreground">{capability.label}</div>
-                  <div className="font-mono text-[11px] text-muted-foreground">
+                  <div className="tabular-nums text-[11px] text-muted-foreground">
                     {capability.key}
                   </div>
                 </TableCell>

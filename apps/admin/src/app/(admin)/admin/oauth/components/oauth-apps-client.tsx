@@ -118,14 +118,14 @@ export function OAuthAppsClient({ initialClients }: { initialClients: OAuthClien
                             {c.description}
                           </p>
                         )}
-                        <code className="text-[10px] text-muted-foreground font-mono block truncate">
+                        <code className="text-[10px] text-muted-foreground tabular-nums block truncate">
                           {c.clientId}
                         </code>
                       </div>
                     </TableCell>
                     <TableCell>
                       <span className="font-semibold block">{c.ownerName || '—'}</span>
-                      <span className="text-[11px] text-muted-foreground font-mono block">
+                      <span className="text-[11px] text-muted-foreground tabular-nums block">
                         {c.ownerEmail}
                       </span>
                     </TableCell>
@@ -147,7 +147,7 @@ export function OAuthAppsClient({ initialClients }: { initialClients: OAuthClien
                             variant="outline"
                             tone="neutral"
                             size="xs"
-                            className="font-mono"
+                            className="tabular-nums"
                           >
                             {s}
                           </Badge>
@@ -159,7 +159,7 @@ export function OAuthAppsClient({ initialClients }: { initialClients: OAuthClien
                         {c.redirectUris.map((uri) => (
                           <p
                             key={uri}
-                            className="text-[11px] text-muted-foreground font-mono break-all"
+                            className="text-[11px] text-muted-foreground tabular-nums break-all"
                           >
                             {uri}
                           </p>

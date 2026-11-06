@@ -8,7 +8,7 @@
 // =====================================================================
 
 import type { Metadata } from 'next';
-import { Inter, JetBrains_Mono, Geist } from 'next/font/google';
+import { Inter, Geist } from 'next/font/google';
 import { I18nClientProvider } from '@qoe/i18n/provider';
 import { getStaticTranslations, initI18n } from '@qoe/i18n/server';
 import { TooltipProvider } from '@qoe/ui/ui/tooltip';
@@ -39,7 +39,6 @@ import '@qoe/theme/styles';
 const geist = Geist({ subsets: ['latin'], variable: '--font-sans' });
 const inter = Inter({ variable: '--font-body', subsets: ['latin'] });
 const displayFont = Geist({ variable: '--font-classical', subsets: ['latin'] });
-const jetbrainsMono = JetBrains_Mono({ variable: '--font-mono', subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'qoefi Admin — Platform Console',
@@ -92,7 +91,7 @@ export default async function RootLayout({
         <ThemeSeedScript />
       </head>
       <body
-        className={`${inter.variable} ${displayFont.variable} ${jetbrainsMono.variable} antialiased`}
+        className={`${inter.variable} ${displayFont.variable} antialiased`}
         suppressHydrationWarning
       >
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>

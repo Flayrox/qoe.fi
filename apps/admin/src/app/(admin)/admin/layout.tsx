@@ -92,7 +92,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
           environment={isLocal ? 'local' : 'production'}
         />
 
-        <div className="flex-1 overflow-y-auto px-6 py-5">
+        <div className="flex-1 overflow-y-auto px-4 py-3">
           {opensNothing ? (
             <AccessDenied roles={identity.roles} capabilities={identity.capabilities} />
           ) : (

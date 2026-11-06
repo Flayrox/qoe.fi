@@ -182,7 +182,7 @@ export function ArticlesManager({ initialItems }: ArticlesManagerProps) {
                         <StatusPill tone={item.published ? 'hot' : 'muted'}>
                           {item.published ? 'Publié' : 'Brouillon'}
                         </StatusPill>
-                        <code className="text-[11px] text-muted-foreground font-mono">
+                        <code className="text-[11px] text-muted-foreground tabular-nums">
                           {item.slug}
                         </code>
                       </div>

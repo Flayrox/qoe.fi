@@ -96,7 +96,7 @@ export function AbuseQueue({ initialItems }: AbuseQueueProps) {
                     <div className="flex-1 min-w-0 space-y-2">
                       <div className="flex flex-wrap items-center gap-2">
                         <StatusPill tone="hot">{meta.label}</StatusPill>
-                        <code className="text-[11px] text-muted-foreground font-mono truncate max-w-full">
+                        <code className="text-[11px] text-muted-foreground tabular-nums truncate max-w-full">
                           {item.subjectType}:{item.subjectId}
                         </code>
                       </div>
