@@ -63,6 +63,11 @@ export interface FeatureInterstitialProps {
   notified?: boolean;
   /** Notifie le porteur d'état qu'un « me prévenir » vient d'aboutir. */
   onNotified?: () => void;
+  /**
+   * État serveur : `false` retire le bouton de promesse quand l'API refuse
+   * (paused, retired, notifyEnabled=false). Absent = comportement catalogue.
+   */
+  notifyEnabled?: boolean;
 }
 
 // ── Icônes (le catalogue reste sans React) ──────────────────────────
@@ -101,6 +106,7 @@ export function FeatureInterstitial({
   onSignal,
   notified,
   onNotified,
+  notifyEnabled,
 }: FeatureInterstitialProps) {
   const feature = getFeature(featureKey);
   const [pending, setPending] = React.useState(false);
@@ -135,7 +141,7 @@ export function FeatureInterstitial({
   const FeatureIcon = FEATURE_ICONS[feature.icon];
   const StatusIcon = STATUS_ICONS[feature.status];
   const isUpgrade = feature.cta === 'upgrade';
-  const isNotify = feature.cta === 'notify';
+  const isNotify = feature.cta === 'notify' && notifyEnabled !== false;
 
   const notify = async () => {
     if (pending || isNotified) return;
@@ -297,6 +303,11 @@ export interface FeatureAnnouncementProviderProps {
    * affiche « c'est noté » d'emblée plutôt que de reproposer un clic.
    */
   notifiedFeatures?: ReadonlySet<FeatureKey>;
+  /**
+   * Fonctionnalités dont le serveur autorise la notification. `undefined` =
+   * catalogue statique ; un ensemble vide retire les promesses.
+   */
+  notifyEnabledFeatures?: ReadonlySet<FeatureKey>;
   /** Prévenir le porteur d'état qu'une demande locale vient d'aboutir. */
   onNotified?: (feature: FeatureKey) => void;
 }
@@ -311,6 +322,7 @@ export function FeatureAnnouncementProvider({
   pricingHref,
   onSignal,
   notifiedFeatures,
+  notifyEnabledFeatures,
   onNotified,
 }: FeatureAnnouncementProviderProps) {
   const [activeFeature, setActiveFeature] = React.useState<FeatureKey | null>(null);
@@ -344,6 +356,9 @@ export function FeatureAnnouncementProvider({
           onSignal={onSignal}
           notified={
             (notifiedFeatures?.has(activeFeature) ?? false) || localNotified.has(activeFeature)
+          }
+          notifyEnabled={
+            notifyEnabledFeatures ? notifyEnabledFeatures.has(activeFeature) : undefined
           }
           onNotified={() => {
             setLocalNotified((prev) => {
