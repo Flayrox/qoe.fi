@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, Compass, ArrowLeft, Dices, Sparkles, Check, BookOpen } from 'lucide-react';
-import { LogoSymbol } from '@qoe/brand';
+import { Search, ArrowLeft, Home } from 'lucide-react';
+import { BRAND_LOGOS } from '@qoe/brand';
 
-interface NotFoundViewProps {
+export interface NotFoundViewProps {
   /**
    * Code de langue optionnel ('fr' ou 'en'). Si omis, auto-détecté via html lang ou 'fr'.
    */
@@ -24,69 +24,26 @@ interface NotFoundViewProps {
   showSearch?: boolean;
 }
 
-const THEORIES = {
-  fr: [
-    'Un calligraphe distrait a renversé son café filtre sur la table des matières.',
-    'Ce chapitre s’est échappé cette nuit pour fonder sa propre revue clandestine.',
-    'Cette pensée était tellement avant-gardiste que son URL n’est prévue que pour 2032.',
-    'Une société secrète de typographes a discrètement remplacé cette page par un feuillet vierge.',
-    'L’auteur a souffert du syndrome de la page blanche... et elle a littéralement disparu.',
-    'Une rafale de vent numérique a emporté ce feuillet vers un autre rayon de la bibliothèque.',
-    'Ce texte a refusé d’être indexé, affirmant qu’il préférait demeurer une légende orale.',
-    'Le relieur a cousu les pages dans le désordre. Celle-ci flotte désormais entre deux dimensions.',
-    'Cette pensée est actuellement en cours de reformulation dans un café de Montmartre.',
-    'Un chat d’imprimerie s’est endormi sur la touche Suppr au moment du bouclage.',
-  ],
-  en: [
-    'A distracted calligrapher spilled filter coffee over the table of contents.',
-    'This chapter escaped last night to start its own underground literary gazette.',
-    'This thought was so avant-garde that its URL is only scheduled for release in 2032.',
-    'A secret guild of typographers quietly replaced this page with blank parchment.',
-    'The author suffered from writer’s block... and the page literally vanished.',
-    'A digital gust of wind swept this draft away to another corner of the library.',
-    'This essay refused to be indexed, declaring it preferred to remain an oral legend.',
-    'The bookbinder stitched the folios out of order; this one now drifts between worlds.',
-    'This reflection is currently being rewritten in a quiet Parisian café.',
-    'The printing press cat napped on the Delete key right before deadline.',
-  ],
-};
-
 const STRINGS = {
   fr: {
-    badge: 'PIÈCE MANQUANTE #404',
-    title: 'Manuscrit introuvable dans les archives',
-    subtitle:
-      'La page que vous cherchez s’est détachée de la reliure, a été déplacée ou n’a pas encore été rédigée.',
-    theoryTitle: 'Hypothèse du bibliothécaire sur cette disparition :',
-    theoryRoll: 'Autre explication',
-    repairPrompt: 'La feuille semble déchirée...',
-    repairBtn: 'Recoudre la reliure',
-    repairing: 'Recousage en cours...',
-    repaired: 'Reliure réparée ! Retour au fil des pensées...',
-    searchPlaceholder: 'Rechercher un auteur, une publication, un sujet...',
+    badge: 'ERREUR 404',
+    title: 'Page introuvable',
+    subtitle: 'La page que vous cherchez n’existe pas ou a été déplacée.',
+    lostCoordinates: 'Chemin demandé : ',
+    searchPlaceholder: 'Rechercher sur qoefi...',
     searchBtn: 'Rechercher',
-    backHome: 'Reprendre le fil',
-    explore: 'Explorer les écrits',
+    backHome: 'Retour à l’accueil',
     goBack: 'Page précédente',
-    lostCoordinates: 'Coordonnées égarées : ',
   },
   en: {
-    badge: 'MISSING LEAF #404',
-    title: 'Manuscript missing from the archives',
-    subtitle:
-      'The page you are looking for detached from the binding, was moved, or has not been penned yet.',
-    theoryTitle: 'The librarian’s theory on this disappearance:',
-    theoryRoll: 'Another theory',
-    repairPrompt: 'The leaf appears torn...',
-    repairBtn: 'Stitch the binding',
-    repairing: 'Stitching page...',
-    repaired: 'Binding restored! Returning to the stream of thoughts...',
-    searchPlaceholder: 'Search for an author, publication, topic...',
+    badge: 'ERROR 404',
+    title: 'Page not found',
+    subtitle: 'The page you are looking for does not exist or has been moved.',
+    lostCoordinates: 'Requested path: ',
+    searchPlaceholder: 'Search on qoefi...',
     searchBtn: 'Search',
-    backHome: 'Back to feed',
-    explore: 'Explore essays',
+    backHome: 'Back to home',
     goBack: 'Go back',
-    lostCoordinates: 'Lost coordinates: ',
   },
 };
 
@@ -98,16 +55,8 @@ export function NotFoundView({
 }: NotFoundViewProps) {
   const router = useRouter();
   const [locale, setLocale] = useState<'fr' | 'en'>(propLocale || 'fr');
-  const [theoryIndex, setTheoryIndex] = useState(0);
-  const [isRolling, setIsRolling] = useState(false);
-  const [isRepairing, setIsRepairing] = useState(false);
-  const [isRepaired, setIsRepaired] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPath, setCurrentPath] = useState('');
-
-  // 3D Tilt state
-  const cardRef = useRef<HTMLDivElement>(null);
-  const [tilt, setTilt] = useState({ x: 0, y: 0 });
 
   useEffect(() => {
     if (!propLocale && typeof document !== 'undefined') {
@@ -118,52 +67,10 @@ export function NotFoundView({
     }
     if (typeof window !== 'undefined') {
       setCurrentPath(window.location.pathname);
-      // Random initial theory
-      const list = THEORIES[locale];
-      setTheoryIndex(Math.floor(Math.random() * list.length));
     }
-  }, [propLocale, locale]);
+  }, [propLocale]);
 
   const t = STRINGS[locale];
-  const currentTheories = THEORIES[locale];
-
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!cardRef.current) return;
-    const rect = cardRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left; // x position within element
-    const y = e.clientY - rect.top; // y position within element
-    const centerX = rect.width / 2;
-    const centerY = rect.height / 2;
-    // Rotate max 7 degrees
-    const rotateX = ((y - centerY) / centerY) * -6;
-    const rotateY = ((x - centerX) / centerX) * 6;
-    setTilt({ x: rotateX, y: rotateY });
-  }, []);
-
-  const handleMouseLeave = useCallback(() => {
-    setTilt({ x: 0, y: 0 });
-  }, []);
-
-  const handleRollTheory = () => {
-    if (isRolling) return;
-    setIsRolling(true);
-    setTimeout(() => {
-      setTheoryIndex((prev) => (prev + 1) % currentTheories.length);
-      setIsRolling(false);
-    }, 240);
-  };
-
-  const handleRepair = () => {
-    if (isRepairing || isRepaired) return;
-    setIsRepairing(true);
-    setTimeout(() => {
-      setIsRepairing(false);
-      setIsRepaired(true);
-      setTimeout(() => {
-        router.push('/home');
-      }, 1100);
-    }, 900);
-  };
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -171,148 +78,225 @@ export function NotFoundView({
     router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
   };
 
+  const handleBack = () => {
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push('/home');
+    }
+  };
+
   return (
-    <main className="min-h-[82vh] flex flex-col items-center justify-center p-4 sm:p-6 lg:p-10 select-none overflow-hidden relative">
-      {/* Halo d'ambiance vermillon subtil en arrière-plan */}
+    <main className="min-h-[80vh] flex flex-col items-center justify-center p-4 sm:p-6 lg:p-10 select-none relative overflow-hidden">
+      {/* Halo d'ambiance vermillon très subtil et diffus */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[520px] h-[520px] rounded-full bg-[#EE4B2B]/[0.07] blur-[120px]"
+        className="pointer-events-none absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[540px] h-[360px] rounded-full bg-[#EE4B2B]/[0.04] dark:bg-[#EE4B2B]/[0.08] blur-[120px]"
       />
 
-      <div className="w-full max-w-3xl flex flex-col items-center gap-8 relative z-10">
-        {/* 📜 Carte 3D Interactive « Le Manuscrit Vivant » */}
-        <div
-          ref={cardRef}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={handleMouseLeave}
-          style={{
-            transform: `perspective(1200px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`,
-            transition:
-              tilt.x === 0 && tilt.y === 0 ? 'transform 0.5s ease-out' : 'transform 0.1s ease-out',
-          }}
-          className="w-full relative rounded-3xl border border-border/80 bg-card/90 backdrop-blur-xl p-6 sm:p-10 shadow-2xl shadow-black/5 dark:shadow-black/40 overflow-hidden group"
-        >
-          {/* Ligne dorée/vermillon décorative en haut de la reliure */}
-          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#EE4B2B] to-transparent opacity-80" />
+      {/* Styles d'animation SVG intégrés & auto-suffisants */}
+      <style>{`
+        @keyframes qoe404Float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-4px); }
+        }
+        @keyframes qoe404Trace {
+          0% { stroke-dashoffset: 100; }
+          100% { stroke-dashoffset: 0; }
+        }
+        @keyframes qoe404Pulse {
+          0%, 100% { opacity: 0.18; transform: scale(0.98); }
+          50% { opacity: 0.42; transform: scale(1.03); }
+        }
+        @keyframes qoe404Guide {
+          0%, 100% { opacity: 0.1; }
+          50% { opacity: 0.28; }
+        }
+        .qoe-404-float {
+          animation: qoe404Float 4.5s ease-in-out infinite;
+        }
+        .qoe-404-trace {
+          stroke-dasharray: 25 75;
+          animation: qoe404Trace 5s linear infinite;
+        }
+        .qoe-404-pulse {
+          animation: qoe404Pulse 3.5s ease-in-out infinite;
+        }
+        .qoe-404-guide {
+          animation: qoe404Guide 4s ease-in-out infinite;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .qoe-404-float,
+          .qoe-404-trace,
+          .qoe-404-pulse,
+          .qoe-404-guide {
+            animation: none !important;
+          }
+        }
+        :root[data-qoe-reduce-motion='true'] .qoe-404-float,
+        :root[data-qoe-reduce-motion='true'] .qoe-404-trace,
+        :root[data-qoe-reduce-motion='true'] .qoe-404-pulse,
+        :root[data-qoe-reduce-motion='true'] .qoe-404-guide {
+          animation: none !important;
+        }
+      `}</style>
 
-          {/* Sceau de cire officiel vermillon en haut à droite */}
-          <div className="absolute top-5 right-5 sm:top-7 sm:right-7 flex items-center justify-center">
-            <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-[#EE4B2B] text-white shadow-lg shadow-[#EE4B2B]/30 flex items-center justify-center transition-transform duration-300 group-hover:scale-105 group-hover:rotate-6">
-              <LogoSymbol className="w-6 h-6 sm:w-7 sm:h-7" fillColor="#FFFFFF" />
-              {/* Micro-contour estampé */}
-              <div className="absolute inset-0.5 rounded-full border border-white/30 pointer-events-none" />
-            </div>
-          </div>
+      <div className="w-full max-w-xl flex flex-col items-center text-center gap-6 sm:gap-8 relative z-10">
+        {/* 🎨 Animation SVG construite avec le logo Qoefi */}
+        <div className="w-full max-w-sm sm:max-w-md aspect-[520/200] relative">
+          <svg
+            viewBox="0 0 520 200"
+            className="w-full h-full overflow-visible text-foreground"
+            role="img"
+            aria-label="404 — Page introuvable"
+          >
+            <defs>
+              <linearGradient id="qoe-404-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#EE4B2B" />
+                <stop offset="100%" stopColor="#FF5A36" />
+              </linearGradient>
+              <linearGradient id="qoe-404-stroke-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#FFFFFF" stopOpacity="0.95" />
+                <stop offset="50%" stopColor="#EE4B2B" stopOpacity="0.4" />
+                <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.95" />
+              </linearGradient>
+              <filter id="qoe-404-glow" x="-20%" y="-20%" width="140%" height="140%">
+                <feGaussianBlur stdDeviation="8" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+              </filter>
+              <filter id="qoe-404-aura" x="-30%" y="-30%" width="160%" height="160%">
+                <feGaussianBlur stdDeviation="16" />
+              </filter>
+            </defs>
 
-          {/* Badge & Statut 404 */}
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#EE4B2B]/10 text-[#EE4B2B] border border-[#EE4B2B]/20 text-xs font-mono font-medium tracking-wider mb-5">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#EE4B2B] animate-pulse" />
-            {t.badge}
-          </div>
+            {/* Lignes de construction typographiques (repères sobres) */}
+            <g
+              className="qoe-404-guide"
+              stroke="currentColor"
+              strokeWidth="1"
+              strokeDasharray="3 5"
+            >
+              {/* Ligne de tête (cap-height) */}
+              <line x1="30" y1="51" x2="490" y2="51" />
+              {/* Ligne de base (baseline) */}
+              <line x1="30" y1="149" x2="490" y2="149" />
+              {/* Ligne médiane des traverses */}
+              <line x1="30" y1="117" x2="490" y2="117" strokeDasharray="1 7" />
+            </g>
 
-          {/* Titre & Message littéraire */}
-          <h1 className="text-2xl sm:text-4xl font-bold tracking-tight text-foreground font-classical max-w-[85%] mb-3">
-            {title || t.title}
-          </h1>
+            {/* Chiffre 4 gauche */}
+            <g
+              transform="translate(56, 51)"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="opacity-25 dark:opacity-30 transition-opacity"
+            >
+              <path d="M 46 2 L 4 66 H 64 M 46 2 V 96" />
+            </g>
 
-          <p className="text-sm sm:text-base text-muted-foreground leading-relaxed max-w-xl mb-6">
-            {description || t.subtitle}
-          </p>
-
-          {/* Chemin demandé */}
-          {currentPath && (
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/60 text-muted-foreground text-xs font-mono border border-border/60 mb-6">
-              <span className="opacity-70">{t.lostCoordinates}</span>
-              <span className="font-semibold text-foreground/90 truncate max-w-[280px] sm:max-w-md">
-                {currentPath}
-              </span>
-            </div>
-          )}
-
-          {/* 🎲 Widget interactif : Théorie du bibliothécaire */}
-          <div className="rounded-2xl bg-muted/40 border border-border/60 p-4 sm:p-5 relative transition-all duration-300">
-            <div className="flex items-center justify-between gap-2 mb-2.5">
-              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                <BookOpen className="w-3.5 h-3.5 text-[#EE4B2B]" />
-                <span>{t.theoryTitle}</span>
-              </div>
-              <button
-                type="button"
-                onClick={handleRollTheory}
-                disabled={isRolling}
-                className="inline-flex items-center gap-1.5 text-xs font-medium text-[#EE4B2B] hover:text-[#EE4B2B]/80 px-2.5 py-1 rounded-md bg-[#EE4B2B]/10 hover:bg-[#EE4B2B]/15 transition-colors cursor-pointer disabled:opacity-50"
-              >
-                <Dices
-                  className={`w-3.5 h-3.5 transition-transform duration-300 ${
-                    isRolling ? 'rotate-180 scale-110' : ''
-                  }`}
+            {/* Composition centrale du logo Qoefi */}
+            <g className="qoe-404-float" style={{ transformOrigin: '260px 100px' }}>
+              {/* Aura lumineuse vermillon */}
+              <g className="qoe-404-pulse" style={{ transformOrigin: '260px 100px' }}>
+                <rect
+                  x="182"
+                  y="53"
+                  width="156"
+                  height="94"
+                  rx="28"
+                  fill="#EE4B2B"
+                  filter="url(#qoe-404-aura)"
                 />
-                <span>{t.theoryRoll}</span>
-              </button>
-            </div>
+              </g>
 
-            <p
-              className={`text-sm sm:text-base italic text-foreground/90 font-serif leading-relaxed transition-opacity duration-200 ${
-                isRolling ? 'opacity-20' : 'opacity-100'
-              }`}
+              {/* Repères d'alignement et de cadrage aux 4 coins */}
+              <g stroke="#EE4B2B" strokeWidth="1.5" strokeLinecap="square" opacity="0.6">
+                <path d="M 172 59 V 45 H 186" fill="none" />
+                <path d="M 334 45 H 348 V 59" fill="none" />
+                <path d="M 172 141 V 155 H 186" fill="none" />
+                <path d="M 334 155 H 348 V 141" fill="none" />
+                <circle cx="260" cy="100" r="1.5" fill="#EE4B2B" opacity="0.5" />
+              </g>
+
+              {/* Glyphe officiel Qoefi & tracé lumineux animé */}
+              <g transform="translate(180, 50.74) scale(0.74074)">
+                {/* Remplissage vermillon officiel avec léger dégradé */}
+                <path
+                  d={BRAND_LOGOS.symbol.path}
+                  fill="url(#qoe-404-grad)"
+                  filter="url(#qoe-404-glow)"
+                />
+                {/* Filet lumineux vectoriel traçant le périmètre et la découpe */}
+                <path
+                  d={BRAND_LOGOS.symbol.path}
+                  fill="none"
+                  stroke="url(#qoe-404-stroke-grad)"
+                  strokeWidth="2.5"
+                  pathLength={100}
+                  className="qoe-404-trace"
+                />
+              </g>
+            </g>
+
+            {/* Chiffre 4 droit */}
+            <g
+              transform="translate(396, 51)"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="7"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="opacity-25 dark:opacity-30 transition-opacity"
             >
-              « {currentTheories[theoryIndex]} »
-            </p>
-          </div>
-
-          {/* 🪡 Easter Egg Interactif : Recoudre la reliure */}
-          <div className="mt-6 pt-5 border-t border-border/50 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="text-xs text-muted-foreground">
-              {isRepaired ? (
-                <span className="text-success-text font-medium inline-flex items-center gap-1.5">
-                  <Check className="w-4 h-4" />
-                  {t.repaired}
-                </span>
-              ) : isRepairing ? (
-                <span className="text-primary font-medium inline-flex items-center gap-1.5 animate-pulse">
-                  <Sparkles className="w-4 h-4" />
-                  {t.repairing}
-                </span>
-              ) : (
-                <span>{t.repairPrompt}</span>
-              )}
-            </div>
-
-            <button
-              type="button"
-              onClick={handleRepair}
-              disabled={isRepairing || isRepaired}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-medium transition-all duration-300 cursor-pointer ${
-                isRepaired
-                  ? 'bg-success/15 text-success-text border border-success/30'
-                  : 'bg-foreground/5 hover:bg-primary/10 text-foreground hover:text-primary border border-border hover:border-primary/30'
-              } disabled:cursor-not-allowed`}
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>{isRepaired ? '✓ Reliure restaurée' : t.repairBtn}</span>
-            </button>
-          </div>
+              <path d="M 46 2 L 4 66 H 64 M 46 2 V 96" />
+            </g>
+          </svg>
         </div>
 
-        {/* 🔍 Barre de Recherche Directe */}
+        {/* 🏷️ Badge sobre */}
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-muted/60 text-muted-foreground border border-border/70 text-xs font-mono font-medium tracking-wider">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#EE4B2B] animate-pulse" />
+          <span>{t.badge}</span>
+        </div>
+
+        {/* ✍️ Titre & Description sobre */}
+        <div className="space-y-2.5">
+          <h1 className="text-2xl sm:text-4xl font-bold tracking-tight text-foreground">
+            {title || t.title}
+          </h1>
+          <p className="text-sm sm:text-base text-muted-foreground max-w-md mx-auto leading-relaxed">
+            {description || t.subtitle}
+          </p>
+        </div>
+
+        {/* 📍 Coordonnées demandées (si présentes) */}
+        {currentPath && (
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-muted/40 text-muted-foreground text-xs font-mono border border-border/50 max-w-sm sm:max-w-md truncate">
+            <span className="opacity-60">{t.lostCoordinates}</span>
+            <span className="font-medium text-foreground/85 truncate">{currentPath}</span>
+          </div>
+        )}
+
+        {/* 🔍 Barre de recherche discrète et élégante */}
         {showSearch && (
           <form
             onSubmit={handleSearchSubmit}
-            className="w-full relative flex items-center shadow-sm rounded-2xl overflow-hidden border border-border bg-card focus-within:border-[#EE4B2B] focus-within:ring-2 focus-within:ring-[#EE4B2B]/20 transition-all duration-200"
+            className="w-full max-w-md relative flex items-center shadow-xs"
           >
-            <div className="pl-4 text-muted-foreground pointer-events-none">
-              <Search className="w-4 h-4" />
-            </div>
+            <Search className="absolute left-3.5 w-4 h-4 text-muted-foreground pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={t.searchPlaceholder}
-              className="w-full py-3.5 pl-3 pr-28 bg-transparent text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none"
+              className="w-full pl-10 pr-24 py-2.5 rounded-xl border border-border/80 bg-card text-sm text-foreground placeholder:text-muted-foreground/60 transition-all outline-none focus:border-[#EE4B2B] focus:ring-2 focus:ring-[#EE4B2B]/20"
             />
             <button
               type="submit"
-              className="absolute right-2 px-4 py-2 rounded-xl bg-[#EE4B2B] hover:bg-[#d63f20] text-white text-xs font-semibold tracking-wide transition-colors cursor-pointer"
+              className="absolute right-1.5 px-3.5 py-1.5 rounded-lg bg-foreground text-background hover:opacity-90 text-xs font-medium transition-opacity cursor-pointer"
             >
               {t.searchBtn}
             </button>
@@ -320,29 +304,20 @@ export function NotFoundView({
         )}
 
         {/* 🧭 Actions & Navigation de Rebond */}
-        <div className="flex flex-wrap items-center justify-center gap-3">
+        <div className="flex flex-wrap items-center justify-center gap-3 pt-1">
           <button
             type="button"
             onClick={() => router.push('/home')}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#EE4B2B] hover:bg-[#d63f20] text-white text-sm font-medium shadow-md shadow-[#EE4B2B]/20 hover:shadow-lg hover:shadow-[#EE4B2B]/30 transition-all cursor-pointer"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#EE4B2B] hover:bg-[#d63f20] text-white text-sm font-medium shadow-sm hover:shadow transition-all cursor-pointer"
           >
-            <Compass className="w-4 h-4" />
+            <Home className="w-4 h-4" />
             <span>{t.backHome}</span>
           </button>
 
           <button
             type="button"
-            onClick={() => router.push('/search')}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-card hover:bg-accent text-foreground text-sm font-medium border border-border transition-colors cursor-pointer"
-          >
-            <Search className="w-4 h-4" />
-            <span>{t.explore}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => window.history.back()}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-transparent hover:bg-muted text-muted-foreground hover:text-foreground text-sm font-medium transition-colors cursor-pointer"
+            onClick={handleBack}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border/80 bg-card hover:bg-muted/60 text-foreground text-sm font-medium transition-colors cursor-pointer"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>{t.goBack}</span>

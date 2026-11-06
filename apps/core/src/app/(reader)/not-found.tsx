@@ -2,7 +2,7 @@ import { NotFoundView } from '@qoe/ui';
 
 export const metadata = {
   title: 'Page introuvable — qoefi',
-  description: 'Le manuscrit que vous cherchez est introuvable ou a été déplacé.',
+  description: 'La page que vous cherchez est introuvable ou a été déplacée.',
   robots: {
     index: false,
     follow: false,
