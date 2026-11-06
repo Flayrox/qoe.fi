@@ -138,6 +138,13 @@ export const ADMIN_ACTIONS: readonly AdminActionShortcut[] = [
     capability: 'admin.dashboard.read',
     keywords: 'slo sante alertes latence outbox erreurs migration uptime budget',
   },
+  {
+    id: 'sandbox-scenarios',
+    label: 'Bac à sable & Scénarios d’essai',
+    href: '/admin/sandbox',
+    capability: 'admin.dashboard.read',
+    keywords: 'sandbox bac a sable seed simulation impersonation essai test',
+  },
 ];
 
 /** Actions atteignables avec un jeu de capacités. */

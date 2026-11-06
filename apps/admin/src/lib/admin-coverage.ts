@@ -132,6 +132,11 @@ export const ADMIN_ROUTE_COVERAGE: Record<string, AdminRouteCoverage> = {
   'GET /v1/admin/announcement': via('/admin/notifications'),
   'PUT /v1/admin/announcement': via('/admin/notifications'),
 
+  // Bac à sable & simulation contrôlée (Lot D6).
+  'GET /v1/admin/sandbox/scenarios': via('/admin/sandbox'),
+  'POST /v1/admin/sandbox/seed': via('/admin/sandbox'),
+  'POST /v1/admin/sandbox/impersonate': via('/admin/sandbox'),
+
   // ── Plateforme ────────────────────────────────────────────────────────
   'GET /v1/admin/feature-flags': via('/admin/config'),
   'PUT /v1/admin/feature-flags/{key}': via('/admin/config'),

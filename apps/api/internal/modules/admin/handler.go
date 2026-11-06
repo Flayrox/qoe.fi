@@ -133,6 +133,8 @@ var stepUpRoutes = map[string]authz.Level{
 	"POST /v1/admin/compliance/retention/purge":      authz.Level2,
 	"POST /v1/admin/audit/signed-export":             authz.Level2,
 	"POST /v1/admin/subscribers/signed-export":       authz.Level2,
+	"POST /v1/admin/sandbox/seed":                    authz.Level2,
+	"POST /v1/admin/sandbox/impersonate":             authz.Level2,
 	// Distribuer les droits de la console est l'acte le plus lourd : une
 	// session détournée ne doit pas pouvoir nommer un complice.
 	"POST /v1/admin/access/grants":                           authz.Level2,
@@ -238,6 +240,11 @@ func (h *Handler) routeTable() []adminRoute {
 		// ── Communication & Annonce globale ──────────────────────────────
 		{http.MethodGet, "/v1/admin/announcement", adminauthz.CampaignsRead, h.getAnnouncement},
 		{http.MethodPut, "/v1/admin/announcement", adminauthz.CampaignsWrite, h.setAnnouncement},
+
+		// ── Bac à sable, seeds & impersonation (Lot D6) ───────────────────
+		{http.MethodGet, "/v1/admin/sandbox/scenarios", adminauthz.DashboardRead, h.listSandboxScenarios},
+		{http.MethodPost, "/v1/admin/sandbox/seed", adminauthz.ConfigWrite, h.runSandboxSeed},
+		{http.MethodPost, "/v1/admin/sandbox/impersonate", adminauthz.ConfigWrite, h.runImpersonate},
 
 		// ── Plateforme : configuration, inscriptions, OAuth, accès API ────
 		{http.MethodGet, "/v1/admin/config", adminauthz.ConfigRead, h.configs},
