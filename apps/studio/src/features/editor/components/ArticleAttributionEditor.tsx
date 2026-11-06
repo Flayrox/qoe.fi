@@ -1,32 +1,25 @@
 'use client';
 
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowDown,
   ArrowUp,
-  Check,
   Clock,
-  Copy,
   Eye,
   EyeOff,
   Link2,
   Loader2,
   Search,
-  Trash2,
   UserRound,
-  Users,
   X,
 } from 'lucide-react';
-import {
-  searchArticleContributorsAction,
-  createCollaborationInviteLinkAction,
-  listCollaborationInviteLinksAction,
-  revokeCollaborationInviteLinkAction,
-  type CollaborationInviteLinkDTO,
-} from '@qoe/sdk/actions/articles';
-import { cn } from '@qoe/utils';
+import { searchArticleContributorsAction } from '@qoe/sdk/actions/articles';
+import { Badge } from '@qoe/ui/badge';
+import { Button } from '@qoe/ui/button';
+import { Input, InputGroup } from '@qoe/ui/input';
 import { SafeAvatar } from '@qoe/ui';
 import { Select } from '@qoe/ui/select';
+import { CollaborationInviteLinks } from './CollaborationInviteLinks';
 
 export type ArticleAttributionDraft = {
   userId: string;
@@ -64,15 +57,46 @@ function Avatar({ person, size = 28 }: { person: ContributorResult; size?: numbe
   );
 }
 
-function formatExpiry(dateStr: string | null) {
-  if (!dateStr) return 'Permanent';
-  const d = new Date(dateStr);
-  return d.toLocaleDateString(undefined, {
-    day: 'numeric',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+function visibilityLabel(person: ArticleAttributionDraft) {
+  if (person.consentStatus !== 'ACCEPTED') return 'En attente';
+  return person.isVisible ? 'Cité' : 'Non cité';
+}
+
+function VisibilityButton({
+  person,
+  onToggle,
+}: {
+  person: ArticleAttributionDraft;
+  onToggle: () => void;
+}) {
+  const waiting = person.consentStatus !== 'ACCEPTED';
+  return (
+    <Button
+      variant="soft"
+      tone={waiting ? 'brand' : person.isVisible ? 'success' : 'neutral'}
+      size="xs"
+      onClick={onToggle}
+      disabled={waiting}
+      aria-pressed={person.isVisible}
+      title={
+        waiting
+          ? 'En attente du consentement du contributeur'
+          : person.isVisible
+            ? 'Masquer de la signature publique'
+            : 'Afficher dans la signature publique'
+      }
+      className="gap-1 px-1.5 text-[10px]"
+    >
+      {waiting ? (
+        <Clock aria-hidden />
+      ) : person.isVisible ? (
+        <Eye aria-hidden />
+      ) : (
+        <EyeOff aria-hidden />
+      )}
+      {visibilityLabel(person)}
+    </Button>
+  );
 }
 
 export function ArticleAttributionEditor({
@@ -87,69 +111,7 @@ export function ArticleAttributionEditor({
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<ContributorResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-
-  // Gestion des liens de collaboration
   const [showLinkModal, setShowLinkModal] = useState(false);
-  const [links, setLinks] = useState<CollaborationInviteLinkDTO[]>([]);
-  const [loadingLinks, setLoadingLinks] = useState(false);
-  const [creatingLink, setCreatingLink] = useState(false);
-  const [linkRole, setLinkRole] = useState('CONTRIBUTOR');
-  const [linkExpiresIn, setLinkExpiresIn] = useState(24);
-  const [linkMaxUses, setLinkMaxUses] = useState(1);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [latestCreatedUrl, setLatestCreatedUrl] = useState<string | null>(null);
-
-  const fetchLinks = useCallback(async () => {
-    if (!articleId) return;
-    setLoadingLinks(true);
-    try {
-      const res = await listCollaborationInviteLinksAction(articleId);
-      if (res.ok && res.data) {
-        setLinks(res.data.links || []);
-      }
-    } finally {
-      setLoadingLinks(false);
-    }
-  }, [articleId]);
-
-  useEffect(() => {
-    if (showLinkModal && articleId) {
-      fetchLinks();
-    }
-  }, [showLinkModal, articleId, fetchLinks]);
-
-  const handleCreateLink = async () => {
-    if (!articleId) return;
-    setCreatingLink(true);
-    try {
-      const res = await createCollaborationInviteLinkAction({
-        articleId,
-        role: linkRole,
-        expiresInHours: linkExpiresIn,
-        maxUses: linkMaxUses,
-      });
-      if (res.ok && res.data?.link) {
-        const joinUrl = `${window.location.origin}/collaborate/join?token=${res.data.link.token}`;
-        setLatestCreatedUrl(joinUrl);
-        setLinks((prev) => [res.data.link, ...prev]);
-      }
-    } finally {
-      setCreatingLink(false);
-    }
-  };
-
-  const handleRevokeLink = async (linkId: string) => {
-    const res = await revokeCollaborationInviteLinkAction(linkId);
-    if (res.ok) {
-      setLinks((prev) => prev.filter((l) => l.id !== linkId));
-    }
-  };
-
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
 
   const selectedIds = useMemo(() => new Set(value.map((item) => item.userId)), [value]);
 
@@ -234,7 +196,7 @@ export function ArticleAttributionEditor({
     <div className="space-y-3" data-testid="article-attribution-editor">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+          <h3 className="text-xs font-bold tracking-wider text-muted-foreground uppercase">
             Attribution éditoriale
           </h3>
           <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
@@ -242,28 +204,30 @@ export function ArticleAttributionEditor({
           </p>
         </div>
         {articleId && (
-          <button
-            type="button"
+          <Button
+            variant="soft"
+            tone="brand"
+            size="xs"
             onClick={() => setShowLinkModal(true)}
-            className="flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors shrink-0"
+            className="shrink-0"
           >
-            <Link2 className="h-3.5 w-3.5" />
-            <span>Lien d’invitation</span>
-          </button>
+            <Link2 aria-hidden />
+            Lien d’invitation
+          </Button>
         )}
       </div>
 
       <div className="space-y-2">
         {value.length === 0 ? (
-          <div className="flex items-center gap-2 rounded-lg border border-dashed border-border/50 p-2.5 text-[11px] text-muted-foreground">
-            <UserRound className="h-4 w-4 shrink-0" />
+          <div className="flex items-center gap-2 rounded-control border border-dashed border-border/50 p-2.5 text-[11px] text-muted-foreground">
+            <UserRound className="size-4 shrink-0" aria-hidden />
             <span>Vous serez ajouté comme auteur principal à la sauvegarde.</span>
           </div>
         ) : (
           value.map((person, index) => (
             <div
               key={person.userId}
-              className="flex items-center gap-2 rounded-lg border border-border/40 bg-background/60 p-2"
+              className="flex items-center gap-2 rounded-control border border-border/40 bg-background/60 p-2"
               data-testid={`attribution-row-${person.userId}`}
             >
               <Avatar person={person} />
@@ -275,11 +239,15 @@ export function ArticleAttributionEditor({
                   @{person.username || person.userId.slice(0, 8)}
                 </div>
                 {person.role !== 'PRIMARY_AUTHOR' && (
-                  <div className="text-[10px] text-highlight">
+                  <Badge
+                    variant="soft"
+                    tone={person.consentStatus === 'ACCEPTED' ? 'success' : 'vivid'}
+                    className="mt-0.5"
+                  >
                     {person.consentStatus === 'ACCEPTED'
                       ? 'Consentement accepté'
                       : 'Invitation à accepter'}
-                  </div>
+                  </Badge>
                 )}
               </div>
               <Select
@@ -293,69 +261,46 @@ export function ArticleAttributionEditor({
                 options={ROLE_OPTIONS.map((role) => ({ id: role.value, label: role.label }))}
               />
               {person.role !== 'PRIMARY_AUTHOR' && (
-                <button
-                  type="button"
-                  onClick={() => update(index, { isVisible: !person.isVisible })}
-                  disabled={person.consentStatus !== 'ACCEPTED'}
-                  aria-pressed={person.isVisible}
-                  title={
-                    person.consentStatus !== 'ACCEPTED'
-                      ? 'En attente du consentement du contributeur'
-                      : person.isVisible
-                        ? 'Masquer de la signature publique'
-                        : 'Afficher dans la signature publique'
-                  }
-                  className={cn(
-                    'flex items-center gap-1 rounded-md px-1.5 py-1 text-[10px] transition-colors',
-                    person.consentStatus !== 'ACCEPTED'
-                      ? 'bg-highlight/10 text-highlight opacity-70'
-                      : person.isVisible
-                        ? 'bg-success/10 text-success-text hover:bg-success/20'
-                        : 'bg-muted text-muted-foreground hover:bg-muted/70'
-                  )}
-                >
-                  {person.consentStatus !== 'ACCEPTED' ? (
-                    <Clock className="h-3 w-3" />
-                  ) : person.isVisible ? (
-                    <Eye className="h-3 w-3" />
-                  ) : (
-                    <EyeOff className="h-3 w-3" />
-                  )}
-                  {person.consentStatus !== 'ACCEPTED'
-                    ? 'En attente'
-                    : person.isVisible
-                      ? 'Cité'
-                      : 'Non cité'}
-                </button>
+                <VisibilityButton
+                  person={person}
+                  onToggle={() => update(index, { isVisible: !person.isVisible })}
+                />
               )}
               <div className="flex shrink-0 items-center">
-                <button
-                  type="button"
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  shape="icon"
                   onClick={() => move(index, -1)}
                   disabled={index === 0}
                   aria-label="Monter le contributeur"
-                  className="rounded p-1 text-muted-foreground hover:bg-muted disabled:opacity-30"
+                  title="Monter le contributeur"
                 >
-                  <ArrowUp className="h-3 w-3" />
-                </button>
-                <button
-                  type="button"
+                  <ArrowUp aria-hidden />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  shape="icon"
                   onClick={() => move(index, 1)}
                   disabled={index === value.length - 1}
                   aria-label="Descendre le contributeur"
-                  className="rounded p-1 text-muted-foreground hover:bg-muted disabled:opacity-30"
+                  title="Descendre le contributeur"
                 >
-                  <ArrowDown className="h-3 w-3" />
-                </button>
+                  <ArrowDown aria-hidden />
+                </Button>
                 {person.role !== 'PRIMARY_AUTHOR' && (
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    tone="danger"
+                    size="xs"
+                    shape="icon"
                     onClick={() => removeContributor(index)}
                     aria-label={`Retirer ${person.name || 'le contributeur'}`}
-                    className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive-text"
+                    title="Retirer le contributeur"
                   >
-                    <X className="h-3 w-3" />
-                  </button>
+                    <X aria-hidden />
+                  </Button>
                 )}
               </div>
             </div>
@@ -364,26 +309,31 @@ export function ArticleAttributionEditor({
       </div>
 
       <div className="relative">
-        <div className="flex items-center gap-2 rounded-lg border border-border/40 bg-background px-2.5 py-2">
-          <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-          <input
+        <InputGroup
+          size="sm"
+          left={<Search aria-hidden />}
+          right={isSearching ? <Loader2 className="animate-spin" aria-hidden /> : undefined}
+        >
+          <Input
             type="search"
+            size="sm"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Ajouter un contributeur..."
-            className="min-w-0 flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground/60"
+            aria-label="Rechercher un contributeur"
+            className="text-xs"
             data-testid="attribution-search"
           />
-          {isSearching && <span className="text-[10px] text-muted-foreground">Recherche…</span>}
-        </div>
+        </InputGroup>
         {results.length > 0 && (
-          <div className="absolute inset-x-0 top-full z-30 mt-1 overflow-hidden rounded-xl border border-border/50 bg-card p-1 shadow-xl">
+          <div className="absolute inset-x-0 top-full z-30 mt-1 overflow-hidden rounded-panel border border-border/50 bg-card p-1 shadow-xl">
             {results.map((person) => (
-              <button
+              <Button
                 key={person.userId}
-                type="button"
+                variant="ghost"
+                size="sm"
                 onClick={() => addContributor(person)}
-                className="flex w-full items-center gap-2 rounded-lg p-2 text-left hover:bg-muted"
+                className="h-auto w-full justify-start gap-2 whitespace-normal p-2 text-left"
               >
                 <Avatar person={person} />
                 <span className="min-w-0 flex-1">
@@ -394,7 +344,7 @@ export function ArticleAttributionEditor({
                     @{person.username || person.userId.slice(0, 8)}
                   </span>
                 </span>
-              </button>
+              </Button>
             ))}
           </div>
         )}
@@ -405,223 +355,12 @@ export function ArticleAttributionEditor({
         signature publique sans perdre la collaboration interne.
       </p>
 
-      {/* Modal de partage par lien */}
-      {showLinkModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="relative w-full max-w-lg rounded-2xl border border-border/50 bg-card p-6 shadow-2xl space-y-5 font-sans max-h-[90vh] overflow-y-auto">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-base font-bold text-foreground flex items-center gap-2">
-                  <Link2 className="h-4 w-4 text-primary" />
-                  Lien de collaboration
-                </h2>
-                <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
-                  Générez un lien d’invitation pour co-rédiger cet article. Les personnes disposant
-                  du lien peuvent rejoindre la co-rédaction sans renseigner d’adresse email.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowLinkModal(false);
-                  setLatestCreatedUrl(null);
-                }}
-                className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                aria-label="Fermer"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Formulaire de création */}
-            <div className="space-y-3 border-t border-border/40 pt-4">
-              <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
-                Créer un nouveau lien
-              </h3>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
-                <div>
-                  <label className="block text-[11px] font-medium text-muted-foreground mb-1">
-                    Rôle accordé
-                  </label>
-                  <Select
-                    label="Rôle accordé"
-                    hideLabel
-                    size="sm"
-                    value={linkRole}
-                    onValueChange={setLinkRole}
-                    options={[
-                      { id: 'CONTRIBUTOR', label: 'Contributeur' },
-                      { id: 'CO_AUTHOR', label: 'Co-auteur' },
-                      { id: 'EDITOR', label: 'Éditeur' },
-                    ]}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-medium text-muted-foreground mb-1">
-                    Durée de validité
-                  </label>
-                  <Select
-                    label="Durée de validité"
-                    hideLabel
-                    size="sm"
-                    value={String(linkExpiresIn)}
-                    onValueChange={(value) => setLinkExpiresIn(Number(value))}
-                    options={[
-                      { id: '24', label: '24 heures' },
-                      { id: '168', label: '7 jours' },
-                      { id: '720', label: '30 jours' },
-                      { id: '0', label: 'Permanent' },
-                    ]}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-medium text-muted-foreground mb-1">
-                    Utilisations max
-                  </label>
-                  <Select
-                    label="Utilisations max"
-                    hideLabel
-                    size="sm"
-                    value={String(linkMaxUses)}
-                    onValueChange={(value) => setLinkMaxUses(Number(value))}
-                    options={[
-                      { id: '1', label: '1 seule fois' },
-                      { id: '5', label: '5 utilisations' },
-                      { id: '10', label: '10 utilisations' },
-                      { id: '0', label: 'Illimité' },
-                    ]}
-                  />
-                </div>
-              </div>
-
-              <button
-                type="button"
-                disabled={creatingLink}
-                onClick={handleCreateLink}
-                className="w-full mt-1 flex items-center justify-center gap-2 rounded-lg bg-primary py-2 px-4 text-xs font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 transition-opacity"
-              >
-                {creatingLink ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Link2 className="h-3.5 w-3.5" />
-                )}
-                <span>Générer le lien d’invitation</span>
-              </button>
-            </div>
-
-            {/* Bannière du dernier lien créé */}
-            {latestCreatedUrl && (
-              <div className="space-y-1.5 rounded-lg bg-success/10 p-3 animate-in fade-in">
-                <div className="flex items-center justify-between text-xs font-semibold text-success-text">
-                  <span className="flex items-center gap-1.5">
-                    <Check className="h-3.5 w-3.5" />
-                    Lien prêt à être partagé.
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => copyToClipboard(latestCreatedUrl, 'latest')}
-                    className="flex items-center gap-1 rounded bg-success/20 px-2 py-0.5 text-[11px] font-medium text-success-text hover:bg-success/30 transition-colors"
-                  >
-                    {copiedId === 'latest' ? (
-                      <Check className="h-3 w-3" />
-                    ) : (
-                      <Copy className="h-3 w-3" />
-                    )}
-                    <span>{copiedId === 'latest' ? 'Copié.' : 'Copier'}</span>
-                  </button>
-                </div>
-                <input
-                  readOnly
-                  value={latestCreatedUrl}
-                  onFocus={(e) => e.target.select()}
-                  className="w-full rounded border border-success/20 bg-background/80 px-2.5 py-1 text-xs text-foreground font-sans focus:outline-none"
-                />
-              </div>
-            )}
-
-            {/* Liste des liens actifs */}
-            <div className="space-y-2 pt-2 border-t border-border/30">
-              <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                Liens actifs pour cet article
-              </h3>
-
-              {loadingLinks ? (
-                <div className="flex items-center justify-center py-6 text-xs text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Chargement des liens…
-                </div>
-              ) : links.length === 0 ? (
-                <p className="text-xs text-muted-foreground py-2 italic">
-                  Aucun lien actif généré pour cet article.
-                </p>
-              ) : (
-                <div className="divide-y divide-border/20 max-h-48 overflow-y-auto pr-1">
-                  {links.map((link) => {
-                    const joinUrl = `${window.location.origin}/collaborate/join?token=${link.token}`;
-                    return (
-                      <div
-                        key={link.id}
-                        className="py-2.5 flex items-center justify-between gap-3 text-xs"
-                      >
-                        <div className="min-w-0 flex-1 space-y-0.5">
-                          <div className="flex items-center gap-2">
-                            <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
-                              {link.role === 'CO_AUTHOR'
-                                ? 'Co-auteur'
-                                : link.role === 'EDITOR'
-                                  ? 'Éditeur'
-                                  : 'Contributeur'}
-                            </span>
-                            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                              <Clock className="h-3 w-3" />
-                              {link.expiresAt
-                                ? `Expire le ${formatExpiry(link.expiresAt)}`
-                                : 'Permanent'}
-                            </span>
-                            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                              <Users className="h-3 w-3" />
-                              {link.usedCount} / {link.maxUses > 0 ? link.maxUses : '∞'}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-muted-foreground truncate font-sans">
-                            {joinUrl}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => copyToClipboard(joinUrl, link.id)}
-                            className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                            aria-label="Copier le lien"
-                            title="Copier le lien"
-                          >
-                            {copiedId === link.id ? (
-                              <Check className="h-3.5 w-3.5 text-success-text" />
-                            ) : (
-                              <Copy className="h-3.5 w-3.5" />
-                            )}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleRevokeLink(link.id)}
-                            className="rounded p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive-text transition-colors"
-                            aria-label="Révoquer le lien"
-                            title="Révoquer le lien"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+      {articleId && (
+        <CollaborationInviteLinks
+          articleId={articleId}
+          open={showLinkModal}
+          onOpenChange={setShowLinkModal}
+        />
       )}
     </div>
   );
