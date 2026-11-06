@@ -12,6 +12,10 @@ import { COOKIE_CONSENT_COOKIE, analyticsAllowed, analyticsMode } from '@qoe/uti
 // =====================================================================
 
 export async function AnalyticsGate() {
+  // En développement, le script pointe vers l'Umami de production, qui rejette
+  // les pages locales (400) : on n'envoie pas de trafic de dev dans l'audience.
+  if (process.env.NODE_ENV === 'development') return null;
+
   const mode = analyticsMode();
   const store = await cookies();
   const raw = store.get(COOKIE_CONSENT_COOKIE)?.value;

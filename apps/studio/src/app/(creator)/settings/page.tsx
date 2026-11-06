@@ -8,11 +8,11 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
-import { Button } from '@qoe/ui/button';
 import { getActiveWorkspace } from '@/lib/active-workspace';
 import SettingsView from '@/features/settings/settings';
 import type { CreatorProfile } from '@/features/settings/types';
 import { StudioPage, StudioSection } from '@/components/studio-page';
+import { AccountLink } from './account-link';
 
 // Contrat Go GET /v1/settings/publication — mêmes champs JSON que le include
 // Prisma d'origine (le mapping vers CreatorProfile ci-dessous est inchangé).
@@ -180,9 +180,7 @@ export default async function CreatorSettingsPage() {
             Le mot de passe, l&apos;adresse e-mail, la double authentification et les sessions
             actives se gèrent depuis les paramètres du compte personnel.
           </p>
-          <Button asChild variant="outline" size="sm">
-            <a href="https://qoe.fi/settings">Gérer mon compte</a>
-          </Button>
+          <AccountLink />
         </div>
       </StudioSection>
     </StudioPage>

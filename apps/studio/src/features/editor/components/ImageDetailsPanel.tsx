@@ -21,24 +21,6 @@ export interface ImageDetailsPanelProps {
   onClose: () => void;
 }
 
-const FIELDS = [
-  {
-    key: 'alt',
-    label: t`Description (alt)`,
-    placeholder: t`Décrivez l'image pour les lecteurs d'écran`,
-  },
-  {
-    key: 'caption',
-    label: t`Légende`,
-    placeholder: t`Texte affiché sous l'image`,
-  },
-  {
-    key: 'credit',
-    label: t`Crédit photo`,
-    placeholder: t`Nom du photographe ou de l'agence`,
-  },
-] as const;
-
 /**
  * Détails d'une image insérée dans l'éditeur (alt, légende, crédit).
  *
@@ -54,6 +36,26 @@ export function ImageDetailsPanel({
   onSave,
   onClose,
 }: ImageDetailsPanelProps) {
+  // Les libellés sont évalués au rendu : `t` ne peut pas être appelé au
+  // chargement du module, avant que la locale soit activée.
+  const fields = [
+    {
+      key: 'alt',
+      label: t`Description (alt)`,
+      placeholder: t`Décrivez l'image pour les lecteurs d'écran`,
+    },
+    {
+      key: 'caption',
+      label: t`Légende`,
+      placeholder: t`Texte affiché sous l'image`,
+    },
+    {
+      key: 'credit',
+      label: t`Crédit photo`,
+      placeholder: t`Nom du photographe ou de l'agence`,
+    },
+  ] as const;
+
   return (
     <PopoverPanel open={open} onClose={onClose} label={t`Détails de l'image`} anchor={position}>
       <div className="flex items-center justify-between gap-2">
@@ -75,7 +77,7 @@ export function ImageDetailsPanel({
       </div>
 
       <div className="space-y-2">
-        {FIELDS.map((field, index) => (
+        {fields.map((field, index) => (
           <label key={field.key} className="block space-y-1">
             <span className="text-[10px] font-semibold tracking-wide text-muted-foreground uppercase">
               {field.label}
