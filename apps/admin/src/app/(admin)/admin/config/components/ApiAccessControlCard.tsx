@@ -90,8 +90,8 @@ export function ApiAccessControlCard({
         <h2 className="text-xl font-semibold">Contrôle d’accès global de l’API</h2>
         <p className="mt-2 text-sm text-muted-foreground max-w-2xl leading-relaxed">
           Coupure générale et désactivation d’endpoints, appliquées <strong>côté serveur</strong>{' '}
-          (clés <code className="font-mono text-xs">API_ACCESS_DISABLED</code> /{' '}
-          <code className="font-mono text-xs">API_DISABLED_ENDPOINTS</code>) : un flag client ne
+          (clés <code className="tabular-nums text-xs">API_ACCESS_DISABLED</code> /{' '}
+          <code className="tabular-nums text-xs">API_DISABLED_ENDPOINTS</code>) : un flag client ne
           bloquerait pas les requêtes directes. La console admin, l’IdP OAuth et les webhooks
           entrants infra restent toujours joignables.
         </p>
@@ -154,8 +154,8 @@ export function ApiAccessControlCard({
         </div>
         <p className="text-xs text-muted-foreground max-w-2xl leading-relaxed">
           Un préfixe couvre le chemin et tous ses sous-chemins (ex.{' '}
-          <code className="font-mono text-[11px]">/v1/articles</code> bloque{' '}
-          <code className="font-mono text-[11px]">/v1/articles/123</code>). Un endpoint désactivé
+          <code className="tabular-nums text-[11px]">/v1/articles</code> bloque{' '}
+          <code className="tabular-nums text-[11px]">/v1/articles/123</code>). Un endpoint désactivé
           répond 404 pour tout le monde (sauf console admin). Un par ligne.
         </p>
         <textarea
@@ -166,7 +166,7 @@ export function ApiAccessControlCard({
           }}
           rows={5}
           placeholder={'/v1/articles\n/v1/webhooks\n/v1/search/semantic'}
-          className="w-full max-w-2xl rounded-xl border border-border bg-muted/30 px-3 py-2.5 font-mono text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-muted-foreground/60"
+          className="w-full max-w-2xl rounded-xl border border-border bg-muted/30 px-3 py-2.5 tabular-nums text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-muted-foreground/60"
         />
         <div className="flex items-center gap-3">
           <button

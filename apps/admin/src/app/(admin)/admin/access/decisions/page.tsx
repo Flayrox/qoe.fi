@@ -128,10 +128,10 @@ export default async function AdminAccessDecisionsPage({ searchParams }: Decisio
             <TableBody items={denials}>
               {(group) => (
                 <TableRow id={`${group.capability}-${group.mode}-${group.code}`}>
-                  <TableCell className="font-mono text-[11px] font-semibold text-foreground">
+                  <TableCell className="tabular-nums text-[11px] font-semibold text-foreground">
                     {group.capability}
                   </TableCell>
-                  <TableCell className="font-mono text-[11px] text-muted-foreground">
+                  <TableCell className="tabular-nums text-[11px] text-muted-foreground">
                     {group.code}
                   </TableCell>
                   <TableCell>
@@ -178,16 +178,16 @@ export default async function AdminAccessDecisionsPage({ searchParams }: Decisio
                   </TableCell>
                   <TableCell>
                     <div className="font-medium text-foreground">{item.email || '—'}</div>
-                    <div className="font-mono text-[10px] text-muted-foreground">
+                    <div className="tabular-nums text-[10px] text-muted-foreground">
                       {item.userId ?? 'anonyme'}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <span className="font-mono text-[11px] text-foreground">
+                    <span className="tabular-nums text-[11px] text-foreground">
                       {item.method} {item.path}
                     </span>
                   </TableCell>
-                  <TableCell className="font-mono text-[11px]">
+                  <TableCell className="tabular-nums text-[11px]">
                     {item.capability}
                     {item.proofLevel ? (
                       <Badge variant="soft" tone="neutral" size="xs" className="ml-1 font-sans">
@@ -206,7 +206,7 @@ export default async function AdminAccessDecisionsPage({ searchParams }: Decisio
                       {item.allowed ? 'accordé' : item.mode === 'enforce' ? 'refusé' : 'observé'}
                     </Badge>
                     {!item.allowed && (
-                      <div className="mt-1 font-mono text-[10px] text-muted-foreground">
+                      <div className="mt-1 tabular-nums text-[10px] text-muted-foreground">
                         {item.code}
                       </div>
                     )}

@@ -103,7 +103,7 @@ export default async function AdminStoragePage() {
                 const share = usage.totalBytes > 0 ? (user.totalBytes / usage.totalBytes) * 100 : 0;
                 return (
                   <TableRow id={user.ownerId}>
-                    <TableCell className="font-mono text-[11px] text-foreground">
+                    <TableCell className="tabular-nums text-[11px] text-foreground">
                       {user.ownerId}
                     </TableCell>
                     <TableCell>{user.assetCount.toLocaleString('fr-FR')}</TableCell>

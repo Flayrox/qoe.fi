@@ -74,8 +74,8 @@ export function AuthMethodsToggles({ initialValue }: { initialValue?: string }) 
           <h2 className="text-xl font-semibold">Méthodes de connexion</h2>
           <p className="mt-2 text-sm text-muted-foreground">
             Active / désactive chaque méthode du formulaire de login (clé{' '}
-            <code className="font-mono text-xs">AUTH_METHODS</code>). Google est en phase de test :
-            coupez-le ici tant qu'il n'est pas opérationnel.
+            <code className="tabular-nums text-xs">AUTH_METHODS</code>). Google est en phase de test
+            : coupez-le ici tant qu'il n'est pas opérationnel.
           </p>
         </div>
         <button

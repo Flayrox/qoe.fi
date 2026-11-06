@@ -102,7 +102,7 @@ export function ApprovalsQueue({ initialItems, currentUserId }: ApprovalsQueuePr
             {APPROVAL_STATUS_LABELS[item.status] ?? item.status}
           </StatusPill>
           <span className="text-xs font-semibold">{APPROVAL_ACT_LABELS[item.act] ?? item.act}</span>
-          <code className="text-[11px] font-mono text-muted-foreground truncate">
+          <code className="text-[11px] tabular-nums text-muted-foreground truncate">
             {item.target || 'sans cible'}
           </code>
           {mine && stillOpen && (

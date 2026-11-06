@@ -108,7 +108,7 @@ export function AccessGrantsTable({ grants, query, canGrant }: AccessGrantsTable
                   </TableCell>
                   <TableCell>
                     <div className="font-medium text-foreground">{grant.roleLabel}</div>
-                    <div className="font-mono text-[11px] text-muted-foreground">
+                    <div className="tabular-nums text-[11px] text-muted-foreground">
                       {grant.roleKey}
                     </div>
                   </TableCell>

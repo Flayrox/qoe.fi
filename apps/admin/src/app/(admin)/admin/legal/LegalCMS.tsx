@@ -576,7 +576,7 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
                       )}
                     </div>
                     <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                      <span className="font-mono">{doc.slug}</span>
+                      <span className="tabular-nums">{doc.slug}</span>
                       <span>·</span>
                       <span>{CATEGORY_LABELS[doc.category] ?? doc.category}</span>
                       {!doc.isActive && (
@@ -640,7 +640,7 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
                     <ul className="mt-2 space-y-1 text-xs text-highlight">
                       {selectedPlaceholders.map((p) => (
                         <li key={p.token}>
-                          <code className="rounded bg-highlight/15 px-1.5 py-0.5 font-mono font-semibold">
+                          <code className="rounded bg-highlight/15 px-1.5 py-0.5 tabular-nums font-semibold">
                             {p.token}
                           </code>{' '}
                           — {p.count} occurrence(s), ligne {p.line}
@@ -840,7 +840,9 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
               <TableBody items={stats}>
                 {(item) => (
                   <TableRow id={item.id}>
-                    <TableCell className="font-mono text-xs text-foreground">{item.slug}</TableCell>
+                    <TableCell className="tabular-nums text-xs text-foreground">
+                      {item.slug}
+                    </TableCell>
                     <TableCell>
                       {item.requiresAcceptance ? (
                         <Badge variant="soft" tone="vivid" size="xs">
@@ -883,7 +885,7 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
                     <TableCell className="text-xs text-muted-foreground">
                       {formatDate(row.acceptedAt)}
                     </TableCell>
-                    <TableCell className="font-mono text-xs text-foreground">
+                    <TableCell className="tabular-nums text-xs text-foreground">
                       {row.documentSlug ?? row.documentId}
                     </TableCell>
                     <TableCell className="text-xs text-foreground">
@@ -895,7 +897,7 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
                     <TableCell className="text-xs text-muted-foreground">
                       {row.source} / {row.method}
                     </TableCell>
-                    <TableCell className="font-mono text-[11px] text-muted-foreground">
+                    <TableCell className="tabular-nums text-[11px] text-muted-foreground">
                       {row.ip ?? '—'}
                     </TableCell>
                   </TableRow>
@@ -1165,7 +1167,7 @@ function VersionEditorModal({
               disabled={isEdit}
               onChange={(e) => onChange({ ...draft, version: e.target.value })}
               placeholder="1.1.0"
-              className="font-mono"
+              className="tabular-nums"
             />
           </label>
 
@@ -1231,7 +1233,7 @@ function VersionEditorModal({
                 value={draft.body}
                 onChange={(e) => onChange({ ...draft, body: e.target.value })}
                 rows={18}
-                className="font-mono text-[12px] leading-relaxed"
+                className="tabular-nums text-[12px] leading-relaxed"
               />
             )}
           </div>
@@ -1309,7 +1311,7 @@ function NewDocumentModal({ pending, onClose, onCreate }: NewDocumentModalProps)
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
               placeholder="politique-remboursement"
-              className="font-mono"
+              className="tabular-nums"
             />
           </label>
           <label className="space-y-1.5">
@@ -1358,7 +1360,7 @@ function NewDocumentModal({ pending, onClose, onCreate }: NewDocumentModalProps)
               value={body}
               onChange={(e) => setBody(e.target.value)}
               rows={10}
-              className="font-mono text-[12px]"
+              className="tabular-nums text-[12px]"
             />
           </label>
           <div

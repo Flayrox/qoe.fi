@@ -246,7 +246,7 @@ export default async function AdminConfig() {
                   name="values"
                   defaultValue={values.join('\\n')}
                   rows={8}
-                  className="w-full rounded-lg border border-border bg-transparent px-3 py-2 font-mono text-sm"
+                  className="w-full rounded-lg border border-border bg-transparent px-3 py-2 tabular-nums text-sm"
                   aria-label={`${label} protégés`}
                 />
               </label>
@@ -275,7 +275,9 @@ export default async function AdminConfig() {
           <TableBody items={configs} emptyState="No configuration defined.">
             {(c) => (
               <TableRow key={c.key} id={c.key} className="group">
-                <TableCell className="font-mono text-xs text-muted-foreground">{c.key}</TableCell>
+                <TableCell className="tabular-nums text-xs text-muted-foreground">
+                  {c.key}
+                </TableCell>
                 <TableCell>
                   <form id={`form-val-${c.key}`} action={handleUpdateConfig}>
                     <input type="hidden" name="key" value={c.key} />
@@ -283,7 +285,7 @@ export default async function AdminConfig() {
                       name="value"
                       defaultValue={c.value}
                       rows={c.value.length > 80 || c.value.includes('\n') ? 3 : 1}
-                      className="w-full bg-transparent border border-border/50 px-2 py-1 text-xs text-foreground focus:ring-1 focus:ring-ring resize-y shadow-none font-mono rounded outline-none"
+                      className="w-full bg-transparent border border-border/50 px-2 py-1 text-xs text-foreground focus:ring-1 focus:ring-ring resize-y shadow-none tabular-nums rounded outline-none"
                     />
                   </form>
                 </TableCell>

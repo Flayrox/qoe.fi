@@ -354,7 +354,7 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
               >
                 <div className="space-y-1.5 max-w-xl">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-mono text-xs font-bold text-foreground bg-white px-2 py-0.5 rounded-md border border-border shadow-2xs">
+                    <span className="tabular-nums text-xs font-bold text-foreground bg-white px-2 py-0.5 rounded-md border border-border shadow-2xs">
                       {p.slot}
                     </span>
                     <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">

@@ -58,7 +58,7 @@ export default async function AdminAuditPage({ searchParams }: AuditPageProps) {
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
           Qui a fait quoi, sous quelle capacité, avec quel motif — et à quelle heure. Les mouvements
           de droits sont tracés même quand le flag{' '}
-          <span className="font-mono text-xs">admin-audit-log</span> est éteint : une trace
+          <span className="tabular-nums text-xs">admin-audit-log</span> est éteint : une trace
           optionnelle n&apos;est pas une trace.{' '}
           <Link href="/admin/access/decisions" className="underline">
             Voir les décisions d&apos;autorisation et les refus

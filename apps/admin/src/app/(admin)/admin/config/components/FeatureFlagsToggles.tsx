@@ -182,7 +182,7 @@ export function FeatureFlagsToggles({ initialFlags }: { initialFlags: FeatureFla
             >
               <div className="space-y-2">
                 <div className="flex items-start justify-between gap-2">
-                  <span className="font-mono text-xs font-bold text-foreground bg-muted/60 px-2 py-0.5 rounded break-all">
+                  <span className="tabular-nums text-xs font-bold text-foreground bg-muted/60 px-2 py-0.5 rounded break-all">
                     {flag.key}
                   </span>
                   <span
@@ -207,7 +207,7 @@ export function FeatureFlagsToggles({ initialFlags }: { initialFlags: FeatureFla
                   <span className="text-[10px] uppercase font-bold text-muted-foreground">
                     Rôle :
                   </span>
-                  <span className="text-[11px] font-mono text-muted-foreground">
+                  <span className="text-[11px] tabular-nums text-muted-foreground">
                     {flag.target_roles?.join(', ') || 'all'}
                   </span>
                 </div>

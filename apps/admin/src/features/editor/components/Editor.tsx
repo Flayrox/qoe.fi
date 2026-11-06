@@ -389,7 +389,7 @@ export function Editor({
       </div>
 
       {error && (
-        <div className="bg-destructive/30 border border-destructive/50 text-destructive-text p-4 font-mono text-xs rounded-lg">
+        <div className="bg-destructive/30 border border-destructive/50 text-destructive-text p-4 tabular-nums text-xs rounded-lg">
           {error}
         </div>
       )}
@@ -420,7 +420,7 @@ export function Editor({
               value={slug}
               onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-'))}
               placeholder="e.g. sovereign-manifesto"
-              className="w-full bg-muted/10 border border-border rounded-lg p-3 text-sm font-mono text-muted-foreground focus:outline-none focus:border-foreground focus:text-foreground transition-colors"
+              className="w-full bg-muted/10 border border-border rounded-lg p-3 text-sm tabular-nums text-muted-foreground focus:outline-none focus:border-foreground focus:text-foreground transition-colors"
             />
           </div>
         </div>

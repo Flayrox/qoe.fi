@@ -4,6 +4,7 @@ import { getAdminIdentity, hasCapability, requireCapability } from '@/lib/admin-
 import { getAdminFeatures } from '@/lib/admin-data';
 import { updateFeatureAction } from '@/lib/admin-feature-actions';
 import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
+import { Select } from '@qoe/ui/select';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,7 +31,7 @@ export default async function AdminFeaturesPage() {
 
       {!canWrite && (
         <p className="text-xs text-muted-foreground">
-          Lecture seule : <span className="font-mono">admin.flags.write</span> est requis pour
+          Lecture seule : <span className="tabular-nums">admin.flags.write</span> est requis pour
           modifier le registre.
         </p>
       )}
@@ -49,28 +50,25 @@ export default async function AdminFeaturesPage() {
             >
               <input type="hidden" name="key" value={feature.key} />
               <div>
-                <p className="font-mono text-xs text-muted-foreground">{feature.key}</p>
+                <p className="tabular-nums text-xs text-muted-foreground">{feature.key}</p>
                 <p className="mt-1 text-sm font-semibold">
                   {feature.interested} personne{feature.interested === 1 ? '' : 's'} intéressée
                   {feature.interested === 1 ? '' : 's'}
                 </p>
               </div>
 
-              <label className="text-[11px] text-muted-foreground space-y-1">
-                Statut
-                <select
+              <div className="space-y-1">
+                <span className="text-[11px] text-muted-foreground">Statut</span>
+                <Select
+                  label="Statut"
+                  hideLabel
+                  size="xs"
                   name="status"
                   defaultValue={feature.status}
                   disabled={!canWrite}
-                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs"
-                >
-                  {STATUSES.map((status) => (
-                    <option key={status} value={status}>
-                      {status}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  options={STATUSES.map((status) => ({ id: status, label: status }))}
+                />
+              </div>
 
               <div className="space-y-2">
                 <label className="text-[11px] text-muted-foreground space-y-1 block">

@@ -242,7 +242,7 @@ export function ApiRequestsClient({ initialApplicants, modules }: ApiRequestsCli
                     <span className="font-bold text-foreground block">
                       {app.name || 'Créateur Sans Nom'}
                     </span>
-                    <span className="text-[11px] text-muted-foreground block font-mono">
+                    <span className="text-[11px] text-muted-foreground block tabular-nums">
                       {app.email}
                     </span>
                   </div>
@@ -255,7 +255,7 @@ export function ApiRequestsClient({ initialApplicants, modules }: ApiRequestsCli
                       href={`https://${app.subdomain}.qoe.fi`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="font-mono text-muted-foreground hover:text-primary hover:underline inline-flex items-center gap-1"
+                      className="tabular-nums text-muted-foreground hover:text-primary hover:underline inline-flex items-center gap-1"
                     >
                       {app.subdomain}.qoe.fi
                       <ExternalLink className="w-3 h-3 text-muted-foreground" />
@@ -270,7 +270,7 @@ export function ApiRequestsClient({ initialApplicants, modules }: ApiRequestsCli
                   {app.apiApplicationReason ? (
                     <div className="space-y-1">
                       <p
-                        className={`text-muted-foreground leading-relaxed font-mono text-[11px] ${
+                        className={`text-muted-foreground leading-relaxed tabular-nums text-[11px] ${
                           expandedReasonId === app.id ? '' : 'line-clamp-2'
                         }`}
                       >

@@ -122,8 +122,8 @@ export function CampaignManager({ initialCampaigns, canWrite }: CampaignManagerP
 
       {!canWrite && (
         <p className="text-xs text-muted-foreground" data-testid="campaign-readonly">
-          Lecture seule : la capacité <span className="font-mono">admin.campaigns.write</span> est
-          requise pour créer ou faire avancer une campagne.
+          Lecture seule : la capacité <span className="tabular-nums">admin.campaigns.write</span>{' '}
+          est requise pour créer ou faire avancer une campagne.
         </p>
       )}
 
@@ -239,7 +239,9 @@ export function CampaignManager({ initialCampaigns, canWrite }: CampaignManagerP
                     {statusLabels[campaign.status] ?? campaign.status}
                   </StatusPill>
                 </div>
-                <span className="font-mono text-[10px] text-muted-foreground">{campaign.id}</span>
+                <span className="tabular-nums text-[10px] text-muted-foreground">
+                  {campaign.id}
+                </span>
               </div>
               <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
                 {' '}
@@ -247,7 +249,7 @@ export function CampaignManager({ initialCampaigns, canWrite }: CampaignManagerP
                 {campaign.featureKey ? <span>feature : {campaign.featureKey}</span> : null}
                 <span>audience : {campaign.audienceType}</span>
                 {campaign.audiencePublicationId ? (
-                  <span className="font-mono">{campaign.audiencePublicationId}</span>
+                  <span className="tabular-nums">{campaign.audiencePublicationId}</span>
                 ) : null}
                 <span>envoyés : {campaign.sentCount}</span>
                 <span>échecs : {campaign.failedCount}</span>

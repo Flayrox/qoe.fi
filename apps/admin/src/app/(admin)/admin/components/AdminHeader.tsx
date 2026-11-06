@@ -81,7 +81,7 @@ export function AdminHeader({ user, roles = [], environment = 'production' }: Ad
         >
           <Search className="size-3.5" aria-hidden />
           <span className="hidden sm:inline">Rechercher</span>
-          <kbd className="hidden rounded border border-border bg-muted px-1 font-mono text-[10px] sm:inline">
+          <kbd className="hidden rounded border border-border bg-muted px-1 tabular-nums text-[10px] sm:inline">
             ⌘K
           </kbd>
         </button>

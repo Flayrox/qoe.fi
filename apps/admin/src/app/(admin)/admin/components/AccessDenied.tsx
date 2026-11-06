@@ -62,7 +62,7 @@ export function AccessDenied({
         {missing.length > 0 ? (
           <ul className="mt-3 flex flex-col gap-2" data-testid="admin-access-denied-missing">
             {missing.map((capability) => (
-              <li key={capability} className="font-mono text-xs text-foreground">
+              <li key={capability} className="tabular-nums text-xs text-foreground">
                 {describeCapability(capability)}
               </li>
             ))}
@@ -96,7 +96,7 @@ export function AccessDenied({
 
       <p className="text-xs text-muted-foreground">
         Demandez l’attribution depuis l’écran « Accès staff » (capacité&nbsp;
-        <span className="font-mono">admin.access.grant</span>) à une personne qui la détient : le
+        <span className="tabular-nums">admin.access.grant</span>) à une personne qui la détient : le
         motif de l’attribution est enregistré.{' '}
         <Link href="/admin" className="underline">
           Revenir à l’accueil

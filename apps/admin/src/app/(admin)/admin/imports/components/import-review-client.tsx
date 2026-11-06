@@ -149,7 +149,7 @@ export function ImportReviewClient({ initial }: { initial: ImportReview }) {
           <KV
             label="Version du fichier"
             value={
-              <span className="font-mono text-xs">
+              <span className="tabular-nums text-xs">
                 v{batch.fileVersion} · {batch.fileFingerprint?.slice(0, 12) ?? '—'}…
               </span>
             }
@@ -182,7 +182,7 @@ export function ImportReviewClient({ initial }: { initial: ImportReview }) {
             >
               {(row) => (
                 <TableRow id={row.id}>
-                  <TableCell className="font-mono">{row.email}</TableCell>
+                  <TableCell className="tabular-nums">{row.email}</TableCell>
                   <TableCell>{ROW_STATUS_LABELS[row.status] ?? row.status}</TableCell>
                   <TableCell className="text-muted-foreground">{row.reason ?? '—'}</TableCell>
                 </TableRow>
@@ -200,7 +200,7 @@ export function ImportReviewClient({ initial }: { initial: ImportReview }) {
           <KV
             label="Déclarations"
             value={
-              <span className="font-mono text-xs">
+              <span className="tabular-nums text-xs">
                 {JSON.stringify(initial.declarations ?? {})}
               </span>
             }
@@ -212,7 +212,7 @@ export function ImportReviewClient({ initial }: { initial: ImportReview }) {
             }
           />
         </div>
-        <pre className="overflow-x-auto rounded-xl bg-muted/40 p-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
+        <pre className="overflow-x-auto rounded-xl bg-muted/40 p-3 tabular-nums text-[11px] leading-relaxed text-muted-foreground">
           {JSON.stringify(initial.signals ?? {}, null, 2)}
         </pre>
       </Section>
@@ -309,7 +309,7 @@ export function ImportReviewClient({ initial }: { initial: ImportReview }) {
                 onChange={(e) => setFileVersion(e.target.value)}
                 inputMode="numeric"
                 size="sm"
-                className="font-mono"
+                className="tabular-nums"
               />
             </label>
             <label className="space-y-1 text-xs">
@@ -318,7 +318,7 @@ export function ImportReviewClient({ initial }: { initial: ImportReview }) {
                 value={fileFingerprint}
                 onChange={(e) => setFileFingerprint(e.target.value)}
                 size="sm"
-                className="font-mono"
+                className="tabular-nums"
               />
             </label>
             <label className="space-y-1 text-xs">
@@ -351,7 +351,7 @@ export function ImportReviewClient({ initial }: { initial: ImportReview }) {
                 onChange={(e) => setExcludeEmails(e.target.value)}
                 rows={2}
                 size="sm"
-                className="font-mono"
+                className="tabular-nums"
               />
             </label>
           </div>
@@ -402,7 +402,7 @@ export function ImportReviewClient({ initial }: { initial: ImportReview }) {
                     expirés {w.expiredCount} · ignorés {w.skippedCount}
                   </span>
                 </p>
-                <p className="mt-1 font-mono text-[11px] text-muted-foreground">{w.id}</p>
+                <p className="mt-1 tabular-nums text-[11px] text-muted-foreground">{w.id}</p>
               </div>
             ))}
           </div>
@@ -460,7 +460,7 @@ export function ImportReviewClient({ initial }: { initial: ImportReview }) {
                     · désinscriptions {w.unsubscribeCount} · ignorés {w.skippedCount}
                   </span>
                 </p>
-                <p className="mt-1 font-mono text-[11px] text-muted-foreground">{w.id}</p>
+                <p className="mt-1 tabular-nums text-[11px] text-muted-foreground">{w.id}</p>
                 {(w.status === 'queued' || w.status === 'sending' || w.status === 'paused') && (
                   <Button
                     type="button"
@@ -510,9 +510,10 @@ export function ImportReviewClient({ initial }: { initial: ImportReview }) {
           </Button>
         </div>
         <p className="text-[11px] leading-relaxed text-muted-foreground">
-          Réservé aux lots <span className="font-mono">approved_direct</span> avec preuves solides.
-          Le budget est atomique (aucun dépassement même en concurrence), chaque envoi revérifie
-          opposition et suspension, et la vague se suspend seule sur seuils (rejets durs, plaintes).
+          Réservé aux lots <span className="tabular-nums">approved_direct</span> avec preuves
+          solides. Le budget est atomique (aucun dépassement même en concurrence), chaque envoi
+          revérifie opposition et suspension, et la vague se suspend seule sur seuils (rejets durs,
+          plaintes).
         </p>
       </Section>
 
@@ -523,7 +524,7 @@ export function ImportReviewClient({ initial }: { initial: ImportReview }) {
         ) : (
           <div className="space-y-1.5">
             {initial.events.map((e, i) => (
-              <p key={i} className="font-mono text-[11px] text-muted-foreground">
+              <p key={i} className="tabular-nums text-[11px] text-muted-foreground">
                 {e.createdAt} · {e.actorKind} · {e.type}
               </p>
             ))}

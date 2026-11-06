@@ -417,7 +417,7 @@ function TotpEnrollment({
 
       {secret && (
         <div className="flex items-center justify-between gap-2 rounded-xl bg-muted/40 px-3 py-2">
-          <code className="truncate font-mono text-xs">{secret}</code>
+          <code className="truncate tabular-nums text-xs">{secret}</code>
           <Button
             type="button"
             variant="ghost"

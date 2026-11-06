@@ -70,7 +70,7 @@ export function AccessGrantForm({ people, roles, canGrant }: AccessGrantFormProp
       {!canGrant && (
         <p className="text-xs text-muted-foreground" data-testid="access-grant-readonly">
           Vous pouvez lire les attributions, pas les modifier : la capacité{' '}
-          <span className="font-mono">admin.access.grant</span> est requise.
+          <span className="tabular-nums">admin.access.grant</span> est requise.
         </p>
       )}
 
