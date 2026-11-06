@@ -76,6 +76,13 @@ export const ADMIN_ACTIONS: readonly AdminActionShortcut[] = [
     keywords: 'dsar effacement oubli purge rgpd article 17 donnees',
   },
   {
+    id: 'compliance-retention',
+    label: 'Rétention des données & Purge planifiée',
+    href: '/admin/retention',
+    capability: 'admin.compliance.read',
+    keywords: 'retention purge donnees conservation peremption tables rgpd',
+  },
+  {
     id: 'toggle-flag',
     label: 'Basculer un feature flag',
     href: '/admin/config',

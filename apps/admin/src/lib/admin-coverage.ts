@@ -166,6 +166,9 @@ export const ADMIN_ROUTE_COVERAGE: Record<string, AdminRouteCoverage> = {
   'POST /v1/admin/legal/reviews/{reviewID}/dismiss': via('/admin/legal'),
   // Conformité : preuves de consentement, cookies, avis, exports et demandes RGPD.
   'GET /v1/admin/compliance/deletion-requests': via('/admin/compliance'),
+  'GET /v1/admin/compliance/retention': via('/admin/retention'),
+  'POST /v1/admin/compliance/retention/purge': via('/admin/retention'),
+  'GET /v1/admin/compliance/retention/journal': via('/admin/retention'),
   'GET /v1/admin/legal/compliance': via('/admin/compliance'),
   'GET /v1/admin/legal/acceptances': via('/admin/compliance'),
   'GET /v1/admin/legal/consent-exports': via('/admin/compliance'),

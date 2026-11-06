@@ -12,7 +12,7 @@ import { revalidatePath } from 'next/cache';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { authzTrailers } from '@/lib/action-result';
 import { assertCapability } from '@/lib/admin-identity';
-import type { DeletionRequestItem, ErasureReceipt } from '@/lib/admin-data';
+import type { DeletionRequestItem, ErasureReceipt, RetentionPurgeSummary } from '@/lib/admin-data';
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
@@ -104,5 +104,41 @@ export async function listDeletionRequestsAction(): Promise<DeletionRequestItem[
     return data.items ?? [];
   } catch {
     return [];
+  }
+}
+
+/** 🧹 Exécute ou simule la purge de rétention par table ou globale. */
+export async function runRetentionPurgeAction(
+  table?: string,
+  dryRun?: boolean
+): Promise<
+  | { success: true; summary: RetentionPurgeSummary }
+  | { success: false; error: string; challengeToken?: string; challengeFactor?: string }
+> {
+  await assertCapability('admin.compliance.export');
+
+  try {
+    const summary = await goFetch<RetentionPurgeSummary>('/v1/admin/compliance/retention/purge', {
+      method: 'POST',
+      body: {
+        table: table?.trim() || undefined,
+        dryRun: Boolean(dryRun),
+      },
+    });
+
+    revalidatePath('/admin/retention');
+    revalidatePath('/admin/compliance');
+
+    return {
+      success: true,
+      summary,
+    };
+  } catch (error: unknown) {
+    console.error('runRetentionPurgeAction error:', error);
+    return {
+      success: false,
+      error: errorMessage(error, 'Purge de rétention impossible'),
+      ...authzTrailers(error),
+    };
   }
 }

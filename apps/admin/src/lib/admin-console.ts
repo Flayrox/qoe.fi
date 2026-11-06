@@ -336,6 +336,13 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
     description: 'Saturation du bucket images et principaux consommateurs',
   },
   {
+    href: '/admin/retention',
+    label: 'Rétention & Purge',
+    capability: 'admin.compliance.read',
+    alsoUses: ['admin.compliance.export'],
+    description: 'Politiques de conservation par table, purge planifiée et journal d’audit',
+  },
+  {
     href: '/admin/api',
     label: 'Demandes d’API',
     capability: 'admin.api.read',

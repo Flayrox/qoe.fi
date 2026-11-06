@@ -812,6 +812,71 @@ export async function getAdminDeletionRequests(): Promise<DeletionRequestItem[]>
   }
 }
 
+// ─── Rétention des données par table & Purge planifiée ───────────────
+
+export interface RetentionPolicyRow {
+  table: string;
+  label: string;
+  purpose: string;
+  legalBasis: string;
+  retentionPeriod: string;
+  purgeRule: string;
+  totalRows: number;
+  expiredRows: number;
+  lastPurgeAt?: string | null;
+  isProtected: boolean;
+}
+
+export interface TablePurgeResultRow {
+  table: string;
+  deletedRows: number;
+  durationMs: number;
+  status: string;
+  error?: string;
+}
+
+export interface RetentionPurgeSummary {
+  purgedAt: string;
+  dryRun: boolean;
+  totalDeleted: number;
+  totalDurationMs: number;
+  results: TablePurgeResultRow[];
+}
+
+export interface RetentionJournalEntry {
+  id: string;
+  actorId: string;
+  actorEmail: string;
+  table: string;
+  deleted: number;
+  durationMs: number;
+  dryRun: boolean;
+  createdAt: string;
+  metadata?: Record<string, unknown>;
+}
+
+/** 🛡️ Liste des politiques de rétention par table et métriques de lignes périmées. */
+export async function getAdminRetentionPolicies(): Promise<RetentionPolicyRow[]> {
+  try {
+    const data = await goFetch<{ items: RetentionPolicyRow[] }>('/v1/admin/compliance/retention');
+    return data.items ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/** 📜 Journal des purges de rétention exécutées sur la plateforme. */
+export async function getAdminRetentionJournal(limit = 50): Promise<RetentionJournalEntry[]> {
+  try {
+    const data = await goFetch<{ items: RetentionJournalEntry[] }>(
+      `/v1/admin/compliance/retention/journal?limit=${limit}`
+    );
+    return data.items ?? [];
+  } catch {
+    return [];
+  }
+}
+
 // ─── Cycle de vie légal ──────────────────────────────────────────────
 
 /** Une revue périodique suivie par la console. */
