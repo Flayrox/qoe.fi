@@ -37,6 +37,7 @@ export const ADMIN_ROUTE_COVERAGE: Record<string, AdminRouteCoverage> = {
   'GET /v1/admin/storage/usage': via('/admin/storage'),
   'GET /v1/admin/health': via('/admin/health'),
   'GET /v1/admin/audit-log': via('/admin/audit'),
+  'POST /v1/admin/audit/signed-export': via('/admin/audit'),
   'GET /v1/admin/access/decisions': via('/admin/access/decisions'),
 
   // ── Modération ────────────────────────────────────────────────────────
@@ -75,6 +76,7 @@ export const ADMIN_ROUTE_COVERAGE: Record<string, AdminRouteCoverage> = {
   'GET /v1/admin/subscriptions/grants': via('/admin/subscriptions'),
   'POST /v1/admin/subscriptions/grants': via('/admin/subscriptions'),
   'POST /v1/admin/subscriptions/grants/{id}/revoke': via('/admin/subscriptions'),
+  'POST /v1/admin/subscribers/signed-export': via('/admin/subscriptions'),
   // Le palier email Pro vise UNE publication connue par son identifiant. L'API
   // n'expose aucune route de liste des publications et la fiche d'un compte ne
   // porte pas l'état courant : afficher une bascule sans son état serait un
@@ -174,6 +176,7 @@ export const ADMIN_ROUTE_COVERAGE: Record<string, AdminRouteCoverage> = {
   'GET /v1/admin/legal/consent-exports': via('/admin/compliance'),
   'GET /v1/admin/legal/consent-exports/verify': via('/admin/compliance'),
   'POST /v1/admin/legal/consent-exports': via('/admin/compliance'),
+  'POST /v1/admin/compliance/exports/verify': via('/admin/compliance'),
   'GET /v1/admin/legal/cookie-consents': via('/admin/compliance'),
   'GET /v1/admin/legal/notices': via('/admin/compliance'),
   // Doubles validations : la file des actes N3 et leur décision.

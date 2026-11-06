@@ -553,6 +553,9 @@ func (s *Service) ListApiApplicants(ctx context.Context, userID string) ([]Admin
 // bloquant). L'audit des mutations est TOUJOURS actif : le flag
 // admin-audit-log ne peut plus rendre une action sensible invisible.
 func (s *Service) logAudit(ctx context.Context, actorID, action, targetType, targetID string, metadata any) {
+	if s == nil || s.q == nil {
+		return
+	}
 	var actorUUID pgtype.UUID
 	if err := actorUUID.Scan(actorID); err != nil {
 		return

@@ -142,3 +142,39 @@ export async function runRetentionPurgeAction(
     };
   }
 }
+
+export interface SignedExportVerification {
+  isValid: boolean;
+  scope?: string;
+  algorithm?: string;
+  keyId?: string;
+  generatedAt?: string;
+  error?: string;
+}
+
+/** 🔍 Contrôle universel d'un document d'export signé Ed25519 (audit, abonnés, consentements). */
+export async function verifySignedExportAction(
+  rawJson: string
+): Promise<
+  | { success: true; result: SignedExportVerification }
+  | { success: false; error: string }
+> {
+  await assertCapability('admin.compliance.read');
+
+  try {
+    const parsed = JSON.parse(rawJson);
+    const result = await goFetch<SignedExportVerification>(
+      '/v1/admin/compliance/exports/verify',
+      {
+        method: 'POST',
+        body: parsed,
+      }
+    );
+    return { success: true, result };
+  } catch (error: unknown) {
+    return {
+      success: false,
+      error: errorMessage(error, 'Vérification cryptographique impossible'),
+    };
+  }
+}
