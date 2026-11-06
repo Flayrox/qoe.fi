@@ -8,7 +8,7 @@
 > [« 📝 Instructions »](#-instructions) en bas. Elle est prioritaire sur le
 > reste du plan.
 
-Dernière mise à jour : 2026-11-06 · branche `dev` · travail non poussé · dernier commit `0d6b8df2`.
+Dernière mise à jour : 2026-11-06 · branche `dev` · travail non poussé · dernier commit `b251703e` (Lot D6 terminé, Lot D complet).
 
 ---
 
@@ -76,6 +76,12 @@ Commits du chantier :
 | `a93815b6` | Verrouillage parité Go ↔ TS des campagnes staff (C7) : test direct sur `staff_campaigns.go` (types et audiences) |
 | `45047022` | Explorateur interactif des réglages (`/admin/settings`) (C2) : DataGrid 26 px, Drawer 480 px, facettes mes droits/catégorie/portée |
 | `0d6b8df2` | Routes Go manquantes (C6) : flags (`admin.flags.write`) et annonce globale (`admin.campaigns.write` + N2, fin de `verifySuperadmin`), audit inconditionnel |
+| `6c282740` | DSAR (D1) : export et effacement par personne, attestation SHA-256 scellée, compte à rebours 30j |
+| `83347e5a` | Rétention (D2) : politiques par table, purge planifiée avec garde `AdminAuditLog`, journal audité |
+| `51a06890` | Exports signés (D3) : Ed25519 multi-registres (audit, abonnés), vérificateur universel, streaming Next.js |
+| `d0c32587` | SLO + alertes (D4) : santé 4 surfaces (latence, budget erreur, outbox, dérive goose v73), console `/admin/health` |
+| `14192b02` | Outbox observable (D5) : profondeur, verrous fantômes >10m, reprise en masse, actions groupées |
+| `b251703e` | Bac à sable (D6) : 5 scénarios de seed isolés, impersonation auditée, step-up N2, console `/admin/sandbox` |
 
 ## 4. Ce qui existe (surface actuelle)
 
@@ -195,7 +201,12 @@ Commits du chantier :
       `GET /v1/admin/outbox/metrics`, `POST /v1/admin/outbox/retry-all`,
       `POST /v1/admin/outbox/unlock-stuck`, `POST /v1/admin/outbox/batch-retry`,
       détection des verrous fantômes, action groupée `DataGrid`, audit inconditionnel).
-- [ ] **D6. Bac à sable** : seeds et impersonation pour tester sans production.
+- [x] **D6. Bac à sable** : seeds et impersonation pour tester sans production
+      (commit `b251703e`, `sandbox.go`, `sandbox_test.go`, `SandboxConsole.tsx`,
+      `GET /v1/admin/sandbox/scenarios`, `POST /v1/admin/sandbox/seed`,
+      `POST /v1/admin/sandbox/impersonate`, step-up N2, audit inconditionnel
+      `sandbox.seed_scenario` et `impersonation.start`, navigation `/admin/sandbox`,
+      palette ⌘K `sandbox-scenarios`).
 
 ## 6. Comment vérifier (à chaque lot)
 
