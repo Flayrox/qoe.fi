@@ -61,7 +61,7 @@ export function DeliveryTable({ rows }: { rows: DeliveryRow[] }) {
           {error}
         </div>
       )}
-      <div className="overflow-hidden rounded-2xl border border-border bg-card">
+      <div className="overflow-hidden rounded-lg border border-border bg-card">
         <Table aria-label="Journal des livraisons de notifications" size="md">
           <TableHeader>
             <TableColumn isRowHeader>Destinataire</TableColumn>

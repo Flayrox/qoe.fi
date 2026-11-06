@@ -52,7 +52,7 @@ export default async function AdminAccessPersonPage({ params }: AccessPersonPage
       />
 
       {person.legacySuperadmin && (
-        <p className="rounded-2xl border border-border bg-muted/40 p-4 text-xs">
+        <p className="rounded-lg border border-border bg-muted/40 p-4 text-xs">
           Cette personne porte la promotion historique{' '}
           <span className="font-mono">User.role = &apos;superadmin&apos;</span> : elle détient
           TOUTES les capacités, indépendamment des rôles listés ci-dessous. Retirer un rôle de la
@@ -114,7 +114,7 @@ export default async function AdminAccessPersonPage({ params }: AccessPersonPage
             {person.capabilities.map((capability) => (
               <li
                 key={capability}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border px-4 py-2"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-4 py-2"
               >
                 <span className="font-mono text-[11px]">{capability}</span>
                 <span className="text-[11px] text-muted-foreground">

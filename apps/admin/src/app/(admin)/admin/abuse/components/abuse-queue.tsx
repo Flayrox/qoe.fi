@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, ShieldAlert, Check, Ban, EyeOff, PauseCircle } from 'lucide-react';
 import { resolveAbuseDecisionAction } from '@qoe/sdk/actions/admin';
 import type { AbuseReasonCode } from '@qoe/sdk';
@@ -79,23 +78,19 @@ export function AbuseQueue({ initialItems }: AbuseQueueProps) {
     <div className="space-y-6 text-foreground font-sans">
       {items.length === 0 ? (
         <QueueEmpty
-          title="Aucun dossier ouvert 🎉"
+          title="Aucun dossier ouvert"
           hint="Les rafales, essaims et raids détectés par le noyau apparaîtront ici pour revue."
         />
       ) : (
         <div className="space-y-3">
-          <AnimatePresence mode="popLayout">
+          <>
             {items.map((item) => {
               const meta = RESULT_META[item.result] ?? RESULT_META.needs_review;
               const loading = loadingId === item.id;
               return (
-                <motion.div
+                <div
                   key={item.id}
-                  layout
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  className={`bg-white border rounded-3xl p-5 shadow-sm ${meta.tone}`}
+                  className={`bg-white border rounded-lg p-5 shadow-sm ${meta.tone}`}
                 >
                   <div className="flex flex-col lg:flex-row gap-4 lg:items-start justify-between">
                     <div className="flex-1 min-w-0 space-y-2">
@@ -164,10 +159,10 @@ export function AbuseQueue({ initialItems }: AbuseQueueProps) {
                     Un dossier ouvert n&apos;est pas une preuve — classer ou escalader, en traçant
                     le motif.
                   </p>
-                </motion.div>
+                </div>
               );
             })}
-          </AnimatePresence>
+          </>
         </div>
       )}
     </div>

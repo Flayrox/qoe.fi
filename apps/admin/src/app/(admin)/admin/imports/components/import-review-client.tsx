@@ -57,7 +57,7 @@ const ROW_STATUS_LABELS: Record<string, string> = {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="rounded-2xl border border-border/60 bg-card p-5 space-y-4">
+    <section className="rounded-lg border border-border/60 bg-card p-5 space-y-4">
       <h2 className="font-semibold text-foreground">{title}</h2>
       {children}
     </section>

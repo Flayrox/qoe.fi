@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, Plus } from 'lucide-react';
 import { grantSubscriptionAction, revokeSubscriptionGrantAction } from '@qoe/sdk/actions/admin';
 import { Select } from '@qoe/ui/select';
@@ -82,7 +81,7 @@ export function GrantsManager({ initialItems }: GrantsManagerProps) {
           Octroyer un palier
         </button>
         {showNew && (
-          <div className="mt-3 bg-white border border-border rounded-3xl p-5 shadow-sm space-y-2">
+          <div className="mt-3 bg-white border border-border rounded-lg p-5 shadow-sm space-y-2">
             <div className="grid gap-2 md:grid-cols-2">
               <Select
                 label="Type de sujet"
@@ -154,21 +153,14 @@ export function GrantsManager({ initialItems }: GrantsManagerProps) {
 
       {items.length === 0 && !showNew ? (
         <QueueEmpty
-          title="Aucun octroi 🎉"
+          title="Aucun octroi"
           hint="Pro offert, accès programmé, fin datée : tout se tient ici, avec historique."
         />
       ) : (
         <div className="space-y-3">
-          <AnimatePresence mode="popLayout">
+          <>
             {items.map((item) => (
-              <motion.div
-                key={item.id}
-                layout
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="bg-white border border-border rounded-3xl p-5 shadow-sm"
-              >
+              <div key={item.id} className="bg-white border border-border rounded-lg p-5 shadow-sm">
                 <div className="flex flex-col lg:flex-row gap-4 lg:items-start justify-between">
                   <div className="flex-1 min-w-0 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
@@ -196,9 +188,9 @@ export function GrantsManager({ initialItems }: GrantsManagerProps) {
                     </button>
                   )}
                 </div>
-              </motion.div>
+              </div>
             ))}
-          </AnimatePresence>
+          </>
         </div>
       )}
     </div>

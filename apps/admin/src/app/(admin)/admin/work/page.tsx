@@ -7,7 +7,7 @@ import { TriageBoard } from './components/triage-board';
 
 export const dynamic = 'force-dynamic';
 
-const counterClass = 'rounded-2xl border border-border/60 bg-white p-5 shadow-sm';
+const counterClass = 'rounded-lg border border-border/60 bg-white p-5 shadow-sm';
 
 export default async function AdminWorkPage() {
   const identity = await getAdminIdentity();
@@ -40,7 +40,7 @@ export default async function AdminWorkPage() {
       </div>
 
       {view.items.length === 0 ? (
-        <div className="rounded-2xl border border-border/60 bg-muted/20 p-8 text-center text-sm text-muted-foreground">
+        <div className="rounded-lg border border-border/60 bg-muted/20 p-8 text-center text-sm text-muted-foreground">
           Aucune file accessible.
         </div>
       ) : (
@@ -48,7 +48,7 @@ export default async function AdminWorkPage() {
           {view.items.map((item) => (
             <div
               key={item.key}
-              className="rounded-2xl border border-border/60 bg-white p-5 shadow-sm"
+              className="rounded-lg border border-border/60 bg-white p-5 shadow-sm"
             >
               <p className="text-xs text-muted-foreground">{item.label}</p>
               <p className="mt-2 text-3xl font-semibold tracking-tight">{item.count}</p>

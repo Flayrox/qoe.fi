@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Star, TrendingUp, Megaphone, Trash2, Search } from 'lucide-react';
 import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
 import { uploadImageToRoute, IMAGE_FOLDERS } from '@qoe/supabase/storage';
@@ -55,11 +54,6 @@ interface WidgetsCMSProps {
   trends: Trend[];
   promos: PartnerPromo[];
 }
-
-const springs = {
-  tab: { type: 'spring' as const, stiffness: 400, damping: 30 },
-  card: { type: 'spring' as const, stiffness: 350, damping: 28 },
-};
 
 export function WidgetsCMS({
   articles,
@@ -210,13 +204,7 @@ export function WidgetsCMS({
               <Icon className="w-4 h-4" />
               {tab.label}
 
-              {isActive && (
-                <motion.div
-                  layoutId="activeAdminTab"
-                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary"
-                  transition={springs.tab}
-                />
-              )}
+              {isActive && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />}
             </button>
           );
         })}
@@ -224,16 +212,9 @@ export function WidgetsCMS({
 
       {/* Tab Contents */}
       <div className="py-2">
-        <AnimatePresence mode="wait">
+        <>
           {activeTab === 'featured' && (
-            <motion.div
-              key="featured-tab"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.15 }}
-              className="space-y-6"
-            >
+            <div key="featured-tab" className="space-y-6">
               <div className="max-w-sm w-full">
                 <InputGroup size="sm" left={<Search className="w-4 h-4 text-muted-foreground" />}>
                   <Input
@@ -290,7 +271,7 @@ export function WidgetsCMS({
                             tone={art.isEditorPick ? 'brand' : 'neutral'}
                             onClick={() => handleToggleFeatured(art.id)}
                           >
-                            {art.isEditorPick ? '★ À la une' : 'Mettre à la une'}
+                            {art.isEditorPick ? 'À la une' : 'Mettre à la une'}
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -298,18 +279,11 @@ export function WidgetsCMS({
                   </TableBody>
                 </Table>
               </div>
-            </motion.div>
+            </div>
           )}
 
           {activeTab === 'trends' && (
-            <motion.div
-              key="trends-tab"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.15 }}
-              className="space-y-8"
-            >
+            <div key="trends-tab" className="space-y-8">
               {/* Form Add Trend */}
               <form
                 onSubmit={handleAddTrend}
@@ -400,18 +374,11 @@ export function WidgetsCMS({
                   </TableBody>
                 </Table>
               </div>
-            </motion.div>
+            </div>
           )}
 
           {activeTab === 'promos' && (
-            <motion.div
-              key="promos-tab"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.15 }}
-              className="space-y-8"
-            >
+            <div key="promos-tab" className="space-y-8">
               {/* Form Add Promo */}
               <form onSubmit={handleAddPromo} className="space-y-4 border-b border-border pb-8">
                 <h3 className="text-sm font-bold text-foreground">
@@ -581,9 +548,9 @@ export function WidgetsCMS({
                   </div>
                 )}
               </div>
-            </motion.div>
+            </div>
           )}
-        </AnimatePresence>
+        </>
       </div>
     </div>
   );

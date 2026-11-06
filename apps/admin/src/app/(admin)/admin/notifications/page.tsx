@@ -82,7 +82,7 @@ export default async function AdminNotificationsPage() {
         {cards.map((card) => {
           const Icon = card.icon;
           return (
-            <div key={card.label} className="rounded-2xl border border-border bg-white p-5">
+            <div key={card.label} className="rounded-lg border border-border bg-white p-5">
               <div
                 className={`flex h-9 w-9 items-center justify-center rounded-xl ${card.className}`}
               >

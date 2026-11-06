@@ -1,11 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '@qoe/ui/toast';
 import {
   Loader2,
-  ShieldAlert,
   ShieldCheck,
   EyeOff,
   Eye,
@@ -46,6 +44,7 @@ export function ModerationQueue({ initialItems, initialPending }: ModerationQueu
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [suspendNoteId, setSuspendNoteId] = useState<string | null>(null);
   const [suspendNote, setSuspendNote] = useState('');
+  const [lastDecision, setLastDecision] = useState<string | null>(null);
 
   const run = async (report: ModerationReportItem, action: string, note = '') => {
     setLoadingId(report.id);
@@ -59,7 +58,11 @@ export function ModerationQueue({ initialItems, initialPending }: ModerationQueu
         };
         setItems((prev) => prev.map((it) => (it.id === report.id ? updated : it)));
         if (report.status === 'pending') setPending((p) => Math.max(0, p - 1));
-        toast.success(action === 'dismiss' ? 'Signalement ignoré' : 'Signalement traité');
+        setLastDecision(
+          `${
+            action === 'dismiss' ? 'Signalement ignoré' : 'Signalement traité'
+          } · audité à ${new Date().toLocaleTimeString('fr-FR')}`
+        );
         setSuspendNoteId(null);
         setSuspendNote('');
       } else {
@@ -104,11 +107,17 @@ export function ModerationQueue({ initialItems, initialPending }: ModerationQueu
         </div>
       </div>
 
+      {lastDecision && (
+        <p role="status" className="text-[11px] text-muted-foreground">
+          {lastDecision}
+        </p>
+      )}
+
       {filtered.length === 0 ? (
-        <div className="bg-white border border-border rounded-3xl p-16 text-center text-muted-foreground space-y-3 shadow-sm">
+        <div className="rounded-lg border border-border bg-card p-10 text-center text-muted-foreground space-y-2">
           <ShieldCheck className="w-10 h-10 text-muted-foreground mx-auto" />
           <p className="text-sm font-semibold">
-            {filter === 'pending' ? 'Aucun signalement en attente 🎉' : 'Aucun signalement ici'}
+            {filter === 'pending' ? 'Aucun signalement en attente' : 'Aucun signalement ici'}
           </p>
           <p className="text-xs">
             {filter === 'pending'
@@ -118,19 +127,15 @@ export function ModerationQueue({ initialItems, initialPending }: ModerationQueu
         </div>
       ) : (
         <div className="space-y-3">
-          <AnimatePresence mode="popLayout">
+          <>
             {filtered.map((report) => {
               const typeMeta = TYPE_META[report.targetType] ?? TYPE_META.thought;
               const isPending = report.status === 'pending';
               const loading = loadingId === report.id;
               return (
-                <motion.div
+                <div
                   key={report.id}
-                  layout
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  className={`bg-white border rounded-3xl p-5 shadow-sm transition-colors ${
+                  className={`bg-white border rounded-lg p-5 shadow-sm transition-colors ${
                     isPending ? 'border-highlight/40' : 'border-border'
                   }`}
                 >
@@ -295,10 +300,10 @@ export function ModerationQueue({ initialItems, initialPending }: ModerationQueu
                       )}
                     </div>
                   </div>
-                </motion.div>
+                </div>
               );
             })}
-          </AnimatePresence>
+          </>
         </div>
       )}
     </div>

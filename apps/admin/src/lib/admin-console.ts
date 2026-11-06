@@ -230,6 +230,15 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
     description: 'Postgres, file, workers, version de migration, mode d’autorisation',
   },
   {
+    // Méta-développeur, pas exploitation : la couverture des routes et les
+    // écrans manquants ne se lisent pas dans la file de travail.
+    href: '/admin/system',
+    label: 'Système',
+    capability: 'admin.dashboard.read',
+    alsoUses: ['admin.config.read'],
+    description: 'Couverture des routes, écrans porteurs et routes API-only assumées',
+  },
+  {
     href: '/admin/users',
     label: 'Comptes & modération',
     capability: 'admin.users.read',

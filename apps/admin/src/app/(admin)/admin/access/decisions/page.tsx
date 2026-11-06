@@ -16,7 +16,6 @@ import Link from 'next/link';
 import { ShieldOff } from 'lucide-react';
 import { Badge } from '@qoe/ui/badge';
 import { Button } from '@qoe/ui/button';
-import { Checkbox } from '@qoe/ui/checkbox';
 import { Input } from '@qoe/ui/input';
 import { Table, TableBody, TableCell, TableColumn, TableHeader, TableRow } from '@qoe/ui/table';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';

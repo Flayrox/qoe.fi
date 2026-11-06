@@ -94,7 +94,7 @@ export function ApprovalsQueue({ initialItems, currentUserId }: ApprovalsQueuePr
     return (
       <div
         key={item.id}
-        className="bg-white border border-border rounded-3xl p-5 shadow-sm space-y-3"
+        className="bg-white border border-border rounded-lg p-5 shadow-sm space-y-3"
         data-testid={`approval-${item.id}`}
       >
         <div className="flex flex-wrap items-center gap-2">
@@ -182,7 +182,7 @@ export function ApprovalsQueue({ initialItems, currentUserId }: ApprovalsQueuePr
   if (items.length === 0) {
     return (
       <QueueEmpty
-        title="Aucune demande de validation 🎉"
+        title="Aucune demande de validation"
         hint="Les actes irréversibles qui attendent une seconde personne apparaîtront ici."
       />
     );

@@ -46,7 +46,7 @@ export function AccessGrantForm({ people, roles, canGrant }: AccessGrantFormProp
   };
 
   return (
-    <section className="bg-white border border-border rounded-3xl p-6 shadow-sm space-y-4">
+    <section className="bg-white border border-border rounded-lg p-6 shadow-sm space-y-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-sm font-semibold">Attribuer un rôle</h2>

@@ -134,7 +134,7 @@ export const columns: ColumnDef<AdminUser>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="end"
-            className="w-56 bg-white border-border text-muted-foreground shadow-xl rounded-2xl p-1"
+            className="w-56 bg-white border-border text-muted-foreground shadow-xl rounded-lg p-1"
           >
             <DropdownMenuGroup>
               <DropdownMenuLabel className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-2 py-1.5">

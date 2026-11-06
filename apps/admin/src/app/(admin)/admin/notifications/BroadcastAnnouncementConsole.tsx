@@ -32,6 +32,7 @@ export function BroadcastAnnouncementConsole({
   const [linkUrl, setLinkUrl] = useState(initialAnnouncement?.linkUrl ?? '');
   const [linkText, setLinkText] = useState(initialAnnouncement?.linkText ?? 'En savoir plus');
   const [isPending, startTransition] = useTransition();
+  const [feedback, setFeedback] = useState<string | null>(null);
 
   const handleSave = (newActiveState?: boolean) => {
     const nextActive = newActiveState !== undefined ? newActiveState : active;
@@ -46,11 +47,7 @@ export function BroadcastAnnouncementConsole({
       });
 
       if (res.success) {
-        toast.success(
-          nextActive
-            ? '🚀 Annonce diffusée en direct sur la plateforme !'
-            : 'Annonce désactivée avec succès.'
-        );
+        setFeedback(nextActive ? 'Annonce diffusée sur la plateforme.' : 'Annonce désactivée.');
       } else {
         toast.error(res.error || "Erreur lors de l'enregistrement de l'annonce.");
       }
@@ -64,7 +61,7 @@ export function BroadcastAnnouncementConsole({
   };
 
   return (
-    <div className="rounded-2xl border border-border/80 bg-white p-6 shadow-sm space-y-6">
+    <div className="space-y-4 rounded-lg border border-border bg-card p-4">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/40 pb-5">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#130F26] text-[#A78BFA] shadow-sm">
@@ -119,6 +116,12 @@ export function BroadcastAnnouncementConsole({
           </button>
         </div>
       </div>
+
+      {feedback && (
+        <p role="status" className="text-[11px] text-muted-foreground">
+          {feedback} · audité
+        </p>
+      )}
 
       {/* Formulaire de configuration */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

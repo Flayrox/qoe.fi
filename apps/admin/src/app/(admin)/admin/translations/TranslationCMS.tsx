@@ -500,7 +500,7 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
           {filteredKeys.length === 0 ? (
             <div className="text-center py-12 text-xs text-muted-foreground bg-muted/20">
               {showUntranslatedOnly && untranslatedKeys.length === 0
-                ? '🎉 Aucune clé non traduite : les catalogues fr/en sont synchronisés.'
+                ? 'Aucune clé non traduite : les catalogues fr/en sont synchronisés.'
                 : 'Aucune clé de traduction trouvée.'}
             </div>
           ) : (
@@ -620,7 +620,7 @@ export function TranslationCMS({ defaultFr, defaultEn, initialOverrides }: Trans
 
       {/* Floating Save Banner (only if dirty) */}
       {isDirty && (
-        <div className="fixed bottom-6 right-6 z-40 bg-white border border-border rounded-2xl px-5 py-3 shadow-xl flex items-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
+        <div className="fixed bottom-6 right-6 z-40 bg-white border border-border rounded-lg px-5 py-3 shadow-xl flex items-center gap-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
           <div className="flex flex-col gap-0.5">
             <span className="text-xs font-bold text-foreground">Modifications en attente</span>
             <span className="text-[10px] text-muted-foreground">

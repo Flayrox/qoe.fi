@@ -48,7 +48,7 @@ export default async function UserProfilePage({ params }: PageProps) {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Profile Card */}
-        <div className="bg-white border border-border/60 rounded-[24px] p-6 shadow-sm md:col-span-1 space-y-6">
+        <div className="bg-white border border-border/60 rounded-lg p-6 shadow-sm md:col-span-1 space-y-6">
           <div className="flex flex-col items-center text-center">
             <SafeAvatar
               id={user.id}
@@ -96,7 +96,7 @@ export default async function UserProfilePage({ params }: PageProps) {
 
         {/* Metrics */}
         <div className="md:col-span-2 grid grid-cols-2 gap-4">
-          <div className="bg-white border border-border/60 rounded-[24px] p-6 shadow-sm flex flex-col justify-center">
+          <div className="bg-white border border-border/60 rounded-lg p-6 shadow-sm flex flex-col justify-center">
             <div className="flex items-center gap-2 mb-2 text-muted-foreground">
               <Users className="w-4 h-4" />
               <h3 className="text-sm font-semibold">Abonnés Totaux</h3>
@@ -106,7 +106,7 @@ export default async function UserProfilePage({ params }: PageProps) {
             </div>
           </div>
 
-          <div className="bg-white border border-border/60 rounded-[24px] p-6 shadow-sm flex flex-col justify-center">
+          <div className="bg-white border border-border/60 rounded-lg p-6 shadow-sm flex flex-col justify-center">
             <div className="flex items-center gap-2 mb-2 text-muted-foreground">
               <BookOpen className="w-4 h-4" />
               <h3 className="text-sm font-semibold">Articles Publiés</h3>
@@ -116,7 +116,7 @@ export default async function UserProfilePage({ params }: PageProps) {
             </div>
           </div>
 
-          <div className="bg-white border border-border/60 rounded-[24px] p-6 shadow-sm flex flex-col justify-center">
+          <div className="bg-white border border-border/60 rounded-lg p-6 shadow-sm flex flex-col justify-center">
             <div className="flex items-center gap-2 mb-2 text-muted-foreground">
               <Euro className="w-4 h-4" />
               <h3 className="text-sm font-semibold">Revenus Générés</h3>
@@ -126,7 +126,7 @@ export default async function UserProfilePage({ params }: PageProps) {
             </div>
           </div>
 
-          <div className="bg-white border border-border/60 rounded-[24px] p-6 shadow-sm flex flex-col justify-center">
+          <div className="bg-white border border-border/60 rounded-lg p-6 shadow-sm flex flex-col justify-center">
             <div className="flex items-center gap-2 mb-2 text-muted-foreground">
               <Activity className="w-4 h-4" />
               <h3 className="text-sm font-semibold">LTV Moyen / Abonné</h3>

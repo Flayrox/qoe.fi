@@ -90,7 +90,7 @@ function Metric({
           ? 'text-success-text'
           : 'text-foreground';
   return (
-    <div className="rounded-2xl border border-border bg-card p-4">
+    <div className="rounded-lg border border-border bg-card p-4">
       <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         <Icon className="h-3.5 w-3.5" />
         {label}
@@ -172,7 +172,7 @@ export function ComplianceDashboard({ snapshot }: { snapshot: ComplianceSnapshot
       </div>
 
       {/* ─── Échéances réglementaires ─── */}
-      <section className="rounded-2xl border border-border bg-card">
+      <section className="rounded-lg border border-border bg-card">
         <header className="flex items-center gap-2 border-b border-border px-5 py-4">
           <CalendarClock className="h-4 w-4 text-primary" />
           <h2 className="text-sm font-semibold text-foreground">Échéances réglementaires</h2>
@@ -211,7 +211,7 @@ export function ComplianceDashboard({ snapshot }: { snapshot: ComplianceSnapshot
       </section>
 
       {/* ─── Couverture par document ─── */}
-      <section className="rounded-2xl border border-border bg-card">
+      <section className="rounded-lg border border-border bg-card">
         <header className="flex items-center gap-2 border-b border-border px-5 py-4">
           <ShieldCheck className="h-4 w-4 text-primary" />
           <h2 className="text-sm font-semibold text-foreground">Couverture du consentement</h2>
@@ -282,7 +282,7 @@ export function ComplianceDashboard({ snapshot }: { snapshot: ComplianceSnapshot
 
       {/* ─── Avis envoyés + traceurs ─── */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <section className="rounded-2xl border border-border bg-card">
+        <section className="rounded-lg border border-border bg-card">
           <header className="flex items-center gap-2 border-b border-border px-5 py-4">
             <Mail className="h-4 w-4 text-primary" />
             <h2 className="text-sm font-semibold text-foreground">
@@ -317,7 +317,7 @@ export function ComplianceDashboard({ snapshot }: { snapshot: ComplianceSnapshot
           </ul>
         </section>
 
-        <section className="rounded-2xl border border-border bg-card">
+        <section className="rounded-lg border border-border bg-card">
           <header className="flex items-center gap-2 border-b border-border px-5 py-4">
             <Cookie className="h-4 w-4 text-primary" />
             <h2 className="text-sm font-semibold text-foreground">Choix de traceurs journalisés</h2>

@@ -70,7 +70,7 @@ export function ComplianceLifecycle({
   return (
     <div className="space-y-8">
       {/* ─── Revues périodiques ─── */}
-      <section className="rounded-2xl border border-border bg-card">
+      <section className="rounded-lg border border-border bg-card">
         <header className="flex flex-wrap items-center gap-2 border-b border-border px-5 py-4">
           <RefreshCw className="h-4 w-4 text-primary" />
           <h2 className="text-sm font-semibold text-foreground">
@@ -190,7 +190,7 @@ export function ComplianceLifecycle({
       </section>
 
       {/* ─── Registre des exports signés ─── */}
-      <section className="rounded-2xl border border-border bg-card">
+      <section className="rounded-lg border border-border bg-card">
         <header className="flex flex-wrap items-center gap-2 border-b border-border px-5 py-4">
           <FileCheck2 className="h-4 w-4 text-primary" />
           <h2 className="text-sm font-semibold text-foreground">

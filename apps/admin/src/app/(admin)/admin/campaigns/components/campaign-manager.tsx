@@ -129,7 +129,7 @@ export function CampaignManager({ initialCampaigns, canWrite }: CampaignManagerP
 
       {canWrite && showNew && (
         <section
-          className="space-y-3 rounded-3xl border border-border bg-white p-5 shadow-sm"
+          className="space-y-3 rounded-lg border border-border bg-white p-5 shadow-sm"
           data-testid="campaign-form"
         >
           <div className="grid gap-3 md:grid-cols-2">
@@ -228,7 +228,7 @@ export function CampaignManager({ initialCampaigns, canWrite }: CampaignManagerP
           {initialCampaigns.map((campaign) => (
             <li
               key={campaign.id}
-              className="rounded-3xl border border-border bg-white p-5 shadow-sm space-y-3"
+              className="rounded-lg border border-border bg-white p-5 shadow-sm space-y-3"
               data-testid={`campaign-${campaign.status}`}
             >
               <div className="flex flex-wrap items-center justify-between gap-2">

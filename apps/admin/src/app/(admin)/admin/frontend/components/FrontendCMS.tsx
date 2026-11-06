@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   Save,
   AlertCircle,
@@ -1054,11 +1053,7 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
             >
               {tab.label}
               {isActive && (
-                <motion.div
-                  layoutId="active-frontend-tab"
-                  className="absolute left-0 top-1.5 bottom-1.5 w-0.5 bg-[#EE4B2B] rounded-full hidden lg:block"
-                  transition={{ type: 'spring', stiffness: 350, damping: 30 }}
-                />
+                <div className="absolute left-0 top-1.5 bottom-1.5 w-0.5 bg-[#EE4B2B] rounded-full hidden lg:block" />
               )}
             </button>
           );
@@ -1112,15 +1107,8 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
 
           {/* Form Content body based on active tab */}
           <div className="space-y-6 min-h-[350px]">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={`${activeTab}-${activeLang}`}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.2 }}
-                className="space-y-6"
-              >
+            <>
+              <div key={`${activeTab}-${activeLang}`} className="space-y-6">
                 {/* ─── TAB: BANNER ────────────────────────────────────────────── */}
                 {activeTab === 'banner' && (
                   <div className="space-y-6">
@@ -1496,36 +1484,26 @@ export function FrontendCMS({ initialConfigs }: FrontendCMSProps) {
                     />
                   </div>
                 )}
-              </motion.div>
-            </AnimatePresence>
+              </div>
+            </>
           </div>
 
           {/* Action buttons footer */}
           <div className="pt-6 border-t border-border flex items-center justify-between gap-4">
             <div className="flex-1">
-              <AnimatePresence>
+              <>
                 {saveStatus === 'success' && (
-                  <motion.p
-                    initial={{ opacity: 0, x: -8 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0 }}
-                    className="text-xs font-semibold text-success-text flex items-center gap-1.5"
-                  >
-                    ✓ {t`Changements enregistrés et cache régénéré instantanément !`}
-                  </motion.p>
+                  <p className="text-xs font-semibold text-success-text flex items-center gap-1.5">
+                    {t`Changements enregistrés et cache régénéré instantanément !`}
+                  </p>
                 )}
                 {saveStatus === 'error' && (
-                  <motion.div
-                    initial={{ opacity: 0, x: -8 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0 }}
-                    className="text-xs font-medium text-destructive-text flex items-start gap-1.5"
-                  >
+                  <div className="text-xs font-medium text-destructive-text flex items-start gap-1.5">
                     <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
                     <span>{errorMessage}</span>
-                  </motion.div>
+                  </div>
                 )}
-              </AnimatePresence>
+              </>
             </div>
 
             <button

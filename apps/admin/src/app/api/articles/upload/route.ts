@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
     );
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Erreur interne lors de l'upload";
-    console.error('❌ Erreur Upload Admin:', message);
+    console.error('Erreur Upload Admin:', message);
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

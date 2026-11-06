@@ -202,7 +202,7 @@ export function RegistrationsControl({
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-foreground truncate">{e.email}</p>
                   <p className="text-xs text-muted-foreground truncate">
-                    {e.usedAt ? '✅ Compte créé' : '⏳ En attente'}
+                    {e.usedAt ? 'Compte créé' : 'En attente'}
                     {e.note ? ` — ${e.note}` : ''}
                   </p>
                 </div>

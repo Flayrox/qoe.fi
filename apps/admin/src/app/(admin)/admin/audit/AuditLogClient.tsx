@@ -84,7 +84,7 @@ export function AuditLogClient({ entries, mode, filters }: AuditLogClientProps) 
     mode === 'observe' ? (
       <div
         data-testid="audit-mode-banner"
-        className="rounded-2xl border border-highlight/40 bg-highlight/10 px-4 py-3 text-xs text-foreground"
+        className="rounded-lg border border-highlight/40 bg-highlight/10 px-4 py-3 text-xs text-foreground"
       >
         <strong>Mode OBSERVATION</strong> — les refus d’autorisation sont journalisés mais{' '}
         <strong>pas encore appliqués</strong>. Le passage en{' '}
@@ -94,7 +94,7 @@ export function AuditLogClient({ entries, mode, filters }: AuditLogClientProps) 
     ) : (
       <div
         data-testid="audit-mode-banner"
-        className="rounded-2xl border border-success/40 bg-success/10 px-4 py-3 text-xs text-foreground"
+        className="rounded-lg border border-success/40 bg-success/10 px-4 py-3 text-xs text-foreground"
       >
         <strong>Mode REFUS (enforce)</strong> — une capacité manquante répond 403. Les refus listés
         ci-dessous ont été réellement bloqués.
@@ -142,7 +142,7 @@ export function AuditLogClient({ entries, mode, filters }: AuditLogClientProps) 
         <form
           method="get"
           action="/admin/audit"
-          className="grid gap-3 rounded-2xl border border-border bg-muted/20 p-4 md:grid-cols-3"
+          className="grid gap-3 rounded-lg border border-border bg-muted/20 p-4 md:grid-cols-3"
           data-testid="audit-filters"
         >
           <input

@@ -47,7 +47,7 @@ export default async function AdminStoragePage() {
       />
 
       <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-3xl border border-border bg-white p-6 shadow-sm">
+        <div className="rounded-lg border border-border bg-white p-6 shadow-sm">
           <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
             Volume total
           </div>
@@ -55,7 +55,7 @@ export default async function AdminStoragePage() {
             {formatBytes(usage.totalBytes)}
           </div>
         </div>
-        <div className="rounded-3xl border border-border bg-white p-6 shadow-sm">
+        <div className="rounded-lg border border-border bg-white p-6 shadow-sm">
           <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
             Fichiers
           </div>
@@ -63,7 +63,7 @@ export default async function AdminStoragePage() {
             {usage.assetCount.toLocaleString('fr-FR')}
           </div>
         </div>
-        <div className="rounded-3xl border border-border bg-white p-6 shadow-sm">
+        <div className="rounded-lg border border-border bg-white p-6 shadow-sm">
           <div className="text-[11px] uppercase tracking-widest text-muted-foreground">Statuts</div>
           <div className="mt-2 flex flex-wrap gap-1.5" data-testid="storage-statuses">
             {statuses.length === 0 ? (
