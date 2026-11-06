@@ -20,6 +20,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { cn } from '@qoe/utils';
+import { Button } from '@qoe/ui/button';
 import { t } from '@lingui/core/macro';
 
 import type { ArticleWithCategory, ListColumnPrefs } from './article-list-types';
@@ -199,57 +200,68 @@ export function ArticleListRow({
         </div>
       </div>
 
-      <button
-        type="button"
+      <Button
+        variant="ghost"
+        size="xs"
+        shape="icon"
         onClick={(event) => {
           event.stopPropagation();
           onOpenAnalytics(article);
         }}
-        className="rounded p-1.5 text-muted-foreground opacity-60 transition-colors hover:text-foreground group-hover:opacity-100 focus:opacity-100"
+        className="text-muted-foreground opacity-60 group-hover:opacity-100 hover:opacity-100 focus:opacity-100"
         title={t`Voir les analyses`}
+        aria-label={t`Voir les analyses`}
       >
-        <BarChart3 className="h-4 w-4 stroke-[1.5]" />
-      </button>
-      <button
-        type="button"
+        <BarChart3 />
+      </Button>
+      <Button
+        variant="ghost"
+        size="xs"
+        shape="icon"
         onClick={(event) => {
           event.stopPropagation();
           onTogglePin(article);
         }}
         className={cn(
-          'rounded p-1.5 transition-colors hover:text-foreground',
           pinned
             ? 'text-primary'
-            : 'text-muted-foreground opacity-60 group-hover:opacity-100 focus:opacity-100'
+            : 'text-muted-foreground opacity-60 group-hover:opacity-100 hover:opacity-100 focus:opacity-100'
         )}
         title={pinned ? t`Retirer de la une` : t`Épingler à la une`}
+        aria-label={pinned ? t`Retirer de la une` : t`Épingler à la une`}
       >
-        <Pin className="h-4 w-4 stroke-[1.5]" />
-      </button>
-      {(article.hasUnpublishedChanges || article.status === 'SUBMITTED') && onOpenDiff && (
-        <button
-          type="button"
+        <Pin />
+      </Button>
+      {(article.hasUnpublishedChanges || article.status === 'SUBMITTED') && onOpenDiff ? (
+        <Button
+          variant="ghost"
+          size="xs"
+          shape="icon"
           onClick={(event) => {
             event.stopPropagation();
             onOpenDiff(article);
           }}
-          className="rounded p-1.5 text-highlight opacity-80 transition-colors hover:text-highlight hover:opacity-100 group-hover:opacity-100 focus:opacity-100"
+          className="text-highlight opacity-80 hover:opacity-100 group-hover:opacity-100 focus:opacity-100"
           title={t`Comparer les versions (Diff)`}
+          aria-label={t`Comparer les versions`}
         >
-          <GitCompare className="h-4 w-4 stroke-[1.5]" />
-        </button>
-      )}
-      <button
-        type="button"
+          <GitCompare />
+        </Button>
+      ) : null}
+      <Button
+        variant="ghost"
+        size="xs"
+        shape="icon"
         onClick={(event) => {
           event.stopPropagation();
           onOpenSettings(article.id);
         }}
-        className="rounded p-1.5 text-muted-foreground opacity-60 transition-colors hover:text-foreground group-hover:opacity-100 focus:opacity-100"
+        className="text-muted-foreground opacity-60 group-hover:opacity-100 hover:opacity-100 focus:opacity-100"
         title={t`Paramètres de l'article`}
+        aria-label={t`Paramètres de l'article`}
       >
-        <Edit3 className="h-4 w-4 stroke-[1.5]" />
-      </button>
+        <Edit3 />
+      </Button>
 
       <details className="relative">
         <summary

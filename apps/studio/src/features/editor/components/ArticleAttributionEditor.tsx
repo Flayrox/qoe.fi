@@ -434,7 +434,7 @@ export function ArticleAttributionEditor({
             </div>
 
             {/* Formulaire de création */}
-            <div className="rounded-xl border border-border/40 bg-background/50 p-4 space-y-3">
+            <div className="space-y-3 border-t border-border/40 pt-4">
               <h3 className="text-xs font-bold text-foreground uppercase tracking-wider">
                 Créer un nouveau lien
               </h3>
@@ -514,11 +514,11 @@ export function ArticleAttributionEditor({
 
             {/* Bannière du dernier lien créé */}
             {latestCreatedUrl && (
-              <div className="rounded-xl border border-success/30 bg-success/10 p-3 space-y-1.5 animate-in fade-in">
+              <div className="space-y-1.5 rounded-lg bg-success/10 p-3 animate-in fade-in">
                 <div className="flex items-center justify-between text-xs font-semibold text-success-text">
                   <span className="flex items-center gap-1.5">
                     <Check className="h-3.5 w-3.5" />
-                    Lien prêt à être partagé !
+                    Lien prêt à être partagé.
                   </span>
                   <button
                     type="button"
@@ -530,7 +530,7 @@ export function ArticleAttributionEditor({
                     ) : (
                       <Copy className="h-3 w-3" />
                     )}
-                    <span>{copiedId === 'latest' ? 'Copié !' : 'Copier'}</span>
+                    <span>{copiedId === 'latest' ? 'Copié.' : 'Copier'}</span>
                   </button>
                 </div>
                 <input

@@ -22,11 +22,9 @@ import {
   Globe,
   ArrowRight,
   FileText,
-  Clock,
   Key,
   Link2,
   Copy,
-  XCircle,
   Search,
   X,
 } from 'lucide-react';
@@ -54,6 +52,7 @@ import { toast } from '@qoe/ui/toast';
 import { Select } from '@qoe/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@qoe/ui/ui/popover';
 import { cn } from '@qoe/utils';
+import { STUDIO_PAGE_CLASS } from '@/components/studio-page';
 import { attemptWithStepUp } from '@/lib/authz-feedback';
 import { PendingInvites } from './PendingInvites';
 import { ImageUploader } from '@qoe/ui/ui/ImageUploader';
@@ -316,7 +315,7 @@ export function MediaStudioClient({
     );
     setCreating(false);
     if (res.success) {
-      toast.success(t`Média créé avec succès !`);
+      toast.success(t`Média créé.`);
       document.cookie = `qoe_active_workspace=${encodeURIComponent(
         JSON.stringify({ type: 'MEDIA', id: res.media!.id })
       )}; path=/; max-age=2592000`;
@@ -657,19 +656,18 @@ export function MediaStudioClient({
     : `qoe.fi/${detail.publication.slug}`;
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 text-foreground">
+    <div className={cn(STUDIO_PAGE_CLASS, 'pb-16 text-foreground')}>
       <div className="mb-6">
         <PendingInvites />
       </div>
       {/* ── Hero ── */}
       <div className="mb-8">
         {detail.publication.headerImageUrl && (
-          <div className="relative h-36 md:h-44 -mx-4 md:-mx-6 -mt-6 overflow-hidden rounded-b-2xl">
+          <div className="relative mb-4 h-32 w-full overflow-hidden rounded-xl bg-muted/30 md:h-40">
             <Image src={detail.publication.headerImageUrl} alt="" fill className="object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background" />
           </div>
         )}
-        <div className={cn('flex items-start gap-4', detail.publication.headerImageUrl && 'mt-4')}>
+        <div className="flex items-start gap-4">
           {detail.publication.logoUrl ? (
             <Image
               src={detail.publication.logoUrl}
@@ -929,7 +927,7 @@ export function MediaStudioClient({
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="flex-1 relative">
                   {selectedMember ? (
-                    <div className="flex items-center gap-2.5 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2">
+                    <div className="flex items-center gap-2.5 rounded-lg bg-primary/5 px-3 py-2">
                       <SafeAvatar
                         src={selectedMember.logoUrl}
                         name={selectedMember.name}
@@ -1045,7 +1043,7 @@ export function MediaStudioClient({
 
           {/* Liens d'invitation d'équipe (sans email, rôle + durée + max d'utilisations) */}
           {canManageMembers && (
-            <div className="rounded-xl border border-border/40 bg-card p-4 space-y-4">
+            <div className="rounded-xl border border-border/50 bg-card p-5 space-y-4">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                   <Link2 className="w-3.5 h-3.5" strokeWidth={1.5} /> Liens d'invitation d'équipe
@@ -1129,7 +1127,7 @@ export function MediaStudioClient({
                     Aucun lien d'invitation généré pour ce Média.
                   </p>
                 ) : (
-                  <div className="overflow-hidden rounded-xl border border-border/30 bg-card shadow-none">
+                  <div className="overflow-hidden">
                     <Table
                       aria-label={t`Liens d'invitation`}
                       size="sm"
@@ -1227,14 +1225,14 @@ export function MediaStudioClient({
             <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
               <Shield className="w-3.5 h-3.5" strokeWidth={1.5} /> Ce que chaque rôle peut faire
             </p>
-            <div className="grid md:grid-cols-3 gap-px bg-border/30 border border-border/30 rounded-xl overflow-hidden">
+            <div className="grid gap-6 border-t border-border/40 pt-5 md:grid-cols-3">
               {Object.entries(ROLE_DEFAULT_PERMS)
                 .filter(([r]) => r !== MEDIA_ROLES.OWNER)
                 .map(([role, perms]) => {
                   const meta = ROLE_META[role];
                   const Icon = meta.icon;
                   return (
-                    <div key={role} className="bg-card p-4">
+                    <div key={role}>
                       <div
                         className={cn(
                           'flex items-center gap-1.5 text-xs font-bold mb-3',
@@ -1367,7 +1365,7 @@ function MediaSettingsForm({
     );
     setSaving(false);
     if (res.success) {
-      toast.success(t`Réglages du Média enregistrés !`);
+      toast.success(t`Réglages du Média enregistrés.`);
       onSaved();
     }
   };
@@ -1482,18 +1480,18 @@ function MediaSettingsForm({
       <Section title="SEO & Indexation">
         <div className="grid md:grid-cols-2 gap-x-8 gap-y-6">
           <div>
-            <label className={labelCls}>SEO Title</label>
+            <label className={labelCls}>Titre SEO</label>
             <Input value={form.seoTitle ?? ''} onChange={(e) => set('seoTitle', e.target.value)} />
           </div>
           <div>
-            <label className={labelCls}>SEO Description</label>
+            <label className={labelCls}>Description SEO</label>
             <Input
               value={form.seoDescription ?? ''}
               onChange={(e) => set('seoDescription', e.target.value)}
             />
           </div>
           <div className="md:col-span-2">
-            <label className={labelCls}>Hero Text (accroche de la page d&apos;accueil)</label>
+            <label className={labelCls}>Accroche de la page d&apos;accueil</label>
             <Textarea
               rows={2}
               value={form.heroText ?? ''}
@@ -1504,11 +1502,8 @@ function MediaSettingsForm({
             <Switch
               isSelected={form.allowIndexing}
               onChange={(checked) => set('allowIndexing', checked)}
-              label={
-                form.allowIndexing
-                  ? t`Indexation Google autorisée`
-                  : t`Indexation Google désactivée`
-              }
+              label={t`Autoriser l'indexation`}
+              description={t`Si cette option est désactivée, les moteurs de recherche ne référencent pas le média.`}
             />
           </div>
         </div>

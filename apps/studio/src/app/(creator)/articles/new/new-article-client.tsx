@@ -64,7 +64,7 @@ export function NewArticleClient({ categories, capabilities }: NewArticleClientP
   };
 
   return (
-    <div className="py-4">
+    <div className="w-full">
       <Editor
         categories={categories}
         isSaving={isSaving}

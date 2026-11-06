@@ -136,7 +136,7 @@ export function EditArticleClient({ article, categories, capabilities }: EditArt
   const initialAttributions = React.useMemo(() => buildAttributionDrafts(article), [article]);
 
   return (
-    <div className="py-4">
+    <div className="w-full">
       <Editor
         initialTitle={article.title}
         initialSlug={article.slug}

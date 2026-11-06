@@ -56,8 +56,11 @@ import {
 } from '@qoe/sdk/actions/articles';
 import { updateCreatorProfileAction } from '@qoe/sdk/actions/dashboard';
 import { toast } from '@qoe/ui/toast';
-import { Button } from '@qoe/ui/button';
+import { Button, buttonClasses } from '@qoe/ui/button';
 import { Dropdown } from '@qoe/ui/dropdown';
+import { Input, InputGroup } from '@qoe/ui/input';
+import { Tab, TabList, Tabs } from '@qoe/ui/tabs';
+import { StudioHeader, StudioPage } from '@/components/studio-page';
 import { Select } from '@qoe/ui/select';
 import { t } from '@lingui/core/macro';
 
@@ -1037,14 +1040,12 @@ export function ArticlesClient({
   const countReview = articles.filter((a) => a.status === 'SUBMITTED').length;
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 pb-16 text-foreground">
-      {/* Main Stage Headline */}
-      <section className="pt-4 md:pt-2 space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <h2 className="text-2xl font-semibold tracking-tight text-foreground">{t`Articles`}</h2>
-
-          <div className="flex items-center gap-2">
-            {/* Shortcut: Page À propos */}
+    <StudioPage className="pb-16">
+      <StudioHeader
+        title={t`Articles`}
+        description={t`Gérez les écrits et les catégories de la publication.`}
+        actions={
+          <>
             {(() => {
               const targetAbout = articles.find((a) => isAboutArticle(a, aboutArticleId));
               return (
@@ -1054,48 +1055,33 @@ export function ArticlesClient({
                       ? `/articles/${targetAbout.id}`
                       : `/articles/new?slug=${ABOUT_ARTICLE_SLUG}&title=%C3%80%20propos`
                   }
-                  className={cn(
-                    'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors font-sans',
-                    targetAbout
-                      ? 'border-primary/40 bg-primary/10 text-primary hover:bg-primary/15'
-                      : 'border-border/40 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60'
-                  )}
-                  title={t`Rédiger ou modifier la page À propos de votre publication comme un article complet`}
+                  className={buttonClasses({ variant: 'outline', size: 'sm' })}
+                  title={t`Rédiger ou modifier la page À propos de la publication`}
                 >
-                  <BookOpen className="w-3.5 h-3.5 stroke-[1.5]" />
+                  <BookOpen />
                   <span>{t`Page À propos`}</span>
                 </a>
               );
             })()}
 
-            {/* Tab Switcher: Articles vs Catégories */}
-            <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-lg border border-border/30 text-xs font-semibold">
-              <button
-                onClick={() => setActiveMainTab('articles')}
-                className={cn(
-                  'px-3 py-1 rounded-md transition-all cursor-pointer font-sans',
-                  activeMainTab === 'articles'
-                    ? 'bg-card text-foreground shadow-xs font-bold'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                {t`Écrits`} ({articles.length})
-              </button>
-              <button
-                onClick={() => setActiveMainTab('categories')}
-                className={cn(
-                  'px-3 py-1 rounded-md transition-all cursor-pointer font-sans',
-                  activeMainTab === 'categories'
-                    ? 'bg-card text-foreground shadow-xs font-bold'
-                    : 'text-muted-foreground hover:text-foreground'
-                )}
-              >
-                {t`Catégories`} ({categories.length})
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
+            <Tabs
+              variant="segmented"
+              size="sm"
+              value={activeMainTab}
+              onValueChange={(value) => setActiveMainTab(value as 'articles' | 'categories')}
+            >
+              <TabList aria-label={t`Sections des articles`}>
+                <Tab id="articles">
+                  {t`Écrits`} ({articles.length})
+                </Tab>
+                <Tab id="categories">
+                  {t`Catégories`} ({categories.length})
+                </Tab>
+              </TabList>
+            </Tabs>
+          </>
+        }
+      />
 
       {/* Main Content View */}
       <AnimatePresence mode="wait">
@@ -1108,48 +1094,45 @@ export function ArticlesClient({
             className="space-y-5"
           >
             {/* Restored Original Search Bar */}
-            <div className="relative max-w-md">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70 stroke-[1.5]" />
-              <input
+            <InputGroup left={<Search className="size-4 stroke-[1.5]" />} className="max-w-md">
+              <Input
                 type="text"
-                placeholder={t`Rechercher un écrit par titre ou slug...`}
+                size="sm"
+                placeholder={t`Rechercher un écrit par titre ou slug…`}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-muted/30 border border-border/40 rounded-xl pl-9 pr-3.5 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary transition-colors font-sans"
               />
-            </div>
+            </InputGroup>
 
             {/* Barre de contrôle épurée : tri + filtres + affichage */}
             <div className="flex flex-col gap-3 pb-2 border-b border-border/30">
               <div className="flex flex-wrap items-center gap-2">
-                <div className="flex items-center gap-6 overflow-x-auto no-scrollbar pt-1">
-                  {(
-                    [
-                      ['all', t`Tous`, articles.length],
-                      ['published', t`Publiés`, countPublished],
-                      ...(countScheduled > 0
-                        ? ([['scheduled', t`Programmés`, countScheduled]] as const)
-                        : []),
-                      ['draft', t`Brouillons`, countDrafts],
-                      ...(canReview && countReview > 0
-                        ? ([['review', t`En revue`, countReview]] as const)
-                        : []),
-                    ] as const
-                  ).map(([value, label, count]) => (
-                    <button
-                      key={value}
-                      onClick={() => setStatusFilter(value)}
-                      className={cn(
-                        'pb-2 -mb-3 border-b-2 transition-all cursor-pointer text-xs font-sans',
-                        statusFilter === value
-                          ? 'border-primary text-primary font-bold'
-                          : 'border-transparent text-muted-foreground hover:text-foreground font-medium'
-                      )}
-                    >
-                      {label} ({count})
-                    </button>
-                  ))}
-                </div>
+                <Tabs
+                  variant="underline"
+                  size="sm"
+                  value={statusFilter}
+                  onValueChange={(value) => setStatusFilter(value as StatusFilter)}
+                >
+                  <TabList aria-label={t`Filtrer par statut`}>
+                    {(
+                      [
+                        ['all', t`Tous`, articles.length],
+                        ['published', t`Publiés`, countPublished],
+                        ...(countScheduled > 0
+                          ? ([['scheduled', t`Programmés`, countScheduled]] as const)
+                          : []),
+                        ['draft', t`Brouillons`, countDrafts],
+                        ...(canReview && countReview > 0
+                          ? ([['review', t`En revue`, countReview]] as const)
+                          : []),
+                      ] as const
+                    ).map(([value, label, count]) => (
+                      <Tab key={value} id={value}>
+                        {label} ({count})
+                      </Tab>
+                    ))}
+                  </TabList>
+                </Tabs>
 
                 <div className="ml-auto flex flex-wrap items-center gap-2">
                   <Select
@@ -1169,13 +1152,16 @@ export function ArticlesClient({
                       { id: 'engagement', label: t`Meilleur engagement` },
                     ]}
                   />
-                  <button
+                  <Button
+                    variant="outline"
+                    size="xs"
+                    shape="icon"
                     onClick={() => setSortDirection((prev) => (prev === 'desc' ? 'asc' : 'desc'))}
-                    className="p-1.5 rounded-lg bg-background border border-border/30 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                     title={t`Ordre : ${sortDirection === 'desc' ? t`Décroissant` : t`Croissant`}`}
+                    aria-label={t`Inverser l'ordre de tri`}
                   >
-                    <ArrowUpDown className="w-3.5 h-3.5 stroke-[1.5]" />
-                  </button>
+                    <ArrowUpDown />
+                  </Button>
 
                   <details className="relative">
                     <summary className="list-none flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-background border border-border/30 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer font-sans">
@@ -1254,13 +1240,10 @@ export function ArticlesClient({
                         ]}
                       />
                       {hasActiveFilters && (
-                        <button
-                          onClick={resetFilters}
-                          className="w-full flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-destructive/10 border border-destructive/20 text-xs font-semibold text-destructive-text hover:bg-destructive/20 transition-colors"
-                        >
-                          <FilterX className="w-3 h-3" />
+                        <Button variant="soft" tone="danger" size="xs" block onClick={resetFilters}>
+                          <FilterX />
                           {t`Réinitialiser`}
-                        </button>
+                        </Button>
                       )}
                     </div>
                   </details>
@@ -1397,40 +1380,37 @@ export function ArticlesClient({
                   <span className="text-xs font-semibold text-foreground">
                     {selectedIds.size} {t`sélectionné(s)`}
                   </span>
-                  <button
+                  <Button
+                    variant="soft"
+                    tone="brand"
+                    size="xs"
                     onClick={() => setBulkSettingsOpen(true)}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-primary/10 text-primary border border-primary/20 text-xs font-semibold hover:bg-primary/20 transition-colors"
                   >
-                    <SlidersHorizontal className="w-3 h-3" />
+                    <SlidersHorizontal />
                     {t`Modifier les paramètres`}
-                  </button>
+                  </Button>
                   {selectedIds.size === 1 &&
                     (() => {
                       const selected = articles.find((art) => selectedIds.has(art.id));
                       if (!selected) return null;
                       return (
-                        <button
+                        <Button
+                          variant="outline"
+                          size="xs"
                           onClick={() => requestTogglePin(selected.id, selected.title)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-muted text-foreground border border-border/40 text-xs font-semibold hover:bg-muted/80 transition-colors"
                         >
-                          <Pin className="w-3 h-3" />
+                          <Pin />
                           {pinnedArticleId === selected.id ? t`Dépingler` : t`Épingler`}
-                        </button>
+                        </Button>
                       );
                     })()}
-                  <button
-                    onClick={requestBulkDelete}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-destructive/10 text-destructive-text border border-destructive/20 text-xs font-semibold hover:bg-destructive/20 transition-colors"
-                  >
-                    <Trash2 className="w-3 h-3" />
+                  <Button variant="soft" tone="danger" size="xs" onClick={requestBulkDelete}>
+                    <Trash2 />
                     {t`Supprimer`}
-                  </button>
-                  <button
-                    onClick={() => setSelectedIds(new Set())}
-                    className="text-xs text-muted-foreground hover:text-foreground"
-                  >
+                  </Button>
+                  <Button variant="ghost" size="xs" onClick={() => setSelectedIds(new Set())}>
                     {t`Annuler`}
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
@@ -1450,20 +1430,22 @@ export function ArticlesClient({
                   </p>
                 </div>
                 {hasActiveFilters ? (
-                  <button
-                    onClick={resetFilters}
-                    className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 bg-muted text-foreground font-semibold text-xs rounded-xl hover:bg-muted/80 transition-colors cursor-pointer"
-                  >
-                    <FilterX className="w-3.5 h-3.5" />
-                    <span>{t`Réinitialiser les filtres`}</span>
-                  </button>
+                  <Button variant="soft" size="sm" onClick={resetFilters} className="mt-2">
+                    <FilterX />
+                    {t`Réinitialiser les filtres`}
+                  </Button>
                 ) : (
                   <a
                     href="/articles/new"
-                    className="mt-2 inline-flex items-center gap-1.5 px-4 py-2 bg-primary text-primary-foreground font-semibold text-xs rounded-xl hover:opacity-90 transition-opacity"
+                    className={buttonClasses({
+                      variant: 'solid',
+                      tone: 'brand',
+                      size: 'sm',
+                      className: 'mt-2',
+                    })}
                   >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>{t`Rédiger un article`}</span>
+                    <Plus />
+                    {t`Rédiger un article`}
                   </a>
                 )}
               </div>
@@ -2235,6 +2217,6 @@ export function ArticlesClient({
           onEdit={() => router.push(`/articles/${diffTarget.article.id}`)}
         />
       )}
-    </div>
+    </StudioPage>
   );
 }

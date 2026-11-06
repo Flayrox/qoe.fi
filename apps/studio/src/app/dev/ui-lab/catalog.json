@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-11-06T10:19:25.150Z",
+  "generatedAt": "2026-11-06T10:26:53.496Z",
   "total": 371,
   "signals": {
     "primitivesNeverImported": 10,
     "primitivesTotal": 33,
-    "rawButtons": 427,
-    "rawButtonFiles": 92,
+    "rawButtons": 400,
+    "rawButtonFiles": 90,
     "nativeSelectFiles": 0,
     "rawInputFiles": 49,
     "handRolledOverlays": 4
@@ -62,7 +62,7 @@
           "path": "packages/ui/src/primitives/button/button.tsx",
           "lines": 205,
           "source": "primitives",
-          "usages": 52
+          "usages": 55
         },
         {
           "name": "card",
@@ -160,7 +160,7 @@
           "path": "packages/ui/src/primitives/input/input.tsx",
           "lines": 192,
           "source": "primitives",
-          "usages": 36
+          "usages": 37
         },
         {
           "name": "popover-panel",
@@ -237,7 +237,7 @@
           "path": "packages/ui/src/primitives/tabs/tabs.tsx",
           "lines": 252,
           "source": "primitives",
-          "usages": 15
+          "usages": 16
         },
         {
           "name": "tag-group",
@@ -767,7 +767,7 @@
           "path": "packages/ui/src/primitives/button/button.tsx",
           "lines": 205,
           "source": "ui",
-          "usages": 52
+          "usages": 55
         },
         {
           "name": "card",
@@ -865,7 +865,7 @@
           "path": "packages/ui/src/primitives/input/input.tsx",
           "lines": 192,
           "source": "ui",
-          "usages": 36
+          "usages": 37
         },
         {
           "name": "popover-panel",
@@ -942,7 +942,7 @@
           "path": "packages/ui/src/primitives/tabs/tabs.tsx",
           "lines": 252,
           "source": "ui",
-          "usages": 15
+          "usages": 16
         },
         {
           "name": "tag-group",
@@ -1735,14 +1735,14 @@
         {
           "name": "EditorHeader",
           "path": "apps/studio/src/features/editor/components/EditorHeader.tsx",
-          "lines": 394,
+          "lines": 365,
           "source": "studio",
           "usages": null
         },
         {
           "name": "EditorSettingsDrawer",
           "path": "apps/studio/src/features/editor/components/EditorSettingsDrawer.tsx",
-          "lines": 620,
+          "lines": 600,
           "source": "studio",
           "usages": null
         },
@@ -1938,7 +1938,7 @@
         {
           "name": "seo-preview",
           "path": "apps/studio/src/features/settings/components/seo-preview.tsx",
-          "lines": 139,
+          "lines": 138,
           "source": "studio",
           "usages": null
         },
