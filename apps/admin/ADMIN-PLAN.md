@@ -8,7 +8,7 @@
 > [« 📝 Instructions »](#-instructions) en bas. Elle est prioritaire sur le
 > reste du plan.
 
-Dernière mise à jour : 2026-11-06 · branche `dev` · travail non poussé · dernier commit `6c6ac8b9`.
+Dernière mise à jour : 2026-11-06 · branche `dev` · travail non poussé · dernier commit `0d6b8df2`.
 
 ---
 
@@ -75,7 +75,7 @@ Commits du chantier :
 | `f7609cba` | Simulateur de droits et matrice dense des rôles (`/admin/access/roles`) (C3) : simulateur "Qui peut X ?", filtres de domaine, MetricChips |
 | `a93815b6` | Verrouillage parité Go ↔ TS des campagnes staff (C7) : test direct sur `staff_campaigns.go` (types et audiences) |
 | `45047022` | Explorateur interactif des réglages (`/admin/settings`) (C2) : DataGrid 26 px, Drawer 480 px, facettes mes droits/catégorie/portée |
-| `a4b08f87` | Routes Go manquantes (C6) : flags (`admin.flags.write`) et annonce globale (`admin.campaigns.write` + N2, fin de `verifySuperadmin`), audit inconditionnel |
+| `0d6b8df2` | Routes Go manquantes (C6) : flags (`admin.flags.write`) et annonce globale (`admin.campaigns.write` + N2, fin de `verifySuperadmin`), audit inconditionnel |
 
 ## 4. Ce qui existe (surface actuelle)
 
