@@ -108,9 +108,10 @@ Commits du chantier :
       colonnes + densité), l'épingler, la rejouer ; stockage local par personne
       (`qoe.admin.views.<resource>`). *Reste : passage en base
       (`admin_saved_views`) pour les vues d'équipe.*
-- [~] **B4. Colonnes configurables** : masquer/afficher, réordonner, largeur
-      minimale ; mémorisé avec la vue. *Fait : masquer/afficher + mémorisation.
-      Reste : réordonnancement, largeur.*
+- [x] **B4. Colonnes configurables** : masquer/afficher, réordonner
+      (flèches ↑/↓ dans le menu « Colonnes », ordre dans `?o=` et dans la vue
+      nommée, appliqué par `DataGrid` via `columnOrder`) ; mémorisé avec la vue.
+      *Reste : largeur minimale.*
 - [x] **B5. Sélection + actions groupées** : `DataGrid` (`selectable`,
       `bulkActions`, `TableSelectAllCell`/`TableSelectionCell`, « Tout
       désélectionner ») + barre de 28 px réservée à la sélection +

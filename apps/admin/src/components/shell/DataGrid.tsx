@@ -67,6 +67,8 @@ interface DataGridProps<T extends { id: string }> {
   onRowOpen?: (row: T) => void;
   /** Raccourci `a` : assigner la sélection (ou la ligne courante). */
   onAssign?: (rows: T[]) => void;
+  /** Ordre explicite des colonnes (ids absents = à la fin, ordre déclaré). */
+  columnOrder?: readonly string[];
 }
 
 export function DataGrid<T extends { id: string }>({
@@ -86,6 +88,7 @@ export function DataGrid<T extends { id: string }>({
   rowHref,
   onRowOpen,
   onAssign,
+  columnOrder,
 }: DataGridProps<T>) {
   const router = useRouter();
   const [selectedKeys, setSelectedKeys] = React.useState<Set<string>>(new Set());
@@ -101,10 +104,15 @@ export function DataGrid<T extends { id: string }>({
     else setInnerSort(next);
   };
 
-  const visibleColumns = React.useMemo(
-    () => columns.filter((column) => !hiddenColumns?.includes(column.id)),
-    [columns, hiddenColumns]
-  );
+  const visibleColumns = React.useMemo(() => {
+    const shown = columns.filter((column) => !hiddenColumns?.includes(column.id));
+    if (!columnOrder || columnOrder.length === 0) return shown;
+    const rank = new Map(columnOrder.map((id, index) => [id, index]));
+    return [...shown].sort(
+      (left, right) =>
+        (rank.get(left.id) ?? columnOrder.length) - (rank.get(right.id) ?? columnOrder.length)
+    );
+  }, [columns, hiddenColumns, columnOrder]);
   // Trier sur une colonne masquée n'a plus de sens : on retombe sur la
   // première colonne triable plutôt que de laisser `sortRows` sans spec.
   const effectiveSort: SortDescriptorLike = visibleColumns.some(

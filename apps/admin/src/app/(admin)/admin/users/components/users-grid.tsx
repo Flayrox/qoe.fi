@@ -247,6 +247,13 @@ export function UsersGrid({ users }: { users: AdminUserRow[] }) {
         onChange={grid.update}
         onToggleFacet={grid.toggleFacet}
         onToggleColumn={grid.toggleColumn}
+        onMoveColumn={(id, delta) =>
+          grid.moveColumn(
+            id,
+            delta,
+            columns.map((column) => column.id)
+          )
+        }
         onReset={grid.reset}
         facets={facetDefs}
         columns={columns.map((column) => ({ id: column.id, label: column.id }))}
@@ -265,6 +272,7 @@ export function UsersGrid({ users }: { users: AdminUserRow[] }) {
         onSortChange={(sort) => grid.update({ sort } as Partial<GridViewState>)}
         hiddenColumns={grid.state.hidden}
         density={grid.state.density}
+        columnOrder={grid.state.order}
         emptyState="Aucun compte ne correspond."
         rowMenu={menu}
       />

@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { RotateCcw } from 'lucide-react';
+import { ChevronDown, ChevronUp, RotateCcw } from 'lucide-react';
 import { Button } from '@qoe/ui/button';
 import { Select } from '@qoe/ui/select';
 import type { GridFacetDef, GridViewState, SavedView } from './grid-view';
@@ -20,6 +20,8 @@ export interface GridViewToolbarProps<T> {
   onChange: (patch: Partial<GridViewState>) => void;
   onToggleFacet: (groupId: string, value: string) => void;
   onToggleColumn: (columnId: string) => void;
+  /** Réordonner une colonne (`-1` monte, `1` descend). */
+  onMoveColumn?: (columnId: string, delta: number) => void;
   onReset: () => void;
   facets: readonly GridFacetDef<T>[];
   columns: readonly { id: string; label: string }[];
@@ -36,6 +38,7 @@ export function GridViewToolbar<T>({
   onChange,
   onToggleFacet,
   onToggleColumn,
+  onMoveColumn,
   onReset,
   facets,
   columns,
@@ -99,18 +102,43 @@ export function GridViewToolbar<T>({
             {columns.map((column) => {
               const hidden = state.hidden.includes(column.id);
               return (
-                <Button
-                  key={column.id}
-                  type="button"
-                  size="xs"
-                  variant="ghost"
-                  onClick={() => onToggleColumn(column.id)}
-                  className={`h-6 w-full justify-start px-2 font-normal ${
-                    hidden ? 'text-muted-foreground line-through' : 'text-foreground'
-                  }`}
-                >
-                  {column.label}
-                </Button>
+                <div key={column.id} className="flex items-center gap-0.5">
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant="ghost"
+                    onClick={() => onToggleColumn(column.id)}
+                    className={`h-6 min-w-0 flex-1 justify-start px-2 font-normal ${
+                      hidden ? 'text-muted-foreground line-through' : 'text-foreground'
+                    }`}
+                  >
+                    {column.label}
+                  </Button>
+                  {onMoveColumn && (
+                    <>
+                      <Button
+                        type="button"
+                        size="xs"
+                        variant="ghost"
+                        aria-label={`Monter ${column.label}`}
+                        onClick={() => onMoveColumn(column.id, -1)}
+                        className="h-6 w-5 shrink-0 px-0 text-muted-foreground"
+                      >
+                        <ChevronUp className="size-3" aria-hidden />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="xs"
+                        variant="ghost"
+                        aria-label={`Descendre ${column.label}`}
+                        onClick={() => onMoveColumn(column.id, 1)}
+                        className="h-6 w-5 shrink-0 px-0 text-muted-foreground"
+                      >
+                        <ChevronDown className="size-3" aria-hidden />
+                      </Button>
+                    </>
+                  )}
+                </div>
               );
             })}
           </div>

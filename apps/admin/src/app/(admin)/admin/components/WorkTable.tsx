@@ -261,6 +261,13 @@ export function WorkTable({
         onChange={grid.update}
         onToggleFacet={grid.toggleFacet}
         onToggleColumn={grid.toggleColumn}
+        onMoveColumn={(id, delta) =>
+          grid.moveColumn(
+            id,
+            delta,
+            columns.map((column) => column.id)
+          )
+        }
         onReset={grid.reset}
         facets={facetDefs}
         columns={columns.map((column) => ({ id: column.id, label: column.id }))}
@@ -295,6 +302,7 @@ export function WorkTable({
         onSortChange={(sort) => grid.update({ sort } as Partial<GridViewState>)}
         hiddenColumns={grid.state.hidden}
         density={grid.state.density}
+        columnOrder={grid.state.order}
         emptyState="Aucun dossier ouvert : les six files sont vides."
         selectable
         rowHref={(row) => row.href}

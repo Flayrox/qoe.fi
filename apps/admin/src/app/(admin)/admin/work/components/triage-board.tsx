@@ -264,6 +264,13 @@ export function TriageBoard({ view }: { view: AdminWorkQueueView }) {
         onChange={grid.update}
         onToggleFacet={grid.toggleFacet}
         onToggleColumn={grid.toggleColumn}
+        onMoveColumn={(id, delta) =>
+          grid.moveColumn(
+            id,
+            delta,
+            columns.map((column) => column.id)
+          )
+        }
         onReset={grid.reset}
         facets={facetDefs}
         columns={columns.map((column) => ({ id: column.id, label: column.id }))}
@@ -289,6 +296,7 @@ export function TriageBoard({ view }: { view: AdminWorkQueueView }) {
         onSortChange={(sort) => grid.update({ sort } as Partial<GridViewState>)}
         hiddenColumns={grid.state.hidden}
         density={grid.state.density}
+        columnOrder={grid.state.order}
         emptyState="Aucun dossier ouvert dans les six files."
         rowMenu={menu}
       />
