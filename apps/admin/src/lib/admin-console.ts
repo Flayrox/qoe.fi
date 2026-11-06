@@ -357,6 +357,15 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
     description: 'Statut, promesse de notification, flag et page de chaque fonctionnalité',
   },
   {
+    // L'index des leviers : là où l'on cherche « quel réglage fait quoi »
+    // avant d'ouvrir un écran au hasard.
+    href: '/admin/settings',
+    label: 'Réglages',
+    capability: 'admin.config.read',
+    alsoUses: ['admin.flags.write', 'admin.config.write'],
+    description: 'Index des leviers : effet, portée, capacité et preuve exigée',
+  },
+  {
     href: '/admin/config',
     label: 'Feature flags',
     capability: 'admin.config.read',
