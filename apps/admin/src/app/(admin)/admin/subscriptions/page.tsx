@@ -13,6 +13,7 @@ import { Crown } from 'lucide-react';
 import { getAdminSubscriptionGrants } from '@/lib/admin-data';
 import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
 import { GrantsManager } from './components/grants-manager';
+import { SubscribersSignedExportPanel } from './components/SubscribersSignedExportPanel';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 
 export default async function AdminSubscriptionsPage() {
@@ -39,6 +40,8 @@ export default async function AdminSubscriptionsPage() {
       />
 
       <GrantsManager initialItems={items} />
+
+      <SubscribersSignedExportPanel />
     </div>
   );
 }

@@ -11,6 +11,7 @@ import {
 import { ComplianceDashboard } from './ComplianceDashboard';
 import { ComplianceLifecycle } from './ComplianceLifecycle';
 import { DSARRequestsManager } from './DSARRequestsManager';
+import { UniversalExportVerifierPanel } from './UniversalExportVerifierPanel';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 
 export const dynamic = 'force-dynamic';
@@ -66,6 +67,8 @@ export default async function AdminCompliancePage() {
         verification={verification}
         documents={documents}
       />
+
+      <UniversalExportVerifierPanel />
     </div>
   );
 }

@@ -103,6 +103,8 @@ var extraStepUpRoutes = []string{
 	"POST /v1/admin/users/{userID}/dsar-export",
 	"POST /v1/admin/users/{userID}/erase",
 	"POST /v1/admin/compliance/retention/purge",
+	"POST /v1/admin/audit/signed-export",
+	"POST /v1/admin/subscribers/signed-export",
 }
 
 // assumedN0 : capacités d'écriture qui restent volontairement sans preuve
