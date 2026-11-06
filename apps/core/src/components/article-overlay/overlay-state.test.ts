@@ -48,7 +48,7 @@ describe('buildArticleUrl', () => {
       'la-ville-sans-voiture'
     );
 
-    expect(url).toBe('/le-media/la-ville-sans-voiture');
+    expect(url).toBe('/le-media/a/la-ville-sans-voiture');
     expect(url.startsWith('https://')).toBe(false);
   });
 
@@ -57,7 +57,7 @@ describe('buildArticleUrl', () => {
       { slug: 'billet', author: { id: 'a1', username: 'ephe' } },
       'billet'
     );
-    expect(url).toBe('/ephe/billet');
+    expect(url).toBe('/ephe/a/billet');
   });
 });
 
