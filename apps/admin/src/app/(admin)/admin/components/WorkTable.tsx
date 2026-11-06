@@ -4,6 +4,15 @@ import * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Button } from '@qoe/ui/button';
+import {
+  Drawer,
+  DrawerBody,
+  DrawerClose,
+  DrawerContent,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from '@qoe/ui/drawer';
 import { CopyableId } from '@/components/shell/CopyableId';
 import { DataGrid, type GridColumn } from '@/components/shell/DataGrid';
 import { GridViewToolbar } from '@/components/shell/GridView';
@@ -75,6 +84,7 @@ export function WorkTable({
 }) {
   const router = useRouter();
   const [status, setStatus] = React.useState<string | null>(null);
+  const [preview, setPreview] = React.useState<AdminQueueTriageEntry | null>(null);
   const grid = useGridView('admin.work', { column: 'sla', direction: 'ascending' });
 
   const assign = (entry: AdminQueueTriageEntry) => {
@@ -248,6 +258,7 @@ export function WorkTable({
         emptyState="Aucun dossier ouvert : les six files sont vides."
         selectable
         rowHref={(row) => row.href}
+        onRowOpen={(row) => setPreview(row)}
         bulkActions={(rows) => (
           <Button
             type="button"
@@ -261,6 +272,12 @@ export function WorkTable({
           </Button>
         )}
         rowMenu={(row) => [
+          {
+            id: 'preview',
+            label: 'Aperçu du dossier',
+            shortcut: '↵',
+            onSelect: () => setPreview(row),
+          },
           { id: 'open', label: 'Ouvrir le dossier', onSelect: () => router.push(row.href) },
           { id: 'assign', label: 'M’assigner', onSelect: () => assign(row) },
           {
@@ -276,6 +293,68 @@ export function WorkTable({
           },
         ]}
       />
+
+      <Drawer
+        open={preview !== null}
+        onOpenChange={(open) => {
+          if (!open) setPreview(null);
+        }}
+        width="md"
+      >
+        {preview && (
+          <DrawerContent aria-label="Aperçu du dossier">
+            <DrawerHeader>
+              <DrawerTitle>
+                {queueLabels[preview.queue] ?? preview.queue} · {preview.title}
+              </DrawerTitle>
+            </DrawerHeader>
+            <DrawerBody>
+              <dl className="grid grid-cols-[112px_1fr] gap-x-3 gap-y-2 text-[12px]">
+                <dt className="text-muted-foreground">Identifiant</dt>
+                <dd>
+                  <CopyableId id={preview.id} />
+                </dd>
+                <dt className="text-muted-foreground">File</dt>
+                <dd>{queueLabels[preview.queue] ?? preview.queue}</dd>
+                <dt className="text-muted-foreground">Priorité</dt>
+                <dd>{PRIORITY_LABELS[preview.priority]}</dd>
+                <dt className="text-muted-foreground">SLA</dt>
+                <dd>{SLA_LABELS[preview.slaState]}</dd>
+                <dt className="text-muted-foreground">Échéance</dt>
+                <dd className="tabular-nums">{formatDue(preview.dueAt)}</dd>
+                <dt className="text-muted-foreground">Assigné</dt>
+                <dd>{preview.assignedName ?? '—'}</dd>
+              </dl>
+            </DrawerBody>
+            <DrawerFooter>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="soft"
+                  tone="brand"
+                  onClick={() => assign(preview)}
+                >
+                  M’assigner
+                </Button>
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="ghost"
+                  onClick={() => router.push(preview.href)}
+                >
+                  Ouvrir
+                </Button>
+                <DrawerClose>
+                  <Button type="button" size="xs" variant="ghost">
+                    Fermer
+                  </Button>
+                </DrawerClose>
+              </div>
+            </DrawerFooter>
+          </DrawerContent>
+        )}
+      </Drawer>
     </div>
   );
 }

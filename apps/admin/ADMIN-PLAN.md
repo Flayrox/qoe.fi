@@ -63,7 +63,7 @@ Commits du chantier :
 | `c468c924` | Facettes du triage (file, priorité, SLA) + vues nommées |
 | `971c11d5` | `useGridView` : tri + facettes + colonnes + densité dans l'URL, vues nommées en `localStorage`, barre de facettes (`GridViewToolbar`) branchée sur les comptes et la vue d'ensemble |
 | `6c6ac8b9` | `/admin/settings` : catalogue de ~35 leviers typés (`lib/admin-settings-catalog.ts`), capacité `admin.config.read`, entrée de nav |
-| `a_venir` | B5/B7 : sélection multiple + barre d'actions groupées (« M'assigner » auditée) + clavier `j/k/x/Entrée/Échap` dans `DataGrid` |
+| `fd051fa9` | : sélection multiple + barre d'actions groupées (« M'assigner » auditée) + clavier `j/k/x/Entrée/Échap` + panneau de détail 480 px (`Drawer`) |
 
 ## 4. Ce qui existe (surface actuelle)
 
@@ -117,8 +117,10 @@ Commits du chantier :
       `bulkActions`, `TableSelectAllCell`/`TableSelectionCell`, « Tout
       désélectionner ») + `WorkTable` (« M'assigner » en boucle séquentielle
       auditée). Reste : priorité/échéance/statut groupés, undo.*
-- [ ] **B6. Panneau de détail 480 px** (`Sheet`) : ouvrir un dossier sans
-      quitter la file ; navigation clavier dedans.
+- [x] **B6. Panneau de détail 480 px** : `Drawer` de `@qoe/ui/drawer` ouvert
+      par `Entrée` (`onRowOpen`) ou le clic droit (« Aperçu du dossier ») ;
+      identifiant copiable, file, priorité, SLA, échéance, assigné, actions
+      « M'assigner » / « Ouvrir » / « Fermer ».
 - [~] **B7. Clavier** : *fait* `j/k` curseur (surbrillance + `scrollIntoView`),
       `x` sélection, `Entrée` ouvre `rowHref`, `Échap` vide la sélection — sur
       tout `DataGrid` focusable. Reste : `e` édition inline, `/` recherche,
