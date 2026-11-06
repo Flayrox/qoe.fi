@@ -60,6 +60,7 @@ Commits du chantier :
 |---|---|
 | `da0a1907` | Coquille dense : tokens, sidebar 232→, header 44 px, palette ⌘K (écrans + dossiers + actions), dashboard 5 tuiles + tableau SLA, `/admin/system`, retrait déco (emoji, framer-motion, arrondis) |
 | `62ae98e6` | `DataGrid` (tri déclaré) + `RowActions` (clic droit) + fin du mono + zéro `<select>`/`<table>` natif + `ui:audit` vert |
+| `c468c924` | Facettes du triage (file, priorité, SLA) + vues nommées |
 | `971c11d5` | `useGridView` : tri + facettes + colonnes + densité dans l'URL, vues nommées en `localStorage`, barre de facettes (`GridViewToolbar`) branchée sur les comptes et la vue d'ensemble |
 
 ## 4. Ce qui existe (surface actuelle)
@@ -96,8 +97,8 @@ Commits du chantier :
       grille — file, état SLA, priorité, rôle, statut de compte, assignation.
       Les facettes sont **déclarées dans la spec de colonne/ressource**, pas
       codées par écran.
-      *Fait : comptes (rôle, statut) + vue d'ensemble (file, SLA).
-      Reste : triage, files de modération, notifications, imports.*
+      *Fait : comptes (rôle, statut), vue d'ensemble (file, SLA), triage
+      (file, priorité, SLA). Reste : files de modération, notifications, imports.*
 - [x] **B2. État dans l'URL** : tri, facettes, densité et colonnes visibles
       vivent dans `?sort=…&f=statut:open&d=compact&c=email,role`. Une URL est
       partageable et rechargeable (`components/shell/grid-view.ts`).
@@ -133,8 +134,10 @@ Commits du chantier :
       features, sécurité, maintenance. Diff avant écriture + « qui peut changer ».
 - [ ] **C3. Matrice rôles × capacités** éditable, avec simulateur
       « qui peut X ? » et revue d'accès périodique.
-- [ ] **C4. Audit toujours écrit** : retirer la condition de flag dans le
-      `logAudit` Go ; le flag ne garde que le mode verbeux. Test de non-régression.
+- [x] **C4. Audit toujours écrit** : vérifié dans
+      `apps/api/internal/modules/admin/service_aux.go` — `logAudit` insère sans
+      consulter `admin-audit-log` ; les tests `admin/audit_test.go` couvrent les
+      deux états du flag.
 - [ ] **C5. Double validation** sur l'irréversible (motif obligatoire + ticket).
 - [ ] **C6. Routes Go manquantes** : flags (`admin.flags.write`) et annonce
       globale (capacité de communication, pas `admin.config.write`).
