@@ -57,7 +57,7 @@ export function AccessDenied({
         </p>
       </header>
 
-      <div className="rounded-2xl border border-border bg-muted/40 p-6">
+      <div className="rounded-lg border border-border bg-muted/40 p-6">
         <h2 className="text-sm font-semibold">Il vous manque</h2>
         {missing.length > 0 ? (
           <ul className="mt-3 flex flex-col gap-2" data-testid="admin-access-denied-missing">
@@ -76,7 +76,7 @@ export function AccessDenied({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl border border-border p-5">
+        <div className="rounded-lg border border-border p-5">
           <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             Vos rôles
           </h2>
@@ -84,7 +84,7 @@ export function AccessDenied({
             {roles.length > 0 ? roles.join(', ') : 'aucun rôle attribué'}
           </p>
         </div>
-        <div className="rounded-2xl border border-border p-5">
+        <div className="rounded-lg border border-border p-5">
           <h2 className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
             Vos capacités
           </h2>

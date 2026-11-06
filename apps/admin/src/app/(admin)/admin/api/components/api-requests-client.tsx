@@ -8,8 +8,6 @@ import {
   Search,
   Shield,
   Settings2,
-  X,
-  Check,
   ArrowUpRight,
   ArrowDownLeft,
   KeyRound,
@@ -218,7 +216,7 @@ export function ApiRequestsClient({ initialApplicants, modules }: ApiRequestsCli
 
       {/* Table */}
       {filteredApplicants.length === 0 ? (
-        <div className="bg-card border border-border rounded-3xl p-16 text-center text-muted-foreground space-y-3">
+        <div className="bg-card border border-border rounded-lg p-16 text-center text-muted-foreground space-y-3">
           <Shield className="w-10 h-10 text-muted-foreground mx-auto" />
           <p className="text-sm font-semibold">Aucune demande trouvée</p>
           <p className="text-xs text-muted-foreground">

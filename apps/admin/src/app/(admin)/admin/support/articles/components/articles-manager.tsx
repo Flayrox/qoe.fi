@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, Plus } from 'lucide-react';
 import { createSupportArticleAction, updateSupportArticleAction } from '@qoe/sdk/actions/admin';
 import { QueueEmpty } from '@/components/queue/QueueEmpty';
@@ -111,7 +110,7 @@ export function ArticlesManager({ initialItems }: ArticlesManagerProps) {
           Nouvel article
         </button>
         {showNew && (
-          <div className="mt-3 bg-white border border-border rounded-3xl p-5 shadow-sm space-y-2">
+          <div className="mt-3 bg-white border border-border rounded-lg p-5 shadow-sm space-y-2">
             <input
               value={slug}
               onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
@@ -163,23 +162,19 @@ export function ArticlesManager({ initialItems }: ArticlesManagerProps) {
 
       {items.length === 0 && !showNew ? (
         <QueueEmpty
-          title="Aucun article 🎉"
+          title="Aucun article"
           hint="Créez le premier article d'aide ci-dessus — la FAQ statique de la vitrine reste en attendant."
         />
       ) : (
         <div className="space-y-3">
-          <AnimatePresence mode="popLayout">
+          <>
             {items.map((item) => {
               const expanded = openId === item.id;
               const loading = loadingId === item.id;
               return (
-                <motion.div
+                <div
                   key={item.id}
-                  layout
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  className="bg-white border border-border rounded-3xl p-5 shadow-sm"
+                  className="bg-white border border-border rounded-lg p-5 shadow-sm"
                 >
                   <div className="flex flex-col lg:flex-row gap-4 lg:items-start justify-between">
                     <div className="flex-1 min-w-0 space-y-2">
@@ -256,10 +251,10 @@ export function ArticlesManager({ initialItems }: ArticlesManagerProps) {
                       </button>
                     </div>
                   )}
-                </motion.div>
+                </div>
               );
             })}
-          </AnimatePresence>
+          </>
         </div>
       )}
     </div>

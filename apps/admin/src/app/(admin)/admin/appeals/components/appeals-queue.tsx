@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, ShieldCheck, Check, X, MessageSquare } from 'lucide-react';
 import { QueueEmpty } from '@/components/queue/QueueEmpty';
 import { useStaffAction } from '@/components/queue/useStaffAction';
@@ -95,14 +94,7 @@ export function AppealsQueue({ initialItems }: AppealsQueueProps) {
     const expanded = openId === item.id;
     const shown = expanded && detail?.id === item.id ? detail : item;
     return (
-      <motion.div
-        key={item.id}
-        layout
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0 }}
-        className={`bg-white border rounded-3xl p-5 shadow-sm ${meta.tone}`}
-      >
+      <div key={item.id} className={`bg-white border rounded-lg p-5 shadow-sm ${meta.tone}`}>
         <div className="flex flex-col lg:flex-row gap-4 lg:items-start justify-between">
           <div className="flex-1 min-w-0 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
@@ -216,7 +208,7 @@ export function AppealsQueue({ initialItems }: AppealsQueueProps) {
             )}
           </div>
         )}
-      </motion.div>
+      </div>
     );
   };
 
@@ -224,20 +216,20 @@ export function AppealsQueue({ initialItems }: AppealsQueueProps) {
     <div className="space-y-6 text-foreground font-sans">
       {items.length === 0 ? (
         <QueueEmpty
-          title="Aucun recours 🎉"
+          title="Aucun recours"
           hint="Les contestations des mesures visant un compte apparaîtront ici."
         />
       ) : (
         <>
           <div className="space-y-3">
-            <AnimatePresence mode="popLayout">{openItems.map(renderCard)}</AnimatePresence>
+            <>{openItems.map(renderCard)}</>
           </div>
           {decidedItems.length > 0 && (
             <div className="space-y-3">
               <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Tranchés ({decidedItems.length})
               </h2>
-              <AnimatePresence mode="popLayout">{decidedItems.map(renderCard)}</AnimatePresence>
+              <>{decidedItems.map(renderCard)}</>
             </div>
           )}
         </>

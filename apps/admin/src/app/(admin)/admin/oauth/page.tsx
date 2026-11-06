@@ -5,7 +5,6 @@
 // =====================================================================
 
 import React from 'react';
-import { ShieldCheck } from 'lucide-react';
 import { getOAuthClients } from '@/lib/admin-data';
 import { OAuthAppsClient, type OAuthClientAdmin } from './components/oauth-apps-client';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
@@ -36,12 +35,10 @@ export default async function AdminOAuthAppsPage() {
   return (
     <div className="w-full max-w-6xl mx-auto space-y-10">
       <div>
-        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#EE4B2B] mb-2">
-          <ShieldCheck className="w-4 h-4" />
-          Administration Console
-        </div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Applications OAuth</h1>
-        <p className="text-muted-foreground mt-2 text-sm max-w-2xl leading-relaxed">
+        <h1 className="text-[17px] font-semibold tracking-tight text-foreground">
+          Applications OAuth
+        </h1>
+        <p className="mt-1 max-w-3xl text-[12px] leading-5 text-muted-foreground">
           Auditez et activez les applications « Se connecter avec qoefi » créées par les
           développeurs du réseau.
         </p>

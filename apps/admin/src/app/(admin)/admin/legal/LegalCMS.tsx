@@ -303,7 +303,7 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
     );
     if (placeholderCount > 0) {
       const proceed = confirm(
-        `⚠️ Cette version contient ${placeholderCount} jeton(s) non rempli(s) ` +
+        `Cette version contient ${placeholderCount} jeton(s) non rempli(s) ` +
           '(ex. [RAISON SOCIALE], [EMAIL DPO]).\n\n' +
           'Publier un document juridique à trous expose la plateforme. ' +
           'Remplis les jetons dans le brouillon avant publication.\n\n' +
@@ -551,7 +551,7 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
                   <button
                     key={doc.id}
                     onClick={() => selectDocument(doc.id)}
-                    className={`w-full rounded-2xl border px-4 py-3 text-left transition-colors ${
+                    className={`w-full rounded-lg border px-4 py-3 text-left transition-colors ${
                       isActive
                         ? 'border-primary/40 bg-primary/5'
                         : 'border-border bg-white hover:bg-muted/40'
@@ -608,7 +608,7 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
               })}
 
               {filtered.length === 0 && (
-                <p className="rounded-2xl border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
+                <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-xs text-muted-foreground">
                   Aucun document. Utilise « Installer les manquants » pour charger le contenu
                   embarqué.
                 </p>
@@ -626,13 +626,13 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
           {/* Détail du document */}
           <div className="space-y-6">
             {!selected ? (
-              <div className="rounded-2xl border border-dashed border-border px-6 py-16 text-center text-sm text-muted-foreground">
+              <div className="rounded-lg border border-dashed border-border px-6 py-16 text-center text-sm text-muted-foreground">
                 Sélectionne un document à gauche pour éditer ses versions.
               </div>
             ) : (
               <>
                 {selectedPlaceholders.length > 0 && (
-                  <div className="rounded-2xl border border-highlight/30 bg-highlight/5 px-5 py-4">
+                  <div className="rounded-lg border border-highlight/30 bg-highlight/5 px-5 py-4">
                     <div className="flex items-center gap-2 text-sm font-semibold text-highlight">
                       <AlertTriangle className="h-4 w-4" />
                       Jetons à compléter avant publication
@@ -673,7 +673,7 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
                   onDelete={() => removeDocument(selected)}
                 />
 
-                <div className="rounded-2xl border border-border bg-white">
+                <div className="rounded-lg border border-border bg-white">
                   <div className="flex items-center justify-between border-b border-border px-5 py-4">
                     <div className="flex items-center gap-2">
                       <Scale className="h-4 w-4 text-primary" />
@@ -824,7 +824,7 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
             />
           </div>
 
-          <div className="overflow-hidden rounded-2xl border border-border bg-white">
+          <div className="overflow-hidden rounded-lg border border-border bg-white">
             <div className="flex items-center gap-2 border-b border-border px-5 py-4">
               <Filter className="h-4 w-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold text-foreground">Volumétrie par document</h2>
@@ -861,7 +861,7 @@ export function LegalCMS({ documents, acceptances, stats }: LegalCMSProps) {
             </Table>
           </div>
 
-          <div className="overflow-hidden rounded-2xl border border-border bg-card">
+          <div className="overflow-hidden rounded-lg border border-border bg-card">
             <div className="flex items-center gap-2 border-b border-border px-5 py-4">
               <ShieldCheck className="h-4 w-4 text-muted-foreground" />
               <h2 className="text-sm font-semibold text-foreground">
@@ -966,7 +966,7 @@ function DocumentMeta({ document, pending, onSave, onDelete }: DocumentMetaProps
   const [sortOrder, setSortOrder] = useState(String(document.sortOrder));
 
   return (
-    <div className="rounded-2xl border border-border bg-white">
+    <div className="rounded-lg border border-border bg-white">
       <div className="flex items-center justify-between border-b border-border px-5 py-4">
         <div className="flex items-center gap-2">
           <FileText className="h-4 w-4 text-primary" />
@@ -1430,7 +1430,7 @@ function StatCard({
   icon: typeof CheckCircle2;
 }) {
   return (
-    <div className="rounded-2xl border border-border bg-card px-5 py-4">
+    <div className="rounded-lg border border-border bg-card px-5 py-4">
       <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         <Icon className="h-3.5 w-3.5" /> {label}
       </div>

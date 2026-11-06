@@ -8,7 +8,6 @@
 
 import React from 'react';
 import { ApiRequestsClient, ApiApplicant, ApiModule } from './components/api-requests-client';
-import { Terminal } from 'lucide-react';
 import { getApiApplicants, getApiAccessModules } from '@/lib/admin-data';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 
@@ -43,12 +42,10 @@ export default async function AdminApiRequestsPage() {
   return (
     <div className="w-full max-w-6xl mx-auto space-y-10">
       <div>
-        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#EE4B2B] mb-2">
-          <Terminal className="w-4 h-4" />
-          Administration Console
-        </div>
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">Demandes d'accès API</h1>
-        <p className="text-muted-foreground mt-2 text-sm max-w-2xl leading-relaxed">
+        <h1 className="text-[17px] font-semibold tracking-tight text-foreground">
+          Demandes d'accès API
+        </h1>
+        <p className="mt-1 max-w-3xl text-[12px] leading-5 text-muted-foreground">
           Auditez les cas d'usage des créateurs du réseau et accordez-leur un accès API modulable :
           vous choisissez, permission par permission, ce qui leur est ouvert (API entrante en
           lecture ou écriture, API sortante webhooks, OAuth) — et pouvez le retirer à tout moment.

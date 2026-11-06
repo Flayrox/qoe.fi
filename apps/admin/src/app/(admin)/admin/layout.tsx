@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 import { navItemForPath } from '@/lib/admin-console';
+import { getAdminWorkQueue } from '@/lib/admin-data';
 import { AdminSidebar } from './components/AdminSidebar';
 import { CommandPalette } from './components/CommandPalette';
 import { AdminHeader } from './components/AdminHeader';
@@ -52,7 +53,9 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     name: authUser.user_metadata?.name ?? null,
     email: authUser.email ?? '',
     username: authUser.user_metadata?.username ?? authUser.user_metadata?.user_name ?? null,
-  }; // Garde centralisé : chaque écran de navigation déclare sa capacité, et le
+  };
+
+  // Garde centralisé : chaque écran de navigation déclare sa capacité, et le
   // layout refuse avant de charger la page. Les pages conservent leur propre
   // requireCapability en défense en profondeur.
   const pathname = headersList.get('x-admin-pathname') || '';
@@ -61,14 +64,35 @@ export default async function AdminLayout({ children }: { children: ReactNode })
 
   const opensNothing = identity.capabilities.length === 0;
 
+  // Compteurs de la navigation et dossiers de la palette : une seule lecture
+  // pour toute la console. Un rôle sans accès aux files obtient un objet vide
+  // (getAdminWorkQueue ne lève jamais), donc la coquille reste servie.
+  const work = opensNothing
+    ? { items: [], entries: [], assignedToMe: 0, breached: 0 }
+    : await getAdminWorkQueue();
+  const queueCounts: Record<string, number> = {};
+  for (const item of work.items) queueCounts[item.href] = item.count;
+  const dossiers = work.entries.slice(0, 40).map((entry) => ({
+    id: entry.id,
+    queue: entry.queue,
+    title: entry.title,
+    status: entry.status,
+    href: entry.href,
+    slaState: entry.slaState,
+  }));
+
   return (
-    <div className="min-h-screen bg-[#EE4B2B] text-white flex flex-col md:flex-row p-0 md:p-6 lg:p-8 gap-0 md:gap-6 font-sans antialiased selection:bg-[#EE4B2B]/20 selection:text-foreground">
-      <AdminSidebar identity={identity} />
+    <div className="flex min-h-screen flex-col bg-muted/25 font-sans text-foreground antialiased md:h-screen md:flex-row md:overflow-hidden">
+      <AdminSidebar identity={identity} queueCounts={queueCounts} />
 
-      <main className="flex-1 bg-white rounded-[32px] md:rounded-[40px] shadow-2xl overflow-hidden flex flex-col relative text-foreground ring-1 ring-white/20">
-        <AdminHeader user={user} roles={identity.roles} />
+      <main className="flex min-w-0 flex-1 flex-col bg-background md:h-screen">
+        <AdminHeader
+          user={user}
+          roles={identity.roles}
+          environment={isLocal ? 'local' : 'production'}
+        />
 
-        <div className="flex-1 overflow-y-auto p-8 md:p-12 lg:p-16 xl:p-24 bg-white relative">
+        <div className="flex-1 overflow-y-auto px-6 py-5">
           {opensNothing ? (
             <AccessDenied roles={identity.roles} capabilities={identity.capabilities} />
           ) : (
@@ -77,7 +101,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         </div>
       </main>
 
-      <CommandPalette capabilities={identity.capabilities} roles={identity.roles} />
+      <CommandPalette
+        capabilities={identity.capabilities}
+        roles={identity.roles}
+        dossiers={dossiers}
+      />
 
       {/*
         Vérification d'un facteur fort (Phase 3) : monté UNE fois pour toute la

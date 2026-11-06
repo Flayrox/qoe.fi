@@ -50,6 +50,7 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
   >('free_only');
   const [priority, setPriority] = useState(10);
   const [dismissible, setDismissible] = useState(true);
+  const [feedback, setFeedback] = useState<string | null>(null);
 
   const effectiveSlot = slot === 'custom' ? customSlot.trim() : slot;
 
@@ -75,7 +76,7 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
       });
 
       if (res.success && res.placement) {
-        toast.success('🎯 Nouveau placement déployé avec succès !');
+        setFeedback('Placement publié.');
         setPlacements((prev) => [res.placement!, ...prev]);
         setIsCreating(false);
       } else {
@@ -91,7 +92,7 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
         setPlacements((prev) =>
           prev.map((p) => (p.id === id ? { ...p, isActive: !currentState } : p))
         );
-        toast.success(!currentState ? 'Placement activé' : 'Placement mis en pause');
+        setFeedback(!currentState ? 'Placement activé.' : 'Placement mis en pause.');
       } else {
         toast.error(res.error || 'Erreur lors de la modification');
       }
@@ -105,7 +106,7 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
       const res = await deletePlacementAdminAction(id);
       if (res.success) {
         setPlacements((prev) => prev.filter((p) => p.id !== id));
-        toast.success('Placement supprimé.');
+        setFeedback('Placement supprimé.');
       } else {
         toast.error(res.error || 'Erreur de suppression');
       }
@@ -113,7 +114,7 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
   };
 
   return (
-    <div className="rounded-2xl border border-border/80 bg-white p-6 shadow-sm space-y-6">
+    <div className="space-y-4 rounded-lg border border-border bg-card p-4">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/40 pb-5">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
@@ -142,6 +143,12 @@ export function PlacementsManager({ initialPlacements }: PlacementsManagerProps)
           {isCreating ? 'Fermer le formulaire' : 'Nouveau placement'}
         </button>
       </div>
+
+      {feedback && (
+        <p role="status" className="text-[11px] text-muted-foreground">
+          {feedback} · audité
+        </p>
+      )}
 
       {/* Formulaire de création */}
       {isCreating && (

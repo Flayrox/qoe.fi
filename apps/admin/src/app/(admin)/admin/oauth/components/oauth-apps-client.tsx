@@ -86,7 +86,7 @@ export function OAuthAppsClient({ initialClients }: { initialClients: OAuthClien
         </TabList>
       </Tabs>
 
-      <div className="bg-card border border-border rounded-3xl overflow-hidden shadow-sm">
+      <div className="bg-card border border-border rounded-lg overflow-hidden shadow-sm">
         {filtered.length === 0 ? (
           <div className="p-16 text-center text-muted-foreground space-y-3">
             <ShieldCheck className="w-10 h-10 mx-auto" />

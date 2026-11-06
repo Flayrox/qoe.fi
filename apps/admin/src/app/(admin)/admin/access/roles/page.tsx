@@ -16,7 +16,7 @@ import { Grid3X3, Users } from 'lucide-react';
 import { Table, TableBody, TableCell, TableColumn, TableHeader, TableRow } from '@qoe/ui/table';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 import { getAccessCapabilities, getAccessRoles } from '@/lib/admin-access-data';
-import { ADMIN_DOMAIN_LABELS, ADMIN_DOMAINS, type AdminDomain } from '@/lib/admin-console';
+import { ADMIN_DOMAINS, type AdminDomain } from '@/lib/admin-console';
 import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
 
 export const dynamic = 'force-dynamic';
@@ -67,7 +67,7 @@ export default async function AdminAccessRolesPage() {
         ))}
       </div>
 
-      <div className="bg-card border border-border rounded-3xl shadow-sm overflow-x-auto">
+      <div className="bg-card border border-border rounded-lg shadow-sm overflow-x-auto">
         <Table aria-label="Matrice des rôles" size="sm" data-testid="access-roles-matrix">
           <TableHeader>
             <TableColumn isRowHeader className="sticky left-0 bg-muted/40 z-10">

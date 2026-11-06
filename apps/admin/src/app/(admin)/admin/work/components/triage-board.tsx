@@ -9,7 +9,6 @@
 import React, { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { toast } from '@qoe/ui/toast';
 import { attemptWithStepUp, notifyActionFailure, readMessage } from '@/lib/authz-feedback';
 import { triageQueueItemAction, type TriageActionInput } from '@/lib/admin-triage-actions';
 import type {
@@ -69,6 +68,7 @@ function TriageRow({
   const [dueInput, setDueInput] = useState<string>(toLocalInput(entry.dueAt));
   const [assignMode, setAssignMode] = useState<'keep' | 'me' | 'clear'>('keep');
   const [pending, startTransition] = useTransition();
+  const [savedAt, setSavedAt] = useState<string | null>(null);
 
   const submit = () => {
     startTransition(async () => {
@@ -84,7 +84,7 @@ function TriageRow({
         reason: 'Trier un dossier de la file staff',
       });
       if (result.ok) {
-        toast.success('Triage enregistré.');
+        setSavedAt(new Date().toLocaleTimeString('fr-FR'));
         setAssignMode('keep');
         onDone();
         return;
@@ -166,6 +166,11 @@ function TriageRow({
           >
             {pending ? 'Enregistrement…' : 'Enregistrer'}
           </button>
+          {savedAt && (
+            <p role="status" className="text-[11px] text-muted-foreground">
+              Triage enregistré · audité à {savedAt}
+            </p>
+          )}
         </div>
       </td>
     </tr>
@@ -178,7 +183,7 @@ export function TriageBoard({ view }: { view: AdminWorkQueueView }) {
 
   if (view.entries.length === 0) {
     return (
-      <div className="rounded-2xl border border-border/60 bg-muted/20 p-8 text-center text-sm text-muted-foreground">
+      <div className="rounded-lg border border-border/60 bg-muted/20 p-8 text-center text-sm text-muted-foreground">
         Aucun dossier ouvert dans les six files.
       </div>
     );
@@ -193,7 +198,7 @@ export function TriageBoard({ view }: { view: AdminWorkQueueView }) {
           SLA par défaut de la file.
         </p>
       </div>
-      <div className="overflow-x-auto rounded-2xl border border-border/60 bg-white shadow-sm">
+      <div className="overflow-x-auto rounded-lg border border-border/60 bg-white shadow-sm">
         <table className="min-w-[900px] w-full text-left">
           <thead className="bg-muted/30 text-[11px] uppercase tracking-wide text-muted-foreground">
             <tr>

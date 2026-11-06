@@ -36,7 +36,7 @@ export default async function AdminFeaturesPage() {
       )}
 
       {features.length === 0 ? (
-        <div className="rounded-2xl border border-border/60 bg-muted/20 p-8 text-center text-sm text-muted-foreground">
+        <div className="rounded-lg border border-border/60 bg-muted/20 p-8 text-center text-sm text-muted-foreground">
           Aucune fonctionnalité enregistrée. La migration 00069 doit avoir été appliquée.
         </div>
       ) : (
@@ -45,7 +45,7 @@ export default async function AdminFeaturesPage() {
             <form
               key={feature.key}
               action={updateFeatureAction}
-              className="grid gap-3 rounded-2xl border border-border/60 bg-white p-5 shadow-sm md:grid-cols-[1fr_1fr_1fr_auto] md:items-end"
+              className="grid gap-3 rounded-lg border border-border/60 bg-white p-5 shadow-sm md:grid-cols-[1fr_1fr_1fr_auto] md:items-end"
             >
               <input type="hidden" name="key" value={feature.key} />
               <div>

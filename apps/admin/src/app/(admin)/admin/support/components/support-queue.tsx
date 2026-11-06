@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, ShieldCheck, Inbox } from 'lucide-react';
 import { QueueEmpty } from '@/components/queue/QueueEmpty';
 import { useStaffAction } from '@/components/queue/useStaffAction';
@@ -106,14 +105,7 @@ export function SupportQueue({ initialItems, metrics }: SupportQueueProps) {
     const expanded = openId === item.id;
     const shown = expanded && detail?.id === item.id ? detail : item;
     return (
-      <motion.div
-        key={item.id}
-        layout
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0 }}
-        className={`bg-white border rounded-3xl p-5 shadow-sm ${meta.tone}`}
-      >
+      <div key={item.id} className={`bg-white border rounded-lg p-5 shadow-sm ${meta.tone}`}>
         <div className="flex flex-col lg:flex-row gap-4 lg:items-start justify-between">
           <div className="flex-1 min-w-0 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
@@ -212,14 +204,14 @@ export function SupportQueue({ initialItems, metrics }: SupportQueueProps) {
             )}
           </div>
         )}
-      </motion.div>
+      </div>
     );
   };
 
   return (
     <div className="space-y-6 text-foreground font-sans">
       {metrics && (metrics.open > 0 || metrics.under_review > 0 || metrics.closed30d > 0) && (
-        <div className="bg-white border border-border rounded-3xl p-5 shadow-sm">
+        <div className="bg-white border border-border rounded-lg p-5 shadow-sm">
           <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
             Charge
           </p>
@@ -250,20 +242,20 @@ export function SupportQueue({ initialItems, metrics }: SupportQueueProps) {
 
       {items.length === 0 ? (
         <QueueEmpty
-          title="Aucun dossier 🎉"
+          title="Aucun dossier"
           hint="Les demandes d'aide des utilisateurs apparaîtront ici."
         />
       ) : (
         <>
           <div className="space-y-3">
-            <AnimatePresence mode="popLayout">{openItems.map(renderCard)}</AnimatePresence>
+            <>{openItems.map(renderCard)}</>
           </div>
           {closedItems.length > 0 && (
             <div className="space-y-3">
               <h2 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                 Clos ({closedItems.length})
               </h2>
-              <AnimatePresence mode="popLayout">{closedItems.map(renderCard)}</AnimatePresence>
+              <>{closedItems.map(renderCard)}</>
             </div>
           )}
         </>

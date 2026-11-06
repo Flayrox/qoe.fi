@@ -98,7 +98,7 @@ export function AccessReviewsSection({ data, canGrant }: AccessReviewsSectionPro
 
       {/* Formulaire de scellement si actif */}
       {isSnapshotting && (
-        <div className="p-4 rounded-2xl border border-primary/20 bg-primary/5 space-y-3">
+        <div className="p-4 rounded-lg border border-primary/20 bg-primary/5 space-y-3">
           <div className="text-xs font-semibold flex items-center gap-2">
             <Camera className="w-4 h-4 text-primary" />
             Sceller manuellement l’instantané pour {currentPeriod}
@@ -137,7 +137,7 @@ export function AccessReviewsSection({ data, canGrant }: AccessReviewsSectionPro
 
       {/* 4 Tuiles KPI */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="p-4 rounded-2xl border border-border bg-card/50 space-y-1">
+        <div className="p-4 rounded-lg border border-border bg-card/50 space-y-1">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>Rôles actifs</span>
             <ShieldCheck className="w-4 h-4 text-primary" />
@@ -146,7 +146,7 @@ export function AccessReviewsSection({ data, canGrant }: AccessReviewsSectionPro
           <div className="text-[11px] text-muted-foreground">habilitations actives</div>
         </div>
 
-        <div className="p-4 rounded-2xl border border-border bg-card/50 space-y-1">
+        <div className="p-4 rounded-lg border border-border bg-card/50 space-y-1">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>Échéance &lt; 30j</span>
             <Clock
@@ -164,7 +164,7 @@ export function AccessReviewsSection({ data, canGrant }: AccessReviewsSectionPro
           <div className="text-[11px] text-muted-foreground">à renouveler bientôt</div>
         </div>
 
-        <div className="p-4 rounded-2xl border border-border bg-card/50 space-y-1">
+        <div className="p-4 rounded-lg border border-border bg-card/50 space-y-1">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>Rôles échus</span>
             <ShieldAlert className="w-4 h-4 text-muted-foreground" />
@@ -175,7 +175,7 @@ export function AccessReviewsSection({ data, canGrant }: AccessReviewsSectionPro
           <div className="text-[11px] text-muted-foreground">gelés à la lecture</div>
         </div>
 
-        <div className="p-4 rounded-2xl border border-border bg-card/50 space-y-1">
+        <div className="p-4 rounded-lg border border-border bg-card/50 space-y-1">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>Staff total</span>
             <Users className="w-4 h-4 text-primary" />
@@ -187,7 +187,7 @@ export function AccessReviewsSection({ data, canGrant }: AccessReviewsSectionPro
 
       {/* Alerte si des échéances sont imminentes */}
       {current?.expiringList && current.expiringList.length > 0 && (
-        <div className="p-4 rounded-2xl border border-highlight/30 bg-highlight/10 space-y-3">
+        <div className="p-4 rounded-lg border border-highlight/30 bg-highlight/10 space-y-3">
           <div className="flex items-center gap-2 text-xs font-semibold text-highlight">
             <Clock className="w-4 h-4" />
             <span>Rôles expirant dans les 30 prochains jours ({current.expiringList.length})</span>
@@ -233,7 +233,7 @@ export function AccessReviewsSection({ data, canGrant }: AccessReviewsSectionPro
           </button>
 
           {showHistory && (
-            <div className="rounded-2xl border border-border divide-y divide-border overflow-hidden bg-card/30">
+            <div className="rounded-lg border border-border divide-y divide-border overflow-hidden bg-card/30">
               {history.map((rev) => (
                 <div
                   key={rev.id}

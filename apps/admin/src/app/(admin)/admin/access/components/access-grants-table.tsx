@@ -13,9 +13,6 @@ import { QueueEmpty } from '@/components/queue/QueueEmpty';
 import { useStaffAction } from '@/components/queue/useStaffAction';
 import type { AccessGrantRow } from '@/lib/admin-access-data';
 
-const inputCls =
-  'w-full text-xs px-3 py-2 rounded-xl border border-border bg-background outline-none';
-
 const fmt = (iso: string | null): string => (iso ? new Date(iso).toLocaleString('fr-FR') : '—');
 
 interface AccessGrantsTableProps {

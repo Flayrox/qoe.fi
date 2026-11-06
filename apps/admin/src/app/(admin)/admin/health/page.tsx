@@ -58,7 +58,7 @@ export default async function AdminHealthPage() {
 
       <div className="grid gap-4 md:grid-cols-3">
         <div
-          className="rounded-3xl border border-border bg-white p-6 shadow-sm"
+          className="rounded-lg border border-border bg-white p-6 shadow-sm"
           data-testid="health-postgres"
         >
           <div className="flex items-center gap-2 text-[11px] uppercase tracking-widest text-muted-foreground">
@@ -75,7 +75,7 @@ export default async function AdminHealthPage() {
         </div>
 
         <div
-          className="rounded-3xl border border-border bg-white p-6 shadow-sm"
+          className="rounded-lg border border-border bg-white p-6 shadow-sm"
           data-testid="health-migration"
         >
           <div className="flex items-center gap-2 text-[11px] uppercase tracking-widest text-muted-foreground">
@@ -92,7 +92,7 @@ export default async function AdminHealthPage() {
         </div>
 
         <div
-          className="rounded-3xl border border-border bg-white p-6 shadow-sm"
+          className="rounded-lg border border-border bg-white p-6 shadow-sm"
           data-testid="health-mode"
         >
           <div className="flex items-center gap-2 text-[11px] uppercase tracking-widest text-muted-foreground">
@@ -117,7 +117,7 @@ export default async function AdminHealthPage() {
       <section className="space-y-4">
         <h2 className="text-sm font-semibold">Décisions des dernières 24 h</h2>
         <div className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-3xl border border-border bg-white p-6 shadow-sm">
+          <div className="rounded-lg border border-border bg-white p-6 shadow-sm">
             <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
               Accords
             </div>
@@ -125,7 +125,7 @@ export default async function AdminHealthPage() {
               {(health?.decisions.last24h.allowed ?? 0).toLocaleString('fr-FR')}
             </div>
           </div>
-          <div className="rounded-3xl border border-border bg-white p-6 shadow-sm">
+          <div className="rounded-lg border border-border bg-white p-6 shadow-sm">
             <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
               Refus observés (non appliqués)
             </div>
@@ -133,7 +133,7 @@ export default async function AdminHealthPage() {
               {(health?.decisions.last24h.deniedObserved ?? 0).toLocaleString('fr-FR')}
             </div>
           </div>
-          <div className="rounded-3xl border border-border bg-white p-6 shadow-sm">
+          <div className="rounded-lg border border-border bg-white p-6 shadow-sm">
             <div className="text-[11px] uppercase tracking-widest text-muted-foreground">
               Refus appliqués
             </div>

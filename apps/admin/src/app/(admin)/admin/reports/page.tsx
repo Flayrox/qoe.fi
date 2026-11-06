@@ -7,7 +7,6 @@
 // =====================================================================
 
 import React from 'react';
-import { ShieldAlert } from 'lucide-react';
 import { getAdminReports } from '@/lib/admin-data';
 import { ModerationQueue } from './components/moderation-queue';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
@@ -38,19 +37,17 @@ export default async function AdminReportsPage() {
   return (
     <div className="w-full max-w-5xl mx-auto space-y-10">
       <div>
-        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#EE4B2B] mb-2">
-          <ShieldAlert className="w-4 h-4" />
-          Administration Console
-        </div>
         <div className="flex items-center gap-3">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">File de modération</h1>
+          <h1 className="text-[17px] font-semibold tracking-tight text-foreground">
+            File de modération
+          </h1>
           {data.pending > 0 && (
             <span className="bg-highlight/15 text-highlight border border-highlight/40 px-2.5 py-1 rounded-full text-xs font-bold">
               {data.pending} en attente
             </span>
           )}
         </div>
-        <p className="text-muted-foreground mt-2 text-sm max-w-2xl leading-relaxed">
+        <p className="mt-1 max-w-3xl text-[12px] leading-5 text-muted-foreground">
           Les signalements de la communauté (pensées, articles, comptes). Masquez un contenu pour le
           retirer des flux, ou suspendez l'auteur directement. Toutes les actions sont réversibles.
         </p>

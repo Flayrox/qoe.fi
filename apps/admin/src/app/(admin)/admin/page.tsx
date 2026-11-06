@@ -1,31 +1,25 @@
 import Link from 'next/link';
-import {
-  ArrowRight,
-  Crown,
-  Database,
-  FileText,
-  GitBranch,
-  Inbox,
-  LayoutDashboard,
-  PenLine,
-  ShieldAlert,
-  ShieldCheck,
-  ShieldOff,
-  Users,
-} from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
-import {
-  getAdminDashboard,
-  getAdminWorkQueue,
-  type AdminQueuePriority,
-  type AdminQueueSLAState,
-  type AdminQueueTriageEntry,
+import { ArrowRight, AlertTriangle, Inbox, ShieldX, UserCheck } from 'lucide-react';
+import type {
+  AdminQueuePriority,
+  AdminQueueSLAState,
+  AdminQueueTriageEntry,
 } from '@/lib/admin-data';
+import { getAdminWorkQueue } from '@/lib/admin-data';
 import { getPlatformHealth } from '@/lib/admin-infra-data';
-import { apiOnlyRoutes, coverageRatio } from '@/lib/admin-coverage';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
-import { StatusPill } from '@/components/queue/StatusPill';
+import {
+  AdminEmptyRow,
+  AdminTable,
+  AdminTBody,
+  AdminTd,
+  AdminTh,
+  AdminTHead,
+  AdminTr,
+} from '@/components/shell/AdminTable';
+import { CopyableId } from '@/components/shell/CopyableId';
+import { DENSITY } from '@/components/shell/tokens';
 
 export const dynamic = 'force-dynamic';
 
@@ -76,364 +70,246 @@ function formatDue(iso: string | null): string {
   });
 }
 
-function KpiCard({
+/** Les urgences d'abord, puis la priorité, puis l'échéance la plus proche. */
+function prioritize(entries: readonly AdminQueueTriageEntry[]): AdminQueueTriageEntry[] {
+  return [...entries].sort((a, b) => {
+    const sla = SLA_RANK[a.slaState] - SLA_RANK[b.slaState];
+    if (sla !== 0) return sla;
+    const priority = PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];
+    if (priority !== 0) return priority;
+    return new Date(a.slaDueAt).getTime() - new Date(b.slaDueAt).getTime();
+  });
+}
+
+/** Une tuile de la bande de chiffres : libellé, valeur, lien optionnel. */
+function StatTile({
   label,
   value,
   detail,
-  icon: Icon,
   href,
+  alert,
 }: {
   label: string;
   value: number;
-  detail: string;
-  icon: LucideIcon;
+  detail?: string;
   href?: string;
+  alert?: boolean;
 }) {
   const content = (
     <>
-      <div className="flex items-center justify-between gap-3">
-        <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-          {label}
-        </span>
-        <Icon className="h-4 w-4 text-muted-foreground" aria-hidden />
-      </div>
-      <p className="mt-4 text-3xl font-semibold tracking-tight tabular-nums">
+      <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+        {label}
+      </span>
+      <span
+        className={`text-xl font-semibold tabular-nums ${alert ? 'text-destructive-text' : 'text-foreground'}`}
+      >
         {value.toLocaleString('fr-FR')}
-      </p>
-      <p className="mt-1 text-[11px] text-muted-foreground">{detail}</p>
+      </span>
+      {detail && <span className="text-[10px] text-muted-foreground">{detail}</span>}
     </>
   );
 
-  const className = 'rounded-3xl border border-border bg-white p-5 shadow-sm';
+  const className = 'flex flex-col gap-0.5 bg-card px-4 py-3 transition-colors';
   if (!href) return <div className={className}>{content}</div>;
-
   return (
-    <Link href={href} className={`${className} transition-colors hover:border-foreground/20`}>
+    <Link href={href} className={`${className} hover:bg-muted/50`}>
       {content}
     </Link>
   );
-}
-
-/** Les urgences d'abord, puis l'échéance la plus proche. */
-function prioritize(entries: readonly AdminQueueTriageEntry[]): AdminQueueTriageEntry[] {
-  return [...entries]
-    .sort((a, b) => {
-      const sla = SLA_RANK[a.slaState] - SLA_RANK[b.slaState];
-      if (sla !== 0) return sla;
-      const priority = PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];
-      if (priority !== 0) return priority;
-      return new Date(a.slaDueAt).getTime() - new Date(b.slaDueAt).getTime();
-    })
-    .slice(0, 6);
 }
 
 export default async function AdminDashboard() {
   const identity = await getAdminIdentity();
   requireCapability(identity, 'admin.dashboard.read');
 
-  const [counts, work, health] = await Promise.all([
-    getAdminDashboard(),
-    getAdminWorkQueue(),
-    getPlatformHealth(),
-  ]);
+  const [work, health] = await Promise.all([getAdminWorkQueue(), getPlatformHealth()]);
 
   const capabilities = new Set(identity?.capabilities ?? []);
   const openTotal = work.items.reduce((sum, item) => sum + item.count, 0);
-  const topEntries = prioritize(work.entries);
   const queueLabels = new Map(work.items.map((item) => [item.key, item.label]));
+  const triage = prioritize(work.entries);
 
-  const coverage = coverageRatio();
-  const orphans = apiOnlyRoutes();
+  // « Erreurs » = ce qui rend la supervision ou les sondes fausses, pas un
+  // compteur métier. Une sonde muette compte pour une erreur : la console ne
+  // doit pas afficher zéro quand elle ne sait pas.
+  const probeErrors = health
+    ? (health.postgres?.ok === false ? 1 : 0) +
+      (health.migration?.error ? 1 : 0) +
+      (health.decisions.recorder.dropped > 0 ? 1 : 0)
+    : 1;
+
+  const denied = health?.decisions.last24h.deniedEnforced ?? 0;
+  const allowed = health?.decisions.last24h.allowed ?? 0;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-10 font-sans">
+    <div className="space-y-5 font-sans">
       <QueuePageHeader
-        icon={<LayoutDashboard className="h-4 w-4" />}
+        icon={<Inbox className="size-4" />}
         title="Pilotage"
         badge={openTotal > 0 ? `${openTotal} à traiter` : null}
-        description="Ce qui attend une décision, les compteurs réels et l'état des sondes. Aucune série n'est simulée."
-      />
-
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <KpiCard
-          label="Comptes"
-          value={counts.users}
-          detail="Comptes enregistrés"
-          icon={Users}
-          href={capabilities.has('admin.users.read') ? '/admin/users' : undefined}
-        />
-        <KpiCard
-          label="Créateurs"
-          value={counts.creators}
-          detail="Profils créateurs"
-          icon={PenLine}
-        />
-        <KpiCard
-          label="Articles"
-          value={counts.articles}
-          detail="Articles en base"
-          icon={FileText}
-        />
-        <KpiCard
-          label="Abonnés premium"
-          value={counts.premiumSubscribers}
-          detail="Abonnements actifs"
-          icon={Crown}
-          href={capabilities.has('admin.subscriptions.read') ? '/admin/subscriptions' : undefined}
-        />
-      </div>
-
-      <section className="space-y-4" data-testid="admin-dashboard-work">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold tracking-tight">À traiter</h2>
-            <p className="text-xs text-muted-foreground">
-              Les six files métier, leurs SLA et les dossiers les plus urgents.
-            </p>
-          </div>
+        description="Ce qui attend une décision. Les chiffres viennent des files et des sondes, aucune série n'est simulée."
+        actions={
           <Link
             href="/admin/work"
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-[#EE4B2B] hover:underline"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md bg-[#EE4B2B] px-2.5 text-[12px] font-medium text-white transition-colors hover:bg-[#d8411f]"
           >
-            Ouvrir Ma file <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+            Ouvrir Ma file
+            <ArrowRight className="size-3.5" aria-hidden />
           </Link>
+        }
+      />
+
+      <section
+        className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-3 xl:grid-cols-5"
+        aria-label="Chiffres du jour"
+      >
+        <StatTile label="À traiter" value={openTotal} detail="six files" href="/admin/work" />
+        <StatTile
+          label="SLA dépassés"
+          value={work.breached}
+          detail="à traiter en premier"
+          href="/admin/work"
+          alert={work.breached > 0}
+        />
+        <StatTile
+          label="Assignés à moi"
+          value={work.assignedToMe}
+          detail="dossiers ouverts"
+          href="/admin/work"
+        />
+        <StatTile
+          label="Refus 24 h"
+          value={denied}
+          detail={`${allowed.toLocaleString('fr-FR')} accords`}
+          href={capabilities.has('admin.audit.read') ? '/admin/access/decisions' : undefined}
+          alert={denied > 0}
+        />
+        <StatTile
+          label="Erreurs"
+          value={probeErrors}
+          detail="sondes et journal"
+          href="/admin/health"
+          alert={probeErrors > 0}
+        />
+      </section>
+
+      <section className="space-y-2" data-testid="admin-dashboard-work">
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="text-[13px] font-semibold">À traiter</h2>
+          <p className="text-[11px] text-muted-foreground">
+            Trié par SLA, puis priorité, puis échéance.
+          </p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl border border-border bg-white p-4 shadow-sm">
-            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-              <Inbox className="h-3.5 w-3.5" aria-hidden /> Dossiers ouverts
-            </div>
-            <p className="mt-2 text-2xl font-semibold tabular-nums">
-              {openTotal.toLocaleString('fr-FR')}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-border bg-white p-4 shadow-sm">
-            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-              <Users className="h-3.5 w-3.5" aria-hidden /> Assignés à moi
-            </div>
-            <p className="mt-2 text-2xl font-semibold tabular-nums">
-              {work.assignedToMe.toLocaleString('fr-FR')}
-            </p>
-          </div>
-          <div className="rounded-2xl border border-border bg-white p-4 shadow-sm">
-            <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-              <ShieldAlert className="h-3.5 w-3.5" aria-hidden /> SLA dépassés
-            </div>
-            <p
-              className={`mt-2 text-2xl font-semibold tabular-nums ${
-                work.breached > 0 ? 'text-destructive-text' : 'text-foreground'
-              }`}
-            >
-              {work.breached.toLocaleString('fr-FR')}
-            </p>
-          </div>
-        </div>
-
-        {work.items.length === 0 ? (
-          <div className="rounded-2xl border border-border bg-muted/20 p-8 text-center text-sm text-muted-foreground">
-            Aucune file accessible pour votre rôle.
-          </div>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {work.items.map((item) => (
-              <Link
-                key={item.key}
-                href={item.href}
-                className="group rounded-2xl border border-border bg-white p-4 shadow-sm transition-colors hover:border-foreground/20"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <span className="text-xs font-medium">{item.label}</span>
-                  <span className="text-2xl font-semibold tabular-nums">{item.count}</span>
-                </div>
-                <p className="mt-2 text-[11px] text-muted-foreground">
-                  {item.assignedToMe} à moi ·{' '}
-                  {item.breached > 0
-                    ? `${item.breached} SLA dépassé${item.breached > 1 ? 's' : ''}`
-                    : 'aucun SLA dépassé'}
-                </p>
-              </Link>
-            ))}
-          </div>
-        )}
-
-        {topEntries.length > 0 ? (
-          <div className="overflow-x-auto rounded-2xl border border-border bg-white shadow-sm">
-            <table className="w-full min-w-[720px] text-left">
-              <thead className="bg-muted/30 text-[10px] uppercase tracking-wide text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Dossier</th>
-                  <th className="px-4 py-3 font-medium">Assigné à</th>
-                  <th className="px-4 py-3 font-medium">Priorité</th>
-                  <th className="px-4 py-3 font-medium">Échéance</th>
-                </tr>
-              </thead>
-              <tbody>
-                {topEntries.map((entry) => (
-                  <tr key={`${entry.queue}:${entry.id}`} className="border-t border-border/60">
-                    <td className="px-4 py-3">
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+        <AdminTable minWidth="760px">
+          <AdminTHead>
+            <tr>
+              <AdminTh>Dossier</AdminTh>
+              <AdminTh>Assigné à</AdminTh>
+              <AdminTh>Priorité</AdminTh>
+              <AdminTh>SLA</AdminTh>
+              <AdminTh>Échéance</AdminTh>
+            </tr>
+          </AdminTHead>
+          <AdminTBody>
+            {triage.length === 0 ? (
+              <AdminEmptyRow colSpan={5}>
+                Aucun dossier ouvert : les six files sont vides.
+              </AdminEmptyRow>
+            ) : (
+              triage.slice(0, 15).map((entry) => (
+                <AdminTr key={`${entry.queue}:${entry.id}`}>
+                  <AdminTd>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="w-[92px] shrink-0 truncate text-[10px] uppercase tracking-wide text-muted-foreground">
                         {queueLabels.get(entry.queue) ?? entry.queue}
-                      </p>
+                      </span>
                       <Link
                         href={entry.href}
-                        className="mt-0.5 block text-sm font-medium hover:underline"
+                        className="min-w-0 flex-1 truncate font-medium text-foreground hover:underline"
+                        title={entry.title}
                       >
                         {entry.title}
                       </Link>
-                      <p className="text-[10px] text-muted-foreground">{entry.status}</p>
-                    </td>
-                    <td className="px-4 py-3 text-xs">
-                      {entry.assignedName ?? <span className="text-muted-foreground">Libre</span>}
-                    </td>
-                    <td className="px-4 py-3 text-xs">{PRIORITY_LABELS[entry.priority]}</td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium ${SLA_TONE[entry.slaState]}`}
-                      >
-                        {SLA_LABELS[entry.slaState]}
-                      </span>
-                      <p className="mt-1 text-[10px] text-muted-foreground">
-                        {formatDue(entry.dueAt ?? entry.slaDueAt)}
-                      </p>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-border bg-muted/20 p-8 text-center text-sm text-muted-foreground">
-            Rien n'est en attente. Les six files sont vides.
-          </div>
+                      <CopyableId id={entry.id} max={6} />
+                    </div>
+                  </AdminTd>
+                  <AdminTd className="text-[12px] text-muted-foreground">
+                    {entry.assignedName ?? 'Libre'}
+                  </AdminTd>
+                  <AdminTd className="text-[12px] text-muted-foreground">
+                    {PRIORITY_LABELS[entry.priority]}
+                  </AdminTd>
+                  <AdminTd>
+                    <span
+                      className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-medium ${SLA_TONE[entry.slaState]}`}
+                    >
+                      {SLA_LABELS[entry.slaState]}
+                    </span>
+                  </AdminTd>
+                  <AdminTd className="text-[11px] tabular-nums text-muted-foreground">
+                    {formatDue(entry.dueAt ?? entry.slaDueAt)}
+                  </AdminTd>
+                </AdminTr>
+              ))
+            )}
+          </AdminTBody>
+        </AdminTable>
+
+        {triage.length > 15 && (
+          <p className="text-[11px] text-muted-foreground">
+            {triage.length - 15} autres dossiers dans{' '}
+            <Link href="/admin/work" className="text-[#EE4B2B] hover:underline">
+              Ma file
+            </Link>
+            .
+          </p>
         )}
       </section>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <section
-          className="rounded-3xl border border-border bg-white p-6 shadow-sm lg:col-span-2"
-          data-testid="admin-dashboard-health"
-        >
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold">Santé</h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Base, migration appliquée et mode d'autorisation.
-              </p>
-            </div>
-            <Link
-              href="/admin/health"
-              className="inline-flex items-center gap-1.5 text-xs font-medium hover:underline"
-            >
-              Détail <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-            </Link>
-          </div>
-
-          {health ? (
-            <>
-              <div className="mt-5 grid gap-4 sm:grid-cols-3">
-                <div className="rounded-2xl border border-border/60 bg-muted/20 p-4">
-                  <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                    <Database className="h-3.5 w-3.5" aria-hidden /> Postgres
-                  </div>
-                  <p className="mt-2 text-lg font-semibold">
-                    {health.postgres?.ok ? `${health.postgres.latencyMs} ms` : 'Indisponible'}
-                  </p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    {health.postgres?.ok
-                      ? 'Aller-retour mesuré.'
-                      : (health.postgres?.error ?? 'Sonde de base indisponible.')}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-border/60 bg-muted/20 p-4">
-                  <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                    <GitBranch className="h-3.5 w-3.5" aria-hidden /> Migration
-                  </div>
-                  <p className="mt-2 text-lg font-semibold">
-                    {health.migration ? `v${health.migration.applied}` : '—'}
-                  </p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    {health.migration?.error ?? 'Version appliquée sur cette base.'}
-                  </p>
-                </div>
-                <div className="rounded-2xl border border-border/60 bg-muted/20 p-4">
-                  <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                    {health.mode === 'enforce' ? (
-                      <ShieldCheck className="h-3.5 w-3.5" aria-hidden />
-                    ) : (
-                      <ShieldOff className="h-3.5 w-3.5" aria-hidden />
-                    )}
-                    Autorisation
-                  </div>
-                  <p className="mt-2 text-lg font-semibold">
-                    {health.mode === 'enforce' ? 'Refus armé' : 'Observation'}
-                  </p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    {health.mode === 'enforce'
-                      ? 'Une capacité manquante répond 403.'
-                      : 'Les refus sont journalisés, pas appliqués.'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                <StatusPill>
-                  {health.decisions.last24h.allowed.toLocaleString('fr-FR')} accords / 24 h
-                </StatusPill>
-                <StatusPill tone={health.decisions.last24h.deniedEnforced > 0 ? 'hot' : 'muted'}>
-                  {health.decisions.last24h.deniedEnforced.toLocaleString('fr-FR')} refus appliqués
-                </StatusPill>
-                <StatusPill>
-                  {health.decisions.last24h.deniedObserved.toLocaleString('fr-FR')} refus observés
-                </StatusPill>
-                <StatusPill tone={health.decisions.recorder.dropped > 0 ? 'hot' : 'muted'}>
-                  journal : {health.decisions.recorder.written.toLocaleString('fr-FR')} écrites
-                </StatusPill>
-              </div>
-
-              {health.decisions.recorder.dropped > 0 && (
-                <p className="mt-3 text-xs text-destructive-text">
-                  Des décisions ont été perdues faute de place : la supervision est incomplète.
-                </p>
-              )}
-            </>
+      <section
+        className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-border pt-2 text-[11px] text-muted-foreground"
+        data-testid="admin-dashboard-health"
+      >
+        <span className="inline-flex items-center gap-1 font-medium text-foreground">
+          {probeErrors > 0 ? (
+            <AlertTriangle className="size-3.5 text-destructive-text" aria-hidden />
           ) : (
-            <div className="mt-5 rounded-2xl border border-border/60 bg-muted/20 p-4 text-sm text-muted-foreground">
-              La sonde de santé ne répond pas.{' '}
-              <Link href="/admin/health" className="underline">
-                Ouvrir la page de santé
-              </Link>{' '}
-              pour voir l'erreur détaillée.
-            </div>
+            <ShieldX className="size-3.5 text-success-text" aria-hidden />
           )}
-        </section>
+          Santé
+        </span>
+        <span>
+          Postgres {health?.postgres?.ok ? `${health.postgres.latencyMs} ms` : 'indisponible'}
+        </span>
+        <span>Migration {health?.migration ? `v${health.migration.applied}` : '—'}</span>
+        <span className={health?.mode === 'enforce' ? 'text-foreground' : 'text-highlight'}>
+          Autorisation {health?.mode === 'enforce' ? 'refus armé' : 'observation'}
+        </span>
+        <span>
+          Journal {health ? health.decisions.recorder.written.toLocaleString('fr-FR') : '—'} écrites
+          {health && health.decisions.recorder.dropped > 0
+            ? ` · ${health.decisions.recorder.dropped} perdues`
+            : ''}
+        </span>
+        <Link href="/admin/health" className="font-medium text-[#EE4B2B] hover:underline">
+          Détail santé
+        </Link>
+        <Link href="/admin/system" className="font-medium text-[#EE4B2B] hover:underline">
+          Couverture
+        </Link>
+      </section>
 
-        <section className="rounded-3xl border border-border bg-white p-6 shadow-sm">
-          <h2 className="text-sm font-semibold">Couverture de la console</h2>
-          <p className="mt-2 text-3xl font-semibold tabular-nums">{coverage.percent} %</p>
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            {coverage.covered}/{coverage.total} routes portées par un écran.
-          </p>
-          <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
-            Les routes restantes sont assumées « API-only » avec leur raison, et le test de parité
-            Go ↔ TS échoue si une route n'est plus classée.
-          </p>
-          {orphans.length > 0 && (
-            <details className="mt-3 text-[11px] text-muted-foreground">
-              <summary className="cursor-pointer font-medium">
-                Voir les {orphans.length} routes API-only
-              </summary>
-              <ul className="mt-2 space-y-1.5">
-                {orphans.map((orphan) => (
-                  <li key={orphan.key}>
-                    <span className="font-mono">{orphan.key}</span> — {orphan.reason}
-                  </li>
-                ))}
-              </ul>
-            </details>
-          )}
+      {capabilities.has('admin.users.read') && (
+        <section className="flex items-center gap-2 text-[11px] text-muted-foreground">
+          <UserCheck className="size-3.5" aria-hidden />
+          <Link href="/admin/users" className="hover:underline">
+            Comptes & modération
+          </Link>
+          <span className="opacity-60">·</span>
+          <span className={DENSITY.id}>/admin/users</span>
         </section>
-      </div>
+      )}
     </div>
   );
 }

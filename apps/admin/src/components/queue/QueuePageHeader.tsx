@@ -1,31 +1,46 @@
 import React from 'react';
 
-// En-tête standard des files staff (lot 2 : un seul composant pour les 5
-// files — reports, abuse, appeals, incidents, support — même rendu, zéro
-// divergence de style).
+// =====================================================================
+// En-tête standard des files staff
+// =====================================================================
+// Un seul composant pour les files : titre, compteur, phrase d'explication.
+// Plus de surtitre de console répété ni de ton d'accent sur le titre —
+// l'accent est réservé aux actions.
+// =====================================================================
+
 interface QueuePageHeaderProps {
   icon: React.ReactNode;
   title: string;
   badge?: string | null;
   description: React.ReactNode;
+  /** Actions propres à l'écran (bouton primaire à droite). */
+  actions?: React.ReactNode;
 }
 
-export function QueuePageHeader({ icon, title, badge, description }: QueuePageHeaderProps) {
+export function QueuePageHeader({
+  icon,
+  title,
+  badge,
+  description,
+  actions,
+}: QueuePageHeaderProps) {
   return (
-    <div>
-      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-[#EE4B2B] mb-2">
-        {icon}
-        Administration Console
-      </div>
-      <div className="flex items-center gap-3">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground">{title}</h1>
-        {badge && (
-          <span className="bg-highlight/15 text-highlight border border-highlight/40 px-2.5 py-1 rounded-full text-xs font-bold">
-            {badge}
+    <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border pb-3">
+      <div className="min-w-0">
+        <h1 className="flex items-center gap-2 text-[17px] font-semibold tracking-tight text-foreground">
+          <span className="text-muted-foreground" aria-hidden>
+            {icon}
           </span>
-        )}
+          {title}
+          {badge && (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium tabular-nums text-muted-foreground">
+              {badge}
+            </span>
+          )}
+        </h1>
+        <p className="mt-1 max-w-3xl text-[12px] leading-5 text-muted-foreground">{description}</p>
       </div>
-      <p className="text-muted-foreground mt-2 text-sm max-w-2xl leading-relaxed">{description}</p>
-    </div>
+      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+    </header>
   );
 }

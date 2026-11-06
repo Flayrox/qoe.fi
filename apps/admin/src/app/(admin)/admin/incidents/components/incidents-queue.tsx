@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, Flame, Plus, TrendingUp } from 'lucide-react';
 import { openAbuseIncidentAction, updateAbuseIncidentAction } from '@qoe/sdk/actions/admin';
 import { Select } from '@qoe/ui/select';
@@ -49,7 +48,7 @@ const NEXT_STATUS: Record<string, { to: string; label: string }[]> = {
 };
 
 export function IncidentsQueue({ initialItems, metrics }: IncidentsQueueProps) {
-  const [items, setItems] = useState<AbuseIncidentItem[]>(initialItems);
+  const [items] = useState<AbuseIncidentItem[]>(initialItems);
   const { loadingId, run: staffRun } = useStaffAction<string>();
   const [openId, setOpenId] = useState<string | null>(null);
   const [measure, setMeasure] = useState('');
@@ -109,7 +108,7 @@ export function IncidentsQueue({ initialItems, metrics }: IncidentsQueueProps) {
     <div className="space-y-6 text-foreground font-sans">
       {/* Santé 30 jours : les deux erreurs (abus manqué vs légitimes bloqués) */}
       {metrics && (
-        <div className="bg-white border border-border rounded-3xl p-5 shadow-sm">
+        <div className="bg-white border border-border rounded-lg p-5 shadow-sm">
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3">
             <TrendingUp className="w-4 h-4" />
             Santé anti-abus (30 jours)
@@ -161,7 +160,7 @@ export function IncidentsQueue({ initialItems, metrics }: IncidentsQueueProps) {
           Ouvrir un incident
         </button>
         {showNew && (
-          <div className="mt-3 bg-white border border-border rounded-3xl p-5 shadow-sm space-y-2">
+          <div className="mt-3 bg-white border border-border rounded-lg p-5 shadow-sm space-y-2">
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -208,24 +207,20 @@ export function IncidentsQueue({ initialItems, metrics }: IncidentsQueueProps) {
 
       {items.length === 0 && !showNew ? (
         <QueueEmpty
-          title="Aucun incident 🎉"
+          title="Aucun incident"
           hint="Les attaques confirmées se tiennent ici : portée, mesures, suivi."
         />
       ) : (
         <div className="space-y-3">
-          <AnimatePresence mode="popLayout">
+          <>
             {items.map((item) => {
               const meta = STATUS_META[item.status] ?? STATUS_META.open;
               const loading = loadingId === item.id;
               const expanded = openId === item.id;
               return (
-                <motion.div
+                <div
                   key={item.id}
-                  layout
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  className={`bg-white border rounded-3xl p-5 shadow-sm ${meta.tone}`}
+                  className={`bg-white border rounded-lg p-5 shadow-sm ${meta.tone}`}
                 >
                   <div className="flex flex-col lg:flex-row gap-4 lg:items-start justify-between">
                     <div className="flex-1 min-w-0 space-y-2">
@@ -295,10 +290,10 @@ export function IncidentsQueue({ initialItems, metrics }: IncidentsQueueProps) {
                       </div>
                     </div>
                   )}
-                </motion.div>
+                </div>
               );
             })}
-          </AnimatePresence>
+          </>
         </div>
       )}
     </div>
