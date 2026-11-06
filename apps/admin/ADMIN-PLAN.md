@@ -180,7 +180,9 @@ Commits du chantier :
 - [x] **D1. DSAR** : export et effacement par personne, avec preuve et délai
       (commit `6c282740`, `dsar.go`, `DSARRequestsManager.tsx`, `UserDSARPanel.tsx`,
       compte à rebours 30 jours, attestation scellée SHA-256).
-- [ ] **D2. Rétention** : politiques par table, purge planifiée, journal.
+- [x] **D2. Rétention** : politiques par table, purge planifiée, journal
+      (commit `83347e5a`, `retention.go`, `retention_test.go`, `RetentionConsole.tsx`,
+      registre de 10 tables, protection `AdminAuditLog`, audit inconditionnel).
 - [ ] **D3. Exports signés** déjà présents côté légal — généraliser aux autres
       registres (audit, consentement, abonnés).
 - [ ] **D4. SLO + alertes** par surface (latence API, erreurs, outbox, migration).
