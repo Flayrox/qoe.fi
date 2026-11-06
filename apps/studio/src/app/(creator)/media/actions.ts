@@ -188,7 +188,7 @@ export async function inviteMediaMemberAction(
       `/v1/media/${encodeURIComponent(mediaId)}/invites`,
       { method: 'POST', body: { username, role } }
     );
-    revalidatePath('/advanced');
+    revalidatePath('/media');
     return { success: true as const, alreadyMember: res.alreadyMember === true };
   } catch (err: unknown) {
     console.error('[Invite Media Member Error]', err);
@@ -263,7 +263,7 @@ export async function updateMediaMemberRoleAction(
         body: { role },
       }
     );
-    revalidatePath('/advanced');
+    revalidatePath('/media');
     return { success: true as const };
   } catch (err: unknown) {
     return failure(err, 'Échec du changement de rôle');
@@ -287,7 +287,7 @@ export async function updateMediaMemberPermissionsAction(
       `/v1/media/${encodeURIComponent(mediaId)}/members/${encodeURIComponent(memberUserId)}/permissions`,
       { method: 'PATCH', body: { permissions } }
     );
-    revalidatePath('/advanced');
+    revalidatePath('/media');
     return { success: true as const };
   } catch (err: unknown) {
     return failure(err, 'Échec de la mise à jour des permissions');
@@ -307,7 +307,7 @@ export async function removeMediaMemberAction(mediaId: string, memberUserId: str
       `/v1/media/${encodeURIComponent(mediaId)}/members/${encodeURIComponent(memberUserId)}`,
       { method: 'DELETE' }
     );
-    revalidatePath('/advanced');
+    revalidatePath('/media');
     return { success: true as const };
   } catch (err: unknown) {
     return failure(err, 'Échec du retrait');

@@ -151,14 +151,9 @@ export async function AppSidebar() {
       iconName: 'PieChart',
     },
     {
-      title: t`Développeur / API`,
+      title: t`Développeur`,
       url: '/developer',
       iconName: 'Code',
-    },
-    {
-      title: t`Webhooks`,
-      url: '/developer/webhooks',
-      iconName: 'Webhook',
     },
     {
       title: t`Settings`,
@@ -169,11 +164,6 @@ export async function AppSidebar() {
       title: t`Offre Pro`,
       url: '/pricing',
       iconName: 'Crown',
-    },
-    {
-      title: t`Importation (Substack)`,
-      url: '/import',
-      iconName: 'Upload',
     },
   ];
 

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { Search, Command, Menu } from 'lucide-react';
 import { toast } from '@qoe/ui/toast';
 import { ThemeToggle, useCommandMenu } from '@qoe/ui';
@@ -9,8 +9,6 @@ import { ThemeToggle, useCommandMenu } from '@qoe/ui';
 import { HeaderWorkspaceSwitcher } from './HeaderWorkspaceSwitcher';
 
 export function HeaderClient() {
-  const pathname = usePathname();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const alreadyOnboarded = searchParams.get('already_onboarded');
   const { setIsOpen } = useCommandMenu();
@@ -57,36 +55,18 @@ export function HeaderClient() {
           <HeaderWorkspaceSwitcher />
 
           <nav className="hidden lg:flex items-center gap-5">
-            <button
-              onClick={() => router.push('/')}
-              className={
-                pathname === '/'
-                  ? 'text-primary border-b-2 border-primary py-1.5 transition-colors cursor-pointer'
-                  : 'text-muted-foreground hover:text-foreground py-1.5 transition-colors cursor-pointer'
-              }
-            >
-              Writer
-            </button>
-            <button
-              onClick={() => router.push('/audience')}
-              className={
-                pathname.startsWith('/audience') || pathname.startsWith('/analytics')
-                  ? 'text-primary border-b-2 border-primary py-1.5 transition-colors cursor-pointer'
-                  : 'text-muted-foreground hover:text-foreground py-1.5 transition-colors cursor-pointer'
-              }
-            >
-              Studio
-            </button>
-            <button
-              onClick={() => router.push('/advanced')}
-              className={
-                pathname.startsWith('/advanced')
-                  ? 'text-primary border-b-2 border-primary py-1.5 transition-colors cursor-pointer'
-                  : 'text-muted-foreground hover:text-foreground py-1.5 transition-colors cursor-pointer'
-              }
-            >
-              Advanced
-            </button>
+            {['Writer', 'Studio', 'Advanced'].map((label) => (
+              <button
+                key={label}
+                type="button"
+                disabled
+                aria-disabled="true"
+                title="Bientôt disponible"
+                className="cursor-not-allowed border-b-2 border-transparent py-1.5 text-muted-foreground/45 opacity-60 select-none"
+              >
+                {label}
+              </button>
+            ))}
           </nav>
 
           <ThemeToggle />

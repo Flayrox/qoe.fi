@@ -177,7 +177,6 @@ export default async function SettingsDesignPage() {
       { title: 'Webhooks', url: '/developer/webhooks', iconName: 'Webhook' },
       { title: 'Site Web', url: '/settings', iconName: 'Settings' },
       { title: 'Offre Pro', url: '/pricing', iconName: 'Crown' },
-      { title: 'Importation', url: '/import', iconName: 'Upload' },
     ],
     logo: <Logo className="h-5 w-auto" fillColor="#EE4B2B" />,
     brandName: mediaBrandName || 'Studio',

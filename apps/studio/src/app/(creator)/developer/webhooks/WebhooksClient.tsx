@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { t } from '@lingui/core/macro';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import {
   Plus,
   Trash2,
@@ -14,12 +13,9 @@ import {
   XCircle,
   Clock,
   Copy,
-  Lock,
-  Webhook as WebhookIcon,
   Send,
-  ArrowRight,
-  BookOpen,
 } from 'lucide-react';
+import { Button } from '@qoe/ui/button';
 import { cn } from '@qoe/utils';
 import { toast } from '@qoe/ui/toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@qoe/ui';
@@ -34,7 +30,9 @@ import {
   type WebhookEvent,
   type WebhookDeliveryLog,
 } from './actions';
-import { DeveloperNav } from '@/features/developer/components/developer-nav';
+import { DeveloperAccessState } from '@/features/developer/components/developer-access-state';
+import { DeveloperShell } from '@/features/developer/components/developer-shell';
+import { hasDeveloperGrant, type DeveloperAccess } from '@/features/developer/types';
 
 const EVENT_LABELS: Record<string, () => string> = {
   'article.published': () => t`Article publié`,
@@ -55,19 +53,18 @@ function QuietDot({ active }: { active?: boolean }) {
 }
 
 export function WebhooksClient({
+  access,
   initialWebhooks,
   events,
   workspaceName,
-  hasWebhookGrant = true,
-  apiAccessStatus = 'none',
 }: {
+  access: DeveloperAccess;
   initialWebhooks: WebhookWithDeliveries[];
   events: readonly string[];
   workspaceName: string;
-  hasWebhookGrant?: boolean;
-  apiAccessStatus?: string;
 }) {
   const router = useRouter();
+  const hasWebhookGrant = hasDeveloperGrant(access, 'webhooks');
   const [webhooks, setWebhooks] = useState<WebhookWithDeliveries[]>(initialWebhooks);
   const [showCreate, setShowCreate] = useState(false);
   const [name, setName] = useState('');
@@ -93,7 +90,8 @@ export function WebhooksClient({
       setRevealedSecret(res.secret);
       setName('');
       setUrl('');
-      setShowCreate(false);
+      // Garder le formulaire ouvert tant que le secret est affiché : il est
+      // indispensable pour configurer le endpoint et n'est montré qu'une fois.
       const list = await listWebhooksAction();
       if (list.success) setWebhooks(list.webhooks);
       router.refresh();
@@ -164,32 +162,23 @@ export function WebhooksClient({
   };
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 text-foreground">
-      {/* Header section */}
-      <div className="space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Webhooks</h1>
-            <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-              Recevez les événements de « {workspaceName} » directement sur vos serveurs avec une
-              signature cryptographique HMAC SHA-256.
-            </p>
-          </div>
-
-          {hasWebhookGrant && (
-            <button
-              onClick={() => setShowCreate((s) => !s)}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 active:scale-[0.99] transition-all cursor-pointer shadow-xs self-start md:self-auto"
-            >
-              <Plus className="w-3.5 h-3.5" strokeWidth={2} />
-              Nouveau Webhook
-            </button>
-          )}
+    <DeveloperShell
+      access={access}
+      description={`Recevez les événements de « ${workspaceName} » avec une signature HMAC SHA-256.`}
+    >
+      {hasWebhookGrant ? (
+        <div className="flex justify-end">
+          <Button
+            variant="solid"
+            tone="brand"
+            size="md"
+            onClick={() => setShowCreate((current) => !current)}
+          >
+            <Plus />
+            Nouveau Webhook
+          </Button>
         </div>
-
-        {/* Sub-Navigation */}
-        <DeveloperNav activeTab="webhooks" />
-      </div>
+      ) : null}
 
       {/* Create form */}
       {showCreate && (
@@ -261,7 +250,10 @@ export function WebhooksClient({
 
           <div className="flex items-center justify-between pt-2 border-t border-border/60">
             <button
-              onClick={() => setShowCreate(false)}
+              onClick={() => {
+                setShowCreate(false);
+                setRevealedSecret(null);
+              }}
               className="text-xs text-muted-foreground hover:text-foreground font-medium px-3 py-2"
             >
               Annuler
@@ -298,50 +290,9 @@ export function WebhooksClient({
         </div>
       )}
 
-      {/* Gate : permission « API sortante — webhooks » non accordée par l'admin */}
       {!hasWebhookGrant ? (
-        <div className="py-16 text-center bg-card border border-border/50 rounded-2xl p-8 shadow-xs max-w-2xl mx-auto space-y-4">
-          <div className="w-14 h-14 rounded-2xl bg-muted/40 text-muted-foreground flex items-center justify-center mx-auto border border-border/60">
-            <Lock className="w-6 h-6" />
-          </div>
-          <h3 className="text-lg font-bold text-foreground">
-            {apiAccessStatus !== 'approved'
-              ? 'Accès développeur requis'
-              : 'Permission Webhooks non accordée'}
-          </h3>
-          <p className="text-xs text-muted-foreground max-w-md mx-auto leading-relaxed">
-            {apiAccessStatus !== 'approved'
-              ? apiAccessStatus === 'pending'
-                ? "Votre demande d'accès développeur est en cours d'examen par notre équipe. Dès approbation, vous pourrez souscrire à des événements sortants en temps réel."
-                : apiAccessStatus === 'rejected'
-                  ? "Votre demande d'accès développeur n'a pas été retenue. Vous pouvez contacter le support pour plus d'informations."
-                  : apiAccessStatus === 'revoked'
-                    ? 'Vos accès développeur ont été révoqués par un administrateur.'
-                    : "Vous devez activer votre accès API développeur pour pouvoir recevoir des webhooks temps réel et générer des clés d'API."
-              : "Votre compte dispose d'un accès développeur, mais la permission spécifique « Webhooks » (API sortante) ne vous a pas encore été accordée par un administrateur."}
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-            <Link
-              href="/developer"
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-all cursor-pointer shadow-xs"
-            >
-              {apiAccessStatus === 'approved'
-                ? 'Gérer mes accès développeur'
-                : "Demander l'accès développeur"}{' '}
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-            <a
-              href="https://docs.qoe.fi"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-muted text-foreground text-xs font-semibold hover:bg-muted/80 border border-border/60 transition-all"
-            >
-              Documentation Webhooks <BookOpen className="w-3.5 h-3.5 opacity-70" />
-            </a>
-          </div>
-        </div>
-      ) : // List
-      webhooks.length === 0 && !showCreate ? (
+        <DeveloperAccessState access={access} capability="webhooks" />
+      ) : webhooks.length === 0 && !showCreate ? (
         <div className="py-20 text-center bg-card border border-border/50 rounded-2xl p-8 shadow-xs">
           <div className="w-14 h-14 rounded-2xl bg-muted/40 text-primary flex items-center justify-center mx-auto mb-4 border border-border/60">
             <Globe className="w-6 h-6" strokeWidth={1.5} />
@@ -513,6 +464,6 @@ export function WebhooksClient({
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+    </DeveloperShell>
   );
 }

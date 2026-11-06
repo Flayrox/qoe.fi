@@ -1,48 +1,40 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Key, Webhook, Shield, BookOpen, ExternalLink } from 'lucide-react';
+import { BookOpen, Key, Shield, Webhook } from 'lucide-react';
 import { cn } from '@qoe/utils';
 
+export type DeveloperTab = 'overview' | 'keys' | 'webhooks' | 'oauth';
+
 export interface DeveloperNavProps {
-  activeTab?: 'keys' | 'webhooks' | 'docs' | 'oauth';
+  activeTab?: DeveloperTab;
+}
+
+function resolveTab(pathname: string | null): DeveloperTab {
+  if (pathname === '/developer/keys' || pathname?.startsWith('/developer/keys/')) return 'keys';
+  if (pathname === '/developer/webhooks' || pathname?.startsWith('/developer/webhooks/')) {
+    return 'webhooks';
+  }
+  if (pathname === '/developer/oauth' || pathname?.startsWith('/developer/oauth/')) return 'oauth';
+  return 'overview';
 }
 
 export function DeveloperNav({ activeTab }: DeveloperNavProps) {
   const pathname = usePathname();
+  const currentTab = activeTab ?? resolveTab(pathname);
 
-  const currentTab =
-    activeTab ||
-    (pathname?.includes('/developer/webhooks')
-      ? 'webhooks'
-      : pathname?.includes('/developer/oauth')
-        ? 'oauth'
-        : 'keys');
-
-  const tabs = [
-    {
-      id: 'keys',
-      label: "Clés d'API",
-      href: '/developer',
-      icon: Key,
-    },
-    {
-      id: 'webhooks',
-      label: 'Webhooks & Événements',
-      href: '/developer/webhooks',
-      icon: Webhook,
-    },
-    {
-      id: 'oauth',
-      label: 'Applications OAuth',
-      href: '/developer/oauth',
-      icon: Shield,
-    },
+  const tabs: Array<{ id: DeveloperTab; label: string; href: string; icon: typeof Key }> = [
+    { id: 'overview', label: "Vue d'ensemble", href: '/developer', icon: BookOpen },
+    { id: 'keys', label: "Clés d'API", href: '/developer/keys', icon: Key },
+    { id: 'webhooks', label: 'Webhooks', href: '/developer/webhooks', icon: Webhook },
+    { id: 'oauth', label: 'OAuth', href: '/developer/oauth', icon: Shield },
   ];
 
   return (
-    <div className="flex items-center justify-between border-b border-border/50 pb-px gap-4">
-      <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+    <nav aria-label="Navigation développeur" className="border-b border-border/50 pb-px">
+      <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = currentTab === tab.id;
@@ -51,37 +43,23 @@ export function DeveloperNav({ activeTab }: DeveloperNavProps) {
             <Link
               key={tab.id}
               href={tab.href}
+              aria-current={isActive ? 'page' : undefined}
               className={cn(
-                'flex items-center gap-2 px-4 py-2.5 text-xs font-semibold rounded-t-xl transition-all duration-200 border-b-2 relative shrink-0',
+                'relative flex shrink-0 items-center gap-2 rounded-t-lg border-b-2 px-3.5 py-2.5 text-xs font-semibold transition-colors',
                 isActive
-                  ? 'border-primary text-foreground bg-accent/40 font-bold'
-                  : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                  ? 'border-primary bg-accent/40 text-foreground'
+                  : 'border-transparent text-muted-foreground hover:bg-muted/40 hover:text-foreground'
               )}
             >
               <Icon
-                className={cn(
-                  'w-3.5 h-3.5 transition-colors',
-                  isActive ? 'text-primary' : 'text-muted-foreground'
-                )}
+                className={cn('size-3.5', isActive ? 'text-primary' : 'text-muted-foreground')}
+                strokeWidth={1.8}
               />
               <span>{tab.label}</span>
             </Link>
           );
         })}
       </div>
-
-      <a
-        href="https://docs.qoe.fi"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors shrink-0 rounded-lg hover:bg-muted/40"
-        title="Consulter la documentation officielle sur docs.qoe.fi"
-      >
-        <BookOpen className="w-3.5 h-3.5 text-primary/80" />
-        <span className="hidden sm:inline">Documentation API</span>
-        <span className="sm:hidden">Docs</span>
-        <ExternalLink className="w-3 h-3 opacity-70" />
-      </a>
-    </div>
+    </nav>
   );
 }

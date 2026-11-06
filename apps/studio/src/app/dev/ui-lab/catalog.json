@@ -1,13 +1,13 @@
 {
-  "generatedAt": "2026-11-06T10:35:30.698Z",
-  "total": 371,
+  "generatedAt": "2026-11-06T11:53:12.936Z",
+  "total": 382,
   "signals": {
     "primitivesNeverImported": 10,
     "primitivesTotal": 33,
-    "rawButtons": 376,
-    "rawButtonFiles": 89,
+    "rawButtons": 372,
+    "rawButtonFiles": 88,
     "nativeSelectFiles": 0,
-    "rawInputFiles": 48,
+    "rawInputFiles": 47,
     "handRolledOverlays": 4
   },
   "families": [
@@ -41,7 +41,7 @@
           "path": "packages/ui/src/primitives/badge/badge.tsx",
           "lines": 111,
           "source": "primitives",
-          "usages": 29
+          "usages": 32
         },
         {
           "name": "bevel-button",
@@ -62,7 +62,7 @@
           "path": "packages/ui/src/primitives/button/button.tsx",
           "lines": 205,
           "source": "primitives",
-          "usages": 55
+          "usages": 58
         },
         {
           "name": "card",
@@ -76,7 +76,7 @@
           "path": "packages/ui/src/primitives/checkbox/checkbox.tsx",
           "lines": 242,
           "source": "primitives",
-          "usages": 6
+          "usages": 8
         },
         {
           "name": "color",
@@ -160,7 +160,7 @@
           "path": "packages/ui/src/primitives/input/input.tsx",
           "lines": 192,
           "source": "primitives",
-          "usages": 37
+          "usages": 38
         },
         {
           "name": "popover-panel",
@@ -237,7 +237,7 @@
           "path": "packages/ui/src/primitives/tabs/tabs.tsx",
           "lines": 252,
           "source": "primitives",
-          "usages": 16
+          "usages": 17
         },
         {
           "name": "tag-group",
@@ -488,7 +488,7 @@
           "path": "packages/ui/src/ui/toast.tsx",
           "lines": 77,
           "source": "ui",
-          "usages": 59
+          "usages": 60
         },
         {
           "name": "tooltip",
@@ -746,7 +746,7 @@
           "path": "packages/ui/src/primitives/badge/badge.tsx",
           "lines": 111,
           "source": "ui",
-          "usages": 29
+          "usages": 32
         },
         {
           "name": "bevel-button",
@@ -767,7 +767,7 @@
           "path": "packages/ui/src/primitives/button/button.tsx",
           "lines": 205,
           "source": "ui",
-          "usages": 55
+          "usages": 58
         },
         {
           "name": "card",
@@ -781,7 +781,7 @@
           "path": "packages/ui/src/primitives/checkbox/checkbox.tsx",
           "lines": 242,
           "source": "ui",
-          "usages": 6
+          "usages": 8
         },
         {
           "name": "color",
@@ -865,7 +865,7 @@
           "path": "packages/ui/src/primitives/input/input.tsx",
           "lines": 192,
           "source": "ui",
-          "usages": 37
+          "usages": 38
         },
         {
           "name": "popover-panel",
@@ -942,7 +942,7 @@
           "path": "packages/ui/src/primitives/tabs/tabs.tsx",
           "lines": 252,
           "source": "ui",
-          "usages": 16
+          "usages": 17
         },
         {
           "name": "tag-group",
@@ -1637,7 +1637,7 @@
         {
           "name": "app-sidebar",
           "path": "apps/studio/src/features/dashboard/components/app-sidebar.tsx",
-          "lines": 199,
+          "lines": 189,
           "source": "studio",
           "usages": null
         },
@@ -1658,7 +1658,7 @@
         {
           "name": "HeaderClient",
           "path": "apps/studio/src/features/dashboard/components/HeaderClient.tsx",
-          "lines": 98,
+          "lines": 78,
           "source": "studio",
           "usages": null
         },
@@ -1670,16 +1670,72 @@
           "usages": null
         },
         {
-          "name": "developer-client",
-          "path": "apps/studio/src/features/developer/components/developer-client.tsx",
-          "lines": 1320,
+          "name": "actions",
+          "path": "apps/studio/src/features/developer/actions.ts",
+          "lines": 31,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "developer-access-state",
+          "path": "apps/studio/src/features/developer/components/developer-access-state.tsx",
+          "lines": 219,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "developer-keys-client",
+          "path": "apps/studio/src/features/developer/components/developer-keys-client.tsx",
+          "lines": 468,
           "source": "studio",
           "usages": null
         },
         {
           "name": "developer-nav",
           "path": "apps/studio/src/features/developer/components/developer-nav.tsx",
+          "lines": 66,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "developer-overview",
+          "path": "apps/studio/src/features/developer/components/developer-overview.tsx",
           "lines": 88,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "developer-request-form",
+          "path": "apps/studio/src/features/developer/components/developer-request-form.tsx",
+          "lines": 186,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "developer-shell",
+          "path": "apps/studio/src/features/developer/components/developer-shell.tsx",
+          "lines": 28,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "developer-status-badge",
+          "path": "apps/studio/src/features/developer/components/developer-status-badge.tsx",
+          "lines": 24,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "server",
+          "path": "apps/studio/src/features/developer/server.ts",
+          "lines": 80,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "types",
+          "path": "apps/studio/src/features/developer/types.ts",
+          "lines": 82,
           "source": "studio",
           "usages": null
         },
@@ -1763,7 +1819,7 @@
         {
           "name": "ImageDetailsPanel",
           "path": "apps/studio/src/features/editor/components/ImageDetailsPanel.tsx",
-          "lines": 112,
+          "lines": 114,
           "source": "studio",
           "usages": null
         },
@@ -1901,6 +1957,13 @@
           "usages": null
         },
         {
+          "name": "collaboration-actions",
+          "path": "apps/studio/src/features/settings/collaboration-actions.ts",
+          "lines": 76,
+          "source": "studio",
+          "usages": null
+        },
+        {
           "name": "account-security",
           "path": "apps/studio/src/features/settings/components/account-security.tsx",
           "lines": 303,
@@ -1959,7 +2022,14 @@
         {
           "name": "settings",
           "path": "apps/studio/src/features/settings/settings.tsx",
-          "lines": 596,
+          "lines": 644,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "collaboration",
+          "path": "apps/studio/src/features/settings/tabs/collaboration.tsx",
+          "lines": 240,
           "source": "studio",
           "usages": null
         },
@@ -1974,6 +2044,13 @@
           "name": "general",
           "path": "apps/studio/src/features/settings/tabs/general.tsx",
           "lines": 372,
+          "source": "studio",
+          "usages": null
+        },
+        {
+          "name": "import",
+          "path": "apps/studio/src/features/settings/tabs/import.tsx",
+          "lines": 468,
           "source": "studio",
           "usages": null
         },
