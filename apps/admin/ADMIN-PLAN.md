@@ -8,7 +8,7 @@
 > [« 📝 Instructions »](#-instructions) en bas. Elle est prioritaire sur le
 > reste du plan.
 
-Dernière mise à jour : 2026-11-06 · branche `dev` · travail non poussé.
+Dernière mise à jour : 2026-11-06 · branche `dev` · travail non poussé · dernier commit `971c11d5`.
 
 ---
 
@@ -60,6 +60,7 @@ Commits du chantier :
 |---|---|
 | `da0a1907` | Coquille dense : tokens, sidebar 232→, header 44 px, palette ⌘K (écrans + dossiers + actions), dashboard 5 tuiles + tableau SLA, `/admin/system`, retrait déco (emoji, framer-motion, arrondis) |
 | `62ae98e6` | `DataGrid` (tri déclaré) + `RowActions` (clic droit) + fin du mono + zéro `<select>`/`<table>` natif + `ui:audit` vert |
+| `971c11d5` | `useGridView` : tri + facettes + colonnes + densité dans l'URL, vues nommées en `localStorage`, barre de facettes (`GridViewToolbar`) branchée sur les comptes et la vue d'ensemble |
 
 ## 4. Ce qui existe (surface actuelle)
 
@@ -91,19 +92,22 @@ Commits du chantier :
 
 ### Lot B — ergonomie de masse (en cours)
 
-- [ ] **B1. Facettes de filtre** : barre compacte (chips) au-dessus de chaque
+- [~] **B1. Facettes de filtre** : barre compacte (chips) au-dessus de chaque
       grille — file, état SLA, priorité, rôle, statut de compte, assignation.
       Les facettes sont **déclarées dans la spec de colonne/ressource**, pas
       codées par écran.
-- [ ] **B2. État dans l'URL** : tri, facettes, densité et colonnes visibles
+      *Fait : comptes (rôle, statut) + vue d'ensemble (file, SLA).
+      Reste : triage, files de modération, notifications, imports.*
+- [x] **B2. État dans l'URL** : tri, facettes, densité et colonnes visibles
       vivent dans `?sort=…&f=statut:open&d=compact&c=email,role`. Une URL est
-      partageable et rechargeable.
-- [ ] **B3. Vues sauvegardées** : nommer une combinaison (filtres + tri +
+      partageable et rechargeable (`components/shell/grid-view.ts`).
+- [x] **B3. Vues sauvegardées** : nommer une combinaison (filtres + tri +
       colonnes + densité), l'épingler, la rejouer ; stockage local par personne
-      dans un premier temps (`qoe.admin.views.<resource>`), passage en base
-      ensuite.
-- [ ] **B4. Colonnes configurables** : masquer/afficher, réordonner, largeur
-      minimale ; mémorisé avec la vue.
+      (`qoe.admin.views.<resource>`). *Reste : passage en base
+      (`admin_saved_views`) pour les vues d'équipe.*
+- [~] **B4. Colonnes configurables** : masquer/afficher, réordonner, largeur
+      minimale ; mémorisé avec la vue. *Fait : masquer/afficher + mémorisation.
+      Reste : réordonnancement, largeur.*
 - [ ] **B5. Sélection + actions groupées** : `selectionMode="multiple"`,
       barre de 36 px qui n'apparaît qu'à la sélection, actions groupées
       (assigner, priorité, échéance, statut), **undo** pour le réversible.
