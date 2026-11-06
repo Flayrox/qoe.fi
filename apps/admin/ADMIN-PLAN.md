@@ -121,11 +121,11 @@ Commits du chantier :
       par `Entrée` (`onRowOpen`) ou le clic droit (« Aperçu du dossier ») ;
       identifiant copiable, file, priorité, SLA, échéance, assigné, actions
       « M'assigner » / « Ouvrir » / « Fermer ».
-- [~] **B7. Clavier** : *fait* `j/k` curseur (surbrillance + `scrollIntoView`),
-      `x` sélection, `Entrée` ouvre `rowHref`, `Échap` vide la sélection — sur
-      tout `DataGrid` focusable. Reste : `e` édition inline, `/` recherche,
-      `f` facettes, `v` vues, `a` m'assigner, `r` rafraîchir, `?` aide,
-      `g`+lettre.
+- [x] **B7. Clavier** : `j/k` curseur (surbrillance + `scrollIntoView`),
+      `x` sélection, `Entrée` détail (`onRowOpen`) ou navigation (`rowHref`),
+      `a` assigner (`onAssign`), `r` `router.refresh()`, `?` aide en surimpression,
+      `Échap` ferme/vide — sur tout `DataGrid` focusable. *Reste : `e` édition
+      inline, `/` recherche, `f` facettes, `v` vues, `g`+lettre.*
 - [ ] **B8. Édition inline générique** : champ scalaire déclaré dans la spec,
       écriture optimiste, statut `Audité · à …`, rollback sur échec.
 - [ ] **B9. Chips métriques** dans le header de chaque écran (API ms, p95,
