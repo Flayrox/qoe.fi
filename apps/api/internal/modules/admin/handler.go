@@ -128,6 +128,8 @@ var stepUpRoutes = map[string]authz.Level{
 	"PUT /v1/admin/feature-flags/{key}":              authz.Level2,
 	"PATCH /v1/admin/features/{key}":                 authz.Level2,
 	"PUT /v1/admin/announcement":                     authz.Level2,
+	"POST /v1/admin/users/{userID}/dsar-export":     authz.Level2,
+	"POST /v1/admin/users/{userID}/erase":           authz.Level2,
 	// Distribuer les droits de la console est l'acte le plus lourd : une
 	// session détournée ne doit pas pouvoir nommer un complice.
 	"POST /v1/admin/access/grants":                           authz.Level2,
@@ -159,6 +161,9 @@ func (h *Handler) routeTable() []adminRoute {
 		// Révocation de toutes les sessions d'un compte (compromission
 		// suspectée, récupération après perte de facteurs).
 		{http.MethodPost, "/v1/admin/users/{userID}/revoke-sessions", adminauthz.UsersSessionsRevoke, h.revokeUserSessions},
+		// Exercice des droits RGPD : export nominatif scellé (Art. 15) et effacement (Art. 17).
+		{http.MethodPost, "/v1/admin/users/{userID}/dsar-export", adminauthz.ComplianceExport, h.exportUserDSAR},
+		{http.MethodPost, "/v1/admin/users/{userID}/erase", adminauthz.ComplianceExport, h.eraseUser},
 
 		// File de modération (signalements).
 		{http.MethodGet, "/v1/admin/reports", adminauthz.ReportsRead, h.reports},
@@ -245,6 +250,9 @@ func (h *Handler) routeTable() []adminRoute {
 
 		// Journal d'audit de la console.
 		{http.MethodGet, "/v1/admin/audit-log", adminauthz.AuditRead, h.auditLog},
+
+		// ── Conformité & DSAR (RGPD) ────────────────────────────────────
+		{http.MethodGet, "/v1/admin/compliance/deletion-requests", adminauthz.ComplianceRead, h.listDeletionRequests},
 
 		// ── Double validation des actes N3 (quorum, Phase 8) ─────────────
 		// Lire la file demande la lecture du domaine concerné (aujourd'hui le

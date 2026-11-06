@@ -69,6 +69,13 @@ export const ADMIN_ACTIONS: readonly AdminActionShortcut[] = [
     keywords: 'rgpd export consentement signature preuve',
   },
   {
+    id: 'compliance-dsar',
+    label: 'Demandes d’effacement RGPD (DSAR)',
+    href: '/admin/compliance',
+    capability: 'admin.compliance.read',
+    keywords: 'dsar effacement oubli purge rgpd article 17 donnees',
+  },
+  {
     id: 'toggle-flag',
     label: 'Basculer un feature flag',
     href: '/admin/config',
