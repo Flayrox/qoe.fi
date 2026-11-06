@@ -16,7 +16,18 @@ import { Badge } from '@qoe/ui/badge';
 import { Button, buttonClasses } from '@qoe/ui/button';
 import { Tab, TabList, Tabs } from '@qoe/ui/tabs';
 import { URLS } from '@qoe/config';
-import { ExternalLink, Check, Loader2, Palette, Search, Globe, Compass, Users } from 'lucide-react';
+import {
+  ExternalLink,
+  Check,
+  Loader2,
+  Palette,
+  Search,
+  Globe,
+  Compass,
+  Users,
+  UserPlus,
+  Upload,
+} from 'lucide-react';
 
 import {
   updateCreatorProfileAction,
@@ -33,13 +44,16 @@ import { RecommendationsTab } from './tabs/recommendations';
 import { SeoTab } from './tabs/seo';
 import { DomainTab } from './tabs/domain';
 import { NavigationTab } from './tabs/navigation';
+import { CollaborationTab } from './tabs/collaboration';
+import { ImportTab } from './tabs/import';
 
 export interface SettingsProps {
   initialCreator: CreatorProfile;
   publicationId?: string;
 }
 
-export type TabType = 'general' | 'recommendations' | 'domain' | 'navigation' | 'seo';
+export type TabType =
+  'general' | 'recommendations' | 'collaboration' | 'import' | 'domain' | 'navigation' | 'seo';
 
 export default function SettingsView({ initialCreator, publicationId }: SettingsProps) {
   // ── 💾 STATE MANAGEMENT ──
@@ -56,7 +70,9 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
       const hash = hashToUse || window.location.hash;
       if (!hash) return;
 
-      const tabMatch = hash.match(/^#(general|recommendations|domain|navigation|seo)/);
+      const tabMatch = hash.match(
+        /^#(general|recommendations|collaboration|import|domain|navigation|seo)/
+      );
       if (tabMatch) {
         setActiveTab(tabMatch[1] as TabType);
       } else {
@@ -363,6 +379,8 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
   const TABS = [
     { id: 'general' as const, label: t`Identité & Design`, icon: Palette },
     { id: 'recommendations' as const, label: t`Recommandations`, icon: Users },
+    { id: 'collaboration' as const, label: t`Collaboration`, icon: UserPlus },
+    { id: 'import' as const, label: t`Importer`, icon: Upload },
     { id: 'seo' as const, label: t`SEO & Réseaux`, icon: Search },
     { id: 'domain' as const, label: t`Domaine & DNS`, icon: Globe },
     { id: 'navigation' as const, label: t`Menu & liens`, icon: Compass },
@@ -481,6 +499,30 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
               transition={{ duration: 0.15 }}
             >
               <RecommendationsTab current={current} setCurrent={setCurrent} />
+            </motion.div>
+          )}
+
+          {activeTab === 'collaboration' && (
+            <motion.div
+              key="tab-collaboration"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <CollaborationTab />
+            </motion.div>
+          )}
+
+          {activeTab === 'import' && (
+            <motion.div
+              key="tab-import"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <ImportTab />
             </motion.div>
           )}
 

@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { t } from '@lingui/core/macro';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import {
   Plus,
   Trash2,
@@ -14,13 +13,9 @@ import {
   AlertCircle,
   KeyRound,
   Globe,
-  Lock,
-  ArrowRight,
-  Building2,
-  User,
 } from 'lucide-react';
 import { Badge } from '@qoe/ui/badge';
-import { Button, buttonClasses } from '@qoe/ui/button';
+import { Button } from '@qoe/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -40,7 +35,9 @@ import {
   deleteOAuthClientAction,
   type OAuthClientDTO,
 } from './actions';
-import { DeveloperNav } from '@/features/developer/components/developer-nav';
+import { DeveloperAccessState } from '@/features/developer/components/developer-access-state';
+import { DeveloperShell } from '@/features/developer/components/developer-shell';
+import { hasDeveloperGrant, type DeveloperAccess } from '@/features/developer/types';
 
 const OAUTH_SCOPES = [
   {
@@ -64,8 +61,7 @@ const STATUS_META: Record<
 };
 
 interface OAuthAppsClientProps {
-  status: string;
-  hasOAuthGrant?: boolean;
+  access: DeveloperAccess;
   clients: OAuthClientDTO[];
   error?: string;
   workspace?: {
@@ -76,12 +72,12 @@ interface OAuthAppsClientProps {
 }
 
 export function OAuthAppsClient({
-  status,
-  hasOAuthGrant = true,
+  access,
   clients: initialClients,
   error,
   workspace,
 }: OAuthAppsClientProps) {
+  const hasOAuthGrant = hasDeveloperGrant(access, 'oauth');
   const router = useRouter();
   const [clients, setClients] = useState<OAuthClientDTO[]>(initialClients);
 
@@ -200,59 +196,13 @@ export function OAuthAppsClient({
     }
   };
 
-  const gated = status !== 'approved' || !hasOAuthGrant;
+  const gated = access.status !== 'approved' || !hasOAuthGrant;
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-6 text-foreground">
-      {/* Header */}
-      <div className="space-y-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 flex-wrap mb-1.5">
-              {workspace && (
-                <Badge variant="outline" shape="pill" size="sm">
-                  {workspace.type === 'MEDIA' ? (
-                    <>
-                      <Building2 className="text-primary" />
-                      <span>
-                        Média : <strong>{workspace.name}</strong>
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <User />
-                      <span>Espace Personnel</span>
-                    </>
-                  )}
-                </Badge>
-              )}
-            </div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-              Applications OAuth
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
-              Proposez « Se connecter avec qoefi » à vos utilisateurs via OAuth 2.1 / OpenID
-              Connect, avec PKCE, signatures ES256 et consentement explicite.
-            </p>
-          </div>
-
-          {!gated && (
-            <Button
-              variant="solid"
-              tone="brand"
-              size="md"
-              onClick={() => setShowCreate((s) => !s)}
-              className="self-start md:self-auto"
-            >
-              <Plus />
-              Nouvelle application
-            </Button>
-          )}
-        </div>
-
-        <DeveloperNav activeTab="oauth" />
-      </div>
-
+    <DeveloperShell
+      access={access}
+      description="Proposez « Se connecter avec qoefi » via OAuth 2.1 / OpenID Connect."
+    >
       {error && (
         <div className="flex items-start gap-3 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-xs text-destructive-text">
           <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -260,45 +210,16 @@ export function OAuthAppsClient({
         </div>
       )}
 
-      {/* Gated state */}
-      {gated && (
-        <div className="bg-card border border-border/50 rounded-2xl p-10 text-center max-w-2xl mx-auto space-y-4 shadow-xs">
-          <div className="w-14 h-14 rounded-2xl bg-muted/40 text-muted-foreground flex items-center justify-center mx-auto border border-border/60">
-            <Lock className="w-6 h-6" />
-          </div>
-          <h2 className="text-lg font-bold text-foreground">
-            {status?.toLowerCase() !== 'approved'
-              ? 'Accès développeur requis'
-              : 'Permission OAuth non accordée'}
-          </h2>
-          <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-            {status?.toLowerCase() !== 'approved'
-              ? status?.toLowerCase() === 'pending'
-                ? "Votre demande d'accès développeur est en cours d'examen par notre équipe. Une fois approuvée, vous pourrez créer des applications OAuth 2.1 et OIDC."
-                : 'Les applications OAuth permettent à des services tiers de se connecter via « Se connecter avec qoefi ». Activez votre accès développeur pour commencer.'
-              : "Votre compte dispose d'un accès API actif, mais la permission spécifique « OAuth » ne vous a pas encore été accordée par un administrateur."}
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-            <Link
-              href="/developer"
-              className={buttonClasses({ variant: 'solid', tone: 'brand', size: 'md' })}
-            >
-              {status?.toLowerCase() === 'approved'
-                ? 'Gérer mes accès développeur'
-                : "Demander l'accès développeur"}{' '}
-              <ArrowRight />
-            </Link>
-            <a
-              href="https://docs.qoe.fi"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={buttonClasses({ variant: 'outline', size: 'md' })}
-            >
-              Documentation OAuth <Globe className="opacity-70" />
-            </a>
-          </div>
+      {gated ? <DeveloperAccessState access={access} capability="oauth" /> : null}
+
+      {!gated && !showCreate ? (
+        <div className="flex justify-end">
+          <Button variant="solid" tone="brand" size="md" onClick={() => setShowCreate(true)}>
+            <Plus />
+            Nouvelle application
+          </Button>
         </div>
-      )}
+      ) : null}
 
       {/* Create form */}
       {!gated && showCreate && (
@@ -644,6 +565,6 @@ export function OAuthAppsClient({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </DeveloperShell>
   );
 }

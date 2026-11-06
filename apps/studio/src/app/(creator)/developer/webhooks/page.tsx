@@ -1,15 +1,18 @@
 // =====================================================================
 // 🔗 Webhooks — apps/studio/src/app/(creator)/developer/webhooks/page.tsx
 // =====================================================================
-// L'API sortante (webhooks) est une permission modulable : si l'admin ne l'a
-// pas accordée, la page affiche un message clair au lieu d'une erreur 403.
 
 import { redirect } from 'next/navigation';
 import { requireUser } from '@qoe/auth/current-user';
 import { getActiveWorkspace } from '@/lib/active-workspace';
-import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { listWebhooksAction } from './actions';
 import { WebhooksClient } from './WebhooksClient';
+import { getDeveloperAccess } from '@/features/developer/server';
+import {
+  developerWorkspaceAccess,
+  hasDeveloperGrant,
+  type DeveloperWorkspace,
+} from '@/features/developer/types';
 
 export const metadata = {
   title: 'Webhooks | qoefi',
@@ -18,33 +21,33 @@ export const metadata = {
 
 export default async function WebhooksPage() {
   const user = await requireUser();
-  if (!user) {
-    redirect('/login');
-  }
+  if (!user) redirect('/login');
 
-  let hasWebhookGrant = false;
-  let apiAccessStatus = 'none';
   let workspaceName = '';
+  let workspace: DeveloperWorkspace = {
+    type: 'PERSONAL',
+    name: '',
+    publicationId: '',
+  };
 
   try {
-    const workspace = await getActiveWorkspace(user.id);
-    workspaceName = workspace.name;
+    const activeWorkspace = await getActiveWorkspace(user.id);
+    workspaceName = activeWorkspace.name;
+    workspace = {
+      type: activeWorkspace.type,
+      name: activeWorkspace.name,
+      mediaId: activeWorkspace.mediaId,
+      publicationId: activeWorkspace.publicationId,
+    };
   } catch (err) {
     console.warn('[webhooks] impossible de lire le workspace actif:', err);
   }
 
-  try {
-    const me = await goFetch<{
-      data: { apiAccessStatus: string; apiGrants: string[] };
-    }>('/v1/users/me');
-    apiAccessStatus = (me.data?.apiAccessStatus ?? 'none').toLowerCase();
-    hasWebhookGrant =
-      apiAccessStatus === 'approved' && (me.data?.apiGrants ?? []).includes('webhooks');
-  } catch (err) {
-    console.warn('[webhooks] impossible de lire le statut utilisateur:', err);
-  }
+  const access =
+    workspace.type === 'MEDIA' ? developerWorkspaceAccess(workspace) : await getDeveloperAccess();
+  const hasWebhookGrant = hasDeveloperGrant(access, 'webhooks');
 
-  // Ne pas appeler l'API webhooks si la permission n'est pas accordée (évite un 403 bloquant)
+  // Ne pas appeler l'API webhooks sans la permission : évite un 403 bloquant.
   const res = hasWebhookGrant
     ? await listWebhooksAction()
     : {
@@ -61,11 +64,10 @@ export default async function WebhooksPage() {
 
   return (
     <WebhooksClient
+      access={access}
       initialWebhooks={res.success ? res.webhooks : []}
       events={res.events ?? []}
       workspaceName={res.workspaceName || workspaceName}
-      hasWebhookGrant={hasWebhookGrant}
-      apiAccessStatus={apiAccessStatus}
     />
   );
 }
