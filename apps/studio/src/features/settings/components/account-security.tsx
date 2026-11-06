@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { Download, ExternalLink, ShieldAlert, Trash2 } from 'lucide-react';
+import { Button } from '@qoe/ui/button';
+import { Checkbox } from '@qoe/ui/checkbox';
+import { Input } from '@qoe/ui/input';
 import { toast } from '@qoe/ui/toast';
 import { URLS } from '@qoe/config';
 import {
@@ -111,12 +114,11 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
             </strong>
           </p>
         </div>
-        <a
-          href={URLS.CONSOLE}
-          className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
-        >
-          Modifier mon profil public <ExternalLink className="h-4 w-4" />
-        </a>
+        <Button asChild variant="ghost" tone="brand" size="sm" className="-ml-2 w-fit">
+          <a href={URLS.CONSOLE}>
+            Modifier mon profil public <ExternalLink className="size-4" aria-hidden />
+          </a>
+        </Button>
       </div>
 
       <div className="rounded-xl border border-border/50 bg-card p-5 space-y-3">
@@ -129,21 +131,25 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
           fournisseur d’identité.
         </p>
         <div className="grid gap-2 sm:grid-cols-2">
-          <input
+          <Input
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
             type="password"
             placeholder="Mot de passe actuel"
-            className="rounded-lg border bg-background px-3 py-2 text-sm"
+            aria-label="Mot de passe actuel"
+            size="sm"
           />
-          <input
+          <Input
             value={newEmail}
             onChange={(e) => setNewEmail(e.target.value)}
             type="email"
             placeholder="Nouvel email"
-            className="rounded-lg border bg-background px-3 py-2 text-sm"
+            aria-label="Nouvel email"
+            size="sm"
           />
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             disabled={busy || !newEmail || !currentPassword}
             onClick={async () => {
               setBusy(true);
@@ -157,18 +163,21 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
                 setBusy(false);
               }
             }}
-            className="rounded-lg border px-3 py-2 text-left text-sm disabled:opacity-50"
+            className="justify-start"
           >
             Changer l’email
-          </button>
-          <input
+          </Button>
+          <Input
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             type="password"
             placeholder="Nouveau mot de passe"
-            className="rounded-lg border bg-background px-3 py-2 text-sm"
+            aria-label="Nouveau mot de passe"
+            size="sm"
           />
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             disabled={busy || !newPassword || !currentPassword}
             onClick={async () => {
               setBusy(true);
@@ -185,11 +194,13 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
                 setBusy(false);
               }
             }}
-            className="rounded-lg border px-3 py-2 text-left text-sm disabled:opacity-50"
+            className="justify-start"
           >
             Changer le mot de passe
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={async () => {
               setMfaBusy(true);
               try {
@@ -203,11 +214,14 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
               }
             }}
             disabled={mfaBusy || sessions.length < 2}
-            className="rounded-lg border px-3 py-2 text-left text-sm disabled:opacity-50"
+            className="justify-start"
           >
             Révoquer les autres sessions ({sessions.length})
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="outline"
+            tone="danger"
+            size="sm"
             onClick={async () => {
               setMfaBusy(true);
               try {
@@ -221,10 +235,10 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
               }
             }}
             disabled={mfaBusy || sessions.length === 0}
-            className="rounded-lg border px-3 py-2 text-left text-sm text-destructive-text disabled:opacity-50"
+            className="justify-start"
           >
             Révoquer toutes les sessions OAuth
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -236,20 +250,23 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
           Contrôlez les traitements facultatifs. Les traitements nécessaires restent actifs.
         </p>
         {(['analytics', 'personalization', 'marketing'] as const).map((key) => (
-          <label key={key} className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={consent[key]}
-              onChange={(e) => setConsent({ ...consent, [key]: e.target.checked })}
-            />{' '}
-            {key === 'analytics'
-              ? 'Mesure d’audience'
-              : key === 'personalization'
-                ? 'Personnalisation'
-                : 'Marketing'}
-          </label>
+          <Checkbox
+            key={key}
+            isSelected={consent[key]}
+            onChange={(isSelected) => setConsent({ ...consent, [key]: isSelected })}
+            label={
+              key === 'analytics'
+                ? 'Mesure d’audience'
+                : key === 'personalization'
+                  ? 'Personnalisation'
+                  : 'Marketing'
+            }
+          />
         ))}
-        <button
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-fit"
           onClick={async () => {
             try {
               await updateAccountConsentAction(consent);
@@ -258,10 +275,9 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
               toast.error('Impossible d’enregistrer le consentement.');
             }
           }}
-          className="rounded-lg border px-3 py-2 text-sm"
         >
           Enregistrer mes choix
-        </button>
+        </Button>
       </div>
 
       <div className="rounded-xl border border-border/50 bg-card p-5 space-y-3">
@@ -269,13 +285,16 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
         <p className="text-sm text-muted-foreground">
           Téléchargez une copie des données associées à votre compte.
         </p>
-        <button
+        <Button
+          variant="solid"
+          tone="brand"
+          size="sm"
+          loading={busy}
           onClick={exportData}
-          disabled={busy}
-          className="inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50"
+          className="w-fit"
         >
-          <Download className="h-4 w-4" /> Exporter mes données
-        </button>
+          <Download aria-hidden /> Exporter mes données
+        </Button>
       </div>
 
       <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-5 space-y-3">
@@ -283,19 +302,23 @@ export function AccountSecurity({ profile }: { profile: AccountSecurityProfile }
         <p className="text-sm text-muted-foreground">
           La suppression est différée et peut être annulée pendant le délai de grâce.
         </p>
-        <input
+        <Input
           value={deletionConfirmation}
           onChange={(event) => setDeletionConfirmation(event.target.value)}
           placeholder="Écrivez DELETE"
-          className="w-full rounded-lg border bg-background px-3 py-2 text-sm"
+          aria-label="Confirmation de suppression"
+          size="sm"
         />
-        <button
+        <Button
+          variant="solid"
+          tone="danger"
+          size="sm"
           onClick={requestDeletion}
           disabled={busy || deletionConfirmation !== 'DELETE'}
-          className="inline-flex items-center gap-2 rounded-lg bg-destructive px-3 py-2 text-sm text-destructive-foreground disabled:opacity-50"
+          className="w-fit"
         >
-          <Trash2 className="h-4 w-4" /> Demander la suppression
-        </button>
+          <Trash2 aria-hidden /> Demander la suppression
+        </Button>
       </div>
     </section>
   );
