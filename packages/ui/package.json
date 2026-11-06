@@ -58,6 +58,7 @@
     "./profile": "./src/profile/index.ts",
     "./cards": "./src/cards/index.ts",
     "./forms": "./src/forms/index.ts",
+    "./social": "./src/social/index.ts",
     "./templates": "./src/templates/index.ts",
     "./templates/*": "./src/templates/*"
   },

@@ -15,7 +15,7 @@ import { toast } from '@qoe/ui/toast';
 import { Badge } from '@qoe/ui/badge';
 import { Button, buttonClasses } from '@qoe/ui/button';
 import { Tab, TabList, Tabs } from '@qoe/ui/tabs';
-import { URLS } from '@qoe/config';
+import { URLS, resolveAppUrl } from '@qoe/config';
 import {
   ExternalLink,
   Check,
@@ -172,18 +172,9 @@ export default function SettingsView({ initialCreator, publicationId }: Settings
 
   useEffect(() => {
     setIsMounted(true);
-    const host = window.location.hostname;
+    const host = typeof window !== 'undefined' ? window.location.host : undefined;
     const activeSub = current.subdomain || 'climat';
-    const isCaddy = !window.location.port;
-    if (host.includes('lvh.me')) {
-      setPublicBlogUrl(`http://${activeSub}.lvh.me${isCaddy ? '' : ':15403'}`);
-    } else if (host.includes('qoe.test')) {
-      setPublicBlogUrl(`http://${activeSub}.qoe.test`);
-    } else if (host.includes('localhost')) {
-      setPublicBlogUrl(`http://${activeSub}.lvh.me:15403`);
-    } else {
-      setPublicBlogUrl(`https://${activeSub}.qoe.fi`);
-    }
+    setPublicBlogUrl(resolveAppUrl('tenant', host, { subdomain: activeSub }));
   }, [current.subdomain]);
 
   const consoleSettingsUrl = isMounted ? `${URLS.CONSOLE}/settings` : '#';

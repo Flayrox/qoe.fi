@@ -250,3 +250,17 @@ export function getMainAppUrl(hostname?: string, port?: number): string {
 export function getStudioAppUrl(hostname?: string, port?: number): string {
   return resolveAppUrl('studio', hostname, port ? { port } : undefined);
 }
+
+/**
+ * Vérifie si l'hôte spécifié ou l'hôte courant correspond à l'application principale (reader / apps/core).
+ */
+export function isMainAppHost(hostname?: string): boolean {
+  const context = parseHostContext(hostname);
+  if (!context.isDev) {
+    return context.hostWithoutPort === 'qoe.fi' || context.hostWithoutPort === 'www.qoe.fi';
+  }
+  if (context.isCaddy) {
+    return context.hostWithoutPort === 'qoe.test';
+  }
+  return context.port === String(APP_DEV_PORTS.app);
+}

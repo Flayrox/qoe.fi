@@ -190,6 +190,7 @@ const eslintConfig = defineConfig([
     '**/node_modules/**',
     '**/.pnpm-store/**',
     '**/.agents/**',
+    'apps/mobile/**',
     // Reference codebases (Bluesky, Ghost) - never linted
     '.reference/**',
     // Vendored third-party reference (Onlook port) — ported lot by lot, not linted brut

@@ -43,6 +43,17 @@ export async function proxy(request: NextRequest) {
   const { subdomain, isSystemDomain } = parseTenantHost(hostname);
 
   if (!isSystemDomain && subdomain) {
+    // ⚡ Redirige les liens de pensées vers l'application principale (feed / lecteur)
+    // Résout le cas où un visiteur arrive sur (nomdutenant).qoe.fi/thought/... ou /:username/thought/...
+    if (
+      pathname === '/thought' ||
+      pathname.startsWith('/thought/') ||
+      pathname.includes('/thought/')
+    ) {
+      const mainAppUrl = getMainAppUrl(hostname);
+      return NextResponse.redirect(`${mainAppUrl}${pathname}${url.search}`);
+    }
+
     // ⚡ Passive SSO: Never redirect anonymous visitors or bots.
     // Redirection is strictly opt-in if explicitly requested via query param (?sso=sync).
     const isExplicitSync = url.searchParams.get('sso') === 'sync';

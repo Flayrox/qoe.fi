@@ -235,7 +235,9 @@ export function NotificationItem({ notification, onMarkRead }: NotificationItemP
           : type === 'FOLLOW' && notification.publication?.slug
             ? `/${notification.publication.slug}`
             : notification.thoughtId
-              ? `/thought/${notification.thoughtId}`
+              ? firstSender?.username
+                ? `/${encodeURIComponent(firstSender.username.replace(/^@/, ''))}/thought/${encodeURIComponent(notification.thoughtId)}`
+                : `/thought/${notification.thoughtId}`
               : notification.article
                 ? `/article/${notification.article.slug}`
                 : notification.publication

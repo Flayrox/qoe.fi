@@ -5,7 +5,8 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { ThemedText } from '@/components/themed-text';
 import { ShareMenuButton } from '@/components/thought/share-menu';
-import { ActionSheet, type ActionSheetGroup } from '@/components/ui/action-sheet';
+import { ActionSheet } from '@/components/ui/action-sheet';
+import type { ActionSheetGroup } from '@/components/ui/action-sheet';
 import { Toast } from '@/components/ui/toast';
 import { useTheme } from '@/hooks/use-theme';
 import { apiClient } from '@/lib/api';
@@ -179,7 +180,13 @@ export function ThoughtActions({
     },
   ];
 
-  const shareUrl = `https://qoe.fi/thought/${post.author?.username || post.author?.subdomain || post.author?.id || 'author'}/${post.id}`;
+  const authorHandle = (
+    post.author?.username ||
+    post.author?.subdomain ||
+    post.author?.id ||
+    'author'
+  ).replace(/^@/, '');
+  const shareUrl = `https://qoe.fi/${authorHandle}/thought/${post.id}`;
 
   return (
     <View style={styles.row}>

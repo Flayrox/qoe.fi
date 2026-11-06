@@ -14,6 +14,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { Check, Loader2 } from 'lucide-react';
 import { buildArticlePath, cn } from '@qoe/utils';
+import { resolveAppUrl } from '@qoe/config';
 import { SafeAvatar } from '../../SafeAvatar';
 import { SubscribeForm } from '../../SubscribeForm';
 import { subscribeToNewsletterAction } from '@qoe/sdk/actions/tenant';
@@ -103,15 +104,13 @@ export function PublicationSidebar({
   };
 
   const targetUrlFor = (rec: TemplateRecommendationItem) => {
-    if (rec.customDomain) return `https://${rec.customDomain}`;
+    if (rec.customDomain) return `https://${rec.customDomain.replace(/^https?:\/\//, '')}`;
     if (!rec.subdomain) return '#';
-    if (typeof window !== 'undefined') {
-      const host = window.location.hostname;
-      if (host.endsWith('lvh.me')) return `http://${rec.subdomain}.lvh.me:15403`;
-      if (host.endsWith('localhost')) return `http://${rec.subdomain}.localhost:15403`;
-      if (host.endsWith('qoe.test')) return `http://${rec.subdomain}.qoe.test`;
-    }
-    return `https://${rec.subdomain}.qoe.fi`;
+    const host = typeof window !== 'undefined' ? window.location.host : undefined;
+    return resolveAppUrl('tenant', host, {
+      subdomain: rec.subdomain,
+      customDomain: rec.customDomain,
+    });
   };
 
   return (

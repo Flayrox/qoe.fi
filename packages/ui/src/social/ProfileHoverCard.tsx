@@ -7,6 +7,7 @@ import { SafeAvatar } from '../SafeAvatar';
 import { CertifiedBadge } from '../ui/CertifiedBadge';
 import { Button } from '../primitives/button/button';
 import { routes } from '@qoe/config/routes';
+import { getMainAppUrl } from '@qoe/config';
 import { t } from '@lingui/core/macro';
 import { toggleFollowCreatorHomeAction, resolveProfileAction } from '@qoe/sdk/actions/feed';
 import { Building2, UserPlus, UserCheck, Loader2 } from 'lucide-react';
@@ -219,7 +220,10 @@ export function ProfileHoverCard({
     if (onOpenProfile) {
       onOpenProfile(cleanHandle);
     } else {
-      window.location.href = routes.feed.profile(cleanHandle);
+      const mainAppUrl = getMainAppUrl(
+        typeof window !== 'undefined' ? window.location.host : undefined
+      );
+      window.location.href = `${mainAppUrl}${routes.feed.profile(cleanHandle)}`;
     }
   };
 

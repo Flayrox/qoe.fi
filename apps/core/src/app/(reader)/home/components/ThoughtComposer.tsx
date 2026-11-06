@@ -46,7 +46,7 @@ import {
 import { Select } from '@qoe/ui/select';
 import { Tabs, TabList, Tab } from '@qoe/ui/tabs';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@qoe/ui/ui/sheet';
-import { ProfileHoverCard } from '@qoe/ui/social/ProfileHoverCard';
+import { ProfileHoverCard } from '@qoe/ui';
 
 interface ComposerImage {
   id: string;
