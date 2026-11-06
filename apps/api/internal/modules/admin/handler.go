@@ -127,6 +127,7 @@ var stepUpRoutes = map[string]authz.Level{
 	"PATCH /v1/admin/api-access/modules":             authz.Level2,
 	"PUT /v1/admin/feature-flags/{key}":              authz.Level2,
 	"PATCH /v1/admin/features/{key}":                 authz.Level2,
+	"PUT /v1/admin/announcement":                     authz.Level2,
 	// Distribuer les droits de la console est l'acte le plus lourd : une
 	// session détournée ne doit pas pouvoir nommer un complice.
 	"POST /v1/admin/access/grants":                           authz.Level2,
@@ -219,6 +220,10 @@ func (h *Handler) routeTable() []adminRoute {
 		// ── Notifications & livraisons ───────────────────────────────────
 		{http.MethodGet, "/v1/admin/deliveries", adminauthz.DeliveriesRead, h.deliveries},
 		{http.MethodPost, "/v1/admin/deliveries/{id}/retry", adminauthz.DeliveriesRetry, h.retryDelivery},
+
+		// ── Communication & Annonce globale ──────────────────────────────
+		{http.MethodGet, "/v1/admin/announcement", adminauthz.CampaignsRead, h.getAnnouncement},
+		{http.MethodPut, "/v1/admin/announcement", adminauthz.CampaignsWrite, h.setAnnouncement},
 
 		// ── Plateforme : configuration, inscriptions, OAuth, accès API ────
 		{http.MethodGet, "/v1/admin/config", adminauthz.ConfigRead, h.configs},
