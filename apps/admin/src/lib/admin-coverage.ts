@@ -119,6 +119,10 @@ export const ADMIN_ROUTE_COVERAGE: Record<string, AdminRouteCoverage> = {
   'POST /v1/admin/campaigns/{id}/pause': via('/admin/campaigns'),
   'POST /v1/admin/campaigns/{id}/cancel': via('/admin/campaigns'),
 
+  // Annonce globale (bannière suspendue multi-pages).
+  'GET /v1/admin/announcement': via('/admin/notifications'),
+  'PUT /v1/admin/announcement': via('/admin/notifications'),
+
   // ── Plateforme ────────────────────────────────────────────────────────
   'GET /v1/admin/feature-flags': via('/admin/config'),
   'PUT /v1/admin/feature-flags/{key}': via('/admin/config'),

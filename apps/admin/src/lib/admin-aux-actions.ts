@@ -11,6 +11,7 @@
 import { revalidatePath } from 'next/cache';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
 import { authzTrailers } from '@/lib/action-result';
+import { assertCapability } from '@/lib/admin-identity';
 
 async function verifySuperadmin() {
   // Go vérifie le rôle superadmin sur chaque route admin (403 sinon).
@@ -491,6 +492,7 @@ export async function retryNotificationDeliveryAction(deliveryId: string) {
 
 export async function toggleFeatureFlagAction(key: string, isEnabled: boolean) {
   try {
+    await assertCapability('admin.flags.write');
     // La route Go exige admin.flags.write + N2 ; aucune écriture Supabase
     // directe ne doit contourner le garde, la preuve ou l'audit.
     await goFetch(`/v1/admin/feature-flags/${encodeURIComponent(key)}`, {
@@ -522,14 +524,8 @@ export interface GlobalAnnouncementPayload {
 }
 
 export async function getGlobalAnnouncementAction(): Promise<GlobalAnnouncementPayload | null> {
-  await verifySuperadmin();
   try {
-    const items = await goFetch<Array<{ key: string; value: string }>>(
-      '/v1/admin/config?keys=GLOBAL_ANNOUNCEMENT'
-    );
-    const raw = items.find((item) => item.key === 'GLOBAL_ANNOUNCEMENT')?.value;
-    if (!raw) return null;
-    return JSON.parse(raw) as GlobalAnnouncementPayload;
+    return await goFetch<GlobalAnnouncementPayload | null>('/v1/admin/announcement');
   } catch {
     return null;
   }
@@ -538,28 +534,20 @@ export async function getGlobalAnnouncementAction(): Promise<GlobalAnnouncementP
 export async function saveGlobalAnnouncementAction(
   announcement: Omit<GlobalAnnouncementPayload, 'updatedAt'>
 ) {
-  await verifySuperadmin();
   try {
-    const payload: GlobalAnnouncementPayload = {
-      ...announcement,
-      updatedAt: new Date().toISOString(),
-    };
-
-    await upsertConfigsGo([
-      {
-        key: 'GLOBAL_ANNOUNCEMENT',
-        value: JSON.stringify(payload),
-        description: 'Bannière de notification globale diffusée en haut décran',
-      },
-    ]);
+    await assertCapability('admin.campaigns.write');
+    const updated = await goFetch<GlobalAnnouncementPayload>('/v1/admin/announcement', {
+      method: 'PUT',
+      body: announcement,
+    });
     revalidatePath('/admin/notifications');
     revalidatePath('/', 'layout');
-    return { success: true as const, announcement: payload };
+    return { success: true as const, announcement: updated };
   } catch (error: unknown) {
     console.error('saveGlobalAnnouncementAction error:', error);
     return {
       success: false as const,
-      error: errorMessage(error, 'Sauvegarde de l annonce impossible.'),
+      error: errorMessage(error, 'Sauvegarde de l’annonce impossible.'),
       ...authzTrailers(error),
     };
   }

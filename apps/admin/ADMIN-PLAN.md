@@ -75,6 +75,7 @@ Commits du chantier :
 | `f7609cba` | Simulateur de droits et matrice dense des rôles (`/admin/access/roles`) (C3) : simulateur "Qui peut X ?", filtres de domaine, MetricChips |
 | `a93815b6` | Verrouillage parité Go ↔ TS des campagnes staff (C7) : test direct sur `staff_campaigns.go` (types et audiences) |
 | `45047022` | Explorateur interactif des réglages (`/admin/settings`) (C2) : DataGrid 26 px, Drawer 480 px, facettes mes droits/catégorie/portée |
+| `a4b08f87` | Routes Go manquantes (C6) : flags (`admin.flags.write`) et annonce globale (`admin.campaigns.write` + N2, fin de `verifySuperadmin`), audit inconditionnel |
 
 ## 4. Ce qui existe (surface actuelle)
 
@@ -162,8 +163,9 @@ Commits du chantier :
       deux états du flag.
 - [x] **C5. Double validation** sur l'irréversible (`/admin/approvals`) : motif obligatoire,
       garde d'auto-approbation pour l'auteur de la demande, horodatage d'échéance à 72h.
-- [ ] **C6. Routes Go manquantes** : flags (`admin.flags.write`) et annonce
-      globale (capacité de communication, pas `admin.config.write`).
+- [x] **C6. Routes Go manquantes** : flags (`admin.flags.write`) et annonce
+      globale (capacité de communication `admin.campaigns.write`, pas `admin.config.write`)
+      avec step-up N2, fin de `verifySuperadmin`, audit inconditionnel et couverture 100%.
 - [x] **C7. Vocabulaire unique TS ↔ Go** (statuts et types de campagne notamment :
       `legal.version_notice` et audiences fermées), verrouillé par test de parité direct
       sur `staff_campaigns.go` (`admin-campaign-parity.test.ts`).

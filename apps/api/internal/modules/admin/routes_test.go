@@ -198,6 +198,8 @@ func TestSensitiveRoutesDeclareTheRightCapability(t *testing.T) {
 		{"GET", "/v1/admin/import/subscribers", adminauthz.ImportsRead},
 		{"PUT", "/v1/admin/import/subscribers/{id}/triage", adminauthz.ImportsReview},
 		{"POST", "/v1/admin/campaigns/{id}/approve", adminauthz.CampaignsWrite},
+		{"GET", "/v1/admin/announcement", adminauthz.CampaignsRead},
+		{"PUT", "/v1/admin/announcement", adminauthz.CampaignsWrite},
 		{"PUT", "/v1/admin/config", adminauthz.ConfigWrite},
 		{"PUT", "/v1/admin/feature-flags/{key}", adminauthz.FlagsWrite},
 		{"PATCH", "/v1/admin/features/{key}", adminauthz.FlagsWrite},

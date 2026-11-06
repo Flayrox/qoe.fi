@@ -3,13 +3,15 @@
 // =====================================================================
 // 📣 BroadcastAnnouncementConsole — Console Admin d'Annonce Globale
 // =====================================================================
-// Permet au superadmin de diffuser en temps réel une bannière de notification
+// Permet de diffuser en temps réel une bannière de notification
 // à courbure inversée sur l'ensemble de la plateforme.
 // =====================================================================
 
 import React, { useState, useTransition } from 'react';
 import { Sparkles, Megaphone, Send, CheckCircle2, Globe, Eye, EyeOff } from 'lucide-react';
 import { toast } from '@qoe/ui/toast';
+import { Button } from '@qoe/ui/button';
+import { Input, Textarea } from '@qoe/ui/input';
 import { InvertedCurveBanner, type AnnouncementType } from '@qoe/ui';
 import { Select } from '@qoe/ui/select';
 import {
@@ -64,14 +66,14 @@ export function BroadcastAnnouncementConsole({
     <div className="space-y-4 rounded-lg border border-border bg-card p-4">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/40 pb-5">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#130F26] text-[#A78BFA] shadow-sm">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-muted text-foreground shadow-sm">
             <Megaphone className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-lg font-bold tracking-tight text-foreground flex items-center gap-2">
+            <h2 className="text-base font-bold tracking-tight text-foreground flex items-center gap-2">
               Bannière d'annonce globale
               {active && (
-                <span className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-success/15 text-success-text border border-success/30">
+                <span className="flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-success/15 text-success-text border border-success/30">
                   <Globe className="w-3 h-3 animate-pulse" /> En ligne
                 </span>
               )}
@@ -84,36 +86,38 @@ export function BroadcastAnnouncementConsole({
 
         {/* Switch Diffusion en direct */}
         <div className="flex items-center gap-3">
-          <button
+          <Button
             type="button"
+            size="sm"
+            variant={active ? 'solid' : 'soft'}
+            tone={active ? 'success' : 'neutral'}
             onClick={handleToggleActive}
             disabled={isPending}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              active
-                ? 'bg-success text-success-foreground shadow-md hover:bg-success/90'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-            }`}
+            className="cursor-pointer"
           >
             {active ? (
               <>
-                <Eye className="w-3.5 h-3.5" /> Diffusion Active
+                <Eye className="w-3.5 h-3.5" /> Diffusion active
               </>
             ) : (
               <>
-                <EyeOff className="w-3.5 h-3.5" /> En pause (Inactif)
+                <EyeOff className="w-3.5 h-3.5" /> En pause (inactif)
               </>
             )}
-          </button>
+          </Button>
 
-          <button
+          <Button
             type="button"
+            size="sm"
+            variant="solid"
+            tone="brand"
             onClick={() => handleSave()}
             disabled={isPending}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-[#EE4B2B] text-white shadow-md hover:bg-[#EE4B2B]/90 transition-all cursor-pointer disabled:opacity-50"
+            className="cursor-pointer"
           >
             <Send className="w-3.5 h-3.5" />
             {isPending ? 'Enregistrement...' : 'Mettre à jour'}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -130,12 +134,12 @@ export function BroadcastAnnouncementConsole({
             <label className="block text-xs font-semibold text-foreground mb-1.5">
               Message de l'annonce
             </label>
-            <textarea
+            <Textarea
               rows={2}
+              size="sm"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder="Texte court et percutant..."
-              className="w-full rounded-xl border border-border bg-muted/20 px-3.5 py-2.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-[#EE4B2B] focus:outline-none transition-all"
             />
           </div>
 
@@ -150,10 +154,10 @@ export function BroadcastAnnouncementConsole({
                 value={type}
                 onValueChange={(value) => setType(value as AnnouncementType)}
                 options={[
-                  { id: 'promo', label: 'Promo (Violet Hostinger)' },
-                  { id: 'info', label: 'Info (Bleu nuit)' },
-                  { id: 'warning', label: 'Alerte (Ambre)' },
-                  { id: 'critical', label: 'Urgent (Carmin)' },
+                  { id: 'promo', label: 'Promo' },
+                  { id: 'info', label: 'Info' },
+                  { id: 'warning', label: 'Alerte' },
+                  { id: 'critical', label: 'Urgent' },
                 ]}
               />
             </div>
@@ -162,12 +166,12 @@ export function BroadcastAnnouncementConsole({
               <label className="block text-xs font-semibold text-foreground mb-1.5">
                 Texte du bouton
               </label>
-              <input
+              <Input
                 type="text"
+                size="sm"
                 value={linkText}
                 onChange={(e) => setLinkText(e.target.value)}
                 placeholder="Ex: Découvrir"
-                className="w-full rounded-xl border border-border bg-muted/20 px-3.5 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-[#EE4B2B] focus:outline-none transition-all"
               />
             </div>
           </div>
@@ -176,12 +180,12 @@ export function BroadcastAnnouncementConsole({
             <label className="block text-xs font-semibold text-foreground mb-1.5">
               Lien cible (optionnel)
             </label>
-            <input
+            <Input
               type="text"
+              size="sm"
               value={linkUrl}
               onChange={(e) => setLinkUrl(e.target.value)}
               placeholder="Ex: /billing ou https://..."
-              className="w-full rounded-xl border border-border bg-muted/20 px-3.5 py-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:border-[#EE4B2B] focus:outline-none transition-all"
             />
           </div>
         </div>
@@ -193,12 +197,11 @@ export function BroadcastAnnouncementConsole({
               <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-primary" /> Aperçu fidèle en direct
               </span>
-              <span className="text-[10px] text-muted-foreground bg-white px-2 py-0.5 rounded-full border border-border">
+              <span className="text-[10px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full border border-border">
                 Courbure inversée C1
               </span>
             </div>
             <div className="relative h-28 w-full bg-muted/40 rounded-lg overflow-hidden border border-border/40 flex items-start justify-center pt-0">
-              {/* Le bandeau à courbure inversée s'affiche exactement comme en production */}
               <div className="transform scale-90 origin-top">
                 <InvertedCurveBanner
                   message={message || 'Votre annonce apparaîtra ici...'}
