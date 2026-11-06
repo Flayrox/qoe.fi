@@ -4,6 +4,13 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { CopyableId } from '@/components/shell/CopyableId';
 import { DataGrid, type GridColumn } from '@/components/shell/DataGrid';
+import { GridViewToolbar } from '@/components/shell/GridView';
+import {
+  filterRows,
+  useGridView,
+  type GridFacetDef,
+  type GridViewState,
+} from '@/components/shell/grid-view';
 import type { RowActionItem } from '@/components/shell/RowMenu';
 import {
   attemptWithStepUp,
@@ -66,6 +73,7 @@ export function UsersGrid({ users }: { users: AdminUserRow[] }) {
   const router = useRouter();
   const [status, setStatus] = React.useState<string | null>(null);
   const [pending, startTransition] = React.useTransition();
+  const grid = useGridView('admin.users', { column: 'created', direction: 'descending' });
 
   const moderate = (action: () => Promise<unknown>, done: string) => {
     startTransition(async () => {
@@ -198,6 +206,28 @@ export function UsersGrid({ users }: { users: AdminUserRow[] }) {
     },
   ];
 
+  const facetDefs: GridFacetDef<AdminUserRow>[] = [
+    {
+      id: 'role',
+      label: 'Rôle',
+      values: [...new Set(users.map((user) => user.role))].sort().map((role) => ({
+        id: role,
+        label: role,
+        test: (row) => row.role === role,
+      })),
+    },
+    {
+      id: 'status',
+      label: 'Statut',
+      values: STATUS_RANK.map((state) => ({
+        id: state,
+        label: state,
+        test: (row) => statusOf(row) === state,
+      })),
+    },
+  ];
+  const visible = filterRows(users, grid.state.facets, facetDefs);
+
   return (
     <div className="space-y-1.5">
       <div className="flex items-baseline justify-between gap-3">
@@ -212,11 +242,29 @@ export function UsersGrid({ users }: { users: AdminUserRow[] }) {
           {status}
         </p>
       )}
+      <GridViewToolbar
+        state={grid.state}
+        onChange={grid.update}
+        onToggleFacet={grid.toggleFacet}
+        onToggleColumn={grid.toggleColumn}
+        onReset={grid.reset}
+        facets={facetDefs}
+        columns={columns.map((column) => ({ id: column.id, label: column.id }))}
+        views={grid.views}
+        onSaveView={grid.saveView}
+        onApplyView={grid.applyView}
+        onRemoveView={grid.removeView}
+        count={visible.length}
+      />
       <DataGrid
         ariaLabel="Comptes de la plateforme"
-        rows={users}
+        rows={visible}
         columns={columns}
         initialSort={{ column: 'created', direction: 'descending' }}
+        sort={grid.state.sort}
+        onSortChange={(sort) => grid.update({ sort } as Partial<GridViewState>)}
+        hiddenColumns={grid.state.hidden}
+        density={grid.state.density}
         emptyState="Aucun compte ne correspond."
         rowMenu={menu}
       />

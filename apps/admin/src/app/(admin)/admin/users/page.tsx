@@ -1,5 +1,7 @@
 import { getAdminUsers } from '@/lib/admin-data';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
+export const dynamic = 'force-dynamic';
+
 import { UsersGrid, type AdminUserRow } from './components/users-grid';
 
 export default async function AdminUsers() {
