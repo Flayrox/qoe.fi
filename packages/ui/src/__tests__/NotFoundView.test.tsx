@@ -21,89 +21,32 @@ describe('NotFoundView', () => {
     vi.clearAllMocks();
   });
 
-  it('affiche les éléments essentiels de la nouvelle page 404 sobre', () => {
+  it('affiche l’animation SVG 404 avec le logo Qoefi et le bouton minimaliste de retour', () => {
     render(<NotFoundView locale="fr" />);
-
-    // Badge 404 sobre
-    expect(screen.getByText('ERREUR 404')).toBeDefined();
-
-    // Titre sobre & accessible
-    expect(screen.getByRole('heading', { level: 1, name: 'Page introuvable' })).toBeDefined();
-
-    // Sous-titre
-    expect(
-      screen.getByText('La page que vous cherchez n’existe pas ou a été déplacée.')
-    ).toBeDefined();
 
     // Rendu vectoriel SVG officiel avec le logo Qoefi
     expect(screen.getByRole('img', { name: '404 — Page introuvable' })).toBeDefined();
 
-    // Barre de recherche
-    expect(screen.getByPlaceholderText('Rechercher sur qoefi...')).toBeDefined();
+    // Bouton minimaliste de retour à l'accueil
+    expect(screen.getByRole('button', { name: /Retour à l’accueil/i })).toBeDefined();
 
-    // Boutons de rebond
-    expect(screen.getByText('Retour à l’accueil')).toBeDefined();
-    expect(screen.getByText('Page précédente')).toBeDefined();
+    // Pas de texte verbeux ni de barre de recherche
+    expect(screen.queryByPlaceholderText(/Rechercher/i)).toBeNull();
+    expect(screen.queryByText('ERREUR 404')).toBeNull();
   });
 
   it('prend en charge la locale anglaise correctement', () => {
     render(<NotFoundView locale="en" />);
 
-    expect(screen.getByText('ERROR 404')).toBeDefined();
-    expect(screen.getByRole('heading', { level: 1, name: 'Page not found' })).toBeDefined();
-    expect(
-      screen.getByText('The page you are looking for does not exist or has been moved.')
-    ).toBeDefined();
-    expect(screen.getByText('Back to home')).toBeDefined();
-    expect(screen.getByText('Go back')).toBeDefined();
+    expect(screen.getByRole('button', { name: /Back to home/i })).toBeDefined();
   });
 
-  it('permet de personnaliser le titre et la description via les props', () => {
-    render(
-      <NotFoundView
-        locale="fr"
-        title="Contenu introuvable"
-        description="Cet article n'est plus accessible aux lecteurs."
-      />
-    );
-
-    expect(screen.getByRole('heading', { level: 1, name: 'Contenu introuvable' })).toBeDefined();
-    expect(screen.getByText("Cet article n'est plus accessible aux lecteurs.")).toBeDefined();
-  });
-
-  it('masque la barre de recherche lorsque showSearch=false', () => {
-    render(<NotFoundView locale="fr" showSearch={false} />);
-
-    expect(screen.queryByPlaceholderText('Rechercher sur qoefi...')).toBeNull();
-  });
-
-  it('soumet la recherche vers /search avec les mots-clés saisis', () => {
+  it('redirectionne vers /home via le bouton minimaliste', () => {
     render(<NotFoundView locale="fr" />);
 
-    const searchInput = screen.getByPlaceholderText('Rechercher sur qoefi...');
-    fireEvent.change(searchInput, { target: { value: 'philosophie du silence' } });
-
-    const searchBtn = screen.getByText('Rechercher');
-    fireEvent.click(searchBtn);
-
-    expect(mockPush).toHaveBeenCalledWith('/search?q=philosophie%20du%20silence');
-  });
-
-  it('redirectionne vers /home via le bouton principal', () => {
-    render(<NotFoundView locale="fr" />);
-
-    const homeBtn = screen.getByText('Retour à l’accueil');
+    const homeBtn = screen.getByRole('button', { name: /Retour à l’accueil/i });
     fireEvent.click(homeBtn);
 
     expect(mockPush).toHaveBeenCalledWith('/home');
-  });
-
-  it('permet de revenir en arrière avec le bouton retour', () => {
-    render(<NotFoundView locale="fr" />);
-
-    const backBtn = screen.getByText('Page précédente');
-    fireEvent.click(backBtn);
-
-    expect(mockPush.mock.calls.length + mockBack.mock.calls.length).toBeGreaterThan(0);
   });
 });
