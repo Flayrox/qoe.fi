@@ -127,8 +127,10 @@ Commits du chantier :
       `a` assigner (`onAssign`), `r` `router.refresh()`, `?` aide en surimpression,
       `Échap` ferme/vide — sur tout `DataGrid` focusable. *Reste : `e` édition
       inline, `/` recherche, `f` facettes, `v` vues, `g`+lettre.*
-- [ ] **B8. Édition inline générique** : champ scalaire déclaré dans la spec,
-      écriture optimiste, statut `Audité · à …`, rollback sur échec.
+- [x] **B8. Édition inline générique** : champ scalaire déclaré dans la spec,
+      écriture optimiste, statut `Audité · à …`, rollback sur échec (`InlineChoice`,
+      `InlineText`, `InlineDate`, `InlineToggle` dans `components/shell/InlineScalar.tsx`
+      couvert par 7 tests unitaires, branché sur `triage-board`).
 - [~] **B9. Chips métriques** dans le header de chaque écran (API ms, p95,
       volumes, stockage, outbox) — zéro hauteur supplémentaire. *Fait :
       `components/shell/MetricChips.tsx` (24 px, tons, liens) et `/admin/work`
