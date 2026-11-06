@@ -15,6 +15,7 @@ import { ThoughtActions } from './ThoughtActions';
 
 import { KnownLikers } from './KnownLikers';
 import { t } from '@lingui/core/macro';
+import { getThoughtUrl } from '@qoe/config';
 
 export type ThoughtVariant = 'timeline' | 'focus' | 'parent' | 'reply';
 
@@ -218,6 +219,10 @@ export function ThoughtCard({
     if (variant === 'focus') return;
     if (onOpenPost) {
       onOpenPost(displayPostId, authorHandle);
+      return;
+    }
+    if (typeof window !== 'undefined') {
+      window.location.assign(getThoughtUrl(authorHandle, displayPostId));
     }
   };
 

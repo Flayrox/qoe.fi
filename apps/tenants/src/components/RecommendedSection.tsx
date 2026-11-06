@@ -6,6 +6,7 @@ import { subscribeToNewsletterAction } from '@qoe/sdk/actions/tenant';
 import { Check, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { SafeAvatar } from '@qoe/ui';
+import { resolveAppUrl } from '@qoe/config';
 import { Button } from '@qoe/ui/button';
 import {
   Dialog,
@@ -72,15 +73,14 @@ export function RecommendedSection({ authorName, recommendations }: RecommendedS
             const isLoading = Boolean(loadingMap[pub.id]);
             const avatar = pub.logoUrl || pub.authorAvatarUrl;
             const targetUrl = (() => {
-              if (pub.customDomain) return `https://${pub.customDomain}`;
+              if (pub.customDomain)
+                return `https://${pub.customDomain.replace(/^https?:\/\//, '')}`;
               if (!pub.subdomain) return '#';
-              if (typeof window !== 'undefined') {
-                const host = window.location.hostname;
-                if (host.endsWith('lvh.me')) return `http://${pub.subdomain}.lvh.me:15403`;
-                if (host.endsWith('localhost')) return `http://${pub.subdomain}.localhost:15403`;
-                if (host.endsWith('qoe.test')) return `http://${pub.subdomain}.qoe.test`;
-              }
-              return `https://${pub.subdomain}.qoe.fi`;
+              const host = typeof window !== 'undefined' ? window.location.host : undefined;
+              return resolveAppUrl('tenant', host, {
+                subdomain: pub.subdomain,
+                customDomain: pub.customDomain,
+              });
             })();
 
             return (

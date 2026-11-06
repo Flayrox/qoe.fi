@@ -10,6 +10,7 @@ import { TextParser } from '../ui/TextParser';
 import { ProfileHoverCard } from './ProfileHoverCard';
 import { QuotedArticleCard, type QuotedArticleData } from './QuotedArticleCard';
 import type { AnnotationCitation } from '../annotations/citation';
+import { getThoughtUrl } from '@qoe/config';
 
 /**
  * Profondeur maximale dessinée. Une chaîne réelle tient en trois maillons
@@ -119,9 +120,7 @@ export function QuotedThoughtCard({
       return;
     }
     if (typeof window !== 'undefined') {
-      window.location.assign(
-        `/${encodeURIComponent(authorHandle)}/thought/${encodeURIComponent(post.id)}`
-      );
+      window.location.assign(getThoughtUrl(authorHandle, post.id));
     }
   };
 

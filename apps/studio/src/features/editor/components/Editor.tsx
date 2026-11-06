@@ -13,6 +13,7 @@ import {
   scheduleArticleAction,
 } from '@qoe/sdk/actions/articles';
 import { toast } from '@qoe/ui/toast';
+import { resolveAppUrl } from '@qoe/config';
 import { useAutoSaveArticle, type AutoSavePayload } from '@qoe/sdk';
 import type { EditorCapabilities, ArticleReviewFeedback } from '@qoe/sdk/actions/articles';
 import { MessageSquare } from 'lucide-react';
@@ -1253,19 +1254,11 @@ export function Editor({
     if (!slug) return undefined;
     const sub = subdomain || 'preview';
     const path = `${articlePath}/${slug}`;
-    let previewUrl = `https://${sub}.qoe.fi${path}`;
-    if (typeof window !== 'undefined') {
-      const host = window.location.hostname;
-      const isCaddy = !window.location.port;
-      if (host.includes('lvh.me')) {
-        previewUrl = `http://${sub}.lvh.me${isCaddy ? '' : ':15403'}${path}`;
-      } else if (host.includes('qoe.test')) {
-        previewUrl = `http://${sub}.qoe.test${path}`;
-      } else if (host.includes('localhost')) {
-        previewUrl = `http://${sub}.lvh.me:15403${path}`;
-      }
-    }
-    return previewUrl;
+    const host = typeof window !== 'undefined' ? window.location.host : undefined;
+    return resolveAppUrl('tenant', host, {
+      subdomain: sub,
+      path,
+    });
   }, [slug, subdomain, articlePath]);
 
   const handleAnnotationButton = () => {

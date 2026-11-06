@@ -5,9 +5,11 @@ import {
   getLandingAppUrl,
   getMainAppUrl,
   getStudioAppUrl,
+  isMainAppHost,
   APP_DEV_PORTS,
 } from '../domain-hub';
 import { getLegalDocumentUrl, getLegalIndexUrl } from '../legal';
+import { getThoughtUrl, getArticleUrl, getProfileUrl } from '../routes';
 
 describe('@qoe/config domain-hub', () => {
   const originalEnv = process.env.NODE_ENV;
@@ -150,6 +152,74 @@ describe('@qoe/config domain-hub', () => {
 
     it('getLegalIndexUrl returns legal index on matching domain', () => {
       expect(getLegalIndexUrl('louisrobin.lvh.me:15403')).toBe('http://lvh.me:15401/legal');
+    });
+
+    it('getThoughtUrl returns canonical thought url across environments', () => {
+      expect(getThoughtUrl('camille', 'p1', { host: 'louisrobin.lvh.me:15403' })).toBe(
+        'http://lvh.me:15402/camille/thought/p1'
+      );
+      expect(getThoughtUrl('camille', 'p1', { host: 'louisrobin.qoe.test:15403' })).toBe(
+        'http://qoe.test:15402/camille/thought/p1'
+      );
+      expect(getThoughtUrl('camille', 'p1', { host: 'qoe.test' })).toBe(
+        'http://qoe.test/camille/thought/p1'
+      );
+      expect(getThoughtUrl('@camille', 'p1', { host: 'mon-blog.qoe.fi' })).toBe(
+        'https://qoe.fi/camille/thought/p1'
+      );
+    });
+
+    it('isMainAppHost detects main reader app correctly', () => {
+      expect(isMainAppHost('qoe.fi')).toBe(true);
+      expect(isMainAppHost('www.qoe.fi')).toBe(true);
+      expect(isMainAppHost('studio.qoe.fi')).toBe(false);
+      expect(isMainAppHost('admin.qoe.fi')).toBe(false);
+      expect(isMainAppHost('climat.qoe.fi')).toBe(false);
+
+      expect(isMainAppHost('lvh.me:15402')).toBe(true);
+      expect(isMainAppHost('studio.lvh.me:15404')).toBe(false);
+      expect(isMainAppHost('climat.lvh.me:15403')).toBe(false);
+
+      expect(isMainAppHost('qoe.test')).toBe(true);
+      expect(isMainAppHost('studio.qoe.test')).toBe(false);
+    });
+
+    it('getArticleUrl adapts relative vs absolute based on host context', () => {
+      const article = {
+        slug: 'mon-bel-article',
+        author: { username: 'alex' },
+      };
+
+      // Sur le reader core (main app) -> URL relative pour navigation SPA rapide
+      expect(getArticleUrl(article, { host: 'qoe.fi' })).toBe('/alex/a/mon-bel-article');
+      expect(getArticleUrl(article, { host: 'lvh.me:15402' })).toBe('/alex/a/mon-bel-article');
+
+      // Hors du reader core -> URL absolue canonique vers l'app principale
+      expect(getArticleUrl(article, { host: 'studio.qoe.fi' })).toBe(
+        'https://qoe.fi/alex/a/mon-bel-article'
+      );
+      expect(getArticleUrl(article, { host: 'studio.lvh.me:15404' })).toBe(
+        'http://lvh.me:15402/alex/a/mon-bel-article'
+      );
+      expect(getArticleUrl(article, { host: 'climat.lvh.me:15403' })).toBe(
+        'http://lvh.me:15402/alex/a/mon-bel-article'
+      );
+
+      // Force absolute
+      expect(getArticleUrl(article, { host: 'qoe.fi', absolute: true })).toBe(
+        'https://qoe.fi/alex/a/mon-bel-article'
+      );
+    });
+
+    it('getProfileUrl adapts relative vs absolute based on host context', () => {
+      expect(getProfileUrl('alex', { host: 'qoe.fi' })).toBe('/alex');
+      expect(getProfileUrl('alex', { host: 'studio.qoe.fi' })).toBe('https://qoe.fi/alex');
+      expect(getProfileUrl('alex', { host: 'climat.lvh.me:15403' })).toBe(
+        'http://lvh.me:15402/alex'
+      );
+      expect(getProfileUrl('alex', { host: 'qoe.fi', absolute: true, tab: 'articles' })).toBe(
+        'https://qoe.fi/alex/articles'
+      );
     });
   });
 });

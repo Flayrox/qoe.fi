@@ -6,12 +6,13 @@ import { MessageCircle, Link as LinkIcon, Share2 } from 'lucide-react';
 import { toast } from '@qoe/ui/toast';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { cn } from '@qoe/utils';
+import { getThoughtUrl, getMainAppUrl } from '@qoe/config';
 
 export interface ShareMenuProps {
   url?: string;
   title?: string;
   text?: string;
-  type?: 'post' | 'article';
+  type?: 'post' | 'article' | 'profile';
   authorHandle?: string;
   id?: string;
   onSendViaChat?: () => void;
@@ -41,12 +42,28 @@ export function ShareMenu({
   const resolveUrl = () => {
     if (url) return url;
     if (typeof window === 'undefined') return '';
-    const origin = window.location.origin;
+    const host = window.location.host;
+    const mainAppUrl = getMainAppUrl(host);
+
     if (type === 'article') {
-      return id ? `${origin}/article/${id}` : window.location.href;
+      if (authorHandle && id) {
+        const cleanHandle = authorHandle.replace(/^@/, '');
+        return `${mainAppUrl}/${encodeURIComponent(cleanHandle)}/a/${encodeURIComponent(id)}`;
+      }
+      if (id) {
+        return `${mainAppUrl}/a/${encodeURIComponent(id)}`;
+      }
+      return window.location.href;
     }
+
+    if (type === 'profile') {
+      const handle = authorHandle || id || 'auteur';
+      const cleanHandle = handle.replace(/^@/, '');
+      return `${mainAppUrl}/${encodeURIComponent(cleanHandle)}`;
+    }
+
     const handle = authorHandle || 'auteur';
-    return id ? `${origin}/thought/${handle}/${id}` : window.location.href;
+    return id ? getThoughtUrl(handle, id, { host }) : window.location.href;
   };
 
   const handleCopyLink = async (e: React.MouseEvent) => {

@@ -14,7 +14,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Pressable, StyleSheet } from 'react-native';
 
-import { ActionSheet, type ActionSheetGroup } from '@/components/ui/action-sheet';
+import { ActionSheet } from '@/components/ui/action-sheet';
+import type { ActionSheetGroup } from '@/components/ui/action-sheet';
 import { Toast } from '@/components/ui/toast';
 import { useMe } from '@/hooks/use-me';
 import { useTheme } from '@/hooks/use-theme';
@@ -50,7 +51,8 @@ export function PostMenuButton({
   const { data: me } = useMe();
   const [busy, setBusy] = useState(false);
   const isOwn = me?.id === post.author.id;
-  const postUrl = `https://qoe.fi/thought/${post.author.username || post.author.id}/${post.id}`;
+  const authorHandle = (post.author.username || post.author.id || 'author').replace(/^@/, '');
+  const postUrl = `https://qoe.fi/${authorHandle}/thought/${post.id}`;
 
   const onCopyText = async () => {
     setOpen(false);

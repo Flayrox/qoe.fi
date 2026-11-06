@@ -37,6 +37,9 @@ export const RESERVED_USERNAMES: ReadonlySet<string> = new Set([
   'terms',
   'privacy',
   'contact',
+  'thought',
+  'thoughts',
+  'a',
 ]);
 
 // Termes haineux, extrémistes et néo-nazis strictement prohibés

@@ -13,6 +13,9 @@ const RESERVED_USERNAMES = new Set([
   'api',
   '_next',
   'manifest.json',
+  'thought',
+  'thoughts',
+  'a',
 ]);
 
 import { JsonLd, buildPersonSchema } from '@qoe/ui';

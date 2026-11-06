@@ -7,6 +7,7 @@ import { MoreHorizontal, Pin, Flag, EyeOff, Eye, Ban, Copy, Trash2 } from 'lucid
 import { Popover, PopoverTrigger, PopoverContent } from '../ui/popover';
 import { ProfileHoverCard } from './ProfileHoverCard';
 import { CertifiedBadge } from '../ui/CertifiedBadge';
+import { getThoughtUrl } from '@qoe/config';
 
 export interface ThoughtAuthor {
   id: string;
@@ -162,7 +163,7 @@ export function ThoughtHeader({
                 onClick={(e) => {
                   e.stopPropagation();
                   setShowPopover(false);
-                  const url = `${window.location.origin}/thought/${postId}`;
+                  const url = getThoughtUrl(authorHandle, postId);
                   navigator.clipboard.writeText(url);
                 }}
                 className="w-full text-left px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors flex items-center gap-2 cursor-pointer font-medium"

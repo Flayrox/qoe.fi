@@ -7,6 +7,7 @@
 // =====================================================================
 
 import { getMonorepoUrl } from './constants';
+import { getMainAppUrl, isMainAppHost } from './domain-hub';
 
 const studioRoutes = {
   home: () => '/',
@@ -56,9 +57,9 @@ export const routes = {
     },
     article: (ownerOrSlug: string, articleSlug?: string) => {
       if (articleSlug) {
-        return `/${encodeURIComponent(ownerOrSlug.replace(/^@/, ''))}/${encodeURIComponent(articleSlug)}`;
+        return `/${encodeURIComponent(ownerOrSlug.replace(/^@/, ''))}/a/${encodeURIComponent(articleSlug)}`;
       }
-      return `/article/${encodeURIComponent(ownerOrSlug)}`;
+      return `/a/${encodeURIComponent(ownerOrSlug)}`;
     },
     thought: (username: string, id: string) =>
       `/${encodeURIComponent(username.replace(/^@/, ''))}/thought/${encodeURIComponent(id)}`,
@@ -141,8 +142,18 @@ export function getArticleOwner(article: ArticleResolvable, fallbackOwner?: stri
   );
 }
 
+function getClientHost(): string | undefined {
+  if (typeof globalThis !== 'undefined' && 'window' in globalThis) {
+    const win = (globalThis as { window?: { location?: { host?: string } } }).window;
+    return win?.location?.host;
+  }
+  return undefined;
+}
+
 /**
  * Génère l'URL d'un article (format feed /:owner/:slug ou format tenant multi-domaine).
+ * S'adapte au contexte d'exécution (génère une URL absolue inter-applications si
+ * appelée hors de apps/core, ou si options.absolute est activé).
  */
 export function getArticleUrl(
   article: ArticleResolvable,
@@ -150,6 +161,7 @@ export function getArticleUrl(
     preferTenant?: boolean;
     fallbackOwner?: string;
     host?: string;
+    absolute?: boolean;
   }
 ): string {
   if (options?.preferTenant) {
@@ -178,5 +190,59 @@ export function getArticleUrl(
   }
 
   const owner = getArticleOwner(article, options?.fallbackOwner);
-  return routes.feed.article(owner, article.slug);
+  const relativePath = routes.feed.article(owner, article.slug);
+  const activeHost = options?.host || getClientHost();
+
+  const shouldBeAbsolute =
+    Boolean(options?.absolute) || (activeHost ? !isMainAppHost(activeHost) : false);
+
+  if (shouldBeAbsolute) {
+    return `${getMainAppUrl(options?.host)}${relativePath}`;
+  }
+
+  return relativePath;
+}
+
+/**
+ * Génère l'URL canonique d'une pensée (format absolu feed: https://qoe.fi/:username/thought/:id).
+ * S'adapte dynamiquement au contexte d'environnement (lvh.me, qoe.test, production).
+ */
+export function getThoughtUrl(
+  username?: string | null,
+  id?: string | null,
+  options?: {
+    host?: string;
+  }
+): string {
+  const mainAppUrl = getMainAppUrl(options?.host);
+  const cleanUser = (username || 'author').replace(/^@/, '');
+  const cleanId = id || '';
+  return `${mainAppUrl}${routes.feed.thought(cleanUser, cleanId)}`;
+}
+
+/**
+ * Génère l'URL d'un profil utilisateur.
+ * S'adapte au contexte d'exécution (absolu si appelé depuis un autre sous-domaine/tenant).
+ */
+export function getProfileUrl(
+  username?: string | null,
+  options?: {
+    tab?:
+      'thoughts' | 'with_replies' | 'articles' | 'reposts' | 'media' | 'followers' | 'following';
+    host?: string;
+    absolute?: boolean;
+  }
+): string {
+  const cleanUser = (username || 'author').replace(/^@/, '');
+  const relativePath = routes.feed.profile(cleanUser, options?.tab);
+  const activeHost = options?.host || getClientHost();
+
+  const shouldBeAbsolute =
+    Boolean(options?.absolute) || (activeHost ? !isMainAppHost(activeHost) : false);
+
+  if (shouldBeAbsolute) {
+    return `${getMainAppUrl(options?.host)}${relativePath}`;
+  }
+
+  return relativePath;
 }
