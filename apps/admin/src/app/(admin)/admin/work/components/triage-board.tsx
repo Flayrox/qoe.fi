@@ -13,6 +13,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { Button } from '@qoe/ui/button';
 import { CopyableId } from '@/components/shell/CopyableId';
 import { DataGrid, type GridColumn } from '@/components/shell/DataGrid';
 import { GridViewToolbar } from '@/components/shell/GridView';
@@ -57,10 +58,19 @@ const SLA_CLASSES: Record<AdminQueueSLAState, string> = {
 const SLA_RANK: AdminQueueSLAState[] = ['breached', 'due_soon', 'on_track', 'closed'];
 const PRIORITY_RANK: AdminQueuePriority[] = ['urgent', 'high', 'normal', 'low'];
 
+interface UndoSnapshot {
+  id: string;
+  queue: string;
+  priority: AdminQueuePriority;
+  dueAt: string | null;
+  assignedName: string | null;
+}
+
 export function TriageBoard({ view }: { view: AdminWorkQueueView }) {
   const router = useRouter();
   const labels = new Map(view.items.map((item) => [item.key, item.label]));
   const [status, setStatus] = useState<string | null>(null);
+  const [undoSnapshots, setUndoSnapshots] = useState<UndoSnapshot[]>([]);
   const grid = useGridView('admin.work.triage', { column: 'sla', direction: 'ascending' });
 
   const save = async (input: TriageActionInput, message: string): Promise<boolean> => {
@@ -95,6 +105,110 @@ export function TriageBoard({ view }: { view: AdminWorkQueueView }) {
       message
     );
 
+  const snapshotRows = (rows: AdminQueueTriageEntry[]): UndoSnapshot[] =>
+    rows.map((row) => ({
+      id: row.id,
+      queue: row.queue,
+      priority: row.priority,
+      dueAt: row.dueAt,
+      assignedName: row.assignedName,
+    }));
+
+  const bulkAssign = (rows: AdminQueueTriageEntry[], assignToMe: boolean) => {
+    void (async () => {
+      setUndoSnapshots(snapshotRows(rows));
+      for (const row of rows) {
+        const ok = await save(
+          {
+            queue: row.queue,
+            id: row.id,
+            priority: row.priority,
+            dueAt: row.dueAt ?? '',
+            assignToMe,
+            clearAssignee: !assignToMe,
+          },
+          assignToMe ? 'Dossier assigné' : 'Assignation libérée'
+        );
+        if (!ok) return;
+      }
+      setStatus(
+        `${rows.length} dossier(s) ${assignToMe ? 'assigné(s)' : 'libéré(s)'} · audité à ${new Date().toLocaleTimeString('fr-FR')}`
+      );
+    })();
+  };
+
+  const bulkPriority = (rows: AdminQueueTriageEntry[], priority: AdminQueuePriority) => {
+    void (async () => {
+      setUndoSnapshots(snapshotRows(rows));
+      for (const row of rows) {
+        const ok = await save(
+          {
+            queue: row.queue,
+            id: row.id,
+            priority,
+            dueAt: row.dueAt ?? '',
+            assignToMe: false,
+            clearAssignee: false,
+          },
+          'Priorité modifiée'
+        );
+        if (!ok) return;
+      }
+      setStatus(
+        `Priorité passée à ${PRIORITIES.find((p) => p.id === priority)?.label ?? priority} sur ${rows.length} dossier(s) · audité à ${new Date().toLocaleTimeString('fr-FR')}`
+      );
+    })();
+  };
+
+  const bulkDueAt = (rows: AdminQueueTriageEntry[], hoursOffset: number | null) => {
+    void (async () => {
+      setUndoSnapshots(snapshotRows(rows));
+      const targetDue =
+        hoursOffset !== null ? new Date(Date.now() + hoursOffset * 3600 * 1000).toISOString() : '';
+      for (const row of rows) {
+        const ok = await save(
+          {
+            queue: row.queue,
+            id: row.id,
+            priority: row.priority,
+            dueAt: targetDue,
+            assignToMe: false,
+            clearAssignee: false,
+          },
+          'Échéance modifiée'
+        );
+        if (!ok) return;
+      }
+      setStatus(
+        `Échéance mise à jour sur ${rows.length} dossier(s) · audité à ${new Date().toLocaleTimeString('fr-FR')}`
+      );
+    })();
+  };
+
+  const undoBulk = () => {
+    void (async () => {
+      const items = [...undoSnapshots];
+      for (const item of items) {
+        const ok = await save(
+          {
+            queue: item.queue,
+            id: item.id,
+            priority: item.priority,
+            dueAt: item.dueAt ?? '',
+            assignToMe: false,
+            clearAssignee: !item.assignedName,
+          },
+          'Annulation'
+        );
+        if (!ok) return;
+      }
+      setUndoSnapshots([]);
+      setStatus(
+        `Modifications annulées sur ${items.length} dossier(s) · audité à ${new Date().toLocaleTimeString('fr-FR')}`
+      );
+    })();
+  };
+
   const menu = (entry: AdminQueueTriageEntry): RowActionItem[] => [
     { id: 'open', label: 'Ouvrir le dossier', onSelect: () => router.push(entry.href) },
     {
@@ -128,6 +242,7 @@ export function TriageBoard({ view }: { view: AdminWorkQueueView }) {
     {
       id: 'dossier',
       header: 'Dossier',
+      minWidth: 240,
       sort: { kind: 'text', value: (entry) => entry.title },
       cell: (entry) => (
         <div className="flex min-w-0 items-center gap-2">
@@ -148,6 +263,7 @@ export function TriageBoard({ view }: { view: AdminWorkQueueView }) {
     {
       id: 'assigned',
       header: 'Assigné',
+      minWidth: 90,
       sort: { kind: 'text', value: (entry) => entry.assignedName ?? '' },
       cell: (entry) =>
         entry.assignedName ? (
@@ -167,6 +283,7 @@ export function TriageBoard({ view }: { view: AdminWorkQueueView }) {
       id: 'priority',
       header: 'Priorité',
       width: 104,
+      minWidth: 104,
       sort: { kind: 'rank', rank: PRIORITY_RANK, value: (entry) => entry.priority },
       cell: (entry) => (
         <InlineChoice
@@ -184,6 +301,7 @@ export function TriageBoard({ view }: { view: AdminWorkQueueView }) {
     {
       id: 'sla',
       header: 'SLA',
+      minWidth: 90,
       sort: { kind: 'rank', rank: SLA_RANK, value: (entry) => entry.slaState },
       cell: (entry) => (
         <span
@@ -199,6 +317,7 @@ export function TriageBoard({ view }: { view: AdminWorkQueueView }) {
       id: 'due',
       header: 'Échéance',
       width: 168,
+      minWidth: 168,
       sort: {
         kind: 'number',
         value: (entry) => new Date(entry.dueAt ?? entry.slaDueAt).getTime(),
@@ -286,8 +405,19 @@ export function TriageBoard({ view }: { view: AdminWorkQueueView }) {
       />
 
       {status && (
-        <p role="status" className="text-[11px] text-muted-foreground">
-          {status}
+        <p role="status" className="flex items-center gap-2 text-[11px] text-muted-foreground">
+          <span>{status}</span>
+          {undoSnapshots.length > 0 && (
+            <Button
+              type="button"
+              size="xs"
+              variant="ghost"
+              className="h-5 px-1 text-[11px] underline underline-offset-2"
+              onClick={undoBulk}
+            >
+              Annuler
+            </Button>
+          )}
         </p>
       )}
 
@@ -302,6 +432,74 @@ export function TriageBoard({ view }: { view: AdminWorkQueueView }) {
         density={grid.state.density}
         columnOrder={grid.state.order}
         emptyState="Aucun dossier ouvert dans les six files."
+        selectable
+        onAssign={(rows) => bulkAssign(rows, true)}
+        bulkActions={(rows) => (
+          <>
+            <Button
+              type="button"
+              size="xs"
+              variant="soft"
+              tone="brand"
+              className="h-6 px-1.5 text-[11px]"
+              onClick={() => bulkAssign(rows, true)}
+            >
+              M’assigner
+            </Button>
+            <Button
+              type="button"
+              size="xs"
+              variant="ghost"
+              className="h-6 px-1.5 text-[11px] text-muted-foreground"
+              onClick={() => bulkAssign(rows, false)}
+            >
+              Libérer
+            </Button>
+            <details className="relative">
+              <summary className="cursor-pointer list-none rounded px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground [&::-webkit-details-marker]:hidden">
+                Priorité ▾
+              </summary>
+              <div className="absolute left-0 z-30 mt-1 flex flex-col gap-0.5 rounded-md border border-border bg-popover p-1 text-[11px] shadow-lg">
+                {PRIORITY_RANK.map((p) => (
+                  <Button
+                    key={p}
+                    type="button"
+                    size="xs"
+                    variant="ghost"
+                    onClick={() => bulkPriority(rows, p)}
+                    className="h-6 justify-start px-2 font-normal text-foreground"
+                  >
+                    {PRIORITIES.find((item) => item.id === p)?.label ?? p}
+                  </Button>
+                ))}
+              </div>
+            </details>
+            <details className="relative">
+              <summary className="cursor-pointer list-none rounded px-1.5 py-0.5 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground [&::-webkit-details-marker]:hidden">
+                Échéance ▾
+              </summary>
+              <div className="absolute left-0 z-30 mt-1 flex flex-col gap-0.5 rounded-md border border-border bg-popover p-1 text-[11px] shadow-lg">
+                {[
+                  { label: '+24 heures', hours: 24 },
+                  { label: '+48 heures', hours: 48 },
+                  { label: '+7 jours', hours: 168 },
+                  { label: 'Effacer', hours: null },
+                ].map((item) => (
+                  <Button
+                    key={item.label}
+                    type="button"
+                    size="xs"
+                    variant="ghost"
+                    onClick={() => bulkDueAt(rows, item.hours)}
+                    className="h-6 justify-start px-2 font-normal text-foreground"
+                  >
+                    {item.label}
+                  </Button>
+                ))}
+              </div>
+            </details>
+          </>
+        )}
         rowMenu={menu}
       />
     </section>
