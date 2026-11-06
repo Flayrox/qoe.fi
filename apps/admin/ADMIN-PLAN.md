@@ -8,7 +8,7 @@
 > [« 📝 Instructions »](#-instructions) en bas. Elle est prioritaire sur le
 > reste du plan.
 
-Dernière mise à jour : 2026-11-06 · branche `dev` · travail non poussé · dernier commit `971c11d5`.
+Dernière mise à jour : 2026-11-06 · branche `dev` · travail non poussé · dernier commit `6c6ac8b9`.
 
 ---
 
@@ -62,6 +62,8 @@ Commits du chantier :
 | `62ae98e6` | `DataGrid` (tri déclaré) + `RowActions` (clic droit) + fin du mono + zéro `<select>`/`<table>` natif + `ui:audit` vert |
 | `c468c924` | Facettes du triage (file, priorité, SLA) + vues nommées |
 | `971c11d5` | `useGridView` : tri + facettes + colonnes + densité dans l'URL, vues nommées en `localStorage`, barre de facettes (`GridViewToolbar`) branchée sur les comptes et la vue d'ensemble |
+| `6c6ac8b9` | `/admin/settings` : catalogue de ~35 leviers typés (`lib/admin-settings-catalog.ts`), capacité `admin.config.read`, entrée de nav |
+| `a_venir` | B5/B7 : sélection multiple + barre d'actions groupées (« M'assigner » auditée) + clavier `j/k/x/Entrée/Échap` dans `DataGrid` |
 
 ## 4. Ce qui existe (surface actuelle)
 
@@ -109,14 +111,19 @@ Commits du chantier :
 - [~] **B4. Colonnes configurables** : masquer/afficher, réordonner, largeur
       minimale ; mémorisé avec la vue. *Fait : masquer/afficher + mémorisation.
       Reste : réordonnancement, largeur.*
-- [ ] **B5. Sélection + actions groupées** : `selectionMode="multiple"`,
-      barre de 36 px qui n'apparaît qu'à la sélection, actions groupées
-      (assigner, priorité, échéance, statut), **undo** pour le réversible.
+- [~] **B5. Sélection + actions groupées** : `selectionMode="multiple"`,
+      barre de 28 px qui n'apparaît qu'à la sélection, actions groupées,
+      **undo** pour le réversible. *Fait : `DataGrid` (`selectable`,
+      `bulkActions`, `TableSelectAllCell`/`TableSelectionCell`, « Tout
+      désélectionner ») + `WorkTable` (« M'assigner » en boucle séquentielle
+      auditée). Reste : priorité/échéance/statut groupés, undo.*
 - [ ] **B6. Panneau de détail 480 px** (`Sheet`) : ouvrir un dossier sans
       quitter la file ; navigation clavier dedans.
-- [ ] **B7. Clavier** : `j/k` ligne, `x` sélection, `Entrée` panneau, `e` édition
-      inline, `/` recherche, `f` facettes, `v` vues, `a` m'assigner, `r`
-      rafraîchir, `?` aide, `g`+lettre pour sauter un domaine.
+- [~] **B7. Clavier** : *fait* `j/k` curseur (surbrillance + `scrollIntoView`),
+      `x` sélection, `Entrée` ouvre `rowHref`, `Échap` vide la sélection — sur
+      tout `DataGrid` focusable. Reste : `e` édition inline, `/` recherche,
+      `f` facettes, `v` vues, `a` m'assigner, `r` rafraîchir, `?` aide,
+      `g`+lettre.
 - [ ] **B8. Édition inline générique** : champ scalaire déclaré dans la spec,
       écriture optimiste, statut `Audité · à …`, rollback sur échec.
 - [ ] **B9. Chips métriques** dans le header de chaque écran (API ms, p95,
@@ -127,7 +134,9 @@ Commits du chantier :
 - [ ] **C1. `ResourceSpec`** : extraire `query` + `facets` + `rowActions` +
       `detail` de chaque écran dans un registre `lib/admin-resources.ts`.
       Migrer d'abord `reports`, `appeals`, `users`, `deliveries`.
-- [ ] **C2. `/admin/settings`** : registre de réglages typés — clé, type,
+- [~] **C2. `/admin/settings`** : *fait* l'inventaire en lecture (catalogue
+      typé + « qui peut changer »). Reste l'écriture (diff, validation, audit).
+      Registre de réglages typés — clé, type,
       défaut, capacité requise, portée (global/tenant/utilisateur), rayon
       d'impact, N2 requis, audit, rollback. Catégories : inscriptions,
       modération, emails, médias, stockage, limites & quotas, API, légal,
