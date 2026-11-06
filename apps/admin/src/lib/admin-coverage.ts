@@ -33,6 +33,7 @@ export const ADMIN_ROUTE_COVERAGE: Record<string, AdminRouteCoverage> = {
     'L’identité est résolue par le layout de la console à chaque requête ; elle n’a pas d’écran propre.'
   ),
   'GET /v1/admin/dashboard': via('/admin'),
+  'GET /v1/admin/work-queue': via('/admin/work'),
   'GET /v1/admin/storage/usage': via('/admin/storage'),
   'GET /v1/admin/health': via('/admin/health'),
   'GET /v1/admin/audit-log': via('/admin/audit'),
@@ -45,8 +46,10 @@ export const ADMIN_ROUTE_COVERAGE: Record<string, AdminRouteCoverage> = {
   'POST /v1/admin/users/{userID}/revoke-sessions': via('/admin/users'),
   'GET /v1/admin/reports': via('/admin/reports'),
   'PATCH /v1/admin/reports/{id}': via('/admin/reports'),
+  'PUT /v1/admin/reports/{id}/triage': via('/admin/work'),
   'GET /v1/admin/abuse/decisions': via('/admin/abuse'),
   'PATCH /v1/admin/abuse/decisions': via('/admin/abuse'),
+  'PUT /v1/admin/abuse/decisions/{id}/triage': via('/admin/work'),
   'GET /v1/admin/abuse/metrics': via('/admin/abuse'),
   'GET /v1/admin/abuse/incidents': via('/admin/incidents'),
   'POST /v1/admin/abuse/incidents': via('/admin/incidents'),
@@ -54,11 +57,13 @@ export const ADMIN_ROUTE_COVERAGE: Record<string, AdminRouteCoverage> = {
   'GET /v1/admin/abuse/appeals': via('/admin/appeals'),
   'GET /v1/admin/abuse/appeals/{id}': via('/admin/appeals'),
   'PATCH /v1/admin/abuse/appeals/{id}': via('/admin/appeals'),
+  'PUT /v1/admin/abuse/appeals/{id}/triage': via('/admin/work'),
 
   // ── Communauté ────────────────────────────────────────────────────────
   'GET /v1/admin/support/tickets': via('/admin/support'),
   'GET /v1/admin/support/tickets/{id}': via('/admin/support'),
   'POST /v1/admin/support/tickets/{id}/assign': via('/admin/support'),
+  'PUT /v1/admin/support/tickets/{id}/triage': via('/admin/work'),
   'PATCH /v1/admin/support/tickets/{id}': via('/admin/support'),
   'GET /v1/admin/support/metrics': via('/admin/support'),
   'GET /v1/admin/support/articles': via('/admin/support/articles'),
@@ -81,6 +86,7 @@ export const ADMIN_ROUTE_COVERAGE: Record<string, AdminRouteCoverage> = {
   'GET /v1/admin/import/subscribers/{id}/send-waves': via('/admin/imports/[id]'),
   'POST /v1/admin/import/subscribers/{id}/claim': via('/admin/imports/[id]'),
   'POST /v1/admin/import/subscribers/{id}/decide': via('/admin/imports/[id]'),
+  'PUT /v1/admin/import/subscribers/{id}/triage': via('/admin/work'),
   'POST /v1/admin/import/subscribers/{id}/reconfirm': via('/admin/imports/[id]'),
   'POST /v1/admin/import/subscribers/{id}/reconfirm/purge': via('/admin/imports/[id]'),
   'POST /v1/admin/import/subscribers/{id}/send-wave': via('/admin/imports/[id]'),
@@ -114,6 +120,10 @@ export const ADMIN_ROUTE_COVERAGE: Record<string, AdminRouteCoverage> = {
   'POST /v1/admin/campaigns/{id}/cancel': via('/admin/campaigns'),
 
   // ── Plateforme ────────────────────────────────────────────────────────
+  'GET /v1/admin/feature-flags': via('/admin/config'),
+  'PUT /v1/admin/feature-flags/{key}': via('/admin/config'),
+  'GET /v1/admin/features': via('/admin/features'),
+  'PATCH /v1/admin/features/{key}': via('/admin/features'),
   'GET /v1/admin/config': via('/admin/config'),
   'PUT /v1/admin/config': via('/admin/config'),
   'DELETE /v1/admin/config/{key}': via('/admin/config'),
@@ -159,6 +169,7 @@ export const ADMIN_ROUTE_COVERAGE: Record<string, AdminRouteCoverage> = {
   // Doubles validations : la file des actes N3 et leur décision.
   'GET /v1/admin/approvals': via('/admin/approvals'),
   'POST /v1/admin/approvals/{id}/decide': via('/admin/approvals'),
+  'PUT /v1/admin/approvals/{id}/triage': via('/admin/work'),
   // Accès staff : attributions, explication, matrice, vocabulaire.
   'GET /v1/admin/access/grants': via('/admin/access'),
   'POST /v1/admin/access/grants': via('/admin/access'),

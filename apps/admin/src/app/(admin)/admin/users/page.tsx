@@ -1,8 +1,11 @@
 import { getAdminUsers } from '@/lib/admin-data';
 import { DataTable } from './components/data-table';
 import { columns, AdminUser } from './components/columns';
+import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 
 export default async function AdminUsers() {
+  requireCapability(await getAdminIdentity(), 'admin.users.read');
+
   // Tous les utilisateurs pour la modération (Go en primaire, fallback Prisma dev).
   const users = await getAdminUsers();
 

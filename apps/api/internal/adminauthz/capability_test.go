@@ -230,8 +230,8 @@ func TestRoleCapabilityMatrix(t *testing.T) {
 		},
 		{
 			role:    RoleContent,
-			holds:   []Capability{ContentWrite, ContentRead, WidgetsWrite, WidgetsRead, LegalWrite, SupportRead},
-			refuses: []Capability{UsersModerate, SubscriptionsWrite, ConfigWrite, FlagsWrite, OAuthApprove, ImportsReview, ComplianceExport},
+			holds:   []Capability{ContentWrite, ContentRead, WidgetsWrite, WidgetsRead, LegalRead, SupportRead},
+			refuses: []Capability{UsersModerate, SubscriptionsWrite, ConfigWrite, FlagsWrite, OAuthApprove, ImportsReview, ComplianceExport, LegalWrite},
 		},
 		{
 			role:    RoleOps,

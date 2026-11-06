@@ -1,7 +1,10 @@
 import { getSystemConfigs } from '@/lib/admin-data';
 import { FrontendCMS } from './components/FrontendCMS';
+import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 
 export default async function AdminFrontend() {
+  requireCapability(await getAdminIdentity(), 'admin.config.read');
+
   // Config keys we want to manage in the Frontend CMS
   const targetKeys = [
     'GLOBAL_BANNER_ENABLED',

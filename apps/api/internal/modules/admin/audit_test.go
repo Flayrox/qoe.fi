@@ -9,8 +9,6 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
-
-	"github.com/qoefi/api/internal/flags"
 )
 
 func setAuditFlag(t *testing.T, ctx context.Context, enabled bool) {
@@ -43,7 +41,6 @@ func TestAuditLog_TracesPermissionChanges(t *testing.T) {
 	}
 
 	svc := NewService(poolTest)
-	svc.SetFlags(flags.NewService(poolTest))
 
 	// Approbation modulable → entrée tracée.
 	if err := svc.UpdateApiAccessStatus(ctx, adminAdminID, adminCreator, "approved", []string{"api:read", "webhooks"}); err != nil {
@@ -132,7 +129,7 @@ func TestAuditLog_TracesPermissionChanges(t *testing.T) {
 	}
 }
 
-func TestAuditLog_DisabledFlagNoWrites(t *testing.T) {
+func TestAuditLog_WritesEvenWhenFlagOff(t *testing.T) {
 	requirePool(t)
 	ctx := context.Background()
 	seedAdmin(t, ctx)
@@ -141,32 +138,29 @@ func TestAuditLog_DisabledFlagNoWrites(t *testing.T) {
 		t.Fatalf("clean audit: %v", err)
 	}
 
-	// Service sans flags branché → pas d'écriture non plus (défaut sûr).
+	// L'audit des mutations ne dépend plus du flag : une action sensible
+	// reste visible même si le mode détaillé est désactivé.
 	svc := NewService(poolTest)
 	if err := svc.UpdateApiAccessStatus(ctx, adminAdminID, adminCreator, "approved", []string{"api:read"}); err != nil {
 		t.Fatalf("UpdateApiAccessStatus: %v", err)
 	}
-	if n := countAuditEntries(t, ctx); n != 0 {
-		t.Fatalf("audit entries = %d avec flag off, attendu 0", n)
+	if n := countAuditEntries(t, ctx); n != 1 {
+		t.Fatalf("audit entries = %d avec flag off, attendu 1", n)
 	}
 
-	// Flag activé → les écritures suivantes sont tracées.
-	setAuditFlag(t, ctx, true)
-	defer setAuditFlag(t, ctx, false)
-	svc.SetFlags(flags.NewService(poolTest))
 	if err := svc.UpdateApiAccessStatus(ctx, adminAdminID, adminCreator, "revoked", nil); err != nil {
 		t.Fatalf("UpdateApiAccessStatus(revoked): %v", err)
 	}
-	if n := countAuditEntries(t, ctx); n != 1 {
-		t.Fatalf("audit entries = %d avec flag on, attendu 1", n)
+	if n := countAuditEntries(t, ctx); n != 2 {
+		t.Fatalf("audit entries = %d, attendu 2", n)
 	}
 
 	// Les configs non-sensibles ne sont pas tracées (pas de bruit).
 	if err := svc.UpsertSystemConfigs(ctx, adminAdminID, []SystemConfigItem{{Key: "hero_title_fr", Value: "Bonjour"}}); err != nil {
 		t.Fatalf("UpsertSystemConfigs: %v", err)
 	}
-	if n := countAuditEntries(t, ctx); n != 1 {
-		t.Fatalf("audit entries = %d après config banale, attendu 1", n)
+	if n := countAuditEntries(t, ctx); n != 2 {
+		t.Fatalf("audit entries = %d après config banale, attendu 2", n)
 	}
 }
 

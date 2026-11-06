@@ -15,8 +15,9 @@ import { navByDomain, normalizeCapabilities, type AdminCapability } from '@/lib/
 // HTTP du Go reste l'autorité — mais proposer un écran qui répondra 403 est un
 // mensonge d'interface.
 //
-// Les domaines deviennent des sections : modération, communauté, produit,
-// plateforme, pilotage. Un compte `legal` ne voit que ce qu'il peut faire.
+// Les domaines deviennent des sections : pilotage, confiance & sécurité,
+// support & communauté, croissance & communication, produit & contenu,
+// conformité & plateforme. Un compte `legal` ne voit que ce qu'il peut faire.
 // =====================================================================
 
 export interface AdminSidebarProps {

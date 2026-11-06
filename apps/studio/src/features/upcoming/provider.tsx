@@ -16,7 +16,11 @@ import {
   type FeatureKey,
   type FeatureSignal,
 } from '@qoe/ui';
-import { getFeatureNotifiedAction, recordFeatureSignalAction } from './actions';
+import {
+  getFeatureCatalogAction,
+  getFeatureNotifiedAction,
+  recordFeatureSignalAction,
+} from './actions';
 
 export function FeatureAnnouncements({
   locale,
@@ -29,18 +33,34 @@ export function FeatureAnnouncements({
   // promesse survive à un rechargement (l'annonce n'affiche plus
   // « me prévenir » pour une fonctionnalité déjà demandée).
   const [notified, setNotified] = useState<ReadonlySet<FeatureKey>>(new Set());
+  // `undefined` = catalogue statique ; sinon l'ensemble exact des promesses
+  // ouvertes côté serveur. Un échec réseau ne doit pas masquer tous les CTA.
+  const [notifyEnabled, setNotifyEnabled] = useState<ReadonlySet<FeatureKey> | undefined>();
 
   useEffect(() => {
     let alive = true;
-    getFeatureNotifiedAction()
-      .then((keys) => {
+    getFeatureCatalogAction()
+      .then((catalog) => {
         if (!alive) return;
-        const known = keys.filter(isFeatureKey);
-        if (known.length === 0) return;
-        setNotified((prev) => new Set([...prev, ...known]));
+        if (catalog.length === 0) return;
+        const enabled = new Set<FeatureKey>();
+        const already = new Set<FeatureKey>();
+        for (const item of catalog) {
+          if (!isFeatureKey(item.key)) continue;
+          if (item.notifyEnabled) enabled.add(item.key);
+          if (item.notified) already.add(item.key);
+        }
+        setNotifyEnabled(enabled);
+        setNotified((prev) => new Set([...prev, ...already]));
       })
       .catch(() => {
-        // Best-effort : sans état distant, l'annonce reste utilisable.
+        // Best-effort : sans état distant, le catalogue statique reste la vue.
+        // Une promesse déjà enregistrée est relue par le fallback ci-dessous.
+        getFeatureNotifiedAction().then((keys) => {
+          if (!alive) return;
+          const known = keys.filter(isFeatureKey);
+          if (known.length > 0) setNotified((prev) => new Set([...prev, ...known]));
+        });
       });
     return () => {
       alive = false;
@@ -59,6 +79,7 @@ export function FeatureAnnouncements({
       pricingHref="/pricing"
       onSignal={handleSignal}
       notifiedFeatures={notified}
+      notifyEnabledFeatures={notifyEnabled}
       onNotified={(feature) =>
         setNotified((prev) => {
           const next = new Set(prev);

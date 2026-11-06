@@ -29,6 +29,7 @@ A data protection officer (DPO) [is appointed / is not appointed] and can be con
 | **Technical** | application logs, errors, request identifiers, device fingerprint for security | diagnostics, fraud and scraping prevention |
 | **Support** | content of exchanges with the support team | handle the request |
 | **Legal** | timestamp and exact version of accepted documents (ToS, privacy, cookies) | evidence of consent (burden of proof) |
+| **Product interests** | feature followed, date, version and source of consent, active or withdrawn status, withdrawal date, last delivery | notify you when a requested feature launches and keep proof of consent |
 
 We do **not** collect special category data (health, origin, political opinions, sexual orientation) and do not encourage its publication. We **never** sell your data.
 
@@ -40,6 +41,7 @@ We do **not** collect special category data (health, origin, political opinions,
 | Subscription payment and revenue payout | performance of the contract (6.1.b) + statutory accounting obligation (6.1.c) |
 | Transactional email (confirmation, reset, receipts, security alerts) | performance of the contract (6.1.b) |
 | Newsletters and marketing notifications | consent (6.1.a), withdrawable at any time |
+| Feature launch notifications ("Notify me") | consent (6.1.a), collected through an explicit action from an authenticated account, one-click withdrawal |
 | Aggregated audience measurement | legitimate interest (6.1.f) in understanding use of the service, with minimisation |
 | Fraud, scraping and abuse prevention | legitimate interest (6.1.f) + security obligation (Art. 32) |
 | Retention of proof of legal acceptance | legal obligation (6.1.c) |
@@ -57,6 +59,7 @@ We do **not** collect special category data (health, origin, political opinions,
 | Proof of legal consent | **5 years** after the end of the relationship (civil limitation period) |
 | Accounting and tax records | 10 years (legal obligation) |
 | Reports and moderation decisions | 3 years |
+| Product interests ("Notify me") | for as long as the feature is announced; after withdrawal, only the proof of consent and withdrawal is kept, for as long as needed to demonstrate compliance |
 | Payment data | per Stripe Payments Europe and accounting obligations |
 
 ## 5. Recipients and processors
@@ -126,6 +129,7 @@ Cookies and similar technologies are described in the **Cookie policy**, which s
 - **Transactional** email (security, receipts, confirmations) is essential to the service and can only be disabled by closing the account.
 - **Audience** email (newsletters, publication notifications) is sent on the basis of consent or legitimate interest depending on the channel, with a **one-click unsubscribe** link compliant with RFC 8058 in every message.
 - Open and click statistics are aggregated; creators access them only for their own audience.
+- **Feature launch notifications** are sent only to accounts that explicitly enabled "Notify me" for that feature. Consent is dated, versioned and sourced; every message contains a signed withdrawal link — with no email address in the URL — also available as a one-click action (RFC 8058). Withdrawal is immediate and does not require closing the account.
 
 ## 12. Changes
 

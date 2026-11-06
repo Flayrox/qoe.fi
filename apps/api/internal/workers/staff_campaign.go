@@ -110,7 +110,15 @@ func (w *StaffCampaignWorker) buildCampaignEmail(ctx context.Context, campaignID
 	// publication, pas d'en-tête mensonger : le corps mentionne les préférences
 	// du compte.
 	unsub := ""
-	if info.PublicationID != "" {
+	if info.InterestID != "" {
+		// Lancement de feature : retrait de la promesse, pas de la newsletter.
+		var err error
+		unsub, err = w.svc.FeatureUnsubscribeURL(info.InterestID)
+		if err != nil {
+			return EmailMessage{}, err
+		}
+		body += "\n\nVous recevez cet email parce que vous avez demandé à être prévenu·e.\nYou receive this email because you asked to be notified."
+	} else if info.PublicationID != "" {
 		unsub = buildUnsubURL(info.PublicationID, c.Email)
 	} else {
 		body += "\n\nGérez vos préférences depuis votre compte qoe.fi.\nManage your preferences from your qoe.fi account."

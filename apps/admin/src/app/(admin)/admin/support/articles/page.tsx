@@ -13,8 +13,10 @@ import { BookOpen } from 'lucide-react';
 import { getAdminSupportArticles } from '@/lib/admin-data';
 import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
 import { ArticlesManager } from './components/articles-manager';
+import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 
 export default async function AdminSupportArticlesPage() {
+  requireCapability(await getAdminIdentity(), 'admin.content.read');
   const data = await getAdminSupportArticles();
   // Blindage défensif : même si l'API renvoyait `items: null`, la page ne
   // doit jamais crasher (crash « This page couldn't load »).

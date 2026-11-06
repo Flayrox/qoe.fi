@@ -29,6 +29,7 @@ Un délégué à la protection des données (DPO) [est désigné / n'est pas dé
 | **Technique** | journaux applicatifs, erreurs, identifiants de requête, empreinte d'appareil pour la sécurité | diagnostic, prévention de la fraude et du scraping |
 | **Support** | contenu des échanges avec l'équipe support | traiter la demande |
 | **Légal** | horodatage et version exacte des documents acceptés (CGU, confidentialité, cookies) | prouver le consentement (obligation de preuve) |
+| **Intérêts produit** | fonctionnalité suivie, date, version et source du consentement, statut actif ou retiré, date de retrait, dernier envoi | vous prévenir du lancement d'une fonctionnalité demandée et conserver la preuve du consentement |
 
 Nous ne collectons **pas** de données de catégories particulières (santé, origine, opinions politiques, orientation sexuelle) et n'encourageons pas leur publication. Nous ne vendons **jamais** vos données.
 
@@ -40,6 +41,7 @@ Nous ne collectons **pas** de données de catégories particulières (santé, or
 | Paiement des abonnements et versement des revenus | exécution du contrat (6.1.b) + obligation légale comptable (6.1.c) |
 | Emails transactionnels (confirmation, réinitialisation, reçus, alertes de sécurité) | exécution du contrat (6.1.b) |
 | Newsletters et notifications marketing | consentement (6.1.a), révocable à tout moment |
+| Notifications de lancement d'une fonctionnalité (« Me prévenir ») | consentement (6.1.a), recueilli par une action explicite depuis un compte authentifié, retrait en un clic |
 | Mesure d'audience agrégée | intérêt légitime (6.1.f) à connaître l'usage du service, avec minimisation |
 | Lutte contre la fraude, le scraping et les abus | intérêt légitime (6.1.f) + obligation de sécurité (art. 32) |
 | Conservation des preuves d'acceptation légale | obligation légale (6.1.c) |
@@ -57,6 +59,7 @@ Nous ne collectons **pas** de données de catégories particulières (santé, or
 | Preuves de consentement légal | **5 ans** après la fin de la relation (prescription civile) |
 | Pièces comptables et fiscales | 10 ans (obligation légale) |
 | Signalements et décisions de modération | 3 ans |
+| Intérêts produit (« Me prévenir ») | tant que la fonctionnalité est annoncée ; après retrait, seule la preuve du consentement et du retrait est conservée, le temps nécessaire à la démonstration de la conformité |
 | Données de paiement | selon Stripe Payments Europe et les obligations comptables |
 
 ## 5. Destinataires et sous-traitants
@@ -126,6 +129,7 @@ Les cookies et technologies similaires sont décrits dans la **Politique de cook
 - Les emails **transactionnels** (sécurité, reçus, confirmations) sont indispensables au service et ne peuvent être désactivés qu'en fermant le compte.
 - Les emails **d'audience** (newsletters, notifications de publication) sont envoyés sur la base du consentement ou de l'intérêt légitime selon le canal, avec un **lien de désabonnement en un clic** conforme à la RFC 8058 dans chaque message.
 - Les statistiques d'ouverture et de clic sont agrégées ; les créateurs y accèdent uniquement pour leur propre audience.
+- Les **notifications de lancement** d'une fonctionnalité ne partent que vers les comptes ayant explicitement activé « Me prévenir » pour cette fonctionnalité. Le consentement est daté, versionné et sourcé ; chaque message contient un lien de retrait signé — sans adresse email dans l'URL — également disponible en un clic (RFC 8058). Le retrait est immédiat et ne nécessite pas de fermer le compte.
 
 ## 12. Modifications
 

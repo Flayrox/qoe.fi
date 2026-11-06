@@ -156,9 +156,7 @@ func TestEveryDeclaredCapabilityIsHeldBySuperadmin(t *testing.T) {
 // porte : toute capacité du vocabulaire est soit exigée par une route montée,
 // soit explicitement listée comme réservée (et la réserve est justifiée).
 func TestEveryCapabilityIsUsedOrReserved(t *testing.T) {
-	reserved := map[adminauthz.Capability]string{
-		adminauthz.FlagsWrite: "les flags sont basculés depuis l'interface via Supabase (RLS), aucune route Go ne les écrit",
-	}
+	reserved := map[adminauthz.Capability]string{}
 	_, console, _ := testConsole(t, nil)
 	used := map[adminauthz.Capability]bool{}
 	for _, c := range console.Registry().CapabilitiesUsed() {
@@ -198,13 +196,21 @@ func TestSensitiveRoutesDeclareTheRightCapability(t *testing.T) {
 		{"POST", "/v1/admin/users/{userID}/revoke-sessions", adminauthz.UsersSessionsRevoke},
 		{"POST", "/v1/admin/import/subscribers/{id}/decide", adminauthz.ImportsReview},
 		{"GET", "/v1/admin/import/subscribers", adminauthz.ImportsRead},
+		{"PUT", "/v1/admin/import/subscribers/{id}/triage", adminauthz.ImportsReview},
 		{"POST", "/v1/admin/campaigns/{id}/approve", adminauthz.CampaignsWrite},
 		{"PUT", "/v1/admin/config", adminauthz.ConfigWrite},
+		{"PUT", "/v1/admin/feature-flags/{key}", adminauthz.FlagsWrite},
+		{"PATCH", "/v1/admin/features/{key}", adminauthz.FlagsWrite},
 		{"PATCH", "/v1/admin/oauth/clients/{id}", adminauthz.OAuthApprove},
 		{"PATCH", "/v1/admin/api-applicants/{userID}", adminauthz.APIGrantsWrite},
 		{"POST", "/v1/admin/legal/versions/{versionID}/publish", adminauthz.LegalWrite},
 		{"POST", "/v1/admin/legal/consent-exports", adminauthz.ComplianceExport},
 		{"GET", "/v1/admin/legal/compliance", adminauthz.ComplianceRead},
+		{"PUT", "/v1/admin/reports/{id}/triage", adminauthz.ReportsWrite},
+		{"PUT", "/v1/admin/abuse/appeals/{id}/triage", adminauthz.AppealsDecide},
+		{"PUT", "/v1/admin/abuse/decisions/{id}/triage", adminauthz.AbuseDecide},
+		{"PUT", "/v1/admin/support/tickets/{id}/triage", adminauthz.SupportWrite},
+		{"PUT", "/v1/admin/approvals/{id}/triage", adminauthz.LegalWrite},
 		{"GET", "/v1/admin/placements", adminauthz.WidgetsRead},
 		{"POST", "/v1/admin/placements", adminauthz.WidgetsWrite},
 		// Accès staff : la lecture ouvre les écrans, l'attribution est le seul

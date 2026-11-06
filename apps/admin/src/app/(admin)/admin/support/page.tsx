@@ -12,8 +12,10 @@ import { LifeBuoy } from 'lucide-react';
 import { getAdminSupportTickets, getAdminSupportMetrics } from '@/lib/admin-data';
 import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
 import { SupportQueue } from './components/support-queue';
+import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 
 export default async function AdminSupportPage() {
+  requireCapability(await getAdminIdentity(), 'admin.support.read');
   const [tickets, metrics] = await Promise.all([
     getAdminSupportTickets(),
     getAdminSupportMetrics(),

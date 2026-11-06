@@ -62,7 +62,9 @@ var RoleCapabilities = map[string][]Capability{
 		SupportRead,
 		ContentRead, ContentWrite,
 		WidgetsRead, WidgetsWrite,
-		LegalRead, LegalWrite, ComplianceRead,
+		// Un rôle éditorial ne publie pas un texte opposable : la lecture
+		// juridique suffit. L'écriture reste à `legal` / superadmin.
+		LegalRead, ComplianceRead,
 	},
 
 	RoleOps: {

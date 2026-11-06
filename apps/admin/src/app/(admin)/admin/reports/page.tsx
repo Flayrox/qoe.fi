@@ -10,8 +10,10 @@ import React from 'react';
 import { ShieldAlert } from 'lucide-react';
 import { getAdminReports } from '@/lib/admin-data';
 import { ModerationQueue } from './components/moderation-queue';
+import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 
 export default async function AdminReportsPage() {
+  requireCapability(await getAdminIdentity(), 'admin.reports.read');
   const data = await getAdminReports();
 
   const serialized = data.items.map((r) => ({

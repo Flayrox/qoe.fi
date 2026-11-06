@@ -26,7 +26,7 @@ export default async function AdminCampaignsPage() {
   const canWrite = hasCapability(identity, 'admin.campaigns.write');
 
   const campaigns = await getStaffCampaigns();
-  const sending = campaigns.filter((campaign) => campaign.status === 'SENDING').length;
+  const sending = campaigns.filter((campaign) => campaign.status === 'sending').length;
 
   return (
     <div className="mx-auto max-w-5xl space-y-10">

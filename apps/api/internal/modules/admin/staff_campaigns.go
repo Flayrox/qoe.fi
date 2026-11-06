@@ -54,14 +54,16 @@ func mustCampaignJSON(v any) []byte {
 
 const (
 	// Types fermés, miroir de la contrainte CHECK (migration 00035).
-	CampaignLegalNotice = "legal.version_notice"
-	CampaignStaffDirect = "staff.direct"
-	CampaignProductNews = "product.announcement"
+	CampaignLegalNotice   = "legal.version_notice"
+	CampaignStaffDirect   = "staff.direct"
+	CampaignProductNews   = "product.announcement"
+	CampaignFeatureLaunch = "feature.launch"
 
 	// Audiences prédéfinies : jamais de liste libre. L'audience est générée
 	// côté serveur au démarrage de l'envoi, depuis ces seuls sélecteurs.
 	CampaignAudienceAllUsers    = "all_active_users"
 	CampaignAudienceSubscribers = "publication_subscribers"
+	CampaignAudienceInterested  = "feature_interested"
 
 	// Statuts, miroir de la contrainte CHECK.
 	CampaignDraft         = "draft"
@@ -154,11 +156,14 @@ func SendChunkDelay() time.Duration { return sendCampaignChunkDelay }
 type CampaignClaim struct {
 	DeliveryID string
 	Email      string
+	InterestID string
 }
 
 // CampaignSendContext est le contexte d'envoi d'un destinataire : ce qu'il
 // faut pour construire son message, sans adresses d'autrui ni secrets.
 type CampaignSendContext struct {
+	FeatureKey      string
+	InterestID      string
 	PublicationID   string
 	PublicationName string
 	Locale          string // fr/en (FR par défaut documenté)
@@ -184,6 +189,7 @@ func RenderCampaignVars(text, publicationName, unsubscribeURL string) string {
 type StaffCampaignDTO struct {
 	ID               string `json:"id"`
 	Type             string `json:"type"`
+	FeatureKey       string `json:"featureKey,omitempty"`
 	Subject          string `json:"subject"`
 	BodyHTML         string `json:"bodyHtml"`
 	BodyText         string `json:"bodyText,omitempty"`
@@ -209,6 +215,7 @@ type StaffCampaignDTO struct {
 // StaffCampaignInput est le corps de création/modification (brouillon).
 type StaffCampaignInput struct {
 	Type          string `json:"type"`
+	FeatureKey    string `json:"featureKey"`
 	Subject       string `json:"subject"`
 	BodyHTML      string `json:"bodyHtml"`
 	BodyText      string `json:"bodyText"`
@@ -221,7 +228,8 @@ type StaffCampaignInput struct {
 }
 
 func validCampaignType(t string) bool {
-	return t == CampaignLegalNotice || t == CampaignStaffDirect || t == CampaignProductNews
+	return t == CampaignLegalNotice || t == CampaignStaffDirect ||
+		t == CampaignProductNews || t == CampaignFeatureLaunch
 }
 
 func validCampaignAudience(t, pubID string) bool {
@@ -230,6 +238,8 @@ func validCampaignAudience(t, pubID string) bool {
 		return pubID == ""
 	case CampaignAudienceSubscribers:
 		return pubID != ""
+	case CampaignAudienceInterested:
+		return pubID == ""
 	default:
 		return false
 	}
@@ -243,6 +253,12 @@ func (s *Service) CreateCampaign(ctx context.Context, staffID string, in StaffCa
 	if !validCampaignAudience(in.AudienceType, strings.TrimSpace(in.AudiencePubID)) {
 		return StaffCampaignDTO{}, errors.New("audience invalide")
 	}
+	if in.Type == CampaignFeatureLaunch && strings.TrimSpace(in.FeatureKey) == "" {
+		return StaffCampaignDTO{}, errors.New("featureKey requis pour un lancement de fonctionnalité")
+	}
+	if in.Type == CampaignFeatureLaunch && in.AudienceType != CampaignAudienceInterested {
+		return StaffCampaignDTO{}, errors.New("un lancement de fonctionnalité cible feature_interested")
+	}
 	if err := validateCampaignContent(in.Type, in.Subject, in.BodyHTML, in.SubjectEn, in.BodyHTMLEn); err != nil {
 		return StaffCampaignDTO{}, err
 	}
@@ -252,13 +268,13 @@ func (s *Service) CreateCampaign(ctx context.Context, staffID string, in StaffCa
 	// NULLIF en ferait un NULL et violerait la contrainte.
 	if _, err := s.pool.Exec(ctx, `
 		INSERT INTO "StaffCampaign" (
-		    "id", "type", "subject", "bodyHtml", "bodyText",
+		    "id", "type", "featureKey", "subject", "bodyHtml", "bodyText",
 		    "subjectEn", "bodyHtmlEn", "bodyTextEn",
 		    "audienceType", "audiencePublicationId",
 		    "status", "draftedBy", "scheduledAt", "createdAt", "updatedAt"
-		) VALUES ($1, $2, $3, $4, $5, NULLIF($6, ''), NULLIF($7, ''), NULLIF($8, ''),
-		          $9, NULLIF($10, ''), 'draft', $11, NULLIF($12, '')::timestamptz, now(), now())`,
-		id, in.Type, strings.TrimSpace(in.Subject), in.BodyHTML,
+		) VALUES ($1, $2, NULLIF($3, ''), $4, $5, $6, NULLIF($7, ''), NULLIF($8, ''), NULLIF($9, ''),
+		          $10, NULLIF($11, ''), 'draft', $12, NULLIF($13, '')::timestamptz, now(), now())`,
+		id, in.Type, strings.TrimSpace(in.FeatureKey), strings.TrimSpace(in.Subject), in.BodyHTML,
 		strings.TrimSpace(in.BodyText), strings.TrimSpace(in.SubjectEn),
 		in.BodyHTMLEn, strings.TrimSpace(in.BodyTextEn),
 		in.AudienceType, strings.TrimSpace(in.AudiencePubID),
@@ -292,16 +308,22 @@ func (s *Service) UpdateDraft(ctx context.Context, staffID, id string, in StaffC
 	if !validCampaignAudience(in.AudienceType, strings.TrimSpace(in.AudiencePubID)) {
 		return StaffCampaignDTO{}, errors.New("audience invalide")
 	}
+	if in.Type == CampaignFeatureLaunch && strings.TrimSpace(in.FeatureKey) == "" {
+		return StaffCampaignDTO{}, errors.New("featureKey requis pour un lancement de fonctionnalité")
+	}
+	if in.Type == CampaignFeatureLaunch && in.AudienceType != CampaignAudienceInterested {
+		return StaffCampaignDTO{}, errors.New("un lancement de fonctionnalité cible feature_interested")
+	}
 	if err := validateCampaignContent(in.Type, in.Subject, in.BodyHTML, in.SubjectEn, in.BodyHTMLEn); err != nil {
 		return StaffCampaignDTO{}, err
 	}
 	if _, err := s.pool.Exec(ctx, `
 		UPDATE "StaffCampaign"
-		SET "type" = $2, "subject" = $3, "bodyHtml" = $4, "bodyText" = $5,
-		    "subjectEn" = NULLIF($6, ''), "bodyHtmlEn" = NULLIF($7, ''), "bodyTextEn" = NULLIF($8, ''),
-		    "audienceType" = $9, "audiencePublicationId" = NULLIF($10, ''),
-		    "scheduledAt" = NULLIF($11, '')::timestamptz, "updatedAt" = now()
-		WHERE "id" = $1`, id, in.Type, strings.TrimSpace(in.Subject), in.BodyHTML,
+		SET "type" = $2, "featureKey" = NULLIF($3, ''), "subject" = $4, "bodyHtml" = $5, "bodyText" = $6,
+		    "subjectEn" = NULLIF($7, ''), "bodyHtmlEn" = NULLIF($8, ''), "bodyTextEn" = NULLIF($9, ''),
+		    "audienceType" = $10, "audiencePublicationId" = NULLIF($11, ''),
+		    "scheduledAt" = NULLIF($12, '')::timestamptz, "updatedAt" = now()
+		WHERE "id" = $1`, id, in.Type, strings.TrimSpace(in.FeatureKey), strings.TrimSpace(in.Subject), in.BodyHTML,
 		strings.TrimSpace(in.BodyText), strings.TrimSpace(in.SubjectEn),
 		in.BodyHTMLEn, strings.TrimSpace(in.BodyTextEn),
 		in.AudienceType, strings.TrimSpace(in.AudiencePubID),
@@ -330,12 +352,12 @@ func (s *Service) SubmitCampaign(ctx context.Context, staffID, id string) (Staff
 // Toute modification ultérieure du contenu ou de l'audience exige un nouveau
 // brouillon — on n'édite jamais une campagne approuvée.
 func (s *Service) ApproveCampaign(ctx context.Context, staffID, id string) (StaffCampaignDTO, error) {
-	var status, draftedBy, audienceType, audiencePubID string
+	var status, draftedBy, audienceType, audiencePubID, featureKey string
 	err := s.pool.QueryRow(ctx, `
 		SELECT "status", COALESCE("draftedBy"::text, ''),
-		       "audienceType", COALESCE("audiencePublicationId", '')
+		       "audienceType", COALESCE("audiencePublicationId", ''), COALESCE("featureKey", '')
 		FROM "StaffCampaign" WHERE "id" = $1`,
-		id).Scan(&status, &draftedBy, &audienceType, &audiencePubID)
+		id).Scan(&status, &draftedBy, &audienceType, &audiencePubID, &featureKey)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return StaffCampaignDTO{}, ErrCampaignNotFound
 	}
@@ -351,7 +373,7 @@ func (s *Service) ApproveCampaign(ctx context.Context, staffID, id string) (Staf
 	if draftedBy != "" && draftedBy == staffID {
 		return StaffCampaignDTO{}, errCampaignSelfApproval
 	}
-	count, err := s.estimateAudience(ctx, audienceType, audiencePubID)
+	count, err := s.estimateAudience(ctx, audienceType, audiencePubID, featureKey)
 	if err != nil {
 		return StaffCampaignDTO{}, err
 	}
@@ -381,7 +403,7 @@ func (s *Service) ApproveCampaign(ctx context.Context, staffID, id string) (Staf
 // mêmes prédicats que la matérialisation (abonnés actifs confirmés non
 // supprimés ; comptes non suspendus). Le chiffre est indicatif (figé au
 // snapshot) : l'éligibilité réelle est revérifiée à chaque envoi.
-func (s *Service) estimateAudience(ctx context.Context, audienceType, publicationID string) (int, error) {
+func (s *Service) estimateAudience(ctx context.Context, audienceType, publicationID, featureKey string) (int, error) {
 	var n int
 	var err error
 	switch audienceType {
@@ -406,6 +428,16 @@ func (s *Service) estimateAudience(ctx context.Context, audienceType, publicatio
 			        AND (x."scope" = 'global'
 			             OR (x."scope" = 'publication' AND x."publicationId" = s."publicationId")))`,
 			publicationID).Scan(&n)
+	case CampaignAudienceInterested:
+		err = s.pool.QueryRow(ctx, `
+			SELECT COUNT(*) FROM "FeatureInterest" i
+			JOIN "User" u ON u."id" = i."userId"
+			WHERE i."featureKey" = $1 AND i."status" = 'active'
+			  AND u."isSuspended" = false AND u.email IS NOT NULL
+			  AND NOT EXISTS (
+			      SELECT 1 FROM "EmailSuppression" x
+			      WHERE x.email = u.email AND x."scope" = 'global')`,
+			featureKey).Scan(&n)
 	default:
 		return 0, errors.New("audience inconnue")
 	}
@@ -423,7 +455,7 @@ func (s *Service) GetCampaign(ctx context.Context, id string) (StaffCampaignDTO,
 		created, updated                            time.Time
 	)
 	err := s.pool.QueryRow(ctx, `
-		SELECT "id", "type", "subject", "bodyHtml", "bodyText",
+		SELECT "id", "type", COALESCE("featureKey", ''), "subject", "bodyHtml", "bodyText",
 		       "subjectEn", "bodyHtmlEn", "bodyTextEn",
 		       "audienceType", "audiencePublicationId", "audienceSnapshot",
 		       "status", "draftedBy", "approvedBy",
@@ -431,7 +463,7 @@ func (s *Service) GetCampaign(ctx context.Context, id string) (StaffCampaignDTO,
 		       "sentCount", "failedCount", "skippedCount",
 		       "completedAt", "createdAt", "updatedAt"
 		FROM "StaffCampaign" WHERE "id" = $1`, id).Scan(
-		&dto.ID, &dto.Type, &dto.Subject, &dto.BodyHTML, &bodyText,
+		&dto.ID, &dto.Type, &dto.FeatureKey, &dto.Subject, &dto.BodyHTML, &bodyText,
 		&subjectEn, &bodyHTMLEn, &bodyTextEn,
 		&dto.AudienceType, &audiencePubID, &dto.AudienceSnapshot,
 		&dto.Status, &draftedBy, &approvedBy,
@@ -511,11 +543,11 @@ func (s *Service) ListCampaigns(ctx context.Context, limit int) ([]StaffCampaign
 // première tranche. Idempotent : si une vague est déjà active, elle est
 // renvoyée au lieu d'en créer une seconde.
 func (s *Service) StartCampaign(ctx context.Context, staffID, id string) (StaffCampaignDTO, error) {
-	var status, audienceType, audiencePubID, campaignType string
+	var status, audienceType, audiencePubID, campaignType, featureKey string
 	err := s.pool.QueryRow(ctx, `
-		SELECT "status", "audienceType", COALESCE("audiencePublicationId", ''), "type"
+		SELECT "status", "audienceType", COALESCE("audiencePublicationId", ''), "type", COALESCE("featureKey", '')
 		FROM "StaffCampaign" WHERE "id" = $1`,
-		id).Scan(&status, &audienceType, &audiencePubID, &campaignType)
+		id).Scan(&status, &audienceType, &audiencePubID, &campaignType, &featureKey)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return StaffCampaignDTO{}, ErrCampaignNotFound
 	}
@@ -525,7 +557,9 @@ func (s *Service) StartCampaign(ctx context.Context, staffID, id string) (StaffC
 	if status != CampaignApproved && status != CampaignSending {
 		return StaffCampaignDTO{}, errCampaignTransition
 	}
-	_ = campaignType
+	if campaignType == CampaignFeatureLaunch && featureKey == "" {
+		return StaffCampaignDTO{}, errors.New("featureKey manquant pour cette campagne")
+	}
 
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -573,6 +607,22 @@ func (s *Service) StartCampaign(ctx context.Context, staffID, id string) (StaffC
 			return StaffCampaignDTO{}, err
 		}
 		matérialisées = tag.RowsAffected()
+	case CampaignAudienceInterested:
+		tag, err := tx.Exec(ctx, `
+			INSERT INTO "StaffCampaignDelivery" ("id", "campaignId", "email", "interestId", "status", "createdAt", "updatedAt")
+			SELECT gen_random_uuid()::text, $1, u.email, i.id, 'queued', now(), now()
+			FROM "FeatureInterest" i
+			JOIN "User" u ON u.id = i."userId"
+			WHERE i."featureKey" = $2 AND i."status" = 'active'
+			  AND u."isSuspended" = false AND u.email IS NOT NULL
+			  AND NOT EXISTS (
+			      SELECT 1 FROM "EmailSuppression" x
+			      WHERE x.email = u.email AND x."scope" = 'global')
+			ON CONFLICT ("campaignId", "email") DO NOTHING`, id, featureKey)
+		if err != nil {
+			return StaffCampaignDTO{}, err
+		}
+		matérialisées = tag.RowsAffected()
 	default:
 		return StaffCampaignDTO{}, errors.New("audience inconnue")
 	}
@@ -616,7 +666,7 @@ func (s *Service) ClaimCampaignChunk(ctx context.Context, campaignID string, lim
 		return nil, nil
 	}
 	rows, err := tx.Query(ctx, `
-		SELECT "id", "email" FROM "StaffCampaignDelivery"
+		SELECT "id", "email", COALESCE("interestId", '') FROM "StaffCampaignDelivery"
 		WHERE "campaignId" = $1 AND "status" = 'queued'
 		ORDER BY "email" ASC
 		LIMIT $2
@@ -627,7 +677,7 @@ func (s *Service) ClaimCampaignChunk(ctx context.Context, campaignID string, lim
 	out := []CampaignClaim{}
 	for rows.Next() {
 		var c CampaignClaim
-		if err := rows.Scan(&c.DeliveryID, &c.Email); err != nil {
+		if err := rows.Scan(&c.DeliveryID, &c.Email, &c.InterestID); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -691,6 +741,13 @@ func (s *Service) MarkCampaignResult(ctx context.Context, campaignID, deliveryID
 		WHERE "id" = $1 AND "campaignId" = $4 AND "status" = 'queued'`,
 		deliveryID, status, errText, campaignID); err != nil {
 		return err
+	}
+	if ok {
+		_, _ = s.pool.Exec(ctx, `
+			UPDATE "FeatureInterest"
+			SET "lastNotifiedAt" = now(), "lastCampaignId" = $2, "updatedAt" = now()
+			WHERE "id" = (SELECT "interestId" FROM "StaffCampaignDelivery" WHERE "id" = $1)`,
+			deliveryID, campaignID)
 	}
 	_, err := s.pool.Exec(ctx, `
 		UPDATE "StaffCampaign"
@@ -821,7 +878,8 @@ func (s *Service) CampaignRecipientContext(ctx context.Context, campaignID, emai
 func (s *Service) CampaignSendContext(ctx context.Context, campaignID, email string) (CampaignSendContext, error) {
 	var out CampaignSendContext
 	err := s.pool.QueryRow(ctx, `
-		SELECT c."audiencePublicationId", COALESCE(p."name", ''),
+		SELECT COALESCE(c."featureKey", ''), COALESCE(d."interestId", ''),
+		       c."audiencePublicationId", COALESCE(p."name", ''),
 		       COALESCE(c."subject", ''), COALESCE(c."bodyHtml", ''),
 		       COALESCE(c."subjectEn", ''), COALESCE(c."bodyHtmlEn", ''),
 		       COALESCE(
@@ -832,7 +890,7 @@ func (s *Service) CampaignSendContext(ctx context.Context, campaignID, email str
 		LEFT JOIN "Publication" p ON p."id" = c."audiencePublicationId"
 		JOIN "StaffCampaignDelivery" d ON d."campaignId" = c."id" AND d."email" = $2
 		WHERE c."id" = $1`, campaignID, email).Scan(
-		&out.PublicationID, &out.PublicationName,
+		&out.FeatureKey, &out.InterestID, &out.PublicationID, &out.PublicationName,
 		&out.SubjectFR, &out.BodyFR, &out.SubjectEN, &out.BodyEN,
 		&out.Locale)
 	if errors.Is(err, pgx.ErrNoRows) {

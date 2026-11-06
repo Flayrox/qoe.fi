@@ -2,7 +2,8 @@ import { ReactNode } from 'react';
 import { createClient } from '@qoe/supabase/server';
 import { redirect } from 'next/navigation';
 import { headers } from 'next/headers';
-import { getAdminIdentity } from '@/lib/admin-identity';
+import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
+import { navItemForPath } from '@/lib/admin-console';
 import { AdminSidebar } from './components/AdminSidebar';
 import { CommandPalette } from './components/CommandPalette';
 import { AdminHeader } from './components/AdminHeader';
@@ -51,7 +52,12 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     name: authUser.user_metadata?.name ?? null,
     email: authUser.email ?? '',
     username: authUser.user_metadata?.username ?? authUser.user_metadata?.user_name ?? null,
-  };
+  }; // Garde centralisé : chaque écran de navigation déclare sa capacité, et le
+  // layout refuse avant de charger la page. Les pages conservent leur propre
+  // requireCapability en défense en profondeur.
+  const pathname = headersList.get('x-admin-pathname') || '';
+  const navItem = navItemForPath(pathname);
+  if (navItem) requireCapability(identity, navItem.capability);
 
   const opensNothing = identity.capabilities.length === 0;
 

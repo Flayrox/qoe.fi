@@ -11,8 +11,10 @@ import { Flame } from 'lucide-react';
 import { getAdminAbuseIncidents, getAdminAbuseMetrics } from '@/lib/admin-data';
 import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
 import { IncidentsQueue } from './components/incidents-queue';
+import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 
 export default async function AdminIncidentsPage() {
+  requireCapability(await getAdminIdentity(), 'admin.incidents.read');
   const [incidents, metrics] = await Promise.all([
     getAdminAbuseIncidents(),
     getAdminAbuseMetrics(),

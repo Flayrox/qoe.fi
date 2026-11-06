@@ -13,8 +13,10 @@ import { Crown } from 'lucide-react';
 import { getAdminSubscriptionGrants } from '@/lib/admin-data';
 import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
 import { GrantsManager } from './components/grants-manager';
+import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 
 export default async function AdminSubscriptionsPage() {
+  requireCapability(await getAdminIdentity(), 'admin.subscriptions.read');
   const data = await getAdminSubscriptionGrants();
   // Blindage défensif : même si l'API renvoyait `items: null`, la page ne
   // doit jamais crasher (crash « This page couldn't load »).

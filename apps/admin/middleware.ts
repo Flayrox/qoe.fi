@@ -15,11 +15,14 @@ export async function middleware(request: NextRequest) {
     const canonicalUrl = request.nextUrl.clone();
     canonicalUrl.hostname = 'admin.lvh.me';
     return NextResponse.redirect(canonicalUrl);
-  }
-
-  // Forward language cookie as request header
+  } // Forward language cookie as request header
   const localeCookie = request.cookies.get('x-locale')?.value || 'fr';
   request.headers.set('x-locale', localeCookie);
+  // Le layout serveur ne connaît pas le pathname : le middleware le transmet
+  // pour que le garde d'écran puisse vérifier la capacité de CHAQUE page.
+  if (request.nextUrl.pathname.startsWith('/admin')) {
+    request.headers.set('x-admin-pathname', request.nextUrl.pathname);
+  }
 
   const { supabaseResponse, user } = await updateSession(request);
   if (supabaseResponse.status === 307 || supabaseResponse.status === 308) {

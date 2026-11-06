@@ -4,8 +4,10 @@ import { getGlobalAnnouncementAction, listPlacementsAdminAction } from '@/lib/ad
 import { DeliveryTable, type DeliveryRow } from './DeliveryTable';
 import { BroadcastAnnouncementConsole } from './BroadcastAnnouncementConsole';
 import { PlacementsManager } from './PlacementsManager';
+import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 
 export default async function AdminNotificationsPage() {
+  requireCapability(await getAdminIdentity(), 'admin.deliveries.read');
   const [deliveriesData, announcement, placements] = await Promise.all([
     getAdminDeliveries(),
     getGlobalAnnouncementAction(),

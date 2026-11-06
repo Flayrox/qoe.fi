@@ -7,8 +7,6 @@
 // =====================================================================
 
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
-import { createClient } from '@qoe/supabase/server';
-import { FLAGS } from '@qoe/flags';
 import type {
   AbuseDecision,
   AbuseReasonCode,
@@ -822,40 +820,91 @@ export interface FeatureFlagItem {
   updated_at?: string;
 }
 
-/** 🚩 Feature flags : liste complète depuis Supabase (avec fallback registre). */
+export interface AdminWorkQueueItem {
+  key: string;
+  label: string;
+  href: string;
+  count: number;
+  assignedToMe: number;
+  breached: number;
+}
+
+/** Priorité de triage, vocabulaire fermé côté Go. */
+export type AdminQueuePriority = 'low' | 'normal' | 'high' | 'urgent';
+
+/** État SLA dérivé de l'échéance et de l'état ouvert du dossier. */
+export type AdminQueueSLAState = 'breached' | 'due_soon' | 'on_track' | 'closed';
+
+export interface AdminQueueTriageEntry {
+  queue: string;
+  id: string;
+  title: string;
+  status: string;
+  assignedTo: string | null;
+  assignedName: string | null;
+  priority: AdminQueuePriority;
+  /** Échéance explicite (RFC3339), ou null = échéance SLA par défaut. */
+  dueAt: string | null;
+  /** Échéance effective, explicite ou par défaut (RFC3339). */
+  slaDueAt: string;
+  slaState: AdminQueueSLAState;
+  assignedToMe: boolean;
+  href: string;
+}
+
+export interface AdminWorkQueueView {
+  items: AdminWorkQueueItem[];
+  entries: AdminQueueTriageEntry[];
+  assignedToMe: number;
+  breached: number;
+}
+
+/** Vue agrégée des six files, avec leurs champs de triage. */
+export async function getAdminWorkQueue(): Promise<AdminWorkQueueView> {
+  const empty: AdminWorkQueueView = { items: [], entries: [], assignedToMe: 0, breached: 0 };
+  try {
+    const body = await goFetch<Partial<AdminWorkQueueView>>('/v1/admin/work-queue');
+    return {
+      items: Array.isArray(body?.items) ? body.items : [],
+      entries: Array.isArray(body?.entries) ? body.entries : [],
+      assignedToMe: typeof body?.assignedToMe === 'number' ? body.assignedToMe : 0,
+      breached: typeof body?.breached === 'number' ? body.breached : 0,
+    };
+  } catch {
+    return empty;
+  }
+}
+
+export interface AdminFeatureItem {
+  key: string;
+  status: string;
+  notifyEnabled: boolean;
+  flagKey: string | null;
+  href: string | null;
+  interested: number;
+}
+
+/** Registre opérationnel des fonctionnalités (statut, CTA, audience). */
+export async function getAdminFeatures(): Promise<AdminFeatureItem[]> {
+  try {
+    const body = await goFetch<{ items?: AdminFeatureItem[] | null }>('/v1/admin/features');
+    return Array.isArray(body?.items) ? body.items : [];
+  } catch {
+    return [];
+  }
+}
+
+/** 🚩 Feature flags : lecture via l'API Go (capacité + audit), jamais Supabase. */
 export async function getAdminFeatureFlags(): Promise<FeatureFlagItem[]> {
   try {
-    const supabase = await createClient();
-    const { data, error } = await supabase
-      .from('feature_flags')
-      .select('key, is_enabled, description, target_roles, updated_at')
-      .order('key', { ascending: true });
-
-    if (!error && data && data.length > 0) {
-      const knownKeys = new Set(data.map((d: { key: string }) => d.key));
-      const missingFromDb = Object.entries(FLAGS)
-        .filter(([key]) => !knownKeys.has(key))
-        .map(([key, is_enabled]) => ({
-          key,
-          is_enabled,
-          description: null,
-          target_roles: ['all'],
-        }));
-      return [...(data as FeatureFlagItem[]), ...missingFromDb].sort((a, b) =>
-        a.key.localeCompare(b.key)
-      );
-    }
+    const body = await goFetch<{ items?: FeatureFlagItem[] | null }>('/v1/admin/feature-flags');
+    return Array.isArray(body?.items)
+      ? body.items.map((item) => ({ ...item, target_roles: item.target_roles ?? ['all'] }))
+      : [];
   } catch {
-    // Dégradation gracieuse
+    // Une panne de la console ne doit pas casser la page : zéro flag affiché.
+    return [];
   }
-
-  // Fallback sur les flags déclarés
-  return Object.entries(FLAGS).map(([key, is_enabled]) => ({
-    key,
-    is_enabled,
-    description: null,
-    target_roles: ['all'],
-  }));
 }
 
 /** 👥 File de revue des imports d'abonnés (lots ouverts, plus anciens d'abord). */
