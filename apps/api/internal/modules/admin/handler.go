@@ -81,6 +81,8 @@ func (h *Handler) Register(r chi.Router) {
 	}
 	h.registerSubscriberImports()
 	h.registerStaffCampaigns()
+	h.registerPlatformFeatures()
+	h.registerQueueTriage()
 }
 
 // stepUpRoutes : les routes de cette table qui exigent, EN PLUS de leur
@@ -113,10 +115,18 @@ var stepUpRoutes = map[string]authz.Level{
 	"PATCH /v1/admin/abuse/appeals/{id}": authz.Level2,
 	// Valider la double validation d'un acte N3 est un acte lourd : on ne
 	// s'auto-valide pas, et une seconde personne doit prouver sa présence.
-	"POST /v1/admin/approvals/{id}/decide":           authz.Level2,
+	"POST /v1/admin/approvals/{id}/decide": authz.Level2,
+	// Trier une file qui porte un pouvoir de décision suit la capacité du
+	// domaine : le triage d’un recours ou d’un import reste un acte lourd.
+	"PUT /v1/admin/abuse/appeals/{id}/triage":        authz.Level2,
+	"PUT /v1/admin/abuse/decisions/{id}/triage":      authz.Level2,
+	"PUT /v1/admin/import/subscribers/{id}/triage":   authz.Level2,
+	"PUT /v1/admin/approvals/{id}/triage":            authz.Level2,
 	"PATCH /v1/admin/api-applicants/{userID}":        authz.Level2,
 	"PATCH /v1/admin/api-applicants/{userID}/grants": authz.Level2,
 	"PATCH /v1/admin/api-access/modules":             authz.Level2,
+	"PUT /v1/admin/feature-flags/{key}":              authz.Level2,
+	"PATCH /v1/admin/features/{key}":                 authz.Level2,
 	// Distribuer les droits de la console est l'acte le plus lourd : une
 	// session détournée ne doit pas pouvoir nommer un complice.
 	"POST /v1/admin/access/grants":                           authz.Level2,
@@ -134,6 +144,7 @@ func (h *Handler) routeTable() []adminRoute {
 		// sinon l'interface ne pourrait pas savoir quoi afficher.
 		{http.MethodGet, "/v1/admin/me", adminauthz.SelfRead, h.me},
 		{http.MethodGet, "/v1/admin/dashboard", adminauthz.DashboardRead, h.dashboard},
+		{http.MethodGet, "/v1/admin/work-queue", adminauthz.DashboardRead, h.workQueue},
 		// Stockage médias (supervision de la saturation du bucket images).
 		{http.MethodGet, "/v1/admin/storage/usage", adminauthz.DashboardRead, h.storageUsage},
 		// Santé de la plateforme : base, migration appliquée, mode d'autorisation

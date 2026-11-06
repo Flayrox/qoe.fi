@@ -10,8 +10,11 @@ import React from 'react';
 import { ApiRequestsClient, ApiApplicant, ApiModule } from './components/api-requests-client';
 import { Terminal } from 'lucide-react';
 import { getApiApplicants, getApiAccessModules } from '@/lib/admin-data';
+import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 
 export default async function AdminApiRequestsPage() {
+  requireCapability(await getAdminIdentity(), 'admin.api.read');
+
   // Créateurs ayant demandé l'accès API + registre des permissions modulables
   // (Go en primaire, fallback Prisma dev).
   const [applicants, modules] = await Promise.all([getApiApplicants(), getApiAccessModules()]);

@@ -12,6 +12,7 @@ import { getActiveWorkspace } from '@/lib/active-workspace';
 import SettingsView from '@/features/settings/settings';
 import type { CreatorProfile } from '@/features/settings/types';
 import { StudioPage, StudioSection } from '@/components/studio-page';
+import { FeatureConsents } from '@/features/settings/components/feature-consents';
 import { AccountLink } from './account-link';
 
 // Contrat Go GET /v1/settings/publication — mêmes champs JSON que le include
@@ -173,6 +174,10 @@ export default async function CreatorSettingsPage() {
   return (
     <StudioPage className="space-y-10">
       <SettingsView initialCreator={initialCreatorData} publicationId={publication.id} />
+
+      <StudioSection title="Notifications de lancement">
+        <FeatureConsents />
+      </StudioSection>
 
       <StudioSection title="Compte">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

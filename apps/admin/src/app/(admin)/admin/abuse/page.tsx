@@ -12,8 +12,10 @@ import { ShieldAlert } from 'lucide-react';
 import { getAdminAbuseDecisions } from '@/lib/admin-data';
 import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
 import { AbuseQueue } from './components/abuse-queue';
+import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 
 export default async function AdminAbusePage() {
+  requireCapability(await getAdminIdentity(), 'admin.abuse.read');
   const data = await getAdminAbuseDecisions();
 
   return (

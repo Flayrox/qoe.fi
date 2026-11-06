@@ -12,6 +12,7 @@ package flags
 
 import (
 	"context"
+	"sort"
 	"sync"
 	"time"
 
@@ -79,11 +80,28 @@ var defaults = map[string]bool{
 	AbuseSignupKill:             false,
 	SupportPublicKill:           false,
 	SubscriptionCheckoutEnabled: false,
-	ReaderPlusBanner:           true,
-	ReaderAISummary:            true,
-	ReaderTTSPlayback:          true,
-	ReaderOfflinePack:          true,
-	ReaderEbooksUpload:         true,
+	ReaderPlusBanner:            true,
+	ReaderAISummary:             true,
+	ReaderTTSPlayback:           true,
+	ReaderOfflinePack:           true,
+	ReaderEbooksUpload:          true,
+}
+
+// Known dit si une clé appartient au registre fermé. Les écritures admin
+// refusent un flag fantôme : la table ne doit pas devenir un dépotoir.
+func Known(key string) bool {
+	_, ok := defaults[key]
+	return ok
+}
+
+// Keys retourne les clés connues, triées par ordre alphabétique.
+func Keys() []string {
+	out := make([]string, 0, len(defaults))
+	for key := range defaults {
+		out = append(out, key)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // cacheTTL borne la fraîcheur d'un flag : une bascule console est appliquée

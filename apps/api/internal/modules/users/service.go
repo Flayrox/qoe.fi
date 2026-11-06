@@ -549,7 +549,6 @@ func (s *Service) UpdateProfilePatch(ctx context.Context, userID string, patch P
 		return nil, err
 	}
 
-
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err
 	}
@@ -948,6 +947,12 @@ func (s *Service) DataExport(ctx context.Context, userID string) (map[string]any
 
 	out["settings"] = s.exportRow(ctx, `SELECT * FROM "UserSettings" WHERE "userId" = $1`, toUUID(userID))
 	out["notificationPreferences"] = s.exportRow(ctx, `SELECT * FROM "NotificationPreference" WHERE "userId" = $1`, toUUID(userID))
+	// Promesses « prévenez-moi » : consentement produit durable, distinct des
+	// préférences de notification du compte.
+	out["featureInterests"] = s.exportRows(ctx, `
+		SELECT "featureKey", "status", "source", "consentVersion", "consentAt",
+		       "unsubscribedAt", "lastNotifiedAt", "createdAt"
+		FROM "FeatureInterest" WHERE "userId" = $1::uuid ORDER BY "createdAt" ASC`, userID)
 	out["thoughts"] = s.exportRows(ctx, `SELECT * FROM "Post" WHERE "authorId" = $1 ORDER BY "createdAt" ASC`, toUUID(userID))
 	out["articles"] = s.exportRows(ctx, `SELECT id, title, slug, content, published, "createdAt", "updatedAt" FROM "Article" WHERE "authorId" = $1 ORDER BY "createdAt" ASC`, toUUID(userID))
 	out["highlights"] = s.exportRows(ctx, `SELECT * FROM "Highlight" WHERE "readerId" = $1 ORDER BY "createdAt" ASC`, toUUID(userID))

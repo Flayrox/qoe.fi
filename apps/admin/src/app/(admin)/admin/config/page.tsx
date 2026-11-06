@@ -17,6 +17,7 @@ import { ApiAccessModulesToggles } from './components/ApiAccessModulesToggles';
 import { ApiAccessControlCard } from './components/ApiAccessControlCard';
 import { FeatureFlagsToggles } from './components/FeatureFlagsToggles';
 import { RegistrationsControl } from './components/RegistrationsControl';
+import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 
 function parseDisabledEndpoints(raw?: string): string[] {
   if (!raw) return [];
@@ -29,6 +30,8 @@ function parseDisabledEndpoints(raw?: string): string[] {
 }
 
 export default async function AdminConfig() {
+  requireCapability(await getAdminIdentity(), 'admin.config.read');
+
   // Include the platform defaults in the editor so the admin can see and
   // extend the complete denylist rather than unknowingly replacing it.
   const defaultReservedSubdomains = [

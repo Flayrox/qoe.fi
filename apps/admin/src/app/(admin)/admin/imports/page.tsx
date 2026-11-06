@@ -9,6 +9,7 @@ import React from 'react';
 import Link from 'next/link';
 import { Inbox } from 'lucide-react';
 import { getImportQueue } from '@/lib/admin-data';
+import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 
 const STATUS_LABELS: Record<string, string> = {
   submitted: 'À examiner',
@@ -17,6 +18,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export default async function AdminImportsPage() {
+  requireCapability(await getAdminIdentity(), 'admin.imports.read');
   const data = await getImportQueue();
   const batches = data.batches ?? [];
 

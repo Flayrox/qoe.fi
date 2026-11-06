@@ -9,6 +9,7 @@
 //    (publication personnelle du créateur ou média sélectionné), jamais
 //    depuis le navigateur — un client ne décide pas de ses stats.
 
+import { revalidatePath } from 'next/cache';
 import { createClient } from '@qoe/supabase/server';
 import { getActiveWorkspace } from '@/lib/active-workspace';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
@@ -57,6 +58,51 @@ export async function recordFeatureSignalAction(
     // l'interstitiel propose de réessayer au lieu d'afficher un faux succès.
     throw err;
   }
+}
+
+export interface FeatureCatalogState {
+  key: string;
+  status: string;
+  notifyEnabled: boolean;
+  notified: boolean;
+}
+
+/**
+ * État serveur du catalogue : le studio n'affiche pas « Me prévenir » quand
+ * l'API a fermé la promesse (paused/retired/notifyEnabled=false).
+ */
+export async function getFeatureCatalogAction(): Promise<FeatureCatalogState[]> {
+  try {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return [];
+
+    const res = await goFetch<{ features: FeatureCatalogState[] }>('/v1/features/catalog');
+    return res.features ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Retire la promesse de notification depuis les préférences du compte.
+ * Le retrait est immédiat côté serveur ; la page est revalidée pour que la
+ * liste des consentements reflète l'état réel, pas un optimisme local.
+ */
+export async function unsubscribeFeatureAction(feature: string): Promise<void> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error('Non autorisé');
+
+  await goFetch('/v1/features/interests/unsubscribe', {
+    method: 'POST',
+    body: { feature },
+  });
+  revalidatePath('/settings');
 }
 
 /**

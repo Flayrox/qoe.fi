@@ -1,7 +1,10 @@
 import { getAdminWidgets } from '@/lib/admin-data';
 import { WidgetsCMS } from './components/WidgetsCMS';
+import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 
 export default async function AdminWidgetsPage() {
+  requireCapability(await getAdminIdentity(), 'admin.widgets.read');
+
   // Articles + tendances + promos (Go en primaire, fallback Prisma dev).
   const { articles, trends, promos } = await getAdminWidgets();
 

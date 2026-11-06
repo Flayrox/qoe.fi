@@ -2,8 +2,10 @@ import Link from 'next/link';
 import { getAdminDashboard } from '@/lib/admin-data';
 import { apiOnlyRoutes, coverageRatio } from '@/lib/admin-coverage';
 import { AnalyticsOverview } from './components/AnalyticsOverview';
+import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 
 export default async function AdminDashboard() {
+  requireCapability(await getAdminIdentity(), 'admin.dashboard.read');
   const counts = await getAdminDashboard();
 
   // Basic MRR calc (MVP logic - assuming subscriptions are 2€ for this example)

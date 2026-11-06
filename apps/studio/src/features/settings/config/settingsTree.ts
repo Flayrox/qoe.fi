@@ -112,6 +112,19 @@ export const settingsTree: SettingsNode = {
           hash: '#privacy-controls',
           keywordsKey: ['confidentialité', 'mentions', 'profil', 'contenu sensible'],
         },
+        {
+          id: 'privacy-notify',
+          titleKey: 'dashboard.settings.privacy_notify',
+          label: () => t`Notifications de lancement`,
+          hash: '#privacy-notify',
+          keywordsKey: [
+            'notifications',
+            'lancement',
+            'me prévenir',
+            'consentement',
+            'désabonnement',
+          ],
+        },
       ],
     },
     {

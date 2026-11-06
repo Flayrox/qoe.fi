@@ -12,8 +12,10 @@ import { Scale } from 'lucide-react';
 import { getAdminAbuseAppeals } from '@/lib/admin-data';
 import { QueuePageHeader } from '@/components/queue/QueuePageHeader';
 import { AppealsQueue } from './components/appeals-queue';
+import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 
 export default async function AdminAppealsPage() {
+  requireCapability(await getAdminIdentity(), 'admin.appeals.read');
   const data = await getAdminAbuseAppeals();
   const openCount = data.items.filter((a) => a.status !== 'decided').length;
 

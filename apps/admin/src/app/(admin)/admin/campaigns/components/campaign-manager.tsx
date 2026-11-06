@@ -36,14 +36,13 @@ function allowedTransitions(status: string) {
 }
 
 const statusLabels: Record<string, string> = {
-  DRAFT: 'brouillon',
-  SUBMITTED: 'soumis',
-  APPROVED: 'approuvé',
-  SENDING: 'en envoi',
-  PAUSED: 'suspendu',
-  SENT: 'envoyé',
-  CANCELED: 'annulé',
-  FAILED: 'échec',
+  draft: 'brouillon',
+  pending_review: 'soumis',
+  approved: 'approuvé',
+  sending: 'en envoi',
+  paused: 'suspendu',
+  completed: 'envoyé',
+  cancelled: 'annulé',
 };
 
 interface CampaignManagerProps {
@@ -56,6 +55,7 @@ export function CampaignManager({ initialCampaigns, canWrite }: CampaignManagerP
   const { loadingId, run } = useStaffAction<string>();
   const [showNew, setShowNew] = useState(false);
   const [type, setType] = useState<string>(CAMPAIGN_TYPES[0].value);
+  const [featureKey, setFeatureKey] = useState('');
   const [subject, setSubject] = useState('');
   const [bodyHtml, setBodyHtml] = useState('');
   const [audienceType, setAudienceType] = useState<string>(CAMPAIGN_AUDIENCES[0].value);
@@ -70,6 +70,7 @@ export function CampaignManager({ initialCampaigns, canWrite }: CampaignManagerP
       () =>
         createCampaignAction({
           type,
+          featureKey: type === 'feature.launch' ? featureKey.trim() : undefined,
           subject,
           bodyHtml,
           audienceType,
@@ -82,6 +83,7 @@ export function CampaignManager({ initialCampaigns, canWrite }: CampaignManagerP
       setShowNew(false);
       setSubject('');
       setBodyHtml('');
+      setFeatureKey('');
       setAudiencePublicationId('');
       setScheduledAt('');
       router.refresh();
@@ -160,7 +162,16 @@ export function CampaignManager({ initialCampaigns, canWrite }: CampaignManagerP
               />
             </label>
           </div>
-          {audienceType === 'PUBLICATION_SUBSCRIBERS' && (
+          {type === 'feature.launch' && (
+            <input
+              value={featureKey}
+              onChange={(e) => setFeatureKey(e.target.value)}
+              placeholder="Clé de fonctionnalité (ex. custom-domain)"
+              className={inputCls}
+              data-testid="campaign-feature-key"
+            />
+          )}
+          {audienceType === 'publication_subscribers' && (
             <input
               value={audiencePublicationId}
               onChange={(e) => setAudiencePublicationId(e.target.value)}
@@ -224,14 +235,16 @@ export function CampaignManager({ initialCampaigns, canWrite }: CampaignManagerP
                 <div className="flex items-center gap-2">
                   <Megaphone className="w-4 h-4 text-muted-foreground" />
                   <span className="font-medium">{campaign.subject}</span>
-                  <StatusPill tone={campaign.status === 'SENDING' ? 'hot' : 'muted'}>
+                  <StatusPill tone={campaign.status === 'sending' ? 'hot' : 'muted'}>
                     {statusLabels[campaign.status] ?? campaign.status}
                   </StatusPill>
                 </div>
                 <span className="font-mono text-[10px] text-muted-foreground">{campaign.id}</span>
               </div>
               <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
+                {' '}
                 <span>catégorie : {campaign.type}</span>
+                {campaign.featureKey ? <span>feature : {campaign.featureKey}</span> : null}
                 <span>audience : {campaign.audienceType}</span>
                 {campaign.audiencePublicationId ? (
                   <span className="font-mono">{campaign.audiencePublicationId}</span>

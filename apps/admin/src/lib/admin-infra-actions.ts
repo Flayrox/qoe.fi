@@ -38,6 +38,7 @@ export async function createCampaignAction(input: StaffCampaignInput): Promise<I
       method: 'POST',
       body: {
         type: input.type,
+        featureKey: input.featureKey ?? '',
         subject: input.subject,
         bodyHtml: input.bodyHtml,
         bodyText: input.bodyText ?? '',

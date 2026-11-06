@@ -12,8 +12,11 @@ import { ArrowLeft } from 'lucide-react';
 import { notFound } from 'next/navigation';
 import { getImportReview } from '@/lib/admin-data';
 import { ImportReviewClient } from '../components/import-review-client';
+import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 
 export default async function AdminImportReviewPage({ params }: { params: { id: string } }) {
+  requireCapability(await getAdminIdentity(), 'admin.imports.read');
+
   let review;
   try {
     review = await getImportReview(params.id);

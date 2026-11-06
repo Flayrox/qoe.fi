@@ -17,7 +17,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/qoefi/api/internal/apiaccess"
 	db "github.com/qoefi/api/internal/database"
-	"github.com/qoefi/api/internal/flags"
 )
 
 // ── Widgets & Tendances ──────────────────────────────────────────────────────
@@ -551,12 +550,9 @@ func (s *Service) ListApiApplicants(ctx context.Context, userID string) ([]Admin
 }
 
 // logAudit écrit une entrée du journal d'audit superadmin (best-effort, jamais
-// bloquant) quand le flag admin-audit-log est actif. Actions sensibles :
-// changements de permissions API, bascules du contrôle d'accès, modération.
+// bloquant). L'audit des mutations est TOUJOURS actif : le flag
+// admin-audit-log ne peut plus rendre une action sensible invisible.
 func (s *Service) logAudit(ctx context.Context, actorID, action, targetType, targetID string, metadata any) {
-	if s.flags == nil || !s.flags.IsOn(ctx, flags.AdminAuditLog) {
-		return
-	}
 	var actorUUID pgtype.UUID
 	if err := actorUUID.Scan(actorID); err != nil {
 		return

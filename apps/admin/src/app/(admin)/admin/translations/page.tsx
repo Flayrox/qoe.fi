@@ -4,6 +4,7 @@ import frTranslations from '../../../../../../../messages/fr.json';
 import enTranslations from '../../../../../../../messages/en.json';
 import frCatalog from '../../../../../../../messages/fr.js';
 import enCatalog from '../../../../../../../messages/en.js';
+import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 
 function flattenMessages(obj: Record<string, unknown>, prefix = ''): Record<string, string> {
   let res: Record<string, string> = {};
@@ -19,6 +20,8 @@ function flattenMessages(obj: Record<string, unknown>, prefix = ''): Record<stri
 }
 
 export default async function TranslationsPage() {
+  requireCapability(await getAdminIdentity(), 'admin.config.read');
+
   // Même fusion qu'au runtime (packages/i18n/src/server.ts) : catalogues
   // compilés Lingui (macro t`...`) en priorité, puis clés sémantiques JSON.
   const defaultFr = {

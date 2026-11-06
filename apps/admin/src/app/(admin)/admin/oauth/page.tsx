@@ -8,8 +8,11 @@ import React from 'react';
 import { ShieldCheck } from 'lucide-react';
 import { getOAuthClients } from '@/lib/admin-data';
 import { OAuthAppsClient, type OAuthClientAdmin } from './components/oauth-apps-client';
+import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 
 export default async function AdminOAuthAppsPage() {
+  requireCapability(await getAdminIdentity(), 'admin.oauth.read');
+
   // Applications OAuth (Go en primaire, fallback Prisma dev).
   const clients = await getOAuthClients();
 

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ArrowLeft, Mail, ShieldCheck, Activity, Euro, Users, BookOpen } from 'lucide-react';
 import { SafeAvatar } from '@qoe/ui';
 import { getAdminUserDetail } from '@/lib/admin-data';
+import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 
 interface PageProps {
   params: {
@@ -11,6 +12,7 @@ interface PageProps {
 }
 
 export default async function UserProfilePage({ params }: PageProps) {
+  requireCapability(await getAdminIdentity(), 'admin.users.read');
   const { id } = await params;
 
   // Détail utilisateur (Go en primaire, fallback Prisma dev).

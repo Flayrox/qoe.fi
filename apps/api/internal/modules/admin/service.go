@@ -31,9 +31,11 @@ type Service struct {
 	q     adminQuerier
 	asynq *asynq.Client
 
-	// flags lit la table feature_flags partagée : le flag admin-audit-log
-	// active/désactive le journal d'audit sans redéploiement.
+	// flags lit la table feature_flags partagée (certains gates métier).
 	flags *flags.Service
+
+	// featureUnsubSecret signe les liens de retrait des lancements de feature.
+	featureUnsubSecret string
 
 	// access : source UNIQUE des capacités (le service adminauthz de la
 	// console). Branché pour que le quorum N3 vérifie lui-même que l'auteur

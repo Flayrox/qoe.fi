@@ -420,6 +420,14 @@ func newRouter(d RouterDeps) *chi.Mux {
 		settingsHandler.RegisterPublic(publicSettings)
 	})
 
+	// Mesure d'intérêt et promesse « prévenez-moi » : le retrait public est
+	// monté ici (hors auth), la lecture/écriture authentifiée reste dans le
+	// groupe protégé. Le même service porte les deux chemins.
+	featuresSvc := features.NewService(pool)
+	featuresSvc.SetUnsubscribeSecret(d.JWTSecret)
+	featuresHandler := features.NewHandler(featuresSvc)
+	featuresHandler.RegisterPublic(r)
+
 	// Users : recherche publique (autocomplétion mentions @) + profil lecteur
 	// (/v1/me*) protégé. RegisterPublic est monté DIRECTEMENT sur le routeur
 	// racine pour battre le wildcard public du module creator
@@ -501,7 +509,6 @@ func newRouter(d RouterDeps) *chi.Mux {
 		// lisible côté créateur comme côté média. Limiteur dédié (30/min) :
 		// une annonce ne se consulte pas 600 fois par minute, et une écriture
 		// de signal ne doit pas pouvoir marteler la base.
-		featuresHandler := features.NewHandler(features.NewService(pool))
 		protected.With(authmw.RateLimit("feature-signals", rc, time.Minute, 30, true)).Group(
 			func(featureRoutes chi.Router) {
 				featuresHandler.RegisterProtected(featureRoutes)
@@ -529,6 +536,7 @@ func newRouter(d RouterDeps) *chi.Mux {
 
 		adminSvc := admin.NewService(pool)
 		adminSvc.SetFlags(flagsSvc)
+		adminSvc.SetFeatureUnsubscribeSecret(d.JWTSecret)
 		// Tranches des campagnes staff : sans client, StartCampaign laisse la
 		// campagne en `sending` sans avancer (reprise manuelle).
 		adminSvc.SetAsynqClient(asynqClient)

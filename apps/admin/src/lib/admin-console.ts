@@ -17,6 +17,7 @@ export const ADMIN_DOMAINS = [
   'pilotage',
   'moderation',
   'communaute',
+  'croissance',
   'produit',
   'plateforme',
 ] as const;
@@ -26,19 +27,21 @@ export type AdminDomain = (typeof ADMIN_DOMAINS)[number];
 /** Libellés des domaines — seule traduction autorisée du vocabulaire. */
 export const ADMIN_DOMAIN_LABELS: Record<AdminDomain, string> = {
   pilotage: 'Pilotage',
-  moderation: 'Modération',
-  communaute: 'Communauté',
-  produit: 'Produit',
-  plateforme: 'Plateforme',
+  moderation: 'Confiance & sécurité',
+  communaute: 'Support & communauté',
+  croissance: 'Croissance & communication',
+  produit: 'Produit & contenu',
+  plateforme: 'Conformité & plateforme',
 };
 
 /** Une ligne de la description produit d'un domaine (écran de refus, aide). */
 export const ADMIN_DOMAIN_DESCRIPTIONS: Record<AdminDomain, string> = {
-  pilotage: 'Vue d’ensemble, audit et santé de la plateforme',
+  pilotage: 'Vue d’ensemble, santé, métriques et « Ma file »',
   moderation: 'Comptes, signalements, anti-abus, recours et incidents',
-  communaute: 'Support, abonnements et imports d’abonnés',
-  produit: 'Contenu éditorial, widgets, livraisons et campagnes',
-  plateforme: 'Configuration, identité, conformité et accès staff',
+  communaute: 'Support, articles d’aide et imports d’abonnés',
+  croissance: 'Campagnes, lancements de features, notifications et abonnements',
+  produit: 'Registre des features, flags, frontend/CMS, widgets et traductions',
+  plateforme: 'Légal, conformité, audit, accès staff, config, API/OAuth et stockage',
 };
 
 /**
@@ -102,7 +105,7 @@ export type AdminCapability = (typeof ADMIN_CAPABILITIES)[number];
 export const ADMIN_CAPABILITY_DOMAINS: Record<AdminCapability, AdminDomain> = {
   'admin.self.read': 'pilotage',
   'admin.dashboard.read': 'pilotage',
-  'admin.audit.read': 'pilotage',
+  'admin.audit.read': 'plateforme',
 
   'admin.users.read': 'moderation',
   'admin.users.moderate': 'moderation',
@@ -118,19 +121,20 @@ export const ADMIN_CAPABILITY_DOMAINS: Record<AdminCapability, AdminDomain> = {
 
   'admin.support.read': 'communaute',
   'admin.support.write': 'communaute',
-  'admin.subscriptions.read': 'communaute',
-  'admin.subscriptions.write': 'communaute',
+  'admin.content.read': 'communaute',
+  'admin.content.write': 'communaute',
   'admin.imports.read': 'communaute',
   'admin.imports.review': 'communaute',
 
-  'admin.content.read': 'produit',
-  'admin.content.write': 'produit',
+  'admin.subscriptions.read': 'croissance',
+  'admin.subscriptions.write': 'croissance',
+  'admin.campaigns.read': 'croissance',
+  'admin.campaigns.write': 'croissance',
+  'admin.deliveries.read': 'croissance',
+  'admin.deliveries.retry': 'croissance',
+
   'admin.widgets.read': 'produit',
   'admin.widgets.write': 'produit',
-  'admin.deliveries.read': 'produit',
-  'admin.deliveries.retry': 'produit',
-  'admin.campaigns.read': 'produit',
-  'admin.campaigns.write': 'produit',
 
   'admin.config.read': 'plateforme',
   'admin.config.write': 'plateforme',
@@ -211,6 +215,12 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
     label: 'Vue d’ensemble',
     capability: 'admin.dashboard.read',
     description: 'Compteurs globaux, santé et couverture de la console',
+  },
+  {
+    href: '/admin/work',
+    label: 'Ma file',
+    capability: 'admin.dashboard.read',
+    description: 'Vue agrégée en lecture seule des files métier',
   },
   {
     href: '/admin/health',
@@ -329,6 +339,13 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
     capability: 'admin.oauth.read',
     alsoUses: ['admin.oauth.approve'],
     description: 'Clients OAuth tiers : lecture et décision',
+  },
+  {
+    href: '/admin/features',
+    label: 'Registre features',
+    capability: 'admin.config.read',
+    alsoUses: ['admin.flags.write'],
+    description: 'Statut, promesse de notification, flag et page de chaque fonctionnalité',
   },
   {
     href: '/admin/config',

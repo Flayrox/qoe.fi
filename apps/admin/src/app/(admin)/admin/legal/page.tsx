@@ -5,10 +5,12 @@ import {
   getAdminLegalStats,
 } from '@/lib/admin-data';
 import { LegalCMS } from './LegalCMS';
+import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminLegalPage() {
+  requireCapability(await getAdminIdentity(), 'admin.legal.read');
   const [documents, acceptances, stats] = await Promise.all([
     getAdminLegalDocuments(),
     getAdminLegalAcceptances(undefined, 100),

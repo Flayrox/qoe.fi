@@ -22,6 +22,12 @@ import (
 const (
 	migrationPath       = "../../sql/migrations/00053_admin_rbac.sql"
 	accessMigrationPath = "../../sql/migrations/00056_admin_access_rbac.sql"
+	// featureMigrationPath porte une correction de matrice (retrait de
+	// l'écriture juridique au rôle content), appliquée après les deux seeds.
+	featureMigrationPath = "../../sql/migrations/00069_feature_catalog_interest.sql"
+	// domainMigrationPath réorganise les domaines d'affichage en six domaines
+	// métier : il ne sème aucune capacité, il en change l'étiquette.
+	domainMigrationPath = "../../sql/migrations/00070_admin_domains.sql"
 )
 
 // quoted matches a single-quoted SQL string, escaped quotes (” ) inclus.
@@ -31,6 +37,7 @@ var (
 	reCapabilityRow = regexp.MustCompile(`\(\s*'([^']+)'\s*,\s*` + quotedSQL + `\s*,\s*'([^']+)'\s*,`)
 	reRoleRow       = regexp.MustCompile(`\(\s*'([^']+)'\s*,\s*` + quotedSQL + `\s*,\s*` + quotedSQL + `\s*,\s*(?:true|false)\s*\)`)
 	reMatrixRow     = regexp.MustCompile(`\(\s*'([^']+)'\s*,\s*'([^']+)'\s*\)`)
+	reDomainUpdate  = regexp.MustCompile(`UPDATE "AdminCapability" SET "domain" = '([^']+)'\s+WHERE "key" IN \(([^)]+)\)`)
 )
 
 func readMigrationAt(t *testing.T, path string) string {
@@ -96,6 +103,28 @@ func TestMigrationParity_Capabilities(t *testing.T) {
 				t.Fatalf("capacité %q semée deux fois", key)
 			}
 			got[key] = row{domain: domain}
+		}
+	}
+
+	// Réorganisation des domaines : un UPDATE addendum fait foi avant la
+	// comparaison, sans réécrire la migration déjà appliquée.
+	domainSQL := readMigrationAt(t, domainMigrationPath)
+	sql += domainSQL
+	// Seule la section Up fait foi : le Down rétablit volontairement les
+	// anciens domaines et ne doit pas écraser la comparaison.
+	upDomainSQL := domainSQL
+	if cut := strings.Index(upDomainSQL, "-- +goose Down"); cut >= 0 {
+		upDomainSQL = upDomainSQL[:cut]
+	}
+	for _, m := range reDomainUpdate.FindAllStringSubmatch(upDomainSQL, -1) {
+		for _, raw := range strings.Split(m[2], ",") {
+			key := Capability(strings.Trim(strings.TrimSpace(raw), "'"))
+			row, ok := got[key]
+			if !ok {
+				t.Fatalf("migration de domaines : capacité inconnue %q", key)
+			}
+			row.domain = m[1]
+			got[key] = row
 		}
 	}
 
@@ -172,6 +201,13 @@ func TestMigrationParity_Matrix(t *testing.T) {
 			}
 			got[p] = true
 		}
+	}
+
+	// Corrections ultérieures de la matrice : un DELETE explicite dans une
+	// migration addendum doit être reflété avant la comparaison.
+	removal := regexp.MustCompile(`DELETE FROM "AdminRoleCapability"\s+WHERE "roleKey" = '([^']+)' AND "capabilityKey" = '([^']+)'`)
+	for _, m := range removal.FindAllStringSubmatch(readMigrationAt(t, featureMigrationPath), -1) {
+		delete(got, pair{m[1], m[2]})
 	}
 
 	for _, role := range Roles() {

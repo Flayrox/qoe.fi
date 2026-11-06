@@ -56,6 +56,21 @@ func TestRenderCampaignVars_Escapes(t *testing.T) {
 	}
 }
 
+func TestFeatureLaunchContract(t *testing.T) {
+	if !validCampaignType(CampaignFeatureLaunch) {
+		t.Fatal("feature.launch doit être une catégorie fermée connue")
+	}
+	if !validCampaignAudience(CampaignAudienceInterested, "") {
+		t.Fatal("audience feature_interested sans publication refusée à tort")
+	}
+	if validCampaignAudience(CampaignAudienceInterested, "pub_1") {
+		t.Fatal("audience feature_interested avec publication acceptée : incohérent")
+	}
+	if err := validateCampaignContent(CampaignFeatureLaunch, "Disponible", "<p>Bonjour</p>", "", ""); err != nil {
+		t.Fatalf("contenu de lancement refusé : %v", err)
+	}
+}
+
 func TestValidCampaignAudience(t *testing.T) {
 	if !validCampaignAudience(CampaignAudienceAllUsers, "") {
 		t.Fatal("audience globale sans publication refusée à tort")

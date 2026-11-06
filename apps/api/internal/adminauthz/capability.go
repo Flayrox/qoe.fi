@@ -32,13 +32,17 @@ const (
 	DomainPilotage   = "pilotage"
 	DomainModeration = "moderation"
 	DomainCommunaute = "communaute"
+	DomainCroissance = "croissance"
 	DomainProduit    = "produit"
 	DomainPlateforme = "plateforme"
 )
 
 // Domains retourne les domaines connus, dans l'ordre d'affichage.
 func Domains() []string {
-	return []string{DomainPilotage, DomainModeration, DomainCommunaute, DomainProduit, DomainPlateforme}
+	return []string{
+		DomainPilotage, DomainModeration, DomainCommunaute,
+		DomainCroissance, DomainProduit, DomainPlateforme,
+	}
 }
 
 // Capability est une action vérifiable de la console. La valeur est stable :
@@ -145,7 +149,7 @@ var vocabulary = []Capability{
 var domains = map[Capability]string{
 	SelfRead:      DomainPilotage,
 	DashboardRead: DomainPilotage,
-	AuditRead:     DomainPilotage,
+	AuditRead:     DomainPlateforme,
 
 	UsersRead:           DomainModeration,
 	UsersModerate:       DomainModeration,
@@ -159,21 +163,22 @@ var domains = map[Capability]string{
 	AppealsRead:         DomainModeration,
 	AppealsDecide:       DomainModeration,
 
-	SupportRead:        DomainCommunaute,
-	SupportWrite:       DomainCommunaute,
-	SubscriptionsRead:  DomainCommunaute,
-	SubscriptionsWrite: DomainCommunaute,
-	ImportsRead:        DomainCommunaute,
-	ImportsReview:      DomainCommunaute,
+	SupportRead:   DomainCommunaute,
+	SupportWrite:  DomainCommunaute,
+	ContentRead:   DomainCommunaute,
+	ContentWrite:  DomainCommunaute,
+	ImportsRead:   DomainCommunaute,
+	ImportsReview: DomainCommunaute,
 
-	ContentRead:     DomainProduit,
-	ContentWrite:    DomainProduit,
-	WidgetsRead:     DomainProduit,
-	WidgetsWrite:    DomainProduit,
-	DeliveriesRead:  DomainProduit,
-	DeliveriesRetry: DomainProduit,
-	CampaignsRead:   DomainProduit,
-	CampaignsWrite:  DomainProduit,
+	SubscriptionsRead:  DomainCroissance,
+	SubscriptionsWrite: DomainCroissance,
+	CampaignsRead:      DomainCroissance,
+	CampaignsWrite:     DomainCroissance,
+	DeliveriesRead:     DomainCroissance,
+	DeliveriesRetry:    DomainCroissance,
+
+	WidgetsRead:  DomainProduit,
+	WidgetsWrite: DomainProduit,
 
 	ConfigRead:       DomainPlateforme,
 	ConfigWrite:      DomainPlateforme,
