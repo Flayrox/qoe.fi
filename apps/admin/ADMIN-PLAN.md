@@ -183,8 +183,10 @@ Commits du chantier :
 - [x] **D2. Rétention** : politiques par table, purge planifiée, journal
       (commit `83347e5a`, `retention.go`, `retention_test.go`, `RetentionConsole.tsx`,
       registre de 10 tables, protection `AdminAuditLog`, audit inconditionnel).
-- [ ] **D3. Exports signés** déjà présents côté légal — généraliser aux autres
-      registres (audit, consentement, abonnés).
+- [x] **D3. Exports signés** déjà présents côté légal — généraliser aux autres
+      registres (commit `51a06890`, `signed_exports.go`, `signed_exports_test.go`,
+      Ed25519 autonome, journal d'audit scellé, registre des abonnés avec hachage SHA-256,
+      contrôle universel `UniversalExportVerifierPanel.tsx`, streaming direct Next.js, step-up N2).
 - [ ] **D4. SLO + alertes** par surface (latence API, erreurs, outbox, migration).
 - [ ] **D5. Outbox observable** : profondeur, retries, blocages, reprise.
 - [ ] **D6. Bac à sable** : seeds et impersonation pour tester sans production.
