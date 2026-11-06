@@ -18,6 +18,8 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
+const triageMigrationVersion = 71
+
 var triageTables = []string{
 	"ModerationReport", "Appeal", "RiskDecision",
 	"SupportTicket", "SubscriberImportBatch", "AdminApproval",
@@ -103,12 +105,17 @@ func TestQueueTriageMigrationUpDownOnFreshDatabase(t *testing.T) {
 	if err := goose.SetDialect("postgres"); err != nil {
 		t.Fatalf("dialecte: %v", err)
 	}
-	if err := goose.Up(db, dir); err != nil {
+	// Le test porte sur 00071, pas sur « la dernière migration » : les
+	// migrations 00072/00073 peuvent arriver après sans changer ce contrat.
+	if err := goose.UpTo(db, dir, triageMigrationVersion); err != nil {
 		t.Fatalf("goose up: %v", err)
 	}
 	version, err := goose.GetDBVersion(db)
 	if err != nil {
 		t.Fatalf("version après up: %v", err)
+	}
+	if version != triageMigrationVersion {
+		t.Fatalf("version après up = %d, attendu %d", version, triageMigrationVersion)
 	}
 
 	columns, checks, indexes := triageSchemaCounts(t, db)
@@ -122,16 +129,16 @@ func TestQueueTriageMigrationUpDownOnFreshDatabase(t *testing.T) {
 		t.Fatalf("index de triage = %d, attendu %d", indexes, len(triageTables))
 	}
 
-	// Down : seule la dernière migration (00071) est défaite.
-	if err := goose.Down(db, dir); err != nil {
+	// Down : on défait 00071 uniquement, sans toucher aux migrations suivantes.
+	if err := goose.DownTo(db, dir, triageMigrationVersion-1); err != nil {
 		t.Fatalf("goose down: %v", err)
 	}
 	afterDown, err := goose.GetDBVersion(db)
 	if err != nil {
 		t.Fatalf("version après down: %v", err)
 	}
-	if afterDown != version-1 {
-		t.Fatalf("version après down = %d, attendu %d", afterDown, version-1)
+	if afterDown != triageMigrationVersion-1 {
+		t.Fatalf("version après down = %d, attendu %d", afterDown, triageMigrationVersion-1)
 	}
 	columns, checks, indexes = triageSchemaCounts(t, db)
 	if columns != 0 || checks != 0 || indexes != 0 {
@@ -151,7 +158,7 @@ func TestQueueTriageMigrationUpDownOnFreshDatabase(t *testing.T) {
 	}
 
 	// Réapplication : la migration est rejouable, pas à usage unique.
-	if err := goose.Up(db, dir); err != nil {
+	if err := goose.UpTo(db, dir, triageMigrationVersion); err != nil {
 		t.Fatalf("goose up (réapplication): %v", err)
 	}
 	columns, checks, indexes = triageSchemaCounts(t, db)
