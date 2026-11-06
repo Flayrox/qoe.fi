@@ -82,6 +82,7 @@ const STATUS_ICONS: Record<FeatureStatus, React.ComponentType<{ className?: stri
   'in-development': Clock,
   pro: Lock,
   'coming-soon': Info,
+  paused: Clock,
 };
 
 // ── Interstitiel ─────────────────────────────────────────────────────
@@ -134,6 +135,7 @@ export function FeatureInterstitial({
   const FeatureIcon = FEATURE_ICONS[feature.icon];
   const StatusIcon = STATUS_ICONS[feature.status];
   const isUpgrade = feature.cta === 'upgrade';
+  const isNotify = feature.cta === 'notify';
 
   const notify = async () => {
     if (pending || isNotified) return;
@@ -228,7 +230,7 @@ export function FeatureInterstitial({
               <span>{localize(copy.ctaLabel, locale)}</span>
               <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
             </Link>
-          ) : (
+          ) : isNotify ? (
             <button
               type="button"
               onClick={notify}
@@ -253,10 +255,10 @@ export function FeatureInterstitial({
                   : localize(copy.ctaLabel, locale)}
               </span>
             </button>
-          )}
+          ) : null}
         </div>
 
-        {copy.ctaHint && !isUpgrade && !isNotified && (
+        {copy.ctaHint && isNotify && !isNotified && (
           <p className="px-5 pb-4 -mt-2 text-[10px] text-muted-foreground/80">
             {localize(copy.ctaHint, locale)}
           </p>

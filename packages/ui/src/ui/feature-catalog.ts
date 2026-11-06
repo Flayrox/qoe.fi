@@ -19,7 +19,7 @@
 //       useFeatureAnnouncement().open('ma-cle').
 // =====================================================================
 
-export type FeatureStatus = 'in-development' | 'pro' | 'coming-soon';
+export type FeatureStatus = 'in-development' | 'pro' | 'coming-soon' | 'paused';
 
 export type FeatureLocale = 'fr' | 'en';
 
@@ -32,8 +32,8 @@ export type FeaturePlan = 'free' | 'pro';
 /** Surface concernée : le studio (créateur) ou le site public (lecteur). */
 export type FeatureAudience = 'creator' | 'reader';
 
-/** Action principale de l'interstitiel. */
-export type FeatureCta = 'notify' | 'upgrade';
+/** Action principale de l'interstitiel. `none` = aucune promesse d'action. */
+export type FeatureCta = 'notify' | 'upgrade' | 'none';
 
 export interface FeatureDefinition {
   /** Clé stable, persistée dans les signaux d'intérêt. */
@@ -41,7 +41,7 @@ export interface FeatureDefinition {
   readonly status: FeatureStatus;
   readonly plan: FeaturePlan;
   readonly audience: FeatureAudience;
-  /** Action principale : être prévenu, ou découvrir l'offre Pro. */
+  /** Action principale : être prévenu, découvrir Pro, ou aucune (suspendu). */
   readonly cta: FeatureCta;
   /** Icône lucide, résolue dans le composant (catalogue sans React). */
   readonly icon: 'globe' | 'mail' | 'lock' | 'clock' | 'sparkles';
@@ -142,6 +142,41 @@ export const FEATURES = {
       ctaLabel: { fr: 'Découvrir l’offre Pro', en: 'See the Pro plan' },
     },
   },
+  'article-import': {
+    key: 'article-import',
+    status: 'paused',
+    plan: 'free',
+    audience: 'creator',
+    cta: 'none',
+    icon: 'clock',
+    copy: {
+      label: { fr: 'Suspendu', en: 'Paused' },
+      title: { fr: 'Import d’articles', en: 'Article import' },
+      summary: {
+        fr: 'L’import RSS/Atom est temporairement coupé : la première version pouvait créer des brouillons visibles et n’avait aucune limite de volume.',
+        en: 'RSS/Atom import is temporarily disabled: the first version could create publicly visible drafts and had no volume limit.',
+      },
+      details: [
+        {
+          fr: 'Le formulaire d’import est fermé ; les autres outils d’écriture restent disponibles.',
+          en: 'The import form is closed; the other writing tools remain available.',
+        },
+        {
+          fr: 'La refonte ajoutera un plafond, un aperçu avant import et un rapport d’erreurs par article.',
+          en: 'The rebuild will add a cap, a preview before import and a per-article error report.',
+        },
+        {
+          fr: 'Les articles importés resteront des brouillons privés jusqu’à votre validation explicite.',
+          en: 'Imported articles will stay private drafts until you explicitly approve them.',
+        },
+      ],
+      availability: {
+        fr: 'Suspendu — reprise prévue après sécurisation et refonte du parseur.',
+        en: 'Paused — planned to resume after security hardening and parser rebuild.',
+      },
+      ctaLabel: { fr: 'Fermer', en: 'Close' },
+    },
+  },
 } as const satisfies Record<string, FeatureDefinition>;
 
 export type FeatureKey = keyof typeof FEATURES;
@@ -196,6 +231,14 @@ export const FEATURE_STATUS_COPY: Record<
     description: {
       fr: 'L’intégration est finalisée. La fonctionnalité sera mise en service prochainement.',
       en: 'The integration is complete. The feature will be switched on shortly.',
+    },
+  },
+  paused: {
+    label: { fr: 'Suspendu', en: 'Paused' },
+    title: { fr: 'Fonctionnalité suspendue', en: 'Feature paused' },
+    description: {
+      fr: 'Cette fonctionnalité est retirée temporairement. Elle ne peut pas être utilisée tant que la refonte n’est pas livrée.',
+      en: 'This feature has been temporarily removed. It cannot be used until the rebuild ships.',
     },
   },
 };

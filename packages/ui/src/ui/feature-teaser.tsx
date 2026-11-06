@@ -38,6 +38,7 @@ const STATUS_ICONS: Record<FeatureStatus, React.ComponentType<{ className?: stri
   'in-development': Clock,
   pro: Lock,
   'coming-soon': Info,
+  paused: Clock,
 };
 
 function resolveStatus(feature?: FeatureDefinition, status?: FeatureStatus): FeatureStatus {

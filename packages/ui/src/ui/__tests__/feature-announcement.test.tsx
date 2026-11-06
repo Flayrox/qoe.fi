@@ -200,6 +200,14 @@ describe('FeatureInterstitial', () => {
     expect(link.getAttribute('href')).toBe('/tarifs');
   });
 
+  it('ne promet aucune action quand la fonctionnalité est suspendue', () => {
+    render(<FeatureInterstitial featureKey="article-import" open onOpenChange={() => {}} />);
+
+    expect(screen.getByText('Import d’articles')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /me prévenir/i })).toBeNull();
+    expect(screen.getByRole('button', { name: /plus tard/i })).toBeTruthy();
+  });
+
   it('ne rend rien pour une clé inconnue (pas de crash)', () => {
     const { container } = render(
       <FeatureInterstitial
