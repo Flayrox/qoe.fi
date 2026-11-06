@@ -1,10 +1,11 @@
-import { Activity, AlertTriangle, CheckCircle2, Clock3, Mail } from 'lucide-react';
+import React from 'react';
 import { getAdminDeliveries } from '@/lib/admin-data';
 import { getGlobalAnnouncementAction, listPlacementsAdminAction } from '@/lib/admin-aux-actions';
 import { DeliveryTable, type DeliveryRow } from './DeliveryTable';
 import { BroadcastAnnouncementConsole } from './BroadcastAnnouncementConsole';
 import { PlacementsManager } from './PlacementsManager';
 import { getAdminIdentity, requireCapability } from '@/lib/admin-identity';
+import { MetricChips } from '@/components/shell/MetricChips';
 
 export default async function AdminNotificationsPage() {
   requireCapability(await getAdminIdentity(), 'admin.deliveries.read');
@@ -30,74 +31,58 @@ export default async function AdminNotificationsPage() {
     },
   }));
 
-  const cards = [
-    {
-      label: 'En attente',
-      value: counts.QUEUED || 0,
-      icon: Clock3,
-      className: 'text-highlight bg-highlight/10',
-    },
-    {
-      label: 'Envoyées',
-      value: counts.SENT || 0,
-      icon: CheckCircle2,
-      className: 'text-success-text bg-success/10',
-    },
-    {
-      label: 'En échec',
-      value: counts.FAILED || 0,
-      icon: AlertTriangle,
-      className: 'text-destructive-text bg-destructive/10',
-    },
-    {
-      label: 'Total',
-      value: totalCount,
-      icon: Activity,
-      className: 'text-primary bg-primary/10',
-    },
-  ];
+  const queued = counts.QUEUED || 0;
+  const sent = counts.SENT || 0;
+  const failed = counts.FAILED || 0;
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8">
-      <div>
-        <div className="flex items-center gap-2 text-sm font-semibold text-primary">
-          <Mail className="h-4 w-4" /> Notification delivery
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+        <div>
+          <h1 className="text-[15px] font-semibold tracking-tight text-foreground">
+            Outbox & livraisons
+          </h1>
+          <p className="text-[12px] text-muted-foreground">
+            Supervision des e-mails transactionnels et de l’outbox événementielle · relance unitaire
+            et audit.
+          </p>
         </div>
-        <h1 className="mt-2 text-4xl font-bold tracking-tight text-foreground">
-          Outbox & livraisons
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          Supervisez les emails transactionnels sans exposer de clé fournisseur. Les événements
-          in-app restent indépendants des livraisons externes.
-        </p>
+        <MetricChips
+          items={[
+            {
+              label: 'En attente',
+              value: queued,
+              tone: queued > 0 ? 'warn' : 'default',
+            },
+            {
+              label: 'Envoyées',
+              value: sent,
+              tone: 'default',
+            },
+            {
+              label: 'En échec',
+              value: failed,
+              tone: failed > 0 ? 'danger' : 'default',
+            },
+            {
+              label: 'Total',
+              value: totalCount,
+              tone: 'default',
+            },
+          ]}
+        />
       </div>
 
-      {/* 📣 Console de diffusion d'annonces avec courbure inversée */}
       <BroadcastAnnouncementConsole initialAnnouncement={announcement} />
 
-      {/* 🦄 Moteur de Placements In-App & Bannières Contextuelles (Licorne 2027) */}
       <PlacementsManager initialPlacements={placements} />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {cards.map((card) => {
-          const Icon = card.icon;
-          return (
-            <div key={card.label} className="rounded-lg border border-border bg-white p-5">
-              <div
-                className={`flex h-9 w-9 items-center justify-center rounded-xl ${card.className}`}
-              >
-                <Icon className="h-4 w-4" />
-              </div>
-              <p className="mt-4 text-xs font-medium text-muted-foreground">{card.label}</p>
-              <p className="mt-1 text-3xl font-bold text-foreground">{card.value}</p>
-            </div>
-          );
-        })}
-      </div>
-      <section className="space-y-3">
+      <section className="space-y-2">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-foreground">Dernières livraisons</h2>
-          <span className="text-xs text-muted-foreground">50 dernières lignes</span>
+          <h2 className="text-[13px] font-semibold text-foreground">Dernières livraisons</h2>
+          <span className="text-[11px] text-muted-foreground tabular-nums">
+            50 dernières lignes
+          </span>
         </div>
         <DeliveryTable rows={rows} />
       </section>
