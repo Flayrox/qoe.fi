@@ -149,7 +149,7 @@ func (s *Service) importBatch(ctx context.Context, publicationID string, authorI
 // CreateImportJob enregistre un job d'import ASYNCHRONE et l'enqueue asynq
 // (queue low — les lots peuvent contenir des milliers d'articles). Le worker
 // met à jour la progression et le rapport d'erreurs ; l'API expose le statut
-// via GET /v1/import/jobs/{id}.
+// (endpoint public retiré avec l'import d'articles ; la refonte le rebranchera).
 func (s *Service) CreateImportJob(ctx context.Context, userID string, req ImportArticlesRequest) (string, error) {
 	if !s.canImport(ctx, userID, req.PublicationID) {
 		return "", errForbidden

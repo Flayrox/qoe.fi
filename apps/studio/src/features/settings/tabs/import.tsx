@@ -1,24 +1,15 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import {
-  AlertCircle,
-  CheckCircle2,
-  FileSpreadsheet,
-  Loader2,
-  Rss,
-  Upload,
-  Users,
-} from 'lucide-react';
+import { AlertCircle, CheckCircle2, FileSpreadsheet, Loader2, Rss, Users } from 'lucide-react';
 import { Badge } from '@qoe/ui/badge';
-import { Button } from '@qoe/ui/button';
 import { Checkbox } from '@qoe/ui/checkbox';
-import { Input, InputGroup } from '@qoe/ui/input';
+import { Input } from '@qoe/ui/input';
 import { Select } from '@qoe/ui/select';
 import { Tab, TabList, Tabs } from '@qoe/ui/tabs';
+import { UpcomingBadge } from '@qoe/ui';
 import { StudioField, StudioSection } from '@/components/studio-page';
 import {
-  importRssFeedAction,
   importSubscribersCsvAction,
   type SubscriberImportStats,
 } from '@/app/(creator)/import/actions';
@@ -84,99 +75,38 @@ export function ImportTab() {
         </TabList>
       </Tabs>
 
-      {mode === 'articles' ? <ArticlesImport /> : <SubscribersImport />}
+      {mode === 'articles' ? <ArticlesImportUpcoming /> : <SubscribersImport />}
     </div>
   );
 }
 
-function ArticlesImport() {
-  const [rssUrl, setRssUrl] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null);
-
-  const handleImport = async () => {
-    if (!rssUrl.trim() || !rssUrl.startsWith('http')) {
-      setMessage({
-        tone: 'danger',
-        text: 'Saisissez une URL de flux valide, par exemple https://votre-site.com/feed.',
-      });
-      return;
-    }
-
-    setLoading(true);
-    setMessage(null);
-    const res = await importRssFeedAction(rssUrl);
-    setLoading(false);
-
-    if (res.success) {
-      setMessage({
-        tone: 'success',
-        text: `${res.count} article${res.count === 1 ? '' : 's'} importé${res.count === 1 ? '' : 's'}.`,
-      });
-      setRssUrl('');
-    } else {
-      setMessage({
-        tone: 'danger',
-        text: res.error || "Impossible d'importer les articles depuis ce flux.",
-      });
-    }
-  };
-
+function ArticlesImportUpcoming() {
   return (
     <StudioSection title="Importer des articles" icon={Rss}>
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-12">
         <div className="space-y-4 lg:col-span-7">
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            Reprenez les articles d’une publication existante depuis son flux RSS ou Atom. Les
-            doublons sont ignorés et rien n’est publié avant votre relecture.
-          </p>
-
-          <StudioField
-            label="URL du flux"
-            htmlFor="import-rss-url"
-            hint="Le flux doit être accessible publiquement et contenir le contenu des articles."
-          >
-            <InputGroup left={<Rss />}>
-              <Input
-                id="import-rss-url"
-                type="url"
-                size="sm"
-                value={rssUrl}
-                onChange={(event) => setRssUrl(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') void handleImport();
-                }}
-                placeholder="https://votre-site.com/feed"
-                autoComplete="url"
-              />
-            </InputGroup>
-          </StudioField>
-
           <div className="flex flex-wrap items-center gap-2">
-            <Button
-              variant="solid"
-              tone="brand"
-              size="sm"
-              loading={loading}
-              onClick={() => void handleImport()}
-            >
-              <Upload />
-              Importer les articles
-            </Button>
+            <UpcomingBadge feature="article-import" />
             <span className="text-[11px] text-muted-foreground">
-              Aucune publication automatique.
+              Suspendu pendant la refonte de l’import.
             </span>
           </div>
-
-          {message ? <ImportFeedback tone={message.tone}>{message.text}</ImportFeedback> : null}
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            L’import RSS/Atom a été retiré temporairement. La première version pouvait créer des
+            brouillons visibles et n’imposait pas de limite de volume : nous préférons le refaire
+            proprement plutôt que de laisser un outil dangereux en production.
+          </p>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Vous pouvez continuer à écrire et publier normalement. Aucun email n’est envoyé aux
+            abonnés du fait d’un import.
+          </p>
         </div>
 
         <aside className="space-y-2 rounded-control border border-border/50 bg-muted/20 p-4 text-xs leading-relaxed text-muted-foreground lg:col-span-5">
-          <p className="font-medium text-foreground">Ce qui est repris</p>
-          <p>Titres, contenus, images et dates des articles détectés dans le flux.</p>
+          <p className="font-medium text-foreground">Ce que fera la refonte</p>
+          <p>Plafond par import, aperçu avant création et rapport d’erreurs par article.</p>
           <p className="border-t border-border/40 pt-2">
-            Les articles arrivent en brouillon dans votre espace actif. Vous gardez la main sur la
-            catégorie, le SEO et la publication.
+            Les imports resteront des brouillons privés jusqu’à votre validation explicite.
           </p>
         </aside>
       </div>

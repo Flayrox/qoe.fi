@@ -22,15 +22,7 @@ vi.mock('@/lib/active-workspace', () => ({
   getActivePublicationId: mocks.getActivePublicationId,
 }));
 
-vi.mock('next/cache', () => ({
-  revalidatePath: vi.fn(),
-}));
-
-import {
-  importSubscribersCsvAction,
-  importRssFeedAction,
-  type SubscriberImportOptions,
-} from '../actions';
+import { importSubscribersCsvAction, type SubscriberImportOptions } from '../actions';
 
 // Déclarations complètes : prérequis du dépôt, revérifié côté serveur Go.
 const DECLARATIONS: SubscriberImportOptions['declarations'] = {
@@ -144,31 +136,5 @@ charlie@domain.org,2024-01-05,free`;
     const res = await importSubscribersCsvAction('email\na@b.fr\n', OPTIONS);
     expect(res.success).toBe(false);
     expect(res.error).toContain('Trop de lots');
-  });
-});
-
-describe('importRssFeedAction', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    mocks.getUser.mockResolvedValue({
-      data: { user: { id: 'u_creator_1', email: 'creator@qoe.fi' } },
-    });
-    mocks.getActivePublicationId.mockResolvedValue('pub_test_123');
-  });
-
-  it('bloque immédiatement les URLs SSRF locales et metadata', async () => {
-    const ssrfUrls = [
-      'http://localhost:15407/admin',
-      'http://127.0.0.1:5432/rss',
-      'http://169.254.169.254/latest/meta-data',
-      'http://10.0.0.1/feed',
-      'file:///etc/passwd',
-    ];
-
-    for (const badUrl of ssrfUrls) {
-      const res = await importRssFeedAction(badUrl);
-      expect(res.success).toBe(false);
-      expect(res.error).toBeDefined();
-    }
   });
 });
