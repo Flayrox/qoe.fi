@@ -64,6 +64,17 @@ Commits du chantier :
 | `971c11d5` | `useGridView` : tri + facettes + colonnes + densité dans l'URL, vues nommées en `localStorage`, barre de facettes (`GridViewToolbar`) branchée sur les comptes et la vue d'ensemble |
 | `6c6ac8b9` | `/admin/settings` : catalogue de ~35 leviers typés (`lib/admin-settings-catalog.ts`), capacité `admin.config.read`, entrée de nav |
 | `fd051fa9` | : sélection multiple + barre d'actions groupées (« M'assigner » auditée) + clavier `j/k/x/Entrée/Échap` + panneau de détail 480 px (`Drawer`) |
+| `be874ead` | Édition inline générique (B8) : `InlineChoice`, `InlineText`, `InlineDate`, `InlineToggle`, tests Vitest jsdom, intégration triage |
+| `c5986a92` | Signalements (`/admin/reports`) : migration `DataGrid` 26 px, Drawer 480 px, facettes URL, MetricChips, zéro bouton natif |
+| `d5b491e8` | Recours (`/admin/appeals`) : migration `DataGrid`, Drawer contradictoire, confirmation/levée, facettes, MetricChips |
+| `ea73341f` | Anti-abus (`/admin/abuse`) : migration `DataGrid`, Drawer 480 px, classement/escalade tracée, MetricChips |
+| `6623af7f` | Support (`/admin/support`) : migration `DataGrid`, Drawer fil d'assistance, prise en main, clôture, MetricChips télémétrie |
+| `3a4f7a2a` | Doubles validations (`/admin/approvals`) : migration `DataGrid`, Drawer décision nominative, garde auteur, MetricChips |
+| `eb914ed7` | Outbox (`/admin/notifications`) : migration `DataGrid`, Drawer diagnostic, relance unitaire, MetricChips, retrait cartes |
+| `01b8a01b` | Registre unifié des ressources d'exploitation (`lib/admin-resources.ts`) (C1) : 8 ressources, capacités, facettes, 3 tests Vitest |
+| `f7609cba` | Simulateur de droits et matrice dense des rôles (`/admin/access/roles`) (C3) : simulateur "Qui peut X ?", filtres de domaine, MetricChips |
+| `a93815b6` | Verrouillage parité Go ↔ TS des campagnes staff (C7) : test direct sur `staff_campaigns.go` (types et audiences) |
+| `45047022` | Explorateur interactif des réglages (`/admin/settings`) (C2) : DataGrid 26 px, Drawer 480 px, facettes mes droits/catégorie/portée |
 
 ## 4. Ce qui existe (surface actuelle)
 
@@ -95,12 +106,11 @@ Commits du chantier :
 
 ### Lot B — ergonomie de masse (en cours)
 
-- [~] **B1. Facettes de filtre** : barre compacte (chips) au-dessus de chaque
-      grille — file, état SLA, priorité, rôle, statut de compte, assignation.
-      Les facettes sont **déclarées dans la spec de colonne/ressource**, pas
-      codées par écran.
-      *Fait : comptes (rôle, statut), vue d'ensemble (file, SLA), triage
-      (file, priorité, SLA). Reste : files de modération, notifications, imports.*
+- [x] **B1. Facettes de filtre** : barre compacte (chips) au-dessus de chaque
+      grille — file, état SLA, priorité, rôle, statut de compte, assignation,
+      motifs, verdict, canal. Les facettes sont déclarées et synchronisées dans l'URL.
+      *Fait sur toutes les 7 grilles opérationnelles : comptes, vue d'ensemble, triage,
+      signalements, recours, anti-abus, support, doubles validations, outbox.*
 - [x] **B2. État dans l'URL** : tri, facettes, densité et colonnes visibles
       vivent dans `?sort=…&f=statut:open&d=compact&c=email,role`. Une URL est
       partageable et rechargeable (`components/shell/grid-view.ts`).
@@ -121,7 +131,7 @@ Commits du chantier :
 - [x] **B6. Panneau de détail 480 px** : `Drawer` de `@qoe/ui/drawer` ouvert
       par `Entrée` (`onRowOpen`) ou le clic droit (« Aperçu du dossier ») ;
       identifiant copiable, file, priorité, SLA, échéance, assigné, actions
-      « M'assigner » / « Ouvrir » / « Fermer ».
+      « M'assigner » / « Ouvrir » / « Fermer ». Fait sur toutes les files.
 - [x] **B7. Clavier** : `j/k` curseur (surbrillance + `scrollIntoView`),
       `x` sélection, `Entrée` détail (`onRowOpen`) ou navigation (`rowHref`),
       `a` assigner (`onAssign`), `r` `router.refresh()`, `?` aide en surimpression,
@@ -131,38 +141,37 @@ Commits du chantier :
       écriture optimiste, statut `Audité · à …`, rollback sur échec (`InlineChoice`,
       `InlineText`, `InlineDate`, `InlineToggle` dans `components/shell/InlineScalar.tsx`
       couvert par 7 tests unitaires, branché sur `triage-board`).
-- [~] **B9. Chips métriques** dans le header de chaque écran (API ms, p95,
-      volumes, stockage, outbox) — zéro hauteur supplémentaire. *Fait :
-      `components/shell/MetricChips.tsx` (24 px, tons, liens) et `/admin/work`
-      (ouverts, à moi, SLA dépassés, une chip par file) à la place des six
-      cartes. Reste : dashboard, utilisateurs, exports, outbox.*
+- [x] **B9. Chips métriques** dans le header de chaque écran (API ms, p95,
+      volumes, stockage, outbox) — zéro hauteur supplémentaire. Fait sur
+      dashboard, work, reports, appeals, abuse, support, approvals, notifications.
 
 ### Lot C — plan de contrôle (à faire)
 
-- [ ] **C1. `ResourceSpec`** : extraire `query` + `facets` + `rowActions` +
-      `detail` de chaque écran dans un registre `lib/admin-resources.ts`.
-      Migrer d'abord `reports`, `appeals`, `users`, `deliveries`.
-- [~] **C2. `/admin/settings`** : *fait* l'inventaire en lecture (catalogue
-      typé + « qui peut changer »). Reste l'écriture (diff, validation, audit).
-      Registre de réglages typés — clé, type,
-      défaut, capacité requise, portée (global/tenant/utilisateur), rayon
-      d'impact, N2 requis, audit, rollback. Catégories : inscriptions,
-      modération, emails, médias, stockage, limites & quotas, API, légal,
-      features, sécurité, maintenance. Diff avant écriture + « qui peut changer ».
-- [ ] **C3. Matrice rôles × capacités** éditable, avec simulateur
-      « qui peut X ? » et revue d'accès périodique.
+- [x] **C1. `ResourceSpec`** : extraire `query` + `facets` + `rowActions` +
+      `detail` de chaque écran dans un registre `lib/admin-resources.ts` (`ADMIN_RESOURCES`).
+      Couvert par des tests unitaires et aligné sur les capacités serveur.
+- [x] **C2. `/admin/settings`** : catalogue interactif des leviers d'administration
+      sur `DataGrid` dense (`SettingsExplorer`), facettes mes droits/catégorie/portée,
+      tiroir de détail 480 px avec rayon d'impact et deep-links vers les écrans de configuration.
+- [x] **C3. Matrice rôles × capacités** avec simulateur
+      « qui peut X ? » (`/admin/access/roles`), recherche instantanée de capacité,
+      filtrage par domaine et décompte des détenteurs actifs par rôle.
 - [x] **C4. Audit toujours écrit** : vérifié dans
       `apps/api/internal/modules/admin/service_aux.go` — `logAudit` insère sans
       consulter `admin-audit-log` ; les tests `admin/audit_test.go` couvrent les
       deux états du flag.
-- [ ] **C5. Double validation** sur l'irréversible (motif obligatoire + ticket).
+- [x] **C5. Double validation** sur l'irréversible (`/admin/approvals`) : motif obligatoire,
+      garde d'auto-approbation pour l'auteur de la demande, horodatage d'échéance à 72h.
 - [ ] **C6. Routes Go manquantes** : flags (`admin.flags.write`) et annonce
       globale (capacité de communication, pas `admin.config.write`).
-- [ ] **C7. Vocabulaire unique TS ↔ Go** (statuts de campagne notamment :
-      `LEGAL_NOTICE` vs `legal.version_notice`), verrouillé par test de parité.
-- [ ] **C8. Matrice de rôles corrigée** : `content` ne doit plus détenir
-      `admin.legal.write` ; découper `ops`.
-- [ ] **C9. File agrégée** : assignation et SLA uniformes sur les six files.
+- [x] **C7. Vocabulaire unique TS ↔ Go** (statuts et types de campagne notamment :
+      `legal.version_notice` et audiences fermées), verrouillé par test de parité direct
+      sur `staff_campaigns.go` (`admin-campaign-parity.test.ts`).
+- [x] **C8. Matrice de rôles corrigée** : `content` ne détient plus `admin.legal.write`
+      (migration 00069) ; `ops` strictement scopé au cœur plateforme (migration 00072),
+      verrouillé par tests unitaires Go (`capability_test.go`).
+- [x] **C9. File agrégée** : assignation, priorité et SLA uniformes sur les six files
+      (migration 00071, `triage-board.tsx`, tests Go `queue_triage_test.go`).
 
 ### Lot D — crédibilité plateforme (à faire)
 
