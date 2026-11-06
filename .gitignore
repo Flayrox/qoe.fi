@@ -173,6 +173,13 @@ apps/api/internal/seed/assets/covers/
 .zcode/
 skills-lock.json
 
+# ─── Artefacts d'audit locaux (captures, scripts de debug) ───
+# Sorties d'une passe d'audit manuelle : jamais du code produit.
+.audit/
+
+# Binaire de build local du serveur Go (`go build -o server`)
+apps/api/server
+
 # Artifacts de preview locale (screenshots emulator)
 .preview/
 
