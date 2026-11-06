@@ -214,13 +214,13 @@ export const ADMIN_NAV: readonly AdminNavItem[] = [
     href: '/admin',
     label: 'Vue d’ensemble',
     capability: 'admin.dashboard.read',
-    description: 'Compteurs globaux, santé et couverture de la console',
+    description: 'À traiter, compteurs réels et santé de la plateforme',
   },
   {
     href: '/admin/work',
     label: 'Ma file',
     capability: 'admin.dashboard.read',
-    description: 'Vue agrégée en lecture seule des files métier',
+    description: 'Trier, assigner et suivre les six files avec leurs SLA',
   },
   {
     href: '/admin/health',

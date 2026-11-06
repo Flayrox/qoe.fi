@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { Search } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { SafeAvatar } from '@qoe/ui';
@@ -18,12 +19,27 @@ interface AdminHeaderProps {
 }
 
 export function AdminHeader({ user, roles = [] }: AdminHeaderProps) {
+  const openCommandPalette = () => {
+    document.dispatchEvent(
+      new KeyboardEvent('keydown', {
+        key: 'k',
+        metaKey: true,
+        ctrlKey: true,
+        bubbles: true,
+      })
+    );
+  };
+
   return (
     <header className="absolute top-8 right-8 md:top-12 md:right-12 z-10 flex items-center justify-end w-full pointer-events-none">
       <div className="flex items-center gap-4 pointer-events-auto bg-card/60 backdrop-blur-xl border border-border/50 p-1.5 rounded-full shadow-[0_8px_16px_-4px_rgba(0,0,0,0.05)]">
-        <motion.div
+        <motion.button
+          type="button"
+          onClick={openCommandPalette}
           whileHover={{ scale: 0.98 }}
           whileTap={{ scale: 0.95 }}
+          aria-label="Ouvrir la palette de commandes"
+          aria-haspopup="dialog"
           className="flex items-center gap-2 cursor-pointer group px-3 py-1.5 rounded-full hover:bg-muted/80 transition-colors"
           data-testid="admin-open-command-palette"
         >
@@ -36,7 +52,7 @@ export function AdminHeader({ user, roles = [] }: AdminHeaderProps) {
               ⌘K
             </kbd>
           </div>
-        </motion.div>
+        </motion.button>
 
         <div className="w-px h-5 bg-border/60 hidden sm:block" />
 
@@ -62,13 +78,16 @@ export function AdminHeader({ user, roles = [] }: AdminHeaderProps) {
           </div>
         )}
 
-        <motion.div
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          className="cursor-pointer pr-1"
-          data-testid="admin-header-avatar"
-        >
-          <SafeAvatar name={user?.name} username={user?.username} size={32} shape="circle" />
+        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="pr-1">
+          <Link
+            href="/admin/forbidden"
+            aria-label="Voir mon accès"
+            title="Mon accès"
+            className="block rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EE4B2B]/40"
+            data-testid="admin-header-avatar"
+          >
+            <SafeAvatar name={user?.name} username={user?.username} size={32} shape="circle" />
+          </Link>
         </motion.div>
       </div>
     </header>
