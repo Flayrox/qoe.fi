@@ -190,7 +190,11 @@ Commits du chantier :
 - [x] **D4. SLO + alertes** par surface (commit `d0c32587`, `service_slo.go`, `service_slo_test.go`,
       `SLOConsole.tsx`, `GET /v1/admin/slo`, évaluation des 4 surfaces vitales : latence API p95,
       disponibilité et budget d'erreur 99.9%, outbox et retard de dépilage, dérive de schéma goose v73).
-- [ ] **D5. Outbox observable** : profondeur, retries, blocages, reprise.
+- [x] **D5. Outbox observable** : profondeur, retries, blocages, reprise
+      (commit `14192b02`, `outbox.go`, `outbox_test.go`, `OutboxObservabilityConsole.tsx`,
+      `GET /v1/admin/outbox/metrics`, `POST /v1/admin/outbox/retry-all`,
+      `POST /v1/admin/outbox/unlock-stuck`, `POST /v1/admin/outbox/batch-retry`,
+      détection des verrous fantômes, action groupée `DataGrid`, audit inconditionnel).
 - [ ] **D6. Bac à sable** : seeds et impersonation pour tester sans production.
 
 ## 6. Comment vérifier (à chaque lot)
