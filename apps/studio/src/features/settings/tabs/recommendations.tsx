@@ -116,7 +116,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
         description: noteInput.trim() || undefined,
       });
       if (res.ok) {
-        toast.success(t`Recommandation ajoutée avec succès !`);
+        toast.success(t`Recommandation ajoutée.`);
         setFoundPub(null);
         setDomainInput('');
         setNoteInput('');
@@ -168,18 +168,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
   };
 
   return (
-    <div className="space-y-6">
-      {/* ── EN-TÊTE DE L'ONGLET ── */}
-      <div className="space-y-1.5 pb-6 border-b border-border/40">
-        <div className="flex items-center gap-2.5 text-primary">
-          <Users className="w-5 h-5 stroke-[1.5]" />
-          <h2 className="text-xl font-bold tracking-tight text-foreground">Recommandations</h2>
-        </div>
-        <p className="text-sm text-muted-foreground leading-relaxed max-w-2xl">
-          Mettez en avant les publications que vous lisez.
-        </p>
-      </div>
-
+    <div className="space-y-5">
       {/* ── OPTIONS D'AFFICHAGE SUR LE SITE ── */}
       <div className="rounded-xl border border-border/50 bg-card p-5 space-y-4 shadow-2xs">
         <h3 className="text-sm font-semibold text-foreground tracking-tight">
@@ -260,7 +249,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
           )}
 
           {foundPub && (
-            <div className="p-4 rounded-xl border border-primary/25 bg-primary/5 space-y-3.5 animate-in fade-in duration-200">
+            <div className="space-y-3.5 rounded-lg bg-primary/5 p-4">
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
                   {foundPub.logoUrl ? (
@@ -351,7 +340,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
             </Button>
           </div>
         ) : recommendations.length === 0 ? (
-          <div className="text-center p-8 border border-dashed border-border/60 rounded-2xl space-y-2">
+          <div className="space-y-2 rounded-xl border border-dashed border-border/50 p-8 text-center">
             <Users className="w-8 h-8 text-muted-foreground/40 mx-auto" />
             <p className="text-sm font-medium text-foreground">Aucune recommandation configurée</p>
             <p className="text-xs text-muted-foreground max-w-sm mx-auto">
@@ -359,7 +348,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-3">
+          <div className="grid grid-cols-1">
             {recommendations.map((rec) => {
               const domain =
                 rec.publicationCustomDomain ||
@@ -369,7 +358,7 @@ export function RecommendationsTab({ current, setCurrent }: RecommendationsTabPr
               return (
                 <div
                   key={rec.id}
-                  className="p-4 rounded-xl border border-border/50 bg-card hover:border-border transition-colors flex items-center justify-between gap-4 group"
+                  className="flex items-center justify-between gap-4 border-b border-border/40 py-3 last:border-0"
                 >
                   <div className="flex items-center gap-3.5 min-w-0">
                     {rec.publicationLogoUrl ? (

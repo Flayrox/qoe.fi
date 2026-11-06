@@ -6,232 +6,146 @@
 
 import React from 'react';
 import { t } from '@lingui/core/macro';
-import { toast } from '@qoe/ui/toast';
-import { Badge } from '@qoe/ui/badge';
 import { Button } from '@qoe/ui/button';
 import { Input, Textarea } from '@qoe/ui/input';
 import { Switch } from '@qoe/ui/switch';
-import { Globe, Terminal, Share2, Trash2 } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import type { CreatorProfile } from '../types';
 import { SUPPORTED_SOCIAL_PLATFORMS } from '../types';
 import { SeoPreview } from '../components/seo-preview';
+import { StudioField, StudioRowList, StudioSection } from '@/components/studio-page';
 
 interface SeoTabProps {
   current: CreatorProfile;
   setCurrent: React.Dispatch<React.SetStateAction<CreatorProfile>>;
-  isAdvancedMode: boolean;
-  setIsAdvancedMode: React.Dispatch<React.SetStateAction<boolean>>;
   addSocialLink: (platform: string) => void;
   removeSocialLink: (idx: number) => void;
 }
 
-export function SeoTab({
-  current,
-  setCurrent,
-  isAdvancedMode,
-  setIsAdvancedMode,
-  addSocialLink,
-  removeSocialLink,
-}: SeoTabProps) {
+export function SeoTab({ current, setCurrent, addSocialLink, removeSocialLink }: SeoTabProps) {
+  const availablePlatforms = SUPPORTED_SOCIAL_PLATFORMS.filter(
+    (platform) => !current.socialLinks.some((link) => link.platform === platform.id)
+  );
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-      {/* Formulaire SEO */}
-      <div className="lg:col-span-7 space-y-6">
-        {!isAdvancedMode ? (
-          /* ── Mode Standard : Auto-Pilot SEO ── */
-          <div className="rounded-xl border border-primary/20 bg-primary/5 p-5 space-y-4 shadow-2xs">
-            <div className="flex items-start gap-3">
-              <Globe className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-bold text-foreground">
-                    Référencement entièrement automatisé
-                  </h4>
-                  <Badge
-                    variant="soft"
-                    tone="brand"
-                    shape="pill"
-                    className="uppercase tracking-wider"
-                  >
-                    Auto-Pilot
-                  </Badge>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Qoefi génère et met à jour en continu vos balises méta Google, vos aperçus
-                  OpenGraph / Twitter Cards, votre sitemap XML et les données structurées Schema.org
-                  à partir du nom et du slogan de votre site web.
-                </p>
-              </div>
-            </div>
-
-            <div className="pt-3 border-t border-primary/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-              <span className="text-muted-foreground text-[11px]">
-                Besoin de rédiger manuellement vos balises ou de modifier les robots ?
-              </span>
-              <Button
-                variant="ghost"
-                tone="brand"
-                size="xs"
-                onClick={() => {
-                  setIsAdvancedMode(true);
-                  toast.success(t`Mode Avancé débloqué`);
-                }}
-                className="shrink-0"
-              >
-                <Terminal />
-                <span>Débloquer le mode avancé</span>
-              </Button>
-            </div>
-          </div>
-        ) : (
-          /* ── Mode Avancé : Surcharges manuelles ── */
-          <div className="rounded-xl border border-border/50 bg-card p-5 space-y-4 shadow-2xs">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Terminal className="w-4 h-4 text-primary" />
-                <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Surcharge manuelle SEO (Mode Avancé)
-                </h3>
-              </div>
-              <Badge variant="soft" tone="brand" className="font-mono font-bold">
-                EXPERT
-              </Badge>
-            </div>
-
-            {/* Meta Title */}
-            <div id="meta" className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-foreground block">Titre SEO</label>
-                <span className="text-[10px] text-muted-foreground font-mono">
-                  {current.seoTitle?.length || 0}/60 car.
-                </span>
-              </div>
+    <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">
+      <div className="space-y-6 lg:col-span-7">
+        <StudioSection title="Référencement">
+          <div className="space-y-5">
+            <StudioField
+              label="Titre"
+              htmlFor="seo-title"
+              counter={`${current.seoTitle?.length || 0}/60`}
+              hint="Affiché comme titre du lien dans les résultats de recherche. Laissez vide pour utiliser le nom du site."
+            >
               <Input
+                id="seo-title"
                 type="text"
                 value={current.seoTitle || ''}
-                onChange={(e) => setCurrent((prev) => ({ ...prev, seoTitle: e.target.value }))}
-                placeholder={t`Ex. Le Carnet de Sarah`}
-              />
-              <span className="text-[11px] text-muted-foreground block">
-                Remplace le titre généré automatiquement.
-              </span>
-            </div>
-
-            {/* Meta Description */}
-            <div className="space-y-1.5 pt-2 border-t border-border/30">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-foreground block">
-                  Description SEO
-                </label>
-                <span className="text-[10px] text-muted-foreground font-mono">
-                  {current.seoDescription?.length || 0}/160 car.
-                </span>
-              </div>
-              <Textarea
-                size="sm"
-                value={current.seoDescription || ''}
-                onChange={(e) =>
-                  setCurrent((prev) => ({ ...prev, seoDescription: e.target.value }))
+                onChange={(event) =>
+                  setCurrent((prev) => ({ ...prev, seoTitle: event.target.value }))
                 }
-                placeholder={t`En une phrase, ce que publie votre site.`}
-                rows={3}
+                placeholder={t`Le Carnet de Sarah`}
               />
-              <span className="text-[11px] text-muted-foreground block">
-                Affichée sous le titre dans les résultats de recherche.
-              </span>
-            </div>
+            </StudioField>
 
-            {/* Indexation Switch */}
-            <div id="indexing" className="pt-3 border-t border-border/30">
+            <StudioField
+              label="Description"
+              htmlFor="seo-description"
+              counter={`${current.seoDescription?.length || 0}/160`}
+              hint="Affichée sous le titre. Laissez vide pour reprendre le slogan du site."
+            >
+              <Textarea
+                id="seo-description"
+                size="sm"
+                rows={3}
+                value={current.seoDescription || ''}
+                onChange={(event) =>
+                  setCurrent((prev) => ({ ...prev, seoDescription: event.target.value }))
+                }
+                placeholder={t`En une phrase, ce que publie le site.`}
+              />
+            </StudioField>
+
+            <div className="border-t border-border/40 pt-4">
               <Switch
+                id="allow-indexing"
                 isSelected={current.allowIndexing}
                 onChange={(checked) => setCurrent((prev) => ({ ...prev, allowIndexing: checked }))}
-                label="Indexation par les moteurs de recherche"
-                description="Autoriser les robots de Google, Bing et DuckDuckGo à référencer vos articles."
-                className="w-full"
+                label={t`Autoriser l'indexation`}
+                description={t`Si cette option est désactivée, les moteurs de recherche ne référencent pas le site.`}
               />
             </div>
           </div>
-        )}
+        </StudioSection>
 
-        {/* Footer Text */}
-        <div className="rounded-xl border border-border/50 bg-card p-5 space-y-3 shadow-2xs">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-            Pied de page (Footer)
-          </h3>
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-foreground block">
-              Mention de pied de page
-            </label>
+        <StudioSection title="Pied de page">
+          <StudioField
+            label="Mention"
+            htmlFor="footer-text"
+            hint={t`Affichée en bas de chaque page du site.`}
+          >
             <Textarea
+              id="footer-text"
               size="sm"
-              value={current.footerText || ''}
-              onChange={(e) => setCurrent((prev) => ({ ...prev, footerText: e.target.value }))}
-              placeholder={t`Ex. Tous droits réservés.`}
               rows={2}
+              value={current.footerText || ''}
+              onChange={(event) =>
+                setCurrent((prev) => ({ ...prev, footerText: event.target.value }))
+              }
+              placeholder={t`Tous droits réservés.`}
             />
-            <span className="text-[11px] text-muted-foreground block">
-              Mention affichée en bas de chaque page de votre site.
-            </span>
-          </div>
-        </div>
+          </StudioField>
+        </StudioSection>
 
-        {/* Réseaux sociaux */}
-        <div
-          id="social"
-          className="rounded-xl border border-border/50 bg-card p-5 space-y-4 shadow-2xs"
-        >
-          <div className="flex items-center gap-2 pb-2 border-b border-border/30">
-            <Share2 className="w-4 h-4 text-primary" />
-            <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                Réseaux sociaux
-              </h3>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Vos profils, affichés sur le site.
-              </p>
-            </div>
-          </div>
+        <StudioSection title="Réseaux sociaux">
+          <p className="mb-3 text-xs text-muted-foreground">
+            {t`Les profils renseignés apparaissent sur le site.`}
+          </p>
 
-          <div className="flex flex-wrap gap-2">
-            {SUPPORTED_SOCIAL_PLATFORMS.map((plat) => {
-              const isConnected = current.socialLinks.some((s) => s.platform === plat.id);
-              return (
+          {availablePlatforms.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {availablePlatforms.map((platform) => (
                 <Button
-                  key={plat.id}
+                  key={platform.id}
                   variant="outline"
                   size="xs"
-                  disabled={isConnected}
-                  onClick={() => addSocialLink(plat.id)}
+                  onClick={() => addSocialLink(platform.id)}
                 >
-                  {plat.name} {isConnected && '✓'}
+                  <Plus />
+                  <span>{platform.name}</span>
                 </Button>
-              );
-            })}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              {t`Tous les profils pris en charge sont renseignés.`}
+            </p>
+          )}
 
-          {current.socialLinks.length > 0 && (
-            <div className="space-y-2 pt-2 border-t border-border/30">
-              {current.socialLinks.map((s, idx) => {
+          {current.socialLinks.length > 0 ? (
+            <StudioRowList className="mt-4">
+              {current.socialLinks.map((link, index) => {
                 const platformLabel =
-                  SUPPORTED_SOCIAL_PLATFORMS.find((p) => p.id === s.platform)?.name ?? s.platform;
+                  SUPPORTED_SOCIAL_PLATFORMS.find((platform) => platform.id === link.platform)
+                    ?.name ?? link.platform;
                 return (
                   <div
-                    key={s.platform}
-                    className="flex items-center gap-2 p-2 bg-muted/20 border border-border/30 rounded-lg"
+                    key={link.platform}
+                    className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
                   >
-                    <span className="text-xs font-semibold text-foreground w-24 px-1 truncate">
+                    <span className="w-20 shrink-0 truncate text-xs font-medium text-foreground">
                       {platformLabel}
                     </span>
                     <Input
                       type="url"
                       size="sm"
-                      value={s.url}
-                      aria-label={`URL du profil ${platformLabel}`}
+                      value={link.url}
+                      aria-label={t`URL du profil ${platformLabel}`}
                       placeholder="https://..."
-                      onChange={(e) => {
+                      onChange={(event) => {
                         const updated = [...current.socialLinks];
-                        updated[idx] = { ...updated[idx], url: e.target.value };
+                        updated[index] = { ...updated[index], url: event.target.value };
                         setCurrent((prev) => ({ ...prev, socialLinks: updated }));
                       }}
                       className="flex-1"
@@ -241,23 +155,21 @@ export function SeoTab({
                       tone="danger"
                       size="xs"
                       shape="icon"
-                      onClick={() => removeSocialLink(idx)}
-                      title={`Retirer ${platformLabel}`}
-                      aria-label={`Retirer ${platformLabel}`}
-                      className="shrink-0"
+                      onClick={() => removeSocialLink(index)}
+                      title={t`Retirer ${platformLabel}`}
+                      aria-label={t`Retirer ${platformLabel}`}
                     >
                       <Trash2 />
                     </Button>
                   </div>
                 );
               })}
-            </div>
-          )}
-        </div>
+            </StudioRowList>
+          ) : null}
+        </StudioSection>
       </div>
 
-      {/* Aperçu SEO en direct */}
-      <div className="lg:col-span-5 lg:sticky lg:top-24 space-y-4">
+      <div className="lg:sticky lg:top-28 lg:col-span-5">
         <SeoPreview
           name={current.name}
           subdomain={current.subdomain}
@@ -268,7 +180,6 @@ export function SeoTab({
           headerImageUrl={current.headerImageUrl}
           logoUrl={current.logoUrl}
           allowIndexing={current.allowIndexing}
-          isAdvancedMode={isAdvancedMode}
         />
       </div>
     </div>

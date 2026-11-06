@@ -1,6 +1,5 @@
 import React, { useMemo } from 'react';
 import Link from 'next/link';
-import { Badge } from '@qoe/ui/badge';
 import { Button, buttonClasses } from '@qoe/ui/button';
 import { Input } from '@qoe/ui/input';
 import {
@@ -354,7 +353,7 @@ export function NavigationTab({
             ci-dessous.
           </div>
         ) : (
-          <div className="p-3 bg-muted/20 border border-border/40 rounded-xl overflow-x-auto flex items-center gap-2 select-none">
+          <div className="flex items-center gap-2 overflow-x-auto rounded-lg bg-muted/30 p-3 select-none">
             {visibleNavbarItems.map((item) => (
               <div
                 key={item.key}
@@ -400,8 +399,8 @@ export function NavigationTab({
               <div
                 key={item.key}
                 className={cn(
-                  'flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-2.5 bg-muted/20 border border-border/40 rounded-xl transition-all',
-                  !item.isVisible && 'opacity-60 bg-muted/10'
+                  'flex flex-col justify-between gap-2.5 border-b border-border/40 py-3 last:border-0 sm:flex-row sm:items-center',
+                  !item.isVisible && 'opacity-60'
                 )}
               >
                 <div className="flex items-center gap-2.5 min-w-0 flex-1">
@@ -432,7 +431,7 @@ export function NavigationTab({
                   </div>
 
                   {/* Icône du type */}
-                  <div className="p-1.5 rounded-lg bg-muted/60 border border-border/40 text-foreground shrink-0">
+                  <div className="shrink-0 text-muted-foreground">
                     {item.type === 'home' && <Home className="w-3.5 h-3.5" />}
                     {item.type === 'category' && (
                       <FolderTree className="w-3.5 h-3.5 text-primary" />
@@ -446,26 +445,15 @@ export function NavigationTab({
 
                   {/* Intitulé & destination */}
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-semibold text-foreground truncate">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="truncate text-xs font-semibold text-foreground">
                         {item.label}
                       </span>
-                      {item.type === 'home' && <Badge variant="outline">Accueil</Badge>}
-                      {item.type === 'category' && (
-                        <Badge variant="outline" tone="brand">
-                          Rubrique{' '}
-                          {item.subCount && item.subCount > 0
-                            ? `(${item.subCount} sous-rubriques)`
-                            : ''}
-                        </Badge>
-                      )}
-                      {item.type === 'page' && <Badge variant="outline">Page interne</Badge>}
-                      {item.type === 'mail' && (
-                        <Badge variant="outline" tone="brand">
-                          Email direct
-                        </Badge>
-                      )}
-                      {item.type === 'link' && <Badge variant="outline">Lien externe</Badge>}
+                      {item.type === 'category' && item.subCount ? (
+                        <span className="text-[10px] text-muted-foreground">
+                          {item.subCount} sous-rubrique{item.subCount > 1 ? 's' : ''}
+                        </span>
+                      ) : null}
                     </div>
                     <span className="text-[10px] font-mono text-muted-foreground truncate block">
                       {item.url}
@@ -577,7 +565,7 @@ export function NavigationTab({
               return (
                 <div
                   key={globalIndex}
-                  className="p-3 bg-muted/20 border border-border/40 rounded-xl space-y-2"
+                  className="space-y-2 border-b border-border/40 py-3 last:border-0"
                 >
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                     <Input
@@ -623,19 +611,18 @@ export function NavigationTab({
                     />
 
                     {isMail ? (
-                      <Badge variant="outline" tone="brand">
-                        <Mail />
-                        <span>Email direct</span>
-                      </Badge>
+                      <span className="flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground">
+                        <Mail className="size-3" />
+                        Email
+                      </span>
                     ) : nav.isExternal ? (
-                      <Badge
-                        variant="outline"
-                        tone="vivid"
-                        title="Ce lien externe sera sécurisé par la page d'avertissement avant redirection hors de la publication."
+                      <span
+                        className="flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground"
+                        title="Ce lien externe passe par la page d'avertissement avant redirection hors de la publication."
                       >
-                        <Shield />
-                        <span className="hidden sm:inline">Sortie sécurisée</span>
-                      </Badge>
+                        <Shield className="size-3" />
+                        Externe
+                      </span>
                     ) : null}
 
                     <Button
@@ -654,7 +641,7 @@ export function NavigationTab({
 
                   {/* Suggestion intuitive pour convertir en mailto: */}
                   {isRawEmail && (
-                    <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 bg-primary/5 border border-primary/20 rounded-lg">
+                    <div className="flex items-center justify-between gap-2 rounded-md bg-primary/5 px-2.5 py-1.5">
                       <span className="text-[11px] text-muted-foreground">
                         Adresse email reconnue. Voulez-vous activer le lien direct de messagerie ?
                       </span>
@@ -736,8 +723,8 @@ export function NavigationTab({
                   key={cat.id}
                   style={isSubcategory ? { marginLeft: Math.min(depth, 3) * 16 } : undefined}
                   className={cn(
-                    'flex flex-col sm:flex-row sm:items-center gap-2.5 p-2.5 bg-muted/20 border border-border/40 rounded-xl transition-all',
-                    isSubcategory && 'border-l-2 border-l-primary/70 bg-muted/30'
+                    'flex flex-col gap-2.5 border-b border-border/40 py-3 last:border-0 sm:flex-row sm:items-center',
+                    isSubcategory && 'border-l-2 border-l-primary/40 pl-3'
                   )}
                 >
                   <div className="flex items-center gap-2 min-w-0 flex-1">

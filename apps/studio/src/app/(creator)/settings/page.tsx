@@ -8,9 +8,11 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@qoe/supabase/server';
 import { goFetch } from '@qoe/sdk/actions/utils/go-client';
+import { buttonClasses } from '@qoe/ui/button';
 import { getActiveWorkspace } from '@/lib/active-workspace';
 import SettingsView from '@/features/settings/settings';
 import type { CreatorProfile } from '@/features/settings/types';
+import { StudioPage, StudioSection } from '@/components/studio-page';
 
 // Contrat Go GET /v1/settings/publication — mêmes champs JSON que le include
 // Prisma d'origine (le mapping vers CreatorProfile ci-dessous est inchangé).
@@ -96,10 +98,10 @@ export default async function CreatorSettingsPage() {
 
   if (!publication) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 text-center border rounded-2xl bg-destructive/5 border-destructive/10">
-        <h2 className="text-lg font-bold text-destructive-text">Publication introuvable</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Veuillez contacter le support si l'erreur persiste.
+      <div className="flex flex-col items-center justify-center rounded-xl border border-destructive/20 bg-destructive/5 p-12 text-center">
+        <h2 className="text-lg font-semibold text-destructive-text">Publication introuvable</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Contactez le support si l&apos;erreur persiste.
         </p>
       </div>
     );
@@ -169,27 +171,23 @@ export default async function CreatorSettingsPage() {
   };
 
   return (
-    <div className="space-y-12">
+    <StudioPage className="space-y-10">
       <SettingsView initialCreator={initialCreatorData} publicationId={publication.id} />
 
-      <div className="mx-auto w-full max-w-6xl">
-        <div className="flex flex-col justify-between gap-4 rounded-xl border border-border/50 bg-card p-5 shadow-2xs sm:flex-row sm:items-center">
-          <div className="space-y-1">
-            <h3 className="text-sm font-semibold text-foreground">Sécurité du compte</h3>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Pour modifier votre mot de passe, votre adresse e-mail, la double authentification
-              (2FA) ou vos sessions actives, rendez-vous sur les paramètres de votre compte
-              personnel.
-            </p>
-          </div>
+      <StudioSection title="Compte">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="max-w-xl text-xs leading-relaxed text-muted-foreground">
+            Le mot de passe, l&apos;adresse e-mail, la double authentification et les sessions
+            actives se gèrent depuis les paramètres du compte personnel.
+          </p>
           <a
             href="https://qoe.fi/settings"
-            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-muted text-foreground hover:bg-muted/80 border border-border/60 text-xs font-semibold shrink-0 transition-all shadow-xs"
+            className={buttonClasses({ variant: 'outline', size: 'sm' })}
           >
             Gérer mon compte
           </a>
         </div>
-      </div>
-    </div>
+      </StudioSection>
+    </StudioPage>
   );
 }

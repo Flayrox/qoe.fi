@@ -1,15 +1,16 @@
 'use client';
 
 // =====================================================================
-// 🔍 SeoPreview — Simulateur Google SERP & Carte Réseaux Sociaux (SEO)
+// 🔍 SeoPreview — aperçu d'un résultat Google et d'une carte de partage
 // =====================================================================
-// Supporte l'Auto-Pilot (Zero-Config par défaut) et le Mode Avancé
-// avec strict respect des tokens sémantiques @qoe/theme.
+// Deux rendus, pas de badges ni de scores : ce que verront les lecteurs.
 // =====================================================================
 
 import React, { useState } from 'react';
 import Image from 'next/image';
-import { Search, Share2, Globe, ShieldCheck, ShieldAlert, Check } from 'lucide-react';
+import { Globe } from 'lucide-react';
+import { Tab, TabList, Tabs } from '@qoe/ui/tabs';
+import { StudioSection } from '@/components/studio-page';
 
 interface SeoPreviewProps {
   name: string | null;
@@ -21,8 +22,9 @@ interface SeoPreviewProps {
   headerImageUrl: string | null;
   logoUrl: string | null;
   allowIndexing: boolean;
-  isAdvancedMode?: boolean;
 }
+
+type PreviewView = 'search' | 'share';
 
 export function SeoPreview({
   name,
@@ -34,175 +36,102 @@ export function SeoPreview({
   headerImageUrl,
   logoUrl,
   allowIndexing,
-  isAdvancedMode = false,
 }: SeoPreviewProps) {
-  const [view, setView] = useState<'google' | 'social'>('google');
+  const [view, setView] = useState<PreviewView>('search');
 
   const domain = customDomain || `${subdomain || 'publication'}.qoe.fi`;
-  const url = `https://${domain}`;
 
-  // En mode auto-pilot (sans surcharge manuelle), Qoefi génère le meilleur titre et description
-  const computedTitle =
+  // Sans surcharge, l'aperçu montre ce que le site génère déjà : le nom et
+  // le slogan. C'est exactement ce que le visiteur verra tant que les champs
+  // restent vides.
+  const title =
     seoTitle?.trim() ||
-    `${name || 'Ma Publication'} — ${heroText?.trim() || 'Écrits, analyses et récits'}`;
-  const computedDescription =
+    `${name || 'Ma publication'}${heroText?.trim() ? ` — ${heroText.trim()}` : ''}`;
+  const description =
     seoDescription?.trim() ||
     heroText?.trim() ||
     `Publications, analyses et articles de ${name || 'cette publication'}.`;
 
-  const isAutoManaged = !isAdvancedMode && !seoTitle && !seoDescription;
-
   return (
-    <div className="rounded-xl border border-border/60 bg-card overflow-hidden shadow-sm">
-      {/* Header bar with switch */}
-      <div className="px-4 py-3 bg-muted/30 border-b border-border/40 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          {allowIndexing ? (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold tracking-wider uppercase border border-primary/20">
-              <ShieldCheck className="w-3 h-3" />
-              Indexable
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-destructive/10 text-destructive-text text-[10px] font-bold tracking-wider uppercase border border-destructive/20">
-              <ShieldAlert className="w-3 h-3" />
-              Non indexé
-            </span>
-          )}
+    <StudioSection title="Aperçu">
+      <Tabs
+        variant="segmented"
+        size="sm"
+        value={view}
+        onValueChange={(value) => setView(value as PreviewView)}
+        className="mb-4"
+      >
+        <TabList aria-label="Type d'aperçu">
+          <Tab id="search">Résultat Google</Tab>
+          <Tab id="share">Carte de partage</Tab>
+        </TabList>
+      </Tabs>
 
-          {isAutoManaged && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold tracking-wider uppercase border border-primary/20">
-              <Globe className="w-2.5 h-2.5" />
-              Auto-Pilot
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-1 bg-muted/60 rounded-lg p-0.5">
-          <button
-            type="button"
-            onClick={() => setView('google')}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
-              view === 'google'
-                ? 'bg-background text-foreground shadow-2xs font-semibold'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Search className="w-3 h-3" />
-            <span>Google SERP</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setView('social')}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
-              view === 'social'
-                ? 'bg-background text-foreground shadow-2xs font-semibold'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Share2 className="w-3 h-3" />
-            <span>Partage Réseaux</span>
-          </button>
-        </div>
-      </div>
-
-      <div className="p-5">
-        {view === 'google' ? (
-          /* ──────── Google Search Simulator ──────── */
-          <div className="space-y-2 bg-background p-4 rounded-xl border border-border/40 shadow-2xs">
-            {/* Breadcrumb line */}
-            <div className="flex items-center gap-2 text-xs">
-              <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold text-foreground overflow-hidden border border-border/40 shrink-0">
-                {logoUrl ? (
-                  <Image
-                    src={logoUrl}
-                    alt="Favicon"
-                    width={20}
-                    height={20}
-                    className="object-cover"
-                  />
-                ) : (
-                  (name || 'Q').charAt(0).toUpperCase()
-                )}
-              </div>
-              <div className="flex flex-col">
-                <span className="text-xs font-medium text-foreground leading-none">
-                  {name || 'Publication'}
-                </span>
-                <span className="text-[11px] text-muted-foreground truncate max-w-[280px]">
-                  {url}
-                </span>
-              </div>
-            </div>
-
-            {/* Clickable Title */}
-            <h4 className="text-base font-semibold text-primary hover:underline cursor-pointer leading-snug">
-              {computedTitle}
-            </h4>
-
-            {/* Description snippet */}
-            <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">
-              {computedDescription}
-            </p>
-          </div>
-        ) : (
-          /* ──────── Social OpenGraph / Twitter Card Simulator ──────── */
-          <div className="rounded-xl border border-border/40 overflow-hidden bg-background shadow-2xs max-w-md mx-auto">
-            {/* Social Card Image */}
-            <div className="relative w-full h-44 bg-muted/40 overflow-hidden">
-              {headerImageUrl ? (
+      {view === 'search' ? (
+        <div className="space-y-1.5">
+          <div className="flex items-center gap-2">
+            <div className="flex size-5 shrink-0 items-center justify-center overflow-hidden rounded-full border border-border/50 bg-muted text-[10px] font-semibold text-foreground">
+              {logoUrl ? (
                 <Image
-                  src={headerImageUrl}
-                  alt={computedTitle}
-                  fill
-                  className="object-cover"
-                  sizes="400px"
+                  src={logoUrl}
+                  alt=""
+                  width={20}
+                  height={20}
+                  className="size-5 object-cover"
                 />
               ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center bg-muted/30 p-4 text-center">
-                  <Globe className="w-8 h-8 text-primary/40 mb-2" />
-                  <span className="text-xs font-bold text-foreground">{name || 'Publication'}</span>
-                </div>
+                (name || 'Q').charAt(0).toUpperCase()
               )}
             </div>
-
-            {/* Social Card Metadata */}
-            <div className="p-3.5 space-y-1">
-              <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">
-                {domain}
+            <div className="min-w-0">
+              <span className="block truncate text-xs font-medium leading-tight text-foreground">
+                {name || 'Publication'}
               </span>
-              <h5 className="text-xs font-bold text-foreground line-clamp-1">{computedTitle}</h5>
-              <p className="text-[11px] text-muted-foreground line-clamp-2 leading-relaxed">
-                {computedDescription}
-              </p>
+              <span className="block truncate text-[11px] text-muted-foreground">{domain}</span>
             </div>
           </div>
-        )}
 
-        {/* Auto-pilot Benefits Recap */}
-        {isAutoManaged && (
-          <div className="mt-4 pt-3 border-t border-border/30 space-y-1.5 text-[11px] text-muted-foreground">
-            <div className="flex items-center gap-1.5 text-foreground font-semibold">
-              <Check className="w-3.5 h-3.5 text-primary" />
-              <span>Optimisations automatiques actives :</span>
-            </div>
-            <ul className="space-y-1 pl-5 list-disc text-muted-foreground">
-              <li>Balises OpenGraph & Twitter Cards enrichies</li>
-              <li>Sitemap XML généré et mis à jour automatiquement</li>
-              <li>Données structurées JSON-LD (Schema.org / WebSite)</li>
-            </ul>
+          <h3 className="text-base leading-snug font-medium text-primary">{title}</h3>
+          <p className="line-clamp-3 text-xs leading-relaxed text-muted-foreground">
+            {description}
+          </p>
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-lg border border-border/50">
+          <div className="relative h-40 w-full overflow-hidden bg-muted/40">
+            {headerImageUrl ? (
+              <Image
+                src={headerImageUrl}
+                alt=""
+                fill
+                className="object-cover"
+                sizes="(max-width: 1024px) 100vw, 420px"
+              />
+            ) : (
+              <div className="flex size-full flex-col items-center justify-center gap-2 p-4 text-center">
+                <Globe className="size-6 text-muted-foreground/50" />
+                <span className="text-xs font-medium text-foreground">{name || 'Publication'}</span>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+          <div className="space-y-1 p-3">
+            <span className="block font-mono text-[10px] tracking-wider text-muted-foreground uppercase">
+              {domain}
+            </span>
+            <h3 className="line-clamp-1 text-xs font-semibold text-foreground">{title}</h3>
+            <p className="line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">
+              {description}
+            </p>
+          </div>
+        </div>
+      )}
 
-      <div className="px-5 py-2.5 bg-muted/20 border-t border-border/30 flex items-center justify-between text-[11px] text-muted-foreground">
-        <span>
-          Titre : <strong className="text-foreground">{computedTitle.length}</strong> car.
-        </span>
-        <span>
-          Description : <strong className="text-foreground">{computedDescription.length}</strong>{' '}
-          car.
-        </span>
-      </div>
-    </div>
+      {!allowIndexing ? (
+        <p className="mt-4 border-t border-border/40 pt-3 text-[11px] leading-relaxed text-muted-foreground">
+          L&apos;indexation est désactivée : le site n&apos;apparaîtra pas dans les résultats de
+          recherche, mais cet aperçu reste celui d&apos;une page partagée.
+        </p>
+      ) : null}
+    </StudioSection>
   );
 }

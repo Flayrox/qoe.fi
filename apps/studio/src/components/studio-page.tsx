@@ -103,3 +103,94 @@ export function StudioSection({
     </section>
   );
 }
+
+/**
+ * Une liste de réglages : des lignes séparées par un filet, pas des cartes
+ * dans la carte. C'est la règle qui manquait aux réglages, où chaque switch
+ * vivait dans sa propre boîte bordée, elle-même dans une carte.
+ */
+export function StudioRowList({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return <div className={cn('divide-y divide-border/40', className)}>{children}</div>;
+}
+
+/**
+ * Une ligne de réglage : libellé et explication à gauche, contrôle à droite.
+ * Le contrôle reste sur sa propre ligne en dessous de `sm`.
+ */
+export function StudioRow({
+  title,
+  description,
+  htmlFor,
+  children,
+  className,
+}: {
+  title: React.ReactNode;
+  description?: React.ReactNode;
+  htmlFor?: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        'flex flex-col gap-3 py-4 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between',
+        className
+      )}
+    >
+      <div className="min-w-0">
+        {htmlFor ? (
+          <label htmlFor={htmlFor} className="block text-sm font-medium text-foreground">
+            {title}
+          </label>
+        ) : (
+          <span className="block text-sm font-medium text-foreground">{title}</span>
+        )}
+        {description ? (
+          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{description}</p>
+        ) : null}
+      </div>
+      <div className="shrink-0 sm:pl-6">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * Un champ de formulaire : libellé, compteur optionnel, contrôle, aide.
+ * Évite de réécrire quatre fois le même empilement dans chaque onglet.
+ */
+export function StudioField({
+  label,
+  hint,
+  counter,
+  htmlFor,
+  children,
+}: {
+  label: React.ReactNode;
+  hint?: React.ReactNode;
+  counter?: React.ReactNode;
+  htmlFor?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-baseline justify-between gap-3">
+        <label htmlFor={htmlFor} className="text-xs font-semibold text-foreground">
+          {label}
+        </label>
+        {counter ? (
+          <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
+            {counter}
+          </span>
+        ) : null}
+      </div>
+      {children}
+      {hint ? <p className="text-[11px] leading-relaxed text-muted-foreground">{hint}</p> : null}
+    </div>
+  );
+}
