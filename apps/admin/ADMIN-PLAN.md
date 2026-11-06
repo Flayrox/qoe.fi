@@ -8,7 +8,7 @@
 > [« 📝 Instructions »](#-instructions) en bas. Elle est prioritaire sur le
 > reste du plan.
 
-Dernière mise à jour : 2026-11-06 · branche `dev` · travail non poussé · dernier commit `b251703e` (Lot D6 terminé, Lot D complet).
+Dernière mise à jour : 2026-11-06 · branche `dev` · travail non poussé · dernier commit `3f89771c` (Tous les lots A, B, C, D 100% terminés et vérifiés).
 
 ---
 
@@ -82,6 +82,8 @@ Commits du chantier :
 | `d0c32587` | SLO + alertes (D4) : santé 4 surfaces (latence, budget erreur, outbox, dérive goose v73), console `/admin/health` |
 | `14192b02` | Outbox observable (D5) : profondeur, verrous fantômes >10m, reprise en masse, actions groupées |
 | `b251703e` | Bac à sable (D6) : 5 scénarios de seed isolés, impersonation auditée, step-up N2, console `/admin/sandbox` |
+| `58bf736e` | Ergonomie avancée (B4, B5, B7) : largeur min, actions groupées priorité/échéance avec annulation, raccourcis e, /, f, v, g+lettre |
+| `3f89771c` | Vues d'équipe en base (B3) : table AdminSavedView (migration 00074, goose v74), routes Go /v1/admin/views, sync useGridView |
 
 ## 4. Ce qui existe (surface actuelle)
 
@@ -111,7 +113,7 @@ Commits du chantier :
 - [x] Fin du mono, des emoji d'interface et des arrondis décoratifs.
 - [x] Zéro `<select>` / `<table>` natif dans `apps/admin`.
 
-### Lot B — ergonomie de masse (en cours)
+### Lot B — ergonomie de masse ✅ (fait)
 
 - [x] **B1. Facettes de filtre** : barre compacte (chips) au-dessus de chaque
       grille — file, état SLA, priorité, rôle, statut de compte, assignation,
@@ -122,19 +124,16 @@ Commits du chantier :
       vivent dans `?sort=…&f=statut:open&d=compact&c=email,role`. Une URL est
       partageable et rechargeable (`components/shell/grid-view.ts`).
 - [x] **B3. Vues sauvegardées** : nommer une combinaison (filtres + tri +
-      colonnes + densité), l'épingler, la rejouer ; stockage local par personne
-      (`qoe.admin.views.<resource>`). *Reste : passage en base
-      (`admin_saved_views`) pour les vues d'équipe.*
+      colonnes + densité), l'épingler, la rejouer ; stockage local et persistance en base
+      (`AdminSavedView`, migration `00074`, commit `3f89771c`) pour le partage avec l'équipe staff.
 - [x] **B4. Colonnes configurables** : masquer/afficher, réordonner
       (flèches ↑/↓ dans le menu « Colonnes », ordre dans `?o=` et dans la vue
-      nommée, appliqué par `DataGrid` via `columnOrder`) ; mémorisé avec la vue.
-      *Reste : largeur minimale.*
+      nommée, appliqué par `DataGrid` via `columnOrder`) ; largeur minimale (`minWidth`) garantie (commit `58bf736e`).
 - [x] **B5. Sélection + actions groupées** : `DataGrid` (`selectable`,
       `bulkActions`, `TableSelectAllCell`/`TableSelectionCell`, « Tout
       désélectionner ») + barre de 28 px réservée à la sélection +
-      `WorkTable` (« M'assigner » en boucle séquentielle auditée, **Annuler**
-      qui remet à zéro l'assignation des lignes qui n'en avaient pas).
-      *Reste : priorité / échéance / statut groupés.*
+      `WorkTable` & `TriageBoard` (assignation, libération, priorité et échéance groupées,
+      et bouton **Annuler** restaurant l'état complet précédent) (commit `58bf736e`).
 - [x] **B6. Panneau de détail 480 px** : `Drawer` de `@qoe/ui/drawer` ouvert
       par `Entrée` (`onRowOpen`) ou le clic droit (« Aperçu du dossier ») ;
       identifiant copiable, file, priorité, SLA, échéance, assigné, actions
@@ -142,8 +141,8 @@ Commits du chantier :
 - [x] **B7. Clavier** : `j/k` curseur (surbrillance + `scrollIntoView`),
       `x` sélection, `Entrée` détail (`onRowOpen`) ou navigation (`rowHref`),
       `a` assigner (`onAssign`), `r` `router.refresh()`, `?` aide en surimpression,
-      `Échap` ferme/vide — sur tout `DataGrid` focusable. *Reste : `e` édition
-      inline, `/` recherche, `f` facettes, `v` vues, `g`+lettre.*
+      `Échap` ferme/vide, `e` édition inline, `/` recherche rapide, `f` focus facettes,
+      `v` menu vues, `g`+lettre accord de navigation rapide (commit `58bf736e`).
 - [x] **B8. Édition inline générique** : champ scalaire déclaré dans la spec,
       écriture optimiste, statut `Audité · à …`, rollback sur échec (`InlineChoice`,
       `InlineText`, `InlineDate`, `InlineToggle` dans `components/shell/InlineScalar.tsx`
@@ -152,7 +151,7 @@ Commits du chantier :
       volumes, stockage, outbox) — zéro hauteur supplémentaire. Fait sur
       dashboard, work, reports, appeals, abuse, support, approvals, notifications.
 
-### Lot C — plan de contrôle (à faire)
+### Lot C — plan de contrôle ✅ (fait)
 
 - [x] **C1. `ResourceSpec`** : extraire `query` + `facets` + `rowActions` +
       `detail` de chaque écran dans un registre `lib/admin-resources.ts` (`ADMIN_RESOURCES`).
@@ -181,7 +180,7 @@ Commits du chantier :
 - [x] **C9. File agrégée** : assignation, priorité et SLA uniformes sur les six files
       (migration 00071, `triage-board.tsx`, tests Go `queue_triage_test.go`).
 
-### Lot D — crédibilité plateforme
+### Lot D — crédibilité plateforme ✅ (fait)
 
 - [x] **D1. DSAR** : export et effacement par personne, avec preuve et délai
       (commit `6c282740`, `dsar.go`, `DSARRequestsManager.tsx`, `UserDSARPanel.tsx`,
@@ -195,7 +194,7 @@ Commits du chantier :
       contrôle universel `UniversalExportVerifierPanel.tsx`, streaming direct Next.js, step-up N2).
 - [x] **D4. SLO + alertes** par surface (commit `d0c32587`, `service_slo.go`, `service_slo_test.go`,
       `SLOConsole.tsx`, `GET /v1/admin/slo`, évaluation des 4 surfaces vitales : latence API p95,
-      disponibilité et budget d'erreur 99.9%, outbox et retard de dépilage, dérive de schéma goose v73).
+      disponibilité et budget d'erreur 99.9%, outbox et retard de dépilage, conformité de schéma goose v74).
 - [x] **D5. Outbox observable** : profondeur, retries, blocages, reprise
       (commit `14192b02`, `outbox.go`, `outbox_test.go`, `OutboxObservabilityConsole.tsx`,
       `GET /v1/admin/outbox/metrics`, `POST /v1/admin/outbox/retry-all`,
