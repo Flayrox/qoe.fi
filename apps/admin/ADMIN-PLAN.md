@@ -111,12 +111,12 @@ Commits du chantier :
 - [~] **B4. Colonnes configurables** : masquer/afficher, réordonner, largeur
       minimale ; mémorisé avec la vue. *Fait : masquer/afficher + mémorisation.
       Reste : réordonnancement, largeur.*
-- [~] **B5. Sélection + actions groupées** : `selectionMode="multiple"`,
-      barre de 28 px qui n'apparaît qu'à la sélection, actions groupées,
-      **undo** pour le réversible. *Fait : `DataGrid` (`selectable`,
+- [x] **B5. Sélection + actions groupées** : `DataGrid` (`selectable`,
       `bulkActions`, `TableSelectAllCell`/`TableSelectionCell`, « Tout
-      désélectionner ») + `WorkTable` (« M'assigner » en boucle séquentielle
-      auditée). Reste : priorité/échéance/statut groupés, undo.*
+      désélectionner ») + barre de 28 px réservée à la sélection +
+      `WorkTable` (« M'assigner » en boucle séquentielle auditée, **Annuler**
+      qui remet à zéro l'assignation des lignes qui n'en avaient pas).
+      *Reste : priorité / échéance / statut groupés.*
 - [x] **B6. Panneau de détail 480 px** : `Drawer` de `@qoe/ui/drawer` ouvert
       par `Entrée` (`onRowOpen`) ou le clic droit (« Aperçu du dossier ») ;
       identifiant copiable, file, priorité, SLA, échéance, assigné, actions

@@ -85,6 +85,7 @@ export function WorkTable({
   const router = useRouter();
   const [status, setStatus] = React.useState<string | null>(null);
   const [preview, setPreview] = React.useState<AdminQueueTriageEntry | null>(null);
+  const [undoable, setUndoable] = React.useState<AdminQueueTriageEntry[]>([]);
   const grid = useGridView('admin.work', { column: 'sla', direction: 'ascending' });
 
   const assign = (entry: AdminQueueTriageEntry) => {
@@ -132,6 +133,34 @@ export function WorkTable({
       }
       setStatus(
         `${rows.length} dossier(s) assigné(s) · audité à ${new Date().toLocaleTimeString('fr-FR')}`
+      );
+      router.refresh();
+    })();
+  };
+
+  const undoAssign = (rows: AdminQueueTriageEntry[]) => {
+    void (async () => {
+      for (const row of rows) {
+        const result = await attemptWithStepUp(
+          () =>
+            triageQueueItemAction({
+              queue: row.queue,
+              id: row.id,
+              priority: row.priority,
+              dueAt: row.dueAt ?? '',
+              assignToMe: false,
+              clearAssignee: true,
+            }),
+          { reason: 'Annuler une assignation groupée' }
+        );
+        if (!result.ok) {
+          notifyActionFailure(result, readMessage(result) ?? 'Annulation impossible');
+          return;
+        }
+      }
+      setUndoable([]);
+      setStatus(
+        `Assignation annulée sur ${rows.length} dossier(s) · audité à ${new Date().toLocaleTimeString('fr-FR')}`
       );
       router.refresh();
     })();
@@ -242,8 +271,19 @@ export function WorkTable({
         count={visible.length}
       />
       {status && (
-        <p role="status" className="text-[11px] text-muted-foreground">
-          {status}
+        <p role="status" className="flex items-center gap-2 text-[11px] text-muted-foreground">
+          <span>{status}</span>
+          {undoable.length > 0 && (
+            <Button
+              type="button"
+              size="xs"
+              variant="ghost"
+              className="h-5 px-1 text-[11px] underline underline-offset-2"
+              onClick={() => undoAssign(undoable)}
+            >
+              Annuler
+            </Button>
+          )}
         </p>
       )}
       <DataGrid
